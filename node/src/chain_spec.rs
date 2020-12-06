@@ -24,13 +24,12 @@ use cord_node_runtime::{
 	WASM_BINARY,
 };
 
-// use sc_service::{self, ChainType, Properties};
-use sc_service::{self, ChainType};
+use sc_service::{self, ChainType, Properties};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use cord_node_runtime::constants::currency::UNITS;
+use cord_node_runtime::constants::currency::PECKS;
 use hex;
 
 // Note this is the URL for the telemetry server
@@ -85,43 +84,13 @@ pub fn authority_keys_from_seed(s: &str) -> (AccountId, AuraId, GrandpaId) {
 	)
 }
 
-
-/// Build a pair of public keys from a given hex string. This method will panic if the hex string is malformed.
-///
-/// public_key – the public key formatted as a hex string
-// fn as_authority_key(public_key: [u8; 32]) -> (AccountId, AuraId, GrandpaId) {
-// 	(
-// 		public_key.into(),
-// 		public_key.unchecked_into(),
-// 		public_key.unchecked_into(),
-// 	)
-// }
-
-// const TEST_AUTH_ALICE: [u8; 32] =
-// 	hex!("58d3bb9e9dd245f3dec8d8fab7b97578c00a10cf3ca9d224caaa46456f91c46c");
-// const TEST_AUTH_BOB: [u8; 32] =
-// 	hex!("d660b4470a954ecc99496d4e4b012ee9acac3979e403967ef09de20da9bdeb28");
-// const TEST_AUTH_CHARLIE: [u8; 32] =
-// 	hex!("2ecb6a4ce4d9bc0faab70441f20603fcd443d6d866e97c9e238a2fb3e982ae2f");
-// const TEST_FAUCET: [u8; 32] =
-// 	hex!("3cd78d9e468030ac8eff5b5d2b40e35aa9db01a9e48997e61f97f0da8c572411");
-
-// const DEV_AUTH_ALICE: [u8; 32] =
-// 	hex!("d44da634611d9c26837e3b5114a7d460a4cb7d688119739000632ed2d3794ae9");
-// const DEV_AUTH_BOB: [u8; 32] =
-// 	hex!("06815321f16a5ae0fe246ee19285f8d8858fe60d5c025e060922153fcf8e54f9");
-// const DEV_AUTH_CHARLIE: [u8; 32] =
-// 	hex!("6d2d775fdc628134e3613a766459ccc57a29fd380cd410c91c6c79bc9c03b344");
-// const DEV_FAUCET: [u8; 32] =
-// 	hex!("2c9e9c40e15a2767e2d04dc1f05d824dd76d1d37bada3d7bb1d40eca29f3a4ff");
-
 impl Alternative {
 	/// Get an actual chain config from one of the alternatives.
 	pub(crate) fn load(self) -> Result<ChainSpec, String> {
 		let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
-		// let mut properties = Properties::new();
+		let mut properties = Properties::new();
 		// properties.insert("tokenSymbol".into(), "UNIT".into());
-		// properties.insert("tokenDecimals".into(), 10.into());
+		properties.insert("tokenDecimals".into(), 8.into());
 		Ok(match self {
 			Alternative::Development => {
 				ChainSpec::from_genesis(
@@ -147,7 +116,7 @@ impl Alternative {
 					vec![],
 					None,
 					Some(DEFAULT_PROTOCOL_ID),
-					None, //Some(properties),
+					Some(properties),
 					None,
 				)
 			}
@@ -162,11 +131,13 @@ impl Alternative {
 							vec![
 								authority_keys_from_seed("Alice"),
 								authority_keys_from_seed("Bob"),
+								authority_keys_from_seed("Charlie"),
 							],
 							get_account_id_from_seed::<sr25519::Public>("Alice"),
 							vec![
 								get_account_id_from_seed::<sr25519::Public>("Alice"),
 								get_account_id_from_seed::<sr25519::Public>("Bob"),
+								get_account_id_from_seed::<sr25519::Public>("Charlie"),
 								get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
 								get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
 							],
@@ -176,7 +147,7 @@ impl Alternative {
 					vec![],
 					None,
 					Some(DEFAULT_PROTOCOL_ID),
-					None, //Some(properties),
+					Some(properties),
 					None,
 				)
 			}
@@ -192,11 +163,13 @@ impl Alternative {
 							vec![
 								authority_keys_from_seed("Alice"),
 								authority_keys_from_seed("Bob"),
+								authority_keys_from_seed("Charlie"),
 							],
 							get_account_id_from_seed::<sr25519::Public>("Alice"),
 							vec![
 								get_account_id_from_seed::<sr25519::Public>("Alice"),
 								get_account_id_from_seed::<sr25519::Public>("Bob"),
+								get_account_id_from_seed::<sr25519::Public>("Charlie"),
 								get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
 								get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
 							],
@@ -206,70 +179,10 @@ impl Alternative {
 					vec![],
 					None,
 					Some(DEFAULT_PROTOCOL_ID),
-					None, //Some(properties),
+					Some(properties),
 					None,
 				)
 			}
-			// Alternative::KiltTestnet => {
-			// 	ChainSpec::from_genesis(
-			// 		"KILT Testnet",
-			// 		"kilt_testnet",
-			// 		ChainType::Live,
-			// 		move || {
-			// 			testnet_genesis(
-			// 				wasm_binary,
-			// 				vec![
-			// 					as_authority_key(TEST_AUTH_ALICE),
-			// 					as_authority_key(TEST_AUTH_BOB),
-			// 					as_authority_key(TEST_AUTH_CHARLIE),
-			// 				],
-			// 				TEST_AUTH_ALICE.into(),
-			// 				vec![
-			// 					// Testnet Faucet accounts
-			// 					TEST_FAUCET.into(),
-			// 					TEST_AUTH_ALICE.into(),
-			// 					TEST_AUTH_BOB.into(),
-			// 					TEST_AUTH_CHARLIE.into(),
-			// 				],
-			// 			)
-			// 		},
-			// 		vec![],
-			// 		None,
-			// 		None,
-			// 		None, // Some(properties),
-			// 		None,
-			// 	)
-			// }
-			// Alternative::KiltDevnet => {
-			// 	ChainSpec::from_genesis(
-			// 		"KILT Devnet",
-			// 		"kilt_devnet",
-			// 		ChainType::Live,
-			// 		move || {
-			// 			testnet_genesis(
-			// 				wasm_binary,
-			// 				// Initial Authorities
-			// 				vec![
-			// 					as_authority_key(DEV_AUTH_ALICE),
-			// 					as_authority_key(DEV_AUTH_BOB),
-			// 					as_authority_key(DEV_AUTH_CHARLIE),
-			// 				],
-			// 				DEV_AUTH_ALICE.into(),
-			// 				vec![
-			// 					DEV_FAUCET.into(),
-			// 					DEV_AUTH_ALICE.into(),
-			// 					DEV_AUTH_BOB.into(),
-			// 					DEV_AUTH_CHARLIE.into(),
-			// 				],
-			// 			)
-			// 		},
-			// 		vec![],
-			// 		None,
-			// 		None,
-			// 		None, //Some(properties),
-			// 		None,
-			// 	)
-			// }
 		})
 	}
 
@@ -290,7 +203,7 @@ fn testnet_genesis(
 	endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
 ) -> GenesisConfig {
-	const ENDOWMENT: u128 = 1_000_000 * UNITS;
+	const ENDOWMENT: u128 = 1_000_000 * PECKS;
 
 	GenesisConfig {
 		frame_system: Some(SystemConfig {

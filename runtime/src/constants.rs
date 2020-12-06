@@ -4,8 +4,8 @@
 pub mod currency {
 	use primitives::Balance;
 
-	pub const UNITS: Balance = 1_000_000_000_000;
-	pub const DOLLARS: Balance = UNITS / 10;   // 0.1    
+	pub const PECKS: Balance = 1_000_000_000_000;
+	pub const DOLLARS: Balance = PECKS / 10;   // 0.1    
 	pub const CENTS: Balance = DOLLARS / 100;     
 	pub const MILLICENTS: Balance = CENTS / 1_000; 
 
