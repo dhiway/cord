@@ -2,7 +2,7 @@
 
 # CORD
 
-The CORD nodes use Parity Substrate and KILT modules as the underlying blockchain
+The CORD nodes use Parity Substrate and KILT modules as the underlying 
 technology stack with DID, CType, Attestation and hierarchical Trust Modules.
 
 - [CORD](#cord)
@@ -63,7 +63,6 @@ You can build it by executing these commands:
 
 ```
 ./scripts/init.sh
-./scripts/build.sh
 ```
 
 #### Building in dev mode
@@ -352,7 +351,7 @@ and
 revoke_delegation(origin, delegation_id: T::DelegationNodeId) -> Result
 ```
 
-# Substrate Documentation:
+## Substrate Documentation:
 ### [Substrate Tutorials](https://substrate.dev/en/tutorials)
 ### [Substrate JSON-RPC API](https://polkadot.js.org/docs/substrate/rpc)
 ### [Substrate Reference Rust Docs](https://substrate.dev/rustdocs/v2.0.0/sc_service/index.html)
