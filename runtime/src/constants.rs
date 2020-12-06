@@ -4,11 +4,12 @@
 pub mod currency {
 	use primitives::Balance;
 
-	pub const DOLLARS: Balance = 1_000_000_000_000_000_000;
-	pub const CENTS: Balance = DOLLARS / 100; // 10_000_000_000_000_000
-	pub const MILLICENTS: Balance = CENTS / 1000; // 10_000_000_000_000
-	// pub const MICROCENTS: Balance = MILLICENTS / 1000; // 10_000_000_000
+	pub const UNITS: Balance = 1_000_000_000_000;
+	pub const DOLLARS: Balance = UNITS / 10;   // 0.1    
+	pub const CENTS: Balance = DOLLARS / 100;     
+	pub const MILLICENTS: Balance = CENTS / 1_000; 
 
+	
 	// pub const fn deposit(items: u32, bytes: u32) -> Balance {
 	// 	items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
 	// }
@@ -61,8 +62,8 @@ pub mod fee {
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 			// in cord, extrinsic base weight (smallest non-zero weight) is mapped to 1/10
 			// CENT:
-			let p = CENTS / 10; // 1_000_000_000_000_000
-			let q = Balance::from(ExtrinsicBaseWeight::get()); // 125_000_000
+			let p = super::currency::CENTS;
+			let q = 10 * Balance::from(ExtrinsicBaseWeight::get()); 
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
 				negative: false,

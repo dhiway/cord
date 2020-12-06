@@ -24,16 +24,18 @@ use cord_node_runtime::{
 	WASM_BINARY,
 };
 
-use sc_service::{self, ChainType, Properties};
+// use sc_service::{self, ChainType, Properties};
+use sc_service::{self, ChainType};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
-
+use cord_node_runtime::constants::currency::UNITS;
 use hex;
 
 // Note this is the URL for the telemetry server
 //const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+const DEFAULT_PROTOCOL_ID: &str = "cord";
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -118,8 +120,8 @@ impl Alternative {
 	pub(crate) fn load(self) -> Result<ChainSpec, String> {
 		let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 		// let mut properties = Properties::new();
-		// properties.insert("tokenSymbol".into(), "CRD".into());
-		// properties.insert("tokenDecimals".into(), 18.into());
+		// properties.insert("tokenSymbol".into(), "UNIT".into());
+		// properties.insert("tokenDecimals".into(), 10.into());
 		Ok(match self {
 			Alternative::Development => {
 				ChainSpec::from_genesis(
@@ -144,7 +146,7 @@ impl Alternative {
 					},
 					vec![],
 					None,
-					None,
+					Some(DEFAULT_PROTOCOL_ID),
 					None, //Some(properties),
 					None,
 				)
@@ -173,7 +175,7 @@ impl Alternative {
 					},
 					vec![],
 					None,
-					None,
+					Some(DEFAULT_PROTOCOL_ID),
 					None, //Some(properties),
 					None,
 				)
@@ -203,8 +205,8 @@ impl Alternative {
 					},
 					vec![],
 					None,
-					None,
-					None,// Some(properties),
+					Some(DEFAULT_PROTOCOL_ID),
+					None, //Some(properties),
 					None,
 				)
 			}
@@ -288,7 +290,7 @@ fn testnet_genesis(
 	endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
 ) -> GenesisConfig {
-	const INITIAL_BALANCE: u128 = 1_000_000_000_000_000;
+	const ENDOWMENT: u128 = 1_000_000 * UNITS;
 
 	GenesisConfig {
 		frame_system: Some(SystemConfig {
@@ -296,7 +298,7 @@ fn testnet_genesis(
 			changes_trie_config: Default::default(),
 		}),
 		pallet_balances: Some(BalancesConfig {
-			balances: endowed_accounts.iter().cloned().map(|k|(k, INITIAL_BALANCE)).collect(),
+			balances: endowed_accounts.iter().cloned().map(|k|(k, ENDOWMENT)).collect(),
 		}),
 		pallet_session: Some(SessionConfig {
 			keys: initial_authorities.iter().map(|x| {

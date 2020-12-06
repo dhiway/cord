@@ -60,7 +60,10 @@ pub use frame_support::{
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
-pub use constants::{currency::*, fee::*, time::*};
+/// Constant values used within the runtime.
+pub mod constants;
+use constants::{time::*, currency::*, fee::*};
+
 pub use pallet_timestamp::Call as TimestampCall;
 pub use primitives::{
 	AccountId, AccountIndex, Index, Balance, BlockNumber, Hash, Moment, Signature,
@@ -73,8 +76,6 @@ pub use delegation;
 pub use did;
 pub use error;
 pub use portablegabi;
-
-mod constants;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -104,7 +105,7 @@ pub mod opaque {
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cord-node"),
-	impl_name: create_runtime_str!("cord-node"),
+	impl_name: create_runtime_str!("dhiway-cord"),
 	authoring_version: 4,
 	// Per convention: if the runtime behavior changes, increment spec_version
 	// and set impl_version to 0. If only runtime
@@ -124,8 +125,6 @@ pub fn native_version() -> NativeVersion {
 		can_author_with: Default::default(),
 	}
 }
-
-
 
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 900;
@@ -234,7 +233,7 @@ impl pallet_timestamp::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const IndexDeposit: Balance = DOLLARS;
+	pub const IndexDeposit: Balance = 10 * DOLLARS;
 }
 
 impl pallet_indices::Trait for Runtime {
@@ -246,7 +245,7 @@ impl pallet_indices::Trait for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 0;
+	pub const ExistentialDeposit: Balance = 10 * MILLICENTS;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
 	// This number may need to be adjusted in the future if this assumption no longer holds true.
 	pub const MaxLocks: u32 = 50;
