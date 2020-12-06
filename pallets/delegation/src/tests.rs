@@ -27,7 +27,7 @@ use cord_node_runtime::{
 	AvailableBlockRatio, BlockHashCount, MaximumBlockLength, MaximumBlockWeight,
 	MaximumExtrinsicWeight, Signature,
 };
-use sp_core::{sr25519, Pair, H256, H512};
+use sp_core::{ed25519, Pair, H256, H512};
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, Verify},
