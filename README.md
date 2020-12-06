@@ -44,7 +44,13 @@ docker build -t local/cord-node .
 start, by running:
 
 ```
-docker run -p 9944:9944 local/cord-node [node command]
+docker run -p 9944:9944 local/cord-node cord-node --dev --ws-port 9944 --ws-external --rpc-external
+```
+
+with persistent mount that will keep the kchain data locally:
+
+```
+docker run -p 9944:9944 -v /my/local/folder:/data local/cord-node cord-node --dev --ws-port 9944 --ws-external --rpc-external
 ```
 
 For execution see the section about [Commands](#commands).
