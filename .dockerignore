@@ -1,0 +1,12 @@
+.git
+.github
+.gitignore
+task-definition*
+**/target
+**/*.rs.bk
+*.iml
+.vscode
+.editorconfig
+docker-compose.yml
+Dockerfile
+.dockerignore

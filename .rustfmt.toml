@@ -1,0 +1,4 @@
+# for possible configuration values see https://github.com/rust-lang/rustfmt/blob/master/Configurations.md
+
+merge_imports = true
+hard_tabs = true

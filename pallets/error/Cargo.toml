@@ -1,0 +1,36 @@
+[package]
+authors = [ 'KILT <info@kilt.io>' ]
+edition = '2018'
+name = 'error'
+version = '0.23.0'
+description = 'Handles runtime errors.'
+
+[[package.metadata.docs.rs]]
+targets = ['x86_64-unknown-linux-gnu']
+
+[build-dependencies]
+wasm-builder-runner = { package = 'substrate-wasm-builder-runner', version = '2.0.0' }
+
+[dependencies]
+codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '1.3.5' }
+
+# Substrate dependencies
+frame-system = { default-features = false, version = '2.0.0' }
+frame-support = { default-features = false, version = '2.0.0' }
+sp-runtime = { default-features = false, version = '2.0.0' }
+sp-arithmetic = { default-features = false, version = '2.0.0' }
+sp-io = { default-features = false, version = '2.0.0' }
+
+[dev-dependencies]
+cord-node-runtime = { version = '0.2.0', default-features = false, path = '../../runtime' }
+
+[features]
+default = [ 'std' ]
+std = [
+	'codec/std',
+	'frame-system/std',
+	'sp-runtime/std',
+	'sp-io/std',
+	'sp-arithmetic/std',
+	'frame-support/std'
+]

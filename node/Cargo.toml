@@ -1,0 +1,56 @@
+[package]
+name = 'cord-node'
+version = '0.2.0'
+build = 'build.rs'
+edition = '2018'
+authors = ['Dhiway <info@dhiway.com>']
+
+[[bin]]
+name = 'cord-node'
+
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
+
+[build-dependencies]
+substrate-build-script-utils = '2.0.0'
+
+[dependencies]
+jsonrpc-core = '15.0.0'
+structopt = '0.3.8'
+futures = { version = "0.3.1", features = ["compat"] }
+hex-literal = "0.3.1"
+log = "0.4.8"
+
+# local dependencies
+cord-node-runtime = {path = '../runtime'}
+primitives = { package = "cord-primitives", version = "0.2.0", path = "../primitives", default-features = false }
+
+# Substrate dependencies
+frame-benchmarking = '2.0.0'
+frame-benchmarking-cli = '2.0.0'
+pallet-transaction-payment-rpc = '2.0.0'
+sc-basic-authorship = '0.8.0'
+sc-cli = { features = ['wasmtime'], version = '0.8.0' }
+sc-client-api = '2.0.0'
+sc-consensus = '0.8.0'
+sc-consensus-aura = '0.8.0'
+sc-executor = { features = ['wasmtime'], version = '0.8.0' }
+sc-finality-grandpa = '0.8.0'
+sc-finality-grandpa-rpc = '0.8.0'
+sc-network = '0.8.0'
+sc-rpc = '2.0.0'
+sc-rpc-api = '0.8.0'
+sc-service = '0.8.0'
+sc-transaction-pool = '2.0.0'
+sp-api = '2.0.0'
+sp-block-builder = '2.0.0'
+sp-blockchain = '2.0.0'
+sp-consensus = '0.8.0'
+sp-consensus-aura = '0.8.0'
+sp-core = '2.0.0'
+sp-finality-grandpa = '2.0.0'
+sp-inherents = '2.0.0'
+sp-runtime = '2.0.0'
+sp-transaction-pool = '2.0.0'
+substrate-frame-rpc-system = '2.0.0'
+
