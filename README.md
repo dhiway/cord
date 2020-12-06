@@ -12,6 +12,7 @@ technology stack with DID, CType, Attestation and hierarchical Trust Modules.
       - [Building in performant release mode](#building-in-performant-release-mode)
     - [Commands](#commands)
       - [Node binary](#node-binary)
+      - [Polkadot Web UI](#polkadot-web-ui)
   - [Node Modules functionalities](#node-modules-functionalities)
     - [DID Module](#did-module)
       - [Add](#add)
@@ -25,7 +26,7 @@ technology stack with DID, CType, Attestation and hierarchical Trust Modules.
       - [Create root](#create-root)
       - [Add delegation](#add-delegation)
       - [Revoke](#revoke-1)
-- [Substrate Documentation:](#substrate-documentation)
+  - [Substrate Documentation:](#substrate-documentation)
     - [Substrate Tutorials](#substrate-tutorials)
     - [Substrate JSON-RPC API](#substrate-json-rpc-api)
     - [Substrate Reference Rust Docs](#substrate-reference-rust-docs)
@@ -112,7 +113,23 @@ for release mode build:
 ```
 ./target/release/cord-node --dev --ws-port 9944 --ws-external --rpc-external
 ```
-
+#### Polkadot Web UI
+Add the following code to `Developer` -> `Settings`
+``` json
+{
+    "Address": "AccountId",
+    "BlockNumber": "u64",
+    "DelegationNodeId": "Hash",
+    "ErrorCode": "u16",
+    "Index": "u64",
+    "LookupSource": "AccountId",
+    "Permissions": "u32",
+    "PublicBoxKey": "Hash",
+    "PublicSigningKey": "Hash",
+    "RefCount": "u8",
+    "Signature": "MultiSignature"
+}
+```
 ## Node Modules functionalities
 
 The CORD node provides an immutable transaction ledger for various workflows supported by the network.
