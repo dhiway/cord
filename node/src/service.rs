@@ -1,3 +1,9 @@
+/*
+ * This file is part of the CORD
+ * Copyright (C) 2020  Dhiway
+ *
+ */
+
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 use std::sync::Arc;

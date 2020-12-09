@@ -1,3 +1,9 @@
+/*
+ * This file is part of the CORD
+ * Copyright (C) 2020  Dhiway
+ *
+ */
+
 use cord_node_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, 
 	SessionConfig, opaque::SessionKeys, Signature, SudoConfig, SystemConfig,

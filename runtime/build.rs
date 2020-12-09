@@ -1,3 +1,9 @@
+/*
+ * This file is part of the CORD
+ * Copyright (C) 2020  Dhiway
+ *
+ */
+
 use wasm_builder_runner::WasmBuilder;
 
 fn main() {

@@ -1,4 +1,9 @@
-#![warn(missing_docs)]
+/*
+ * This file is part of the CORD
+ * Copyright (C) 2020  Dhiway
+ *
+ */
+ #![warn(missing_docs)]
 
 mod chain_spec;
 #[macro_use]

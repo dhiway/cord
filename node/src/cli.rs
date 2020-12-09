@@ -1,3 +1,9 @@
+/*
+ * This file is part of the CORD
+ * Copyright (C) 2020  Dhiway
+ *
+ */
+
 use structopt::StructOpt;
 use sc_cli::RunCmd;
 

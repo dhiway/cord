@@ -1,3 +1,8 @@
+/*
+ * This file is part of the CORD
+ * Copyright (C) 2020  Dhiway
+ *
+ */
 
 #![warn(clippy::all)]
 #![cfg_attr(not(feature = "std"), no_std)]

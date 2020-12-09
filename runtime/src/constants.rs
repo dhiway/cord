@@ -1,3 +1,9 @@
+/*
+ * This file is part of the CORD
+ * Copyright (C) 2020  Dhiway
+ *
+ */
+
 //! A set of constant values used in runtime.
 
 /// Money matters.
