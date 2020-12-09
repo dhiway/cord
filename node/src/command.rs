@@ -1,42 +1,45 @@
-// Copyright 2017-2020 Parity Technologies (UK) Ltd.
 // This file is part of Substrate.
 
-// Substrate is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// Copyright (C) 2017-2020 Parity Technologies (UK) Ltd.
+// SPDX-License-Identifier: Apache-2.0
 
-// Substrate is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// 	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-// You should have received a copy of the GNU General Public License
-// along with Substrate.  If not, see <http://www.gnu.org/licenses/>.
-
-use crate::{chain_spec, cli::Cli, cli::Subcommand, service};
-use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
+use crate::{chain_spec, service};
+use crate::cli::{Cli, Subcommand};
+use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
 use sc_service::PartialComponents;
+use cord_node_runtime::Block;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"CORD Node".to_string()
+		"CORD Node".into()
 	}
 
 	fn impl_version() -> String {
-		env!("CARGO_PKG_VERSION").to_string()
+		env!("CARGO_PKG_VERSION").into()
 	}
 
 	fn description() -> String {
-		env!("CARGO_PKG_DESCRIPTION").to_string()
+		env!("CARGO_PKG_DESCRIPTION").into()
 	}
 
 	fn author() -> String {
-		env!("CARGO_PKG_AUTHORS").to_string()
+		env!("CARGO_PKG_AUTHORS").into()
 	}
 
 	fn support_url() -> String {
-		"https://github.com/dhiway/cord/issues/new".to_string()
+		"https://github.com/dhiway/cord/issues/new".into()
 	}
 
 	fn copyright_start_year() -> i32 {
@@ -44,7 +47,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn executable_name() -> String {
-		env!("CARGO_PKG_NAME").to_string()
+		env!("CARGO_PKG_NAME").into()
 	}
 
 	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
@@ -64,69 +67,61 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
-		}
+		},
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents {
-					client,
-					task_manager,
-					import_queue,
-					..
-				} = service::new_partial(&config)?;
+				let PartialComponents { client, task_manager, import_queue, ..}
+					= service::new_partial(&config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
-		}
+		},
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents {
-					client,
-					task_manager,
-					..
-				} = service::new_partial(&config)?;
+				let PartialComponents { client, task_manager, ..}
+					= service::new_partial(&config)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
-		}
+		},
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents {
-					client,
-					task_manager,
-					..
-				} = service::new_partial(&config)?;
+				let PartialComponents { client, task_manager, ..}
+					= service::new_partial(&config)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
-		}
+		},
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents {
-					client,
-					task_manager,
-					import_queue,
-					..
-				} = service::new_partial(&config)?;
+				let PartialComponents { client, task_manager, import_queue, ..}
+					= service::new_partial(&config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
-		}
+		},
 		Some(Subcommand::PurgeChain(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.database))
-		}
+		},
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents {
-					client,
-					task_manager,
-					backend,
-					..
-				} = service::new_partial(&config)?;
+				let PartialComponents { client, task_manager, backend, ..}
+					= service::new_partial(&config)?;
 				Ok((cmd.run(client, backend), task_manager))
 			})
-		}
+		},
+		Some(Subcommand::Benchmark(cmd)) => {
+			if cfg!(feature = "runtime-benchmarks") {
+				let runner = cli.create_runner(cmd)?;
+
+				runner.sync_run(|config| cmd.run::<Block, service::Executor>(config))
+			} else {
+				Err("Benchmarking wasn't enabled when building the node. \
+				You can enable it with `--features runtime-benchmarks`.".into())
+			}
+		},
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| match config.role {

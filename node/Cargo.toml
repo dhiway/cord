@@ -37,10 +37,9 @@ sc-consensus-aura = '0.8.0'
 sc-executor = { features = ['wasmtime'], version = '0.8.0' }
 sc-finality-grandpa = '0.8.0'
 sc-finality-grandpa-rpc = '0.8.0'
-sc-network = '0.8.0'
 sc-rpc = '2.0.0'
 sc-rpc-api = '0.8.0'
-sc-service = '0.8.0'
+sc-service = { features = ['wasmtime'], version = '0.8.0' }
 sc-transaction-pool = '2.0.0'
 sp-api = '2.0.0'
 sp-block-builder = '2.0.0'

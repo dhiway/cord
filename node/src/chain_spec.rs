@@ -1,23 +1,3 @@
-// KILT Blockchain – https://botlabs.org
-// Copyright (C) 2019  BOTLabs GmbH
-
-// The KILT Blockchain is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// The KILT Blockchain is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-// If you feel like getting in touch with us, you can do so at info@botlabs.org
-
-//! KILT chain specification
-
 use cord_node_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, 
 	SessionConfig, opaque::SessionKeys, Signature, SudoConfig, SystemConfig,
@@ -29,8 +9,8 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use cord_node_runtime::constants::currency::PECKS;
-use hex;
+use cord_node_runtime::constants::currency::DCU;
+// use hex;
 
 // Note this is the URL for the telemetry server
 //const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -89,8 +69,8 @@ impl Alternative {
 	pub(crate) fn load(self) -> Result<ChainSpec, String> {
 		let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
 		let mut properties = Properties::new();
-		// properties.insert("tokenSymbol".into(), "UNIT".into());
-		properties.insert("tokenDecimals".into(), 8.into());
+		properties.insert("tokenSymbol".into(), "DCU".into());
+		properties.insert("tokenDecimals".into(), 12.into());
 		Ok(match self {
 			Alternative::Development => {
 				ChainSpec::from_genesis(
@@ -203,7 +183,7 @@ fn testnet_genesis(
 	endowed_accounts: Vec<AccountId>,
 	_enable_println: bool,
 ) -> GenesisConfig {
-	const ENDOWMENT: u128 = 1_000_000 * PECKS;
+	const ENDOWMENT: u128 = 1_000_000 * DCU;
 
 	GenesisConfig {
 		frame_system: Some(SystemConfig {

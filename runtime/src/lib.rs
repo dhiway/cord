@@ -1,22 +1,4 @@
-// KILT Blockchain – https://botlabs.org
-// Copyright (C) 2019  BOTLabs GmbH
 
-// The KILT Blockchain is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// The KILT Blockchain is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-// If you feel like getting in touch with us, you can do so at info@botlabs.org
-
-//! The KILT runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 #![warn(clippy::all)]
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
@@ -26,27 +8,31 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
-use sp_api::impl_runtime_apis;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_std::prelude::*;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
-
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
+	generic, create_runtime_str, impl_opaque_keys, 
 	traits::{
 		BlakeTwo256, Block as BlockT, IdentityLookup, NumberFor, OpaqueKeys,
 		Saturating, Verify,
 	},
-	transaction_validity::{TransactionSource, TransactionValidity},
+	transaction_validity::{ TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, 
 };
-use sp_std::prelude::*;
-#[cfg(feature = "std")]
-use sp_version::NativeVersion;
+
+use sp_api::impl_runtime_apis;
+use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use sp_version::RuntimeVersion;
 
-// pub use consensus::Call as ConsensusCall;
+#[cfg(feature = "std")]
+use sp_version::NativeVersion;
+
+#[cfg(any(feature = "std", test))]
+pub use sp_runtime::BuildStorage;
+pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_balances::{Call as BalancesCall, NegativeImbalance};
+pub use sp_runtime::{Perbill, Permill};
 
 pub use frame_support::{
 	construct_runtime, parameter_types,
@@ -57,18 +43,14 @@ pub use frame_support::{
 	},
 	ConsensusEngineId, StorageValue,
 };
-#[cfg(any(feature = "std", test))]
-pub use sp_runtime::BuildStorage;
-pub use sp_runtime::{Perbill, Permill};
+
 /// Constant values used within the runtime.
 pub mod constants;
-use constants::{time::*, currency::*, fee::*};
+use constants::{time::*, currency::*};
 
-pub use pallet_timestamp::Call as TimestampCall;
 pub use primitives::{
 	AccountId, AccountIndex, Index, Balance, BlockNumber, Hash, Moment, Signature,
 };
-
 
 pub use attestation;
 pub use ctype;
@@ -77,10 +59,6 @@ pub use did;
 pub use error;
 pub use portablegabi;
 
-/// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
-/// the specifics of the runtime. They can then be made to be agnostic over specific formats
-/// of data like extrinsics, allowing for them to continue syncing the network through upgrades
-/// to even the core data structures.
 pub mod opaque {
 	use super::*;
 
@@ -92,14 +70,13 @@ pub mod opaque {
 	pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 	/// Opaque block identifier type.
 	pub type BlockId = generic::BlockId<Block>;
-	
+
 	impl_opaque_keys! {
 		pub struct SessionKeys {
 			pub aura: Aura,
 			pub grandpa: Grandpa,
 		}
 	}
-	
 }
 
 /// This runtime version.
@@ -233,6 +210,17 @@ impl pallet_timestamp::Trait for Runtime {
 }
 
 parameter_types! {
+    pub const WindowSize: BlockNumber = 101;
+    pub const ReportLatency: BlockNumber = 1000;
+}
+
+impl pallet_finality_tracker::Trait for Runtime {
+    type OnFinalizationStalled = ();
+    type WindowSize = WindowSize;
+    type ReportLatency = ReportLatency;
+}
+
+parameter_types! {
 	pub const IndexDeposit: Balance = 10 * DOLLARS;
 }
 
@@ -263,7 +251,7 @@ impl pallet_balances::Trait for Runtime {
 	type MaxLocks = ();
 }
 
-/// Logic for the author to get a portion of fees.
+/// Logic for the block author to get a portion of fees.
 pub struct ToAuthor<R>(sp_std::marker::PhantomData<R>);
 
 impl<R> OnUnbalanced<NegativeImbalance<R>> for ToAuthor<R>
@@ -392,17 +380,21 @@ construct_runtime!(
 	{
 		System: frame_system::{Module, Call, Config, Storage, Event<T>},
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
+		FinalityTracker: pallet_finality_tracker::{Module, Call, Inherent},
 		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
 		Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
+		// Historical: pallet_session_historical::{Module},
+        // AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config},
 
 		Aura: pallet_aura::{Module, Config<T>, Inherent},
 		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
-
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		Indices: pallet_indices::{Module, Call, Storage, Event<T>},
 		Authorship: pallet_authorship::{Module, Call, Storage},
+		// ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
+		// Offences: pallet_offences::{Module, Call, Storage, Event},
 
 		Error: error::{ Module, Call, Event<T>},
 		Ctype: ctype::{Module, Call, Storage, Event<T>},
@@ -431,16 +423,20 @@ pub type SignedExtra = (
 	frame_system::CheckEra<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	pallet_transaction_payment::ChargeTransactionPayment<Runtime>
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive =
-	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllModules>;
-
+pub type Executive = frame_executive::Executive<
+	Runtime,
+	Block,
+	frame_system::ChainContext<Runtime>,
+	Runtime,
+	AllModules,
+>;
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
@@ -519,7 +515,7 @@ impl_runtime_apis! {
 
 		fn decode_session_keys(
 			encoded: Vec<u8>,
-		) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
+		) -> Option<Vec<(Vec<u8>, KeyTypeId)>> {
 			opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
 		}
 	}
@@ -549,6 +545,7 @@ impl_runtime_apis! {
 			None
 		}
 	}
+
 	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
 		fn account_nonce(account: AccountId) -> Index {
             System::account_nonce(account)
@@ -561,6 +558,41 @@ impl_runtime_apis! {
 			len: u32,
 		) -> pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo<Balance> {
 			TransactionPayment::query_info(uxt, len)
+		}
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	impl frame_benchmarking::Benchmark<Block> for Runtime {
+		fn dispatch_benchmark(
+			config: frame_benchmarking::BenchmarkConfig
+		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
+			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
+
+			use frame_system_benchmarking::Module as SystemBench;
+			impl frame_system_benchmarking::Trait for Runtime {}
+
+			let whitelist: Vec<TrackedStorageKey> = vec![
+				// Block Number
+				hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
+				// Total Issuance
+				hex_literal::hex!("c2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80").to_vec().into(),
+				// Execution Phase
+				hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef7ff553b5a9862a516939d82b3d3d8661a").to_vec().into(),
+				// Event Count
+				hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef70a98fdbe9ce6c55837576c60c7af3850").to_vec().into(),
+				// System Events
+				hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec().into(),
+			];
+
+			let mut batches = Vec::<BenchmarkBatch>::new();
+			let params = (&config, &whitelist);
+
+			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
+			add_benchmark!(params, batches, pallet_balances, Balances);
+			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+
+			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
+			Ok(batches)
 		}
 	}
 }
