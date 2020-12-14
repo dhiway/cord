@@ -6,6 +6,7 @@ The CORD nodes use Parity Substrate and KILT modules as the underlying
 technology stack with DID, CType, Attestation and hierarchical Trust Modules.
 
 - [CORD](#cord)
+    - [Key Management](#key-management)
     - [Building docker image](#building-docker-image)
     - [Build code without docker](#build-code-without-docker)
       - [Building in dev mode](#building-in-dev-mode)
@@ -31,6 +32,9 @@ technology stack with DID, CType, Attestation and hierarchical Trust Modules.
     - [Substrate JSON-RPC API](#substrate-json-rpc-api)
     - [Substrate Reference Rust Docs](#substrate-reference-rust-docs)
 
+
+### Key Management
+[Documentation](node/docs/keys.md)
 
 ### Building docker image
 
