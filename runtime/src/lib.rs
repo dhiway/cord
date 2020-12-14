@@ -388,8 +388,6 @@ construct_runtime!(
 		FinalityTracker: pallet_finality_tracker::{Module, Call, Inherent},
 		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
 		Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
-		// Historical: pallet_session_historical::{Module},
-        // AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config},
 
 		Aura: pallet_aura::{Module, Config<T>, Inherent},
 		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
@@ -398,8 +396,6 @@ construct_runtime!(
 		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>},
 		Indices: pallet_indices::{Module, Call, Storage, Event<T>},
 		Authorship: pallet_authorship::{Module, Call, Storage},
-		// ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
-		// Offences: pallet_offences::{Module, Call, Storage, Event},
 
 		Error: error::{ Module, Call, Event<T>},
 		Ctype: ctype::{Module, Call, Storage, Event<T>},
