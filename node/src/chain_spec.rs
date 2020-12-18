@@ -41,7 +41,7 @@ impl Alternative {
 
 		let mut properties = Properties::new();
 		properties.insert("tokenSymbol".into(), "DCU".into());
-		properties.insert("tokenDecimals".into(), 12.into());
+		properties.insert("tokenDecimals".into(), 18.into());
 		Ok(match self {
 			Alternative::Development => {
 				ChainSpec::from_genesis(
@@ -120,8 +120,8 @@ fn local_dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			hex!["03c22070787b00627c5817c34451e10a181f5c257dc44d49d0c6a9e46581ba27"].unchecked_into(),
 		)];
 
-	const ENDOWMENT: u128 = 1_000_000_000_000 * DCU;
-	const STASH: u128 = 1_000 * DCU;
+	// const ENDOWMENT: u128 = 1_000_000_000_000 * DCU;
+	// const STASH: u128 = 1_000 * DCU;
 
 	GenesisConfig {
 		frame_system: Some(SystemConfig {
@@ -131,8 +131,10 @@ fn local_dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 		pallet_balances: Some(BalancesConfig {
 			balances: endowed_accounts
 			.iter()
-			.map(|k: &AccountId| (k.clone(), ENDOWMENT))
-			.chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
+			.cloned()
+			.map(|k| (k, 1u128 << 90))
+			// .map(|k: &AccountId| (k.clone(), ENDOWMENT))
+			// .chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
 			.collect(),
 			// balances: initial_authorities.iter().cloned().map(|k|(k, ENDOWMENT)).collect(),
 		}),
