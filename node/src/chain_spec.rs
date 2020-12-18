@@ -133,10 +133,7 @@ fn local_dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			.iter()
 			.cloned()
 			.map(|k| (k, 1u128 << 90))
-			// .map(|k: &AccountId| (k.clone(), ENDOWMENT))
-			// .chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
 			.collect(),
-			// balances: initial_authorities.iter().cloned().map(|k|(k, ENDOWMENT)).collect(),
 		}),
 		pallet_session: Some(SessionConfig {
 			keys: initial_authorities
