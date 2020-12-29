@@ -68,4 +68,4 @@ USER cord
 EXPOSE 30333 9933 9944 
 VOLUME ["/data"]
 
-CMD ["/usr/local/bin/cord-node"]
+ENTRYPOINT ["/usr/local/bin/cord-node"]
