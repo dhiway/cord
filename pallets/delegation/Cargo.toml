@@ -9,7 +9,7 @@ description = 'Enables creating and revoking root nodes of delegation hierarchie
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-wasm-builder-runner = { package = 'substrate-wasm-builder-runner', version = '2.0.0' }
+wasm-builder = { package = 'substrate-wasm-builder', version = '3.0.0' }
 
 [dependencies]
 codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '1.3.5' }
