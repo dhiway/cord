@@ -66,6 +66,6 @@ RUN rm -rf /usr/lib/python* && \
 USER cord
 
 EXPOSE 30333 9933 9944 
-VOLUME ["/data"]
+VOLUME ["/cord"]
 
 ENTRYPOINT ["/usr/local/bin/cord-node"]
