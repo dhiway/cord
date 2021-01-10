@@ -24,21 +24,20 @@
 #[cfg(test)]
 mod tests;
 
-use error;
 use frame_support::{
 	debug, decl_event, decl_module, decl_storage, dispatch::DispatchResult, StorageMap,
 };
 use frame_system::{self, ensure_signed};
 
 /// The CTYPE trait
-pub trait Trait: frame_system::Trait + error::Trait {
+pub trait Trait: frame_system::Config + error::Trait {
 	/// CTYPE specific event type
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 }
 
 decl_event!(
 	/// Events for CTYPEs
-	pub enum Event<T> where <T as frame_system::Trait>::AccountId, <T as frame_system::Trait>::Hash {
+	pub enum Event<T> where <T as frame_system::Config>::AccountId, <T as frame_system::Config>::Hash {
 		/// A CTYPE has been added
 		CTypeCreated(AccountId, Hash),
 	}

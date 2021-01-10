@@ -32,9 +32,9 @@ use sp_runtime::{codec::Codec, traits::Member};
 use sp_std::prelude::*;
 
 /// The DID trait
-pub trait Trait: frame_system::Trait {
+pub trait Trait: frame_system::Config {
 	/// DID specific event type
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 	/// Public signing key type for DIDs
 	type PublicSigningKey: Parameter + Member + Codec + Default;
 	/// Public boxing key type for DIDs
@@ -43,7 +43,7 @@ pub trait Trait: frame_system::Trait {
 
 decl_event!(
 	/// Events for DIDs
-	pub enum Event<T> where <T as frame_system::Trait>::AccountId {
+	pub enum Event<T> where <T as frame_system::Config>::AccountId {
 		/// A did has been created
 		DidCreated(AccountId),
 		/// A did has been removed

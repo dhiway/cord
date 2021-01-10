@@ -25,7 +25,7 @@ use sp_arithmetic::traits::BaseArithmetic;
 use sp_runtime::traits::{Bounded, MaybeDisplay, MaybeSerialize, Member};
 
 /// The error trait
-pub trait Trait: frame_system::Trait {
+pub trait Trait: frame_system::Config {
 	type ErrorCode: BaseArithmetic
 		+ Parameter
 		+ Member
@@ -33,7 +33,7 @@ pub trait Trait: frame_system::Trait {
 		+ MaybeDisplay
 		+ Bounded
 		+ From<u16>;
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 }
 
 /// The error type is a tuple of error code and an error message

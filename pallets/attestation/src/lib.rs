@@ -37,14 +37,14 @@ use sp_std::{
 };
 
 /// The attestation trait
-pub trait Trait: frame_system::Trait + delegation::Trait + error::Trait {
+pub trait Trait: frame_system::Config + delegation::Trait + error::Trait {
 	/// Attestation specific event type
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 }
 
 decl_event!(
 	/// Events for attestations
-	pub enum Event<T> where <T as frame_system::Trait>::AccountId, <T as frame_system::Trait>::Hash,
+	pub enum Event<T> where <T as frame_system::Config>::AccountId, <T as frame_system::Config>::Hash,
 			<T as delegation::Trait>::DelegationNodeId {
 		/// An attestation has been added
 		AttestationCreated(AccountId, Hash, Hash, Option<DelegationNodeId>),

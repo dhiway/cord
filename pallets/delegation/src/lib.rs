@@ -25,9 +25,6 @@
 #[cfg(test)]
 mod tests;
 
-use ctype;
-use error;
-
 #[macro_use]
 extern crate bitflags;
 
@@ -80,9 +77,9 @@ impl Default for Permissions {
 }
 
 /// The delegation trait
-pub trait Trait: ctype::Trait + frame_system::Trait + error::Trait {
+pub trait Trait: ctype::Trait + frame_system::Config + error::Trait {
 	/// Delegation specific event type
-	type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
 	/// Signature of a delegation
 	type Signature: Verify<Signer = Self::Signer> + Member + Codec + Default;
@@ -107,7 +104,7 @@ pub trait Trait: ctype::Trait + frame_system::Trait + error::Trait {
 
 decl_event!(
 	/// Events for delegations
-	pub enum Event<T> where <T as frame_system::Trait>::Hash, <T as frame_system::Trait>::AccountId,
+	pub enum Event<T> where <T as frame_system::Config>::Hash, <T as frame_system::Config>::AccountId,
 			<T as Trait>::DelegationNodeId {
 		/// A new root has been created
 		RootCreated(AccountId, DelegationNodeId, Hash),

@@ -1,33 +1,22 @@
 # this container builds the cord-node binary from source files and the runtime library
+# pinned the version to avoid build cache invalidation
 # ===== FIRST (BUILD) STAGE ======
 
-FROM debian:buster-slim as builder
+FROM paritytech/ci-linux:5297d82c-20201107 as builder
 
 LABEL maintainer="engineering@dhiway.com"
-
-ENV DEBIAN_FRONTEND=noninteractive
 
 ARG PROFILE=release
 
 WORKDIR /build
 
 COPY . /build
-
-RUN apt-get update && \
-	apt-get dist-upgrade -y -o Dpkg::Options::="--force-confold" && \
-	apt-get install -y cmake pkg-config libssl-dev git clang curl
     
 #build
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y && \
-	export PATH="$PATH:$HOME/.cargo/bin" && \
-	rustup toolchain install nightly-2020-10-06 && \
-	rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-06 && \
-    rustup override set nightly-2020-10-06 --path $WORKDIR/.. && \
-	rustup default stable && \
-	cargo build "--$PROFILE"
+RUN cargo build "--$PROFILE"
 
 # test
-#RUN cargo test --release --all
+RUN cargo test --release --all
 
 # ===== SECOND STAGE ======
 
@@ -48,7 +37,7 @@ RUN apt-get update && \
 		curl && \
 # apt cleanup
 	apt-get autoremove -y && \
-	apt-get clean && \
+	apt-get clean -y && \
 	find /var/lib/apt/lists/ -type f -not -name lock -delete; \
 # add user
 	useradd -m -u 1000 -U -s /bin/sh -d /cord cord 

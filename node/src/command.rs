@@ -15,11 +15,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{chain_spec, service};
-use crate::cli::{Cli, Subcommand};
+use crate::{
+	chain_spec,
+	cli::{Cli, Subcommand},
+	service,
+};
 use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
 use sc_service::PartialComponents;
-use cord_node_runtime::Block;
+use cord_node_runtime::opaque::Block;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -124,10 +127,12 @@ pub fn run() -> sc_cli::Result<()> {
 		},
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
-			runner.run_node_until_exit(|config| match config.role {
-				Role::Light => service::new_light(config),
-				_ => service::new_full(config),
-			})
+			runner.run_node_until_exit(|config| async move {
+				match config.role {
+					Role::Light => service::new_light(config),
+					_ => service::new_full(config),
+				}
+			}) 
 		}
 	}
 }

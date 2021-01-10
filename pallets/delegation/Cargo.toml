@@ -16,19 +16,19 @@ codec = {default-features = false,features = ['derive'], package = 'parity-scale
 bitflags = { default-features = false, version = '1.2.1' }
 
 # Substrate dependencies
-frame-support = { default-features = false, version = '2.0.0' }
-frame-system = { default-features = false, version = '2.0.0' }
-sp-runtime = { default-features = false, version = '2.0.0' }
-sp-std = { default-features = false, version = '2.0.0' }
-sp-io = { default-features = false, version = '2.0.0' }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 # local pallets
-ctype = { version = '0.23.0', default-features = false, path = '../ctype' }
-error = { version = '0.23.0', default-features = false, path = '../error' }
+ctype = { default-features = false, path = '../ctype' }
+error = { default-features = false, path = '../error' }
 
 [dev-dependencies]
-cord-node-runtime = { version = '0.2.0', default-features = false, path = '../../runtime' }
-sp-core = { default-features = false, version = '2.0.0' }
+cord-node-runtime = { default-features = false, path = '../../runtime' }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 [features]
 default = [ 'std' ]

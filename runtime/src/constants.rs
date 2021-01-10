@@ -15,9 +15,8 @@ pub mod currency {
 	pub const CENTS: Balance = DOLLARS / 100;     
 	pub const MILLICENTS: Balance = CENTS / 1_000; 
 
-	
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
+		items as Balance * 20 * DOLLARS + (bytes as Balance) * 100 * MILLICENTS
 	}
 }
 
@@ -35,12 +34,6 @@ pub mod time {
 	pub const DAYS: BlockNumber = HOURS * 24;
 
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-	pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 4 * HOURS;
-	pub const EPOCH_DURATION_IN_SLOTS: u64 = {
-    const SLOT_FILL_RATE: f64 = MILLISECS_PER_BLOCK as f64 / SLOT_DURATION as f64;
-    (EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
-};
-
 }
 
 /// Fee-related
@@ -83,5 +76,33 @@ pub mod fee {
 				coeff_integer: p / q,                                       // 8_000_000
 			}]
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use frame_support::weights::WeightToFeePolynomial;
+	use runtime_common::{MAXIMUM_BLOCK_WEIGHT, ExtrinsicBaseWeight};
+	use super::fee::WeightToFee;
+	use super::currency::{CENTS, DOLLARS, MILLICENTS};
+
+	#[test]
+	// This function tests that the fee for `MAXIMUM_BLOCK_WEIGHT` of weight is correct
+	fn full_block_fee_is_correct() {
+		// A full block should cost 16 DOLLARS
+		println!("Base: {}", ExtrinsicBaseWeight::get());
+		let x = WeightToFee::calc(&MAXIMUM_BLOCK_WEIGHT);
+		let y = 16 * DOLLARS;
+		assert!(x.max(y) - x.min(y) < MILLICENTS);
+	}
+
+	#[test]
+	// This function tests that the fee for `ExtrinsicBaseWeight` of weight is correct
+	fn extrinsic_base_fee_is_correct() {
+		// `ExtrinsicBaseWeight` should cost 1/10 of a CENT
+		println!("Base: {}", ExtrinsicBaseWeight::get());
+		let x = WeightToFee::calc(&ExtrinsicBaseWeight::get());
+		let y = CENTS / 10;
+		assert!(x.max(y) - x.min(y) < MILLICENTS);
 	}
 }
