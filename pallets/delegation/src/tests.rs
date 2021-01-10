@@ -71,7 +71,7 @@ parameter_types! {
 		})
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
-	pub const SS58Prefix: u8 = 14;
+	pub const SS58Prefix: u8 = 29;
 }
 
 impl frame_system::Config for Test {

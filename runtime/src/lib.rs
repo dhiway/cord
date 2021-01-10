@@ -64,6 +64,8 @@ pub use ctype;
 pub use delegation;
 pub use did;
 pub use error;
+pub use validatorset;
+pub use accountset;
 
 pub mod opaque {
 	use super::*;
@@ -119,7 +121,7 @@ parameter_types! {
 		.saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
 	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
 	pub const Version: RuntimeVersion = VERSION;
-	pub const SS58Prefix: u8 = 14;
+	pub const SS58Prefix: u8 = 29;
 }
 /// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
 /// This is used to limit the maximal weight of a single extrinsic.
@@ -346,6 +348,9 @@ impl error::Trait for Runtime {
 	/// The ubiquitous event type.
 	type Event = Event;
 }
+impl validatorset::Trait for Runtime {
+	type Event = Event;
+}
 
 parameter_types! {
 	pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
@@ -356,14 +361,18 @@ parameter_types! {
 impl pallet_session::Config for Runtime {
 	type Event = Event;
 	type ValidatorId = AccountId;
-	type ValidatorIdOf = ();
-	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
-	type NextSessionRotation = ();
-	type SessionManager = ();
+	type ValidatorIdOf = validatorset::ValidatorOf<Self>;
+	type ShouldEndSession = ValidatorSet;
+	type NextSessionRotation = ValidatorSet;
+	type SessionManager = ValidatorSet;
 	type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = opaque::SessionKeys;
 	type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
 	type WeightInfo = ();
+}
+
+impl accountset::Trait for Runtime {
+    type Event = Event;
 }
 
 parameter_types! {
@@ -395,6 +404,7 @@ construct_runtime!(
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
 		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
 		Session: pallet_session::{Module, Call, Storage, Event, Config<T>},
+		ValidatorSet: validatorset::{Module, Call, Storage, Event<T>, Config<T>},
 
 		Aura: pallet_aura::{Module, Config<T>, Inherent},
 		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event},
@@ -409,6 +419,7 @@ construct_runtime!(
 		Attestation: attestation::{Module, Call, Storage, Event<T>},
 		Delegation: delegation::{Module, Call, Storage, Event<T>},
 		Did: did::{Module, Call, Storage, Event<T>},
+		AccountSet: accountset::{Module, Config<T>, Call, Storage, Event<T>},
 	}
 );
 
@@ -430,7 +441,8 @@ pub type SignedExtra = (
 	frame_system::CheckEra<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>
+	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	accountset::AllowAccount<Runtime>
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;

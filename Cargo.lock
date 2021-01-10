@@ -11,6 +11,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "accountset"
+version = "0.4.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "addr2line"
 version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -789,6 +803,7 @@ dependencies = [
 name = "cord-node-runtime"
 version = "0.2.0"
 dependencies = [
+ "accountset",
  "attestation",
  "bitflags",
  "cord-primitives",
@@ -831,6 +846,7 @@ dependencies = [
  "sp-transaction-pool",
  "sp-version",
  "substrate-wasm-builder",
+ "validatorset",
 ]
 
 [[package]]
@@ -7379,6 +7395,21 @@ dependencies = [
  "idna 0.2.0",
  "matches",
  "percent-encoding 2.1.0",
+]
+
+[[package]]
+name = "validatorset"
+version = "0.2.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-session",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

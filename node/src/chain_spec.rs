@@ -5,8 +5,9 @@
  */
 
 use cord_node_runtime::{
-	AccountId, BalancesConfig, GenesisConfig, SessionConfig, 
-	 SudoConfig, SystemConfig, WASM_BINARY,
+	AccountId, BalancesConfig, GenesisConfig, SessionConfig,
+	SudoConfig, SystemConfig, WASM_BINARY, ValidatorSetConfig,
+	AccountSetConfig,
 };
 
 use sc_service::{self, ChainType, Properties};
@@ -135,6 +136,12 @@ fn local_dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			.map(|k| (k, 1u128 << 90))
 			.collect(),
 		}),
+		validatorset: Some(ValidatorSetConfig {
+			validators: initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
+		}),
 		pallet_session: Some(SessionConfig {
 			keys: initial_authorities
 				.iter()
@@ -154,6 +161,12 @@ fn local_dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 		pallet_grandpa: Some(Default::default()),
 		pallet_sudo: Some(SudoConfig {
 			key: endowed_accounts[0].clone(),
+		}),
+		accountset: Some(AccountSetConfig {
+			allowed_accounts:endowed_accounts
+			.iter()
+			.map(|x| (x.clone(), (),))
+			.collect(),
 		}),
 	}
 }
@@ -214,6 +227,12 @@ fn cord_testnet_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			.chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
 			.collect(),
 		}),
+		validatorset: Some(ValidatorSetConfig {
+			validators: initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
+		}),
 		pallet_session: Some(SessionConfig {
 			keys: initial_authorities
 				.iter()
@@ -233,6 +252,12 @@ fn cord_testnet_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 		pallet_grandpa: Some(Default::default()),
 		pallet_sudo: Some(SudoConfig {
 			key: endowed_accounts[0].clone(),
+		}),
+		accountset: Some(AccountSetConfig {
+			allowed_accounts:endowed_accounts
+			.iter()
+			.map(|x| (x.clone(), (),))
+			.collect(),
 		}),
 	}
 }
@@ -294,6 +319,12 @@ fn cord_mainnet_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			.collect(),
 			// balances: initial_authorities.iter().cloned().map(|k|(k, ENDOWMENT)).collect(),
 		}),
+		validatorset: Some(ValidatorSetConfig {
+			validators: initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
+		}),
 		pallet_session: Some(SessionConfig {
 			keys: initial_authorities
 				.iter()
@@ -313,6 +344,12 @@ fn cord_mainnet_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 		pallet_grandpa: Some(Default::default()),
 		pallet_sudo: Some(SudoConfig {
 			key: endowed_accounts[0].clone(),
+		}),
+		accountset: Some(AccountSetConfig {
+			allowed_accounts:endowed_accounts
+			.iter()
+			.map(|x| (x.clone(), (),))
+			.collect(),
 		}),
 	}
 }

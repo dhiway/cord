@@ -25,6 +25,9 @@ ctype = { default-features = false, path = '../pallets/ctype' }
 delegation = { default-features = false, path = '../pallets/delegation' }
 did = {  default-features = false, path = '../pallets/did' }
 error = {  default-features = false, path = '../pallets/error' }
+accountset = {  default-features = false, path = '../pallets/account-set' }
+validatorset = {  default-features = false, path = '../pallets/validator-set' }
+
 primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
 
 # Substrate dependencies
@@ -105,5 +108,7 @@ std = [
 	'ctype/std',
 	'did/std',
 	'error/std',
+    'accountset/std',
+    'validatorset/std',
 	'delegation/std',
 ]
