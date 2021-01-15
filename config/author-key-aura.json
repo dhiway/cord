@@ -1,0 +1,10 @@
+{
+  "jsonrpc":"2.0",
+  "id":1,
+  "method":"author_insertKey",
+  "params": [
+    "aura",
+    "0x97dfdb567407b61f482381afe707f7c09c2a7951a2543a448217211e31a99ac4//1//aura",
+    "0xa047ce4974347c3972ae4a2292ba1fad2b4ece9d6eaffd5286c185985dc92401"
+  ]
+}

@@ -13,33 +13,21 @@ if [ "$#" -ne 1 ]; then
 fi
 
 generate_account_id() {
-	subkey inspect ${3:-} ${4:-} "$SECRET//$1//$2" | grep "Account ID" | awk '{ print $3 }'
+	subkey inspect -n cord ${3:-} ${4:-} "$NODE_SEED//$1//$2" | grep "Account ID" | awk '{ print $3 }'
 }
 
 generate_address() {
-	subkey inspect ${3:-} ${4:-} "$SECRET//$1//$2" | grep "SS58 Address" | awk '{ print $3 }'
-   # printf "$SECRET//$1//$2\n"
-   # printf "Secret - $SECRET \n"
+	subkey inspect -n cord ${3:-} ${4:-} "$NODE_SEED//$1//$2" | grep "SS58 Address" | awk '{ print $3 }'
 }
 
-generate_address_detail() {
-	subkey inspect  ${3:-} ${4:-} "$SECRET//$1//$2"
-}
-
-generate_address_details() {
-	generate_address_detail $1 $2 $3
-    # DETAILS=$(generate_address_detail $1 $2 $3)
-
-}
 
 generate_address_and_account_id() {
 	ACCOUNT=$(generate_account_id $1 $2 $3)
-    #printf "one-$1, two- $2, three- $3\n"
-	ADDRESS=$(generate_address $1 $2 $3)
-   # printf DETAILS
-    #printf "one-$1, two- $2, three- $3\n"
-	if ${4:-false}; then
+  	ADDRESS=$(generate_address $1 $2 $3)
+	
+  	if ${4:-false}; then
 		INTO="unchecked_into"
+
 	else
 		INTO="into"
 	fi
@@ -49,23 +37,31 @@ generate_address_and_account_id() {
 
 V_NUM=$1
 DETAILS=""
-AUTHORITIES=""
+AUTHORITIES="\nInitial Authorities \n"
+AUTHORITIES_RPC="\nInitial Authorities (RPC) \n"
+AUTHORITY_ACCOUNTS="\nInitial Authorities (Controller Accounts) (\n"
 
 for i in $(seq 1 $V_NUM); do
+	AUTHORITY_ACCOUNTS+="$(generate_address_and_account_id $i controller)\n"
+	
 	AUTHORITIES+="(\n"
 	AUTHORITIES+="$(generate_address_and_account_id $i controller)\n"
 	AUTHORITIES+="$(generate_address_and_account_id $i aura '--scheme sr25519' true)\n"
 	AUTHORITIES+="$(generate_address_and_account_id $i grandpa '--scheme ed25519' true)\n"
 	AUTHORITIES+="),\n"
+
+	AUTHORITIES_RPC+="//$(generate_address $i controller) (\n"
+	AUTHORITIES_RPC+="key type: aura\n"
+	AUTHORITIES_RPC+="suri: $NODE_SEED//$i//aura\n"
+	AUTHORITIES_RPC+="public key: $(generate_account_id $i aura '--scheme sr25519')\n"
+	AUTHORITIES_RPC+="key type: gran\n"
+	AUTHORITIES_RPC+="suri: $NODE_SEED//$i//grandpa\n"
+	AUTHORITIES_RPC+="public key: $(generate_account_id $i grandpa '--scheme ed25519')\n"
+	AUTHORITIES_RPC+="),\n"
 done
 
-for i in $(seq 1 $V_NUM); do
-    DETAILS+="\nAccount Details (\n"
-    DETAILS+="$(generate_address_details $i controller)\n\n"
-    DETAILS+="$(generate_address_details $i aura '--scheme sr25519' true)\n\n"
-    DETAILS+="$(generate_address_details $i grandpa '--scheme ed25519' true)\n"
-    DETAILS+="),\n"
-done
+AUTHORITY_ACCOUNTS+="),\n"
 
 printf "$AUTHORITIES"
-printf "$DETAILS"
+printf "$AUTHORITY_ACCOUNTS"
+printf "$AUTHORITIES_RPC"

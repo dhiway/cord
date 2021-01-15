@@ -43,19 +43,25 @@ Clone this repo and navigate into it.
 Build docker image:
 
 ```
-docker build -t local/cord-node .
+docker build -t local/cord-node:develop .
 ```
 
 start, by running:
 
 ```
-docker run -p 9944:9944 local/cord-node cord-node --dev --ws-port 9944 --ws-external --rpc-external
+docker run -p 9944:9944 -p 9933:9933 local/cord-node:develop --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
 ```
 
 with persistent mount that will keep the kchain data locally:
 
 ```
-docker run -p 9944:9944 -v /my/local/folder:/data local/cord-node cord-node --dev --ws-port 9944 --ws-external --rpc-external
+docker run -p 9944:9944 -p 9933:9933 -v /my/local/folder:/cord local/cord-node:develop  --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
+```
+
+To setup the local node with proper aura and granda keys, execute below:
+
+```
+bash ./scripts/setup-dev-chain.sh
 ```
 
 For execution see the section about [Commands](#commands).
