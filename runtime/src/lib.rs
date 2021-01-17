@@ -1,6 +1,6 @@
 /*
  * This file is part of the CORD
- * Copyright (C) 2020  Dhiway
+ * Copyright (C) 2020-21  Dhiway
  *
  */
 
@@ -112,10 +112,10 @@ pub fn native_version() -> NativeVersion {
 }
 
 parameter_types! {
-	pub const BlockHashCount: BlockNumber = 900;
+	pub const BlockHashCount: BlockNumber = 250;
 	/// We allow for 2 seconds of compute with a 4 second average block time.
 	pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
-	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(80);
 	/// Assume 10% of weight for average on_initialize calls.
 	pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
 		.saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();

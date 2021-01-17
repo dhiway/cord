@@ -1,3 +1,10 @@
+/*
+ * This file is part of the CORD
+ * Copyright (C) 2020 - 21  Dhiway
+ * 
+ * derived from account set pallet
+ */
+
 //! # Account Set Pallet
 //!
 //! The Account Set Pallet provides functionality to restrict extrinsic submission to a set of

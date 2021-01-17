@@ -1,6 +1,6 @@
 /*
  * This file is part of the CORD
- * Copyright (C) 2020  Dhiway
+ * Copyright (C) 2020-21  Dhiway
  *
  */
 
@@ -123,8 +123,8 @@ fn local_dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			hex!["a5b6331fcff809f2b3419332678fd7b23a2a9320240ec36652337fe66a7337e0"].unchecked_into(),
 		)];
 
-	const ENDOWMENT: u128 = 8_000 * DCU;
-	const STASH: u128 = 9_000_000_000_000 * DCU;
+	const ENDOWMENT: u128 = 8_999 * DCU;
+	const STASH: u128 = 9_000_999_000_999 * DCU;
 
 	GenesisConfig {
 		frame_system: Some(SystemConfig {
@@ -217,8 +217,8 @@ fn cord_testnet_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			hex!["f2079c41fe0f05f17138e205da91e90958212daf50605d99699baf081daae49d"].unchecked_into(),
 		)];
 
-	const ENDOWMENT: u128 = 8_000 * DCU;
-	const STASH: u128 = 9_000_000_000_000 * DCU;
+	const ENDOWMENT: u128 = 8_999 * DCU;
+	const STASH: u128 = 9_000_999_000_999 * DCU;
 
 	GenesisConfig {
 		frame_system: Some(SystemConfig {
@@ -311,8 +311,8 @@ fn cord_mainnet_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			hex!["f2079c41fe0f05f17138e205da91e90958212daf50605d99699baf081daae49d"].unchecked_into(),
 		)];
 
-	const ENDOWMENT: u128 = 8_000 * DCU;
-	const STASH: u128 = 9_000_000_000_000 * DCU;
+	const ENDOWMENT: u128 = 8_999 * DCU;
+	const STASH: u128 = 9_000_999_000_999 * DCU;
 
 	GenesisConfig {
 		frame_system: Some(SystemConfig {

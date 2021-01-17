@@ -1,3 +1,9 @@
+#/*
+# * This file is part of the CORD
+# * Copyright (C) 2020-21  Dhiway
+# *
+# */
+
 #!/bin/bash
 
 SCRIPTDIR=$(dirname "$0")

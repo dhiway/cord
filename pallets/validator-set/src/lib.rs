@@ -1,10 +1,15 @@
+/*
+ * This file is part of the CORD
+ * Copyright (C) 2020 - 21  Dhiway
+ * 
+ * derived from validator set pallet
+ */
+
 //! # Validator Set Pallet
 //!
-//! The Validator Set Pallet provides functionality to add/remove validators through extrinsics, in a Substrate-based
-//! PoA network.
-//! 
-//! The pallet is based on the Substrate session pallet and implements related traits for session 
-//! management when validators are added or removed.
+//! The Validator Set Pallet provides functionality to add/remove validators through extrinsics, 
+//! in a PoA network.
+
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
