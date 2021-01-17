@@ -1,21 +1,9 @@
-// KILT Blockchain – https://botlabs.org
-// Copyright (C) 2019  BOTLabs GmbH
-
-// The KILT Blockchain is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// The KILT Blockchain is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-// If you feel like getting in touch with us, you can do so at info@botlabs.org
-
+/*
+ * This file is part of the CORD
+ * Copyright (C) 2020 - 21  Dhiway
+ * 
+ * derived from kilt did
+ */
 //! DID: Handles decentralized identifiers on chain,
 //! adding and removing DIDs.
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -44,9 +32,9 @@ pub trait Trait: frame_system::Config {
 decl_event!(
 	/// Events for DIDs
 	pub enum Event<T> where <T as frame_system::Config>::AccountId {
-		/// A did has been created
+		/// A DID has been created
 		DidCreated(AccountId),
-		/// A did has been removed
+		/// A DID has been removed
 		DidRemoved(AccountId),
 	}
 );
@@ -63,8 +51,7 @@ decl_module! {
 		/// sign_key - public signing key of the DID
 		/// box_key - public boxing key of the DID
 		/// doc_ref - optional reference to the DID document storage
-		#[weight = 1]
-		pub fn add(origin, sign_key: T::PublicSigningKey, box_key: T::PublicBoxKey, doc_ref: Option<Vec<u8>>) -> DispatchResult {
+		#[weight = 10]		pub fn add(origin, sign_key: T::PublicSigningKey, box_key: T::PublicBoxKey, doc_ref: Option<Vec<u8>>) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// add DID to the storage
@@ -75,8 +62,7 @@ decl_module! {
 		}
 		/// Removes a DID from chain storage, where
 		/// origin - the origin of the transaction
-		#[weight = 1]
-		pub fn remove(origin) -> DispatchResult {
+		#[weight = 10]		pub fn remove(origin) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// remove DID from storage

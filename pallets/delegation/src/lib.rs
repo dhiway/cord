@@ -1,20 +1,9 @@
-// KILT Blockchain – https://botlabs.org
-// Copyright (C) 2019  BOTLabs GmbH
-
-// The KILT Blockchain is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// The KILT Blockchain is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-// If you feel like getting in touch with us, you can do so at info@botlabs.org
+/*
+ * This file is part of the CORD
+ * Copyright (C) 2020 - 21  Dhiway
+ * 
+ * derived from kilt ctype
+ */
 
 //! Delegation: Handles delegations on chain,
 //! creating and revoking root nodes of delegation hierarchies,
@@ -127,16 +116,15 @@ decl_module! {
 		/// Creates a delegation hierarchy root on chain, where
 		/// origin - the origin of the transaction
 		/// root_id - unique identifier of the root node
-		/// ctype_hash - hash of the CTYPE the hierarchy is created for
-		#[weight = 1]
-		pub fn create_root(origin, root_id: T::DelegationNodeId, ctype_hash: T::Hash) -> DispatchResult {
+		/// ctype_hash - hash of the #MARK SCHEMA the hierarchy is created for
+		#[weight = 10]		pub fn create_root(origin, root_id: T::DelegationNodeId, ctype_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if a root with the given id already exists
 			if <Root<T>>::contains_key(root_id) {
 				return Self::error(Self::ERROR_ROOT_ALREADY_EXISTS);
 			}
-			// check if CTYPE exists
+			// check if #MARK SCHEMA exists
 			if !<ctype::CTYPEs<T>>::contains_key(ctype_hash) {
 				return Self::error(<ctype::Module<T>>::ERROR_CTYPE_NOT_FOUND);
 			}
@@ -157,8 +145,7 @@ decl_module! {
 		/// delegate - the delegate account
 		/// permission - the permissions delegated
 		/// delegate_signature - the signature of the delegate to ensure it's done under his permission
-		#[weight = 1]
-		pub fn add_delegation(
+		#[weight = 10]		pub fn add_delegation(
 			origin,
 			delegation_id: T::DelegationNodeId,
 			root_id: T::DelegationNodeId,
@@ -209,7 +196,7 @@ decl_module! {
 				if !root.1.eq(&sender) {
 					return Self::error(Self::ERROR_NOT_OWNER_OF_ROOT);
 				}
-				// inser delegation
+				// insert delegation
 				debug::print!("insert Delegation without parent");
 				<Delegations<T>>::insert(delegation_id, (root_id,
 						Option::<T::DelegationNodeId>::None, delegate.clone(), permissions, false));
@@ -225,8 +212,7 @@ decl_module! {
 		/// Revoke the root and therefore a complete hierarchy, where
 		/// origin - the origin of the transaction
 		/// root_id - id of the hierarchy root node
-		#[weight = 1]
-		pub fn revoke_root(origin, root_id: T::DelegationNodeId) -> DispatchResult {
+		#[weight = 10]		pub fn revoke_root(origin, root_id: T::DelegationNodeId) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if root node exists
@@ -253,8 +239,7 @@ decl_module! {
 		/// Revoke a delegation node and all its children, where
 		/// origin - the origin of the transaction
 		/// delegation_id - id of the delegation node
-		#[weight = 1]
-		pub fn revoke_delegation(origin, delegation_id: T::DelegationNodeId) -> DispatchResult {
+		#[weight = 10]		pub fn revoke_delegation(origin, delegation_id: T::DelegationNodeId) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if delegation node exists
