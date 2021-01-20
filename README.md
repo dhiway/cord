@@ -377,7 +377,10 @@ and
 ```rust
 revoke_delegation(origin, delegation_id: T::DelegationNodeId) -> Result
 ```
-
+## bs58-cli Install
+```
+cargo install bs58-cli
+```
 ## Substrate Documentation:
 ### [Substrate Tutorials](https://substrate.dev/en/tutorials)
 ### [Substrate JSON-RPC API](https://polkadot.js.org/docs/substrate/rpc)
