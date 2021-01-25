@@ -11,7 +11,7 @@ use crate::{
 };
 use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
 use sc_service::PartialComponents;
-use cord_node_runtime::opaque::Block;
+use cord_node_runtime::Block;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -116,12 +116,10 @@ pub fn run() -> sc_cli::Result<()> {
 		},
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
-			runner.run_node_until_exit(|config| async move {
-				match config.role {
-					Role::Light => service::new_light(config),
-					_ => service::new_full(config),
-				}
-			}) 
+			runner.run_node_until_exit(|config| match config.role {
+				Role::Light => service::new_light(config),
+				_ => service::new_full(config),
+			})
 		}
 	}
 }

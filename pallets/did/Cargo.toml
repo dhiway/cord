@@ -21,7 +21,7 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "master
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 [dev-dependencies]
-cord-node-runtime = { version = '0.2.0', default-features = false, path = '../../runtime' }
+cord-node-runtime = { default-features = false, path = '../../runtime' }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 

@@ -1,8 +1,8 @@
 [workspace]
 members = [
-	'node',
-	'runtime',
-	'primitives',
+	"primitives",
+	"node",
+	"runtime",
 	'pallets/*'
 ]
 [profile.release]

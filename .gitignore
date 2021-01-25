@@ -10,3 +10,4 @@
 
 # ignore vscode settings
 .vscode
+.DS_Store

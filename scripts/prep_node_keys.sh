@@ -45,9 +45,13 @@ for i in $(seq 1 $V_NUM); do
 	AUTHORITY_ACCOUNTS+="$(generate_address_and_account_id $i controller)\n"
 	
 	AUTHORITIES+="(\n"
+	AUTHORITIES+="$(generate_address_and_account_id $i stash)\n"
 	AUTHORITIES+="$(generate_address_and_account_id $i controller)\n"
 	AUTHORITIES+="$(generate_address_and_account_id $i aura '--scheme sr25519' true)\n"
 	AUTHORITIES+="$(generate_address_and_account_id $i grandpa '--scheme ed25519' true)\n"
+	AUTHORITIES+="$(generate_address_and_account_id $i im_online '--scheme sr25519' true)\n"
+	AUTHORITIES+="$(generate_address_and_account_id $i authority_discovery '--scheme sr25519' true)\n"
+
 	AUTHORITIES+="),\n"
 
 	AUTHORITIES_RPC+="//$(generate_address $i controller) (\n"
