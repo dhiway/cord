@@ -8,12 +8,12 @@ pub mod currency {
 	use cord_primitives::Balance;
 
 	pub const DCU: Balance = 100_000_000_000_000_000;
-	pub const DOLLARS: Balance = DCU / 100;
-	pub const CENTS: Balance = DOLLARS / 100;     
-	pub const MILLICENTS: Balance = CENTS / 1_000; 
+	pub const RUPEES: Balance = DCU / 100;
+	pub const PAISE: Balance = RUPEES / 100;     
+	pub const MILLIPAISE: Balance = PAISE / 1_000; 
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * 100 * DOLLARS + (bytes as Balance) * 100 * MILLICENTS
+		items as Balance * 100 * RUPEES + (bytes as Balance) * 100 * MILLIPAISE
 	}
 }
 
@@ -66,8 +66,8 @@ pub mod fee {
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-			// in Polkadot, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT:
-			let p = super::currency::CENTS;
+			// in CORD, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 PAISE:
+			let p = super::currency::PAISE;
 			let q = 10 * Balance::from(ExtrinsicBaseWeight::get());
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
@@ -76,36 +76,5 @@ pub mod fee {
 				coeff_integer: p / q,
 			}]
 		}
-	}
-}
-
-#[cfg(test)]
-mod tests {
-	// use frame_support::weights::WeightToFeePolynomial;
-	use frame_support::weights::constants::ExtrinsicBaseWeight;
-	use frame_support::weights::{
-		WeightToFeePolynomial, WeightToFeeCoefficient, WeightToFeeCoefficients,
-	};
-	use super::fee::WeightToFee;
-	use super::currency::{CENTS, DOLLARS, MILLICENTS};
-
-	#[test]
-	// This function tests that the fee for `MAXIMUM_BLOCK_WEIGHT` of weight is correct
-	fn full_block_fee_is_correct() {
-		// A full block should cost 16 DOLLARS
-		println!("Base: {}", ExtrinsicBaseWeight::get());
-		let x = WeightToFee::calc(&MAXIMUM_BLOCK_WEIGHT);
-		let y = 16 * DOLLARS;
-		assert!(x.max(y) - x.min(y) < MILLICENTS);
-	}
-
-	#[test]
-	// This function tests that the fee for `ExtrinsicBaseWeight` of weight is correct
-	fn extrinsic_base_fee_is_correct() {
-		// `ExtrinsicBaseWeight` should cost 1/10 of a CENT
-		println!("Base: {}", ExtrinsicBaseWeight::get());
-		let x = WeightToFee::calc(&ExtrinsicBaseWeight::get());
-		let y = CENTS / 10;
-		assert!(x.max(y) - x.min(y) < MILLICENTS);
 	}
 }

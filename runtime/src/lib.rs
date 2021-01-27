@@ -289,7 +289,7 @@ impl pallet_aura::Config for Runtime {
 }
 
 parameter_types! {
-	pub const IndexDeposit: Balance = 1 * DOLLARS;
+	pub const IndexDeposit: Balance = 1 * RUPEES;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -301,7 +301,7 @@ impl pallet_indices::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 10 * MILLICENTS;
+	pub const ExistentialDeposit: Balance = 10 * MILLIPAISE;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
 	// This number may need to be adjusted in the future if this assumption no longer holds true.
 	pub const MaxLocks: u32 = 50;
@@ -318,7 +318,7 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
+	pub const TransactionByteFee: Balance = 10 * MILLIPAISE;
 }
 
 /// Parameterized slow adjusting fee updated based on
@@ -458,10 +458,10 @@ parameter_types! {
 	pub const LaunchPeriod: BlockNumber = 28 * DAYS;
 	pub const VotingPeriod: BlockNumber = 28 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
-	pub const MinimumDeposit: Balance = 100 * DOLLARS;
+	pub const MinimumDeposit: Balance = 100 * RUPEES;
 	pub const EnactmentPeriod: BlockNumber = 28 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
-	pub const PreimageByteDeposit: Balance = 1 * CENTS;
+	pub const PreimageByteDeposit: Balance = 1 * PAISE;
 	pub const InstantAllowed: bool = true;
 	pub const MaxVotes: u32 = 100;
 	pub const MaxProposals: u32 = 100;
@@ -547,7 +547,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 }
 
 parameter_types! {
-	pub const CandidacyBond: Balance = 100 * DOLLARS;
+	pub const CandidacyBond: Balance = 100 * RUPEES;
 	// 1 storage item created, key size is 32 bytes, value size is 16+16.
 	pub const VotingBondBase: Balance = deposit(1, 64);
 	// additional data per vote is 32 bytes (account id).
@@ -612,21 +612,10 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = 1000 * DOLLARS;
+	pub const ProposalBondMinimum: Balance = 1000 * RUPEES;
 	pub const SpendPeriod: BlockNumber = 14 * DAYS;
 	pub const Burn: Permill = Permill::from_percent(1);
 	pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
-
-	// pub const TipCountdown: BlockNumber = 1 * DAYS;
-	// pub const TipFindersFee: Percent = Percent::from_percent(20);
-	// pub const TipReportDepositBase: Balance = 1 * DOLLARS;
-	// pub const DataDepositPerByte: Balance = 1 * CENTS;
-	// pub const BountyDepositBase: Balance = 1 * DOLLARS;
-	// pub const BountyDepositPayoutDelay: BlockNumber = 7 * DAYS;
-	// pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
-	// pub const MaximumReasonLength: u32 = 16384;
-	// pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-	// pub const BountyValueMinimum: Balance = 10 * DOLLARS;
 }
 
 type ApproveOrigin = EnsureOneOf<
