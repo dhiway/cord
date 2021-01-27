@@ -1,8 +1,8 @@
 [package]
-authors = [ 'KILT <info@kilt.io>' ]
-edition = '2018'
 name = 'error'
-version = '0.23.0'
+version = '0.3.0'
+edition = '2018'
+authors = ['Dhiway <info@dhiway.com>']
 description = 'Handles runtime errors.'
 
 [[package.metadata.docs.rs]]

@@ -82,7 +82,9 @@ pub mod fee {
 #[cfg(test)]
 mod tests {
 	use frame_support::weights::WeightToFeePolynomial;
-	use cord_runtime::{MAXIMUM_BLOCK_WEIGHT, ExtrinsicBaseWeight};
+	use frame_support::weights::{
+		WeightToFeePolynomial, WeightToFeeCoefficient, WeightToFeeCoefficients,
+	};
 	use super::fee::WeightToFee;
 	use super::currency::{CENTS, DOLLARS, MILLICENTS};
 

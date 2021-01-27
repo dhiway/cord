@@ -1,9 +1,12 @@
-/*
- * This file is part of the CORD
- * Copyright (C) 2020 - 21  Dhiway
- * 
- * derived from kilt ctype
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
+// derived from kilt project
+
+//! #MARK Types: Handles #MARK Types,
+//! testing #MARK Types.
+
+use super::*;
 
 use crate::*;
 
@@ -74,8 +77,8 @@ parameter_types! {
 impl frame_system::Config for Test {
 	type Origin = Origin;
 	type Call = ();
-	type Index = u64;
-	type BlockNumber = u64;
+	type Index = u32;
+	type BlockNumber = u32;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
@@ -106,7 +109,7 @@ impl Trait for Test {
 	type Event = ();
 }
 
-type CType = Module<Test>;
+type MType = Module<Test>;
 
 fn new_test_ext() -> sp_io::TestExternalities {
 	frame_system::GenesisConfig::default()
@@ -119,14 +122,14 @@ fn new_test_ext() -> sp_io::TestExternalities {
 fn it_works_for_default_value() {
 	new_test_ext().execute_with(|| {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
-		let ctype_hash = H256::from_low_u64_be(1);
+		let mtype_hash = H256::from_low_u64_be(1);
 		let account = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(CType::add(Origin::signed(account.clone()), ctype_hash));
-		assert_eq!(<CTYPEs<Test>>::contains_key(ctype_hash), true);
-		assert_eq!(CType::ctypes(ctype_hash), Some(account.clone()));
+		assert_ok!(MType::add(Origin::signed(account.clone()), mtype_hash));
+		assert_eq!(<MTYPE<Test>>::contains_key(mtype_hash), true);
+		assert_eq!(MType::mtype(mtype_hash), Some(account.clone()));
 		assert_err!(
-			CType::add(Origin::signed(account), ctype_hash),
-			CType::ERROR_CTYPE_ALREADY_EXISTS.1
+			MType::add(Origin::signed(account), mtype_hash),
+			MType::ERROR_MTYPE_ALREADY_EXISTS.1
 		);
 	});
 }

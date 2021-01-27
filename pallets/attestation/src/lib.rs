@@ -11,7 +11,7 @@
 #[cfg(test)]
 mod tests;
 
-use ctype;
+use mtype;
 use delegation;
 use error;
 use frame_support::{
@@ -49,15 +49,15 @@ decl_module! {
 		/// Adds an #MARK on chain, where
 		/// origin - the origin of the transaction
 		/// claim_hash - hash of the attested claim
-		/// ctype_hash - hash of the #MARK SCHEMA of the claim
+		/// mtype_hash - hash of the #MARK SCHEMA of the claim
 		/// delegation_id - optional id that refers to a delegation this #MARK is based on
 		#[weight = 10]
-		pub fn add(origin, claim_hash: T::Hash, ctype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult {
+		pub fn add(origin, claim_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if the #MARK SCHEMA exists
-			if !<ctype::CTYPEs<T>>::contains_key(ctype_hash) {
-				return Self::error(<ctype::Module<T>>::ERROR_CTYPE_NOT_FOUND);
+			if !<mtype::MTYPEs<T>>::contains_key(mtype_hash) {
+				return Self::error(<mtype::Module<T>>::ERROR_MTYPE_NOT_FOUND);
 			}
 
 			if let Some(d) = delegation_id {
@@ -77,13 +77,13 @@ decl_module! {
 					// delegation is not set up for attesting claims
 					return Self::error(Self::ERROR_DELEGATION_NOT_AUTHORIZED_TO_ATTEST);
 				} else {
-					// check if CTYPE of the delegation is matching the SCHEMA of the #MARK
+					// check if MTYPE of the delegation is matching the SCHEMA of the #MARK
 					let root = <error::Module<T>>::ok_or_deposit_err(
 						<delegation::Root<T>>::get(delegation.0),
 						<delegation::Module<T>>::ERROR_ROOT_NOT_FOUND
 					)?;
-					if !root.0.eq(&ctype_hash) {
-						return Self::error(Self::ERROR_CTYPE_OF_DELEGATION_NOT_MATCHING);
+					if !root.0.eq(&mtype_hash) {
+						return Self::error(Self::ERROR_MTYPE_OF_DELEGATION_NOT_MATCHING);
 					}
 				}
 			}
@@ -95,8 +95,8 @@ decl_module! {
 
 			// insert #MARK
 			debug::RuntimeLogger::init();
-			debug::print!("insert Attestation");
-			<Attestations<T>>::insert(claim_hash, (ctype_hash, sender.clone(), delegation_id, false));
+			debug::print!("insert #MARK");
+			<Attestations<T>>::insert(claim_hash, (mtype_hash, sender.clone(), delegation_id, false));
 
 			if let Some(d) = delegation_id {
 				// if #MARK is based on a delegation this is stored in a separate map
@@ -107,14 +107,15 @@ decl_module! {
 
 			// deposit event that #MARK has beed added
 			Self::deposit_event(RawEvent::AttestationCreated(sender, claim_hash,
-					ctype_hash, delegation_id));
+					mtype_hash, delegation_id));
 			Ok(())
 		}
 
 		/// Revokes an #MARK on chain, where
 		/// origin - the origin of the transaction
-		/// claim_hash - hash of #MARK
-		#[weight = 10]		pub fn revoke(origin, claim_hash: T::Hash) -> DispatchResult {
+		/// content_hash - hash of #MARK
+		#[weight = 10]		
+		pub fn revoke(origin, claim_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 
@@ -169,7 +170,7 @@ impl<T: Trait> Module<T> {
 		(Self::ERROR_BASE + 5, "not delegated to attester");
 	const ERROR_DELEGATION_NOT_AUTHORIZED_TO_ATTEST: error::ErrorType =
 		(Self::ERROR_BASE + 6, "delegation not authorized to attest");
-	const ERROR_CTYPE_OF_DELEGATION_NOT_MATCHING: error::ErrorType =
+	const ERROR_MTYPE_OF_DELEGATION_NOT_MATCHING: error::ErrorType =
 		(Self::ERROR_BASE + 7, "#MARK SCHEMA of delegation does not match");
 	const ERROR_NOT_PERMITTED_TO_REVOKE_ATTESTATION: error::ErrorType =
 		(Self::ERROR_BASE + 8, "not permitted to revoke #MARK");
@@ -190,7 +191,7 @@ impl<T: Trait> Module<T> {
 
 decl_storage! {
 	trait Store for Module<T: Trait> as Attestation {
-		/// #MARK: claim-hash -> (ctype-hash, attester-account, delegation-id?, revoked)?
+		/// #MARK: claim-hash -> (mtype-hash, attester-account, delegation-id?, revoked)?
 		Attestations get(fn attestations): map hasher(opaque_blake2_256) T::Hash => Option<(T::Hash, T::AccountId, Option<T::DelegationNodeId>, bool)>;
 		/// Delegated#Mark: delegation-id -> [claim-hash]
 		DelegatedAttestations get(fn delegated_attestations): map hasher(opaque_blake2_256) T::DelegationNodeId => Vec<T::Hash>;

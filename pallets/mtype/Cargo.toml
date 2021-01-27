@@ -1,9 +1,9 @@
 [package]
-authors = [ 'KILT <info@kilt.io>' ]
+name = 'mtype'
+version = '0.3.0'
 edition = '2018'
-name = 'ctype'
-version = '0.23.0'
-description = 'Enables adding CTYPEs.'
+authors = ['Dhiway <info@dhiway.com>']
+description = 'Enables adding #MARK TYPEs (Schemas).'
 
 [[package.metadata.docs.rs]]
 targets = ['x86_64-unknown-linux-gnu']

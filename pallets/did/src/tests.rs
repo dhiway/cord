@@ -1,10 +1,10 @@
-/*
- * This file is part of the CORD
- * Copyright (C) 2020 - 21  Dhiway
- * 
- * derived from kilt did
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
 
+// derived from kilt project
+
+//! DID: Handles decentralized identifiers on chain,
+//! test adding and removing DIDs.
 use crate::*;
 
 use frame_support::{
@@ -66,8 +66,8 @@ parameter_types! {
 impl frame_system::Config for Test {
 	type Origin = Origin;
 	type Call = ();
-	type Index = u64;
-	type BlockNumber = u64;
+	type Index = u32;
+	type BlockNumber = u32;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
@@ -77,7 +77,6 @@ impl frame_system::Config for Test {
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = RocksDbWeight;
 	type Version = ();
-
 	type PalletInfo = ();
 	type AccountData = ();
 	type OnNewAccount = ();

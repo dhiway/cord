@@ -1,9 +1,9 @@
-/*
-* This file is part of the CORD
-* Copyright (C) 2020 - 21  Dhiway
-* 
-* derived from kilt ctype
-*/
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
+// derived from kilt project
+
+//! testing Delegation
 
 use crate::*;
 
@@ -89,7 +89,7 @@ impl frame_system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 }
 
-impl ctype::Trait for Test {
+impl mtype::Trait for Test {
 	type Event = ();
 }
 
@@ -105,7 +105,7 @@ impl Trait for Test {
 	type DelegationNodeId = H256;
 }
 
-type CType = ctype::Module<Test>;
+type MType = mtype::Module<Test>;
 type Delegation = Module<Test>;
 
 fn hash_to_u8<T: Encode>(hash: T) -> Vec<u8> {
@@ -129,27 +129,27 @@ fn check_add_and_revoke_delegations() {
 		let pair_charlie = ed25519::Pair::from_seed(&*b"Charlie                         ");
 		let account_hash_charlie = MultiSigner::from(pair_charlie.public()).into_account();
 
-		let ctype_hash = H256::from_low_u64_be(1);
+		let mtype_hash = H256::from_low_u64_be(1);
 		let id_level_0 = H256::from_low_u64_be(1);
 		let id_level_1 = H256::from_low_u64_be(2);
 		let id_level_2_1 = H256::from_low_u64_be(21);
 		let id_level_2_2 = H256::from_low_u64_be(22);
 		let id_level_2_2_1 = H256::from_low_u64_be(221);
-		assert_ok!(CType::add(
+		assert_ok!(MType::add(
 			Origin::signed(account_hash_alice.clone()),
-			ctype_hash
+			mtype_hash
 		));
 
 		assert_ok!(Delegation::create_root(
 			Origin::signed(account_hash_alice.clone()),
 			id_level_0,
-			ctype_hash
+			mtype_hash
 		));
 		assert_err!(
 			Delegation::create_root(
 				Origin::signed(account_hash_alice.clone()),
 				id_level_0,
-				ctype_hash
+				mtype_hash
 			),
 			Delegation::ERROR_ROOT_ALREADY_EXISTS.1
 		);
@@ -159,7 +159,7 @@ fn check_add_and_revoke_delegations() {
 				id_level_1,
 				H256::from_low_u64_be(2)
 			),
-			CType::ERROR_CTYPE_NOT_FOUND.1
+			MType::ERROR_MTYPE_NOT_FOUND.1
 		);
 
 		assert_ok!(Delegation::add_delegation(
@@ -341,7 +341,7 @@ fn check_add_and_revoke_delegations() {
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
-		assert_eq!(root.0, ctype_hash);
+		assert_eq!(root.0, mtype_hash);
 		assert_eq!(root.1, account_hash_alice.clone());
 		assert_eq!(root.2, false);
 

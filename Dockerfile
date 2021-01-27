@@ -1,4 +1,4 @@
-# this container builds the cord-node binary from source files and the runtime library
+# this container builds the cord binary from source files and the runtime library
 # pinned the version to avoid build cache invalidation
 # ===== FIRST (BUILD) STAGE ======
 
@@ -42,11 +42,11 @@ RUN apt-get update && \
 # add user
 	useradd -m -u 1000 -U -s /bin/sh -d /cord cord 
 
-COPY --from=builder /build/target/$PROFILE/cord-node /usr/local/bin
+COPY --from=builder /build/target/$PROFILE/cord /usr/local/bin
 
 # checks
-RUN ldd /usr/local/bin/cord-node && \
-	/usr/local/bin/cord-node --version
+RUN ldd /usr/local/bin/cord && \
+	/usr/local/bin/cord --version
 
 # Shrinking
 RUN rm -rf /usr/lib/python* && \
@@ -57,4 +57,4 @@ USER cord
 EXPOSE 30333 9933 9944 
 VOLUME ["/cord"]
 
-ENTRYPOINT ["/usr/local/bin/cord-node"]
+ENTRYPOINT ["/usr/local/bin/cord"]

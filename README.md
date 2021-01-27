@@ -2,8 +2,8 @@
 
 # CORD
 
-The CORD nodes use Parity Substrate and KILT modules as the underlying 
-technology stack with DID, CType, Attestation and hierarchical Trust Modules.
+The CORD node implementation uses Parity Substrate and KILT modules as the underlying 
+technology stack with DID, #MARK Type, #MARKS and hierarchical Trust Modules.
 
 - [CORD](#cord)
     - [Key Management](#key-management)
@@ -18,7 +18,7 @@ technology stack with DID, CType, Attestation and hierarchical Trust Modules.
     - [DID Module](#did-module)
       - [Add](#add)
       - [CRUD](#crud)
-    - [CTYPE Module](#ctype-module)
+    - [#MARK Type Module](#mark-type-module)
     - [Attestation Module](#attestation-module)
       - [Add](#add-1)
       - [Revoke](#revoke)
@@ -27,6 +27,7 @@ technology stack with DID, CType, Attestation and hierarchical Trust Modules.
       - [Create root](#create-root)
       - [Add delegation](#add-delegation)
       - [Revoke](#revoke-1)
+  - [bs58-cli Install](#bs58-cli-install)
   - [Substrate Documentation:](#substrate-documentation)
     - [Substrate Tutorials](#substrate-tutorials)
     - [Substrate JSON-RPC API](#substrate-json-rpc-api)
@@ -43,19 +44,19 @@ Clone this repo and navigate into it.
 Build docker image:
 
 ```
-docker build -t local/cord-node:develop .
+docker build -t local/cord:develop .
 ```
 
 start, by running:
 
 ```
-docker run -p 9944:9944 -p 9933:9933 local/cord-node:develop --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
+docker run -p 9944:9944 -p 9933:9933 local/cord:develop --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
 ```
 
 with persistent mount that will keep the kchain data locally:
 
 ```
-docker run -p 9944:9944 -p 9933:9933 -v /my/local/folder:/cord local/cord-node:develop  --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
+docker run -p 9944:9944 -p 9933:9933 -v /my/local/folder:/cord local/cord:develop  --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
 ```
 
 To setup the local node with proper aura and granda keys, execute below:
@@ -85,7 +86,7 @@ cargo build
 start, by running:
 
 ```
-./target/debug/cord-node [node command]
+./target/debug/cord [node command]
 ```
 
 #### Building in performant release mode
@@ -97,7 +98,7 @@ cargo build --release
 start, by running:
 
 ```
-./target/release/cord-node [node command]
+./target/release/cord [node command]
 ```
 
 For execution see the section about commands.
@@ -115,13 +116,13 @@ After finished building the node binary can be found in the `./target` directory
 for dev mode build:
 
 ```
-./target/debug/cord-node --dev --ws-port 9944 --ws-external --rpc-external
+./target/debug/cord --dev --ws-port 9944 --ws-external --rpc-external
 ```
 
 for release mode build:
 
 ```
-./target/release/cord-node --dev --ws-port 9944 --ws-external --rpc-external
+./target/release/cord --dev --ws-port 9944 --ws-external --rpc-external
 ```
 #### Polkadot Web UI
 Add the following code to `Developer` -> `Settings`
@@ -171,7 +172,7 @@ In Substrate, the blockchain transactions are abstracted away and are generalise
 [extrinsics](https://docs.substrate.dev/docs/extrinsics) in the system. They are called extrinsics since they can represent any piece of information that is regarded as input from “the outside world” (i.e. from users of the network) to the blockchain logic. The blockchain transactions are implemented through these
 general extrinsics, that are signed by the originator of the transaction. We use this framework
 to write the protocol specific data entries on the blockchain: [DID],
-[CTYPEhash], [Attestation] and [Delegation]. The processing of each of these entry types is
+[MTYPEhash], [Attestation] and [Delegation]. The processing of each of these entry types is
 handled by our custom runtime modules.
 
 Under the current consensus algorithm, authority validator nodes (whose addresses are listed
@@ -221,9 +222,9 @@ reads a DID for an account address, the add function may also be used to update 
 a `remove(origin) -> Result` function that takes the owner as a single parameter removes the DID from the
 map, so any later read operation call does not return the data of a removed DID.
 
-### CTYPE Module
+### #MARK Type Module
 
-The node runtime defines an CTYPE (Schema) module exposing
+The node runtime defines an MARK TYPE (Schema) module exposing
 
 ```rust
 add(origin, hash: T::Hash) -> Result
@@ -232,7 +233,7 @@ add(origin, hash: T::Hash) -> Result
 This function takes following parameters:
 
 - origin: public [ss58](https://substrate.dev/docs/en/knowledgebase/advanced/ss58-address-format) address of the caller of the method
-- hash: CTYPE hash as a [blake2b](https://blake2.net/) string
+- hash: MTYPE hash as a [blake2b](https://blake2.net/) string
 
 The node verifies the transaction signature corresponding to the creator and
 inserts it to the blockchain storage by using a map:
@@ -254,14 +255,14 @@ The node runtime defines an Attestation module exposing functions to
 #### Add
 
 ```rust
-add(origin, claim_hash: T::Hash, ctype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> Result
+add(origin, claim_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> Result
 ```
 
 The `add` function takes following parameters:
 
 - origin: The caller of the method, i.e., public address ([ss58](https://substrate.dev/docs/en/knowledgebase/advanced/ss58-address-format)) of the Attester
 - claim_hash: The Claim hash as [blake2b](https://blake2.net/) string used as the key of the entry
-- ctype_hash: The [blake2b](https://blake2.net/) hash of CTYPE used when creating the Claim
+- mtype_hash: The [blake2b](https://blake2.net/) hash of MTYPE used when creating the Claim
 - delegation_id: Optional reference to a delegation which this attestation is based
   on
 
@@ -314,7 +315,7 @@ The node runtime defines a Delegation module exposing functions to
 #### Create root
 
 ```rust
-create_root(origin, root_id: T::DelegationNodeId, ctype_hash: T::Hash) -> Result
+create_root(origin, root_id: T::DelegationNodeId, mtype_hash: T::Hash) -> Result
 ```
 
 The `create_root` function takes the following parameters:
@@ -322,7 +323,7 @@ The `create_root` function takes the following parameters:
 - origin: The caller of the method, i.e., public address (ss58) of the owner of the
   trust hierarchy
 - root_id: A V4 UUID identifying the trust hierarchy
-- ctype_hash: The blake2b hash of the CTYPE the trust hierarchy is associated with
+- mtype_hash: The blake2b hash of the MTYPE the trust hierarchy is associated with
 
 The node verifies the transaction signature and insert it to the state. The root is stored by using
 a map:
@@ -344,7 +345,7 @@ The `add_delegation` function takes the following parameters:
 - root_id: A V4 UUID identifying the associated trust hierarchy
 - parent_id: Optional, a V4 UUID identifying the parent delegation this delegation is
   based on
-- CTYPEHash: The blake2b hash of CTYPE used when creating the Claim
+- MTYPEHash: The blake2b hash of MTYPE used when creating the Claim
 - delegate: The public address (ss58) of the delegate (ID receiving the delegation)
 - permissions: The permission bit set (having 0001 for attesting permission and
   0010 for delegation permission)

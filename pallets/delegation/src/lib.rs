@@ -64,7 +64,7 @@ impl Default for Permissions {
 }
 
 /// The delegation trait
-pub trait Trait: ctype::Trait + frame_system::Config + error::Trait {
+pub trait Trait: mtype::Trait + frame_system::Config + error::Trait {
 	/// Delegation specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
@@ -114,24 +114,24 @@ decl_module! {
 		/// Creates a delegation hierarchy root on chain, where
 		/// origin - the origin of the transaction
 		/// root_id - unique identifier of the root node
-		/// ctype_hash - hash of the #MARK SCHEMA the hierarchy is created for
-		#[weight = 10]		pub fn create_root(origin, root_id: T::DelegationNodeId, ctype_hash: T::Hash) -> DispatchResult {
+		/// mtype_hash - hash of the #MARK Type 
+		#[weight = 10]		
+		pub fn create_root(origin, root_id: T::DelegationNodeId, mtype_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if a root with the given id already exists
 			if <Root<T>>::contains_key(root_id) {
 				return Self::error(Self::ERROR_ROOT_ALREADY_EXISTS);
 			}
-			// check if #MARK SCHEMA exists
-			if !<ctype::CTYPEs<T>>::contains_key(ctype_hash) {
-				return Self::error(<ctype::Module<T>>::ERROR_CTYPE_NOT_FOUND);
+			// check if #MARK Type exists
+			if !<mtype::MTYPEs<T>>::contains_key(mtype_hash) {
+				return Self::error(<mtype::Module<T>>::ERROR_MTYPE_NOT_FOUND);
 			}
-
 			// add root node to storage
 			debug::print!("insert Delegation Root");
-			<Root<T>>::insert(root_id, (ctype_hash, sender.clone(), false));
+			<Root<T>>::insert(root_id, (mtype_hash, sender.clone(), false));
 			// deposit event that the root node has been created
-			Self::deposit_event(RawEvent::RootCreated(sender, root_id, ctype_hash));
+			Self::deposit_event(RawEvent::RootCreated(sender, root_id, mtype_hash));
 			Ok(())
 		}
 
@@ -143,7 +143,8 @@ decl_module! {
 		/// delegate - the delegate account
 		/// permission - the permissions delegated
 		/// delegate_signature - the signature of the delegate to ensure it's done under his permission
-		#[weight = 10]		pub fn add_delegation(
+		#[weight = 10]		
+		pub fn add_delegation(
 			origin,
 			delegation_id: T::DelegationNodeId,
 			root_id: T::DelegationNodeId,
@@ -374,7 +375,7 @@ impl<T: Trait> Module<T> {
 
 decl_storage! {
 	trait Store for Module<T: Trait> as Delegation {
-		// Root: root-id => (ctype-hash, account, revoked)?
+		// Root: root-id => (mtype-hash, account, revoked)?
 		pub Root get(fn root):map hasher(opaque_blake2_256) T::DelegationNodeId => Option<(T::Hash,T::AccountId,bool)>;
 		// Delegations: delegation-id => (root-id, parent-id?, account, permissions, revoked)?
 		pub Delegations get(fn delegation):map hasher(opaque_blake2_256) T::DelegationNodeId => Option<(T::DelegationNodeId,Option<T::DelegationNodeId>,T::AccountId,Permissions,bool)>;
