@@ -128,17 +128,7 @@ for release mode build:
 Add the following code to `Developer` -> `Settings`
 ``` json
 {
-    "Address": "AccountId",
-    "BlockNumber": "u64",
-    "DelegationNodeId": "Hash",
-    "ErrorCode": "u16",
-    "Index": "u64",
-    "LookupSource": "AccountId",
-    "Permissions": "u32",
-    "PublicBoxKey": "Hash",
-    "PublicSigningKey": "Hash",
-    "RefCount": "u8",
-    "Signature": "MultiSignature"
+    "DelegationNodeId": "Hash"
 }
 ```
 ## Node Modules functionalities
