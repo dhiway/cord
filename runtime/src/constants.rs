@@ -10,7 +10,7 @@ pub mod currency {
 	pub const DCU: Balance = 100_000_000_000_000_000;
 	pub const RUPEES: Balance = DCU / 100;
 	pub const PAISE: Balance = RUPEES / 100;     
-	pub const MILLIPAISE: Balance = PAISE / 1_000; 
+	pub const MILLIPAISE: Balance = PAISE / 100; 
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
 		items as Balance * 100 * RUPEES + (bytes as Balance) * 100 * MILLIPAISE
