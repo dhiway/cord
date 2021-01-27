@@ -128,7 +128,7 @@ for release mode build:
 Add the following code to `Developer` -> `Settings`
 ``` json
 {
-    "DelegationNodeId": "Hash"
+    "DelegatieId": "Hash"
 }
 ```
 ## Node Modules functionalities
@@ -245,7 +245,7 @@ The node runtime defines an Attestation module exposing functions to
 #### Add
 
 ```rust
-add(origin, claim_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> Result
+add(origin, claim_hash: T::Hash, mtype_hash: T::Hash, delegate_id: Option<T::DelegationNodeId>) -> Result
 ```
 
 The `add` function takes following parameters:
@@ -253,7 +253,7 @@ The `add` function takes following parameters:
 - origin: The caller of the method, i.e., public address ([ss58](https://substrate.dev/docs/en/knowledgebase/advanced/ss58-address-format)) of the Attester
 - claim_hash: The Claim hash as [blake2b](https://blake2.net/) string used as the key of the entry
 - mtype_hash: The [blake2b](https://blake2.net/) hash of MTYPE used when creating the Claim
-- delegation_id: Optional reference to a delegation which this attestation is based
+- delegate_id: Optional reference to a delegation which this attestation is based
   on
 
 The node verifies the transaction signature and insert it to the state, if the provided attester
@@ -325,13 +325,13 @@ T::DelegationNodeId => (T::Hash,T::AccountId,bool)
 #### Add delegation
 
 ```rust
-add_delegation(origin, delegation_id: T::DelegationNodeId, root_id: T::DelegationNodeId, parent_id: Option<T::DelegationNodeId>, delegate: T::AccountId, permissions: Permissions, delegate_signature: T::Signature) -> Result
+add_delegation(origin, delegate_id: T::DelegationNodeId, root_id: T::DelegationNodeId, parent_id: Option<T::DelegationNodeId>, delegate: T::AccountId, permissions: Permissions, delegate_signature: T::Signature) -> Result
 ```
 
 The `add_delegation` function takes the following parameters:
 
 - origin: The caller of the method, i.e., public address (ss58) of the delegator
-- delegation_id: A V4 UUID identifying this delegation
+- delegate_id: A V4 UUID identifying this delegation
 - root_id: A V4 UUID identifying the associated trust hierarchy
 - parent_id: Optional, a V4 UUID identifying the parent delegation this delegation is
   based on
@@ -366,7 +366,7 @@ revoke_root(origin, root_id: T::DelegationNodeId) -> Result
 and
 
 ```rust
-revoke_delegation(origin, delegation_id: T::DelegationNodeId) -> Result
+revoke_delegation(origin, delegate_id: T::DelegationNodeId) -> Result
 ```
 ## bs58-cli Install
 ```

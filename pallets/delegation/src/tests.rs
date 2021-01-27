@@ -102,7 +102,7 @@ impl Trait for Test {
 	type Event = ();
 	type Signature = MultiSignature;
 	type Signer = <Self::Signature as Verify>::Signer;
-	type DelegationNodeId = H256;
+	type DelegateId = H256;
 }
 
 type MType = mtype::Module<Test>;

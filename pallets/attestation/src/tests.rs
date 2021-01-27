@@ -106,7 +106,7 @@ impl delegation::Trait for Test {
 	type Event = ();
 	type Signature = Signature;
 	type Signer = <Self::Signature as Verify>::Signer;
-	type DelegationNodeId = H256;
+	type DelegateId = H256;
 }
 
 impl Trait for Test {

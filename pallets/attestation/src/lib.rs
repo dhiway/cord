@@ -32,9 +32,9 @@ pub trait Trait: frame_system::Config + delegation::Trait + error::Trait {
 decl_event!(
 	/// Events for #MARKs
 	pub enum Event<T> where <T as frame_system::Config>::AccountId, <T as frame_system::Config>::Hash,
-			<T as delegation::Trait>::DelegationNodeId {
+			<T as delegation::Trait>::DelegateId {
 		/// An #MARK has been added
-		AttestationCreated(AccountId, Hash, Hash, Option<DelegationNodeId>),
+		AttestationCreated(AccountId, Hash, Hash, Option<DelegateId>),
 		/// An #MARK has been revoked
 		AttestationRevoked(AccountId, Hash),
 	}
@@ -50,9 +50,9 @@ decl_module! {
 		/// origin - the origin of the transaction
 		/// claim_hash - hash of the attested claim
 		/// mtype_hash - hash of the #MARK SCHEMA of the claim
-		/// delegation_id - optional id that refers to a delegation this #MARK is based on
+		/// delegate_id - optional id that refers to a delegation this #MARK is based on
 		#[weight = 10]
-		pub fn add(origin, claim_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult {
+		pub fn add(origin, claim_hash: T::Hash, mtype_hash: T::Hash, delegate_id: Option<T::DelegateId>) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if the #MARK SCHEMA exists
@@ -60,7 +60,7 @@ decl_module! {
 				return Self::error(<mtype::Module<T>>::ERROR_MTYPE_NOT_FOUND);
 			}
 
-			if let Some(d) = delegation_id {
+			if let Some(d) = delegate_id {
 				// has a delegation
 				// check if delegation exists
 				let delegation = <error::Module<T>>::ok_or_deposit_err(
@@ -96,9 +96,9 @@ decl_module! {
 			// insert #MARK
 			debug::RuntimeLogger::init();
 			debug::print!("insert #MARK");
-			<Attestations<T>>::insert(claim_hash, (mtype_hash, sender.clone(), delegation_id, false));
+			<Attestations<T>>::insert(claim_hash, (mtype_hash, sender.clone(), delegate_id, false));
 
-			if let Some(d) = delegation_id {
+			if let Some(d) = delegate_id {
 				// if #MARK is based on a delegation this is stored in a separate map
 				let mut delegated_attestations = <DelegatedAttestations<T>>::get(d);
 				delegated_attestations.push(claim_hash);
@@ -107,7 +107,7 @@ decl_module! {
 
 			// deposit event that #MARK has beed added
 			Self::deposit_event(RawEvent::AttestationCreated(sender, claim_hash,
-					mtype_hash, delegation_id));
+					mtype_hash, delegate_id));
 			Ok(())
 		}
 
@@ -183,7 +183,7 @@ impl<T: Trait> Module<T> {
 	/// Check delegation hierarchy using the delegation module
 	fn is_delegating(
 		account: &T::AccountId,
-		delegation: &T::DelegationNodeId,
+		delegation: &T::DelegateId,
 	) -> result::Result<bool, &'static str> {
 		<delegation::Module<T>>::is_delegating(account, delegation)
 	}
@@ -192,8 +192,8 @@ impl<T: Trait> Module<T> {
 decl_storage! {
 	trait Store for Module<T: Trait> as Attestation {
 		/// #MARK: claim-hash -> (mtype-hash, attester-account, delegation-id?, revoked)?
-		Attestations get(fn attestations): map hasher(opaque_blake2_256) T::Hash => Option<(T::Hash, T::AccountId, Option<T::DelegationNodeId>, bool)>;
+		Attestations get(fn attestations): map hasher(opaque_blake2_256) T::Hash => Option<(T::Hash, T::AccountId, Option<T::DelegateId>, bool)>;
 		/// Delegated#Mark: delegation-id -> [claim-hash]
-		DelegatedAttestations get(fn delegated_attestations): map hasher(opaque_blake2_256) T::DelegationNodeId => Vec<T::Hash>;
+		DelegatedAttestations get(fn delegated_attestations): map hasher(opaque_blake2_256) T::DelegateId => Vec<T::Hash>;
 	}
 }

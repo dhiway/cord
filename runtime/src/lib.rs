@@ -761,7 +761,7 @@ impl delegation::Trait for Runtime {
 	type Event = Event;
 	type Signature = Signature;
 	type Signer = <Signature as Verify>::Signer;
-	type DelegationNodeId = Hash;
+	type DelegateId = Hash;
 }
 
 impl did::Trait for Runtime {

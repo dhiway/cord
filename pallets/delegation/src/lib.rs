@@ -76,7 +76,7 @@ pub trait Trait: mtype::Trait + frame_system::Config + error::Trait {
 	type Signer: IdentifyAccount<AccountId = Self::AccountId> + Member + Codec;
 
 	/// Delegation node id type
-	type DelegationNodeId: Parameter
+	type DelegateId: Parameter
 		+ Member
 		+ Codec
 		+ MaybeDisplay
@@ -90,18 +90,18 @@ pub trait Trait: mtype::Trait + frame_system::Config + error::Trait {
 }
 
 decl_event!(
-	/// Events for delegations
+	/// Events for delegation
 	pub enum Event<T> where <T as frame_system::Config>::Hash, <T as frame_system::Config>::AccountId,
-			<T as Trait>::DelegationNodeId {
-		/// A new root has been created
-		RootCreated(AccountId, DelegationNodeId, Hash),
-		/// A root has been revoked
-		RootRevoked(AccountId, DelegationNodeId),
-		/// A new delegation has been created
-		DelegationCreated(AccountId, DelegationNodeId, DelegationNodeId, Option<DelegationNodeId>,
+			<T as Trait>::DelegateId {
+		/// A new trust group has been created
+		RootCreated(AccountId, DelegateId, Hash),
+		/// A trust group has been revoked
+		RootRevoked(AccountId, DelegateId),
+		/// A new delegation has been added to the group
+		DelegationCreated(AccountId, DelegateId, DelegateId, Option<DelegateId>,
 				AccountId, Permissions),
-		/// A delegation has been revoked
-		DelegationRevoked(AccountId, DelegationNodeId),
+		/// A delegation has been revoked from the group
+		DelegationRevoked(AccountId, DelegateId),
 	}
 );
 
@@ -111,15 +111,15 @@ decl_module! {
 		/// Deposit events
 		fn deposit_event() = default;
 
-		/// Creates a delegation hierarchy root on chain, where
+		/// Creates a trust hierarchy root on chain, where
 		/// origin - the origin of the transaction
-		/// root_id - unique identifier of the root node
+		/// root_id - unique identifier of the trust group
 		/// mtype_hash - hash of the #MARK Type 
 		#[weight = 10]		
-		pub fn create_root(origin, root_id: T::DelegationNodeId, mtype_hash: T::Hash) -> DispatchResult {
+		pub fn create_root(origin, root_id: T::DelegateId, mtype_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
-			// check if a root with the given id already exists
+			// check if a group with the given id already exists
 			if <Root<T>>::contains_key(root_id) {
 				return Self::error(Self::ERROR_ROOT_ALREADY_EXISTS);
 			}
@@ -127,40 +127,40 @@ decl_module! {
 			if !<mtype::MTYPEs<T>>::contains_key(mtype_hash) {
 				return Self::error(<mtype::Module<T>>::ERROR_MTYPE_NOT_FOUND);
 			}
-			// add root node to storage
-			debug::print!("insert Delegation Root");
+			// add a trust group to storage
+			debug::print!("insert Trust Group");
 			<Root<T>>::insert(root_id, (mtype_hash, sender.clone(), false));
-			// deposit event that the root node has been created
+			// deposit event that the trust group has been created
 			Self::deposit_event(RawEvent::RootCreated(sender, root_id, mtype_hash));
 			Ok(())
 		}
 
-		/// Adds a delegation node on chain, where
+		/// Adds a delegate Id on chain, where
 		/// origin - the origin of the transaction
-		/// delegation_id - unique identifier of the delegation node to be added
+		/// delegate_id - unique identifier of the delegate to be added
 		/// root_id - id of the hierarchy root node
-		/// parent_id - optional identifier of a parent node this delegation node is created under
+		/// parent_id - optional identifier of a parent node this delegate Id is created under
 		/// delegate - the delegate account
 		/// permission - the permissions delegated
 		/// delegate_signature - the signature of the delegate to ensure it's done under his permission
 		#[weight = 10]		
 		pub fn add_delegation(
 			origin,
-			delegation_id: T::DelegationNodeId,
-			root_id: T::DelegationNodeId,
-			parent_id: Option<T::DelegationNodeId>,
+			delegate_id: T::DelegateId,
+			root_id: T::DelegateId,
+			parent_id: Option<T::DelegateId>,
 			delegate: T::AccountId,
 			permissions: Permissions,
 			delegate_signature: T::Signature
 		) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
-			// check if a delegation node with the given identifier already exists
-			if <Delegations<T>>::contains_key(delegation_id) {
+			// check if a delegate Id with the given identifier already exists
+			if <Delegations<T>>::contains_key(delegate_id) {
 				return Self::error(Self::ERROR_DELEGATION_ALREADY_EXISTS);
 			}
 			// calculate the hash root and check if the signature matches
-			let hash_root = Self::calculate_hash(delegation_id, root_id, parent_id, permissions);
+			let hash_root = Self::calculate_hash(delegate_id, root_id, parent_id, permissions);
 			if !verify_encoded_lazy(&delegate_signature, &&hash_root, &delegate) {
 				return Self::error(Self::ERROR_BAD_DELEGATION_SIGNATURE);
 			}
@@ -185,10 +185,10 @@ decl_module! {
 				} else {
 					// insert delegation
 					debug::print!("insert Delegation with parent");
-					<Delegations<T>>::insert(delegation_id, (root_id,
+					<Delegations<T>>::insert(delegate_id, (root_id,
 							Some(p), delegate.clone(), permissions, false));
 					// add child to tree structure
-					Self::add_child(delegation_id, p);
+					Self::add_child(delegate_id, p);
 				}
 			} else {
 				// check if the sender of this transaction is the creator of the root node (as no parent is given)
@@ -197,13 +197,13 @@ decl_module! {
 				}
 				// insert delegation
 				debug::print!("insert Delegation without parent");
-				<Delegations<T>>::insert(delegation_id, (root_id,
-						Option::<T::DelegationNodeId>::None, delegate.clone(), permissions, false));
+				<Delegations<T>>::insert(delegate_id, (root_id,
+						Option::<T::DelegateId>::None, delegate.clone(), permissions, false));
 				// add child to tree structure
-				Self::add_child(delegation_id, root_id);
+				Self::add_child(delegate_id, root_id);
 			}
-			// deposit event that the delegation node has been added
-			Self::deposit_event(RawEvent::DelegationCreated(sender, delegation_id,
+			// deposit event that the delegate Id has been added
+			Self::deposit_event(RawEvent::DelegationCreated(sender, delegate_id,
 					root_id, parent_id, delegate, permissions));
 			Ok(())
 		}
@@ -211,7 +211,7 @@ decl_module! {
 		/// Revoke the root and therefore a complete hierarchy, where
 		/// origin - the origin of the transaction
 		/// root_id - id of the hierarchy root node
-		#[weight = 10]		pub fn revoke_root(origin, root_id: T::DelegationNodeId) -> DispatchResult {
+		#[weight = 10]		pub fn revoke_root(origin, root_id: T::DelegateId) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if root node exists
@@ -235,23 +235,23 @@ decl_module! {
 			Ok(())
 		}
 
-		/// Revoke a delegation node and all its children, where
+		/// Revoke a delegate Id and all its children, where
 		/// origin - the origin of the transaction
-		/// delegation_id - id of the delegation node
-		#[weight = 10]		pub fn revoke_delegation(origin, delegation_id: T::DelegationNodeId) -> DispatchResult {
+		/// delegate_id - id of the delegate Id
+		#[weight = 10]		pub fn revoke_delegation(origin, delegate_id: T::DelegateId) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
-			// check if delegation node exists
-			if !<Delegations<T>>::contains_key(delegation_id) {
+			// check if delegate Id exists
+			if !<Delegations<T>>::contains_key(delegate_id) {
 				return Self::error(Self::ERROR_DELEGATION_NOT_FOUND)
 			}
 			// check if the sender of this transaction is permitted by being the
 			// owner of the delegation or of one of its parents
-			if !Self::is_delegating(&sender, &delegation_id)? {
+			if !Self::is_delegating(&sender, &delegate_id)? {
 				return Self::error(Self::ERROR_NOT_PERMITTED_TO_REVOKE)
 			}
 			// revoke the delegation and recursively all of its children
-			Self::revoke(&delegation_id, &sender)?;
+			Self::revoke(&delegate_id, &sender)?;
 			Ok(())
 		}
 	}
@@ -287,13 +287,13 @@ impl<T: Trait> Module<T> {
 
 	/// Calculates the hash of all values of a delegation transaction
 	pub fn calculate_hash(
-		delegation_id: T::DelegationNodeId,
-		root_id: T::DelegationNodeId,
-		parent_id: Option<T::DelegationNodeId>,
+		delegate_id: T::DelegateId,
+		root_id: T::DelegateId,
+		parent_id: Option<T::DelegateId>,
 		permissions: Permissions,
 	) -> T::Hash {
 		// add all values to an u8 vector
-		let mut hashed_values: Vec<u8> = delegation_id.as_ref().to_vec();
+		let mut hashed_values: Vec<u8> = delegate_id.as_ref().to_vec();
 		hashed_values.extend_from_slice(root_id.as_ref());
 		if let Some(p) = parent_id {
 			hashed_values.extend_from_slice(p.as_ref())
@@ -306,7 +306,7 @@ impl<T: Trait> Module<T> {
 	/// Check if an account is the owner of the delegation or any delegation up the hierarchy (including the root)
 	pub fn is_delegating(
 		account: &T::AccountId,
-		delegation: &T::DelegationNodeId,
+		delegation: &T::DelegateId,
 	) -> result::Result<bool, &'static str> {
 		// check if delegation exists
 		let d = <error::Module<T>>::ok_or_deposit_err(
@@ -330,15 +330,15 @@ impl<T: Trait> Module<T> {
 	}
 
 	/// Revoke a delegation an all of its children
-	fn revoke(delegation: &T::DelegationNodeId, sender: &T::AccountId) -> DispatchResult {
-		// retrieve delegation node from storage
+	fn revoke(delegation: &T::DelegateId, sender: &T::AccountId) -> DispatchResult {
+		// retrieve delegate Id from storage
 		let mut d = <error::Module<T>>::ok_or_deposit_err(
 			<Delegations<T>>::get(*delegation),
 			Self::ERROR_DELEGATION_NOT_FOUND,
 		)?;
 		// check if already revoked
 		if !d.4 {
-			// set revoked flag and store delegation node
+			// set revoked flag and store delegate Id
 			d.4 = true;
 			<Delegations<T>>::insert(*delegation, d);
 			// deposit event that the delegation has been revoked
@@ -350,7 +350,7 @@ impl<T: Trait> Module<T> {
 	}
 
 	/// Revoke all children of a delegation
-	fn revoke_children(delegation: &T::DelegationNodeId, sender: &T::AccountId) -> DispatchResult {
+	fn revoke_children(delegation: &T::DelegateId, sender: &T::AccountId) -> DispatchResult {
 		// check if there's a child vector in the storage
 		if <Children<T>>::contains_key(delegation) {
 			// iterate child vector and revoke all nodes
@@ -363,7 +363,7 @@ impl<T: Trait> Module<T> {
 	}
 
 	/// Add a child node into the delegation hierarchy
-	fn add_child(child: T::DelegationNodeId, parent: T::DelegationNodeId) {
+	fn add_child(child: T::DelegateId, parent: T::DelegateId) {
 		// get the children vector
 		let mut children = <Children<T>>::get(parent);
 		// add child element
@@ -376,10 +376,10 @@ impl<T: Trait> Module<T> {
 decl_storage! {
 	trait Store for Module<T: Trait> as Delegation {
 		// Root: root-id => (mtype-hash, account, revoked)?
-		pub Root get(fn root):map hasher(opaque_blake2_256) T::DelegationNodeId => Option<(T::Hash,T::AccountId,bool)>;
-		// Delegations: delegation-id => (root-id, parent-id?, account, permissions, revoked)?
-		pub Delegations get(fn delegation):map hasher(opaque_blake2_256) T::DelegationNodeId => Option<(T::DelegationNodeId,Option<T::DelegationNodeId>,T::AccountId,Permissions,bool)>;
-		// Children: root-or-delegation-id => [delegation-id]
-		pub Children get(fn children):map hasher(opaque_blake2_256) T::DelegationNodeId => Vec<T::DelegationNodeId>;
+		pub Root get(fn root):map hasher(opaque_blake2_256) T::DelegateId => Option<(T::Hash,T::AccountId,bool)>;
+		// Delegations: delegate-id => (root-id, parent-id?, account, permissions, revoked)?
+		pub Delegations get(fn delegation):map hasher(opaque_blake2_256) T::DelegateId => Option<(T::DelegateId,Option<T::DelegateId>,T::AccountId,Permissions,bool)>;
+		// Children: root-or-delegate-id => [delegate-id]
+		pub Children get(fn children):map hasher(opaque_blake2_256) T::DelegateId => Vec<T::DelegateId>;
 	}
 }
