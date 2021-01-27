@@ -122,13 +122,13 @@ fn new_test_ext() -> sp_io::TestExternalities {
 fn it_works_for_default_value() {
 	new_test_ext().execute_with(|| {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
-		let mtype_hash = H256::from_low_u64_be(1);
+		let mtype = H256::from_low_u64_be(1);
 		let account = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(MType::add(Origin::signed(account.clone()), mtype_hash));
-		assert_eq!(<MTYPE<Test>>::contains_key(mtype_hash), true);
-		assert_eq!(MType::mtype(mtype_hash), Some(account.clone()));
+		assert_ok!(MType::add(Origin::signed(account.clone()), mtype));
+		assert_eq!(<MTYPE<Test>>::contains_key(mtype), true);
+		assert_eq!(MType::mtypes(mtype), Some(account.clone()));
 		assert_err!(
-			MType::add(Origin::signed(account), mtype_hash),
+			MType::add(Origin::signed(account), mtype),
 			MType::ERROR_MTYPE_ALREADY_EXISTS.1
 		);
 	});

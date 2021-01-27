@@ -129,7 +129,7 @@ fn check_add_and_revoke_delegations() {
 		let pair_charlie = ed25519::Pair::from_seed(&*b"Charlie                         ");
 		let account_hash_charlie = MultiSigner::from(pair_charlie.public()).into_account();
 
-		let mtype_hash = H256::from_low_u64_be(1);
+		let mtype = H256::from_low_u64_be(1);
 		let id_level_0 = H256::from_low_u64_be(1);
 		let id_level_1 = H256::from_low_u64_be(2);
 		let id_level_2_1 = H256::from_low_u64_be(21);
@@ -137,19 +137,19 @@ fn check_add_and_revoke_delegations() {
 		let id_level_2_2_1 = H256::from_low_u64_be(221);
 		assert_ok!(MType::add(
 			Origin::signed(account_hash_alice.clone()),
-			mtype_hash
+			mtype
 		));
 
 		assert_ok!(Delegation::create_root(
 			Origin::signed(account_hash_alice.clone()),
 			id_level_0,
-			mtype_hash
+			mtype
 		));
 		assert_err!(
 			Delegation::create_root(
 				Origin::signed(account_hash_alice.clone()),
 				id_level_0,
-				mtype_hash
+				mtype
 			),
 			Delegation::ERROR_ROOT_ALREADY_EXISTS.1
 		);
@@ -341,7 +341,7 @@ fn check_add_and_revoke_delegations() {
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
-		assert_eq!(root.0, mtype_hash);
+		assert_eq!(root.0, mtype);
 		assert_eq!(root.1, account_hash_alice.clone());
 		assert_eq!(root.2, false);
 

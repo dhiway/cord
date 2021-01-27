@@ -19,7 +19,7 @@ technology stack with DID, #MARK Type, #MARKS and hierarchical Trust Modules.
       - [Add](#add)
       - [CRUD](#crud)
     - [#MARK Type Module](#mark-type-module)
-    - [Attestation Module](#attestation-module)
+    - [Attestation Module](#mark-module)
       - [Add](#add-1)
       - [Revoke](#revoke)
       - [Lookup](#lookup)
@@ -236,57 +236,57 @@ T::Hash => T::AccountId
 
 The node runtime defines an Attestation module exposing functions to
 
-- add an attestation (`add`)
-- revoke an attestation (`revoke`)
-- lookup an attestation (`lookup`)
-- lookup attestations for a delegation (used later in Complex Trust Structures)
+- add an mark (`add`)
+- revoke an mark (`revoke`)
+- lookup an mark (`lookup`)
+- lookup marks for a delegation (used later in Complex Trust Structures)
   on chain.
 
 #### Add
 
 ```rust
-add(origin, claim_hash: T::Hash, mtype_hash: T::Hash, delegate_id: Option<T::DelegationNodeId>) -> Result
+add(origin, mark: T::Hash, mtype: T::Hash, delegate_id: Option<T::DelegateId>) -> Result
 ```
 
 The `add` function takes following parameters:
 
 - origin: The caller of the method, i.e., public address ([ss58](https://substrate.dev/docs/en/knowledgebase/advanced/ss58-address-format)) of the Attester
-- claim_hash: The Claim hash as [blake2b](https://blake2.net/) string used as the key of the entry
-- mtype_hash: The [blake2b](https://blake2.net/) hash of MTYPE used when creating the Claim
-- delegate_id: Optional reference to a delegation which this attestation is based
+- mark: The Claim hash as [blake2b](https://blake2.net/) string used as the key of the entry
+- mtype: The [blake2b](https://blake2.net/) hash of MTYPE used when creating the Claim
+- delegate_id: Optional reference to a delegation which this mark is based
   on
 
 The node verifies the transaction signature and insert it to the state, if the provided attester
-didn’t already attest the provided claimHash. The attestation is stored by using a map:
+didn’t already attest the provided claimHash. The mark is stored by using a map:
 
 ```rust
-T::Hash => (T::Hash,T::AccountId,Option<T::DelegationNodeId>,bool)
+T::Hash => (T::Hash,T::AccountId,Option<T::DelegateId>,bool)
 ```
 
 Delegated Attestations are stored in an additional map:
 
 ```rust
-T::DelegationNodeId => Vec<T::Hash>
+T::DelegateId => Vec<T::Hash>
 ```
 
 #### Revoke
 
 ```rust
-revoke(origin, claim_hash: T::Hash) -> Result
+revoke(origin, mark: T::Hash) -> Result
 ```
 
-The `revoke` function takes the claimHash (which is the key to lookup an attestation) as
-argument. After looking up the attestation and checking invoker permissions, the revoked
-flag is set to true and the updated attestation is stored on chain.
+The `revoke` function takes the claimHash (which is the key to lookup an mark) as
+argument. After looking up the mark and checking invoker permissions, the revoked
+flag is set to true and the updated mark is stored on chain.
 
 #### Lookup
 
-The attestation lookup is performed with the `claimHash`, serving as the key to the
-attestation store. The function `get_attestation(claimHash)` is exposed to the outside
+The mark lookup is performed with the `claimHash`, serving as the key to the
+mark store. The function `get_mark(claimHash)` is exposed to the outside
 clients and services on the blockchain for this purpose.
 
-Similarly, as with the simple lookup, to query all attestations created by a certain delegate,
-the runtime defines the function `get_delegated_attestations(DelegationNodeId)`
+Similarly, as with the simple lookup, to query all marks created by a certain delegate,
+the runtime defines the function `get_delegated_marks(DelegateId)`
 that is exposed to the outside.
 
 ### Hierarchy of Trust Module
@@ -305,7 +305,7 @@ The node runtime defines a Delegation module exposing functions to
 #### Create root
 
 ```rust
-create_root(origin, root_id: T::DelegationNodeId, mtype_hash: T::Hash) -> Result
+create_root(origin, root_id: T::DelegateId, mtype: T::Hash) -> Result
 ```
 
 The `create_root` function takes the following parameters:
@@ -313,19 +313,19 @@ The `create_root` function takes the following parameters:
 - origin: The caller of the method, i.e., public address (ss58) of the owner of the
   trust hierarchy
 - root_id: A V4 UUID identifying the trust hierarchy
-- mtype_hash: The blake2b hash of the MTYPE the trust hierarchy is associated with
+- mtype: The blake2b hash of the MTYPE the trust hierarchy is associated with
 
 The node verifies the transaction signature and insert it to the state. The root is stored by using
 a map:
 
 ```rust
-T::DelegationNodeId => (T::Hash,T::AccountId,bool)
+T::DelegateId => (T::Hash,T::AccountId,bool)
 ```
 
 #### Add delegation
 
 ```rust
-add_delegation(origin, delegate_id: T::DelegationNodeId, root_id: T::DelegationNodeId, parent_id: Option<T::DelegationNodeId>, delegate: T::AccountId, permissions: Permissions, delegate_signature: T::Signature) -> Result
+add_delegation(origin, delegate_id: T::DelegateId, root_id: T::DelegateId, parent_id: Option<T::DelegateId>, delegate: T::AccountId, permissions: Permissions, delegate_signature: T::Signature) -> Result
 ```
 
 The `add_delegation` function takes the following parameters:
@@ -347,26 +347,26 @@ to be valid and the delegator to be permitted and then inserts it to the state. 
 stored by using a map:
 
 ```rust
-T::DelegationNodeId => (T::DelegationNodeId,Option<T::DelegationNodeId>,T::AccountId,Permissions,bool)
+T::DelegateId => (T::DelegateId,Option<T::DelegateId>,T::AccountId,Permissions,bool)
 ```
 
 Additionally, if the delegation has a parent delegation, the information about the children of its
 parent is updated in the following map that relates parents to their children:
 
 ```rust
-T::DelegationNodeId => Vec<T::DelegationNodeId>
+T::DelegateId => Vec<T::DelegateId>
 ```
 
 #### Revoke
 
 ```rust
-revoke_root(origin, root_id: T::DelegationNodeId) -> Result
+revoke_root(origin, root_id: T::DelegateId) -> Result
 ```
 
 and
 
 ```rust
-revoke_delegation(origin, delegate_id: T::DelegationNodeId) -> Result
+revoke_delegation(origin, delegate_id: T::DelegateId) -> Result
 ```
 ## bs58-cli Install
 ```

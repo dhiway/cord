@@ -35,7 +35,7 @@ bitflags! {
 	/// Bitflags for permissions
 	#[derive(Encode, Decode)]
 	pub struct Permissions: u32 {
-		/// Bit flag for attestation permission
+		/// Bit flag for mark permission
 		const ATTEST = 0b0000_0001;
 		/// Bit flag for delegation permission
 		const DELEGATE = 0b0000_0010;
@@ -64,7 +64,7 @@ impl Default for Permissions {
 }
 
 /// The delegation trait
-pub trait Trait: mtype::Trait + frame_system::Config + error::Trait {
+pub trait Trait: mtypes::Trait + frame_system::Config + error::Trait {
 	/// Delegation specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
@@ -114,9 +114,9 @@ decl_module! {
 		/// Creates a trust hierarchy root on chain, where
 		/// origin - the origin of the transaction
 		/// root_id - unique identifier of the trust group
-		/// mtype_hash - hash of the #MARK Type 
+		/// mtype - hash of the #MARK Type 
 		#[weight = 10]		
-		pub fn create_root(origin, root_id: T::DelegateId, mtype_hash: T::Hash) -> DispatchResult {
+		pub fn create_root(origin, root_id: T::DelegateId, mtype: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if a group with the given id already exists
@@ -124,14 +124,14 @@ decl_module! {
 				return Self::error(Self::ERROR_ROOT_ALREADY_EXISTS);
 			}
 			// check if #MARK Type exists
-			if !<mtype::MTYPEs<T>>::contains_key(mtype_hash) {
-				return Self::error(<mtype::Module<T>>::ERROR_MTYPE_NOT_FOUND);
+			if !<mtypes::MTYPEs<T>>::contains_key(mtype) {
+				return Self::error(<mtypes::Module<T>>::ERROR_MTYPE_NOT_FOUND);
 			}
 			// add a trust group to storage
 			debug::print!("insert Trust Group");
-			<Root<T>>::insert(root_id, (mtype_hash, sender.clone(), false));
+			<Root<T>>::insert(root_id, (mtype, sender.clone(), false));
 			// deposit event that the trust group has been created
-			Self::deposit_event(RawEvent::RootCreated(sender, root_id, mtype_hash));
+			Self::deposit_event(RawEvent::RootCreated(sender, root_id, mtype));
 			Ok(())
 		}
 
@@ -211,7 +211,8 @@ decl_module! {
 		/// Revoke the root and therefore a complete hierarchy, where
 		/// origin - the origin of the transaction
 		/// root_id - id of the hierarchy root node
-		#[weight = 10]		pub fn revoke_root(origin, root_id: T::DelegateId) -> DispatchResult {
+		#[weight = 10]		
+		pub fn revoke_root(origin, root_id: T::DelegateId) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if root node exists
@@ -238,7 +239,8 @@ decl_module! {
 		/// Revoke a delegate Id and all its children, where
 		/// origin - the origin of the transaction
 		/// delegate_id - id of the delegate Id
-		#[weight = 10]		pub fn revoke_delegation(origin, delegate_id: T::DelegateId) -> DispatchResult {
+		#[weight = 10]		
+		pub fn revoke_delegation(origin, delegate_id: T::DelegateId) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if delegate Id exists

@@ -1,9 +1,9 @@
 [package]
-name = 'attestation'
+name = 'mtypes'
 version = '0.3.0'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
-description = 'Enables adding and revoking attestations.'
+description = 'Enables adding #MARK TYPEs (Schemas).'
 
 [[package.metadata.docs.rs]]
 targets = ['x86_64-unknown-linux-gnu']
@@ -12,7 +12,6 @@ targets = ['x86_64-unknown-linux-gnu']
 wasm-builder = { package = 'substrate-wasm-builder', version = '3.0.0' }
 
 [dependencies]
-bitflags = { default-features = false, version = '1.2.1' }
 codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '1.3.5' }
 
 # Substrate dependencies
@@ -22,9 +21,7 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "master
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
-# pallets
-mtype = { default-features = false, path = '../mtype' }
-delegation = { default-features = false, path = '../delegation' }
+# local pallets
 error = { default-features = false, path = '../error' }
 
 [dev-dependencies]
@@ -40,7 +37,6 @@ std = [
 	'sp-runtime/std',
 	'sp-std/std',
 	'sp-io/std',
-	'mtype/std',
-	'delegation/std',
 	'error/std'
 ]
+

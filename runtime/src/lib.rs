@@ -78,8 +78,8 @@ pub mod constants;
 use constants::{time::*, currency::*};
 use sp_runtime::generic::Era;
 
-pub use attestation;
-pub use mtype;
+pub use marks;
+pub use mtypes;
 pub use delegation;
 pub use did;
 pub use error;
@@ -749,11 +749,11 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-impl attestation::Trait for Runtime {
+impl marks::Trait for Runtime {
 	type Event = Event;
 }
 
-impl mtype::Trait for Runtime {
+impl mtypes::Trait for Runtime {
 	type Event = Event;
 }
 
@@ -817,8 +817,8 @@ construct_runtime! {
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage} = 25,
 		
 		Error: error::{ Module, Call, Event<T>} = 31,
-		Mtype: mtype::{Module, Call, Storage, Event<T>} = 32,
-		Attestation: attestation::{Module, Call, Storage, Event<T>} = 33,
+		Mtypes: mtypes::{Module, Call, Storage, Event<T>} = 32,
+		Marks: marks::{Module, Call, Storage, Event<T>} = 33,
 		Delegation: delegation::{Module, Call, Storage, Event<T>} = 34,
 		Did: did::{Module, Call, Storage, Event<T>} = 35,
 	}

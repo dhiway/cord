@@ -1,14 +1,19 @@
-#/*
-# * This file is part of the CORD
-# * Copyright (C) 2020-21  Dhiway
-# *
-# */
+#
+#/ Copyright 2019-2021 Dhiway.
+# This file is part of CORD Platform.
+# 
+
 
 #!/usr/bin/env bash
 set -e
 
 if [ "$#" -ne 1 ]; then
 	echo "Please provide the number of initial validators!"
+	exit 1
+fi
+
+if [ -z "$NODE_SEED" ]; then
+	echo "NODE_SEED Empty!"
 	exit 1
 fi
 

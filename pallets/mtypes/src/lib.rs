@@ -61,7 +61,7 @@ decl_module! {
 }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as Mtype {
+	trait Store for Module<T: Trait> as Mtypes {
 		// #MARK Type: mtype-hash -> account-id?
 		pub MTYPEs get(fn mtypes):map hasher(opaque_blake2_256) T::Hash => Option<T::AccountId>;
 	}
