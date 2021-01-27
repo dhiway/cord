@@ -81,7 +81,8 @@ pub mod fee {
 
 #[cfg(test)]
 mod tests {
-	use frame_support::weights::WeightToFeePolynomial;
+	// use frame_support::weights::WeightToFeePolynomial;
+	use frame_support::weights::constants::ExtrinsicBaseWeight;
 	use frame_support::weights::{
 		WeightToFeePolynomial, WeightToFeeCoefficient, WeightToFeeCoefficients,
 	};
