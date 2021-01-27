@@ -1,8 +1,7 @@
-/*
- * This file is part of the CORD
- * Copyright (C) 2020-21  Dhiway
- *
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
+//! The CORD runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 
 #![warn(clippy::all)]
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -11,7 +10,7 @@
 
 use sp_std::prelude::*;
 
-pub use primitives::{
+pub use cord_primitives::{
 	AccountId, AccountIndex, Balance, BlockNumber, Index, Hash, Moment, Signature, Nonce,
 };
 
@@ -21,7 +20,7 @@ use frame_support::{
 		Weight, IdentityFee, DispatchClass,
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 	},
-	traits::{Currency, Imbalance, KeyOwnerProofSystem, OnUnbalanced, Randomness, LockIdentifier},
+	traits::{KeyOwnerProofSystem, Randomness, LockIdentifier},
 	
 };
 
@@ -40,16 +39,16 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{
 	crypto::KeyTypeId, 
 	u32_trait::{_1, _2, _3, _4, _5},
-	OpaqueMetadata, U256, H160, H256,
+	OpaqueMetadata,
 };
 
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys, ModuleId, ApplyExtrinsicResult,
-	Percent, Permill, Perquintill, Perbill, FixedPointNumber, curve::PiecewiseLinear,
+	Permill, Perquintill, Perbill, FixedPointNumber, curve::PiecewiseLinear,
 	transaction_validity::{TransactionValidity, TransactionSource, TransactionPriority},
 	traits::{
-		BlakeTwo256, Block as BlockT, OpaqueKeys, ConvertInto, IdentityLookup,
-		Extrinsic as ExtrinsicT, SaturatedConversion, Verify, StaticLookup, 
+		BlakeTwo256, Block as BlockT, OpaqueKeys, IdentityLookup,
+		Extrinsic as ExtrinsicT, SaturatedConversion, Verify, 
 		NumberFor, Saturating,
 	},
 };
@@ -72,7 +71,7 @@ pub use frame_system::Call as SystemCall;
 pub use pallet_staking::StakerStatus;
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
-use impls::{ToAuthor, DealWithFees};
+use impls::ToAuthor;
 
 /// Constant values used within the runtime.
 pub mod constants;
@@ -121,15 +120,20 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 pub const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
 const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO.deconstruct());
 
-
 const AVERAGE_ON_INITIALIZE_WEIGHT: Perbill = Perbill::from_percent(10);
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 250;
 	pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
+	pub MaximumExtrinsicWeight: Weight = 
+	AvailableBlockRatio::get().saturating_sub(AVERAGE_ON_INITIALIZE_WEIGHT)
+	* MaximumBlockWeight::get();
+	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
+	pub const Version: RuntimeVersion = VERSION;
+	
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
-	/// Maximum length of block. Up to 5MB.
+	// /// Maximum length of block. Up to 5MB.
 	pub BlockLength: limits::BlockLength =
 		limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	/// Block weights base values and limits.
@@ -151,12 +155,8 @@ parameter_types! {
 		})
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();		
-	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-	pub MaximumExtrinsicWeight: Weight = 
-			AvailableBlockRatio::get().saturating_sub(AVERAGE_ON_INITIALIZE_WEIGHT)
-			* MaximumBlockWeight::get();
-	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
-	pub const Version: RuntimeVersion = VERSION;
+
+		pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
 	pub const SS58Prefix: u8 = 29;
 }
 
@@ -319,9 +319,6 @@ impl pallet_balances::Config for Runtime {
 
 parameter_types! {
 	pub const TransactionByteFee: Balance = 10 * MILLICENTS;
-	// pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
-	// pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
-	// pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
 
 /// Parameterized slow adjusting fee updated based on
@@ -339,7 +336,7 @@ pub type CurrencyToVote = frame_support::traits::U128CurrencyToVote;
 static_assertions::assert_eq_size!(Balance, u128);
 
 impl pallet_transaction_payment::Config for Runtime {
-	type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees<Runtime>>;
+	type OnChargeTransaction = CurrencyAdapter<Balances, ToAuthor<Runtime>>;
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = IdentityFee<Balance>;
 	type FeeMultiplierUpdate =SlowAdjustingFeeUpdate<Self>;
@@ -792,7 +789,7 @@ impl error::Trait for Runtime {
 construct_runtime! {
 	pub enum Runtime where
 		Block = Block,
-		NodeBlock = primitives::Block,
+		NodeBlock = cord_primitives::Block,
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		// Basic stuff;

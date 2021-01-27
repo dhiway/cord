@@ -1,40 +1,35 @@
-/*
- * This file is part of the CORD
- * Copyright (C) 2020-21  Dhiway
- *
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
 
-use cord_node_runtime::constants::currency::*;
-use cord_node_runtime::Block;
-use cord_node_runtime::{
-	AuraConfig, AuthorityDiscoveryConfig, BalancesConfig, CouncilConfig,
-	DemocracyConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, SessionConfig,
+//! CORD chain configurations.
+
+use cord_runtime::{
+	AuthorityDiscoveryConfig, BalancesConfig, CouncilConfig,
+	DemocracyConfig, ImOnlineConfig, IndicesConfig, SessionConfig,
 	GenesisConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
-	TreasuryConfig, TechnicalCommitteeConfig,  WASM_BINARY,
+	TechnicalCommitteeConfig,  WASM_BINARY,
 };
 
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use sc_chain_spec::ChainSpecExtension;
 use sc_service::{ChainType, Properties};
-use sc_telemetry::TelemetryEndpoints;
-use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
+use sp_core::crypto::UncheckedInto;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::{
-	traits::{IdentifyAccount, One, Verify},
-	Perbill,
-};
+use sp_runtime::Perbill;
 
-pub use primitives::{AccountId, Balance, BlockNumber, Signature};
-pub use cord_node_runtime::constants::time::*;
-// pub use cord_node_runtime::GenesisConfig;
-use cord_node_runtime::constants::currency::DCU;
+// use sp_runtime::{
+// 	traits::{IdentifyAccount, One, Verify},
+// 	Perbill,
+// };
+
+pub use cord_primitives::{AccountId, Balance, BlockNumber, Signature};
+pub use cord_runtime::constants::time::*;
+use cord_runtime::constants::currency::DCU;
 use hex_literal::hex;
 
 // Note this is the URL for the telemetry server
-const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+// const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 const DEFAULT_PROTOCOL_ID: &str = "cord";
 
 /// Specialised `ChainSpec`. This is a specialisation of the general Substrate ChainSpec type.
@@ -148,7 +143,7 @@ fn local_dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 		ImOnlineId, 
 		AuthorityDiscoveryId,
 	)> = vec![(
-			///3wF3nbuyb97oSkVBSgZe9dpYcFw5dypX8SPhBWrUcCpZxBWW
+			//3wF3nbuyb97oSkVBSgZe9dpYcFw5dypX8SPhBWrUcCpZxBWW
 			hex!["6ab68082628ad0cfab68b1a00377170ff0dea4da06030cdd0c21a364ecbbc23b"].into(),
 			//3yzE5N1DMjibaSesw1hAZ8wwvPJnxM3RzvQFanitVm4rkC8h
 			hex!["e41d2833b0b2f629e52a1bc1ace3079c395673bab26a14626b52c132b1fb5f1c"].into(),
@@ -162,7 +157,7 @@ fn local_dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			hex!["424af4547d488e65307cb14ffae20257b6e000658913f985824da5629afff13c"].unchecked_into(),
 		)];
 
-	const ENDOWMENT: u128 = 8_999 * DCU;
+	// const ENDOWMENT: u128 = 8_999 * DCU;
 	const STASH: u128 = 9_000_999_000_999 * DCU;
 
 	GenesisConfig {
@@ -174,7 +169,8 @@ fn local_dev_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			balances: endowed_accounts
 			.iter()
 			.map(|k: &AccountId| (k.clone(), STASH))
-			.chain(initial_authorities.iter().map(|x| (x.0.clone(), ENDOWMENT)))
+			.chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
+			.chain(initial_authorities.iter().map(|x| (x.1.clone(), STASH)))
 			.collect(),
 		}),
 		pallet_indices: Some(IndicesConfig { indices: vec![] }),

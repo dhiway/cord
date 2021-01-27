@@ -1,10 +1,13 @@
-pub use primitives::{
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
+//! Some configurable implementations as associated type for the CORD runtime.
+
+pub use cord_primitives::{
 	AccountId, Balance,
 };
-use sp_runtime::traits::Convert;
 use frame_support::traits::{OnUnbalanced, Imbalance, Currency};
 pub use pallet_balances::{Call as Balances, NegativeImbalance};
-// use crate::{Authorship};
 
 // Logic for the block author to get a portion of fees.
 pub struct ToAuthor<R>(sp_std::marker::PhantomData<R>);

@@ -1,19 +1,16 @@
-/*
- * This file is part of the CORD
- * Copyright (C) 2020  Dhiway
- *
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
+//! CORD CLI Library.
+
 #![warn(missing_docs)]
 
 mod chain_spec;
 #[macro_use]
 mod service;
 mod cli;
-mod rpc;
 mod command;
-
-// #[macro_use]
-// extern crate hex_literal;
+mod rpc;
 
 fn main() -> sc_cli::Result<()> {
 	command::run()

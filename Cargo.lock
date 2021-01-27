@@ -329,7 +329,7 @@ name = "attestation"
 version = "0.23.0"
 dependencies = [
  "bitflags",
- "cord-node-runtime",
+ "cord-runtime",
  "ctype",
  "delegation",
  "error",
@@ -742,8 +742,8 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 name = "cord-node"
 version = "0.3.0"
 dependencies = [
- "cord-node-runtime",
  "cord-primitives",
+ "cord-runtime",
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "frame-support",
@@ -811,7 +811,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "cord-node-runtime"
+name = "cord-primitives"
+version = "0.3.0"
+dependencies = [
+ "frame-system",
+ "parity-scale-codec",
+ "pretty_assertions",
+ "serde",
+ "sp-application-crypto",
+ "sp-core",
+ "sp-runtime",
+ "sp-serializer",
+]
+
+[[package]]
+name = "cord-runtime"
 version = "0.3.0"
 dependencies = [
  "attestation",
@@ -879,20 +893,6 @@ dependencies = [
  "substrate-wasm-builder",
  "tiny-keccak",
  "trie-db",
-]
-
-[[package]]
-name = "cord-primitives"
-version = "0.3.0"
-dependencies = [
- "frame-system",
- "parity-scale-codec",
- "pretty_assertions",
- "serde",
- "sp-application-crypto",
- "sp-core",
- "sp-runtime",
- "sp-serializer",
 ]
 
 [[package]]
@@ -1040,7 +1040,7 @@ dependencies = [
 name = "ctype"
 version = "0.23.0"
 dependencies = [
- "cord-node-runtime",
+ "cord-runtime",
  "error",
  "frame-support",
  "frame-system",
@@ -1100,7 +1100,7 @@ name = "delegation"
 version = "0.23.0"
 dependencies = [
  "bitflags",
- "cord-node-runtime",
+ "cord-runtime",
  "ctype",
  "error",
  "frame-support",
@@ -1128,7 +1128,7 @@ dependencies = [
 name = "did"
 version = "0.23.0"
 dependencies = [
- "cord-node-runtime",
+ "cord-runtime",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -1301,7 +1301,7 @@ dependencies = [
 name = "error"
 version = "0.23.0"
 dependencies = [
- "cord-node-runtime",
+ "cord-runtime",
  "frame-support",
  "frame-system",
  "parity-scale-codec",

@@ -1,9 +1,7 @@
-/*
- * This file is part of the CORD
- * Copyright (C) 2020 - 21  Dhiway
- * 
- * derived from kilt attestation
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
+// derived from kilt project
 
 //! Attestation: Handles #MARKs on chain,
 //! adding and revoking #MARKs.

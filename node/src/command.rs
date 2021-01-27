@@ -1,8 +1,5 @@
-/*
- * This file is part of the CORD
- * Copyright (C) 2020-21  Dhiway
- *
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
 
 use crate::{
 	chain_spec,
@@ -11,7 +8,7 @@ use crate::{
 };
 use sc_cli::{SubstrateCli, RuntimeVersion, Role, ChainSpec};
 use sc_service::PartialComponents;
-use cord_node_runtime::Block;
+use cord_runtime::Block;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -47,7 +44,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&cord_node_runtime::VERSION
+		&cord_runtime::VERSION
 	}
 }
 
@@ -62,33 +59,33 @@ pub fn run() -> sc_cli::Result<()> {
 		},
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			runner.async_run(|config| {
+			runner.async_run(|mut config| {
 				let PartialComponents { client, task_manager, import_queue, ..}
-					= service::new_partial(&config)?;
+					= service::new_partial(&mut config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		},
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			runner.async_run(|config| {
+			runner.async_run(|mut config| {
 				let PartialComponents { client, task_manager, ..}
-					= service::new_partial(&config)?;
+					= service::new_partial(&mut config)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
 		},
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			runner.async_run(|config| {
+			runner.async_run(|mut config| {
 				let PartialComponents { client, task_manager, ..}
-					= service::new_partial(&config)?;
+					= service::new_partial(&mut config)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
 		},
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			runner.async_run(|config| {
+			runner.async_run(|mut config| {
 				let PartialComponents { client, task_manager, import_queue, ..}
-					= service::new_partial(&config)?;
+					= service::new_partial(&mut config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		},
@@ -98,9 +95,9 @@ pub fn run() -> sc_cli::Result<()> {
 		},
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			runner.async_run(|config| {
+			runner.async_run(|mut config| {
 				let PartialComponents { client, task_manager, backend, ..}
-					= service::new_partial(&config)?;
+					= service::new_partial(&mut config)?;
 				Ok((cmd.run(client, backend), task_manager))
 			})
 		},
@@ -116,9 +113,11 @@ pub fn run() -> sc_cli::Result<()> {
 		},
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
-			runner.run_node_until_exit(|config| match config.role {
-				Role::Light => service::new_light(config),
-				_ => service::new_full(config),
+			runner.run_node_until_exit(|config| async move {
+				match config.role {
+					Role::Light => service::new_light(config),
+					_ => service::new_full(config),
+				}.map_err(sc_cli::Error::Service)
 			})
 		}
 	}

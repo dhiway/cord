@@ -1,5 +1,5 @@
 [package]
-name = 'cord-node-runtime'
+name = 'cord-runtime'
 version = '0.3.0'
 build = 'build.rs'
 edition = '2018'
@@ -29,9 +29,8 @@ ctype = { default-features = false, path = '../pallets/ctype' }
 did = {  default-features = false, path = '../pallets/did' }
 error = {  default-features = false, path = '../pallets/error' }
 
-
 # cord primitives
-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
+cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
 
 # primitives
 sp-application-crypto = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
@@ -96,7 +95,7 @@ std = [
     "sp-authority-discovery/std",
 	"pallet-authority-discovery/std",
     'bitvec/std',
-    "primitives/std",
+    "cord-primitives/std",
     "rustc-hex/std",
     'codec/std',
 	"sp-inherents/std",

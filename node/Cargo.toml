@@ -15,10 +15,8 @@ wasm-opt = false
 
 [[bin]]
 name = 'cord'
-path = "bin/main.rs"
+path = "src/main.rs"
 
-[lib]
-crate-type = ["cdylib", "rlib"]
 
 [build-dependencies]
 substrate-build-script-utils = '2.0.1'
@@ -36,8 +34,8 @@ thiserror = "1.0.23"
 
 
 # node-specific dependencies
-cord-node-runtime = { path = "../runtime" }
-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
+cord-runtime = { path = "../runtime" }
+cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
 
 # primitives
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "master" }

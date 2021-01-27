@@ -1,9 +1,8 @@
-/*
- * This file is part of the CORD
- * Copyright (C) 2020 - 21  Dhiway
- * 
- * derived from kilt ctype
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
+// derived from kilt project
+
 
 //! #MARK SCHEMA: Handles #MARK SCHEMAs on chain,
 //! adding #MARK SCHEMAs.

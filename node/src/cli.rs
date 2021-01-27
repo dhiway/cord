@@ -1,9 +1,8 @@
   
-/*
- * This file is part of the CORD
- * Copyright (C) 2020  Dhiway
- *
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
+//! CORD CLI.
 
 use structopt::StructOpt;
 use sc_cli::RunCmd;

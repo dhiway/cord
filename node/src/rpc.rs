@@ -1,10 +1,7 @@
-/*
- * This file is part of the CORD
- * Copyright (C) 2020-21  Dhiway
- *
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
 
-//! A collection of node-specific RPC methods.
+//! A collection of CORD specific RPC methods.
 //!
 //! Since `substrate` core functionality makes no assumptions
 //! about the modules used inside the runtime, so do
@@ -20,7 +17,7 @@
 #![warn(missing_docs)]
 
 use std::{sync::Arc};
-use primitives::{AccountId, Balance, Block, BlockNumber, Nonce, Hash, Index};
+use cord_primitives::{AccountId, Balance, Block, BlockNumber, Nonce, Hash};
 use sc_finality_grandpa::{
 	SharedVoterState, SharedAuthoritySet, FinalityProofProvider, GrandpaJustificationStream
 };
@@ -28,11 +25,9 @@ use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderMetadata, HeaderBackend};
 use sp_consensus::SelectChain;
-use sp_keystore::SyncCryptoStorePtr;
 use sp_transaction_pool::TransactionPool;
 use sc_client_api::AuxStore;
 use sc_client_api::light::{Fetcher, RemoteBlockchain};
-use sc_sync_state_rpc::{SyncStateRpcApi, SyncStateRpcHandler};
 pub use sc_rpc::{DenyUnsafe, SubscriptionTaskExecutor};
 
 /// A type representing all RPC extensions.
@@ -84,7 +79,7 @@ pub struct FullDeps<C, P, SC, B> {
 pub fn create_full<C, P, SC, B>(deps: FullDeps<C, P, SC, B>) -> RpcExtension where
 	C: ProvideRuntimeApi<Block> + HeaderBackend<Block> + AuxStore +
 		HeaderMetadata<Block, Error=BlockChainError> + Send + Sync + 'static,
-	C::Api: frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
+	C::Api: frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: BlockBuilder<Block>,
 	P: TransactionPool + Sync + Send + 'static,
@@ -100,8 +95,8 @@ pub fn create_full<C, P, SC, B>(deps: FullDeps<C, P, SC, B>) -> RpcExtension whe
 	let FullDeps {
 		client,
 		pool,
-		select_chain,
-		chain_spec,
+		select_chain: _,
+		chain_spec: _,
 		deny_unsafe,
 		grandpa,
 	} = deps;
@@ -129,14 +124,6 @@ pub fn create_full<C, P, SC, B>(deps: FullDeps<C, P, SC, B>) -> RpcExtension whe
 			)
 		)
 	);
-	// io.extend_with(
-	// 	SyncStateRpcApi::to_delegate(SyncStateRpcHandler::new(
-	// 		chain_spec,
-	// 		client,
-	// 		shared_authority_set,
-	// 		deny_unsafe,
-	// 	))
-	// );
 	io
 }
 

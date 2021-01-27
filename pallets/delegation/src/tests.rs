@@ -16,7 +16,7 @@ use frame_support::{
 	},
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use cord_node_runtime::{BlockHashCount, Signature, Weight, WEIGHT_PER_SECOND};
+use cord_runtime::{BlockHashCount, Signature, Weight, WEIGHT_PER_SECOND};
 use sp_core::{ed25519, Pair, H256, H512};
 use sp_runtime::{
 	testing::Header,

@@ -17,7 +17,7 @@ use frame_support::{
 	},
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use cord_node_runtime::{
+use cord_runtime::{
 	AccountId, BlockHashCount,
 	Signature, Weight, WEIGHT_PER_SECOND,
 };

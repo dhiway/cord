@@ -1,9 +1,7 @@
-/*
- * This file is part of the CORD
- * Copyright (C) 2020 - 21  Dhiway
- * 
- * derived from kilt error
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
+// derived from kilt project
 
 //! Error: Handles errors for all other runtime modules
 #![cfg_attr(not(feature = "std"), no_std)]

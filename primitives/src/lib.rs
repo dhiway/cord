@@ -1,8 +1,7 @@
-/*
- * This file is part of the CORD
- * Copyright (C) 2020-21  Dhiway
- *
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
+//! Low-level types used throughout the CORD code.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 

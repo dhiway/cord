@@ -25,7 +25,7 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", de
 error = { default-features = false, path = '../error' }
 
 [dev-dependencies]
-cord-node-runtime = { default-features = false, path = '../../runtime' }
+cord-runtime = { default-features = false, path = '../../runtime' }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 [features]

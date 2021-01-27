@@ -1,14 +1,11 @@
-/*
- * This file is part of the CORD
- * Copyright (C) 2020-21  Dhiway
- *
- */
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
 
 //! A set of constant values used in runtime.
 
 /// Money matters.
 pub mod currency {
-	use primitives::Balance;
+	use cord_primitives::Balance;
 
 	pub const DCU: Balance = 100_000_000_000_000_000;
 	pub const DOLLARS: Balance = DCU / 100;
@@ -22,7 +19,7 @@ pub mod currency {
 
 /// Time and blocks.
 pub mod time {
-	use primitives::{Moment, BlockNumber};
+	use cord_primitives::{Moment, BlockNumber};
 	pub const MILLISECS_PER_BLOCK: Moment = 4000;
 	pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
 
@@ -42,45 +39,70 @@ pub mod time {
 
 }
 
-// /// Fee-related
-// pub mod fee {
-// 	pub use super::currency::CENTS;
-// 	use frame_support::weights::{
-// 		constants::ExtrinsicBaseWeight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
-// 	};
-// 	use primitives::Balance;
-// 	use smallvec::smallvec;
-// 	use sp_runtime::Perbill;
+/// Fee-related.
+pub mod fee {
+	pub use sp_runtime::Perbill;
+	use cord_primitives::Balance;
+	use frame_support::weights::constants::ExtrinsicBaseWeight;
+	use frame_support::weights::{
+		WeightToFeePolynomial, WeightToFeeCoefficient, WeightToFeeCoefficients,
+	};
+	use smallvec::smallvec;
 
-// 	/// The block saturation level. Fees will be updates based on this value.
-// 	pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
+	/// The block saturation level. Fees will be updates based on this value.
+	pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
 
-// 	/// Handles converting a weight scalar to a fee value, based on the scale
-// 	/// and granularity of the node's balance type.
-// 	///
-// 	/// This should typically create a mapping between the following ranges:
-// 	///   - [0, system::MaximumBlockWeight]
-// 	///   - [Balance::min, Balance::max]
-// 	///
-// 	/// Yet, it can be used for any other sort of change to weight-fee. Some
-// 	/// examples being:
-// 	///   - Setting it to `0` will essentially disable the weight fee.
-// 	///   - Setting it to `1` will cause the literal `#[weight = x]` values to
-// 	///     be charged.
-// 	pub struct WeightToFee;
-// 	impl WeightToFeePolynomial for WeightToFee {
-// 		type Balance = Balance;
-// 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-// 			// in cord, extrinsic base weight (smallest non-zero weight) is mapped to 1/10
-// 			// CENT:
-// 			let p = super::currency::CENTS;
-// 			let q = 10 * Balance::from(ExtrinsicBaseWeight::get()); 
-// 			smallvec![WeightToFeeCoefficient {
-// 				degree: 1,
-// 				negative: false,
-// 				coeff_frac: Perbill::from_rational_approximation(p % q, q), // zero
-// 				coeff_integer: p / q,                                       // 8_000_000
-// 			}]
-// 		}
-// 	}
-// }
+	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
+	/// node's balance type.
+	///
+	/// This should typically create a mapping between the following ranges:
+	///   - [0, MAXIMUM_BLOCK_WEIGHT]
+	///   - [Balance::min, Balance::max]
+	///
+	/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
+	///   - Setting it to `0` will essentially disable the weight fee.
+	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
+	pub struct WeightToFee;
+	impl WeightToFeePolynomial for WeightToFee {
+		type Balance = Balance;
+		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+			// in Polkadot, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT:
+			let p = super::currency::CENTS;
+			let q = 10 * Balance::from(ExtrinsicBaseWeight::get());
+			smallvec![WeightToFeeCoefficient {
+				degree: 1,
+				negative: false,
+				coeff_frac: Perbill::from_rational_approximation(p % q, q),
+				coeff_integer: p / q,
+			}]
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use frame_support::weights::WeightToFeePolynomial;
+	use cord_runtime::{MAXIMUM_BLOCK_WEIGHT, ExtrinsicBaseWeight};
+	use super::fee::WeightToFee;
+	use super::currency::{CENTS, DOLLARS, MILLICENTS};
+
+	#[test]
+	// This function tests that the fee for `MAXIMUM_BLOCK_WEIGHT` of weight is correct
+	fn full_block_fee_is_correct() {
+		// A full block should cost 16 DOLLARS
+		println!("Base: {}", ExtrinsicBaseWeight::get());
+		let x = WeightToFee::calc(&MAXIMUM_BLOCK_WEIGHT);
+		let y = 16 * DOLLARS;
+		assert!(x.max(y) - x.min(y) < MILLICENTS);
+	}
+
+	#[test]
+	// This function tests that the fee for `ExtrinsicBaseWeight` of weight is correct
+	fn extrinsic_base_fee_is_correct() {
+		// `ExtrinsicBaseWeight` should cost 1/10 of a CENT
+		println!("Base: {}", ExtrinsicBaseWeight::get());
+		let x = WeightToFee::calc(&ExtrinsicBaseWeight::get());
+		let y = CENTS / 10;
+		assert!(x.max(y) - x.min(y) < MILLICENTS);
+	}
+}

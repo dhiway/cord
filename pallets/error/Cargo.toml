@@ -22,7 +22,7 @@ sp-arithmetic = { git = "https://github.com/paritytech/substrate", branch = "mas
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 [dev-dependencies]
-cord-node-runtime = { default-features = false, path = '../../runtime' }
+cord-runtime = { default-features = false, path = '../../runtime' }
 
 [features]
 default = [ 'std' ]

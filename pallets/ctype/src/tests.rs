@@ -15,7 +15,7 @@ use frame_support::{
 	},
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use cord_node_runtime::Signature;
+use cord_runtime::Signature;
 use sp_core::{ed25519, Pair, H256};
 use sp_runtime::{
 	testing::Header,
