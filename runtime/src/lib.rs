@@ -400,9 +400,9 @@ impl pallet_session::historical::Config for Runtime {
 
 pallet_staking_reward_curve::build! {
 	const CURVE: PiecewiseLinear<'static> = curve!(
-		min_inflation: 0_025_000,
+		min_inflation: 0_010_000,
 		max_inflation: 0_100_000,
-		ideal_stake: 0_500_000,
+		ideal_stake: 0_100_000,
 		falloff: 0_050_000,
 		max_piece_count: 40,
 		test_precision: 0_005_000,
@@ -555,8 +555,8 @@ parameter_types! {
 	/// Weekly council elections; scaling up to monthly eventually.
 	pub const TermDuration: BlockNumber = 7 * DAYS;
 	/// 13 members initially, to be increased to 23 eventually.
-	pub const DesiredMembers: u32 = 13;
-	pub const DesiredRunnersUp: u32 = 20;
+	pub const DesiredMembers: u32 = 12;
+	pub const DesiredRunnersUp: u32 = 10;
 	pub const ElectionsPhragmenModuleId: LockIdentifier = *b"phrelect";
 
 }
@@ -584,7 +584,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 parameter_types! {
 	pub const TechnicalMotionDuration: BlockNumber = 7 * DAYS;
 	pub const TechnicalMaxProposals: u32 = 100;
-	pub const TechnicalMaxMembers: u32 = 100;
+	pub const TechnicalMaxMembers: u32 = 20;
 }
 
 type TechnicalCollective = pallet_collective::Instance2;
