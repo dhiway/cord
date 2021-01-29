@@ -37,7 +37,7 @@ decl_module! {
 		/// Deposit events
 		fn deposit_event() = default;
 
-		/// Anchors a #MARK Type (schema) on chain, where
+		/// Anchors a #MARK Type (schema) on chain
 		/// origin - the origin of the transaction
 		/// hash - hash of the #MARK Type 
 		#[weight = 10]		

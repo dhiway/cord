@@ -111,7 +111,7 @@ decl_module! {
 		/// Deposit events
 		fn deposit_event() = default;
 
-		/// Creates a trust hierarchy root on chain, where
+		/// Creates a trust hierarchy root on chain
 		/// origin - the origin of the transaction
 		/// root_id - unique identifier of the trust group
 		/// mtype - hash of the #MARK Type 
@@ -135,7 +135,7 @@ decl_module! {
 			Ok(())
 		}
 
-		/// Adds a delegate Id on chain, where
+		/// Adds a Delegate ID on chain
 		/// origin - the origin of the transaction
 		/// delegate_id - unique identifier of the delegate to be added
 		/// root_id - id of the hierarchy root node
@@ -208,7 +208,7 @@ decl_module! {
 			Ok(())
 		}
 
-		/// Revoke the root and therefore a complete hierarchy, where
+		/// Revoke the trust root and therefore a complete hierarchy
 		/// origin - the origin of the transaction
 		/// root_id - id of the hierarchy root node
 		#[weight = 10]		
@@ -236,7 +236,7 @@ decl_module! {
 			Ok(())
 		}
 
-		/// Revoke a delegate Id and all its children, where
+		/// Revoke a Delegate ID and all its children
 		/// origin - the origin of the transaction
 		/// delegate_id - id of the delegate Id
 		#[weight = 10]		

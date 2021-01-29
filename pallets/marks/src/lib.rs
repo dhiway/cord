@@ -46,7 +46,7 @@ decl_module! {
 		/// Deposit events
 		fn deposit_event() = default;
 
-		/// Adds a #MARK on chain, where
+		/// Adds a #MARK on chain
 		/// origin - the origin of the transaction
 		/// mark - hash of the attested claim
 		/// mtype - hash of the #MARK SCHEMA of the claim
@@ -111,7 +111,7 @@ decl_module! {
 			Ok(())
 		}
 
-		/// Revokes a #MARK on chain, where
+		/// Revokes a #MARK on chain
 		/// origin - the origin of the transaction
 		/// content_hash - hash of #MARK
 		#[weight = 10]		

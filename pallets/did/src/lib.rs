@@ -45,7 +45,7 @@ decl_module! {
 		/// Deposit events
 		fn deposit_event() = default;
 
-		/// Adds a DID on chain, where
+		/// Adds a DID Public Key on chain
 		/// origin - the origin of the transaction
 		/// sign_key - public signing key of the DID
 		/// box_key - public boxing key of the DID
@@ -60,15 +60,15 @@ decl_module! {
 			Self::deposit_event(RawEvent::DidCreated(sender));
 			Ok(())
 		}
-		/// Removes a DID from chain storage, where
+		/// Removes a DID Public Key from chain storage
 		/// origin - the origin of the transaction
 		#[weight = 10]		
 		pub fn remove(origin) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
-			// remove DID from storage
+			// remove DID Public Key from storage
 			<DIDs<T>>::remove(sender.clone());
-			// deposit an event that the DID has been removed
+			// deposit an event that the DID Public Key has been removed
 			Self::deposit_event(RawEvent::DidRemoved(sender));
 			Ok(())
 		}
