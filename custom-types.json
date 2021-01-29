@@ -1,3 +1,5 @@
 {
-    "DelegateId": "Hash"
-}
+    "DelegateId": "Hash",
+    "PublicBoxKey": "Hash",
+    "PublicSigningKey": "Hash"
+  }
