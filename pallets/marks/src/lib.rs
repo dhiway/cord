@@ -33,9 +33,9 @@ decl_event!(
 	/// Events for #MARKs
 	pub enum Event<T> where <T as frame_system::Config>::AccountId, <T as frame_system::Config>::Hash,
 			<T as delegation::Trait>::DelegateId {
-		/// An #MARK has been added
+		/// A #MARK has been added
 		MarkCreated(AccountId, Hash, Hash, Option<DelegateId>),
-		/// An #MARK has been revoked
+		/// A #MARK has been revoked
 		MarkRevoked(AccountId, Hash),
 	}
 );
@@ -46,7 +46,7 @@ decl_module! {
 		/// Deposit events
 		fn deposit_event() = default;
 
-		/// Adds an #MARK on chain, where
+		/// Adds a #MARK on chain, where
 		/// origin - the origin of the transaction
 		/// mark - hash of the attested claim
 		/// mtype - hash of the #MARK SCHEMA of the claim
@@ -111,7 +111,7 @@ decl_module! {
 			Ok(())
 		}
 
-		/// Revokes an #MARK on chain, where
+		/// Revokes a #MARK on chain, where
 		/// origin - the origin of the transaction
 		/// content_hash - hash of #MARK
 		#[weight = 10]		

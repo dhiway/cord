@@ -19,7 +19,7 @@ technology stack with DID, #MARK Type, #MARKS and hierarchical Trust Modules.
       - [Add](#add)
       - [CRUD](#crud)
     - [#MARK Type Module](#mark-type-module)
-    - [Attestation Module](#mark-module)
+    - [Attestation Module](#attestation-module)
       - [Add](#add-1)
       - [Revoke](#revoke)
       - [Lookup](#lookup)
@@ -214,7 +214,7 @@ map, so any later read operation call does not return the data of a removed DID.
 
 ### #MARK Type Module
 
-The node runtime defines an MARK TYPE (Schema) module exposing
+The node runtime defines a MARK TYPE (Schema) module exposing
 
 ```rust
 add(origin, hash: T::Hash) -> Result
@@ -236,9 +236,9 @@ T::Hash => T::AccountId
 
 The node runtime defines an Attestation module exposing functions to
 
-- add an mark (`add`)
-- revoke an mark (`revoke`)
-- lookup an mark (`lookup`)
+- add a mark (`add`)
+- revoke a mark (`revoke`)
+- lookup a mark (`lookup`)
 - lookup marks for a delegation (used later in Complex Trust Structures)
   on chain.
 
@@ -275,7 +275,7 @@ T::DelegateId => Vec<T::Hash>
 revoke(origin, mark: T::Hash) -> Result
 ```
 
-The `revoke` function takes the claimHash (which is the key to lookup an mark) as
+The `revoke` function takes the claimHash (which is the key to lookup a mark) as
 argument. After looking up the mark and checking invoker permissions, the revoked
 flag is set to true and the updated mark is stored on chain.
 
