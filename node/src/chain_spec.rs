@@ -663,7 +663,7 @@ fn cord_testnet_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			),
 		];
 
-	const ENDOWMENT: u128 = 8_999 * DCU;
+	// const ENDOWMENT: u128 = 8_999 * DCU;
 	const STASH: u128 = 9_000_999_000_999 * DCU;
 
 	GenesisConfig {
