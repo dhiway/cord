@@ -1,7 +1,7 @@
 {
   "Address": "AccountId",
   "BlockNumber": "u32",
-  "DelegateId": "Hash",
+  "DelegationNodeId": "Hash",
   "ErrorCode": "u16",
   "Index": "u32",
   "LookupSource": "AccountId",

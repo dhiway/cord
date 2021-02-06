@@ -107,9 +107,9 @@ pub fn new_partial(config: &mut Configuration) -> Result<sc_service::PartialComp
 	set_prometheus_registry(config)?;
 
 	if config.keystore_remote.is_some() {
-		return Err(ServiceError::Other(format!(
-			"Remote Keystores are not supported."
-		)));
+		return Err(ServiceError::Other(
+			"Remote Keystores are not supported.".to_owned(),
+		));
 	}
 
 	let inherent_data_providers = sp_inherents::InherentDataProviders::new();
@@ -201,7 +201,7 @@ pub fn new_partial(config: &mut Configuration) -> Result<sc_service::PartialComp
 	})
 }
 
-fn remote_keystore(_url: &String) -> Result<Arc<LocalKeystore>, &'static str> {
+fn remote_keystore(_url: &str) -> Result<Arc<LocalKeystore>, &'static str> {
 	// FIXME: here would the concrete keystore be built,
 	//        must return a concrete type (NOT `LocalKeystore`) that
 	//        implements `CryptoStore` and `SyncCryptoStore`

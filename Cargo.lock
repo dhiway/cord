@@ -325,6 +325,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "065374052e7df7ee4047b1160cca5e1467a12351a40b3da123c870ba0b8eda2a"
 
 [[package]]
+name = "attestation"
+version = "0.3.0"
+dependencies = [
+ "bitflags",
+ "cord-runtime",
+ "ctype",
+ "delegation",
+ "error",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -809,8 +828,10 @@ dependencies = [
 name = "cord-runtime"
 version = "0.3.0"
 dependencies = [
+ "attestation",
  "bitvec",
  "cord-primitives",
+ "ctype",
  "delegation",
  "did",
  "error",
@@ -821,8 +842,6 @@ dependencies = [
  "hex-literal",
  "libsecp256k1",
  "log",
- "marks",
- "mtypes",
  "pallet-aura",
  "pallet-authority-discovery",
  "pallet-authorship",
@@ -1018,6 +1037,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctype"
+version = "0.3.0"
+dependencies = [
+ "cord-runtime",
+ "error",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "cuckoofilter"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1066,10 +1101,10 @@ version = "0.3.0"
 dependencies = [
  "bitflags",
  "cord-runtime",
+ "ctype",
  "error",
  "frame-support",
  "frame-system",
- "mtypes",
  "parity-scale-codec",
  "sp-core",
  "sp-io",
@@ -3063,25 +3098,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
-name = "marks"
-version = "0.3.0"
-dependencies = [
- "bitflags",
- "cord-runtime",
- "delegation",
- "error",
- "frame-support",
- "frame-system",
- "mtypes",
- "parity-scale-codec",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
 name = "matchers"
 version = "0.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3269,22 +3285,6 @@ checksum = "5a33c1b55807fbed163481b5ba66db4b2fa6cde694a5027be10fb724206c5897"
 dependencies = [
  "socket2",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "mtypes"
-version = "0.3.0"
-dependencies = [
- "cord-runtime",
- "error",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
 ]
 
 [[package]]

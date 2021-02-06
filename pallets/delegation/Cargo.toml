@@ -23,7 +23,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", d
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 # local pallets
-mtypes = { default-features = false, path = '../mtypes' }
+ctype = { default-features = false, path = '../ctype' }
 error = { default-features = false, path = '../error' }
 
 [dev-dependencies]
@@ -39,6 +39,6 @@ std = [
 	'sp-runtime/std',
 	'sp-std/std',
 	'sp-io/std',
-	'mtypes/std',
+	'ctype/std',
 	'error/std'
 ]

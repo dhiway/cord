@@ -8,9 +8,11 @@
 use crate::*;
 
 use frame_support::{
-	assert_ok, impl_outer_origin, parameter_types,
+	assert_ok,
+	dispatch::Weight,
+	impl_outer_origin, parameter_types,
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass,
 	},
 };
