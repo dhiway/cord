@@ -1,5 +1,5 @@
 [package]
-name = 'ctype'
+name = 'mtype'
 version = '0.3.0'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']

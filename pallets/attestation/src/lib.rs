@@ -44,15 +44,15 @@ decl_module! {
 		/// Adds an attestation on chain, where
 		/// origin - the origin of the transaction
 		/// claim_hash - hash of the attested claim
-		/// ctype_hash - hash of the CTYPE of the claim
+		/// mtype_hash - hash of the #MARK TYPE
 		/// delegation_id - optional id that refers to a delegation this attestation is based on
 		#[weight = 1]
-		pub fn add(origin, claim_hash: T::Hash, ctype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult {
+		pub fn add(origin, claim_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
-			// check if the CTYPE exists
-			if !<ctype::CTYPEs<T>>::contains_key(ctype_hash) {
-				return Self::error(<ctype::Module<T>>::ERROR_CTYPE_NOT_FOUND);
+			// check if the #MARK TYPE exists
+			if !<mtype::MTYPEs<T>>::contains_key(mtype_hash) {
+				return Self::error(<mtype::Module<T>>::ERROR_MTYPE_NOT_FOUND);
 			}
 
 			if let Some(d) = delegation_id {
@@ -72,13 +72,13 @@ decl_module! {
 					// delegation is not set up for attesting claims
 					return Self::error(Self::ERROR_DELEGATION_NOT_AUTHORIZED_TO_ATTEST);
 				} else {
-					// check if CTYPE of the delegation is matching the CTYPE of the attestation
+					// check if MTYPE of the delegation is matching the MTYPE of the attestation
 					let root = <error::Module<T>>::ok_or_deposit_err(
 						<delegation::Root<T>>::get(delegation.root_id),
 						<delegation::Module<T>>::ERROR_ROOT_NOT_FOUND
 					)?;
-					if !root.ctype_hash.eq(&ctype_hash) {
-						return Self::error(Self::ERROR_CTYPE_OF_DELEGATION_NOT_MATCHING);
+					if !root.mtype_hash.eq(&mtype_hash) {
+						return Self::error(Self::ERROR_MTYPE_OF_DELEGATION_NOT_MATCHING);
 					}
 				}
 			}
@@ -91,7 +91,7 @@ decl_module! {
 			// insert attestation
 			debug::RuntimeLogger::init();
 			debug::print!("insert Attestation");
-			<Attestations<T>>::insert(claim_hash, Attestation {ctype_hash, owner: sender.clone(), delegation_id, revoked: false});
+			<Attestations<T>>::insert(claim_hash, Attestation {mtype_hash, owner: sender.clone(), delegation_id, revoked: false});
 
 			if let Some(d) = delegation_id {
 				// if attestation is based on a delegation this is stored in a separate map
@@ -102,7 +102,7 @@ decl_module! {
 
 			// deposit event that attestation has beed added
 			Self::deposit_event(RawEvent::AttestationCreated(sender, claim_hash,
-					ctype_hash, delegation_id));
+					mtype_hash, delegation_id));
 			Ok(())
 		}
 
@@ -115,7 +115,7 @@ decl_module! {
 			let sender = ensure_signed(origin)?;
 
 			// lookup attestation & check if the attestation exists
-			let Attestation {ctype_hash, owner, delegation_id, revoked, ..} = <error::Module<T>>::ok_or_deposit_err(
+			let Attestation {mtype_hash, owner, delegation_id, revoked, ..} = <error::Module<T>>::ok_or_deposit_err(
 				<Attestations<T>>::get(claim_hash),
 				Self::ERROR_ATTESTATION_NOT_FOUND
 			)?;
@@ -143,7 +143,7 @@ decl_module! {
 			// revoke attestation
 			debug::print!("revoking Attestation");
 			<Attestations<T>>::insert(claim_hash, Attestation {
-				ctype_hash,
+				mtype_hash,
 				owner,
 				delegation_id,
 				revoked: true
@@ -169,8 +169,8 @@ impl<T: Trait> Module<T> {
 		(Self::ERROR_BASE + 5, "not delegated to attester");
 	const ERROR_DELEGATION_NOT_AUTHORIZED_TO_ATTEST: error::ErrorType =
 		(Self::ERROR_BASE + 6, "delegation not authorized to attest");
-	const ERROR_CTYPE_OF_DELEGATION_NOT_MATCHING: error::ErrorType =
-		(Self::ERROR_BASE + 7, "CTYPE of delegation does not match");
+	const ERROR_MTYPE_OF_DELEGATION_NOT_MATCHING: error::ErrorType =
+		(Self::ERROR_BASE + 7, "MTYPE of delegation does not match");
 	const ERROR_NOT_PERMITTED_TO_REVOKE_ATTESTATION: error::ErrorType =
 		(Self::ERROR_BASE + 8, "not permitted to revoke attestation");
 
@@ -182,8 +182,8 @@ impl<T: Trait> Module<T> {
 
 #[derive(Encode, Decode)]
 pub struct Attestation<T: Trait> {
-	// hash of the CTYPE used for this attestation
-	ctype_hash: T::Hash,
+	// hash of the MTYPE used for this attestation
+	mtype_hash: T::Hash,
 	// the account which executed the attestation
 	owner: T::AccountId,
 	// id of the delegation node (if existent)
@@ -194,7 +194,7 @@ pub struct Attestation<T: Trait> {
 
 decl_storage! {
 	trait Store for Module<T: Trait> as Attestation {
-		/// Attestations: claim-hash -> (ctype-hash, attester-account, delegation-id?, revoked)?
+		/// Attestations: claim-hash -> (mtype-hash, attester-account, delegation-id?, revoked)?
 		Attestations get(fn attestations): map hasher(opaque_blake2_256) T::Hash => Option<Attestation<T>>;
 		/// DelegatedAttestations: delegation-id -> [claim-hash]
 		DelegatedAttestations get(fn delegated_attestations): map hasher(opaque_blake2_256) T::DelegationNodeId => Vec<T::Hash>;

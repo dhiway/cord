@@ -330,11 +330,11 @@ version = "0.3.0"
 dependencies = [
  "bitflags",
  "cord-runtime",
- "ctype",
  "delegation",
  "error",
  "frame-support",
  "frame-system",
+ "mtype",
  "parity-scale-codec",
  "sp-core",
  "sp-io",
@@ -831,7 +831,6 @@ dependencies = [
  "attestation",
  "bitvec",
  "cord-primitives",
- "ctype",
  "delegation",
  "did",
  "error",
@@ -842,6 +841,7 @@ dependencies = [
  "hex-literal",
  "libsecp256k1",
  "log",
+ "mtype",
  "pallet-aura",
  "pallet-authority-discovery",
  "pallet-authorship",
@@ -1037,22 +1037,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctype"
-version = "0.3.0"
-dependencies = [
- "cord-runtime",
- "error",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
 name = "cuckoofilter"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1101,10 +1085,10 @@ version = "0.3.0"
 dependencies = [
  "bitflags",
  "cord-runtime",
- "ctype",
  "error",
  "frame-support",
  "frame-system",
+ "mtype",
  "parity-scale-codec",
  "sp-core",
  "sp-io",
@@ -3285,6 +3269,22 @@ checksum = "5a33c1b55807fbed163481b5ba66db4b2fa6cde694a5027be10fb724206c5897"
 dependencies = [
  "socket2",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "mtype"
+version = "0.3.0"
+dependencies = [
+ "cord-runtime",
+ "error",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]

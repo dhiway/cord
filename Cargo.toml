@@ -3,7 +3,7 @@ members = [
 	"primitives",
 	"node",
 	"runtime",
-	'pallets/ctype',
+	'pallets/mtype',
 	'pallets/attestation',
 	'pallets/did',
 	'pallets/delegation',

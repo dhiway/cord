@@ -64,7 +64,7 @@ impl Default for Permissions {
 }
 
 /// The delegation trait
-pub trait Trait: ctype::Trait + frame_system::Config + error::Trait {
+pub trait Trait: mtype::Trait + frame_system::Config + error::Trait {
 	/// Delegation specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
@@ -114,25 +114,25 @@ decl_module! {
 		/// Creates a delegation hierarchy root on chain, where
 		/// origin - the origin of the transaction
 		/// root_id - unique identifier of the root node
-		/// ctype_hash - hash of the CTYPE the hierarchy is created for
+		/// mtype_hash - hash of the MTYPE the hierarchy is created for
 		#[weight = 1]
-		pub fn create_root(origin, root_id: T::DelegationNodeId, ctype_hash: T::Hash) -> DispatchResult {
+		pub fn create_root(origin, root_id: T::DelegationNodeId, mtype_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if a root with the given id already exists
 			if <Root<T>>::contains_key(root_id) {
 				return Self::error(Self::ERROR_ROOT_ALREADY_EXISTS);
 			}
-			// check if CTYPE exists
-			if !<ctype::CTYPEs<T>>::contains_key(ctype_hash) {
-				return Self::error(<ctype::Module<T>>::ERROR_CTYPE_NOT_FOUND);
+			// check if MTYPE exists
+			if !<mtype::MTYPEs<T>>::contains_key(mtype_hash) {
+				return Self::error(<mtype::Module<T>>::ERROR_MTYPE_NOT_FOUND);
 			}
 
 			// add root node to storage
 			debug::print!("insert Delegation Root");
-			<Root<T>>::insert(root_id, DelegationRoot::new(ctype_hash, sender.clone()));
+			<Root<T>>::insert(root_id, DelegationRoot::new(mtype_hash, sender.clone()));
 			// deposit event that the root node has been created
-			Self::deposit_event(RawEvent::RootCreated(sender, root_id, ctype_hash));
+			Self::deposit_event(RawEvent::RootCreated(sender, root_id, mtype_hash));
 			Ok(())
 		}
 
@@ -432,15 +432,15 @@ impl<T: Trait> DelegationNode<T> {
 
 #[derive(Encode, Decode)]
 pub struct DelegationRoot<T: Trait> {
-	pub ctype_hash: T::Hash,
+	pub mtype_hash: T::Hash,
 	pub owner: T::AccountId,
 	pub revoked: bool,
 }
 
 impl<T: Trait> DelegationRoot<T> {
-	fn new(ctype_hash: T::Hash, owner: T::AccountId) -> Self {
+	fn new(mtype_hash: T::Hash, owner: T::AccountId) -> Self {
 		DelegationRoot {
-			ctype_hash,
+			mtype_hash,
 			owner,
 			revoked: false,
 		}

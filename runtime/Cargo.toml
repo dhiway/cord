@@ -25,7 +25,7 @@ smallvec = "1.6.1"
 # cord pallet dependencies
 attestation = { default-features = false, path = '../pallets/attestation' }
 delegation = { default-features = false, path = '../pallets/delegation' }
-ctype = { default-features = false, path = '../pallets/ctype' }
+mtype = { default-features = false, path = '../pallets/mtype' }
 did = {  default-features = false, path = '../pallets/did' }
 error = {  default-features = false, path = '../pallets/error' }
 
@@ -142,7 +142,7 @@ std = [
 	"pallet-sudo/std",
 	'attestation/std',
     'delegation/std',
-	'ctype/std',
+	'mtype/std',
 	'did/std',
 	'error/std',
 ]

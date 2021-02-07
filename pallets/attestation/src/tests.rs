@@ -116,7 +116,7 @@ impl Trait for Test {
 }
 
 type AttestationModule = Module<Test>;
-type CType = ctype::Module<Test>;
+type MType = mtype::Module<Test>;
 type Delegation = delegation::Module<Test>;
 
 fn new_test_ext() -> sp_io::TestExternalities {
@@ -136,7 +136,7 @@ fn check_add_attestation() {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(CType::add(Origin::signed(account_hash.clone()), hash));
+		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
 		assert_ok!(AttestationModule::add(
 			Origin::signed(account_hash.clone()),
 			hash,
@@ -144,7 +144,7 @@ fn check_add_attestation() {
 			None
 		));
 		let Attestation {
-			ctype_hash,
+			mtype_hash,
 			owner,
 			revoked,
 			delegation_id,
@@ -153,7 +153,7 @@ fn check_add_attestation() {
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
-		assert_eq!(ctype_hash, hash);
+		assert_eq!(mtype_hash, hash);
 		assert_eq!(owner, account_hash);
 		assert_eq!(delegation_id, None);
 		assert_eq!(revoked, false);
@@ -166,7 +166,7 @@ fn check_revoke_attestation() {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(CType::add(Origin::signed(account_hash.clone()), hash));
+		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
 		assert_ok!(AttestationModule::add(
 			Origin::signed(account_hash.clone()),
 			hash,
@@ -179,7 +179,7 @@ fn check_revoke_attestation() {
 			10
 		));
 		let Attestation {
-			ctype_hash,
+			mtype_hash,
 			owner,
 			revoked,
 			delegation_id,
@@ -188,7 +188,7 @@ fn check_revoke_attestation() {
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
-		assert_eq!(ctype_hash, hash);
+		assert_eq!(mtype_hash, hash);
 		assert_eq!(owner, account_hash);
 		assert_eq!(delegation_id, None);
 		assert_eq!(revoked, true);
@@ -201,7 +201,7 @@ fn check_double_attestation() {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(CType::add(Origin::signed(account_hash.clone()), hash));
+		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
 		assert_ok!(AttestationModule::add(
 			Origin::signed(account_hash.clone()),
 			hash,
@@ -221,7 +221,7 @@ fn check_double_revoke_attestation() {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(CType::add(Origin::signed(account_hash.clone()), hash));
+		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
 		assert_ok!(AttestationModule::add(
 			Origin::signed(account_hash.clone()),
 			hash,
@@ -261,7 +261,7 @@ fn check_revoke_not_permitted() {
 		let pair_bob = ed25519::Pair::from_seed(&*b"Bob                             ");
 		let account_hash_bob = MultiSigner::from(pair_bob.public()).into_account();
 		let hash = H256::from_low_u64_be(1);
-		assert_ok!(CType::add(Origin::signed(account_hash_alice.clone()), hash));
+		assert_ok!(MType::anchor(Origin::signed(account_hash_alice.clone()), hash));
 		assert_ok!(AttestationModule::add(
 			Origin::signed(account_hash_alice),
 			hash,
@@ -285,24 +285,24 @@ fn check_add_attestation_with_delegation() {
 		let pair_charlie = ed25519::Pair::from_seed(&*b"Charlie                         ");
 		let account_hash_charlie = MultiSigner::from(pair_charlie.public()).into_account();
 
-		let ctype_hash = H256::from_low_u64_be(1);
-		let other_ctype_hash = H256::from_low_u64_be(2);
+		let mtype_hash = H256::from_low_u64_be(1);
+		let other_mtype_hash = H256::from_low_u64_be(2);
 		let claim_hash = H256::from_low_u64_be(1);
 
 		let delegation_root = H256::from_low_u64_be(0);
 		let delegation_1 = H256::from_low_u64_be(1);
 		let delegation_2 = H256::from_low_u64_be(2);
 
-		assert_ok!(CType::add(
+		assert_ok!(MType::anchor(
 			Origin::signed(account_hash_alice.clone()),
-			ctype_hash
+			mtype_hash
 		));
 
 		assert_err!(
 			AttestationModule::add(
 				Origin::signed(account_hash_alice.clone()),
 				claim_hash,
-				ctype_hash,
+				mtype_hash,
 				Some(delegation_1)
 			),
 			Delegation::ERROR_DELEGATION_NOT_FOUND.1
@@ -311,7 +311,7 @@ fn check_add_attestation_with_delegation() {
 		assert_ok!(Delegation::create_root(
 			Origin::signed(account_hash_alice.clone()),
 			delegation_root,
-			ctype_hash
+			mtype_hash
 		));
 		assert_ok!(Delegation::add_delegation(
 			Origin::signed(account_hash_alice.clone()),
@@ -346,29 +346,29 @@ fn check_add_attestation_with_delegation() {
 			AttestationModule::add(
 				Origin::signed(account_hash_bob.clone()),
 				claim_hash,
-				other_ctype_hash,
+				other_mtype_hash,
 				Some(delegation_2)
 			),
-			CType::ERROR_CTYPE_NOT_FOUND.1
+			MType::ERROR_MTYPE_NOT_FOUND.1
 		);
-		assert_ok!(CType::add(
+		assert_ok!(MType::anchor(
 			Origin::signed(account_hash_alice.clone()),
-			other_ctype_hash
+			other_mtype_hash
 		));
 		assert_err!(
 			AttestationModule::add(
 				Origin::signed(account_hash_bob.clone()),
 				claim_hash,
-				other_ctype_hash,
+				other_mtype_hash,
 				Some(delegation_2)
 			),
-			AttestationModule::ERROR_CTYPE_OF_DELEGATION_NOT_MATCHING.1
+			AttestationModule::ERROR_MTYPE_OF_DELEGATION_NOT_MATCHING.1
 		);
 		assert_err!(
 			AttestationModule::add(
 				Origin::signed(account_hash_alice.clone()),
 				claim_hash,
-				ctype_hash,
+				mtype_hash,
 				Some(delegation_2)
 			),
 			AttestationModule::ERROR_NOT_DELEGATED_TO_ATTESTER.1
@@ -377,7 +377,7 @@ fn check_add_attestation_with_delegation() {
 			AttestationModule::add(
 				Origin::signed(account_hash_bob.clone()),
 				claim_hash,
-				ctype_hash,
+				mtype_hash,
 				Some(delegation_1)
 			),
 			AttestationModule::ERROR_DELEGATION_NOT_AUTHORIZED_TO_ATTEST.1
@@ -385,7 +385,7 @@ fn check_add_attestation_with_delegation() {
 		assert_ok!(AttestationModule::add(
 			Origin::signed(account_hash_bob.clone()),
 			claim_hash,
-			ctype_hash,
+			mtype_hash,
 			Some(delegation_2)
 		));
 
@@ -402,7 +402,7 @@ fn check_add_attestation_with_delegation() {
 			AttestationModule::add(
 				Origin::signed(account_hash_bob),
 				claim_hash,
-				ctype_hash,
+				mtype_hash,
 				Some(delegation_2)
 			),
 			AttestationModule::ERROR_DELEGATION_REVOKED.1

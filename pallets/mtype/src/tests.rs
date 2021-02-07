@@ -109,7 +109,7 @@ impl Trait for Test {
 	type Event = ();
 }
 
-type CType = Module<Test>;
+type MType = Module<Test>;
 
 fn new_test_ext() -> sp_io::TestExternalities {
 	frame_system::GenesisConfig::default()
@@ -122,14 +122,14 @@ fn new_test_ext() -> sp_io::TestExternalities {
 fn it_works_for_default_value() {
 	new_test_ext().execute_with(|| {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
-		let ctype_hash = H256::from_low_u64_be(1);
+		let mtype_hash = H256::from_low_u64_be(1);
 		let account = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(CType::add(Origin::signed(account.clone()), ctype_hash));
-		assert_eq!(<CTYPEs<Test>>::contains_key(ctype_hash), true);
-		assert_eq!(CType::ctypes(ctype_hash), Some(account.clone()));
+		assert_ok!(MType::anchor(Origin::signed(account.clone()), mtype_hash));
+		assert_eq!(<MTYPEs<Test>>::contains_key(mtype_hash), true);
+		assert_eq!(MType::mtypes(mtype_hash), Some(account.clone()));
 		assert_err!(
-			CType::add(Origin::signed(account), ctype_hash),
-			CType::ERROR_CTYPE_ALREADY_EXISTS.1
+			MType::anchor(Origin::signed(account), mtype_hash),
+			MType::ERROR_MTYPE_ALREADY_EXISTS.1
 		);
 	});
 }
