@@ -35,8 +35,8 @@ bitflags! {
 	/// Bitflags for permissions
 	#[derive(Encode, Decode)]
 	pub struct Permissions: u32 {
-		/// Bit flag for attestation permission
-		const ATTEST = 0b0000_0001;
+		/// Bit flag for mark permission
+		const ANCHOR = 0b0000_0001;
 		/// Bit flag for delegation permission
 		const DELEGATE = 0b0000_0010;
 	}
@@ -59,7 +59,7 @@ impl Permissions {
 impl Default for Permissions {
 	/// Default permissions to the attest permission
 	fn default() -> Self {
-		Permissions::ATTEST
+		Permissions::ANCHOR
 	}
 }
 

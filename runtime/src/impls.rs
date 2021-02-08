@@ -10,7 +10,7 @@ use frame_support::traits::{OnUnbalanced, Imbalance, Currency};
 pub use pallet_balances::{Call as Balances, NegativeImbalance};
 
 // Logic for the block author to get a portion of fees.
-pub struct ToAuthor<R>(sp_std::marker::PhantomData<R>);
+pub struct ToAuthor<R>(sp_std::mark::PhantomData<R>);
 
 impl<R> OnUnbalanced<NegativeImbalance<R>> for ToAuthor<R>
 where
@@ -36,7 +36,7 @@ where
 	}
 }
 
-pub struct DealWithFees<R>(sp_std::marker::PhantomData<R>);
+pub struct DealWithFees<R>(sp_std::mark::PhantomData<R>);
 impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithFees<R>
 where
 	R: pallet_balances::Config + pallet_treasury::Config + pallet_authorship::Config,

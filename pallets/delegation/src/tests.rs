@@ -204,7 +204,7 @@ fn check_add_and_revoke_delegations() {
 				id_level_0,
 				Some(id_level_1),
 				account_hash_charlie.clone(),
-				Permissions::ATTEST,
+				Permissions::ANCHOR,
 				MultiSignature::from(ed25519::Signature::from_h512(H512::from_low_u64_be(0)))
 			),
 			Delegation::ERROR_BAD_DELEGATION_SIGNATURE.1
@@ -250,12 +250,12 @@ fn check_add_and_revoke_delegations() {
 			id_level_0,
 			Some(id_level_1),
 			account_hash_charlie.clone(),
-			Permissions::ATTEST,
+			Permissions::ANCHOR,
 			MultiSignature::from(pair_charlie.sign(&hash_to_u8(Delegation::calculate_hash(
 				id_level_2_1,
 				id_level_0,
 				Some(id_level_1),
-				Permissions::ATTEST
+				Permissions::ANCHOR
 			))))
 		));
 		assert_err!(
@@ -265,12 +265,12 @@ fn check_add_and_revoke_delegations() {
 				id_level_0,
 				Some(id_level_1),
 				account_hash_charlie.clone(),
-				Permissions::ATTEST,
+				Permissions::ANCHOR,
 				MultiSignature::from(pair_charlie.sign(&hash_to_u8(Delegation::calculate_hash(
 					id_level_2_2,
 					id_level_0,
 					Some(id_level_1),
-					Permissions::ATTEST
+					Permissions::ANCHOR
 				))))
 			),
 			Delegation::ERROR_NOT_OWNER_OF_PARENT.1
@@ -282,12 +282,12 @@ fn check_add_and_revoke_delegations() {
 				id_level_0,
 				Some(id_level_2_1),
 				account_hash_alice.clone(),
-				Permissions::ATTEST,
+				Permissions::ANCHOR,
 				MultiSignature::from(pair_alice.sign(&hash_to_u8(Delegation::calculate_hash(
 					id_level_2_2,
 					id_level_0,
 					Some(id_level_2_1),
-					Permissions::ATTEST
+					Permissions::ANCHOR
 				))))
 			),
 			Delegation::ERROR_NOT_AUTHORIZED_TO_DELEGATE.1
@@ -299,12 +299,12 @@ fn check_add_and_revoke_delegations() {
 				id_level_0,
 				Some(id_level_0),
 				account_hash_charlie.clone(),
-				Permissions::ATTEST,
+				Permissions::ANCHOR,
 				MultiSignature::from(pair_charlie.sign(&hash_to_u8(Delegation::calculate_hash(
 					id_level_2_2,
 					id_level_0,
 					Some(id_level_0),
-					Permissions::ATTEST
+					Permissions::ANCHOR
 				))))
 			),
 			Delegation::ERROR_PARENT_NOT_FOUND.1
@@ -316,12 +316,12 @@ fn check_add_and_revoke_delegations() {
 			id_level_0,
 			Some(id_level_1),
 			account_hash_charlie.clone(),
-			Permissions::ATTEST | Permissions::DELEGATE,
+			Permissions::ANCHOR | Permissions::DELEGATE,
 			MultiSignature::from(pair_charlie.sign(&hash_to_u8(Delegation::calculate_hash(
 				id_level_2_2,
 				id_level_0,
 				Some(id_level_1),
-				Permissions::ATTEST | Permissions::DELEGATE
+				Permissions::ANCHOR | Permissions::DELEGATE
 			))))
 		));
 
@@ -331,12 +331,12 @@ fn check_add_and_revoke_delegations() {
 			id_level_0,
 			Some(id_level_2_2),
 			account_hash_alice.clone(),
-			Permissions::ATTEST,
+			Permissions::ANCHOR,
 			MultiSignature::from(pair_alice.sign(&hash_to_u8(Delegation::calculate_hash(
 				id_level_2_2_1,
 				id_level_0,
 				Some(id_level_2_2),
-				Permissions::ATTEST
+				Permissions::ANCHOR
 			))))
 		));
 
@@ -370,7 +370,7 @@ fn check_add_and_revoke_delegations() {
 		assert_eq!(delegation_2.owner, account_hash_charlie.clone());
 		assert_eq!(
 			delegation_2.permissions,
-			Permissions::ATTEST | Permissions::DELEGATE
+			Permissions::ANCHOR | Permissions::DELEGATE
 		);
 		assert_eq!(delegation_2.revoked, false);
 

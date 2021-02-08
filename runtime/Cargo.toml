@@ -23,7 +23,7 @@ static_assertions = "1.1.0"
 smallvec = "1.6.1"
 
 # cord pallet dependencies
-attestation = { default-features = false, path = '../pallets/attestation' }
+mark = { default-features = false, path = '../pallets/mark' }
 delegation = { default-features = false, path = '../pallets/delegation' }
 mtype = { default-features = false, path = '../pallets/mtype' }
 did = {  default-features = false, path = '../pallets/did' }
@@ -140,7 +140,7 @@ std = [
 	"pallet-utility/std",
    	"pallet-vesting/std",
 	"pallet-sudo/std",
-	'attestation/std',
+	'mark/std',
     'delegation/std',
 	'mtype/std',
 	'did/std',

@@ -4,7 +4,7 @@ members = [
 	"node",
 	"runtime",
 	'pallets/mtype',
-	'pallets/attestation',
+	'pallets/mark',
 	'pallets/did',
 	'pallets/delegation',
 	'pallets/error',

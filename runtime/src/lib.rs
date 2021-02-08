@@ -78,7 +78,7 @@ pub mod constants;
 use constants::{time::*, currency::*};
 use sp_runtime::generic::Era;
 
-pub use attestation;
+pub use mark;
 pub use mtype;
 pub use delegation;
 pub use did;
@@ -749,7 +749,7 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-impl attestation::Trait for Runtime {
+impl mark::Trait for Runtime {
 	type Event = Event;
 }
 
@@ -818,7 +818,7 @@ construct_runtime! {
 		
 		Error: error::{ Module, Call, Event<T>} = 31,
 		Mtype: mtype::{Module, Call, Storage, Event<T>} = 32,
-		Attestation: attestation::{Module, Call, Storage, Event<T>} = 33,
+		Mark: mark::{Module, Call, Storage, Event<T>} = 33,
 		Delegation: delegation::{Module, Call, Storage, Event<T>} = 34,
 		Did: did::{Module, Call, Storage, Event<T>} = 35,
 	}

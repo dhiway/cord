@@ -115,7 +115,7 @@ impl Trait for Test {
 	type Event = ();
 }
 
-type AttestationModule = Module<Test>;
+type MarkerModule = Module<Test>;
 type MType = mtype::Module<Test>;
 type Delegation = delegation::Module<Test>;
 
@@ -131,25 +131,25 @@ fn hash_to_u8<T: Encode>(hash: T) -> Vec<u8> {
 }
 
 #[test]
-fn check_add_attestation() {
+fn check_anchor_mark() {
 	new_test_ext().execute_with(|| {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
 		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
-		assert_ok!(AttestationModule::add(
+		assert_ok!(MarkerModule::add(
 			Origin::signed(account_hash.clone()),
 			hash,
 			hash,
 			None
 		));
-		let Attestation {
+		let Mark {
 			mtype_hash,
 			owner,
 			revoked,
 			delegation_id,
 		} = {
-			let opt = AttestationModule::attestations(hash);
+			let opt = MarkerModule::marks(hash);
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
@@ -161,30 +161,30 @@ fn check_add_attestation() {
 }
 
 #[test]
-fn check_revoke_attestation() {
+fn check_revoke_mark() {
 	new_test_ext().execute_with(|| {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
 		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
-		assert_ok!(AttestationModule::add(
+		assert_ok!(MarkerModule::add(
 			Origin::signed(account_hash.clone()),
 			hash,
 			hash,
 			None
 		));
-		assert_ok!(AttestationModule::revoke(
+		assert_ok!(MarkerModule::revoke(
 			Origin::signed(account_hash.clone()),
 			hash,
 			10
 		));
-		let Attestation {
+		let Mark {
 			mtype_hash,
 			owner,
 			revoked,
 			delegation_id,
 		} = {
-			let opt = AttestationModule::attestations(hash);
+			let opt = MarkerModule::marks(hash);
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
@@ -196,46 +196,46 @@ fn check_revoke_attestation() {
 }
 
 #[test]
-fn check_double_attestation() {
+fn check_double_mark() {
 	new_test_ext().execute_with(|| {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
 		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
-		assert_ok!(AttestationModule::add(
+		assert_ok!(MarkerModule::add(
 			Origin::signed(account_hash.clone()),
 			hash,
 			hash,
 			None
 		));
 		assert_err!(
-			AttestationModule::add(Origin::signed(account_hash), hash, hash, None),
-			AttestationModule::ERROR_ALREADY_ATTESTED.1
+			MarkerModule::add(Origin::signed(account_hash), hash, hash, None),
+			MarkerModule::ERROR_ALREADY_MARKED.1
 		);
 	});
 }
 
 #[test]
-fn check_double_revoke_attestation() {
+fn check_double_revoke_mark() {
 	new_test_ext().execute_with(|| {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
 		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
-		assert_ok!(AttestationModule::add(
+		assert_ok!(MarkerModule::add(
 			Origin::signed(account_hash.clone()),
 			hash,
 			hash,
 			None
 		));
-		assert_ok!(AttestationModule::revoke(
+		assert_ok!(MarkerModule::revoke(
 			Origin::signed(account_hash.clone()),
 			hash,
 			10
 		));
 		assert_err!(
-			AttestationModule::revoke(Origin::signed(account_hash), hash, 10),
-			AttestationModule::ERROR_ALREADY_REVOKED.1,
+			MarkerModule::revoke(Origin::signed(account_hash), hash, 10),
+			MarkerModule::ERROR_ALREADY_REVOKED.1,
 		);
 	});
 }
@@ -247,8 +247,8 @@ fn check_revoke_unknown() {
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
 		assert_err!(
-			AttestationModule::revoke(Origin::signed(account_hash), hash, 10),
-			AttestationModule::ERROR_ATTESTATION_NOT_FOUND.1
+			MarkerModule::revoke(Origin::signed(account_hash), hash, 10),
+			MarkerModule::ERROR_MARKER_NOT_FOUND.1
 		);
 	});
 }
@@ -262,21 +262,21 @@ fn check_revoke_not_permitted() {
 		let account_hash_bob = MultiSigner::from(pair_bob.public()).into_account();
 		let hash = H256::from_low_u64_be(1);
 		assert_ok!(MType::anchor(Origin::signed(account_hash_alice.clone()), hash));
-		assert_ok!(AttestationModule::add(
+		assert_ok!(MarkerModule::add(
 			Origin::signed(account_hash_alice),
 			hash,
 			hash,
 			None
 		));
 		assert_err!(
-			AttestationModule::revoke(Origin::signed(account_hash_bob), hash, 10),
-			AttestationModule::ERROR_NOT_PERMITTED_TO_REVOKE_ATTESTATION.1
+			MarkerModule::revoke(Origin::signed(account_hash_bob), hash, 10),
+			MarkerModule::ERROR_NOT_PERMITTED_TO_REVOKE_MARK.1
 		);
 	});
 }
 
 #[test]
-fn check_add_attestation_with_delegation() {
+fn check_anchor_mark_with_delegation() {
 	new_test_ext().execute_with(|| {
 		let pair_alice = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let account_hash_alice = MultiSigner::from(pair_alice.public()).into_account();
@@ -287,7 +287,7 @@ fn check_add_attestation_with_delegation() {
 
 		let mtype_hash = H256::from_low_u64_be(1);
 		let other_mtype_hash = H256::from_low_u64_be(2);
-		let claim_hash = H256::from_low_u64_be(1);
+		let stream_hash = H256::from_low_u64_be(1);
 
 		let delegation_root = H256::from_low_u64_be(0);
 		let delegation_1 = H256::from_low_u64_be(1);
@@ -299,9 +299,9 @@ fn check_add_attestation_with_delegation() {
 		));
 
 		assert_err!(
-			AttestationModule::add(
+			MarkerModule::add(
 				Origin::signed(account_hash_alice.clone()),
-				claim_hash,
+				stream_hash,
 				mtype_hash,
 				Some(delegation_1)
 			),
@@ -333,19 +333,19 @@ fn check_add_attestation_with_delegation() {
 			delegation_root,
 			None,
 			account_hash_bob.clone(),
-			delegation::Permissions::ATTEST,
+			delegation::Permissions::ANCHOR,
 			MultiSignature::from(pair_bob.sign(&hash_to_u8(Delegation::calculate_hash(
 				delegation_2,
 				delegation_root,
 				None,
-				delegation::Permissions::ATTEST
+				delegation::Permissions::ANCHOR
 			))))
 		));
 
 		assert_err!(
-			AttestationModule::add(
+			MarkerModule::add(
 				Origin::signed(account_hash_bob.clone()),
-				claim_hash,
+				stream_hash,
 				other_mtype_hash,
 				Some(delegation_2)
 			),
@@ -356,65 +356,65 @@ fn check_add_attestation_with_delegation() {
 			other_mtype_hash
 		));
 		assert_err!(
-			AttestationModule::add(
+			MarkerModule::add(
 				Origin::signed(account_hash_bob.clone()),
-				claim_hash,
+				stream_hash,
 				other_mtype_hash,
 				Some(delegation_2)
 			),
-			AttestationModule::ERROR_MTYPE_OF_DELEGATION_NOT_MATCHING.1
+			MarkerModule::ERROR_MTYPE_OF_DELEGATION_NOT_MATCHING.1
 		);
 		assert_err!(
-			AttestationModule::add(
+			MarkerModule::add(
 				Origin::signed(account_hash_alice.clone()),
-				claim_hash,
+				stream_hash,
 				mtype_hash,
 				Some(delegation_2)
 			),
-			AttestationModule::ERROR_NOT_DELEGATED_TO_ATTESTER.1
+			MarkerModule::ERROR_NOT_DELEGATED_TO_ATTESTER.1
 		);
 		assert_err!(
-			AttestationModule::add(
+			MarkerModule::add(
 				Origin::signed(account_hash_bob.clone()),
-				claim_hash,
+				stream_hash,
 				mtype_hash,
 				Some(delegation_1)
 			),
-			AttestationModule::ERROR_DELEGATION_NOT_AUTHORIZED_TO_ATTEST.1
+			MarkerModule::ERROR_DELEGATION_NOT_AUTHORIZED_TO_MARK.1
 		);
-		assert_ok!(AttestationModule::add(
+		assert_ok!(MarkerModule::add(
 			Origin::signed(account_hash_bob.clone()),
-			claim_hash,
+			stream_hash,
 			mtype_hash,
 			Some(delegation_2)
 		));
 
-		let existing_attestations_for_delegation =
-			AttestationModule::delegated_attestations(delegation_2);
-		assert_eq!(existing_attestations_for_delegation.len(), 1);
-		assert_eq!(existing_attestations_for_delegation[0], claim_hash);
+		let existing_markers_for_delegation =
+			MarkerModule::delegated_marks(delegation_2);
+		assert_eq!(existing_markers_for_delegation.len(), 1);
+		assert_eq!(existing_markers_for_delegation[0], stream_hash);
 
 		assert_ok!(Delegation::revoke_root(
 			Origin::signed(account_hash_alice.clone()),
 			delegation_root
 		));
 		assert_err!(
-			AttestationModule::add(
+			MarkerModule::add(
 				Origin::signed(account_hash_bob),
-				claim_hash,
+				stream_hash,
 				mtype_hash,
 				Some(delegation_2)
 			),
-			AttestationModule::ERROR_DELEGATION_REVOKED.1
+			MarkerModule::ERROR_DELEGATION_REVOKED.1
 		);
 
 		assert_err!(
-			AttestationModule::revoke(Origin::signed(account_hash_charlie), claim_hash, 10),
-			AttestationModule::ERROR_NOT_PERMITTED_TO_REVOKE_ATTESTATION.1
+			MarkerModule::revoke(Origin::signed(account_hash_charlie), stream_hash, 10),
+			MarkerModule::ERROR_NOT_PERMITTED_TO_REVOKE_MARK.1
 		);
-		assert_ok!(AttestationModule::revoke(
+		assert_ok!(MarkerModule::revoke(
 			Origin::signed(account_hash_alice),
-			claim_hash,
+			stream_hash,
 			10
 		));
 	});
