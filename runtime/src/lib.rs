@@ -33,8 +33,10 @@ use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthority
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use pallet_transaction_payment::{TargetedFeeAdjustment, Multiplier, CurrencyAdapter, FeeDetails};
-use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
+use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+pub use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment, CurrencyAdapter};
+// use pallet_transaction_payment::{TargetedFeeAdjustment, Multiplier, CurrencyAdapter, FeeDetails};
+// use pallet_transaction_payment_rpc_runtime_api::RuntimeDispatchInfo;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{
 	crypto::KeyTypeId, 
@@ -53,20 +55,19 @@ use sp_runtime::{
 	},
 };
 
-#[cfg(any(feature = "std", test))]
+#[cfg(any(feature = "std"))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-pub use pallet_session::{historical as pallet_session_historical};
+use pallet_session::historical as session_historical;
 pub use sp_inherents::{CheckInherentsResult, InherentData};
 use static_assertions::const_assert;
+// use frame_system::Call as SystemCall;
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
-#[cfg(any(feature = "std", test))]
-pub use frame_system::Call as SystemCall;
 #[cfg(any(feature = "std", test))]
 pub use pallet_staking::StakerStatus;
 /// Implementations of some helper traits passed into runtime modules as associated types.
@@ -82,7 +83,6 @@ pub use mark;
 pub use mtype;
 pub use delegation;
 pub use did;
-pub use error;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -93,11 +93,11 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cord"),
 	impl_name: create_runtime_str!("cord-node"),
-	authoring_version: 4,
-	spec_version: 8,
-	impl_version: 6,
+	authoring_version: 5,
+	spec_version: 9,
+	impl_version: 7,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 5,
+	transaction_version: 6,
 };
 
 /// The version information used to identify this runtime when compiled natively.
@@ -705,6 +705,7 @@ impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime where Call: 
 impl pallet_im_online::Config for Runtime {
 	type AuthorityId = ImOnlineId;
 	type Event = Event;
+	type ValidatorSet = Historical;
 	type SessionDuration = SessionDuration;
 	type ReportUnresponsiveness = Offences;
 	type UnsignedPriority = ImOnlineUnsignedPriority;
@@ -770,11 +771,6 @@ impl did::Trait for Runtime {
 	type PublicBoxKey = Hash;
 }
 
-impl error::Trait for Runtime {
-	type ErrorCode = u16;
-	type Event = Event;
-}
-
 construct_runtime! {
 	pub enum Runtime where
 		Block = Block,
@@ -783,44 +779,40 @@ construct_runtime! {
 	{
 		// Basic stuff;
 		System: frame_system::{Module, Call, Config, Storage, Event<T>} = 0,
-		Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>} = 1,
-
+		Utility: pallet_utility::{Module, Call, Event} = 1,
 		// Must be before session.
-		Aura: pallet_aura::{Module, Config<T>, Inherent} = 2, 
+		Aura: pallet_aura::{Module, Call, Storage, Config<T>} = 2, 
 		
 		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent} = 3,
-		Indices: pallet_indices::{Module, Call, Storage, Config<T>, Event<T>} = 4,
-		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>} = 5,
-		TransactionPayment: pallet_transaction_payment::{Module, Storage} = 24,
+		Authorship: pallet_authorship::{Module, Call, Storage, Inherent} = 4,
+		Indices: pallet_indices::{Module, Call, Storage, Config<T>, Event<T>} = 5,
+		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>} = 6,
+		TransactionPayment: pallet_transaction_payment::{Module, Storage} = 7,
 
-		// Consensus support.
-		Authorship: pallet_authorship::{Module, Call, Storage, Inherent} = 6,
-		Staking: pallet_staking::{Module, Call, Config<T>, Storage, Event<T>, ValidateUnsigned} = 7,
-		Offences: pallet_offences::{Module, Call, Storage, Event} = 8 ,
+		Staking: pallet_staking::{Module, Call, Config<T>, Storage, Event<T>, ValidateUnsigned} = 8,
 		Session: pallet_session::{Module, Call, Storage, Event, Config<T>} = 9,
-		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event, ValidateUnsigned} = 11,
-		ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 12,
-		AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config} = 13,
-
-		// Governance stuff.
-		Democracy: pallet_democracy::{Module, Call, Storage, Config, Event<T>} = 14,
-		Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>} = 15,
-		TechnicalCommittee: pallet_collective::<Instance2>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>} = 16,
-		Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>} = 17,
-		TechnicalMembership: pallet_membership::<Instance1>::{Module, Call, Storage, Event<T>, Config<T>} = 18,
-		Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>} = 19,
-
-		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>} = 21,
-		Utility: pallet_utility::{Module, Call, Event} = 22,
-		Proxy: pallet_proxy::{Module, Call, Storage, Event<T>} = 23,
-		Historical: pallet_session_historical::{Module} = 26,
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage} = 25,
+		Democracy: pallet_democracy::{Module, Call, Storage, Config, Event<T>} = 10,
+		Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>} = 11,
+		TechnicalCommittee: pallet_collective::<Instance2>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>} = 12,
+		TechnicalMembership: pallet_membership::<Instance1>::{Module, Call, Storage, Event<T>, Config<T>} = 13,
+		Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>} = 14,
 		
-		Error: error::{ Module, Call, Event<T>} = 31,
+		Grandpa: pallet_grandpa::{Module, Call, Storage, Config, Event, ValidateUnsigned} = 15,
+		Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>} = 16,
+		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>} = 17,
+		ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 18,
+		AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config} = 19,
+		Offences: pallet_offences::{Module, Call, Storage, Event} = 20,
+		Historical: session_historical::{Module} = 21,
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage} = 22,
+
+		Scheduler: pallet_scheduler::{Module, Call, Storage, Event<T>} = 23,
+		Proxy: pallet_proxy::{Module, Call, Storage, Event<T>} = 24,
+		
+		Did: did::{Module, Call, Storage, Event<T>} = 31,
 		Mtype: mtype::{Module, Call, Storage, Event<T>} = 32,
 		Mark: mark::{Module, Call, Storage, Event<T>} = 33,
 		Delegation: delegation::{Module, Call, Storage, Event<T>} = 34,
-		Did: did::{Module, Call, Storage, Event<T>} = 35,
 	}
 }
 

@@ -11,7 +11,7 @@ use super::*;
 use crate::*;
 
 use frame_support::{
-	assert_err, assert_ok, impl_outer_origin, parameter_types,
+	assert_noop, assert_ok, impl_outer_origin, parameter_types,
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass, Weight,
@@ -127,9 +127,9 @@ fn it_works_for_default_value() {
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), mtype_hash));
 		assert_eq!(<MTYPEs<Test>>::contains_key(mtype_hash), true);
 		assert_eq!(MType::mtypes(mtype_hash), Some(account.clone()));
-		assert_err!(
+		assert_noop!(
 			MType::anchor(Origin::signed(account), mtype_hash),
-			MType::ERROR_MTYPE_ALREADY_EXISTS.1
+			Error::<Test>::AlreadyExists
 		);
 	});
 }

@@ -12,7 +12,7 @@ targets = ['x86_64-unknown-linux-gnu']
 wasm-builder = { package = 'substrate-wasm-builder', version = '3.0.0' }
 
 [dependencies]
-codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '1.3.5' }
+codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
 bitflags = { default-features = false, version = '1.2.1' }
 
 # Substrate dependencies
@@ -24,7 +24,6 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", de
 
 # local pallets
 mtype = { default-features = false, path = '../mtype' }
-error = { default-features = false, path = '../error' }
 
 [dev-dependencies]
 cord-runtime = { default-features = false, path = '../../runtime' }
@@ -40,5 +39,4 @@ std = [
 	'sp-std/std',
 	'sp-io/std',
 	'mtype/std',
-	'error/std'
 ]

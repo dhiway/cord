@@ -257,7 +257,7 @@ The `add` function takes following parameters:
   on
 
 The node verifies the transaction signature and insert it to the state, if the provided attester
-didn’t already attest the provided claimHash. The mark is stored by using a map:
+didn’t already anchor the provided claimHash. The mark is stored by using a map:
 
 ```rust
 T::Hash => (T::Hash,T::AccountId,Option<T::DelegateId>,bool)
