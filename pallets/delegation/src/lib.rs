@@ -133,10 +133,10 @@ decl_module! {
 		// it is needed only if you are using errors in your pallet
 		type Error = Error<T>;
 		
-		/// Creates a delegation hierarchy root on chain, where
-		/// origin - the origin of the transaction
-		/// root_id - unique identifier of the root node
-		/// mtype_hash - hash of the MTYPE the hierarchy is created for
+		/// Creates a delegation hierarchy root on chain
+		///, where, origin is the signed sender account,
+		/// root_id is the unique identifier of the root node,
+		/// and, mtype_hash - hash of the MTYPE the hierarchy is created for
 		#[weight = 1]
 		pub fn create_root(origin, root_id: T::DelegationNodeId, mtype_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account

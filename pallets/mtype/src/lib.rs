@@ -26,8 +26,8 @@ pub trait Trait: frame_system::Config {
 decl_event!(
 	/// Events for #MARK TYPEs
 	pub enum Event<T> where <T as frame_system::Config>::AccountId, <T as frame_system::Config>::Hash {
-		/// A new #MARK Schema has been anchored
-		MTypeAnchored(AccountId, Hash),
+		/// A new #MARK schema has been anchored
+		Anchored(AccountId, Hash),
 	}
 );
 
@@ -51,22 +51,22 @@ decl_module! {
 		// it is needed only if you are using errors in your pallet
 		type Error = Error<T>;
 
-		/// Anchors a new #MARK TYPE on chain
-		/// origin is the signed sender account, and
-		/// hash is the hash of the anchored Type Schema
+		/// Anchors a new #MARK schema on chain, 
+		///, where, origin is the signed sender account, and
+		/// schema_hash is the hash of the anchored Type schema
 		#[weight = 1]
-		pub fn anchor(origin, hash: T::Hash) -> DispatchResult {
+		pub fn anchor(origin, schema_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 
 			// check if #MARK TYPE already exists
-			ensure!(!<MTYPEs<T>>::contains_key(hash), Error::<T>::AlreadyExists);
+			ensure!(!<MTYPEs<T>>::contains_key(schema_hash), Error::<T>::AlreadyExists);
 
-			// Anchors a new #MARK Schema
+			// Anchors a new #MARK schema
 			debug::print!("insert MTYPE");
-			<MTYPEs<T>>::insert(hash, sender.clone());
+			<MTYPEs<T>>::insert(schema_hash, sender.clone());
 			// deposit event - #MARK TYPE has been anchored
-			Self::deposit_event(RawEvent::MTypeAnchored(sender, hash));
+			Self::deposit_event(RawEvent::Anchored(sender, schema_hash));
 			Ok(())
 		}
 	}
@@ -74,7 +74,7 @@ decl_module! {
 
 decl_storage! {
 	trait Store for Module<T: Trait> as Mtype {
-		// MTYPEs: mtype-hash -> account-id?
+		// MTYPEs: mtype-schema_hash -> account-id?
 		pub MTYPEs get(fn mtypes):map hasher(opaque_blake2_256) T::Hash => Option<T::AccountId>;
 	}
 }

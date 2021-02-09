@@ -29,10 +29,10 @@ decl_event!(
 	/// Events for Marks
 	pub enum Event<T> where <T as frame_system::Config>::AccountId, <T as frame_system::Config>::Hash,
 			<T as delegation::Trait>::DelegationNodeId {
-		/// A #MARK has been anchored
-		MarkAnchored(AccountId, Hash, Hash, Option<DelegationNodeId>),
+		/// A new #MARK has been anchored
+		Anchored(AccountId, Hash, Hash, Option<DelegationNodeId>),
 		/// A #MARK has been revoked
-		MarkRevoked(AccountId, Hash),
+		Revoked(AccountId, Hash),
 	}
 );
 
@@ -61,8 +61,8 @@ decl_module! {
 		// it is needed only if you are using errors in your pallet
 		type Error = Error<T>;
 
-		/// Anchors a #MARK on chain
-		/// where, originis the signed sender account,
+		/// Anchors a new #MARK on chain
+		///, where, originis the signed sender account,
 		/// stream_hash is the hash of the stream,
 		/// mtype_hash is the hash of the #MARK TYPE,
 		/// and delegation_id refers to a #MARK TYPE delegation.
@@ -106,7 +106,7 @@ decl_module! {
 			}
 
 			// deposit event that mark has beed added
-			Self::deposit_event(RawEvent::MarkAnchored(sender, stream_hash, mtype_hash, delegation_id));
+			Self::deposit_event(RawEvent::Anchored(sender, stream_hash, mtype_hash, delegation_id));
 			Ok(())
 		}
 
@@ -142,7 +142,7 @@ decl_module! {
 			});
 
 			// deposit event that the #MARK has been revoked
-			Self::deposit_event(RawEvent::MarkRevoked(sender, stream_hash));
+			Self::deposit_event(RawEvent::Revoked(sender, stream_hash));
 			Ok(())
 		}
 	}
