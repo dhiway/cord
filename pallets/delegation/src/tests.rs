@@ -18,10 +18,9 @@ use frame_support::{
 	},
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use kilt_primitives::Signature;
+use cord_runtime::{AccountId, Signature, Header};
 use sp_core::{ed25519, Pair, H256, H512};
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup, Verify},
 	MultiSignature, MultiSigner, Perbill,
 };
@@ -63,8 +62,8 @@ parameter_types! {
 		})
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
-	pub const BlockHashCount: u64 = 250;
-	pub const SS58Prefix: u8 = 38;
+	pub const BlockHashCount: u32 = 250;
+	pub const SS58Prefix: u8 = 29;
 }
 
 impl frame_system::Config for Test {
@@ -158,7 +157,7 @@ fn check_add_and_revoke_delegations() {
 				id_level_1,
 				H256::from_low_u64_be(2)
 			),
-			ctype::Error::<Test>::NotFound
+			mtype::Error::<Test>::NotFound
 		);
 
 		assert_ok!(Delegation::add_delegation(

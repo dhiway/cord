@@ -301,7 +301,7 @@ impl pallet_indices::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 10 * MILLIPAISE;
+	pub const ExistentialDeposit: Balance = 100 * MILLIPAISE;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
 	// This number may need to be adjusted in the future if this assumption no longer holds true.
 	pub const MaxLocks: u32 = 50;
@@ -318,7 +318,7 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * MILLIPAISE;
+	pub const TransactionByteFee: Balance = 50 * MILLIPAISE;
 }
 
 /// Parameterized slow adjusting fee updated based on

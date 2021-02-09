@@ -17,7 +17,6 @@ wasm-opt = false
 name = 'cord'
 path = "src/main.rs"
 
-
 [build-dependencies]
 substrate-build-script-utils = '2.0.1'
 
@@ -32,8 +31,6 @@ serde = { version = "1.0.123", features = ["derive"] }
 thiserror = "1.0.23"
 structopt = '0.3.21'
 jsonrpc-core = "15.1.0"
-
-#log = "0.4.11"
 
 # node-specific dependencies
 cord-runtime = { path = "../runtime" }
@@ -58,6 +55,8 @@ sc-telemetry = { git = "https://github.com/paritytech/substrate", branch = "mast
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "master" }
 sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "master" }
 sc-cli = { git = "https://github.com/paritytech/substrate", branch = "master" }
+sc-keystore = {git = 'https://github.com/paritytech/substrate', branch = "master"}
+sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "master" }
 
 # Substrate Primitives
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -86,7 +85,10 @@ pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", 
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "master" }
 
 # Substrate Other
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "master" }
+frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
 frame-benchmarking = {git = 'https://github.com/paritytech/substrate.git', branch = "master"}
+frame-benchmarking-cli = {git = 'https://github.com/paritytech/substrate.git', branch = "master"}
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "master" }
 frame-rpc-system = {package = 'substrate-frame-rpc-system', git = 'https://github.com/paritytech/substrate', branch = "master"}
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -96,20 +98,13 @@ prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https:
 #sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "master" }
 
 # client dependencies
-sc-keystore = {git = 'https://github.com/paritytech/substrate', branch = "master"}
 #sc-sync-state-rpc = { git = "https://github.com/paritytech/substrate", branch = "master"}
-sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-basic-authorship = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sc-tracing = { git = "https://github.com/paritytech/substrate", branch = "master" }
+#sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "master" }
+#sc-tracing = { git = "https://github.com/paritytech/substrate", branch = "master" }
 
-# frame dependencies
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "master" }
-frame-support = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-frame-benchmarking-cli = {git = 'https://github.com/paritytech/substrate.git', branch = "master"}
+#pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "master" }
+#pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
+#pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "master" }
 
-pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "master" }
-
-pallet-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "master" }
-pallet-grandpa = { git = "https://github.com/paritytech/substrate", branch = "master" }
+#pallet-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "master" }
+#pallet-grandpa = { git = "https://github.com/paritytech/substrate", branch = "master" }
