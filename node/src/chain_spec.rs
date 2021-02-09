@@ -62,7 +62,7 @@ fn session_keys(
 impl Alternative {
 	/// Get an actual chain config from one of the alternatives.
 	pub(crate) fn load(self) -> Result<ChainSpec, String> {
-		let wasm_binary = WASM_BINARY.ok_or("Development wasm binary not available".to_string())?;
+		let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
 		let boot_nodes = vec![];
 
 		let mut properties = Properties::new();
@@ -71,7 +71,7 @@ impl Alternative {
 		Ok(match self {
 			Alternative::Development => {
 				ChainSpec::from_genesis(
-					"Development",
+					"CORD Local Node",
 					"development",
 					ChainType::Development,
 					move || local_dev_genesis(wasm_binary),

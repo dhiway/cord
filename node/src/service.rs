@@ -100,21 +100,20 @@ pub fn new_partial(config: &mut Configuration) -> Result<sc_service::PartialComp
 			sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
 		),
 			sc_finality_grandpa::SharedVoterState,
-			Option<sc_telemetry::TelemetrySpan>,
 	)
 >, ServiceError,
 > {
 	set_prometheus_registry(config)?;
 
 	if config.keystore_remote.is_some() {
-		return Err(ServiceError::Other(format!(
-			"Remote Keystores are not supported."
-		)));
+		return Err(ServiceError::Other(
+			"Remote Keystores are not supported.".to_owned(),
+		));
 	}
 
 	let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-	let (client, backend, keystore_container, task_manager, telemetry_span) =
+	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
 	let client = Arc::new(client);
 
@@ -122,6 +121,7 @@ pub fn new_partial(config: &mut Configuration) -> Result<sc_service::PartialComp
 
 	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
 		config.transaction_pool.clone(),
+		config.role.is_authority().into(),
 		config.prometheus_registry(),
 		task_manager.spawn_handle(),
 		client.clone(),
@@ -155,7 +155,6 @@ pub fn new_partial(config: &mut Configuration) -> Result<sc_service::PartialComp
 	let shared_voter_state = sc_finality_grandpa::SharedVoterState::empty();
 	let finality_proof_provider = GrandpaFinalityProofProvider::new_for_service(
 		backend.clone(),
-		client.clone(),
 		Some(shared_authority_set.clone()),
 	);
 
@@ -197,11 +196,11 @@ pub fn new_partial(config: &mut Configuration) -> Result<sc_service::PartialComp
 		import_queue, 
 		transaction_pool,
 		inherent_data_providers,
-		other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry_span),
+		other: (rpc_extensions_builder, import_setup, rpc_setup),
 	})
 }
 
-fn remote_keystore(_url: &String) -> Result<Arc<LocalKeystore>, &'static str> {
+fn remote_keystore(_url: &str) -> Result<Arc<LocalKeystore>, &'static str> {
 	// FIXME: here would the concrete keystore be built,
 	//        must return a concrete type (NOT `LocalKeystore`) that
 	//        implements `CryptoStore` and `SyncCryptoStore`
@@ -247,7 +246,7 @@ pub fn new_full_base(
 		import_queue,
 		transaction_pool,
 		inherent_data_providers,
-		other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry_span),
+		other: (rpc_extensions_builder, import_setup, rpc_setup),
 	} = new_partial(&mut config)?;
 
 
@@ -302,7 +301,6 @@ pub fn new_full_base(
 		remote_blockchain: None,
 		network_status_sinks: network_status_sinks.clone(),
 		system_rpc_tx,
-		telemetry_span,
 	})?;
 
 
@@ -410,7 +408,7 @@ pub fn new_light_base(mut config: Configuration) -> Result<(
 {	
 	set_prometheus_registry(&mut config)?;
 
-	let (client, backend, keystore_container, mut task_manager, on_demand, telemetry_span) =
+	let (client, backend, keystore_container, mut task_manager, on_demand) =
 		sc_service::new_light_parts::<Block, RuntimeApi, Executor>(&config)?;
 
 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
@@ -492,7 +490,6 @@ pub fn new_light_base(mut config: Configuration) -> Result<(
 			network: network.clone(),
 			network_status_sinks, 
 			system_rpc_tx,
-			telemetry_span,
 		})?;
 
 	 network_starter.start_network();

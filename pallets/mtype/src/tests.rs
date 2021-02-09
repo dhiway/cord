@@ -8,20 +8,20 @@
 
 use super::*;
 
-use crate::*;
+// use crate::*;
 
 use frame_support::{
-	assert_err, assert_ok, impl_outer_origin, parameter_types,
+	assert_noop, assert_ok, impl_outer_origin, parameter_types,
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass, Weight,
 	},
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use cord_runtime::Signature;
+use cord_runtime::{Signature, Header};
 use sp_core::{ed25519, Pair, H256};
 use sp_runtime::{
-	testing::Header,
+	// testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Saturating, Verify},
 	MultiSigner, Perbill,
 };
@@ -34,7 +34,7 @@ impl_outer_origin! {
 pub struct Test;
 
 parameter_types! {
-	pub const BlockHashCount: u64 = 250;
+	pub const BlockHashCount: u32 = 250;
 	pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
 	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
 	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
@@ -100,11 +100,6 @@ impl frame_system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 }
 
-impl error::Trait for Test {
-	type Event = ();
-	type ErrorCode = u16;
-}
-
 impl Trait for Test {
 	type Event = ();
 }
@@ -122,14 +117,14 @@ fn new_test_ext() -> sp_io::TestExternalities {
 fn it_works_for_default_value() {
 	new_test_ext().execute_with(|| {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
-		let mtype = H256::from_low_u64_be(1);
+		let mtype_hash = H256::from_low_u64_be(1);
 		let account = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(MType::add(Origin::signed(account.clone()), mtype));
-		assert_eq!(<MTYPE<Test>>::contains_key(mtype), true);
-		assert_eq!(MType::mtypes(mtype), Some(account.clone()));
-		assert_err!(
-			MType::add(Origin::signed(account), mtype),
-			MType::ERROR_MTYPE_ALREADY_EXISTS.1
+		assert_ok!(MType::anchor(Origin::signed(account.clone()), mtype_hash));
+		assert_eq!(<MTYPEs<Test>>::contains_key(mtype_hash), true);
+		assert_eq!(MType::mtypes(mtype_hash), Some(account.clone()));
+		assert_noop!(
+			MType::anchor(Origin::signed(account), mtype_hash),
+			Error::<Test>::AlreadyExists
 		);
 	});
 }

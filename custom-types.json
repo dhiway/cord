@@ -1,13 +1,13 @@
 {
   "Address": "AccountId",
   "BlockNumber": "u32",
-  "DelegateId": "Hash",
+  "DelegationNodeId": "Hash",
   "ErrorCode": "u16",
   "Index": "u32",
   "LookupSource": "AccountId",
   "Permissions": "u32",
   "PublicBoxKey": "Hash",
   "PublicSigningKey": "Hash",
-  "RefCount": "u8",
+  "RefCount": "u32",
   "Signature": "MultiSignature"
 }

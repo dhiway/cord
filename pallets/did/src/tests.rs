@@ -8,17 +8,19 @@
 use crate::*;
 
 use frame_support::{
-	assert_ok, impl_outer_origin, parameter_types,
+	assert_ok,
+	dispatch::Weight,
+	impl_outer_origin, parameter_types,
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass,
 	},
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use cord_runtime::{BlockHashCount, Signature, Weight, WEIGHT_PER_SECOND};
+use cord_runtime::{Signature, Header, BlockHashCount};
 use sp_core::{ed25519, Pair, H256};
 use sp_runtime::{
-	testing::Header,
+	// testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	MultiSigner, Perbill,
 };
@@ -29,6 +31,7 @@ impl_outer_origin! {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Test;
+// pub const BlockHashCount: u32 = 250;
 
 /// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
 /// This is used to limit the maximal weight of a single extrinsic.

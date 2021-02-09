@@ -19,7 +19,7 @@ technology stack with DID, #MARK Type, #MARKS and hierarchical Trust Modules.
       - [Add](#add)
       - [CRUD](#crud)
     - [#MARK Type Module](#mark-type-module)
-    - [Attestation Module](#attestation-module)
+    - [Mark Module](#mark-module)
       - [Add](#add-1)
       - [Revoke](#revoke)
       - [Lookup](#lookup)
@@ -162,7 +162,7 @@ In Substrate, the blockchain transactions are abstracted away and are generalise
 [extrinsics](https://docs.substrate.dev/docs/extrinsics) in the system. They are called extrinsics since they can represent any piece of information that is regarded as input from “the outside world” (i.e. from users of the network) to the blockchain logic. The blockchain transactions are implemented through these
 general extrinsics, that are signed by the originator of the transaction. We use this framework
 to write the protocol specific data entries on the blockchain: [DID],
-[MTYPEhash], [Attestation] and [Delegation]. The processing of each of these entry types is
+[MTYPEhash], [Mark] and [Delegation]. The processing of each of these entry types is
 handled by our custom runtime modules.
 
 Under the current consensus algorithm, authority validator nodes (whose addresses are listed
@@ -232,9 +232,9 @@ inserts it to the blockchain storage by using a map:
 T::Hash => T::AccountId
 ```
 
-### Attestation Module
+### Mark Module
 
-The node runtime defines an Attestation module exposing functions to
+The node runtime defines an Mark module exposing functions to
 
 - add a mark (`add`)
 - revoke a mark (`revoke`)
@@ -257,13 +257,13 @@ The `add` function takes following parameters:
   on
 
 The node verifies the transaction signature and insert it to the state, if the provided attester
-didn’t already attest the provided claimHash. The mark is stored by using a map:
+didn’t already anchor the provided claimHash. The mark is stored by using a map:
 
 ```rust
 T::Hash => (T::Hash,T::AccountId,Option<T::DelegateId>,bool)
 ```
 
-Delegated Attestations are stored in an additional map:
+Delegated Marks are stored in an additional map:
 
 ```rust
 T::DelegateId => Vec<T::Hash>

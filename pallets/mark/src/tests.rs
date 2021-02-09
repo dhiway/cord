@@ -10,20 +10,19 @@ use crate::*;
 
 use codec::Encode;
 use frame_support::{
-	assert_err, assert_ok, impl_outer_origin, parameter_types,
+	assert_noop, assert_ok,
+	dispatch::Weight,
+	impl_outer_origin, parameter_types,
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass,
 	},
+	StorageMap,
 };
 use frame_system::limits::{BlockLength, BlockWeights};
-use cord_runtime::{
-	AccountId, BlockHashCount,
-	Signature, Weight, WEIGHT_PER_SECOND,
-};
+use cord_runtime::{AccountId, Signature, Header};
 use sp_core::{ed25519, Pair, H256};
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	MultiSignature, MultiSigner, Perbill,
 };
@@ -66,6 +65,8 @@ parameter_types! {
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
 	pub const SS58Prefix: u8 = 29;
+	pub const BlockHashCount: u32 = 250;
+
 }
 
 impl frame_system::Config for Test {
@@ -93,12 +94,7 @@ impl frame_system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 }
 
-impl mtypes::Trait for Test {
-	type Event = ();
-}
-
-impl error::Trait for Test {
-	type ErrorCode = u16;
+impl mtype::Trait for Test {
 	type Event = ();
 }
 
@@ -106,14 +102,14 @@ impl delegation::Trait for Test {
 	type Event = ();
 	type Signature = Signature;
 	type Signer = <Self::Signature as Verify>::Signer;
-	type DelegateId = H256;
+	type DelegationNodeId = H256;
 }
 
 impl Trait for Test {
 	type Event = ();
 }
 
-type Mark = Module<Test>;
+type MarkerModule = Module<Test>;
 type MType = mtype::Module<Test>;
 type Delegation = delegation::Module<Test>;
 
@@ -129,26 +125,32 @@ fn hash_to_u8<T: Encode>(hash: T) -> Vec<u8> {
 }
 
 #[test]
-fn check_add_marks() {
+fn check_anchor_mark() {
 	new_test_ext().execute_with(|| {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(MType::add(Origin::signed(account_hash.clone()), hash));
-		assert_ok!(Mark::add(
+		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
+		assert_ok!(MarkerModule::anchor(
 			Origin::signed(account_hash.clone()),
 			hash,
 			hash,
 			None
 		));
-		let existing_mark_for_claim = {
-			let opt = Mark::marks(hash);
+		let Mark {
+			mtype_hash,
+			marker,
+			revoked,
+			delegation_id,
+		} = {
+			let opt = MarkerModule::marks(hash);
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
-		assert_eq!(existing_mark_for_claim.0, hash);
-		assert_eq!(existing_mark_for_claim.1, account_hash);
-		assert_eq!(existing_mark_for_claim.3, false);
+		assert_eq!(mtype_hash, hash);
+		assert_eq!(marker, account_hash);
+		assert_eq!(delegation_id, None);
+		assert_eq!(revoked, false);
 	});
 }
 
@@ -158,25 +160,32 @@ fn check_revoke_mark() {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(MType::add(Origin::signed(account_hash.clone()), hash));
-		assert_ok!(Mark::add(
+		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
+		assert_ok!(MarkerModule::anchor(
 			Origin::signed(account_hash.clone()),
 			hash,
 			hash,
 			None
 		));
-		assert_ok!(Mark::revoke(
+		assert_ok!(MarkerModule::revoke(
 			Origin::signed(account_hash.clone()),
-			hash
+			hash,
+			10
 		));
-		let existing_mark_for_claim = {
-			let opt = Mark::marks(hash);
+		let Mark {
+			mtype_hash,
+			marker,
+			revoked,
+			delegation_id,
+		} = {
+			let opt = MarkerModule::marks(hash);
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
-		assert_eq!(existing_mark_for_claim.0, hash);
-		assert_eq!(existing_mark_for_claim.1, account_hash);
-		assert_eq!(existing_mark_for_claim.3, true);
+		assert_eq!(mtype_hash, hash);
+		assert_eq!(marker, account_hash);
+		assert_eq!(delegation_id, None);
+		assert_eq!(revoked, true);
 	});
 }
 
@@ -186,16 +195,16 @@ fn check_double_mark() {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(MType::add(Origin::signed(account_hash.clone()), hash));
-		assert_ok!(Mark::add(
+		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
+		assert_ok!(MarkerModule::anchor(
 			Origin::signed(account_hash.clone()),
 			hash,
 			hash,
 			None
 		));
-		assert_err!(
-			Mark::add(Origin::signed(account_hash), hash, hash, None),
-			Mark::ERROR_ALREADY_ATTESTED.1
+		assert_noop!(
+			MarkerModule::anchor(Origin::signed(account_hash), hash, hash, None),
+			Error::<Test>::AlreadyAnchored
 		);
 	});
 }
@@ -206,20 +215,21 @@ fn check_double_revoke_mark() {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(MType::add(Origin::signed(account_hash.clone()), hash));
-		assert_ok!(Mark::add(
+		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
+		assert_ok!(MarkerModule::anchor(
 			Origin::signed(account_hash.clone()),
 			hash,
 			hash,
 			None
 		));
-		assert_ok!(Mark::revoke(
+		assert_ok!(MarkerModule::revoke(
 			Origin::signed(account_hash.clone()),
-			hash
+			hash,
+			10
 		));
-		assert_err!(
-			Mark::revoke(Origin::signed(account_hash), hash),
-			Mark::ERROR_ALREADY_REVOKED.1
+		assert_noop!(
+			MarkerModule::revoke(Origin::signed(account_hash), hash, 10),
+			Error::<Test>::AlreadyRevoked
 		);
 	});
 }
@@ -230,9 +240,9 @@ fn check_revoke_unknown() {
 		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_err!(
-			Mark::revoke(Origin::signed(account_hash), hash),
-			Mark::ERROR_MARK_NOT_FOUND.1
+		assert_noop!(
+			MarkerModule::revoke(Origin::signed(account_hash), hash, 10),
+			Error::<Test>::MarkNotFound
 		);
 	});
 }
@@ -245,22 +255,22 @@ fn check_revoke_not_permitted() {
 		let pair_bob = ed25519::Pair::from_seed(&*b"Bob                             ");
 		let account_hash_bob = MultiSigner::from(pair_bob.public()).into_account();
 		let hash = H256::from_low_u64_be(1);
-		assert_ok!(MType::add(Origin::signed(account_hash_alice.clone()), hash));
-		assert_ok!(Mark::add(
+		assert_ok!(MType::anchor(Origin::signed(account_hash_alice.clone()), hash));
+		assert_ok!(MarkerModule::anchor(
 			Origin::signed(account_hash_alice),
 			hash,
 			hash,
 			None
 		));
-		assert_err!(
-			Mark::revoke(Origin::signed(account_hash_bob), hash),
-			Mark::ERROR_NOT_PERMITTED_TO_REVOKE_ATTESTATION.1
+		assert_noop!(
+			MarkerModule::revoke(Origin::signed(account_hash_bob), hash, 10),
+			Error::<Test>::UnauthorizedRevocation
 		);
 	});
 }
 
 #[test]
-fn check_add_mark_with_delegation() {
+fn check_anchor_mark_with_delegation() {
 	new_test_ext().execute_with(|| {
 		let pair_alice = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let account_hash_alice = MultiSigner::from(pair_alice.public()).into_account();
@@ -269,34 +279,38 @@ fn check_add_mark_with_delegation() {
 		let pair_charlie = ed25519::Pair::from_seed(&*b"Charlie                         ");
 		let account_hash_charlie = MultiSigner::from(pair_charlie.public()).into_account();
 
-		let mtype = H256::from_low_u64_be(1);
-		let other_mtype = H256::from_low_u64_be(2);
-		let mark = H256::from_low_u64_be(1);
+		let mtype_hash = H256::from_low_u64_be(1);
+		let other_mtype_hash = H256::from_low_u64_be(2);
+		let stream_hash = H256::from_low_u64_be(1);
 
 		let delegation_root = H256::from_low_u64_be(0);
 		let delegation_1 = H256::from_low_u64_be(1);
 		let delegation_2 = H256::from_low_u64_be(2);
 
-		assert_ok!(MType::add(
+		assert_ok!(MType::anchor(
 			Origin::signed(account_hash_alice.clone()),
-			mtype
+			mtype_hash
 		));
 
-		assert_err!(
-			Mark::add(
+		// cannot anchor #MARK based on a missing delegation
+		assert_noop!(
+			MarkerModule::anchor(
 				Origin::signed(account_hash_alice.clone()),
-				mark,
-				mtype,
-				Some(delegation_1)
+				stream_hash,
+				mtype_hash,
+				Some(delegation_root)
 			),
-			Delegation::ERROR_DELEGATION_NOT_FOUND.1
+			delegation::Error::<Test>::DelegationNotFound
 		);
 
+		// add root delegation
 		assert_ok!(Delegation::create_root(
 			Origin::signed(account_hash_alice.clone()),
 			delegation_root,
-			mtype
+			mtype_hash
 		));
+	
+		// add delegation_1 as child of root
 		assert_ok!(Delegation::add_delegation(
 			Origin::signed(account_hash_alice.clone()),
 			delegation_1,
@@ -311,94 +325,112 @@ fn check_add_mark_with_delegation() {
 				delegation::Permissions::DELEGATE
 			))))
 		));
+
+		// add delegation_2 as child of root
 		assert_ok!(Delegation::add_delegation(
 			Origin::signed(account_hash_alice.clone()),
 			delegation_2,
 			delegation_root,
 			None,
 			account_hash_bob.clone(),
-			delegation::Permissions::ATTEST,
+			delegation::Permissions::ANCHOR,
 			MultiSignature::from(pair_bob.sign(&hash_to_u8(Delegation::calculate_hash(
 				delegation_2,
 				delegation_root,
 				None,
-				delegation::Permissions::ATTEST
+				delegation::Permissions::ANCHOR
 			))))
 		));
 
-		assert_err!(
-			Mark::add(
+		// cannot anchor #MARK for missing mtype
+		assert_noop!(
+			MarkerModule::anchor(
 				Origin::signed(account_hash_bob.clone()),
-				mark,
-				other_mtype,
+				stream_hash,
+				other_mtype_hash,
 				Some(delegation_2)
 			),
-			MType::ERROR_MTYPE_NOT_FOUND.1
+			mtype::Error::<Test>::NotFound
 		);
-		assert_ok!(MType::add(
+
+		// add missing mtype
+		assert_ok!(MType::anchor(
 			Origin::signed(account_hash_alice.clone()),
-			other_mtype
+			other_mtype_hash
 		));
-		assert_err!(
-			Mark::add(
+
+		// cannot add attestation with different ctype than in root
+		assert_noop!(
+			MarkerModule::anchor(
 				Origin::signed(account_hash_bob.clone()),
-				mark,
-				other_mtype,
+				stream_hash,
+				other_mtype_hash,
 				Some(delegation_2)
 			),
-			Mark::ERROR_MTYPE_OF_DELEGATION_NOT_MATCHING.1
+			Error::<Test>::MTypeMismatch
 		);
-		assert_err!(
-			Mark::add(
+		// cannot add delegation if not marker (bob is marker of delegation_2)
+		assert_noop!(
+			MarkerModule::anchor(
 				Origin::signed(account_hash_alice.clone()),
-				mark,
-				mtype,
+				stream_hash,
+				mtype_hash,
 				Some(delegation_2)
 			),
-			Mark::ERROR_NOT_DELEGATED_TO_ATTESTER.1
+			Error::<Test>::NotDelegatedToMarker
 		);
-		assert_err!(
-			Mark::add(
+
+		// cannot add delegation if not owner (alice is owner of delegation_1)
+		assert_noop!(
+			MarkerModule::anchor(
 				Origin::signed(account_hash_bob.clone()),
-				mark,
-				mtype,
+				stream_hash,
+				mtype_hash,
 				Some(delegation_1)
 			),
-			Mark::ERROR_DELEGATION_NOT_AUTHORIZED_TO_ATTEST.1
+			Error::<Test>::DelegationUnauthorisedToAnchor
 		);
-		assert_ok!(Mark::add(
+
+		// anchor attestation for delegation_2
+		assert_ok!(MarkerModule::anchor(
 			Origin::signed(account_hash_bob.clone()),
-			mark,
-			mtype,
+			stream_hash,
+			mtype_hash,
 			Some(delegation_2)
 		));
 
-		let existing_mark_for_delegation =
-			Mark::delegated_marks(delegation_2);
-		assert_eq!(existing_mark_for_delegation.len(), 1);
-		assert_eq!(existing_mark_for_delegation[0], mark);
+		let existing_markers_for_delegation =
+			MarkerModule::delegated_marks(delegation_2);
+		assert_eq!(existing_markers_for_delegation.len(), 1);
+		assert_eq!(existing_markers_for_delegation[0], stream_hash);
 
+		// revoke root delegation
 		assert_ok!(Delegation::revoke_root(
 			Origin::signed(account_hash_alice.clone()),
 			delegation_root
 		));
-		assert_err!(
-			Mark::add(
+
+		// cannot revoke attestation if not owner (alice is owner of attestation)
+		assert_noop!(
+			MarkerModule::revoke(Origin::signed(account_hash_charlie), stream_hash, 10),
+			Error::<Test>::UnauthorizedRevocation
+		);
+		assert_ok!(MarkerModule::revoke(
+			Origin::signed(account_hash_alice),
+			stream_hash,
+			10
+		));		
+
+		// remove attestation to catch for revoked delegation
+		Marks::<Test>::remove(stream_hash);
+		assert_noop!(
+			MarkerModule::anchor(
 				Origin::signed(account_hash_bob),
-				mark,
-				mtype,
+				stream_hash,
+				mtype_hash,
 				Some(delegation_2)
 			),
-			Mark::ERROR_DELEGATION_REVOKED.1
+			Error::<Test>::DelegationRevoked
 		);
-
-		assert_err!(
-			Mark::revoke(Origin::signed(account_hash_charlie), mark),
-			Mark::ERROR_NOT_PERMITTED_TO_REVOKE_ATTESTATION.1
-		);
-		assert_ok!(Mark::revoke(
-			Origin::signed(account_hash_alice),
-			mark
-		));
 	});
 }
