@@ -38,7 +38,7 @@ technology stack with DID, #MARK Type, #MARKS and hierarchical Trust Modules.
 
 
 ### Accounts
-[Documentation](node/docs/accounts.md)
+[Documentation](./docs/accounts.md)
 
 ### Build & Run
 
@@ -88,7 +88,7 @@ A valid account only requires a private key that can sign on one of the supporte
 #### Polkadot{.js} Browser Plugin
 The browser plugin is available for both [Google Chrome](https://chrome.google.com/webstore/detail/polkadot%7Bjs%7D-extension/mopnmbcafieddcagagdcbnhejhlodfdd?hl=en) (and Chromium based browsers like Brave) and [FireFox](https://addons.mozilla.org/en-US/firefox/addon/polkadot-js-extension).
 
-Open the Polkadot{.js} browser extension by clicking the orange and white Polkadot{.js} logo on the top bar of your browser. You will see a browser popup. Click the small plus icon in the top right and choose the option to `Restore account form backup JSON file`. Follow the instructions to import default [user](scripts/accounts/users) and [stash](scripts/accounts/stash) accounts.
+Open the Polkadot{.js} browser extension by clicking the orange and white Polkadot{.js} logo on the top bar of your browser. You will see a browser popup. Click the small plus icon in the top right and choose the option to `Restore account form backup JSON file`. Follow the instructions to import default [user](./scripts/accounts/users) and [stash](./scripts/accounts/stash) accounts.
 
 #### Polkadot Web UI
 Add the following code to `Developer` -> `Settings`
