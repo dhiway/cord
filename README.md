@@ -22,7 +22,7 @@ technology stack with DID, #MARK Type, #MARKS and hierarchical Trust Modules.
     - [DID Module](#did-module)
       - [Add](#add)
       - [CRUD](#crud)
-    - [#MTYPE (#MARK Schema) Module](#mtype-mark-schema-module)
+    - [MTYPE (Schema) Module](#mtype-schema-module)
     - [Mark Module](#mark-module)
       - [Add](#add-1)
       - [Revoke](#revoke)
@@ -185,7 +185,7 @@ T::AccountId => Option<(T::PublicSigningKey, T::PublicBoxKey, Option<Vec<u8>>)>
 
 As DID supports CRUD (Create, Read, Update, Delete) operations, a `get(dids)` method reads a DID for an account address, the anchor function may also be used to update a DID and a `remove(origin) -> Result` function that takes the owner as a single parameter removes the DID from the map, so any later read operation call does not return the data of a removed DID.
 
-### #MTYPE (#MARK Schema) Module
+### MTYPE (Schema) Module
 
 The node runtime defines a MARK TYPE (Schema) module exposing
 
