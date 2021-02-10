@@ -268,7 +268,7 @@ The node runtime defines a Delegation module exposing functions to
 #### Create root
 
 ```rust
-create_root(origin, root_id: T::DelegateId, mtype: T::Hash) -> Result
+create_root(origin, root_id: T::DelegationNodeId, mtype_hash: T::Hash) -> DispatchResult
 ```
 
 The `create_root` function takes the following parameters:
@@ -276,60 +276,65 @@ The `create_root` function takes the following parameters:
 - origin: The caller of the method, i.e., public address (ss58) of the owner of the
   trust hierarchy
 - root_id: A V4 UUID identifying the trust hierarchy
-- mtype: The blake2b hash of the MTYPE the trust hierarchy is associated with
+- mtype_hash: The blake2b hash of the MTYPE the trust hierarchy is associated with
 
 The node verifies the transaction signature and insert it to the state. The root is stored by using
 a map:
 
 ```rust
-T::DelegateId => (T::Hash,T::AccountId,bool)
+T::DelegationNodeId => Option<DelegationRoot<T>>
 ```
 
 #### Add delegation
 
 ```rust
-add_delegation(origin, delegate_id: T::DelegateId, root_id: T::DelegateId, parent_id: Option<T::DelegateId>, delegate: T::AccountId, permissions: Permissions, delegate_signature: T::Signature) -> Result
+add_delegation(origin, delegation_id: T::DelegationNodeId, root_id: T::DelegationNodeId, parent_id: Option<T::DelegationNodeId>, delegate: T::AccountId, permissions: Permissions, delegate_signature: T::Signature) -> DispatchResult 
 ```
 
 The `add_delegation` function takes the following parameters:
 
+/// Adds a delegation node on chain, where
+		/// origin - the origin of the transaction
+		/// delegation_id - unique identifier of the delegation node to be added
+		/// root_id - id of the hierarchy root node
+		/// parent_id - optional identifier of a parent node this delegation node is created under
+		/// delegate - the delegate account
+		/// permission - the permissions delegated
+		/// delegate_signature - the signature of the delegate to ensure it's done under his permission
+
 - origin: The caller of the method, i.e., public address (ss58) of the delegator
-- delegate_id: A V4 UUID identifying this delegation
-- root_id: A V4 UUID identifying the associated trust hierarchy
-- parent_id: Optional, a V4 UUID identifying the parent delegation this delegation is
-  based on
-- MTYPEHash: The blake2b hash of MTYPE used when creating the Claim
+- delegation_id: unique identifier of the delegation node to be added
+- root_id: id of the hierarchy root node
+- parent_id: Optional, id of the parent node this delegation is created under
 - delegate: The public address (ss58) of the delegate (ID receiving the delegation)
-- permissions: The permission bit set (having 0001 for attesting permission and
-  0010 for delegation permission)
-- delegate_signature: ed25519 based signature by the delegate based on the
-  delegationId, rootId, parentId and permissions
+- permissions: The permission bit set (having 0001 for anchoring permission and 0010 for delegation permission)
+- delegate_signature: ed25519 based signature of the delegate to ensure it's done under his permission
 
 The node verifies the transaction signature and the delegate signature as well as all other data
 to be valid and the delegator to be permitted and then inserts it to the state. The delegation is
 stored by using a map:
 
 ```rust
-T::DelegateId => (T::DelegateId,Option<T::DelegateId>,T::AccountId,Permissions,bool)
+T::DelegationNodeId => Option<DelegationNode<T>>
 ```
 
 Additionally, if the delegation has a parent delegation, the information about the children of its
 parent is updated in the following map that relates parents to their children:
 
 ```rust
-T::DelegateId => Vec<T::DelegateId>
+T::DelegationNodeId => Vec<T::DelegationNodeId>
 ```
 
 #### Revoke
 
 ```rust
-revoke_root(origin, root_id: T::DelegateId) -> Result
+revoke(delegation: &T::DelegationNodeId, sender: &T::AccountId) -> DispatchResult
 ```
 
 and
 
 ```rust
-revoke_delegation(origin, delegate_id: T::DelegateId) -> Result
+revoke_children(delegation: &T::DelegationNodeId, sender: &T::AccountId) -> DispatchResult
 ```
 
 ### Substrate Documentation
