@@ -74,7 +74,7 @@ impl Alternative {
 				ChainSpec::from_genesis(
 					"Bombay Brown",
 					"development",
-					ChainType::Development,
+					ChainType::Local,
 					move || local_dev_genesis(wasm_binary),
 					boot_nodes,
 					None,

@@ -3,6 +3,10 @@
 # This file is part of CORD Platform.
 # 
 
+# Generating a new STASH_SEED
+# use the CMD - subkey generate -n cord --words 24
+# Secret seed of this account is the node seed
+
 #!/usr/bin/env bash
 set -e
 

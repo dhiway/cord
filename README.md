@@ -6,19 +6,23 @@ The CORD node implementation uses Parity Substrate and KILT modules as the under
 technology stack with DID, #MARK Type, #MARKS and hierarchical Trust Modules.
 
 - [CORD](#cord)
-    - [Key Management](#key-management)
-    - [Building docker image](#building-docker-image)
-    - [Build code without docker](#build-code-without-docker)
+    - [Accounts](#accounts)
+    - [Build & Run](#build--run)
       - [Building in dev mode](#building-in-dev-mode)
       - [Building in performant release mode](#building-in-performant-release-mode)
-    - [Commands](#commands)
-      - [Node binary](#node-binary)
+      - [Start the Node, by running:](#start-the-node-by-running)
+      - [Debug Mode](#debug-mode)
+      - [Release Mode](#release-mode)
+      - [Setup the local node with session keys, by running](#setup-the-local-node-with-session-keys-by-running)
+    - [CORD User Accounts](#cord-user-accounts)
+      - [Polkadot{.js} Browser Plugin](#polkadotjs-browser-plugin)
       - [Polkadot Web UI](#polkadot-web-ui)
+    - [Building docker image](#building-docker-image)
   - [Node Modules functionalities](#node-modules-functionalities)
     - [DID Module](#did-module)
       - [Add](#add)
       - [CRUD](#crud)
-    - [#MARK Type Module](#mark-type-module)
+    - [#MTYPE (#MARK Schema) Module](#mtype-mark-schema-module)
     - [Mark Module](#mark-module)
       - [Add](#add-1)
       - [Revoke](#revoke)
@@ -27,15 +31,82 @@ technology stack with DID, #MARK Type, #MARKS and hierarchical Trust Modules.
       - [Create root](#create-root)
       - [Add delegation](#add-delegation)
       - [Revoke](#revoke-1)
-  - [bs58-cli Install](#bs58-cli-install)
-  - [Substrate Documentation:](#substrate-documentation)
-    - [Substrate Tutorials](#substrate-tutorials)
-    - [Substrate JSON-RPC API](#substrate-json-rpc-api)
-    - [Substrate Reference Rust Docs](#substrate-reference-rust-docs)
+    - [Substrate Documentation](#substrate-documentation)
+      - [Substrate Tutorials](#substrate-tutorials)
+      - [Substrate JSON-RPC API](#substrate-json-rpc-api)
+      - [Substrate Reference Rust Docs](#substrate-reference-rust-docs)
 
 
-### Key Management
-[Documentation](node/docs/keys.md)
+### Accounts
+[Documentation](node/docs/accounts.md)
+
+### Build & Run
+
+You need to have [rust and cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed. Clone this repo and navigate into it.
+
+You can build it by executing these commands:
+
+```
+./scripts/init.sh
+```
+
+#### Building in dev mode
+
+```
+cargo build
+```
+#### Building in performant release mode
+
+```
+cargo build --release
+```
+
+#### Start the Node, by running:
+
+```
+./target/<debug \ release> /cord [FLAGS] [OPTIONS]
+```
+For CORD CLI options see the section about [Commands](#cord-cli-options).
+
+#### Debug Mode
+```
+./target/debug/cord --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
+```
+#### Release Mode
+```
+./target/release/cord --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
+```
+
+#### Setup the local node with session keys, by running
+
+```
+bash ./scripts/setup-dev-chain.sh
+```
+### CORD User Accounts
+A valid account only requires a private key that can sign on one of the supported curves and signature schemes. CORD uses Ed25519 as the signature scheme for all inhjected accounts.
+
+#### Polkadot{.js} Browser Plugin
+The browser plugin is available for both [Google Chrome](https://chrome.google.com/webstore/detail/polkadot%7Bjs%7D-extension/mopnmbcafieddcagagdcbnhejhlodfdd?hl=en) (and Chromium based browsers like Brave) and [FireFox](https://addons.mozilla.org/en-US/firefox/addon/polkadot-js-extension).
+
+Open the Polkadot{.js} browser extension by clicking the orange and white Polkadot{.js} logo on the top bar of your browser. You will see a browser popup. Click the small plus icon in the top right and choose the option to `Restore account form backup JSON file`. Follow the instructions to import default [user](scripts/accounts/users) and [stash](scripts/accounts/stash) accounts.
+
+#### Polkadot Web UI
+Add the following code to `Developer` -> `Settings`
+``` json
+{
+  "Address": "AccountId",
+  "BlockNumber": "u32",
+  "DelegationNodeId": "Hash",
+  "ErrorCode": "u16",
+  "Index": "u32",
+  "LookupSource": "AccountId",
+  "Permissions": "u32",
+  "PublicBoxKey": "Hash",
+  "PublicSigningKey": "Hash",
+  "RefCount": "u32",
+  "Signature": "MultiSignature"
+}
+```
 
 ### Building docker image
 
@@ -53,99 +124,15 @@ start, by running:
 docker run -p 9944:9944 -p 9933:9933 local/cord:develop --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
 ```
 
-with persistent mount that will keep the kchain data locally:
+with persistent mount that will keep the chain data locally:
 
 ```
 docker run -p 9944:9944 -p 9933:9933 -v /my/local/folder:/cord local/cord:develop  --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
 ```
 
-To setup the local node with proper aura and granda keys, execute below:
-
-```
-bash ./scripts/setup-dev-chain.sh
-```
-
-For execution see the section about [Commands](#commands).
-
-### Build code without docker
-
-You need to have [rust and cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed. Clone this repo and navigate into it.
-
-You can build it by executing these commands:
-
-```
-./scripts/init.sh
-```
-
-#### Building in dev mode
-
-```
-cargo build
-```
-
-start, by running:
-
-```
-./target/debug/cord [node command]
-```
-
-#### Building in performant release mode
-
-```
-cargo build --release
-```
-
-start, by running:
-
-```
-./target/release/cord [node command]
-```
-
-For execution see the section about commands.
-
-### Commands
-
-To start the node you have following options:
-
-- start-node.sh helper script
-- executing the node binary directly
-
-#### Node binary
-
-After finished building the node binary can be found in the `./target` directory:
-for dev mode build:
-
-```
-./target/debug/cord --dev --ws-port 9944 --ws-external --rpc-external
-```
-
-for release mode build:
-
-```
-./target/release/cord --dev --ws-port 9944 --ws-external --rpc-external
-```
-#### Polkadot Web UI
-Add the following code to `Developer` -> `Settings`
-``` json
-{
-    "DelegatieId": "Hash"
-}
-```
 ## Node Modules functionalities
 
 The CORD node provides an immutable transaction ledger for various workflows supported by the network.
-
-Building our blockchain on Substrate has multiple advantages. Substrate has a very
-good fundamental [architecture](https://substrate.dev/docs/en/knowledgebase/runtime/) and [codebase](https://github.com/paritytech/substrate) created by blockchain experts. Substrate
-framework is developed in Rust, a memory efficient and fast compiled system programming
-language, which provides a secure environment with virtually no runtime errors. Moreover, the
-node runtime is also compiled to WebAssembly, so older version native nodes can always run
-the latest version node runtime in a WebAssembly virtual machine to bypass the problem of a
-blockchain fork. Importantly, there is a vibrant developer community and rich [documentation](https://substrate.dev/).
-
-Our implementation is based on the [substrate-node-template](https://github.com/substrate-developer-hub/substrate-node-template) library (skeleton template for
-quickly building a substrate based blockchain), which is linked to the main Substrate
-codebase.
 
 **Remote Procedure Calls**
 
@@ -153,32 +140,23 @@ The [Polkadot API](https://polkadot.js.org/api/) helps with communicating with t
 
 **Blocktime**
 
-The blocktime is currently set to 4 seconds, but this setting is subject to change based on
-further research. 
+The blocktime is currently set to 4 seconds, but this setting is subject to change based on further research. 
 
 **Extrinsics and Block Storage**
 
-In Substrate, the blockchain transactions are abstracted away and are generalised as
-[extrinsics](https://docs.substrate.dev/docs/extrinsics) in the system. They are called extrinsics since they can represent any piece of information that is regarded as input from “the outside world” (i.e. from users of the network) to the blockchain logic. The blockchain transactions are implemented through these
-general extrinsics, that are signed by the originator of the transaction. We use this framework
-to write the protocol specific data entries on the blockchain: [DID],
-[MTYPEhash], [Mark] and [Delegation]. The processing of each of these entry types is
-handled by our custom runtime modules.
+In Substrate, the blockchain transactions are abstracted away and are generalised as [extrinsics](https://docs.substrate.dev/docs/extrinsics) in the system. They are called extrinsics since they can represent any piece of information that is regarded as input from “the outside world” (i.e. from users of the network) to the blockchain logic. The blockchain transactions are implemented through these general extrinsics, that are signed by the originator of the transaction. We use this framework to write the protocol specific data entries on the blockchain: [DID], [MTYPE], [Mark] and [Delegation]. The processing of each of these entry types is handled by our custom runtime modules.
 
 Under the current consensus algorithm, authority validator nodes (whose addresses are listed
-in the genesis block) can create new blocks. These nodes [validate](https://substrate.dev/docs/en/knowledgebase/learn-substrate/tx-pool#transaction-lifecycle) incoming transactions, put
-them into the pool, and include them in a new block. While creating the block, the node
-executes the transactions and stores the resulting state changes in its local storage. Note that
-the size of the entry depends on the number of arguments the transaction, (i.e., the respective
-extrinsic method) has. The size of the block is hence dynamic and will depend on the number
-and type of transactions included in the new block. The valid new blocks are propagated
-through the network and other nodes execute these blocks to update their local state (storage).
+in the genesis block) can create new blocks. These nodes [validate](https://substrate.dev/docs/en/knowledgebase/learn-substrate/tx-pool#transaction-lifecycle) incoming transactions, put them into the pool, and include them in a new block. While creating the block, the node executes the transactions and stores the resulting state changes in its local storage. Note that the size of the entry depends on the number of arguments the transaction, (i.e., the respective extrinsic method) has. The size of the block is hence dynamic and will depend on the number and type of transactions included in the new block. The valid new blocks are propagated through the network and other nodes execute these blocks to update their local state (storage).
 
 **Authoring & Consensus Algorithm**
 
-We use [Aura](https://wiki.parity.io/Aura) as the authoring algorithm, since we are a permissioned blockchain mode.
+We use [Aura](https://wiki.parity.io/Aura) as the authoring algorithm, since we are a public, permissioned blockchain mode.
 
 For consensus we use [GRANDPA](https://github.com/paritytech/substrate#2-description).
+
+**Governance**
+- [TBD]
 
 ### DID Module
 
@@ -187,107 +165,92 @@ The node runtime defines an DID module exposing:
 #### Add
 
 ```rust
-add(origin, sign_key: T::PublicSigningKey, box_key: T::PublicBoxKey, doc_ref: Option<Vec<u8>>) -> Result
+add(origin, sign_key: T::PublicSigningKey, box_key: T::PublicBoxKey, doc_ref: Option<Vec<u8>>) -> DispatchResult
 ```
 
 This function takes the following parameters:
 
-- origin: public [ss58](<https://wiki.parity.io/External-Address-Format-(SS58)>) address of the caller of the method
+- origin: public [ss58](<https://wiki.parity.io/External-Address-Format-(SS58)>) address address of the sender account
 - sign_key: the [ed25519](http://ed25519.cr.yp.to/) public signing key of the owner
 - box_key: the [x25519-xsalsa20-poly1305](http://nacl.cr.yp.to/valid.html) public encryption key of the owner
-- doc_ref: Optional u8 byte vector representing the reference (URL) to the DID
-  document
+- doc_ref: Optional u8 byte vector representing the reference (URL) to the DID document
 
-The node verifies the transaction signature corresponding to the owner and
-inserts it to the blockchain storage by using a map:
+The node verifies the transaction signature corresponding to the owner and inserts it to the blockchain storage by using a map:
 
 ```rust
-T::AccountId => (T::PublicSigningKey, T::PublicBoxKey, Option<Vec<u8>>)
+T::AccountId => Option<(T::PublicSigningKey, T::PublicBoxKey, Option<Vec<u8>>)>
 ```
 
 #### CRUD
 
-As DID supports CRUD (Create, Read, Update, Delete) operations, a `get(dids)` method
-reads a DID for an account address, the add function may also be used to update a DID and
-a `remove(origin) -> Result` function that takes the owner as a single parameter removes the DID from the
-map, so any later read operation call does not return the data of a removed DID.
+As DID supports CRUD (Create, Read, Update, Delete) operations, a `get(dids)` method reads a DID for an account address, the anchor function may also be used to update a DID and a `remove(origin) -> Result` function that takes the owner as a single parameter removes the DID from the map, so any later read operation call does not return the data of a removed DID.
 
-### #MARK Type Module
+### #MTYPE (#MARK Schema) Module
 
 The node runtime defines a MARK TYPE (Schema) module exposing
 
 ```rust
-add(origin, hash: T::Hash) -> Result
+anchor(origin, schema_hash: T::Hash) -> DispatchResult
 ```
 
 This function takes following parameters:
 
-- origin: public [ss58](https://substrate.dev/docs/en/knowledgebase/advanced/ss58-address-format) address of the caller of the method
-- hash: MTYPE hash as a [blake2b](https://blake2.net/) string
+- origin: public [ss58](https://substrate.dev/docs/en/knowledgebase/advanced/ss58-address-format) address of the sender account
+- schema_hash: Hash of the schema as a [blake2b](https://blake2.net/) string
 
-The node verifies the transaction signature corresponding to the creator and
-inserts it to the blockchain storage by using a map:
+The node verifies the transaction signature corresponding to the creator and inserts it to the blockchain storage by using a map:
 
 ```rust
-T::Hash => T::AccountId
+T::Hash => Option<T::AccountId>
 ```
 
 ### Mark Module
 
 The node runtime defines an Mark module exposing functions to
 
-- add a mark (`add`)
-- revoke a mark (`revoke`)
-- lookup a mark (`lookup`)
-- lookup marks for a delegation (used later in Complex Trust Structures)
-  on chain.
+- add a #MARK (`anchor`)
+- revoke a #MARK (`revoke`)
+- lookup a #MARK (`lookup`)
+- lookup #MARKs for a delegation (used later in Complex Trust Structures) on chain.
 
 #### Add
 
 ```rust
-add(origin, mark: T::Hash, mtype: T::Hash, delegate_id: Option<T::DelegateId>) -> Result
+anchor(origin, stream_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult
 ```
 
-The `add` function takes following parameters:
+The `anchor` function takes following parameters:
 
-- origin: The caller of the method, i.e., public address ([ss58](https://substrate.dev/docs/en/knowledgebase/advanced/ss58-address-format)) of the Attester
-- mark: The Claim hash as [blake2b](https://blake2.net/) string used as the key of the entry
-- mtype: The [blake2b](https://blake2.net/) hash of MTYPE used when creating the Claim
-- delegate_id: Optional reference to a delegation which this mark is based
-  on
+- origin: The caller of the method, i.e., public address ([ss58](https://substrate.dev/docs/en/knowledgebase/advanced/ss58-address-format)) of the Marker
+- stream_hash: The content hash as [blake2b](https://blake2.net/) string used as the key of the entry
+- mtype_hash: The [blake2b](https://blake2.net/) hash of MTYPE used
+- delegate_id: Optional reference to a delegation which this mark is based on
 
-The node verifies the transaction signature and insert it to the state, if the provided attester
-didn’t already anchor the provided claimHash. The mark is stored by using a map:
+The node verifies the transaction signature and insert it to the state, if the provided marker didn’t already anchor the provided stream_hash. The mark is stored by using a map:
 
 ```rust
-T::Hash => (T::Hash,T::AccountId,Option<T::DelegateId>,bool)
+T::Hash => Option<Mark<T>>
 ```
 
 Delegated Marks are stored in an additional map:
 
 ```rust
-T::DelegateId => Vec<T::Hash>
+T::DelegationNodeId => Vec<T::Hash>
 ```
 
 #### Revoke
 
 ```rust
-revoke(origin, mark: T::Hash) -> Result
+revoke(origin, stream_hash: T::Hash, max_depth: u64) -> DispatchResult
 ```
 
-The `revoke` function takes the claimHash (which is the key to lookup a mark) as
-argument. After looking up the mark and checking invoker permissions, the revoked
-flag is set to true and the updated mark is stored on chain.
+The `revoke` function takes the stream_hash (which is the key to lookup a mark) as argument. After looking up the mark and checking invoker permissions, the revoked flag is set to true and the updated mark is stored on chain.
 
 #### Lookup
 
-The mark lookup is performed with the `claimHash`, serving as the key to the
-mark store. The function `get_mark(claimHash)` is exposed to the outside
-clients and services on the blockchain for this purpose.
+The mark lookup is performed with the `stream_hash`, serving as the key to the mark store. The function `get_marks(stream_hash)` is exposed to the outside clients and services on the blockchain for this purpose.
 
-Similarly, as with the simple lookup, to query all marks created by a certain delegate,
-the runtime defines the function `get_delegated_marks(DelegateId)`
-that is exposed to the outside.
+Similarly, as with the simple lookup, to query all marks created by a certain delegate, the runtime defines the function `get_delegated_marks(DelegateId)` that is exposed to the outside.
 
 ### Hierarchy of Trust Module
 
@@ -368,11 +331,8 @@ and
 ```rust
 revoke_delegation(origin, delegate_id: T::DelegateId) -> Result
 ```
-## bs58-cli Install
-```
-cargo install bs58-cli
-```
-## Substrate Documentation:
-### [Substrate Tutorials](https://substrate.dev/en/tutorials)
-### [Substrate JSON-RPC API](https://polkadot.js.org/docs/substrate/rpc)
-### [Substrate Reference Rust Docs](https://substrate.dev/rustdocs/v2.0.0/sc_service/index.html)
+
+### Substrate Documentation
+#### [Substrate Tutorials](https://substrate.dev/en/tutorials)
+#### [Substrate JSON-RPC API](https://polkadot.js.org/docs/substrate/rpc)
+#### [Substrate Reference Rust Docs](https://substrate.dev/rustdocs/v2.0.0/sc_service/index.html)

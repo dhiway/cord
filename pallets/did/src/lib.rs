@@ -32,9 +32,9 @@ decl_event!(
 	/// Events for DIDs
 	pub enum Event<T> where <T as frame_system::Config>::AccountId {
 		/// A DID has been created
-		DidCreated(AccountId),
+		Anchored(AccountId),
 		/// A DID has been removed
-		DidRemoved(AccountId),
+		Removed(AccountId),
 	}
 );
 
@@ -51,13 +51,13 @@ decl_module! {
 		/// box_key - public boxing key of the DID
 		/// doc_ref - optional reference to the DID document storage
 		#[weight = 10_000]		
-		pub fn add(origin, sign_key: T::PublicSigningKey, box_key: T::PublicBoxKey, doc_ref: Option<Vec<u8>>) -> DispatchResult {
+		pub fn anchor(origin, sign_key: T::PublicSigningKey, box_key: T::PublicBoxKey, doc_ref: Option<Vec<u8>>) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// add DID to the storage
 			<DIDs<T>>::insert(sender.clone(), (sign_key, box_key, doc_ref));
 			// deposit an event that the DID has been created
-			Self::deposit_event(RawEvent::DidCreated(sender));
+			Self::deposit_event(RawEvent::Anchored(sender));
 			Ok(())
 		}
 		/// Removes a DID Public Key from chain storage
@@ -69,7 +69,7 @@ decl_module! {
 			// remove DID Public Key from storage
 			<DIDs<T>>::remove(sender.clone());
 			// deposit an event that the DID Public Key has been removed
-			Self::deposit_event(RawEvent::DidRemoved(sender));
+			Self::deposit_event(RawEvent::Removed(sender));
 			Ok(())
 		}
 	}
