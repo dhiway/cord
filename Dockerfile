@@ -2,7 +2,7 @@
 # pinned the version to avoid build cache invalidation
 # ===== FIRST (BUILD) STAGE ======
 
-FROM paritytech/ci-linux:5297d82c-20201107 as builder
+FROM paritytech/ci-linux:production as builder
 
 LABEL maintainer="engineering@dhiway.com"
 
@@ -25,9 +25,6 @@ LABEL maintainer="engineering@dhiway.com"
 
 ARG PROFILE=release
 
-# show backtraces
-ENV RUST_BACKTRACE 1
-
 # install tools and dependencies
 RUN apt-get update && \
 	DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
@@ -40,7 +37,11 @@ RUN apt-get update && \
 	apt-get clean -y && \
 	find /var/lib/apt/lists/ -type f -not -name lock -delete; \
 # add user
-	useradd -m -u 1000 -U -s /bin/sh -d /cord cord 
+	useradd -m -u 1000 -U -s /bin/sh -d /cord cord && \
+	mkdir -p /cord/.local/share && \
+	mkdir /data && \
+	chown -R cord:cord /data && \
+	ln -s /data /cord/.local/share/cord 
 
 COPY --from=builder /build/target/$PROFILE/cord /usr/local/bin
 
@@ -53,8 +54,7 @@ RUN rm -rf /usr/lib/python* && \
 	rm -rf /usr/bin /usr/sbin /usr/share/man
 
 USER cord
-
 EXPOSE 30333 9933 9944 
-VOLUME ["/cord"]
+VOLUME ["/data"]
 
 ENTRYPOINT ["/usr/local/bin/cord"]

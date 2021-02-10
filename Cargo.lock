@@ -787,7 +787,7 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
 name = "cord-node"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "cord-primitives",
  "cord-runtime",
@@ -853,7 +853,7 @@ dependencies = [
 
 [[package]]
 name = "cord-primitives"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "frame-system",
  "parity-scale-codec",
@@ -1141,7 +1141,7 @@ dependencies = [
 
 [[package]]
 name = "delegation"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bitflags",
  "cord-runtime",
@@ -1169,7 +1169,7 @@ dependencies = [
 
 [[package]]
 name = "did"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "cord-runtime",
  "frame-support",
@@ -3136,7 +3136,7 @@ checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
 name = "mark"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bitflags",
  "cord-runtime",
@@ -3343,7 +3343,7 @@ dependencies = [
 
 [[package]]
 name = "mtype"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "cord-runtime",
  "frame-support",

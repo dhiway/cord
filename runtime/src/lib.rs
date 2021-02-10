@@ -94,7 +94,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cord"),
 	impl_name: create_runtime_str!("cord-node"),
 	authoring_version: 5,
-	spec_version: 9,
+	spec_version: 10,
 	impl_version: 7,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 6,
@@ -122,7 +122,8 @@ const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO
 
 const AVERAGE_ON_INITIALIZE_WEIGHT: Perbill = Perbill::from_percent(10);
 parameter_types! {
-	pub const BlockHashCount: BlockNumber = 250;
+	/// stays for 15 minutes
+	pub const BlockHashCount: BlockNumber = 225;
 	pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
 	pub MaximumExtrinsicWeight: Weight = 
 	AvailableBlockRatio::get().saturating_sub(AVERAGE_ON_INITIALIZE_WEIGHT)
@@ -133,7 +134,7 @@ parameter_types! {
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
-	// /// Maximum length of block. Up to 5MB.
+	/// Maximum length of block. Up to 5MB.
 	pub BlockLength: limits::BlockLength =
 		limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	/// Block weights base values and limits.

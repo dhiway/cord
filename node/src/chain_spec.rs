@@ -61,6 +61,7 @@ fn session_keys(
 
 impl Alternative {
 	/// Get an actual chain config from one of the alternatives.
+	/// Chain name using color codes representings strands
 	pub(crate) fn load(self) -> Result<ChainSpec, String> {
 		let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
 		let boot_nodes = vec![];
@@ -71,7 +72,7 @@ impl Alternative {
 		Ok(match self {
 			Alternative::Development => {
 				ChainSpec::from_genesis(
-					"CORD Local Node",
+					"Bombay Brown",
 					"development",
 					ChainType::Development,
 					move || local_dev_genesis(wasm_binary),
@@ -84,7 +85,7 @@ impl Alternative {
 			}
 			Alternative::CordTestNet => {
 				ChainSpec::from_genesis(
-					"CORD Testnet",
+					"Indian Teal",
 					"tnet",
 					ChainType::Development,
 					move || cord_testnet_genesis(wasm_binary),
@@ -97,7 +98,7 @@ impl Alternative {
 			}
 			// Alternative::CordMainNet => {
 			// 	ChainSpec::from_genesis(
-			// 		"CORD Main Net",
+			// 		"Royal Blue",
 			// 		"mnet",
 			// 		ChainType::Development,
 			// 		// move || cord_mainnet_genesis(wasm_binary),

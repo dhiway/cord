@@ -8,7 +8,7 @@ pub mod currency {
 	use cord_primitives::Balance;
 
 	pub const DCU: Balance = 100_000_000_000_000_000;
-	pub const RUPEES: Balance = DCU / 100;
+	pub const RUPEES: Balance = DCU;
 	pub const PAISE: Balance = RUPEES / 100;     
 	pub const MILLIPAISE: Balance = PAISE / 100; 
 
