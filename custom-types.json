@@ -8,6 +8,8 @@
   "Permissions": "u32",
   "PublicBoxKey": "Hash",
   "PublicSigningKey": "Hash",
-  "RefCount": "u32",
-  "Signature": "MultiSignature"
+    "RefCount": "u32",
+    "Mark": "Hash",
+    "DelegationNode": "Hash",
+    "DelegationRoot": "Hash"
 }
