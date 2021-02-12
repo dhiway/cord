@@ -5,7 +5,7 @@
 
 use cord_runtime::{
 	AuthorityDiscoveryConfig, BalancesConfig, CouncilConfig,
-	DemocracyConfig, ImOnlineConfig, IndicesConfig, SessionConfig,
+	DemocracyConfig, ImOnlineConfig, IndicesConfig, SessionConfig, VestingConfig,
 	GenesisConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
 	TechnicalCommitteeConfig,  WASM_BINARY,
 };
@@ -17,11 +17,6 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::crypto::UncheckedInto;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::Perbill;
-
-// use sp_runtime::{
-// 	traits::{IdentifyAccount, One, Verify},
-// 	Perbill,
-// };
 
 pub use cord_primitives::{AccountId, Balance, BlockNumber, Signature};
 pub use cord_runtime::constants::time::*;
@@ -68,7 +63,7 @@ impl Alternative {
 
 		let mut properties = Properties::new();
 		properties.insert("tokenSymbol".into(), "DCU".into());
-		properties.insert("tokenDecimals".into(), 18.into());
+		// properties.insert("tokenDecimals".into(), 5.into());
 		Ok(match self {
 			Alternative::BombayBrown => {
 				ChainSpec::from_genesis(
@@ -158,10 +153,10 @@ fn bombay_brown_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			hex!["424af4547d488e65307cb14ffae20257b6e000658913f985824da5629afff13c"].unchecked_into(),
 		)];
 
-	const CONTROLLER_ENDOWMENT: u128 = 899_999_999 * DCU;
-	const CONTROLLER_STASH: u128 = 899_999_999_999 * DCU;
-	const STAKED_ENDOWMENT: u128 = 89_999 * DCU;
-	const CORD_STASH: u128 = 29_999_999_000_999 * DCU;
+	const CONTROLLER_ENDOWMENT: u128 = 1_000 * DCU;
+	const CONTROLLER_STASH: u128 = 1_000_000 * DCU;
+	const STAKED_ENDOWMENT: u128 = 100 * DCU;
+	const CORD_STASH: u128 = 10_000_000_000 * DCU;
 
 	GenesisConfig {
 		frame_system: Some(SystemConfig {
@@ -216,6 +211,7 @@ fn bombay_brown_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
 		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
 		pallet_treasury: Some(Default::default()),
+		pallet_vesting: Some(VestingConfig { vesting: vec![] }),
 		pallet_elections_phragmen: Some(Default::default()),
 		pallet_sudo: Some(SudoConfig {
 			key: endowed_accounts[0].clone(),
@@ -374,6 +370,7 @@ fn indian_teal_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
 		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
 		pallet_treasury: Some(Default::default()),
+		pallet_vesting: Some(VestingConfig { vesting: vec![] }),
 		pallet_elections_phragmen: Some(Default::default()),
 		pallet_sudo: Some(SudoConfig {
 			key: endowed_accounts[0].clone(),
@@ -543,6 +540,7 @@ fn royal_blue_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
 			pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
 			pallet_treasury: Some(Default::default()),
+			pallet_vesting: Some(VestingConfig { vesting: vec![] }),
 			pallet_elections_phragmen: Some(Default::default()),
 			pallet_sudo: Some(SudoConfig {
 				key: endowed_accounts[0].clone(),

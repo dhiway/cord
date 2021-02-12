@@ -33,7 +33,7 @@ cord-primitives = { package = "cord-primitives", path = "../primitives", default
 
 # primitives
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
-sp-consensus-aura = { default-features = false, version = '0.8.0', git = 'https://github.com/paritytech/substrate', branch = "master"}
+sp-consensus-aura = { default-features = false, git = 'https://github.com/paritytech/substrate', branch = "master"}
 sp-api = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 sp-inherents = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
@@ -75,6 +75,8 @@ frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate"
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 pallet-vesting = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+pallet-bounties = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+
 pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 pallet-sudo = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 

@@ -7,7 +7,9 @@ pub use cord_primitives::{
 	AccountId, Balance,
 };
 use frame_support::traits::{OnUnbalanced, Imbalance, Currency};
-pub use pallet_balances::{Call as Balances, NegativeImbalance};
+use crate::NegativeImbalance;
+
+// pub use pallet_balances::{Call as Balances, NegativeImbalance};
 
 // Logic for the block author to get a portion of fees.
 pub struct ToAuthor<R>(sp_std::marker::PhantomData<R>);
@@ -17,22 +19,13 @@ where
 	R: pallet_balances::Config + pallet_authorship::Config,
 	<R as frame_system::Config>::AccountId: From<AccountId>,
 	<R as frame_system::Config>::AccountId: Into<AccountId>,
-	<R as frame_system::Config>::Event: From<
-		pallet_balances::RawEvent<
-			<R as frame_system::Config>::AccountId,
-			<R as pallet_balances::Config>::Balance,
-			pallet_balances::DefaultInstance,
-		>,
-	>,
+	<R as frame_system::Config>::Event: From<pallet_balances::Event<R>>,
 {
 	fn on_nonzero_unbalanced(amount: NegativeImbalance<R>) {
 		let numeric_amount = amount.peek();
 		let author = <pallet_authorship::Module<R>>::author();
-		<pallet_balances::Module<R>>::resolve_creating(&author, amount);
-		<frame_system::Module<R>>::deposit_event(pallet_balances::RawEvent::Deposit(
-			author,
-			numeric_amount,
-		));
+		<pallet_balances::Module<R>>::resolve_creating(&<pallet_authorship::Module<R>>::author(), amount);
+		<frame_system::Module<R>>::deposit_event(pallet_balances::Event::Deposit(author, numeric_amount));
 	}
 }
 
@@ -43,11 +36,7 @@ where
 	pallet_treasury::Module<R>: OnUnbalanced<NegativeImbalance<R>>,
 	<R as frame_system::Config>::AccountId: From<AccountId>,
 	<R as frame_system::Config>::AccountId: Into<AccountId>,
-	<R as frame_system::Config>::Event: From<pallet_balances::RawEvent<
-		<R as frame_system::Config>::AccountId,
-		<R as pallet_balances::Config>::Balance,
-		pallet_balances::DefaultInstance>
-	>,
+	<R as frame_system::Config>::Event: From<pallet_balances::Event<R>>,
 {
 	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item=NegativeImbalance<R>>) {
 		if let Some(fees) = fees_then_tips.next() {
