@@ -18,7 +18,7 @@ name = 'cord'
 path = "src/main.rs"
 
 [build-dependencies]
-substrate-build-script-utils = '2.0.1'
+substrate-build-script-utils = '3.0.0'
 
 [dependencies]
 
