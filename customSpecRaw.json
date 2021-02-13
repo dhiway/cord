@@ -7,7 +7,7 @@
   "protocolId": "cord",
   "properties": {
     "tokenDecimals": 12,
-    "tokenSymbol": "DCU"
+    "tokenSymbol": "CRD"
   },
   "consensusEngine": null,
   "lightSyncState": null,

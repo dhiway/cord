@@ -72,13 +72,13 @@ pub use pallet_balances::Call as BalancesCall;
 pub use pallet_staking::StakerStatus;
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
-pub use impls::ToAuthor;
+pub use impls::{ToAuthor, DealWithFees};
 
 pub type NegativeImbalance<T> = <pallet_balances::Module<T> as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
 /// Constant values used within the runtime.
 pub mod constants;
-use constants::{time::*, currency::*};
+use constants::{time::*, currency::*, fee::*};
 use sp_runtime::generic::Era;
 
 pub use mark;
@@ -134,7 +134,7 @@ parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
 	
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 	/// Maximum length of block. Up to 5MB.
 	pub BlockLength: limits::BlockLength =
@@ -217,7 +217,7 @@ impl pallet_scheduler::Config for Runtime {
 }
 
 parameter_types! {
-	pub const IndexDeposit: Balance = 1 * RUPEES;
+	pub const IndexDeposit: Balance = 10 * PAISE;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -229,7 +229,7 @@ impl pallet_indices::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 1 * DCU;
+	pub const ExistentialDeposit: Balance = 10 * PAISE;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
 	// This number may need to be adjusted in the future if this assumption no longer holds true.
 	pub const MaxLocks: u32 = 50;
@@ -246,7 +246,7 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 50 * MILLIPAISE;
+	pub const TransactionByteFee: Balance = 10 * MILLIPAISE;
 }
 
 /// Parameterized slow adjusting fee updated based on
@@ -261,13 +261,14 @@ pub type SlowAdjustingFeeUpdate<R> = TargetedFeeAdjustment<
 /// The type used for currency conversion.
 /// This must only be used as long as the balance type is u128.
 pub type CurrencyToVote = frame_support::traits::U128CurrencyToVote;
-static_assertions::assert_eq_size!(Balance, u128);
+// static_assertions::assert_eq_size!(Balance, u128);
 
 impl pallet_transaction_payment::Config for Runtime {
-	type OnChargeTransaction = CurrencyAdapter<Balances, ToAuthor<Runtime>>;
+	type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees<Runtime>>;
 	type TransactionByteFee = TransactionByteFee;
-	type WeightToFee = IdentityFee<Balance>;
+	type WeightToFee = constants::fee::WeightToFee;
 	type FeeMultiplierUpdate =SlowAdjustingFeeUpdate<Self>;
+	// type FeeMultiplierUpdate = ();
 }
 
 parameter_types! {
@@ -618,6 +619,24 @@ impl pallet_utility::Config for Runtime {
 }
 
 parameter_types! {
+	// One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
+	pub const DepositBase: Balance = deposit(1, 88);
+	// Additional storage item size of 32 bytes.
+	pub const DepositFactor: Balance = deposit(0, 32);
+	pub const MaxSignatories: u16 = 100;
+}
+
+impl pallet_multisig::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type Currency = Balances;
+	type DepositBase = DepositBase;
+	type DepositFactor = DepositFactor;
+	type MaxSignatories = MaxSignatories;
+	type WeightInfo = ();
+}
+
+parameter_types! {
 	// One storage item; key size 32, value size 8; .
 	pub const ProxyDepositBase: Balance = deposit(1, 8);
 	// Additional storage item size of 33 bytes.
@@ -667,14 +686,16 @@ impl InstanceFilter<Call> for ProxyType {
 				Call::Vesting(pallet_vesting::Call::vest_other(..)) |
 				// Specifically omitting Vesting `vested_transfer`, and `force_vested_transfer`
 				Call::Utility(..) |
-				Call::Proxy(..) 
+				Call::Proxy(..) |
+				Call::Multisig(..)
 			),
 			ProxyType::Governance => matches!(c,
 				Call::Democracy(..) |
 				Call::Council(..) |
 				Call::TechnicalCommittee(..) |
 				Call::Elections(..) |
-				Call::Treasury(..)
+				Call::Treasury(..) |
+				Call::Utility(..)
 			),
 			ProxyType::Staking => matches!(c,
 				Call::Staking(..) |
@@ -879,7 +900,8 @@ construct_runtime! {
 		Utility: pallet_utility::{Module, Call, Event} = 26,
 		Historical: session_historical::{Module} = 27,
 		Proxy: pallet_proxy::{Module, Call, Storage, Event<T>} = 28,
-		Bounties: pallet_bounties::{Module, Call, Storage, Event<T>} = 29,
+		Multisig: pallet_multisig::{Module, Call, Storage, Event<T>} = 29,
+		Bounties: pallet_bounties::{Module, Call, Storage, Event<T>} = 30,
 		
 		Did: did::{Module, Call, Storage, Event<T>} = 31,
 		Mtype: mtype::{Module, Call, Storage, Event<T>} = 32,
@@ -903,7 +925,7 @@ pub type SignedExtra = (
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
-	frame_system::CheckEra<Runtime>,
+	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
@@ -913,7 +935,7 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signatu
 /// The payload being signed in transactions.
 pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 /// Extrinsic type that has already been checked.
-pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
+pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Nonce, Call>;
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
 	Runtime,

@@ -54,7 +54,7 @@ decl_module! {
 		/// Anchors a new #MARK schema on chain, 
 		///, where, origin is the signed sender account, and
 		/// schema_hash is the hash of the anchored Type schema
-		#[weight = 10_000]
+		#[weight = 10_000_000]
 		pub fn anchor(origin, schema_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;

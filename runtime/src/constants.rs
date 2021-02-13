@@ -7,13 +7,13 @@
 pub mod currency {
 	use cord_primitives::Balance;
 
-	pub const DCU: Balance = 1;
-	pub const RUPEES: Balance = DCU;
+	pub const CRD: Balance = 1_000_000_000_000;
+	pub const RUPEES: Balance = CRD;
 	pub const PAISE: Balance = RUPEES / 100;     
 	pub const MILLIPAISE: Balance = PAISE / 100; 
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * 10 * RUPEES + (bytes as Balance) * 100 * MILLIPAISE
+		items as Balance * 20 * RUPEES + (bytes as Balance) * 100 * MILLIPAISE
 	}
 }
 
@@ -66,9 +66,9 @@ pub mod fee {
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-			// in CORD, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 PAISE:
-			let p = super::currency::PAISE;
-			let q = 10 * Balance::from(ExtrinsicBaseWeight::get());
+			// in CORD, extrinsic base weight (smallest non-zero weight) is mapped to 1/100 PAISE:
+			let p = super::currency::RUPEES;
+			let q = 1 * Balance::from(ExtrinsicBaseWeight::get());
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
 				negative: false,
@@ -78,3 +78,11 @@ pub mod fee {
 		}
 	}
 }
+
+// /// Fee-related.
+// pub mod fee {
+//     pub use sp_arithmetic::Perbill;
+
+//     /// The block saturation level. Fees will be updates based on this value.
+//     pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
+// }

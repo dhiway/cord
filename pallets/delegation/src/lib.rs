@@ -137,7 +137,7 @@ decl_module! {
 		///, where, origin is the signed sender account,
 		/// root_id is the unique identifier of the root node,
 		/// and, mtype_hash - hash of the MTYPE the hierarchy is created for
-		#[weight = 10_000]
+		#[weight = 10_000_000]
 		pub fn create_root(origin, root_id: T::DelegationNodeId, mtype_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
@@ -163,7 +163,7 @@ decl_module! {
 		/// delegate - the delegate account
 		/// permission - the permissions delegated
 		/// delegate_signature - the signature of the delegate to ensure it's done under his permission
-		#[weight = 10_000]
+		#[weight = 10_000_000]
 		pub fn add_delegation(
 			origin,
 			delegation_id: T::DelegationNodeId,
@@ -226,7 +226,7 @@ decl_module! {
 		/// Revoke the root and therefore a complete hierarchy, where
 		/// origin - the origin of the transaction
 		/// root_id - id of the hierarchy root node
-		#[weight = 10_000]
+		#[weight = 10_000_000]
 		pub fn revoke_root(origin, root_id: T::DelegationNodeId) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
@@ -251,7 +251,7 @@ decl_module! {
 		/// Revoke a delegation node and all its children, where
 		/// origin - the origin of the transaction
 		/// delegation_id - id of the delegation node
-		#[weight = 10_000]
+		#[weight = 10_000_000]
 		pub fn revoke_delegation(origin, delegation_id: T::DelegationNodeId, max_depth: u64) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;

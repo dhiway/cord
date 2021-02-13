@@ -66,7 +66,7 @@ decl_module! {
 		/// stream_hash is the hash of the stream,
 		/// mtype_hash is the hash of the #MARK TYPE,
 		/// and delegation_id refers to a #MARK TYPE delegation.
-		#[weight = 10_000]
+		#[weight = 10_000_000]
 		pub fn anchor(origin, stream_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
@@ -113,7 +113,7 @@ decl_module! {
 		/// Revokes a #MARK
 		/// where, origin is the signed sender account,
 		/// and stream_hash is the hash of the anchored #MARK.
-		#[weight = 10_000]
+		#[weight = 10_000_000]
 		pub fn revoke(origin, stream_hash: T::Hash, max_depth: u64) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
