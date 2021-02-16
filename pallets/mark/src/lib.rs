@@ -20,7 +20,7 @@ use frame_system::{self, ensure_signed};
 use sp_std::prelude::{Clone, PartialEq, Vec};
 
 /// The #MARK trait
-pub trait Trait: frame_system::Config + delegation::Trait {
+pub trait Trait: frame_system::Config + pallet_delegation::Trait {
 	/// #MARK specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 }
@@ -28,7 +28,7 @@ pub trait Trait: frame_system::Config + delegation::Trait {
 decl_event!(
 	/// Events for Marks
 	pub enum Event<T> where <T as frame_system::Config>::AccountId, <T as frame_system::Config>::Hash,
-			<T as delegation::Trait>::DelegationNodeId {
+			<T as pallet_delegation::Trait>::DelegationNodeId {
 		/// A new #MARK has been anchored
 		Anchored(AccountId, Hash, Hash, Option<DelegationNodeId>),
 		/// A #MARK has been revoked
@@ -72,14 +72,14 @@ decl_module! {
 			let sender = ensure_signed(origin)?;
 
 			// check if the #MARK TYPE exists
-			ensure!(<mtype::MTYPEs<T>>::contains_key(mtype_hash), mtype::Error::<T>::NotFound);
+			ensure!(<pallet_mtype::MTYPEs<T>>::contains_key(mtype_hash), pallet_mtype::Error::<T>::NotFound);
 
 			// check if the #MARK already exists
 			ensure!(!<Marks<T>>::contains_key(stream_hash), Error::<T>::AlreadyAnchored);
 
 			if let Some(d) = delegation_id {
 				// check if delegation exists
-				let delegation = <delegation::Delegations<T>>::get(d).ok_or(delegation::Error::<T>::DelegationNotFound)?;
+				let delegation = <pallet_delegation::Delegations<T>>::get(d).ok_or(pallet_delegation::Error::<T>::DelegationNotFound)?;
 				// check whether delegation has been revoked already
 				ensure!(!delegation.revoked, Error::<T>::DelegationRevoked);
 
@@ -87,10 +87,10 @@ decl_module! {
 				ensure!(delegation.owner.eq(&sender), Error::<T>::NotDelegatedToMarker);
 				
 				// check whether the delegation is not set up for attesting claims
-				ensure!(delegation.permissions == delegation::Permissions::ANCHOR, Error::<T>::DelegationUnauthorisedToAnchor);
+				ensure!(delegation.permissions == pallet_delegation::Permissions::ANCHOR, Error::<T>::DelegationUnauthorisedToAnchor);
 				
 				// check if MTYPE of the delegation is matching the MTYPE of the mark
-				let root = <delegation::Root<T>>::get(delegation.root_id).ok_or(delegation::Error::<T>::RootNotFound)?;
+				let root = <pallet_delegation::Root<T>>::get(delegation.root_id).ok_or(pallet_delegation::Error::<T>::RootNotFound)?;
 				ensure!(root.mtype_hash.eq(&mtype_hash), Error::<T>::MTypeMismatch);
 			}
 
@@ -129,7 +129,7 @@ decl_module! {
 				// check whether the #MARK includes a delegation
 				let del_id = delegation_id.ok_or(Error::<T>::UnauthorizedRevocation)?;
 				// check whether the sender of the revocation is not a parent in the delegation hierarchy
-				ensure!(<delegation::Module<T>>::is_delegating(&sender, &del_id, max_depth)?, Error::<T>::UnauthorizedRevocation);
+				ensure!(<pallet_delegation::Module<T>>::is_delegating(&sender, &del_id, max_depth)?, Error::<T>::UnauthorizedRevocation);
 			}
 			
 			// revoke #MARK

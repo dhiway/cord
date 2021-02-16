@@ -64,7 +64,7 @@ impl Default for Permissions {
 }
 
 /// The delegation trait
-pub trait Trait: mtype::Trait + frame_system::Config {
+pub trait Trait: pallet_mtype::Trait + frame_system::Config {
 	/// Delegation specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
@@ -145,7 +145,7 @@ decl_module! {
 			ensure!(!<Root<T>>::contains_key(root_id), Error::<T>::RootAlreadyExists);
 
 			// check if MTYPE exists
-			ensure!(<mtype::MTYPEs<T>>::contains_key(mtype_hash), mtype::Error::<T>::NotFound);
+			ensure!(<pallet_mtype::MTYPEs<T>>::contains_key(mtype_hash), pallet_mtype::Error::<T>::NotFound);
 
 			// add root node to storage
 			debug::print!("insert Delegation Root");

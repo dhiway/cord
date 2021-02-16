@@ -1,5 +1,5 @@
 [package]
-name = 'delegation'
+name = 'pallet-delegation'
 version = '0.3.1'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
@@ -23,7 +23,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", d
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 # local pallets
-mtype = { default-features = false, path = '../mtype' }
+pallet-mtype = { default-features = false, path = '../mtype' }
 
 [dev-dependencies]
 cord-runtime = { default-features = false, path = '../../runtime' }
@@ -38,5 +38,5 @@ std = [
 	'sp-runtime/std',
 	'sp-std/std',
 	'sp-io/std',
-	'mtype/std',
+	'pallet-mtype/std',
 ]

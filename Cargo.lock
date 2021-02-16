@@ -871,8 +871,6 @@ version = "0.3.1"
 dependencies = [
  "bitvec",
  "cord-primitives",
- "delegation",
- "did",
  "frame-executive",
  "frame-support",
  "frame-system",
@@ -880,30 +878,34 @@ dependencies = [
  "hex-literal",
  "libsecp256k1",
  "log",
- "mark",
- "mtype",
  "pallet-aura",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-balances",
  "pallet-bounties",
  "pallet-collective",
+ "pallet-delegation",
  "pallet-democracy",
+ "pallet-did",
  "pallet-elections-phragmen",
  "pallet-grandpa",
  "pallet-im-online",
  "pallet-indices",
+ "pallet-mark",
  "pallet-membership",
+ "pallet-mtype",
  "pallet-multisig",
  "pallet-offences",
  "pallet-proxy",
  "pallet-randomness-collective-flip",
+ "pallet-reserve",
  "pallet-scheduler",
  "pallet-session",
  "pallet-staking",
  "pallet-staking-reward-curve",
  "pallet-sudo",
  "pallet-timestamp",
+ "pallet-tips",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
@@ -1142,23 +1144,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "delegation"
-version = "0.3.1"
-dependencies = [
- "bitflags",
- "cord-runtime",
- "frame-support",
- "frame-system",
- "mtype",
- "parity-scale-codec",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
 name = "derive_more"
 version = "0.99.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1167,21 +1152,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "did"
-version = "0.3.1"
-dependencies = [
- "cord-runtime",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -3126,24 +3096,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
-name = "mark"
-version = "0.3.1"
-dependencies = [
- "bitflags",
- "cord-runtime",
- "delegation",
- "frame-support",
- "frame-system",
- "mtype",
- "parity-scale-codec",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
 name = "matchers"
 version = "0.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3330,21 +3282,6 @@ checksum = "5a33c1b55807fbed163481b5ba66db4b2fa6cde694a5027be10fb724206c5897"
 dependencies = [
  "socket2",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "mtype"
-version = "0.3.1"
-dependencies = [
- "cord-runtime",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -3686,6 +3623,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-delegation"
+version = "0.3.1"
+dependencies = [
+ "bitflags",
+ "cord-runtime",
+ "frame-support",
+ "frame-system",
+ "pallet-mtype",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-democracy"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#27c03f245e97d24cf33d57740d4111dd28731012"
@@ -3698,6 +3652,21 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-did"
+version = "0.3.1"
+dependencies = [
+ "cord-runtime",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -3770,6 +3739,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-mark"
+version = "0.3.1"
+dependencies = [
+ "bitflags",
+ "cord-runtime",
+ "frame-support",
+ "frame-system",
+ "pallet-delegation",
+ "pallet-mtype",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-membership"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=master#27c03f245e97d24cf33d57740d4111dd28731012"
@@ -3781,6 +3768,21 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-mtype"
+version = "0.3.1"
+dependencies = [
+ "cord-runtime",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -3837,6 +3839,22 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "safe-mix",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-reserve"
+version = "0.3.1"
+dependencies = [
+ "cord-primitives",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]
@@ -3936,6 +3954,20 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
+]
+
+[[package]]
+name = "pallet-tips"
+version = "3.0.0"
+source = "git+https://github.com/paritytech/substrate?branch=master#27c03f245e97d24cf33d57740d4111dd28731012"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-treasury",
+ "parity-scale-codec",
+ "serde",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
