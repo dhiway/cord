@@ -53,20 +53,20 @@ decl_module! {
 
 		/// Anchors a new #MARK schema on chain, 
 		///, where, origin is the signed sender account, and
-		/// schema_hash is the hash of the anchored Type schema
+		/// mtype_hash is the hash of the anchored Type schema
 		#[weight = 10_000_000]
-		pub fn anchor(origin, schema_hash: T::Hash) -> DispatchResult {
+		pub fn anchor(origin, mtype_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 
 			// check if #MARK TYPE already exists
-			ensure!(!<MTYPEs<T>>::contains_key(schema_hash), Error::<T>::AlreadyExists);
+			ensure!(!<MTYPEs<T>>::contains_key(mtype_hash), Error::<T>::AlreadyExists);
 
 			// Anchors a new #MARK schema
 			debug::print!("insert MTYPE");
-			<MTYPEs<T>>::insert(schema_hash, sender.clone());
+			<MTYPEs<T>>::insert(mtype_hash, sender.clone());
 			// deposit event - #MARK TYPE has been anchored
-			Self::deposit_event(RawEvent::Anchored(sender, schema_hash));
+			Self::deposit_event(RawEvent::Anchored(sender, mtype_hash));
 			Ok(())
 		}
 	}
@@ -74,7 +74,7 @@ decl_module! {
 
 decl_storage! {
 	trait Store for Module<T: Trait> as Mtype {
-		// MTYPEs: mtype-schema_hash -> account-id?
+		// MTYPEs: mtype-mtype_hash -> account-id?
 		pub MTYPEs get(fn mtypes):map hasher(opaque_blake2_256) T::Hash => Option<T::AccountId>;
 	}
 }

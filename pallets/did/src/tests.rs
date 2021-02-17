@@ -5,12 +5,14 @@
 
 //! DID: Handles decentralized identifiers on chain,
 //! test adding and removing DIDs.
+
+use crate as pallet_did;
 use crate::*;
 
 use frame_support::{
 	assert_ok,
 	dispatch::Weight,
-	impl_outer_origin, parameter_types,
+	parameter_types,
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass,
@@ -25,12 +27,20 @@ use sp_runtime::{
 	MultiSigner, Perbill,
 };
 
-impl_outer_origin! {
-	pub enum Origin for Test {}
-}
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::mocking::MockBlock<Test>;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Test;
+frame_support::construct_runtime!(
+	pub enum Test where
+		Block = Block,
+		NodeBlock = Block,
+		UncheckedExtrinsic = UncheckedExtrinsic,
+	{
+		System: frame_system::{Module, Call, Config, Storage, Event<T>},
+		Did: pallet_did::{Module, Call, Storage, Event<T>},
+	}
+);
+
 // pub const BlockHashCount: u32 = 250;
 
 /// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
@@ -68,7 +78,7 @@ parameter_types! {
 
 impl frame_system::Config for Test {
 	type Origin = Origin;
-	type Call = ();
+	type Call = Call;
 	type Index = u32;
 	type BlockNumber = u32;
 	type Hash = H256;
@@ -80,7 +90,7 @@ impl frame_system::Config for Test {
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = RocksDbWeight;
 	type Version = ();
-	type PalletInfo = ();
+	type PalletInfo = PalletInfo;
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();

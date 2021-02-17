@@ -1,6 +1,6 @@
 [package]
 name = 'cord-runtime'
-version = '0.3.1'
+version = '0.3.2'
 build = 'build.rs'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
@@ -23,10 +23,12 @@ static_assertions = "1.1.0"
 smallvec = "1.6.1"
 
 # cord pallet dependencies
-mark = { default-features = false, path = '../pallets/mark' }
-delegation = { default-features = false, path = '../pallets/delegation' }
-mtype = { default-features = false, path = '../pallets/mtype' }
-did = {  default-features = false, path = '../pallets/did' }
+pallet-mark = { default-features = false, path = '../pallets/mark' }
+pallet-delegation = { default-features = false, path = '../pallets/delegation' }
+pallet-mtype = { default-features = false, path = '../pallets/mtype' }
+pallet-did = {  default-features = false, path = '../pallets/did' }
+pallet-reserve = {  default-features = false, path = '../pallets/reserve' }
+pallet-digest = {  default-features = false, path = '../pallets/digest' }
 
 # cord primitives
 cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
@@ -76,6 +78,7 @@ pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 pallet-vesting = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 pallet-bounties = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+pallet-tips = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 pallet-multisig = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 pallet-utility = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
@@ -132,6 +135,7 @@ std = [
 	"frame-system-rpc-runtime-api/std",
 	"pallet-timestamp/std",
 	"pallet-treasury/std",
+	"pallet-tips/std",
 	"sp-version/std",
     'serde_derive',
     'serde/std',
@@ -143,8 +147,10 @@ std = [
 	"pallet-utility/std",
    	"pallet-vesting/std",
 	"pallet-sudo/std",
-	'mark/std',
-    'delegation/std',
-	'mtype/std',
-	'did/std',
+	'pallet-mark/std',
+    'pallet-delegation/std',
+	'pallet-mtype/std',
+	'pallet-did/std',
+	'pallet-reserve/std',
+
 ]

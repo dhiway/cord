@@ -4,12 +4,11 @@
 //! CORD chain configurations.
 
 use cord_runtime::{
-	AuthorityDiscoveryConfig, BalancesConfig, CouncilConfig, 
-	DemocracyConfig, ImOnlineConfig, IndicesConfig, SessionConfig, VestingConfig,
-	GenesisConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
+	AuthorityDiscoveryConfig, BalancesConfig, CouncilConfig, DemocracyConfig,
+	ImOnlineConfig, IndicesConfig, SessionConfig, GenesisConfig,
+	SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
 	TechnicalCommitteeConfig,  WASM_BINARY,
 };
-
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_service::{ChainType, Properties};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -20,7 +19,7 @@ use sp_runtime::Perbill;
 
 pub use cord_primitives::{AccountId, Balance, BlockNumber, Signature};
 pub use cord_runtime::constants::time::*;
-use cord_runtime::constants::currency::CRD;
+use cord_runtime::constants::currency::*;
 use hex_literal::hex;
 
 // Note this is the URL for the telemetry server
@@ -211,13 +210,12 @@ fn bombay_brown_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			phantom: Default::default(),
 		}),
 		pallet_membership_Instance1: Some(Default::default()),
+		// pallet_membership_Instance2: Some(Default::default()),
+		pallet_reserve_Instance1: Some(Default::default()),
 		pallet_aura: Some(Default::default()),
 		pallet_grandpa: Some(Default::default()),
-
 		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
 		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-		pallet_treasury: Some(Default::default()),
-		pallet_vesting: Some(VestingConfig { vesting: vec![] }),
 		pallet_elections_phragmen: Some(Default::default()),
 		pallet_sudo: Some(SudoConfig {
 			key: endowed_accounts[0].clone(),
@@ -318,70 +316,75 @@ fn indian_teal_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			),
 		];
 
-		const CONTROLLER_ENDOWMENT: u128 = 899_999_999 * CRD;
-		const CONTROLLER_STASH: u128 = 899_999_999_999 * CRD;
-		const STAKED_ENDOWMENT: u128 = 89_999 * CRD;
-		const CORD_STASH: u128 = 29_999_999_000_999 * CRD;
-
-	GenesisConfig {
-		frame_system: Some(SystemConfig {
-			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
-		}),
-		pallet_balances: Some(BalancesConfig {
-			balances: endowed_accounts
-			.iter()
-			.map(|k: &AccountId| (k.clone(), CORD_STASH))
-			.chain(initial_authorities.iter().map(|x| (x.0.clone(), CONTROLLER_STASH)))
-			.chain(initial_authorities.iter().map(|x| (x.1.clone(), CONTROLLER_ENDOWMENT)))
-			.collect(),
-		}),
-		pallet_indices: Some(IndicesConfig { indices: vec![] }),
-		pallet_session: Some(SessionConfig {
-			keys: initial_authorities
+		const CONTROLLER_ENDOWMENT: u128 = 1_000 * CRD;
+		const CONTROLLER_STASH: u128 = 1_000_000 * CRD;
+		const STAKED_ENDOWMENT: u128 = 100 * CRD;
+		const CORD_STASH: u128 = 10_000_000_000 * CRD;
+	
+		GenesisConfig {
+			frame_system: Some(SystemConfig {
+				code: wasm_binary.to_vec(),
+				changes_trie_config: Default::default(),
+			}),
+			pallet_balances: Some(BalancesConfig {
+				balances: endowed_accounts
 				.iter()
-				.map(|x| {
-					(
-						x.0.clone(),
-						x.0.clone(),
-						session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
-					)
-				})
-				.collect::<Vec<_>>(),
-		}),
-		pallet_staking: Some(StakingConfig {
-			validator_count: 10,
-			minimum_validator_count: initial_authorities.len() as u32,
-			stakers: initial_authorities
-				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), STAKED_ENDOWMENT, StakerStatus::Validator))
+				.map(|k: &AccountId| (k.clone(), CORD_STASH))
+				.chain(initial_authorities.iter().map(|x| (x.0.clone(), CONTROLLER_STASH)))
+				.chain(initial_authorities.iter().map(|x| (x.1.clone(), CONTROLLER_ENDOWMENT)))
 				.collect(),
-			invulnerables: [].to_vec(),
-			slash_reward_fraction: Perbill::from_percent(10),
-			..Default::default()
-		}),
-		pallet_democracy: Some(DemocracyConfig::default()),
-		pallet_collective_Instance1: Some(CouncilConfig {
-			members: vec![],
-			phantom: Default::default(),
-		}),
-		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
-			members: vec![],
-			phantom: Default::default(),
-		}),
-		pallet_membership_Instance1: Some(Default::default()),
-		pallet_aura: Some(Default::default()),
-		pallet_grandpa: Some(Default::default()),
-
-		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
-		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-		pallet_treasury: Some(Default::default()),
-		pallet_vesting: Some(VestingConfig { vesting: vec![] }),
-		pallet_elections_phragmen: Some(Default::default()),
-		pallet_sudo: Some(SudoConfig {
-			key: endowed_accounts[0].clone(),
-		}),
-	}
+			}),
+			pallet_indices: Some(IndicesConfig { indices: vec![] }),
+			pallet_session: Some(SessionConfig {
+				keys: initial_authorities
+					.iter()
+					.map(|x| {
+						(
+							x.0.clone(),
+							x.0.clone(),
+							session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+						)
+					})
+					.collect::<Vec<_>>(),
+			}),
+			pallet_staking: Some(StakingConfig {
+				validator_count: 10,
+				minimum_validator_count: initial_authorities.len() as u32,
+				stakers: initial_authorities
+					.iter()
+					.map(|x| (x.0.clone(), x.1.clone(), STAKED_ENDOWMENT, StakerStatus::Validator))
+					.collect(),
+				invulnerables: [].to_vec(),
+				slash_reward_fraction: Perbill::from_percent(10),
+				..Default::default()
+			}),
+			pallet_democracy: Some(DemocracyConfig::default()),
+			pallet_collective_Instance1: Some(CouncilConfig {
+				members: endowed_accounts
+					.iter()
+					.map(|x| (x.clone()))
+					.collect::<Vec<_>>(),
+				phantom: Default::default(),
+			}),
+			pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
+				members: endowed_accounts
+					.iter()
+					.map(|x| (x.clone()))
+					.collect::<Vec<_>>(),
+				phantom: Default::default(),
+			}),
+			pallet_membership_Instance1: Some(Default::default()),
+			// pallet_membership_Instance2: Some(Default::default()),
+			pallet_reserve_Instance1: Some(Default::default()),
+			pallet_aura: Some(Default::default()),
+			pallet_grandpa: Some(Default::default()),
+			pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
+			pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
+			pallet_elections_phragmen: Some(Default::default()),
+			pallet_sudo: Some(SudoConfig {
+				key: endowed_accounts[0].clone(),
+			}),
+		}
 }
 
 
@@ -488,70 +491,75 @@ fn royal_blue_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			),
 		];
 
-		const CONTROLLER_ENDOWMENT: u128 = 899_999_999 * CRD;
-		const CONTROLLER_STASH: u128 = 899_999_999_999 * CRD;
-		const STAKED_ENDOWMENT: u128 = 89_999 * CRD;
-		const CORD_STASH: u128 = 29_999_999_000_999 * CRD;
-	
-		GenesisConfig {
-			frame_system: Some(SystemConfig {
-				code: wasm_binary.to_vec(),
-				changes_trie_config: Default::default(),
-			}),
-			pallet_balances: Some(BalancesConfig {
-				balances: endowed_accounts
+	const CONTROLLER_ENDOWMENT: u128 = 1_000 * CRD;
+	const CONTROLLER_STASH: u128 = 1_000_000 * CRD;
+	const STAKED_ENDOWMENT: u128 = 100 * CRD;
+	const CORD_STASH: u128 = 10_000_000_000 * CRD;
+
+	GenesisConfig {
+		frame_system: Some(SystemConfig {
+			code: wasm_binary.to_vec(),
+			changes_trie_config: Default::default(),
+		}),
+		pallet_balances: Some(BalancesConfig {
+			balances: endowed_accounts
+			.iter()
+			.map(|k: &AccountId| (k.clone(), CORD_STASH))
+			.chain(initial_authorities.iter().map(|x| (x.0.clone(), CONTROLLER_STASH)))
+			.chain(initial_authorities.iter().map(|x| (x.1.clone(), CONTROLLER_ENDOWMENT)))
+			.collect(),
+		}),
+		pallet_indices: Some(IndicesConfig { indices: vec![] }),
+		pallet_session: Some(SessionConfig {
+			keys: initial_authorities
 				.iter()
-				.map(|k: &AccountId| (k.clone(), CORD_STASH))
-				.chain(initial_authorities.iter().map(|x| (x.0.clone(), CONTROLLER_STASH)))
-				.chain(initial_authorities.iter().map(|x| (x.1.clone(), CONTROLLER_ENDOWMENT)))
+				.map(|x| {
+					(
+						x.0.clone(),
+						x.0.clone(),
+						session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+					)
+				})
+				.collect::<Vec<_>>(),
+		}),
+		pallet_staking: Some(StakingConfig {
+			validator_count: 3,
+			minimum_validator_count: initial_authorities.len() as u32,
+			stakers: initial_authorities
+				.iter()
+				.map(|x| (x.0.clone(), x.1.clone(), STAKED_ENDOWMENT, StakerStatus::Validator))
 				.collect(),
-			}),
-			pallet_indices: Some(IndicesConfig { indices: vec![] }),
-			pallet_session: Some(SessionConfig {
-				keys: initial_authorities
-					.iter()
-					.map(|x| {
-						(
-							x.0.clone(),
-							x.0.clone(),
-							session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
-						)
-					})
-					.collect::<Vec<_>>(),
-			}),
-			pallet_staking: Some(StakingConfig {
-				validator_count: 5,
-				minimum_validator_count: initial_authorities.len() as u32,
-				stakers: initial_authorities
-					.iter()
-					.map(|x| (x.0.clone(), x.1.clone(), STAKED_ENDOWMENT, StakerStatus::Validator))
-					.collect(),
-				invulnerables: [].to_vec(),
-				slash_reward_fraction: Perbill::from_percent(10),
-				..Default::default()
-			}),
-			pallet_democracy: Some(DemocracyConfig::default()),
-			pallet_collective_Instance1: Some(CouncilConfig {
-				members: vec![],
-				phantom: Default::default(),
-			}),
-			pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
-				members: vec![],
-				phantom: Default::default(),
-			}),
-			pallet_membership_Instance1: Some(Default::default()),
-			pallet_aura: Some(Default::default()),
-			pallet_grandpa: Some(Default::default()),
-	
-			pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
-			pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-			pallet_treasury: Some(Default::default()),
-			pallet_vesting: Some(VestingConfig { vesting: vec![] }),
-			pallet_elections_phragmen: Some(Default::default()),
-			pallet_sudo: Some(SudoConfig {
-				key: endowed_accounts[0].clone(),
-			}),
-		}
+			invulnerables: [].to_vec(),
+			slash_reward_fraction: Perbill::from_percent(10),
+			..Default::default()
+		}),
+		pallet_democracy: Some(DemocracyConfig::default()),
+		pallet_collective_Instance1: Some(CouncilConfig {
+			members: endowed_accounts
+				.iter()
+				.map(|x| (x.clone()))
+				.collect::<Vec<_>>(),
+			phantom: Default::default(),
+		}),
+		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
+			members: endowed_accounts
+				.iter()
+				.map(|x| (x.clone()))
+				.collect::<Vec<_>>(),
+			phantom: Default::default(),
+		}),
+		pallet_membership_Instance1: Some(Default::default()),
+		// pallet_membership_Instance2: Some(Default::default()),
+		pallet_reserve_Instance1: Some(Default::default()),
+		pallet_aura: Some(Default::default()),
+		pallet_grandpa: Some(Default::default()),
+		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
+		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
+		pallet_elections_phragmen: Some(Default::default()),
+		pallet_sudo: Some(SudoConfig {
+			key: endowed_accounts[0].clone(),
+		}),
+	}
 }
 
 pub fn load_spec(id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {

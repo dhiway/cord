@@ -19,7 +19,7 @@ use codec::{Decode, Encode};
 use core::default::Default;
 use frame_support::{
 	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
-	Parameter, StorageMap,
+	Parameter, traits::Get, StorageMap,
 };
 use frame_system::{self, ensure_signed};
 use sp_runtime::{
@@ -64,7 +64,7 @@ impl Default for Permissions {
 }
 
 /// The delegation trait
-pub trait Trait: mtype::Trait + frame_system::Config {
+pub trait Trait: pallet_mtype::Trait + frame_system::Config {
 	/// Delegation specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
@@ -119,6 +119,7 @@ decl_error! {
 		ParentNotFound,
 		UnauthorizedRevocation,
 		UnauthorizedDelegation,
+		ExceededRevocationBounds,
 	}
 }
 
@@ -145,7 +146,7 @@ decl_module! {
 			ensure!(!<Root<T>>::contains_key(root_id), Error::<T>::RootAlreadyExists);
 
 			// check if MTYPE exists
-			ensure!(<mtype::MTYPEs<T>>::contains_key(mtype_hash), mtype::Error::<T>::NotFound);
+			ensure!(<pallet_mtype::MTYPEs<T>>::contains_key(mtype_hash), pallet_mtype::Error::<T>::NotFound);
 
 			// add root node to storage
 			debug::print!("insert Delegation Root");
@@ -226,8 +227,8 @@ decl_module! {
 		/// Revoke the root and therefore a complete hierarchy, where
 		/// origin - the origin of the transaction
 		/// root_id - id of the hierarchy root node
-		#[weight = 10_000_000]
-		pub fn revoke_root(origin, root_id: T::DelegationNodeId) -> DispatchResult {
+		#[weight = 10_000_000 + T::DbWeight::get().reads_writes(*max_children, *max_children)]
+		pub fn revoke_root(origin, root_id: T::DelegationNodeId, max_children: u64) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if root node exists
@@ -237,11 +238,14 @@ decl_module! {
 			ensure!(root.owner.eq(&sender), Error::<T>::UnauthorizedRevocation);
 
 			if !root.revoked {
-				// store revoked root node
-				root.revoked = true;
-				<Root<T>>::insert(root_id, root);
 				// recursively revoke all children
-				Self::revoke_children(&root_id, &sender)?;
+				let remaining_revocations = Self::revoke_children(&root_id, &sender, max_children)?;
+				
+				if remaining_revocations > 0 {
+					// store revoked root node
+					root.revoked = true;
+					<Root<T>>::insert(root_id, root);
+				}
 			}
 			// deposit event that the root node has been revoked
 			Self::deposit_event(RawEvent::RootRevoked(sender, root_id));
@@ -251,8 +255,9 @@ decl_module! {
 		/// Revoke a delegation node and all its children, where
 		/// origin - the origin of the transaction
 		/// delegation_id - id of the delegation node
-		#[weight = 10_000_000]
-		pub fn revoke_delegation(origin, delegation_id: T::DelegationNodeId, max_depth: u64) -> DispatchResult {
+		#[weight = 10_000_000 + T::DbWeight::get().reads_writes(*max_revocations, *max_revocations)]
+		pub fn revoke_delegation(origin, delegation_id: T::DelegationNodeId, max_depth: u64,
+			max_revocations: u64) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if delegation node exists
@@ -263,7 +268,8 @@ decl_module! {
 			ensure!(Self::is_delegating(&sender, &delegation_id, max_depth)?, Error::<T>::UnauthorizedRevocation);
 
 			// revoke the delegation and recursively all of its children
-			Self::revoke(&delegation_id, &sender)
+			// TODO: post call weight correction
+			Self::revoke(&delegation_id, &sender, max_revocations).map(|_| ())
 		}
 	}
 }
@@ -315,35 +321,58 @@ impl<T: Trait> Module<T> {
 	}
 
 	/// Revoke a delegation an all of its children
-	fn revoke(delegation: &T::DelegationNodeId, sender: &T::AccountId) -> DispatchResult {
+	/// FIXME: Add bound
+	fn revoke(
+		delegation: &T::DelegationNodeId,
+		sender: &T::AccountId,
+		max_revocations: u64,
+	) -> Result<u64, DispatchError> {
+		let mut revocations: u64 = 0;
 		// retrieve delegation node from storage
 		let mut delegation_node =
 			<Delegations<T>>::get(*delegation).ok_or(Error::<T>::DelegationNotFound)?;
 
 		// check if already revoked
 		if !delegation_node.revoked {
-			// set revoked flag and store delegation node
-			delegation_node.revoked = true;
-			<Delegations<T>>::insert(*delegation, delegation_node);
-			// deposit event that the delegation has been revoked
-			Self::deposit_event(RawEvent::DelegationRevoked(sender.clone(), *delegation));
-			// revoke all children recursively
-			Self::revoke_children(delegation, sender)?;
+			// first revoke all children recursively
+			revocations += Self::revoke_children(delegation, sender, max_revocations)?;
+
+			// if we run out of revocation gas, we only revoke children. The tree will be changed but is still valid.
+			if revocations < max_revocations {
+				// set revoked flag and store delegation node
+				delegation_node.revoked = true;
+				<Delegations<T>>::insert(*delegation, delegation_node);
+				// deposit event that the delegation has been revoked
+				Self::deposit_event(RawEvent::DelegationRevoked(sender.clone(), *delegation));
+				revocations += 1;
+			} else {
+				return Err(Error::<T>::ExceededRevocationBounds.into());
+			}
 		}
-		Ok(())
+		Ok(revocations)
 	}
 
 	/// Revoke all children of a delegation
-	fn revoke_children(delegation: &T::DelegationNodeId, sender: &T::AccountId) -> DispatchResult {
+	fn revoke_children(
+		delegation: &T::DelegationNodeId,
+		sender: &T::AccountId,
+		max_revocations: u64,
+	) -> Result<u64, DispatchError> {
+		let mut revocations: u64 = 0;
 		// check if there's a child vector in the storage
 		if <Children<T>>::contains_key(delegation) {
 			// iterate child vector and revoke all nodes
 			let children = <Children<T>>::get(delegation);
 			for child in children {
-				Self::revoke(&child, sender)?;
+				let remaining_revocations = max_revocations.saturating_sub(revocations);
+				if remaining_revocations > 0 {
+					revocations += Self::revoke(&child, sender, remaining_revocations)?;
+				} else {
+					return Err(Error::<T>::ExceededRevocationBounds.into());
+				}
 			}
 		}
-		Ok(())
+		Ok(revocations)
 	}
 
 	/// Add a child node into the delegation hierarchy

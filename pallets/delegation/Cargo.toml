@@ -1,6 +1,6 @@
 [package]
-name = 'delegation'
-version = '0.3.1'
+name = 'pallet-delegation'
+version = '0.3.2'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
 description = 'Enables creating and revoking root & delegation nodes of consortium hierarchies'
@@ -23,7 +23,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", d
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 # local pallets
-mtype = { default-features = false, path = '../mtype' }
+pallet-mtype = { default-features = false, path = '../mtype' }
 
 [dev-dependencies]
 cord-runtime = { default-features = false, path = '../../runtime' }
@@ -38,5 +38,5 @@ std = [
 	'sp-runtime/std',
 	'sp-std/std',
 	'sp-io/std',
-	'mtype/std',
+	'pallet-mtype/std',
 ]

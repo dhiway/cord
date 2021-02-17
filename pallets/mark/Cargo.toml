@@ -1,6 +1,6 @@
 [package]
-name = 'mark'
-version = '0.3.1'
+name = 'pallet-mark'
+version = '0.3.2'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
 description = 'Enables adding and revoking marks.'
@@ -23,8 +23,8 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", d
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 # pallets
-mtype = { default-features = false, path = '../mtype' }
-delegation = { default-features = false, path = '../delegation' }
+pallet-mtype = { default-features = false, path = '../mtype' }
+pallet-delegation = { default-features = false, path = '../delegation' }
 
 [dev-dependencies]
 cord-runtime = { default-features = false, path = '../../runtime' }
@@ -39,6 +39,6 @@ std = [
 	'sp-runtime/std',
 	'sp-std/std',
 	'sp-io/std',
-	'mtype/std',
-	'delegation/std',
+	'pallet-mtype/std',
+	'pallet-delegation/std',
 ]

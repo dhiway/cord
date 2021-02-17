@@ -1,6 +1,6 @@
 [package]
 name = 'cord-node'
-version = '0.3.1'
+version = '0.3.2'
 build = 'build.rs'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
@@ -92,19 +92,3 @@ frame-benchmarking-cli = {git = 'https://github.com/paritytech/substrate.git', b
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "master" }
 frame-rpc-system = {package = 'substrate-frame-rpc-system', git = 'https://github.com/paritytech/substrate', branch = "master"}
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/substrate", branch = "master" }
-
-
-#sp-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-#sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "master" }
-
-# client dependencies
-#sc-sync-state-rpc = { git = "https://github.com/paritytech/substrate", branch = "master"}
-#sc-offchain = { git = "https://github.com/paritytech/substrate", branch = "master" }
-#sc-tracing = { git = "https://github.com/paritytech/substrate", branch = "master" }
-
-#pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "master" }
-#pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/substrate", branch = "master" }
-#pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "master" }
-
-#pallet-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "master" }
-#pallet-grandpa = { git = "https://github.com/paritytech/substrate", branch = "master" }
