@@ -36,8 +36,7 @@ pub trait Trait<I: Instance = DefaultInstance>: frame_system::Config + pallet_ba
 }
 
 pub trait WithAccountId<AccountId> {
-fn account_id() -> AccountId;
-// fn balance() -> BalanceOf<T, I>;
+    fn account_id() -> AccountId;
 }
 
 decl_storage! {
@@ -112,11 +111,11 @@ decl_module! {
         /// Deposit CRD units to the reserve account
         #[weight = 50_000_000]
         pub fn receive(origin, amount: BalanceOf<T, I>) -> DispatchResult {
-            let tipper = ensure_signed(origin)?;
+            let sender = ensure_signed(origin)?;
 
-            let _ = T::Currency::transfer(&tipper, &Self::account_id(), amount, ExistenceRequirement::AllowDeath);
+            let _ = T::Currency::transfer(&sender, &Self::account_id(), amount, ExistenceRequirement::AllowDeath);
 
-            Self::deposit_event(RawEvent::Received(tipper, amount));
+            Self::deposit_event(RawEvent::Received(sender, amount));
 
             Ok(())
         }
