@@ -8,7 +8,7 @@
 
 use frame_support::{
      assert_noop, assert_ok, impl_outer_dispatch, impl_outer_origin, ord_parameter_types,
-     parameter_types, traits::Currency, weights::Weight,
+     parameter_types, traits::Currency,
  };
  use frame_system::{EnsureSignedBy, RawOrigin};
  use sp_core::H256;
@@ -19,6 +19,7 @@ use frame_support::{
      Perbill,
  };
  use sp_std::prelude::Box;
+//  use frame_support::traits::PalletInfo;
  
  impl_outer_origin! {
      pub enum Origin for Test {}
@@ -34,42 +35,39 @@ use frame_support::{
  // configuration traits of modules we want to use.
  #[derive(Clone, Eq, PartialEq)]
  pub struct Test;
+ 
  parameter_types! {
-     pub const BlockHashCount: u64 = 250;
-     pub const MaximumBlockWeight: Weight = 1024;
-     pub const MaximumBlockLength: u32 = 2 * 1024;
-     pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-     pub const SS58Prefix: u8 = 29;
-    }
+    pub const BlockHashCount: u64 = 250;
+	pub BlockWeights: frame_system::limits::BlockWeights =
+		frame_system::limits::BlockWeights::simple_max(1024);
+    // pub const SS58Prefix: u8 = 29;
+}
  
 impl frame_system::Config for Test {
     type BaseCallFilter = ();
+	type BlockWeights = ();
+	type BlockLength = ();
+	type DbWeight = ();
 	type Origin = Origin;
-	type Call = Call;
 	type Index = u64;
 	type BlockNumber = u64;
+	type Call = Call;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
-	type Lookup = IdentityLookup<AccountId>;
+	type AccountId = u64; 
+	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = ();
-    type BlockHashCount = BlockHashCount;
-    type MaximumBlockWeight = MaximumBlockWeight;
-    type MaximumBlockLength = MaximumBlockLength;
-    type AvailableBlockRatio = AvailableBlockRatio;
+	type BlockHashCount = BlockHashCount;
 	type Version = ();
-	type PalletInfo = ();
+	type PalletInfo = Self;
 	type AccountData = pallet_balances::AccountData<u64>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
-    type DbWeight = ();
-    type BlockExecutionWeight = ();
-    type ExtrinsicBaseWeight = ();
-    type MaximumExtrinsicWeight = MaximumBlockWeight;
 	type SystemWeightInfo = ();
-	type SS58Prefix = SS58Prefix;
+	type SS58Prefix = ();
  }
+
  parameter_types! {
      pub const MaxLocks: u32 = 50;
  }

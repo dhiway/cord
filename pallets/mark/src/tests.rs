@@ -407,7 +407,8 @@ fn check_anchor_mark_with_delegation() {
 		// revoke root delegation
 		assert_ok!(Delegation::revoke_root(
 			Origin::signed(account_hash_alice.clone()),
-			delegation_root
+			delegation_root,
+			2
 		));
 
 		// cannot revoke attestation if not owner (alice is owner of attestation)
