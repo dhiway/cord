@@ -20,7 +20,7 @@ use frame_support::{
 		Weight, DispatchClass,RuntimeDbWeight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_PER_MICROS,  WEIGHT_PER_SECOND},
 	},
-	traits::{KeyOwnerProofSystem, Currency, Randomness,  U128CurrencyToVote, SplitTwoWays},
+	traits::{KeyOwnerProofSystem, Currency, Randomness, LockIdentifier, U128CurrencyToVote, SplitTwoWays},
 	
 };
 
@@ -38,7 +38,7 @@ pub use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment, Currency
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{
 	crypto::KeyTypeId, 
-	u32_trait::{_1, _2, _3, _4},
+	u32_trait::{_1, _2, _3, _4, _5},
 	OpaqueMetadata,
 };
 
@@ -57,6 +57,7 @@ use sp_version::RuntimeVersion;
 
 use pallet_session::historical as session_historical;
 pub use sp_inherents::{CheckInherentsResult, InherentData};
+use static_assertions::const_assert;
 
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -104,11 +105,11 @@ type MoreThanHalfCouncil = EnsureOneOf<
 	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>
 >;
 
-type MoreThanHalfTechCouncil = EnsureOneOf<
-	AccountId,
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, TechnicalCollective>
->;
+// type MoreThanHalfTechCouncil = EnsureOneOf<
+// 	AccountId,
+// 	EnsureRoot<AccountId>,
+// 	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, TechnicalCollective>
+// >;
 
 /// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
 /// This is used to limit the maximal weight of a single extrinsic.
@@ -411,6 +412,116 @@ impl pallet_staking::Config for Runtime {
 }
 
 parameter_types! {
+	pub const LaunchPeriod: BlockNumber = 28 * DAYS;
+	pub const VotingPeriod: BlockNumber = 28 * DAYS;
+	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
+	pub const MinimumDeposit: Balance = 100 * RUPEES;
+	pub const EnactmentPeriod: BlockNumber = 28 * DAYS;
+	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
+	pub const PreimageByteDeposit: Balance = 1 * PAISE;
+	pub const InstantAllowed: bool = true;
+	pub const MaxVotes: u32 = 100;
+	pub const MaxProposals: u32 = 100;
+}
+
+impl pallet_democracy::Config for Runtime {
+	type Proposal = Call;
+	type Event = Event;
+	type Currency = Balances;
+	type EnactmentPeriod = EnactmentPeriod;
+	type LaunchPeriod = LaunchPeriod;
+	type VotingPeriod = VotingPeriod;
+	type MinimumDeposit = MinimumDeposit;
+	/// A straight majority of the council can decide what their next motion is.
+	type ExternalOrigin = frame_system::EnsureOneOf<AccountId,
+		pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
+		frame_system::EnsureRoot<AccountId>,
+	>;
+	/// A 60% super-majority can have the next scheduled referendum be a straight majority-carries vote.
+	type ExternalMajorityOrigin = frame_system::EnsureOneOf<AccountId,
+		pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
+		frame_system::EnsureRoot<AccountId>,
+	>;
+	/// A unanimous council can have the next scheduled referendum be a straight default-carries
+	/// (NTB) vote.
+	type ExternalDefaultOrigin = frame_system::EnsureOneOf<AccountId,
+		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
+		frame_system::EnsureRoot<AccountId>,
+	>;
+	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
+	/// be tabled immediately and with a shorter voting/enactment period.
+	type FastTrackOrigin = frame_system::EnsureOneOf<AccountId,
+		pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
+		frame_system::EnsureRoot<AccountId>,
+	>;
+	type InstantOrigin = frame_system::EnsureOneOf<AccountId,
+		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
+		frame_system::EnsureRoot<AccountId>,
+	>;
+	type InstantAllowed = InstantAllowed;
+	type FastTrackVotingPeriod = FastTrackVotingPeriod;
+	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
+	type CancellationOrigin = EnsureOneOf<AccountId,
+		pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
+		EnsureRoot<AccountId>,
+	>;
+	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
+	// Root must agree.
+	type CancelProposalOrigin = EnsureOneOf<AccountId,
+		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
+		EnsureRoot<AccountId>,
+	>;
+	type BlacklistOrigin = EnsureRoot<AccountId>;
+	// Any single technical committee member may veto a coming council proposal, however they can
+	// only do it once and it lasts only for the cooloff period.
+	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
+	type CooloffPeriod = CooloffPeriod;
+	type PreimageByteDeposit = PreimageByteDeposit;
+	type OperationalPreimageOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
+	type Slash = CordReserve;
+	type Scheduler = Scheduler;
+	type PalletsOrigin = OriginCaller;
+	type MaxVotes = MaxVotes;
+	type WeightInfo = ();
+	type MaxProposals = MaxProposals;
+}
+
+parameter_types! {
+	pub const CandidacyBond: Balance = 100 * RUPEES;
+	// 1 storage item created, key size is 32 bytes, value size is 16+16.
+	pub const VotingBondBase: Balance = deposit(1, 64);
+	// additional data per vote is 32 bytes (account id).
+	pub const VotingBondFactor: Balance = deposit(0, 32);
+	/// Weekly council elections; scaling up to monthly eventually.
+	pub const TermDuration: BlockNumber = 7 * DAYS;
+	/// 13 members initially, to be increased to 23 eventually.
+	pub const DesiredMembers: u32 = 12;
+	pub const DesiredRunnersUp: u32 = 10;
+	pub const ElectionsPhragmenModuleId: LockIdentifier = *b"phrelect";
+
+}
+
+const_assert!(DesiredMembers::get() <= CouncilMaxMembers::get());
+
+impl pallet_elections_phragmen::Config for Runtime {
+	type Event = Event;
+	type ModuleId = ElectionsPhragmenModuleId;
+	type Currency = Balances;
+	type ChangeMembers = Council;
+	type InitializeMembers = Council;
+	type CurrencyToVote = frame_support::traits::U128CurrencyToVote;
+	type CandidacyBond = CandidacyBond;
+	type VotingBondBase = VotingBondBase;
+	type VotingBondFactor = VotingBondFactor;
+	type LoserCandidate = CordReserve;
+	type KickedMember = CordReserve;
+	type DesiredMembers = DesiredMembers;
+	type DesiredRunnersUp = DesiredRunnersUp;
+	type TermDuration = TermDuration;
+	type WeightInfo = ();
+}
+
+parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 7 * DAYS;
 	pub const CouncilMaxProposals: u32 = 100;
 	pub const CouncilMaxMembers: u32 = 20;
@@ -457,16 +568,16 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 	type MembershipChanged = TechnicalCommittee;
 }
 
-impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
-	type Event = Event;
-	type AddOrigin = MoreThanHalfTechCouncil;
-	type RemoveOrigin = MoreThanHalfTechCouncil;
-	type SwapOrigin = MoreThanHalfTechCouncil;
-	type ResetOrigin = MoreThanHalfTechCouncil;
-	type PrimeOrigin = MoreThanHalfTechCouncil;
-	type MembershipInitialized = TechnicalCommittee;
-	type MembershipChanged = TechnicalCommittee;
-}
+// impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
+// 	type Event = Event;
+// 	type AddOrigin = MoreThanHalfTechCouncil;
+// 	type RemoveOrigin = MoreThanHalfTechCouncil;
+// 	type SwapOrigin = MoreThanHalfTechCouncil;
+// 	type ResetOrigin = MoreThanHalfTechCouncil;
+// 	type PrimeOrigin = MoreThanHalfTechCouncil;
+// 	type MembershipInitialized = TechnicalCommittee;
+// 	type MembershipChanged = TechnicalCommittee;
+// }
 
 parameter_types! {
     pub const CordReserveModuleId: ModuleId = ModuleId(*b"py/resrv"); 
@@ -475,8 +586,9 @@ parameter_types! {
 impl pallet_reserve::Trait<pallet_reserve::Instance1> for Runtime {
     type Event = Event;
     type Currency = pallet_balances::Module<Runtime>;
-    type ExternalOrigin = MoreThanHalfCouncil;
-        // pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>;
+    type ExternalOrigin = 
+        pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>;
+	// MoreThanHalfCouncil;
     type Call = Call;
     type ModuleId = CordReserveModuleId;
 }
@@ -689,25 +801,28 @@ construct_runtime! {
 		ImOnline: pallet_im_online::{Module, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 12,
 		AuthorityDiscovery: pallet_authority_discovery::{Module, Call, Config} = 13,
 
-		Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>} = 14,
-		CouncilMembership: pallet_membership::<Instance1>::{Module, Call, Storage, Event<T>, Config<T>} = 15,
+		Democracy: pallet_democracy::{Module, Call, Storage, Config, Event<T>} = 14,
+		Council: pallet_collective::<Instance1>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>} = 15,
+		// CouncilMembership: pallet_membership::<Instance1>::{Module, Call, Storage, Event<T>, Config<T>} = 15,
 		TechnicalCommittee: pallet_collective::<Instance2>::{Module, Call, Storage, Origin<T>, Event<T>, Config<T>} = 16,
-		TechnicalMembership: pallet_membership::<Instance2>::{Module, Call, Storage, Event<T>, Config<T>} = 17,
+		TechnicalMembership: pallet_membership::<Instance1>::{Module, Call, Storage, Event<T>, Config<T>} = 17,
+		Elections: pallet_elections_phragmen::{Module, Call, Storage, Event<T>, Config<T>} = 18,
+
+		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>} = 19,
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage} = 20,
+		TransactionPayment: pallet_transaction_payment::{Module, Storage} = 21,
 		
-		Sudo: pallet_sudo::{Module, Call, Config<T>, Storage, Event<T>} = 18,
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage} = 19,
-		TransactionPayment: pallet_transaction_payment::{Module, Storage} = 20,
-		
-		Utility: pallet_utility::{Module, Call, Event} = 21,
-		Historical: session_historical::{Module} = 22,
-		Proxy: pallet_proxy::{Module, Call, Storage, Event<T>} = 23,
-		Multisig: pallet_multisig::{Module, Call, Storage, Event<T>} = 24,
+		Utility: pallet_utility::{Module, Call, Event} = 22,
+		Historical: session_historical::{Module} = 23,
+		Proxy: pallet_proxy::{Module, Call, Storage, Event<T>} = 24,
+		Multisig: pallet_multisig::{Module, Call, Storage, Event<T>} = 25,
 		
 		Did: pallet_did::{Module, Call, Storage, Event<T>} = 31,
 		Mtype: pallet_mtype::{Module, Call, Storage, Event<T>} = 32,
 		Mark: pallet_mark::{Module, Call, Storage, Event<T>} = 33,
 		Delegation: pallet_delegation::{Module, Call, Storage, Event<T>} = 34,
 		CordReserve: pallet_reserve::<Instance1>::{Module, Call, Storage, Config, Event<T>} = 35,
+		// CordReserve: pallet_reserve::<Instance1>::{Module, Call, Storage, Config, Event<T>} = 35,
 	}
 }
 

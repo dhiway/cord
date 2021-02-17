@@ -5,8 +5,8 @@
  #![cfg(test)]
 
  use super::*;
- 
- use frame_support::{
+
+use frame_support::{
      assert_noop, assert_ok, impl_outer_dispatch, impl_outer_origin, ord_parameter_types,
      parameter_types, traits::Currency, weights::Weight,
  };
@@ -39,33 +39,36 @@
      pub const MaximumBlockWeight: Weight = 1024;
      pub const MaximumBlockLength: u32 = 2 * 1024;
      pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
- }
- impl frame_system::Config for Test {
-     type Origin = Origin;
-     type Call = Call;
-     type Index = u64;
-     type BlockNumber = u64;
-     type Hash = H256;
-     type Hashing = BlakeTwo256;
-     type AccountId = u64;
-     type Lookup = IdentityLookup<Self::AccountId>;
-     type Header = Header;
-     type Event = ();
-     type BlockHashCount = BlockHashCount;
-     type MaximumBlockWeight = MaximumBlockWeight;
-     type MaximumBlockLength = MaximumBlockLength;
-     type AvailableBlockRatio = AvailableBlockRatio;
-     type Version = ();
-     type PalletInfo = ();
-     type AccountData = pallet_balances::AccountData<u64>;
-     type OnNewAccount = ();
-     type OnKilledAccount = ();
-     type DbWeight = ();
-     type BlockExecutionWeight = ();
-     type ExtrinsicBaseWeight = ();
-     type MaximumExtrinsicWeight = MaximumBlockWeight;
-     type BaseCallFilter = ();
-     type SystemWeightInfo = ();
+     pub const SS58Prefix: u8 = 29;
+    }
+ 
+impl frame_system::Config for Test {
+    type BaseCallFilter = ();
+	type Origin = Origin;
+	type Call = Call;
+	type Index = u64;
+	type BlockNumber = u64;
+	type Hash = H256;
+	type Hashing = BlakeTwo256;
+	type AccountId = u64;
+	type Lookup = IdentityLookup<AccountId>;
+	type Header = Header;
+	type Event = ();
+    type BlockHashCount = BlockHashCount;
+    type MaximumBlockWeight = MaximumBlockWeight;
+    type MaximumBlockLength = MaximumBlockLength;
+    type AvailableBlockRatio = AvailableBlockRatio;
+	type Version = ();
+	type PalletInfo = ();
+	type AccountData = pallet_balances::AccountData<u64>;
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+    type DbWeight = ();
+    type BlockExecutionWeight = ();
+    type ExtrinsicBaseWeight = ();
+    type MaximumExtrinsicWeight = MaximumBlockWeight;
+	type SystemWeightInfo = ();
+	type SS58Prefix = SS58Prefix;
  }
  parameter_types! {
      pub const MaxLocks: u32 = 50;
@@ -110,7 +113,7 @@
  #[test]
  fn spend_error_if_bad_origin() {
      new_test_ext().execute_with(|| {
-         assert_noop!(TestModule::spend(Origin::signed(0), 1, 1), BadOrigin);
+         assert_noop!(TestModule::transfer(Origin::signed(0), 1, 1), BadOrigin);
      })
  }
  
@@ -121,18 +124,18 @@
  
          assert_eq!(Balances::free_balance(TestModule::account_id()), 100);
          assert_eq!(Balances::free_balance(3), 0);
-         assert_ok!(TestModule::spend(Origin::signed(Admin::get()), 3, 100));
+         assert_ok!(TestModule::transfer(Origin::signed(Admin::get()), 3, 100));
          assert_eq!(Balances::free_balance(3), 100);
          assert_eq!(Balances::free_balance(TestModule::account_id()), 0);
      })
  }
  
  #[test]
- fn tip() {
+ fn receive() {
      new_test_ext().execute_with(|| {
          TestCurrency::make_free_balance_be(&999, 100);
  
-         assert_ok!(TestModule::tip(Origin::signed(999), 50));
+         assert_ok!(TestModule::receive(Origin::signed(999), 50));
          assert_eq!(Balances::free_balance(999), 50);
          assert_eq!(Balances::free_balance(TestModule::account_id()), 50);
      })
@@ -169,7 +172,7 @@
      new_test_ext().execute_with(|| {
          TestCurrency::make_free_balance_be(&TestModule::account_id(), 100);
  
-         assert_ok!(TestModule::spend(RawOrigin::Root.into(), 3, 100));
+         assert_ok!(TestModule::transfer(RawOrigin::Root.into(), 3, 100));
          assert_ok!(TestModule::apply_as(RawOrigin::Root.into(), make_call(1)));
      })
  }

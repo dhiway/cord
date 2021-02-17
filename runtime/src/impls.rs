@@ -66,15 +66,20 @@ impl InstanceFilter<Call> for ProxyType {
 				Call::Grandpa(..) |
 				Call::ImOnline(..) |
 				Call::AuthorityDiscovery(..) |
+				Call::Democracy(..) |
 				Call::Council(..) |
+				Call::TechnicalCommittee(..) |
+				Call::TechnicalMembership(..) |
 				// Specifically omitting Vesting `vested_transfer`, and `force_vested_transfer`
 				Call::Utility(..) |
 				Call::Proxy(..) |
 				Call::Multisig(..)
 			),
 			ProxyType::Governance => matches!(c,
+				Call::Democracy(..) |
 				Call::Council(..) |
 				Call::TechnicalCommittee(..) |
+				Call::Elections(..) |
 				Call::CordReserve(..) |
 				Call::Utility(..)
 			),

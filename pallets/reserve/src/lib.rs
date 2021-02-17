@@ -6,12 +6,12 @@
 
 #[cfg(test)]
 mod tests;
-
+pub use cord_primitives::Balance;
 use frame_support::{
-    decl_event, decl_module, decl_storage,
+    decl_event, decl_error, decl_module, decl_storage,
     traits::{Currency, EnsureOrigin, ExistenceRequirement, Get, Imbalance, OnUnbalanced},
     weights::GetDispatchInfo,
-    Parameter,
+    Parameter, ensure,
 };
 use frame_system::{ensure_root, ensure_signed};
 use sp_runtime::{
@@ -27,7 +27,7 @@ type NegativeImbalanceOf<T, I> = <<T as Trait<I>>::Currency as Currency<
 >>::NegativeImbalance;
 
 /// The module's configuration trait.
-pub trait Trait<I: Instance = DefaultInstance>: frame_system::Config {
+pub trait Trait<I: Instance = DefaultInstance>: frame_system::Config + pallet_balances::Config {
     type Event: From<Event<Self, I>> + Into<<Self as frame_system::Config>::Event>;
     type ExternalOrigin: EnsureOrigin<Self::Origin>;
     type Currency: Currency<Self::AccountId>;
@@ -37,6 +37,7 @@ pub trait Trait<I: Instance = DefaultInstance>: frame_system::Config {
 
 pub trait WithAccountId<AccountId> {
 fn account_id() -> AccountId;
+// fn balance() -> BalanceOf<T, I>;
 }
 
 decl_storage! {
@@ -61,44 +62,61 @@ decl_event!(
         AccountId = <T as frame_system::Config>::AccountId,
         Balance = BalanceOf<T, I>,
     {
-        /// Some amount was deposited (e.g. for transaction fees).
+        /// Some transaction units got deposited to the reserve.
         Deposit(AccountId, Balance),
-        /// Some funds were spent from the reserve.
-        SpentFunds(AccountId, Balance),
-        /// Someone tipped the company reserve
-        TipReceived(AccountId, Balance),
-        /// We executed a call coming from the company reserve account
+        /// Some CRD units were transfered from the reserve.
+        Transfer(AccountId, Balance),
+        /// Some CRD units got transfered to the  reserve
+        Received(AccountId, Balance),
+        // / We executed a call coming from the company reserve account
         ReserveOp(DispatchResult),
     }
 );
 
+decl_error! {
+    /// Error for the reserve module.
+    pub enum Error for Module<T: Trait<I>, I: Instance > {
+        /// Reserve balance is too low.
+        InsufficientBalance,
+    }
+}
+
 decl_module! {
     /// The module declaration.
     pub struct Module<T: Trait<I>, I: Instance = DefaultInstance> for enum Call where origin: T::Origin {
+        type Error = Error<T, I>;
+
         fn deposit_event() = default;
 
-        /// Spend `amount` funds from the reserve account to `to`.
+        /// Transfer CRD units from the reserve account.
         #[weight = 100_000_000]
-        pub fn spend(origin, to: T::AccountId, amount: BalanceOf<T, I>) -> DispatchResult {
-            T::ExternalOrigin::try_origin(origin)
+        pub fn transfer(origin, to: T::AccountId, amount: BalanceOf<T, I>) -> DispatchResult {
+                T::ExternalOrigin::try_origin(origin)
                 .map(|_| ())
                 .or_else(ensure_root)?;
+            // ensure_root(origin)?;
+            
+            let balance = T::Currency::free_balance(&Self::account_id());
+            ensure!(
+                balance >= amount,
+                Error::<T, I>::InsufficientBalance
+            );
 
             let _ = T::Currency::transfer(&Self::account_id(), &to, amount, ExistenceRequirement::KeepAlive);
 
-            Self::deposit_event(RawEvent::SpentFunds(to, amount));
+            Self::deposit_event(RawEvent::Transfer(to, amount));
 
             Ok(())
         }
 
-        /// Deposit `amount` tokens in the treasure account
+        /// Deposit CRD units to the reserve account
         #[weight = 50_000_000]
-        pub fn tip(origin, amount: BalanceOf<T, I>) -> DispatchResult {
+        pub fn receive(origin, amount: BalanceOf<T, I>) -> DispatchResult {
             let tipper = ensure_signed(origin)?;
 
             let _ = T::Currency::transfer(&tipper, &Self::account_id(), amount, ExistenceRequirement::AllowDeath);
 
-            Self::deposit_event(RawEvent::TipReceived(tipper, amount));
+            Self::deposit_event(RawEvent::Received(tipper, amount));
 
             Ok(())
         }
@@ -125,13 +143,12 @@ impl<T: Trait<I>, I: Instance> WithAccountId<T::AccountId> for Module<T, I> {
 
 impl<T: Trait<I>, I: Instance> OnUnbalanced<NegativeImbalanceOf<T, I>> for Module<T, I> {
     fn on_nonzero_unbalanced(amount: NegativeImbalanceOf<T, I>) {
-    let numeric_amount = amount.peek();
-    let reserve_id = Self::account_id();
+        let numeric_amount = amount.peek();
+        let reserve_id = Self::account_id();
 
-    // Must resolve into existing but better to be safe.
-    let _ = T::Currency::resolve_creating(&Self::account_id(), amount);
-
-    Self::deposit_event(RawEvent::Deposit(reserve_id, numeric_amount));
-}
+        // Must resolve into existing but better to be safe.
+        let _ = T::Currency::resolve_creating(&Self::account_id(), amount);
+        Self::deposit_event(RawEvent::Deposit(reserve_id, numeric_amount));
+    }
 }
  

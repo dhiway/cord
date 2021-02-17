@@ -4,10 +4,10 @@
 //! CORD chain configurations.
 
 use cord_runtime::{
-	AuthorityDiscoveryConfig, BalancesConfig, CouncilConfig, 
-	 ImOnlineConfig, IndicesConfig, SessionConfig,
-	GenesisConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
-	 TechnicalCommitteeConfig,  WASM_BINARY,
+	AuthorityDiscoveryConfig, BalancesConfig, CouncilConfig, DemocracyConfig,
+	ImOnlineConfig, IndicesConfig, SessionConfig, GenesisConfig,
+	SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
+	TechnicalCommitteeConfig,  WASM_BINARY,
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_service::{ChainType, Properties};
@@ -194,6 +194,7 @@ fn bombay_brown_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		}),
+		pallet_democracy: Some(DemocracyConfig::default()),
 		pallet_collective_Instance1: Some(CouncilConfig {
 			members: endowed_accounts
 				.iter()
@@ -209,12 +210,13 @@ fn bombay_brown_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			phantom: Default::default(),
 		}),
 		pallet_membership_Instance1: Some(Default::default()),
-		pallet_membership_Instance2: Some(Default::default()),
+		// pallet_membership_Instance2: Some(Default::default()),
 		pallet_reserve_Instance1: Some(Default::default()),
 		pallet_aura: Some(Default::default()),
 		pallet_grandpa: Some(Default::default()),
 		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
 		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
+		pallet_elections_phragmen: Some(Default::default()),
 		pallet_sudo: Some(SudoConfig {
 			key: endowed_accounts[0].clone(),
 		}),
@@ -356,6 +358,7 @@ fn indian_teal_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 				slash_reward_fraction: Perbill::from_percent(10),
 				..Default::default()
 			}),
+			pallet_democracy: Some(DemocracyConfig::default()),
 			pallet_collective_Instance1: Some(CouncilConfig {
 				members: endowed_accounts
 					.iter()
@@ -371,12 +374,13 @@ fn indian_teal_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 				phantom: Default::default(),
 			}),
 			pallet_membership_Instance1: Some(Default::default()),
-			pallet_membership_Instance2: Some(Default::default()),
+			// pallet_membership_Instance2: Some(Default::default()),
 			pallet_reserve_Instance1: Some(Default::default()),
 			pallet_aura: Some(Default::default()),
 			pallet_grandpa: Some(Default::default()),
 			pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
 			pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
+			pallet_elections_phragmen: Some(Default::default()),
 			pallet_sudo: Some(SudoConfig {
 				key: endowed_accounts[0].clone(),
 			}),
@@ -529,6 +533,7 @@ fn royal_blue_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		}),
+		pallet_democracy: Some(DemocracyConfig::default()),
 		pallet_collective_Instance1: Some(CouncilConfig {
 			members: endowed_accounts
 				.iter()
@@ -544,12 +549,13 @@ fn royal_blue_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			phantom: Default::default(),
 		}),
 		pallet_membership_Instance1: Some(Default::default()),
-		pallet_membership_Instance2: Some(Default::default()),
+		// pallet_membership_Instance2: Some(Default::default()),
 		pallet_reserve_Instance1: Some(Default::default()),
 		pallet_aura: Some(Default::default()),
 		pallet_grandpa: Some(Default::default()),
 		pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
 		pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
+		pallet_elections_phragmen: Some(Default::default()),
 		pallet_sudo: Some(SudoConfig {
 			key: endowed_accounts[0].clone(),
 		}),
