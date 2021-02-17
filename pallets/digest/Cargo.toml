@@ -1,9 +1,9 @@
 [package]
-name = 'pallet-mtype'
+name = 'pallet-digest'
 version = '0.3.2'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
-description = 'Enables adding #MARK TYPEs (Schemas).'
+description = 'Enables adding and revoking mark digests.'
 
 [[package.metadata.docs.rs]]
 targets = ['x86_64-unknown-linux-gnu']
@@ -12,6 +12,7 @@ targets = ['x86_64-unknown-linux-gnu']
 wasm-builder = { package = 'substrate-wasm-builder', version = '3.0.0' }
 
 [dependencies]
+bitflags = { default-features = false, version = '1.2.1' }
 codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
 
 # Substrate dependencies
@@ -20,6 +21,9 @@ frame-system = { git = "https://github.com/paritytech/substrate", branch = "mast
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+
+# pallets
+pallet-mark = { default-features = false, path = '../mark' }
 
 [dev-dependencies]
 cord-runtime = { default-features = false, path = '../../runtime' }
@@ -34,5 +38,5 @@ std = [
 	'sp-runtime/std',
 	'sp-std/std',
 	'sp-io/std',
+	'pallet-mark/std',
 ]
-

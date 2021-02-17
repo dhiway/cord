@@ -8,7 +8,7 @@ members = [
 	'pallets/did',
 	'pallets/delegation',
 	'pallets/reserve',
-
+	'pallets/digest',
 ]
 
 # The list of dependencies below (which can be both direct and indirect dependencies) are crates

@@ -63,11 +63,11 @@ decl_module! {
 
 		/// Anchors a new #MARK on chain
 		///, where, originis the signed sender account,
-		/// stream_hash is the hash of the stream,
+		/// mark_hash is the hash of the content stream,
 		/// mtype_hash is the hash of the #MARK TYPE,
 		/// and delegation_id refers to a #MARK TYPE delegation.
 		#[weight = 10_000_000]
-		pub fn anchor(origin, stream_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult {
+		pub fn anchor(origin, mark_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 
@@ -75,7 +75,7 @@ decl_module! {
 			ensure!(<pallet_mtype::MTYPEs<T>>::contains_key(mtype_hash), pallet_mtype::Error::<T>::NotFound);
 
 			// check if the #MARK already exists
-			ensure!(!<Marks<T>>::contains_key(stream_hash), Error::<T>::AlreadyAnchored);
+			ensure!(!<Marks<T>>::contains_key(mark_hash), Error::<T>::AlreadyAnchored);
 
 			if let Some(d) = delegation_id {
 				// check if delegation exists
@@ -96,30 +96,30 @@ decl_module! {
 
 			// insert #MARK
 			debug::print!("insert #MARK");
-			<Marks<T>>::insert(stream_hash, Mark {mtype_hash, marker: sender.clone(), delegation_id, revoked: false});
+			<Marks<T>>::insert(mark_hash, Mark {mtype_hash, marker: sender.clone(), delegation_id, revoked: false});
 
 			if let Some(d) = delegation_id {
 				// if the #MARK is based on a delegation, store seperately
 				let mut delegated_marks = <DelegatedMarks<T>>::get(d);
-				delegated_marks.push(stream_hash);
+				delegated_marks.push(mark_hash);
 				<DelegatedMarks<T>>::insert(d, delegated_marks);
 			}
 
 			// deposit event that mark has beed added
-			Self::deposit_event(RawEvent::Anchored(sender, stream_hash, mtype_hash, delegation_id));
+			Self::deposit_event(RawEvent::Anchored(sender, mark_hash, mtype_hash, delegation_id));
 			Ok(())
 		}
 
 		/// Revokes a #MARK
 		/// where, origin is the signed sender account,
-		/// and stream_hash is the hash of the anchored #MARK.
+		/// and mark_hash is the hash of the anchored #MARK.
 		#[weight = 10_000_000]
-		pub fn revoke(origin, stream_hash: T::Hash, max_depth: u64) -> DispatchResult {
+		pub fn revoke(origin, mark_hash: T::Hash, max_depth: u64) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 
 			// lookup #MARK & check if it exists
-			let Mark {mtype_hash, marker, delegation_id, revoked, ..} = <Marks<T>>::get(stream_hash).ok_or(Error::<T>::MarkNotFound)?;
+			let Mark {mtype_hash, marker, delegation_id, revoked, ..} = <Marks<T>>::get(mark_hash).ok_or(Error::<T>::MarkNotFound)?;
 
 			// check if the #MARK has already been revoked
 			ensure!(!revoked, Error::<T>::AlreadyRevoked);
@@ -134,7 +134,7 @@ decl_module! {
 			
 			// revoke #MARK
 			debug::print!("revoking #MARK");
-			<Marks<T>>::insert(stream_hash, Mark {
+			<Marks<T>>::insert(mark_hash, Mark {
 				mtype_hash,
 				marker,
 				delegation_id,
@@ -142,7 +142,7 @@ decl_module! {
 			});
 
 			// deposit event that the #MARK has been revoked
-			Self::deposit_event(RawEvent::Revoked(sender, stream_hash));
+			Self::deposit_event(RawEvent::Revoked(sender, mark_hash));
 			Ok(())
 		}
 	}
@@ -151,19 +151,19 @@ decl_module! {
 #[derive(Encode, Decode)]
 pub struct Mark<T: Trait> {
 	// hash of the MTYPE used for this mark
-	mtype_hash: T::Hash,
+	pub mtype_hash: T::Hash,
 	// the account which executed the mark
-	marker: T::AccountId,
+	pub marker: T::AccountId,
 	// id of the delegation node (if exist)
-	delegation_id: Option<T::DelegationNodeId>,
+	pub delegation_id: Option<T::DelegationNodeId>,
 	// revocation status
-	revoked: bool,
+	pub revoked: bool,
 }
 
 decl_storage! {
 	trait Store for Module<T: Trait> as Mark {
 		/// Marks: stream-hash -> (mtype-hash, marker-account, delegation-id?, revoked)?
-		Marks get(fn marks): map hasher(opaque_blake2_256) T::Hash => Option<Mark<T>>;
+		pub Marks get(fn marks): map hasher(opaque_blake2_256) T::Hash => Option<Mark<T>>;
 		/// DelegatedMarks: delegation-id -> [stream-hash]
 		DelegatedMarks get(fn delegated_marks): map hasher(opaque_blake2_256) T::DelegationNodeId => Vec<T::Hash>;
 	}

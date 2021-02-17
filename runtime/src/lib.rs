@@ -84,8 +84,12 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cord"),
 	impl_name: create_runtime_str!("cord-node"),
 	authoring_version: 5,
-	spec_version: 11,
-	impl_version: 7,
+	// Per convention: if the runtime behavior changes, increment spec_version
+	// and set impl_version to equal spec_version. If only runtime
+	// implementation changes and behavior does not, then leave spec_version as
+	// is and increment impl_version.
+	spec_version: 12,
+	impl_version: 8,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 6,
 };
@@ -759,6 +763,10 @@ impl pallet_mark::Trait for Runtime {
 	type Event = Event;
 }
 
+impl pallet_digest::Trait for Runtime {
+	type Event = Event;
+}
+
 impl pallet_mtype::Trait for Runtime {
 	type Event = Event;
 }
@@ -821,8 +829,8 @@ construct_runtime! {
 		Mtype: pallet_mtype::{Module, Call, Storage, Event<T>} = 32,
 		Mark: pallet_mark::{Module, Call, Storage, Event<T>} = 33,
 		Delegation: pallet_delegation::{Module, Call, Storage, Event<T>} = 34,
-		CordReserve: pallet_reserve::<Instance1>::{Module, Call, Storage, Config, Event<T>} = 35,
-		// CordReserve: pallet_reserve::<Instance1>::{Module, Call, Storage, Config, Event<T>} = 35,
+		Digest: pallet_digest::{Module, Call, Storage, Event<T>} = 35,
+		CordReserve: pallet_reserve::<Instance1>::{Module, Call, Storage, Config, Event<T>} = 36,
 	}
 }
 

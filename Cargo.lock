@@ -853,7 +853,7 @@ dependencies = [
 
 [[package]]
 name = "cord-primitives"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "frame-system",
  "parity-scale-codec",
@@ -867,7 +867,7 @@ dependencies = [
 
 [[package]]
 name = "cord-runtime"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "bitvec",
  "cord-primitives",
@@ -887,6 +887,7 @@ dependencies = [
  "pallet-delegation",
  "pallet-democracy",
  "pallet-did",
+ "pallet-digest",
  "pallet-elections-phragmen",
  "pallet-grandpa",
  "pallet-im-online",
@@ -3656,11 +3657,28 @@ dependencies = [
 
 [[package]]
 name = "pallet-did"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "cord-runtime",
  "frame-support",
  "frame-system",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-digest"
+version = "0.3.2"
+dependencies = [
+ "bitflags",
+ "cord-runtime",
+ "frame-support",
+ "frame-system",
+ "pallet-mark",
  "parity-scale-codec",
  "sp-core",
  "sp-io",
@@ -3740,7 +3758,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-mark"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "bitflags",
  "cord-runtime",
@@ -3772,7 +3790,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-mtype"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "cord-runtime",
  "frame-support",
