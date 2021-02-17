@@ -69,7 +69,7 @@ decl_module! {
 			// check if the #MARK exists
         	let mark = <pallet_mark::Marks<T>>::get(mark_hash).ok_or(pallet_mark::Error::<T>::MarkNotFound)?;
             // check for MARK status - revoked?
-            ensure!(!mark.revoked, Error::<T>::AlreadyRevoked);
+            ensure!(!mark.revoked, pallet_mark::Error::<T>::AlreadyRevoked);
 		    // check if the digest already exists
 			ensure!(!<Digests<T>>::contains_key(digest_hash), Error::<T>::AlreadyAnchored);
 			

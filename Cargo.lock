@@ -787,7 +787,7 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
 name = "cord-node"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "cord-primitives",
  "cord-runtime",
@@ -3625,7 +3625,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-delegation"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "bitflags",
  "cord-runtime",
@@ -3863,7 +3863,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-reserve"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "cord-primitives",
  "frame-support",
