@@ -5,13 +5,14 @@
 
 //! testing Delegation
 
+use crate as pallet_delegation;
 use crate::*;
 
 use codec::Encode;
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::Weight,
-	impl_outer_origin, parameter_types,
+	parameter_types,
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass,
@@ -25,12 +26,21 @@ use sp_runtime::{
 	MultiSignature, MultiSigner, Perbill,
 };
 
-impl_outer_origin! {
-	pub enum Origin for Test {}
-}
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::mocking::MockBlock<Test>;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Test;
+frame_support::construct_runtime!(
+	pub enum Test where
+		Block = Block,
+		NodeBlock = Block,
+		UncheckedExtrinsic = UncheckedExtrinsic,
+	{
+		System: frame_system::{Module, Call, Config, Storage, Event<T>},
+		Delegation: pallet_delegation::{Module, Call, Storage, Event<T>},
+		MType: mtype::{Module, Call, Storage, Event<T>},
+	}
+);
+
 
 /// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
 /// This is used to limit the maximal weight of a single extrinsic.
@@ -68,7 +78,7 @@ parameter_types! {
 
 impl frame_system::Config for Test {
 	type Origin = Origin;
-	type Call = ();
+	type Call = Call;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -80,8 +90,7 @@ impl frame_system::Config for Test {
 	type BlockHashCount = BlockHashCount;
 	type DbWeight = RocksDbWeight;
 	type Version = ();
-
-	type PalletInfo = ();
+	type PalletInfo = PalletInfo;
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();

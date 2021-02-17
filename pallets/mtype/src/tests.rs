@@ -6,12 +6,11 @@
 //! #MARK Types: Handles #MARK Types,
 //! testing #MARK Types.
 
-use super::*;
-
-// use crate::*;
+use crate as pallet_mtype;
+use crate::*;
 
 use frame_support::{
-	assert_noop, assert_ok, impl_outer_origin, parameter_types,
+	assert_noop, assert_ok, parameter_types,
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		DispatchClass, Weight,
@@ -26,12 +25,19 @@ use sp_runtime::{
 	MultiSigner, Perbill,
 };
 
-impl_outer_origin! {
-	pub enum Origin for Test {}
-}
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::mocking::MockBlock<Test>;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Test;
+frame_support::construct_runtime!(
+	pub enum Test where
+		Block = Block,
+		NodeBlock = Block,
+		UncheckedExtrinsic = UncheckedExtrinsic,
+	{
+		System: frame_system::{Module, Call, Config, Storage, Event<T>},
+		Mtype: pallet_mtype::{Module, Call, Storage, Event<T>},
+	}
+);
 
 parameter_types! {
 	pub const BlockHashCount: u32 = 250;
@@ -76,7 +82,7 @@ parameter_types! {
 
 impl frame_system::Config for Test {
 	type Origin = Origin;
-	type Call = ();
+	type Call = Call;
 	type Index = u32;
 	type BlockNumber = u32;
 	type Hash = H256;
