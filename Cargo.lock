@@ -786,7 +786,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
-name = "cord-node"
+name = "cord"
 version = "0.3.2"
 dependencies = [
  "cord-primitives",
