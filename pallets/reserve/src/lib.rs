@@ -6,14 +6,15 @@
 
 #[cfg(test)]
 mod tests;
-pub use cord_primitives::Balance;
+
+pub use cord_primitives::{AccountId, Balance};
 use frame_support::{
     decl_event, decl_error, decl_module, decl_storage,
     traits::{Currency, EnsureOrigin, ExistenceRequirement, Get, Imbalance, OnUnbalanced},
     weights::GetDispatchInfo,
     Parameter, ensure,
 };
-use frame_system::{ensure_root, ensure_signed};
+use frame_system::ensure_signed;
 use sp_runtime::{
     traits::{AccountIdConversion, Dispatchable},
     DispatchResult, ModuleId,
@@ -21,13 +22,13 @@ use sp_runtime::{
 use sp_std::prelude::Box;
 
 type BalanceOf<T, I> =
-    <<T as Trait<I>>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-type NegativeImbalanceOf<T, I> = <<T as Trait<I>>::Currency as Currency<
+    <<T as Config<I>>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+type NegativeImbalanceOf<T, I> = <<T as Config<I>>::Currency as Currency<
     <T as frame_system::Config>::AccountId,
 >>::NegativeImbalance;
 
 /// The module's configuration trait.
-pub trait Trait<I: Instance = DefaultInstance>: frame_system::Config + pallet_balances::Config {
+pub trait Config<I: Instance = DefaultInstance>: frame_system::Config + pallet_balances::Config {
     type Event: From<Event<Self, I>> + Into<<Self as frame_system::Config>::Event>;
     type ExternalOrigin: EnsureOrigin<Self::Origin>;
     type Currency: Currency<Self::AccountId>;
@@ -40,7 +41,7 @@ pub trait WithAccountId<AccountId> {
 }
 
 decl_storage! {
-    trait Store for Module<T: Trait<I>, I: Instance = DefaultInstance> as Reserve {}
+    trait Store for Module<T: Config<I>, I: Instance = DefaultInstance> as Reserve {}
     add_extra_genesis {
         build(|_config| {
             let our_account = &<Module<T, I>>::account_id();
@@ -74,7 +75,7 @@ decl_event!(
 
 decl_error! {
     /// Error for the reserve module.
-    pub enum Error for Module<T: Trait<I>, I: Instance > {
+    pub enum Error for Module<T: Config<I>, I: Instance > {
         /// Reserve balance is too low.
         InsufficientBalance,
     }
@@ -82,7 +83,7 @@ decl_error! {
 
 decl_module! {
     /// The module declaration.
-    pub struct Module<T: Trait<I>, I: Instance = DefaultInstance> for enum Call where origin: T::Origin {
+    pub struct Module<T: Config<I>, I: Instance = DefaultInstance> for enum Call where origin: T::Origin {
         type Error = Error<T, I>;
 
         fn deposit_event() = default;
@@ -90,10 +91,10 @@ decl_module! {
         /// Transfer CRD units from the reserve account.
         #[weight = 100_000_000]
         pub fn transfer(origin, to: T::AccountId, amount: BalanceOf<T, I>) -> DispatchResult {
-                T::ExternalOrigin::try_origin(origin)
-                .map(|_| ())
-                .or_else(ensure_root)?;
-            // ensure_root(origin)?;
+                T::ExternalOrigin::ensure_origin(origin)?;
+                // try_origin(origin)
+                // .map(|_| ())
+                // .or_else(ensure_root)?;
             
             let balance = T::Currency::free_balance(&Self::account_id());
             ensure!(
@@ -122,10 +123,11 @@ decl_module! {
 
         /// Dispatch a call as coming from the reserve account
         #[weight = (call.get_dispatch_info().weight + 10_000, call.get_dispatch_info().class)]
-        pub fn apply_as(origin, call: Box<<T as Trait<I>>::Call>) {
-            T::ExternalOrigin::try_origin(origin)
-                .map(|_| ())
-                .or_else(ensure_root)?;
+        pub fn apply_as(origin, call: Box<<T as Config<I>>::Call>) {
+            T::ExternalOrigin::ensure_origin(origin)?;
+            // try_origin(origin)
+            //     .map(|_| ())
+            //     .or_else(ensure_root)?;
 
             let res = call.dispatch(frame_system::RawOrigin::Root.into());
 
@@ -134,13 +136,13 @@ decl_module! {
     }
 }
 
-impl<T: Trait<I>, I: Instance> WithAccountId<T::AccountId> for Module<T, I> {
+impl<T: Config<I>, I: Instance> WithAccountId<T::AccountId> for Module<T, I> {
     fn account_id() -> T::AccountId {
         T::ModuleId::get().into_account()
     }
 }
 
-impl<T: Trait<I>, I: Instance> OnUnbalanced<NegativeImbalanceOf<T, I>> for Module<T, I> {
+impl<T: Config<I>, I: Instance> OnUnbalanced<NegativeImbalanceOf<T, I>> for Module<T, I> {
     fn on_nonzero_unbalanced(amount: NegativeImbalanceOf<T, I>) {
         let numeric_amount = amount.peek();
         let reserve_id = Self::account_id();
