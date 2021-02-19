@@ -174,7 +174,5 @@ fn try_root_if_not_admin() {
 
         assert_ok!(CordReserve::transfer(Origin::signed(1), 3, 100));
         assert_ok!(CordReserve::apply_as(Origin::signed(1), make_call(1)));
-        // assert_ok!(CordReserve::transfer(RawOrigin::Root.into(), 3, 100));
-        // assert_ok!(CordReserve::apply_as(RawOrigin::Root.into(), make_call(1)));
     })
 }
