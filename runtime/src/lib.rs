@@ -587,7 +587,7 @@ parameter_types! {
     pub const CordReserveModuleId: ModuleId = ModuleId(*b"py/resrv"); 
 }
 
-impl pallet_reserve::Trait<pallet_reserve::Instance1> for Runtime {
+impl pallet_reserve::Config<pallet_reserve::Instance1> for Runtime {
     type Event = Event;
     type Currency = pallet_balances::Module<Runtime>;
     type ExternalOrigin = 
