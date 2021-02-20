@@ -7,24 +7,17 @@
 //! test adding and removing DIDs.
 
 use crate as pallet_did;
-use crate::*;
+use super::*;
 
 use frame_support::{
-	assert_ok,
-	dispatch::Weight,
-	parameter_types,
-	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		DispatchClass,
-	},
+	assert_ok, parameter_types,
 };
-use frame_system::limits::{BlockLength, BlockWeights};
-use cord_runtime::{Signature, Header, BlockHashCount};
+
 use sp_core::{ed25519, Pair, H256};
+use sp_core::ed25519::Signature;
 use sp_runtime::{
-	// testing::Header,
-	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	MultiSigner, Perbill,
+   testing::Header,
+   traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -37,50 +30,25 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Module, Call, Config, Storage, Event<T>},
-		Did: pallet_did::{Module, Call, Storage, Event<T>},
+		DID: pallet_did::{Module, Call, Storage, Event<T>},
 	}
 );
 
-// pub const BlockHashCount: u32 = 250;
-
-/// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
-/// This is used to limit the maximal weight of a single extrinsic.
-const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
-/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used
-/// by  Operational  extrinsics.
-const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-/// We allow for 2 seconds of compute with a 4 second average block time.
-const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
-
 parameter_types! {
-	pub RuntimeBlockLength: BlockLength =
-		BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
-	pub RuntimeBlockWeights: BlockWeights = BlockWeights::builder()
-		.base_block(BlockExecutionWeight::get())
-		.for_class(DispatchClass::all(), |weights| {
-			weights.base_extrinsic = ExtrinsicBaseWeight::get();
-		})
-		.for_class(DispatchClass::Normal, |weights| {
-			weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT);
-		})
-		.for_class(DispatchClass::Operational, |weights| {
-			weights.max_total = Some(MAXIMUM_BLOCK_WEIGHT);
-			// Operational transactions have some extra reserved space, so that they
-			// are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
-			weights.reserved = Some(
-				MAXIMUM_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT
-			);
-		})
-		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
-		.build_or_panic();
-	pub const SS58Prefix: u8 = 29;
+	pub const BlockHashCount: u64 = 250;
+	pub BlockWeights: frame_system::limits::BlockWeights =
+		frame_system::limits::BlockWeights::simple_max(1024);
 }
 
 impl frame_system::Config for Test {
+	type BaseCallFilter = ();
+	type BlockWeights = ();
+	type BlockLength = ();
+	type DbWeight = ();
 	type Origin = Origin;
+	type Index = u64;
+	type BlockNumber = u64;
 	type Call = Call;
-	type Index = u32;
-	type BlockNumber = u32;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
@@ -88,26 +56,24 @@ impl frame_system::Config for Test {
 	type Header = Header;
 	type Event = ();
 	type BlockHashCount = BlockHashCount;
-	type DbWeight = RocksDbWeight;
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
-	type BaseCallFilter = ();
 	type SystemWeightInfo = ();
-	type BlockWeights = RuntimeBlockWeights;
-	type BlockLength = RuntimeBlockLength;
-	type SS58Prefix = SS58Prefix;
+	type SS58Prefix = ();
 }
 
-impl Trait for Test {
+impl Config for Test {
 	type Event = ();
 	type PublicSigningKey = H256;
 	type PublicBoxKey = H256;
 }
-
-type DID = Module<Test>;
+pub fn account_pair(s: &str) -> ed25519::Pair {
+    ed25519::Pair::from_string(&format!("//{}", s), None)
+		.expect("static values are valid")
+}
 
 fn new_test_ext() -> sp_io::TestExternalities {
 	frame_system::GenesisConfig::default()
@@ -117,29 +83,36 @@ fn new_test_ext() -> sp_io::TestExternalities {
 }
 
 #[test]
-fn check_add_did() {
+fn add_did() {
 	new_test_ext().execute_with(|| {
-		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
+		let pair = account_pair("Alice");
 		let signing_key = H256::from_low_u64_be(1);
 		let box_key = H256::from_low_u64_be(2);
-		let account = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(DID::add(
-			Origin::signed(account.clone()),
+		let account = pair.public();
+		assert_ok!(DID::anchor(
+			Origin::signed(account),
 			signing_key,
 			box_key,
 			Some(b"http://dway.io/submit".to_vec())
 		));
 
-		assert_eq!(<DIDs<Test>>::contains_key(account.clone()), true);
+		assert_eq!(<DIDs<Test>>::contains_key(account), true);
 		let did = {
-			let opt = DID::dids(account.clone());
+			let opt = DID::dids(account);
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
 		assert_eq!(did.0, signing_key);
 		assert_eq!(did.1, box_key);
 		assert_eq!(did.2, Some(b"http://dway.io/submit".to_vec()));
+	});
+}
 
+#[test]
+fn remove_did() {
+	new_test_ext().execute_with(|| {
+		let pair = account_pair("Alice");
+		let account = pair.public();
 		assert_ok!(DID::remove(Origin::signed(account.clone())));
 		assert_eq!(<DIDs<Test>>::contains_key(account), false);
 	});

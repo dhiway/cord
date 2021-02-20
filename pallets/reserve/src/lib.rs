@@ -92,10 +92,7 @@ decl_module! {
         #[weight = 100_000_000]
         pub fn transfer(origin, to: T::AccountId, amount: BalanceOf<T, I>) -> DispatchResult {
                 T::ExternalOrigin::ensure_origin(origin)?;
-                // try_origin(origin)
-                // .map(|_| ())
-                // .or_else(ensure_root)?;
-            
+
             let balance = T::Currency::free_balance(&Self::account_id());
             ensure!(
                 balance >= amount,
@@ -125,9 +122,6 @@ decl_module! {
         #[weight = (call.get_dispatch_info().weight + 10_000, call.get_dispatch_info().class)]
         pub fn apply_as(origin, call: Box<<T as Config<I>>::Call>) {
             T::ExternalOrigin::ensure_origin(origin)?;
-            // try_origin(origin)
-            //     .map(|_| ())
-            //     .or_else(ensure_root)?;
 
             let res = call.dispatch(frame_system::RawOrigin::Root.into());
 

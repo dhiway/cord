@@ -12,7 +12,7 @@
 	assert_noop, assert_ok,parameter_types, ord_parameter_types,
 };
 
-use frame_system::{EnsureSignedBy, RawOrigin };
+use frame_system::EnsureSignedBy;
 use sp_core::H256;
 use sp_runtime::{
    ModuleId,
