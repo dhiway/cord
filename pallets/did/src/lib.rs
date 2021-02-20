@@ -19,7 +19,7 @@ use sp_runtime::{codec::Codec, traits::Member};
 use sp_std::prelude::*;
 
 /// The DID trait
-pub trait Trait: frame_system::Config {
+pub trait Config: frame_system::Config {
 	/// DID specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 	/// Public signing key type for DIDs
@@ -40,7 +40,7 @@ decl_event!(
 
 decl_module! {
 	/// The DID runtime module
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 
 		/// Deposit events
 		fn deposit_event() = default;
@@ -76,7 +76,7 @@ decl_module! {
 }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as DID {
+	trait Store for Module<T: Config> as DID {
 		// DID: account-id -> (public-signing-key, public-encryption-key, did-reference?)?
 		DIDs get(fn dids):map hasher(opaque_blake2_256) T::AccountId => Option<(T::PublicSigningKey, T::PublicBoxKey, Option<Vec<u8>>)>;
 	}
