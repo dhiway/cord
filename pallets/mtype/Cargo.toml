@@ -22,7 +22,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", d
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 [dev-dependencies]
-cord-runtime = { default-features = false, path = '../../runtime' }
+serde = { version = "1.0", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 [features]

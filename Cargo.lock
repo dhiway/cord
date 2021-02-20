@@ -3792,10 +3792,10 @@ dependencies = [
 name = "pallet-mtype"
 version = "0.3.2"
 dependencies = [
- "cord-runtime",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
+ "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
