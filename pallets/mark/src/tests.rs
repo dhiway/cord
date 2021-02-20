@@ -7,7 +7,7 @@
 //! adding and revoking #MARKs.
 
 use crate as pallet_mark;
-use crate::*;
+use super::*;
 
 use frame_support::{
 	assert_ok, assert_noop, parameter_types,
@@ -132,10 +132,8 @@ fn check_anchor_mark() {
 fn check_revoke_mark() {
 	new_test_ext().execute_with(|| {
 		let pair = account_pair("Alice");
-		// let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
-		// let account = MultiSigner::from(pair.public()).into_account();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
 		assert_ok!(PalletMark::anchor(
 			Origin::signed(account.clone()),
@@ -169,10 +167,8 @@ fn check_revoke_mark() {
 fn check_double_mark() {
 	new_test_ext().execute_with(|| {
 		let pair = account_pair("Alice");
-		// let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
-		// let account = MultiSigner::from(pair.public()).into_account();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
 		assert_ok!(PalletMark::anchor(
 			Origin::signed(account.clone()),
@@ -191,10 +187,8 @@ fn check_double_mark() {
 fn check_double_revoke_mark() {
 	new_test_ext().execute_with(|| {
 		let pair = account_pair("Alice");
-		// let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
-		// let account = MultiSigner::from(pair.public()).into_account();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
 		assert_ok!(PalletMark::anchor(
 			Origin::signed(account.clone()),

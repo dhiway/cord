@@ -3628,11 +3628,12 @@ name = "pallet-delegation"
 version = "0.3.2"
 dependencies = [
  "bitflags",
- "cord-runtime",
+ "cord-primitives",
  "frame-support",
  "frame-system",
  "pallet-mtype",
  "parity-scale-codec",
+ "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
