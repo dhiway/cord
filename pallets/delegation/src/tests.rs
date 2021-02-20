@@ -101,11 +101,11 @@ impl frame_system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 }
 
-impl mtype::Trait for Test {
+impl mtype::Config for Test {
 	type Event = ();
 }
 
-impl Trait for Test {
+impl Config for Test {
 	type Event = ();
 	type Signature = MultiSignature;
 	type Signer = <Self::Signature as Verify>::Signer;

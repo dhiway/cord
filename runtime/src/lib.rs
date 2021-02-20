@@ -759,26 +759,26 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-impl pallet_mark::Trait for Runtime {
+impl pallet_mark::Config for Runtime {
 	type Event = Event;
 }
 
-impl pallet_digest::Trait for Runtime {
+impl pallet_digest::Config for Runtime {
 	type Event = Event;
 }
 
-impl pallet_mtype::Trait for Runtime {
+impl pallet_mtype::Config for Runtime {
 	type Event = Event;
 }
 
-impl pallet_delegation::Trait for Runtime {
+impl pallet_delegation::Config for Runtime {
 	type Event = Event;
 	type Signature = Signature;
 	type Signer = <Signature as Verify>::Signer;
 	type DelegationNodeId = Hash;
 }
 
-impl pallet_did::Trait for Runtime {
+impl pallet_did::Config for Runtime {
 	type Event = Event;
 	type PublicSigningKey = Hash;
 	type PublicBoxKey = Hash;

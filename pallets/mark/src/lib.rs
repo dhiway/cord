@@ -20,7 +20,7 @@ use frame_system::{self, ensure_signed};
 use sp_std::prelude::{Clone, PartialEq, Vec};
 
 /// The #MARK trait
-pub trait Trait: frame_system::Config + pallet_delegation::Trait {
+pub trait Config: frame_system::Config + pallet_delegation::Config {
 	/// #MARK specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 }
@@ -28,7 +28,7 @@ pub trait Trait: frame_system::Config + pallet_delegation::Trait {
 decl_event!(
 	/// Events for Marks
 	pub enum Event<T> where <T as frame_system::Config>::AccountId, <T as frame_system::Config>::Hash,
-			<T as pallet_delegation::Trait>::DelegationNodeId {
+			<T as pallet_delegation::Config>::DelegationNodeId {
 		/// A new #MARK has been anchored
 		Anchored(AccountId, Hash, Hash, Option<DelegationNodeId>),
 		/// A #MARK has been revoked
@@ -38,7 +38,7 @@ decl_event!(
 
 // The pallet's errors
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
 		AlreadyAnchored,
 		AlreadyRevoked,
 		MarkNotFound,
@@ -52,7 +52,7 @@ decl_error! {
 
 decl_module! {
 	/// The #MARK runtime module
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		/// Deposit events
 		fn deposit_event() = default;
 
@@ -149,7 +149,7 @@ decl_module! {
 }
 
 #[derive(Encode, Decode)]
-pub struct Mark<T: Trait> {
+pub struct Mark<T: Config> {
 	// hash of the MTYPE used for this mark
 	pub mtype_hash: T::Hash,
 	// the account which executed the mark
@@ -161,7 +161,7 @@ pub struct Mark<T: Trait> {
 }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as Mark {
+	trait Store for Module<T: Config> as Mark {
 		/// Marks: stream-hash -> (mtype-hash, marker-account, delegation-id?, revoked)?
 		pub Marks get(fn marks): map hasher(opaque_blake2_256) T::Hash => Option<Mark<T>>;
 		/// DelegatedMarks: delegation-id -> [stream-hash]

@@ -18,7 +18,7 @@ use frame_system::{self, ensure_signed};
 use sp_std::prelude::{Clone, PartialEq};
 
 /// The #MARK Digest trait
-pub trait Trait: frame_system::Config + pallet_mark::Trait {
+pub trait Config: frame_system::Config + pallet_mark::Config {
 	/// #MARK Digest specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 }
@@ -35,7 +35,7 @@ decl_event!(
 
 // The pallet's errors
 decl_error! {
-	pub enum Error for Module<T: Trait> {
+	pub enum Error for Module<T: Config> {
         /// The digest has already been anchored.
         AlreadyAnchored,
         /// The digest does not exist.
@@ -49,7 +49,7 @@ decl_error! {
 
 decl_module! {
 	/// The #MARK runtime module
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		/// Deposit events
 		fn deposit_event() = default;
 
@@ -112,7 +112,7 @@ decl_module! {
 }
 
 #[derive(Encode, Decode)]
-pub struct Digest<T: Trait> {
+pub struct Digest<T: Config> {
 	// hash of the MTYPE used for this mark
 	mark_hash: T::Hash,
 	// the account which executed the mark
@@ -122,7 +122,7 @@ pub struct Digest<T: Trait> {
 }
 
 decl_storage! {
-	trait Store for Module<T: Trait> as Digest {
+	trait Store for Module<T: Config> as Digest {
 		/// Digests: digest-hash -> (mark-hash, marker-account, revoked)?
 		Digests get(fn digests): map hasher(opaque_blake2_256) T::Hash => Option<Digest<T>>;
 	}

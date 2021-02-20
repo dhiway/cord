@@ -9,7 +9,7 @@
 
  use std::cell::RefCell;
  use frame_support::{
-	assert_noop, assert_ok,parameter_types, ord_parameter_types,
+	assert_noop, assert_ok, parameter_types, ord_parameter_types,
 };
 
 use frame_system::EnsureSignedBy;

@@ -7,6 +7,7 @@
 //! adding and revoking #MARKs.
 
 use crate as pallet_mark;
+use super::*;
 
 use codec::Encode;
 use frame_support::{
@@ -44,78 +45,43 @@ frame_support::construct_runtime!(
 );
 
 
-/// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
-/// This is used to limit the maximal weight of a single extrinsic.
-const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
-/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used
-/// by  Operational  extrinsics.
-const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-/// We allow for 2 seconds of compute with a 4 second average block time.
-const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
-
-parameter_types! {
-	pub RuntimeBlockLength: BlockLength =
-		BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
-	pub RuntimeBlockWeights: BlockWeights = BlockWeights::builder()
-		.base_block(BlockExecutionWeight::get())
-		.for_class(DispatchClass::all(), |weights| {
-			weights.base_extrinsic = ExtrinsicBaseWeight::get();
-		})
-		.for_class(DispatchClass::Normal, |weights| {
-			weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT);
-		})
-		.for_class(DispatchClass::Operational, |weights| {
-			weights.max_total = Some(MAXIMUM_BLOCK_WEIGHT);
-			// Operational transactions have some extra reserved space, so that they
-			// are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
-			weights.reserved = Some(
-				MAXIMUM_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT
-			);
-		})
-		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
-		.build_or_panic();
-	pub const SS58Prefix: u8 = 29;
-	pub const BlockHashCount: u32 = 250;
-
-}
-
 impl frame_system::Config for Test {
+	type BaseCallFilter = ();
+	type BlockWeights = ();
+	type BlockLength = ();
+	type DbWeight = ();
 	type Origin = Origin;
+	type Index = u64;
+	type BlockNumber = u64;
 	type Call = Call;
-	type Index = u32;
-	type BlockNumber = u32;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-	type Lookup = IdentityLookup<AccountId>;
+	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = ();
 	type BlockHashCount = BlockHashCount;
-	type DbWeight = RocksDbWeight;
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
-	type BaseCallFilter = ();
 	type SystemWeightInfo = ();
-	type BlockWeights = RuntimeBlockWeights;
-	type BlockLength = RuntimeBlockLength;
-	type SS58Prefix = SS58Prefix;
+	type SS58Prefix = ();
 }
 
-impl mtype::Trait for Test {
+impl mtype::Config for Test {
 	type Event = ();
 }
 
-impl delegation::Trait for Test {
+impl delegation::Config for Test {
 	type Event = ();
 	type Signature = Signature;
 	type Signer = <Self::Signature as Verify>::Signer;
 	type DelegationNodeId = H256;
 }
 
-impl Trait for Test {
+impl Config for Test {
 	type Event = ();
 }
 
@@ -130,15 +96,22 @@ fn hash_to_u8<T: Encode>(hash: T) -> Vec<u8> {
 	hash.encode()
 }
 
+pub fn account_pair(s: &str) -> ed25519::Pair {
+    ed25519::Pair::from_string(&format!("//{}", s), None)
+		.expect("static values are valid")
+}
+
 #[test]
 fn check_anchor_mark() {
 	new_test_ext().execute_with(|| {
-		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
+		let pair = account_pair("Alice");
+		// let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
-		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
+		let account = pair.public();
+		// let account = MultiSigner::from(pair.public()).into_account();
+		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
 		assert_ok!(Mark::anchor(
-			Origin::signed(account_hash.clone()),
+			Origin::signed(account.clone()),
 			hash,
 			hash,
 			None
@@ -154,7 +127,7 @@ fn check_anchor_mark() {
 			opt.unwrap()
 		};
 		assert_eq!(mtype_hash, hash);
-		assert_eq!(marker, account_hash);
+		assert_eq!(marker, account);
 		assert_eq!(delegation_id, None);
 		assert_eq!(revoked, false);
 	});
@@ -163,18 +136,19 @@ fn check_anchor_mark() {
 #[test]
 fn check_revoke_mark() {
 	new_test_ext().execute_with(|| {
-		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
+		let pair = account_pair("Alice");
+		// let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
-		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
+		let account = MultiSigner::from(pair.public()).into_account();
+		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
 		assert_ok!(Mark::anchor(
-			Origin::signed(account_hash.clone()),
+			Origin::signed(account.clone()),
 			hash,
 			hash,
 			None
 		));
 		assert_ok!(Mark::revoke(
-			Origin::signed(account_hash.clone()),
+			Origin::signed(account.clone()),
 			hash,
 			10
 		));
@@ -189,7 +163,7 @@ fn check_revoke_mark() {
 			opt.unwrap()
 		};
 		assert_eq!(mtype_hash, hash);
-		assert_eq!(marker, account_hash);
+		assert_eq!(marker, account);
 		assert_eq!(delegation_id, None);
 		assert_eq!(revoked, true);
 	});
@@ -198,18 +172,19 @@ fn check_revoke_mark() {
 #[test]
 fn check_double_mark() {
 	new_test_ext().execute_with(|| {
-		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
+		let pair = account_pair("Alice");
+		// let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
-		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
+		let account = MultiSigner::from(pair.public()).into_account();
+		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
 		assert_ok!(Mark::anchor(
-			Origin::signed(account_hash.clone()),
+			Origin::signed(account.clone()),
 			hash,
 			hash,
 			None
 		));
 		assert_noop!(
-			Mark::anchor(Origin::signed(account_hash), hash, hash, None),
+			Mark::anchor(Origin::signed(account), hash, hash, None),
 			Error::<Test>::AlreadyAnchored
 		);
 	});
@@ -218,23 +193,24 @@ fn check_double_mark() {
 #[test]
 fn check_double_revoke_mark() {
 	new_test_ext().execute_with(|| {
-		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
+		let pair = account_pair("Alice");
+		// let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
-		let account_hash = MultiSigner::from(pair.public()).into_account();
-		assert_ok!(MType::anchor(Origin::signed(account_hash.clone()), hash));
+		let account = MultiSigner::from(pair.public()).into_account();
+		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
 		assert_ok!(Mark::anchor(
-			Origin::signed(account_hash.clone()),
+			Origin::signed(account.clone()),
 			hash,
 			hash,
 			None
 		));
 		assert_ok!(Mark::revoke(
-			Origin::signed(account_hash.clone()),
+			Origin::signed(account.clone()),
 			hash,
 			10
 		));
 		assert_noop!(
-			Mark::revoke(Origin::signed(account_hash), hash, 10),
+			Mark::revoke(Origin::signed(account), hash, 10),
 			Error::<Test>::AlreadyRevoked
 		);
 	});
@@ -243,11 +219,12 @@ fn check_double_revoke_mark() {
 #[test]
 fn check_revoke_unknown() {
 	new_test_ext().execute_with(|| {
-		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
+		let pair = account_pair("Alice");
+		// let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
-		let account_hash = MultiSigner::from(pair.public()).into_account();
+		let account = MultiSigner::from(pair.public()).into_account();
 		assert_noop!(
-			Mark::revoke(Origin::signed(account_hash), hash, 10),
+			Mark::revoke(Origin::signed(account), hash, 10),
 			Error::<Test>::MarkNotFound
 		);
 	});
@@ -256,9 +233,11 @@ fn check_revoke_unknown() {
 #[test]
 fn check_revoke_not_permitted() {
 	new_test_ext().execute_with(|| {
-		let pair_alice = ed25519::Pair::from_seed(&*b"Alice                           ");
+		let pair = account_pair("Alice");
+		// let pair_alice = ed25519::Pair::from_seed(&*b"Alice                           ");
 		let account_hash_alice = MultiSigner::from(pair_alice.public()).into_account();
-		let pair_bob = ed25519::Pair::from_seed(&*b"Bob                             ");
+		let pair = account_pair("Bob");
+		// let pair_bob = ed25519::Pair::from_seed(&*b"Bob                             ");
 		let account_hash_bob = MultiSigner::from(pair_bob.public()).into_account();
 		let hash = H256::from_low_u64_be(1);
 		assert_ok!(MType::anchor(Origin::signed(account_hash_alice.clone()), hash));
@@ -278,11 +257,14 @@ fn check_revoke_not_permitted() {
 #[test]
 fn check_anchor_mark_with_delegation() {
 	new_test_ext().execute_with(|| {
+		let pair = account_pair("Alice");
 		let pair_alice = ed25519::Pair::from_seed(&*b"Alice                           ");
-		let account_hash_alice = MultiSigner::from(pair_alice.public()).into_account();
+		// let account_hash_alice = MultiSigner::from(pair_alice.public()).into_account();
+		let pair = account_pair("Bob");
 		let pair_bob = ed25519::Pair::from_seed(&*b"Bob                             ");
 		let account_hash_bob = MultiSigner::from(pair_bob.public()).into_account();
-		let pair_charlie = ed25519::Pair::from_seed(&*b"Charlie                         ");
+		let pair = account_pair("Charlie");
+		// let pair_charlie = ed25519::Pair::from_seed(&*b"Charlie                         ");
 		let account_hash_charlie = MultiSigner::from(pair_charlie.public()).into_account();
 
 		let mtype_hash = H256::from_low_u64_be(1);
