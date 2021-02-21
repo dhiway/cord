@@ -6,8 +6,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 /// Test module for marks
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 use codec::{Decode, Encode};
 use frame_support::{
@@ -96,6 +96,9 @@ decl_module! {
 			// check if the #MARK Digest has already been revoked
 			ensure!(!revoked, Error::<T>::AlreadyRevoked);
 
+			// check the digest has been created by the sender of this transaction
+			ensure!(marker.eq(&sender), Error::<T>::NotOwner);
+			
 			// revoke #MARK
 			debug::print!("revoking #MARK Digest");
 			<Digests<T>>::insert(digest_hash, Digest {

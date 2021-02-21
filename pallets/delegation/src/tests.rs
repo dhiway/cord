@@ -6,24 +6,20 @@
 //! testing Delegation
 
 use crate as pallet_delegation;
-use crate::*;
+use super::*;
 
-use codec::Encode;
 use frame_support::{
-	assert_noop, assert_ok,
-	dispatch::Weight,
-	parameter_types,
-	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		DispatchClass,
-	},
+	assert_ok, assert_noop, parameter_types,
 };
-use frame_system::limits::{BlockLength, BlockWeights};
-use cord_runtime::{AccountId, Signature, Header};
+
 use sp_core::{ed25519, Pair, H256, H512};
+// use sp_core::ed25519::Signature;
+use cord_primitives::Signature;
+
 use sp_runtime::{
-	traits::{BlakeTwo256, IdentityLookup, Verify},
-	MultiSignature, MultiSigner, Perbill,
+   testing::Header,
+   traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+   MultiSignature, MultiSigner,
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -37,50 +33,25 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system::{Module, Call, Config, Storage, Event<T>},
 		Delegation: pallet_delegation::{Module, Call, Storage, Event<T>},
-		MType: mtype::{Module, Call, Storage, Event<T>},
+		MType: pallet_mtype::{Module, Call, Storage, Event<T>},
 	}
 );
 
-
-/// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
-/// This is used to limit the maximal weight of a single extrinsic.
-const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
-/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used
-/// by  Operational  extrinsics.
-const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-/// We allow for 2 seconds of compute with a 6 second average block time.
-const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
-
 parameter_types! {
-	pub RuntimeBlockLength: BlockLength =
-		BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
-	pub RuntimeBlockWeights: BlockWeights = BlockWeights::builder()
-		.base_block(BlockExecutionWeight::get())
-		.for_class(DispatchClass::all(), |weights| {
-			weights.base_extrinsic = ExtrinsicBaseWeight::get();
-		})
-		.for_class(DispatchClass::Normal, |weights| {
-			weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT);
-		})
-		.for_class(DispatchClass::Operational, |weights| {
-			weights.max_total = Some(MAXIMUM_BLOCK_WEIGHT);
-			// Operational transactions have some extra reserved space, so that they
-			// are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
-			weights.reserved = Some(
-				MAXIMUM_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT
-			);
-		})
-		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
-		.build_or_panic();
-	pub const BlockHashCount: u32 = 250;
-	pub const SS58Prefix: u8 = 29;
+	pub const BlockHashCount: u64 = 250;
+	pub BlockWeights: frame_system::limits::BlockWeights =
+		frame_system::limits::BlockWeights::simple_max(1024);
 }
 
 impl frame_system::Config for Test {
+	type BaseCallFilter = ();
+	type BlockWeights = ();
+	type BlockLength = ();
+	type DbWeight = ();
 	type Origin = Origin;
-	type Call = Call;
 	type Index = u64;
 	type BlockNumber = u64;
+	type Call = Call;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
@@ -88,20 +59,16 @@ impl frame_system::Config for Test {
 	type Header = Header;
 	type Event = ();
 	type BlockHashCount = BlockHashCount;
-	type DbWeight = RocksDbWeight;
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
-	type BaseCallFilter = ();
 	type SystemWeightInfo = ();
-	type BlockWeights = RuntimeBlockWeights;
-	type BlockLength = RuntimeBlockLength;
-	type SS58Prefix = SS58Prefix;
+	type SS58Prefix = ();
 }
 
-impl mtype::Config for Test {
+impl pallet_mtype::Config for Test {
 	type Event = ();
 }
 
@@ -111,9 +78,6 @@ impl Config for Test {
 	type Signer = <Self::Signature as Verify>::Signer;
 	type DelegationNodeId = H256;
 }
-
-type MType = mtype::Module<Test>;
-type Delegation = Module<Test>;
 
 fn hash_to_u8<T: Encode>(hash: T) -> Vec<u8> {
 	hash.encode()
@@ -166,7 +130,7 @@ fn check_add_and_revoke_delegations() {
 				id_level_1,
 				H256::from_low_u64_be(2)
 			),
-			mtype::Error::<Test>::NotFound
+			pallet_mtype::Error::<Test>::NotFound
 		);
 
 		assert_ok!(Delegation::add_delegation(
@@ -431,7 +395,8 @@ fn check_add_and_revoke_delegations() {
 		assert_ok!(Delegation::revoke_delegation(
 			Origin::signed(account_hash_charlie),
 			id_level_2_2,
-			10
+			10,
+			2
 		));
 
 		assert_eq!(Delegation::delegation(id_level_2_2).unwrap().revoked, true);

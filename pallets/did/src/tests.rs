@@ -70,6 +70,7 @@ impl Config for Test {
 	type PublicSigningKey = H256;
 	type PublicBoxKey = H256;
 }
+
 pub fn account_pair(s: &str) -> ed25519::Pair {
     ed25519::Pair::from_string(&format!("//{}", s), None)
 		.expect("static values are valid")
