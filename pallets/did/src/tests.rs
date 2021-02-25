@@ -103,9 +103,9 @@ fn add_did() {
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
-		assert_eq!(did.0, signing_key);
-		assert_eq!(did.1, box_key);
-		assert_eq!(did.2, Some(b"http://dway.io/submit".to_vec()));
+		assert_eq!(did.sign_key, signing_key);
+		assert_eq!(did.box_key, box_key);
+		assert_eq!(did.doc_ref, Some(b"http://dway.io/submit".to_vec()));
 	});
 }
 

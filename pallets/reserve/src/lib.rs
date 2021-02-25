@@ -73,6 +73,7 @@ decl_event!(
     }
 );
 
+
 decl_error! {
     /// Error for the reserve module.
     pub enum Error for Module<T: Config<I>, I: Instance > {

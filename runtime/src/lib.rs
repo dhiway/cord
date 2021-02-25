@@ -105,15 +105,9 @@ pub fn native_version() -> NativeVersion {
 
 type MoreThanHalfCouncil = EnsureOneOf<
 	AccountId,
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>
+	pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
+	frame_system::EnsureRoot<AccountId>
 >;
-
-// type MoreThanHalfTechCouncil = EnsureOneOf<
-// 	AccountId,
-// 	EnsureRoot<AccountId>,
-// 	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, TechnicalCollective>
-// >;
 
 /// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
 /// This is used to limit the maximal weight of a single extrinsic.
@@ -572,17 +566,6 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 	type MembershipChanged = TechnicalCommittee;
 }
 
-// impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
-// 	type Event = Event;
-// 	type AddOrigin = MoreThanHalfTechCouncil;
-// 	type RemoveOrigin = MoreThanHalfTechCouncil;
-// 	type SwapOrigin = MoreThanHalfTechCouncil;
-// 	type ResetOrigin = MoreThanHalfTechCouncil;
-// 	type PrimeOrigin = MoreThanHalfTechCouncil;
-// 	type MembershipInitialized = TechnicalCommittee;
-// 	type MembershipChanged = TechnicalCommittee;
-// }
-
 parameter_types! {
     pub const CordReserveModuleId: ModuleId = ModuleId(*b"py/resrv"); 
 }
@@ -590,9 +573,7 @@ parameter_types! {
 impl pallet_reserve::Config<pallet_reserve::Instance1> for Runtime {
     type Event = Event;
     type Currency = pallet_balances::Module<Runtime>;
-    type ExternalOrigin = 
-        pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>;
-	// MoreThanHalfCouncil;
+    type ExternalOrigin = MoreThanHalfCouncil;
     type Call = Call;
     type ModuleId = CordReserveModuleId;
 }
