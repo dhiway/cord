@@ -7,10 +7,11 @@
 pub mod currency {
 	use cord_primitives::Balance;
 
-	pub const CRD: Balance = 1_000_000_000_000;
+	pub const CRD: Balance = 1_000_000_000_000_000_000;
 	pub const RUPEES: Balance = CRD;
-	pub const PAISE: Balance = RUPEES / 100;     
-	pub const MILLIPAISE: Balance = PAISE / 100; 
+	pub const PAISE: Balance = RUPEES / 100;
+	pub const ANNAPAISE: Balance = PAISE / 100;
+	pub const MILLIPAISE: Balance = ANNAPAISE / 100;
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
 		items as Balance * 20 * RUPEES + (bytes as Balance) * 100 * MILLIPAISE
@@ -19,7 +20,7 @@ pub mod currency {
 
 /// Time and blocks.
 pub mod time {
-	use cord_primitives::{Moment, BlockNumber};
+	use cord_primitives::{BlockNumber, Moment};
 	pub const MILLISECS_PER_BLOCK: Moment = 4000;
 	pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
 
@@ -36,5 +37,4 @@ pub mod time {
 	pub const MINUTES: BlockNumber = 60 / (SECS_PER_BLOCK as BlockNumber);
 	pub const HOURS: BlockNumber = MINUTES * 60;
 	pub const DAYS: BlockNumber = HOURS * 24;
-
 }
