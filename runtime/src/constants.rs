@@ -11,7 +11,7 @@ pub mod currency {
 	pub const RUPEES: Balance = CRD;
 	pub const PAISE: Balance = RUPEES / 100;
 	pub const ANNAPAISE: Balance = PAISE / 100;
-	pub const MILLIPAISE: Balance = ANNAPAISE / 100;
+	pub const MILLIPAISE: Balance = ANNAPAISE / 1000;
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
 		items as Balance * 20 * RUPEES + (bytes as Balance) * 100 * MILLIPAISE
