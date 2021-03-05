@@ -13,8 +13,7 @@ mod tests;
 
 use codec::{Decode, Encode};
 use frame_support::{
-	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, 
-	ensure, StorageMap,
+	decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
 };
 use frame_system::{self, ensure_signed};
 use sp_std::prelude::{Clone, PartialEq, Vec};
@@ -85,17 +84,14 @@ decl_module! {
 
 				// check whether the owner of the delegation is not the sender of this transaction
 				ensure!(delegation.owner.eq(&sender), Error::<T>::NotDelegatedToMarker);
-				
 				// check whether the delegation is not set up for attesting claims
 				ensure!(delegation.permissions == pallet_delegation::Permissions::ANCHOR, Error::<T>::DelegationUnauthorisedToAnchor);
-				
 				// check if MTYPE of the delegation is matching the MTYPE of the mark
 				let root = <pallet_delegation::Root<T>>::get(delegation.root_id).ok_or(pallet_delegation::Error::<T>::RootNotFound)?;
 				ensure!(root.mtype_hash.eq(&mtype_hash), Error::<T>::MTypeMismatch);
 			}
 
 			// insert #MARK
-			debug::print!("insert #MARK");
 			<Marks<T>>::insert(mark_hash, Mark {mtype_hash, marker: sender.clone(), delegation_id, revoked: false});
 
 			if let Some(d) = delegation_id {
@@ -131,9 +127,7 @@ decl_module! {
 				// check whether the sender of the revocation is not a parent in the delegation hierarchy
 				ensure!(<pallet_delegation::Module<T>>::is_delegating(&sender, &del_id, max_depth)?, Error::<T>::UnauthorizedRevocation);
 			}
-			
 			// revoke #MARK
-			debug::print!("revoking #MARK");
 			<Marks<T>>::insert(mark_hash, Mark {
 				mtype_hash,
 				marker,
