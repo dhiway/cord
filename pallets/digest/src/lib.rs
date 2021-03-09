@@ -11,8 +11,7 @@ mod tests;
 
 use codec::{Decode, Encode};
 use frame_support::{
-	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, 
-	ensure, StorageMap,
+	decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
 };
 use frame_system::{self, ensure_signed};
 use sp_std::prelude::{Clone, PartialEq};
@@ -28,7 +27,7 @@ decl_event!(
 	pub enum Event<T> where <T as frame_system::Config>::AccountId, <T as frame_system::Config>::Hash {
 		/// A new #MARK Digest has been anchored
 		Anchored(AccountId, Hash, Hash),
-        /// A #MARK Digest has been revoked
+		/// A #MARK Digest has been revoked
 		Revoked(AccountId, Hash),
 	}
 );
@@ -36,14 +35,14 @@ decl_event!(
 // The pallet's errors
 decl_error! {
 	pub enum Error for Module<T: Config> {
-        /// The digest has already been anchored.
-        AlreadyAnchored,
-        /// The digest does not exist.
+		/// The digest has already been anchored.
+		AlreadyAnchored,
+		/// The digest does not exist.
 		NotFound,
-        /// The digest is anchored by another account.
-        NotOwner,
-        /// The digest is revoked.
-        AlreadyRevoked
+		/// The digest is anchored by another account.
+		NotOwner,
+		/// The digest is revoked.
+		AlreadyRevoked
 	}
 }
 
@@ -67,16 +66,13 @@ decl_module! {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if the #MARK exists
-        	let mark = <pallet_mark::Marks<T>>::get(mark_hash).ok_or(pallet_mark::Error::<T>::MarkNotFound)?;
-            // check for MARK status - revoked?
-            ensure!(!mark.revoked, pallet_mark::Error::<T>::AlreadyRevoked);
-		    // check if the digest already exists
+			let mark = <pallet_mark::Marks<T>>::get(mark_hash).ok_or(pallet_mark::Error::<T>::MarkNotFound)?;
+			// check for MARK status - revoked?
+			ensure!(!mark.revoked, pallet_mark::Error::<T>::AlreadyRevoked);
+			// check if the digest already exists
 			ensure!(!<Digests<T>>::contains_key(digest_hash), Error::<T>::AlreadyAnchored);
-			
 			// insert #MARK Digest
-			debug::print!("insert #MARK Digest");
 			<Digests<T>>::insert(digest_hash, Digest {mark_hash, marker: sender.clone(), revoked: false});
-			
 			// deposit event that mark has beed added
 			Self::deposit_event(RawEvent::Anchored(sender, digest_hash, mark_hash));
 			Ok(())
@@ -98,9 +94,7 @@ decl_module! {
 
 			// check the digest has been created by the sender of this transaction
 			ensure!(marker.eq(&sender), Error::<T>::NotOwner);
-			
 			// revoke #MARK
-			debug::print!("revoking #MARK Digest");
 			<Digests<T>>::insert(digest_hash, Digest {
 				mark_hash,
 				marker,

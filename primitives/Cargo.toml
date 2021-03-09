@@ -1,19 +1,19 @@
 [package]
 name = 'cord-primitives'
-version = '0.3.2'
+version = '0.4.0'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
 
 [dependencies]
 serde = { version = "1.0.120", optional = true }
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
-sp-application-crypto = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+frame-system = { version = "3.0.0", default-features = false }
+sp-application-crypto = { version = "3.0.0", default-features = false }
+sp-core = { version = "3.0.0", default-features = false }
+sp-runtime = { version = "3.0.0", default-features = false }
 
 [dev-dependencies]
-sp-serializer = { git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-serializer = { version = "3.0.0" }
 pretty_assertions = "0.6.1"
 
 [features]

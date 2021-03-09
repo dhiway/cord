@@ -12,8 +12,7 @@
 mod tests;
 
 use frame_support::{
-	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, 
-	ensure, StorageMap,
+	decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
 };
 use frame_system::{self, ensure_signed};
 
@@ -45,13 +44,12 @@ decl_module! {
 
 		/// Deposit events
 		fn deposit_event() = default;
-		
 		// Initializing errors
 		// this includes information about your errors in the node's metadata.
 		// it is needed only if you are using errors in your pallet
 		type Error = Error<T>;
 
-		/// Anchors a new #MARK schema on chain, 
+		/// Anchors a new #MARK schema on chain,
 		///, where, origin is the signed sender account, and
 		/// mtype_hash is the hash of the anchored Type schema
 		#[weight = 10_000_000]
@@ -63,7 +61,6 @@ decl_module! {
 			ensure!(!<MTYPEs<T>>::contains_key(mtype_hash), Error::<T>::AlreadyExists);
 
 			// Anchors a new #MARK schema
-			debug::print!("insert MTYPE");
 			<MTYPEs<T>>::insert(mtype_hash, sender.clone());
 			// deposit event - #MARK TYPE has been anchored
 			Self::deposit_event(RawEvent::Anchored(sender, mtype_hash));

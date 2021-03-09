@@ -18,8 +18,8 @@ extern crate bitflags;
 use codec::{Decode, Encode};
 use core::default::Default;
 use frame_support::{
-	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
-	Parameter, traits::Get, StorageMap,
+	decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
+	traits::Get, Parameter, StorageMap,
 };
 use frame_system::{self, ensure_signed};
 use sp_runtime::{
@@ -27,9 +27,7 @@ use sp_runtime::{
 	traits::{CheckEqual, Hash, IdentifyAccount, MaybeDisplay, Member, SimpleBitOps, Verify},
 	verify_encoded_lazy, DispatchError,
 };
-use sp_std::{
-	prelude::{Clone, Eq, PartialEq, Vec},
-};
+use sp_std::prelude::{Clone, Eq, PartialEq, Vec};
 
 bitflags! {
 	/// Bitflags for permissions
@@ -128,12 +126,10 @@ decl_module! {
 	pub struct Module<T: Config> for enum Call where origin: T::Origin {
 		/// Deposit events
 		fn deposit_event() = default;
-		
 		// Initializing errors
 		// this includes information about your errors in the node's metadata.
 		// it is needed only if you are using errors in your pallet
 		type Error = Error<T>;
-		
 		/// Creates a delegation hierarchy root on chain
 		///, where, origin is the signed sender account,
 		/// root_id is the unique identifier of the root node,
@@ -149,7 +145,6 @@ decl_module! {
 			ensure!(<pallet_mtype::MTYPEs<T>>::contains_key(mtype_hash), pallet_mtype::Error::<T>::NotFound);
 
 			// add root node to storage
-			debug::print!("insert Delegation Root");
 			<Root<T>>::insert(root_id, DelegationRoot::new(mtype_hash, sender.clone()));
 			// deposit event that the root node has been created
 			Self::deposit_event(RawEvent::RootCreated(sender, root_id, mtype_hash));
@@ -179,11 +174,9 @@ decl_module! {
 
 			// check if a delegation node with the given identifier already exists
 			ensure!(!<Delegations<T>>::contains_key(delegation_id), Error::<T>::AlreadyExists);
-			
 			// calculate the hash root and check if the signature matches
 			let hash_root = Self::calculate_hash(delegation_id, root_id, parent_id, permissions);
 			ensure!(verify_encoded_lazy(&delegate_signature, &&hash_root, &delegate), Error::<T>::BadSignature);
-			
 			// check if root exists
 			let root = <Root<T>>::get(root_id).ok_or(Error::<T>::RootNotFound)?;
 
@@ -197,9 +190,7 @@ decl_module! {
 
 				// check if the parent has permission to delegate
 				ensure!((parent_node.permissions & Permissions::DELEGATE) == Permissions::DELEGATE, Error::<T>::UnauthorizedDelegation);
-			
 				// insert delegation
-				debug::print!("insert Delegation with parent");
 				<Delegations<T>>::insert(delegation_id, DelegationNode::<T>::new_child(
 					root_id,
 					parent_id,
@@ -213,7 +204,6 @@ decl_module! {
 				ensure!(root.owner.eq(&sender), Error::<T>::NotOwnerOfRoot);
 
 				// insert delegation
-				debug::print!("insert Delegation without parent");
 				<Delegations<T>>::insert(delegation_id, DelegationNode::<T>::new_root(root_id, delegate.clone(), permissions));
 				// add child to tree structure
 				Self::add_child(delegation_id, root_id);
@@ -240,7 +230,6 @@ decl_module! {
 			if !root.revoked {
 				// recursively revoke all children
 				let remaining_revocations = Self::revoke_children(&root_id, &sender, max_children)?;
-				
 				if remaining_revocations > 0 {
 					// store revoked root node
 					root.revoked = true;
