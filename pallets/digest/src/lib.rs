@@ -61,7 +61,7 @@ decl_module! {
 		///, where, origin is the signed sender account,
 		/// digest_hash is the hash of the file,
 		/// and mark_hash is the hash of the #MARK TYPE.
-		#[weight = 10_000_000]
+		#[weight = 100_000_000_000]
 		pub fn anchor(origin, digest_hash: T::Hash, mark_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
@@ -81,7 +81,7 @@ decl_module! {
 		/// Revokes a #MARK Digest
 		/// where, origin is the signed sender account,
 		/// and digest_hash is the hash of the file.
-		#[weight = 10_000_000]
+		#[weight = 100_000_000_000]
 		pub fn revoke(origin, digest_hash: T::Hash, max_depth: u64) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
