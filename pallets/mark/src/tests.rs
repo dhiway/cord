@@ -164,6 +164,61 @@ fn check_revoke_mark() {
 }
 
 #[test]
+fn check_restore_mark() {
+	new_test_ext().execute_with(|| {
+		let pair = account_pair("Alice");
+		let hash = H256::from_low_u64_be(1);
+		let account = pair.public();
+		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
+		assert_ok!(PalletMark::anchor(
+			Origin::signed(account.clone()),
+			hash,
+			hash,
+			None
+		));
+		assert_ok!(PalletMark::revoke(
+			Origin::signed(account.clone()),
+			hash,
+			10
+		));
+		let Mark {
+			mtype_hash,
+			marker,
+			revoked,
+			delegation_id,
+		} = {
+			let opt = PalletMark::marks(hash);
+			assert!(opt.is_some());
+			opt.unwrap()
+		};
+		assert_eq!(mtype_hash, hash);
+		assert_eq!(marker, account);
+		assert_eq!(delegation_id, None);
+		assert_eq!(revoked, true);
+
+		assert_ok!(PalletMark::restore(
+			Origin::signed(account.clone()),
+			hash,
+			10
+		));
+		let Mark {
+			mtype_hash,
+			marker,
+			revoked,
+			delegation_id,
+		} = {
+			let opt = PalletMark::marks(hash);
+			assert!(opt.is_some());
+			opt.unwrap()
+		};
+		assert_eq!(mtype_hash, hash);
+		assert_eq!(marker, account);
+		assert_eq!(delegation_id, None);
+		assert_eq!(revoked, false);
+        });
+}
+
+#[test]
 fn check_double_mark() {
 	new_test_ext().execute_with(|| {
 		let pair = account_pair("Alice");
@@ -179,6 +234,26 @@ fn check_double_mark() {
 		assert_noop!(
 			PalletMark::anchor(Origin::signed(account), hash, hash, None),
 			Error::<Test>::AlreadyAnchored
+		);
+	});
+}
+
+#[test]
+fn check_active_restore() {
+	new_test_ext().execute_with(|| {
+		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
+		let hash = H256::from_low_u64_be(1);
+		let account = pair.public();
+		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
+		assert_ok!(PalletMark::anchor(
+			Origin::signed(account.clone()),
+			hash,
+			hash,
+			None
+		));
+		assert_noop!(
+			PalletMark::restore(Origin::signed(account), hash, 10),
+			Error::<Test>::MarkStillActive
 		);
 	});
 }
@@ -222,6 +297,19 @@ fn check_revoke_unknown() {
 }
 
 #[test]
+fn check_restore_unknown() {
+	new_test_ext().execute_with(|| {
+		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
+		let hash = H256::from_low_u64_be(1);
+		let account = pair.public();
+		assert_noop!(
+			PalletMark::restore(Origin::signed(account), hash, 10),
+			Error::<Test>::MarkNotFound
+		);
+	});
+}
+
+#[test]
 fn check_revoke_not_permitted() {
 	new_test_ext().execute_with(|| {
 		let pair_alice = account_pair("Alice");
@@ -239,6 +327,33 @@ fn check_revoke_not_permitted() {
 		assert_noop!(
 			PalletMark::revoke(Origin::signed(account_hash_bob), hash, 10),
 			Error::<Test>::UnauthorizedRevocation
+		);
+	});
+}
+
+#[test]
+fn check_restore_not_permitted() {
+	new_test_ext().execute_with(|| {
+		let pair_alice = account_pair("Alice");
+		let account_hash_alice = pair_alice.public();
+		let pair_bob = account_pair("Bob");
+		let account_hash_bob = pair_bob.public();
+		let hash = H256::from_low_u64_be(1);
+		assert_ok!(MType::anchor(Origin::signed(account_hash_alice.clone()), hash));
+		assert_ok!(PalletMark::anchor(
+			Origin::signed(account_hash_alice),
+			hash,
+			hash,
+			None
+		));
+		assert_ok!(PalletMark::revoke(
+			Origin::signed(account_hash_alice),
+			hash,
+			10
+		));
+		assert_noop!(
+			PalletMark::restore(Origin::signed(account_hash_bob), hash, 10),
+			Error::<Test>::UnauthorizedRestore
 		);
 	});
 }
