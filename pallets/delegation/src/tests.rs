@@ -5,21 +5,19 @@
 
 //! testing Delegation
 
-use crate as pallet_delegation;
 use super::*;
+use crate as pallet_delegation;
 
-use frame_support::{
-	assert_ok, assert_noop, parameter_types,
-};
+use frame_support::{assert_noop, assert_ok, parameter_types};
 
 use sp_core::{ed25519, Pair, H256, H512};
 // use sp_core::ed25519::Signature;
 use cord_primitives::Signature;
 
 use sp_runtime::{
-   testing::Header,
-   traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-   MultiSignature, MultiSigner,
+	testing::Header,
+	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+	MultiSignature, MultiSigner,
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -423,7 +421,7 @@ fn check_add_and_revoke_delegations() {
 		assert_ok!(Delegation::revoke_root(
 			Origin::signed(account_hash_alice),
 			id_level_0,
-			2
+			3
 		));
 		assert_eq!(Delegation::root(id_level_0).unwrap().revoked, true);
 		assert_eq!(Delegation::delegation(id_level_1).unwrap().revoked, true);

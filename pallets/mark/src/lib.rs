@@ -13,9 +13,11 @@ mod tests;
 
 use codec::{Decode, Encode};
 use frame_support::{
-	decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
+	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
+	StorageMap,
 };
 use frame_system::{self, ensure_signed};
+use pallet_delegation::Permissions;
 use sp_std::prelude::{Clone, PartialEq, Vec};
 
 /// The #MARK trait
@@ -65,7 +67,7 @@ decl_module! {
 		/// mark_hash is the hash of the content stream,
 		/// mtype_hash is the hash of the #MARK TYPE,
 		/// and delegation_id refers to a #MARK TYPE delegation.
-		#[weight = 10_000_000]
+		#[weight = 100_000_000_000]
 		pub fn anchor(origin, mark_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
@@ -85,7 +87,8 @@ decl_module! {
 				// check whether the owner of the delegation is not the sender of this transaction
 				ensure!(delegation.owner.eq(&sender), Error::<T>::NotDelegatedToMarker);
 				// check whether the delegation is not set up for attesting claims
-				ensure!(delegation.permissions == pallet_delegation::Permissions::ANCHOR, Error::<T>::DelegationUnauthorisedToAnchor);
+				ensure!((delegation.permissions & Permissions::ANCHOR) == Permissions::ANCHOR, Error::<T>::DelegationUnauthorisedToAnchor);
+
 				// check if MTYPE of the delegation is matching the MTYPE of the mark
 				let root = <pallet_delegation::Root<T>>::get(delegation.root_id).ok_or(pallet_delegation::Error::<T>::RootNotFound)?;
 				ensure!(root.mtype_hash.eq(&mtype_hash), Error::<T>::MTypeMismatch);
@@ -109,8 +112,8 @@ decl_module! {
 		/// Revokes a #MARK
 		/// where, origin is the signed sender account,
 		/// and mark_hash is the hash of the anchored #MARK.
-		#[weight = 10_000_000]
-		pub fn revoke(origin, mark_hash: T::Hash, max_depth: u64) -> DispatchResult {
+		#[weight = 100_000_000_000]
+		pub fn revoke(origin, mark_hash: T::Hash, max_depth: u32) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 
@@ -128,13 +131,13 @@ decl_module! {
 				ensure!(<pallet_delegation::Module<T>>::is_delegating(&sender, &del_id, max_depth)?, Error::<T>::UnauthorizedRevocation);
 			}
 			// revoke #MARK
+			debug::print!("revoking Attestation");
 			<Marks<T>>::insert(mark_hash, Mark {
 				mtype_hash,
 				marker,
 				delegation_id,
 				revoked: true
 			});
-
 			// deposit event that the #MARK has been revoked
 			Self::deposit_event(RawEvent::Revoked(sender, mark_hash));
 			Ok(())
@@ -142,7 +145,7 @@ decl_module! {
 	}
 }
 
-#[derive(Encode, Decode)]
+#[derive(Debug, Encode, Decode, PartialEq)]
 pub struct Mark<T: Config> {
 	// hash of the MTYPE used for this mark
 	pub mtype_hash: T::Hash,
