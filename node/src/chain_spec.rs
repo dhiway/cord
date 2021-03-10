@@ -124,6 +124,19 @@ fn bombay_brown_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 		hex!["ae2b60ce50c8a6a0f9f1eba33eec5106facfb366e946a59591633bd30c090d7d"].into(),
 	];
 
+	let endowed_dev_accounts = vec![
+		//3wvaRWBFgEifBUN6z68fuosfPcWHismnVFv5dx5dFbdooUL8 - Alice
+		hex!["88dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee"].into(),
+		//3yZoPm4GdpakE28bPs7EWFkCm1XUxxCC5iC2waLBC9wm2Qre - Bob
+		hex!["d17c2d7823ebf260fd138f2d7e27d114c0145d968b5ff5006125f2414fadae69"].into(),
+		//3vMkNoL6q49by5JbbGAqGZ8YFycBu2zomU6mssW1jpwWvHaG - Charlie
+		hex!["439660b36c6c03afafca027b910b4fecf99801834c62a5e6006f27d978de234f"].into(),
+		//3zDfe2TD5p3WGhHMwJG7aDbjtGzanUuLR2CXpWrZMLN2KqDW - Faucet
+		hex!["ee5d6689d78e26bb5b35b0441740a065c7bd8efdd1c15422075c3f2b2021b5d2"].into(),
+		//3ydNZgC16DA8zKzxNwB6uW3ufoM4X373vRVpCWFTnAXzFff7 - Alice SR25519
+		hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"].into(),
+	];
+
 	let initial_authorities: Vec<(
 		AccountId,
 		AccountId,
@@ -147,6 +160,7 @@ fn bombay_brown_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 	)];
 
 	const CONTROLLER_ENDOWMENT: u128 = 1_000 * CRD;
+	const DEV_ENDOWMENT: u128 = 200 * CRD;
 	const CONTROLLER_STASH: u128 = 1_000_000 * CRD;
 	const STAKED_ENDOWMENT: u128 = 100 * CRD;
 	const CORD_STASH: u128 = 10_000_000_000 * CRD;
@@ -160,6 +174,11 @@ fn bombay_brown_genesis(wasm_binary: &[u8]) -> GenesisConfig {
 			balances: endowed_accounts
 				.iter()
 				.map(|k: &AccountId| (k.clone(), CORD_STASH))
+				.chain(
+					endowed_dev_accounts
+						.iter()
+						.map(|d: &AccountId| (d.clone(), DEV_ENDOWMENT)),
+				)
 				.chain(
 					initial_authorities
 						.iter()
