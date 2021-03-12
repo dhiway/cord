@@ -151,7 +151,7 @@ decl_module! {
 		/// where, origin is the signed sender account,
 		/// mark_hash is the revoked #MARK.
 		#[weight = 10_000_000]
-		pub fn restore(origin, mark_hash: T::Hash, max_depth: u64) -> DispatchResult {
+		pub fn restore(origin, mark_hash: T::Hash, max_depth: u32) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 
