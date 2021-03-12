@@ -34,6 +34,8 @@ decl_event!(
 		Anchored(AccountId, Hash, Hash, Option<DelegationNodeId>),
 		/// A #MARK has been revoked
 		Revoked(AccountId, Hash),
+		/// A #MARK has been restored (previously revoked)
+		Restored(AccountId, Hash),
 	}
 );
 
@@ -48,6 +50,8 @@ decl_error! {
 		DelegationRevoked,
 		NotDelegatedToMarker,
 		UnauthorizedRevocation,
+		UnauthorizedRestore,
+		MarkStillActive,
 	}
 }
 
@@ -142,6 +146,44 @@ decl_module! {
 			Self::deposit_event(RawEvent::Revoked(sender, mark_hash));
 			Ok(())
 		}
+
+		/// Restores a #MARK
+		/// where, origin is the signed sender account,
+		/// mark_hash is the revoked #MARK.
+		#[weight = 10_000_000]
+		pub fn restore(origin, mark_hash: T::Hash, max_depth: u64) -> DispatchResult {
+			// origin of the transaction needs to be a signed sender account
+			let sender = ensure_signed(origin)?;
+
+			// lookup #MARK & check if it exists
+			let Mark {mtype_hash, marker, delegation_id, revoked, ..} = <Marks<T>>::get(mark_hash).ok_or(Error::<T>::MarkNotFound)?;
+
+			// check if the #MARK has already been revoked
+			ensure!(revoked, Error::<T>::MarkStillActive);
+
+			// check delegation tree if the sender of the restore transaction is not the marker
+			if !marker.eq(&sender) {
+				// check whether the #MARK includes a delegation
+				let del_id = delegation_id.ok_or(Error::<T>::UnauthorizedRestore)?;
+				// check whether the sender of the restoration is not a parent in the delegation hierarchy
+				ensure!(<pallet_delegation::Module<T>>::is_delegating(&sender, &del_id, max_depth)?, Error::<T>::UnauthorizedRestore);
+			}
+
+                        // restore #MARK
+			debug::print!("restoring #MARK");
+			<Marks<T>>::insert(mark_hash, Mark {
+				mtype_hash,
+				marker,
+				delegation_id,
+				revoked: false
+			});
+
+			// deposit event that the #MARK has been restored
+			Self::deposit_event(RawEvent::Restored(sender, mark_hash));
+			Ok(())
+		}
+
+
 	}
 }
 
