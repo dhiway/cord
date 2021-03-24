@@ -174,7 +174,7 @@ impl WeightToFeePolynomial for WeightToFee {
 		smallvec![WeightToFeeCoefficient {
 			degree: 1,
 			coeff_frac: Perbill::from_rational_approximation(
-				CordTBaseFee::get().into(),
+				CordTBaseFee::get(),
 				ExtrinsicBaseWeight::get() as u128
 			),
 			coeff_integer: 0u128, // Coefficient is zero.
@@ -225,7 +225,7 @@ impl pallet_scheduler::Config for Runtime {
 }
 
 parameter_types! {
-	pub const IndexDeposit: Balance = 1 * MILLIPAISE;
+	pub const IndexDeposit: Balance =  MILLIPAISE;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -237,7 +237,7 @@ impl pallet_indices::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 1 * MILLIPAISE;
+	pub const ExistentialDeposit: Balance =  MILLIPAISE;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
 	// This number may need to be adjusted in the future if this assumption no longer holds true.
 	pub const MaxLocks: u32 = 50;
@@ -321,7 +321,7 @@ impl_opaque_keys! {
 }
 
 parameter_types! {
-	pub const Period: BlockNumber = 1 * HOURS;
+	pub const Period: BlockNumber = HOURS;
 	pub const Offset: BlockNumber = 0;
 	pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
 }
@@ -418,7 +418,7 @@ parameter_types! {
 	pub const MinimumDeposit: Balance = 100 * RUPEES;
 	pub const EnactmentPeriod: BlockNumber = 28 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
-	pub const PreimageByteDeposit: Balance = 1 * PAISE;
+	pub const PreimageByteDeposit: Balance = PAISE;
 	pub const InstantAllowed: bool = true;
 	pub const MaxVotes: u32 = 100;
 	pub const MaxProposals: u32 = 100;
@@ -682,7 +682,7 @@ where
 			.ok()?;
 		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
 		let (call, extra, _) = raw_payload.deconstruct();
-		Some((call, (account, signature.into(), extra)))
+		Some((call, (account, signature, extra)))
 	}
 }
 

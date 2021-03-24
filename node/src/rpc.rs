@@ -112,11 +112,11 @@ pub fn create_full<C, P, SC, B>(deps: FullDeps<C, P, SC, B>) -> RpcExtension whe
 		SystemApi::to_delegate(FullSystem::new(client.clone(), pool, deny_unsafe))
 	);
 	io.extend_with(
-		TransactionPaymentApi::to_delegate(TransactionPayment::new(client.clone()))
+		TransactionPaymentApi::to_delegate(TransactionPayment::new(client))
 	);
 	io.extend_with(
 		GrandpaApi::to_delegate(GrandpaRpcHandler::new(
-				shared_authority_set.clone(),
+				shared_authority_set,
 				shared_voter_state,
 				justification_stream,
 				subscription_executor,
