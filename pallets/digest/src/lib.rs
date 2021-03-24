@@ -60,7 +60,7 @@ decl_module! {
 		/// Anchors a new #MARK Digest on chain
 		///, where, origin is the signed sender account,
 		/// digest_hash is the hash of the file,
-		/// and content_hash is the hash of the #MARK TYPE.
+		/// and content_hash is the hash of the #MARK Content.
 		#[weight = 100_000_000_000]
 		pub fn anchor(origin, digest_hash: T::Hash, content_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
@@ -110,7 +110,7 @@ decl_module! {
 
 #[derive(Encode, Decode)]
 pub struct Digest<T: Config> {
-	// hash of the MTYPE used for this mark
+	// hash of the #MARK content
 	content_hash: T::Hash,
 	// the account which executed the mark
 	marker: T::AccountId,
@@ -120,7 +120,7 @@ pub struct Digest<T: Config> {
 
 decl_storage! {
 	trait Store for Module<T: Config> as Digest {
-		/// Digests: digest-hash -> (mark-hash, marker-account, revoked)?
+		/// Digests: digest-hash -> (content-hash, marker-account, revoked)?
 		Digests get(fn digests): map hasher(opaque_blake2_256) T::Hash => Option<Digest<T>>;
 	}
 }
