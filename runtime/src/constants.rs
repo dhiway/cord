@@ -7,7 +7,7 @@
 pub mod currency {
 	use cord_primitives::Balance;
 
-	pub const CRD: Balance = 1_000_000_000_000_000_000;
+	pub const CRD: Balance = 1_000_000_000_000_000;
 	pub const RUPEES: Balance = CRD;
 	pub const PAISE: Balance = RUPEES / 100;
 	pub const ANNAPAISE: Balance = PAISE / 100;

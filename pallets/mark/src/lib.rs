@@ -68,11 +68,11 @@ decl_module! {
 
 		/// Anchors a new #MARK on chain
 		///, where, originis the signed sender account,
-		/// mark_hash is the hash of the content stream,
+		/// content_hash is the hash of the content stream,
 		/// mtype_hash is the hash of the #MARK TYPE,
 		/// and delegation_id refers to a #MARK TYPE delegation.
 		#[weight = 100_000_000_000]
-		pub fn anchor(origin, mark_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult {
+		pub fn anchor(origin, content_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 
@@ -80,7 +80,7 @@ decl_module! {
 			ensure!(<pallet_mtype::MTYPEs<T>>::contains_key(mtype_hash), pallet_mtype::Error::<T>::NotFound);
 
 			// check if the #MARK already exists
-			ensure!(!<Marks<T>>::contains_key(mark_hash), Error::<T>::AlreadyAnchored);
+			ensure!(!<Marks<T>>::contains_key(content_hash), Error::<T>::AlreadyAnchored);
 
 			if let Some(d) = delegation_id {
 				// check if delegation exists
@@ -99,30 +99,30 @@ decl_module! {
 			}
 
 			// insert #MARK
-			<Marks<T>>::insert(mark_hash, Mark {mtype_hash, marker: sender.clone(), delegation_id, revoked: false});
+			<Marks<T>>::insert(content_hash, Mark {mtype_hash, marker: sender.clone(), delegation_id, revoked: false});
 
 			if let Some(d) = delegation_id {
 				// if the #MARK is based on a delegation, store seperately
 				let mut delegated_marks = <DelegatedMarks<T>>::get(d);
-				delegated_marks.push(mark_hash);
+				delegated_marks.push(content_hash);
 				<DelegatedMarks<T>>::insert(d, delegated_marks);
 			}
 
 			// deposit event that mark has beed added
-			Self::deposit_event(RawEvent::Anchored(sender, mark_hash, mtype_hash, delegation_id));
+			Self::deposit_event(RawEvent::Anchored(sender, content_hash, mtype_hash, delegation_id));
 			Ok(())
 		}
 
 		/// Revokes a #MARK
 		/// where, origin is the signed sender account,
-		/// and mark_hash is the hash of the anchored #MARK.
+		/// and content_hash is the hash of the anchored #MARK.
 		#[weight = 100_000_000_000]
-		pub fn revoke(origin, mark_hash: T::Hash, max_depth: u32) -> DispatchResult {
+		pub fn revoke(origin, content_hash: T::Hash, max_depth: u32) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 
 			// lookup #MARK & check if it exists
-			let Mark {mtype_hash, marker, delegation_id, revoked, ..} = <Marks<T>>::get(mark_hash).ok_or(Error::<T>::MarkNotFound)?;
+			let Mark {mtype_hash, marker, delegation_id, revoked, ..} = <Marks<T>>::get(content_hash).ok_or(Error::<T>::MarkNotFound)?;
 
 			// check if the #MARK has already been revoked
 			ensure!(!revoked, Error::<T>::AlreadyRevoked);
@@ -136,27 +136,27 @@ decl_module! {
 			}
 			// revoke #MARK
 			debug::print!("revoking Attestation");
-			<Marks<T>>::insert(mark_hash, Mark {
+			<Marks<T>>::insert(content_hash, Mark {
 				mtype_hash,
 				marker,
 				delegation_id,
 				revoked: true
 			});
 			// deposit event that the #MARK has been revoked
-			Self::deposit_event(RawEvent::Revoked(sender, mark_hash));
+			Self::deposit_event(RawEvent::Revoked(sender, content_hash));
 			Ok(())
 		}
 
 		/// Restores a #MARK
 		/// where, origin is the signed sender account,
-		/// mark_hash is the revoked #MARK.
+		/// content_hash is the revoked #MARK.
 		#[weight = 10_000_000]
-		pub fn restore(origin, mark_hash: T::Hash, max_depth: u32) -> DispatchResult {
+		pub fn restore(origin, content_hash: T::Hash, max_depth: u32) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 
 			// lookup #MARK & check if it exists
-			let Mark {mtype_hash, marker, delegation_id, revoked, ..} = <Marks<T>>::get(mark_hash).ok_or(Error::<T>::MarkNotFound)?;
+			let Mark {mtype_hash, marker, delegation_id, revoked, ..} = <Marks<T>>::get(content_hash).ok_or(Error::<T>::MarkNotFound)?;
 
 			// check if the #MARK has already been revoked
 			ensure!(revoked, Error::<T>::MarkStillActive);
@@ -169,9 +169,9 @@ decl_module! {
 				ensure!(<pallet_delegation::Module<T>>::is_delegating(&sender, &del_id, max_depth)?, Error::<T>::UnauthorizedRestore);
 			}
 
-                        // restore #MARK
+						// restore #MARK
 			debug::print!("restoring #MARK");
-			<Marks<T>>::insert(mark_hash, Mark {
+			<Marks<T>>::insert(content_hash, Mark {
 				mtype_hash,
 				marker,
 				delegation_id,
@@ -179,7 +179,7 @@ decl_module! {
 			});
 
 			// deposit event that the #MARK has been restored
-			Self::deposit_event(RawEvent::Restored(sender, mark_hash));
+			Self::deposit_event(RawEvent::Restored(sender, content_hash));
 			Ok(())
 		}
 
@@ -201,9 +201,9 @@ pub struct Mark<T: Config> {
 
 decl_storage! {
 	trait Store for Module<T: Config> as Mark {
-		/// Marks: stream-hash -> (mtype-hash, marker-account, delegation-id?, revoked)?
+		/// Marks: content-hash -> (mtype-hash, marker-account, delegation-id?, revoked)?
 		pub Marks get(fn marks): map hasher(opaque_blake2_256) T::Hash => Option<Mark<T>>;
-		/// DelegatedMarks: delegation-id -> [stream-hash]
+		/// DelegatedMarks: delegation-id -> [content-hash]
 		DelegatedMarks get(fn delegated_marks): map hasher(opaque_blake2_256) T::DelegationNodeId => Vec<T::Hash>;
 	}
 }

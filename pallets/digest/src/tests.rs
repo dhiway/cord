@@ -6,18 +6,16 @@
 //! Marks: Handles #MARKs on chain,
 //! adding and revoking #MARKs.
 
-use crate as pallet_digest;
 use super::*;
+use crate as pallet_digest;
 
-use frame_support::{
-	assert_ok, assert_noop, parameter_types,
-};
+use frame_support::{assert_noop, assert_ok, parameter_types};
 
-use sp_core::{ed25519, Pair, H256};
 use sp_core::ed25519::Signature;
+use sp_core::{ed25519, Pair, H256};
 use sp_runtime::{
-   testing::Header,
-   traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+	testing::Header,
+	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -31,9 +29,9 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system::{Module, Call, Config, Storage, Event<T>},
 		PalletMark: pallet_mark::{Module, Call, Storage, Event<T>},
-        Delegation: pallet_delegation::{Module, Call, Storage, Event<T>},
-        MType: pallet_mtype::{Module, Call, Storage, Event<T>},
-        PalletDigest: pallet_digest::{Module, Call, Storage, Event<T>},
+		Delegation: pallet_delegation::{Module, Call, Storage, Event<T>},
+		MType: pallet_mtype::{Module, Call, Storage, Event<T>},
+		PalletDigest: pallet_digest::{Module, Call, Storage, Event<T>},
 	}
 );
 
@@ -102,8 +100,7 @@ fn new_test_ext() -> sp_io::TestExternalities {
 // }
 
 pub fn account_pair(s: &str) -> ed25519::Pair {
-    ed25519::Pair::from_string(&format!("//{}", s), None)
-		.expect("static values are valid")
+	ed25519::Pair::from_string(&format!("//{}", s), None).expect("static values are valid")
 }
 
 #[test]
@@ -112,28 +109,28 @@ fn check_anchor_digest() {
 		let pair = account_pair("Alice");
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
-        assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
+		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
 		assert_ok!(PalletMark::anchor(
-            Origin::signed(account.clone()), 
-            hash, 
-            hash, 
-            None
-        ));
+			Origin::signed(account.clone()),
+			hash,
+			hash,
+			None
+		));
 		assert_ok!(PalletDigest::anchor(
 			Origin::signed(account.clone()),
 			hash,
 			hash,
 		));
-		let Digest { 
-            mark_hash,
-			marker, 
-			revoked, 
+		let Digest {
+			content_hash,
+			marker,
+			revoked,
 		} = {
 			let opt = PalletDigest::digests(hash);
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
-		assert_eq!(mark_hash, hash);
+		assert_eq!(content_hash, hash);
 		assert_eq!(marker, account);
 		assert_eq!(revoked, false);
 	});
@@ -152,7 +149,7 @@ fn check_revoke_digest() {
 			hash,
 			None
 		));
-        assert_ok!(PalletDigest::anchor(
+		assert_ok!(PalletDigest::anchor(
 			Origin::signed(account.clone()),
 			hash,
 			hash,
@@ -160,18 +157,18 @@ fn check_revoke_digest() {
 		assert_ok!(PalletDigest::revoke(
 			Origin::signed(account.clone()),
 			hash,
-            10
+			10
 		));
-		let Digest { 
-            mark_hash,
-			marker, 
-			revoked, 
+		let Digest {
+			content_hash,
+			marker,
+			revoked,
 		} = {
 			let opt = PalletDigest::digests(hash);
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
-		assert_eq!(mark_hash, hash);
+		assert_eq!(content_hash, hash);
 		assert_eq!(marker, account);
 		assert_eq!(revoked, true);
 	});
@@ -185,18 +182,18 @@ fn check_double_digest() {
 		let account = pair.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
 		assert_ok!(PalletMark::anchor(
-            Origin::signed(account.clone()), 
-            hash, 
-            hash, 
-            None
-        ));
-        assert_ok!(PalletDigest::anchor(
+			Origin::signed(account.clone()),
+			hash,
+			hash,
+			None
+		));
+		assert_ok!(PalletDigest::anchor(
 			Origin::signed(account.clone()),
 			hash,
 			hash,
 		));
 		assert_noop!(
-            PalletDigest::anchor(Origin::signed(account), hash, hash),
+			PalletDigest::anchor(Origin::signed(account), hash, hash),
 			Error::<Test>::AlreadyAnchored
 		);
 	});
@@ -215,7 +212,7 @@ fn check_double_revoke_digest() {
 			hash,
 			None
 		));
-        assert_ok!(PalletDigest::anchor(
+		assert_ok!(PalletDigest::anchor(
 			Origin::signed(account.clone()),
 			hash,
 			hash,
@@ -223,7 +220,7 @@ fn check_double_revoke_digest() {
 		assert_ok!(PalletDigest::revoke(
 			Origin::signed(account.clone()),
 			hash,
-            10
+			10
 		));
 		assert_noop!(
 			PalletDigest::revoke(Origin::signed(account), hash, 10),
@@ -250,16 +247,16 @@ fn check_revoke_not_permitted() {
 	new_test_ext().execute_with(|| {
 		let pair = account_pair("Alice");
 		let hash = H256::from_low_u64_be(1);
-        let account = pair.public();
-        let pair_bob = account_pair("Bob");
+		let account = pair.public();
+		let pair_bob = account_pair("Bob");
 		let account_hash_bob = pair_bob.public();
-        assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
+		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
 		assert_ok!(PalletMark::anchor(
-            Origin::signed(account.clone()), 
-            hash, 
-            hash, 
-            None
-        ));
+			Origin::signed(account.clone()),
+			hash,
+			hash,
+			None
+		));
 		assert_ok!(PalletDigest::anchor(
 			Origin::signed(account.clone()),
 			hash,
@@ -271,4 +268,3 @@ fn check_revoke_not_permitted() {
 		);
 	});
 }
-
