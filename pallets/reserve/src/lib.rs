@@ -21,16 +21,12 @@ use sp_runtime::{
 };
 use sp_std::prelude::Box;
 
-type BalanceOf<T, I> =
-	<<T as Config<I>>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-type NegativeImbalanceOf<T, I> = <<T as Config<I>>::Currency as Currency<
-	<T as frame_system::Config>::AccountId,
->>::NegativeImbalance;
+type BalanceOf<T, I> = <<T as Config<I>>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+type NegativeImbalanceOf<T, I> =
+	<<T as Config<I>>::Currency as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
 /// The module's configuration trait.
-pub trait Config<I: Instance = DefaultInstance>:
-	frame_system::Config + pallet_balances::Config
-{
+pub trait Config<I: Instance = DefaultInstance>: frame_system::Config + pallet_balances::Config {
 	type Event: From<Event<Self, I>> + Into<<Self as frame_system::Config>::Event>;
 	type ExternalOrigin: EnsureOrigin<Self::Origin>;
 	type Currency: Currency<Self::AccountId>;

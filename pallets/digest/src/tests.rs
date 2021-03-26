@@ -110,17 +110,8 @@ fn check_anchor_digest() {
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-			None
-		));
-		assert_ok!(PalletDigest::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-		));
+		assert_ok!(PalletMark::anchor(Origin::signed(account.clone()), hash, hash, None));
+		assert_ok!(PalletDigest::anchor(Origin::signed(account.clone()), hash, hash,));
 		let Digest {
 			content_hash,
 			marker,
@@ -143,22 +134,9 @@ fn check_revoke_digest() {
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-			None
-		));
-		assert_ok!(PalletDigest::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-		));
-		assert_ok!(PalletDigest::revoke(
-			Origin::signed(account.clone()),
-			hash,
-			10
-		));
+		assert_ok!(PalletMark::anchor(Origin::signed(account.clone()), hash, hash, None));
+		assert_ok!(PalletDigest::anchor(Origin::signed(account.clone()), hash, hash,));
+		assert_ok!(PalletDigest::revoke(Origin::signed(account.clone()), hash, 10));
 		let Digest {
 			content_hash,
 			marker,
@@ -181,17 +159,8 @@ fn check_double_digest() {
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-			None
-		));
-		assert_ok!(PalletDigest::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-		));
+		assert_ok!(PalletMark::anchor(Origin::signed(account.clone()), hash, hash, None));
+		assert_ok!(PalletDigest::anchor(Origin::signed(account.clone()), hash, hash,));
 		assert_noop!(
 			PalletDigest::anchor(Origin::signed(account), hash, hash),
 			Error::<Test>::AlreadyAnchored
@@ -206,22 +175,9 @@ fn check_double_revoke_digest() {
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-			None
-		));
-		assert_ok!(PalletDigest::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-		));
-		assert_ok!(PalletDigest::revoke(
-			Origin::signed(account.clone()),
-			hash,
-			10
-		));
+		assert_ok!(PalletMark::anchor(Origin::signed(account.clone()), hash, hash, None));
+		assert_ok!(PalletDigest::anchor(Origin::signed(account.clone()), hash, hash,));
+		assert_ok!(PalletDigest::revoke(Origin::signed(account.clone()), hash, 10));
 		assert_noop!(
 			PalletDigest::revoke(Origin::signed(account), hash, 10),
 			Error::<Test>::AlreadyRevoked
@@ -251,17 +207,8 @@ fn check_revoke_not_permitted() {
 		let pair_bob = account_pair("Bob");
 		let account_hash_bob = pair_bob.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-			None
-		));
-		assert_ok!(PalletDigest::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-		));
+		assert_ok!(PalletMark::anchor(Origin::signed(account.clone()), hash, hash, None));
+		assert_ok!(PalletDigest::anchor(Origin::signed(account.clone()), hash, hash,));
 		assert_noop!(
 			PalletDigest::revoke(Origin::signed(account_hash_bob), hash, 10),
 			Error::<Test>::NotOwner

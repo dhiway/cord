@@ -3,20 +3,18 @@
 
 //! Some configurable implementations as associated type for the CORD runtime.
 
-pub use cord_primitives::{
-	AccountId, Balance,
-};
-use frame_support::{
-	traits::{OnUnbalanced, Imbalance, InstanceFilter, Currency},
-	RuntimeDebug
-	};
-use frame_system::{self};
 use crate::Call;
+pub use cord_primitives::{AccountId, Balance};
+use frame_support::{
+	traits::{Currency, Imbalance, InstanceFilter, OnUnbalanced},
+	RuntimeDebug,
+};
+use frame_system::{self};
 
-use codec::{Encode, Decode};
+use codec::{Decode, Encode};
 
 pub type NegativeImbalance<T> =
-    <pallet_balances::Module<T> as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
+	<pallet_balances::Module<T> as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
 /// Logic for the block author to get a portion of fees.
 pub struct Author<R>(sp_std::marker::PhantomData<R>);
@@ -45,12 +43,17 @@ pub enum ProxyType {
 	Staking,
 }
 
-impl Default for ProxyType { fn default() -> Self { Self::Any } }
+impl Default for ProxyType {
+	fn default() -> Self {
+		Self::Any
+	}
+}
 impl InstanceFilter<Call> for ProxyType {
 	fn filter(&self, c: &Call) -> bool {
 		match self {
 			ProxyType::Any => true,
-			ProxyType::NonTransfer => !matches!(c,
+			ProxyType::NonTransfer => !matches!(
+				c,
 				Call::System(..) |
 				Call::Scheduler(..) |
 				Call::Timestamp(..) |
@@ -75,19 +78,15 @@ impl InstanceFilter<Call> for ProxyType {
 				Call::Proxy(..) |
 				Call::Multisig(..)
 			),
-			ProxyType::Governance => matches!(c,
-				Call::Democracy(..) |
-				Call::Council(..) |
-				Call::TechnicalCommittee(..) |
-				Call::Elections(..) |
-				Call::CordReserve(..) |
-				Call::Utility(..)
+			ProxyType::Governance => matches!(
+				c,
+				Call::Democracy(..)
+					| Call::Council(..) | Call::TechnicalCommittee(..)
+					| Call::Elections(..)
+					| Call::CordReserve(..)
+					| Call::Utility(..)
 			),
-			ProxyType::Staking => matches!(c,
-				Call::Staking(..) |
-				Call::Session(..) |
-				Call::Utility(..)
-			),
+			ProxyType::Staking => matches!(c, Call::Staking(..) | Call::Session(..) | Call::Utility(..)),
 		}
 	}
 	fn is_superset(&self, o: &Self) -> bool {

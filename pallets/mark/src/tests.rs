@@ -6,18 +6,16 @@
 //! Marks: Handles #MARKs on chain,
 //! adding and revoking #MARKs.
 
-use crate as pallet_mark;
 use super::*;
+use crate as pallet_mark;
 
-use frame_support::{
-	assert_ok, assert_noop, parameter_types,
-};
+use frame_support::{assert_noop, assert_ok, parameter_types};
 
-use sp_core::{ed25519, Pair, H256};
 use sp_core::ed25519::Signature;
+use sp_core::{ed25519, Pair, H256};
 use sp_runtime::{
-   testing::Header,
-   traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+	testing::Header,
+	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -94,8 +92,7 @@ fn hash_to_u8<T: Encode>(hash: T) -> Vec<u8> {
 }
 
 pub fn account_pair(s: &str) -> ed25519::Pair {
-    ed25519::Pair::from_string(&format!("//{}", s), None)
-		.expect("static values are valid")
+	ed25519::Pair::from_string(&format!("//{}", s), None).expect("static values are valid")
 }
 
 #[test]
@@ -105,17 +102,12 @@ fn check_anchor_mark() {
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-			None
-		));
-		let Mark { 
-			mtype_hash, 
-			marker, 
-			revoked, 
-			delegation_id, 
+		assert_ok!(PalletMark::anchor(Origin::signed(account.clone()), hash, hash, None));
+		let Mark {
+			mtype_hash,
+			marker,
+			revoked,
+			delegation_id,
 		} = {
 			let opt = PalletMark::marks(hash);
 			assert!(opt.is_some());
@@ -135,17 +127,8 @@ fn check_revoke_mark() {
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-			None
-		));
-		assert_ok!(PalletMark::revoke(
-			Origin::signed(account.clone()),
-			hash,
-			10
-		));
+		assert_ok!(PalletMark::anchor(Origin::signed(account.clone()), hash, hash, None));
+		assert_ok!(PalletMark::revoke(Origin::signed(account.clone()), hash, 10));
 		let Mark {
 			mtype_hash,
 			marker,
@@ -170,17 +153,8 @@ fn check_restore_mark() {
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-			None
-		));
-		assert_ok!(PalletMark::revoke(
-			Origin::signed(account.clone()),
-			hash,
-			10
-		));
+		assert_ok!(PalletMark::anchor(Origin::signed(account.clone()), hash, hash, None));
+		assert_ok!(PalletMark::revoke(Origin::signed(account.clone()), hash, 10));
 		let Mark {
 			mtype_hash,
 			marker,
@@ -196,11 +170,7 @@ fn check_restore_mark() {
 		assert_eq!(delegation_id, None);
 		assert_eq!(revoked, true);
 
-		assert_ok!(PalletMark::restore(
-			Origin::signed(account.clone()),
-			hash,
-			10
-		));
+		assert_ok!(PalletMark::restore(Origin::signed(account.clone()), hash, 10));
 		let Mark {
 			mtype_hash,
 			marker,
@@ -215,7 +185,7 @@ fn check_restore_mark() {
 		assert_eq!(marker, account);
 		assert_eq!(delegation_id, None);
 		assert_eq!(revoked, false);
-        });
+	});
 }
 
 #[test]
@@ -225,12 +195,7 @@ fn check_double_mark() {
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-			None
-		));
+		assert_ok!(PalletMark::anchor(Origin::signed(account.clone()), hash, hash, None));
 		assert_noop!(
 			PalletMark::anchor(Origin::signed(account), hash, hash, None),
 			Error::<Test>::AlreadyAnchored
@@ -245,12 +210,7 @@ fn check_active_restore() {
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-			None
-		));
+		assert_ok!(PalletMark::anchor(Origin::signed(account.clone()), hash, hash, None));
 		assert_noop!(
 			PalletMark::restore(Origin::signed(account), hash, 10),
 			Error::<Test>::MarkStillActive
@@ -265,17 +225,8 @@ fn check_double_revoke_mark() {
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account.clone()),
-			hash,
-			hash,
-			None
-		));
-		assert_ok!(PalletMark::revoke(
-			Origin::signed(account.clone()),
-			hash,
-			10
-		));
+		assert_ok!(PalletMark::anchor(Origin::signed(account.clone()), hash, hash, None));
+		assert_ok!(PalletMark::revoke(Origin::signed(account.clone()), hash, 10));
 		assert_noop!(
 			PalletMark::revoke(Origin::signed(account), hash, 10),
 			Error::<Test>::AlreadyRevoked
@@ -318,12 +269,7 @@ fn check_revoke_not_permitted() {
 		let account_hash_bob = pair_bob.public();
 		let hash = H256::from_low_u64_be(1);
 		assert_ok!(MType::anchor(Origin::signed(account_hash_alice.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account_hash_alice),
-			hash,
-			hash,
-			None
-		));
+		assert_ok!(PalletMark::anchor(Origin::signed(account_hash_alice), hash, hash, None));
 		assert_noop!(
 			PalletMark::revoke(Origin::signed(account_hash_bob), hash, 10),
 			Error::<Test>::UnauthorizedRevocation
@@ -340,17 +286,8 @@ fn check_restore_not_permitted() {
 		let account_hash_bob = pair_bob.public();
 		let hash = H256::from_low_u64_be(1);
 		assert_ok!(MType::anchor(Origin::signed(account_hash_alice.clone()), hash));
-		assert_ok!(PalletMark::anchor(
-			Origin::signed(account_hash_alice),
-			hash,
-			hash,
-			None
-		));
-		assert_ok!(PalletMark::revoke(
-			Origin::signed(account_hash_alice),
-			hash,
-			10
-		));
+		assert_ok!(PalletMark::anchor(Origin::signed(account_hash_alice), hash, hash, None));
+		assert_ok!(PalletMark::revoke(Origin::signed(account_hash_alice), hash, 10));
 		assert_noop!(
 			PalletMark::restore(Origin::signed(account_hash_bob), hash, 10),
 			Error::<Test>::UnauthorizedRestore
@@ -376,10 +313,7 @@ fn check_anchor_mark_with_delegation() {
 		let delegation_1 = H256::from_low_u64_be(1);
 		let delegation_2 = H256::from_low_u64_be(2);
 
-		assert_ok!(MType::anchor(
-			Origin::signed(account_hash_alice.clone()),
-			mtype_hash
-		));
+		assert_ok!(MType::anchor(Origin::signed(account_hash_alice.clone()), mtype_hash));
 
 		// cannot anchor #MARK based on a missing Delegation
 		assert_noop!(
@@ -398,7 +332,7 @@ fn check_anchor_mark_with_delegation() {
 			delegation_root,
 			mtype_hash
 		));
-	
+
 		// add delegation_1 as child of root
 		assert_ok!(Delegation::add_delegation(
 			Origin::signed(account_hash_alice.clone()),
@@ -488,8 +422,7 @@ fn check_anchor_mark_with_delegation() {
 			Some(delegation_2)
 		));
 
-		let existing_markers_for_delegation =
-			PalletMark::delegated_marks(delegation_2);
+		let existing_markers_for_delegation = PalletMark::delegated_marks(delegation_2);
 		assert_eq!(existing_markers_for_delegation.len(), 1);
 		assert_eq!(existing_markers_for_delegation[0], stream_hash);
 
@@ -505,11 +438,7 @@ fn check_anchor_mark_with_delegation() {
 			PalletMark::revoke(Origin::signed(account_hash_charlie), stream_hash, 10),
 			Error::<Test>::UnauthorizedRevocation
 		);
-		assert_ok!(PalletMark::revoke(
-			Origin::signed(account_hash_alice),
-			stream_hash,
-			10
-		));		
+		assert_ok!(PalletMark::revoke(Origin::signed(account_hash_alice), stream_hash, 10));
 
 		// remove attestation to catch for revoked Delegation
 		Marks::<Test>::remove(stream_hash);

@@ -11,9 +11,7 @@
 #[cfg(test)]
 mod tests;
 
-use frame_support::{
-	decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
-};
+use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap};
 use frame_system::{self, ensure_signed};
 
 /// The #MARK TYPE trait

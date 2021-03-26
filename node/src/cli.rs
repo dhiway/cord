@@ -1,4 +1,3 @@
-  
 // Copyright 2019-2021 Dhiway.
 // This file is part of CORD Platform.
 
@@ -38,7 +37,7 @@ pub enum Subcommand {
 
 	/// Revert the chain to a previous state.
 	Revert(sc_cli::RevertCmd),
-	
+
 	/// The custom benchmark subcommmand benchmarking runtime pallets.
 	#[structopt(name = "benchmark", about = "Benchmark runtime pallets.")]
 	Benchmark(frame_benchmarking_cli::BenchmarkCmd),

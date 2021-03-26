@@ -6,18 +6,16 @@
 //! #MARK Types: Handles #MARK Types,
 //! testing #MARK Types.
 
-use crate as pallet_mtype;
 use super::*;
+use crate as pallet_mtype;
 
-use frame_support::{
-	assert_ok, assert_noop, parameter_types,
-};
+use frame_support::{assert_noop, assert_ok, parameter_types};
 
-use sp_core::{ed25519, Pair, H256};
 use sp_core::ed25519::Signature;
+use sp_core::{ed25519, Pair, H256};
 use sp_runtime::{
-   testing::Header,
-   traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+	testing::Header,
+	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -69,8 +67,7 @@ impl Config for Test {
 }
 
 pub fn account_pair(s: &str) -> ed25519::Pair {
-    ed25519::Pair::from_string(&format!("//{}", s), None)
-		.expect("static values are valid")
+	ed25519::Pair::from_string(&format!("//{}", s), None).expect("static values are valid")
 }
 
 fn new_test_ext() -> sp_io::TestExternalities {

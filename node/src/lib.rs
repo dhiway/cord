@@ -2,5 +2,5 @@
 // This file is part of CORD Platform.
 
 pub mod chain_spec;
-pub mod service;
 pub mod rpc;
+pub mod service;

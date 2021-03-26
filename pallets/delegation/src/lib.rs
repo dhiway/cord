@@ -18,8 +18,7 @@ extern crate bitflags;
 use codec::{Decode, Encode};
 use core::default::Default;
 use frame_support::{
-	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure,
-	Parameter, StorageMap,
+	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, Parameter, StorageMap,
 };
 use frame_system::{self, ensure_signed};
 use sp_runtime::{
@@ -302,8 +301,7 @@ impl<T: Config> Module<T> {
 		ensure!(max_lookups > 0, Error::<T>::MaxSearchDepthReached);
 
 		// check if delegation exists
-		let delegation_node =
-			<Delegations<T>>::get(delegation).ok_or(Error::<T>::DelegationNotFound)?;
+		let delegation_node = <Delegations<T>>::get(delegation).ok_or(Error::<T>::DelegationNotFound)?;
 
 		// check if the given account is the owner of the delegation
 		if delegation_node.owner.eq(account) {
@@ -326,8 +324,7 @@ impl<T: Config> Module<T> {
 	) -> Result<u32, DispatchError> {
 		let mut revocations: u32 = 0;
 		// retrieve delegation node from storage
-		let mut delegation_node =
-			<Delegations<T>>::get(*delegation).ok_or(Error::<T>::DelegationNotFound)?;
+		let mut delegation_node = <Delegations<T>>::get(*delegation).ok_or(Error::<T>::DelegationNotFound)?;
 
 		// check if already revoked
 		if !delegation_node.revoked {
@@ -397,11 +394,7 @@ pub struct DelegationNode<T: Config> {
 }
 
 impl<T: Config> DelegationNode<T> {
-	pub fn new_root(
-		root_id: T::DelegationNodeId,
-		owner: T::AccountId,
-		permissions: Permissions,
-	) -> Self {
+	pub fn new_root(root_id: T::DelegationNodeId, owner: T::AccountId, permissions: Permissions) -> Self {
 		DelegationNode {
 			root_id,
 			owner,
