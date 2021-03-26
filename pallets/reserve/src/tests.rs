@@ -138,28 +138,20 @@ fn receive() {
 }
 
 fn make_call(value: u8) -> Box<Call> {
-	Box::new(Call::System(frame_system::Call::<Test>::remark(vec![
-		value,
-	])))
+	Box::new(Call::System(frame_system::Call::<Test>::remark(vec![value])))
 }
 
 #[test]
 fn apply_as_error_if_bad_origin() {
 	new_test_ext().execute_with(|| {
-		assert_noop!(
-			CordReserve::apply_as(Origin::signed(0), make_call(1)),
-			BadOrigin
-		);
+		assert_noop!(CordReserve::apply_as(Origin::signed(0), make_call(1)), BadOrigin);
 	})
 }
 
 #[test]
 fn apply_as_works() {
 	new_test_ext().execute_with(|| {
-		assert_ok!(CordReserve::apply_as(
-			Origin::signed(Admin::get()),
-			make_call(1)
-		));
+		assert_ok!(CordReserve::apply_as(Origin::signed(Admin::get()), make_call(1)));
 	})
 }
 

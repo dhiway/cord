@@ -10,30 +10,21 @@
 
 use sp_std::prelude::*;
 
-pub use cord_primitives::{
-	AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Nonce, Signature,
-};
+pub use cord_primitives::{AccountId, AccountIndex, Balance, BlockNumber, Hash, Index, Moment, Nonce, Signature};
 
 use frame_support::{
 	construct_runtime, debug, parameter_types,
-	traits::{
-		Currency, KeyOwnerProofSystem, LockIdentifier, Randomness, SplitTwoWays, U128CurrencyToVote,
-	},
+	traits::{Currency, KeyOwnerProofSystem, LockIdentifier, Randomness, SplitTwoWays, U128CurrencyToVote},
 	weights::{
-		constants::{
-			BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_PER_MICROS, WEIGHT_PER_SECOND,
-		},
-		DispatchClass, RuntimeDbWeight, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
-		WeightToFeePolynomial,
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_PER_MICROS, WEIGHT_PER_SECOND},
+		DispatchClass, RuntimeDbWeight, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	},
 };
 
 use codec::Encode;
 use frame_system::limits::{BlockLength, BlockWeights};
 use frame_system::{EnsureOneOf, EnsureRoot};
-use pallet_grandpa::{
-	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
-};
+use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
@@ -53,8 +44,8 @@ use sp_runtime::{
 	curve::PiecewiseLinear,
 	generic, impl_opaque_keys,
 	traits::{
-		BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentityLookup, NumberFor,
-		OpaqueKeys, SaturatedConversion, Verify,
+		BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentityLookup, NumberFor, OpaqueKeys,
+		SaturatedConversion, Verify,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, ModuleId, Perbill, Perquintill,
@@ -259,9 +250,8 @@ parameter_types! {
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
 // type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
-pub type NegativeImbalance<T> = <pallet_balances::Module<T> as Currency<
-	<T as frame_system::Config>::AccountId,
->>::NegativeImbalance;
+pub type NegativeImbalance<T> =
+	<pallet_balances::Module<T> as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
 /// Splits fees 80/20 between reserve and block author.
 pub type DealWithFees = SplitTwoWays<
@@ -728,19 +718,13 @@ impl pallet_grandpa::Config for Runtime {
 
 	type KeyOwnerProofSystem = Historical;
 
-	type KeyOwnerProof =
-		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+	type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
 
-	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
-		KeyTypeId,
-		GrandpaId,
-	)>>::IdentificationTuple;
+	type KeyOwnerIdentification =
+		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::IdentificationTuple;
 
-	type HandleEquivocation = pallet_grandpa::EquivocationHandler<
-		Self::KeyOwnerIdentification,
-		Offences,
-		ReportLongevity,
-	>;
+	type HandleEquivocation =
+		pallet_grandpa::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 
 	type WeightInfo = ();
 }
@@ -849,13 +833,8 @@ pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive = frame_executive::Executive<
-	Runtime,
-	Block,
-	frame_system::ChainContext<Runtime>,
-	Runtime,
-	AllModules,
->;
+pub type Executive =
+	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllModules>;
 
 pub type Extrinsic = <Block as BlockT>::Extrinsic;
 

@@ -104,10 +104,7 @@ fn check_add_and_revoke_delegations() {
 		let id_level_2_1 = H256::from_low_u64_be(21);
 		let id_level_2_2 = H256::from_low_u64_be(22);
 		let id_level_2_2_1 = H256::from_low_u64_be(221);
-		assert_ok!(MType::anchor(
-			Origin::signed(account_hash_alice.clone()),
-			mtype_hash
-		));
+		assert_ok!(MType::anchor(Origin::signed(account_hash_alice.clone()), mtype_hash));
 
 		assert_ok!(Delegation::create_root(
 			Origin::signed(account_hash_alice.clone()),
@@ -115,11 +112,7 @@ fn check_add_and_revoke_delegations() {
 			mtype_hash
 		));
 		assert_noop!(
-			Delegation::create_root(
-				Origin::signed(account_hash_alice.clone()),
-				id_level_0,
-				mtype_hash
-			),
+			Delegation::create_root(Origin::signed(account_hash_alice.clone()), id_level_0, mtype_hash),
 			Error::<Test>::RootAlreadyExists
 		);
 		assert_noop!(
@@ -333,10 +326,7 @@ fn check_add_and_revoke_delegations() {
 		assert_eq!(delegation_2.root_id, id_level_0);
 		assert_eq!(delegation_2.parent, Some(id_level_1));
 		assert_eq!(delegation_2.owner, account_hash_charlie);
-		assert_eq!(
-			delegation_2.permissions,
-			Permissions::ANCHOR | Permissions::DELEGATE
-		);
+		assert_eq!(delegation_2.permissions, Permissions::ANCHOR | Permissions::DELEGATE);
 		assert_eq!(delegation_2.revoked, false);
 
 		let children = Delegation::children(id_level_1);
@@ -345,18 +335,12 @@ fn check_add_and_revoke_delegations() {
 		assert_eq!(children[1], id_level_2_2);
 
 		// check is_delgating
-		assert_eq!(
-			Delegation::is_delegating(&account_hash_alice, &id_level_1, 3),
-			Ok(true)
-		);
+		assert_eq!(Delegation::is_delegating(&account_hash_alice, &id_level_1, 3), Ok(true));
 		assert_eq!(
 			Delegation::is_delegating(&account_hash_alice, &id_level_2_1, 3),
 			Ok(true)
 		);
-		assert_eq!(
-			Delegation::is_delegating(&account_hash_bob, &id_level_2_1, 3),
-			Ok(true)
-		);
+		assert_eq!(Delegation::is_delegating(&account_hash_bob, &id_level_2_1, 3), Ok(true));
 		assert_eq!(
 			Delegation::is_delegating(&account_hash_charlie, &id_level_2_1, 1),
 			Ok(true)
@@ -382,12 +366,7 @@ fn check_add_and_revoke_delegations() {
 			Error::<Test>::DelegationNotFound
 		);
 		assert_noop!(
-			Delegation::revoke_delegation(
-				Origin::signed(account_hash_charlie.clone()),
-				id_level_1,
-				10,
-				1
-			),
+			Delegation::revoke_delegation(Origin::signed(account_hash_charlie.clone()), id_level_1, 10, 1),
 			Error::<Test>::UnauthorizedRevocation,
 		);
 		assert_ok!(Delegation::revoke_delegation(
@@ -398,16 +377,9 @@ fn check_add_and_revoke_delegations() {
 		));
 
 		assert_eq!(Delegation::delegation(id_level_2_2).unwrap().revoked, true);
-		assert_eq!(
-			Delegation::delegation(id_level_2_2_1).unwrap().revoked,
-			true
-		);
+		assert_eq!(Delegation::delegation(id_level_2_2_1).unwrap().revoked, true);
 		assert_noop!(
-			Delegation::revoke_root(
-				Origin::signed(account_hash_bob.clone()),
-				H256::from_low_u64_be(999),
-				1
-			),
+			Delegation::revoke_root(Origin::signed(account_hash_bob.clone()), H256::from_low_u64_be(999), 1),
 			Error::<Test>::RootNotFound
 		);
 		assert_noop!(
