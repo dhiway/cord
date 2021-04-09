@@ -1010,9 +1010,10 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+			add_benchmark!(params, batches, pallet_mtype, Mtype);
+			add_benchmark!(params, batches, pallet_delegation, Delegation);
 			// add_benchmark!(params, batches, attestation, Attestation);
 			// add_benchmark!(params, batches, ctype, Ctype);
-			// add_benchmark!(params, batches, delegation, Delegation);
 			// add_benchmark!(params, batches, did, Did);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
