@@ -3622,6 +3622,7 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe826f3bfb984b3dd8d6675d7d156ba4c0877ee562bf59d86a4e805b7737dcb1"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -3784,6 +3785,7 @@ version = "0.4.0"
 dependencies = [
  "bitflags",
  "cord-primitives",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-delegation",
