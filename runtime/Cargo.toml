@@ -104,7 +104,6 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"pallet-mtype/runtime-benchmarks",
-	"pallet-delegation/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
 	"pallet-elections-phragmen/runtime-benchmarks",
