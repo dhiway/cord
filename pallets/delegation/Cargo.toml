@@ -24,6 +24,8 @@ frame-system = { version = "3.0.0", default-features = false }
 sp-runtime = { version = "3.0.0", default-features = false }
 sp-std = { version = "3.0.0", default-features = false }
 sp-io = { version = "3.0.0", default-features = false }
+frame-benchmarking = {  version = "3.0.0", default-features = false , optional = true}
+
 
 
 # local pallets
@@ -34,7 +36,13 @@ serde = { version = "1.0", default-features = false }
 
 [features]
 default = [ 'std' ]
-
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "sp-core",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "pallet-mtype/runtime-benchmarks",
+]
 std = [
 	'codec/std',
 	'frame-support/std',
