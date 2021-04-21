@@ -8,7 +8,7 @@
 use super::*;
 
 use crate::Module as MarkModule;
-use delegation::{benchmarking::setup_delegations, Permissions};
+use pallet_delegation::{benchmarking::setup_delegations, Permissions};
 use frame_benchmarking::benchmarks;
 use frame_support::storage::StorageMap;
 use frame_system::RawOrigin;
