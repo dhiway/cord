@@ -11,7 +11,7 @@
 /// Test module for delegations
 #[cfg(test)]
 mod tests;
-mod benchmarking;
+pub mod benchmarking;
 
 
 #[macro_use]

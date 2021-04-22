@@ -13,7 +13,6 @@ use sp_core::{offchain::KeyTypeId, sr25519};
 use sp_io::crypto::sr25519_generate;
 use sp_std::num::NonZeroU32;
 
-
 const SEED: u32 = 0;
 const MAX_REVOCATIONS: u32 = 5;
 const ONE_CHILD_PER_LEVEL: Option<NonZeroU32> = NonZeroU32::new(1);
@@ -56,7 +55,7 @@ where
 	let mtype_hash = <T::Hash as Default>::default();
 	let root_id = generate_delegation_id::<T>(number);
 
-	mtype::Module::<T>::anchor(RawOrigin::Signed(root_acc.clone()).into(), mtype_hash)?;
+	pallet_mtype::Module::<T>::anchor(RawOrigin::Signed(root_acc.clone()).into(), mtype_hash)?;
 	Module::<T>::create_root(RawOrigin::Signed(root_acc.clone()).into(), root_id, mtype_hash)?;
 
 	Ok((
@@ -183,10 +182,10 @@ benchmarks! {
 
 	create_root {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let mtype = <T::Hash as Default>::default();
+		let mtype_hash = <T::Hash as Default>::default();
 		let delegation = generate_delegation_id::<T>(0);
-		mtype::Module::<T>::anchor(RawOrigin::Signed(caller.clone()).into(), mtype)?;
-	}: _(RawOrigin::Signed(caller), delegation, mtype)
+		pallet_mtype::Module::<T>::anchor(RawOrigin::Signed(caller.clone()).into(), mtype_hash)?;
+	}: _(RawOrigin::Signed(caller), delegation, mtype_hash)
 	verify {
 		assert!(Root::<T>::contains_key(delegation));
 	}
@@ -274,7 +273,7 @@ benchmarks! {
 mod tests {
 	use super::*;
 	use crate::tests::{ExtBuilder, Test};
-	use mtype::MTYPEs;
+	use ctype::CTYPEs;
 	use frame_support::{assert_ok, StorageMap};
 	use sp_std::num::NonZeroU32;
 
