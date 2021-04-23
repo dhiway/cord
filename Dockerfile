@@ -50,8 +50,8 @@ RUN ldd /usr/local/bin/cord && \
 	/usr/local/bin/cord --version
 
 # Shrinking
-RUN rm -rf /usr/lib/python* && \
-	rm -rf /usr/bin /usr/sbin /usr/share/man
+# RUN rm -rf /usr/lib/python* && \
+# 	rm -rf /usr/bin /usr/sbin /usr/share/man
 
 USER cord
 EXPOSE 30333 9933 9944 
