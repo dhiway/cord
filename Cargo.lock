@@ -3730,6 +3730,7 @@ dependencies = [
 name = "pallet-did"
 version = "0.4.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",

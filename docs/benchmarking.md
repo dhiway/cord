@@ -213,3 +213,9 @@ Reads = 5
 Writes = 2
 
 ```
+
+## Pallet DID - 
+```
+./target/release/cord benchmark --chain=dev --execution=wasm --pallet=pallet_did --extrinsic='*' --steps=20 --repeat=10 --output=./pallets/did/src/weights.rs 
+
+```
