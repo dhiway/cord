@@ -27,6 +27,13 @@ benchmarks! {
 	verify {
 		// DIDs::<T>::contains_key(caller)
 	}
+
+	remove {
+		let caller = account("sender", 0, SEED);
+	}: _(RawOrigin::Signed(caller))
+	verify {
+		// DIDs::<T>::contains_key(caller)
+	}
 }
 
 #[cfg(test)]
