@@ -17,22 +17,22 @@ const SEED: u32 = 0;
 benchmarks! {
 	
 	anchor {
-		let caller = account("sender", 0, SEED);
+		let caller :T::AccountId = account("sender", 0, SEED);
 		let sign_key = <T::PublicSigningKey as Default>::default();
         let box_key = <T::PublicBoxKey as Default>::default();
 		// let doc_ref = Option<Vec<u8>>
 		let doc_ref = Some(b"http://dway.io/submit".to_vec());
 
-	}: _(RawOrigin::Signed(caller), sign_key,box_key,doc_ref)
+	}: _(RawOrigin::Signed(caller.clone()), sign_key,box_key,doc_ref)
 	verify {
-		// DIDs::<T>::contains_key(caller)
+		DIDs::<T>::contains_key(caller)
 	}
 
 	remove {
-		let caller = account("sender", 0, SEED);
-	}: _(RawOrigin::Signed(caller))
+		let caller :T::AccountId = account("sender", 0, SEED);
+	}: _(RawOrigin::Signed(caller.clone()))
 	verify {
-		// DIDs::<T>::contains_key(caller)
+		assert_eq!(<DIDs<T>>::contains_key(caller), false);
 	}
 }
 

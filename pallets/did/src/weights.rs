@@ -27,11 +27,11 @@ use sp_std::marker::PhantomData;
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_did::WeightInfo for WeightInfo<T> {
 	fn anchor() -> Weight {
-		(91_978_000 as Weight)
+		(92_226_000 as Weight)
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	fn remove() -> Weight {
-		(73_140_000 as Weight)
+		(71_505_000 as Weight)
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 }
