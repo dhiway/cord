@@ -11,6 +11,7 @@ use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use sp_std::{vec, vec::Vec, boxed::Box};
+use sp_runtime::traits::Hash;
 
 
 
@@ -20,22 +21,25 @@ benchmarks! {
 	
 	anchor {
 		let caller :T::AccountId = account("sender", 0, SEED);
-		let digest_hash = <T::Hash as Default>::default();
-		let content_hash = <T::Hash as Default>::default();
-        	let mark = <pallet_mark::Marks<T>>::get(content_hash).ok_or(pallet_mark::Error::<T>::MarkNotFound)?;
+		let digest_hash: T::Hash = T::Hash::default();
+		let content_hash: T::Hash = T::Hash::default();
+		<Digests<T>>::insert(digest_hash, Digest {content_hash, marker: caller.clone(), revoked: false});
 
-
+		let mark = <pallet_mark::Marks<T>>::get(content_hash).ok_or(pallet_mark::Error::<T>::MarkNotFound)?;
 
 	}: _(RawOrigin::Signed(caller.clone()),digest_hash,content_hash)
 	verify {
 		 Digests::<T>::contains_key(digest_hash)
 	}
 
-	// remove {
+	// revoke {
 	// 	let caller :T::AccountId = account("sender", 0, SEED);
+	// 	let digest_hash = <T::Hash as Default>::default();
+	// 	let max_depth: u64 = 10;
+
 	// }: _(RawOrigin::Signed(caller.clone()))
 	// verify {
-	// 	assert_eq!(<DIDs<T>>::contains_key(caller), false);
+	// 	Digests::<T>::contains_key(digest_hash)
 	// }
 }
 

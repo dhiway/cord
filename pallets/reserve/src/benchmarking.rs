@@ -11,6 +11,7 @@
 // use frame_benchmarking::{account, benchmarks};
 // use frame_system::RawOrigin;
 // use sp_std::{vec, vec::Vec, boxed::Box};
+// pub use cord_primitives::{AccountId, Balance};
 
 // const SEED: u32 = 0;
 
@@ -24,18 +25,14 @@
 
 // 	// }: _(RawOrigin::Signed(caller.clone()),to,amount)
 // 	// verify {
-// 	// 	// DIDs::<T>::contains_key(caller)
+// 	// 	DIDs::<T>::contains_key(caller)
 // 	// }
 
 //     receive {
 // 		let caller :T::AccountId = account("sender", 0, SEED);
 //         let balance = T::Currency::free_balance(&caller);
-// 		let amount:BalanceOf<T,I> ;
-//         ensure!(
-//             balance >= amount
-//         );
-
-// 	}: _(RawOrigin::Signed(caller.clone()),amount)
+	
+// 	}: _(RawOrigin::Signed(caller.clone()),balance)
 // 	verify {
 // 		// DIDs::<T>::contains_key(caller)
 // 	}
