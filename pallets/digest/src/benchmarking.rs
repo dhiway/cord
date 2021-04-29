@@ -12,6 +12,8 @@ use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use sp_std::{vec, vec::Vec, boxed::Box};
 
+
+
 const SEED: u32 = 0;
 
 benchmarks! {
@@ -20,12 +22,13 @@ benchmarks! {
 		let caller :T::AccountId = account("sender", 0, SEED);
 		let digest_hash = <T::Hash as Default>::default();
 		let content_hash = <T::Hash as Default>::default();
-        let mark = <pallet_mark::Marks<T>>::get(content_hash);
-        assert_ok!(MType::anchor(Origin::signed(caller.clone()), content_hash));
+        	let mark = <pallet_mark::Marks<T>>::get(content_hash).ok_or(pallet_mark::Error::<T>::MarkNotFound)?;
+
+
 
 	}: _(RawOrigin::Signed(caller.clone()),digest_hash,content_hash)
 	verify {
-		// DIDs::<T>::contains_key(caller)
+		 Digests::<T>::contains_key(digest_hash)
 	}
 
 	// remove {
