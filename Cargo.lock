@@ -3748,6 +3748,7 @@ version = "0.4.0"
 dependencies = [
  "bitflags",
  "cord-primitives",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-delegation",
@@ -3957,6 +3958,7 @@ name = "pallet-reserve"
 version = "0.4.0"
 dependencies = [
  "cord-primitives",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-balances",

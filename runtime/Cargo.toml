@@ -107,6 +107,8 @@ runtime-benchmarks = [
 	"pallet-mark/runtime-benchmarks",
 	"pallet-did/runtime-benchmarks",
 	"pallet-delegation/runtime-benchmarks",
+	"pallet-digest/runtime-benchmarks",
+	"pallet-reserve/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
 	"pallet-elections-phragmen/runtime-benchmarks",
