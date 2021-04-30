@@ -29,11 +29,12 @@ sp-core = {  version = "3.0.0", default-features = false, optional = true }
 
 # pallets
 pallet-mark = {  version = "0.4.0", default-features = false, path = '../mark' }
+pallet-delegation = { version = "0.4.0", default-features = false, path = '../delegation' }
+pallet-mtype = { version = "0.4.0", default-features = false, path = '../mtype' }
 
 [dev-dependencies]
 serde = { version = "1.0", default-features = false }
-pallet-delegation = { version = "0.4.0", default-features = false, path = '../delegation' }
-pallet-mtype = { version = "0.4.0", default-features = false, path = '../mtype' }
+
 
 [features]
 default = [ 'std' ]
@@ -42,7 +43,9 @@ runtime-benchmarks = [
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "sp-core",
-  "pallet-mark/runtime-benchmarks"
+  "pallet-mark/runtime-benchmarks",
+  "pallet-mtype/runtime-benchmarks",
+  "pallet-delegation/runtime-benchmarks"
 ]
 std = [
 	'codec/std',

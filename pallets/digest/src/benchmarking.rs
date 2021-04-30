@@ -21,11 +21,20 @@ benchmarks! {
 	
 	anchor {
 		let caller :T::AccountId = account("sender", 0, SEED);
+		let acc :T::AccountId = account("accr", 1, SEED);
+
 		let digest_hash: T::Hash = T::Hash::default();
 		let content_hash: T::Hash = T::Hash::default();
+		let hash = <T::Hash as Default>::default();
+		let mtype_hash: T::Hash = T::Hash::default();
+
+
+		pallet_mtype::Module::<T>::anchor(RawOrigin::Signed(caller.clone()).into(), hash)?;
+		pallet_mark::Module::<T>::anchor(RawOrigin::Signed(acc.clone()).into(), content_hash,mtype_hash,None)?;
+
 		<Digests<T>>::insert(digest_hash, Digest {content_hash, marker: caller.clone(), revoked: false});
 
-		let mark = <pallet_mark::Marks<T>>::get(content_hash).ok_or(pallet_mark::Error::<T>::MarkNotFound)?;
+		// let mark = <pallet_mark::Marks<T>>::get(content_hash).ok_or(pallet_mark::Error::<T>::MarkNotFound)?;
 
 	}: _(RawOrigin::Signed(caller.clone()),digest_hash,content_hash)
 	verify {
