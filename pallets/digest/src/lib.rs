@@ -35,7 +35,7 @@ decl_event!(
 decl_error! {
 	pub enum Error for Module<T: Config> {
 		/// The digest has already been anchored.
-		AlreadyAnchored,
+		AlreadyAnchoredDigest,
 		/// The digest does not exist.
 		NotFound,
 		/// The digest is anchored by another account.
@@ -69,7 +69,7 @@ decl_module! {
 			// check for MARK status - revoked?
 			ensure!(!mark.revoked, pallet_mark::Error::<T>::AlreadyRevoked);
 			// check if the digest already exists
-			ensure!(!<Digests<T>>::contains_key(digest_hash), Error::<T>::AlreadyAnchored);
+			ensure!(!<Digests<T>>::contains_key(digest_hash), Error::<T>::AlreadyAnchoredDigest);
 			// insert #MARK Digest
 			<Digests<T>>::insert(digest_hash, Digest {content_hash, marker: sender.clone(), revoked: false});
 			// deposit event that mark has beed added

@@ -196,7 +196,7 @@ Median Slopes Analysis
 -- Extrinsic Time --
 
 Model:
-Time ~=    224.6
+Time ~=      316
               µs
 
 Reads = 5
@@ -206,11 +206,51 @@ Min Squares Analysis
 -- Extrinsic Time --
 
 Model:
-Time ~=    224.6
+Time ~=      316
               µs
 
 Reads = 5
 Writes = 2
+Pallet: "pallet_mark", Extrinsic: "revoke", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=    244.1
+    + d    69.34
+              µs
+
+Reads = 2 + (1 * d)
+Writes = 1 + (0 * d)
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Data points distribution:
+    d   mean µs  sigma µs       %
+    1     305.4      0.78    0.2%
+    2     381.3     0.277    0.0%
+    3     455.5     0.384    0.0%
+    4     528.1     1.508    0.2%
+    5     601.1     1.617    0.2%
+    6     674.9     2.979    0.4%
+    7     719.1     1.094    0.1%
+    8     800.9     13.39    1.6%
+    9       863     2.036    0.2%
+   10     932.6     2.276    0.2%
+
+Quality and confidence:
+param     error
+d         0.409
+
+Model:
+Time ~=    246.5
+    + d    69.03
+              µs
+
+Reads = 2 + (1 * d)
+
 
 ```
 

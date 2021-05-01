@@ -42,7 +42,7 @@ decl_event!(
 // The pallet's errors
 decl_error! {
 	pub enum Error for Module<T: Config> {
-		AlreadyAnchored,
+		AlreadyAnchoredMark,
 		AlreadyRevoked,
 		MarkNotFound,
 		MTypeMismatch,
@@ -80,7 +80,7 @@ decl_module! {
 			ensure!(<pallet_mtype::MTYPEs<T>>::contains_key(mtype_hash), pallet_mtype::Error::<T>::NotFound);
 
 			// check if the #MARK already exists
-			ensure!(!<Marks<T>>::contains_key(content_hash), Error::<T>::AlreadyAnchored);
+			ensure!(!<Marks<T>>::contains_key(content_hash), Error::<T>::AlreadyAnchoredMark);
 
 			if let Some(d) = delegation_id {
 				// check if delegation exists
