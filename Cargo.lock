@@ -3749,6 +3749,7 @@ name = "pallet-digest"
 version = "0.4.0"
 dependencies = [
  "bitflags",
+ "chrono",
  "cord-primitives",
  "frame-benchmarking",
  "frame-support",
@@ -3757,6 +3758,7 @@ dependencies = [
  "pallet-mark",
  "pallet-mtype",
  "parity-scale-codec",
+ "rand 0.7.3",
  "serde",
  "sp-core",
  "sp-io",

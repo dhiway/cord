@@ -8,37 +8,53 @@
 
 use super::*;
 
-use frame_benchmarking::{account, benchmarks};
+use frame_benchmarking::{account, benchmarks,whitelisted_caller};
 use frame_system::RawOrigin;
 use sp_std::{vec, vec::Vec, boxed::Box};
 use sp_runtime::traits::Hash;
-
-
+use rand::{thread_rng, Rng};
+use rand::distributions::Alphanumeric;
+use codec::alloc::string::String;
 
 const SEED: u32 = 0;
 
 benchmarks! {
 	
 	anchor {
-		let caller :T::AccountId = account("sender", 0, SEED);
-		let acc :T::AccountId = account("accr", 1, SEED);
+		// let now = Utc::now();
+		// now.to_rfc2822();
+		// now.datetime_from_str();
+
+		// let x: u8 = rand::random();
+		// let val: &[u8] = (vec![2,4]*x);
+		let rand_string: String = thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .map(char::from)
+        .collect();
+
+		let val = rand_string.into_bytes();
+		let s = String::from_utf8(val).expect("Found invalid UTF-8");
+		let fin:&[u8] = s.as_bytes();
+
+
+		let caller: T::AccountId = whitelisted_caller();
+		let acc: T::AccountId = whitelisted_caller();
 
 		let digest_hash: T::Hash = T::Hash::default();
-		let content_hash: T::Hash = T::Hash::default();
+		let content_hash: T::Hash = T::Hashing::hash(fin);
 		let hash = <T::Hash as Default>::default();
 		let mtype_hash: T::Hash = T::Hash::default();
-
-
-		pallet_mtype::Module::<T>::anchor(RawOrigin::Signed(caller.clone()).into(), hash)?;
+		
+		pallet_mtype::Module::<T>::anchor(RawOrigin::Signed(caller.clone()).into(), mtype_hash)?;
 		pallet_mark::Module::<T>::anchor(RawOrigin::Signed(acc.clone()).into(), content_hash,mtype_hash,None)?;
 
 		<Digests<T>>::insert(digest_hash, Digest {content_hash, marker: caller.clone(), revoked: false});
-
 		// let mark = <pallet_mark::Marks<T>>::get(content_hash).ok_or(pallet_mark::Error::<T>::MarkNotFound)?;
-
 	}: _(RawOrigin::Signed(caller.clone()),digest_hash,content_hash)
 	verify {
-		 Digests::<T>::contains_key(digest_hash)
+		 Digests::<T>::contains_key(digest_hash);
+		
 	}
 
 	// revoke {

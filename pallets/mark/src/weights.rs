@@ -27,14 +27,14 @@ use sp_std::marker::PhantomData;
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_mark::WeightInfo for WeightInfo<T> {
 	fn anchor() -> Weight {
-		(316_048_000 as Weight)
+		(215_556_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(5 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	fn revoke(d: u32, ) -> Weight {
-		(246_559_000 as Weight)
-			// Standard Error: 409_000
-			.saturating_add((69_032_000 as Weight).saturating_mul(d as Weight))
+		(158_235_000 as Weight)
+			// Standard Error: 83_000
+			.saturating_add((50_552_000 as Weight).saturating_mul(d as Weight))
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(d as Weight)))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))

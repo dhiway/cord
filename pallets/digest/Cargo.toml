@@ -24,7 +24,8 @@ sp-std = {  version = "3.0.0", default-features = false }
 sp-io = {  version = "3.0.0", default-features = false }
 frame-benchmarking = {  version = "3.0.0", default-features = false , optional = true}
 sp-core = {  version = "3.0.0", default-features = false, optional = true }
-
+chrono =  {  version = "0.4.19", default-features = false }
+rand = {version = "0.7.3", default-features = false }
 
 
 # pallets

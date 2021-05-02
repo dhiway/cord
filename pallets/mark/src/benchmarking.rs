@@ -7,7 +7,7 @@
 
 use super::*;
 
-use crate::Module as AttestationModule;
+use crate::Module as MarkModule;
 use pallet_delegation::{benchmarking::setup_delegations, Permissions};
 use frame_benchmarking::benchmarks;
 use frame_support::storage::StorageMap;
@@ -31,7 +31,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(delegate_acc.clone()), content_hash, mtype_hash, Some(delegation_id))
 	verify {
 		assert!(Marks::<T>::contains_key(content_hash));
-		assert_eq!(AttestationModule::<T>::marks(content_hash), Some(Mark::<T> {
+		assert_eq!(MarkModule::<T>::marks(content_hash), Some(Mark::<T> {
 			mtype_hash,
 			marker: delegate_acc,
 			delegation_id: Some(delegation_id),
@@ -50,7 +50,7 @@ benchmarks! {
 		let delegate_acc: T::AccountId = delegate_public.into();
 
 		// attest with leaf account
-		AttestationModule::<T>::anchor(RawOrigin::Signed(delegate_acc.clone()).into(), content_hash, mtype_hash, Some(delegation_id))?;
+		MarkModule::<T>::anchor(RawOrigin::Signed(delegate_acc.clone()).into(), content_hash, mtype_hash, Some(delegation_id))?;
 		// revoke with root account, s.t. delegation tree needs to be traversed
 	}: _(RawOrigin::Signed(root_acc.clone()), content_hash, d + 1)
 	verify {
@@ -62,6 +62,7 @@ benchmarks! {
 			revoked: true,
 		}));
 	}
+
 }
 
 #[cfg(test)]
@@ -73,7 +74,7 @@ mod tests {
 	#[test]
 	fn test_benchmarks() {
 		ExtBuilder::build_with_keystore().execute_with(|| {
-			assert_ok!(test_benchmark_add::<Test>());
+			assert_ok!(test_benchmark_anchor::<Test>());
 			assert_ok!(test_benchmark_revoke::<Test>());
 		});
 	}
