@@ -16,6 +16,8 @@ bitflags = { default-features = false, version = '1.2.1' }
 codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
 cord-primitives = { version = "0.4.0", package = "cord-primitives", path = "../../primitives", default-features = false }
 
+
+
 # Substrate dependencies
 frame-support = {  version = "3.0.0", default-features = false }
 frame-system = {  version = "3.0.0", default-features = false }
@@ -25,8 +27,8 @@ sp-io = {  version = "3.0.0", default-features = false }
 frame-benchmarking = {  version = "3.0.0", default-features = false , optional = true}
 sp-core = {  version = "3.0.0", default-features = false, optional = true }
 chrono =  {  version = "0.4.19", default-features = false }
-rand = {version = "0.7.3", default-features = false }
-
+rand = {version = "0.7.0", default-features = false }
+rand_core = {version = "0.6.2", default-features = false }
 
 # pallets
 pallet-mark = {  version = "0.4.0", default-features = false, path = '../mark' }

@@ -64,6 +64,7 @@ impl frame_system::Config for Test {
 
 impl Config for Test {
 	type Event = ();
+	type WeightInfo = ();
 }
 
 pub fn account_pair(s: &str) -> ed25519::Pair {

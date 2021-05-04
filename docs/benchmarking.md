@@ -4,7 +4,7 @@
 ## 1. Pallet Mtype - 
 
 ```
-./target/release/cord benchmark --chain=dev --execution=wasm --pallet=pallet_mtype --extrinsic='*' --steps=20 --repeat=10 --output=./pallets/mtype/src/weights.rs 
+./target/release/cord benchmark --chain=dev --execution=wasm --pallet=pallet_mtype --extrinsic='*' --steps=20 --repeat=10 --output=./pallets/mtype/src/weights.rs --template=./.maintain/weight-template.hbs
 2021-04-16 10:23:27  💸 new validator set of size 1 has been elected via ElectionCompute::OnChain for era 0    
 Pallet: "pallet_mtype", Extrinsic: "anchor", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
 Median Slopes Analysis
@@ -30,18 +30,18 @@ Writes = 1
 ```
 ## 2. Pallet Delegation - 
 ```
-./target/release/cord benchmark --chain=dev --execution=wasm --pallet=pallet_delegation --extrinsic='*' --steps=20 --repeat=10 --output=./pallets/delegation/src/weights.rs 
+ ./target/release/cord benchmark --chain=dev --execution=wasm --pallet=pallet_delegation --extrinsic='*' --steps=20  --output=./pallets/delegation/src/weights.rs --template=./.maintain/weight-template.hbs
+
 ```
 
 ```
-💸 new validator set of size 1 has been elected via ElectionCompute::OnChain for era 0    
-Pallet: "pallet_delegation", Extrinsic: "create_root", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Pallet: "pallet_delegation", Extrinsic: "create_root", Lowest values: [], Highest values: [], Steps: [20], Repeat: 1
 Median Slopes Analysis
 ========
 -- Extrinsic Time --
 
 Model:
-Time ~=    116.6
+Time ~=    119.2
               µs
 
 Reads = 2
@@ -51,19 +51,19 @@ Min Squares Analysis
 -- Extrinsic Time --
 
 Model:
-Time ~=    116.6
+Time ~=    119.2
               µs
 
 Reads = 2
 Writes = 1
-Pallet: "pallet_delegation", Extrinsic: "revoke_root", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Pallet: "pallet_delegation", Extrinsic: "revoke_root", Lowest values: [], Highest values: [], Steps: [20], Repeat: 1
 Median Slopes Analysis
 ========
 -- Extrinsic Time --
 
 Model:
-Time ~=    136.7
-    + r    158.9
+Time ~=      137
+    + r    158.1
               µs
 
 Reads = 2 + (2 * r)
@@ -74,30 +74,30 @@ Min Squares Analysis
 
 Data points distribution:
     r   mean µs  sigma µs       %
-    1     296.7     7.304    2.4%
-    2     468.9     20.34    4.3%
-    3       610      2.19    0.3%
-    4     772.2     3.682    0.4%
-    5     931.6     2.819    0.3%
+    1     316.2         0    0.0%
+    2     448.9         0    0.0%
+    3     611.5         0    0.0%
+    4     769.3         0    0.0%
+    5     927.7         0    0.0%
 
 Quality and confidence:
 param     error
-r         1.531
+r         2.969
 
 Model:
-Time ~=      144
-    + r    157.2
+Time ~=    151.7
+    + r    154.3
               µs
 
 Reads = 2 + (2 * r)
 Writes = 1 + (1 * r)
-Pallet: "pallet_delegation", Extrinsic: "add_delegation", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Pallet: "pallet_delegation", Extrinsic: "add_delegation", Lowest values: [], Highest values: [], Steps: [20], Repeat: 1
 Median Slopes Analysis
 ========
 -- Extrinsic Time --
 
 Model:
-Time ~=    331.9
+Time ~=    330.5
               µs
 
 Reads = 4
@@ -107,19 +107,19 @@ Min Squares Analysis
 -- Extrinsic Time --
 
 Model:
-Time ~=    331.9
+Time ~=    330.5
               µs
 
 Reads = 4
 Writes = 2
-Pallet: "pallet_delegation", Extrinsic: "revoke_delegation_root_child", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Pallet: "pallet_delegation", Extrinsic: "revoke_delegation_root_child", Lowest values: [], Highest values: [], Steps: [20], Repeat: 1
 Median Slopes Analysis
 ========
 -- Extrinsic Time --
 
 Model:
-Time ~=     49.5
-    + r      162
+Time ~=    53.14
+    + r    159.9
               µs
 
 Reads = 0 + (2 * r)
@@ -130,31 +130,31 @@ Min Squares Analysis
 
 Data points distribution:
     r   mean µs  sigma µs       %
-    1     208.7     1.208    0.5%
-    2     375.8     1.946    0.5%
-    3     541.7     6.218    1.1%
-    4       703     10.32    1.4%
-    5     857.1       2.1    0.2%
+    1     208.4         0    0.0%
+    2     374.4         0    0.0%
+    3     534.3         0    0.0%
+    4     692.9         0    0.0%
+    5       851         0    0.0%
 
 Quality and confidence:
 param     error
-r         0.897
+r         0.894
 
 Model:
-Time ~=    50.12
-    + r    162.3
+Time ~=    51.15
+    + r    160.3
               µs
 
 Reads = 0 + (2 * r)
 Writes = 0 + (1 * r)
-Pallet: "pallet_delegation", Extrinsic: "revoke_delegation_leaf", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Pallet: "pallet_delegation", Extrinsic: "revoke_delegation_leaf", Lowest values: [], Highest values: [], Steps: [20], Repeat: 1
 Median Slopes Analysis
 ========
 -- Extrinsic Time --
 
 Model:
-Time ~=    190.7
-    + r    58.02
+Time ~=    186.8
+    + r    57.27
               µs
 
 Reads = 2 + (1 * r)
@@ -165,38 +165,40 @@ Min Squares Analysis
 
 Data points distribution:
     r   mean µs  sigma µs       %
-    1       246     2.276    0.9%
-    2     308.1     2.183    0.7%
-    3     366.9     1.961    0.5%
-    4     423.3      6.75    1.5%
-    5     479.1     3.755    0.7%
+    1     241.7         0    0.0%
+    2       536         0    0.0%
+    3     703.8         0    0.0%
+    4     415.9         0    0.0%
+    5     470.7         0    0.0%
 
 Quality and confidence:
 param     error
-r         0.567
+r         58.48
 
 Model:
-Time ~=    190.3
-    + r    58.12
+Time ~=    372.2
+    + r     33.8
               µs
 
 Reads = 2 + (1 * r)
+Writes = 1 + (0 * r)
 
 ```
 
-## 2. Pallet Mark - 
+## 3. Pallet Mark - 
 ```
-./target/release/cord benchmark --chain=dev --execution=wasm --pallet=pallet_mark --extrinsic='*' --steps=20 --repeat=10 --output=./pallets/mark/src/weights.rs 
+./target/release/cord benchmark --chain=dev --execution=wasm --pallet=pallet_mark --extrinsic='*' --steps=20 --repeat=10 --output=./pallets/mark/src/weights.rs --template=./.maintain/weight-template.hbs
 ```
 
 ```
-Pallet: "pallet_mark", Extrinsic: "anchor", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Compute::OnChain for era 0    
+Pallet: "pallet_mark", Extrinsic: "anchor", Lowest values: [], Highest values: [], Steps: [20], Repeat: 1
 Median Slopes Analysis
 ========
 -- Extrinsic Time --
 
 Model:
-Time ~=      316
+Time ~=    237.2
               µs
 
 Reads = 5
@@ -206,19 +208,19 @@ Min Squares Analysis
 -- Extrinsic Time --
 
 Model:
-Time ~=      316
+Time ~=    237.2
               µs
 
 Reads = 5
 Writes = 2
-Pallet: "pallet_mark", Extrinsic: "revoke", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Pallet: "pallet_mark", Extrinsic: "revoke", Lowest values: [], Highest values: [], Steps: [20], Repeat: 1
 Median Slopes Analysis
 ========
 -- Extrinsic Time --
 
 Model:
-Time ~=    244.1
-    + d    69.34
+Time ~=    158.7
+    + d    50.05
               µs
 
 Reads = 2 + (1 * d)
@@ -229,33 +231,34 @@ Min Squares Analysis
 
 Data points distribution:
     d   mean µs  sigma µs       %
-    1     305.4      0.78    0.2%
-    2     381.3     0.277    0.0%
-    3     455.5     0.384    0.0%
-    4     528.1     1.508    0.2%
-    5     601.1     1.617    0.2%
-    6     674.9     2.979    0.4%
-    7     719.1     1.094    0.1%
-    8     800.9     13.39    1.6%
-    9       863     2.036    0.2%
-   10     932.6     2.276    0.2%
+    1     208.7         0    0.0%
+    2     265.7         0    0.0%
+    3     310.7         0    0.0%
+    4     358.7         0    0.0%
+    5     408.8         0    0.0%
+    6       459         0    0.0%
+    7     508.8         0    0.0%
+    8     559.9         0    0.0%
+    9     609.2         0    0.0%
+   10       664         0    0.0%
 
 Quality and confidence:
 param     error
-d         0.409
+d         0.289
 
 Model:
-Time ~=    246.5
-    + d    69.03
+Time ~=    160.4
+    + d    49.99
               µs
 
 Reads = 2 + (1 * d)
+Writes = 1 + (0 * d)
 
 
 ```
 
 ## Pallet DID - 
 ```
-./target/release/cord benchmark --chain=dev --execution=wasm --pallet=pallet_did --extrinsic='*' --steps=20 --repeat=10 --output=./pallets/did/src/weights.rs 
+./target/release/cord benchmark --chain=dev --execution=wasm --pallet=pallet_did --extrinsic='*' --steps=20 --repeat=10 --output=./pallets/did/src/weights.rs --template=./.maintain/weight-template.hbs
 
 ```

@@ -736,6 +736,7 @@ impl pallet_sudo::Config for Runtime {
 
 impl pallet_mark::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = ();
 }
 
 impl pallet_digest::Config for Runtime {
@@ -744,19 +745,24 @@ impl pallet_digest::Config for Runtime {
 
 impl pallet_mtype::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = ();
 }
 
 impl pallet_delegation::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = ();
 	type Signature = Signature;
 	type Signer = <Signature as Verify>::Signer;
 	type DelegationNodeId = Hash;
+
 }
 
 impl pallet_did::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = ();
 	type PublicSigningKey = Hash;
 	type PublicBoxKey = Hash;
+
 }
 
 construct_runtime! {

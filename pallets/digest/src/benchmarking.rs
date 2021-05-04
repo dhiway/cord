@@ -12,8 +12,9 @@ use frame_benchmarking::{account, benchmarks,whitelisted_caller};
 use frame_system::RawOrigin;
 use sp_std::{vec, vec::Vec, boxed::Box};
 use sp_runtime::traits::Hash;
-use rand::{thread_rng, Rng};
+// use rand::{thread_rng, Rng};
 use rand::distributions::Alphanumeric;
+use chrono::{DateTime, TimeZone, Utc};
 use codec::alloc::string::String;
 
 const SEED: u32 = 0;
@@ -21,28 +22,40 @@ const SEED: u32 = 0;
 benchmarks! {
 	
 	anchor {
-		// let now = Utc::now();
+
+		// let dt = Utc.timestamp(1_500_000_000, 0);
+		// let val: &[u8] = dt.into();
 		// now.to_rfc2822();
 		// now.datetime_from_str();
+		// let mut key = [0u8; 16];
+		// OsRng.fill_bytes(&mut key);
+		// let random_u64 = OsRng.next_u32()();
+		// let ran_ud:&[u8] = random_u64 as &[u8];
+		// // let x: u8 = rand::random();
+		// // let val: &[u8] = (vec![2,4]*x);
+		// let rand_string: String = thread_rng()
+        // .sample_iter(&Alphanumeric)
+        // .take(30)
+        // .map(char::from)
+        // .collect();
 
-		// let x: u8 = rand::random();
-		// let val: &[u8] = (vec![2,4]*x);
-		let rand_string: String = thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(30)
-        .map(char::from)
-        .collect();
+		// let mut someVex: &[u8] = [b"a",b"kk",b"c",b"d",b"e"];
 
-		let val = rand_string.into_bytes();
-		let s = String::from_utf8(val).expect("Found invalid UTF-8");
-		let fin:&[u8] = s.as_bytes();
+		// let val = rand_string.into_bytes();
+		// let s = str::from_utf8(val).expect("Found invalid UTF-8");
+		// let fin:&[u8] = s.as_bytes();
+		// let rand_string: String = thread_rng()
+        // .sample_iter(&Alphanumeric)
+        // .take(30)
+        // .map(char::from)
+        // .collect();
 
 
 		let caller: T::AccountId = whitelisted_caller();
 		let acc: T::AccountId = whitelisted_caller();
 
 		let digest_hash: T::Hash = T::Hash::default();
-		let content_hash: T::Hash = T::Hashing::hash(fin);
+		let content_hash: T::Hash = T::Hashing::hash(b"somedat");
 		let hash = <T::Hash as Default>::default();
 		let mtype_hash: T::Hash = T::Hash::default();
 		

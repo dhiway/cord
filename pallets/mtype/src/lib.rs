@@ -7,11 +7,15 @@
 //! adding #MARK Types.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(any(feature = "runtime-benchmarks", test))]
+pub mod benchmarking;
+
 /// Test module for MTYPEs
 #[cfg(test)]
 mod tests;
-mod benchmarking;
 
+pub mod weights;
+pub use weights::WeightInfo;
 
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap};
 use frame_system::{self, ensure_signed};
@@ -20,6 +24,9 @@ use frame_system::{self, ensure_signed};
 pub trait Config: frame_system::Config {
 	/// #MARK TYPE specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+
+	/// Weight information for extrinsics in this pallet.
+	type WeightInfo: WeightInfo;
 }
 
 decl_event!(
@@ -52,7 +59,7 @@ decl_module! {
 		/// Anchors a new #MARK schema on chain,
 		///, where, origin is the signed sender account, and
 		/// mtype_hash is the hash of the anchored Type schema
-		#[weight = 100_000_000_000]
+		#[weight = <T as Config>::WeightInfo::anchor()]
 		pub fn anchor(origin, mtype_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
