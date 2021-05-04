@@ -337,6 +337,12 @@ and
 revoke_children(delegation: &T::DelegationNodeId, sender: &T::AccountId) -> DispatchResult
 ```
 
+## Substrate Benchmarking - 
+To know more about generating weights for the specific pallets - 
+Go to - docs/benchmarking.md
+
+or check out the weights file in the respective pallets.
+
 ### Substrate Documentation
 #### [Substrate Tutorials](https://substrate.dev/en/tutorials)
 #### [Substrate JSON-RPC API](https://polkadot.js.org/docs/substrate/rpc)

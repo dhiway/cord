@@ -1,10 +1,21 @@
-## Cord benchmarking outputs -
+# Cord benchmarking outputs -
+
+## How to use this file - 
+File has been divided into  - pallets name -> Each pallet consists of two parts. 
+```
+1. Command to generate weights file.
+2. Output from that command.
+```
+If you want to generate the weights of specific pallets, copy the command of the respective pallet and run at the root of repository.
 
 
 ## 1. Pallet Mtype - 
 
 ```
 ./target/release/cord benchmark --chain=dev --execution=wasm --pallet=pallet_mtype --extrinsic='*' --steps=20 --repeat=10 --output=./pallets/mtype/src/weights.rs --template=./.maintain/weight-template.hbs
+```
+
+```
 2021-04-16 10:23:27  💸 new validator set of size 1 has been elected via ElectionCompute::OnChain for era 0    
 Pallet: "pallet_mtype", Extrinsic: "anchor", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
 Median Slopes Analysis
@@ -257,8 +268,127 @@ Writes = 1 + (0 * d)
 
 ```
 
-## Pallet DID - 
+## 4. Pallet DID - 
 ```
 ./target/release/cord benchmark --chain=dev --execution=wasm --pallet=pallet_did --extrinsic='*' --steps=20 --repeat=10 --output=./pallets/did/src/weights.rs --template=./.maintain/weight-template.hbs
+
+```
+
+```
+Pallet: "pallet_did", Extrinsic: "anchor", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=    341.1
+              µs
+
+Reads = 0
+Writes = 1
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=    341.1
+              µs
+
+Reads = 0
+Writes = 1
+Pallet: "pallet_did", Extrinsic: "remove", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=    274.5
+              µs
+
+Reads = 0
+Writes = 1
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=    274.5
+              µs
+
+Reads = 0
+Writes = 1
+
+
+```
+
+## 5. Pallet-Digest - 
+
+```
+./target/release/cord benchmark --chain=dev --execution=wasm --pallet=pallet_digest --extrinsic='*' --steps=20  --repeat=10 --output=./pallets/digest/src/weights.rs --template=./.maintain/weight-template.hbs
+```
+
+```
+Pallet: "pallet_digest", Extrinsic: "anchor", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=      140
+              µs
+
+Reads = 2
+Writes = 1
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=      140
+              µs
+
+Reads = 2
+Writes = 1
+Pallet: "pallet_digest", Extrinsic: "revoke", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=    122.8
+    + d        0
+              µs
+
+Reads = 1 + (0 * d)
+Writes = 1 + (0 * d)
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Data points distribution:
+    d   mean µs  sigma µs       %
+    1     121.9     0.413    0.3%
+    2     122.4     0.441    0.3%
+    3     120.5      1.64    1.3%
+    4     115.9     1.136    0.9%
+    5     113.4     1.415    1.2%
+    6     111.2     0.291    0.2%
+    7     111.1     0.199    0.1%
+    8       111     0.275    0.2%
+    9     110.9     0.246    0.2%
+   10     111.2     0.278    0.2%
+
+Quality and confidence:
+param     error
+d         0.096
+
+Model:
+Time ~=      123
+    + d        0
+              µs
+
+Reads = 1 + (0 * d)
+Writes = 1 + (0 * d)
+
 
 ```

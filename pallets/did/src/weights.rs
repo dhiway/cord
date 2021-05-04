@@ -17,6 +17,7 @@
 // --pallet=pallet_did
 // --extrinsic=*
 // --steps=20
+// --repeat=10
 // --output=./pallets/did/src/weights.rs
 // --template=./.maintain/weight-template.hbs
 
@@ -37,11 +38,11 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn anchor() -> Weight {
-		(357_883_000_u64)
+		(341_153_000_u64)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 	fn remove() -> Weight {
-		(286_911_000_u64)
+		(274_549_000_u64)
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 }
@@ -49,11 +50,11 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn anchor() -> Weight {
-		(357_883_000_u64)
+		(341_153_000_u64)
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	fn remove() -> Weight {
-		(286_911_000_u64)
+		(274_549_000_u64)
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }

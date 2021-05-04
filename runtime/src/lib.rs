@@ -741,6 +741,8 @@ impl pallet_mark::Config for Runtime {
 
 impl pallet_digest::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = ();
+
 }
 
 impl pallet_mtype::Config for Runtime {
