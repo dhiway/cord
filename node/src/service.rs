@@ -1,7 +1,8 @@
 // Copyright 2019-2021 Dhiway.
 // This file is part of CORD Platform.
 
-//! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
+//! Service and ServiceFactory implementation. Specialized wrapper over
+//! substrate service.
 
 use cord_primitives::{AccountId, Balance, Block, Nonce};
 use cord_runtime::{self, RuntimeApi};
@@ -16,8 +17,8 @@ use std::sync::Arc;
 
 pub use sc_client_api::{Backend, CallExecutor, ExecutionStrategy, ExecutorProvider, RemoteBackend};
 pub use sc_consensus::LongestChain;
-pub use sc_service::config::{DatabaseConfig, PrometheusConfig};
 pub use sc_service::{
+	config::{DatabaseConfig, PrometheusConfig},
 	ChainSpec, Configuration, Error as ServiceError, PruningMode, Role, RpcHandlers, RuntimeGenesis, TFullBackend,
 	TFullCallExecutor, TFullClient, TLightBackend, TLightCallExecutor, TLightClient, TaskManager,
 	TransactionPoolOptions,
@@ -205,7 +206,8 @@ pub struct NewFull {
 }
 
 /// Builds a new service for a full client.
-// pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> {
+// pub fn new_full(mut config: Configuration) -> Result<TaskManager,
+// ServiceError> {
 pub fn new_full_base(
 	mut config: Configuration,
 	_with_startup_data: impl FnOnce(

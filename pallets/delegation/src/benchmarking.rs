@@ -8,11 +8,11 @@
 use super::*;
 
 use frame_benchmarking::{account, benchmarks};
+use frame_support::traits::Box;
 use frame_system::RawOrigin;
 use sp_core::{offchain::KeyTypeId, sr25519};
 use sp_io::crypto::sr25519_generate;
-use sp_std::{num::NonZeroU32,vec};
-use frame_support::traits::Box;
+use sp_std::{num::NonZeroU32, vec};
 
 const SEED: u32 = 0;
 const MAX_REVOCATIONS: u32 = 5;
@@ -274,8 +274,8 @@ benchmarks! {
 mod tests {
 	use super::*;
 	use crate::tests::{ExtBuilder, Test};
-	use mtype::MTYPEs;
 	use frame_support::{assert_ok, StorageMap};
+	use mtype::MTYPEs;
 	use sp_std::num::NonZeroU32;
 
 	#[test]

@@ -4,9 +4,9 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub mod benchmarking;
 #[cfg(test)]
 mod tests;
-pub mod benchmarking;
 
 pub use cord_primitives::{AccountId, Balance};
 use frame_support::{

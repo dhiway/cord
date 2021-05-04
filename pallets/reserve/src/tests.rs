@@ -97,8 +97,8 @@ impl Config for Test {
 	type Call = Call;
 }
 
-// This function basically just builds a genesis storage key/value store according to
-// our desired mockup.
+// This function basically just builds a genesis storage key/value store
+// according to our desired mockup.
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	frame_system::GenesisConfig::default()
 		.build_storage::<Test>()

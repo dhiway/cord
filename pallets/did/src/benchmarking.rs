@@ -3,23 +3,22 @@
 
 //! Benchmarking of Mtype
 
-
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
 
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
-use sp_std::{vec, vec::Vec, boxed::Box};
+use sp_std::{boxed::Box, vec, vec::Vec};
 
 const SEED: u32 = 0;
 
 benchmarks! {
-	
+
 	anchor {
 		let caller :T::AccountId = account("sender", 0, SEED);
 		let sign_key = <T::PublicSigningKey as Default>::default();
-        let box_key = <T::PublicBoxKey as Default>::default();
+		let box_key = <T::PublicBoxKey as Default>::default();
 		// let doc_ref = Option<Vec<u8>>
 		let doc_ref = Some(b"http://dway.io/submit".to_vec());
 
@@ -47,7 +46,6 @@ mod tests {
 		new_test_ext().execute_with(|| {
 			assert_ok!(test_benchmark_anchor::<Test>());
 			assert_ok!(test_benchmark_remove::<Test>());
-
 		});
 	}
 }

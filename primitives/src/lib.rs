@@ -14,14 +14,16 @@ use sp_runtime::{
 /// An index to a block.
 pub type BlockNumber = u32;
 
-/// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
+/// Alias to 512-bit hash when used in the context of a transaction signature on
+/// the chain.
 pub type Signature = MultiSignature;
 
-/// Some way of identifying an account on the chain. We intentionally make it equivalent
-/// to the public key of our transaction signing scheme.
+/// Some way of identifying an account on the chain. We intentionally make it
+/// equivalent to the public key of our transaction signing scheme.
 pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
-/// The type for looking up accounts. We don't expect more than 4 billion of them.
+/// The type for looking up accounts. We don't expect more than 4 billion of
+/// them.
 pub type AccountIndex = u32;
 
 /// Balance of an account.
@@ -53,9 +55,9 @@ pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 /// Block ID.
 pub type BlockId = generic::BlockId<Block>;
 
-// /// App-specific crypto used for reporting equivocation/misbehavior in AURA and
-// /// GRANDPA. Any rewards for misbehavior reporting will be paid out to this
-// /// account.
+// /// App-specific crypto used for reporting equivocation/misbehavior in AURA
+// and /// GRANDPA. Any rewards for misbehavior reporting will be paid out to
+// this /// account.
 // /// TODO - Explore more
 // pub mod report {
 // 	use super::{Signature, Verify};
@@ -74,12 +76,12 @@ pub type BlockId = generic::BlockId<Block>;
 // 	/// Identity of the equivocation/misbehavior reporter.
 // 	pub type ReporterId = app::Public;
 
-// 	/// An `AppCrypto` type to allow submitting signed transactions using the reporting
-// 	/// application key as signer.
+// 	/// An `AppCrypto` type to allow submitting signed transactions using the
+// reporting 	/// application key as signer.
 // 	pub struct ReporterAppCrypto;
 
-// 	impl AppCrypto<<Signature as Verify>::Signer, Signature> for ReporterAppCrypto {
-// 		type RuntimeAppPublic = ReporterId;
+// 	impl AppCrypto<<Signature as Verify>::Signer, Signature> for
+// ReporterAppCrypto { 		type RuntimeAppPublic = ReporterId;
 // 		type GenericSignature = sp_core::ed25519::Signature;
 // 		type GenericPublic = sp_core::ed25519::Public;
 // 	}

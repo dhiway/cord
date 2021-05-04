@@ -8,14 +8,13 @@
 use super::*;
 
 use crate::Module as MarkModule;
-use pallet_delegation::{benchmarking::setup_delegations, Permissions};
 use frame_benchmarking::benchmarks;
-use frame_support::storage::StorageMap;
+use frame_support::{storage::StorageMap, traits::Box};
 use frame_system::RawOrigin;
+use pallet_delegation::{benchmarking::setup_delegations, Permissions};
 use sp_core::sr25519;
 use sp_runtime::traits::Hash;
-use sp_std::{num::NonZeroU32,vec};
-use frame_support::traits::Box;
+use sp_std::{num::NonZeroU32, vec};
 
 const MAX_DEPTH: u32 = 10;
 const ONE_CHILD_PER_LEVEL: Option<NonZeroU32> = NonZeroU32::new(1);

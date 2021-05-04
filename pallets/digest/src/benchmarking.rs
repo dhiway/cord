@@ -3,22 +3,20 @@
 
 //! Benchmarking of Digest
 
-
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
 
 use crate::Module as DigestModule;
-use frame_benchmarking::{benchmarks,whitelisted_caller};
+use frame_benchmarking::{benchmarks, whitelisted_caller};
 use frame_system::RawOrigin;
-use sp_std::{vec, vec::Vec, boxed::Box};
 use sp_runtime::traits::Hash;
+use sp_std::{boxed::Box, vec, vec::Vec};
 
 const MAX_DEPTH: u32 = 10;
 
-
 benchmarks! {
-	
+
 	anchor {
 
 		let caller: T::AccountId = whitelisted_caller();
@@ -27,7 +25,7 @@ benchmarks! {
 		let content_hash: T::Hash = T::Hashing::hash(b"someContentHash");
 		let hash = <T::Hash as Default>::default();
 		let mtype_hash: T::Hash = T::Hash::default();
-		
+
 		pallet_mtype::Module::<T>::anchor(RawOrigin::Signed(caller.clone()).into(), mtype_hash)?;
 		pallet_mark::Module::<T>::anchor(RawOrigin::Signed(acc.clone()).into(), content_hash,mtype_hash,None)?;
 
@@ -36,7 +34,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(caller.clone()),digest_hash,content_hash)
 	verify {
 		 assert!(Digests::<T>::contains_key(digest_hash));
-		 
+
 	}
 
 	revoke {
@@ -57,7 +55,7 @@ benchmarks! {
 	}: _(RawOrigin::Signed(caller.clone()),digest_hash,d+1)
 	verify {
 		assert!(Digests::<T>::contains_key(digest_hash));
-		
+
 	}
 }
 

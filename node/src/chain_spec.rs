@@ -25,12 +25,13 @@ use hex_literal::hex;
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 const DEFAULT_PROTOCOL_ID: &str = "cord";
 
-/// Specialised `ChainSpec`. This is a specialisation of the general Substrate ChainSpec type.
+/// Specialised `ChainSpec`. This is a specialisation of the general Substrate
+/// ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
 
 /// The chain specification option. This is expected to come in from the CLI and
-/// is little more than one of a number of alternatives which can easily be converted
-/// from a string (`--chain=...`) into a `ChainSpec`.
+/// is little more than one of a number of alternatives which can easily be
+/// converted from a string (`--chain=...`) into a `ChainSpec`.
 #[derive(Clone, Debug)]
 pub enum Alternative {
 	BombayBrown,

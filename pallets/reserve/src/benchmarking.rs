@@ -3,7 +3,6 @@
 
 // //! Benchmarking of Reserve
 
-
 // #![cfg(feature = "runtime-benchmarks")]
 
 // use super::*;
@@ -16,7 +15,7 @@
 // const SEED: u32 = 0;
 
 // benchmarks! {
-	
+
 // 	// transfer {
 // 	// 	let caller :T::AccountId = account("sender", 0, SEED);
 //     //     let to :T::AccountId = account("to", 1, SEED);
@@ -31,7 +30,7 @@
 //     receive {
 // 		let caller :T::AccountId = account("sender", 0, SEED);
 //         let balance = T::Currency::free_balance(&caller);
-	
+
 // 	}: _(RawOrigin::Signed(caller.clone()),balance)
 // 	verify {
 // 		// DIDs::<T>::contains_key(caller)
