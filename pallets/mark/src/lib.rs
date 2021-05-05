@@ -158,7 +158,7 @@ decl_module! {
 		/// Restores a #MARK
 		/// where, origin is the signed sender account,
 		/// content_hash is the revoked #MARK.
-		#[weight = 10_000_000]
+		#[weight = <T as Config>::WeightInfo::restore(*max_depth)]
 		pub fn restore(origin, content_hash: T::Hash, max_depth: u32) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;

@@ -88,7 +88,7 @@ decl_module! {
 		/// Revokes a #MARK Digest
 		/// where, origin is the signed sender account,
 		/// and digest_hash is the hash of the file.
-		#[weight = <T as Config>::WeightInfo::revoke()]
+		#[weight = <T as Config>::WeightInfo::revoke(*max_depth)]
 		pub fn revoke(origin, digest_hash: T::Hash, max_depth: u32) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;

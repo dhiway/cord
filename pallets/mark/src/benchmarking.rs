@@ -62,6 +62,32 @@ benchmarks! {
 		}));
 	}
 
+	restore {
+		let d in 1 .. MAX_DEPTH;
+
+		let content_hash: T::Hash = T::Hashing::hash(b"claim");
+		let mtype_hash: T::Hash = T::Hash::default();
+
+		let (root_public, _, delegate_public, delegation_id) = setup_delegations::<T>(d, ONE_CHILD_PER_LEVEL.expect(">0"), Permissions::ANCHOR | Permissions::DELEGATE)?;
+		let root_acc: T::AccountId = root_public.into();
+		let delegate_acc: T::AccountId = delegate_public.into();
+
+		// attest with leaf account
+		MarkModule::<T>::anchor(RawOrigin::Signed(delegate_acc.clone()).into(), content_hash, mtype_hash, Some(delegation_id))?;
+		MarkModule::<T>::revoke(RawOrigin::Signed(root_acc.clone()).into(), content_hash,d+1)?;
+
+		// revoke with root account, s.t. delegation tree needs to be traversed
+	}: _(RawOrigin::Signed(root_acc.clone()), content_hash, d + 1)
+	verify {
+		assert!(Marks::<T>::contains_key(content_hash));
+		assert_eq!(Marks::<T>::get(content_hash), Some(Mark::<T> {
+			mtype_hash,
+			marker: delegate_acc,
+			delegation_id: Some(delegation_id),
+			revoked: false,
+		}));
+	}
+
 }
 
 #[cfg(test)]

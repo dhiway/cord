@@ -202,14 +202,13 @@ Writes = 1 + (0 * r)
 ```
 
 ```
-Compute::OnChain for era 0    
-Pallet: "pallet_mark", Extrinsic: "anchor", Lowest values: [], Highest values: [], Steps: [20], Repeat: 1
+Pallet: "pallet_mark", Extrinsic: "anchor", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
 Median Slopes Analysis
 ========
 -- Extrinsic Time --
 
 Model:
-Time ~=    237.2
+Time ~=    311.2
               µs
 
 Reads = 5
@@ -219,19 +218,19 @@ Min Squares Analysis
 -- Extrinsic Time --
 
 Model:
-Time ~=    237.2
+Time ~=    311.2
               µs
 
 Reads = 5
 Writes = 2
-Pallet: "pallet_mark", Extrinsic: "revoke", Lowest values: [], Highest values: [], Steps: [20], Repeat: 1
+Pallet: "pallet_mark", Extrinsic: "revoke", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
 Median Slopes Analysis
 ========
 -- Extrinsic Time --
 
 Model:
-Time ~=    158.7
-    + d    50.05
+Time ~=    224.7
+    + d    44.09
               µs
 
 Reads = 2 + (1 * d)
@@ -242,28 +241,69 @@ Min Squares Analysis
 
 Data points distribution:
     d   mean µs  sigma µs       %
-    1     208.7         0    0.0%
-    2     265.7         0    0.0%
-    3     310.7         0    0.0%
-    4     358.7         0    0.0%
-    5     408.8         0    0.0%
-    6       459         0    0.0%
-    7     508.8         0    0.0%
-    8     559.9         0    0.0%
-    9     609.2         0    0.0%
-   10       664         0    0.0%
+    1     272.8     3.627    1.3%
+    2     301.3     28.33    9.4%
+    3     384.3     17.25    4.4%
+    4     416.1     38.66    9.2%
+    5     486.6     28.78    5.9%
+    6     462.4     1.276    0.2%
+    7     519.3     4.956    0.9%
+    8     566.5     2.066    0.3%
+    9       618     1.337    0.2%
+   10     668.7     2.026    0.3%
 
 Quality and confidence:
 param     error
-d         0.289
+d         1.213
 
 Model:
-Time ~=    160.4
-    + d    49.99
+Time ~=    237.1
+    + d    42.28
               µs
 
 Reads = 2 + (1 * d)
 Writes = 1 + (0 * d)
+Pallet: "pallet_mark", Extrinsic: "restore", Lowest values: [], Highest values: [], Steps: [20], Repeat: 10
+Median Slopes Analysis
+========
+-- Extrinsic Time --
+
+Model:
+Time ~=    165.4
+    + d    50.48
+              µs
+
+Reads = 2 + (1 * d)
+Writes = 1 + (0 * d)
+Min Squares Analysis
+========
+-- Extrinsic Time --
+
+Data points distribution:
+    d   mean µs  sigma µs       %
+    1     256.9     8.585    3.3%
+    2       271     10.89    4.0%
+    3     339.2     22.72    6.6%
+    4     361.2     1.108    0.3%
+    5     409.5     0.471    0.1%
+    6     541.9     46.95    8.6%
+    7     522.5     11.16    2.1%
+    8     563.9     2.375    0.4%
+    9     634.4     18.41    2.9%
+   10     698.6     26.56    3.8%
+
+Quality and confidence:
+param     error
+d         1.448
+
+Model:
+Time ~=    184.6
+    + d    50.05
+              µs
+
+Reads = 2 + (1 * d)
+Writes = 1 + (0 * d)
+
 
 
 ```
