@@ -12,8 +12,14 @@
 #[cfg(test)]
 mod tests;
 
+#[cfg(any(feature = "runtime-benchmarks", test))]
+pub mod benchmarking;
+
 #[macro_use]
 extern crate bitflags;
+
+pub mod weights;
+pub use weights::WeightInfo;
 
 use codec::{Decode, Encode};
 use core::default::Default;
@@ -65,11 +71,15 @@ pub trait Config: pallet_mtype::Config + frame_system::Config {
 	/// Delegation specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
 
+	/// Weight information for extrinsics in this pallet.
+	type WeightInfo: WeightInfo;
+
 	/// Signature of a delegation
 	type Signature: Verify<Signer = Self::Signer> + Member + Codec + Default;
 
 	/// Signer of a delegation
-	// type Signer: From<Self::AccountId> + IdentifyAccount<AccountId = Self::AccountId>> + Member + Codec;
+	// type Signer: From<Self::AccountId> + IdentifyAccount<AccountId =
+	// Self::AccountId>> + Member + Codec;
 	type Signer: IdentifyAccount<AccountId = Self::AccountId> + Member + Codec;
 
 	/// Delegation node id type
@@ -134,7 +144,7 @@ decl_module! {
 		///, where, origin is the signed sender account,
 		/// root_id is the unique identifier of the root node,
 		/// and, mtype_hash - hash of the MTYPE the hierarchy is created for
-		#[weight = 100_000_000_000]
+		#[weight = <T as Config>::WeightInfo::create_root()]
 		pub fn create_root(origin, root_id: T::DelegationNodeId, mtype_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
@@ -159,7 +169,7 @@ decl_module! {
 		/// delegate - the delegate account
 		/// permission - the permissions delegated
 		/// delegate_signature - the signature of the delegate to ensure it's done under his permission
-		#[weight = 100_000_000_000]
+		#[weight = <T as Config>::WeightInfo::add_delegation()]
 		pub fn add_delegation(
 			origin,
 			delegation_id: T::DelegationNodeId,
@@ -223,7 +233,7 @@ decl_module! {
 		/// Revoke the root and therefore a complete hierarchy, where
 		/// origin - the origin of the transaction
 		/// root_id - id of the hierarchy root node
-		#[weight = 100_000_000_000]
+		#[weight = <T as Config>::WeightInfo::revoke_root(*max_children)]
 		pub fn revoke_root(origin, root_id: T::DelegationNodeId, max_children: u32) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
@@ -250,7 +260,7 @@ decl_module! {
 		/// Revoke a delegation node and all its children, where
 		/// origin - the origin of the transaction
 		/// delegation_id - id of the delegation node
-		#[weight = 100_000_000_000]
+		#[weight = <T as Config>::WeightInfo::revoke_delegation_leaf(*max_depth + 1).max(<T as Config>::WeightInfo::revoke_delegation_root_child(*max_depth + 1))]
 		pub fn revoke_delegation(origin, delegation_id: T::DelegationNodeId, max_depth: u32,
 			max_revocations: u32) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
@@ -291,7 +301,8 @@ impl<T: Config> Module<T> {
 		T::Hashing::hash(&hashed_values)
 	}
 
-	/// Check if an account is the owner of the delegation or any delegation up the hierarchy (including the root)
+	/// Check if an account is the owner of the delegation or any delegation up
+	/// the hierarchy (including the root)
 	pub fn is_delegating(
 		account: &T::AccountId,
 		delegation: &T::DelegationNodeId,
@@ -333,7 +344,8 @@ impl<T: Config> Module<T> {
 				revocations += r;
 			})?;
 
-			// if we run out of revocation gas, we only revoke children. The tree will be changed but is still valid.
+			// if we run out of revocation gas, we only revoke children. The tree will be
+			// changed but is still valid.
 			if revocations < max_revocations {
 				// set revoked flag and store delegation node
 				delegation_node.revoked = true;
@@ -408,8 +420,8 @@ impl<T: Config> DelegationNode<T> {
 	///
 	/// root_id - the root of the delegation tree
 	/// parent - the parent in the tree
-	/// owner - the owner of the new child root. He will receive the delegated permissions
-	/// permissions - the permissions that are delegated
+	/// owner - the owner of the new child root. He will receive the delegated
+	/// permissions permissions - the permissions that are delegated
 	pub fn new_child(
 		root_id: T::DelegationNodeId,
 		parent: T::DelegationNodeId,

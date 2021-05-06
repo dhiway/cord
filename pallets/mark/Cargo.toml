@@ -14,6 +14,7 @@ wasm-builder = { package = 'substrate-wasm-builder', version = '3.0.0' }
 [dependencies]
 bitflags = { default-features = false, version = '1.2.1' }
 codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
+sp-core = {  version = "3.0.0", default-features = false , optional= true}
 cord-primitives = { version = "0.4.0", package = "cord-primitives", path = "../../primitives", default-features = false }
 
 # Substrate dependencies
@@ -23,16 +24,22 @@ sp-runtime = {  version = "3.0.0", default-features = false }
 sp-std = {  version = "3.0.0", default-features = false }
 sp-io = {  version = "3.0.0", default-features = false }
 
+frame-benchmarking = {  version = "3.0.0", default-features = false , optional = true}
+
 # pallets
 pallet-mtype = { version = "0.4.0", default-features = false, path = '../mtype' }
 pallet-delegation = { version = "0.4.0", default-features = false, path = '../delegation' }
 
 [dev-dependencies]
 serde = { version = "1.0", default-features = false }
-sp-core = {  version = "3.0.0", default-features = false }
 
 [features]
 default = [ 'std' ]
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "sp-core",
+  "pallet-delegation/runtime-benchmarks",
+]
 std = [
 	'codec/std',
 	'frame-support/std',

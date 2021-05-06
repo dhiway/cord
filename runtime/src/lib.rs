@@ -22,8 +22,10 @@ use frame_support::{
 };
 
 use codec::Encode;
-use frame_system::limits::{BlockLength, BlockWeights};
-use frame_system::{EnsureOneOf, EnsureRoot};
+use frame_system::{
+	limits::{BlockLength, BlockWeights},
+	EnsureOneOf, EnsureRoot,
+};
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
@@ -64,7 +66,8 @@ pub use pallet_balances::Call as BalancesCall;
 pub use pallet_staking::StakerStatus;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
-/// Implementations of some helper traits passed into runtime modules as associated types.
+/// Implementations of some helper traits passed into runtime modules as
+/// associated types.
 pub mod impls;
 pub use impls::{Author, ProxyType};
 
@@ -92,7 +95,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	transaction_version: 6,
 };
 
-/// The version information used to identify this runtime when compiled natively.
+/// The version information used to identify this runtime when compiled
+/// natively.
 #[cfg(any(feature = "std", test))]
 pub fn native_version() -> NativeVersion {
 	NativeVersion {
@@ -107,11 +111,11 @@ type MoreThanHalfCouncil = EnsureOneOf<
 	frame_system::EnsureRoot<AccountId>,
 >;
 
-/// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
-/// This is used to limit the maximal weight of a single extrinsic.
+/// We assume that ~10% of the block weight is consumed by `on_initalize`
+/// handlers. This is used to limit the maximal weight of a single extrinsic.
 pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_perthousand(25);
-/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used
-/// by  Operational  extrinsics.
+/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be
+/// used by  Operational  extrinsics.
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 /// We allow for 2 seconds of compute with a 4 second average block time.
 pub const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
@@ -164,10 +168,7 @@ impl WeightToFeePolynomial for WeightToFee {
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 		smallvec![WeightToFeeCoefficient {
 			degree: 1,
-			coeff_frac: Perbill::from_rational_approximation(
-				CordTBaseFee::get(),
-				ExtrinsicBaseWeight::get() as u128
-			),
+			coeff_frac: Perbill::from_rational_approximation(CordTBaseFee::get(), ExtrinsicBaseWeight::get() as u128),
 			coeff_integer: 0u128, // Coefficient is zero.
 			negative: false,
 		}]
@@ -249,7 +250,8 @@ parameter_types! {
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(1, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000_000u128);
 }
-// type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
+// type NegativeImbalance = <Balances as
+// Currency<AccountId>>::NegativeImbalance;
 pub type NegativeImbalance<T> =
 	<pallet_balances::Module<T> as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
@@ -428,21 +430,23 @@ impl pallet_democracy::Config for Runtime {
 		pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
 		frame_system::EnsureRoot<AccountId>,
 	>;
-	/// A 60% super-majority can have the next scheduled referendum be a straight majority-carries vote.
+	/// A 60% super-majority can have the next scheduled referendum be a
+	/// straight majority-carries vote.
 	type ExternalMajorityOrigin = frame_system::EnsureOneOf<
 		AccountId,
 		pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
 		frame_system::EnsureRoot<AccountId>,
 	>;
-	/// A unanimous council can have the next scheduled referendum be a straight default-carries
-	/// (NTB) vote.
+	/// A unanimous council can have the next scheduled referendum be a straight
+	/// default-carries (NTB) vote.
 	type ExternalDefaultOrigin = frame_system::EnsureOneOf<
 		AccountId,
 		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
 		frame_system::EnsureRoot<AccountId>,
 	>;
-	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
-	/// be tabled immediately and with a shorter voting/enactment period.
+	/// Two thirds of the technical committee can have an
+	/// ExternalMajority/ExternalDefault vote be tabled immediately and with a
+	/// shorter voting/enactment period.
 	type FastTrackOrigin = frame_system::EnsureOneOf<
 		AccountId,
 		pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
@@ -455,22 +459,23 @@ impl pallet_democracy::Config for Runtime {
 	>;
 	type InstantAllowed = InstantAllowed;
 	type FastTrackVotingPeriod = FastTrackVotingPeriod;
-	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
+	// To cancel a proposal which has been passed, 2/3 of the council must agree to
+	// it.
 	type CancellationOrigin = EnsureOneOf<
 		AccountId,
 		pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
 		EnsureRoot<AccountId>,
 	>;
-	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
-	// Root must agree.
+	// To cancel a proposal before it has been passed, the technical committee must
+	// be unanimous or Root must agree.
 	type CancelProposalOrigin = EnsureOneOf<
 		AccountId,
 		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
 		EnsureRoot<AccountId>,
 	>;
 	type BlacklistOrigin = EnsureRoot<AccountId>;
-	// Any single technical committee member may veto a coming council proposal, however they can
-	// only do it once and it lasts only for the cooloff period.
+	// Any single technical committee member may veto a coming council proposal,
+	// however they can only do it once and it lasts only for the cooloff period.
 	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
 	type CooloffPeriod = CooloffPeriod;
 	type PreimageByteDeposit = PreimageByteDeposit;
@@ -736,18 +741,22 @@ impl pallet_sudo::Config for Runtime {
 
 impl pallet_mark::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = ();
 }
 
 impl pallet_digest::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = ();
 }
 
 impl pallet_mtype::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = ();
 }
 
 impl pallet_delegation::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = ();
 	type Signature = Signature;
 	type Signer = <Signature as Verify>::Signer;
 	type DelegationNodeId = Hash;
@@ -755,6 +764,7 @@ impl pallet_delegation::Config for Runtime {
 
 impl pallet_did::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = ();
 	type PublicSigningKey = Hash;
 	type PublicBoxKey = Hash;
 }
@@ -1010,10 +1020,14 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-			// add_benchmark!(params, batches, attestation, Attestation);
-			// add_benchmark!(params, batches, ctype, Ctype);
-			// add_benchmark!(params, batches, delegation, Delegation);
-			// add_benchmark!(params, batches, did, Did);
+			add_benchmark!(params, batches, pallet_mtype, Mtype);
+			add_benchmark!(params, batches, pallet_delegation, Delegation);
+			add_benchmark!(params, batches, pallet_mark, Mark);
+			add_benchmark!(params, batches, pallet_did, Did);
+			add_benchmark!(params, batches, pallet_digest, Digest);
+			// add_benchmark!(params, batches, pallet_reserve, CordReserve);
+
+
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

@@ -9,6 +9,12 @@
 #[cfg(test)]
 mod tests;
 
+#[cfg(any(feature = "runtime-benchmarks", test))]
+pub mod benchmarking;
+
+pub mod weights;
+pub use weights::WeightInfo;
+
 use codec::{Decode, Encode};
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap};
 use frame_system::{self, ensure_signed};
@@ -18,6 +24,9 @@ use sp_std::prelude::{Clone, PartialEq};
 pub trait Config: frame_system::Config + pallet_mark::Config {
 	/// #MARK Digest specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+
+	/// Weight information for extrinsics in this pallet.
+	type WeightInfo: WeightInfo;
 }
 
 decl_event!(
@@ -34,7 +43,7 @@ decl_event!(
 decl_error! {
 	pub enum Error for Module<T: Config> {
 		/// The digest has already been anchored.
-		AlreadyAnchored,
+		AlreadyAnchoredDigest,
 		/// The digest does not exist.
 		NotFound,
 		/// The digest is anchored by another account.
@@ -59,7 +68,7 @@ decl_module! {
 		///, where, origin is the signed sender account,
 		/// digest_hash is the hash of the file,
 		/// and content_hash is the hash of the #MARK Content.
-		#[weight = 100_000_000_000]
+		#[weight = <T as Config>::WeightInfo::anchor()]
 		pub fn anchor(origin, digest_hash: T::Hash, content_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
@@ -68,7 +77,7 @@ decl_module! {
 			// check for MARK status - revoked?
 			ensure!(!mark.revoked, pallet_mark::Error::<T>::AlreadyRevoked);
 			// check if the digest already exists
-			ensure!(!<Digests<T>>::contains_key(digest_hash), Error::<T>::AlreadyAnchored);
+			ensure!(!<Digests<T>>::contains_key(digest_hash), Error::<T>::AlreadyAnchoredDigest);
 			// insert #MARK Digest
 			<Digests<T>>::insert(digest_hash, Digest {content_hash, marker: sender.clone(), revoked: false});
 			// deposit event that mark has beed added
@@ -79,8 +88,8 @@ decl_module! {
 		/// Revokes a #MARK Digest
 		/// where, origin is the signed sender account,
 		/// and digest_hash is the hash of the file.
-		#[weight = 100_000_000_000]
-		pub fn revoke(origin, digest_hash: T::Hash, max_depth: u64) -> DispatchResult {
+		#[weight = <T as Config>::WeightInfo::revoke(*max_depth)]
+		pub fn revoke(origin, digest_hash: T::Hash, max_depth: u32) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 

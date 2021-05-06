@@ -97,6 +97,34 @@ serde_json = "1.0.62"
 
 [features]
 default = ['std']
+runtime-benchmarks = [
+	"frame-benchmarking",
+	"frame-system-benchmarking",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"pallet-mtype/runtime-benchmarks",
+	"pallet-mark/runtime-benchmarks",
+	"pallet-did/runtime-benchmarks",
+	"pallet-delegation/runtime-benchmarks",
+	"pallet-digest/runtime-benchmarks",
+	"pallet-reserve/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
+	"pallet-democracy/runtime-benchmarks",
+	"pallet-elections-phragmen/runtime-benchmarks",
+	"pallet-grandpa/runtime-benchmarks",
+	"pallet-im-online/runtime-benchmarks",
+	"pallet-indices/runtime-benchmarks",
+	"pallet-multisig/runtime-benchmarks",
+	"pallet-proxy/runtime-benchmarks",
+	"pallet-scheduler/runtime-benchmarks",
+	"pallet-staking/runtime-benchmarks",
+	"pallet-timestamp/runtime-benchmarks",
+	"pallet-utility/runtime-benchmarks",
+	"pallet-session-benchmarking",
+	"hex-literal",
+	"pallet-collective/runtime-benchmarks"
+]
 std = [
     "sp-authority-discovery/std",
 	"pallet-authority-discovery/std",
@@ -152,24 +180,4 @@ std = [
 	'pallet-did/std',
 	'pallet-reserve/std',
 ]
-runtime-benchmarks = [
-	"frame-benchmarking",
-	"frame-support/runtime-benchmarks",
-	"frame-system/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
-	"pallet-balances/runtime-benchmarks",
-	"pallet-democracy/runtime-benchmarks",
-	"pallet-elections-phragmen/runtime-benchmarks",
-	"pallet-grandpa/runtime-benchmarks",
-	"pallet-im-online/runtime-benchmarks",
-	"pallet-indices/runtime-benchmarks",
-	"pallet-multisig/runtime-benchmarks",
-	"pallet-proxy/runtime-benchmarks",
-	"pallet-scheduler/runtime-benchmarks",
-	"pallet-staking/runtime-benchmarks",
-	"pallet-timestamp/runtime-benchmarks",
-	"pallet-utility/runtime-benchmarks",
-	"pallet-session-benchmarking",
-	"frame-system-benchmarking",
-	"hex-literal",
-]
+

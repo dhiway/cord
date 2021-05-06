@@ -11,6 +11,12 @@
 #[cfg(test)]
 mod tests;
 
+#[cfg(any(feature = "runtime-benchmarks", test))]
+pub mod benchmarking;
+
+pub mod weights;
+pub use weights::WeightInfo;
+
 use codec::{Decode, Encode};
 use frame_support::{
 	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
@@ -23,6 +29,9 @@ use sp_std::prelude::{Clone, PartialEq, Vec};
 pub trait Config: frame_system::Config + pallet_delegation::Config {
 	/// #MARK specific event type
 	type Event: From<Event<Self>> + Into<<Self as frame_system::Config>::Event>;
+
+	/// Weight information for extrinsics in this pallet.
+	type WeightInfo: WeightInfo;
 }
 
 decl_event!(
@@ -41,7 +50,7 @@ decl_event!(
 // The pallet's errors
 decl_error! {
 	pub enum Error for Module<T: Config> {
-		AlreadyAnchored,
+		AlreadyAnchoredMark,
 		AlreadyRevoked,
 		MarkNotFound,
 		MTypeMismatch,
@@ -70,7 +79,7 @@ decl_module! {
 		/// content_hash is the hash of the content stream,
 		/// mtype_hash is the hash of the #MARK TYPE,
 		/// and delegation_id refers to a #MARK TYPE delegation.
-		#[weight = 100_000_000_000]
+		#[weight = <T as Config>::WeightInfo::anchor()]
 		pub fn anchor(origin, content_hash: T::Hash, mtype_hash: T::Hash, delegation_id: Option<T::DelegationNodeId>) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
@@ -79,7 +88,7 @@ decl_module! {
 			ensure!(<pallet_mtype::MTYPEs<T>>::contains_key(mtype_hash), pallet_mtype::Error::<T>::NotFound);
 
 			// check if the #MARK already exists
-			ensure!(!<Marks<T>>::contains_key(content_hash), Error::<T>::AlreadyAnchored);
+			ensure!(!<Marks<T>>::contains_key(content_hash), Error::<T>::AlreadyAnchoredMark);
 
 			if let Some(d) = delegation_id {
 				// check if delegation exists
@@ -115,7 +124,7 @@ decl_module! {
 		/// Revokes a #MARK
 		/// where, origin is the signed sender account,
 		/// and content_hash is the hash of the anchored #MARK.
-		#[weight = 100_000_000_000]
+		#[weight = <T as Config>::WeightInfo::revoke(*max_depth)]
 		pub fn revoke(origin, content_hash: T::Hash, max_depth: u32) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
@@ -149,7 +158,7 @@ decl_module! {
 		/// Restores a #MARK
 		/// where, origin is the signed sender account,
 		/// content_hash is the revoked #MARK.
-		#[weight = 10_000_000]
+		#[weight = <T as Config>::WeightInfo::restore(*max_depth)]
 		pub fn restore(origin, content_hash: T::Hash, max_depth: u32) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;

@@ -17,8 +17,10 @@
 #![warn(missing_docs)]
 
 use cord_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Nonce};
-use sc_client_api::light::{Fetcher, RemoteBlockchain};
-use sc_client_api::AuxStore;
+use sc_client_api::{
+	light::{Fetcher, RemoteBlockchain},
+	AuxStore,
+};
 use sc_finality_grandpa::{FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState};
 pub use sc_rpc::{DenyUnsafe, SubscriptionTaskExecutor};
 use sp_api::ProvideRuntimeApi;

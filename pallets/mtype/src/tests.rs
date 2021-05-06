@@ -11,8 +11,7 @@ use crate as pallet_mtype;
 
 use frame_support::{assert_noop, assert_ok, parameter_types};
 
-use sp_core::ed25519::Signature;
-use sp_core::{ed25519, Pair, H256};
+use sp_core::{ed25519, ed25519::Signature, Pair, H256};
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
@@ -64,6 +63,7 @@ impl frame_system::Config for Test {
 
 impl Config for Test {
 	type Event = ();
+	type WeightInfo = ();
 }
 
 pub fn account_pair(s: &str) -> ed25519::Pair {
