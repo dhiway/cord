@@ -64,6 +64,7 @@ impl frame_system::Config for Test {
 
 impl Config for Test {
 	type Event = ();
+	type WeightInfo = ();
 	type PublicSigningKey = H256;
 	type PublicBoxKey = H256;
 }
