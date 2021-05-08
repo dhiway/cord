@@ -68,10 +68,12 @@ impl frame_system::Config for Test {
 
 impl pallet_mtype::Config for Test {
 	type Event = ();
+	type WeightInfo = ();
 }
 
 impl Config for Test {
 	type Event = ();
+	type WeightInfo = ();
 	type Signature = MultiSignature;
 	type Signer = <Self::Signature as Verify>::Signer;
 	type DelegationNodeId = H256;

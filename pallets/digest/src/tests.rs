@@ -67,6 +67,8 @@ impl frame_system::Config for Test {
 
 impl pallet_mark::Config for Test {
 	type Event = ();
+	type WeightInfo = ();
+
 }
 
 // impl pallet_delegation::Config for Test {
@@ -74,6 +76,7 @@ impl pallet_mark::Config for Test {
 // }
 impl pallet_delegation::Config for Test {
 	type Event = ();
+	type WeightInfo = ();
 	type Signature = Signature;
 	type Signer = <Self::Signature as Verify>::Signer;
 	type DelegationNodeId = H256;
@@ -81,10 +84,12 @@ impl pallet_delegation::Config for Test {
 
 impl pallet_mtype::Config for Test {
 	type Event = ();
+	type WeightInfo = ();
 }
 
 impl Config for Test {
 	type Event = ();
+	type WeightInfo = ();
 }
 
 fn new_test_ext() -> sp_io::TestExternalities {
@@ -193,7 +198,7 @@ fn check_double_digest() {
 		));
 		assert_noop!(
 			PalletDigest::anchor(Origin::signed(account), hash, hash),
-			Error::<Test>::AlreadyAnchored
+			Error::<Test>::AlreadyAnchoredDigest
 		);
 	});
 }

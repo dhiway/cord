@@ -12,14 +12,14 @@
 #[cfg(test)]
 mod tests;
 
-#[cfg(any(feature = "runtime-benchmarks", test))]
 pub mod benchmarking;
-
-#[macro_use]
-extern crate bitflags;
 
 pub mod weights;
 pub use weights::WeightInfo;
+#[macro_use]
+extern crate bitflags;
+
+
 
 use codec::{Decode, Encode};
 use core::default::Default;

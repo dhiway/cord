@@ -25,8 +25,7 @@ sp-runtime = {  version = "3.0.0", default-features = false }
 sp-std = {  version = "3.0.0", default-features = false }
 sp-io = {  version = "3.0.0", default-features = false }
 frame-benchmarking = {  version = "3.0.0", default-features = false , optional = true}
-sp-core = {  version = "3.0.0", default-features = false, optional = true }
-
+sp-core = { version = "3.0.0", default-features = false }
 
 # pallets
 pallet-mark = {  version = "0.4.0", default-features = false, path = '../mark' }
@@ -43,7 +42,6 @@ runtime-benchmarks = [
   "frame-benchmarking",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
-  "sp-core",
   "pallet-mark/runtime-benchmarks",
   "pallet-mtype/runtime-benchmarks",
   "pallet-delegation/runtime-benchmarks"

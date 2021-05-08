@@ -66,10 +66,12 @@ impl frame_system::Config for Test {
 
 impl pallet_mtype::Config for Test {
 	type Event = ();
+	type WeightInfo = ();
 }
 
 impl pallet_delegation::Config for Test {
 	type Event = ();
+	type WeightInfo = ();
 	type Signature = Signature;
 	type Signer = <Self::Signature as Verify>::Signer;
 	type DelegationNodeId = H256;
@@ -77,6 +79,7 @@ impl pallet_delegation::Config for Test {
 
 impl Config for Test {
 	type Event = ();
+	type WeightInfo = ();
 }
 
 fn new_test_ext() -> sp_io::TestExternalities {
@@ -197,7 +200,7 @@ fn check_double_mark() {
 		assert_ok!(PalletMark::anchor(Origin::signed(account.clone()), hash, hash, None));
 		assert_noop!(
 			PalletMark::anchor(Origin::signed(account), hash, hash, None),
-			Error::<Test>::AlreadyAnchored
+			Error::<Test>::AlreadyAnchoredMark
 		);
 	});
 }

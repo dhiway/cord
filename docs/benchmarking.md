@@ -9,6 +9,13 @@ File has been divided into  - pallets name -> Each pallet consists of two parts.
 If you want to generate the weights of specific pallets, copy the command of the respective pallet and run at the root of repository.
 
 
+## Compile cord with benchmark flag - 
+
+```
+1. cd node/
+2. Run->   `cargo build --release --features runtime-benchmarks`
+```
+
 ## 1. Pallet Mtype - 
 
 ```
