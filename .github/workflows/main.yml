@@ -51,19 +51,19 @@ jobs:
           password: ${{ secrets.SP_PASSWD }}
 
       # Push image to Registry
-      # - env:
-      #     ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-      #   run: |
-      #     docker build . --no-cache --file Dockerfile --tag ${{ env.IMAGE_REPOSITORY }}:latest
+      - env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build . --no-cache --file Dockerfile --tag ${{ env.IMAGE_REPOSITORY }}:latest
           
-      #     docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-      #     docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:latest
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:latest
           
-      #     docker push $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-      #     docker push $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:latest
+          docker push $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker push $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:latest
 
-      #     docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-      #     docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:latest
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:latest
           
-      #     docker push $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-      #     docker push $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:latest
+          docker push $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker push $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:latest
