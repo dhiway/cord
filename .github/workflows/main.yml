@@ -21,6 +21,12 @@ jobs:
     # Skip based on commit message
     if: "!contains(github.event.head_commit.message, '[ci skip]')"
 
+    # A map of envvironment variables available to all steps in the job
+    env:
+      ACR_LOGIN_SERVER: 2pzinx547jo6coxz.azurecr.io
+      IMAGE_REPOSITORY: ${{ github.event.repository.name }}
+      IMAGE_TAG: ${{ github.sha }}
+
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Check-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -37,14 +43,27 @@ jobs:
       - id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # Build, tag, and push image to Amazon ECR
+      # Login to Azure ACR
+      - uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.SP_APP_ID }}
+          password: ${{ secrets.SP_PASSWD }}
+
+      # Push image to Registry
       - env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ github.event.repository.name }}
-          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build . --no-cache --file Dockerfile --tag ${{ env.ECR_REPOSITORY }}:latest
-          docker tag ${{ env.ECR_REPOSITORY }}:latest $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-          docker tag ${{ env.ECR_REPOSITORY }}:latest $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest
-          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest
+          docker build . --no-cache --file Dockerfile --tag ${{ env.IMAGE_REPOSITORY }}:latest
+          
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:latest
+          
+          docker push $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker push $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:latest
+
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:latest
+          
+          docker push $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker push $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:latest
