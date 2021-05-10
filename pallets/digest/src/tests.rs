@@ -68,7 +68,6 @@ impl frame_system::Config for Test {
 impl pallet_mark::Config for Test {
 	type Event = ();
 	type WeightInfo = ();
-
 }
 
 // impl pallet_delegation::Config for Test {
@@ -92,7 +91,7 @@ impl Config for Test {
 	type WeightInfo = ();
 }
 
-fn new_test_ext() -> sp_io::TestExternalities {
+pub fn new_test_ext() -> sp_io::TestExternalities {
 	frame_system::GenesisConfig::default()
 		.build_storage::<Test>()
 		.unwrap()
@@ -227,7 +226,7 @@ fn check_double_revoke_digest() {
 			10
 		));
 		assert_noop!(
-			PalletDigest::revoke(Origin::signed(account), hash, 10),
+			PalletDigest::revoke(Origin::signed(account), hash),
 			Error::<Test>::AlreadyRevoked
 		);
 	});
@@ -240,7 +239,7 @@ fn check_revoke_unknown() {
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_noop!(
-			PalletDigest::revoke(Origin::signed(account), hash, 10),
+			PalletDigest::revoke(Origin::signed(account), hash),
 			Error::<Test>::NotFound
 		);
 	});
@@ -267,7 +266,7 @@ fn check_revoke_not_permitted() {
 			hash,
 		));
 		assert_noop!(
-			PalletDigest::revoke(Origin::signed(account_hash_bob), hash, 10),
+			PalletDigest::revoke(Origin::signed(account_hash_bob), hash),
 			Error::<Test>::NotOwner
 		);
 	});

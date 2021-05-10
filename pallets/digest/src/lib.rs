@@ -12,12 +12,11 @@ mod tests;
 pub mod benchmarking;
 
 pub mod weights;
-pub use weights::WeightInfo;
-
 use codec::{Decode, Encode};
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap};
 use frame_system::{self, ensure_signed};
 use sp_std::prelude::{Clone, PartialEq};
+pub use weights::WeightInfo;
 
 /// The #MARK Digest trait
 pub trait Config: frame_system::Config + pallet_mark::Config {
@@ -87,8 +86,8 @@ decl_module! {
 		/// Revokes a #MARK Digest
 		/// where, origin is the signed sender account,
 		/// and digest_hash is the hash of the file.
-		#[weight = <T as Config>::WeightInfo::revoke(*max_depth)]
-		pub fn revoke(origin, digest_hash: T::Hash, max_depth: u32) -> DispatchResult {
+		#[weight = <T as Config>::WeightInfo::revoke()]
+		pub fn revoke(origin, digest_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 

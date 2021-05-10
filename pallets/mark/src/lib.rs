@@ -14,8 +14,6 @@ mod tests;
 pub mod benchmarking;
 
 pub mod weights;
-pub use weights::WeightInfo;
-
 use codec::{Decode, Encode};
 use frame_support::{
 	debug, decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap,
@@ -23,6 +21,7 @@ use frame_support::{
 use frame_system::{self, ensure_signed};
 use pallet_delegation::Permissions;
 use sp_std::prelude::{Clone, PartialEq, Vec};
+pub use weights::WeightInfo;
 
 /// The #MARK trait
 pub trait Config: frame_system::Config + pallet_delegation::Config {

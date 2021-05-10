@@ -76,6 +76,9 @@ pub mod constants;
 use constants::{currency::*, time::*};
 use sp_runtime::generic::Era;
 
+// Weights used in the runtime.
+pub mod weights;
+
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -992,9 +995,13 @@ impl_runtime_apis! {
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>, sp_runtime::RuntimeString> {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
-
+			use pallet_session_benchmarking::Module as SessionBench;
 			use frame_system_benchmarking::Module as SystemBench;
+			// use pallet_offences_benchmarking::Module as OffencesBench;
+
+			impl pallet_session_benchmarking::Config for Runtime {}
 			impl frame_system_benchmarking::Config for Runtime {}
+			// impl pallet_offences_benchmarking::Config for Runtime {}
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -1018,8 +1025,20 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
+
 			add_benchmark!(params, batches, pallet_balances, Balances);
+			add_benchmark!(params, batches, pallet_im_online, ImOnline);
+			add_benchmark!(params, batches, pallet_indices, Indices);
+			add_benchmark!(params, batches, pallet_scheduler, Scheduler);
+			add_benchmark!(params, batches, pallet_session, SessionBench::<Runtime>);
+			add_benchmark!(params, batches, pallet_staking, Staking);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
+			add_benchmark!(params, batches, pallet_utility, Utility);
+			add_benchmark!(params, batches, pallet_grandpa, Grandpa);
+			add_benchmark!(params, batches, pallet_multisig, Multisig);
+			// add_benchmark!(params, batches, pallet_offences, OffencesBench::<Runtime>);
+
+			//CORD Pallets
 			add_benchmark!(params, batches, pallet_mtype, Mtype);
 			add_benchmark!(params, batches, pallet_delegation, Delegation);
 			add_benchmark!(params, batches, pallet_mark, Mark);
@@ -1027,7 +1046,11 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_digest, Digest);
 			// add_benchmark!(params, batches, pallet_reserve, CordReserve);
 
-
+			// add_benchmark!(params, batches, pallet_proxy, Proxy);
+			// add_benchmark!(params, batches, pallet_collective, Council);
+			// add_benchmark!(params, batches, pallet_democracy, Democracy);
+			// add_benchmark!(params, batches, pallet_elections_phragmen, Elections);
+			// add_benchmark!(params, batches, pallet_membership, TechnicalMembership);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

@@ -829,7 +829,7 @@ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "cord"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "cord-primitives",
  "cord-runtime",
@@ -908,7 +908,7 @@ dependencies = [
 
 [[package]]
 name = "cord-runtime"
-version = "0.3.2"
+version = "0.4.0"
 dependencies = [
  "bitvec",
  "cord-primitives",
@@ -3707,6 +3707,7 @@ dependencies = [
  "serde",
  "sp-core",
  "sp-io",
+ "sp-keystore",
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
@@ -3856,6 +3857,7 @@ dependencies = [
  "serde",
  "sp-core",
  "sp-io",
+ "sp-keystore",
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",

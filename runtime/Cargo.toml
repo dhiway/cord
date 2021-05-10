@@ -1,6 +1,6 @@
 [package]
 name = 'cord-runtime'
-version = '0.3.2'
+version = '0.4.0'
 build = 'build.rs'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
@@ -22,7 +22,7 @@ serde_derive = { version = "1.0.117", optional = true }
 static_assertions = "1.1.0"
 smallvec = "1.6.1"
 
-# cord pallet dependencies
+# cord pallets 
 pallet-mark = { default-features = false, path = '../pallets/mark' }
 pallet-delegation = { default-features = false, path = '../pallets/delegation' }
 pallet-mtype = { default-features = false, path = '../pallets/mtype' }
@@ -103,14 +103,9 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"pallet-mtype/runtime-benchmarks",
-	"pallet-mark/runtime-benchmarks",
-	"pallet-did/runtime-benchmarks",
-	"pallet-delegation/runtime-benchmarks",
-	"pallet-digest/runtime-benchmarks",
-	"pallet-reserve/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
+	"pallet-collective/runtime-benchmarks",
 	"pallet-elections-phragmen/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
@@ -123,7 +118,13 @@ runtime-benchmarks = [
 	"pallet-utility/runtime-benchmarks",
 	"pallet-session-benchmarking",
 	"hex-literal",
-	"pallet-collective/runtime-benchmarks"
+	"pallet-mtype/runtime-benchmarks",
+	"pallet-mark/runtime-benchmarks",
+	"pallet-did/runtime-benchmarks",
+	"pallet-delegation/runtime-benchmarks",
+	"pallet-digest/runtime-benchmarks",
+	"pallet-reserve/runtime-benchmarks",
+
 ]
 std = [
     "sp-authority-discovery/std",
@@ -172,6 +173,7 @@ std = [
 	"pallet-aura/std",
 	"sp-session/std",
 	"pallet-randomness-collective-flip/std",
+	"cord-primitives/std",
 	"pallet-utility/std",
    	"pallet-sudo/std",
 	'pallet-mark/std',
@@ -179,5 +181,6 @@ std = [
 	'pallet-mtype/std',
 	'pallet-did/std',
 	'pallet-reserve/std',
+	'pallet-digest/std',
 ]
 

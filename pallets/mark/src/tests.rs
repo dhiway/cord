@@ -10,12 +10,14 @@ use super::*;
 use crate as pallet_mark;
 
 use frame_support::{assert_noop, assert_ok, parameter_types};
-
-use sp_core::{ed25519, ed25519::Signature, Pair, H256};
+use sp_core::{sr25519, sr25519::Signature, Pair, H256};
+use sp_io::TestExternalities;
+use sp_keystore::{testing::KeyStore, KeystoreExt};
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 };
+use sp_std::sync::Arc;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -82,7 +84,7 @@ impl Config for Test {
 	type WeightInfo = ();
 }
 
-fn new_test_ext() -> sp_io::TestExternalities {
+pub fn new_test_ext() -> sp_io::TestExternalities {
 	frame_system::GenesisConfig::default()
 		.build_storage::<Test>()
 		.unwrap()
@@ -93,8 +95,25 @@ fn hash_to_u8<T: Encode>(hash: T) -> Vec<u8> {
 	hash.encode()
 }
 
-pub fn account_pair(s: &str) -> ed25519::Pair {
-	ed25519::Pair::from_string(&format!("//{}", s), None).expect("static values are valid")
+#[allow(dead_code)]
+pub struct ExtBuilder;
+
+impl ExtBuilder {
+	#[allow(dead_code)]
+	pub fn build_with_keystore() -> TestExternalities {
+		let storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut ext = TestExternalities::from(storage);
+		// register keystore
+		let keystore = KeyStore::new();
+		ext.register_extension(KeystoreExt(Arc::new(keystore)));
+		// events are not emitted on default block number 0
+		ext.execute_with(|| System::set_block_number(1));
+		ext
+	}
+}
+
+pub fn account_pair(s: &str) -> sr25519::Pair {
+	sr25519::Pair::from_string(&format!("//{}", s), None).expect("static values are valid")
 }
 
 #[test]
@@ -208,7 +227,7 @@ fn check_double_mark() {
 #[test]
 fn check_active_restore() {
 	new_test_ext().execute_with(|| {
-		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
+		let pair = sr25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_ok!(MType::anchor(Origin::signed(account.clone()), hash));
@@ -252,7 +271,7 @@ fn check_revoke_unknown() {
 #[test]
 fn check_restore_unknown() {
 	new_test_ext().execute_with(|| {
-		let pair = ed25519::Pair::from_seed(&*b"Alice                           ");
+		let pair = sr25519::Pair::from_seed(&*b"Alice                           ");
 		let hash = H256::from_low_u64_be(1);
 		let account = pair.public();
 		assert_noop!(

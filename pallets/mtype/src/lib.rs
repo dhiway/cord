@@ -14,10 +14,9 @@ pub mod benchmarking;
 mod tests;
 
 pub mod weights;
-pub use weights::WeightInfo;
-
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, dispatch::DispatchResult, ensure, StorageMap};
 use frame_system::{self, ensure_signed};
+pub use weights::WeightInfo;
 
 /// The #MARK TYPE trait
 pub trait Config: frame_system::Config {

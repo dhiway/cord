@@ -275,7 +275,7 @@ mod tests {
 	use super::*;
 	use crate::tests::{ExtBuilder, Test};
 	use frame_support::{assert_ok, StorageMap};
-	use mtype::MTYPEs;
+	use pallet_mtype::MTYPEs;
 	use sp_std::num::NonZeroU32;
 
 	#[test]

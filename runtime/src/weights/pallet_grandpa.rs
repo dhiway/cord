@@ -1,7 +1,7 @@
 // Copyright 2019-2021 Dhiway.
 // This file is part of the CORD Platform.
 
-//! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 3.0.0 for pallet_digest
+//! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 3.0.0 for pallet_grandpa
 //! DATE: 2021-05-09, STEPS: `[3, ]`, REPEAT: 2,
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Interpreted, CHAIN: Some("dev")
 
@@ -11,12 +11,12 @@
 // --chain=dev
 // --steps=3
 // --repeat=2
-// --pallet=pallet_digest
+// --pallet=pallet_grandpa
 // --extrinsic=*
 // --execution=Wasm
 // --wasm-execution=Interpreted
 // --heap-pages=4096
-// --output=./pallets/digest/src/weights.rs
+// --output=./runtime/src/weights/
 // --template=./.maintain/weight-template.hbs
 
 
@@ -26,37 +26,31 @@
 use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
 use sp_std::marker::PhantomData;
 
-/// Weight functions needed for pallet_digest.
+/// Weight functions needed for pallet_grandpa.
 pub trait WeightInfo {
-fn anchor() -> Weight;
-fn revoke() -> Weight;
+fn check_equivocation_proof(x: u32, ) -> Weight;
+fn note_stalled() -> Weight;
 }
 
-//// Weights for pallet_digest using the Substrate node and recommended hardware.
+//// Weights for pallet_grandpa using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 		impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-				fn anchor() -> Weight {
-				(138_000_000 as Weight)
-				.saturating_add(T::DbWeight::get().reads(2 as Weight))
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
+				fn check_equivocation_proof(_x: u32, ) -> Weight {
+				(175_000_000 as Weight)
 				}
-				fn revoke() -> Weight {
-				(115_000_000 as Weight)
-				.saturating_add(T::DbWeight::get().reads(1 as Weight))
+				fn note_stalled() -> Weight {
+				(10_000_000 as Weight)
 				.saturating_add(T::DbWeight::get().writes(1 as Weight))
 				}
 				}
 
 				// For backwards compatibility and tests
 				impl WeightInfo for () {
-				fn anchor() -> Weight {
-				(138_000_000 as Weight)
-				.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+				fn check_equivocation_proof(_x: u32, ) -> Weight {
+				(175_000_000 as Weight)
 				}
-				fn revoke() -> Weight {
-				(115_000_000 as Weight)
-				.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+				fn note_stalled() -> Weight {
+				(10_000_000 as Weight)
 				.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 				}
 				}

@@ -13,12 +13,15 @@ use frame_support::{assert_noop, assert_ok, parameter_types};
 use sp_core::{ed25519, Pair, H256, H512};
 // use sp_core::ed25519::Signature;
 use cord_primitives::Signature;
+use sp_io::TestExternalities;
+use sp_keystore::{testing::KeyStore, KeystoreExt};
 
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	MultiSignature, MultiSigner,
 };
+use sp_std::sync::Arc;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -83,7 +86,24 @@ fn hash_to_u8<T: Encode>(hash: T) -> Vec<u8> {
 	hash.encode()
 }
 
-fn new_test_ext() -> sp_io::TestExternalities {
+#[allow(dead_code)]
+pub struct ExtBuilder;
+
+impl ExtBuilder {
+	#[allow(dead_code)]
+	pub fn build_with_keystore() -> TestExternalities {
+		let storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut ext = TestExternalities::from(storage);
+		// register keystore
+		let keystore = KeyStore::new();
+		ext.register_extension(KeystoreExt(Arc::new(keystore)));
+		// events are not emitted on default block number 0
+		ext.execute_with(|| System::set_block_number(1));
+		ext
+	}
+}
+
+pub fn new_test_ext() -> sp_io::TestExternalities {
 	frame_system::GenesisConfig::default()
 		.build_storage::<Test>()
 		.unwrap()

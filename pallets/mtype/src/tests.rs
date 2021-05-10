@@ -70,7 +70,7 @@ pub fn account_pair(s: &str) -> ed25519::Pair {
 	ed25519::Pair::from_string(&format!("//{}", s), None).expect("static values are valid")
 }
 
-fn new_test_ext() -> sp_io::TestExternalities {
+pub fn new_test_ext() -> sp_io::TestExternalities {
 	frame_system::GenesisConfig::default()
 		.build_storage::<Test>()
 		.unwrap()

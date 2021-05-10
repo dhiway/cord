@@ -19,8 +19,6 @@ pub use weights::WeightInfo;
 #[macro_use]
 extern crate bitflags;
 
-
-
 use codec::{Decode, Encode};
 use core::default::Default;
 use frame_support::{

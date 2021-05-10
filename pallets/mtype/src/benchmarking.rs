@@ -33,7 +33,7 @@ mod tests {
 	#[test]
 	fn test_benchmarks() {
 		new_test_ext().execute_with(|| {
-			assert_ok!(test_benchmark_add::<Test>());
+			assert_ok!(test_benchmark_anchor::<Test>());
 		});
 	}
 }
