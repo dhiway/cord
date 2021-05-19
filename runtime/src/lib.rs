@@ -1045,11 +1045,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_mark, Mark);
 			add_benchmark!(params, batches, pallet_did, Did);
 			add_benchmark!(params, batches, pallet_digest, Digest);
-<<<<<<< HEAD
 			add_benchmark!(params, batches, pallet_reserve::<Instance1>, CordReserve);
-=======
-			// add_benchmark!(params, batches, pallet_reserve, CordReserve);
->>>>>>> origin/develop
 
 			// add_benchmark!(params, batches, pallet_proxy, Proxy);
 			// add_benchmark!(params, batches, pallet_collective, Council);
