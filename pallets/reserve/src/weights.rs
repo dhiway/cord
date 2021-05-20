@@ -2,21 +2,19 @@
 // This file is part of the CORD Platform.
 
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 3.0.0
-//! for pallet_mtype DATE: 2021-05-09, STEPS: `[3, ]`, REPEAT: 2,
+//! for pallet_reserve DATE: 2021-05-17, STEPS: `[20, ]`, REPEAT: 10,
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Interpreted, CHAIN: Some("dev")
 
 // Executed Command:
 // ./target/release/cord
 // benchmark
 // --chain=dev
-// --steps=3
-// --repeat=2
-// --pallet=pallet_mtype
+// --execution=wasm
+// --pallet=pallet_reserve
 // --extrinsic=*
-// --execution=Wasm
-// --wasm-execution=Interpreted
-// --heap-pages=4096
-// --output=./pallets/mtype/src/weights.rs
+// --steps=20
+// --repeat=10
+// --output=./pallets/reserve/src/weights.rs
 // --template=./.maintain/weight-template.hbs
 
 #![allow(unused_parens)]
@@ -28,26 +26,30 @@ use frame_support::{
 };
 use sp_std::marker::PhantomData;
 
-/// Weight functions needed for pallet_mtype.
+/// Weight functions needed for pallet_reserve.
 pub trait WeightInfo {
-	fn anchor() -> Weight;
+	fn transfer() -> Weight;
+	fn receive() -> Weight;
 }
 
-//// Weights for pallet_mtype using the Substrate node and recommended hardware.
+//// Weights for pallet_reserve using the Substrate node and recommended
+//// hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	fn anchor() -> Weight {
-		(86_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	fn transfer() -> Weight {
+		(254_453_000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight))
+	}
+	fn receive() -> Weight {
+		(112_761_000 as Weight)
 	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	fn anchor() -> Weight {
-		(86_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	fn transfer() -> Weight {
+		(254_453_000 as Weight).saturating_add(RocksDbWeight::get().reads(2 as Weight))
+	}
+	fn receive() -> Weight {
+		(112_761_000 as Weight)
 	}
 }

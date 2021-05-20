@@ -95,6 +95,7 @@ impl Config for Test {
 	type Currency = pallet_balances::Module<Test>;
 	type ExternalOrigin = EnsureSignedBy<Admin, u64>;
 	type Call = Call;
+	type WeightInfo = ();
 }
 
 // This function basically just builds a genesis storage key/value store

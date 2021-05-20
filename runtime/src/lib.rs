@@ -216,7 +216,7 @@ impl pallet_scheduler::Config for Runtime {
 	type MaximumWeight = MaximumSchedulerWeight;
 	type ScheduleOrigin = EnsureRoot<AccountId>;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_scheduler::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -228,7 +228,7 @@ impl pallet_indices::Config for Runtime {
 	type Currency = Balances;
 	type Deposit = IndexDeposit;
 	type Event = Event;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_indices::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -245,7 +245,7 @@ impl pallet_balances::Config for Runtime {
 	type Event = Event;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = frame_system::Module<Runtime>;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -292,7 +292,7 @@ impl pallet_timestamp::Config for Runtime {
 	type Moment = Moment;
 	type OnTimestampSet = Aura;
 	type MinimumPeriod = MinimumPeriod;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_timestamp::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -331,7 +331,7 @@ impl pallet_session::Config for Runtime {
 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
 	type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
 }
 
 impl pallet_session::historical::Config for Runtime {
@@ -403,7 +403,7 @@ impl pallet_staking::Config for Runtime {
 	type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
 	type UnsignedPriority = StakingUnsignedPriority;
 	type OffchainSolutionWeightLimit = OffchainSolutionWeightLimit;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_staking::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -583,12 +583,13 @@ impl pallet_reserve::Config<pallet_reserve::Instance1> for Runtime {
 	type ExternalOrigin = MoreThanHalfCouncil;
 	type Call = Call;
 	type ModuleId = CordReserveModuleId;
+	type WeightInfo = ();
 }
 
 impl pallet_utility::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_utility::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -606,7 +607,7 @@ impl pallet_multisig::Config for Runtime {
 	type DepositBase = DepositBase;
 	type DepositFactor = DepositFactor;
 	type MaxSignatories = MaxSignatories;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_multisig::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -704,7 +705,7 @@ impl pallet_im_online::Config for Runtime {
 	type SessionDuration = SessionDuration;
 	type ReportUnresponsiveness = Offences;
 	type UnsignedPriority = ImOnlineUnsignedPriority;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_im_online::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -1044,7 +1045,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_mark, Mark);
 			add_benchmark!(params, batches, pallet_did, Did);
 			add_benchmark!(params, batches, pallet_digest, Digest);
-			// add_benchmark!(params, batches, pallet_reserve, CordReserve);
+			add_benchmark!(params, batches, pallet_reserve::<Instance1>, CordReserve);
 
 			// add_benchmark!(params, batches, pallet_proxy, Proxy);
 			// add_benchmark!(params, batches, pallet_collective, Council);

@@ -3,10 +3,10 @@
 // A module in charge of accounting reserves
 
 #![cfg_attr(not(feature = "std"), no_std)]
-
 pub mod benchmarking;
 #[cfg(test)]
 mod tests;
+pub mod weights;
 
 pub use cord_primitives::{AccountId, Balance};
 use frame_support::{
@@ -21,6 +21,7 @@ use sp_runtime::{
 	DispatchResult, ModuleId,
 };
 use sp_std::prelude::Box;
+pub use weights::WeightInfo;
 
 type BalanceOf<T, I> = <<T as Config<I>>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 type NegativeImbalanceOf<T, I> =
@@ -33,6 +34,8 @@ pub trait Config<I: Instance = DefaultInstance>: frame_system::Config + pallet_b
 	type Currency: Currency<Self::AccountId>;
 	type Call: Parameter + Dispatchable<Origin = Self::Origin> + GetDispatchInfo;
 	type ModuleId: Get<ModuleId>;
+	/// Weight information for extrinsics in this pallet.
+	type WeightInfo: WeightInfo;
 }
 
 pub trait WithAccountId<AccountId> {
@@ -88,7 +91,7 @@ decl_module! {
 		fn deposit_event() = default;
 
 		/// Transfer CRD units from the reserve account.
-		#[weight = 100_000_000_000]
+		#[weight = <T as Config<I>>::WeightInfo::transfer()]
 		pub fn transfer(origin, to: T::AccountId, amount: BalanceOf<T, I>) -> DispatchResult {
 				T::ExternalOrigin::ensure_origin(origin)?;
 
@@ -106,7 +109,7 @@ decl_module! {
 		}
 
 		/// Deposit CRD units to the reserve account
-		#[weight = 100_000_000_000]
+		#[weight = <T as Config<I>>::WeightInfo::receive()]
 		pub fn receive(origin, amount: BalanceOf<T, I>) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 
