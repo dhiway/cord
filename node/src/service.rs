@@ -7,32 +7,17 @@
 #![warn(unused_extern_crates)]
 
 use cord_executor::Executor;
-use cord_primitives::{AccountId, Balance, Block};
+use cord_primitives::Block;
 use cord_runtime::RuntimeApi;
 use futures::prelude::*;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
-// use sc_consensus::LongestChain;
 use sc_consensus_babe;
 use sc_consensus_babe::SlotProportion;
-// use sc_executor::native_executor_instance;
-// pub use sc_executor::NativeExecutor;
-// use sc_finality_grandpa::{self, FinalityProofProvider as GrandpaFinalityProofProvider};
 use sc_network::{Event, NetworkService};
 use sc_service::{config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
-// use sp_inherents::InherentDataProviders;
-// use sp_runtime::traits::Block as BlockT;
-// use sc_finality_grandpa::FinalityProofProvider as GrandpaFinalityProofProvider;
 use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
-// use std::time::Duration;
-
-// Our native executor instance.
-// native_executor_instance!(
-// 	pub CordExecutor,
-// 	cord_runtime::api::dispatch,
-// 	cord_runtime::native_version,
-// );
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
 type FullBackend = sc_service::TFullBackend<Block>;
@@ -72,7 +57,6 @@ pub fn new_partial(
 			Ok((worker, telemetry))
 		})
 		.transpose()?;
-	// let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
 	let (client, backend, keystore_container, task_manager) = sc_service::new_full_parts::<Block, RuntimeApi, Executor>(
 		&config,

@@ -5,11 +5,10 @@ use crate::service as cord_service;
 use crate::{
 	chain_spec,
 	cli::{Cli, Subcommand},
-	service,
 };
 use cord_executor::Executor;
 use cord_runtime::{Block, RuntimeApi};
-use cord_service::{new_full, new_light, new_partial};
+use cord_service::new_partial;
 use sc_cli::{ChainSpec, Result, Role, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
 
@@ -47,7 +46,6 @@ impl SubstrateCli for Cli {
 			"" => return Err("Please specify which chain you want to run, e.g. --dev or --chain=local".into()),
 			"dev" => Box::new(chain_spec::bombay_brown_config()),
 			// "tnet" => Box::new(chain_spec::local_testnet_config()),
-			// "fir" | "flaming-fir" => Box::new(chain_spec::flaming_fir_config()?),
 			// "staging" => Box::new(chain_spec::staging_testnet_config()),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		};

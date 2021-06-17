@@ -16,7 +16,7 @@ use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::{ChainType, Properties};
-use sc_telemetry::TelemetryEndpoints;
+// use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
@@ -26,11 +26,6 @@ use sp_runtime::{
 	traits::{IdentifyAccount, Verify},
 	Perbill,
 };
-
-// use pallet_staking::Forcing;
-// use sc_chain_spec::ChainSpecExtension;
-// use sc_service::{ChainType, Properties};
-// use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -98,10 +93,10 @@ fn bombay_brown_genesis_config() -> GenesisConfig {
 		hex!["6ab68082628ad0cfab68b1a00377170ff0dea4da06030cdd0c21a364ecbbc23b"].into(),
 		//3yzE5N1DMjibaSesw1hAZ8wwvPJnxM3RzvQFanitVm4rkC8h
 		hex!["e41d2833b0b2f629e52a1bc1ace3079c395673bab26a14626b52c132b1fb5f1c"].into(),
-		//3y5rP4K3E9QoyPk8Ax47vrnoJPD89AEBThUJQHqHCA4uRHFL
-		hex!["bc2b5d4a95a29479caf0c5a065274b63870f200dbc68b0dc85d2dfe5005f8f32"].unchecked_into(),
 		//3xaQXFoMVNgQ2qMCXHazaEiQ4bzWfVX3TowLc1DHMB1sL4nx
 		hex!["a5b6331fcff809f2b3419332678fd7b23a2a9320240ec36652337fe66a7337e0"].unchecked_into(),
+		//3xuztVAW9ftgcU5FNc3dEXsEgrZW1AnbGWqWmeKKxpGnM4H2
+		hex!["b4a78c7de7cc60ed9a99029fcf487f40a3c4b5d5d78a7080387507a680ecb75e"].unchecked_into(),
 		//3xE2yQSUQ9hfeX1kZjP1Dg5hoU2EdLc1B9zFjzEcc5fgax2W
 		hex!["962cc02d5dddbb2fc03bd8d511844ec47e798b3bc20d9daf7400b3d09533d518"].unchecked_into(),
 		//3vL3vWTS2FZ9JDc4SyMFXQRa5TuitFBfSx8ZrygeEMzc7HkV
@@ -120,34 +115,14 @@ fn bombay_brown_genesis_config() -> GenesisConfig {
 		//3xmViQrSRdQJoNE5GzBmEZAPBFkSsbxnjH4FVAgSbB7CoKC4
 		hex!["ae2b60ce50c8a6a0f9f1eba33eec5106facfb366e946a59591633bd30c090d7d"].into(),
 	];
-
-	let endowed_dev_accounts: Vec<AccountId> = vec![
-		//3wvaRWBFgEifBUN6z68fuosfPcWHismnVFv5dx5dFbdooUL8 - Alice
-		hex!["88dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee"].into(),
-		//3yZoPm4GdpakE28bPs7EWFkCm1XUxxCC5iC2waLBC9wm2Qre - Bob
-		hex!["d17c2d7823ebf260fd138f2d7e27d114c0145d968b5ff5006125f2414fadae69"].into(),
-		//3vMkNoL6q49by5JbbGAqGZ8YFycBu2zomU6mssW1jpwWvHaG - Charlie
-		hex!["439660b36c6c03afafca027b910b4fecf99801834c62a5e6006f27d978de234f"].into(),
-		//3zDfe2TD5p3WGhHMwJG7aDbjtGzanUuLR2CXpWrZMLN2KqDW - Faucet
-		hex!["ee5d6689d78e26bb5b35b0441740a065c7bd8efdd1c15422075c3f2b2021b5d2"].into(),
-		//3ydNZgC16DA8zKzxNwB6uW3ufoM4X373vRVpCWFTnAXzFff7 - Alice SR25519
-		hex!["d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"].into(),
-	];
-
 	let root_key: AccountId = endowed_accounts[0].clone();
 	let num_endowed_accounts = endowed_accounts.len();
 
-	// let root_key: AccountId = hex![
-	// 	//3x6FHDirZzxP1BPic2hqkA6LfLC5LHXD2ZS8B618R7rTWNBD
-	// 	"903c379067968d241b2293784ff353d533837f77bcb72154e278ed06e1026a4b"
-	// ]
-	// .into();
 	bombay_brown_genesis(
 		initial_authorities,
 		vec![],
 		root_key,
 		Some(endowed_accounts),
-		Some(endowed_dev_accounts),
 		num_endowed_accounts,
 	)
 }
@@ -171,63 +146,6 @@ pub fn bombay_brown_config() -> ChainSpec {
 	)
 }
 
-// impl Alternative {
-// 	/// Get an actual chain config from one of the alternatives.
-// 	/// Chain name using color codes representings strands
-// 	pub(crate) fn load(self) -> Result<ChainSpec, String> {
-// 		// let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
-// 		let boot_nodes = vec![];
-
-// 		let mut properties = Properties::new();
-// 		properties.insert("tokenSymbol".into(), "CRD".into());
-// 		properties.insert("tokenDecimals".into(), 15.into());
-// 		Ok(match self {
-// 			Alternative::BombayBrown => ChainSpec::from_genesis(
-// 				"Bombay Brown",
-// 				"LocalDevNode",
-// 				ChainType::Local,
-// 				move || bombay_brown_genesis(wasm_binary_unwrap()),
-// 				boot_nodes,
-// 				None,
-// 				Some(DEFAULT_PROTOCOL_ID),
-// 				Some(properties),
-// 				Default::default(),
-// 			),
-// 			// Alternative::IndianTeal => ChainSpec::from_genesis(
-// 			// 	"Indian Teal",
-// 			// 	"TestNet",
-// 			// 	ChainType::Development,
-// 			// 	move || indian_teal_genesis(wasm_binary),
-// 			// 	boot_nodes,
-// 			// 	None,
-// 			// 	Some(DEFAULT_PROTOCOL_ID),
-// 			// 	Some(properties),
-// 			// 	None,
-// 			// ),
-// 			// Alternative::RoyalBlue => ChainSpec::from_genesis(
-// 			// 	"Royal Blue",
-// 			// 	"MarkStudio",
-// 			// 	ChainType::Live,
-// 			// 	move || royal_blue_genesis(wasm_binary),
-// 			// 	boot_nodes,
-// 			// 	None,
-// 			// 	Some(DEFAULT_PROTOCOL_ID),
-// 			// 	Some(properties),
-// 			// 	None,
-// 			// ),
-// 		})
-// 	}
-
-// 	pub(crate) fn from(s: &str) -> Option<Self> {
-// 		match s {
-// 			"dev" => Some(Alternative::BombayBrown),
-// 			// "tnet" => Some(Alternative::IndianTeal),
-// 			// "msnet" => Some(Alternative::RoyalBlue),
-// 			_ => None,
-// 		}
-// 	}
-// }
-
 fn bombay_brown_genesis(
 	initial_authorities: Vec<(
 		AccountId,
@@ -240,13 +158,12 @@ fn bombay_brown_genesis(
 	initial_nominators: Vec<AccountId>,
 	root_key: AccountId,
 	endowed_accounts: Option<Vec<AccountId>>,
-	endowed_dev_accounts: Option<Vec<AccountId>>,
 	num_endowed_accounts: usize,
 ) -> GenesisConfig {
 	let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
 		vec![
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			get_account_id_from_seed::<sr25519::Public>("Bob"),
+			get_account_id_from_seed::<sr25519::Public>("Ashok"),
+			get_account_id_from_seed::<sr25519::Public>("Radha"),
 		]
 	});
 	// endow all authorities and nominators.
@@ -264,7 +181,7 @@ fn bombay_brown_genesis(
 	let mut rng = rand::thread_rng();
 	let stakers = initial_authorities
 		.iter()
-		.map(|x| (x.0.clone(), x.1.clone(), ELEC_STASH, StakerStatus::Validator))
+		.map(|x| (x.0.clone(), x.1.clone(), CONTROLLER_ENDOWMENT, StakerStatus::Validator))
 		.chain(initial_nominators.iter().map(|x| {
 			use rand::{seq::SliceRandom, Rng};
 			let limit = (MAX_NOMINATIONS as usize).min(initial_authorities.len());
@@ -275,16 +192,18 @@ fn bombay_brown_genesis(
 				.into_iter()
 				.map(|choice| choice.0.clone())
 				.collect::<Vec<_>>();
-			(x.clone(), x.clone(), ELEC_STASH, StakerStatus::Nominator(nominations))
+			(
+				x.clone(),
+				x.clone(),
+				CONTROLLER_ENDOWMENT,
+				StakerStatus::Nominator(nominations),
+			)
 		}))
 		.collect::<Vec<_>>();
 
-	const CONTROLLER_ENDOWMENT: u128 = 1_000 * CRD;
-	const DEV_ENDOWMENT: u128 = 200 * CRD;
-	const CONTROLLER_STASH: u128 = 1_000_000 * CRD;
-	const STAKED_ENDOWMENT: u128 = 100 * CRD;
+	const CONTROLLER_ENDOWMENT: u128 = 10_000 * CRD;
+	const ENDOWMENT: u128 = 1_000 * CRD;
 	const CORD_STASH: u128 = 10_000_000_000 * CRD;
-	const ELEC_STASH: u128 = 20_000 * CRD;
 
 	GenesisConfig {
 		system: SystemConfig {
@@ -292,13 +211,7 @@ fn bombay_brown_genesis(
 			changes_trie_config: Default::default(),
 		},
 		balances: BalancesConfig {
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|k| (k, CORD_STASH))
-				.chain(initial_authorities.iter().map(|x| (x.0.clone(), CONTROLLER_STASH)))
-				.chain(initial_authorities.iter().map(|x| (x.1.clone(), CONTROLLER_ENDOWMENT)))
-				.collect(),
+			balances: endowed_accounts.iter().cloned().map(|k| (k, CORD_STASH)).collect(),
 		},
 		indices: IndicesConfig { indices: vec![] },
 		session: SessionConfig {
@@ -327,7 +240,7 @@ fn bombay_brown_genesis(
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.map(|member| (member, ELEC_STASH))
+				.map(|member| (member, ENDOWMENT))
 				.collect(),
 		},
 		council: CouncilConfig::default(),

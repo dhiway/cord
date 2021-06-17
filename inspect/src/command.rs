@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
 //! Command ran by the CLI
 
 use crate::cli::{InspectCmd, InspectSubCmd};

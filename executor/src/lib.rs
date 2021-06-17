@@ -1,3 +1,6 @@
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
 

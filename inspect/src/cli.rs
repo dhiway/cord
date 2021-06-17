@@ -1,7 +1,10 @@
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
 //! Structs to easily compose inspect sub-command for CLI.
 
-use std::fmt::Debug;
 use sc_cli::{ImportParams, SharedParams};
+use std::fmt::Debug;
 use structopt::StructOpt;
 
 /// The `inspect` command used to print decoded chain data.

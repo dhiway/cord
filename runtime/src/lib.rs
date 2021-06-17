@@ -66,7 +66,7 @@ pub use sp_runtime::BuildStorage;
 
 /// Implementations of some helper traits passed into runtime modules as associated types.
 pub mod impls;
-pub use impls::ToAuthor;
+pub use impls::Author;
 
 /// Constant values used within the runtime.
 pub mod constants;
@@ -110,7 +110,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
 	sp_consensus_babe::BabeEpochConfiguration {
 		c: PRIMARY_PROBABILITY,
-		allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryPlainSlots,
+		allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryVRFSlots,
 	};
 
 /// Native version.
@@ -121,12 +121,6 @@ pub fn native_version() -> NativeVersion {
 		can_author_with: Default::default(),
 	}
 }
-
-type MoreThanHalfCouncil = EnsureOneOf<
-	AccountId,
-	pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
-	frame_system::EnsureRoot<AccountId>,
->;
 
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
 
@@ -141,7 +135,7 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 				tips.ration_merge_into(80, 20, &mut split);
 			}
 			Treasury::on_unbalanced(split.0);
-			ToAuthor::on_unbalanced(split.1);
+			Author::on_unbalanced(split.1);
 		}
 	}
 }

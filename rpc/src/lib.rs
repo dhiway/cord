@@ -6,9 +6,7 @@
 
 use std::sync::Arc;
 
-// use cord_runtime::opaque::Block;
 use cord_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
-// use sc_client_api::light::{Fetcher, RemoteBlockchain};
 use sc_client_api::AuxStore;
 use sc_consensus_babe::{Config, Epoch};
 use sc_consensus_babe_rpc::BabeRpcHandler;
@@ -24,11 +22,6 @@ use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_keystore::SyncCryptoStorePtr;
 use sp_transaction_pool::TransactionPool;
-
-// use sc_consensus_babe_rpc::BabeRpcHandler;
-// use sc_finality_grandpa_rpc::{GrandpaApi, GrandpaRpcHandler};
-
-/// A type representing all RPC extensions.
 
 /// Light client extra dependencies.
 pub struct LightDeps<C, F, P> {
