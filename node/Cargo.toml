@@ -5,11 +5,24 @@ build = 'build.rs'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
 
+[package.metadata.wasm-pack.profile.release]
+# `wasm-opt` has some problems on linux, see
+# https://github.com/rustwasm/wasm-pack/issues/781 etc.
+wasm-opt = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
 [[bin]]
 name = 'cord'
 path = "src/main.rs"
+required-features = ["cli"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+codec = { package = "parity-scale-codec", version = "2.0.0" }
 serde = { version = "1.0.123", features = ["derive"] }
 futures = { version = "0.3.9", features = ["compat"] }
 hex-literal = "0.3.1"
@@ -61,9 +74,6 @@ sc-authority-discovery = { git = "https://github.com/paritytech/substrate", bran
 sc-finality-grandpa-warp-sync = { git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "master" }
 
-#sc-block-builder = { git = "https://github.com/paritytech/substrate", branch = "master" }
-#sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "master" }
-
 # Substrate Pallets
 pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "master" }
@@ -76,8 +86,6 @@ pallet-authority-discovery = { git = "https://github.com/paritytech/substrate", 
 pallet-staking = { git = "https://github.com/paritytech/substrate", branch = "master" }
 pallet-grandpa = { git = "https://github.com/paritytech/substrate", branch = "master" }
 
-#pallet-babe = { git = "https://github.com/paritytech/substrate", branch = "master" }
-#pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "master" }
 
 # node-specific dependencies
 cord-runtime = { package = "cord-runtime", path = "../runtime", version = "0.5.0" }
@@ -122,9 +130,10 @@ substrate-build-script-utils = { git = "https://github.com/paritytech/substrate"
 substrate-frame-cli = { git = "https://github.com/paritytech/substrate", optional = true, branch = "master" }
 
 [features]
-default = [
-  "cord-executor/wasmi-errno",
-  "sc-cli",
+default = [ "cli" ]
+cli = [
+	"cord-executor/wasmi-errno",
+	"sc-cli",
 	"frame-benchmarking-cli",
 	"substrate-frame-cli",
 	"sc-service/db",

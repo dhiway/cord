@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-did'
-version = '0.4.0'
+version = '0.5.0'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
 description = 'Enables adding and removing decentralized identifiers (DIDs).'
@@ -11,31 +11,55 @@ targets = ['x86_64-unknown-linux-gnu']
 [build-dependencies]
 wasm-builder = { package = 'substrate-wasm-builder', version = '3.0.0' }
 
+[dev-dependencies]
+serde = { version = "1.0.123", default-features = false }
+env_logger = {version = "0.8.3"}
+cord-primitives = { package = "cord-primitives", default-features = false, path = "../../primitives"}
+pallet-membership = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+pallet-mtype = {features = ["mock"], path = "../mtype"}
+
 [dependencies]
-codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
+codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
+cord-primitives = { package = "cord-primitives", path="../../primitives", version = "0.5.0", optional = true, default-features = false }
+serde = { version = "1.0.123", optional = true, features = ["derive"] }
+env_logger = {optional = true, version = "0.8.3"}
+log = {default-features = false, version = "0.4.14"}
+hex = {default-features = false, features = ["alloc"], version = "0.4.2"}
+pallet-mtype = {features = ["mock"], optional = true, path = "../mtype"}
 
 # Substrate dependencies
-frame-support = {  version = "3.0.0", default-features = false }
-frame-system = {  version = "3.0.0", default-features = false }
-sp-runtime = {  version = "3.0.0", default-features = false }
-sp-std = {  version = "3.0.0", default-features = false }
-frame-benchmarking = {  version = "3.0.0", default-features = false , optional = true}
-
-[dev-dependencies]
-serde = { version = "1.0", default-features = false }
-sp-core = {  version = "3.0.0", default-features = false }
-sp-io = {  version = "3.0.0", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false, optional = true}
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false, optional = true}
+sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false, optional = true}
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 [features]
 default = [ 'std' ]
+mock = [
+  "pallet-mtype",
+  "env_logger",
+  "cord-primitives",
+  "serde",
+  "sp-io",
+  "sp-keystore"
+]
 runtime-benchmarks = [
   "frame-benchmarking",
-  "frame-support/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
+  "sp-io"
 ]
 std = [
-	'codec/std',
-	'frame-support/std',
-	'frame-system/std',
-	'sp-std/std',
+  "codec/std",
+  "frame-support/std",
+  "frame-system/std",
+  "hex/std",
+  "log/std",
+  "sp-core/std",
+  "sp-keystore/std",
+  "sp-io/std",
+  "sp-runtime/std",
+  "sp-std/std",
 ]

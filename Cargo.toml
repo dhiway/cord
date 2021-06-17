@@ -9,4 +9,7 @@ members = [
 	"executor",
 	"inspect",
 	"node",
+	"pallets/mtype",
+	"pallets/did",
+	"pallets/delegation",
 ]

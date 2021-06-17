@@ -9,43 +9,61 @@ description = 'Enables creating and revoking root & delegation nodes of consorti
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-wasm-builder = { package = 'substrate-wasm-builder', version = '3.0.0' }
+substrate-wasm-builder-runner = {version = "3.0.0"}
 
 [dependencies]
 codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
+serde = { version = "1.0.123", optional = true, features = ["derive"] }
 bitflags = { default-features = false, version = '1.2.1' }
-cord-primitives = {  version = "0.5.0",package = "cord-primitives", path = "../../primitives", default-features = false }
-sp-core = { version = "3.0.0", default-features = false }
+log = {default-features = false, version = "0.4.14"}
 
 # Substrate dependencies
-frame-support = { version = "3.0.0", default-features = false }
-frame-system = { version = "3.0.0", default-features = false }
-sp-runtime = { version = "3.0.0", default-features = false }
-sp-std = { version = "3.0.0", default-features = false }
-sp-io = { version = "3.0.0", default-features = false }
-frame-benchmarking = {  version = "3.0.0", default-features = false , optional = true}
+frame-support = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate"}
+frame-system = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate"}
+frame-benchmarking = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate", optional = true}
+sp-core = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate", optional = true}
+sp-io = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate", optional = true}
+sp-keystore = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate", optional = true}
+sp-runtime = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-std = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate"}
 
 # local pallets
-pallet-mtype = { version = "0.4.0", default-features = false, path = '../mtype' }
+pallet-mtype = { version = "0.5.0", default-features = false, path = '../mtype' }
+cord-primitives = { package = "cord-primitives", default-features = false, optional = true, path = "../../primitives"}
 
 [dev-dependencies]
-serde = { version = "1.0", default-features = false }
-sp-keystore = {version = "0.9.0", default-features = false }
+serde = { version = "1.0.123", default-features = false }
+sp-core = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate", version = "3.0.0"}
+sp-keystore = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate"}
+pallet-mtype = {features = ["mock"], path = "../mtype"}
+cord-primitives = { package = "cord-primitives", default-features = false, path = "../../primitives"}
+
 
 [features]
 default = [ 'std' ]
+mock = [
+  "cord-primitives",
+  "serde",
+  "sp-core",
+  "sp-io",
+  "sp-keystore"
+]
 runtime-benchmarks = [
   "frame-benchmarking",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
-  "pallet-mtype/runtime-benchmarks",
+  "sp-core",
+  "sp-io"
 ]
 std = [
 	'codec/std',
+	'pallet-mtype/std',
 	'frame-support/std',
 	'frame-system/std',
+	"cord-primitives/std",
+  "log/std",
+  "sp-core/std",
+	'sp-io/std',
 	'sp-runtime/std',
 	'sp-std/std',
-	'sp-io/std',
-	'pallet-mtype/std',
 ]

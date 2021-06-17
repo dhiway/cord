@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-mtype'
-version = '0.4.0'
+version = '0.5.0'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
 description = 'Enables adding #MARK TYPEs (Schemas).'
@@ -13,26 +13,51 @@ wasm-builder = { package = 'substrate-wasm-builder', version = '3.0.0' }
 
 [dependencies]
 codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
+cord-primitives = { package = "cord-primitives", path="../../primitives", version = "0.5.0", optional = true, default-features = false }
+serde = { version = "1.0.123", optional = true, features = ["derive"] }
 
 # Substrate dependencies
-frame-support = {  version = "3.0.0", default-features = false }
-frame-system = {  version = "3.0.0", default-features = false }
-sp-runtime = {  version = "3.0.0", default-features = false }
-sp-std = {  version = "3.0.0", default-features = false }
-sp-io = {  version = "3.0.0", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+log = {default-features = false, version = "0.4.14"}
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false, optional = true}
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false, optional = true}
+sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false, optional = true}
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false, optional = true}
 
 [dev-dependencies]
-serde = { version = "1.0", default-features = false }
-sp-core = {  version = "3.0.0", default-features = false }
+cord-primitives = { package = "cord-primitives", path="../../primitives", version = "0.5.0", default-features = false }
+serde = { version = "1.0.123", features = ["derive"] }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
+sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "master", default-features = false }
 
 [features]
 default = [ 'std' ]
-std = [
-	'codec/std',
-	'frame-support/std',
-	'frame-system/std',
-	'sp-runtime/std',
-	'sp-std/std',
-	'sp-io/std',
+<<<<<<< HEAD
+=======
+mock = [
+  "cord-primitives",
+  "serde",
+  "sp-core",
+  "sp-io",
+  "sp-keystore"
 ]
-
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+]
+>>>>>>> 5d37252... Pallet updates
+std = [
+  "codec/std",
+  "frame-support/std",
+  "frame-system/std",
+  "cord-primitives/std",
+  "log/std",
+  "sp-core/std",
+  "sp-io/std",
+  "sp-runtime/std",
+  "sp-std/std",
+]

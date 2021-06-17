@@ -6,89 +6,45 @@
 //! #MARK Types: Handles #MARK Types,
 //! testing #MARK Types.
 
-use super::*;
-use crate as pallet_mtype;
+use frame_support::{assert_noop, assert_ok};
 
-use frame_support::{assert_noop, assert_ok, parameter_types};
+use crate::{self as mtype, mock::*};
 
-use sp_core::{ed25519, ed25519::Signature, Pair, H256};
-use sp_runtime::{
-	testing::Header,
-	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-};
+#[test]
+fn check_successful_mtype_creation() {
+	let creator = ALICE;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
-type Block = frame_system::mocking::MockBlock<Test>;
+	let operation = generate_base_mtype_creation_details();
 
-frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
-	{
-		System: frame_system::{Module, Call, Config, Storage, Event<T>},
-		MType: pallet_mtype::{Module, Call, Storage, Event<T>},
-	}
-);
-parameter_types! {
-	pub const BlockHashCount: u64 = 250;
-	pub BlockWeights: frame_system::limits::BlockWeights =
-		frame_system::limits::BlockWeights::simple_max(1024);
-}
+	let builder = ExtBuilder::default();
 
-impl frame_system::Config for Test {
-	type BaseCallFilter = ();
-	type BlockWeights = ();
-	type BlockLength = ();
-	type DbWeight = ();
-	type Origin = Origin;
-	type Index = u64;
-	type BlockNumber = u64;
-	type Call = Call;
-	type Hash = H256;
-	type Hashing = BlakeTwo256;
-	type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
-	type Event = ();
-	type BlockHashCount = BlockHashCount;
-	type Version = ();
-	type PalletInfo = PalletInfo;
-	type AccountData = ();
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
-	type SystemWeightInfo = ();
-	type SS58Prefix = ();
-}
+	let mut ext = builder.build(None);
 
-impl Config for Test {
-	type Event = ();
-	type WeightInfo = ();
-}
+	// Write MTYPE on chain
+	ext.execute_with(|| {
+		assert_ok!(Mtype::anchor(get_origin(creator.clone()), operation.hash));
+	});
 
-pub fn account_pair(s: &str) -> ed25519::Pair {
-	ed25519::Pair::from_string(&format!("//{}", s), None).expect("static values are valid")
-}
-
-pub fn new_test_ext() -> sp_io::TestExternalities {
-	frame_system::GenesisConfig::default()
-		.build_storage::<Test>()
-		.unwrap()
-		.into()
+	// Verify the MTYPE has the right owner
+	let stored_mtype_creator =
+		ext.execute_with(|| Mtype::mtypes(&operation.hash).expect("MTYPE hash should be present on chain."));
+	assert_eq!(stored_mtype_creator, creator);
 }
 
 #[test]
-fn check_mtype_with_default_values() {
-	new_test_ext().execute_with(|| {
-		let pair = account_pair("Alice");
-		let mtype_hash = H256::from_low_u64_be(1);
-		let account = pair.public();
-		assert_ok!(MType::anchor(Origin::signed(account.clone()), mtype_hash));
-		assert_eq!(<MTYPEs<Test>>::contains_key(mtype_hash), true);
-		assert_eq!(MType::mtypes(mtype_hash), Some(account.clone()));
+fn check_duplicate_mtype_creation() {
+	let creator = ALICE;
+
+	let operation = generate_base_mtype_creation_details();
+
+	let builder = ExtBuilder::default().with_mtypes(vec![(operation.hash, creator.clone())]);
+
+	let mut ext = builder.build(None);
+
+	ext.execute_with(|| {
 		assert_noop!(
-			MType::anchor(Origin::signed(account), mtype_hash),
-			Error::<Test>::AlreadyExists
+			Mtype::anchor(get_origin(creator.clone()), operation.hash),
+			mtype::Error::<Test>::MTypeAlreadyExists
 		);
 	});
 }

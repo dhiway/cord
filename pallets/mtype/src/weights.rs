@@ -30,24 +30,24 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_mtype.
 pub trait WeightInfo {
-	fn anchor() -> Weight;
+	fn add() -> Weight;
 }
 
 //// Weights for pallet_mtype using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	fn anchor() -> Weight {
-		(86_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	fn add() -> Weight {
+		(16_501_000_u64)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	fn anchor() -> Weight {
-		(86_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	fn add() -> Weight {
+		(16_501_000_u64)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }
