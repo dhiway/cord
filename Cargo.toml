@@ -1,16 +1,12 @@
-[workspace]
-members = [
-	"primitives",
-	"node",
-	"runtime",
-	'pallets/mtype',
-	'pallets/mark',
-	'pallets/did',
-	'pallets/delegation',
-	'pallets/reserve',
-	'pallets/digest',
-]
-
 [profile.release]
 panic = 'unwind'
 
+[workspace]
+members = [
+	"primitives",
+	"runtime",
+	"rpc",
+	"executor",
+	"inspect",
+	"node",
+]

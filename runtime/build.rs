@@ -1,7 +1,7 @@
 // Copyright 2019-2021 Dhiway.
 // This file is part of CORD Platform.
 
-use wasm_builder::WasmBuilder;
+use substrate_wasm_builder::WasmBuilder;
 
 fn main() {
 	WasmBuilder::new()

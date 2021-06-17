@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-delegation'
-version = '0.4.0'
+version = '0.5.0'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
 description = 'Enables creating and revoking root & delegation nodes of consortium hierarchies'
@@ -14,7 +14,7 @@ wasm-builder = { package = 'substrate-wasm-builder', version = '3.0.0' }
 [dependencies]
 codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
 bitflags = { default-features = false, version = '1.2.1' }
-cord-primitives = {  version = "0.4.0",package = "cord-primitives", path = "../../primitives", default-features = false }
+cord-primitives = {  version = "0.5.0",package = "cord-primitives", path = "../../primitives", default-features = false }
 sp-core = { version = "3.0.0", default-features = false }
 
 # Substrate dependencies
