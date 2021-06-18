@@ -502,7 +502,7 @@ fn unauthorised_delegation_create_delegation_error() {
 		get_delegation_id(true),
 		generate_base_delegation_node(root_id, creator.clone()),
 	);
-	parent_delegation_node.permissions = delegation::Permissions::ATTEST;
+	parent_delegation_node.permissions = delegation::Permissions::ANCHOR;
 	let (delegation_id, mut delegation_node) = (
 		get_delegation_id(false),
 		generate_base_delegation_node(root_id, delegate.clone()),

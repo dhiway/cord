@@ -175,7 +175,7 @@ pub mod pallet {
 		///
 		/// * origin: the identifier of the delegation creator
 		/// * root_id: the ID of the root node. It has to be unique
-		/// * mtype_hash: the MTYPE hash that delegates can use for attestations
+		/// * mtype_hash: the MTYPE hash that delegates can use for marks
 		#[pallet::weight(0)]
 		pub fn create_root(
 			origin: OriginFor<T>,

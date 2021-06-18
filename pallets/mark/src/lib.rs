@@ -9,17 +9,25 @@
 #![allow(clippy::unused_unit)]
 
 pub mod marks;
+pub mod weights;
 
 #[cfg(any(feature = "mock", test))]
 pub mod mock;
 
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarking;
+
 #[cfg(test)]
 mod tests;
+
+use sp_std::vec::Vec;
 
 pub use crate::marks::*;
 pub use pallet::*;
 
-use sp_std::vec::Vec;
+use frame_support::traits::Get;
+
+use crate::weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -28,7 +36,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 
 	/// Type of a content hash.
-	pub type ContentHashOf<T> = <T as frame_system::Config>::Hash;
+	pub type StreamHashOf<T> = <T as frame_system::Config>::Hash;
 
 	/// Type of a MTYPE hash.
 	pub type MtypeHashOf<T> = pallet_mtype::MtypeHashOf<T>;
@@ -43,6 +51,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + pallet_mtype::Config + pallet_delegation::Config {
 		type EnsureOrigin: EnsureOrigin<Success = MarkerOf<Self>, <Self as frame_system::Config>::Origin>;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -56,13 +65,13 @@ pub mod pallet {
 	/// It maps from a content hash to the mark.
 	#[pallet::storage]
 	#[pallet::getter(fn marks)]
-	pub type Marks<T> = StorageMap<_, Blake2_128Concat, ContentHashOf<T>, MarkDetails<T>>;
+	pub type Marks<T> = StorageMap<_, Blake2_128Concat, StreamHashOf<T>, MarkDetails<T>>;
 
 	/// Delegated marks stored on chain.
 	/// It maps from a delegation ID to a vector of content hashes.
 	#[pallet::storage]
 	#[pallet::getter(fn delegated_marks)]
-	pub type DelegatedMarks<T> = StorageMap<_, Blake2_128Concat, DelegationNodeIdOf<T>, Vec<ContentHashOf<T>>>;
+	pub type DelegatedMarks<T> = StorageMap<_, Blake2_128Concat, DelegationNodeIdOf<T>, Vec<StreamHashOf<T>>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -71,15 +80,15 @@ pub mod pallet {
 		/// \[markerer ID, content hash, MTYPE hash, (optional) delegation ID\]
 		Anchored(
 			MarkerOf<T>,
-			ContentHashOf<T>,
+			StreamHashOf<T>,
 			MtypeHashOf<T>,
 			Option<DelegationNodeIdOf<T>>,
 		),
 		/// A Mark has been revoked.
 		/// \[revoker ID, claim hash\]
-		Revoked(MarkerOf<T>, ContentHashOf<T>),
+		Revoked(MarkerOf<T>, StreamHashOf<T>),
 		/// A #MARK has been restored (previously revoked)
-		Restored(MarkerOf<T>, ContentHashOf<T>),
+		Restored(MarkerOf<T>, StreamHashOf<T>),
 	}
 
 	#[pallet::error]
@@ -123,14 +132,14 @@ pub mod pallet {
 		/// the form of an attested delegation.
 		///
 		/// * origin: the identifier of the marker
-		/// * content_hash: the hash of the conten to attest. It has to be unique
+		/// * stream_hash: the hash of the conten to attest. It has to be unique
 		/// * mtype_hash: the hash of the MTYPE used for this mark
 		/// * delegation_id: \[OPTIONAL\] the ID of the delegation node used to
 		///   authorise the marker
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::anchor())]
 		pub fn anchor(
 			origin: OriginFor<T>,
-			content_hash: ContentHashOf<T>,
+			stream_hash: StreamHashOf<T>,
 			mtype_hash: MtypeHashOf<T>,
 			delegation_id: Option<DelegationNodeIdOf<T>>,
 		) -> DispatchResultWithPostInfo {
@@ -141,7 +150,7 @@ pub mod pallet {
 				pallet_mtype::Error::<T>::MTypeNotFound
 			);
 
-			ensure!(!<Marks<T>>::contains_key(&content_hash), Error::<T>::AlreadyAnchored);
+			ensure!(!<Marks<T>>::contains_key(&stream_hash), Error::<T>::AlreadyAnchored);
 
 			// Check for validity of the delegation node if specified.
 			if let Some(delegation_id) = delegation_id {
@@ -153,25 +162,25 @@ pub mod pallet {
 				ensure!(delegation.owner == marker, Error::<T>::NotDelegatedToMarker);
 
 				ensure!(
-					(delegation.permissions & pallet_delegation::Permissions::ATTEST)
-						== pallet_delegation::Permissions::ATTEST,
+					(delegation.permissions & pallet_delegation::Permissions::ANCHOR)
+						== pallet_delegation::Permissions::ANCHOR,
 					Error::<T>::DelegationUnauthorizedToAnchor
 				);
 
-				// Check if the MTYPE of the delegation is matching the MTYPE of the attestation
+				// Check if the MTYPE of the delegation is matching the MTYPE of the mark
 				let root = <pallet_delegation::Roots<T>>::get(delegation.root_id)
 					.ok_or(pallet_delegation::Error::<T>::RootNotFound)?;
 				ensure!(root.mtype_hash == mtype_hash, Error::<T>::MTypeMismatch);
 
 				// If the mark is based on a delegation, store separately
 				let mut delegated_marks = <DelegatedMarks<T>>::get(delegation_id).unwrap_or_default();
-				delegated_marks.push(content_hash);
+				delegated_marks.push(stream_hash);
 				<DelegatedMarks<T>>::insert(delegation_id, delegated_marks);
 			}
 
 			log::debug!("Anchor Mark");
 			<Marks<T>>::insert(
-				&content_hash,
+				&stream_hash,
 				MarkDetails {
 					mtype_hash,
 					marker: marker.clone(),
@@ -180,7 +189,7 @@ pub mod pallet {
 				},
 			);
 
-			Self::deposit_event(Event::Anchored(marker, content_hash, mtype_hash, delegation_id));
+			Self::deposit_event(Event::Anchored(marker, stream_hash, mtype_hash, delegation_id));
 
 			Ok(None.into())
 		}
@@ -193,21 +202,21 @@ pub mod pallet {
 		/// an ancestor thereof.
 		///
 		/// * origin: the identifier of the revoker
-		/// * content_hash: the hash of the content to revoke
+		/// * stream_hash: the hash of the content to revoke
 		/// * max_parent_checks: for delegated marks, the number of
 		///   delegation nodes to check up in the trust hierarchy (including the
 		///   root node but excluding the provided node) to verify whether the
 		///   caller is an ancestor of the mark marker and hence
 		///   authorised to revoke the specified mark.
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::revoke(*max_parent_checks))]
 		pub fn revoke(
 			origin: OriginFor<T>,
-			content_hash: ContentHashOf<T>,
+			stream_hash: StreamHashOf<T>,
 			max_parent_checks: u32,
 		) -> DispatchResultWithPostInfo {
 			let revoker = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let mark = <Marks<T>>::get(&content_hash).ok_or(Error::<T>::MarkNotFound)?;
+			let mark = <Marks<T>>::get(&stream_hash).ok_or(Error::<T>::MarkNotFound)?;
 
 			ensure!(!mark.revoked, Error::<T>::AlreadyRevoked);
 
@@ -215,6 +224,10 @@ pub mod pallet {
 			// the original attester
 			if mark.marker != revoker {
 				let delegation_id = mark.delegation_id.ok_or(Error::<T>::UnauthorizedRevocation)?;
+				ensure!(
+					max_parent_checks <= T::MaxParentChecks::get(),
+					pallet_delegation::Error::<T>::MaxParentChecksTooLarge
+				);
 				// Check whether the sender of the revocation controls the delegation node
 				// specified, and that its status has not been revoked
 				ensure!(
@@ -224,9 +237,9 @@ pub mod pallet {
 			}
 
 			log::debug!("Revoking Mark");
-			<Marks<T>>::insert(&content_hash, MarkDetails { revoked: true, ..mark });
+			<Marks<T>>::insert(&stream_hash, MarkDetails { revoked: true, ..mark });
 
-			Self::deposit_event(Event::Revoked(revoker, content_hash));
+			Self::deposit_event(Event::Revoked(revoker, stream_hash));
 
 			//TODO: Return actual weight used, which should be returned by
 			// delegation::is_actively_delegating
@@ -240,7 +253,7 @@ pub mod pallet {
 		/// an ancestor thereof.
 		///
 		/// * origin: the identifier of the restorer
-		/// * content_hash: the hash of the content to restore
+		/// * stream_hash: the hash of the content to restore
 		/// * max_parent_checks: for delegated marks, the number of
 		///   delegation nodes to check up in the trust hierarchy (including the
 		///   root node but excluding the provided node) to verify whether the
@@ -249,19 +262,23 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn restore(
 			origin: OriginFor<T>,
-			content_hash: ContentHashOf<T>,
+			stream_hash: StreamHashOf<T>,
 			max_parent_checks: u32,
 		) -> DispatchResultWithPostInfo {
 			let restorer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let mark = <Marks<T>>::get(&content_hash).ok_or(Error::<T>::MarkNotFound)?;
+			let mark = <Marks<T>>::get(&stream_hash).ok_or(Error::<T>::MarkNotFound)?;
 
 			ensure!(mark.revoked, Error::<T>::MarkStillActive);
 
 			// Check the delegation tree if the sender of the restore operation is not
 			// the original attester
 			if mark.marker != restorer {
-				let delegation_id = mark.delegation_id.ok_or(Error::<T>::UnauthorizedRevocation)?;
+				let delegation_id = mark.delegation_id.ok_or(Error::<T>::UnauthorizedRestore)?;
+				ensure!(
+					max_parent_checks <= T::MaxParentChecks::get(),
+					pallet_delegation::Error::<T>::MaxParentChecksTooLarge
+				);
 				// Check whether the sender of the restoration controls the delegation node
 				// specified, and that its status has not been revoked
 				ensure!(
@@ -271,9 +288,9 @@ pub mod pallet {
 			}
 
 			log::debug!("Restoring Mark");
-			<Marks<T>>::insert(&content_hash, MarkDetails { revoked: false, ..mark });
+			<Marks<T>>::insert(&stream_hash, MarkDetails { revoked: false, ..mark });
 
-			Self::deposit_event(Event::Restored(restorer, content_hash));
+			Self::deposit_event(Event::Restored(restorer, stream_hash));
 
 			//TODO: Return actual weight used, which should be returned by
 			// delegation::is_actively_delegating

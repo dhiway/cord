@@ -9,20 +9,20 @@ description = 'Enables adding and revoking marks.'
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-substrate-wasm-builder-runner = {version = "3.0.0"}
+substrate-wasm-builder = "4.0.0"
 
 [dependencies]
 codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "master" }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "master" }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "master" }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5" }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5" }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5", optional = true }
 log = {default-features = false, version = "0.4.14"}
 serde = {optional = true, version = "1.0.101"}
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
-sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "master", optional = true }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5", optional = true }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5", optional = true }
+sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5", optional = true }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5" }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5" }
 
 # Internal Dependencies
 pallet-mtype = { default-features = false, path = '../mtype' }
@@ -34,9 +34,9 @@ pallet-mtype = {features = ["mock"], path = "../mtype" }
 pallet-delegation = {features = ["mock"], path = "../delegation" }
 cord-primitives = {default-features = false, path = "../../primitives"}
 serde = {version = "1.0.101"}
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "master" }
-sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "master" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5" }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5" }
+sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5" }
 
 [features]
 default = [ 'std' ]

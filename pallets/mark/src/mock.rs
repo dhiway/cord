@@ -2,18 +2,19 @@
 
 use crate as mark;
 use crate::*;
-use codec::Decode;
 use pallet_mtype::mock as mtype_mock;
 
+use codec::Decode;
 use frame_support::{ensure, parameter_types, weights::constants::RocksDbWeight};
 use frame_system::EnsureSigned;
 use sp_core::{ed25519, sr25519, Pair};
-
+use sp_keystore::{testing::KeyStore, KeystoreExt};
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	MultiSignature, MultiSigner,
 };
+use sp_std::sync::Arc;
 
 pub type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 pub type Block = frame_system::mocking::MockBlock<Test>;
@@ -22,7 +23,7 @@ pub type TestMtypeOwner = cord_primitives::AccountId;
 pub type TestMtypeHash = cord_primitives::Hash;
 pub type TestDelegationNodeId = cord_primitives::Hash;
 pub type TestDelegatorId = cord_primitives::AccountId;
-pub type TestContentHash = cord_primitives::Hash;
+pub type TestStreamHash = cord_primitives::Hash;
 pub type TestAttester = TestDelegatorId;
 
 frame_support::construct_runtime!(
@@ -74,10 +75,13 @@ impl pallet_mtype::Config for Test {
 	type MtypeCreatorId = TestMtypeOwner;
 	type EnsureOrigin = EnsureSigned<TestMtypeOwner>;
 	type Event = ();
+	type WeightInfo = ();
 }
 
 parameter_types! {
 	pub const MaxSignatureByteLength: u16 = 64;
+	pub const MaxParentChecks: u32 = 5;
+	pub const MaxRevocations: u32 = 5;
 }
 
 impl pallet_delegation::Config for Test {
@@ -87,11 +91,15 @@ impl pallet_delegation::Config for Test {
 	type EnsureOrigin = EnsureSigned<TestDelegatorId>;
 	type Event = ();
 	type MaxSignatureByteLength = MaxSignatureByteLength;
+	type MaxParentChecks = MaxParentChecks;
+	type MaxRevocations = MaxRevocations;
+	type WeightInfo = ();
 }
 
 impl Config for Test {
 	type EnsureOrigin = EnsureSigned<TestAttester>;
 	type Event = ();
+	type WeightInfo = ();
 }
 
 impl pallet_delegation::VerifyDelegateSignature for Test {
@@ -121,8 +129,8 @@ impl pallet_delegation::VerifyDelegateSignature for Test {
 const ALICE_SEED: [u8; 32] = [0u8; 32];
 const BOB_SEED: [u8; 32] = [1u8; 32];
 
-const DEFAULT_CLAIM_HASH_SEED: u64 = 1u64;
-const ALTERNATIVE_CLAIM_HASH_SEED: u64 = 2u64;
+const DEFAULT_STREAM_HASH_SEED: u64 = 1u64;
+const ALTERNATIVE_STREAM_HASH_SEED: u64 = 2u64;
 
 pub fn get_origin(account: TestAttester) -> Origin {
 	Origin::signed(account)
@@ -152,39 +160,39 @@ pub fn get_bob_sr25519() -> sr25519::Pair {
 	sr25519::Pair::from_seed(&BOB_SEED)
 }
 
-pub fn get_content_hash(default: bool) -> TestContentHash {
+pub fn get_stream_hash(default: bool) -> TestStreamHash {
 	if default {
-		TestContentHash::from_low_u64_be(DEFAULT_CLAIM_HASH_SEED)
+		TestStreamHash::from_low_u64_be(DEFAULT_STREAM_HASH_SEED)
 	} else {
-		TestContentHash::from_low_u64_be(ALTERNATIVE_CLAIM_HASH_SEED)
+		TestStreamHash::from_low_u64_be(ALTERNATIVE_STREAM_HASH_SEED)
 	}
 }
 
 pub struct MarkCreationDetails {
-	pub content_hash: TestContentHash,
+	pub stream_hash: TestStreamHash,
 	pub mtype_hash: TestMtypeHash,
 	pub delegation_id: Option<TestDelegationNodeId>,
 }
 
 pub fn generate_base_mark_creation_details(
-	content_hash: TestContentHash,
+	stream_hash: TestStreamHash,
 	mark: MarkDetails<Test>,
 ) -> MarkCreationDetails {
 	MarkCreationDetails {
-		content_hash,
+		stream_hash,
 		mtype_hash: mark.mtype_hash,
 		delegation_id: mark.delegation_id,
 	}
 }
 
 pub struct MarkRevocationDetails {
-	pub content_hash: TestContentHash,
+	pub stream_hash: TestStreamHash,
 	pub max_parent_checks: u32,
 }
 
-pub fn generate_base_mark_revocation_details(content_hash: TestContentHash) -> MarkRevocationDetails {
+pub fn generate_base_mark_revocation_details(stream_hash: TestStreamHash) -> MarkRevocationDetails {
 	MarkRevocationDetails {
-		content_hash,
+		stream_hash,
 		max_parent_checks: 0u32,
 	}
 }
@@ -200,8 +208,8 @@ pub fn generate_base_mark(marker: TestAttester) -> MarkDetails<Test> {
 
 #[derive(Clone)]
 pub struct ExtBuilder {
-	marks_stored: Vec<(TestContentHash, MarkDetails<Test>)>,
-	delegated_marks_stored: Vec<(TestDelegationNodeId, Vec<TestContentHash>)>,
+	marks_stored: Vec<(TestStreamHash, MarkDetails<Test>)>,
+	delegated_marks_stored: Vec<(TestDelegationNodeId, Vec<TestStreamHash>)>,
 }
 
 impl Default for ExtBuilder {
@@ -214,12 +222,12 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
-	pub fn with_marks(mut self, marks: Vec<(TestContentHash, MarkDetails<Test>)>) -> Self {
+	pub fn with_marks(mut self, marks: Vec<(TestStreamHash, MarkDetails<Test>)>) -> Self {
 		self.marks_stored = marks;
 		self
 	}
 
-	pub fn with_delegated_marks(mut self, delegated_marks: Vec<(TestDelegationNodeId, Vec<TestContentHash>)>) -> Self {
+	pub fn with_delegated_marks(mut self, delegated_marks: Vec<(TestDelegationNodeId, Vec<TestStreamHash>)>) -> Self {
 		self.delegated_marks_stored = delegated_marks;
 		self
 	}
@@ -247,6 +255,15 @@ impl ExtBuilder {
 				})
 			});
 		}
+
+		ext
+	}
+
+	pub fn build_with_keystore(self, ext: Option<sp_io::TestExternalities>) -> sp_io::TestExternalities {
+		let mut ext = self.build(ext);
+
+		let keystore = KeyStore::new();
+		ext.register_extension(KeystoreExt(Arc::new(keystore)));
 
 		ext
 	}

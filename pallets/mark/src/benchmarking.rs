@@ -20,14 +20,14 @@ benchmarks! {
 	where_clause { where T: core::fmt::Debug, T::AccountId: From<sr25519::Public> + Into<T::DelegationEntityId>, T::DelegationNodeId: From<T::Hash> }
 
 	anchor {
-		let content_hash: T::Hash = T::Hashing::hash(b"stream");
+		let stream_hash: T::Hash = T::Hashing::hash(b"stream");
 		let mtype_hash: T::Hash = T::Hash::default();
 		let (_, _, delegate_public, delegation_id) = setup_delegations::<T>(1, ONE_CHILD_PER_LEVEL.expect(">0"), Permissions::ANCHOR)?;
 		let delegate_acc: T::AccountId = delegate_public.into();
-	}: _(RawOrigin::Signed(delegate_acc.clone()), content_hash, mtype_hash, Some(delegation_id))
+	}: _(RawOrigin::Signed(delegate_acc.clone()), stream_hash, mtype_hash, Some(delegation_id))
 	verify {
-		assert!(Marks::<T>::contains_key(content_hash));
-		assert_eq!(Pallet::<T>::marks(content_hash), Some(MarkDetails {
+		assert!(Marks::<T>::contains_key(stream_hash));
+		assert_eq!(Pallet::<T>::marks(stream_hash), Some(MarkDetails {
 			mtype_hash,
 			marker: delegate_acc,
 			delegation_id: Some(delegation_id),
@@ -38,7 +38,7 @@ benchmarks! {
 	revoke {
 		let d in 1 .. T::MaxParentChecks::get();
 
-		let content_hash: T::Hash = T::Hashing::hash(b"stream");
+		let stream_hash: T::Hash = T::Hashing::hash(b"stream");
 		let mtype_hash: T::Hash = T::Hash::default();
 
 		let (root_public, _, delegate_public, delegation_id) = setup_delegations::<T>(d, ONE_CHILD_PER_LEVEL.expect(">0"), Permissions::ANCHOR | Permissions::DELEGATE)?;
@@ -46,12 +46,12 @@ benchmarks! {
 		let delegate_acc: T::AccountId = delegate_public.into();
 
 		// attest with leaf account
-		Pallet::<T>::anchor(RawOrigin::Signed(delegate_acc.clone()).into(), content_hash, mtype_hash, Some(delegation_id))?;
+		Pallet::<T>::anchor(RawOrigin::Signed(delegate_acc.clone()).into(), stream_hash, mtype_hash, Some(delegation_id))?;
 		// revoke with root account, s.t. delegation tree needs to be traversed
-	}: _(RawOrigin::Signed(root_acc.clone()), content_hash, d)
+	}: _(RawOrigin::Signed(root_acc.clone()), stream_hash, d)
 	verify {
-		assert!(Marks::<T>::contains_key(content_hash));
-		assert_eq!(Marks::<T>::get(content_hash), Some(MarkDetails {
+		assert!(Marks::<T>::contains_key(stream_hash));
+		assert_eq!(Marks::<T>::get(stream_hash), Some(MarkDetails {
 			mtype_hash,
 			marker: delegate_acc,
 			delegation_id: Some(delegation_id),
@@ -62,7 +62,7 @@ benchmarks! {
 	// restore {
 	// 	let d in 1 .. T::MaxParentChecks::get();
 
-	// 	let content_hash: T::Hash = T::Hashing::hash(b"stream");
+	// 	let stream_hash: T::Hash = T::Hashing::hash(b"stream");
 	// 	let mtype_hash: T::Hash = T::Hash::default();
 
 	// 	let (root_public, _, delegate_public, delegation_id) = setup_delegations::<T>(d, ONE_CHILD_PER_LEVEL.expect(">0"), Permissions::ANCHOR | Permissions::DELEGATE)?;
@@ -70,14 +70,14 @@ benchmarks! {
 	// 	let delegate_acc: T::AccountId = delegate_public.into();
 
 	// 	// attest with leaf account
-	// 	Pallet::<T>::anchor(RawOrigin::Signed(delegate_acc.clone()).into(), content_hash, mtype_hash, Some(delegation_id))?;
-	// 	Pallet::<T>::revoke(RawOrigin::Signed(root_acc.clone()).into(), content_hash,d+1)?;
+	// 	Pallet::<T>::anchor(RawOrigin::Signed(delegate_acc.clone()).into(), stream_hash, mtype_hash, Some(delegation_id))?;
+	// 	Pallet::<T>::revoke(RawOrigin::Signed(root_acc.clone()).into(), stream_hash,d+1)?;
 
 	// 	// revoke with root account, s.t. delegation tree needs to be traversed
-	// }: _(RawOrigin::Signed(root_acc.clone()), content_hash, d)
+	// }: _(RawOrigin::Signed(root_acc.clone()), stream_hash, d)
 	// verify {
-	// 	assert!(Marks::<T>::contains_key(content_hash));
-	// 	assert_eq!(Marks::<T>::get(content_hash), Some(Mark::<T> {
+	// 	assert!(Marks::<T>::contains_key(stream_hash));
+	// 	assert_eq!(Marks::<T>::get(stream_hash), Some(Mark::<T> {
 	// 		mtype_hash,
 	// 		marker: delegate_acc,
 	// 		delegation_id: Some(delegation_id),

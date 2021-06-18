@@ -23,16 +23,16 @@ benchmarks! {
 		let caller: T::AccountId = whitelisted_caller();
 		let acc: T::AccountId = whitelisted_caller();
 
-		let content_hash: T::Hash = T::Hashing::hash(b"someContentHash");
+		let stream_hash: T::Hash = T::Hashing::hash(b"someStreamHash");
 		let hash = <T::Hash as Default>::default();
 		let mtype_hash: T::Hash = T::Hash::default();
 
 		pallet_mtype::Module::<T>::anchor(RawOrigin::Signed(caller.clone()).into(), mtype_hash)?;
-		pallet_mark::Module::<T>::anchor(RawOrigin::Signed(acc.clone()).into(), content_hash,mtype_hash,None)?;
+		pallet_mark::Module::<T>::anchor(RawOrigin::Signed(acc.clone()).into(), stream_hash,mtype_hash,None)?;
 
 		let digest_hash: T::Hash = T::Hashing::hash(b"thisIsDigestHash");
 
-	}: _(RawOrigin::Signed(caller.clone()),digest_hash,content_hash)
+	}: _(RawOrigin::Signed(caller.clone()),digest_hash,stream_hash)
 	verify {
 		 assert!(Digests::<T>::contains_key(digest_hash));
 
@@ -42,7 +42,7 @@ benchmarks! {
 
 		// let d in 1 .. MAX_DEPTH;
 
-		let content_hash: T::Hash = T::Hashing::hash(b"claim");
+		let stream_hash: T::Hash = T::Hashing::hash(b"claim");
 		let digest_hash: T::Hash = T::Hashing::hash(b"digest");
 		let mtype_hash: T::Hash = T::Hash::default();
 
@@ -50,8 +50,8 @@ benchmarks! {
 		let acc: T::AccountId = whitelisted_caller();
 
 		pallet_mtype::Module::<T>::anchor(RawOrigin::Signed(caller.clone()).into(), mtype_hash)?;
-		pallet_mark::Module::<T>::anchor(RawOrigin::Signed(acc.clone()).into(), content_hash,mtype_hash,None)?;
-		DigestModule::<T>::anchor(RawOrigin::Signed(caller.clone()).into(), digest_hash,content_hash)?;
+		pallet_mark::Module::<T>::anchor(RawOrigin::Signed(acc.clone()).into(), stream_hash,mtype_hash,None)?;
+		DigestModule::<T>::anchor(RawOrigin::Signed(caller.clone()).into(), digest_hash,stream_hash)?;
 	}: _(RawOrigin::Signed(caller.clone()),digest_hash)
 	verify {
 		assert!(Digests::<T>::contains_key(digest_hash));

@@ -152,7 +152,7 @@ pub mod pallet {
 		/// No more operations with the DID are allowed.
 		MaxTxCounterValue,
 		/// The user tries to delete a verification key that is currently being
-		/// used as an authentication, delegation, or attestation key, and this
+		/// used as an authentication, delegation, or mark key, and this
 		/// is not allowed.
 		CurrentlyActiveKey,
 		/// The called extrinsic does not support DID authorization.

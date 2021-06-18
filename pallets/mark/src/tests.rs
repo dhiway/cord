@@ -19,10 +19,10 @@ use pallet_mtype::mock as mtype_mock;
 fn anchor_no_delegation_successful() {
 	let marker_keypair = get_alice_ed25519();
 	let marker = get_ed25519_account(marker_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 	let mark = generate_base_mark(marker.clone());
 
-	let operation = generate_base_mark_creation_details(content_hash, mark);
+	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let mut ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
@@ -31,13 +31,13 @@ fn anchor_no_delegation_successful() {
 	ext.execute_with(|| {
 		assert_ok!(Mark::anchor(
 			get_origin(marker.clone()),
-			operation.content_hash,
+			operation.stream_hash,
 			operation.mtype_hash,
 			operation.delegation_id
 		));
 	});
 
-	let stored_mark = ext.execute_with(|| Mark::marks(&content_hash).expect("Mark should be present on chain."));
+	let stored_mark = ext.execute_with(|| Mark::marks(&stream_hash).expect("Mark should be present on chain."));
 
 	assert_eq!(stored_mark.mtype_hash, operation.mtype_hash);
 	assert_eq!(stored_mark.marker, marker);
@@ -49,7 +49,7 @@ fn anchor_no_delegation_successful() {
 fn anchor_with_delegation_successful() {
 	let marker_keypair = get_alice_ed25519();
 	let marker = get_ed25519_account(marker_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
 		delegation_mock::generate_base_delegation_root(marker.clone()),
@@ -58,11 +58,11 @@ fn anchor_with_delegation_successful() {
 		delegation_mock::get_delegation_id(true),
 		delegation_mock::generate_base_delegation_node(root_id, marker.clone()),
 	);
-	delegation_node.permissions = pallet_delegation::Permissions::ATTEST;
+	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
 	let mut mark = generate_base_mark(marker.clone());
 	mark.delegation_id = Some(delegation_id);
 
-	let operation = generate_base_mark_creation_details(content_hash, mark);
+	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
@@ -76,13 +76,13 @@ fn anchor_with_delegation_successful() {
 	ext.execute_with(|| {
 		assert_ok!(Mark::anchor(
 			get_origin(marker.clone()),
-			operation.content_hash,
+			operation.stream_hash,
 			operation.mtype_hash,
 			operation.delegation_id
 		));
 	});
 
-	let stored_mark = ext.execute_with(|| Mark::marks(&content_hash).expect("Mark should be present on chain."));
+	let stored_mark = ext.execute_with(|| Mark::marks(&stream_hash).expect("Mark should be present on chain."));
 
 	assert_eq!(stored_mark.mtype_hash, operation.mtype_hash);
 	assert_eq!(stored_mark.marker, marker);
@@ -93,17 +93,17 @@ fn anchor_with_delegation_successful() {
 		Mark::delegated_marks(&delegation_id).expect("Attested delegation should be present on chain.")
 	});
 
-	assert_eq!(delegated_marks, vec![content_hash]);
+	assert_eq!(delegated_marks, vec![stream_hash]);
 }
 
 #[test]
 fn mtype_not_present_anchor_error() {
 	let marker_keypair = get_alice_ed25519();
 	let marker = get_ed25519_account(marker_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 	let mark = generate_base_mark(marker.clone());
 
-	let operation = generate_base_mark_creation_details(content_hash, mark);
+	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	// No MTYPE stored
 	let mut ext = ExtBuilder::default().build(None);
@@ -112,7 +112,7 @@ fn mtype_not_present_anchor_error() {
 		assert_noop!(
 			Mark::anchor(
 				get_origin(marker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
 			),
@@ -125,24 +125,24 @@ fn mtype_not_present_anchor_error() {
 fn duplicate_anchor_error() {
 	let marker_keypair = get_alice_ed25519();
 	let marker = get_ed25519_account(marker_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 	let mark = generate_base_mark(marker.clone());
 
-	let operation = generate_base_mark_creation_details(content_hash, mark.clone());
+	let operation = generate_base_mark_creation_details(stream_hash, mark.clone());
 
 	let ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
 		.build(None);
 	let ext = delegation_mock::ExtBuilder::default().build(Some(ext));
 	let mut ext = ExtBuilder::default()
-		.with_marks(vec![(content_hash, mark)])
+		.with_marks(vec![(stream_hash, mark)])
 		.build(Some(ext));
 
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::anchor(
 				get_origin(marker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
 			),
@@ -155,12 +155,12 @@ fn duplicate_anchor_error() {
 fn delegation_not_found_anchor_error() {
 	let marker_keypair = get_alice_ed25519();
 	let marker = get_ed25519_account(marker_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 	let delegation_id = delegation_mock::get_delegation_id(true);
 	let mut mark = generate_base_mark(marker.clone());
 	mark.delegation_id = Some(delegation_id);
 
-	let operation = generate_base_mark_creation_details(content_hash, mark);
+	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let mut ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
@@ -170,7 +170,7 @@ fn delegation_not_found_anchor_error() {
 		assert_noop!(
 			Mark::anchor(
 				get_origin(marker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
 			),
@@ -183,7 +183,7 @@ fn delegation_not_found_anchor_error() {
 fn delegation_revoked_anchor_error() {
 	let marker_keypair = get_alice_ed25519();
 	let marker = get_ed25519_account(marker_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
 		delegation_mock::generate_base_delegation_root(marker.clone()),
@@ -192,12 +192,12 @@ fn delegation_revoked_anchor_error() {
 		delegation_mock::get_delegation_id(true),
 		delegation_mock::generate_base_delegation_node(root_id, marker.clone()),
 	);
-	delegation_node.permissions = pallet_delegation::Permissions::ATTEST;
+	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
 	delegation_node.revoked = true;
 	let mut mark = generate_base_mark(marker.clone());
 	mark.delegation_id = Some(delegation_id);
 
-	let operation = generate_base_mark_creation_details(content_hash, mark);
+	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
@@ -212,7 +212,7 @@ fn delegation_revoked_anchor_error() {
 		assert_noop!(
 			Mark::anchor(
 				get_origin(marker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
 			),
@@ -227,7 +227,7 @@ fn not_delegation_owner_anchor_error() {
 	let marker = get_ed25519_account(marker_keypair.public());
 	let alternative_owner_keypair = get_bob_ed25519();
 	let alternative_owner = get_ed25519_account(alternative_owner_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
 		delegation_mock::generate_base_delegation_root(alternative_owner.clone()),
@@ -236,11 +236,11 @@ fn not_delegation_owner_anchor_error() {
 		delegation_mock::get_delegation_id(true),
 		delegation_mock::generate_base_delegation_node(root_id, alternative_owner),
 	);
-	delegation_node.permissions = pallet_delegation::Permissions::ATTEST;
+	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
 	let mut mark = generate_base_mark(marker.clone());
 	mark.delegation_id = Some(delegation_id);
 
-	let operation = generate_base_mark_creation_details(content_hash, mark);
+	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
@@ -255,7 +255,7 @@ fn not_delegation_owner_anchor_error() {
 		assert_noop!(
 			Mark::anchor(
 				get_origin(marker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
 			),
@@ -268,7 +268,7 @@ fn not_delegation_owner_anchor_error() {
 fn unauthorised_permissions_anchor_error() {
 	let marker_keypair = get_alice_ed25519();
 	let marker = get_ed25519_account(marker_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
 		delegation_mock::generate_base_delegation_root(marker.clone()),
@@ -280,7 +280,7 @@ fn unauthorised_permissions_anchor_error() {
 	let mut mark = generate_base_mark(marker.clone());
 	mark.delegation_id = Some(delegation_id);
 
-	let operation = generate_base_mark_creation_details(content_hash, mark);
+	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
@@ -295,7 +295,7 @@ fn unauthorised_permissions_anchor_error() {
 		assert_noop!(
 			Mark::anchor(
 				get_origin(marker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
 			),
@@ -308,7 +308,7 @@ fn unauthorised_permissions_anchor_error() {
 fn root_not_present_anchor_error() {
 	let marker_keypair = get_alice_ed25519();
 	let marker = get_ed25519_account(marker_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
 		delegation_mock::generate_base_delegation_root(marker.clone()),
@@ -318,11 +318,11 @@ fn root_not_present_anchor_error() {
 		delegation_mock::get_delegation_id(true),
 		delegation_mock::generate_base_delegation_node(root_id, marker.clone()),
 	);
-	delegation_node.permissions = pallet_delegation::Permissions::ATTEST;
+	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
 	let mut mark = generate_base_mark(marker.clone());
 	mark.delegation_id = Some(delegation_id);
 
-	let operation = generate_base_mark_creation_details(content_hash, mark);
+	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
@@ -337,7 +337,7 @@ fn root_not_present_anchor_error() {
 		assert_noop!(
 			Mark::anchor(
 				get_origin(marker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
 			),
@@ -350,7 +350,7 @@ fn root_not_present_anchor_error() {
 fn root_mtype_mismatch_anchor_error() {
 	let marker_keypair = get_alice_ed25519();
 	let marker = get_ed25519_account(marker_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 	let alternative_mtype_hash = mtype_mock::get_mtype_hash(false);
 	let (root_id, mut root_node) = (
 		delegation_mock::get_delegation_root_id(true),
@@ -361,11 +361,11 @@ fn root_mtype_mismatch_anchor_error() {
 		delegation_mock::get_delegation_id(true),
 		delegation_mock::generate_base_delegation_node(root_id, marker.clone()),
 	);
-	delegation_node.permissions = pallet_delegation::Permissions::ATTEST;
+	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
 	let mut mark = generate_base_mark(marker.clone());
 	mark.delegation_id = Some(delegation_id);
 
-	let operation = generate_base_mark_creation_details(content_hash, mark);
+	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
@@ -380,7 +380,7 @@ fn root_mtype_mismatch_anchor_error() {
 		assert_noop!(
 			Mark::anchor(
 				get_origin(marker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
 			),
@@ -395,28 +395,28 @@ fn root_mtype_mismatch_anchor_error() {
 fn revoke_direct_successful() {
 	let revoker_keypair = get_alice_ed25519();
 	let revoker = get_ed25519_account(revoker_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 	let mark = generate_base_mark(revoker.clone());
 
-	let operation = generate_base_mark_revocation_details(content_hash);
+	let operation = generate_base_mark_revocation_details(stream_hash);
 
 	let ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(mark.mtype_hash, revoker.clone())])
 		.build(None);
 	let ext = delegation_mock::ExtBuilder::default().build(Some(ext));
 	let mut ext = ExtBuilder::default()
-		.with_marks(vec![(operation.content_hash, mark)])
+		.with_marks(vec![(operation.stream_hash, mark)])
 		.build(Some(ext));
 
 	ext.execute_with(|| {
 		assert_ok!(Mark::revoke(
 			get_origin(revoker.clone()),
-			operation.content_hash,
+			operation.stream_hash,
 			operation.max_parent_checks
 		));
 	});
 
-	let stored_mark = ext.execute_with(|| Mark::marks(content_hash).expect("Mark should be present on chain."));
+	let stored_mark = ext.execute_with(|| Mark::marks(stream_hash).expect("Mark should be present on chain."));
 
 	assert!(stored_mark.revoked);
 }
@@ -427,7 +427,7 @@ fn revoke_with_delegation_successful() {
 	let revoker = get_ed25519_account(revoker_keypair.public());
 	let mark_owner_keypair = get_bob_ed25519();
 	let mark_owner = get_ed25519_account(mark_owner_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
@@ -437,13 +437,13 @@ fn revoke_with_delegation_successful() {
 		delegation_mock::get_delegation_id(true),
 		delegation_mock::generate_base_delegation_node(root_id, revoker.clone()),
 	);
-	delegation_node.permissions = pallet_delegation::Permissions::ATTEST;
+	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
 	// Mark owned by a different user, but delegation owned by the user
 	// submitting the operation.
 	let mut mark = generate_base_mark(mark_owner);
 	mark.delegation_id = Some(delegation_id);
 
-	let mut operation = generate_base_mark_revocation_details(content_hash);
+	let mut operation = generate_base_mark_revocation_details(stream_hash);
 	// Set to 0 as we only need to check the delegation node itself and no parent.
 	operation.max_parent_checks = 0u32;
 
@@ -456,19 +456,19 @@ fn revoke_with_delegation_successful() {
 		.with_children(vec![(root_id, vec![delegation_id])])
 		.build(Some(ext));
 	let mut ext = ExtBuilder::default()
-		.with_marks(vec![(operation.content_hash, mark)])
+		.with_marks(vec![(operation.stream_hash, mark)])
 		.build(Some(ext));
 
 	ext.execute_with(|| {
 		assert_ok!(Mark::revoke(
 			get_origin(revoker.clone()),
-			operation.content_hash,
+			operation.stream_hash,
 			operation.max_parent_checks
 		));
 	});
 
 	let stored_mark =
-		ext.execute_with(|| Mark::marks(operation.content_hash).expect("Mark should be present on chain."));
+		ext.execute_with(|| Mark::marks(operation.stream_hash).expect("Mark should be present on chain."));
 
 	assert!(stored_mark.revoked);
 }
@@ -479,7 +479,7 @@ fn revoke_with_parent_delegation_successful() {
 	let revoker = get_ed25519_account(revoker_keypair.public());
 	let mark_owner_keypair = get_bob_ed25519();
 	let mark_owner = get_ed25519_account(mark_owner_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
@@ -489,7 +489,7 @@ fn revoke_with_parent_delegation_successful() {
 		delegation_mock::get_delegation_id(true),
 		delegation_mock::generate_base_delegation_node(root_id, revoker.clone()),
 	);
-	parent_node.permissions = pallet_delegation::Permissions::ATTEST;
+	parent_node.permissions = pallet_delegation::Permissions::ANCHOR;
 	let (delegation_id, delegation_node) = (
 		delegation_mock::get_delegation_id(false),
 		delegation_mock::generate_base_delegation_node(root_id, mark_owner.clone()),
@@ -497,7 +497,7 @@ fn revoke_with_parent_delegation_successful() {
 	let mut mark = generate_base_mark(mark_owner);
 	mark.delegation_id = Some(delegation_id);
 
-	let mut operation = generate_base_mark_revocation_details(content_hash);
+	let mut operation = generate_base_mark_revocation_details(stream_hash);
 	// Set to 1 as the delegation referenced in the mark is the child of the
 	// node we want to use
 	operation.max_parent_checks = 1u32;
@@ -511,18 +511,18 @@ fn revoke_with_parent_delegation_successful() {
 		.with_children(vec![(root_id, vec![parent_id]), (parent_id, vec![delegation_id])])
 		.build(Some(ext));
 	let mut ext = ExtBuilder::default()
-		.with_marks(vec![(operation.content_hash, mark)])
+		.with_marks(vec![(operation.stream_hash, mark)])
 		.build(Some(ext));
 
 	ext.execute_with(|| {
 		assert_ok!(Mark::revoke(
 			get_origin(revoker.clone()),
-			operation.content_hash,
+			operation.stream_hash,
 			operation.max_parent_checks
 		));
 	});
 
-	let stored_mark = ext.execute_with(|| Mark::marks(content_hash).expect("Mark should be present on chain."));
+	let stored_mark = ext.execute_with(|| Mark::marks(stream_hash).expect("Mark should be present on chain."));
 
 	assert!(stored_mark.revoked);
 }
@@ -533,7 +533,7 @@ fn revoke_parent_delegation_no_mark_permissions_successful() {
 	let revoker = get_ed25519_account(revoker_keypair.public());
 	let mark_owner_keypair = get_bob_ed25519();
 	let mark_owner = get_ed25519_account(mark_owner_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
@@ -551,7 +551,7 @@ fn revoke_parent_delegation_no_mark_permissions_successful() {
 	let mut mark = generate_base_mark(mark_owner);
 	mark.delegation_id = Some(delegation_id);
 
-	let mut operation = generate_base_mark_revocation_details(content_hash);
+	let mut operation = generate_base_mark_revocation_details(stream_hash);
 	// Set to 1 as the delegation referenced in the mark is the child of the
 	// node we want to use
 	operation.max_parent_checks = 1u32;
@@ -565,18 +565,18 @@ fn revoke_parent_delegation_no_mark_permissions_successful() {
 		.with_children(vec![(root_id, vec![parent_id]), (parent_id, vec![delegation_id])])
 		.build(Some(ext));
 	let mut ext = ExtBuilder::default()
-		.with_marks(vec![(operation.content_hash, mark)])
+		.with_marks(vec![(operation.stream_hash, mark)])
 		.build(Some(ext));
 
 	ext.execute_with(|| {
 		assert_ok!(Mark::revoke(
 			get_origin(revoker.clone()),
-			operation.content_hash,
+			operation.stream_hash,
 			operation.max_parent_checks
 		));
 	});
 
-	let stored_mark = ext.execute_with(|| Mark::marks(content_hash).expect("Mark should be present on chain."));
+	let stored_mark = ext.execute_with(|| Mark::marks(stream_hash).expect("Mark should be present on chain."));
 
 	assert!(stored_mark.revoked);
 }
@@ -587,7 +587,7 @@ fn revoke_parent_delegation_with_direct_delegation_revoked_successful() {
 	let revoker = get_ed25519_account(revoker_keypair.public());
 	let mark_owner_keypair = get_bob_ed25519();
 	let mark_owner = get_ed25519_account(mark_owner_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
@@ -597,7 +597,7 @@ fn revoke_parent_delegation_with_direct_delegation_revoked_successful() {
 		delegation_mock::get_delegation_id(true),
 		delegation_mock::generate_base_delegation_node(root_id, revoker.clone()),
 	);
-	parent_node.permissions = pallet_delegation::Permissions::ATTEST;
+	parent_node.permissions = pallet_delegation::Permissions::ANCHOR;
 	let (delegation_id, mut delegation_node) = (
 		delegation_mock::get_delegation_id(false),
 		delegation_mock::generate_base_delegation_node(root_id, mark_owner.clone()),
@@ -606,7 +606,7 @@ fn revoke_parent_delegation_with_direct_delegation_revoked_successful() {
 	let mut mark = generate_base_mark(mark_owner);
 	mark.delegation_id = Some(delegation_id);
 
-	let mut operation = generate_base_mark_revocation_details(content_hash);
+	let mut operation = generate_base_mark_revocation_details(stream_hash);
 	// Set to 1 as the delegation referenced in the mark is the child of the
 	// node we want to use
 	operation.max_parent_checks = 1u32;
@@ -620,18 +620,18 @@ fn revoke_parent_delegation_with_direct_delegation_revoked_successful() {
 		.with_children(vec![(root_id, vec![parent_id]), (parent_id, vec![delegation_id])])
 		.build(Some(ext));
 	let mut ext = ExtBuilder::default()
-		.with_marks(vec![(operation.content_hash, mark)])
+		.with_marks(vec![(operation.stream_hash, mark)])
 		.build(Some(ext));
 
 	ext.execute_with(|| {
 		assert_ok!(Mark::revoke(
 			get_origin(revoker.clone()),
-			operation.content_hash,
+			operation.stream_hash,
 			operation.max_parent_checks
 		));
 	});
 
-	let stored_mark = ext.execute_with(|| Mark::marks(content_hash).expect("Mark should be present on chain."));
+	let stored_mark = ext.execute_with(|| Mark::marks(stream_hash).expect("Mark should be present on chain."));
 
 	assert!(stored_mark.revoked);
 }
@@ -640,11 +640,11 @@ fn revoke_parent_delegation_with_direct_delegation_revoked_successful() {
 fn mark_not_present_revoke_error() {
 	let revoker_keypair = get_alice_ed25519();
 	let revoker = get_ed25519_account(revoker_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 
 	let mark = generate_base_mark(revoker.clone());
 
-	let operation = generate_base_mark_revocation_details(content_hash);
+	let operation = generate_base_mark_revocation_details(stream_hash);
 
 	let mut ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(mark.mtype_hash, revoker.clone())])
@@ -654,7 +654,7 @@ fn mark_not_present_revoke_error() {
 		assert_noop!(
 			Mark::revoke(
 				get_origin(revoker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.max_parent_checks
 			),
 			mark::Error::<Test>::MarkNotFound
@@ -666,27 +666,27 @@ fn mark_not_present_revoke_error() {
 fn already_revoked_revoke_error() {
 	let revoker_keypair = get_alice_ed25519();
 	let revoker = get_ed25519_account(revoker_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 
 	// Mark already revoked
 	let mut mark = generate_base_mark(revoker.clone());
 	mark.revoked = true;
 
-	let operation = generate_base_mark_revocation_details(content_hash);
+	let operation = generate_base_mark_revocation_details(stream_hash);
 
 	let ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(mark.mtype_hash, revoker.clone())])
 		.build(None);
 	let ext = delegation_mock::ExtBuilder::default().build(Some(ext));
 	let mut ext = ExtBuilder::default()
-		.with_marks(vec![(operation.content_hash, mark)])
+		.with_marks(vec![(operation.stream_hash, mark)])
 		.build(Some(ext));
 
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::revoke(
 				get_origin(revoker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.max_parent_checks
 			),
 			mark::Error::<Test>::AlreadyRevoked
@@ -700,26 +700,26 @@ fn unauthorised_mark_revoke_error() {
 	let revoker = get_ed25519_account(revoker_keypair.public());
 	let mark_owner_keypair = get_bob_ed25519();
 	let mark_owner = get_ed25519_account(mark_owner_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 
 	// Mark owned by a different user
 	let mark = generate_base_mark(mark_owner);
 
-	let operation = generate_base_mark_revocation_details(content_hash);
+	let operation = generate_base_mark_revocation_details(stream_hash);
 
 	let ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(mark.mtype_hash, revoker.clone())])
 		.build(None);
 	let ext = delegation_mock::ExtBuilder::default().build(Some(ext));
 	let mut ext = ExtBuilder::default()
-		.with_marks(vec![(operation.content_hash, mark)])
+		.with_marks(vec![(operation.stream_hash, mark)])
 		.build(Some(ext));
 
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::revoke(
 				get_origin(revoker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.max_parent_checks
 			),
 			mark::Error::<Test>::UnauthorizedRevocation
@@ -733,7 +733,7 @@ fn max_parent_lookups_revoke_error() {
 	let revoker = get_ed25519_account(revoker_keypair.public());
 	let mark_owner_keypair = get_bob_ed25519();
 	let mark_owner = get_ed25519_account(mark_owner_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
@@ -747,12 +747,12 @@ fn max_parent_lookups_revoke_error() {
 		delegation_mock::get_delegation_id(true),
 		delegation_mock::generate_base_delegation_node(root_id, mark_owner.clone()),
 	);
-	delegation_node.permissions = pallet_delegation::Permissions::ATTEST;
+	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
 	delegation_node.parent = Some(parent_delegation_id);
 	let mut mark = generate_base_mark(mark_owner);
 	mark.delegation_id = Some(delegation_id);
 
-	let mut operation = generate_base_mark_revocation_details(content_hash);
+	let mut operation = generate_base_mark_revocation_details(stream_hash);
 	operation.max_parent_checks = 0u32;
 
 	let ext = mtype_mock::ExtBuilder::default()
@@ -770,14 +770,14 @@ fn max_parent_lookups_revoke_error() {
 		])
 		.build(Some(ext));
 	let mut ext = ExtBuilder::default()
-		.with_marks(vec![(operation.content_hash, mark)])
+		.with_marks(vec![(operation.stream_hash, mark)])
 		.build(Some(ext));
 
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::revoke(
 				get_origin(revoker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.max_parent_checks
 			),
 			pallet_delegation::Error::<Test>::MaxSearchDepthReached
@@ -791,7 +791,7 @@ fn revoked_delegation_revoke_error() {
 	let revoker = get_ed25519_account(revoker_keypair.public());
 	let mark_owner_keypair = get_bob_ed25519();
 	let mark_owner = get_ed25519_account(mark_owner_keypair.public());
-	let content_hash = get_content_hash(true);
+	let stream_hash = get_stream_hash(true);
 
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
@@ -801,12 +801,12 @@ fn revoked_delegation_revoke_error() {
 		delegation_mock::get_delegation_id(true),
 		delegation_mock::generate_base_delegation_node(root_id, revoker.clone()),
 	);
-	delegation_node.permissions = pallet_delegation::Permissions::ATTEST;
+	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
 	delegation_node.revoked = true;
 	let mut mark = generate_base_mark(mark_owner);
 	mark.delegation_id = Some(delegation_id);
 
-	let operation = generate_base_mark_revocation_details(content_hash);
+	let operation = generate_base_mark_revocation_details(stream_hash);
 
 	let ext = mtype_mock::ExtBuilder::default()
 		.with_mtypes(vec![(mark.mtype_hash, revoker.clone())])
@@ -817,14 +817,14 @@ fn revoked_delegation_revoke_error() {
 		.with_children(vec![(root_id, vec![delegation_id])])
 		.build(Some(ext));
 	let mut ext = ExtBuilder::default()
-		.with_marks(vec![(operation.content_hash, mark)])
+		.with_marks(vec![(operation.stream_hash, mark)])
 		.build(Some(ext));
 
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::revoke(
 				get_origin(revoker.clone()),
-				operation.content_hash,
+				operation.stream_hash,
 				operation.max_parent_checks
 			),
 			mark::Error::<Test>::UnauthorizedRevocation

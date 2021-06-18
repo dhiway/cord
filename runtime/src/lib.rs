@@ -10,7 +10,8 @@
 
 use codec::{Decode, Encode};
 pub use cord_primitives::{AccountId, Signature};
-use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
+use cord_primitives::{AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Index, Moment};
+use frame_support::ensure;
 use frame_support::{
 	construct_runtime, log, parameter_types,
 	traits::{
@@ -42,12 +43,12 @@ use sp_core::{
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
-	self, BlakeTwo256, Block as BlockT, ConvertInto, NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup,
+	self, BlakeTwo256, Block as BlockT, ConvertInto, NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup, Verify,
 };
 use sp_runtime::transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity};
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber, Perbill, Percent, Permill,
-	Perquintill,
+	create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber, MultiSignature, Perbill,
+	Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(any(feature = "std", test))]
@@ -73,6 +74,11 @@ pub mod constants;
 use constants::{currency::*, time::*};
 use sp_runtime::generic::Era;
 
+// Cord Pallets
+// pub use pallet_mark;
+// pub use pallet_mtype;
+// pub use pallet_delegation;
+// pub use pallet_did;
 // Weights used in the runtime.
 // pub mod weights;
 
@@ -137,6 +143,30 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 			Treasury::on_unbalanced(split.0);
 			Author::on_unbalanced(split.1);
 		}
+	}
+}
+
+impl pallet_delegation::VerifyDelegateSignature for Runtime {
+	type DelegateId = AccountId;
+	type Payload = Vec<u8>;
+	type Signature = Vec<u8>;
+
+	// No need to retrieve delegate details as it is simply an AccountId.
+	fn verify(
+		delegate: &Self::DelegateId,
+		payload: &Self::Payload,
+		signature: &Self::Signature,
+	) -> pallet_delegation::SignatureVerificationResult {
+		// Try to decode signature first.
+		let decoded_signature = MultiSignature::decode(&mut &signature[..])
+			.map_err(|_| pallet_delegation::SignatureVerificationError::SignatureInvalid)?;
+
+		ensure!(
+			decoded_signature.verify(&payload[..], delegate),
+			pallet_delegation::SignatureVerificationError::SignatureInvalid
+		);
+
+		Ok(())
 	}
 }
 
@@ -925,33 +955,56 @@ impl pallet_sudo::Config for Runtime {
 }
 
 // impl pallet_mark::Config for Runtime {
+// 	type EnsureOrigin = EnsureSigned<<Self as delegation::Config>::DelegationEntityId>;
 // 	type Event = Event;
 // 	type WeightInfo = ();
 // }
+
+parameter_types! {
+	pub const MaxSignatureByteLength: u16 = 64;
+	pub const MaxParentChecks: u32 = 5;
+	pub const MaxRevocations: u32 = 5;
+}
+
+impl pallet_delegation::Config for Runtime {
+	type DelegationSignatureVerification = Self;
+	type DelegationEntityId = AccountId;
+	type DelegationNodeId = Hash;
+	type EnsureOrigin = EnsureSigned<Self::DelegationEntityId>;
+	type Event = Event;
+	type MaxSignatureByteLength = MaxSignatureByteLength;
+	type MaxParentChecks = MaxParentChecks;
+	type MaxRevocations = MaxRevocations;
+	type WeightInfo = ();
+}
+
+impl pallet_mtype::Config for Runtime {
+	type MtypeCreatorId = AccountId;
+	type EnsureOrigin = EnsureSigned<Self::MtypeCreatorId>;
+	type Event = Event;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
+	pub const MaxVerificationKeysToRevoke: u32 = 10u32;
+	pub const MaxUrlLength: u32 = 200u32;
+}
+
+impl pallet_did::Config for Runtime {
+	type DidIdentifier = DidIdentifier;
+	type Event = Event;
+	type Call = Call;
+	type Origin = Origin;
+	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
+	type MaxVerificationKeysToRevoke = MaxVerificationKeysToRevoke;
+	type MaxUrlLength = MaxUrlLength;
+	type WeightInfo = ();
+}
 
 // impl pallet_digest::Config for Runtime {
 // 	type Event = Event;
 // 	type WeightInfo = ();
-// }
-
-// impl pallet_mtype::Config for Runtime {
-// 	type Event = Event;
-// 	type WeightInfo = ();
-// }
-
-// impl pallet_delegation::Config for Runtime {
-// 	type Event = Event;
-// 	type WeightInfo = ();
-// 	type Signature = Signature;
-// 	type Signer = <Signature as Verify>::Signer;
-// 	type DelegationNodeId = Hash;
-// }
-
-// impl pallet_did::Config for Runtime {
-// 	type Event = Event;
-// 	type WeightInfo = ();
-// 	type PublicSigningKey = Hash;
-// 	type PublicBoxKey = Hash;
 // }
 
 construct_runtime! {
@@ -992,10 +1045,10 @@ construct_runtime! {
 		Historical: pallet_session_historical::{Pallet} = 23,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 24,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 25,
-		// Did: pallet_did::{Pallet, Call, Storage, Event<T>} = 31,
-		// Mtype: pallet_mtype::{Pallet, Call, Storage, Event<T>} = 32,
+		Did: pallet_did::{Pallet, Call, Storage, Event<T>, Origin<T>} = 31,
+		Mtype: pallet_mtype::{Pallet, Call, Storage, Event<T>} = 32,
 		// Mark: pallet_mark::{Pallet, Call, Storage, Event<T>} = 33,
-		// Delegation: pallet_delegation::{Pallet, Call, Storage, Event<T>} = 34,
+		Delegation: pallet_delegation::{Pallet, Call, Storage, Event<T>} = 34,
 		// Digest: pallet_digest::{Pallet, Call, Storage, Event<T>} = 35,
 		// CordReserve: pallet_reserve::<Instance1>::{Pallet, Call, Storage, Config, Event<T>} = 36,
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 41,
@@ -1004,6 +1057,27 @@ construct_runtime! {
 		ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 44,
 		TransactionStorage: pallet_transaction_storage::{Pallet, Call, Storage, Inherent, Config<T>, Event<T>} = 45,
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 46,
+	}
+}
+
+impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call {
+	fn derive_verification_key_relationship(&self) -> Option<pallet_did::DidVerificationKeyRelationship> {
+		match self {
+			// Call::Mark(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::Mtype(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::Delegation(_) => Some(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
+			#[cfg(not(feature = "runtime-benchmarks"))]
+			_ => None,
+			// By default, returns the authentication key
+			#[cfg(feature = "runtime-benchmarks")]
+			_ => Some(pallet_did::DidVerificationKeyRelationship::Authentication),
+		}
+	}
+
+	// Always return a System::remark() extrinsic call
+	#[cfg(feature = "runtime-benchmarks")]
+	fn get_call_for_did_call_benchmark() -> Self {
+		Call::System(frame_system::Call::remark(vec![]))
 	}
 }
 

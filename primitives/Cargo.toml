@@ -8,11 +8,11 @@ authors = ['Dhiway <info@dhiway.com>']
 # serde = { version = "1.0.120", optional = true }
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false }
 
-frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "master"}
-sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "master"}
-sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "master"}
-sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "master"}
-sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "master"}
+frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
+sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
+sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
+sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
+sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
 
 [features]
 default = ["std"]

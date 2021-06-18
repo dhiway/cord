@@ -9,8 +9,8 @@ bitflags! {
 	/// Permission bits can be combined to express multiple permissions.
 	#[derive(Encode, Decode)]
 	pub struct Permissions: u32 {
-		/// Permission to write attestations on chain.
-		const ATTEST = 0b0000_0001;
+		/// Permission to write marks on chain.
+		const ANCHOR = 0b0000_0001;
 		/// Permission to write delegations on chain.
 		const DELEGATE = 0b0000_0010;
 	}
@@ -30,7 +30,7 @@ impl Permissions {
 
 impl Default for Permissions {
 	fn default() -> Self {
-		Permissions::ATTEST
+		Permissions::ANCHOR
 	}
 }
 

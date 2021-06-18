@@ -9,7 +9,9 @@ description = 'Enables creating and revoking root & delegation nodes of consorti
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-substrate-wasm-builder-runner = {version = "3.0.0"}
+substrate-wasm-builder = "4.0.0"
+
+#substrate-wasm-builder-runner = {version = "3.0.0"}
 
 [dependencies]
 codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
@@ -18,14 +20,14 @@ bitflags = { default-features = false, version = '1.2.1' }
 log = {default-features = false, version = "0.4.14"}
 
 # Substrate dependencies
-frame-support = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate"}
-frame-system = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate"}
-frame-benchmarking = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate", optional = true}
-sp-core = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate", optional = true}
-sp-io = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate", optional = true}
-sp-keystore = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate", optional = true}
-sp-runtime = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate"}
-sp-std = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate"}
+frame-support = {branch = "polkadot-v0.9.5", default-features = false, git = "https://github.com/paritytech/substrate"}
+frame-system = {branch = "polkadot-v0.9.5", default-features = false, git = "https://github.com/paritytech/substrate"}
+frame-benchmarking = {branch = "polkadot-v0.9.5", default-features = false, git = "https://github.com/paritytech/substrate", optional = true}
+sp-core = {branch = "polkadot-v0.9.5", default-features = false, git = "https://github.com/paritytech/substrate", optional = true}
+sp-io = {branch = "polkadot-v0.9.5", default-features = false, git = "https://github.com/paritytech/substrate", optional = true}
+sp-keystore = {branch = "polkadot-v0.9.5", default-features = false, git = "https://github.com/paritytech/substrate", optional = true}
+sp-runtime = {branch = "polkadot-v0.9.5", default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-std = {branch = "polkadot-v0.9.5", default-features = false, git = "https://github.com/paritytech/substrate"}
 
 # local pallets
 pallet-mtype = { version = "0.5.0", default-features = false, path = '../mtype' }
@@ -33,8 +35,8 @@ cord-primitives = { package = "cord-primitives", default-features = false, optio
 
 [dev-dependencies]
 serde = { version = "1.0.123", default-features = false }
-sp-core = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate", version = "3.0.0"}
-sp-keystore = {branch = "master", default-features = false, git = "https://github.com/paritytech/substrate"}
+sp-core = {branch = "polkadot-v0.9.5", default-features = false, git = "https://github.com/paritytech/substrate", version = "3.0.0"}
+sp-keystore = {branch = "polkadot-v0.9.5", default-features = false, git = "https://github.com/paritytech/substrate"}
 pallet-mtype = {features = ["mock"], path = "../mtype"}
 cord-primitives = { package = "cord-primitives", default-features = false, path = "../../primitives"}
 

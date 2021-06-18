@@ -94,7 +94,7 @@ pub enum DidVerificationKeyRelationship {
 	CapabilityDelegation,
 	/// Not used for now.
 	CapabilityInvocation,
-	/// Key used to write and revoke attestations on chain.
+	/// Key used to write and revoke marks on chain.
 	AssertionMethod,
 }
 
@@ -130,7 +130,7 @@ impl From<sr25519::Signature> for DidSignature {
 /// block number at which it was set.
 ///
 /// It is currently used to keep track of all the past and current
-/// attestation keys a DID might control.
+/// mark keys a DID might control.
 #[derive(Clone, Copy, Debug, Decode, Encode, PartialEq)]
 pub struct DidPublicKeyDetails<T: Config> {
 	/// A public key the DID controls.
@@ -151,18 +151,18 @@ pub struct DidDetails<T: Config> {
 	/// \[OPTIONAL\] The ID of the delegation key, used to verify the
 	/// signatures of the delegations created by the DID subject.
 	delegation_key: Option<KeyIdOf<T>>,
-	/// \[OPTIONAL\] The ID of the attestation key, used to verify the
-	/// signatures of the attestations created by the DID subject.
-	attestation_key: Option<KeyIdOf<T>>,
+	/// \[OPTIONAL\] The ID of the mark key, used to verify the
+	/// signatures of the marks created by the DID subject.
+	mark_key: Option<KeyIdOf<T>>,
 	/// The map of public keys, with the key label as
 	/// the key map and the tuple (key, addition_block_number) as the map
 	/// value.
 	/// The map includes all the keys under the control of the DID subject,
 	/// including the ones currently used for authentication, key agreement,
-	/// attestation, and delegation. Other than those, the map also contains
-	/// the old attestation keys that have been rotated, i.e., they cannot
-	/// be used to create new attestations but can still be used to verify
-	/// previously issued attestations.
+	/// mark, and delegation. Other than those, the map also contains
+	/// the old mark keys that have been rotated, i.e., they cannot
+	/// be used to create new marks but can still be used to verify
+	/// previously issued marks.
 	public_keys: BTreeMap<KeyIdOf<T>, DidPublicKeyDetails<T>>,
 	/// \[OPTIONAL\] The URL pointing to the service endpoints the DID
 	/// subject publicly exposes.
@@ -191,7 +191,7 @@ impl<T: Config> DidDetails<T> {
 		Self {
 			authentication_key: authentication_key_id,
 			key_agreement_keys: BTreeSet::new(),
-			attestation_key: None,
+			mark_key: None,
 			delegation_key: None,
 			endpoint_url: None,
 			public_keys,
@@ -246,30 +246,30 @@ impl<T: Config> DidDetails<T> {
 		}
 	}
 
-	/// Update the DID attestation key.
+	/// Update the DID mark key.
 	///
 	/// The old key is not removed from the set of verification keys, hence
-	/// it can still be used to verify past attestations.
+	/// it can still be used to verify past marks.
 	/// The new key is added to the set of verification keys.
-	pub fn update_attestation_key(&mut self, new_attestation_key: DidVerificationKey, block_number: BlockNumberOf<T>) {
-		let new_attestation_key_id = utils::calculate_key_id::<T>(&new_attestation_key.into());
-		self.attestation_key = Some(new_attestation_key_id);
+	pub fn update_mark_key(&mut self, new_mark_key: DidVerificationKey, block_number: BlockNumberOf<T>) {
+		let new_mark_key_id = utils::calculate_key_id::<T>(&new_mark_key.into());
+		self.mark_key = Some(new_mark_key_id);
 		self.public_keys.insert(
-			new_attestation_key_id,
+			new_mark_key_id,
 			DidPublicKeyDetails {
-				key: new_attestation_key.into(),
+				key: new_mark_key.into(),
 				block_number,
 			},
 		);
 	}
 
-	/// Delete the DID attestation key.
+	/// Delete the DID mark key.
 	///
-	/// Once deleted, it cannot be used to write new attestations anymore.
+	/// Once deleted, it cannot be used to write new marks anymore.
 	/// The old key is not removed from the set of verification keys, hence
-	/// it can still be used to verify past attestations.
-	pub fn delete_attestation_key(&mut self) {
-		self.attestation_key = None;
+	/// it can still be used to verify past marks.
+	pub fn delete_mark_key(&mut self) {
+		self.mark_key = None;
 	}
 
 	/// Update the DID delegation key.
@@ -311,19 +311,19 @@ impl<T: Config> DidDetails<T> {
 	///
 	/// When deleting a public key, the following conditions are verified:
 	/// - 1. the set of keys to delete does not contain any of the currently
-	///   active verification keys, i.e., authentication, attestation, and
-	///   delegation key, i.e., only key agreement keys and past attestation
+	///   active verification keys, i.e., authentication, mark, and
+	///   delegation key, i.e., only key agreement keys and past mark
 	///   keys can be deleted.
 	/// - 2. the set of keys to delete contains key IDs that are not currently
 	///   stored on chain
 	fn remove_public_keys(&mut self, key_ids: &BTreeSet<KeyIdOf<T>>) -> Result<(), StorageError> {
-		// Consider the currently active authentication, attestation, and delegation key
+		// Consider the currently active authentication, mark, and delegation key
 		// as forbidden to delete. They can be deleted with the right operation for the
 		// respective fields in the DidUpdateOperation.
 		let mut forbidden_verification_key_ids = BTreeSet::new();
 		forbidden_verification_key_ids.insert(self.authentication_key);
-		if let Some(attestation_key_id) = self.attestation_key {
-			forbidden_verification_key_ids.insert(attestation_key_id);
+		if let Some(mark_key_id) = self.mark_key {
+			forbidden_verification_key_ids.insert(mark_key_id);
 		}
 		if let Some(delegation_key_id) = self.delegation_key {
 			forbidden_verification_key_ids.insert(delegation_key_id);
@@ -347,10 +347,10 @@ impl<T: Config> DidDetails<T> {
 	}
 
 	// Remove a key from the map of public keys if none of the other keys, i.e.,
-	// authentication, key agreement, attestation, or delegation, is referencing it.
+	// authentication, key agreement, mark, or delegation, is referencing it.
 	fn remove_key_if_unused(&mut self, key_id: &KeyIdOf<T>) {
 		if self.authentication_key != *key_id
-			&& self.attestation_key != Some(*key_id)
+			&& self.mark_key != Some(*key_id)
 			&& self.delegation_key != Some(*key_id)
 			&& !self.key_agreement_keys.contains(key_id)
 		{
@@ -366,8 +366,8 @@ impl<T: Config> DidDetails<T> {
 		&self.key_agreement_keys
 	}
 
-	pub fn get_attestation_key_id(&self) -> &Option<KeyIdOf<T>> {
-		&self.attestation_key
+	pub fn get_mark_key_id(&self) -> &Option<KeyIdOf<T>> {
+		&self.mark_key
 	}
 
 	pub fn get_delegation_key_id(&self) -> &Option<KeyIdOf<T>> {
@@ -385,7 +385,7 @@ impl<T: Config> DidDetails<T> {
 		key_type: DidVerificationKeyRelationship,
 	) -> Option<&DidVerificationKey> {
 		let key_id = match key_type {
-			DidVerificationKeyRelationship::AssertionMethod => self.attestation_key,
+			DidVerificationKeyRelationship::AssertionMethod => self.mark_key,
 			DidVerificationKeyRelationship::Authentication => Some(self.authentication_key),
 			DidVerificationKeyRelationship::CapabilityDelegation => self.delegation_key,
 			_ => None,
@@ -443,8 +443,8 @@ impl<T: Config> TryFrom<DidCreationOperation<T>> for DidDetails<T> {
 
 		new_did_details.add_key_agreement_keys(op.new_key_agreement_keys, current_block_number);
 
-		if let Some(attesation_key) = op.new_attestation_key {
-			new_did_details.update_attestation_key(attesation_key, current_block_number);
+		if let Some(attesation_key) = op.new_mark_key {
+			new_did_details.update_mark_key(attesation_key, current_block_number);
 		}
 
 		if let Some(delegation_key) = op.new_delegation_key {
@@ -505,13 +505,13 @@ impl<T: Config> TryFrom<(DidDetails<T>, DidUpdateOperation<T>)> for DidDetails<T
 		// Add any new key agreement keys.
 		new_details.add_key_agreement_keys(update_operation.new_key_agreement_keys, current_block_number);
 
-		// Update/remove the attestation key, if needed.
-		match update_operation.attestation_key_update {
+		// Update/remove the mark key, if needed.
+		match update_operation.mark_key_update {
 			DidVerificationKeyUpdateAction::Delete => {
-				new_details.delete_attestation_key();
+				new_details.delete_mark_key();
 			}
-			DidVerificationKeyUpdateAction::Change(new_attestation_key) => {
-				new_details.update_attestation_key(new_attestation_key, current_block_number);
+			DidVerificationKeyUpdateAction::Change(new_mark_key) => {
+				new_details.update_mark_key(new_mark_key, current_block_number);
 			}
 			// Nothing happens.
 			DidVerificationKeyUpdateAction::Ignore => {}
@@ -583,8 +583,8 @@ pub struct DidCreationOperation<T: Config> {
 	pub new_authentication_key: DidVerificationKey,
 	/// The new key agreement keys.
 	pub new_key_agreement_keys: BTreeSet<DidEncryptionKey>,
-	/// \[OPTIONAL\] The new attestation key.
-	pub new_attestation_key: Option<DidVerificationKey>,
+	/// \[OPTIONAL\] The new mark key.
+	pub new_mark_key: Option<DidVerificationKey>,
 	/// \[OPTIONAL\] The new delegation key.
 	pub new_delegation_key: Option<DidVerificationKey>,
 	/// \[OPTIONAL\] The URL containing the DID endpoints description.
@@ -620,12 +620,12 @@ pub struct DidUpdateOperation<T: Config> {
 	pub new_authentication_key: Option<DidVerificationKey>,
 	/// A new set of key agreement keys to add to the ones already stored.
 	pub new_key_agreement_keys: BTreeSet<DidEncryptionKey>,
-	/// \[OPTIONAL\] The attestation key update action.
-	pub attestation_key_update: DidVerificationKeyUpdateAction,
+	/// \[OPTIONAL\] The mark key update action.
+	pub mark_key_update: DidVerificationKeyUpdateAction,
 	/// \[OPTIONAL\] The delegation key update action.
 	pub delegation_key_update: DidVerificationKeyUpdateAction,
-	/// The set of old attestation keys to remove, given their identifiers.
-	/// If the operation also replaces the current attestation key, it will
+	/// The set of old mark keys to remove, given their identifiers.
+	/// If the operation also replaces the current mark key, it will
 	/// not be considered for removal in this operation, so it is not
 	/// possible to specify it for removal in this set.
 	pub public_keys_to_remove: BTreeSet<KeyIdOf<T>>,

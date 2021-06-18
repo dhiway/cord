@@ -125,7 +125,7 @@ fn check_anchor_digest() {
 			hash,
 		));
 		let Digest {
-			content_hash,
+			stream_hash,
 			marker,
 			revoked,
 		} = {
@@ -133,7 +133,7 @@ fn check_anchor_digest() {
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
-		assert_eq!(content_hash, hash);
+		assert_eq!(stream_hash, hash);
 		assert_eq!(marker, account);
 		assert_eq!(revoked, false);
 	});
@@ -163,7 +163,7 @@ fn check_revoke_digest() {
 			10
 		));
 		let Digest {
-			content_hash,
+			stream_hash,
 			marker,
 			revoked,
 		} = {
@@ -171,7 +171,7 @@ fn check_revoke_digest() {
 			assert!(opt.is_some());
 			opt.unwrap()
 		};
-		assert_eq!(content_hash, hash);
+		assert_eq!(stream_hash, hash);
 		assert_eq!(marker, account);
 		assert_eq!(revoked, true);
 	});

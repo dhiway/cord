@@ -65,21 +65,21 @@ decl_module! {
 		/// Anchors a new #MARK Digest on chain
 		///, where, origin is the signed sender account,
 		/// digest_hash is the hash of the file,
-		/// and content_hash is the hash of the #MARK Content.
+		/// and stream_hash is the hash of the #MARK Stream.
 		#[weight = <T as Config>::WeightInfo::anchor()]
-		pub fn anchor(origin, digest_hash: T::Hash, content_hash: T::Hash) -> DispatchResult {
+		pub fn anchor(origin, digest_hash: T::Hash, stream_hash: T::Hash) -> DispatchResult {
 			// origin of the transaction needs to be a signed sender account
 			let sender = ensure_signed(origin)?;
 			// check if the #MARK exists
-			let mark = <pallet_mark::Marks<T>>::get(content_hash).ok_or(pallet_mark::Error::<T>::MarkNotFound)?;
+			let mark = <pallet_mark::Marks<T>>::get(stream_hash).ok_or(pallet_mark::Error::<T>::MarkNotFound)?;
 			// check for MARK status - revoked?
 			ensure!(!mark.revoked, pallet_mark::Error::<T>::AlreadyRevoked);
 			// check if the digest already exists
 			ensure!(!<Digests<T>>::contains_key(digest_hash), Error::<T>::AlreadyAnchoredDigest);
 			// insert #MARK Digest
-			<Digests<T>>::insert(digest_hash, Digest {content_hash, marker: sender.clone(), revoked: false});
+			<Digests<T>>::insert(digest_hash, Digest {stream_hash, marker: sender.clone(), revoked: false});
 			// deposit event that mark has beed added
-			Self::deposit_event(RawEvent::Anchored(sender, digest_hash, content_hash));
+			Self::deposit_event(RawEvent::Anchored(sender, digest_hash, stream_hash));
 			Ok(())
 		}
 
@@ -92,7 +92,7 @@ decl_module! {
 			let sender = ensure_signed(origin)?;
 
 			// lookup #MARK & check if it exists
-			let Digest {content_hash, marker, revoked, ..} = <Digests<T>>::get(digest_hash).ok_or(Error::<T>::NotFound)?;
+			let Digest {stream_hash, marker, revoked, ..} = <Digests<T>>::get(digest_hash).ok_or(Error::<T>::NotFound)?;
 
 			// check if the #MARK Digest has already been revoked
 			ensure!(!revoked, Error::<T>::AlreadyRevoked);
@@ -101,7 +101,7 @@ decl_module! {
 			ensure!(marker.eq(&sender), Error::<T>::NotOwner);
 			// revoke #MARK
 			<Digests<T>>::insert(digest_hash, Digest {
-				content_hash,
+				stream_hash,
 				marker,
 				revoked: true
 			});
@@ -116,7 +116,7 @@ decl_module! {
 #[derive(Encode, Decode)]
 pub struct Digest<T: Config> {
 	// hash of the #MARK content
-	content_hash: T::Hash,
+	stream_hash: T::Hash,
 	// the account which executed the mark
 	marker: T::AccountId,
 	// revocation status
