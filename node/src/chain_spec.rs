@@ -80,7 +80,7 @@ where
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-fn bombay_brown_genesis_config() -> GenesisConfig {
+fn amber_glow_genesis_config() -> GenesisConfig {
 	let initial_authorities: Vec<(
 		AccountId,
 		AccountId,
@@ -118,7 +118,7 @@ fn bombay_brown_genesis_config() -> GenesisConfig {
 	let root_key: AccountId = endowed_accounts[0].clone();
 	let num_endowed_accounts = endowed_accounts.len();
 
-	bombay_brown_genesis(
+	amber_glow_genesis(
 		initial_authorities,
 		vec![],
 		root_key,
@@ -128,16 +128,16 @@ fn bombay_brown_genesis_config() -> GenesisConfig {
 }
 
 /// Staging testnet config.
-pub fn bombay_brown_config() -> ChainSpec {
+pub fn amber_glow_config() -> ChainSpec {
 	let boot_nodes = vec![];
 	let mut properties = Properties::new();
-	properties.insert("tokenSymbol".into(), "CRD".into());
-	properties.insert("tokenDecimals".into(), 15.into());
+	properties.insert("tokenSymbol".into(), "WAY".into());
+	properties.insert("tokenDecimals".into(), 12.into());
 	ChainSpec::from_genesis(
-		"Bombay Brown",
-		"LocalDevNode",
-		ChainType::Live,
-		bombay_brown_genesis_config,
+		"Amber Glow",
+		"DevNode",
+		ChainType::Local,
+		amber_glow_genesis_config,
 		boot_nodes,
 		None,
 		Some(DEFAULT_PROTOCOL_ID),
@@ -146,7 +146,7 @@ pub fn bombay_brown_config() -> ChainSpec {
 	)
 }
 
-fn bombay_brown_genesis(
+fn amber_glow_genesis(
 	initial_authorities: Vec<(
 		AccountId,
 		AccountId,
@@ -201,9 +201,9 @@ fn bombay_brown_genesis(
 		}))
 		.collect::<Vec<_>>();
 
-	const CONTROLLER_ENDOWMENT: u128 = 10_000 * CRD;
-	const ENDOWMENT: u128 = 1_000 * CRD;
-	const CORD_STASH: u128 = 10_000_000_000 * CRD;
+	const CONTROLLER_ENDOWMENT: u128 = 1_100 * WAY;
+	const ENDOWMENT: u128 = 11_100 * WAY;
+	const CORD_STASH: u128 = 1_110_101_200 * WAY;
 
 	GenesisConfig {
 		system: SystemConfig {

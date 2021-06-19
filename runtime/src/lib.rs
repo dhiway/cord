@@ -507,11 +507,9 @@ impl pallet_session::historical::Config for Runtime {
 
 pallet_staking_reward_curve::build! {
 	const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-		min_inflation: 0_025_000,
-		max_inflation: 0_100_000,
-		// 3:2:1 staked : parachains : float.
-		// while there's no parachains, then this is 75% staked : 25% float.
-		ideal_stake: 0_500_000,
+		min_inflation: 0_005_000,
+		max_inflation: 0_010_000,
+		ideal_stake: 0_750_000,
 		falloff: 0_050_000,
 		max_piece_count: 40,
 		test_precision: 0_005_000,
@@ -519,9 +517,12 @@ pallet_staking_reward_curve::build! {
 }
 
 parameter_types! {
+	// Six sessions in an era (12 days).
 	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
-	pub const BondingDuration: pallet_staking::EraIndex = 28;
-	pub const SlashDeferDuration: pallet_staking::EraIndex = 27;
+	// 2 eras for unbonding (24 days).
+	pub const BondingDuration: pallet_staking::EraIndex = 2;
+	// 2 eras in which slashes can be cancelled.
+	pub const SlashDeferDuration: pallet_staking::EraIndex = 2;
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 	pub const MaxNominatorRewardedPerValidator: u32 = 256;
 	pub OffchainRepeat: BlockNumber = 5;
@@ -614,12 +615,12 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 }
 
 parameter_types! {
-	pub const LaunchPeriod: BlockNumber = 28 * DAYS;
-	pub const VotingPeriod: BlockNumber = 28 * DAYS;
+	pub const LaunchPeriod: BlockNumber = 12 * DAYS;
+	pub const VotingPeriod: BlockNumber = 12 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
 	pub const InstantAllowed: bool = true;
 	pub const MinimumDeposit: Balance = 100 * RUPEES;
-	pub const EnactmentPeriod: BlockNumber = 28 * DAYS;
+	pub const EnactmentPeriod: BlockNumber = 12 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
 	pub const PreimageByteDeposit: Balance = PAISE;
 	pub const MaxVotes: u32 = 100;
@@ -674,7 +675,7 @@ impl pallet_democracy::Config for Runtime {
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 3 * DAYS;
 	pub const CouncilMaxProposals: u32 = 100;
-	pub const CouncilMaxMembers: u32 = 20;
+	pub const CouncilMaxMembers: u32 = 10;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
@@ -698,8 +699,8 @@ parameter_types! {
 	/// Weekly council elections; scaling up to monthly eventually.
 	pub const TermDuration: BlockNumber = 7 * DAYS;
 	/// 13 members initially, to be increased to 23 eventually.
-	pub const DesiredMembers: u32 = 13;
-	pub const DesiredRunnersUp: u32 = 7;
+	pub const DesiredMembers: u32 = 10;
+	pub const DesiredRunnersUp: u32 = 5;
 	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
 }
 
@@ -727,7 +728,7 @@ impl pallet_elections_phragmen::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TechnicalMotionDuration: BlockNumber = 5 * DAYS;
+	pub const TechnicalMotionDuration: BlockNumber = 3 * DAYS;
 	pub const TechnicalMaxProposals: u32 = 100;
 	pub const TechnicalMaxMembers: u32 = 15;
 }
@@ -765,17 +766,17 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = 1 * RUPEES;
-	pub const SpendPeriod: BlockNumber = 1 * DAYS;
-	pub const Burn: Permill = Permill::from_percent(1);
+	pub const ProposalBondMinimum: Balance = 10 * RUPEES;
+	pub const SpendPeriod: BlockNumber = 12 * DAYS;
+	pub const Burn: Permill = Permill::from_perthousand(2);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 
 	pub const TipCountdown: BlockNumber = 1 * DAYS;
-	pub const TipFindersFee: Percent = Percent::from_percent(20);
+	pub const TipFindersFee: Percent = Percent::from_percent(10);
 	pub const TipReportDepositBase: Balance = 1 * RUPEES;
-	pub const DataDepositPerByte: Balance = 1 * PAISE;
+	pub const DataDepositPerByte: Balance = 10 * PAISE;
 	pub const BountyDepositBase: Balance = 1 * RUPEES;
-	pub const BountyDepositPayoutDelay: BlockNumber = 8 * DAYS;
+	pub const BountyDepositPayoutDelay: BlockNumber = 7 * DAYS;
 	pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
 	pub const MaximumReasonLength: u32 = 16384;
 	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);

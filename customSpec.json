@@ -7,7 +7,7 @@
   "protocolId": "cord",
   "properties": {
     "tokenDecimals": 15,
-    "tokenSymbol": "CRD"
+    "tokenSymbol": "WAY"
   },
   "forkBlocks": null,
   "badBlocks": null,
@@ -23,10 +23,7 @@
       "babe": {
         "authorities": [],
         "epochConfig": {
-          "c": [
-            1,
-            4
-          ],
+          "c": [1, 4],
           "allowed_slots": "PrimaryAndSecondaryVRFSlots"
         }
       },
@@ -65,9 +62,7 @@
         "historyDepth": 84,
         "validatorCount": 1,
         "minimumValidatorCount": 1,
-        "invulnerables": [
-          "5EUd9VxDavVFUWkDDbzx4MH51ZnuMN1HafbQBQDPdKYucYoE"
-        ],
+        "invulnerables": ["5EUd9VxDavVFUWkDDbzx4MH51ZnuMN1HafbQBQDPdKYucYoE"],
         "forceEra": "NotForcing",
         "slashRewardFraction": 100000000,
         "canceledPayout": 0,

@@ -44,7 +44,7 @@ impl SubstrateCli for Cli {
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		let spec = match id {
 			"" => return Err("Please specify which chain you want to run, e.g. --dev or --chain=local".into()),
-			"dev" => Box::new(chain_spec::bombay_brown_config()),
+			"dev" => Box::new(chain_spec::amber_glow_config()),
 			// "tnet" => Box::new(chain_spec::local_testnet_config()),
 			// "staging" => Box::new(chain_spec::staging_testnet_config()),
 			path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),

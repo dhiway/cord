@@ -66,9 +66,9 @@ decl_event!(
 	{
 		/// Some transaction units got deposited to the reserve.
 		Deposit(AccountId, Balance),
-		/// Some CRD units were transfered from the reserve.
+		/// Some WAY units were transfered from the reserve.
 		Transfer(AccountId, Balance),
-		/// Some CRD units got transfered to the  reserve
+		/// Some WAY units got transfered to the  reserve
 		Received(AccountId, Balance),
 		// / We executed a call coming from the company reserve account
 		ReserveOp(DispatchResult),
@@ -90,7 +90,7 @@ decl_module! {
 
 		fn deposit_event() = default;
 
-		/// Transfer CRD units from the reserve account.
+		/// Transfer WAY units from the reserve account.
 		#[weight = <T as Config<I>>::WeightInfo::transfer()]
 		pub fn transfer(origin, to: T::AccountId, amount: BalanceOf<T, I>) -> DispatchResult {
 				T::ExternalOrigin::ensure_origin(origin)?;
@@ -108,7 +108,7 @@ decl_module! {
 			Ok(())
 		}
 
-		/// Deposit CRD units to the reserve account
+		/// Deposit WAY units to the reserve account
 		#[weight = <T as Config<I>>::WeightInfo::receive()]
 		pub fn receive(origin, amount: BalanceOf<T, I>) -> DispatchResult {
 			let sender = ensure_signed(origin)?;

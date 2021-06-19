@@ -7,7 +7,7 @@
   "protocolId": "cord",
   "properties": {
     "tokenDecimals": 15,
-    "tokenSymbol": "CRD"
+    "tokenSymbol": "WAY"
   },
   "forkBlocks": null,
   "badBlocks": null,
