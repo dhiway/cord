@@ -40,14 +40,14 @@ frame_support::construct_runtime!(
 
 parameter_types! {
 	pub const SS58Prefix: u8 = 29;
-	pub const BlockHashCount: u64 = 250;
+	pub const BlockHashCount: u32 = 250;
 }
 
 impl frame_system::Config for Test {
 	type Origin = Origin;
 	type Call = Call;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Index = u32;
+	type BlockNumber = u32;
 	type Hash = cord_primitives::Hash;
 	type Hashing = BlakeTwo256;
 	type AccountId = <<cord_primitives::Signature as Verify>::Signer as IdentifyAccount>::AccountId;
