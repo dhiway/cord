@@ -3,10 +3,11 @@
 
 //! The CORD runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 
-#![warn(clippy::all)]
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
+// The `from_over_into` warning originates from `construct_runtime` macro.
+#![allow(clippy::from_over_into)]
 
 use codec::{Decode, Encode};
 pub use cord_primitives::{AccountId, Signature};
@@ -183,7 +184,7 @@ const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO
 
 parameter_types! {
 	/// stays for 15 minutes (225)
-	pub const BlockHashCount: BlockNumber = 2400;
+	pub const BlockHashCount: BlockNumber = 250;
 	pub const Version: RuntimeVersion = VERSION;
 	pub RuntimeBlockLength: BlockLength =
 		BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
@@ -956,7 +957,7 @@ impl pallet_sudo::Config for Runtime {
 }
 
 impl pallet_mark::Config for Runtime {
-	type EnsureOrigin = EnsureSigned<<Self as delegation::Config>::DelegationEntityId>;
+	type EnsureOrigin = EnsureSigned<<Self as pallet_delegation::Config>::DelegationEntityId>;
 	type Event = Event;
 	type WeightInfo = ();
 }
@@ -1040,7 +1041,7 @@ construct_runtime! {
 		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 19,
 
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 20,
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage} = 20,
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 21,
 		Utility: pallet_utility::{Pallet, Call, Event} = 22,
 		Historical: pallet_session_historical::{Pallet} = 23,

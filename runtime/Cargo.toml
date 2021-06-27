@@ -8,11 +8,12 @@ authors = ['Dhiway <info@dhiway.com>']
 [dependencies]
 # third-party dependencies
 bitvec = { version = "0.20.1", default-features = false, features = ["alloc"] }
+bitflags = {version = "1.2.1", default-features = false}
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 log = { version = "0.4.13", optional = true }
 rustc-hex = { version = "2.1.0", default-features = false }
-serde = { version = "1.0.125", default-features = false, optional = true }
-serde_derive = { version = "1.0.125", default-features = false, optional = true }
+serde = { version = "1.0.125", features = ["derive"], optional = true }
+#serde_derive = { version = "1.0.125", default-features = false, optional = true }
 static_assertions = "1.1.0"
 smallvec = "1.6.1"
 
@@ -80,14 +81,14 @@ pallet-transaction-storage = { git = "https://github.com/paritytech/substrate", 
 frame-election-provider-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5" }
 pallet-sudo = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.5"}
 
-frame-benchmarking = { version = "3.0.0",  default-features = false, optional = true }
-frame-system-benchmarking = { version = "3.0.0",  default-features = false, optional = true }
-pallet-session-benchmarking = { version = "3.0.0",  default-features = false, optional = true }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate",  default-features = false, optional = true, branch = "polkadot-v0.9.5" }
+frame-system-benchmarking = { git = "https://github.com/paritytech/substrate",  default-features = false, optional = true, branch = "polkadot-v0.9.5" }
+pallet-session-benchmarking = { git = "https://github.com/paritytech/substrate",  default-features = false, optional = true, branch = "polkadot-v0.9.5" }
 hex-literal = { version = "0.3.1", optional = true }
 max-encoded-len = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5", default-features = false }
 
-[dev-dependencies]
-sp-io = {git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5"}
+#[dev-dependencies]
+#sp-io = {git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5"}
 
 #hex-literal = "0.3.1"
 #libsecp256k1 = "0.3.5"
@@ -152,8 +153,7 @@ std = [
 	"frame-system/std",
 	"frame-system-rpc-runtime-api/std",
 	"sp-version/std",
-	"serde_derive",
-    "serde/std",
+    "serde",
     "log/std",
    	"sp-consensus-babe/std",
 	"sp-session/std",
