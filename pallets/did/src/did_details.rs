@@ -1,46 +1,43 @@
 use codec::{Decode, Encode, WrapperTypeEncode};
-use sp_core::{ed25519, sr25519};
+use sp_core::{ecdsa, ed25519, sr25519};
 use sp_runtime::traits::Verify;
-use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
+use sp_std::{
+	collections::{btree_map::BTreeMap, btree_set::BTreeSet},
+	convert::TryInto,
+};
 
 use crate::*;
 
 /// Types of verification keys a DID can control.
-#[derive(Clone, Copy, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
 pub enum DidVerificationKey {
 	/// An Ed25519 public key.
 	Ed25519(ed25519::Public),
 	/// A Sr25519 public key.
 	Sr25519(sr25519::Public),
+	/// An ECDSA public key.
+	Ecdsa(ecdsa::Public),
 }
 
 impl DidVerificationKey {
 	/// Verify a DID signature using one of the DID keys.
-	pub fn verify_signature(&self, payload: &Payload, signature: &DidSignature) -> Result<bool, SignatureError> {
-		match self {
-			DidVerificationKey::Ed25519(public_key) => {
-				// Try to re-create a Signature value or throw an error if raw value is invalid
-				if let DidSignature::Ed25519(sig) = signature {
-					Ok(sig.verify(payload, public_key))
-				} else {
-					Err(SignatureError::InvalidSignatureFormat)
-				}
+	pub fn verify_signature(&self, payload: &Payload, signature: &DidSignature) -> Result<(), SignatureError> {
+		match (self, signature) {
+			(DidVerificationKey::Ed25519(public_key), DidSignature::Ed25519(sig)) => {
+				ensure!(sig.verify(payload, public_key), SignatureError::InvalidSignature);
+				Ok(())
 			}
 			// Follows same process as above, but using a Sr25519 instead
-			DidVerificationKey::Sr25519(public_key) => {
-				if let DidSignature::Sr25519(sig) = signature {
-					Ok(sig.verify(payload, public_key))
-				} else {
-					Err(SignatureError::InvalidSignatureFormat)
-				}
+			(DidVerificationKey::Sr25519(public_key), DidSignature::Sr25519(sig)) => {
+				ensure!(sig.verify(payload, public_key), SignatureError::InvalidSignature);
+				Ok(())
 			}
+			(DidVerificationKey::Ecdsa(public_key), DidSignature::Ecdsa(sig)) => {
+				ensure!(sig.verify(payload, public_key), SignatureError::InvalidSignature);
+				Ok(())
+			}
+			_ => Err(SignatureError::InvalidSignatureFormat),
 		}
-	}
-
-	/// Returns a DidVerificationKey after decoding an encoded version of
-	/// itself.
-	pub fn from_didi_verification_key_encoded(encoded: Vec<u8>) -> Result<Self, KeyError> {
-		Self::decode(&mut &encoded[..]).map_err(|_| KeyError::InvalidVerificationKeyFormat)
 	}
 }
 
@@ -56,6 +53,12 @@ impl From<sr25519::Public> for DidVerificationKey {
 	}
 }
 
+impl From<ecdsa::Public> for DidVerificationKey {
+	fn from(key: ecdsa::Public) -> Self {
+		DidVerificationKey::Ecdsa(key)
+	}
+}
+
 /// Types of encryption keys a DID can control.
 #[derive(Clone, Copy, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
 pub enum DidEncryptionKey {
@@ -64,7 +67,7 @@ pub enum DidEncryptionKey {
 }
 
 /// A general public key under the control of the DID.
-#[derive(Clone, Copy, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
 pub enum DidPublicKey {
 	/// A verification key, used to generate and verify signatures.
 	PublicVerificationKey(DidVerificationKey),
@@ -105,13 +108,8 @@ pub enum DidSignature {
 	Ed25519(ed25519::Signature),
 	/// A Sr25519 signature.
 	Sr25519(sr25519::Signature),
-}
-
-impl DidSignature {
-	/// Returns a DidSignature after decoding an encoded version of itself.
-	pub fn from_did_signature_encoded(encoded: Vec<u8>) -> Result<Self, SignatureError> {
-		Self::decode(&mut &encoded[..]).map_err(|_| SignatureError::InvalidSignatureFormat)
-	}
+	/// An Ecdsa signature.
+	Ecdsa(ecdsa::Signature),
 }
 
 impl From<ed25519::Signature> for DidSignature {
@@ -126,12 +124,78 @@ impl From<sr25519::Signature> for DidSignature {
 	}
 }
 
+impl From<ecdsa::Signature> for DidSignature {
+	fn from(sig: ecdsa::Signature) -> Self {
+		DidSignature::Ecdsa(sig)
+	}
+}
+
+pub trait DidVerifiableIdentifier {
+	/// Allows a verifiable identifier to verify a signature it produces and
+	/// return the public key
+	/// associated with the identifier.
+	fn verify_and_recover_signature(
+		&self,
+		payload: &Payload,
+		signature: &DidSignature,
+	) -> Result<DidVerificationKey, SignatureError>;
+}
+
+// TODO: did not manage to implement this trait in the kilt_primitives crate due
+// to some circular dependency problems.
+impl DidVerifiableIdentifier for cord_primitives::DidIdentifier {
+	fn verify_and_recover_signature(
+		&self,
+		payload: &Payload,
+		signature: &DidSignature,
+	) -> Result<DidVerificationKey, SignatureError> {
+		// So far, either the raw Ed25519/Sr25519 public key or the Blake2-256 hashed
+		// ECDSA public key.
+		let raw_public_key: &[u8; 32] = self.as_ref();
+		match *signature {
+			DidSignature::Ed25519(_) => {
+				// from_raw simply converts a byte array into a public key with no particular
+				// validations
+				let ed25519_did_key = DidVerificationKey::Ed25519(ed25519::Public::from_raw(*raw_public_key));
+				ed25519_did_key
+					.verify_signature(payload, signature)
+					.map(|_| ed25519_did_key)
+			}
+			DidSignature::Sr25519(_) => {
+				let sr25519_did_key = DidVerificationKey::Sr25519(sr25519::Public::from_raw(*raw_public_key));
+				sr25519_did_key
+					.verify_signature(payload, signature)
+					.map(|_| sr25519_did_key)
+			}
+			DidSignature::Ecdsa(ref signature) => {
+				let ecdsa_signature: [u8; 65] = signature
+					.encode()
+					.try_into()
+					.map_err(|_| SignatureError::InvalidSignature)?;
+				// ECDSA uses blake2-256 hashing algorihtm for signatures, so we hash the given
+				// message to recover the public key.
+				let hashed_message = sp_io::hashing::blake2_256(payload);
+				let recovered_pk: [u8; 33] =
+					sp_io::crypto::secp256k1_ecdsa_recover_compressed(&ecdsa_signature, &hashed_message)
+						.map_err(|_| SignatureError::InvalidSignature)?;
+				let hashed_recovered_pk = sp_io::hashing::blake2_256(&recovered_pk);
+				// The hashed recovered public key must be equal to the AccountId32 value, which
+				// is the hashed key.
+				ensure!(&hashed_recovered_pk == raw_public_key, SignatureError::InvalidSignature);
+				// Safe to reconstruct the public key using the recovered value from
+				// secp256k1_ecdsa_recover_compressed
+				Ok(DidVerificationKey::from(ecdsa::Public(recovered_pk)))
+			}
+		}
+	}
+}
+
 /// Details of a public key, which includes the key value and the
 /// block number at which it was set.
 ///
 /// It is currently used to keep track of all the past and current
 /// mark keys a DID might control.
-#[derive(Clone, Copy, Debug, Decode, Encode, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, PartialEq)]
 pub struct DidPublicKeyDetails<T: Config> {
 	/// A public key the DID controls.
 	pub key: DidPublicKey,
@@ -180,7 +244,7 @@ impl<T: Config> DidDetails<T> {
 	/// The tx counter is set by default to 0.
 	pub fn new(authentication_key: DidVerificationKey, block_number: BlockNumberOf<T>) -> Self {
 		let mut public_keys: BTreeMap<KeyIdOf<T>, DidPublicKeyDetails<T>> = BTreeMap::new();
-		let authentication_key_id = utils::calculate_key_id::<T>(&authentication_key.into());
+		let authentication_key_id = utils::calculate_key_id::<T>(&authentication_key.clone().into());
 		public_keys.insert(
 			authentication_key_id,
 			DidPublicKeyDetails {
@@ -210,7 +274,7 @@ impl<T: Config> DidDetails<T> {
 		block_number: BlockNumberOf<T>,
 	) {
 		let old_authentication_key_id = self.authentication_key;
-		let new_authentication_key_id = utils::calculate_key_id::<T>(&new_authentication_key.into());
+		let new_authentication_key_id = utils::calculate_key_id::<T>(&new_authentication_key.clone().into());
 		self.authentication_key = new_authentication_key_id;
 		// Remove old key ID from public keys, if not used anymore.
 		self.remove_key_if_unused(&old_authentication_key_id);
@@ -252,7 +316,7 @@ impl<T: Config> DidDetails<T> {
 	/// it can still be used to verify past marks.
 	/// The new key is added to the set of verification keys.
 	pub fn update_mark_key(&mut self, new_mark_key: DidVerificationKey, block_number: BlockNumberOf<T>) {
-		let new_mark_key_id = utils::calculate_key_id::<T>(&new_mark_key.into());
+		let new_mark_key_id = utils::calculate_key_id::<T>(&new_mark_key.clone().into());
 		self.mark_key = Some(new_mark_key_id);
 		self.public_keys.insert(
 			new_mark_key_id,
@@ -279,7 +343,7 @@ impl<T: Config> DidDetails<T> {
 	/// set of verification keys.
 	pub fn update_delegation_key(&mut self, new_delegation_key: DidVerificationKey, block_number: BlockNumberOf<T>) {
 		let old_delegation_key_id = self.delegation_key;
-		let new_delegation_key_id = utils::calculate_key_id::<T>(&new_delegation_key.into());
+		let new_delegation_key_id = utils::calculate_key_id::<T>(&new_delegation_key.clone().into());
 		self.delegation_key = Some(new_delegation_key_id);
 		if let Some(old_delegation_key) = old_delegation_key_id {
 			self.remove_key_if_unused(&old_delegation_key);
@@ -420,10 +484,11 @@ impl<T: Config> DidDetails<T> {
 	}
 }
 
-impl<T: Config> TryFrom<DidCreationOperation<T>> for DidDetails<T> {
+impl<T: Config> TryFrom<(DidCreationOperation<T>, DidVerificationKey)> for DidDetails<T> {
 	type Error = InputError;
 
-	fn try_from(op: DidCreationOperation<T>) -> Result<Self, Self::Error> {
+	fn try_from(new_details: (DidCreationOperation<T>, DidVerificationKey)) -> Result<Self, Self::Error> {
+		let (op, new_auth_key) = new_details;
 		ensure!(
 			op.new_key_agreement_keys.len() <= <<T as Config>::MaxNewKeyAgreementKeys>::get() as usize,
 			InputError::MaxKeyAgreementKeysLimitExceeded
@@ -439,12 +504,12 @@ impl<T: Config> TryFrom<DidCreationOperation<T>> for DidDetails<T> {
 		let current_block_number = <frame_system::Pallet<T>>::block_number();
 
 		// Creates a new DID with the given authentication key.
-		let mut new_did_details = DidDetails::new(op.new_authentication_key, current_block_number);
+		let mut new_did_details = DidDetails::new(new_auth_key, current_block_number);
 
 		new_did_details.add_key_agreement_keys(op.new_key_agreement_keys, current_block_number);
 
-		if let Some(attesation_key) = op.new_mark_key {
-			new_did_details.update_mark_key(attesation_key, current_block_number);
+		if let Some(mark_key) = op.new_mark_key {
+			new_did_details.update_mark_key(mark_key, current_block_number);
 		}
 
 		if let Some(delegation_key) = op.new_delegation_key {
@@ -579,8 +644,6 @@ pub trait DeriveDidCallAuthorizationVerificationKeyRelationship {
 pub struct DidCreationOperation<T: Config> {
 	/// The DID identifier. It has to be unique.
 	pub did: DidIdentifierOf<T>,
-	/// The new authentication key.
-	pub new_authentication_key: DidVerificationKey,
 	/// The new key agreement keys.
 	pub new_key_agreement_keys: BTreeSet<DidEncryptionKey>,
 	/// \[OPTIONAL\] The new mark key.
@@ -592,6 +655,7 @@ pub struct DidCreationOperation<T: Config> {
 }
 
 impl<T: Config> DidOperation<T> for DidCreationOperation<T> {
+	// Not really used for creations.
 	fn get_verification_key_relationship(&self) -> DidVerificationKeyRelationship {
 		DidVerificationKeyRelationship::Authentication
 	}
@@ -651,7 +715,7 @@ impl<T: Config> DidOperation<T> for DidUpdateOperation<T> {
 
 /// Possible actions on a DID verification key within a
 /// [DidUpdateOperation].
-#[derive(Clone, Copy, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
 pub enum DidVerificationKeyUpdateAction {
 	/// Do not change the verification key.
 	Ignore,

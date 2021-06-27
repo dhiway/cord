@@ -22,6 +22,8 @@ mod tests;
 
 use sp_std::vec::Vec;
 
+// pub use crate::{marks::*, pallet::*, weights::WeightInfo};
+
 pub use crate::marks::*;
 pub use pallet::*;
 
@@ -87,8 +89,8 @@ pub mod pallet {
 		/// A Mark has been revoked.
 		/// \[revoker ID, claim hash\]
 		Revoked(MarkerOf<T>, StreamHashOf<T>),
-		/// A #MARK has been restored (previously revoked)
-		Restored(MarkerOf<T>, StreamHashOf<T>),
+		// / A #MARK has been restored (previously revoked)
+		// Restored(MarkerOf<T>, StreamHashOf<T>),
 	}
 
 	#[pallet::error]
@@ -142,7 +144,7 @@ pub mod pallet {
 			stream_hash: StreamHashOf<T>,
 			mtype_hash: MtypeHashOf<T>,
 			delegation_id: Option<DelegationNodeIdOf<T>>,
-		) -> DispatchResultWithPostInfo {
+		) -> DispatchResult {
 			let marker = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
@@ -191,7 +193,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::Anchored(marker, stream_hash, mtype_hash, delegation_id));
 
-			Ok(None.into())
+			Ok(())
 		}
 
 		/// Revoke an existing mark.
@@ -222,7 +224,7 @@ pub mod pallet {
 
 			// Check the delegation tree if the sender of the revocation operation is not
 			// the original attester
-			if mark.marker != revoker {
+			let revocations = if mark.marker != revoker {
 				let delegation_id = mark.delegation_id.ok_or(Error::<T>::UnauthorizedRevocation)?;
 				ensure!(
 					max_parent_checks <= T::MaxParentChecks::get(),
@@ -230,71 +232,70 @@ pub mod pallet {
 				);
 				// Check whether the sender of the revocation controls the delegation node
 				// specified, and that its status has not been revoked
-				ensure!(
-					<pallet_delegation::Pallet<T>>::is_delegating(&revoker, &delegation_id, max_parent_checks)?,
-					Error::<T>::UnauthorizedRevocation
-				);
-			}
+				let (is_delegating, revocations) =
+					<pallet_delegation::Pallet<T>>::is_delegating(&revoker, &delegation_id, max_parent_checks)?;
+				ensure!(is_delegating, Error::<T>::UnauthorizedRevocation);
+				revocations
+			} else {
+				0u32
+			};
 
 			log::debug!("Revoking Mark");
 			<Marks<T>>::insert(&stream_hash, MarkDetails { revoked: true, ..mark });
-
 			Self::deposit_event(Event::Revoked(revoker, stream_hash));
 
-			//TODO: Return actual weight used, which should be returned by
-			// delegation::is_actively_delegating
-			Ok(None.into())
+			Ok(Some(<T as pallet::Config>::WeightInfo::revoke(revocations)).into())
 		}
 		// Restore a revoked mark.
-		///
-		/// The restorer must be either the creator of the mark being restored
-		/// or an entity that in the delegation tree is an ancestor.
-		/// i.e., it was either the delegator of the marker or
-		/// an ancestor thereof.
-		///
-		/// * origin: the identifier of the restorer
-		/// * stream_hash: the hash of the content to restore
-		/// * max_parent_checks: for delegated marks, the number of
-		///   delegation nodes to check up in the trust hierarchy (including the
-		///   root node but excluding the provided node) to verify whether the
-		///   caller is an ancestor of the marker and hence authorised to
-		///   restore the specified mark.
-		#[pallet::weight(0)]
-		pub fn restore(
-			origin: OriginFor<T>,
-			stream_hash: StreamHashOf<T>,
-			max_parent_checks: u32,
-		) -> DispatchResultWithPostInfo {
-			let restorer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+		// /
+		// / The restorer must be either the creator of the mark being restored
+		// / or an entity that in the delegation tree is an ancestor.
+		// / i.e., it was either the delegator of the marker or
+		// / an ancestor thereof.
+		// /
+		// / * origin: the identifier of the restorer
+		// / * stream_hash: the hash of the content to restore
+		// / * max_parent_checks: for delegated marks, the number of
+		// /   delegation nodes to check up in the trust hierarchy (including the
+		// /   root node but excluding the provided node) to verify whether the
+		// /   caller is an ancestor of the marker and hence authorised to
+		// /   restore the specified mark.
+		// #[pallet::weight(0)]
+		// pub fn restore(
+		// 	origin: OriginFor<T>,
+		// 	stream_hash: StreamHashOf<T>,
+		// 	max_parent_checks: u32,
+		// ) -> DispatchResultWithPostInfo {
+		// 	let restorer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let mark = <Marks<T>>::get(&stream_hash).ok_or(Error::<T>::MarkNotFound)?;
+		// 	let mark = <Marks<T>>::get(&stream_hash).ok_or(Error::<T>::MarkNotFound)?;
 
-			ensure!(mark.revoked, Error::<T>::MarkStillActive);
+		// 	ensure!(mark.revoked, Error::<T>::MarkStillActive);
 
-			// Check the delegation tree if the sender of the restore operation is not
-			// the original attester
-			if mark.marker != restorer {
-				let delegation_id = mark.delegation_id.ok_or(Error::<T>::UnauthorizedRestore)?;
-				ensure!(
-					max_parent_checks <= T::MaxParentChecks::get(),
-					pallet_delegation::Error::<T>::MaxParentChecksTooLarge
-				);
-				// Check whether the sender of the restoration controls the delegation node
-				// specified, and that its status has not been revoked
-				ensure!(
-					<pallet_delegation::Pallet<T>>::is_delegating(&restorer, &delegation_id, max_parent_checks)?,
-					Error::<T>::UnauthorizedRestore
-				);
-			}
+		// 	// Check the delegation tree if the sender of the restore operation is not
+		// 	// the original attester
+		// 	if mark.marker != restorer {
+		// 		let delegation_id = mark.delegation_id.ok_or(Error::<T>::UnauthorizedRestore)?;
+		// 		ensure!(
+		// 			max_parent_checks <= T::MaxParentChecks::get(),
+		// 			pallet_delegation::Error::<T>::MaxParentChecksTooLarge
+		// 		);
+		// 		// Check whether the sender of the restoration controls the delegation node
+		// 		// specified, and that its status has not been revoked
+		// 		ensure!(
+		// 			<pallet_delegation::Pallet<T>>::is_delegating(&restorer, &delegation_id, max_parent_checks)?,
+		// 			Error::<T>::UnauthorizedRestore
+		// 		);
+		// 	}
 
-			log::debug!("Restoring Mark");
-			<Marks<T>>::insert(&stream_hash, MarkDetails { revoked: false, ..mark });
+		// 	log::debug!("Restoring Mark");
+		// 	<Marks<T>>::insert(&stream_hash, MarkDetails { revoked: false, ..mark });
 
-			Self::deposit_event(Event::Restored(restorer, stream_hash));
+		// 	Self::deposit_event(Event::Restored(restorer, stream_hash));
 
-			//TODO: Return actual weight used, which should be returned by
-			// delegation::is_actively_delegating
-			Ok(None.into())
-		}
+		// 	//TODO: Return actual weight used, which should be returned by
+		// 	// delegation::is_actively_delegating
+		// 	Ok(None.into())
+		// }
 	}
 }

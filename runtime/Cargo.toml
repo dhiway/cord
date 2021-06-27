@@ -11,13 +11,13 @@ bitvec = { version = "0.20.1", default-features = false, features = ["alloc"] }
 codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
 log = { version = "0.4.13", optional = true }
 rustc-hex = { version = "2.1.0", default-features = false }
-serde = { version = "1.0.123", default-features = false }
-serde_derive = { version = "1.0.117", optional = true }
+serde = { version = "1.0.125", default-features = false, optional = true }
+serde_derive = { version = "1.0.125", default-features = false, optional = true }
 static_assertions = "1.1.0"
 smallvec = "1.6.1"
 
 # cord pallets 
-#pallet-mark = { default-features = false, path = '../pallets/mark' }
+pallet-mark = { default-features = false, path = '../pallets/mark' }
 pallet-delegation = { default-features = false, path = '../pallets/delegation' }
 pallet-mtype = { default-features = false, path = '../pallets/mtype' }
 pallet-did = {  default-features = false, path = '../pallets/did' }
@@ -152,14 +152,17 @@ std = [
 	"frame-system/std",
 	"frame-system-rpc-runtime-api/std",
 	"sp-version/std",
-    'serde_derive',
-    'serde/std',
-    'log/std',
+	"serde_derive",
+    "serde/std",
+    "log/std",
    	"sp-consensus-babe/std",
 	"sp-session/std",
 	"sp-npos-elections/std",
 	"max-encoded-len/std",
 	"frame-election-provider-support/std",
 	"pallet-sudo/std",
+	"pallet-mtype/std",
+	"pallet-mark/std",
+  	"pallet-delegation/std",
+  	"pallet-did/std",
 ]
-

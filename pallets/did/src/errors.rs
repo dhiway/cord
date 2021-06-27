@@ -48,13 +48,6 @@ pub enum SignatureError {
 	InvalidNonce,
 }
 
-pub enum KeyError {
-	/// The verification key provided does not match any supported key.
-	InvalidVerificationKeyFormat,
-	/// The encryption key provided does not match any supported key.
-	InvalidEncryptionKeyFormat,
-}
-
 /// Error generated when validating a byte-encoded endpoint URL.
 #[derive(Debug, Eq, PartialEq)]
 pub enum UrlError {

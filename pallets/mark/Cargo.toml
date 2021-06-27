@@ -17,7 +17,7 @@ frame-support = { git = "https://github.com/paritytech/substrate", branch = "pol
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5" }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5", optional = true }
 log = {default-features = false, version = "0.4.14"}
-serde = {optional = true, version = "1.0.101"}
+serde = {default-features = false, optional = true, version = "1.0.125"}
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5", optional = true }
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5", optional = true }
 sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5", optional = true }
@@ -33,7 +33,7 @@ cord-primitives = {default-features = false, optional = true, path = "../../prim
 pallet-mtype = {features = ["mock"], path = "../mtype" }
 pallet-delegation = {features = ["mock"], path = "../delegation" }
 cord-primitives = {default-features = false, path = "../../primitives"}
-serde = {version = "1.0.101"}
+serde = {default-features = false, version = "1.0.125"}
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5" }
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5" }
 sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.5" }

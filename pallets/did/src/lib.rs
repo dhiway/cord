@@ -78,7 +78,7 @@ pub mod pallet {
 			+ Dispatchable<Origin = <Self as Config>::Origin, PostInfo = PostDispatchInfo>
 			+ GetDispatchInfo
 			+ DeriveDidCallAuthorizationVerificationKeyRelationship;
-		type DidIdentifier: Parameter + Default;
+		type DidIdentifier: Parameter + Default + DidVerifiableIdentifier;
 		#[cfg(not(feature = "runtime-benchmarks"))]
 		type Origin: From<DidRawOrigin<DidIdentifierOf<Self>>>;
 		#[cfg(feature = "runtime-benchmarks")]
@@ -119,12 +119,9 @@ pub mod pallet {
 		/// A DID has been deleted.
 		/// \[transaction signer, DID identifier\]
 		DidDeleted(AccountIdentifierOf<T>, DidIdentifierOf<T>),
-		/// A DID-authorized call has been successfully executed.
-		/// \[DID caller]
-		DidCallSuccess(DidIdentifierOf<T>),
-		/// A DID-authorized call has failed to execute.
-		/// \[DID caller, error]
-		DidCallFailure(DidIdentifierOf<T>, DispatchError),
+		/// A DID-authorized call has been executed.
+		/// \[DID caller, dispatch result\]
+		DidCallDispatched(DidIdentifierOf<T>, DispatchResult),
 	}
 
 	#[pallet::error]
@@ -244,6 +241,10 @@ pub mod pallet {
 				operation.new_key_agreement_keys.len() as u32,
 				operation.new_endpoint_url.as_ref().map_or(0u32, |url| url.len() as u32)
 			))
+			.max(<T as pallet::Config>::WeightInfo::submit_did_create_operation_ecdsa_keys(
+				operation.new_key_agreement_keys.len() as u32,
+				operation.new_endpoint_url.as_ref().map_or(0u32, |url| url.len() as u32)
+			))
 		)]
 		pub fn submit_did_create_operation(
 			origin: OriginFor<T>,
@@ -258,16 +259,13 @@ pub mod pallet {
 				!<Did<T>>::contains_key(operation.get_did()),
 				<Error<T>>::DidAlreadyPresent
 			);
+			let account_did_auth_key = operation
+				.did
+				.verify_and_recover_signature(&operation.encode(), &signature)
+				.map_err(<Error<T>>::from)?;
 
-			let did_entry = DidDetails::try_from(operation.clone()).map_err(<Error<T>>::from)?;
-
-			Self::verify_payload_signature_with_did_key_type(
-				&operation.encode(),
-				&signature,
-				&did_entry,
-				operation.get_verification_key_relationship(),
-			)
-			.map_err(<Error<T>>::from)?;
+			let did_entry =
+				DidDetails::try_from((operation.clone(), account_did_auth_key)).map_err(<Error<T>>::from)?;
 
 			let did_identifier = operation.get_did();
 			log::debug!("Creating DID {:?}", did_identifier);
@@ -296,6 +294,11 @@ pub mod pallet {
 				operation.new_endpoint_url.as_ref().map_or(0u32, |url| url.len() as u32)
 			)
 			.max(<T as pallet::Config>::WeightInfo::submit_did_update_operation_sr25519_keys(
+				operation.new_key_agreement_keys.len() as u32,
+				operation.public_keys_to_remove.len() as u32,
+				operation.new_endpoint_url.as_ref().map_or(0u32, |url| url.len() as u32)
+			))
+			.max(<T as pallet::Config>::WeightInfo::submit_did_update_operation_ecdsa_keys(
 				operation.new_key_agreement_keys.len() as u32,
 				operation.public_keys_to_remove.len() as u32,
 				operation.new_endpoint_url.as_ref().map_or(0u32, |url| url.len() as u32)
@@ -370,7 +373,11 @@ pub mod pallet {
 		///   be signed by the tx submiter, i.e., the account paying for the
 		///   execution fees
 		#[allow(clippy::boxed_local)]
-		#[pallet::weight(0)]
+		#[pallet::weight(
+			<T as pallet::Config>::WeightInfo::submit_did_call_ed25519_key()
+			.max(<T as pallet::Config>::WeightInfo::submit_did_call_sr25519_key())
+			.max(<T as pallet::Config>::WeightInfo::submit_did_call_ecdsa_key())
+		)]
 		pub fn submit_did_call(
 			origin: OriginFor<T>,
 			did_call: Box<DidAuthorizedCallOperation<T>>,
@@ -407,11 +414,9 @@ pub mod pallet {
 			#[cfg(feature = "runtime-benchmarks")]
 			let result = call.dispatch(RawOrigin::Signed(did).into());
 
-			let dispatch_event = match result {
-				Ok(_) => Event::DidCallSuccess(did_identifier),
-				Err(err_result) => Event::DidCallFailure(did_identifier, err_result.error),
-			};
-			Self::deposit_event(dispatch_event);
+			let dispatch_event_payload = result.map(|_| ()).map_err(|e| e.error);
+
+			Self::deposit_event(Event::DidCallDispatched(did_identifier, dispatch_event_payload));
 
 			result
 		}
@@ -502,15 +507,8 @@ impl<T: Config> Pallet<T> {
 
 		// Verify that the signature matches the expected format, otherwise generate
 		// an error
-		let is_signature_valid = verification_key
+		verification_key
 			.verify_signature(payload, signature)
-			.map_err(|_| DidError::SignatureError(SignatureError::InvalidSignatureFormat))?;
-
-		ensure!(
-			is_signature_valid,
-			DidError::SignatureError(SignatureError::InvalidSignature)
-		);
-
-		Ok(())
+			.map_err(DidError::SignatureError)
 	}
 }
