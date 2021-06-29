@@ -81,7 +81,7 @@ pub mod pallet {
 		/// * origin: the identifier of the MTYPE creator
 		/// * hash: the MTYPE hash. It has to be unique.
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::add())]
-		pub fn anchor(origin: OriginFor<T>, hash: MtypeHashOf<T>) -> DispatchResultWithPostInfo {
+		pub fn anchor(origin: OriginFor<T>, hash: MtypeHashOf<T>) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(!<Mtypes<T>>::contains_key(&hash), Error::<T>::MTypeAlreadyExists);
@@ -91,7 +91,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::MTypeCreated(creator, hash));
 
-			Ok(None.into())
+			Ok(())
 		}
 	}
 }
