@@ -12,15 +12,20 @@ use sp_runtime::{
 };
 
 /// An index to a block.
-pub type BlockNumber = u32;
+pub type BlockNumber = u64;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on
 /// the chain.
 pub type Signature = MultiSignature;
 
+/// Alias to the public key used for this chain, actually a `MultiSigner`. Like
+/// the signature, this also isn't a fixed size when encoded, as different
+/// cryptos have different size public keys.
+pub type AccountPublic = <Signature as Verify>::Signer;
+
 /// Some way of identifying an account on the chain. We intentionally make it
 /// equivalent to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 
 /// The type for looking up accounts. We don't expect more than 4 billion of
 /// them.
@@ -33,7 +38,7 @@ pub type Balance = u128;
 pub type Moment = u64;
 
 /// Index of a transaction in the chain.
-pub type Index = u32;
+pub type Index = u64;
 
 /// A hash of some data used by the chain.
 pub type Hash = sp_core::H256;

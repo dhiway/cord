@@ -11,7 +11,7 @@ use crate::*;
 const SEED: u32 = 0;
 
 benchmarks! {
-	add {
+	anchor {
 		let caller = account("caller", 0, SEED);
 		let hash = <T::Hash as Default>::default();
 

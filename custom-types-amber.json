@@ -4,20 +4,20 @@
   "AmountOf": "i128",
   "Balance": "u128",
   "LookupSource": "MultiAddress",
-  "MtypeCreatorOf": "DidIdentifierOf",
+  "MtypeCreatorOf": "AccountId",
   "MtypeHashOf": "Hash",
   "StreamHashOf": "Hash",
-  "MarkerOf": "DidIdentifierOf",
+  "MarkerOf": "AccountId",
   "MarkDetails": {
     "c=mtypeHash": "CtypeHashOf",
-    "marker": "AttesterOf",
+    "marker": "MarkerOf",
     "delegationId": "Option<DelegationNodeIdOf>",
     "revoked": "bool"
   },
   "Permissions": "u32",
   "DelegationNodeIdOf": "Hash",
-  "DelegatorIdOf": "DidIdentifierOf",
-  "DelegationSignature": "DidSignature",
+  "DelegatorIdOf": "AccountId",
+  "DelegationSignature": "Vec<u8>",
   "DelegationRoot": {
     "mtypeHash": "MtypeHashOf",
     "owner": "DelegatorIdOf",
@@ -29,6 +29,10 @@
     "owner": "DelegatorIdOf",
     "permissions": "Permissions",
     "revoked": "bool"
+  },
+  "DelegationCounter": {
+    "round": "SessionIndex",
+    "counter": "u32"
   },
   "KeyIdOf": "Hash",
   "DidIdentifierOf": "AccountId",
@@ -71,6 +75,7 @@
       "StorageError": "StorageError",
       "SignatureError": "SignatureError",
       "UrlError": "UrlError",
+      "InputError": "InputError",
       "InternalError": "Null"
     }
   },
@@ -93,6 +98,13 @@
   "UrlError": {
     "_enum": ["InvalidUrlEncoding", "InvalidUrlScheme"]
   },
+  "InputError": {
+    "_enum": [
+      "MaxKeyAgreementKeysLimitExceeded",
+      "MaxVerificationKeysToRemoveLimitExceeded",
+      "MaxUrlLengthExceeded"
+    ]
+  },
   "DidPublicKeyDetails": {
     "key": "DidPublicKey",
     "blockNumber": "BlockNumberOf"
@@ -110,7 +122,7 @@
     "did": "DidIdentifierOf",
     "newAuthenticationKey": "DidVerificationKey",
     "newKeyAgreementKeys": "BTreeSet<DidEncryptionKey>",
-    "newAttestationKey": "Option<DidVerificationKey>",
+    "newMarkKey": "Option<DidVerificationKey>",
     "newDelegationKey": "Option<DidVerificationKey>",
     "newEndpointUrl": "Option<Url>"
   },
@@ -118,7 +130,7 @@
     "did": "DidIdentifierOf",
     "newAuthenticationKey": "Option<DidVerificationKey>",
     "newKeyAgreementKeys": "BTreeSet<DidEncryptionKey>",
-    "attestationKeyUpdate": "DidVerificationKeyUpdateAction",
+    "MarkKeyUpdate": "DidVerificationKeyUpdateAction",
     "delegationKeyUpdate": "DidVerificationKeyUpdateAction",
     "publicKeysToRemove": "BTreeSet<KeyIdOf>",
     "newEndpointUrl": "Option<Url>",

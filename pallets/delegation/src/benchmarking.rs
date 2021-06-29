@@ -179,7 +179,7 @@ benchmarks! {
 
 	create_root {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let mtype_hash = <T::Hash as Default>::default();
+		let mtype = <T::Hash as Default>::default();
 		let delegation = generate_delegation_id::<T>(0);
 		pallet_mtype::Pallet::<T>::anchor(RawOrigin::Signed(caller.clone()).into(), mtype)?;
 	}: _(RawOrigin::Signed(caller), delegation, mtype)
