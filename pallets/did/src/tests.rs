@@ -84,40 +84,6 @@ fn check_successful_simple_sr25519_creation() {
 	assert_eq!(stored_did.endpoint_url, None);
 	assert_eq!(stored_did.last_tx_counter, 0u64);
 }
-#[test]
-fn check_successful_simple_ecdsa_creation() {
-	let auth_key = get_ecdsa_authentication_key(true);
-	let alice_did = get_did_identifier_from_ecdsa_key(auth_key.public());
-	let auth_did_key = did::DidVerificationKey::from(auth_key.public());
-	let operation = generate_base_did_creation_operation(alice_did.clone());
-
-	let signature = auth_key.sign(operation.encode().as_ref());
-
-	let mut ext = ExtBuilder::default().build(None);
-
-	ext.execute_with(|| {
-		assert_ok!(Did::submit_did_create_operation(
-			Origin::signed(DEFAULT_ACCOUNT),
-			operation.clone(),
-			did::DidSignature::from(signature),
-		));
-	});
-
-	let stored_did = ext.execute_with(|| Did::get_did(&alice_did).expect("ALICE_DID should be present on chain."));
-	assert_eq!(
-		stored_did.get_authentication_key_id(),
-		generate_key_id(&auth_did_key.clone().into())
-	);
-	assert_eq!(stored_did.get_key_agreement_keys_ids().len(), 0);
-	assert_eq!(stored_did.get_delegation_key_id(), &None);
-	assert_eq!(stored_did.get_mark_anchor_key_id(), &None);
-	assert_eq!(stored_did.get_public_keys().len(), 1);
-	assert!(stored_did
-		.get_public_keys()
-		.contains_key(&generate_key_id(&auth_did_key.into())));
-	assert_eq!(stored_did.endpoint_url, None);
-	assert_eq!(stored_did.last_tx_counter, 0u64);
-}
 
 #[test]
 fn check_successful_complete_creation() {
@@ -130,7 +96,7 @@ fn check_successful_complete_creation() {
 			.copied()
 			.collect();
 	let del_key = get_sr25519_delegation_key(true);
-	let att_key = get_ecdsa_mark_anchor_key(true);
+	let att_key = get_ed25519_mark_anchor_key(true);
 	let new_url = did::Url::from(
 		did::HttpUrl::try_from("https://did.dway.io".as_bytes())
 			.expect("https://did.dway.io should not be considered an invalid HTTP URL."),
@@ -1700,7 +1666,7 @@ fn check_authentication_successful_operation_verification() {
 fn check_mark_successful_operation_verification() {
 	let auth_key = get_ed25519_authentication_key(true);
 	let alice_did = get_did_identifier_from_ed25519_key(auth_key.public());
-	let att_key = get_ecdsa_mark_anchor_key(true);
+	let att_key = get_sr25519_mark_anchor_key(true);
 	let mut mock_did = generate_base_did_details(did::DidVerificationKey::from(auth_key.public()));
 	mock_did.update_mark_anchor_key(did::DidVerificationKey::from(att_key.public()), 0u64);
 	let operation = TestDidOperation {

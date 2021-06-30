@@ -576,8 +576,8 @@ impl pallet_staking::Config for Runtime {
 
 parameter_types! {
 	// no signed phase for now, just unsigned.
-	pub const SignedPhase: u64 = EPOCH_DURATION_IN_BLOCKS / 4;
-	pub const UnsignedPhase: u64 = EPOCH_DURATION_IN_BLOCKS / 4;
+	pub const SignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
+	pub const UnsignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
 
 	// fallback: run election on-chain.
 	pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =

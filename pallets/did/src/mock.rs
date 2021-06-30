@@ -5,7 +5,7 @@ use codec::{Decode, Encode};
 use frame_support::{parameter_types, weights::constants::RocksDbWeight};
 #[cfg(feature = "runtime-benchmarks")]
 use frame_system::EnsureSigned;
-use sp_core::{ecdsa, ed25519, sr25519, Pair};
+use sp_core::{ed25519, sr25519, Pair};
 use sp_keystore::{testing::KeyStore, KeystoreExt};
 use sp_runtime::{
 	testing::Header,
@@ -118,10 +118,6 @@ pub fn get_did_identifier_from_sr25519_key(public_key: sr25519::Public) -> TestD
 	MultiSigner::from(public_key).into_account()
 }
 
-pub fn get_did_identifier_from_ecdsa_key(public_key: ecdsa::Public) -> TestDidIdentifier {
-	MultiSigner::from(public_key).into_account()
-}
-
 pub fn get_ed25519_authentication_key(default: bool) -> ed25519::Pair {
 	if default {
 		ed25519::Pair::from_seed(&DEFAULT_AUTH_SEED)
@@ -135,14 +131,6 @@ pub fn get_sr25519_authentication_key(default: bool) -> sr25519::Pair {
 		sr25519::Pair::from_seed(&DEFAULT_AUTH_SEED)
 	} else {
 		sr25519::Pair::from_seed(&ALTERNATIVE_AUTH_SEED)
-	}
-}
-
-pub fn get_ecdsa_authentication_key(default: bool) -> ecdsa::Pair {
-	if default {
-		ecdsa::Pair::from_seed(&DEFAULT_AUTH_SEED)
-	} else {
-		ecdsa::Pair::from_seed(&ALTERNATIVE_AUTH_SEED)
 	}
 }
 
@@ -170,14 +158,6 @@ pub fn get_sr25519_mark_anchor_key(default: bool) -> sr25519::Pair {
 	}
 }
 
-pub fn get_ecdsa_mark_anchor_key(default: bool) -> ecdsa::Pair {
-	if default {
-		ecdsa::Pair::from_seed(&DEFAULT_ATT_SEED)
-	} else {
-		ecdsa::Pair::from_seed(&ALTERNATIVE_ATT_SEED)
-	}
-}
-
 pub fn get_ed25519_delegation_key(default: bool) -> ed25519::Pair {
 	if default {
 		ed25519::Pair::from_seed(&DEFAULT_DEL_SEED)
@@ -191,14 +171,6 @@ pub fn get_sr25519_delegation_key(default: bool) -> sr25519::Pair {
 		sr25519::Pair::from_seed(&DEFAULT_DEL_SEED)
 	} else {
 		sr25519::Pair::from_seed(&ALTERNATIVE_DEL_SEED)
-	}
-}
-
-pub fn get_ecdsa_delegation_key(default: bool) -> ecdsa::Pair {
-	if default {
-		ecdsa::Pair::from_seed(&DEFAULT_DEL_SEED)
-	} else {
-		ecdsa::Pair::from_seed(&ALTERNATIVE_DEL_SEED)
 	}
 }
 
