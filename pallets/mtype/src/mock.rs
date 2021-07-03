@@ -60,7 +60,7 @@ impl frame_system::Config for Test {
 }
 
 impl Config for Test {
-	type MtypeCreatorId = TestMtypeOwner;
+	type MtypeOwnerId = TestMtypeOwner;
 	type EnsureOrigin = frame_system::EnsureSigned<TestMtypeOwner>;
 	type Event = ();
 	type WeightInfo = ();

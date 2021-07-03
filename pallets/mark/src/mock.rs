@@ -24,7 +24,7 @@ pub type TestMtypeHash = cord_primitives::Hash;
 pub type TestDelegationNodeId = cord_primitives::Hash;
 pub type TestDelegatorId = cord_primitives::AccountId;
 pub type TestStreamHash = cord_primitives::Hash;
-pub type TestAttester = TestDelegatorId;
+pub type TestIssuer = TestDelegatorId;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -72,7 +72,7 @@ impl frame_system::Config for Test {
 }
 
 impl pallet_mtype::Config for Test {
-	type MtypeCreatorId = TestMtypeOwner;
+	type MtypeOwnerId = TestMtypeOwner;
 	type EnsureOrigin = EnsureSigned<TestMtypeOwner>;
 	type Event = ();
 	type WeightInfo = ();
@@ -97,7 +97,7 @@ impl pallet_delegation::Config for Test {
 }
 
 impl Config for Test {
-	type EnsureOrigin = EnsureSigned<TestAttester>;
+	type EnsureOrigin = EnsureSigned<TestIssuer>;
 	type Event = ();
 	type WeightInfo = ();
 }
@@ -132,7 +132,7 @@ const BOB_SEED: [u8; 32] = [1u8; 32];
 const DEFAULT_STREAM_HASH_SEED: u64 = 1u64;
 const ALTERNATIVE_STREAM_HASH_SEED: u64 = 2u64;
 
-pub fn get_origin(account: TestAttester) -> Origin {
+pub fn get_origin(account: TestIssuer) -> Origin {
 	Origin::signed(account)
 }
 
@@ -197,9 +197,9 @@ pub fn generate_base_mark_revocation_details(stream_hash: TestStreamHash) -> Mar
 	}
 }
 
-pub fn generate_base_mark(marker: TestAttester) -> MarkDetails<Test> {
+pub fn generate_base_mark(issuer: TestIssuer) -> MarkDetails<Test> {
 	MarkDetails {
-		marker,
+		issuer,
 		delegation_id: None,
 		mtype_hash: mtype_mock::get_mtype_hash(true),
 		revoked: false,

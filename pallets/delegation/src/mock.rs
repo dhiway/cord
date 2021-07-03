@@ -73,7 +73,7 @@ impl frame_system::Config for Test {
 }
 
 impl pallet_mtype::Config for Test {
-	type MtypeCreatorId = TestMtypeOwner;
+	type MtypeOwnerId = TestMtypeOwner;
 	type EnsureOrigin = EnsureSigned<TestMtypeOwner>;
 	type Event = ();
 	type WeightInfo = ();

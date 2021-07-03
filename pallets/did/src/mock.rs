@@ -88,7 +88,7 @@ impl Config for Test {
 }
 
 impl pallet_mtype::Config for Test {
-	type MtypeCreatorId = TestMtypeOwner;
+	type MtypeOwnerId = TestMtypeOwner;
 	#[cfg(feature = "runtime-benchmarks")]
 	type EnsureOrigin = EnsureSigned<TestDidIdentifier>;
 	#[cfg(not(feature = "runtime-benchmarks"))]

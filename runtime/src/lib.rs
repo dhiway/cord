@@ -786,12 +786,6 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type WeightInfo = ();
 }
 
-type EnsureRootOrHalfCouncil = EnsureOneOf<
-	AccountId,
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
->;
-
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 	type Event = Event;
 	type AddOrigin = MoreThanHalfCouncil;
@@ -1011,8 +1005,8 @@ impl pallet_delegation::Config for Runtime {
 }
 
 impl pallet_mtype::Config for Runtime {
-	type MtypeCreatorId = AccountId;
-	type EnsureOrigin = EnsureSigned<Self::MtypeCreatorId>;
+	type MtypeOwnerId = AccountId;
+	type EnsureOrigin = EnsureSigned<Self::MtypeOwnerId>;
 	type Event = Event;
 	type WeightInfo = ();
 }

@@ -126,7 +126,7 @@ fn check_anchor_digest() {
 		));
 		let Digest {
 			stream_hash,
-			marker,
+			issuer,
 			revoked,
 		} = {
 			let opt = PalletDigest::digests(hash);
@@ -134,7 +134,7 @@ fn check_anchor_digest() {
 			opt.unwrap()
 		};
 		assert_eq!(stream_hash, hash);
-		assert_eq!(marker, account);
+		assert_eq!(issuer, account);
 		assert_eq!(revoked, false);
 	});
 }
@@ -164,7 +164,7 @@ fn check_revoke_digest() {
 		));
 		let Digest {
 			stream_hash,
-			marker,
+			issuer,
 			revoked,
 		} = {
 			let opt = PalletDigest::digests(hash);
@@ -172,7 +172,7 @@ fn check_revoke_digest() {
 			opt.unwrap()
 		};
 		assert_eq!(stream_hash, hash);
-		assert_eq!(marker, account);
+		assert_eq!(issuer, account);
 		assert_eq!(revoked, true);
 	});
 }

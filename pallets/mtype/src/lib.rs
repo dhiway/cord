@@ -33,13 +33,13 @@ pub mod pallet {
 	/// Type of a MTYPE hash.
 	pub type MtypeHashOf<T> = <T as frame_system::Config>::Hash;
 
-	/// Type of a MTYPE creator.
-	pub type MtypeCreatorOf<T> = <T as Config>::MtypeCreatorId;
+	/// Type of a MTYPE owner.
+	pub type MtypeOwnerOf<T> = <T as Config>::MtypeOwnerId;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type MtypeCreatorId: Parameter + Default;
-		type EnsureOrigin: EnsureOrigin<Success = MtypeCreatorOf<Self>, <Self as frame_system::Config>::Origin>;
+		type MtypeOwnerId: Parameter + Default;
+		type EnsureOrigin: EnsureOrigin<Success = MtypeOwnerOf<Self>, <Self as frame_system::Config>::Origin>;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type WeightInfo: WeightInfo;
 	}
@@ -53,17 +53,17 @@ pub mod pallet {
 
 	/// MTYPEs stored on chain.
 	///
-	/// It maps from a MTYPE hash to its creator.
+	/// It maps from a MTYPE hash to its owner.
 	#[pallet::storage]
 	#[pallet::getter(fn mtypes)]
-	pub type Mtypes<T> = StorageMap<_, Blake2_128Concat, MtypeHashOf<T>, MtypeCreatorOf<T>>;
+	pub type Mtypes<T> = StorageMap<_, Blake2_128Concat, MtypeHashOf<T>, MtypeOwnerOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new MTYPE has been created.
-		/// \[creator identifier, MTYPE hash\]
-		MTypeCreated(MtypeCreatorOf<T>, MtypeHashOf<T>),
+		/// \[owner identifier, MTYPE hash\]
+		MTypeAnchored(MtypeOwnerOf<T>, MtypeHashOf<T>),
 	}
 
 	#[pallet::error]
@@ -76,20 +76,20 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a new MTYPE and associates it with its creator.
+		/// Create a new MTYPE and associates it with its owner.
 		///
-		/// * origin: the identifier of the MTYPE creator
+		/// * origin: the identifier of the MTYPE owner
 		/// * hash: the MTYPE hash. It has to be unique.
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::add())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::anchor())]
 		pub fn anchor(origin: OriginFor<T>, hash: MtypeHashOf<T>) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(!<Mtypes<T>>::contains_key(&hash), Error::<T>::MTypeAlreadyExists);
 
-			log::debug!("Creating MTYPE with hash {:?} and creator {:?}", &hash, &creator);
-			<Mtypes<T>>::insert(&hash, creator.clone());
+			log::debug!("Creating MTYPE with hash {:?} and owner {:?}", &hash, &owner);
+			<Mtypes<T>>::insert(&hash, owner.clone());
 
-			Self::deposit_event(Event::MTypeCreated(creator, hash));
+			Self::deposit_event(Event::MTypeAnchored(owner, hash));
 
 			Ok(())
 		}
