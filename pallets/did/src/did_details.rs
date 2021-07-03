@@ -6,7 +6,7 @@ use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
 use crate::*;
 
 /// Types of verification keys a DID can control.
-#[derive(Clone, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
 pub enum DidVerificationKey {
 	/// An Ed25519 public key.
 	Ed25519(ed25519::Public),
@@ -16,19 +16,31 @@ pub enum DidVerificationKey {
 
 impl DidVerificationKey {
 	/// Verify a DID signature using one of the DID keys.
-	pub fn verify_signature(&self, payload: &Payload, signature: &DidSignature) -> Result<(), SignatureError> {
-		match (self, signature) {
-			(DidVerificationKey::Ed25519(public_key), DidSignature::Ed25519(sig)) => {
-				ensure!(sig.verify(payload, public_key), SignatureError::InvalidSignature);
-				Ok(())
+	pub fn verify_signature(&self, payload: &Payload, signature: &DidSignature) -> Result<bool, SignatureError> {
+		match self {
+			DidVerificationKey::Ed25519(public_key) => {
+				// Try to re-create a Signature value or throw an error if raw value is invalid
+				if let DidSignature::Ed25519(sig) = signature {
+					Ok(sig.verify(payload, public_key))
+				} else {
+					Err(SignatureError::InvalidSignatureFormat)
+				}
 			}
 			// Follows same process as above, but using a Sr25519 instead
-			(DidVerificationKey::Sr25519(public_key), DidSignature::Sr25519(sig)) => {
-				ensure!(sig.verify(payload, public_key), SignatureError::InvalidSignature);
-				Ok(())
+			DidVerificationKey::Sr25519(public_key) => {
+				if let DidSignature::Sr25519(sig) = signature {
+					Ok(sig.verify(payload, public_key))
+				} else {
+					Err(SignatureError::InvalidSignatureFormat)
+				}
 			}
-			_ => Err(SignatureError::InvalidSignatureFormat),
 		}
+	}
+
+	/// Returns a DidVerificationKey after decoding an encoded version of
+	/// itself.
+	pub fn from_didi_verification_key_encoded(encoded: Vec<u8>) -> Result<Self, KeyError> {
+		Self::decode(&mut &encoded[..]).map_err(|_| KeyError::InvalidVerificationKeyFormat)
 	}
 }
 
@@ -52,7 +64,7 @@ pub enum DidEncryptionKey {
 }
 
 /// A general public key under the control of the DID.
-#[derive(Clone, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
 pub enum DidPublicKey {
 	/// A verification key, used to generate and verify signatures.
 	PublicVerificationKey(DidVerificationKey),
@@ -95,6 +107,13 @@ pub enum DidSignature {
 	Sr25519(sr25519::Signature),
 }
 
+impl DidSignature {
+	/// Returns a DidSignature after decoding an encoded version of itself.
+	pub fn from_did_signature_encoded(encoded: Vec<u8>) -> Result<Self, SignatureError> {
+		Self::decode(&mut &encoded[..]).map_err(|_| SignatureError::InvalidSignatureFormat)
+	}
+}
+
 impl From<ed25519::Signature> for DidSignature {
 	fn from(sig: ed25519::Signature) -> Self {
 		DidSignature::Ed25519(sig)
@@ -104,46 +123,6 @@ impl From<ed25519::Signature> for DidSignature {
 impl From<sr25519::Signature> for DidSignature {
 	fn from(sig: sr25519::Signature) -> Self {
 		DidSignature::Sr25519(sig)
-	}
-}
-
-pub trait DidVerifiableIdentifier {
-	/// Allows a verifiable identifier to verify a signature it produces and
-	/// return the public key
-	/// associated with the identifier.
-	fn verify_and_recover_signature(
-		&self,
-		payload: &Payload,
-		signature: &DidSignature,
-	) -> Result<DidVerificationKey, SignatureError>;
-}
-
-// TODO: did not manage to implement this trait in the cord_primitives crate due
-// to some circular dependency problems.
-impl DidVerifiableIdentifier for cord_primitives::DidIdentifier {
-	fn verify_and_recover_signature(
-		&self,
-		payload: &Payload,
-		signature: &DidSignature,
-	) -> Result<DidVerificationKey, SignatureError> {
-		// Either the raw Ed25519/Sr25519 public key
-		let raw_public_key: &[u8; 32] = self.as_ref();
-		match *signature {
-			DidSignature::Ed25519(_) => {
-				// from_raw simply converts a byte array into a public key with no particular
-				// validations
-				let ed25519_did_key = DidVerificationKey::Ed25519(ed25519::Public::from_raw(*raw_public_key));
-				ed25519_did_key
-					.verify_signature(payload, signature)
-					.map(|_| ed25519_did_key)
-			}
-			DidSignature::Sr25519(_) => {
-				let sr25519_did_key = DidVerificationKey::Sr25519(sr25519::Public::from_raw(*raw_public_key));
-				sr25519_did_key
-					.verify_signature(payload, signature)
-					.map(|_| sr25519_did_key)
-			}
-		}
 	}
 }
 
@@ -174,7 +153,7 @@ pub struct DidDetails<T: Config> {
 	delegation_key: Option<KeyIdOf<T>>,
 	/// \[OPTIONAL\] The ID of the mark key, used to verify the
 	/// signatures of the marks created by the DID subject.
-	mark_anchor_key: Option<KeyIdOf<T>>,
+	anchor_key: Option<KeyIdOf<T>>,
 	/// The map of public keys, with the key label as
 	/// the key map and the tuple (key, addition_block_number) as the map
 	/// value.
@@ -201,7 +180,7 @@ impl<T: Config> DidDetails<T> {
 	/// The tx counter is set by default to 0.
 	pub fn new(authentication_key: DidVerificationKey, block_number: BlockNumberOf<T>) -> Self {
 		let mut public_keys: BTreeMap<KeyIdOf<T>, DidPublicKeyDetails<T>> = BTreeMap::new();
-		let authentication_key_id = utils::calculate_key_id::<T>(&authentication_key.clone().into());
+		let authentication_key_id = utils::calculate_key_id::<T>(&authentication_key.into());
 		public_keys.insert(
 			authentication_key_id,
 			DidPublicKeyDetails {
@@ -212,7 +191,7 @@ impl<T: Config> DidDetails<T> {
 		Self {
 			authentication_key: authentication_key_id,
 			key_agreement_keys: BTreeSet::new(),
-			mark_anchor_key: None,
+			anchor_key: None,
 			delegation_key: None,
 			endpoint_url: None,
 			public_keys,
@@ -231,7 +210,7 @@ impl<T: Config> DidDetails<T> {
 		block_number: BlockNumberOf<T>,
 	) {
 		let old_authentication_key_id = self.authentication_key;
-		let new_authentication_key_id = utils::calculate_key_id::<T>(&new_authentication_key.clone().into());
+		let new_authentication_key_id = utils::calculate_key_id::<T>(&new_authentication_key.into());
 		self.authentication_key = new_authentication_key_id;
 		// Remove old key ID from public keys, if not used anymore.
 		self.remove_key_if_unused(&old_authentication_key_id);
@@ -267,18 +246,18 @@ impl<T: Config> DidDetails<T> {
 		}
 	}
 
-	/// Update the DID mark key.
+	/// Update the DID Anchor key.
 	///
 	/// The old key is not removed from the set of verification keys, hence
 	/// it can still be used to verify past marks.
 	/// The new key is added to the set of verification keys.
-	pub fn update_mark_anchor_key(&mut self, new_mark_anchor_key: DidVerificationKey, block_number: BlockNumberOf<T>) {
-		let new_mark_anchor_key_id = utils::calculate_key_id::<T>(&new_mark_anchor_key.clone().into());
-		self.mark_anchor_key = Some(new_mark_anchor_key_id);
+	pub fn update_anchor_key(&mut self, new_anchor_key: DidVerificationKey, block_number: BlockNumberOf<T>) {
+		let new_anchor_key_id = utils::calculate_key_id::<T>(&new_anchor_key.clone().into());
+		self.anchor_key = Some(new_anchor_key_id);
 		self.public_keys.insert(
-			new_mark_anchor_key_id,
+			new_anchor_key_id,
 			DidPublicKeyDetails {
-				key: new_mark_anchor_key.into(),
+				key: new_anchor_key.into(),
 				block_number,
 			},
 		);
@@ -289,8 +268,8 @@ impl<T: Config> DidDetails<T> {
 	/// Once deleted, it cannot be used to write new marks anymore.
 	/// The old key is not removed from the set of verification keys, hence
 	/// it can still be used to verify past marks.
-	pub fn delete_mark_anchor_key(&mut self) {
-		self.mark_anchor_key = None;
+	pub fn delete_anchor_key(&mut self) {
+		self.anchor_key = None;
 	}
 
 	/// Update the DID delegation key.
@@ -300,7 +279,7 @@ impl<T: Config> DidDetails<T> {
 	/// set of verification keys.
 	pub fn update_delegation_key(&mut self, new_delegation_key: DidVerificationKey, block_number: BlockNumberOf<T>) {
 		let old_delegation_key_id = self.delegation_key;
-		let new_delegation_key_id = utils::calculate_key_id::<T>(&new_delegation_key.clone().into());
+		let new_delegation_key_id = utils::calculate_key_id::<T>(&new_delegation_key.into());
 		self.delegation_key = Some(new_delegation_key_id);
 		if let Some(old_delegation_key) = old_delegation_key_id {
 			self.remove_key_if_unused(&old_delegation_key);
@@ -332,19 +311,19 @@ impl<T: Config> DidDetails<T> {
 	///
 	/// When deleting a public key, the following conditions are verified:
 	/// - 1. the set of keys to delete does not contain any of the currently
-	///   active verification keys, i.e., authentication, mark, and
-	///   delegation key, i.e., only key agreement keys and past mark
+	///   active verification keys, i.e., authentication, anchor, and
+	///   delegation key, i.e., only key agreement keys and past anchor
 	///   keys can be deleted.
 	/// - 2. the set of keys to delete contains key IDs that are not currently
 	///   stored on chain
 	fn remove_public_keys(&mut self, key_ids: &BTreeSet<KeyIdOf<T>>) -> Result<(), StorageError> {
-		// Consider the currently active authentication, mark, and delegation key
+		// Consider the currently active authentication, anchor, and delegation key
 		// as forbidden to delete. They can be deleted with the right operation for the
 		// respective fields in the DidUpdateOperation.
 		let mut forbidden_verification_key_ids = BTreeSet::new();
 		forbidden_verification_key_ids.insert(self.authentication_key);
-		if let Some(mark_anchor_key_id) = self.mark_anchor_key {
-			forbidden_verification_key_ids.insert(mark_anchor_key_id);
+		if let Some(anchor_key_id) = self.anchor_key {
+			forbidden_verification_key_ids.insert(anchor_key_id);
 		}
 		if let Some(delegation_key_id) = self.delegation_key {
 			forbidden_verification_key_ids.insert(delegation_key_id);
@@ -368,10 +347,10 @@ impl<T: Config> DidDetails<T> {
 	}
 
 	// Remove a key from the map of public keys if none of the other keys, i.e.,
-	// authentication, key agreement, mark, or delegation, is referencing it.
+	// authentication, key agreement, anchor, or delegation, is referencing it.
 	fn remove_key_if_unused(&mut self, key_id: &KeyIdOf<T>) {
 		if self.authentication_key != *key_id
-			&& self.mark_anchor_key != Some(*key_id)
+			&& self.anchor_key != Some(*key_id)
 			&& self.delegation_key != Some(*key_id)
 			&& !self.key_agreement_keys.contains(key_id)
 		{
@@ -387,8 +366,8 @@ impl<T: Config> DidDetails<T> {
 		&self.key_agreement_keys
 	}
 
-	pub fn get_mark_anchor_key_id(&self) -> &Option<KeyIdOf<T>> {
-		&self.mark_anchor_key
+	pub fn get_anchor_key_id(&self) -> &Option<KeyIdOf<T>> {
+		&self.anchor_key
 	}
 
 	pub fn get_delegation_key_id(&self) -> &Option<KeyIdOf<T>> {
@@ -406,7 +385,7 @@ impl<T: Config> DidDetails<T> {
 		key_type: DidVerificationKeyRelationship,
 	) -> Option<&DidVerificationKey> {
 		let key_id = match key_type {
-			DidVerificationKeyRelationship::AssertionMethod => self.mark_anchor_key,
+			DidVerificationKeyRelationship::AssertionMethod => self.anchor_key,
 			DidVerificationKeyRelationship::Authentication => Some(self.authentication_key),
 			DidVerificationKeyRelationship::CapabilityDelegation => self.delegation_key,
 			_ => None,
@@ -441,11 +420,10 @@ impl<T: Config> DidDetails<T> {
 	}
 }
 
-impl<T: Config> TryFrom<(DidCreationOperation<T>, DidVerificationKey)> for DidDetails<T> {
+impl<T: Config> TryFrom<DidCreationOperation<T>> for DidDetails<T> {
 	type Error = InputError;
 
-	fn try_from(new_details: (DidCreationOperation<T>, DidVerificationKey)) -> Result<Self, Self::Error> {
-		let (op, new_auth_key) = new_details;
+	fn try_from(op: DidCreationOperation<T>) -> Result<Self, Self::Error> {
 		ensure!(
 			op.new_key_agreement_keys.len() <= <<T as Config>::MaxNewKeyAgreementKeys>::get() as usize,
 			InputError::MaxKeyAgreementKeysLimitExceeded
@@ -461,12 +439,12 @@ impl<T: Config> TryFrom<(DidCreationOperation<T>, DidVerificationKey)> for DidDe
 		let current_block_number = <frame_system::Pallet<T>>::block_number();
 
 		// Creates a new DID with the given authentication key.
-		let mut new_did_details = DidDetails::new(new_auth_key, current_block_number);
+		let mut new_did_details = DidDetails::new(op.new_authentication_key, current_block_number);
 
 		new_did_details.add_key_agreement_keys(op.new_key_agreement_keys, current_block_number);
 
-		if let Some(mark_anchor_key) = op.new_mark_anchor_key {
-			new_did_details.update_mark_anchor_key(mark_anchor_key, current_block_number);
+		if let Some(anchor_key) = op.new_anchor_key {
+			new_did_details.update_anchor_key(anchor_key, current_block_number);
 		}
 
 		if let Some(delegation_key) = op.new_delegation_key {
@@ -527,13 +505,13 @@ impl<T: Config> TryFrom<(DidDetails<T>, DidUpdateOperation<T>)> for DidDetails<T
 		// Add any new key agreement keys.
 		new_details.add_key_agreement_keys(update_operation.new_key_agreement_keys, current_block_number);
 
-		// Update/remove the mark key, if needed.
-		match update_operation.mark_anchor_key_update {
+		// Update/remove the anchor key, if needed.
+		match update_operation.anchor_key_update {
 			DidVerificationKeyUpdateAction::Delete => {
-				new_details.delete_mark_anchor_key();
+				new_details.delete_anchor_key();
 			}
-			DidVerificationKeyUpdateAction::Change(new_mark_anchor_key) => {
-				new_details.update_mark_anchor_key(new_mark_anchor_key, current_block_number);
+			DidVerificationKeyUpdateAction::Change(new_anchor_key) => {
+				new_details.update_anchor_key(new_anchor_key, current_block_number);
 			}
 			// Nothing happens.
 			DidVerificationKeyUpdateAction::Ignore => {}
@@ -601,10 +579,12 @@ pub trait DeriveDidCallAuthorizationVerificationKeyRelationship {
 pub struct DidCreationOperation<T: Config> {
 	/// The DID identifier. It has to be unique.
 	pub did: DidIdentifierOf<T>,
+	/// The new authentication key.
+	pub new_authentication_key: DidVerificationKey,
 	/// The new key agreement keys.
 	pub new_key_agreement_keys: BTreeSet<DidEncryptionKey>,
 	/// \[OPTIONAL\] The new mark key.
-	pub new_mark_anchor_key: Option<DidVerificationKey>,
+	pub new_anchor_key: Option<DidVerificationKey>,
 	/// \[OPTIONAL\] The new delegation key.
 	pub new_delegation_key: Option<DidVerificationKey>,
 	/// \[OPTIONAL\] The URL containing the DID endpoints description.
@@ -612,7 +592,6 @@ pub struct DidCreationOperation<T: Config> {
 }
 
 impl<T: Config> DidOperation<T> for DidCreationOperation<T> {
-	// Not really used for creations.
 	fn get_verification_key_relationship(&self) -> DidVerificationKeyRelationship {
 		DidVerificationKeyRelationship::Authentication
 	}
@@ -642,7 +621,7 @@ pub struct DidUpdateOperation<T: Config> {
 	/// A new set of key agreement keys to add to the ones already stored.
 	pub new_key_agreement_keys: BTreeSet<DidEncryptionKey>,
 	/// \[OPTIONAL\] The mark key update action.
-	pub mark_anchor_key_update: DidVerificationKeyUpdateAction,
+	pub anchor_key_update: DidVerificationKeyUpdateAction,
 	/// \[OPTIONAL\] The delegation key update action.
 	pub delegation_key_update: DidVerificationKeyUpdateAction,
 	/// The set of old mark keys to remove, given their identifiers.
@@ -672,7 +651,7 @@ impl<T: Config> DidOperation<T> for DidUpdateOperation<T> {
 
 /// Possible actions on a DID verification key within a
 /// [DidUpdateOperation].
-#[derive(Clone, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Decode, Debug, Encode, Eq, Ord, PartialEq, PartialOrd)]
 pub enum DidVerificationKeyUpdateAction {
 	/// Do not change the verification key.
 	Ignore,

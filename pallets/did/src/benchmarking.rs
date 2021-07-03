@@ -4,12 +4,10 @@
 //! Benchmarking of Mtype
 
 use codec::Encode;
-use cord_primitives::AccountId;
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_system::RawOrigin;
 use sp_core::{crypto::KeyTypeId, ed25519, sr25519};
 use sp_io::crypto::{ed25519_generate, ed25519_sign, sr25519_generate, sr25519_sign};
-use sp_runtime::{traits::IdentifyAccount, MultiSigner};
 use sp_std::{collections::btree_set::BTreeSet, convert::TryInto};
 
 use crate::*;
@@ -18,7 +16,7 @@ use did_details::*;
 const DEFAULT_ACCOUNT_ID: &str = "tx_submitter";
 const DEFAULT_ACCOUNT_SEED: u32 = 0;
 const AUTHENTICATION_KEY_ID: KeyTypeId = KeyTypeId(*b"0000");
-const MARK_ANCHOR_KEY_ID: KeyTypeId = KeyTypeId(*b"0001");
+const ANCHOR_KEY_ID: KeyTypeId = KeyTypeId(*b"0001");
 const DELEGATION_KEY_ID: KeyTypeId = KeyTypeId(*b"0002");
 const DEFAULT_URL_SCHEME: [u8; 8] = *b"https://";
 
@@ -59,12 +57,12 @@ fn get_public_keys<T: Config>(n_keys: u32) -> BTreeSet<KeyIdOf<T>> {
 		.collect::<BTreeSet<KeyIdOf<T>>>()
 }
 
-fn get_ed25519_public_mark_anchor_key() -> ed25519::Public {
-	ed25519_generate(MARK_ANCHOR_KEY_ID, None)
+fn get_ed25519_public_anchor_key() -> ed25519::Public {
+	ed25519_generate(ANCHOR_KEY_ID, None)
 }
 
-fn get_sr25519_public_mark_anchor_key() -> sr25519::Public {
-	sr25519_generate(MARK_ANCHOR_KEY_ID, None)
+fn get_sr25519_public_anchor_key() -> sr25519::Public {
+	sr25519_generate(ANCHOR_KEY_ID, None)
 }
 
 fn get_ed25519_public_delegation_key() -> ed25519::Public {
@@ -89,11 +87,15 @@ fn get_did_base_details<T: Config>(auth_key: DidVerificationKey) -> DidDetails<T
 	DidDetails::new(auth_key, BlockNumberOf::<T>::default())
 }
 
-fn generate_base_did_creation_operation<T: Config>(did: DidIdentifierOf<T>) -> DidCreationOperation<T> {
+fn generate_base_did_creation_operation<T: Config>(
+	did: DidIdentifierOf<T>,
+	new_auth_key: DidVerificationKey,
+) -> DidCreationOperation<T> {
 	DidCreationOperation {
 		did,
+		new_authentication_key: new_auth_key,
 		new_key_agreement_keys: BTreeSet::new(),
-		new_mark_anchor_key: None,
+		new_anchor_key: None,
 		new_delegation_key: None,
 		new_endpoint_url: None,
 	}
@@ -104,7 +106,7 @@ fn generate_base_did_update_operation<T: Config>(did: DidIdentifierOf<T>) -> Did
 		did,
 		new_authentication_key: None,
 		new_key_agreement_keys: BTreeSet::new(),
-		mark_anchor_key_update: DidVerificationKeyUpdateAction::default(),
+		anchor_key_update: DidVerificationKeyUpdateAction::default(),
 		delegation_key_update: DidVerificationKeyUpdateAction::default(),
 		new_endpoint_url: None,
 		public_keys_to_remove: BTreeSet::new(),
@@ -128,7 +130,6 @@ fn generate_base_did_call_operation<T: Config>(did: DidIdentifierOf<T>) -> DidAu
 }
 
 benchmarks! {
-	where_clause { where T::DidIdentifier: From<AccountId>, <T as frame_system::Config>::Origin: From<RawOrigin<T::DidIdentifier>>}
 
 	submit_did_create_operation_ed25519_keys {
 		let n in 1 .. T::MaxNewKeyAgreementKeys::get();
@@ -136,16 +137,16 @@ benchmarks! {
 
 		let submitter: AccountIdentifierOf<T> = account(DEFAULT_ACCOUNT_ID, 0, DEFAULT_ACCOUNT_SEED);
 
+		let did_subject = DidIdentifierOf::<T>::default();
 		let did_public_auth_key = get_ed25519_public_authentication_key();
-		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
 		let did_key_agreement_keys = get_key_agreement_keys(n);
-		let did_public_att_key = get_ed25519_public_mark_anchor_key();
+		let did_public_att_key = get_ed25519_public_anchor_key();
 		let did_public_del_key = get_ed25519_public_delegation_key();
 		let did_endpoint = get_url_endpoint(u);
 
-		let mut did_creation_op = generate_base_did_creation_operation::<T>(did_subject.clone());
+		let mut did_creation_op = generate_base_did_creation_operation::<T>(did_subject.clone(), DidVerificationKey::from(did_public_auth_key));
 		did_creation_op.new_key_agreement_keys = did_key_agreement_keys;
-		did_creation_op.new_mark_anchor_key = Some(DidVerificationKey::from(did_public_att_key));
+		did_creation_op.new_anchor_key = Some(DidVerificationKey::from(did_public_att_key));
 		did_creation_op.new_delegation_key = Some(DidVerificationKey::from(did_public_del_key));
 		did_creation_op.new_endpoint_url = Some(did_endpoint);
 
@@ -156,7 +157,7 @@ benchmarks! {
 		let stored_key_agreement_keys_ids = stored_did.get_key_agreement_keys_ids();
 
 		let expected_authentication_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(did_public_auth_key).into());
-		let expected_mark_anchor_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(did_public_att_key).into());
+		let expected_anchor_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(did_public_att_key).into());
 		let expected_delegation_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(did_public_del_key).into());
 
 		assert_eq!(
@@ -172,8 +173,8 @@ benchmarks! {
 			&Some(expected_delegation_key_id)
 		);
 		assert_eq!(
-			stored_did.get_mark_anchor_key_id(),
-			&Some(expected_mark_anchor_key_id)
+			stored_did.get_anchor_key_id(),
+			&Some(expected_anchor_key_id)
 		);
 		assert_eq!(stored_did.endpoint_url, did_creation_op.new_endpoint_url);
 		assert_eq!(stored_did.last_tx_counter, 0u64);
@@ -185,16 +186,16 @@ benchmarks! {
 
 		let submitter: AccountIdentifierOf<T> = account(DEFAULT_ACCOUNT_ID, 0, DEFAULT_ACCOUNT_SEED);
 
+		let did_subject = DidIdentifierOf::<T>::default();
 		let did_public_auth_key = get_sr25519_public_authentication_key();
-		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
 		let did_key_agreement_keys = get_key_agreement_keys(n);
-		let did_public_att_key = get_sr25519_public_mark_anchor_key();
+		let did_public_att_key = get_sr25519_public_anchor_key();
 		let did_public_del_key = get_sr25519_public_delegation_key();
 		let did_endpoint = get_url_endpoint(u);
 
 		let mut did_creation_op = generate_base_did_creation_operation::<T>(did_subject.clone());
 		did_creation_op.new_key_agreement_keys = did_key_agreement_keys;
-		did_creation_op.new_mark_anchor_key = Some(DidVerificationKey::from(did_public_att_key));
+		did_creation_op.new_anchor_key = Some(DidVerificationKey::from(did_public_att_key));
 		did_creation_op.new_delegation_key = Some(DidVerificationKey::from(did_public_del_key));
 		did_creation_op.new_endpoint_url = Some(did_endpoint);
 
@@ -205,7 +206,7 @@ benchmarks! {
 		let stored_key_agreement_keys_ids = stored_did.get_key_agreement_keys_ids();
 
 		let expected_authentication_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(did_public_auth_key).into());
-		let expected_mark_anchor_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(did_public_att_key).into());
+		let expected_anchor_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(did_public_att_key).into());
 		let expected_delegation_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(did_public_del_key).into());
 
 		assert_eq!(
@@ -221,8 +222,8 @@ benchmarks! {
 			&Some(expected_delegation_key_id)
 		);
 		assert_eq!(
-			stored_did.get_mark_anchor_key_id(),
-			&Some(expected_mark_anchor_key_id)
+			stored_did.get_anchor_key_id(),
+			&Some(expected_anchor_key_id)
 		);
 		assert_eq!(stored_did.endpoint_url, did_creation_op.new_endpoint_url);
 		assert_eq!(stored_did.last_tx_counter, 0u64);
@@ -235,8 +236,8 @@ benchmarks! {
 
 		let submitter: AccountIdentifierOf<T> = account(DEFAULT_ACCOUNT_ID, 0, DEFAULT_ACCOUNT_SEED);
 
+		let did_subject = DidIdentifierOf::<T>::default();
 		let did_public_auth_key = get_ed25519_public_authentication_key();
-		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
 		// To cover cases in which m > n without failing, we add m + n keys to the set of keys before the update operation
 		let did_key_agreement_keys = get_key_agreement_keys(m + n);
 
@@ -246,7 +247,7 @@ benchmarks! {
 
 		let new_did_public_auth_key = get_ed25519_public_authentication_key();
 		let new_key_agreement_keys = get_key_agreement_keys(n);
-		let new_did_public_att_key = get_ed25519_public_mark_anchor_key();
+		let new_did_public_att_key = get_ed25519_public_anchor_key();
 		let new_did_public_del_key = get_ed25519_public_delegation_key();
 		// Public keys obtained are generated using the same logic as the key agreement keys, so that we are sure they do not generate KeyNotPresent errors
 		let public_keys_to_remove = get_public_keys::<T>(m);
@@ -255,7 +256,7 @@ benchmarks! {
 		let mut did_update_op = generate_base_did_update_operation::<T>(did_subject.clone());
 		did_update_op.new_authentication_key = Some(DidVerificationKey::from(new_did_public_auth_key));
 		did_update_op.new_key_agreement_keys = new_key_agreement_keys;
-		did_update_op.mark_anchor_key_update = DidVerificationKeyUpdateAction::Change(DidVerificationKey::from(new_did_public_att_key));
+		did_update_op.anchor_key_update = DidVerificationKeyUpdateAction::Change(DidVerificationKey::from(new_did_public_att_key));
 		did_update_op.delegation_key_update = DidVerificationKeyUpdateAction::Change(DidVerificationKey::from(new_did_public_del_key));
 		did_update_op.public_keys_to_remove = public_keys_to_remove;
 		did_update_op.new_endpoint_url = Some(new_url);
@@ -268,7 +269,7 @@ benchmarks! {
 
 		let expected_authentication_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(new_did_public_auth_key).into());
 		let expected_delegation_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(new_did_public_del_key).into());
-		let expected_mark_anchor_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(new_did_public_att_key).into());
+		let expected_anchor_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(new_did_public_att_key).into());
 
 		assert_eq!(
 			stored_did.get_authentication_key_id(),
@@ -283,8 +284,8 @@ benchmarks! {
 			&Some(expected_delegation_key_id)
 		);
 		assert_eq!(
-			stored_did.get_mark_anchor_key_id(),
-			&Some(expected_mark_anchor_key_id)
+			stored_did.get_anchor_key_id(),
+			&Some(expected_anchor_key_id)
 		);
 		assert_eq!(stored_did.endpoint_url, did_update_op.new_endpoint_url);
 		assert_eq!(stored_did.last_tx_counter, did_update_op.tx_counter);
@@ -297,8 +298,8 @@ benchmarks! {
 
 		let submitter: AccountIdentifierOf<T> = account(DEFAULT_ACCOUNT_ID, 0, DEFAULT_ACCOUNT_SEED);
 
+		let did_subject = DidIdentifierOf::<T>::default();
 		let did_public_auth_key = get_sr25519_public_authentication_key();
-		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
 		// To cover cases in which m > n without failing, we add m + n keys to the set of keys before the update operation
 		let did_key_agreement_keys = get_key_agreement_keys(m + n);
 
@@ -308,7 +309,7 @@ benchmarks! {
 
 		let new_did_public_auth_key = get_sr25519_public_authentication_key();
 		let new_key_agreement_keys = get_key_agreement_keys(n);
-		let new_did_public_att_key = get_sr25519_public_mark_anchor_key();
+		let new_did_public_att_key = get_sr25519_public_anchor_key();
 		let new_did_public_del_key = get_sr25519_public_delegation_key();
 		// Public keys obtained are generated using the same logic as the key agreement keys, so that we are sure they do not generate KeyNotPresent errors
 		let public_keys_to_remove = get_public_keys::<T>(m);
@@ -317,7 +318,7 @@ benchmarks! {
 		let mut did_update_op = generate_base_did_update_operation::<T>(did_subject.clone());
 		did_update_op.new_authentication_key = Some(DidVerificationKey::from(new_did_public_auth_key));
 		did_update_op.new_key_agreement_keys = new_key_agreement_keys;
-		did_update_op.mark_anchor_key_update = DidVerificationKeyUpdateAction::Change(DidVerificationKey::from(new_did_public_att_key));
+		did_update_op.anchor_key_update = DidVerificationKeyUpdateAction::Change(DidVerificationKey::from(new_did_public_att_key));
 		did_update_op.delegation_key_update = DidVerificationKeyUpdateAction::Change(DidVerificationKey::from(new_did_public_del_key));
 		did_update_op.public_keys_to_remove = public_keys_to_remove;
 		did_update_op.new_endpoint_url = Some(new_url);
@@ -330,7 +331,7 @@ benchmarks! {
 
 		let expected_authentication_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(new_did_public_auth_key).into());
 		let expected_delegation_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(new_did_public_del_key).into());
-		let expected_mark_anchor_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(new_did_public_att_key).into());
+		let expected_anchor_key_id = utils::calculate_key_id::<T>(&DidVerificationKey::from(new_did_public_att_key).into());
 
 		assert_eq!(
 			stored_did.get_authentication_key_id(),
@@ -345,8 +346,8 @@ benchmarks! {
 			&Some(expected_delegation_key_id)
 		);
 		assert_eq!(
-			stored_did.get_mark_anchor_key_id(),
-			&Some(expected_mark_anchor_key_id)
+			stored_did.get_anchor_key_id(),
+			&Some(expected_anchor_key_id)
 		);
 		assert_eq!(stored_did.endpoint_url, did_update_op.new_endpoint_url);
 		assert_eq!(stored_did.last_tx_counter, did_update_op.tx_counter);
@@ -354,8 +355,8 @@ benchmarks! {
 	submit_did_delete_operation {
 		let submitter: AccountIdentifierOf<T> = account(DEFAULT_ACCOUNT_ID, 0, DEFAULT_ACCOUNT_SEED);
 
+		let did_subject = DidIdentifierOf::<T>::default();
 		let did_public_auth_key = get_ed25519_public_authentication_key();
-		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
 
 		let did_details = get_did_base_details(DidVerificationKey::from(did_public_auth_key));
 		Did::<T>::insert(&did_subject, did_details);
@@ -374,8 +375,8 @@ benchmarks! {
 	submit_did_call_ed25519_key {
 		let submitter: AccountIdentifierOf<T> = account(DEFAULT_ACCOUNT_ID, 0, DEFAULT_ACCOUNT_SEED);
 
+		let did_subject = DidIdentifierOf::<T>::default();
 		let did_public_auth_key = get_ed25519_public_authentication_key();
-		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
 
 		let did_details = get_did_base_details(DidVerificationKey::from(did_public_auth_key));
 		Did::<T>::insert(&did_subject, did_details);
@@ -388,8 +389,8 @@ benchmarks! {
 	submit_did_call_sr25519_key {
 		let submitter: AccountIdentifierOf<T> = account(DEFAULT_ACCOUNT_ID, 0, DEFAULT_ACCOUNT_SEED);
 
+		let did_subject = DidIdentifierOf::<T>::default();
 		let did_public_auth_key = get_sr25519_public_authentication_key();
-		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
 
 		let did_details = get_did_base_details(DidVerificationKey::from(did_public_auth_key));
 		Did::<T>::insert(&did_subject, did_details);
