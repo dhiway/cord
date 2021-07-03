@@ -106,15 +106,15 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new root has been created.
-		/// \[creator ID, root node ID, MTYPE hash\]
-		RootCreated(DelegatorIdOf<T>, DelegationNodeIdOf<T>, MtypeHashOf<T>),
-		/// A root has been revoked.
-		/// \[revoker ID, root node ID\]
-		RootRevoked(DelegatorIdOf<T>, DelegationNodeIdOf<T>),
-		/// A new delegation has been created.
-		/// \[creator ID, root node ID, delegation node ID, parent node ID,
+		/// \[creator ID, registry root ID, MTYPE hash\]
+		DelegationRegistryAnchored(DelegatorIdOf<T>, DelegationNodeIdOf<T>, MtypeHashOf<T>),
+		/// A Registry root has been revoked.
+		/// \[revoker ID, registry root ID\]
+		DelegationRegistryRevoked(DelegatorIdOf<T>, DelegationNodeIdOf<T>),
+		/// A new delegation has been added to the registry.
+		/// \[creator ID, registry root ID, delegation node ID, parent node ID,
 		/// delegate ID, permissions\]
-		DelegationCreated(
+		DelegationAdded(
 			DelegatorIdOf<T>,
 			DelegationNodeIdOf<T>,
 			DelegationNodeIdOf<T>,
@@ -194,7 +194,7 @@ pub mod pallet {
 			log::debug!("insert Delegation Root");
 			<Roots<T>>::insert(&root_id, DelegationRoot::new(mtype_hash, creator.clone()));
 
-			Self::deposit_event(Event::RootCreated(creator, root_id, mtype_hash));
+			Self::deposit_event(Event::DelegationRegistryAnchored(creator, root_id, mtype_hash));
 
 			Ok(())
 		}
@@ -287,7 +287,7 @@ pub mod pallet {
 			// that node
 			Self::add_child(delegation_id, parent);
 
-			Self::deposit_event(Event::DelegationCreated(
+			Self::deposit_event(Event::DelegationAdded(
 				delegator,
 				delegation_id,
 				root_id,
@@ -343,7 +343,7 @@ pub mod pallet {
 				0
 			};
 
-			Self::deposit_event(Event::RootRevoked(invoker, root_id));
+			Self::deposit_event(Event::DelegationRegistryRevoked(invoker, root_id));
 
 			Ok(Some(consumed_weight.saturating_add(T::DbWeight::get().reads(1))).into())
 		}

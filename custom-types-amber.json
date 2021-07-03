@@ -4,20 +4,20 @@
   "AmountOf": "i128",
   "Balance": "u128",
   "LookupSource": "MultiAddress",
-  "MtypeCreatorOf": "DidIdentifierOf",
+  "MtypeOwnerOf": "AccountId",
   "MtypeHashOf": "Hash",
   "StreamHashOf": "Hash",
-  "MarkerOf": "DidIdentifierOf",
+  "IssuerOf": "AccountId",
   "MarkDetails": {
-    "c=mtypeHash": "CtypeHashOf",
-    "marker": "AttesterOf",
+    "mtypeHash": "MtypeHashOf",
+    "issuer": "IssuerOf",
     "delegationId": "Option<DelegationNodeIdOf>",
     "revoked": "bool"
   },
   "Permissions": "u32",
   "DelegationNodeIdOf": "Hash",
-  "DelegatorIdOf": "DidIdentifierOf",
-  "DelegationSignature": "DidSignature",
+  "DelegatorIdOf": "AccountId",
+  "DelegateSignatureTypeOf": "Vec<u8>",
   "DelegationRoot": {
     "mtypeHash": "MtypeHashOf",
     "owner": "DelegatorIdOf",
@@ -29,6 +29,10 @@
     "owner": "DelegatorIdOf",
     "permissions": "Permissions",
     "revoked": "bool"
+  },
+  "DelegationCounter": {
+    "round": "SessionIndex",
+    "counter": "u32"
   },
   "KeyIdOf": "Hash",
   "DidIdentifierOf": "AccountId",
@@ -101,7 +105,7 @@
     "authenticationKey": "KeyIdOf",
     "keyAgreementKeys": "BTreeSet<KeyIdOf>",
     "delegationKey": "Option<KeyIdOf>",
-    "attestationKey": "Option<KeyIdOf>",
+    "anchorKey": "Option<KeyIdOf>",
     "publicKeys": "BTreeMap<KeyIdOf, DidPublicKeyDetails>",
     "endpointUrl": "Option<Url>",
     "lastTxCounter": "u64"
@@ -110,7 +114,7 @@
     "did": "DidIdentifierOf",
     "newAuthenticationKey": "DidVerificationKey",
     "newKeyAgreementKeys": "BTreeSet<DidEncryptionKey>",
-    "newAttestationKey": "Option<DidVerificationKey>",
+    "newAnchorKey": "Option<DidVerificationKey>",
     "newDelegationKey": "Option<DidVerificationKey>",
     "newEndpointUrl": "Option<Url>"
   },
@@ -118,7 +122,7 @@
     "did": "DidIdentifierOf",
     "newAuthenticationKey": "Option<DidVerificationKey>",
     "newKeyAgreementKeys": "BTreeSet<DidEncryptionKey>",
-    "attestationKeyUpdate": "DidVerificationKeyUpdateAction",
+    "anchorKeyUpdate": "DidVerificationKeyUpdateAction",
     "delegationKeyUpdate": "DidVerificationKeyUpdateAction",
     "publicKeysToRemove": "BTreeSet<KeyIdOf>",
     "newEndpointUrl": "Option<Url>",

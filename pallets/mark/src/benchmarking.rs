@@ -29,7 +29,7 @@ benchmarks! {
 		assert!(Marks::<T>::contains_key(stream_hash));
 		assert_eq!(Pallet::<T>::marks(stream_hash), Some(MarkDetails {
 			mtype_hash,
-			marker: delegate_acc,
+			issuer: delegate_acc,
 			delegation_id: Some(delegation_id),
 			revoked: false,
 		}));
@@ -53,7 +53,7 @@ benchmarks! {
 		assert!(Marks::<T>::contains_key(stream_hash));
 		assert_eq!(Marks::<T>::get(stream_hash), Some(MarkDetails {
 			mtype_hash,
-			marker: delegate_acc,
+			issuer: delegate_acc,
 			delegation_id: Some(delegation_id),
 			revoked: true,
 		}));
@@ -79,7 +79,7 @@ benchmarks! {
 	// 	assert!(Marks::<T>::contains_key(stream_hash));
 	// 	assert_eq!(Marks::<T>::get(stream_hash), Some(Mark::<T> {
 	// 		mtype_hash,
-	// 		marker: delegate_acc,
+	// 		issuer: delegate_acc,
 	// 		delegation_id: Some(delegation_id),
 	// 		revoked: false,
 	// 	}));

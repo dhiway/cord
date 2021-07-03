@@ -5,7 +5,7 @@ use codec::{Decode, Encode};
 use frame_support::{parameter_types, weights::constants::RocksDbWeight};
 #[cfg(feature = "runtime-benchmarks")]
 use frame_system::EnsureSigned;
-use sp_core::{ecdsa, ed25519, sr25519, Pair};
+use sp_core::{ed25519, sr25519, Pair};
 use sp_keystore::{testing::KeyStore, KeystoreExt};
 use sp_runtime::{
 	testing::Header,
@@ -40,14 +40,14 @@ frame_support::construct_runtime!(
 
 parameter_types! {
 	pub const SS58Prefix: u8 = 29;
-	pub const BlockHashCount: u32 = 250;
+	pub const BlockHashCount: u64 = 250;
 }
 
 impl frame_system::Config for Test {
 	type Origin = Origin;
 	type Call = Call;
-	type Index = u32;
-	type BlockNumber = u32;
+	type Index = u64;
+	type BlockNumber = u64;
 	type Hash = cord_primitives::Hash;
 	type Hashing = BlakeTwo256;
 	type AccountId = <<cord_primitives::Signature as Verify>::Signer as IdentifyAccount>::AccountId;
@@ -88,7 +88,7 @@ impl Config for Test {
 }
 
 impl pallet_mtype::Config for Test {
-	type MtypeCreatorId = TestMtypeOwner;
+	type MtypeOwnerId = TestMtypeOwner;
 	#[cfg(feature = "runtime-benchmarks")]
 	type EnsureOrigin = EnsureSigned<TestDidIdentifier>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
@@ -118,10 +118,6 @@ pub fn get_did_identifier_from_sr25519_key(public_key: sr25519::Public) -> TestD
 	MultiSigner::from(public_key).into_account()
 }
 
-pub fn get_did_identifier_from_ecdsa_key(public_key: ecdsa::Public) -> TestDidIdentifier {
-	MultiSigner::from(public_key).into_account()
-}
-
 pub fn get_ed25519_authentication_key(default: bool) -> ed25519::Pair {
 	if default {
 		ed25519::Pair::from_seed(&DEFAULT_AUTH_SEED)
@@ -138,14 +134,6 @@ pub fn get_sr25519_authentication_key(default: bool) -> sr25519::Pair {
 	}
 }
 
-pub fn get_ecdsa_authentication_key(default: bool) -> ecdsa::Pair {
-	if default {
-		ecdsa::Pair::from_seed(&DEFAULT_AUTH_SEED)
-	} else {
-		ecdsa::Pair::from_seed(&ALTERNATIVE_AUTH_SEED)
-	}
-}
-
 pub fn get_x25519_encryption_key(default: bool) -> DidEncryptionKey {
 	if default {
 		DidEncryptionKey::X25519(DEFAULT_ENC_SEED)
@@ -154,7 +142,7 @@ pub fn get_x25519_encryption_key(default: bool) -> DidEncryptionKey {
 	}
 }
 
-pub fn get_ed25519_mark_key(default: bool) -> ed25519::Pair {
+pub fn get_ed25519_mark_anchor_key(default: bool) -> ed25519::Pair {
 	if default {
 		ed25519::Pair::from_seed(&DEFAULT_ATT_SEED)
 	} else {
@@ -162,19 +150,11 @@ pub fn get_ed25519_mark_key(default: bool) -> ed25519::Pair {
 	}
 }
 
-pub fn get_sr25519_mark_key(default: bool) -> sr25519::Pair {
+pub fn get_sr25519_mark_anchor_key(default: bool) -> sr25519::Pair {
 	if default {
 		sr25519::Pair::from_seed(&DEFAULT_ATT_SEED)
 	} else {
 		sr25519::Pair::from_seed(&ALTERNATIVE_ATT_SEED)
-	}
-}
-
-pub fn get_ecdsa_mark_key(default: bool) -> ecdsa::Pair {
-	if default {
-		ecdsa::Pair::from_seed(&DEFAULT_ATT_SEED)
-	} else {
-		ecdsa::Pair::from_seed(&ALTERNATIVE_ATT_SEED)
 	}
 }
 
@@ -191,14 +171,6 @@ pub fn get_sr25519_delegation_key(default: bool) -> sr25519::Pair {
 		sr25519::Pair::from_seed(&DEFAULT_DEL_SEED)
 	} else {
 		sr25519::Pair::from_seed(&ALTERNATIVE_DEL_SEED)
-	}
-}
-
-pub fn get_ecdsa_delegation_key(default: bool) -> ecdsa::Pair {
-	if default {
-		ecdsa::Pair::from_seed(&DEFAULT_DEL_SEED)
-	} else {
-		ecdsa::Pair::from_seed(&ALTERNATIVE_DEL_SEED)
 	}
 }
 
@@ -245,7 +217,7 @@ pub fn generate_base_did_creation_operation(did: TestDidIdentifier) -> did::DidC
 	DidCreationOperation {
 		did,
 		new_key_agreement_keys: BTreeSet::new(),
-		new_mark_key: None,
+		new_mark_anchor_key: None,
 		new_delegation_key: None,
 		new_endpoint_url: None,
 	}
@@ -256,7 +228,7 @@ pub fn generate_base_did_update_operation(did: TestDidIdentifier) -> did::DidUpd
 		did,
 		new_authentication_key: None,
 		new_key_agreement_keys: BTreeSet::new(),
-		mark_key_update: DidVerificationKeyUpdateAction::default(),
+		mark_anchor_key_update: DidVerificationKeyUpdateAction::default(),
 		delegation_key_update: DidVerificationKeyUpdateAction::default(),
 		new_endpoint_url: None,
 		public_keys_to_remove: BTreeSet::new(),
@@ -276,11 +248,11 @@ pub fn generate_key_id(key: &did::DidPublicKey) -> TestKeyId {
 	utils::calculate_key_id::<Test>(key)
 }
 
-pub(crate) fn get_mark_key_test_input() -> TestMtypeHash {
+pub(crate) fn get_mark_anchor_key_test_input() -> TestMtypeHash {
 	TestMtypeHash::from_slice(&[0u8; 32])
 }
-pub(crate) fn get_mark_key_call() -> Call {
-	Call::Mtype(pallet_mtype::Call::anchor(get_mark_key_test_input()))
+pub(crate) fn get_mark_anchor_key_call() -> Call {
+	Call::Mtype(pallet_mtype::Call::anchor(get_mark_anchor_key_test_input()))
 }
 pub(crate) fn get_authentication_key_test_input() -> TestMtypeHash {
 	TestMtypeHash::from_slice(&[1u8; 32])
@@ -303,7 +275,7 @@ pub(crate) fn get_no_key_call() -> Call {
 
 impl did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call {
 	fn derive_verification_key_relationship(&self) -> Option<did::DidVerificationKeyRelationship> {
-		if *self == get_mark_key_call() {
+		if *self == get_mark_anchor_key_call() {
 			Some(did::DidVerificationKeyRelationship::AssertionMethod)
 		} else if *self == get_authentication_key_call() {
 			Some(did::DidVerificationKeyRelationship::Authentication)
@@ -331,7 +303,7 @@ pub fn generate_test_did_call(
 	caller: TestDidIdentifier,
 ) -> did::DidAuthorizedCallOperation<Test> {
 	let call = match verification_key_required {
-		DidVerificationKeyRelationship::AssertionMethod => get_mark_key_call(),
+		DidVerificationKeyRelationship::AssertionMethod => get_mark_anchor_key_call(),
 		DidVerificationKeyRelationship::Authentication => get_authentication_key_call(),
 		DidVerificationKeyRelationship::CapabilityDelegation => get_delegation_key_call(),
 		_ => get_no_key_call(),

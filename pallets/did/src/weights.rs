@@ -30,14 +30,11 @@ use sp_std::marker::PhantomData;
 pub trait WeightInfo {
 	fn submit_did_create_operation_ed25519_keys(n: u32, u: u32, ) -> Weight;
 	fn submit_did_create_operation_sr25519_keys(n: u32, u: u32, ) -> Weight;
-	fn submit_did_create_operation_ecdsa_keys(n: u32, u: u32, ) -> Weight;
 	fn submit_did_update_operation_ed25519_keys(n: u32, m: u32, u: u32, ) -> Weight;
 	fn submit_did_update_operation_sr25519_keys(n: u32, m: u32, u: u32, ) -> Weight;
-	fn submit_did_update_operation_ecdsa_keys(n: u32, m: u32, u: u32, ) -> Weight;
 	fn submit_did_delete_operation() -> Weight;
 	fn submit_did_call_ed25519_key() -> Weight;
 	fn submit_did_call_sr25519_key() -> Weight;
-	fn submit_did_call_ecdsa_key() -> Weight;
 }
 
 /// Weights for did using the Substrate node and recommended hardware.
@@ -61,15 +58,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	fn submit_did_create_operation_ecdsa_keys(n: u32, u: u32, ) -> Weight {
-		(181_586_000_u64)
-			// Standard Error: 51_000
-			.saturating_add((1_768_000_u64).saturating_mul(n as Weight))
-			// Standard Error: 2_000
-			.saturating_add((3_000_u64).saturating_mul(u as Weight))
-			.saturating_add(T::DbWeight::get().reads(1_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
 	fn submit_did_update_operation_ed25519_keys(n: u32, m: u32, _u: u32, ) -> Weight {
 		(71_793_000_u64)
 			// Standard Error: 39_000
@@ -88,17 +76,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
-	fn submit_did_update_operation_ecdsa_keys(n: u32, m: u32, u: u32, ) -> Weight {
-		(170_458_000_u64)
-			// Standard Error: 67_000
-			.saturating_add((3_849_000_u64).saturating_mul(n as Weight))
-			// Standard Error: 67_000
-			.saturating_add((3_102_000_u64).saturating_mul(m as Weight))
-			// Standard Error: 3_000
-			.saturating_add((1_000_u64).saturating_mul(u as Weight))
-			.saturating_add(T::DbWeight::get().reads(1_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
 	fn submit_did_delete_operation() -> Weight {
 		(69_009_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
@@ -111,11 +88,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	}
 	fn submit_did_call_sr25519_key() -> Weight {
 		(75_271_000_u64)
-			.saturating_add(T::DbWeight::get().reads(1_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-	}
-	fn submit_did_call_ecdsa_key() -> Weight {
-		(177_543_000_u64)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -141,15 +113,6 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
-	fn submit_did_create_operation_ecdsa_keys(n: u32, u: u32, ) -> Weight {
-		(181_586_000_u64)
-			// Standard Error: 51_000
-			.saturating_add((1_768_000_u64).saturating_mul(n as Weight))
-			// Standard Error: 2_000
-			.saturating_add((3_000_u64).saturating_mul(u as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
 	fn submit_did_update_operation_ed25519_keys(n: u32, m: u32, _u: u32, ) -> Weight {
 		(71_793_000_u64)
 			// Standard Error: 39_000
@@ -168,17 +131,6 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
-	fn submit_did_update_operation_ecdsa_keys(n: u32, m: u32, u: u32, ) -> Weight {
-		(170_458_000_u64)
-			// Standard Error: 67_000
-			.saturating_add((3_849_000_u64).saturating_mul(n as Weight))
-			// Standard Error: 67_000
-			.saturating_add((3_102_000_u64).saturating_mul(m as Weight))
-			// Standard Error: 3_000
-			.saturating_add((1_000_u64).saturating_mul(u as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
 	fn submit_did_delete_operation() -> Weight {
 		(69_009_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
@@ -191,11 +143,6 @@ impl WeightInfo for () {
 	}
 	fn submit_did_call_sr25519_key() -> Weight {
 		(75_271_000_u64)
-			.saturating_add(RocksDbWeight::get().reads(1_u64))
-			.saturating_add(RocksDbWeight::get().writes(1_u64))
-	}
-	fn submit_did_call_ecdsa_key() -> Weight {
-		(177_543_000_u64)
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}

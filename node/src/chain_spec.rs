@@ -263,6 +263,5 @@ fn amber_glow_genesis(
 		technical_membership: Default::default(),
 		treasury: Default::default(),
 		vesting: Default::default(),
-		transaction_storage: Default::default(),
 	}
 }

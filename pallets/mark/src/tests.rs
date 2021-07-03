@@ -17,20 +17,20 @@ use pallet_mtype::mock as mtype_mock;
 
 #[test]
 fn anchor_no_delegation_successful() {
-	let marker_keypair = get_alice_ed25519();
-	let marker = get_ed25519_account(marker_keypair.public());
+	let issuer_keypair = get_alice_ed25519();
+	let issuer = get_ed25519_account(issuer_keypair.public());
 	let stream_hash = get_stream_hash(true);
-	let mark = generate_base_mark(marker.clone());
+	let mark = generate_base_mark(issuer.clone());
 
 	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let mut ext = mtype_mock::ExtBuilder::default()
-		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
+		.with_mtypes(vec![(operation.mtype_hash, issuer.clone())])
 		.build(None);
 
 	ext.execute_with(|| {
 		assert_ok!(Mark::anchor(
-			get_origin(marker.clone()),
+			get_origin(issuer.clone()),
 			operation.stream_hash,
 			operation.mtype_hash,
 			operation.delegation_id
@@ -40,32 +40,32 @@ fn anchor_no_delegation_successful() {
 	let stored_mark = ext.execute_with(|| Mark::marks(&stream_hash).expect("Mark should be present on chain."));
 
 	assert_eq!(stored_mark.mtype_hash, operation.mtype_hash);
-	assert_eq!(stored_mark.marker, marker);
+	assert_eq!(stored_mark.issuer, issuer);
 	assert_eq!(stored_mark.delegation_id, operation.delegation_id);
 	assert!(!stored_mark.revoked);
 }
 
 #[test]
 fn anchor_with_delegation_successful() {
-	let marker_keypair = get_alice_ed25519();
-	let marker = get_ed25519_account(marker_keypair.public());
+	let issuer_keypair = get_alice_ed25519();
+	let issuer = get_ed25519_account(issuer_keypair.public());
 	let stream_hash = get_stream_hash(true);
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
-		delegation_mock::generate_base_delegation_root(marker.clone()),
+		delegation_mock::generate_base_delegation_root(issuer.clone()),
 	);
 	let (delegation_id, mut delegation_node) = (
 		delegation_mock::get_delegation_id(true),
-		delegation_mock::generate_base_delegation_node(root_id, marker.clone()),
+		delegation_mock::generate_base_delegation_node(root_id, issuer.clone()),
 	);
 	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
-	let mut mark = generate_base_mark(marker.clone());
+	let mut mark = generate_base_mark(issuer.clone());
 	mark.delegation_id = Some(delegation_id);
 
 	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let ext = mtype_mock::ExtBuilder::default()
-		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
+		.with_mtypes(vec![(operation.mtype_hash, issuer.clone())])
 		.build(None);
 	let mut ext = delegation_mock::ExtBuilder::default()
 		.with_root_delegations(vec![(root_id, root_node)])
@@ -75,7 +75,7 @@ fn anchor_with_delegation_successful() {
 
 	ext.execute_with(|| {
 		assert_ok!(Mark::anchor(
-			get_origin(marker.clone()),
+			get_origin(issuer.clone()),
 			operation.stream_hash,
 			operation.mtype_hash,
 			operation.delegation_id
@@ -85,7 +85,7 @@ fn anchor_with_delegation_successful() {
 	let stored_mark = ext.execute_with(|| Mark::marks(&stream_hash).expect("Mark should be present on chain."));
 
 	assert_eq!(stored_mark.mtype_hash, operation.mtype_hash);
-	assert_eq!(stored_mark.marker, marker);
+	assert_eq!(stored_mark.issuer, issuer);
 	assert_eq!(stored_mark.delegation_id, operation.delegation_id);
 	assert!(!stored_mark.revoked);
 
@@ -98,10 +98,10 @@ fn anchor_with_delegation_successful() {
 
 #[test]
 fn mtype_not_present_anchor_error() {
-	let marker_keypair = get_alice_ed25519();
-	let marker = get_ed25519_account(marker_keypair.public());
+	let issuer_keypair = get_alice_ed25519();
+	let issuer = get_ed25519_account(issuer_keypair.public());
 	let stream_hash = get_stream_hash(true);
-	let mark = generate_base_mark(marker.clone());
+	let mark = generate_base_mark(issuer.clone());
 
 	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
@@ -111,7 +111,7 @@ fn mtype_not_present_anchor_error() {
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::anchor(
-				get_origin(marker.clone()),
+				get_origin(issuer.clone()),
 				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
@@ -123,15 +123,15 @@ fn mtype_not_present_anchor_error() {
 
 #[test]
 fn duplicate_anchor_error() {
-	let marker_keypair = get_alice_ed25519();
-	let marker = get_ed25519_account(marker_keypair.public());
+	let issuer_keypair = get_alice_ed25519();
+	let issuer = get_ed25519_account(issuer_keypair.public());
 	let stream_hash = get_stream_hash(true);
-	let mark = generate_base_mark(marker.clone());
+	let mark = generate_base_mark(issuer.clone());
 
 	let operation = generate_base_mark_creation_details(stream_hash, mark.clone());
 
 	let ext = mtype_mock::ExtBuilder::default()
-		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
+		.with_mtypes(vec![(operation.mtype_hash, issuer.clone())])
 		.build(None);
 	let ext = delegation_mock::ExtBuilder::default().build(Some(ext));
 	let mut ext = ExtBuilder::default()
@@ -141,7 +141,7 @@ fn duplicate_anchor_error() {
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::anchor(
-				get_origin(marker.clone()),
+				get_origin(issuer.clone()),
 				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
@@ -153,23 +153,23 @@ fn duplicate_anchor_error() {
 
 #[test]
 fn delegation_not_found_anchor_error() {
-	let marker_keypair = get_alice_ed25519();
-	let marker = get_ed25519_account(marker_keypair.public());
+	let issuer_keypair = get_alice_ed25519();
+	let issuer = get_ed25519_account(issuer_keypair.public());
 	let stream_hash = get_stream_hash(true);
 	let delegation_id = delegation_mock::get_delegation_id(true);
-	let mut mark = generate_base_mark(marker.clone());
+	let mut mark = generate_base_mark(issuer.clone());
 	mark.delegation_id = Some(delegation_id);
 
 	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let mut ext = mtype_mock::ExtBuilder::default()
-		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
+		.with_mtypes(vec![(operation.mtype_hash, issuer.clone())])
 		.build(None);
 
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::anchor(
-				get_origin(marker.clone()),
+				get_origin(issuer.clone()),
 				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
@@ -181,26 +181,26 @@ fn delegation_not_found_anchor_error() {
 
 #[test]
 fn delegation_revoked_anchor_error() {
-	let marker_keypair = get_alice_ed25519();
-	let marker = get_ed25519_account(marker_keypair.public());
+	let issuer_keypair = get_alice_ed25519();
+	let issuer = get_ed25519_account(issuer_keypair.public());
 	let stream_hash = get_stream_hash(true);
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
-		delegation_mock::generate_base_delegation_root(marker.clone()),
+		delegation_mock::generate_base_delegation_root(issuer.clone()),
 	);
 	let (delegation_id, mut delegation_node) = (
 		delegation_mock::get_delegation_id(true),
-		delegation_mock::generate_base_delegation_node(root_id, marker.clone()),
+		delegation_mock::generate_base_delegation_node(root_id, issuer.clone()),
 	);
 	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
 	delegation_node.revoked = true;
-	let mut mark = generate_base_mark(marker.clone());
+	let mut mark = generate_base_mark(issuer.clone());
 	mark.delegation_id = Some(delegation_id);
 
 	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let ext = mtype_mock::ExtBuilder::default()
-		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
+		.with_mtypes(vec![(operation.mtype_hash, issuer.clone())])
 		.build(None);
 	let mut ext = delegation_mock::ExtBuilder::default()
 		.with_root_delegations(vec![(root_id, root_node)])
@@ -211,7 +211,7 @@ fn delegation_revoked_anchor_error() {
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::anchor(
-				get_origin(marker.clone()),
+				get_origin(issuer.clone()),
 				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
@@ -223,8 +223,8 @@ fn delegation_revoked_anchor_error() {
 
 #[test]
 fn not_delegation_owner_anchor_error() {
-	let marker_keypair = get_alice_ed25519();
-	let marker = get_ed25519_account(marker_keypair.public());
+	let issuer_keypair = get_alice_ed25519();
+	let issuer = get_ed25519_account(issuer_keypair.public());
 	let alternative_owner_keypair = get_bob_ed25519();
 	let alternative_owner = get_ed25519_account(alternative_owner_keypair.public());
 	let stream_hash = get_stream_hash(true);
@@ -237,13 +237,13 @@ fn not_delegation_owner_anchor_error() {
 		delegation_mock::generate_base_delegation_node(root_id, alternative_owner),
 	);
 	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
-	let mut mark = generate_base_mark(marker.clone());
+	let mut mark = generate_base_mark(issuer.clone());
 	mark.delegation_id = Some(delegation_id);
 
 	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let ext = mtype_mock::ExtBuilder::default()
-		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
+		.with_mtypes(vec![(operation.mtype_hash, issuer.clone())])
 		.build(None);
 	let mut ext = delegation_mock::ExtBuilder::default()
 		.with_root_delegations(vec![(root_id, root_node)])
@@ -254,7 +254,7 @@ fn not_delegation_owner_anchor_error() {
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::anchor(
-				get_origin(marker.clone()),
+				get_origin(issuer.clone()),
 				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
@@ -266,24 +266,24 @@ fn not_delegation_owner_anchor_error() {
 
 #[test]
 fn unauthorised_permissions_anchor_error() {
-	let marker_keypair = get_alice_ed25519();
-	let marker = get_ed25519_account(marker_keypair.public());
+	let issuer_keypair = get_alice_ed25519();
+	let issuer = get_ed25519_account(issuer_keypair.public());
 	let stream_hash = get_stream_hash(true);
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
-		delegation_mock::generate_base_delegation_root(marker.clone()),
+		delegation_mock::generate_base_delegation_root(issuer.clone()),
 	);
 	let (delegation_id, delegation_node) = (
 		delegation_mock::get_delegation_id(true),
-		delegation_mock::generate_base_delegation_node(root_id, marker.clone()),
+		delegation_mock::generate_base_delegation_node(root_id, issuer.clone()),
 	);
-	let mut mark = generate_base_mark(marker.clone());
+	let mut mark = generate_base_mark(issuer.clone());
 	mark.delegation_id = Some(delegation_id);
 
 	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let ext = mtype_mock::ExtBuilder::default()
-		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
+		.with_mtypes(vec![(operation.mtype_hash, issuer.clone())])
 		.build(None);
 	let mut ext = delegation_mock::ExtBuilder::default()
 		.with_root_delegations(vec![(root_id, root_node)])
@@ -294,7 +294,7 @@ fn unauthorised_permissions_anchor_error() {
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::anchor(
-				get_origin(marker.clone()),
+				get_origin(issuer.clone()),
 				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
@@ -306,26 +306,26 @@ fn unauthorised_permissions_anchor_error() {
 
 #[test]
 fn root_not_present_anchor_error() {
-	let marker_keypair = get_alice_ed25519();
-	let marker = get_ed25519_account(marker_keypair.public());
+	let issuer_keypair = get_alice_ed25519();
+	let issuer = get_ed25519_account(issuer_keypair.public());
 	let stream_hash = get_stream_hash(true);
 	let (root_id, root_node) = (
 		delegation_mock::get_delegation_root_id(true),
-		delegation_mock::generate_base_delegation_root(marker.clone()),
+		delegation_mock::generate_base_delegation_root(issuer.clone()),
 	);
 	let alternative_root_id = delegation_mock::get_delegation_root_id(false);
 	let (delegation_id, mut delegation_node) = (
 		delegation_mock::get_delegation_id(true),
-		delegation_mock::generate_base_delegation_node(root_id, marker.clone()),
+		delegation_mock::generate_base_delegation_node(root_id, issuer.clone()),
 	);
 	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
-	let mut mark = generate_base_mark(marker.clone());
+	let mut mark = generate_base_mark(issuer.clone());
 	mark.delegation_id = Some(delegation_id);
 
 	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let ext = mtype_mock::ExtBuilder::default()
-		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
+		.with_mtypes(vec![(operation.mtype_hash, issuer.clone())])
 		.build(None);
 	let mut ext = delegation_mock::ExtBuilder::default()
 		.with_root_delegations(vec![(alternative_root_id, root_node)])
@@ -336,7 +336,7 @@ fn root_not_present_anchor_error() {
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::anchor(
-				get_origin(marker.clone()),
+				get_origin(issuer.clone()),
 				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id
@@ -348,27 +348,27 @@ fn root_not_present_anchor_error() {
 
 #[test]
 fn root_mtype_mismatch_anchor_error() {
-	let marker_keypair = get_alice_ed25519();
-	let marker = get_ed25519_account(marker_keypair.public());
+	let issuer_keypair = get_alice_ed25519();
+	let issuer = get_ed25519_account(issuer_keypair.public());
 	let stream_hash = get_stream_hash(true);
 	let alternative_mtype_hash = mtype_mock::get_mtype_hash(false);
 	let (root_id, mut root_node) = (
 		delegation_mock::get_delegation_root_id(true),
-		delegation_mock::generate_base_delegation_root(marker.clone()),
+		delegation_mock::generate_base_delegation_root(issuer.clone()),
 	);
 	root_node.mtype_hash = alternative_mtype_hash;
 	let (delegation_id, mut delegation_node) = (
 		delegation_mock::get_delegation_id(true),
-		delegation_mock::generate_base_delegation_node(root_id, marker.clone()),
+		delegation_mock::generate_base_delegation_node(root_id, issuer.clone()),
 	);
 	delegation_node.permissions = pallet_delegation::Permissions::ANCHOR;
-	let mut mark = generate_base_mark(marker.clone());
+	let mut mark = generate_base_mark(issuer.clone());
 	mark.delegation_id = Some(delegation_id);
 
 	let operation = generate_base_mark_creation_details(stream_hash, mark);
 
 	let ext = mtype_mock::ExtBuilder::default()
-		.with_mtypes(vec![(operation.mtype_hash, marker.clone())])
+		.with_mtypes(vec![(operation.mtype_hash, issuer.clone())])
 		.build(None);
 	let mut ext = delegation_mock::ExtBuilder::default()
 		.with_root_delegations(vec![(root_id, root_node)])
@@ -379,7 +379,7 @@ fn root_mtype_mismatch_anchor_error() {
 	ext.execute_with(|| {
 		assert_noop!(
 			Mark::anchor(
-				get_origin(marker.clone()),
+				get_origin(issuer.clone()),
 				operation.stream_hash,
 				operation.mtype_hash,
 				operation.delegation_id

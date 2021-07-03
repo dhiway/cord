@@ -77,7 +77,7 @@ decl_module! {
 			// check if the digest already exists
 			ensure!(!<Digests<T>>::contains_key(digest_hash), Error::<T>::AlreadyAnchoredDigest);
 			// insert #MARK Digest
-			<Digests<T>>::insert(digest_hash, Digest {stream_hash, marker: sender.clone(), revoked: false});
+			<Digests<T>>::insert(digest_hash, Digest {stream_hash, issuer: sender.clone(), revoked: false});
 			// deposit event that mark has beed added
 			Self::deposit_event(RawEvent::Anchored(sender, digest_hash, stream_hash));
 			Ok(())
@@ -92,17 +92,17 @@ decl_module! {
 			let sender = ensure_signed(origin)?;
 
 			// lookup #MARK & check if it exists
-			let Digest {stream_hash, marker, revoked, ..} = <Digests<T>>::get(digest_hash).ok_or(Error::<T>::NotFound)?;
+			let Digest {stream_hash, issuer, revoked, ..} = <Digests<T>>::get(digest_hash).ok_or(Error::<T>::NotFound)?;
 
 			// check if the #MARK Digest has already been revoked
 			ensure!(!revoked, Error::<T>::AlreadyRevoked);
 
 			// check the digest has been created by the sender of this transaction
-			ensure!(marker.eq(&sender), Error::<T>::NotOwner);
+			ensure!(issuer.eq(&sender), Error::<T>::NotOwner);
 			// revoke #MARK
 			<Digests<T>>::insert(digest_hash, Digest {
 				stream_hash,
-				marker,
+				issuer,
 				revoked: true
 			});
 
@@ -118,14 +118,14 @@ pub struct Digest<T: Config> {
 	// hash of the #MARK content
 	stream_hash: T::Hash,
 	// the account which executed the mark
-	marker: T::AccountId,
+	issuer: T::AccountId,
 	// revocation status
 	revoked: bool,
 }
 
 decl_storage! {
 	trait Store for Module<T: Config> as Digest {
-		/// Digests: digest-hash -> (content-hash, marker-account, revoked)?
+		/// Digests: digest-hash -> (content-hash, issuer-account, revoked)?
 		Digests get(fn digests): map hasher(opaque_blake2_256) T::Hash => Option<Digest<T>>;
 	}
 }

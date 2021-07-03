@@ -37,7 +37,7 @@ impl Default for Permissions {
 /// A node representing a delegation hierarchy root.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct DelegationRoot<T: Config> {
-	/// The hash of the MTYPE that delegated attesters within this trust
+	/// The hash of the MTYPE that delegated issuers within this trust
 	/// hierarchy can attest.
 	pub mtype_hash: MtypeHashOf<T>,
 	/// The identifier of the root owner.

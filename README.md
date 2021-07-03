@@ -2,22 +2,22 @@
 
 # CORD
 
-The CORD node implementation uses Parity Substrate and KILT modules as the underlying 
+The CORD node implementation uses Parity Substrate and KILT modules as the underlying
 technology stack with DID, #MARK Type, #MARKS and hierarchical Trust Modules.
 
 - [CORD](#cord)
-    - [Accounts](#accounts)
-    - [Build & Run](#build--run)
-      - [Building in dev mode](#building-in-dev-mode)
-      - [Building in performant release mode](#building-in-performant-release-mode)
-      - [Start the Node, by running:](#start-the-node-by-running)
-      - [Debug Mode](#debug-mode)
-      - [Release Mode](#release-mode)
-      - [Setup the local node with session keys, by running](#setup-the-local-node-with-session-keys-by-running)
-    - [CORD User Accounts](#cord-user-accounts)
-      - [Polkadot{.js} Browser Plugin](#polkadotjs-browser-plugin)
-      - [Polkadot Web UI](#polkadot-web-ui)
-    - [Building docker image](#building-docker-image)
+  - [Accounts](#accounts)
+  - [Build & Run](#build--run)
+    - [Building in dev mode](#building-in-dev-mode)
+    - [Building in performant release mode](#building-in-performant-release-mode)
+    - [Start the Node, by running:](#start-the-node-by-running)
+    - [Debug Mode](#debug-mode)
+    - [Release Mode](#release-mode)
+    - [Setup the local node with session keys, by running](#setup-the-local-node-with-session-keys-by-running)
+  - [CORD User Accounts](#cord-user-accounts)
+    - [Polkadot{.js} Browser Plugin](#polkadotjs-browser-plugin)
+    - [Polkadot Web UI](#polkadot-web-ui)
+  - [Building docker image](#building-docker-image)
   - [Node Modules functionalities](#node-modules-functionalities)
     - [DID Module](#did-module)
       - [Add](#add)
@@ -36,8 +36,8 @@ technology stack with DID, #MARK Type, #MARKS and hierarchical Trust Modules.
       - [Substrate JSON-RPC API](#substrate-json-rpc-api)
       - [Substrate Reference Rust Docs](#substrate-reference-rust-docs)
 
-
 ### Accounts
+
 [Documentation](./docs/accounts.md)
 
 ### Build & Run
@@ -55,6 +55,7 @@ You can build it by executing these commands:
 ```
 cargo build
 ```
+
 #### Building in performant release mode
 
 ```
@@ -66,13 +67,17 @@ cargo build --release
 ```
 ./target/<debug \ release> /cord [FLAGS] [OPTIONS]
 ```
+
 For CORD CLI options see the section about [Commands](#cord-cli-options).
 
 #### Debug Mode
+
 ```
 ./target/debug/cord --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
 ```
+
 #### Release Mode
+
 ```
 ./target/release/cord --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
 ```
@@ -82,17 +87,22 @@ For CORD CLI options see the section about [Commands](#cord-cli-options).
 ```
 bash ./scripts/setup-dev-chain.sh
 ```
+
 ### CORD User Accounts
+
 A valid account only requires a private key that can sign on one of the supported curves and signature schemes. CORD uses Ed25519 as the signature scheme for all inhjected accounts.
 
 #### Polkadot{.js} Browser Plugin
+
 The browser plugin is available for both [Google Chrome](https://chrome.google.com/webstore/detail/polkadot%7Bjs%7D-extension/mopnmbcafieddcagagdcbnhejhlodfdd?hl=en) (and Chromium based browsers like Brave) and [FireFox](https://addons.mozilla.org/en-US/firefox/addon/polkadot-js-extension).
 
 Open the Polkadot{.js} browser extension by clicking the orange and white Polkadot{.js} logo on the top bar of your browser. You will see a browser popup. Click the small plus icon in the top right and choose the option to `Restore account form backup JSON file`. Follow the instructions to import default [user](./scripts/accounts/users) and [stash](./scripts/accounts/stash) accounts.
 
 #### Polkadot Web UI
+
 Add the following code to `Developer` -> `Settings`
-``` json
+
+```json
 {
   "Address": "AccountId",
   "BlockNumber": "u32",
@@ -140,7 +150,7 @@ The [Polkadot API](https://polkadot.js.org/api/) helps with communicating with t
 
 **Blocktime**
 
-The blocktime is currently set to 4 seconds, but this setting is subject to change based on further research. 
+The blocktime is currently set to 4 seconds, but this setting is subject to change based on further research.
 
 **Extrinsics and Block Storage**
 
@@ -156,6 +166,7 @@ We use [Aura](https://wiki.parity.io/Aura) as the authoring algorithm, since we 
 For consensus we use [GRANDPA](https://github.com/paritytech/substrate#2-description).
 
 **Governance**
+
 - [TBD]
 
 ### DID Module
@@ -226,7 +237,7 @@ The `anchor` function takes following parameters:
 - mtype_hash: The [blake2b](https://blake2.net/) hash of MTYPE used
 - delegate_id: Optional reference to a delegation which this mark is based on
 
-The node verifies the transaction signature and insert it to the state, if the provided marker didn’t already anchor the provided stream_hash. The mark is stored by using a map:
+The node verifies the transaction signature and insert it to the state, if the provided issuer didn’t already anchor the provided stream_hash. The mark is stored by using a map:
 
 ```rust
 T::Hash => Option<Mark<T>>
@@ -288,19 +299,19 @@ T::DelegationNodeId => Option<DelegationRoot<T>>
 #### Add delegation
 
 ```rust
-add_delegation(origin, delegation_id: T::DelegationNodeId, root_id: T::DelegationNodeId, parent_id: Option<T::DelegationNodeId>, delegate: T::AccountId, permissions: Permissions, delegate_signature: T::Signature) -> DispatchResult 
+add_delegation(origin, delegation_id: T::DelegationNodeId, root_id: T::DelegationNodeId, parent_id: Option<T::DelegationNodeId>, delegate: T::AccountId, permissions: Permissions, delegate_signature: T::Signature) -> DispatchResult
 ```
 
 The `add_delegation` function takes the following parameters:
 
 /// Adds a delegation node on chain, where
-		/// origin - the origin of the transaction
-		/// delegation_id - unique identifier of the delegation node to be added
-		/// root_id - id of the hierarchy root node
-		/// parent_id - optional identifier of a parent node this delegation node is created under
-		/// delegate - the delegate account
-		/// permission - the permissions delegated
-		/// delegate_signature - the signature of the delegate to ensure it's done under his permission
+/// origin - the origin of the transaction
+/// delegation_id - unique identifier of the delegation node to be added
+/// root_id - id of the hierarchy root node
+/// parent_id - optional identifier of a parent node this delegation node is created under
+/// delegate - the delegate account
+/// permission - the permissions delegated
+/// delegate_signature - the signature of the delegate to ensure it's done under his permission
 
 - origin: The caller of the method, i.e., public address (ss58) of the delegator
 - delegation_id: unique identifier of the delegation node to be added
@@ -337,13 +348,17 @@ and
 revoke_children(delegation: &T::DelegationNodeId, sender: &T::AccountId) -> DispatchResult
 ```
 
-## Substrate Benchmarking - 
-To know more about generating weights for the specific pallets - 
+## Substrate Benchmarking -
+
+To know more about generating weights for the specific pallets -
 Go to - docs/benchmarking.md
 
 or check out the weights file in the respective pallets.
 
 ### Substrate Documentation
+
 #### [Substrate Tutorials](https://substrate.dev/en/tutorials)
+
 #### [Substrate JSON-RPC API](https://polkadot.js.org/docs/substrate/rpc)
+
 #### [Substrate Reference Rust Docs](https://substrate.dev/rustdocs/v2.0.0/sc_service/index.html)
