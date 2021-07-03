@@ -10,7 +10,6 @@ use sp_keystore::{testing::KeyStore, KeystoreExt};
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	MultiSigner,
 };
 use sp_std::{collections::btree_set::BTreeSet, convert::TryInto, sync::Arc};
 
@@ -100,6 +99,8 @@ impl pallet_mtype::Config for Test {
 #[cfg(test)]
 pub(crate) const DEFAULT_ACCOUNT: cord_primitives::AccountId = cord_primitives::AccountId::new([0u8; 32]);
 
+pub const ALICE_DID: TestDidIdentifier = TestDidIdentifier::new([1u8; 32]);
+pub const BOB_DID: TestDidIdentifier = TestDidIdentifier::new([2u8; 32]);
 const DEFAULT_AUTH_SEED: [u8; 32] = [4u8; 32];
 const ALTERNATIVE_AUTH_SEED: [u8; 32] = [40u8; 32];
 const DEFAULT_ENC_SEED: [u8; 32] = [5u8; 32];
@@ -109,14 +110,6 @@ const ALTERNATIVE_ATT_SEED: [u8; 32] = [60u8; 32];
 const DEFAULT_DEL_SEED: [u8; 32] = [7u8; 32];
 const ALTERNATIVE_DEL_SEED: [u8; 32] = [70u8; 32];
 const DEFAULT_URL_SCHEME: [u8; 8] = *b"https://";
-
-pub fn get_did_identifier_from_ed25519_key(public_key: ed25519::Public) -> TestDidIdentifier {
-	MultiSigner::from(public_key).into_account()
-}
-
-pub fn get_did_identifier_from_sr25519_key(public_key: sr25519::Public) -> TestDidIdentifier {
-	MultiSigner::from(public_key).into_account()
-}
 
 pub fn get_ed25519_authentication_key(default: bool) -> ed25519::Pair {
 	if default {
@@ -142,7 +135,7 @@ pub fn get_x25519_encryption_key(default: bool) -> DidEncryptionKey {
 	}
 }
 
-pub fn get_ed25519_mark_anchor_key(default: bool) -> ed25519::Pair {
+pub fn get_ed25519_anchor_key(default: bool) -> ed25519::Pair {
 	if default {
 		ed25519::Pair::from_seed(&DEFAULT_ATT_SEED)
 	} else {
@@ -150,7 +143,7 @@ pub fn get_ed25519_mark_anchor_key(default: bool) -> ed25519::Pair {
 	}
 }
 
-pub fn get_sr25519_mark_anchor_key(default: bool) -> sr25519::Pair {
+pub fn get_sr25519_anchor_key(default: bool) -> sr25519::Pair {
 	if default {
 		sr25519::Pair::from_seed(&DEFAULT_ATT_SEED)
 	} else {
@@ -213,11 +206,15 @@ pub fn get_url_endpoint(length: u32) -> Url {
 	)
 }
 
-pub fn generate_base_did_creation_operation(did: TestDidIdentifier) -> did::DidCreationOperation<Test> {
+pub fn generate_base_did_creation_operation(
+	did: TestDidIdentifier,
+	new_auth_key: did::DidVerificationKey,
+) -> did::DidCreationOperation<Test> {
 	DidCreationOperation {
 		did,
+		new_authentication_key: new_auth_key,
 		new_key_agreement_keys: BTreeSet::new(),
-		new_mark_anchor_key: None,
+		new_anchor_key: None,
 		new_delegation_key: None,
 		new_endpoint_url: None,
 	}
@@ -228,7 +225,7 @@ pub fn generate_base_did_update_operation(did: TestDidIdentifier) -> did::DidUpd
 		did,
 		new_authentication_key: None,
 		new_key_agreement_keys: BTreeSet::new(),
-		mark_anchor_key_update: DidVerificationKeyUpdateAction::default(),
+		anchor_key_update: DidVerificationKeyUpdateAction::default(),
 		delegation_key_update: DidVerificationKeyUpdateAction::default(),
 		new_endpoint_url: None,
 		public_keys_to_remove: BTreeSet::new(),
@@ -248,11 +245,11 @@ pub fn generate_key_id(key: &did::DidPublicKey) -> TestKeyId {
 	utils::calculate_key_id::<Test>(key)
 }
 
-pub(crate) fn get_mark_anchor_key_test_input() -> TestMtypeHash {
+pub(crate) fn get_anchor_key_test_input() -> TestMtypeHash {
 	TestMtypeHash::from_slice(&[0u8; 32])
 }
-pub(crate) fn get_mark_anchor_key_call() -> Call {
-	Call::Mtype(pallet_mtype::Call::anchor(get_mark_anchor_key_test_input()))
+pub(crate) fn get_anchor_key_call() -> Call {
+	Call::Mtype(pallet_mtype::Call::anchor(get_anchor_key_test_input()))
 }
 pub(crate) fn get_authentication_key_test_input() -> TestMtypeHash {
 	TestMtypeHash::from_slice(&[1u8; 32])
@@ -275,7 +272,7 @@ pub(crate) fn get_no_key_call() -> Call {
 
 impl did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call {
 	fn derive_verification_key_relationship(&self) -> Option<did::DidVerificationKeyRelationship> {
-		if *self == get_mark_anchor_key_call() {
+		if *self == get_anchor_key_call() {
 			Some(did::DidVerificationKeyRelationship::AssertionMethod)
 		} else if *self == get_authentication_key_call() {
 			Some(did::DidVerificationKeyRelationship::Authentication)
@@ -303,7 +300,7 @@ pub fn generate_test_did_call(
 	caller: TestDidIdentifier,
 ) -> did::DidAuthorizedCallOperation<Test> {
 	let call = match verification_key_required {
-		DidVerificationKeyRelationship::AssertionMethod => get_mark_anchor_key_call(),
+		DidVerificationKeyRelationship::AssertionMethod => get_anchor_key_call(),
 		DidVerificationKeyRelationship::Authentication => get_authentication_key_call(),
 		DidVerificationKeyRelationship::CapabilityDelegation => get_delegation_key_call(),
 		_ => get_no_key_call(),

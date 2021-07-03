@@ -174,7 +174,7 @@ pub struct DidDetails<T: Config> {
 	delegation_key: Option<KeyIdOf<T>>,
 	/// \[OPTIONAL\] The ID of the mark key, used to verify the
 	/// signatures of the marks created by the DID subject.
-	mark_anchor_key: Option<KeyIdOf<T>>,
+	anchor_key: Option<KeyIdOf<T>>,
 	/// The map of public keys, with the key label as
 	/// the key map and the tuple (key, addition_block_number) as the map
 	/// value.
@@ -212,7 +212,7 @@ impl<T: Config> DidDetails<T> {
 		Self {
 			authentication_key: authentication_key_id,
 			key_agreement_keys: BTreeSet::new(),
-			mark_anchor_key: None,
+			anchor_key: None,
 			delegation_key: None,
 			endpoint_url: None,
 			public_keys,
@@ -272,13 +272,13 @@ impl<T: Config> DidDetails<T> {
 	/// The old key is not removed from the set of verification keys, hence
 	/// it can still be used to verify past marks.
 	/// The new key is added to the set of verification keys.
-	pub fn update_mark_anchor_key(&mut self, new_mark_anchor_key: DidVerificationKey, block_number: BlockNumberOf<T>) {
-		let new_mark_anchor_key_id = utils::calculate_key_id::<T>(&new_mark_anchor_key.clone().into());
-		self.mark_anchor_key = Some(new_mark_anchor_key_id);
+	pub fn update_anchor_key(&mut self, new_anchor_key: DidVerificationKey, block_number: BlockNumberOf<T>) {
+		let new_anchor_key_id = utils::calculate_key_id::<T>(&new_anchor_key.clone().into());
+		self.anchor_key = Some(new_anchor_key_id);
 		self.public_keys.insert(
-			new_mark_anchor_key_id,
+			new_anchor_key_id,
 			DidPublicKeyDetails {
-				key: new_mark_anchor_key.into(),
+				key: new_anchor_key.into(),
 				block_number,
 			},
 		);
@@ -289,8 +289,8 @@ impl<T: Config> DidDetails<T> {
 	/// Once deleted, it cannot be used to write new marks anymore.
 	/// The old key is not removed from the set of verification keys, hence
 	/// it can still be used to verify past marks.
-	pub fn delete_mark_anchor_key(&mut self) {
-		self.mark_anchor_key = None;
+	pub fn delete_anchor_key(&mut self) {
+		self.anchor_key = None;
 	}
 
 	/// Update the DID delegation key.
@@ -343,8 +343,8 @@ impl<T: Config> DidDetails<T> {
 		// respective fields in the DidUpdateOperation.
 		let mut forbidden_verification_key_ids = BTreeSet::new();
 		forbidden_verification_key_ids.insert(self.authentication_key);
-		if let Some(mark_anchor_key_id) = self.mark_anchor_key {
-			forbidden_verification_key_ids.insert(mark_anchor_key_id);
+		if let Some(anchor_key_id) = self.anchor_key {
+			forbidden_verification_key_ids.insert(anchor_key_id);
 		}
 		if let Some(delegation_key_id) = self.delegation_key {
 			forbidden_verification_key_ids.insert(delegation_key_id);
@@ -371,7 +371,7 @@ impl<T: Config> DidDetails<T> {
 	// authentication, key agreement, mark, or delegation, is referencing it.
 	fn remove_key_if_unused(&mut self, key_id: &KeyIdOf<T>) {
 		if self.authentication_key != *key_id
-			&& self.mark_anchor_key != Some(*key_id)
+			&& self.anchor_key != Some(*key_id)
 			&& self.delegation_key != Some(*key_id)
 			&& !self.key_agreement_keys.contains(key_id)
 		{
@@ -387,8 +387,8 @@ impl<T: Config> DidDetails<T> {
 		&self.key_agreement_keys
 	}
 
-	pub fn get_mark_anchor_key_id(&self) -> &Option<KeyIdOf<T>> {
-		&self.mark_anchor_key
+	pub fn get_anchor_key_id(&self) -> &Option<KeyIdOf<T>> {
+		&self.anchor_key
 	}
 
 	pub fn get_delegation_key_id(&self) -> &Option<KeyIdOf<T>> {
@@ -406,7 +406,7 @@ impl<T: Config> DidDetails<T> {
 		key_type: DidVerificationKeyRelationship,
 	) -> Option<&DidVerificationKey> {
 		let key_id = match key_type {
-			DidVerificationKeyRelationship::AssertionMethod => self.mark_anchor_key,
+			DidVerificationKeyRelationship::AssertionMethod => self.anchor_key,
 			DidVerificationKeyRelationship::Authentication => Some(self.authentication_key),
 			DidVerificationKeyRelationship::CapabilityDelegation => self.delegation_key,
 			_ => None,
@@ -465,8 +465,8 @@ impl<T: Config> TryFrom<(DidCreationOperation<T>, DidVerificationKey)> for DidDe
 
 		new_did_details.add_key_agreement_keys(op.new_key_agreement_keys, current_block_number);
 
-		if let Some(mark_anchor_key) = op.new_mark_anchor_key {
-			new_did_details.update_mark_anchor_key(mark_anchor_key, current_block_number);
+		if let Some(anchor_key) = op.new_anchor_key {
+			new_did_details.update_anchor_key(anchor_key, current_block_number);
 		}
 
 		if let Some(delegation_key) = op.new_delegation_key {
@@ -528,12 +528,12 @@ impl<T: Config> TryFrom<(DidDetails<T>, DidUpdateOperation<T>)> for DidDetails<T
 		new_details.add_key_agreement_keys(update_operation.new_key_agreement_keys, current_block_number);
 
 		// Update/remove the mark key, if needed.
-		match update_operation.mark_anchor_key_update {
+		match update_operation.anchor_key_update {
 			DidVerificationKeyUpdateAction::Delete => {
-				new_details.delete_mark_anchor_key();
+				new_details.delete_anchor_key();
 			}
-			DidVerificationKeyUpdateAction::Change(new_mark_anchor_key) => {
-				new_details.update_mark_anchor_key(new_mark_anchor_key, current_block_number);
+			DidVerificationKeyUpdateAction::Change(new_anchor_key) => {
+				new_details.update_anchor_key(new_anchor_key, current_block_number);
 			}
 			// Nothing happens.
 			DidVerificationKeyUpdateAction::Ignore => {}
@@ -604,7 +604,7 @@ pub struct DidCreationOperation<T: Config> {
 	/// The new key agreement keys.
 	pub new_key_agreement_keys: BTreeSet<DidEncryptionKey>,
 	/// \[OPTIONAL\] The new mark key.
-	pub new_mark_anchor_key: Option<DidVerificationKey>,
+	pub new_anchor_key: Option<DidVerificationKey>,
 	/// \[OPTIONAL\] The new delegation key.
 	pub new_delegation_key: Option<DidVerificationKey>,
 	/// \[OPTIONAL\] The URL containing the DID endpoints description.
@@ -642,7 +642,7 @@ pub struct DidUpdateOperation<T: Config> {
 	/// A new set of key agreement keys to add to the ones already stored.
 	pub new_key_agreement_keys: BTreeSet<DidEncryptionKey>,
 	/// \[OPTIONAL\] The mark key update action.
-	pub mark_anchor_key_update: DidVerificationKeyUpdateAction,
+	pub anchor_key_update: DidVerificationKeyUpdateAction,
 	/// \[OPTIONAL\] The delegation key update action.
 	pub delegation_key_update: DidVerificationKeyUpdateAction,
 	/// The set of old mark keys to remove, given their identifiers.
