@@ -338,7 +338,7 @@ fn check_successful_complete_update() {
 	let new_block_number: TestBlockNumber = 1;
 
 	ext.execute_with(|| {
-		System::set_block_number(new_block_number);
+		System::set_block_number(new_block_number.into());
 		assert_ok!(Did::submit_did_update_operation(
 			Origin::signed(DEFAULT_ACCOUNT),
 			operation.clone(),
@@ -423,7 +423,7 @@ fn check_successful_keys_deletion_update() {
 	let new_block_number: TestBlockNumber = 1;
 
 	ext.execute_with(|| {
-		System::set_block_number(new_block_number);
+		System::set_block_number(new_block_number.into());
 		assert_ok!(Did::submit_did_update_operation(
 			Origin::signed(DEFAULT_ACCOUNT),
 			operation.clone(),
@@ -481,7 +481,7 @@ fn check_successful_keys_overwrite_update() {
 	let new_block_number: TestBlockNumber = 1;
 
 	ext.execute_with(|| {
-		System::set_block_number(new_block_number);
+		System::set_block_number(new_block_number.into());
 		assert_ok!(Did::submit_did_update_operation(
 			Origin::signed(DEFAULT_ACCOUNT),
 			operation.clone(),
@@ -542,7 +542,7 @@ fn check_successful_keys_multiuse_update() {
 	let new_block_number: TestBlockNumber = 1;
 
 	ext.execute_with(|| {
-		System::set_block_number(new_block_number);
+		System::set_block_number(new_block_number.into());
 		assert_ok!(Did::submit_did_update_operation(
 			Origin::signed(DEFAULT_ACCOUNT),
 			operation.clone(),
@@ -762,7 +762,7 @@ fn check_max_limit_key_agreement_keys_did_update() {
 	let new_block_number: TestBlockNumber = 1;
 
 	ext.execute_with(|| {
-		System::set_block_number(new_block_number);
+		System::set_block_number(new_block_number.into());
 		assert_noop!(
 			Did::submit_did_update_operation(
 				Origin::signed(DEFAULT_ACCOUNT),
@@ -797,7 +797,7 @@ fn check_max_limit_public_keys_to_remove_did_update() {
 	let new_block_number: TestBlockNumber = 1;
 
 	ext.execute_with(|| {
-		System::set_block_number(new_block_number);
+		System::set_block_number(new_block_number.into());
 		assert_noop!(
 			Did::submit_did_update_operation(
 				Origin::signed(DEFAULT_ACCOUNT),
@@ -831,7 +831,7 @@ fn check_url_too_long_did_update() {
 	let new_block_number: TestBlockNumber = 1;
 
 	ext.execute_with(|| {
-		System::set_block_number(new_block_number);
+		System::set_block_number(new_block_number.into());
 		assert_noop!(
 			Did::submit_did_update_operation(
 				Origin::signed(DEFAULT_ACCOUNT),
@@ -869,7 +869,7 @@ fn check_currently_active_authentication_key_update() {
 	let new_block_number: TestBlockNumber = 1;
 
 	ext.execute_with(|| {
-		System::set_block_number(new_block_number);
+		System::set_block_number(new_block_number.into());
 		assert_noop!(
 			Did::submit_did_update_operation(
 				Origin::signed(DEFAULT_ACCOUNT),
@@ -907,7 +907,7 @@ fn check_currently_active_delegation_key_update() {
 	let new_block_number: TestBlockNumber = 1;
 
 	ext.execute_with(|| {
-		System::set_block_number(new_block_number);
+		System::set_block_number(new_block_number.into());
 		assert_noop!(
 			Did::submit_did_update_operation(
 				Origin::signed(DEFAULT_ACCOUNT),
@@ -945,7 +945,7 @@ fn check_currently_active_mark_anchor_key_update() {
 	let new_block_number: TestBlockNumber = 1;
 
 	ext.execute_with(|| {
-		System::set_block_number(new_block_number);
+		System::set_block_number(new_block_number.into());
 		assert_noop!(
 			Did::submit_did_update_operation(
 				Origin::signed(DEFAULT_ACCOUNT),
@@ -984,7 +984,7 @@ fn check_verification_key_not_present_update() {
 	let new_block_number: TestBlockNumber = 1;
 
 	ext.execute_with(|| {
-		System::set_block_number(new_block_number);
+		System::set_block_number(new_block_number.into());
 		assert_noop!(
 			Did::submit_did_update_operation(
 				Origin::signed(DEFAULT_ACCOUNT),
