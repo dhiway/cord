@@ -9,6 +9,10 @@ pub struct MarkDetails<T: Config> {
 	pub mtype_hash: MtypeHashOf<T>,
 	/// The ID of the issuer.
 	pub issuer: IssuerOf<T>,
+	/// StreamId type for CID
+	pub streamid: Vec<u8>,
+	/// StreamId type for CID
+	pub parentid: Option<Vec<u8>>,
 	/// \[OPTIONAL\] The ID of the delegation node used to authorize the
 	/// issuer.
 	pub delegation_id: Option<DelegationNodeIdOf<T>>,

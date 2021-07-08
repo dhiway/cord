@@ -7,6 +7,8 @@
 //! adding #MARK Types.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+use sp_std::str;
+use sp_std::vec::Vec;
 
 pub mod weights;
 
@@ -21,6 +23,7 @@ pub mod benchmarking;
 mod tests;
 
 pub use pallet::*;
+pub mod utils;
 
 use crate::weights::WeightInfo;
 
@@ -32,9 +35,10 @@ pub mod pallet {
 
 	/// Type of a MTYPE hash.
 	pub type MtypeHashOf<T> = <T as frame_system::Config>::Hash;
-
 	/// Type of a MTYPE owner.
 	pub type MtypeOwnerOf<T> = <T as Config>::MtypeOwnerId;
+	/// StreamId type for CID
+	pub type StreamId = Vec<u8>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -58,6 +62,10 @@ pub mod pallet {
 	#[pallet::getter(fn mtypes)]
 	pub type Mtypes<T> = StorageMap<_, Blake2_128Concat, MtypeHashOf<T>, MtypeOwnerOf<T>>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn mtypestreams)]
+	pub type MtypeStreams<T> = StorageMap<_, Blake2_128Concat, MtypeHashOf<T>, StreamId>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -72,6 +80,8 @@ pub mod pallet {
 		MTypeNotFound,
 		/// The MTYPE already exists.
 		MTypeAlreadyExists,
+		/// Invalid StreamId encoding.
+		InvalidStreamIdEncoding,
 	}
 
 	#[pallet::call]
@@ -81,13 +91,18 @@ pub mod pallet {
 		/// * origin: the identifier of the MTYPE owner
 		/// * hash: the MTYPE hash. It has to be unique.
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::anchor())]
-		pub fn anchor(origin: OriginFor<T>, hash: MtypeHashOf<T>) -> DispatchResult {
+		pub fn anchor(origin: OriginFor<T>, hash: MtypeHashOf<T>, streamid: Vec<u8>) -> DispatchResult {
 			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-
 			ensure!(!<Mtypes<T>>::contains_key(&hash), Error::<T>::MTypeAlreadyExists);
+			let cid = str::from_utf8(&streamid).unwrap();
+			ensure!(
+				utils::is_base_32(cid) || utils::is_base_58(cid),
+				Error::<T>::InvalidStreamIdEncoding
+			);
 
 			log::debug!("Creating MTYPE with hash {:?} and owner {:?}", &hash, &owner);
 			<Mtypes<T>>::insert(&hash, owner.clone());
+			<MtypeStreams<T>>::insert(&hash, streamid);
 
 			Self::deposit_event(Event::MTypeAnchored(owner, hash));
 
