@@ -7,10 +7,13 @@
   "MtypeOwnerOf": "AccountId",
   "MtypeHashOf": "Hash",
   "StreamHashOf": "Hash",
+  "CidOf": "Text",
   "IssuerOf": "AccountId",
   "MarkDetails": {
     "mtypeHash": "MtypeHashOf",
     "issuer": "IssuerOf",
+    "streamid": "CidOf",
+    "parentid": "Option<CidOf>",
     "delegationId": "Option<DelegationNodeIdOf>",
     "revoked": "bool"
   },

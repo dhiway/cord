@@ -10,6 +10,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature, OpaqueExtrinsic,
 };
+use sp_std::vec::Vec;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -59,6 +60,9 @@ pub type BlockId = generic::BlockId<Block>;
 
 /// A Cord DID subject identifier.
 pub type DidIdentifier = AccountId;
+
+/// A Cord DID subject identifier.
+pub type CidOf = Vec<u8>;
 
 /// App-specific crypto used for reporting equivocation/misbehavior in BABE and
 /// GRANDPA. Any rewards for misbehavior reporting will be paid out to this
