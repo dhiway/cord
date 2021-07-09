@@ -7,6 +7,8 @@
 //! adding #MARK Types.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+use sp_std::str;
+use sp_std::vec::Vec;
 
 pub mod weights;
 
@@ -21,6 +23,7 @@ pub mod benchmarking;
 mod tests;
 
 pub use pallet::*;
+pub mod utils;
 
 use crate::weights::WeightInfo;
 
@@ -32,9 +35,10 @@ pub mod pallet {
 
 	/// Type of a MTYPE hash.
 	pub type MtypeHashOf<T> = <T as frame_system::Config>::Hash;
-
 	/// Type of a MTYPE owner.
 	pub type MtypeOwnerOf<T> = <T as Config>::MtypeOwnerId;
+	/// CID Information
+	pub type CidOf = Vec<u8>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -52,11 +56,15 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	/// MTYPEs stored on chain.
-	///
 	/// It maps from a MTYPE hash to its owner.
 	#[pallet::storage]
 	#[pallet::getter(fn mtypes)]
 	pub type Mtypes<T> = StorageMap<_, Blake2_128Concat, MtypeHashOf<T>, MtypeOwnerOf<T>>;
+
+	/// It maps from a MTYPE hash to its CID.
+	#[pallet::storage]
+	#[pallet::getter(fn mtypestreams)]
+	pub type MtypeStreams<T> = StorageMap<_, Blake2_128Concat, MtypeHashOf<T>, CidOf>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -72,6 +80,8 @@ pub mod pallet {
 		MTypeNotFound,
 		/// The MTYPE already exists.
 		MTypeAlreadyExists,
+		/// Invalid StreamId encoding.
+		InvalidStreamCidEncoding,
 	}
 
 	#[pallet::call]
@@ -80,14 +90,20 @@ pub mod pallet {
 		///
 		/// * origin: the identifier of the MTYPE owner
 		/// * hash: the MTYPE hash. It has to be unique.
+		/// * stream_cid: CID of MTYPE
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::anchor())]
-		pub fn anchor(origin: OriginFor<T>, hash: MtypeHashOf<T>) -> DispatchResult {
+		pub fn anchor(origin: OriginFor<T>, hash: MtypeHashOf<T>, stream_cid: CidOf) -> DispatchResult {
 			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-
 			ensure!(!<Mtypes<T>>::contains_key(&hash), Error::<T>::MTypeAlreadyExists);
+			let cid_base = str::from_utf8(&stream_cid).unwrap();
+			ensure!(
+				utils::is_base_32(cid_base) || utils::is_base_58(cid_base),
+				Error::<T>::InvalidStreamCidEncoding
+			);
 
 			log::debug!("Creating MTYPE with hash {:?} and owner {:?}", &hash, &owner);
 			<Mtypes<T>>::insert(&hash, owner.clone());
+			<MtypeStreams<T>>::insert(&hash, stream_cid);
 
 			Self::deposit_event(Event::MTypeAnchored(owner, hash));
 

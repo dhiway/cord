@@ -7,6 +7,8 @@
 //! adding and revoking #MARKs.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+use sp_std::str;
+use sp_std::vec::Vec;
 
 pub mod marks;
 pub mod weights;
@@ -19,8 +21,6 @@ pub mod benchmarking;
 
 #[cfg(test)]
 mod tests;
-
-use sp_std::vec::Vec;
 
 // pub use crate::{marks::*, pallet::*, weights::WeightInfo};
 
@@ -45,6 +45,9 @@ pub mod pallet {
 
 	/// Type of an issuer identifier.
 	pub type IssuerOf<T> = pallet_delegation::DelegatorIdOf<T>;
+
+	/// CID Information
+	pub type CidOf = Vec<u8>;
 
 	/// Type of a delegation identifier.
 	pub type DelegationNodeIdOf<T> = pallet_delegation::DelegationNodeIdOf<T>;
@@ -121,6 +124,10 @@ pub mod pallet {
 		/// the mark is active.
 		/// only when trying to restore an active mark.
 		MarkStillActive,
+		/// Invalid StreamCid encoding.
+		InvalidStreamCidEncoding,
+		/// Invalid ParentCid encoding.
+		InvalidParentCidEncoding,
 	}
 
 	#[pallet::call]
@@ -134,6 +141,8 @@ pub mod pallet {
 		/// * origin: the identifier of the issuer
 		/// * stream_hash: the hash of the conten to attest. It has to be unique
 		/// * mtype_hash: the hash of the MTYPE used for this mark
+		/// * stream_cid: CID of the MARK content
+		/// * parent_cid: CID of the parent Mark
 		/// * delegation_id: \[OPTIONAL\] the ID of the delegation node used to
 		///   authorise the issuer
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::anchor())]
@@ -141,6 +150,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			stream_hash: StreamHashOf<T>,
 			mtype_hash: MtypeHashOf<T>,
+			stream_cid: CidOf,
+			parent_cid: Option<CidOf>,
 			delegation_id: Option<DelegationNodeIdOf<T>>,
 		) -> DispatchResult {
 			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -151,7 +162,21 @@ pub mod pallet {
 			);
 
 			ensure!(!<Marks<T>>::contains_key(&stream_hash), Error::<T>::AlreadyAnchored);
+			// TODO - Change this to length check
+			let cid_base = str::from_utf8(&stream_cid).unwrap();
+			ensure!(
+				pallet_mtype::utils::is_base_32(cid_base) || pallet_mtype::utils::is_base_58(cid_base),
+				Error::<T>::InvalidStreamCidEncoding
+			);
 
+			// TODO - Change this to length check
+			if let Some(ref parent_cid) = parent_cid {
+				let pcid_base = str::from_utf8(&parent_cid).unwrap();
+				ensure!(
+					pallet_mtype::utils::is_base_32(pcid_base) || pallet_mtype::utils::is_base_58(pcid_base),
+					Error::<T>::InvalidParentCidEncoding
+				);
+			}
 			// Check for validity of the delegation node if specified.
 			if let Some(delegation_id) = delegation_id {
 				let delegation = <pallet_delegation::Delegations<T>>::get(delegation_id)
@@ -184,6 +209,8 @@ pub mod pallet {
 				MarkDetails {
 					mtype_hash,
 					issuer: issuer.clone(),
+					stream_cid,
+					parent_cid,
 					delegation_id,
 					revoked: false,
 				},
