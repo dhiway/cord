@@ -12,8 +12,8 @@
   "MarkDetails": {
     "mtypeHash": "MtypeHashOf",
     "issuer": "IssuerOf",
-    "streamid": "CidOf",
-    "parentid": "Option<CidOf>",
+    "stream_cid": "CidOf",
+    "parent_cid": "Option<CidOf>",
     "delegationId": "Option<DelegationNodeIdOf>",
     "revoked": "bool"
   },
