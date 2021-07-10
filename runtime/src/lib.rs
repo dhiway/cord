@@ -981,7 +981,7 @@ impl pallet_sudo::Config for Runtime {
 }
 
 impl pallet_mark::Config for Runtime {
-	type EnsureOrigin = EnsureSigned<<Self as pallet_delegation::Config>::DelegationEntityId>;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type Event = Event;
 	type WeightInfo = ();
 }
@@ -1005,8 +1005,8 @@ impl pallet_delegation::Config for Runtime {
 }
 
 impl pallet_mtype::Config for Runtime {
-	type MtypeOwnerId = AccountId;
-	type EnsureOrigin = EnsureSigned<Self::MtypeOwnerId>;
+	type CordAccountId = AccountId;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type Event = Event;
 	type WeightInfo = ();
 }

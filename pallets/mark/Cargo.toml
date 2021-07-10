@@ -26,7 +26,6 @@ sp-std = { git = "https://github.com/paritytech/substrate", default-features = f
 
 # Internal Dependencies
 pallet-mtype = { default-features = false, path = '../mtype' }
-pallet-delegation = { default-features = false, path = '../delegation' }
 cord-primitives = {default-features = false, optional = true, path = "../../primitives"}
 
 [dev-dependencies]
@@ -56,7 +55,6 @@ runtime-benchmarks = [
 std = [
 	'codec/std',
 	'pallet-mtype/std',
-	'pallet-delegation/std',
 	'frame-support/std',
 	'frame-system/std',
 	'cord-primitives/std',
