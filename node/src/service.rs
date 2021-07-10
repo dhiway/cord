@@ -13,10 +13,12 @@ use futures::prelude::*;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_consensus_babe;
 use sc_consensus_babe::SlotProportion;
+pub use sc_executor::NativeExecutionDispatch;
 use sc_network::{Event, NetworkService};
 use sc_service::{config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_runtime::traits::Block as BlockT;
+// pub use sp_runtime::traits::{self as runtime_traits, BlakeTwo256, Block as BlockT, DigestFor, HashFor};
 use std::sync::Arc;
 
 type FullClient = sc_service::TFullClient<Block, RuntimeApi, Executor>;
@@ -116,7 +118,7 @@ pub fn new_partial(
 		telemetry.as_ref().map(|x| x.handle()),
 	)?;
 
-	let import_setup = (block_import, grandpa_link, babe_link);
+	let import_setup = (block_import.clone(), grandpa_link, babe_link.clone());
 	let (rpc_extensions_builder, rpc_setup) = {
 		let (_, grandpa_link, babe_link) = &import_setup;
 
@@ -130,8 +132,9 @@ pub fn new_partial(
 
 		let rpc_setup = shared_voter_state.clone();
 
-		let babe_config = babe_link.config().clone();
+		// let babe_config = babe_link.config().clone();
 		let shared_epoch_changes = babe_link.epoch_changes().clone();
+		// let slot_duration = babe_config.slot_duration();
 
 		let client = client.clone();
 		let keystore = keystore_container.sync_keystore();
@@ -139,7 +142,7 @@ pub fn new_partial(
 		let select_chain = select_chain.clone();
 		let chain_spec = config.chain_spec.cloned_box();
 
-		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
+		let rpc_extensions_builder = move |deny_unsafe, subscription_executor: cord_rpc::SubscriptionTaskExecutor| {
 			let deps = cord_rpc::FullDeps {
 				client: client.clone(),
 				pool: transaction_pool.clone(),
@@ -155,7 +158,7 @@ pub fn new_partial(
 					shared_voter_state: shared_voter_state.clone(),
 					shared_authority_set: shared_authority_set.clone(),
 					justification_stream: justification_stream.clone(),
-					subscription_executor,
+					subscription_executor: subscription_executor.clone(),
 					finality_provider: finality_proof_provider.clone(),
 				},
 			};
@@ -181,7 +184,8 @@ pub struct NewFullBase {
 	pub task_manager: TaskManager,
 	pub client: Arc<FullClient>,
 	pub network: Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
-	pub transaction_pool: Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
+	pub rpc_handlers: RpcHandlers,
+	pub backend: Arc<FullBackend>,
 }
 
 /// Creates a full service from the configuration.
@@ -244,7 +248,7 @@ pub fn new_full_base(
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
 
-	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
+	let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
 		backend: backend.clone(),
 		client: client.clone(),
@@ -349,7 +353,7 @@ pub fn new_full_base(
 
 	let config = sc_finality_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
-		gossip_duration: std::time::Duration::from_millis(333),
+		gossip_duration: std::time::Duration::from_millis(1000),
 		justification_period: 512,
 		name: Some(name),
 		observer_enabled: false,
@@ -387,7 +391,8 @@ pub fn new_full_base(
 		task_manager,
 		client,
 		network,
-		transaction_pool,
+		rpc_handlers,
+		backend,
 	})
 }
 
@@ -481,9 +486,7 @@ pub fn new_light_base(
 				slot_duration,
 			);
 
-			let uncles = sp_authorship::InherentDataProvider::<<Block as BlockT>::Header>::check_inherents();
-
-			Ok((timestamp, slot, uncles))
+			Ok((timestamp, slot))
 		},
 		&task_manager.spawn_essential_handle(),
 		config.prometheus_registry(),
@@ -506,7 +509,7 @@ pub fn new_light_base(
 		let name = config.network.node_name.clone();
 
 		let config = sc_finality_grandpa::Config {
-			gossip_duration: std::time::Duration::from_millis(333),
+			gossip_duration: std::time::Duration::from_millis(1000),
 			justification_period: 512,
 			name: Some(name),
 			observer_enabled: false,
@@ -539,14 +542,14 @@ pub fn new_light_base(
 		on_demand: Some(on_demand),
 		remote_blockchain: Some(backend.remote_blockchain()),
 		rpc_extensions_builder: Box::new(sc_service::NoopRpcExtensionBuilder(rpc_extensions)),
-		client: client.clone(),
-		transaction_pool: transaction_pool.clone(),
-		keystore: keystore_container.sync_keystore(),
-		config,
-		backend,
-		system_rpc_tx,
-		network: network.clone(),
 		task_manager: &mut task_manager,
+		config,
+		keystore: keystore_container.sync_keystore(),
+		backend,
+		transaction_pool: transaction_pool.clone(),
+		client: client.clone(),
+		network: network.clone(),
+		system_rpc_tx,
 		telemetry: telemetry.as_mut(),
 	})?;
 

@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-did'
-version = '0.5.0'
+version = '0.5.1'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
 description = 'Enables adding and removing decentralized identifiers (DIDs).'

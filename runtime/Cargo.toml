@@ -1,6 +1,6 @@
 [package]
 name = 'cord-runtime'
-version = '0.5.0'
+version = '0.5.1'
 build = 'build.rs'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
