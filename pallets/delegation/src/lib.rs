@@ -13,8 +13,7 @@ pub mod delegation_hierarchy;
 pub mod weights;
 
 #[cfg(any(feature = "mock", test))]
-pub mod mock;
-
+// pub mod mock;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 

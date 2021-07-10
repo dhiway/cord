@@ -17,7 +17,7 @@ use codec::Encode;
 
 use crate as delegation;
 use crate::*;
-use pallet_mtype::mock as mtype_mock;
+// use pallet_mtype::mock as mtype_mock;
 
 pub type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 pub type Block = frame_system::mocking::MockBlock<Test>;

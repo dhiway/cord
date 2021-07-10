@@ -46,6 +46,9 @@ pub mod pallet {
 	/// Type of an issuer identifier.
 	pub type IssuerOf<T> = pallet_delegation::DelegatorIdOf<T>;
 
+	/// Type for a block number.
+	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
+
 	/// CID Information
 	pub type CidOf = Vec<u8>;
 
@@ -71,6 +74,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn marks)]
 	pub type Marks<T> = StorageMap<_, Blake2_128Concat, StreamHashOf<T>, MarkDetails<T>>;
+
+	/// It maps from a MTYPE hash to its CID.
+	#[pallet::storage]
+	#[pallet::getter(fn markstream)]
+	pub type MtypeStreams<T> = StorageMap<_, Blake2_128Concat, StreamHashOf<T>, CidOf>;
 
 	/// Delegated marks stored on chain.
 	/// It maps from a delegation ID to a vector of content hashes.
@@ -128,6 +136,8 @@ pub mod pallet {
 		InvalidStreamCidEncoding,
 		/// Invalid ParentCid encoding.
 		InvalidParentCidEncoding,
+		/// MTYPE not authorised.
+		MTypeNotDelegatedToIssuer,
 	}
 
 	#[pallet::call]
@@ -156,10 +166,9 @@ pub mod pallet {
 		) -> DispatchResult {
 			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			ensure!(
-				<pallet_mtype::Mtypes<T>>::contains_key(&mtype_hash),
-				pallet_mtype::Error::<T>::MTypeNotFound
-			);
+			//TODO - Fix MType Ownership check
+			// let mtype = <pallet_mtype::Mtypes<T>>::get(mtype_hash).ok_or(pallet_mtype::Error::<T>::MTypeNotFound)?;
+			// ensure!(mtype.owner == issuer, Error::<T>::MTypeNotDelegatedToIssuer);
 
 			ensure!(!<Marks<T>>::contains_key(&stream_hash), Error::<T>::AlreadyAnchored);
 			// TODO - Change this to length check
@@ -202,6 +211,7 @@ pub mod pallet {
 				delegated_marks.push(stream_hash);
 				<DelegatedMarks<T>>::insert(delegation_id, delegated_marks);
 			}
+			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			log::debug!("Anchor Mark");
 			<Marks<T>>::insert(
@@ -212,6 +222,7 @@ pub mod pallet {
 					stream_cid,
 					parent_cid,
 					delegation_id,
+					block_number,
 					revoked: false,
 				},
 			);
