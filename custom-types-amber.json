@@ -7,23 +7,21 @@
   "MtypeOwnerOf": "AccountId",
   "MtypeHashOf": "Hash",
   "StreamHashOf": "Hash",
+  "DigestHashOf": "Hash",
   "CidOf": "Text",
-  "IssuerOf": "AccountId",
+  "MarkIssuerOf": "MtypeOwnerOf",
+  "MTypeDetails": {
+    "owner": "MtypeOwnerOf",
+    "stream_cid": "CidOf",
+    "block_number": "BlockNumber"
+  },
   "MarkDetails": {
-    "mtypeHash": "MtypeHashOf",
-    "issuer": "IssuerOf",
+    "mtype_hash": "MtypeHashOf",
+    "issuer": "MarkIssuerOf",
     "stream_cid": "CidOf",
     "parent_cid": "Option<CidOf>",
-    "delegationId": "Option<DelegationNodeIdOf>",
-    "revoked": "bool"
-  },
-  "Permissions": "u32",
-  "DelegationNodeIdOf": "Hash",
-  "DelegatorIdOf": "AccountId",
-  "DelegateSignatureTypeOf": "Vec<u8>",
-  "DelegationRoot": {
-    "mtypeHash": "MtypeHashOf",
-    "owner": "DelegatorIdOf",
+    "digest_hash": "Option<DigestHashOf>",
+    "block_number": "BlockNumber",
     "revoked": "bool"
   },
   "DelegationNode": {

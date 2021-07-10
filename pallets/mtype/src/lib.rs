@@ -10,11 +10,11 @@
 use sp_std::str;
 use sp_std::vec::Vec;
 
+pub mod mtypes;
 pub mod weights;
 
 #[cfg(any(feature = "mock", test))]
-pub mod mock;
-
+// pub mod mock;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
@@ -22,6 +22,7 @@ pub mod benchmarking;
 #[cfg(test)]
 mod tests;
 
+pub use crate::mtypes::*;
 pub use pallet::*;
 pub mod utils;
 
@@ -36,13 +37,15 @@ pub mod pallet {
 	/// Type of a MTYPE hash.
 	pub type MtypeHashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a MTYPE owner.
-	pub type MtypeOwnerOf<T> = <T as Config>::MtypeOwnerId;
+	pub type MtypeOwnerOf<T> = <T as Config>::CordAccountId;
+	/// Type for a block number.
+	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// CID Information
 	pub type CidOf = Vec<u8>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type MtypeOwnerId: Parameter + Default;
+		type CordAccountId: Parameter + Default;
 		type EnsureOrigin: EnsureOrigin<Success = MtypeOwnerOf<Self>, <Self as frame_system::Config>::Origin>;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type WeightInfo: WeightInfo;
@@ -59,12 +62,7 @@ pub mod pallet {
 	/// It maps from a MTYPE hash to its owner.
 	#[pallet::storage]
 	#[pallet::getter(fn mtypes)]
-	pub type Mtypes<T> = StorageMap<_, Blake2_128Concat, MtypeHashOf<T>, MtypeOwnerOf<T>>;
-
-	/// It maps from a MTYPE hash to its CID.
-	#[pallet::storage]
-	#[pallet::getter(fn mtypestreams)]
-	pub type MtypeStreams<T> = StorageMap<_, Blake2_128Concat, MtypeHashOf<T>, CidOf>;
+	pub type Mtypes<T> = StorageMap<_, Blake2_128Concat, MtypeHashOf<T>, MTypeDetails<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -92,20 +90,28 @@ pub mod pallet {
 		/// * hash: the MTYPE hash. It has to be unique.
 		/// * stream_cid: CID of MTYPE
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::anchor())]
-		pub fn anchor(origin: OriginFor<T>, hash: MtypeHashOf<T>, stream_cid: CidOf) -> DispatchResult {
+		pub fn anchor(origin: OriginFor<T>, mtype_hash: MtypeHashOf<T>, stream_cid: CidOf) -> DispatchResult {
 			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(!<Mtypes<T>>::contains_key(&hash), Error::<T>::MTypeAlreadyExists);
+			ensure!(!<Mtypes<T>>::contains_key(&mtype_hash), Error::<T>::MTypeAlreadyExists);
+
 			let cid_base = str::from_utf8(&stream_cid).unwrap();
 			ensure!(
 				utils::is_base_32(cid_base) || utils::is_base_58(cid_base),
 				Error::<T>::InvalidStreamCidEncoding
 			);
+			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			log::debug!("Creating MTYPE with hash {:?} and owner {:?}", &hash, &owner);
-			<Mtypes<T>>::insert(&hash, owner.clone());
-			<MtypeStreams<T>>::insert(&hash, stream_cid);
+			log::debug!("Creating MTYPE with hash {:?} and owner {:?}", &mtype_hash, &owner);
+			<Mtypes<T>>::insert(
+				&mtype_hash,
+				MTypeDetails {
+					owner: owner.clone(),
+					stream_cid,
+					block_number,
+				},
+			);
 
-			Self::deposit_event(Event::MTypeAnchored(owner, hash));
+			Self::deposit_event(Event::MTypeAnchored(owner, mtype_hash));
 
 			Ok(())
 		}
