@@ -70,6 +70,7 @@ pub mod pallet {
 	pub type DidCallableOf<T> = <T as Config>::Call;
 
 	/// Type for origin that supports a DID sender.
+	#[pallet::origin]
 	pub type Origin<T> = DidRawOrigin<DidIdentifierOf<T>>;
 
 	#[pallet::config]

@@ -12,7 +12,6 @@
 use codec::{Decode, Encode};
 pub use cord_primitives::{AccountId, Signature};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Index, Moment};
-use frame_support::ensure;
 use frame_support::{
 	construct_runtime, log, parameter_types,
 	traits::{
@@ -44,12 +43,12 @@ use sp_core::{
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
-	self, BlakeTwo256, Block as BlockT, ConvertInto, NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup, Verify,
+	self, BlakeTwo256, Block as BlockT, ConvertInto, NumberFor, OpaqueKeys, SaturatedConversion, StaticLookup,
 };
 use sp_runtime::transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity};
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber, MultiSignature, Perbill,
-	Percent, Permill, Perquintill,
+	create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber, Perbill, Percent, Permill,
+	Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(any(feature = "std", test))]
@@ -76,7 +75,6 @@ use constants::{currency::*, time::*};
 use sp_runtime::generic::Era;
 
 // Cord Pallets
-pub use pallet_delegation;
 pub use pallet_did;
 pub use pallet_mark;
 pub use pallet_mtype;
@@ -102,13 +100,13 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cord"),
 	impl_name: create_runtime_str!("cord-node"),
-	authoring_version: 5,
+	authoring_version: 0,
 	// Per convention: if the runtime behavior changes, increment spec_version
 	// and set impl_version to equal spec_version. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 14,
-	impl_version: 1,
+	spec_version: 5010,
+	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 0,
 };
@@ -147,30 +145,6 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 	}
 }
 
-impl pallet_delegation::VerifyDelegateSignature for Runtime {
-	type DelegateId = AccountId;
-	type Payload = Vec<u8>;
-	type Signature = Vec<u8>;
-
-	// No need to retrieve delegate details as it is simply an AccountId.
-	fn verify(
-		delegate: &Self::DelegateId,
-		payload: &Self::Payload,
-		signature: &Self::Signature,
-	) -> pallet_delegation::SignatureVerificationResult {
-		// Try to decode signature first.
-		let decoded_signature = MultiSignature::decode(&mut &signature[..])
-			.map_err(|_| pallet_delegation::SignatureVerificationError::SignatureInvalid)?;
-
-		ensure!(
-			decoded_signature.verify(&payload[..], delegate),
-			pallet_delegation::SignatureVerificationError::SignatureInvalid
-		);
-
-		Ok(())
-	}
-}
-
 type MoreThanHalfCouncil = EnsureOneOf<
 	AccountId,
 	EnsureRoot<AccountId>,
@@ -189,7 +163,6 @@ const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
 const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO.deconstruct());
 
 parameter_types! {
-	/// stays for 15 minutes (225)
 	pub const BlockHashCount: BlockNumber = 250;
 	pub const Version: RuntimeVersion = VERSION;
 	pub RuntimeBlockLength: BlockLength =
@@ -986,24 +959,6 @@ impl pallet_mark::Config for Runtime {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub const MaxSignatureByteLength: u16 = 64;
-	pub const MaxParentChecks: u32 = 5;
-	pub const MaxRevocations: u32 = 5;
-}
-
-impl pallet_delegation::Config for Runtime {
-	type DelegationSignatureVerification = Self;
-	type DelegationEntityId = AccountId;
-	type DelegationNodeId = Hash;
-	type EnsureOrigin = EnsureSigned<Self::DelegationEntityId>;
-	type Event = Event;
-	type MaxSignatureByteLength = MaxSignatureByteLength;
-	type MaxParentChecks = MaxParentChecks;
-	type MaxRevocations = MaxRevocations;
-	type WeightInfo = ();
-}
-
 impl pallet_mtype::Config for Runtime {
 	type CordAccountId = AccountId;
 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
@@ -1074,9 +1029,6 @@ construct_runtime! {
 		Did: pallet_did::{Pallet, Call, Storage, Event<T>, Origin<T>} = 31,
 		Mtype: pallet_mtype::{Pallet, Call, Storage, Event<T>} = 32,
 		Mark: pallet_mark::{Pallet, Call, Storage, Event<T>} = 33,
-		Delegation: pallet_delegation::{Pallet, Call, Storage, Event<T>} = 34,
-		// Digest: pallet_digest::{Pallet, Call, Storage, Event<T>} = 35,
-		// CordReserve: pallet_reserve::<Instance1>::{Pallet, Call, Storage, Config, Event<T>} = 36,
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 41,
 		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 42,
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 43,
@@ -1090,7 +1042,6 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call 
 		match self {
 			Call::Mark(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			Call::Mtype(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			Call::Delegation(_) => Some(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
 			#[cfg(not(feature = "runtime-benchmarks"))]
 			_ => None,
 			// By default, returns the authentication key

@@ -77,13 +77,13 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new mark has been created.
-		/// \[issuer ID, stream hash, MTYPE hash\]
+		/// \[issuer identifier, mark hash\]
 		MarkAnchored(MarkIssuerOf<T>, StreamHashOf<T>),
-		/// A Mark has been revoked.
-		/// \[revoker ID, stream hash\]
+		/// A mark has been revoked.
+		/// \[revoker identifier, mark hash\]
 		MarkRevoked(MarkIssuerOf<T>, StreamHashOf<T>),
-		/// A Mark has been revoked.
-		/// \[restorer ID, stream hash\]
+		/// A mark has been revoked.
+		/// \[restorer identifier, mark hash\]
 		MarkRestored(MarkIssuerOf<T>, StreamHashOf<T>),
 	}
 
