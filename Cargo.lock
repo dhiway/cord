@@ -1093,7 +1093,6 @@ dependencies = [
  "pallet-balances",
  "pallet-bounties",
  "pallet-collective",
- "pallet-delegation",
  "pallet-democracy",
  "pallet-did",
  "pallet-election-provider-multi-phase",
@@ -4338,27 +4337,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-delegation"
-version = "0.5.0"
-dependencies = [
- "bitflags",
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-mtype",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "pallet-democracy"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.7#9c572625f6557dfdb19f47474369a0327d51dfbc"
@@ -4495,7 +4473,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-delegation",
  "pallet-mtype",
  "parity-scale-codec",
  "serde",

@@ -10,7 +10,6 @@ members = [
 	"inspect",
 	"node",
 	"pallets/mtype",
-	"pallets/delegation",
 	"pallets/did",
 	"pallets/mark",
 ]

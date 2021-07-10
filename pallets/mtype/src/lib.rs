@@ -67,8 +67,8 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new MTYPE has been created.
-		/// \[owner identifier, MTYPE hash\]
+		/// A new mtype has been created.
+		/// \[owner identifier, mtype hash\]
 		MTypeAnchored(MtypeOwnerOf<T>, MtypeHashOf<T>),
 	}
 

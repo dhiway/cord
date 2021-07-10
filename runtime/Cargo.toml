@@ -19,7 +19,6 @@ smallvec = "1.6.1"
 
 # cord pallets 
 pallet-mark = { default-features = false, path = '../pallets/mark' }
-pallet-delegation = { default-features = false, path = '../pallets/delegation' }
 pallet-mtype = { default-features = false, path = '../pallets/mtype' }
 pallet-did = {  default-features = false, path = '../pallets/did' }
 #pallet-reserve = {  default-features = false, path = '../pallets/reserve' }
@@ -160,6 +159,5 @@ std = [
 	"pallet-sudo/std",
 	"pallet-mtype/std",
 	"pallet-mark/std",
-  	"pallet-delegation/std",
   	"pallet-did/std",
 ]

@@ -30,7 +30,6 @@ cord-primitives = {default-features = false, optional = true, path = "../../prim
 
 [dev-dependencies]
 pallet-mtype = {features = ["mock"], path = "../mtype" }
-pallet-delegation = {features = ["mock"], path = "../delegation" }
 cord-primitives = {default-features = false, path = "../../primitives"}
 serde = {default-features = false, version = "1.0.125"}
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.7" }

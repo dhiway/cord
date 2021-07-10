@@ -1,32 +1,164 @@
 {
-  "PublicSigningKey": "Hash",
-  "PublicBoxKey": "Hash",
-  "Signature": "MultiSignature",
-  "Address": "AccountId",
-  "LookupSource": "AccountId",
-  "BlockNumber": "u32",
-  "Index": "u32",
-  "RefCount": "u32",
-
-  "ErrorCode": "u16",
-  "Permissions": "u32",
-  "DelegationNodeId": "Hash",
+  "AccountInfo": "AccountInfoWithTripleRefCount",
+  "Address": "MultiAddress",
+  "AmountOf": "i128",
+  "Balance": "u128",
+  "LookupSource": "MultiAddress",
+  "MtypeOwnerOf": "AccountId",
+  "MtypeHashOf": "Hash",
+  "StreamHashOf": "Hash",
+  "DigestHashOf": "Hash",
+  "CidOf": "Text",
+  "MarkIssuerOf": "MtypeOwnerOf",
+  "MTypeDetails": {
+    "owner": "MtypeOwnerOf",
+    "stream_cid": "CidOf",
+    "block_number": "BlockNumber"
+  },
+  "MarkDetails": {
+    "mtype_hash": "MtypeHashOf",
+    "issuer": "MarkIssuerOf",
+    "stream_cid": "CidOf",
+    "parent_cid": "Option<CidOf>",
+    "digest_hash": "Option<DigestHashOf>",
+    "block_number": "BlockNumber",
+    "revoked": "bool"
+  },
   "DelegationNode": {
-    "rootId": "DelegationNodeId",
-    "parent": "Option<DelegationNodeId>",
-    "owner": "AccountId",
+    "rootId": "DelegationNodeIdOf",
+    "parent": "Option<DelegationNodeIdOf>",
+    "owner": "DelegatorIdOf",
     "permissions": "Permissions",
     "revoked": "bool"
   },
-  "DelegationRoot": {
-    "mtypeHash": "Hash",
-    "owner": "AccountId",
-    "revoked": "bool"
+  "DelegationCounter": {
+    "round": "SessionIndex",
+    "counter": "u32"
   },
-  "Mark": {
-    "mtypeHash": "Hash",
-    "marker": "AccountId",
-    "delegationId": "Option<DelegationNodeId>",
-    "revoked": "bool"
+  "KeyIdOf": "Hash",
+  "DidIdentifierOf": "AccountId",
+  "AccountIdentifierOf": "AccountId",
+  "BlockNumberOf": "BlockNumber",
+  "DidCallableOf": "Call",
+  "DidVerificationKey": {
+    "_enum": {
+      "Ed25519": "[u8; 32]",
+      "Sr25519": "[u8; 32]"
+    }
+  },
+  "DidEncryptionKey": {
+    "_enum": {
+      "X25519": "[u8; 32]"
+    }
+  },
+  "DidPublicKey": {
+    "_enum": {
+      "PublicVerificationKey": "DidVerificationKey",
+      "PublicEncryptionKey": "DidEncryptionKey"
+    }
+  },
+  "DidVerificationKeyRelationship": {
+    "_enum": [
+      "Authentication",
+      "CapabilityDelegation",
+      "CapabilityInvocation",
+      "AssertionMethod"
+    ]
+  },
+  "DidSignature": {
+    "_enum": {
+      "Ed25519": "Ed25519Signature",
+      "Sr25519": "Sr25519Signature"
+    }
+  },
+  "DidError": {
+    "_enum": {
+      "StorageError": "StorageError",
+      "SignatureError": "SignatureError",
+      "UrlError": "UrlError",
+      "InternalError": "Null"
+    }
+  },
+  "StorageError": {
+    "_enum": {
+      "DidAlreadyPresent": "Null",
+      "DidNotPresent": "Null",
+      "DidKeyNotPresent": "DidVerificationKeyRelationship",
+      "VerificationKeyNotPresent": "Null",
+      "CurrentlyActiveKey": "Null",
+      "MaxTxCounterValue": "Null"
+    }
+  },
+  "SignatureError": {
+    "_enum": ["InvalidSignatureFormat", "InvalidSignature", "InvalidNonce"]
+  },
+  "KeyError": {
+    "_enum": ["InvalidVerificationKeyFormat", "InvalidEncryptionKeyFormat"]
+  },
+  "UrlError": {
+    "_enum": ["InvalidUrlEncoding", "InvalidUrlScheme"]
+  },
+  "DidPublicKeyDetails": {
+    "key": "DidPublicKey",
+    "blockNumber": "BlockNumberOf"
+  },
+  "DidDetails": {
+    "authenticationKey": "KeyIdOf",
+    "keyAgreementKeys": "BTreeSet<KeyIdOf>",
+    "delegationKey": "Option<KeyIdOf>",
+    "anchorKey": "Option<KeyIdOf>",
+    "publicKeys": "BTreeMap<KeyIdOf, DidPublicKeyDetails>",
+    "endpointUrl": "Option<Url>",
+    "lastTxCounter": "u64"
+  },
+  "DidCreationOperation": {
+    "did": "DidIdentifierOf",
+    "newAuthenticationKey": "DidVerificationKey",
+    "newKeyAgreementKeys": "BTreeSet<DidEncryptionKey>",
+    "newAnchorKey": "Option<DidVerificationKey>",
+    "newDelegationKey": "Option<DidVerificationKey>",
+    "newEndpointUrl": "Option<Url>"
+  },
+  "DidUpdateOperation": {
+    "did": "DidIdentifierOf",
+    "newAuthenticationKey": "Option<DidVerificationKey>",
+    "newKeyAgreementKeys": "BTreeSet<DidEncryptionKey>",
+    "anchorKeyUpdate": "DidVerificationKeyUpdateAction",
+    "delegationKeyUpdate": "DidVerificationKeyUpdateAction",
+    "publicKeysToRemove": "BTreeSet<KeyIdOf>",
+    "newEndpointUrl": "Option<Url>",
+    "txCounter": "u64"
+  },
+  "DidVerificationKeyUpdateAction": {
+    "_enum": {
+      "Ignore": "Null",
+      "Change": "DidVerificationKey",
+      "Delete": "Null"
+    }
+  },
+  "DidDeletionOperation": {
+    "did": "DidIdentifierOf",
+    "txCounter": "u64"
+  },
+  "DidAuthorizedCallOperation": {
+    "did": "DidIdentifierOf",
+    "txCounter": "u64",
+    "call": "DidCallableOf"
+  },
+  "HttpUrl": {
+    "payload": "Text"
+  },
+  "FtpUrl": {
+    "payload": "Text"
+  },
+  "IpfsUrl": {
+    "payload": "Text"
+  },
+  "Url": {
+    "_enum": {
+      "Http": "HttpUrl",
+      "Ftp": "FtpUrl",
+      "Ipfs": "IpfsUrl"
+    }
   }
 }
