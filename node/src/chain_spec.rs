@@ -227,8 +227,8 @@ fn amber_glow_genesis(
 				.collect::<Vec<_>>(),
 		},
 		staking: StakingConfig {
+			minimum_validator_count: 1,
 			validator_count: initial_authorities.len() as u32,
-			minimum_validator_count: initial_authorities.len() as u32,
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
 			slash_reward_fraction: Perbill::from_percent(10),
 			stakers,
