@@ -4494,6 +4494,8 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-mtype",
+ "pallet-cred",
+ "pallet-schema",
  "parity-scale-codec",
  "serde",
  "sp-core",
