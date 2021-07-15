@@ -10,7 +10,7 @@
 use sp_std::str;
 use sp_std::vec::Vec;
 
-pub mod stream_links;
+pub mod links;
 pub mod weights;
 
 // #[cfg(any(feature = "mock", test))]
@@ -24,7 +24,7 @@ pub mod weights;
 
 // pub use crate::{marks::*, pallet::*, weights::WeightInfo};
 
-pub use crate::stream_links::*;
+pub use crate::links::*;
 pub use pallet::*;
 
 use crate::weights::WeightInfo;
@@ -65,8 +65,8 @@ pub mod pallet {
 	/// Linked streams stored on chain.
 	/// It maps from a link hash to the details.
 	#[pallet::storage]
-	#[pallet::getter(fn streamlinks)]
-	pub type StreamLinks<T> = StorageMap<_, Blake2_128Concat, StreamLinkHashOf<T>, StreamLinkDetails<T>>;
+	#[pallet::getter(fn links)]
+	pub type Links<T> = StorageMap<_, Blake2_128Concat, StreamLinkHashOf<T>, StreamLinkDetails<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -114,7 +114,7 @@ pub mod pallet {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<StreamLinks<T>>::contains_key(&stream_link_hash),
+				!<Links<T>>::contains_key(&stream_link_hash),
 				Error::<T>::StreamLinkAlreadyAnchored
 			);
 			let schema =
@@ -132,7 +132,7 @@ pub mod pallet {
 			log::debug!("Anchor Stream Link");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			<StreamLinks<T>>::insert(
+			<Links<T>>::insert(
 				&stream_link_hash,
 				StreamLinkDetails {
 					schema_hash,
@@ -158,14 +158,14 @@ pub mod pallet {
 		pub fn revoke(origin: OriginFor<T>, stream_link_hash: StreamLinkHashOf<T>) -> DispatchResult {
 			let revoker = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let link = <StreamLinks<T>>::get(&stream_link_hash).ok_or(Error::<T>::StreamLinkNotFound)?;
+			let link = <Links<T>>::get(&stream_link_hash).ok_or(Error::<T>::StreamLinkNotFound)?;
 			ensure!(link.creator == revoker, Error::<T>::UnauthorizedRevocation);
 			ensure!(!link.revoked, Error::<T>::StreamLinkAlreadyRevoked);
 
 			log::debug!("Revoking Stream Link");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			<StreamLinks<T>>::insert(
+			<Links<T>>::insert(
 				&stream_link_hash,
 				StreamLinkDetails {
 					block_number,

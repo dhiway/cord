@@ -10,10 +10,10 @@
 use sp_std::str;
 use sp_std::vec::Vec;
 
-pub mod journal_streams;
+pub mod journals;
 pub mod weights;
 
-pub use crate::journal_streams::*;
+pub use crate::journals::*;
 pub use pallet::*;
 
 // #[cfg(any(feature = "mock", test))]

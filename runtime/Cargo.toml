@@ -22,6 +22,7 @@ pallet-schema = { default-features = false, path = '../pallets/schema' }
 pallet-journal = { default-features = false, path = '../pallets/journal' }
 pallet-stream = { default-features = false, path = '../pallets/stream' }
 pallet-stream-link = { default-features = false, path = '../pallets/streamlink' }
+pallet-stream-digest = { default-features = false, path = '../pallets/streamdigest' }
 pallet-did = {  default-features = false, path = '../pallets/did' }
 #pallet-reserve = {  default-features = false, path = '../pallets/reserve' }
 #pallet-digest = {  default-features = false, path = '../pallets/digest' }
@@ -163,5 +164,6 @@ std = [
 	"pallet-journal/std",
 	"pallet-stream/std",
 	"pallet-stream-link/std",
+	"pallet-stream-digest/std",
   	"pallet-did/std",
 ]

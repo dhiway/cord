@@ -78,6 +78,7 @@ pub use pallet_did;
 pub use pallet_journal;
 pub use pallet_schema;
 pub use pallet_stream;
+pub use pallet_stream_digest;
 pub use pallet_stream_link;
 
 // Weights used in the runtime.
@@ -1041,6 +1042,12 @@ impl pallet_stream_link::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_stream_digest::Config for Runtime {
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type Event = Event;
+	type WeightInfo = ();
+}
+
 parameter_types! {
 	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
 	pub const MaxVerificationKeysToRevoke: u32 = 10u32;
@@ -1105,6 +1112,7 @@ construct_runtime! {
 		Journal: pallet_journal::{Pallet, Call, Storage, Event<T>} = 33,
 		Stream: pallet_stream::{Pallet, Call, Storage, Event<T>} = 34,
 		StreamLink: pallet_stream_link::{Pallet, Call, Storage, Event<T>} = 35,
+		StreamDigest: pallet_stream_digest::{Pallet, Call, Storage, Event<T>} = 36,
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 41,
 		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 42,
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 43,
@@ -1120,6 +1128,7 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call 
 			Call::Journal(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			Call::Stream(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			Call::StreamLink(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::StreamDigest(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			#[cfg(not(feature = "runtime-benchmarks"))]
 			_ => None,
 			// By default, returns the authentication key

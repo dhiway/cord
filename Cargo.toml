@@ -13,6 +13,7 @@ members = [
 	"pallets/journal",
 	"pallets/stream",
 	"pallets/streamlink",
+	"pallets/streamdigest",
 	"pallets/did",
 	"pallets/mark",
 ]
