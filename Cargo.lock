@@ -1111,7 +1111,7 @@ dependencies = [
  "pallet-grandpa",
  "pallet-im-online",
  "pallet-indices",
- "pallet-mark",
+ "pallet-journal",
  "pallet-membership",
  "pallet-mtype",
  "pallet-multisig",
@@ -1123,6 +1123,8 @@ dependencies = [
  "pallet-session-benchmarking",
  "pallet-staking",
  "pallet-staking-reward-curve",
+ "pallet-stream",
+ "pallet-stream-link",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
@@ -4485,16 +4487,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-mark"
-version = "0.5.1"
+name = "pallet-journal"
+version = "0.5.2"
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
- "pallet-mtype",
- "pallet-cred",
  "pallet-schema",
  "parity-scale-codec",
  "serde",
@@ -4682,6 +4682,48 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "pallet-stream"
+version = "0.5.2"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-journal",
+ "pallet-schema",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "pallet-stream-link"
+version = "0.5.2"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-schema",
+ "pallet-stream",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

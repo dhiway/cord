@@ -5,14 +5,14 @@ use crate::*;
 /// An on-chain mark written by an issuer.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct StreamLinkDetails<T: Config> {
-	/// The hash of the schema used for this stream.
+	/// The hash of the schema used for this link.
 	pub schema_hash: SchemaHashOf<T>,
 	/// The ID of the issuer.
-	pub owner: LinkOwnerOf<T>,
+	pub creator: StreamLinkCreatorOf<T>,
 	/// CID of the Link Transaction
-	pub link_cid: LinkCidOf,
+	pub stream_link_cid: StreamLinkCidOf,
 	/// Hash of the credential this stream is linked to
-	pub cred_hash: CredHashOf<T>,
+	pub stream_hash: StreamHashOf<T>,
 	/// Stream link block number
 	pub block_number: BlockNumberOf<T>,
 	/// The flag indicating whether the linked transation

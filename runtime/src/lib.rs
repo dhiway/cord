@@ -75,9 +75,10 @@ use constants::{currency::*, time::*};
 
 // Cord Pallets
 pub use pallet_did;
-pub use pallet_link;
+pub use pallet_journal;
 pub use pallet_schema;
 pub use pallet_stream;
+pub use pallet_stream_link;
 
 // Weights used in the runtime.
 pub mod weights;
@@ -1015,19 +1016,26 @@ impl pallet_vesting::Config for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_sudo::Config for Runtime {
-	type Event = Event;
-	type Call = Call;
-}
-
-impl pallet_mark::Config for Runtime {
+impl pallet_schema::Config for Runtime {
+	type CordAccountId = AccountId;
 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type Event = Event;
 	type WeightInfo = ();
 }
 
-impl pallet_mtype::Config for Runtime {
-	type CordAccountId = AccountId;
+impl pallet_journal::Config for Runtime {
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type Event = Event;
+	type WeightInfo = ();
+}
+
+impl pallet_stream::Config for Runtime {
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type Event = Event;
+	type WeightInfo = ();
+}
+
+impl pallet_stream_link::Config for Runtime {
 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type Event = Event;
 	type WeightInfo = ();
@@ -1050,10 +1058,10 @@ impl pallet_did::Config for Runtime {
 	type WeightInfo = ();
 }
 
-// impl pallet_digest::Config for Runtime {
-// 	type Event = Event;
-// 	type WeightInfo = ();
-// }
+impl pallet_sudo::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+}
 
 construct_runtime! {
 	pub enum Runtime where
@@ -1093,8 +1101,10 @@ construct_runtime! {
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 24,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 25,
 		Did: pallet_did::{Pallet, Call, Storage, Event<T>, Origin<T>} = 31,
-		Mtype: pallet_mtype::{Pallet, Call, Storage, Event<T>} = 32,
-		Mark: pallet_mark::{Pallet, Call, Storage, Event<T>} = 33,
+		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 32,
+		Journal: pallet_journal::{Pallet, Call, Storage, Event<T>} = 33,
+		Stream: pallet_stream::{Pallet, Call, Storage, Event<T>} = 34,
+		StreamLink: pallet_stream_link::{Pallet, Call, Storage, Event<T>} = 35,
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 41,
 		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 42,
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 43,
@@ -1106,8 +1116,10 @@ construct_runtime! {
 impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call {
 	fn derive_verification_key_relationship(&self) -> Option<pallet_did::DidVerificationKeyRelationship> {
 		match self {
-			Call::Mark(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			Call::Mtype(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::Schema(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::Journal(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::Stream(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::StreamLink(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			#[cfg(not(feature = "runtime-benchmarks"))]
 			_ => None,
 			// By default, returns the authentication key

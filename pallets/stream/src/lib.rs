@@ -1,0 +1,226 @@
+// Copyright 2019-2021 Dhiway.
+// This file is part of CORD Platform.
+
+// derived from kilt project
+
+//! Stream: Handles Streams on chain,
+//! adding and revoking Streams.
+#![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
+use sp_std::str;
+use sp_std::vec::Vec;
+
+pub mod streams;
+pub mod weights;
+
+// #[cfg(any(feature = "mock", test))]
+// pub mod mock;
+
+// #[cfg(feature = "runtime-benchmarks")]
+// pub mod benchmarking;
+
+// #[cfg(test)]
+// mod tests;
+
+// pub use crate::{marks::*, pallet::*, weights::WeightInfo};
+
+pub use crate::streams::*;
+pub use pallet::*;
+
+use crate::weights::WeightInfo;
+
+#[frame_support::pallet]
+pub mod pallet {
+	use super::*;
+	use frame_support::pallet_prelude::*;
+	use frame_system::pallet_prelude::*;
+
+	/// Type of a content hash.
+	pub type StreamHashOf<T> = <T as frame_system::Config>::Hash;
+	/// Type of a schema hash.
+	pub type SchemaHashOf<T> = pallet_schema::SchemaHashOf<T>;
+	/// Type of cred parent stream identifier.
+	pub type JournalStreamHashOf<T> = pallet_journal::JournalStreamHashOf<T>;
+	/// Type of cred owner identifier.
+	pub type StreamIssuerOf<T> = pallet_schema::SchemaOwnerOf<T>;
+	/// Type for a block number.
+	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
+	/// CID Information
+	pub type StreamCidOf = Vec<u8>;
+
+	#[pallet::config]
+	pub trait Config: frame_system::Config + pallet_schema::Config + pallet_journal::Config {
+		type EnsureOrigin: EnsureOrigin<Success = StreamIssuerOf<Self>, <Self as frame_system::Config>::Origin>;
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type WeightInfo: WeightInfo;
+	}
+
+	#[pallet::pallet]
+	#[pallet::generate_store(pub(super) trait Store)]
+	pub struct Pallet<T>(_);
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+
+	/// Streams stored on chain.
+	/// It maps from a stream hash to the details.
+	#[pallet::storage]
+	#[pallet::getter(fn streams)]
+	pub type Streams<T> = StorageMap<_, Blake2_128Concat, StreamHashOf<T>, StreamDetails<T>>;
+
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	pub enum Event<T: Config> {
+		/// A new stream has been created.
+		/// \[issuer identifier, stream hash, stream cid\]
+		StreamAnchored(StreamIssuerOf<T>, StreamHashOf<T>, StreamCidOf),
+		/// A stream has been revoked.
+		/// \[revoker identifier, stream hash\]
+		StreamRevoked(StreamIssuerOf<T>, StreamHashOf<T>),
+		/// A stream has been restored.
+		/// \[restorer identifier, stream hash\]
+		StreamRestored(StreamIssuerOf<T>, StreamHashOf<T>),
+	}
+
+	#[pallet::error]
+	pub enum Error<T> {
+		/// There is already a stream with the same hash stored on
+		/// chain.
+		StreamAlreadyAnchored,
+		/// The stream has already been revoked.
+		StreamAlreadyRevoked,
+		/// No stream on chain matching the content hash.
+		StreamNotFound,
+		/// The schema hash does not match the schema specified
+		SchemaMismatch,
+		/// Only when the revoker is not the issuer.
+		UnauthorizedRevocation,
+		/// Only when the restorer is not the issuer.
+		UnauthorizedRestore,
+		/// only when trying to restore an active stream.
+		StreamStillActive,
+		/// Invalid Stream Cid encoding.
+		InvalidCidEncoding,
+		/// schema not authorised.
+		SchemaNotDelegated,
+		/// stream revoked
+		StreamRevoked,
+	}
+
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		/// Create a new stream.
+		///
+		///
+		/// * origin: the identifier of the issuer
+		/// * stream_hash: the hash of the conten to attest. It has to be unique
+		/// * schema_hash: the hash of the schema used for this stream
+		/// * stream_cid: CID of the stream content
+		/// * journal_stream_hash: Hash of the journal stream
+		#[pallet::weight(0)]
+		pub fn anchor(
+			origin: OriginFor<T>,
+			stream_hash: StreamHashOf<T>,
+			schema_hash: SchemaHashOf<T>,
+			stream_cid: StreamCidOf,
+			journal_stream_hash: JournalStreamHashOf<T>,
+		) -> DispatchResult {
+			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+
+			ensure!(
+				!<Streams<T>>::contains_key(&stream_hash),
+				Error::<T>::StreamAlreadyAnchored
+			);
+
+			let schema =
+				<pallet_schema::Schemas<T>>::get(schema_hash).ok_or(pallet_schema::Error::<T>::SchemaNotFound)?;
+			ensure!(schema.owner == issuer, pallet_schema::Error::<T>::SchemaNotDelegated);
+
+			let journal_stream = <pallet_journal::Journal<T>>::get(journal_stream_hash)
+				.ok_or(pallet_journal::Error::<T>::StreamNotFound)?;
+			ensure!(!journal_stream.revoked, pallet_journal::Error::<T>::RevokedStream);
+
+			let cid_base = str::from_utf8(&stream_cid).unwrap();
+			ensure!(
+				pallet_schema::utils::is_base_32(cid_base) || pallet_schema::utils::is_base_58(cid_base),
+				Error::<T>::InvalidCidEncoding
+			);
+			log::debug!("Anchor Stream");
+			let block_number = <frame_system::Pallet<T>>::block_number();
+
+			<Streams<T>>::insert(
+				&stream_hash,
+				StreamDetails {
+					schema_hash,
+					issuer: issuer.clone(),
+					stream_cid: stream_cid.clone(),
+					journal_stream_hash,
+					block_number,
+					revoked: false,
+				},
+			);
+
+			Self::deposit_event(Event::StreamAnchored(issuer, stream_hash, stream_cid));
+
+			Ok(())
+		}
+
+		/// Revoke an existing stream
+		///
+		/// The revoker must be the creator of the stream
+		/// * origin: the identifier of the revoker
+		/// * stream_hash: the hash of the stream to revoke
+		#[pallet::weight(0)]
+		pub fn revoke(origin: OriginFor<T>, stream_hash: StreamHashOf<T>) -> DispatchResult {
+			let revoker = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+
+			let stream = <Streams<T>>::get(&stream_hash).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(stream.issuer == revoker, Error::<T>::UnauthorizedRevocation);
+			ensure!(!stream.revoked, Error::<T>::StreamAlreadyRevoked);
+
+			log::debug!("Revoking Stream");
+			let block_number = <frame_system::Pallet<T>>::block_number();
+
+			<Streams<T>>::insert(
+				&stream_hash,
+				StreamDetails {
+					block_number,
+					revoked: true,
+					..stream
+				},
+			);
+			Self::deposit_event(Event::StreamRevoked(revoker, stream_hash));
+
+			Ok(())
+		}
+
+		// Restore a revoked stream.
+		///
+		/// The restorer must be the creator of the stream being restored
+		/// * origin: the identifier of the restorer
+		/// * stream_hash: the hash of the stream to restore
+		#[pallet::weight(0)]
+		pub fn restore(origin: OriginFor<T>, stream_hash: StreamHashOf<T>) -> DispatchResult {
+			let restorer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+
+			let stream = <Streams<T>>::get(&stream_hash).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(stream.revoked, Error::<T>::StreamStillActive);
+			ensure!(stream.issuer == restorer, Error::<T>::UnauthorizedRestore);
+
+			log::debug!("Restoring Stream");
+			let block_number = <frame_system::Pallet<T>>::block_number();
+
+			<Streams<T>>::insert(
+				&stream_hash,
+				StreamDetails {
+					block_number,
+					revoked: false,
+					..stream
+				},
+			);
+			Self::deposit_event(Event::StreamRestored(restorer, stream_hash));
+
+			Ok(())
+		}
+	}
+}
