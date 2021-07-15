@@ -72,12 +72,13 @@ pub use impls::Author;
 /// Constant values used within the runtime.
 pub mod constants;
 use constants::{currency::*, time::*};
-// use sp_runtime::generic::Era;
 
 // Cord Pallets
 pub use pallet_did;
-pub use pallet_mark;
-pub use pallet_mtype;
+pub use pallet_link;
+pub use pallet_schema;
+pub use pallet_stream;
+
 // Weights used in the runtime.
 pub mod weights;
 use pallet_election_provider_multi_phase::WeightInfo;
@@ -270,8 +271,6 @@ impl frame_system::Config for Runtime {
 	type OnSetCode = ();
 }
 
-// impl pallet_randomness_collective_flip::Config for Runtime {}
-
 impl pallet_utility::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
@@ -442,7 +441,7 @@ impl pallet_babe::Config for Runtime {
 }
 
 parameter_types! {
-	pub const IndexDeposit: Balance =  1 * RUPEES;
+	pub const IndexDeposit: Balance =  10 * MILLI_UNIT;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -454,7 +453,7 @@ impl pallet_indices::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance =  1 * RUPEES;
+	pub const ExistentialDeposit: Balance =  10 * MILLI_UNIT;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
 	// This number may need to be adjusted in the future if this assumption no longer holds true.
 	pub const MaxLocks: u32 = 50;
@@ -479,7 +478,7 @@ pub type SlowAdjustingFeeUpdate<R> =
 	TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * PAISE;
+	pub const TransactionByteFee: Balance = MICRO_UNIT;
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -674,10 +673,10 @@ parameter_types! {
 	pub const VotingPeriod: BlockNumber = 12 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
 	pub const InstantAllowed: bool = true;
-	pub const MinimumDeposit: Balance = 100 * RUPEES;
+	pub const MinimumDeposit: Balance = 100 * MILLI_UNIT;
 	pub const EnactmentPeriod: BlockNumber = 12 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
-	pub const PreimageByteDeposit: Balance = PAISE;
+	pub const PreimageByteDeposit: Balance = MILLI_UNIT;
 	pub const MaxVotes: u32 = 100;
 	pub const MaxProposals: u32 = 100;
 }
@@ -769,7 +768,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 }
 
 parameter_types! {
-	pub const CandidacyBond: Balance = 100 * RUPEES;
+	pub const CandidacyBond: Balance = 100 * MILLI_UNIT;
 	// 1 storage item created, key size is 32 bytes, value size is 16+16.
 	pub const VotingBondBase: Balance = deposit(1, 64);
 	// additional data per vote is 32 bytes (account id).
@@ -838,21 +837,21 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = 10 * RUPEES;
+	pub const ProposalBondMinimum: Balance = 10 * MICRO_UNIT;
 	pub const SpendPeriod: BlockNumber = 12 * DAYS;
 	pub const Burn: Permill = Permill::from_perthousand(2);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 
 	pub const TipCountdown: BlockNumber = 1 * DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(10);
-	pub const TipReportDepositBase: Balance = 1 * RUPEES;
-	pub const DataDepositPerByte: Balance = 10 * PAISE;
-	pub const BountyDepositBase: Balance = 1 * RUPEES;
+	pub const TipReportDepositBase: Balance = 1 * MILLI_UNIT;
+	pub const DataDepositPerByte: Balance = 10 * MICRO_UNIT;
+	pub const BountyDepositBase: Balance = 1 * MILLI_UNIT;
 	pub const BountyDepositPayoutDelay: BlockNumber = 7 * DAYS;
 	pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
 	pub const MaximumReasonLength: u32 = 16384;
 	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-	pub const BountyValueMinimum: Balance = 10 * RUPEES;
+	pub const BountyValueMinimum: Balance = 10 * MICRO_UNIT;
 	pub const MaxApprovals: u32 = 100;
 }
 
@@ -1005,7 +1004,7 @@ where
 }
 
 parameter_types! {
-	pub const MinVestedTransfer: Balance = 100 * RUPEES;
+	pub const MinVestedTransfer: Balance = 100 * MILLI_UNIT;
 }
 
 impl pallet_vesting::Config for Runtime {
@@ -1088,7 +1087,6 @@ construct_runtime! {
 		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 19,
 
-		// RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 20,
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 21,
 		Utility: pallet_utility::{Pallet, Call, Event} = 22,
 		Historical: pallet_session_historical::{Pallet} = 23,
@@ -1149,8 +1147,6 @@ pub type SignedExtra = (
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
 /// The payload being signed in transactions.
 pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
-/// Extrinsic type that has already been checked.
-// pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
 pub type Executive =
 	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPallets>;
