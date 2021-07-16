@@ -7,12 +7,11 @@
 pub mod currency {
 	use cord_primitives::Balance;
 
-	pub const UNIT: Balance = 10u128.pow(12);
-	pub const WAYT: Balance = UNIT;
-	pub const MILLI_UNIT: Balance = 10u128.pow(9);
-	pub const MICRO_UNIT: Balance = 10u128.pow(6);
+	pub const WAY: Balance = 10u128.pow(12);
+	pub const MILLI_WAY: Balance = 10u128.pow(9); // mWAY
+	pub const MICRO_WAY: Balance = 10u128.pow(6); // uWAY
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * 20 * MILLI_UNIT + (bytes as Balance) * 100 * MICRO_UNIT
+		items as Balance * 200 * MILLI_WAY + (bytes as Balance) * 100 * MICRO_WAY
 	}
 }
 
@@ -86,8 +85,8 @@ pub mod fee {
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-			// in Cord, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 MILLi_UNIT:
-			let p = super::currency::MILLI_UNIT;
+			// in Cord, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 MILLi_WAY:
+			let p = super::currency::MILLI_WAY;
 			let q = 10 * Balance::from(ExtrinsicBaseWeight::get());
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,

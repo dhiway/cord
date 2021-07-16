@@ -208,9 +208,9 @@ fn amber_glow_genesis(
 		}))
 		.collect::<Vec<_>>();
 
-	const CONTROLLER_ENDOWMENT: u128 = 1_100 * WAYT;
-	const ENDOWMENT: u128 = 11_100 * WAYT;
-	const CORD_STASH: u128 = 1_110_101_200 * WAYT;
+	const CONTROLLER_ENDOWMENT: u128 = 1_100 * WAY;
+	const ENDOWMENT: u128 = 11_100 * WAY;
+	const CORD_STASH: u128 = 1_110_101_200 * WAY;
 
 	GenesisConfig {
 		system: SystemConfig {
