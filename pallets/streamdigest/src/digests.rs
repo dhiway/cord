@@ -9,8 +9,8 @@ pub struct DigestDetails<T: Config> {
 	pub creator: DigestCreatorOf<T>,
 	/// Hash of the stream linked
 	pub stream_hash: StreamHashOf<T>,
-	/// Digest transaction block number
-	pub block_number: BlockNumberOf<T>,
 	/// \[OPTIONAL\] CID of the digest
 	pub digest_cid: Option<DigestCidOf>,
+	/// Digest transaction block number
+	pub block_number: BlockNumberOf<T>,
 }

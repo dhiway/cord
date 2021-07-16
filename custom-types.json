@@ -20,7 +20,6 @@
     "creator": "JournalStreamCreatorOf",
     "stream_cid": "JournalStreamCidOf",
     "parent_cid": "Option<JournalStreamCidOf>",
-    "stream_hash": "Option<JournalStreamHashOf>",
     "block_number": "BlockNumber",
     "revoked": "bool"
   },
@@ -31,7 +30,7 @@
     "schema_hash": "SchemaHashOf",
     "creator": "StreamCreatorOf",
     "stream_cid": "StreamCidOf",
-    "parent_cid": "Option<StreamCidOf>",
+    "journal_stream_hash": "JournalStreamHashOf",
     "block_number": "BlockNumber",
     "revoked": "bool"
   },
