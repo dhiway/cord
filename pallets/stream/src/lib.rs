@@ -142,7 +142,8 @@ pub mod pallet {
 
 			let cid_base = str::from_utf8(&stream_cid).unwrap();
 			ensure!(
-				pallet_schema::utils::is_base_32(cid_base) || pallet_schema::utils::is_base_58(cid_base),
+				cid_base.len() <= 62
+					&& (pallet_schema::utils::is_base_32(cid_base) || pallet_schema::utils::is_base_58(cid_base)),
 				Error::<T>::InvalidCidEncoding
 			);
 			log::debug!("Anchor Stream");

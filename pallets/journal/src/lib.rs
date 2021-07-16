@@ -127,14 +127,16 @@ pub mod pallet {
 
 			let cid_base = str::from_utf8(&stream_cid).unwrap();
 			ensure!(
-				pallet_schema::utils::is_base_32(cid_base) || pallet_schema::utils::is_base_58(cid_base),
+				cid_base.len() <= 62
+					&& (pallet_schema::utils::is_base_32(cid_base) || pallet_schema::utils::is_base_58(cid_base)),
 				Error::<T>::InvalidCidEncoding
 			);
 
 			if let Some(ref parent_cid) = parent_cid {
 				let pcid_base = str::from_utf8(&parent_cid).unwrap();
 				ensure!(
-					pallet_schema::utils::is_base_32(pcid_base) || pallet_schema::utils::is_base_58(pcid_base),
+					pcid_base.len() <= 62
+						&& (pallet_schema::utils::is_base_32(pcid_base) || pallet_schema::utils::is_base_58(pcid_base)),
 					Error::<T>::InvalidCidEncoding
 				);
 			}
