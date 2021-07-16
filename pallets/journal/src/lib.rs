@@ -110,9 +110,9 @@ pub mod pallet {
 		pub fn anchor(
 			origin: OriginFor<T>,
 			stream_hash: JournalStreamHashOf<T>,
-			schema_hash: SchemaHashOf<T>,
 			stream_cid: JournalStreamCidOf,
 			parent_cid: Option<JournalStreamCidOf>,
+			schema_hash: SchemaHashOf<T>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
@@ -147,10 +147,10 @@ pub mod pallet {
 			<Journal<T>>::insert(
 				&stream_hash,
 				JournalStreamDetails {
-					schema_hash,
 					creator: creator.clone(),
 					stream_cid: stream_cid.clone(),
 					parent_cid,
+					schema_hash,
 					block_number,
 					revoked: false,
 				},

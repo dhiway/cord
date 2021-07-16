@@ -68,6 +68,12 @@ pub mod pallet {
 	#[pallet::getter(fn links)]
 	pub type Links<T> = StorageMap<_, Blake2_128Concat, StreamLinkHashOf<T>, StreamLinkDetails<T>>;
 
+	/// Transaction Streams linked to Streams stored on chain.
+	/// It maps from a stream hash to a vector of transaction stream hashes.
+	#[pallet::storage]
+	#[pallet::getter(fn streamlinks)]
+	pub type StreamLinks<T> = StorageMap<_, Blake2_128Concat, StreamHashOf<T>, Vec<StreamLinkHashOf<T>>>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -130,16 +136,21 @@ pub mod pallet {
 					&& (pallet_schema::utils::is_base_32(cid_base) || pallet_schema::utils::is_base_58(cid_base)),
 				Error::<T>::InvalidCidEncoding
 			);
-			log::debug!("Anchor Stream Link");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
+			// vector of transaction stream hashes linked to stream hash
+			let mut stream_link = <StreamLinks<T>>::get(stream_hash).unwrap_or_default();
+			stream_link.push(stream_link_hash);
+			<StreamLinks<T>>::insert(stream_hash, stream_link);
+
+			log::debug!("Anchor Stream Link");
 			<Links<T>>::insert(
 				&stream_link_hash,
 				StreamLinkDetails {
-					schema_hash,
 					creator: creator.clone(),
 					stream_link_cid: stream_link_cid.clone(),
 					stream_hash,
+					schema_hash,
 					block_number,
 					revoked: false,
 				},

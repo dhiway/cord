@@ -68,6 +68,12 @@ pub mod pallet {
 	#[pallet::getter(fn streams)]
 	pub type Streams<T> = StorageMap<_, Blake2_128Concat, StreamHashOf<T>, StreamDetails<T>>;
 
+	/// Streams linked to Journal Streams stored on chain.
+	/// It maps from a journal stream hash to a vector of stream hashes.
+	#[pallet::storage]
+	#[pallet::getter(fn journalstreams)]
+	pub type JournalStreams<T> = StorageMap<_, Blake2_128Concat, JournalStreamHashOf<T>, Vec<StreamHashOf<T>>>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -146,16 +152,21 @@ pub mod pallet {
 					&& (pallet_schema::utils::is_base_32(cid_base) || pallet_schema::utils::is_base_58(cid_base)),
 				Error::<T>::InvalidCidEncoding
 			);
-			log::debug!("Anchor Stream");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
+			// vector of stream hashes linked to journal stream hash
+			let mut linked_stream = <JournalStreams<T>>::get(journal_stream_hash).unwrap_or_default();
+			linked_stream.push(stream_hash);
+			<JournalStreams<T>>::insert(journal_stream_hash, linked_stream);
+
+			log::debug!("Anchor Stream");
 			<Streams<T>>::insert(
 				&stream_hash,
 				StreamDetails {
-					schema_hash,
 					creator: creator.clone(),
 					stream_cid: stream_cid.clone(),
 					journal_stream_hash,
+					schema_hash,
 					block_number,
 					revoked: false,
 				},

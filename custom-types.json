@@ -16,11 +16,10 @@
   "JournalStreamHashOf": "Hash",
   "JournalStreamCidOf": "Text",
   "JournalStreamDetails": {
-    "schema_hash": "SchemaHashOf",
     "creator": "JournalStreamCreatorOf",
     "stream_cid": "JournalStreamCidOf",
     "parent_cid": "Option<JournalStreamCidOf>",
-    "stream_hash": "Option<JournalStreamHashOf>",
+    "schema_hash": "SchemaHashOf",
     "block_number": "BlockNumber",
     "revoked": "bool"
   },
@@ -28,10 +27,10 @@
   "StreamHashOf": "Hash",
   "StreamCidOf": "Text",
   "StreamDetails": {
-    "schema_hash": "SchemaHashOf",
     "creator": "StreamCreatorOf",
     "stream_cid": "StreamCidOf",
-    "parent_cid": "Option<StreamCidOf>",
+    "journal_stream_hash": "JournalStreamHashOf",
+    "schema_hash": "SchemaHashOf",
     "block_number": "BlockNumber",
     "revoked": "bool"
   },
@@ -39,10 +38,10 @@
   "StreamLinkHashOf": "Hash",
   "StreamLinkCidOf": "Text",
   "StreamLinkDetails": {
-    "schema_hash": "SchemaHashOf",
     "creator": "StreamLinkCreatorOf",
     "stream_link_cid": "StreamLinkCidOf",
     "stream_hash": "StreamHashOf",
+    "schema_hash": "SchemaHashOf",
     "block_number": "BlockNumber",
     "revoked": "bool"
   },
