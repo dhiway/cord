@@ -8,7 +8,7 @@ pub struct StreamDetails<T: Config> {
 	/// The hash of the schema used for this stream.
 	pub schema_hash: SchemaHashOf<T>,
 	/// The ID of the issuer.
-	pub issuer: StreamIssuerOf<T>,
+	pub creator: StreamCreatorOf<T>,
 	/// CID of the stream
 	pub stream_cid: StreamCidOf,
 	/// Hash of the linked journal stream

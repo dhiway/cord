@@ -4,36 +4,56 @@
   "AmountOf": "i128",
   "Balance": "u128",
   "LookupSource": "MultiAddress",
-  "MtypeOwnerOf": "AccountId",
-  "MtypeHashOf": "Hash",
-  "StreamHashOf": "Hash",
-  "DigestHashOf": "Hash",
-  "CidOf": "Text",
-  "MarkIssuerOf": "MtypeOwnerOf",
-  "MTypeDetails": {
-    "owner": "MtypeOwnerOf",
-    "stream_cid": "CidOf",
+  "SchemaOwnerOf": "AccountId",
+  "SchemaHashOf": "Hash",
+  "SchemaCidOf": "Text",
+  "SchemaDetails": {
+    "owner": "SchemaOwnerOf",
+    "schema_cid": "SchemaCidOf",
     "block_number": "BlockNumber"
   },
-  "MarkDetails": {
-    "mtype_hash": "MtypeHashOf",
-    "issuer": "MarkIssuerOf",
-    "stream_cid": "CidOf",
-    "parent_cid": "Option<CidOf>",
-    "digest_hash": "Option<DigestHashOf>",
+  "JournalStreamCreatorOf": "AccountId",
+  "JournalStreamHashOf": "Hash",
+  "JournalStreamCidOf": "Text",
+  "JournalStreamDetails": {
+    "schema_hash": "SchemaHashOf",
+    "creator": "JournalStreamCreatorOf",
+    "stream_cid": "JournalStreamCidOf",
+    "parent_cid": "Option<JournalStreamCidOf>",
+    "stream_hash": "Option<JournalStreamHashOf>",
     "block_number": "BlockNumber",
     "revoked": "bool"
   },
-  "DelegationNode": {
-    "rootId": "DelegationNodeIdOf",
-    "parent": "Option<DelegationNodeIdOf>",
-    "owner": "DelegatorIdOf",
-    "permissions": "Permissions",
+  "StreamCreatorOf": "AccountId",
+  "StreamHashOf": "Hash",
+  "StreamCidOf": "Text",
+  "StreamDetails": {
+    "schema_hash": "SchemaHashOf",
+    "creator": "StreamCreatorOf",
+    "stream_cid": "StreamCidOf",
+    "parent_cid": "Option<StreamCidOf>",
+    "block_number": "BlockNumber",
     "revoked": "bool"
   },
-  "DelegationCounter": {
-    "round": "SessionIndex",
-    "counter": "u32"
+  "StreamLinkCreatorOf": "AccountId",
+  "StreamLinkHashOf": "Hash",
+  "StreamLinkCidOf": "Text",
+  "StreamLinkDetails": {
+    "schema_hash": "SchemaHashOf",
+    "creator": "StreamLinkCreatorOf",
+    "stream_link_cid": "StreamLinkCidOf",
+    "stream_hash": "StreamHashOf",
+    "block_number": "BlockNumber",
+    "revoked": "bool"
+  },
+  "DigestCreatorOf": "AccountId",
+  "DigestHashOf": "Hash",
+  "DigestCidOf": "Text",
+  "DigestDetails": {
+    "creator": "DigestCreatorOf",
+    "stream_hash": "StreamHashOf",
+    "digest_cid": "Option<DigestCidOf>",
+    "block_number": "BlockNumber"
   },
   "KeyIdOf": "Hash",
   "DidIdentifierOf": "AccountId",

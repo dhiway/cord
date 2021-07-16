@@ -42,7 +42,7 @@ pub mod pallet {
 	/// Type of cred parent stream identifier.
 	pub type JournalStreamHashOf<T> = pallet_journal::JournalStreamHashOf<T>;
 	/// Type of cred owner identifier.
-	pub type StreamIssuerOf<T> = pallet_schema::SchemaOwnerOf<T>;
+	pub type StreamCreatorOf<T> = pallet_schema::SchemaOwnerOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// CID Information
@@ -50,7 +50,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_schema::Config + pallet_journal::Config {
-		type EnsureOrigin: EnsureOrigin<Success = StreamIssuerOf<Self>, <Self as frame_system::Config>::Origin>;
+		type EnsureOrigin: EnsureOrigin<Success = StreamCreatorOf<Self>, <Self as frame_system::Config>::Origin>;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type WeightInfo: WeightInfo;
 	}
@@ -72,14 +72,14 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new stream has been created.
-		/// \[issuer identifier, stream hash, stream cid\]
-		StreamAnchored(StreamIssuerOf<T>, StreamHashOf<T>, StreamCidOf),
+		/// \[creator identifier, stream hash, stream cid\]
+		StreamAnchored(StreamCreatorOf<T>, StreamHashOf<T>, StreamCidOf),
 		/// A stream has been revoked.
 		/// \[revoker identifier, stream hash\]
-		StreamRevoked(StreamIssuerOf<T>, StreamHashOf<T>),
+		StreamRevoked(StreamCreatorOf<T>, StreamHashOf<T>),
 		/// A stream has been restored.
 		/// \[restorer identifier, stream hash\]
-		StreamRestored(StreamIssuerOf<T>, StreamHashOf<T>),
+		StreamRestored(StreamCreatorOf<T>, StreamHashOf<T>),
 	}
 
 	#[pallet::error]
@@ -93,9 +93,9 @@ pub mod pallet {
 		StreamNotFound,
 		/// The schema hash does not match the schema specified
 		SchemaMismatch,
-		/// Only when the revoker is not the issuer.
+		/// Only when the revoker is not the creator.
 		UnauthorizedRevocation,
-		/// Only when the restorer is not the issuer.
+		/// Only when the restorer is not the creator.
 		UnauthorizedRestore,
 		/// only when trying to restore an active stream.
 		StreamStillActive,
@@ -112,7 +112,7 @@ pub mod pallet {
 		/// Create a new stream.
 		///
 		///
-		/// * origin: the identifier of the issuer
+		/// * origin: the identifier of the creator
 		/// * stream_hash: the hash of the conten to attest. It has to be unique
 		/// * schema_hash: the hash of the schema used for this stream
 		/// * stream_cid: CID of the stream content
@@ -121,11 +121,11 @@ pub mod pallet {
 		pub fn anchor(
 			origin: OriginFor<T>,
 			stream_hash: StreamHashOf<T>,
-			schema_hash: SchemaHashOf<T>,
 			stream_cid: StreamCidOf,
+			schema_hash: SchemaHashOf<T>,
 			journal_stream_hash: JournalStreamHashOf<T>,
 		) -> DispatchResult {
-			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
 				!<Streams<T>>::contains_key(&stream_hash),
@@ -134,7 +134,7 @@ pub mod pallet {
 
 			let schema =
 				<pallet_schema::Schemas<T>>::get(schema_hash).ok_or(pallet_schema::Error::<T>::SchemaNotFound)?;
-			ensure!(schema.owner == issuer, pallet_schema::Error::<T>::SchemaNotDelegated);
+			ensure!(schema.owner == creator, pallet_schema::Error::<T>::SchemaNotDelegated);
 
 			let journal_stream = <pallet_journal::Journal<T>>::get(journal_stream_hash)
 				.ok_or(pallet_journal::Error::<T>::StreamNotFound)?;
@@ -152,7 +152,7 @@ pub mod pallet {
 				&stream_hash,
 				StreamDetails {
 					schema_hash,
-					issuer: issuer.clone(),
+					creator: creator.clone(),
 					stream_cid: stream_cid.clone(),
 					journal_stream_hash,
 					block_number,
@@ -160,7 +160,7 @@ pub mod pallet {
 				},
 			);
 
-			Self::deposit_event(Event::StreamAnchored(issuer, stream_hash, stream_cid));
+			Self::deposit_event(Event::StreamAnchored(creator, stream_hash, stream_cid));
 
 			Ok(())
 		}
@@ -175,7 +175,7 @@ pub mod pallet {
 			let revoker = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let stream = <Streams<T>>::get(&stream_hash).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(stream.issuer == revoker, Error::<T>::UnauthorizedRevocation);
+			ensure!(stream.creator == revoker, Error::<T>::UnauthorizedRevocation);
 			ensure!(!stream.revoked, Error::<T>::StreamAlreadyRevoked);
 
 			log::debug!("Revoking Stream");
@@ -205,7 +205,7 @@ pub mod pallet {
 
 			let stream = <Streams<T>>::get(&stream_hash).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(stream.revoked, Error::<T>::StreamStillActive);
-			ensure!(stream.issuer == restorer, Error::<T>::UnauthorizedRestore);
+			ensure!(stream.creator == restorer, Error::<T>::UnauthorizedRestore);
 
 			log::debug!("Restoring Stream");
 			let block_number = <frame_system::Pallet<T>>::block_number();

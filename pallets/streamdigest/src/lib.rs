@@ -40,7 +40,7 @@ pub mod pallet {
 	/// Type of link transaction owner identifier.
 	pub type StreamHashOf<T> = pallet_stream::StreamHashOf<T>;
 	/// Type of link owner identifier.
-	pub type DigestCreatorOf<T> = pallet_stream::StreamIssuerOf<T>;
+	pub type DigestCreatorOf<T> = pallet_stream::StreamCreatorOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// Stream link CID

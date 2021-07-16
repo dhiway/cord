@@ -107,9 +107,9 @@ pub mod pallet {
 		pub fn anchor(
 			origin: OriginFor<T>,
 			stream_link_hash: StreamLinkHashOf<T>,
-			schema_hash: SchemaHashOf<T>,
 			stream_link_cid: StreamLinkCidOf,
 			stream_hash: StreamHashOf<T>,
+			schema_hash: SchemaHashOf<T>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
