@@ -1,9 +1,9 @@
 [package]
-name = 'pallet-mark'
-version = '0.5.1'
+name = 'pallet-journal'
+version = '0.5.2'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
-description = 'Enables adding and revoking credentials.'
+description = 'Enables adding and revoking marks.'
 
 [[package.metadata.docs.rs]]
 targets = ['x86_64-unknown-linux-gnu']
@@ -26,12 +26,10 @@ sp-std = { git = "https://github.com/paritytech/substrate", default-features = f
 
 # Internal Dependencies
 pallet-schema = { default-features = false, path = '../schema' }
-pallet-journal= { default-features = false, path = '../journal' }
 cord-primitives = {default-features = false, optional = true, path = "../../primitives"}
 
 [dev-dependencies]
 pallet-schema = {features = ["mock"], path = "../schema" }
-pallet-journal = {features = ["mock"], path = "../journal" }
 cord-primitives = {default-features = false, path = "../../primitives"}
 serde = {default-features = false, version = "1.0.125"}
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.8" }
@@ -56,7 +54,6 @@ runtime-benchmarks = [
 std = [
 	'codec/std',
 	'pallet-schema/std',
-	'pallet-journal/std',
 	'frame-support/std',
 	'frame-system/std',
 	'cord-primitives/std',

@@ -16,7 +16,6 @@ use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::{ChainType, Properties};
-// use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
@@ -70,6 +69,16 @@ pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Pu
 	TPublic::Pair::from_string(&format!("//{}", seed), None)
 		.expect("static values are valid; qed")
 		.public()
+}
+
+/// Helper function to set properties
+pub fn get_properties(symbol: &str, decimals: u32, ss58format: u32) -> Properties {
+	let mut properties = Properties::new();
+	properties.insert("tokenSymbol".into(), symbol.into());
+	properties.insert("tokenDecimals".into(), decimals.into());
+	properties.insert("ss58Format".into(), ss58format.into());
+
+	properties
 }
 
 /// Helper function to generate an account ID from seed
@@ -130,9 +139,7 @@ fn amber_glow_genesis_config() -> GenesisConfig {
 /// Staging testnet config.
 pub fn amber_glow_config() -> ChainSpec {
 	let boot_nodes = vec![];
-	let mut properties = Properties::new();
-	properties.insert("tokenSymbol".into(), "WAY".into());
-	properties.insert("tokenDecimals".into(), 12.into());
+	let properties = get_properties("WAYT", 12, 29);
 	ChainSpec::from_genesis(
 		"Amber Glow",
 		"DevNode",
@@ -201,9 +208,9 @@ fn amber_glow_genesis(
 		}))
 		.collect::<Vec<_>>();
 
-	const CONTROLLER_ENDOWMENT: u128 = 1_100 * WAY;
-	const ENDOWMENT: u128 = 11_100 * WAY;
-	const CORD_STASH: u128 = 1_110_101_200 * WAY;
+	const CONTROLLER_ENDOWMENT: u128 = 1_100 * WAYT;
+	const ENDOWMENT: u128 = 11_100 * WAYT;
+	const CORD_STASH: u128 = 1_110_101_200 * WAYT;
 
 	GenesisConfig {
 		system: SystemConfig {
@@ -227,8 +234,8 @@ fn amber_glow_genesis(
 				.collect::<Vec<_>>(),
 		},
 		staking: StakingConfig {
+			minimum_validator_count: 1,
 			validator_count: initial_authorities.len() as u32,
-			minimum_validator_count: initial_authorities.len() as u32,
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
 			slash_reward_fraction: Perbill::from_percent(10),
 			stakers,

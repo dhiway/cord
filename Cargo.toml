@@ -9,7 +9,11 @@ members = [
 	"executor",
 	"inspect",
 	"node",
-	"pallets/mtype",
+	"pallets/schema",
+	"pallets/journal",
+	"pallets/stream",
+	"pallets/streamlink",
+	"pallets/streamdigest",
 	"pallets/did",
 	"pallets/mark",
 ]

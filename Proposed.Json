@@ -1,0 +1,45 @@
+{
+  "MTypeDetails": {
+    "owner": "MtypeOwnerOf",
+    "stream_cid": "CidOf",
+    "block_number": "BlockNumber"
+  },
+  "StreamDetails": {
+    "mtype_hash": "MtypeHashOf",
+    "issuer": "MarkIssuerOf",
+    "stream_cid": "CidOf",
+    "parent_cid": "Option<CidOf>",
+    "block_number": "BlockNumber",
+    "revoked": "bool"
+  },
+  "CredentialDetails": {
+    "mtype_hash": "MtypeHashOf",
+    "stream_id": "StreamHashOf",
+    "issuer": "MarkIssuerOf",
+    "credential_cid": "CidOf",
+    "parent_cid": "Option<CidOf>",
+    "digest_hash": "Option<DigestHashOf>",
+    "block_number": "BlockNumber",
+    "revoked": "bool"
+  },
+  "LinkDetails": {
+    "mtype_hash": "MtypeHashOf",
+    "stream_id": "StreamHashOf",
+    "issuer": "MarkIssuerOf",
+    "link_cid": "CidOf",
+    "parent_cid": "Option<CidOf>",
+    "block_number": "BlockNumber",
+    "revoked": "bool"
+  },
+  "MarkDetails": {
+    "mtype_hash": "MtypeHashOf",
+    "stream_id": "StreamHashOf",
+    "issuer": "MarkIssuerOf",
+    "credential_cid": "CidOf",
+    "parent_cid": "Option<CidOf>",
+    "digest_hash": "Option<DigestHashOf>",
+    "block_number": "BlockNumber",
+    "type": "TypeOf",
+    "revoked": "bool"
+  }
+}

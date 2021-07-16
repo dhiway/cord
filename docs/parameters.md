@@ -37,7 +37,7 @@ Burn percentage is currently 0.10%.
 
 # Precision
 
-WAY have 12 decimals of precision. In other words, 1e12 (1_000_000_000_000, or one trillion) Plancks make up a single WAY.
+WAYT have 12 decimals of precision. In other words, 1e12 (1_000_000_000_000, or one trillion) Plancks make up a single WAYT.
 
 # Only for Demo
 
