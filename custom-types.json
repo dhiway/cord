@@ -5,12 +5,26 @@
   "Balance": "u128",
   "LookupSource": "MultiAddress",
   "SchemaOwnerOf": "AccountId",
+  "SchemaIdOf": "Hash",
   "SchemaHashOf": "Hash",
   "SchemaCidOf": "Text",
+  "SchemaTransOf": "Text",
+  "SchemaInput": {
+    "schema_id": "SchemaIdOf",
+    "schema_cid": "SchemaCidOf"
+  },
   "SchemaDetails": {
+    "schema_id": "SchemaIdOf",
     "owner": "SchemaOwnerOf",
     "schema_cid": "SchemaCidOf",
-    "block_number": "BlockNumber"
+    "parent_cid": "Option<SchemaCidOf>",
+    "block_number": "BlockNumber",
+    "revoked": "bool"
+  },
+  "SchemaIdLinks": {
+    "schema_hash": "SchemaHashOf",
+    "block_number": "BlockNumber",
+    "trans_type": "SchemaTransOf"
   },
   "JournalStreamCreatorOf": "AccountId",
   "JournalStreamHashOf": "Hash",
