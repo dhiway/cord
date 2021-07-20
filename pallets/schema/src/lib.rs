@@ -131,7 +131,7 @@ pub mod pallet {
 		///
 		/// * origin: the identifier of the schema owner
 		/// * hash: the schema hash. It has to be unique.
-		/// * schema_cid: CID of the schema
+		/// * schema_details: schema details information
 		#[pallet::weight(0)]
 		pub fn create(
 			origin: OriginFor<T>,
@@ -182,6 +182,12 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Updates the latest version of stored schema
+		/// and associates it with its owner.
+		///
+		/// * origin: the identifier of the schema owner
+		/// * hash: the schema hash. It has to be unique.
+		/// * schema_details: schema details information
 		#[pallet::weight(0)]
 		pub fn update(
 			origin: OriginFor<T>,
@@ -201,12 +207,11 @@ pub mod pallet {
 
 			ensure!(existing_schema.owner == owner, Error::<T>::SchemaNotDelegated);
 			ensure!(!existing_schema.revoked, Error::<T>::SchemaRevoked);
+			let cid_base = str::from_utf8(&schema_details.schema_cid).unwrap();
 			ensure!(
-				existing_schema.schema_cid != schema_details.schema_cid,
+				str::from_utf8(&existing_schema.schema_cid).unwrap() != cid_base,
 				Error::<T>::SchemaCidAlreadyExists
 			);
-
-			let cid_base = str::from_utf8(&schema_details.schema_cid).unwrap();
 			ensure!(
 				cid_base.len() <= 62 && (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)),
 				Error::<T>::InvalidCidEncoding
