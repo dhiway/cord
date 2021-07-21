@@ -4,11 +4,28 @@
   "AmountOf": "i128",
   "Balance": "u128",
   "LookupSource": "MultiAddress",
+  "CidOf": "Text",
   "SchemaOwnerOf": "AccountId",
   "SchemaIdOf": "Hash",
   "SchemaHashOf": "Hash",
   "SchemaCidOf": "Text",
   "SchemaTransOf": "Text",
+  "ActivityOf": "Text",
+  "ControllerOf": "AccountId",
+  "EntityIdOf": "Hash",
+  "EntityDetails": {
+    "controller": "ControllerOf",
+    "entity_cid": "CidOf",
+    "parent_cid": "Option<CidOf>",
+    "block_number": "BlockNumber",
+    "verified": "bool",
+    "active": "bool"
+  },
+  "ActivityDetails": {
+    "block_number": "BlockNumber",
+    "entity_cid": "CidOf",
+    "activity": "ActivityOf"
+  },
   "SchemaInput": {
     "schema_id": "SchemaIdOf",
     "schema_cid": "SchemaCidOf"

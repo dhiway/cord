@@ -24,8 +24,7 @@ pallet-stream = { default-features = false, path = '../pallets/stream' }
 pallet-stream-link = { default-features = false, path = '../pallets/streamlink' }
 pallet-stream-digest = { default-features = false, path = '../pallets/streamdigest' }
 pallet-did = {  default-features = false, path = '../pallets/did' }
-#pallet-reserve = {  default-features = false, path = '../pallets/reserve' }
-#pallet-digest = {  default-features = false, path = '../pallets/digest' }
+pallet-entity = {  default-features = false, path = '../pallets/entity' }
 
 # cord primitives
 cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
@@ -60,7 +59,6 @@ pallet-elections-phragmen = {git = "https://github.com/paritytech/substrate", de
 pallet-election-provider-multi-phase = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
 frame-executive = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.8"}
 pallet-grandpa = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.8"}
-pallet-identity = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
 pallet-im-online = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.8"}
 pallet-indices = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.8"}
 pallet-membership = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.8"}
@@ -132,7 +130,6 @@ std = [
     "pallet-democracy/std",
 	"pallet-grandpa/std",
 	"pallet-im-online/std",
-	"pallet-identity/std",
 	"pallet-indices/std",
 	"pallet-membership/std",
 	"pallet-multisig/std",
@@ -168,4 +165,5 @@ std = [
 	"pallet-stream-link/std",
 	"pallet-stream-digest/std",
   	"pallet-did/std",
+ 	"pallet-entity/std",
 ]

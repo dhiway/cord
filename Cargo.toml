@@ -14,7 +14,7 @@ members = [
 	"pallets/stream",
 	"pallets/streamlink",
 	"pallets/streamdigest",
-	"pallets/identity",
+	"pallets/entity",
 	"pallets/did",
 	"pallets/mark",
 ]

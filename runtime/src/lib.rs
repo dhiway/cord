@@ -15,7 +15,8 @@ use cord_primitives::{AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, I
 use frame_support::{
 	construct_runtime, log, parameter_types,
 	traits::{
-		Currency, Imbalance, KeyOwnerProofSystem, LockIdentifier, MaxEncodedLen, OnUnbalanced, U128CurrencyToVote,
+		Currency, Imbalance, KeyOwnerProofSystem, LockIdentifier, MaxEncodedLen, OnUnbalanced,
+		U128CurrencyToVote,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -27,10 +28,14 @@ use frame_support::{traits::InstanceFilter, PalletId};
 use frame_system::limits;
 use frame_system::{EnsureOneOf, EnsureRoot, EnsureSigned};
 
-use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
+use pallet_grandpa::{
+	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
+};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
-pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, OnChargeTransaction, TargetedFeeAdjustment};
+pub use pallet_transaction_payment::{
+	CurrencyAdapter, Multiplier, OnChargeTransaction, TargetedFeeAdjustment,
+};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -42,13 +47,15 @@ use sp_core::{
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::curve::PiecewiseLinear;
 use sp_runtime::traits::{
-	AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Dispatchable, Extrinsic as ExtrinsicT, NumberFor,
-	OpaqueKeys, SaturatedConversion, Verify, Zero,
+	AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Dispatchable,
+	Extrinsic as ExtrinsicT, NumberFor, OpaqueKeys, SaturatedConversion, Verify, Zero,
 };
-use sp_runtime::transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity};
+use sp_runtime::transaction_validity::{
+	TransactionPriority, TransactionSource, TransactionValidity,
+};
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber, FixedU128, Perbill, Percent,
-	Permill, Perquintill,
+	create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber,
+	FixedU128, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(any(feature = "std", test))]
@@ -125,10 +132,7 @@ pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
 /// Native version.
 #[cfg(any(feature = "std", test))]
 pub fn native_version() -> NativeVersion {
-	NativeVersion {
-		runtime_version: VERSION,
-		can_author_with: Default::default(),
-	}
+	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
 }
 
 type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
@@ -169,18 +173,18 @@ parameter_types! {
 		.get(DispatchClass::Normal);
 }
 
-pub fn fee_for_submit_call<T>(multiplier: FixedU128, weight: Weight, length: u32) -> cord_primitives::Balance
+pub fn fee_for_submit_call<T>(
+	multiplier: FixedU128,
+	weight: Weight,
+	length: u32,
+) -> cord_primitives::Balance
 where
 	T: pallet_transaction_payment::Config,
 	<T as pallet_transaction_payment::Config>::OnChargeTransaction:
 		OnChargeTransaction<T, Balance = cord_primitives::Balance>,
 	<T as frame_system::Config>::Call: Dispatchable<Info = DispatchInfo>,
 {
-	let info = DispatchInfo {
-		weight,
-		class: DispatchClass::Normal,
-		pays_fee: Pays::Yes,
-	};
+	let info = DispatchInfo { weight, class: DispatchClass::Normal, pays_fee: Pays::Yes };
 	multiplier.saturating_mul_int(pallet_transaction_payment::Pallet::<T>::compute_fee(
 		length,
 		&info,
@@ -309,7 +313,9 @@ parameter_types! {
 }
 
 /// The type used to represent the kinds of proxying allowed.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, MaxEncodedLen)]
+#[derive(
+	Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, MaxEncodedLen,
+)]
 pub enum ProxyType {
 	Any,
 	NonTransfer,
@@ -363,7 +369,9 @@ impl InstanceFilter<Call> for ProxyType {
 					| Call::Elections(..)
 					| Call::Treasury(..) | Call::Bounties(..)
 			),
-			ProxyType::Staking => matches!(c, Call::Staking(..) | Call::Session(..) | Call::Utility(..)),
+			ProxyType::Staking => {
+				matches!(c, Call::Staking(..) | Call::Session(..) | Call::Utility(..))
+			}
 		}
 	}
 	fn is_superset(&self, o: &Self) -> bool {
@@ -431,13 +439,18 @@ impl pallet_babe::Config for Runtime {
 
 	type KeyOwnerProofSystem = Historical;
 
-	type KeyOwnerProof =
-		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, pallet_babe::AuthorityId)>>::Proof;
+	type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
+		KeyTypeId,
+		pallet_babe::AuthorityId,
+	)>>::Proof;
 
-	type KeyOwnerIdentification =
-		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, pallet_babe::AuthorityId)>>::IdentificationTuple;
+	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
+		KeyTypeId,
+		pallet_babe::AuthorityId,
+	)>>::IdentificationTuple;
 
-	type HandleEquivocation = pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
+	type HandleEquivocation =
+		pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 
 	type WeightInfo = ();
 }
@@ -642,7 +655,8 @@ type SlashCancelOrigin = EnsureOneOf<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionAtLeast<_3, _4, AccountId, CouncilCollective>,
 >;
-pub const MAX_NOMINATIONS: u32 = <NposCompactSolution24 as sp_npos_elections::CompactSolution>::LIMIT as u32;
+pub const MAX_NOMINATIONS: u32 =
+	<NposCompactSolution24 as sp_npos_elections::CompactSolution>::LIMIT as u32;
 
 // use frame_election_provider_support::onchain;
 impl pallet_staking::Config for Runtime {
@@ -664,9 +678,10 @@ impl pallet_staking::Config for Runtime {
 	type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
 	type NextNewSession = Session;
 	type ElectionProvider = ElectionProviderMultiPhase;
-	type GenesisElectionProvider = frame_election_provider_support::onchain::OnChainSequentialPhragmen<
-		pallet_election_provider_multi_phase::OnChainConfig<Self>,
-	>;
+	type GenesisElectionProvider =
+		frame_election_provider_support::onchain::OnChainSequentialPhragmen<
+			pallet_election_provider_multi_phase::OnChainConfig<Self>,
+		>;
 	type WeightInfo = ();
 }
 
@@ -933,13 +948,19 @@ impl pallet_grandpa::Config for Runtime {
 
 	type KeyOwnerProofSystem = Historical;
 
-	type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+	type KeyOwnerProof =
+		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
 
-	type KeyOwnerIdentification =
-		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::IdentificationTuple;
+	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
+		KeyTypeId,
+		GrandpaId,
+	)>>::IdentificationTuple;
 
-	type HandleEquivocation =
-		pallet_grandpa::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
+	type HandleEquivocation = pallet_grandpa::EquivocationHandler<
+		Self::KeyOwnerIdentification,
+		Offences,
+		ReportLongevity,
+	>;
 
 	type WeightInfo = ();
 }
@@ -958,10 +979,8 @@ where
 	) -> Option<(Call, <UncheckedExtrinsic as ExtrinsicT>::SignaturePayload)> {
 		use sp_runtime::traits::StaticLookup;
 		// take the biggest period possible.
-		let period = BlockHashCount::get()
-			.checked_next_power_of_two()
-			.map(|c| c / 2)
-			.unwrap_or(2) as u64;
+		let period =
+			BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
 		let current_block = System::block_number()
 			.saturated_into::<u64>()
 			// The `System::block_number` is initialized with `n+1`,
@@ -974,7 +993,10 @@ where
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
 			frame_system::CheckGenesis::<Runtime>::new(),
-			frame_system::CheckMortality::<Runtime>::from(generic::Era::mortal(period, current_block)),
+			frame_system::CheckMortality::<Runtime>::from(generic::Era::mortal(
+				period,
+				current_block,
+			)),
 			// frame_system::CheckEra::<Runtime>::from(era),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
@@ -1014,6 +1036,19 @@ impl pallet_vesting::Config for Runtime {
 	type Currency = Balances;
 	type BlockNumberToBalance = ConvertInto;
 	type MinVestedTransfer = MinVestedTransfer;
+	type WeightInfo = ();
+}
+parameter_types! {
+	pub const MaxRegistrars: u32 = 10;
+}
+
+impl pallet_entity::Config for Runtime {
+	type Event = Event;
+	type CordAccountId = AccountId;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type MaxRegistrars = MaxRegistrars;
+	type ForceOrigin = MoreThanHalfCouncil;
+	type RegistrarOrigin = MoreThanHalfCouncil;
 	type WeightInfo = ();
 }
 
@@ -1113,6 +1148,7 @@ construct_runtime! {
 		Stream: pallet_stream::{Pallet, Call, Storage, Event<T>} = 34,
 		StreamLink: pallet_stream_link::{Pallet, Call, Storage, Event<T>} = 35,
 		StreamDigest: pallet_stream_digest::{Pallet, Call, Storage, Event<T>} = 36,
+		Entity: pallet_entity::{Pallet, Call, Storage, Event<T>} = 37,
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 41,
 		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 42,
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 43,
@@ -1122,13 +1158,19 @@ construct_runtime! {
 }
 
 impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call {
-	fn derive_verification_key_relationship(&self) -> Option<pallet_did::DidVerificationKeyRelationship> {
+	fn derive_verification_key_relationship(
+		&self,
+	) -> Option<pallet_did::DidVerificationKeyRelationship> {
 		match self {
 			Call::Schema(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			Call::Journal(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			Call::Stream(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			Call::StreamLink(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			Call::StreamDigest(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::StreamLink(_) => {
+				Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			}
+			Call::StreamDigest(_) => {
+				Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			}
 			#[cfg(not(feature = "runtime-benchmarks"))]
 			_ => None,
 			// By default, returns the authentication key
@@ -1169,8 +1211,13 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signatu
 /// The payload being signed in transactions.
 pub type SignedPayload = generic::SignedPayload<Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
-pub type Executive =
-	frame_executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPallets>;
+pub type Executive = frame_executive::Executive<
+	Runtime,
+	Block,
+	frame_system::ChainContext<Runtime>,
+	Runtime,
+	AllPallets,
+>;
 
 impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
