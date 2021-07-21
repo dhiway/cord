@@ -42,15 +42,20 @@ pub mod pallet {
 	/// Type of cred parent stream identifier.
 	pub type JournalStreamHashOf<T> = pallet_journal::JournalStreamHashOf<T>;
 	/// Type of cred owner identifier.
-	pub type StreamCreatorOf<T> = pallet_schema::SchemaOwnerOf<T>;
+	pub type StreamCreatorOf<T> = pallet_schema::SchemaControllerOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// CID Information
 	pub type StreamCidOf = Vec<u8>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_schema::Config + pallet_journal::Config {
-		type EnsureOrigin: EnsureOrigin<Success = StreamCreatorOf<Self>, <Self as frame_system::Config>::Origin>;
+	pub trait Config:
+		frame_system::Config + pallet_schema::Config + pallet_journal::Config
+	{
+		type EnsureOrigin: EnsureOrigin<
+			Success = StreamCreatorOf<Self>,
+			<Self as frame_system::Config>::Origin,
+		>;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type WeightInfo: WeightInfo;
 	}
@@ -72,7 +77,8 @@ pub mod pallet {
 	/// It maps from a journal stream hash to a vector of stream hashes.
 	#[pallet::storage]
 	#[pallet::getter(fn journalstreams)]
-	pub type JournalStreams<T> = StorageMap<_, Blake2_128Concat, JournalStreamHashOf<T>, Vec<StreamHashOf<T>>>;
+	pub type JournalStreams<T> =
+		StorageMap<_, Blake2_128Concat, JournalStreamHashOf<T>, Vec<StreamHashOf<T>>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -133,14 +139,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			ensure!(
-				!<Streams<T>>::contains_key(&stream_hash),
-				Error::<T>::StreamAlreadyAnchored
-			);
+			ensure!(!<Streams<T>>::contains_key(&stream_hash), Error::<T>::StreamAlreadyAnchored);
 
-			let schema =
-				<pallet_schema::Schemas<T>>::get(schema_hash).ok_or(pallet_schema::Error::<T>::SchemaNotFound)?;
-			ensure!(schema.owner == creator, pallet_schema::Error::<T>::SchemaNotDelegated);
+			let schema = <pallet_schema::Schemas<T>>::get(schema_hash)
+				.ok_or(pallet_schema::Error::<T>::SchemaNotFound)?;
+			ensure!(schema.controller == creator, pallet_schema::Error::<T>::SchemaNotDelegated);
 
 			let journal_stream = <pallet_journal::Journal<T>>::get(journal_stream_hash)
 				.ok_or(pallet_journal::Error::<T>::StreamNotFound)?;
@@ -149,13 +152,15 @@ pub mod pallet {
 			let cid_base = str::from_utf8(&stream_cid).unwrap();
 			ensure!(
 				cid_base.len() <= 62
-					&& (pallet_schema::utils::is_base_32(cid_base) || pallet_schema::utils::is_base_58(cid_base)),
+					&& (pallet_schema::utils::is_base_32(cid_base)
+						|| pallet_schema::utils::is_base_58(cid_base)),
 				Error::<T>::InvalidCidEncoding
 			);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			// vector of stream hashes linked to journal stream hash
-			let mut linked_stream = <JournalStreams<T>>::get(journal_stream_hash).unwrap_or_default();
+			let mut linked_stream =
+				<JournalStreams<T>>::get(journal_stream_hash).unwrap_or_default();
 			linked_stream.push(stream_hash);
 			<JournalStreams<T>>::insert(journal_stream_hash, linked_stream);
 
@@ -195,11 +200,7 @@ pub mod pallet {
 
 			<Streams<T>>::insert(
 				&stream_hash,
-				StreamDetails {
-					block_number,
-					revoked: true,
-					..stream
-				},
+				StreamDetails { block_number, revoked: true, ..stream },
 			);
 			Self::deposit_event(Event::StreamRevoked(revoker, stream_hash));
 
@@ -224,11 +225,7 @@ pub mod pallet {
 
 			<Streams<T>>::insert(
 				&stream_hash,
-				StreamDetails {
-					block_number,
-					revoked: false,
-					..stream
-				},
+				StreamDetails { block_number, revoked: false, ..stream },
 			);
 			Self::deposit_event(Event::StreamRestored(restorer, stream_hash));
 

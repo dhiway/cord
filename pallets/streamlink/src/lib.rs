@@ -42,7 +42,7 @@ pub mod pallet {
 	/// Type of link transaction owner identifier.
 	pub type StreamHashOf<T> = pallet_stream::StreamHashOf<T>;
 	/// Type of link owner identifier.
-	pub type StreamLinkCreatorOf<T> = pallet_schema::SchemaOwnerOf<T>;
+	pub type StreamLinkCreatorOf<T> = pallet_schema::SchemaControllerOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// Stream link CID
@@ -50,7 +50,10 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_schema::Config + pallet_stream::Config {
-		type EnsureOrigin: EnsureOrigin<Success = StreamLinkCreatorOf<Self>, <Self as frame_system::Config>::Origin>;
+		type EnsureOrigin: EnsureOrigin<
+			Success = StreamLinkCreatorOf<Self>,
+			<Self as frame_system::Config>::Origin,
+		>;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type WeightInfo: WeightInfo;
 	}
@@ -72,7 +75,8 @@ pub mod pallet {
 	/// It maps from a stream hash to a vector of transaction stream hashes.
 	#[pallet::storage]
 	#[pallet::getter(fn streamlinks)]
-	pub type StreamLinks<T> = StorageMap<_, Blake2_128Concat, StreamHashOf<T>, Vec<StreamLinkHashOf<T>>>;
+	pub type StreamLinks<T> =
+		StorageMap<_, Blake2_128Concat, StreamHashOf<T>, Vec<StreamLinkHashOf<T>>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -123,17 +127,18 @@ pub mod pallet {
 				!<Links<T>>::contains_key(&stream_link_hash),
 				Error::<T>::StreamLinkAlreadyAnchored
 			);
-			let schema =
-				<pallet_schema::Schemas<T>>::get(schema_hash).ok_or(pallet_schema::Error::<T>::SchemaNotFound)?;
-			ensure!(schema.owner == creator, pallet_schema::Error::<T>::SchemaNotDelegated);
-			let stream =
-				<pallet_stream::Streams<T>>::get(stream_hash).ok_or(pallet_stream::Error::<T>::StreamNotFound)?;
+			let schema = <pallet_schema::Schemas<T>>::get(schema_hash)
+				.ok_or(pallet_schema::Error::<T>::SchemaNotFound)?;
+			ensure!(schema.controller == creator, pallet_schema::Error::<T>::SchemaNotDelegated);
+			let stream = <pallet_stream::Streams<T>>::get(stream_hash)
+				.ok_or(pallet_stream::Error::<T>::StreamNotFound)?;
 			ensure!(!stream.revoked, pallet_stream::Error::<T>::StreamRevoked);
 
 			let cid_base = str::from_utf8(&stream_link_cid).unwrap();
 			ensure!(
 				cid_base.len() <= 62
-					&& (pallet_schema::utils::is_base_32(cid_base) || pallet_schema::utils::is_base_58(cid_base)),
+					&& (pallet_schema::utils::is_base_32(cid_base)
+						|| pallet_schema::utils::is_base_58(cid_base)),
 				Error::<T>::InvalidCidEncoding
 			);
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -156,7 +161,11 @@ pub mod pallet {
 				},
 			);
 
-			Self::deposit_event(Event::StreamLinkAnchored(creator, stream_link_hash, stream_link_cid));
+			Self::deposit_event(Event::StreamLinkAnchored(
+				creator,
+				stream_link_hash,
+				stream_link_cid,
+			));
 
 			Ok(())
 		}
@@ -167,7 +176,10 @@ pub mod pallet {
 		/// * origin: the identifier of the revoker
 		/// * stream_link_hash: the hash of the stream link to revoke
 		#[pallet::weight(0)]
-		pub fn revoke(origin: OriginFor<T>, stream_link_hash: StreamLinkHashOf<T>) -> DispatchResult {
+		pub fn revoke(
+			origin: OriginFor<T>,
+			stream_link_hash: StreamLinkHashOf<T>,
+		) -> DispatchResult {
 			let revoker = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let link = <Links<T>>::get(&stream_link_hash).ok_or(Error::<T>::StreamLinkNotFound)?;
@@ -179,11 +191,7 @@ pub mod pallet {
 
 			<Links<T>>::insert(
 				&stream_link_hash,
-				StreamLinkDetails {
-					block_number,
-					revoked: true,
-					..link
-				},
+				StreamLinkDetails { block_number, revoked: true, ..link },
 			);
 			Self::deposit_event(Event::StreamLinkRevoked(revoker, stream_link_hash));
 

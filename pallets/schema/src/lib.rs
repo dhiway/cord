@@ -39,18 +39,24 @@ pub mod pallet {
 	pub type SchemaIdOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a schema hash.
 	pub type SchemaHashOf<T> = <T as frame_system::Config>::Hash;
-	/// Type of a schema owner.
-	pub type SchemaOwnerOf<T> = <T as Config>::CordAccountId;
+	/// Type of a schema controller.
+	pub type SchemaControllerOf<T> = pallet_entity::ControllerOf<T>;
+	/// Type of a schema controller.
+	pub type SpaceIdOf<T> = pallet_space::SpaceIdOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// CID Information
-	pub type SchemaCidOf = Vec<u8>;
+	pub type CidOf = Vec<u8>;
 	/// Transaction Type Information
-	pub type SchemaTransOf = Vec<u8>;
+	pub type ActivityOf = Vec<u8>;
 	#[pallet::config]
-	pub trait Config: frame_system::Config + Debug {
-		type CordAccountId: Parameter + Default;
-		type EnsureOrigin: EnsureOrigin<Success = SchemaOwnerOf<Self>, <Self as frame_system::Config>::Origin>;
+	pub trait Config:
+		frame_system::Config + pallet_entity::Config + pallet_space::Config + Debug
+	{
+		type EnsureOrigin: EnsureOrigin<
+			Success = SchemaControllerOf<Self>,
+			<Self as frame_system::Config>::Origin,
+		>;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type WeightInfo: WeightInfo;
 	}
@@ -63,7 +69,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	/// schemas stored on chain.
-	/// It maps from a schema hash to its owner.
+	/// It maps from a schema hash to its controller.
 	#[pallet::storage]
 	#[pallet::getter(fn schemas)]
 	pub type Schemas<T> = StorageMap<_, Blake2_128Concat, SchemaHashOf<T>, SchemaDetails<T>>;
@@ -84,17 +90,17 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new schema has been created.
-		/// \[owner identifier, schema hash, schema Id\]
-		SchemaCreated(SchemaOwnerOf<T>, SchemaHashOf<T>, SchemaIdOf<T>),
+		/// \[controller identifier, schema hash, schema Id\]
+		SchemaCreated(SchemaControllerOf<T>, SchemaHashOf<T>, SchemaIdOf<T>),
 		/// A schema has been updated.
-		/// \[owner identifier, schema hash, schema Iid\]
-		SchemaUpdated(SchemaOwnerOf<T>, SchemaHashOf<T>, SchemaIdOf<T>),
+		/// \[controller identifier, schema hash, schema Iid\]
+		SchemaUpdated(SchemaControllerOf<T>, SchemaHashOf<T>, SchemaIdOf<T>),
 		/// A schema has been revoked.
-		/// \[owner identifier, schema hash, schema Iid\]
-		SchemaRevoked(SchemaOwnerOf<T>, SchemaHashOf<T>),
+		/// \[controller identifier, schema hash, schema Iid\]
+		SchemaRevoked(SchemaControllerOf<T>, SchemaHashOf<T>),
 		/// A schema has been restored.
-		/// \[owner identifier, schema hash, schema Iid\]
-		SchemaRestored(SchemaOwnerOf<T>, SchemaHashOf<T>),
+		/// \[controller identifier, schema hash, schema Iid\]
+		SchemaRestored(SchemaControllerOf<T>, SchemaHashOf<T>),
 	}
 
 	#[pallet::error]
@@ -127,9 +133,9 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a new schema and associates it with its owner.
+		/// Create a new schema and associates it with its controller.
 		///
-		/// * origin: the identifier of the schema owner
+		/// * origin: the identifier of the schema controller
 		/// * hash: the schema hash. It has to be unique.
 		/// * schema_details: schema details information
 		#[pallet::weight(0)]
@@ -138,25 +144,36 @@ pub mod pallet {
 			schema_hash: SchemaHashOf<T>,
 			schema_details: SchemaInput<T>,
 		) -> DispatchResult {
-			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(!<Schemas<T>>::contains_key(&schema_hash), Error::<T>::SchemaAlreadyExists);
+
+			let space = <pallet_space::Spaces<T>>::get(&schema_details.space_id)
+				.ok_or(pallet_space::Error::<T>::SpaceNotFound)?;
+			ensure!(space.active, pallet_space::Error::<T>::SpaceNotActive);
 			ensure!(
-				!<Schemas<T>>::contains_key(&schema_hash),
-				Error::<T>::SchemaAlreadyExists
+				space.controller == controller,
+				pallet_space::Error::<T>::UnauthorizedOperation
 			);
+
+			let entity = <pallet_entity::Entities<T>>::get(&space.entity_id)
+				.ok_or(pallet_entity::Error::<T>::EntityNotFound)?;
+			ensure!(entity.active, pallet_entity::Error::<T>::EntityNotActive);
 
 			let cid_base = str::from_utf8(&schema_details.schema_cid).unwrap();
 			ensure!(
-				cid_base.len() <= 62 && (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)),
+				cid_base.len() <= 62
+					&& (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)),
 				Error::<T>::InvalidCidEncoding
 			);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			// vector of schema hashes linked to schema Id
-			let mut schema_versions = <SchemaLinks<T>>::get(schema_details.schema_id).unwrap_or_default();
+			let mut schema_versions =
+				<SchemaLinks<T>>::get(schema_details.schema_id).unwrap_or_default();
 			schema_versions.push(SchemaIdLinks {
 				schema_hash: schema_hash.clone(),
 				block_number: block_number.clone(),
-				trans_type: "Create".as_bytes().to_vec(),
+				activity: "Create".as_bytes().to_vec(),
 			});
 			// schema_versions.push(schema_hash);
 			<SchemaLinks<T>>::insert(schema_details.schema_id, schema_versions);
@@ -164,28 +181,37 @@ pub mod pallet {
 			// schema id to schema hash storage
 			<SchemaIds<T>>::insert(schema_details.schema_id, schema_hash);
 
-			log::debug!("Creating schema with hash {:?} and owner {:?}", &schema_hash, &owner);
+			log::debug!(
+				"Creating schema with hash {:?} and controller {:?}",
+				&schema_hash,
+				&controller
+			);
 			<Schemas<T>>::insert(
 				&schema_hash,
 				SchemaDetails {
 					schema_id: schema_details.schema_id.clone(),
-					owner: owner.clone(),
+					controller: controller.clone(),
 					schema_cid: schema_details.schema_cid,
 					parent_cid: None,
+					space_id: schema_details.space_id,
 					block_number,
 					revoked: false,
 				},
 			);
 
-			Self::deposit_event(Event::SchemaCreated(owner, schema_hash, schema_details.schema_id));
+			Self::deposit_event(Event::SchemaCreated(
+				controller,
+				schema_hash,
+				schema_details.schema_id,
+			));
 
 			Ok(())
 		}
 
 		/// Updates the latest version of stored schema
-		/// and associates it with its owner.
+		/// and associates it with its controller.
 		///
-		/// * origin: the identifier of the schema owner
+		/// * origin: the identifier of the schema controller
 		/// * hash: the schema hash. It has to be unique.
 		/// * schema_details: schema details information
 		#[pallet::weight(0)]
@@ -194,18 +220,27 @@ pub mod pallet {
 			schema_hash: SchemaHashOf<T>,
 			schema_details: SchemaInput<T>,
 		) -> DispatchResult {
-			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(!<Schemas<T>>::contains_key(&schema_hash), Error::<T>::SchemaAlreadyExists);
 
+			let space = <pallet_space::Spaces<T>>::get(&schema_details.space_id)
+				.ok_or(pallet_space::Error::<T>::SpaceNotFound)?;
+			ensure!(space.active, pallet_space::Error::<T>::SpaceNotActive);
 			ensure!(
-				!<Schemas<T>>::contains_key(&schema_hash),
-				Error::<T>::SchemaAlreadyExists
+				space.controller == controller,
+				pallet_space::Error::<T>::UnauthorizedOperation
 			);
 
-			let schema_last_version =
-				<SchemaIds<T>>::get(schema_details.schema_id).ok_or(Error::<T>::SchemaIdNotFound)?;
-			let existing_schema = <Schemas<T>>::get(schema_last_version).ok_or(Error::<T>::SchemaNotFound)?;
+			let entity = <pallet_entity::Entities<T>>::get(&space.entity_id)
+				.ok_or(pallet_entity::Error::<T>::EntityNotFound)?;
+			ensure!(entity.active, pallet_entity::Error::<T>::EntityNotActive);
 
-			ensure!(existing_schema.owner == owner, Error::<T>::SchemaNotDelegated);
+			let schema_last_version = <SchemaIds<T>>::get(schema_details.schema_id)
+				.ok_or(Error::<T>::SchemaIdNotFound)?;
+			let existing_schema =
+				<Schemas<T>>::get(schema_last_version).ok_or(Error::<T>::SchemaNotFound)?;
+
+			ensure!(existing_schema.controller == controller, Error::<T>::SchemaNotDelegated);
 			ensure!(!existing_schema.revoked, Error::<T>::SchemaRevoked);
 			let cid_base = str::from_utf8(&schema_details.schema_cid).unwrap();
 			ensure!(
@@ -213,7 +248,8 @@ pub mod pallet {
 				Error::<T>::SchemaCidAlreadyExists
 			);
 			ensure!(
-				cid_base.len() <= 62 && (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)),
+				cid_base.len() <= 62
+					&& (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)),
 				Error::<T>::InvalidCidEncoding
 			);
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -223,27 +259,33 @@ pub mod pallet {
 			schema_links.push(SchemaIdLinks {
 				schema_hash: schema_hash.clone(),
 				block_number: block_number.clone(),
-				trans_type: "Update".as_bytes().to_vec(),
+				activity: "Update".as_bytes().to_vec(),
 			});
 			<SchemaLinks<T>>::insert(schema_details.schema_id, schema_links);
 
 			// schema id to schema hash storage
 			<SchemaIds<T>>::insert(schema_details.schema_id, schema_hash);
 
-			log::debug!("Creating schema with hash {:?} and owner {:?}", &schema_hash, &owner);
+			log::debug!(
+				"Creating schema with hash {:?} and controller {:?}",
+				&schema_hash,
+				&controller
+			);
 			<Schemas<T>>::insert(
 				&schema_hash,
 				SchemaDetails {
-					schema_id: schema_details.schema_id.clone(),
-					owner: owner.clone(),
 					schema_cid: schema_details.schema_cid,
 					parent_cid: Some(existing_schema.schema_cid),
 					block_number,
-					revoked: false,
+					..existing_schema
 				},
 			);
 
-			Self::deposit_event(Event::SchemaCreated(owner, schema_hash, schema_details.schema_id));
+			Self::deposit_event(Event::SchemaCreated(
+				controller,
+				schema_hash,
+				schema_details.schema_id,
+			));
 
 			Ok(())
 		}
@@ -257,7 +299,7 @@ pub mod pallet {
 			let revoker = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let schema = <Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema.owner == revoker, Error::<T>::UnauthorizedRevocation);
+			ensure!(schema.controller == revoker, Error::<T>::UnauthorizedRevocation);
 			ensure!(!schema.revoked, Error::<T>::SchemaAlreadyRevoked);
 
 			log::debug!("Revoking Schema");
@@ -268,17 +310,13 @@ pub mod pallet {
 			schema_links.push(SchemaIdLinks {
 				schema_hash: schema_hash.clone(),
 				block_number: block_number.clone(),
-				trans_type: "Revoke".as_bytes().to_vec(),
+				activity: "Revoke".as_bytes().to_vec(),
 			});
 			<SchemaLinks<T>>::insert(schema.schema_id, schema_links);
 
 			<Schemas<T>>::insert(
 				&schema_hash,
-				SchemaDetails {
-					block_number,
-					revoked: true,
-					..schema
-				},
+				SchemaDetails { block_number, revoked: true, ..schema },
 			);
 			Self::deposit_event(Event::SchemaRevoked(revoker, schema_hash));
 
@@ -295,7 +333,7 @@ pub mod pallet {
 
 			let schema = <Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema.revoked, Error::<T>::SchemaStillActive);
-			ensure!(schema.owner == restorer, Error::<T>::UnauthorizedRestore);
+			ensure!(schema.controller == restorer, Error::<T>::UnauthorizedRestore);
 
 			log::debug!("Restoring Schema");
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -304,17 +342,13 @@ pub mod pallet {
 			schema_links.push(SchemaIdLinks {
 				schema_hash: schema_hash.clone(),
 				block_number: block_number.clone(),
-				trans_type: "Restore".as_bytes().to_vec(),
+				activity: "Restore".as_bytes().to_vec(),
 			});
 			<SchemaLinks<T>>::insert(schema.schema_id, schema_links);
 
 			<Schemas<T>>::insert(
 				&schema_hash,
-				SchemaDetails {
-					block_number,
-					revoked: false,
-					..schema
-				},
+				SchemaDetails { block_number, revoked: false, ..schema },
 			);
 			Self::deposit_event(Event::SchemaRestored(restorer, schema_hash));
 

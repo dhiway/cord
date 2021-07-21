@@ -2,17 +2,6 @@ use codec::{Decode, Encode};
 
 use crate::*;
 
-/// An on-chain space input.
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
-pub struct SpaceInput<T: Config> {
-	/// Entity ID
-	pub space_id: SpaceIdOf<T>,
-	/// Entity CID
-	pub space_cid: CidOf,
-	/// Entity CID
-	pub entity_id: EntityIdOf<T>,
-}
-
 /// An on-chain space transaction written by the controller.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct SpaceDetails<T: Config> {

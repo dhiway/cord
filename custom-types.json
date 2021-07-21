@@ -5,11 +5,6 @@
   "Balance": "u128",
   "LookupSource": "MultiAddress",
   "CidOf": "Text",
-  "SchemaOwnerOf": "AccountId",
-  "SchemaIdOf": "Hash",
-  "SchemaHashOf": "Hash",
-  "SchemaCidOf": "Text",
-  "SchemaTransOf": "Text",
   "ActivityOf": "Text",
   "ControllerOf": "AccountId",
   "EntityIdOf": "Hash",
@@ -26,30 +21,56 @@
     "entity_cid": "CidOf",
     "activity": "ActivityOf"
   },
+  "RegistrarDetails": {
+    "block_number": "BlockNumber",
+    "revoked": "bool"
+  },
+  "SpaceIdOf": "Hash",
+  "SpaceDetails": {
+    "controller": "ControllerOf",
+    "entity_cid": "CidOf",
+    "parent_cid": "Option<CidOf>",
+    "space_cid": "CidOf",
+    "block_number": "BlockNumber",
+    "active": "bool"
+  },
+  "EntitySpaceLinkDetails": {
+    "space_id": "SpaceIdOf",
+    "block_number": "BlockNumber",
+    "activity": "ActivityOf"
+  },
+  "ActiviyDetails": {
+    "space_cid": "CidOf",
+    "block_number": "BlockNumber",
+    "activity": "ActivityOf"
+  },
+  "SchemaControllerOf": "AccountId",
+  "SchemaIdOf": "Hash",
+  "SchemaHashOf": "Hash",
   "SchemaInput": {
     "schema_id": "SchemaIdOf",
-    "schema_cid": "SchemaCidOf"
+    "schema_cid": "SchemaCidOf",
+    "space_id": "SpaceIdOf"
   },
   "SchemaDetails": {
     "schema_id": "SchemaIdOf",
     "owner": "SchemaOwnerOf",
-    "schema_cid": "SchemaCidOf",
-    "parent_cid": "Option<SchemaCidOf>",
+    "schema_cid": "CidOf",
+    "parent_cid": "Option<CidOf>",
     "block_number": "BlockNumber",
     "revoked": "bool"
   },
   "SchemaIdLinks": {
     "schema_hash": "SchemaHashOf",
     "block_number": "BlockNumber",
-    "trans_type": "SchemaTransOf"
+    "activity": "ActivityOf"
   },
   "JournalStreamCreatorOf": "AccountId",
   "JournalStreamHashOf": "Hash",
-  "JournalStreamCidOf": "Text",
   "JournalStreamDetails": {
     "creator": "JournalStreamCreatorOf",
-    "stream_cid": "JournalStreamCidOf",
-    "parent_cid": "Option<JournalStreamCidOf>",
+    "stream_cid": "CidOf",
+    "parent_cid": "Option<CidOf>",
     "schema_hash": "SchemaHashOf",
     "block_number": "BlockNumber",
     "revoked": "bool"

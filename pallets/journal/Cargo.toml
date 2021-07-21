@@ -25,6 +25,8 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", default-features
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.8" }
 
 # Internal Dependencies
+pallet-entity = { default-features = false, path = '../entity' }
+pallet-space = { default-features = false, path = '../space' }
 pallet-schema = { default-features = false, path = '../schema' }
 cord-primitives = {default-features = false, optional = true, path = "../../primitives"}
 
@@ -53,6 +55,8 @@ runtime-benchmarks = [
 ]
 std = [
 	'codec/std',
+	'pallet-space/std',
+	'pallet-entity/std',
 	'pallet-schema/std',
 	'frame-support/std',
 	'frame-system/std',

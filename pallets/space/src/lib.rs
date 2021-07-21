@@ -8,7 +8,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 use sp_std::str;
-// use sp_std::vec::Vec;
 use sp_std::{fmt::Debug, prelude::Clone, vec::Vec};
 
 pub mod spaces;
@@ -59,20 +58,21 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	/// schemas stored on chain.
-	/// It maps from a schema hash to its owner.
+	/// spaces stored on chain.
+	/// It maps from a space Id to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn spaces)]
 	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, SpaceIdOf<T>, SpaceDetails<T>>;
 
-	/// schemas stored on chain.
-	/// It maps from a schema hash to its owner.
+	/// space activities stored on chain.
+	/// It maps from a space Id to activity details.
 	#[pallet::storage]
 	#[pallet::getter(fn spaceactivities)]
 	pub type SpaceActivities<T> =
 		StorageMap<_, Blake2_128Concat, SpaceIdOf<T>, Vec<ActivityDetails<T>>>;
-	/// Schema revisions stored on chain.
-	/// It maps from a schema ID hash to a vector of schema hashes.
+
+	/// Entity - Space links stored on chain.
+	/// It maps from a entity Id to a vector of space links.
 	#[pallet::storage]
 	#[pallet::getter(fn entityspaces)]
 	pub type EntitySpaceLinks<T> =
@@ -81,15 +81,14 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new schema has been created.
-		/// \[owner identifier, schema hash, schema Id\]
+		/// A new space has been created.
+		/// \[space identifier, controller\]
 		SpaceAdded(EntityIdOf<T>, ControllerOf<T>),
-		/// A new schema has been created.
-		/// \[owner identifier, schema hash, schema Id\]
+		/// A space has been updated.
+		/// \[space identifier, controller\]
 		SpaceUpdated(EntityIdOf<T>, ControllerOf<T>),
-		// EntityStatusUpdated(EntityIdOf<T>, ControllerOf<T>),
-		/// A schema has been revoked.
-		/// \[owner identifier, schema hash, schema Iid\]
+		/// A space status has been changed.
+		/// \[space identifier\]
 		SpaceStatusUpdated(EntityIdOf<T>),
 	}
 
@@ -103,27 +102,24 @@ pub mod pallet {
 		InvalidCidEncoding,
 		/// space actions not authorised.
 		UnauthorizedUpdate,
-		/// The schema hash does not match the schema specified
-		SchemaMismatch,
+		/// entity actions not authorised.
+		UnauthorizedOperation,
 		/// There is no schema with the given parent CID.
 		CidAlreadyMapped,
 		/// The space is marked inactive.
 		SpaceNotActive,
-		/// Only when the revoker is not the creator.
-		UnauthorizedRevocation,
-		/// Only when the restorer is not the creator.
-		UnauthorizedRestore,
 		/// no status change required
 		NoChangeRequired,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a new entity and associates it with its owner.
+		/// Create a new space and associates it with its controller.
 		///
-		/// * origin: the identifier of the schema owner
-		/// * entity_id: unique identifier of the entity.
-		/// * entity_cid: cid of the entity profile
+		/// * origin: the identifier of the space controller.
+		/// * space_id: unique identifier of the space.
+		/// * space_cid: cid of the space profile.
+		/// * entity_id: unique identifier of the associated entity.
 		#[pallet::weight(0)]
 		pub fn create_space(
 			origin: OriginFor<T>,
@@ -137,6 +133,7 @@ pub mod pallet {
 			let entity = <pallet_entity::Entities<T>>::get(&entity_id)
 				.ok_or(pallet_entity::Error::<T>::EntityNotFound)?;
 			ensure!(entity.active, pallet_entity::Error::<T>::EntityNotActive);
+			ensure!(entity.controller == controller, Error::<T>::UnauthorizedOperation);
 
 			let cid_base = str::from_utf8(&space_cid).unwrap();
 			ensure!(
@@ -186,11 +183,11 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Updates the entity information and associates it with its owner.
+		/// Updates the space information and associates it with its controller.
 		///
-		/// * origin: the identifier of the schema owner
-		/// * entity_id: unique identifier of the entity.
-		/// * entity_cid: cid of the entity profile
+		/// * origin: the identifier of the space controller.
+		/// * space_id: unique identifier of the space.
+		/// * space_cid: cid of the entity profile.
 		#[pallet::weight(0)]
 		pub fn update_space(
 			origin: OriginFor<T>,
@@ -241,7 +238,6 @@ pub mod pallet {
 			<Spaces<T>>::insert(
 				&space_id,
 				SpaceDetails {
-					controller: updater.clone(),
 					space_cid,
 					parent_cid: Some(space.space_cid),
 					block_number,
@@ -253,11 +249,10 @@ pub mod pallet {
 
 			Ok(())
 		}
-		/// Update the status of the entity - active or not
+		/// Update the status of the space - active or not
 		///
-		/// This update can only be performed by a registrar account
-		/// * origin: the identifier of the registrar
-		/// * entity_id: unique identifier of the entity.
+		/// * origin: the identifier of the space controller.
+		/// * space_id: unique identifier of the space.
 		/// * status: status to be updated
 		#[pallet::weight(0)]
 		pub fn update_space_status(

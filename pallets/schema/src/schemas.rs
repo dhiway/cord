@@ -8,7 +8,9 @@ pub struct SchemaInput<T: Config> {
 	/// Schema CID
 	pub schema_id: SchemaIdOf<T>,
 	/// Schema CID
-	pub schema_cid: SchemaCidOf,
+	pub schema_cid: CidOf,
+	/// Space ID
+	pub space_id: SpaceIdOf<T>,
 }
 
 /// An on-chain schema written by an issuer.
@@ -17,11 +19,13 @@ pub struct SchemaDetails<T: Config> {
 	/// Schema CID
 	pub schema_id: SchemaIdOf<T>,
 	/// The identity of the owner.
-	pub owner: SchemaOwnerOf<T>,
+	pub controller: SchemaControllerOf<T>,
 	/// Schema CID
-	pub schema_cid: SchemaCidOf,
+	pub schema_cid: CidOf,
 	/// \[OPTIONAL\] Parent CID of the schema
-	pub parent_cid: Option<SchemaCidOf>,
+	pub parent_cid: Option<CidOf>,
+	/// Space ID
+	pub space_id: SpaceIdOf<T>,
 	/// Schema block number
 	pub block_number: BlockNumberOf<T>,
 	/// The flag indicating whether the schema has been revoked or not.
@@ -36,5 +40,5 @@ pub struct SchemaIdLinks<T: Config> {
 	/// Schema block number
 	pub block_number: BlockNumberOf<T>,
 	/// Transaction Type
-	pub trans_type: SchemaTransOf,
+	pub activity: ActivityOf,
 }

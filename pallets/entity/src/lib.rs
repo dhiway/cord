@@ -27,13 +27,9 @@ pub mod pallet {
 
 	/// ID of an entity.
 	pub type EntityIdOf<T> = <T as frame_system::Config>::Hash;
-	/// ID of a space.
-	pub type SpaceIdOf<T> = <T as frame_system::Config>::Hash;
-	/// Type of a schema owner.
+	/// Type of a entity controller.
 	pub type ControllerOf<T> = pallet_registrar::CordAccountOf<T>;
-	/// Type of a schema hash.
-	pub type HashOf<T> = <T as frame_system::Config>::Hash;
-	/// EntityTransaction Type Information
+	/// Entity Transaction Type Information
 	pub type ActivityOf = Vec<u8>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
@@ -44,7 +40,6 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_registrar::Config {
-		// type CordAccountId: Parameter + Default;
 		type EnsureOrigin: EnsureOrigin<
 			Success = ControllerOf<Self>,
 			<Self as frame_system::Config>::Origin,
@@ -60,81 +55,51 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	/// schemas stored on chain.
-	/// It maps from a schema hash to its owner.
+	/// entities stored on chain.
+	/// It maps from a entity Id to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn entities)]
 	pub type Entities<T> = StorageMap<_, Blake2_128Concat, EntityIdOf<T>, EntityDetails<T>>;
 
-	/// schemas stored on chain.
-	/// It maps from a schema hash to its owner.
+	/// entity activities stored on chain.
+	/// It maps from a entity Id to a vector of activity details.
 	#[pallet::storage]
 	#[pallet::getter(fn entityactivities)]
 	pub type EntityActivities<T> =
 		StorageMap<_, Blake2_128Concat, EntityIdOf<T>, Vec<ActivityDetails<T>>>;
 
-	/// Schema revisions stored on chain.
-	/// It maps from a schema ID hash to a vector of schema hashes.
-	#[pallet::storage]
-	#[pallet::getter(fn spaces)]
-	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, SpaceDetails<T>>;
-
-	/// Schema revisions stored on chain.
-	/// It maps from a schema ID hash to a vector of schema hashes.
-	#[pallet::storage]
-	#[pallet::getter(fn entityspaces)]
-	pub type EntitySpaces<T> =
-		StorageMap<_, Blake2_128Concat, EntityIdOf<T>, Vec<EntitySpaceDetails<T>>>;
-
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new schema has been created.
-		/// \[owner identifier, schema hash, schema Id\]
+		/// A new entity has been created.
+		/// \[entity identifier, controller\]
 		EntityAdded(EntityIdOf<T>, ControllerOf<T>),
-		/// A new schema has been created.
-		/// \[owner identifier, schema hash, schema Id\]
+		/// An entityhas been created.
+		/// \[entity identifier, controller\]
 		EntityUpdated(EntityIdOf<T>, ControllerOf<T>),
-		// EntityStatusUpdated(EntityIdOf<T>, ControllerOf<T>),
-		/// A schema has been revoked.
-		/// \[owner identifier, schema hash, schema Iid\]
+		/// An entity has been revoked.
+		/// \[entity identifier\]
 		EntityStatusUpdated(EntityIdOf<T>),
-		/// A schema has been restored.
-		/// \[owner identifier, schema hash, schema Iid\]
+		/// A entity has been restored.
+		/// \[entity identifier\]
 		EntityVerificationStatusUpdated(EntityIdOf<T>),
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// There is no schema with the given ID.
-		SchemaIdNotFound,
-		/// There is no schema with the given hash.
-		SchemaNotFound,
-		/// The schema already exists.
-		SchemaAlreadyExists,
-		/// Invalid Schema CID encoding.
+		/// There is no entity with the given ID.
+		EntityNotFound,
+		/// The entity already exists.
+		EntityAlreadyExists,
+		/// Invalid CID encoding.
 		InvalidCidEncoding,
-		/// schema not authorised.
-		SchemaNotDelegated,
-		/// The schema hash does not match the schema specified
-		SchemaMismatch,
+		/// Only when the author is not the controller.
+		UnauthorizedUpdate,
 		/// There is no schema with the given parent CID.
 		CidAlreadyMapped,
-		/// The schema has already been revoked.
-		SchemaAlreadyRevoked,
-		/// Only when the revoker is not the creator.
-		UnauthorizedRevocation,
-		/// Only when the restorer is not the creator.
-		UnauthorizedRestore,
-		/// Only when the restorer is not the creator.
-		UnauthorizedUpdate,
-		/// only when trying to restore an active stream.
-		SchemaStillActive,
-		/// schema revoked
-		SchemaRevoked,
-		EntityAlreadyExists,
-		EntityNotFound,
+		/// The space is marked inactive.
 		EntityNotActive,
+		/// no status change required
 		NoChangeRequired,
 	}
 
@@ -234,12 +199,11 @@ pub mod pallet {
 			<Entities<T>>::insert(
 				&entity_id,
 				EntityDetails {
-					controller: updater.clone(),
 					entity_cid,
 					parent_cid: Some(entity.entity_cid),
 					block_number,
 					verified: false,
-					active: true,
+					..entity
 				},
 			);
 

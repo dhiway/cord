@@ -10,9 +10,9 @@ pub struct JournalStreamDetails<T: Config> {
 	/// The ID of the journel stream creator.
 	pub creator: JournalStreamCreatorOf<T>,
 	/// Journal stream CID
-	pub stream_cid: JournalStreamCidOf,
+	pub stream_cid: CidOf,
 	/// \[OPTIONAL\] Parent CID of the journal stream
-	pub parent_cid: Option<JournalStreamCidOf>,
+	pub parent_cid: Option<CidOf>,
 	/// Journal stream transaction block
 	pub block_number: BlockNumberOf<T>,
 	/// The flag indicating whether the journal stream has been revoked or not.

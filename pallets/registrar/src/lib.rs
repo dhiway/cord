@@ -8,7 +8,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 use sp_std::str;
-// use sp_std::vec::Vec;
 use sp_std::{fmt::Debug, prelude::Clone};
 
 pub mod registrars;
@@ -32,16 +31,12 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + Debug {
 		type CordAccountId: Parameter + Default;
-
 		/// The origin which may forcibly set or remove a name. Root can always do this.
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
-
 		/// The origin which may add or remove registrars. Root can always do this.
 		type RegistrarOrigin: EnsureOrigin<Self::Origin>;
-
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}

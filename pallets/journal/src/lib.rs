@@ -36,15 +36,20 @@ pub mod pallet {
 	/// Type of a schema hash.
 	pub type SchemaHashOf<T> = pallet_schema::SchemaHashOf<T>;
 	/// Type of an creator identifier.
-	pub type JournalStreamCreatorOf<T> = pallet_schema::SchemaOwnerOf<T>;
+	pub type JournalStreamCreatorOf<T> = pallet_entity::ControllerOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// Type for a Content Identifier (CID)
-	pub type JournalStreamCidOf = Vec<u8>;
+	pub type CidOf = Vec<u8>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_schema::Config {
-		type EnsureOrigin: EnsureOrigin<Success = JournalStreamCreatorOf<Self>, <Self as frame_system::Config>::Origin>;
+	pub trait Config:
+		frame_system::Config + pallet_entity::Config + pallet_space::Config + pallet_schema::Config
+	{
+		type EnsureOrigin: EnsureOrigin<
+			Success = JournalStreamCreatorOf<Self>,
+			<Self as frame_system::Config>::Origin,
+		>;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type WeightInfo: WeightInfo;
 	}
@@ -60,14 +65,15 @@ pub mod pallet {
 	/// It maps from a journal stream hash to the details.
 	#[pallet::storage]
 	#[pallet::getter(fn journal)]
-	pub type Journal<T> = StorageMap<_, Blake2_128Concat, JournalStreamHashOf<T>, JournalStreamDetails<T>>;
+	pub type Journal<T> =
+		StorageMap<_, Blake2_128Concat, JournalStreamHashOf<T>, JournalStreamDetails<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new stream has been added to the journal.
 		/// \[creator identifier, stream hash, stream cid\]
-		StreamAnchored(JournalStreamCreatorOf<T>, JournalStreamHashOf<T>, JournalStreamCidOf),
+		StreamAnchored(JournalStreamCreatorOf<T>, JournalStreamHashOf<T>, CidOf),
 		/// A stream has been revoked from the jounal.
 		/// \[revoker identifier, stream hash\]
 		StreamRevoked(JournalStreamCreatorOf<T>, JournalStreamHashOf<T>),
@@ -110,25 +116,30 @@ pub mod pallet {
 		pub fn anchor(
 			origin: OriginFor<T>,
 			stream_hash: JournalStreamHashOf<T>,
-			stream_cid: JournalStreamCidOf,
-			parent_cid: Option<JournalStreamCidOf>,
+			stream_cid: CidOf,
+			parent_cid: Option<CidOf>,
 			schema_hash: SchemaHashOf<T>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let schema =
-				<pallet_schema::Schemas<T>>::get(schema_hash).ok_or(pallet_schema::Error::<T>::SchemaNotFound)?;
-			ensure!(schema.owner == creator, pallet_schema::Error::<T>::SchemaNotDelegated);
+			let schema = <pallet_schema::Schemas<T>>::get(schema_hash)
+				.ok_or(pallet_schema::Error::<T>::SchemaNotFound)?;
+			ensure!(schema.controller == creator, pallet_schema::Error::<T>::SchemaNotDelegated);
 
-			ensure!(
-				!<Journal<T>>::contains_key(&stream_hash),
-				Error::<T>::StreamAlreadyAnchored
-			);
+			let space = <pallet_space::Spaces<T>>::get(&schema.space_id)
+				.ok_or(pallet_space::Error::<T>::SpaceNotFound)?;
+			ensure!(space.active, pallet_space::Error::<T>::SpaceNotActive);
+			let entity = <pallet_entity::Entities<T>>::get(&space.entity_id)
+				.ok_or(pallet_entity::Error::<T>::EntityNotFound)?;
+			ensure!(entity.active, pallet_entity::Error::<T>::EntityNotActive);
+
+			ensure!(!<Journal<T>>::contains_key(&stream_hash), Error::<T>::StreamAlreadyAnchored);
 
 			let cid_base = str::from_utf8(&stream_cid).unwrap();
 			ensure!(
 				cid_base.len() <= 62
-					&& (pallet_schema::utils::is_base_32(cid_base) || pallet_schema::utils::is_base_58(cid_base)),
+					&& (pallet_schema::utils::is_base_32(cid_base)
+						|| pallet_schema::utils::is_base_58(cid_base)),
 				Error::<T>::InvalidCidEncoding
 			);
 
@@ -136,7 +147,8 @@ pub mod pallet {
 				let pcid_base = str::from_utf8(&parent_cid).unwrap();
 				ensure!(
 					pcid_base.len() <= 62
-						&& (pallet_schema::utils::is_base_32(pcid_base) || pallet_schema::utils::is_base_58(pcid_base)),
+						&& (pallet_schema::utils::is_base_32(pcid_base)
+							|| pallet_schema::utils::is_base_58(pcid_base)),
 					Error::<T>::InvalidCidEncoding
 				);
 			}
@@ -174,16 +186,22 @@ pub mod pallet {
 			ensure!(stream.creator == revoker, Error::<T>::UnauthorizedRevocation);
 			ensure!(!stream.revoked, Error::<T>::StreamAlreadyRevoked);
 
+			let schema = <pallet_schema::Schemas<T>>::get(stream.schema_hash)
+				.ok_or(pallet_schema::Error::<T>::SchemaNotFound)?;
+
+			let space = <pallet_space::Spaces<T>>::get(&schema.space_id)
+				.ok_or(pallet_space::Error::<T>::SpaceNotFound)?;
+			ensure!(space.active, pallet_space::Error::<T>::SpaceNotActive);
+			let entity = <pallet_entity::Entities<T>>::get(&space.entity_id)
+				.ok_or(pallet_entity::Error::<T>::EntityNotFound)?;
+			ensure!(entity.active, pallet_entity::Error::<T>::EntityNotActive);
+
 			log::debug!("Revoking Stream");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			<Journal<T>>::insert(
 				&stream_hash,
-				JournalStreamDetails {
-					block_number,
-					revoked: true,
-					..stream
-				},
+				JournalStreamDetails { block_number, revoked: true, ..stream },
 			);
 			Self::deposit_event(Event::StreamRevoked(revoker, stream_hash));
 
@@ -195,23 +213,24 @@ pub mod pallet {
 		/// * origin: the identifier of the restorer
 		/// * stream_hash: the hash of the stream to restore
 		#[pallet::weight(0)]
-		pub fn restore(origin: OriginFor<T>, stream_hash: JournalStreamHashOf<T>) -> DispatchResult {
+		pub fn restore(
+			origin: OriginFor<T>,
+			stream_hash: JournalStreamHashOf<T>,
+		) -> DispatchResult {
 			let restorer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let stream = <Journal<T>>::get(&stream_hash).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(stream.revoked, Error::<T>::StreamStillActive);
 			ensure!(stream.creator == restorer, Error::<T>::UnauthorizedRestore);
 
+			//TODO - entity & space checks
+
 			log::debug!("Restoring Stream");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			<Journal<T>>::insert(
 				&stream_hash,
-				JournalStreamDetails {
-					block_number,
-					revoked: false,
-					..stream
-				},
+				JournalStreamDetails { block_number, revoked: false, ..stream },
 			);
 			Self::deposit_event(Event::StreamRestored(restorer, stream_hash));
 

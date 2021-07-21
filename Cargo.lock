@@ -4519,7 +4519,9 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "pallet-entity",
  "pallet-schema",
+ "pallet-space",
  "parity-scale-codec",
  "serde",
  "sp-core",
@@ -4654,6 +4656,27 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-schema"
+version = "0.5.2"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-entity",
+ "pallet-space",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

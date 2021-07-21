@@ -1077,7 +1077,6 @@ impl pallet_space::Config for Runtime {
 }
 
 impl pallet_schema::Config for Runtime {
-	type CordAccountId = AccountId;
 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type Event = Event;
 	type WeightInfo = ();
