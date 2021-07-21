@@ -1042,13 +1042,18 @@ parameter_types! {
 	pub const MaxRegistrars: u32 = 10;
 }
 
-impl pallet_entity::Config for Runtime {
+impl pallet_registrar::Config for Runtime {
 	type Event = Event;
 	type CordAccountId = AccountId;
-	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
-	type MaxRegistrars = MaxRegistrars;
 	type ForceOrigin = MoreThanHalfCouncil;
 	type RegistrarOrigin = MoreThanHalfCouncil;
+	type WeightInfo = ();
+}
+
+impl pallet_entity::Config for Runtime {
+	type Event = Event;
+	// type CordAccountId = AccountId;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type WeightInfo = ();
 }
 
@@ -1149,6 +1154,7 @@ construct_runtime! {
 		StreamLink: pallet_stream_link::{Pallet, Call, Storage, Event<T>} = 35,
 		StreamDigest: pallet_stream_digest::{Pallet, Call, Storage, Event<T>} = 36,
 		Entity: pallet_entity::{Pallet, Call, Storage, Event<T>} = 37,
+		Registrar: pallet_registrar::{Pallet, Call, Storage, Event<T>} = 38,
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 41,
 		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 42,
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 43,

@@ -16,6 +16,6 @@ members = [
 	"pallets/streamdigest",
 	"pallets/entity",
 	"pallets/did",
-	"pallets/mark",
+	"pallets/registrar",
 ]
 

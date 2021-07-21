@@ -1119,6 +1119,7 @@ dependencies = [
  "pallet-offences",
  "pallet-proxy",
  "pallet-randomness-collective-flip",
+ "pallet-registrar",
  "pallet-scheduler",
  "pallet-session",
  "pallet-session-benchmarking",
@@ -4442,6 +4443,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "pallet-registrar",
  "parity-scale-codec",
  "serde",
  "sp-core",
@@ -4617,6 +4619,25 @@ dependencies = [
  "safe-mix",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-registrar"
+version = "0.5.2"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

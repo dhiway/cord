@@ -30,7 +30,7 @@ pub mod pallet {
 	/// ID of a space.
 	pub type SpaceIdOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a schema owner.
-	pub type ControllerOf<T> = <T as Config>::CordAccountId;
+	pub type ControllerOf<T> = pallet_registrar::CordAccountOf<T>;
 	/// Type of a schema hash.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// EntityTransaction Type Information
@@ -41,35 +41,15 @@ pub mod pallet {
 	pub type CidOf = Vec<u8>;
 	/// CID Information
 	pub type StatusOf = bool;
-	/// Type of a schema hash.
-	pub type RegistrarIdOf<T> = <T as frame_system::Config>::Hash;
-	/// Type of a schema owner.
-	pub type RegistrarAccountOf<T> = <T as Config>::CordAccountId;
-	/// An identifier for a single name registrar/identity verification service.
-	pub type RegistrarIndex = u32;
+
 	#[pallet::config]
-	pub trait Config: frame_system::Config + Debug {
-		type CordAccountId: Parameter + Default;
-
-		/// Maxmimum number of registrars allowed in the system.
-		#[pallet::constant]
-		type MaxRegistrars: Get<u32>;
-
+	pub trait Config: frame_system::Config + pallet_registrar::Config {
+		// type CordAccountId: Parameter + Default;
 		type EnsureOrigin: EnsureOrigin<
 			Success = ControllerOf<Self>,
 			<Self as frame_system::Config>::Origin,
 		>;
-
-		/// The origin which may forcibly set or remove a name. Root can always do this.
-		type ForceOrigin: EnsureOrigin<Self::Origin>;
-
-		/// The origin which may add or remove registrars. Root can always do this.
-		type RegistrarOrigin: EnsureOrigin<Self::Origin>;
-
-		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-
-		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
 
@@ -106,12 +86,6 @@ pub mod pallet {
 	pub type EntitySpaces<T> =
 		StorageMap<_, Blake2_128Concat, EntityIdOf<T>, Vec<EntitySpaceDetails<T>>>;
 
-	// Schema revisions stored on chain.
-	/// It maps from a schema ID hash to a vector of schema hashes.
-	#[pallet::storage]
-	#[pallet::getter(fn registrars)]
-	pub type Registrars<T> = StorageValue<_, Vec<RegistrarAccountOf<T>>, ValueQuery>;
-
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -128,8 +102,6 @@ pub mod pallet {
 		/// A schema has been restored.
 		/// \[owner identifier, schema hash, schema Iid\]
 		EntityVerificationStatusUpdated(EntityIdOf<T>),
-		/// A registrar was added. \[registrar_index\]
-		RegistrarAdded(RegistrarIndex),
 	}
 
 	#[pallet::error]
@@ -154,11 +126,12 @@ pub mod pallet {
 		UnauthorizedRevocation,
 		/// Only when the restorer is not the creator.
 		UnauthorizedRestore,
+		/// Only when the restorer is not the creator.
+		UnauthorizedUpdate,
 		/// only when trying to restore an active stream.
 		SchemaStillActive,
 		/// schema revoked
 		SchemaRevoked,
-		TooManyRegistrars,
 		EntityAlreadyExists,
 		EntityNotFound,
 		EntityNotActive,
@@ -167,35 +140,11 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a new schema and associates it with its owner.
+		/// Create a new entity and associates it with its owner.
 		///
 		/// * origin: the identifier of the schema owner
-		/// * hash: the schema hash. It has to be unique.
-		/// * schema_details: schema details information
-		#[pallet::weight(0)]
-		pub fn add_registrar(origin: OriginFor<T>, account: T::CordAccountId) -> DispatchResult {
-			T::RegistrarOrigin::ensure_origin(origin)?;
-
-			let (i, _registrar_count) = <Registrars<T>>::try_mutate(
-				|registrars| -> Result<(RegistrarIndex, usize), DispatchError> {
-					ensure!(
-						registrars.len() < T::MaxRegistrars::get() as usize,
-						Error::<T>::TooManyRegistrars
-					);
-					registrars.push(account);
-					Ok(((registrars.len() - 1) as RegistrarIndex, registrars.len()))
-				},
-			)?;
-
-			Self::deposit_event(Event::RegistrarAdded(i));
-
-			Ok(())
-		}
-		/// Create a new schema and associates it with its owner.
-		///
-		/// * origin: the identifier of the schema owner
-		/// * hash: the schema hash. It has to be unique.
-		/// * schema_details: schema details information
+		/// * entity_id: unique identifier of the entity.
+		/// * entity_cid: cid of the entity profile
 		#[pallet::weight(0)]
 		pub fn create_entity(
 			origin: OriginFor<T>,
@@ -213,7 +162,7 @@ pub mod pallet {
 			);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			// vector of schema hashes linked to schema Id
+			// vector of entity activities linked to entity Id
 			let mut entity_activities = <EntityActivities<T>>::get(entity_id).unwrap_or_default();
 			entity_activities.push(ActivityDetails {
 				entity_cid: entity_cid.clone(),
@@ -221,10 +170,6 @@ pub mod pallet {
 				activity: "Create".as_bytes().to_vec(),
 			});
 			<EntityActivities<T>>::insert(entity_id, entity_activities);
-
-			// schema id to schema hash storage
-			// <EntityUpdates<T>>::insert(entity_details.schema_id, entity_hash);
-
 			log::debug!(
 				"Creating a new entity with id {:?} and controller {:?}",
 				&entity_id,
@@ -247,12 +192,11 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Updates the latest version of stored schema
-		/// and associates it with its owner.
+		/// Updates the entity information and associates it with its owner.
 		///
 		/// * origin: the identifier of the schema owner
-		/// * hash: the schema hash. It has to be unique.
-		/// * schema_details: schema details information
+		/// * entity_id: unique identifier of the entity.
+		/// * entity_cid: cid of the entity profile
 		#[pallet::weight(0)]
 		pub fn update_entity(
 			origin: OriginFor<T>,
@@ -264,6 +208,7 @@ pub mod pallet {
 			let entity = <Entities<T>>::get(&entity_id).ok_or(Error::<T>::EntityNotFound)?;
 			// ensure!(entity.controller == updater, Error::<T>::UpdateNotAuthorised);
 			ensure!(entity.active, Error::<T>::EntityNotActive);
+			ensure!(entity.controller == updater, Error::<T>::UnauthorizedUpdate);
 
 			let cid_base = str::from_utf8(&entity_cid).unwrap();
 			ensure!(
@@ -277,7 +222,7 @@ pub mod pallet {
 			);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			// vector of schema hashes linked to schema Id
+			// vector of entity activities linked to entity Id
 			let mut entity_activities = <EntityActivities<T>>::get(entity_id).unwrap();
 			entity_activities.push(ActivityDetails {
 				entity_cid: entity_cid.clone(),
@@ -302,32 +247,31 @@ pub mod pallet {
 
 			Ok(())
 		}
-		/// Revoke an existing schema
+		/// Update the status of the entity - active or not
 		///
-		/// The revoker must be the creator of the schema
-		/// * origin: the identifier of the revoker
-		/// * schema_hash: the hash of the schema to revoke
+		/// This update can only be performed by a registrar account
+		/// * origin: the identifier of the registrar
+		/// * entity_id: unique identifier of the entity.
+		/// * status: status to be updated
 		#[pallet::weight(0)]
 		pub fn update_entity_status(
 			origin: OriginFor<T>,
 			entity_id: EntityIdOf<T>,
 			status: StatusOf,
 		) -> DispatchResult {
-			T::RegistrarOrigin::ensure_origin(origin)?;
-
-			// let updater = T::RegistrarOrigin::ensure_origin(origin)?;
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let entity = <Entities<T>>::get(entity_id).ok_or(Error::<T>::EntityNotFound)?;
 			ensure!(entity.active == status, Error::<T>::NoChangeRequired);
 
-			// let schema = <Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
-			// ensure!(schema.owner == revoker, Error::<T>::UnauthorizedRevocation);
-			// ensure!(!schema.revoked, Error::<T>::SchemaAlreadyRevoked);
+			let registrar = <pallet_registrar::Registrars<T>>::get(&updater)
+				.ok_or(pallet_registrar::Error::<T>::RegistrarAccountNotFound)?;
+			ensure!(!registrar.revoked, pallet_registrar::Error::<T>::RegistrarAccountRevoked);
 
 			log::debug!("Changing Entity Status");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			// vector of schema hashes linked to schema Id
+			// vector of entity activities linked to entity Id
 			let mut entity_activities = <EntityActivities<T>>::get(entity_id).unwrap();
 			entity_activities.push(ActivityDetails {
 				entity_cid: entity.entity_cid.clone(),
@@ -344,33 +288,33 @@ pub mod pallet {
 
 			Ok(())
 		}
-		// Restore a revoked schema.
+		/// Update the verificationstatus of the entity
 		///
-		/// The restorer must be the creator of the schema being restored
-		/// * origin: the identifier of the restorer
-		/// * schema_hash: the hash of the schema to restore
+		/// This update can only be performed by a registrar account
+		/// * origin: the identifier of the registrar
+		/// * entity_id: unique identifier of the entity.
+		/// * status: status to be updated
 		#[pallet::weight(0)]
-		pub fn verification(
+		pub fn entity_verification(
 			origin: OriginFor<T>,
 			entity_id: EntityIdOf<T>,
 			status: StatusOf,
 		) -> DispatchResult {
-			T::RegistrarOrigin::ensure_origin(origin)?;
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let entity = <Entities<T>>::get(entity_id).ok_or(Error::<T>::EntityNotFound)?;
+			ensure!(entity.active == status, Error::<T>::NoChangeRequired);
 
-			// let updater = T::RegistrarOrigin::ensure_origin(origin)?;
+			let registrar = <pallet_registrar::Registrars<T>>::get(&updater)
+				.ok_or(pallet_registrar::Error::<T>::RegistrarAccountNotFound)?;
+			ensure!(!registrar.revoked, pallet_registrar::Error::<T>::RegistrarAccountRevoked);
 
 			let entity = <Entities<T>>::get(entity_id).ok_or(Error::<T>::EntityNotFound)?;
 			ensure!(entity.active, Error::<T>::EntityNotActive);
 			ensure!(entity.verified == status, Error::<T>::NoChangeRequired);
-
-			// let schema = <Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
-			// ensure!(schema.owner == revoker, Error::<T>::UnauthorizedRevocation);
-			// ensure!(!schema.revoked, Error::<T>::SchemaAlreadyRevoked);
-
 			log::debug!("Changing Entity Verification Status");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			// vector of schema hashes linked to schema Id
+			// vector of entity activities linked to entity Id
 			let mut entity_activities = <EntityActivities<T>>::get(entity_id).unwrap();
 			entity_activities.push(ActivityDetails {
 				entity_cid: entity.entity_cid.clone(),
