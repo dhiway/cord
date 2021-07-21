@@ -1038,8 +1038,22 @@ impl pallet_vesting::Config for Runtime {
 	type MinVestedTransfer = MinVestedTransfer;
 	type WeightInfo = ();
 }
+
 parameter_types! {
-	pub const MaxRegistrars: u32 = 10;
+	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
+	pub const MaxVerificationKeysToRevoke: u32 = 10u32;
+	pub const MaxUrlLength: u32 = 200u32;
+}
+
+impl pallet_did::Config for Runtime {
+	type DidIdentifier = DidIdentifier;
+	type Event = Event;
+	type Call = Call;
+	type Origin = Origin;
+	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
+	type MaxVerificationKeysToRevoke = MaxVerificationKeysToRevoke;
+	type MaxUrlLength = MaxUrlLength;
+	type WeightInfo = ();
 }
 
 impl pallet_registrar::Config for Runtime {
@@ -1052,7 +1066,12 @@ impl pallet_registrar::Config for Runtime {
 
 impl pallet_entity::Config for Runtime {
 	type Event = Event;
-	// type CordAccountId = AccountId;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type WeightInfo = ();
+}
+
+impl pallet_space::Config for Runtime {
+	type Event = Event;
 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type WeightInfo = ();
 }
@@ -1085,23 +1104,6 @@ impl pallet_stream_link::Config for Runtime {
 impl pallet_stream_digest::Config for Runtime {
 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type Event = Event;
-	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
-	pub const MaxVerificationKeysToRevoke: u32 = 10u32;
-	pub const MaxUrlLength: u32 = 200u32;
-}
-
-impl pallet_did::Config for Runtime {
-	type DidIdentifier = DidIdentifier;
-	type Event = Event;
-	type Call = Call;
-	type Origin = Origin;
-	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
-	type MaxVerificationKeysToRevoke = MaxVerificationKeysToRevoke;
-	type MaxUrlLength = MaxUrlLength;
 	type WeightInfo = ();
 }
 
@@ -1147,14 +1149,17 @@ construct_runtime! {
 		Historical: pallet_session_historical::{Pallet} = 23,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 24,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 25,
+
 		Did: pallet_did::{Pallet, Call, Storage, Event<T>, Origin<T>} = 31,
-		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 32,
-		Journal: pallet_journal::{Pallet, Call, Storage, Event<T>} = 33,
-		Stream: pallet_stream::{Pallet, Call, Storage, Event<T>} = 34,
-		StreamLink: pallet_stream_link::{Pallet, Call, Storage, Event<T>} = 35,
-		StreamDigest: pallet_stream_digest::{Pallet, Call, Storage, Event<T>} = 36,
-		Entity: pallet_entity::{Pallet, Call, Storage, Event<T>} = 37,
-		Registrar: pallet_registrar::{Pallet, Call, Storage, Event<T>} = 38,
+		Registrar: pallet_registrar::{Pallet, Call, Storage, Event<T>} = 32,
+		Entity: pallet_entity::{Pallet, Call, Storage, Event<T>} = 33,
+		Space: pallet_space::{Pallet, Call, Storage, Event<T>} = 34,
+		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 35,
+		Journal: pallet_journal::{Pallet, Call, Storage, Event<T>} = 36,
+		Stream: pallet_stream::{Pallet, Call, Storage, Event<T>} = 37,
+		StreamLink: pallet_stream_link::{Pallet, Call, Storage, Event<T>} = 38,
+		StreamDigest: pallet_stream_digest::{Pallet, Call, Storage, Event<T>} = 39,
+
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 41,
 		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 42,
 		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 43,
@@ -1168,6 +1173,8 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call 
 		&self,
 	) -> Option<pallet_did::DidVerificationKeyRelationship> {
 		match self {
+			Call::Entity(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::Space(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			Call::Schema(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			Call::Journal(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			Call::Stream(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),

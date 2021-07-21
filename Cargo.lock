@@ -1123,6 +1123,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-session-benchmarking",
+ "pallet-space",
  "pallet-staking",
  "pallet-staking-reward-curve",
  "pallet-stream",
@@ -4689,6 +4690,26 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-space"
+version = "0.5.2"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-entity",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
