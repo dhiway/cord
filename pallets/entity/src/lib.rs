@@ -266,15 +266,13 @@ pub mod pallet {
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let entity = <Entities<T>>::get(entity_id).ok_or(Error::<T>::EntityNotFound)?;
-			ensure!(entity.active == status, Error::<T>::NoChangeRequired);
+			ensure!(entity.active, Error::<T>::EntityNotActive);
+			ensure!(entity.verified == status, Error::<T>::NoChangeRequired);
 
 			let registrar = <pallet_registrar::Registrars<T>>::get(&updater)
 				.ok_or(pallet_registrar::Error::<T>::RegistrarAccountNotFound)?;
 			ensure!(!registrar.revoked, pallet_registrar::Error::<T>::RegistrarAccountRevoked);
 
-			let entity = <Entities<T>>::get(entity_id).ok_or(Error::<T>::EntityNotFound)?;
-			ensure!(entity.active, Error::<T>::EntityNotActive);
-			ensure!(entity.verified == status, Error::<T>::NoChangeRequired);
 			log::debug!("Changing Entity Verification Status");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
