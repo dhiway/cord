@@ -91,11 +91,11 @@ pub mod pallet {
 
 			ensure!(!<Registrars<T>>::contains_key(&account), Error::<T>::RegistrarAlreadyExists);
 
-			let block_number = <frame_system::Pallet<T>>::block_number();
+			let block = <frame_system::Pallet<T>>::block_number();
 
 			log::debug!("Creating a new registrar account with id {:?} ", &account);
 
-			<Registrars<T>>::insert(&account, RegistrarDetails { block_number, revoked: false });
+			<Registrars<T>>::insert(&account, RegistrarDetails { block, revoked: false });
 
 			Self::deposit_event(Event::RegistrarAdded(account));
 
@@ -112,11 +112,11 @@ pub mod pallet {
 			let registrar =
 				<Registrars<T>>::get(&account).ok_or(Error::<T>::RegistrarAccountNotFound)?;
 			ensure!(!registrar.revoked, Error::<T>::AccountAlreadyRevoked);
-			let block_number = <frame_system::Pallet<T>>::block_number();
+			let block = <frame_system::Pallet<T>>::block_number();
 
 			log::debug!("Revoking a new registrar account with id {:?} ", &account);
 
-			<Registrars<T>>::insert(&account, RegistrarDetails { block_number, revoked: true });
+			<Registrars<T>>::insert(&account, RegistrarDetails { block, revoked: true });
 
 			Self::deposit_event(Event::RegistrarRevoked(account));
 

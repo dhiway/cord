@@ -7,36 +7,27 @@ use crate::*;
 pub struct SpaceDetails<T: Config> {
 	/// The identity of the controller.
 	pub controller: ControllerOf<T>,
-	/// Entity ID
-	pub entity_id: EntityIdOf<T>,
-	/// Entity CID
-	pub space_cid: CidOf,
-	/// \[OPTIONAL\] Parent CID of the entity
-	pub parent_cid: Option<CidOf>,
+	/// The transaction hash.
+	pub tx_hash: SpaceHashOf<T>,
+	/// \[OPTIONAL\] CID data
+	pub tx_cid: Option<CidOf>,
+	/// \[OPTIONAL\] Previos CID
+	pub ptx_cid: Option<CidOf>,
 	/// Transaction block number
-	pub block_number: BlockNumberOf<T>,
-	/// The flag indicating the status of the entity account.
+	pub block: BlockNumberOf<T>,
+	/// The flag indicating the status of the account.
 	pub active: bool,
 }
 
-/// An on-chain space activity details mapped to space id.
+// An on-chain entity activity details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
-pub struct ActivityDetails<T: Config> {
+pub struct ActionDetails<T: Config> {
+	/// The transaction hash.
+	pub tx_hash: EntityIdOf<T>,
 	/// Schema CID
-	pub space_cid: CidOf,
+	pub tx_cid: Option<CidOf>,
 	/// Schema block number
-	pub block_number: BlockNumberOf<T>,
+	pub block: BlockNumberOf<T>,
 	/// Transaction Type
-	pub activity: ActivityOf,
-}
-
-/// An on-chain space links mapped to entity id.
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
-pub struct EntitySpaceLinkDetails<T: Config> {
-	/// Space ID
-	pub space_id: SpaceIdOf<T>,
-	/// Space Transaction block number
-	pub block_number: BlockNumberOf<T>,
-	/// Space Transaction Type
-	pub activity: ActivityOf,
+	pub action: ActionOf,
 }

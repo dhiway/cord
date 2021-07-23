@@ -61,8 +61,14 @@ pub type BlockId = generic::BlockId<Block>;
 /// A Cord DID subject identifier.
 pub type DidIdentifier = AccountId;
 
-/// A Cord DID subject identifier.
+/// CID type.
 pub type CidOf = Vec<u8>;
+
+/// Entity Transaction Type Information
+// pub type ActivityOf = Vec<u8>;
+
+/// status Information
+pub type StatusOf = bool;
 
 /// App-specific crypto used for reporting equivocation/misbehavior in BABE and
 /// GRANDPA. Any rewards for misbehavior reporting will be paid out to this

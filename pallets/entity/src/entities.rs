@@ -4,28 +4,67 @@ use crate::*;
 
 /// An on-chain entity written by a controller.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
-pub struct EntityDetails<T: Config> {
+pub struct TxInput<T: Config> {
+	/// \[OPTIONAL\] CID data
+	pub tx_type: TypeOf,
+	/// The transaction hash.
+	pub tx_hash: HashOf<T>,
+	/// \[OPTIONAL\] CID data
+	pub tx_cid: Option<CidOf>,
+	/// \[OPTIONAL\] CID data
+	pub tx_link: Option<IdOf<T>>,
+	/// \[OPTIONAL\] CID data
+	pub tx_req: TypeOf,
+}
+
+/// An on-chain entity written by a controller.
+#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+pub struct TxDetails<T: Config> {
 	/// The identity of the controller.
 	pub controller: ControllerOf<T>,
-	/// Entity CID
-	pub entity_cid: CidOf,
-	/// \[OPTIONAL\] Parent CID of the entity
-	pub parent_cid: Option<CidOf>,
+	/// The transaction hash.
+	pub tx_hash: HashOf<T>,
+	/// \[OPTIONAL\] CID data
+	pub tx_cid: Option<CidOf>,
+	/// \[OPTIONAL\] Previos CID
+	pub ptx_cid: Option<CidOf>,
+	/// \[OPTIONAL\] CID data
+	pub tx_link: Option<IdOf<T>>,
 	/// Transaction block number
-	pub block_number: BlockNumberOf<T>,
-	/// The flag indicating the verification status of the entity.
-	pub verified: bool,
-	/// The flag indicating the status of the entity account.
+	pub block: BlockNumberOf<T>,
+	/// The flag indicating the status of the account.
 	pub active: bool,
 }
 
 /// An on-chain entity activity details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
-pub struct ActivityDetails<T: Config> {
+pub struct TxCommits<T: Config> {
+	/// \[OPTIONAL\] CID data
+	pub tx_type: TypeOf,
+	/// The transaction hash.
+	pub tx_hash: HashOf<T>,
 	/// Schema CID
-	pub entity_cid: CidOf,
+	pub tx_cid: Option<CidOf>,
+	/// \[OPTIONAL\] CID data
+	pub tx_link: Option<IdOf<T>>,
 	/// Schema block number
-	pub block_number: BlockNumberOf<T>,
+	pub block: BlockNumberOf<T>,
 	/// Transaction Type
-	pub activity: ActivityOf,
+	pub commit: RequestOf,
+}
+
+#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+pub enum RequestOf {
+	Create,
+	Update,
+	Status,
+	Verify,
+}
+
+// #[derive(Clone, PartialEq, Eq, Encode, Decode, Copy, RuntimeDebug)]
+// #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+pub enum TypeOf {
+	Entity,
+	Space,
 }

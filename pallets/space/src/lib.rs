@@ -7,8 +7,8 @@
 //! adding #MARK Types.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-use sp_std::str;
-use sp_std::{fmt::Debug, prelude::Clone, vec::Vec};
+use cord_primitives::{CidOf, StatusOf};
+use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
 
 pub mod spaces;
 pub mod weights;
@@ -31,15 +31,11 @@ pub mod pallet {
 	/// Type of an entity Id.
 	pub type EntityIdOf<T> = pallet_entity::EntityIdOf<T>;
 	/// Type of a schema hash.
-	pub type HashOf<T> = <T as frame_system::Config>::Hash;
+	pub type SpaceHashOf<T> = <T as frame_system::Config>::Hash;
 	/// EntityTransaction Type Information
-	pub type ActivityOf = Vec<u8>;
+	pub type ActionOf = pallet_entity::ActionOf;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-	/// CID Information
-	pub type CidOf = Vec<u8>;
-	/// CID Information
-	pub type StatusOf = bool;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_entity::Config {
@@ -67,16 +63,15 @@ pub mod pallet {
 	/// space activities stored on chain.
 	/// It maps from a space Id to activity details.
 	#[pallet::storage]
-	#[pallet::getter(fn spaceactivities)]
-	pub type SpaceActivities<T> =
-		StorageMap<_, Blake2_128Concat, SpaceIdOf<T>, Vec<ActivityDetails<T>>>;
+	#[pallet::getter(fn spaceactions)]
+	pub type SpaceActions<T> = StorageMap<_, Blake2_128Concat, SpaceIdOf<T>, Vec<ActionDetails<T>>>;
 
 	/// Entity - Space links stored on chain.
 	/// It maps from a entity Id to a vector of space links.
 	#[pallet::storage]
-	#[pallet::getter(fn entityspaces)]
-	pub type EntitySpaceLinks<T> =
-		StorageMap<_, Blake2_128Concat, EntityIdOf<T>, Vec<EntitySpaceLinkDetails<T>>>;
+	#[pallet::getter(fn entityspaceactions)]
+	pub type EntityActionss<T> =
+		StorageMap<_, Blake2_128Concat, EntityIdOf<T>, Vec<ActionDetails<T>>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -123,62 +118,58 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn create_space(
 			origin: OriginFor<T>,
-			space_id: SpaceIdOf<T>,
-			space_cid: CidOf,
+			tx_id: SpaceIdOf<T>,
+			tx_cid: Option<CidOf>,
 			entity_id: EntityIdOf<T>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(!<Spaces<T>>::contains_key(&space_id), Error::<T>::SpaceAlreadyExists);
+			ensure!(!<Spaces<T>>::contains_key(&tx_id), Error::<T>::SpaceAlreadyExists);
 
 			let entity = <pallet_entity::Entities<T>>::get(&entity_id)
 				.ok_or(pallet_entity::Error::<T>::EntityNotFound)?;
 			ensure!(entity.active, pallet_entity::Error::<T>::EntityNotActive);
 			ensure!(entity.controller == controller, Error::<T>::UnauthorizedOperation);
 
-			let cid_base = str::from_utf8(&space_cid).unwrap();
-			ensure!(
-				cid_base.len() <= 62
-					&& (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)),
-				Error::<T>::InvalidCidEncoding
-			);
-			let block_number = <frame_system::Pallet<T>>::block_number();
+			if let Some(ref tx_cid) = tx_cid {
+				let cid_base = str::from_utf8(&tx_cid).unwrap();
+				ensure!(
+					cid_base.len() <= 62
+						&& (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)),
+					Error::<T>::InvalidCidEncoding
+				);
+			}
+
+			let block = <frame_system::Pallet<T>>::block_number();
 
 			// vector of space activities linked to space Id
-			let mut space_activities = <SpaceActivities<T>>::get(space_id).unwrap_or_default();
-			space_activities.push(ActivityDetails {
-				space_cid: space_cid.clone(),
-				block_number: block_number.clone(),
-				activity: "Create".as_bytes().to_vec(),
+			let mut actions = <SpaceActions<T>>::get(tx_id).unwrap_or_default();
+			actions.push(SpaceActions {
+				tx_hash: tx_hash.clone(),
+				tx_cid: tx_cid.clone(),
+				block: block.clone(),
+				action: ActionOf::Create,
 			});
-			<SpaceActivities<T>>::insert(space_id, space_activities);
-
-			// vector of space activities linked to entity Id
-			let mut entity_links = <EntitySpaceLinks<T>>::get(entity_id).unwrap_or_default();
-			entity_links.push(EntitySpaceLinkDetails {
-				space_id: space_id.clone(),
-				block_number: block_number.clone(),
-				activity: "Create".as_bytes().to_vec(),
-			});
-			<EntitySpaceLinks<T>>::insert(entity_id, entity_links);
+			<SpaceActions<T>>::insert(tx_id, actions);
+			<EntityActions<T>>::insert(entity_id, actions);
 
 			log::debug!(
 				"Creating a new space with id {:?} and controller {:?}",
-				&space_id,
+				&tx_id,
 				&controller
 			);
 			<Spaces<T>>::insert(
-				&space_id,
+				&tx_id,
 				SpaceDetails {
 					controller: controller.clone(),
-					entity_id,
-					space_cid,
-					parent_cid: None,
-					block_number,
+					tx_hash,
+					tx_cid,
+					ptx_cid: None,
+					block,
 					active: true,
 				},
 			);
 
-			Self::deposit_event(Event::SpaceAdded(space_id, controller));
+			Self::deposit_event(Event::SpaceAdded(tx_id, controller));
 
 			Ok(())
 		}
