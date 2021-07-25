@@ -7,10 +7,10 @@
 //! adding #MARK Types.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-use cord_primitives::{CidOf, StatusOf};
-use frame_support::traits::Len;
+// pub use cord_primitives::{CidOf, StatusOf};
+// use frame_support::traits::Len;
+use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
-
 pub mod entities;
 pub mod weights;
 
@@ -29,11 +29,16 @@ pub mod pallet {
 	pub type IdOf<T> = <T as frame_system::Config>::Hash;
 	/// Hash of the transaction.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
+	/// Schema of the transaction.
+	// pub type SchemaIdOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a entity controller.
 	pub type ControllerOf<T> = pallet_registrar::CordAccountOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-
+	/// status Information
+	pub type StatusOf = bool;
+	/// CID type.
+	pub type CidOf = Vec<u8>;
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_registrar::Config {
 		type EnsureOrigin: EnsureOrigin<
@@ -55,7 +60,13 @@ pub mod pallet {
 	/// It maps from a transaction Id to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn transactions)]
-	pub type Transactions<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, TxDetails<T>>;
+	pub type Transactions<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, TxDetails<T>>;
+
+	/// transactions stored on chain.
+	/// It maps from a transaction Id to its details.
+	#[pallet::storage]
+	#[pallet::getter(fn transactionids)]
+	pub type TransactionIds<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
 
 	/// transaction details stored on chain.
 	/// It maps from a transaction Id to a vector of transaction details.
@@ -67,13 +78,71 @@ pub mod pallet {
 	/// It maps from a entity Id to its verification status.
 	#[pallet::storage]
 	#[pallet::getter(fn entities)]
-	pub type Entities<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, bool>;
+	pub type Entities<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<HashOf<T>>>;
+	/// entities verification information stored on chain.
+	/// It maps from a entity Id to its verification status.
+	#[pallet::storage]
+	#[pallet::getter(fn verifiedentities)]
+	pub type VerifiedEntities<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, TxVerifiedOf<T>>;
 
 	/// space links stored on chain.
 	/// It maps from a space Id to the linked Id.
 	#[pallet::storage]
 	#[pallet::getter(fn spaces)]
-	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Option<IdOf<T>>>;
+	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<HashOf<T>>>;
+
+	/// space links stored on chain.
+	/// It maps from a space Id to the linked Id.
+	#[pallet::storage]
+	#[pallet::getter(fn schemahashes)]
+	pub type SchemaHashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdOf<T>>;
+
+	/// space links stored on chain.
+	/// It maps from a space Id to the linked Id.
+	#[pallet::storage]
+	#[pallet::getter(fn schemas)]
+	pub type Schemas<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<HashOf<T>>>;
+	// /// space links stored on chain.
+	// /// It maps from a space Id to the linked Id.
+	// #[pallet::storage]
+	// #[pallet::getter(fn schemaids)]
+	// pub type SchemaIds<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+
+	/// space links stored on chain.
+	/// It maps from a space Id to the linked Id.
+	#[pallet::storage]
+	#[pallet::getter(fn journals)]
+	pub type Journals<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<HashOf<T>>>;
+
+	// /// space links stored on chain.
+	// /// It maps from a space Id to the linked Id.
+	// #[pallet::storage]
+	// #[pallet::getter(fn journalhashes)]
+	// pub type JournalHashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdOf<T>>;
+
+	/// space links stored on chain.
+	/// It maps from a space Id to the linked Id.
+	#[pallet::storage]
+	#[pallet::getter(fn streams)]
+	pub type Streams<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<HashOf<T>>>;
+
+	/// space links stored on chain.
+	/// It maps from a space Id to the linked Id.
+	// #[pallet::storage]
+	// #[pallet::getter(fn streamhashes)]
+	// pub type StreamHashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdOf<T>>;
+
+	/// space links stored on chain.
+	/// It maps from a space Id to the linked Id.
+	#[pallet::storage]
+	#[pallet::getter(fn links)]
+	pub type Links<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<HashOf<T>>>;
+
+	/// space links stored on chain.
+	/// It maps from a space Id to the linked Id.
+	// #[pallet::storage]
+	// #[pallet::getter(fn linkhashes)]
+	// pub type LinkHashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -116,6 +185,16 @@ pub mod pallet {
 		TransactionNotFound,
 		EntryNotActive,
 		InvalidTransactionRequest,
+		MissingSchemaDetails,
+		SchemaNotFound,
+		SchemaNotActive,
+		LinkMissing,
+		SchemaNotLinked,
+		JournalNotFound,
+		JournalNotLinked,
+		StreamlNotFound,
+		StreamNotLinked,
+		StreamNotFound,
 	}
 
 	#[pallet::call]
@@ -128,81 +207,55 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn create(
 			origin: OriginFor<T>,
-			tx_id: IdOf<T>,
+			tx_hash: HashOf<T>,
 			tx_input: TxInput<T>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			ensure!(
-				(tx_input.tx_req == TypeOf::Entity || tx_input.tx_req == TypeOf::Space),
-				Error::<T>::InvalidTransactionRequest
-			);
-			ensure!(!<Transactions<T>>::contains_key(&tx_id), Error::<T>::TransactionAlreadyExists);
-
-			if tx_input.tx_req == TypeOf::Space {
-				ensure!(tx_input.tx_link.len() > 0, Error::<T>::MissingTransactionLink);
-			}
-
-			if let Some(ref tx_link) = tx_input.tx_link {
-				let link = <Transactions<T>>::get(tx_link).ok_or(Error::<T>::LinkNotFound)?;
-				ensure!(link.active, Error::<T>::LinkNotActive);
-				ensure!(link.controller == controller, Error::<T>::UnauthorizedOperation);
-			}
-			if let Some(ref tx_cid) = tx_input.tx_cid {
-				let cid_base = str::from_utf8(&tx_cid).unwrap();
+			ensure!(TypeOf::is_valid(&tx_input.tx_type), Error::<T>::InvalidTransactionRequest);
+			if &tx_input.tx_type != &TypeOf::Entity {
 				ensure!(
-					cid_base.len() <= 62
-						&& (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)),
-					Error::<T>::InvalidCidEncoding
+					(tx_input.tx_link_id.is_some() || tx_input.tx_link_hash.is_some()),
+					Error::<T>::MissingTransactionLink
 				);
 			}
-			let block_number = <frame_system::Pallet<T>>::block_number();
+			if &tx_input.tx_type != &TypeOf::Entity || &tx_input.tx_type != &TypeOf::Space {
+				ensure!(
+					(tx_input.tx_schema_id.is_some() || tx_input.tx_schema_hash.is_some()),
+					Error::<T>::MissingTransactionLink
+				);
+			}
 
-			//store commit log
-			let mut commits = <Commits<T>>::get(tx_id).unwrap_or_default();
-			commits.push(TxCommits {
-				tx_type: tx_input.tx_type.clone(),
-				tx_hash: tx_input.tx_hash.clone(),
-				tx_cid: tx_input.tx_cid.clone(),
-				tx_link: tx_input.tx_link.clone(),
-				block: block_number.clone(),
-				commit: RequestOf::Create,
-			});
-			<Commits<T>>::insert(tx_id, commits);
+			if let Some(tx_cid) = &tx_input.tx_cid {
+				ensure!(TxDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
+			}
+
+			ensure!(
+				!<Transactions<T>>::contains_key(&tx_hash),
+				Error::<T>::TransactionAlreadyExists
+			);
 
 			// store entitty verification status
 			// store space link
-			match tx_input.tx_req {
-				TypeOf::Entity => {
-					<Entities<T>>::insert(tx_id, false);
-				}
-				TypeOf::Space => {
-					<Spaces<T>>::insert(tx_id, tx_input.tx_link);
-				}
-			}
+			//store commit log
+			let commit = RequestOf::Create;
+			// let block_number = <frame_system::Pallet<T>>::block_number();
+			let tx_details = TxDetails::<T>::validate_tx(tx_input, controller.clone())?;
+			TxCommits::<T>::store_tx(tx_hash, &tx_details, commit)?;
+			Pallet::<T>::deposit_event(Event::TransactionAdded(tx_hash, controller.clone()));
+
 			log::debug!(
 				"Creating a new entity with ID {:?} and controller {:?}",
-				&tx_id,
+				&tx_hash,
 				&controller
 			);
-			<Transactions<T>>::insert(
-				&tx_id,
-				TxDetails {
-					controller: controller.clone(),
-					tx_hash: tx_input.tx_hash,
-					tx_cid: tx_input.tx_cid,
-					ptx_cid: None,
-					tx_link: tx_input.tx_link,
-					block: block_number,
-					active: true,
-				},
-			);
+			<TransactionIds<T>>::insert(&tx_details.tx_id, &tx_hash);
+			<Transactions<T>>::insert(&tx_hash, tx_details);
 
-			Self::deposit_event(Event::TransactionAdded(tx_id, controller));
+			Self::deposit_event(Event::TransactionAdded(tx_hash, controller));
 
 			Ok(())
 		}
-
 		/// Updates the entity information and associates it with its owner.
 		///
 		/// * origin: the identifier of the schema owner
@@ -211,70 +264,44 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn update(
 			origin: OriginFor<T>,
-			tx_id: IdOf<T>,
+			tx_hash: HashOf<T>,
 			tx_input: TxInput<T>,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(
-				(tx_input.tx_req == TypeOf::Entity || tx_input.tx_req == TypeOf::Space),
-				Error::<T>::InvalidTransactionRequest
-			);
+			ensure!(TypeOf::is_valid(&tx_input.tx_type), Error::<T>::InvalidTransactionRequest);
+
 			let tx_update =
-				<Transactions<T>>::get(&tx_id).ok_or(Error::<T>::TransactionNotFound)?;
+				<Transactions<T>>::get(&tx_hash).ok_or(Error::<T>::TransactionNotFound)?;
 			ensure!(tx_update.active, Error::<T>::EntryNotActive);
 			ensure!(tx_update.controller == updater, Error::<T>::UnauthorizedUpdate);
 
-			if tx_input.tx_req == TypeOf::Space {
-				ensure!(tx_input.tx_link.len() > 0, Error::<T>::MissingTransactionLink);
-			}
+			let update_tx = TxDetails::<T>::map_update_tx(&tx_input, &tx_update)?;
 
-			if let Some(ref tx_link) = tx_input.tx_link {
-				let link = <Transactions<T>>::get(tx_link).ok_or(Error::<T>::LinkNotFound)?;
-				ensure!(link.active, Error::<T>::LinkNotActive);
-				ensure!(link.controller == updater, Error::<T>::UnauthorizedOperation);
-			}
-
-			if let Some(ref tx_cid) = tx_input.tx_cid {
-				let cid_base = str::from_utf8(&tx_cid).unwrap();
+			if &update_tx.tx_type != &TypeOf::Entity {
 				ensure!(
-					cid_base.len() <= 62
-						&& (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)),
-					Error::<T>::InvalidCidEncoding
+					(update_tx.tx_link.tx_id.is_some() || update_tx.tx_link.tx_hash.is_some()),
+					Error::<T>::MissingTransactionLink
 				);
 			}
-
-			let block_number = <frame_system::Pallet<T>>::block_number();
-			let mut commits = <Commits<T>>::get(tx_id).unwrap_or_default();
-			commits.push(TxCommits {
-				tx_type: tx_input.tx_type.clone(),
-				tx_hash: tx_input.tx_hash.clone(),
-				tx_cid: tx_input.tx_cid.clone(),
-				tx_link: tx_input.tx_link.clone(),
-				block: block_number.clone(),
-				commit: RequestOf::Update,
-			});
-			<Commits<T>>::insert(tx_id, commits);
-			if tx_input.tx_req != TypeOf::Space {
-				<Spaces<T>>::insert(tx_id, tx_input.tx_link);
+			if &tx_input.tx_type != &TypeOf::Entity || &tx_input.tx_type != &TypeOf::Space {
+				ensure!(
+					(update_tx.tx_schema.tx_id.is_some() || update_tx.tx_schema.tx_id.is_some()),
+					Error::<T>::MissingTransactionLink
+				);
 			}
+			let commit = RequestOf::Update;
+			// let tx_details = TxDetails::<T>::validate_tx(tx_input, controller)?;
+			TxCommits::<T>::store_tx(tx_hash, &update_tx, commit)?;
+			// Pallet::<T>::deposit_event(Event::TransactionAdded(tx_hash, &updater));
 
-			log::debug!("Creating entity with id {:?} and owner {:?}", &tx_id, &updater);
-			<Transactions<T>>::insert(
-				&tx_id,
-				TxDetails {
-					tx_hash: tx_input.tx_hash,
-					tx_cid: tx_input.tx_cid,
-					ptx_cid: tx_update.tx_cid,
-					tx_link: tx_input.tx_link,
-					block: block_number,
-					..tx_update
-				},
-			);
-
-			Self::deposit_event(Event::TransactionUpdated(tx_id, updater));
+			log::debug!("Creating entity with id {:?} and owner {:?}", &tx_hash, &updater);
+			<TransactionIds<T>>::insert(&tx_update.tx_id, &tx_hash);
+			<Transactions<T>>::insert(&tx_hash, tx_update);
+			Self::deposit_event(Event::TransactionUpdated(tx_hash, updater));
 
 			Ok(())
 		}
+
 		/// Update the status of the entity - active or not
 		///
 		/// This update can only be performed by a registrar account
@@ -286,52 +313,42 @@ pub mod pallet {
 		pub fn set_status(
 			origin: OriginFor<T>,
 			tx_type: TypeOf,
-			tx_id: IdOf<T>,
+			tx_hash: HashOf<T>,
 			status: StatusOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(
-				(tx_type == TypeOf::Entity || tx_type == TypeOf::Space),
-				Error::<T>::InvalidTransactionRequest
-			);
+			ensure!(TypeOf::is_valid(&tx_type), Error::<T>::InvalidTransactionRequest);
 
 			let tx_status =
-				<Transactions<T>>::get(&tx_id).ok_or(Error::<T>::TransactionNotFound)?;
+				<Transactions<T>>::get(&tx_hash).ok_or(Error::<T>::TransactionNotFound)?;
 			ensure!(tx_status.active == status, Error::<T>::NoChangeRequired);
-
-			if tx_type == TypeOf::Space {
-				ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedUpdate);
-			} else {
-				let registrar = <pallet_registrar::Registrars<T>>::get(&updater)
-					.ok_or(pallet_registrar::Error::<T>::RegistrarAccountNotFound)?;
-				ensure!(!registrar.revoked, pallet_registrar::Error::<T>::RegistrarAccountRevoked);
-			}
+			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedUpdate);
 
 			log::debug!("Changing Transaction Status");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			// vector of entity activities linked to entity Id
-			let mut commits = <Commits<T>>::get(tx_id).unwrap_or_default();
-			commits.push(TxCommits {
+			let mut commit = <Commits<T>>::get(tx_status.tx_id).unwrap_or_default();
+			commit.push(TxCommits {
 				tx_type,
-				tx_hash: tx_status.tx_hash.clone(),
-				tx_cid: tx_status.tx_cid.clone(),
-				tx_link: tx_status.tx_link.clone(),
-				block: block_number.clone(),
+				tx_hash,
+				tx_cid: tx_status.tx_storage.tx_cid.clone(),
+				tx_link: tx_status.tx_link.tx_hash.clone(),
+				block: block_number,
 				commit: RequestOf::Status,
 			});
-			<Commits<T>>::insert(tx_id, commits);
+			<Commits<T>>::insert(tx_status.tx_id, commit);
 
 			log::debug!(
 				"Updating transaction status with id {:?} and owner {:?}",
-				&tx_id,
+				&tx_status.tx_id,
 				&updater
 			);
 			<Transactions<T>>::insert(
-				&tx_id,
+				&tx_hash,
 				TxDetails { block: block_number, active: status, ..tx_status },
 			);
-			Self::deposit_event(Event::TransactionStatusUpdated(tx_id));
+			Self::deposit_event(Event::TransactionStatusUpdated(tx_hash));
 
 			Ok(())
 		}
@@ -348,12 +365,14 @@ pub mod pallet {
 			status: StatusOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(<Entities<T>>::contains_key(tx_id), Error::<T>::EntityNotFound);
 
-			let tx_ver_status = <Entities<T>>::get(&tx_id).ok_or(Error::<T>::EntityNotFound)?;
-			ensure!(tx_ver_status == status, Error::<T>::NoChangeRequired);
+			let entity_hash =
+				<VerifiedEntities<T>>::get(&tx_id).ok_or(Error::<T>::EntityNotFound)?;
+			ensure!(entity_hash.tx_verified == status, Error::<T>::NoChangeRequired);
 
-			let tx_verify =
-				<Transactions<T>>::get(&tx_id).ok_or(Error::<T>::TransactionNotFound)?;
+			let tx_verify = <Transactions<T>>::get(entity_hash.tx_hash)
+				.ok_or(Error::<T>::TransactionNotFound)?;
 
 			let registrar = <pallet_registrar::Registrars<T>>::get(&updater)
 				.ok_or(pallet_registrar::Error::<T>::RegistrarAccountNotFound)?;
@@ -363,18 +382,21 @@ pub mod pallet {
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			// vector of entity activities linked to entity Id
-			let mut commits = <Commits<T>>::get(tx_id).unwrap_or_default();
-			commits.push(TxCommits {
+			let mut commit = <Commits<T>>::get(tx_id).unwrap_or_default();
+			commit.push(TxCommits {
 				tx_type: TypeOf::Entity,
-				tx_hash: tx_verify.tx_hash.clone(),
-				tx_cid: tx_verify.tx_cid.clone(),
-				tx_link: tx_verify.tx_link.clone(),
-				block: block_number.clone(),
-				commit: RequestOf::Status,
+				tx_hash: entity_hash.tx_hash,
+				tx_cid: tx_verify.tx_storage.tx_cid,
+				tx_link: tx_verify.tx_link.tx_hash,
+				block: block_number,
+				commit: RequestOf::Verify,
 			});
-			<Commits<T>>::insert(tx_id, commits);
+			<Commits<T>>::insert(tx_id, commit);
 
-			<Entities<T>>::insert(&tx_id, status);
+			<VerifiedEntities<T>>::insert(
+				&tx_id,
+				TxVerifiedOf { tx_verified: status, ..entity_hash },
+			);
 			Self::deposit_event(Event::EntityVerificationStatusUpdated(tx_id));
 
 			Ok(())

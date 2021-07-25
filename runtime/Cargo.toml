@@ -21,12 +21,6 @@ smallvec = "1.6.1"
 pallet-did = {  default-features = false, path = '../pallets/did' }
 pallet-registrar = {  default-features = false, path = '../pallets/registrar' }
 pallet-entity = {  default-features = false, path = '../pallets/entity' }
-pallet-space = {  default-features = false, path = '../pallets/space' }
-pallet-schema = { default-features = false, path = '../pallets/schema' }
-pallet-journal = { default-features = false, path = '../pallets/journal' }
-pallet-stream = { default-features = false, path = '../pallets/stream' }
-pallet-stream-link = { default-features = false, path = '../pallets/streamlink' }
-pallet-stream-digest = { default-features = false, path = '../pallets/streamdigest' }
 
 # cord primitives
 cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
@@ -163,11 +157,5 @@ std = [
 	"pallet-did/std",
  	"pallet-registrar/std",
 	"pallet-entity/std",
-	"pallet-space/std",
-	"pallet-schema/std",
-	"pallet-journal/std",
-	"pallet-stream/std",
-	"pallet-stream-link/std",
-	"pallet-stream-digest/std",
   	"pallet-sudo/std",
 ]

@@ -12,11 +12,5 @@ members = [
 	"pallets/did",
 	"pallets/registrar",
 	"pallets/entity",
-	"pallets/space",
-	"pallets/schema",
-	"pallets/journal",
-	"pallets/stream",
-	"pallets/streamlink",
-	"pallets/streamdigest",
 ]
 

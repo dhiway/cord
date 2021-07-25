@@ -5,107 +5,76 @@
   "Balance": "u128",
   "LookupSource": "MultiAddress",
   "CidOf": "Text",
-  "ActivityOf": "Text",
   "ControllerOf": "AccountId",
+  "HashOf": "Hash",
   "EntityIdOf": "Hash",
-  "EntityDetails": {
+  "SchemaOf": {
+    "_enum": {
+      "SchemaOf::Journal": "Journal",
+      "SchemaOf::Stream": "Stream",
+      "SchemaOf::Link": "Link"
+    }
+  },
+  "TypeOf": {
+    "_enum": {
+      "TypeOf::Entity": "Entity",
+      "TypeOf::Space": "Space",
+      "TypeOf::Schema": "SchemaOf",
+      "TypeOf::Journal": "Journal",
+      "TypeOf::Stream": "Stream",
+      "TypeOf::Link": "Link"
+    }
+  },
+  "RequestOf": {
+    "_enum": {
+      "createType": "RequestOf::Create",
+      "Update": "RequestOf::Update",
+      "Status": "RequestOf::Status",
+      "Verify": "RequestOf::Verify"
+    }
+  },
+  "TxInput": {
+    "tx_req": "RequestOf",
+    "tx_type": "TypeOf",
+    "tx_id": "IdOf",
+    "tx_cid": "Option<CidOf>",
+    "tx_schema_id": "Option<IdOf>",
+    "tx_schema_hash": "Option<HashOf>",
+    "tx_link_id": "Option<IdOf>",
+    "tx_link_hash": "Option<HashOf>"
+  },
+  "TxLinkOf": {
+    "tx_id": "Option<IdOf>",
+    "tx_hash": "Option<HashOf>",
+    "tx_type": "Option<TypeOf>"
+  },
+  "TxStorageOf": {
+    "tx_cid": "Option<CidOf>",
+    "ptx_cid": "Option<CidOf>"
+  },
+  "TxVerifiedOf": {
+    "tx_hash": "HashOf",
+    "ptx_verified": "bool"
+  },
+  "TxDetails": {
+    "tx_type": "TypeOf",
     "controller": "ControllerOf",
-    "entity_cid": "CidOf",
-    "parent_cid": "Option<CidOf>",
-    "block_number": "BlockNumber",
-    "verified": "bool",
+    "tx_id": "IdOf",
+    "tx_storage": "TxStorageOf",
+    "tx_schema": "TxLinkOf",
+    "tx_link": "TxLinkOf",
+    "block": "BlockNumber",
     "active": "bool"
   },
-  "ActivityDetails": {
-    "block_number": "BlockNumber",
-    "entity_cid": "CidOf",
-    "activity": "ActivityOf"
+  "TxCommits": {
+    "tx_type": "TypeOf",
+    "tx_hash": "HashOf",
+    "tx_cid": "Option<CidOf>",
+    "tx_link": "Option<HashOf>",
+    "block": "BlockNumber",
+    "commit": "RequestOf"
   },
-  "RegistrarDetails": {
-    "block_number": "BlockNumber",
-    "revoked": "bool"
-  },
-  "SpaceIdOf": "Hash",
-  "SpaceDetails": {
-    "controller": "ControllerOf",
-    "entity_cid": "CidOf",
-    "parent_cid": "Option<CidOf>",
-    "space_cid": "CidOf",
-    "block_number": "BlockNumber",
-    "active": "bool"
-  },
-  "EntitySpaceLinkDetails": {
-    "space_id": "SpaceIdOf",
-    "block_number": "BlockNumber",
-    "activity": "ActivityOf"
-  },
-  "ActiviyDetails": {
-    "space_cid": "CidOf",
-    "block_number": "BlockNumber",
-    "activity": "ActivityOf"
-  },
-  "SchemaControllerOf": "AccountId",
-  "SchemaIdOf": "Hash",
-  "SchemaHashOf": "Hash",
-  "SchemaInput": {
-    "schema_id": "SchemaIdOf",
-    "schema_cid": "SchemaCidOf",
-    "space_id": "SpaceIdOf"
-  },
-  "SchemaDetails": {
-    "schema_id": "SchemaIdOf",
-    "owner": "SchemaOwnerOf",
-    "schema_cid": "CidOf",
-    "parent_cid": "Option<CidOf>",
-    "block_number": "BlockNumber",
-    "revoked": "bool"
-  },
-  "SchemaIdLinks": {
-    "schema_hash": "SchemaHashOf",
-    "block_number": "BlockNumber",
-    "activity": "ActivityOf"
-  },
-  "JournalStreamCreatorOf": "AccountId",
-  "JournalStreamHashOf": "Hash",
-  "JournalStreamDetails": {
-    "creator": "JournalStreamCreatorOf",
-    "stream_cid": "CidOf",
-    "parent_cid": "Option<CidOf>",
-    "schema_hash": "SchemaHashOf",
-    "block_number": "BlockNumber",
-    "revoked": "bool"
-  },
-  "StreamCreatorOf": "AccountId",
-  "StreamHashOf": "Hash",
-  "StreamCidOf": "Text",
-  "StreamDetails": {
-    "creator": "StreamCreatorOf",
-    "stream_cid": "StreamCidOf",
-    "journal_stream_hash": "JournalStreamHashOf",
-    "schema_hash": "SchemaHashOf",
-    "block_number": "BlockNumber",
-    "revoked": "bool"
-  },
-  "StreamLinkCreatorOf": "AccountId",
-  "StreamLinkHashOf": "Hash",
-  "StreamLinkCidOf": "Text",
-  "StreamLinkDetails": {
-    "creator": "StreamLinkCreatorOf",
-    "stream_link_cid": "StreamLinkCidOf",
-    "stream_hash": "StreamHashOf",
-    "schema_hash": "SchemaHashOf",
-    "block_number": "BlockNumber",
-    "revoked": "bool"
-  },
-  "DigestCreatorOf": "AccountId",
-  "DigestHashOf": "Hash",
-  "DigestCidOf": "Text",
-  "DigestDetails": {
-    "creator": "DigestCreatorOf",
-    "stream_hash": "StreamHashOf",
-    "digest_cid": "Option<DigestCidOf>",
-    "block_number": "BlockNumber"
-  },
+
   "KeyIdOf": "Hash",
   "DidIdentifierOf": "AccountId",
   "AccountIdentifierOf": "AccountId",
