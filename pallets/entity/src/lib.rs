@@ -212,14 +212,17 @@ pub mod pallet {
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			ensure!(TypeOf::is_valid(&tx_input.tx_type), Error::<T>::InvalidTransactionRequest);
-			if &tx_input.tx_type != &TypeOf::Entity {
+			ensure!(
+				TypeOf::is_valid(tx_input.tx_type.clone()),
+				Error::<T>::InvalidTransactionRequest
+			);
+			if tx_input.tx_type != TypeOf::Entity {
 				ensure!(
 					(tx_input.tx_link_id.is_some() || tx_input.tx_link_hash.is_some()),
 					Error::<T>::MissingTransactionLink
 				);
 			}
-			if &tx_input.tx_type != &TypeOf::Entity || &tx_input.tx_type != &TypeOf::Space {
+			if tx_input.tx_type != TypeOf::Entity || tx_input.tx_type != TypeOf::Space {
 				ensure!(
 					(tx_input.tx_schema_id.is_some() || tx_input.tx_schema_hash.is_some()),
 					Error::<T>::MissingTransactionLink
@@ -268,7 +271,10 @@ pub mod pallet {
 			tx_input: TxInput<T>,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(TypeOf::is_valid(&tx_input.tx_type), Error::<T>::InvalidTransactionRequest);
+			ensure!(
+				TypeOf::is_valid(tx_input.tx_type.clone()),
+				Error::<T>::InvalidTransactionRequest
+			);
 
 			let tx_update =
 				<Transactions<T>>::get(&tx_hash).ok_or(Error::<T>::TransactionNotFound)?;
@@ -277,13 +283,13 @@ pub mod pallet {
 
 			let update_tx = TxDetails::<T>::map_update_tx(&tx_input, &tx_update)?;
 
-			if &update_tx.tx_type != &TypeOf::Entity {
+			if update_tx.tx_type != TypeOf::Entity {
 				ensure!(
 					(update_tx.tx_link.tx_id.is_some() || update_tx.tx_link.tx_hash.is_some()),
 					Error::<T>::MissingTransactionLink
 				);
 			}
-			if &tx_input.tx_type != &TypeOf::Entity || &tx_input.tx_type != &TypeOf::Space {
+			if tx_input.tx_type != TypeOf::Entity || tx_input.tx_type != TypeOf::Space {
 				ensure!(
 					(update_tx.tx_schema.tx_id.is_some() || update_tx.tx_schema.tx_id.is_some()),
 					Error::<T>::MissingTransactionLink
@@ -317,7 +323,7 @@ pub mod pallet {
 			status: StatusOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(TypeOf::is_valid(&tx_type), Error::<T>::InvalidTransactionRequest);
+			ensure!(TypeOf::is_valid(tx_type.clone()), Error::<T>::InvalidTransactionRequest);
 
 			let tx_status =
 				<Transactions<T>>::get(&tx_hash).ok_or(Error::<T>::TransactionNotFound)?;

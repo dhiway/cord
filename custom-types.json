@@ -6,32 +6,24 @@
   "LookupSource": "MultiAddress",
   "CidOf": "Text",
   "ControllerOf": "AccountId",
+  "IdOf": "Hash",
   "HashOf": "Hash",
   "EntityIdOf": "Hash",
   "SchemaOf": {
-    "_enum": {
-      "SchemaOf::Journal": "Journal",
-      "SchemaOf::Stream": "Stream",
-      "SchemaOf::Link": "Link"
-    }
+    "_enum": ["Journal", "Stream", "Link"]
   },
   "TypeOf": {
     "_enum": {
-      "TypeOf::Entity": "Entity",
-      "TypeOf::Space": "Space",
-      "TypeOf::Schema": "SchemaOf",
-      "TypeOf::Journal": "Journal",
-      "TypeOf::Stream": "Stream",
-      "TypeOf::Link": "Link"
+      "Entity": null,
+      "Space": null,
+      "Schema": "SchemaOf",
+      "Journal": null,
+      "Stream": null,
+      "Link": null
     }
   },
   "RequestOf": {
-    "_enum": {
-      "createType": "RequestOf::Create",
-      "Update": "RequestOf::Update",
-      "Status": "RequestOf::Status",
-      "Verify": "RequestOf::Verify"
-    }
+    "_enum": ["Create", "Update", "Status", "Verify"]
   },
   "TxInput": {
     "tx_req": "RequestOf",

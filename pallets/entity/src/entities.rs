@@ -355,7 +355,7 @@ impl<T: Config> TxCommits<T> {
 	}
 }
 
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
 pub enum RequestOf {
 	Create,
 	Update,
@@ -371,7 +371,7 @@ impl Default for RequestOf {
 
 // #[derive(Clone, PartialEq, Eq, Encode, Decode, Copy, RuntimeDebug)]
 // #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
 pub enum TypeOf {
 	Entity,
 	Space,
@@ -388,15 +388,15 @@ impl Default for TypeOf {
 }
 
 impl TypeOf {
-	pub fn is_valid(incoming: &TypeOf) -> bool {
-		if incoming == &TypeOf::Entity
-			|| incoming == &TypeOf::Space
-			|| incoming == &TypeOf::Schema(SchemaOf::Journal)
-			|| incoming == &TypeOf::Schema(SchemaOf::Stream)
-			|| incoming == &TypeOf::Schema(SchemaOf::Link)
-			|| incoming == &TypeOf::Journal
-			|| incoming == &TypeOf::Stream
-			|| incoming == &TypeOf::Link
+	pub fn is_valid(incoming: TypeOf) -> bool {
+		if incoming == TypeOf::Entity
+			|| incoming == TypeOf::Space
+			|| incoming == TypeOf::Schema(SchemaOf::Journal)
+			|| incoming == TypeOf::Schema(SchemaOf::Stream)
+			|| incoming == TypeOf::Schema(SchemaOf::Link)
+			|| incoming == TypeOf::Journal
+			|| incoming == TypeOf::Stream
+			|| incoming == TypeOf::Link
 		{
 			true
 		} else {
@@ -407,7 +407,7 @@ impl TypeOf {
 
 // #[derive(Clone, PartialEq, Eq, Encode, Decode, Copy, RuntimeDebug)]
 // #[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
 pub enum SchemaOf {
 	Journal,
 	Stream,
