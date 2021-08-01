@@ -9,39 +9,21 @@
   "IdOf": "Hash",
   "HashOf": "Hash",
   "EntityIdOf": "Hash",
-  "SchemaOf": {
-    "_enum": ["Journal", "Stream", "Link"]
-  },
   "TypeOf": {
-    "_enum": {
-      "Entity": null,
-      "Space": null,
-      "Schema": "SchemaOf",
-      "Journal": null,
-      "Stream": null,
-      "Link": null
-    }
+    "_enum": ["Entity", "Space", "Schema", "Journal", "Stream", "Link"]
   },
   "RequestOf": {
     "_enum": ["Create", "Update", "Status", "Verify"]
   },
   "TxInput": {
-    "tx_req": "RequestOf",
     "tx_type": "TypeOf",
     "tx_id": "IdOf",
-    "tx_cid": "Option<CidOf>",
+    "tx_cid": "CidOf",
     "tx_schema_id": "Option<IdOf>",
-    "tx_schema_hash": "Option<HashOf>",
-    "tx_link_id": "Option<IdOf>",
-    "tx_link_hash": "Option<HashOf>"
-  },
-  "TxLinkOf": {
-    "tx_id": "Option<IdOf>",
-    "tx_hash": "Option<HashOf>",
-    "tx_type": "Option<TypeOf>"
+    "tx_link_id": "Option<IdOf>"
   },
   "TxStorageOf": {
-    "tx_cid": "Option<CidOf>",
+    "tx_cid": "CidOf",
     "ptx_cid": "Option<CidOf>"
   },
   "TxVerifiedOf": {
@@ -53,20 +35,19 @@
     "controller": "ControllerOf",
     "tx_id": "IdOf",
     "tx_storage": "TxStorageOf",
-    "tx_schema": "TxLinkOf",
-    "tx_link": "TxLinkOf",
+    "tx_schema": "Option<IdOf>",
+    "tx_link": "Option<IdOf>",
     "block": "BlockNumber",
     "active": "bool"
   },
   "TxCommits": {
     "tx_type": "TypeOf",
     "tx_hash": "HashOf",
-    "tx_cid": "Option<CidOf>",
-    "tx_link": "Option<HashOf>",
+    "tx_cid": "CidOf",
+    "tx_link": "Option<IdOf>",
     "block": "BlockNumber",
     "commit": "RequestOf"
   },
-
   "KeyIdOf": "Hash",
   "DidIdentifierOf": "AccountId",
   "AccountIdentifierOf": "AccountId",
