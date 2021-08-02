@@ -1,5 +1,5 @@
 [package]
-name = 'pallet-entity'
+name = 'pallet-stream'
 version = '0.5.2'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']

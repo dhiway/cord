@@ -9,8 +9,9 @@
   "IdOf": "Hash",
   "HashOf": "Hash",
   "EntityIdOf": "Hash",
+  "StatusOf": "bool",
   "TypeOf": {
-    "_enum": ["Entity", "Space", "Schema", "Journal", "Stream", "Link"]
+    "_enum": ["Entity", "Space", "Schema", "Journal", "Document", "Link"]
   },
   "RequestOf": {
     "_enum": ["Create", "Update", "Status", "Verify"]

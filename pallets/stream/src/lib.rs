@@ -11,10 +11,10 @@
 // use frame_support::traits::Len;
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
-pub mod entities;
+pub mod streams;
 pub mod weights;
 
-pub use crate::entities::*;
+pub use crate::streams::*;
 pub use pallet::*;
 pub mod utils;
 use crate::weights::WeightInfo;
@@ -58,13 +58,7 @@ pub mod pallet {
 	/// It maps from a transaction Id to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn transactions)]
-	pub type Transactions<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, TxDetails<T>>;
-
-	/// transactions stored on chain.
-	/// It maps from a transaction Id to its details.
-	#[pallet::storage]
-	#[pallet::getter(fn transactionids)]
-	pub type TransactionIds<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+	pub type Streams<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, TxDetails<T>>;
 
 	/// transaction details stored on chain.
 	/// It maps from a transaction Id to a vector of transaction details.
@@ -72,41 +66,47 @@ pub mod pallet {
 	#[pallet::getter(fn commits)]
 	pub type Commits<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<TxCommits<T>>>;
 
+	/// transactions stored on chain.
+	/// It maps from a transaction Id to its details.
+	#[pallet::storage]
+	#[pallet::getter(fn transactionids)]
+	pub type StreamIds<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+
 	/// entities verification information stored on chain.
 	/// It maps from a entity Id to its verification status.
 	#[pallet::storage]
 	#[pallet::getter(fn entities)]
-	pub type Entities<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<HashOf<T>>>;
+	pub type Entities<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
 
 	/// space links stored on chain.
 	/// It maps from a space Id to a vector of space hashes.
 	#[pallet::storage]
 	#[pallet::getter(fn spaces)]
-	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<HashOf<T>>>;
+	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
 
 	/// schema links stored on chain.
 	/// It maps from a schema Id to a vector of schema hashes.
 	#[pallet::storage]
 	#[pallet::getter(fn schemas)]
-	pub type Schemas<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<HashOf<T>>>;
+	pub type Schemas<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
 
 	/// journal links stored on chain.
 	/// It maps from a journal Id to a vector of journal hashes.
 	#[pallet::storage]
 	#[pallet::getter(fn journals)]
-	pub type Journals<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<HashOf<T>>>;
+	pub type Journals<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
 
 	/// stream links stored on chain.
 	/// It maps from a stream Id to a vector of stream hashes.
 	#[pallet::storage]
 	#[pallet::getter(fn streams)]
-	pub type Streams<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<HashOf<T>>>;
+	pub type Documents<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
 
 	/// links stored on chain.
 	/// It maps from a link Id to a vector of link hashes.
 	#[pallet::storage]
 	#[pallet::getter(fn links)]
-	pub type Links<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<HashOf<T>>>;
+	pub type Links<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
 
 	/// entities verification information stored on chain.
 	/// It maps from a entity Id to its verification status.
@@ -177,8 +177,8 @@ pub mod pallet {
 		SpaceLinkNotFound,
 		/// Journal Link not found
 		JournalLinkNotFound,
-		/// Stream Link not found
-		StreamLinkNotFound,
+		/// Document Link not found
+		DocumentLinkNotFound,
 		// Linked Schema not found
 		SchemaNotFound,
 		/// Schema Link marked inactive
@@ -195,22 +195,6 @@ pub mod pallet {
 		StatusChangeNotRequired,
 		/// Only when the author is not the controller.
 		UnauthorizedOperation,
-		// TransactionAlreadyExists,
-		// MissingTransactionLink,
-		// TransactionNotFound,
-		// TransactionHashNotFound,
-		// TransactionIdNotFound,
-		// EntryNotActive,
-		// InvalidRequestType,
-		// MissingSchemaDetails,
-		// LinkMissing,
-		// SchemaNotLinked,
-		// JournalNotFound,
-		// JournalNotLinked,
-		// StreamlNotFound,
-		// StreamNotLinked,
-		// StreamNotFound,
-		// MissingInputFields,
 	}
 
 	#[pallet::call]
@@ -237,12 +221,9 @@ pub mod pallet {
 			//check cid encoding
 			ensure!(TxInput::<T>::check_cid(&tx_input.tx_cid), Error::<T>::InvalidCidEncoding);
 			//check transaction id
-			ensure!(
-				!<TransactionIds<T>>::contains_key(&tx_input.tx_id),
-				Error::<T>::IdAlreadyExists
-			);
+			ensure!(!<StreamIds<T>>::contains_key(&tx_input.tx_id), Error::<T>::IdAlreadyExists);
 			//check transaction
-			ensure!(!<Transactions<T>>::contains_key(&tx_hash), Error::<T>::HashAlreadyExists);
+			ensure!(!<Streams<T>>::contains_key(&tx_hash), Error::<T>::HashAlreadyExists);
 
 			let tx_details = TxDetails::<T>::validate_tx(tx_input, controller.clone())?;
 			TxCommits::<T>::store_tx(tx_hash, &tx_details, RequestOf::Create)?;
@@ -252,8 +233,8 @@ pub mod pallet {
 				&tx_hash,
 				&controller
 			);
-			<TransactionIds<T>>::insert(&tx_details.tx_id, &tx_hash);
-			<Transactions<T>>::insert(&tx_hash, tx_details);
+			<StreamIds<T>>::insert(&tx_details.tx_id, &tx_hash);
+			<Streams<T>>::insert(&tx_hash, tx_details);
 			Self::deposit_event(Event::TransactionAdded(tx_hash, controller));
 
 			Ok(())
@@ -273,17 +254,17 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(TxInput::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
 
-			let tx_last_hash = <TransactionIds<T>>::get(&tx_id).ok_or(Error::<T>::IdNotFound)?;
-			let tx_last = <Transactions<T>>::get(&tx_last_hash).ok_or(Error::<T>::HashNotFound)?;
+			let tx_last_hash = <StreamIds<T>>::get(&tx_id).ok_or(Error::<T>::IdNotFound)?;
+			let tx_last = <Streams<T>>::get(&tx_last_hash).ok_or(Error::<T>::HashNotFound)?;
 			ensure!(tx_last.active, Error::<T>::IdNotActive);
 			ensure!(tx_last.controller == updater, Error::<T>::UnauthorizedUpdate);
 			ensure!(tx_cid != tx_last.tx_storage.tx_cid, Error::<T>::CidAlreadyMapped);
 
 			if let Some(tx_last_link) = tx_last.tx_link {
 				let tx_last_link_hash =
-					<TransactionIds<T>>::get(tx_last_link).ok_or(Error::<T>::LinkIdNotFound)?;
-				let tx_last_link = <Transactions<T>>::get(&tx_last_link_hash)
-					.ok_or(Error::<T>::LinkHashNotFound)?;
+					<StreamIds<T>>::get(tx_last_link).ok_or(Error::<T>::LinkIdNotFound)?;
+				let tx_last_link =
+					<Streams<T>>::get(&tx_last_link_hash).ok_or(Error::<T>::LinkHashNotFound)?;
 				ensure!(tx_last_link.active, Error::<T>::LinkNotActive);
 			}
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -299,13 +280,13 @@ pub mod pallet {
 
 			TxCommits::<T>::update_tx(tx_hash, &update_tx, RequestOf::Update)?;
 
-			<Transactions<T>>::insert(
+			<Streams<T>>::insert(
 				&tx_last_hash,
 				TxDetails { block: block_number, active: false, ..tx_last },
 			);
 			log::debug!("Updating entity with id {:?} and owner {:?}", &tx_hash, &updater);
-			<Transactions<T>>::insert(&tx_hash, update_tx);
-			<TransactionIds<T>>::insert(&tx_id, &tx_hash);
+			<Streams<T>>::insert(&tx_hash, update_tx);
+			<StreamIds<T>>::insert(&tx_id, &tx_hash);
 
 			Self::deposit_event(Event::TransactionUpdated(tx_hash, updater));
 
@@ -326,9 +307,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let tx_status_hash = <TransactionIds<T>>::get(&tx_id).ok_or(Error::<T>::IdNotFound)?;
-			let tx_status =
-				<Transactions<T>>::get(&tx_status_hash).ok_or(Error::<T>::HashNotFound)?;
+			let tx_status_hash = <StreamIds<T>>::get(&tx_id).ok_or(Error::<T>::IdNotFound)?;
+			let tx_status = <Streams<T>>::get(&tx_status_hash).ok_or(Error::<T>::HashNotFound)?;
 			ensure!(tx_status.active == status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedUpdate);
 
@@ -352,7 +332,7 @@ pub mod pallet {
 				&tx_status.tx_id,
 				&updater
 			);
-			<Transactions<T>>::insert(
+			<Streams<T>>::insert(
 				&tx_status_hash,
 				TxDetails { block: block_number, active: status, ..tx_status },
 			);
@@ -375,9 +355,9 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(<Entities<T>>::contains_key(tx_id), Error::<T>::EntityNotFound);
 
-			let entity_hash = <TransactionIds<T>>::get(&tx_id).ok_or(Error::<T>::IdNotFound)?;
+			let entity_hash = <StreamIds<T>>::get(&tx_id).ok_or(Error::<T>::IdNotFound)?;
 
-			let tx_verify = <Transactions<T>>::get(&entity_hash).ok_or(Error::<T>::HashNotFound)?;
+			let tx_verify = <Streams<T>>::get(&entity_hash).ok_or(Error::<T>::HashNotFound)?;
 			let registrar = <pallet_registrar::Registrars<T>>::get(&updater)
 				.ok_or(pallet_registrar::Error::<T>::RegistrarAccountNotFound)?;
 			ensure!(!registrar.revoked, pallet_registrar::Error::<T>::RegistrarAccountRevoked);

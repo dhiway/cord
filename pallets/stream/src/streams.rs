@@ -28,7 +28,7 @@ impl<T: Config> TxInput<T> {
 					false
 				}
 			}
-			TypeOf::Journal | TypeOf::Stream | TypeOf::Link => {
+			TypeOf::Journal | TypeOf::Document | TypeOf::Link => {
 				if tx_details.tx_link.is_some() && tx_details.tx_schema.is_some() {
 					true
 				} else {
@@ -84,19 +84,17 @@ impl<T: Config> TxDetails<T> {
 		controller: ControllerOf<T>,
 	) -> Result<TxDetails<T>, Error<T>> {
 		if let Some(schema_id) = &tx_input.tx_schema {
-			ensure!(<Schemas<T>>::contains_key(schema_id), Error::<T>::SchemaNotFound);
-			let hash = <TransactionIds<T>>::get(schema_id).ok_or(Error::<T>::SchemaIdNotFound)?;
-			let schema = <Transactions<T>>::get(hash).ok_or(Error::<T>::SchemaHashNotFound)?;
+			let hash = <Schemas<T>>::get(schema_id).ok_or(Error::<T>::SchemaNotFound)?;
+			let schema = <Streams<T>>::get(hash).ok_or(Error::<T>::SchemaHashNotFound)?;
 			ensure!(schema.active, Error::<T>::SchemaNotActive);
 			ensure!(schema.controller == controller, Error::<T>::UnauthorizedOperation);
-			// ensure!(schema.tx_link == tx_input.tx_link, Error::<T>::SchemaLinkMisMatch);
 		}
 
-		if let Some(link_id) = &tx_input.tx_link {
-			let hash = <TransactionIds<T>>::get(link_id).ok_or(Error::<T>::LinkNotFound)?;
-			let link = <Transactions<T>>::get(hash).ok_or(Error::<T>::LinkNotFound)?;
-			ensure!(link.active, Error::<T>::LinkNotActive);
-			ensure!(link.controller == controller, Error::<T>::UnauthorizedOperation);
+		if let Some(tx_link_id) = &tx_input.tx_link {
+			let hash = <StreamIds<T>>::get(tx_link_id).ok_or(Error::<T>::LinkNotFound)?;
+			let tx_link = <Streams<T>>::get(hash).ok_or(Error::<T>::LinkNotFound)?;
+			ensure!(tx_link.active, Error::<T>::LinkNotActive);
+			ensure!(tx_link.controller == controller, Error::<T>::UnauthorizedOperation);
 		}
 
 		let block_number = <frame_system::Pallet<T>>::block_number();
@@ -142,9 +140,7 @@ impl<T: Config> TxCommits<T> {
 				if let Some(ref tx_link) = tx_details.tx_link {
 					ensure!(<Entities<T>>::contains_key(tx_link), Error::<T>::EntityLinkNotFound);
 				}
-				let mut commit = <Entities<T>>::get(tx_details.tx_id).unwrap_or_default();
-				commit.push(tx_hash);
-				<Entities<T>>::insert(tx_details.tx_id, commit);
+				<Entities<T>>::insert(&tx_details.tx_id, &tx_hash);
 			}
 			TypeOf::Space => {
 				if let Some(ref tx_link) = tx_details.tx_link {
@@ -154,44 +150,34 @@ impl<T: Config> TxCommits<T> {
 						Error::<T>::InvalidSpaceLink
 					);
 				}
-				let mut commit = <Spaces<T>>::get(tx_details.tx_id).unwrap_or_default();
-				commit.push(tx_hash);
-				<Spaces<T>>::insert(tx_details.tx_id, commit);
+				<Spaces<T>>::insert(&tx_details.tx_id, &tx_hash);
 			}
 			TypeOf::Schema => {
 				if let Some(ref tx_link) = tx_details.tx_link {
-					ensure!(
-						<TransactionIds<T>>::contains_key(tx_link),
-						Error::<T>::SchemaLinkNotFound
-					);
+					ensure!(<Spaces<T>>::contains_key(tx_link), Error::<T>::SchemaLinkNotFound);
 				}
-				let mut commit = <Schemas<T>>::get(tx_details.tx_id).unwrap_or_default();
-				commit.push(tx_hash);
-				<Schemas<T>>::insert(tx_details.tx_id, commit);
+				<Schemas<T>>::insert(&tx_details.tx_id, &tx_hash);
 			}
 			TypeOf::Journal => {
 				if let Some(ref tx_link) = tx_details.tx_link {
 					ensure!(<Spaces<T>>::contains_key(tx_link), Error::<T>::SpaceLinkNotFound);
 				}
-				let mut commit = <Journals<T>>::get(tx_details.tx_id).unwrap_or_default();
-				commit.push(tx_hash);
-				<Journals<T>>::insert(tx_details.tx_id, commit);
+				<Journals<T>>::insert(&tx_details.tx_id, &tx_hash);
 			}
-			TypeOf::Stream => {
+			TypeOf::Document => {
 				if let Some(ref tx_link) = tx_details.tx_link {
 					ensure!(<Journals<T>>::contains_key(tx_link), Error::<T>::JournalLinkNotFound);
 				}
-				let mut commit = <Streams<T>>::get(tx_details.tx_id).unwrap_or_default();
-				commit.push(tx_hash);
-				<Streams<T>>::insert(tx_details.tx_id, commit);
+				<Documents<T>>::insert(&tx_details.tx_id, &tx_hash);
 			}
 			TypeOf::Link => {
 				if let Some(ref tx_link) = tx_details.tx_link {
-					ensure!(<Streams<T>>::contains_key(tx_link), Error::<T>::StreamLinkNotFound);
+					ensure!(
+						<Documents<T>>::contains_key(tx_link),
+						Error::<T>::DocumentLinkNotFound
+					);
 				}
-				let mut commit = <Streams<T>>::get(tx_details.tx_id).unwrap_or_default();
-				commit.push(tx_hash);
-				<Links<T>>::insert(tx_details.tx_id, commit);
+				<Links<T>>::insert(&tx_details.tx_id, &tx_hash);
 			}
 		}
 		let mut commit = <Commits<T>>::get(tx_details.tx_id).unwrap_or_default();
@@ -214,35 +200,23 @@ impl<T: Config> TxCommits<T> {
 	) -> DispatchResult {
 		match tx_details.tx_type {
 			TypeOf::Entity => {
-				let mut commit = <Entities<T>>::get(tx_details.tx_id).unwrap();
-				commit.push(tx_hash);
-				<Entities<T>>::insert(&tx_details.tx_id, commit);
+				<Entities<T>>::insert(&tx_details.tx_id, tx_hash);
 				<VerifiedEntities<T>>::insert(&tx_details.tx_id, false);
 			}
 			TypeOf::Space => {
-				let mut commit = <Spaces<T>>::get(tx_details.tx_id).unwrap();
-				commit.push(tx_hash);
-				<Spaces<T>>::insert(tx_details.tx_id, commit);
+				<Spaces<T>>::insert(tx_details.tx_id, tx_hash);
 			}
 			TypeOf::Schema => {
-				let mut commit = <Schemas<T>>::get(tx_details.tx_id).unwrap();
-				commit.push(tx_hash);
-				<Schemas<T>>::insert(tx_details.tx_id, commit);
+				<Schemas<T>>::insert(tx_details.tx_id, tx_hash);
 			}
 			TypeOf::Journal => {
-				let mut commit = <Journals<T>>::get(tx_details.tx_id).unwrap();
-				commit.push(tx_hash);
-				<Journals<T>>::insert(tx_details.tx_id, commit);
+				<Journals<T>>::insert(tx_details.tx_id, tx_hash);
 			}
-			TypeOf::Stream => {
-				let mut commit = <Streams<T>>::get(tx_details.tx_id).unwrap();
-				commit.push(tx_hash);
-				<Streams<T>>::insert(tx_details.tx_id, commit);
+			TypeOf::Document => {
+				<Documents<T>>::insert(tx_details.tx_id, tx_hash);
 			}
 			TypeOf::Link => {
-				let mut commit = <Streams<T>>::get(tx_details.tx_id).unwrap();
-				commit.push(tx_hash);
-				<Links<T>>::insert(tx_details.tx_id, commit);
+				<Links<T>>::insert(tx_details.tx_id, tx_hash);
 			}
 		}
 		let mut commit = <Commits<T>>::get(tx_details.tx_id).unwrap();
@@ -267,36 +241,15 @@ pub enum RequestOf {
 	Verify,
 }
 
-// impl RequestOf {
-// 	pub fn is_valid(request: &RequestOf) -> bool {
-// 		matches!(
-// 			request,
-// 			RequestOf::Create | RequestOf::Update | RequestOf::Status | RequestOf::Verify
-// 		)
-// 	}
-// }
-
-// impl Default for RequestOf {
-// 	fn default() -> Self {
-// 		RequestOf::Create
-// 	}
-// }
-
 #[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
 pub enum TypeOf {
 	Entity,
 	Space,
 	Schema,
 	Journal,
-	Stream,
+	Document,
 	Link,
 }
-
-// impl Default for TypeOf {
-// 	fn default() -> Self {
-// 		TypeOf::Stream
-// 	}
-// }
 
 impl TypeOf {
 	pub fn is_valid(tx_type: &TypeOf) -> bool {
@@ -306,16 +259,8 @@ impl TypeOf {
 			TypeOf::Entity
 				| TypeOf::Space | TypeOf::Schema
 				| TypeOf::Journal
-				| TypeOf::Stream | TypeOf::Link
+				| TypeOf::Document
+				| TypeOf::Link
 		)
 	}
 }
-
-// /// An on-chain entity written by a controller.
-// #[derive(Clone, Debug, Encode, Decode, PartialEq)]
-// pub struct TxVerifiedOf<T: Config> {
-// 	/// Entity Hash.
-// 	pub tx_hash: HashOf<T>,
-// 	/// Entity Verification status.
-// 	pub tx_verified: bool,
-// }
