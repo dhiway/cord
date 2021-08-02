@@ -4,55 +4,50 @@
   "AmountOf": "i128",
   "Balance": "u128",
   "LookupSource": "MultiAddress",
-  "SchemaOwnerOf": "AccountId",
-  "SchemaHashOf": "Hash",
-  "SchemaCidOf": "Text",
-  "SchemaDetails": {
-    "owner": "SchemaOwnerOf",
-    "schema_cid": "SchemaCidOf",
-    "block_number": "BlockNumber"
+  "CidOf": "Text",
+  "ControllerOf": "AccountId",
+  "IdOf": "Hash",
+  "HashOf": "Hash",
+  "EntityIdOf": "Hash",
+  "StatusOf": "bool",
+  "TypeOf": {
+    "_enum": ["Entity", "Space", "Schema", "Journal", "Document", "Link"]
   },
-  "JournalStreamCreatorOf": "AccountId",
-  "JournalStreamHashOf": "Hash",
-  "JournalStreamCidOf": "Text",
-  "JournalStreamDetails": {
-    "creator": "JournalStreamCreatorOf",
-    "stream_cid": "JournalStreamCidOf",
-    "parent_cid": "Option<JournalStreamCidOf>",
-    "schema_hash": "SchemaHashOf",
-    "block_number": "BlockNumber",
-    "revoked": "bool"
+  "RequestOf": {
+    "_enum": ["Create", "Update", "Status", "Verify"]
   },
-  "StreamCreatorOf": "AccountId",
-  "StreamHashOf": "Hash",
-  "StreamCidOf": "Text",
-  "StreamDetails": {
-    "creator": "StreamCreatorOf",
-    "stream_cid": "StreamCidOf",
-    "journal_stream_hash": "JournalStreamHashOf",
-    "schema_hash": "SchemaHashOf",
-    "block_number": "BlockNumber",
-    "revoked": "bool"
+  "TxInput": {
+    "tx_type": "TypeOf",
+    "tx_id": "IdOf",
+    "tx_cid": "CidOf",
+    "tx_schema_id": "Option<IdOf>",
+    "tx_link_id": "Option<IdOf>"
   },
-  "StreamLinkCreatorOf": "AccountId",
-  "StreamLinkHashOf": "Hash",
-  "StreamLinkCidOf": "Text",
-  "StreamLinkDetails": {
-    "creator": "StreamLinkCreatorOf",
-    "stream_link_cid": "StreamLinkCidOf",
-    "stream_hash": "StreamHashOf",
-    "schema_hash": "SchemaHashOf",
-    "block_number": "BlockNumber",
-    "revoked": "bool"
+  "TxStorageOf": {
+    "tx_cid": "CidOf",
+    "ptx_cid": "Option<CidOf>"
   },
-  "DigestCreatorOf": "AccountId",
-  "DigestHashOf": "Hash",
-  "DigestCidOf": "Text",
-  "DigestDetails": {
-    "creator": "DigestCreatorOf",
-    "stream_hash": "StreamHashOf",
-    "digest_cid": "Option<DigestCidOf>",
-    "block_number": "BlockNumber"
+  "TxVerifiedOf": {
+    "tx_hash": "HashOf",
+    "ptx_verified": "bool"
+  },
+  "TxDetails": {
+    "tx_type": "TypeOf",
+    "controller": "ControllerOf",
+    "tx_id": "IdOf",
+    "tx_storage": "TxStorageOf",
+    "tx_schema": "Option<IdOf>",
+    "tx_link": "Option<IdOf>",
+    "block": "BlockNumber",
+    "active": "bool"
+  },
+  "TxCommits": {
+    "tx_type": "TypeOf",
+    "tx_hash": "HashOf",
+    "tx_cid": "CidOf",
+    "tx_link": "Option<IdOf>",
+    "block": "BlockNumber",
+    "commit": "RequestOf"
   },
   "KeyIdOf": "Hash",
   "DidIdentifierOf": "AccountId",

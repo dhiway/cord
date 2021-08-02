@@ -3,30 +3,20 @@
 
 // derived from kilt project
 
-//! Stream: Handles Streams on chain,
-//! adding and revoking Streams.
+//! #MARK Types: Handles #MARK Types,
+//! adding #MARK Types.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-use sp_std::str;
-use sp_std::vec::Vec;
-
+// pub use cord_primitives::{CidOf, StatusOf};
+// use frame_support::traits::Len;
+use frame_support::{ensure, storage::types::StorageMap};
+use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
 pub mod streams;
 pub mod weights;
 
-// #[cfg(any(feature = "mock", test))]
-// pub mod mock;
-
-// #[cfg(feature = "runtime-benchmarks")]
-// pub mod benchmarking;
-
-// #[cfg(test)]
-// mod tests;
-
-// pub use crate::{marks::*, pallet::*, weights::WeightInfo};
-
 pub use crate::streams::*;
 pub use pallet::*;
-
+pub mod utils;
 use crate::weights::WeightInfo;
 
 #[frame_support::pallet]
@@ -35,22 +25,24 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	/// Type of a content hash.
-	pub type StreamHashOf<T> = <T as frame_system::Config>::Hash;
-	/// Type of a schema hash.
-	pub type SchemaHashOf<T> = pallet_schema::SchemaHashOf<T>;
-	/// Type of cred parent stream identifier.
-	pub type JournalStreamHashOf<T> = pallet_journal::JournalStreamHashOf<T>;
-	/// Type of cred owner identifier.
-	pub type StreamCreatorOf<T> = pallet_schema::SchemaOwnerOf<T>;
+	/// ID of an entity.
+	pub type IdOf<T> = <T as frame_system::Config>::Hash;
+	/// Hash of the transaction.
+	pub type HashOf<T> = <T as frame_system::Config>::Hash;
+	/// Type of a entity controller.
+	pub type ControllerOf<T> = pallet_registrar::CordAccountOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-	/// CID Information
-	pub type StreamCidOf = Vec<u8>;
-
+	/// status Information
+	pub type StatusOf = bool;
+	/// CID type.
+	pub type CidOf = Vec<u8>;
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_schema::Config + pallet_journal::Config {
-		type EnsureOrigin: EnsureOrigin<Success = StreamCreatorOf<Self>, <Self as frame_system::Config>::Origin>;
+	pub trait Config: frame_system::Config + pallet_registrar::Config {
+		type EnsureOrigin: EnsureOrigin<
+			Success = ControllerOf<Self>,
+			<Self as frame_system::Config>::Origin,
+		>;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type WeightInfo: WeightInfo;
 	}
@@ -62,175 +54,331 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	/// Streams stored on chain.
-	/// It maps from a stream hash to the details.
+	/// transactions stored on chain.
+	/// It maps from a transaction Id to its details.
+	#[pallet::storage]
+	#[pallet::getter(fn transactions)]
+	pub type Streams<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, TxDetails<T>>;
+
+	/// transaction details stored on chain.
+	/// It maps from a transaction Id to a vector of transaction details.
+	#[pallet::storage]
+	#[pallet::getter(fn commits)]
+	pub type Commits<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<TxCommits<T>>>;
+
+	/// transactions stored on chain.
+	/// It maps from a transaction Id to its details.
+	#[pallet::storage]
+	#[pallet::getter(fn transactionids)]
+	pub type StreamIds<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+
+	/// entities verification information stored on chain.
+	/// It maps from a entity Id to its verification status.
+	#[pallet::storage]
+	#[pallet::getter(fn entities)]
+	pub type Entities<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+
+	/// space links stored on chain.
+	/// It maps from a space Id to a vector of space hashes.
+	#[pallet::storage]
+	#[pallet::getter(fn spaces)]
+	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+
+	/// schema links stored on chain.
+	/// It maps from a schema Id to a vector of schema hashes.
+	#[pallet::storage]
+	#[pallet::getter(fn schemas)]
+	pub type Schemas<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+
+	/// journal links stored on chain.
+	/// It maps from a journal Id to a vector of journal hashes.
+	#[pallet::storage]
+	#[pallet::getter(fn journals)]
+	pub type Journals<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+
+	/// stream links stored on chain.
+	/// It maps from a stream Id to a vector of stream hashes.
 	#[pallet::storage]
 	#[pallet::getter(fn streams)]
-	pub type Streams<T> = StorageMap<_, Blake2_128Concat, StreamHashOf<T>, StreamDetails<T>>;
+	pub type Documents<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
 
-	/// Streams linked to Journal Streams stored on chain.
-	/// It maps from a journal stream hash to a vector of stream hashes.
+	/// links stored on chain.
+	/// It maps from a link Id to a vector of link hashes.
 	#[pallet::storage]
-	#[pallet::getter(fn journalstreams)]
-	pub type JournalStreams<T> = StorageMap<_, Blake2_128Concat, JournalStreamHashOf<T>, Vec<StreamHashOf<T>>>;
+	#[pallet::getter(fn links)]
+	pub type Links<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+
+	/// entities verification information stored on chain.
+	/// It maps from a entity Id to its verification status.
+	#[pallet::storage]
+	#[pallet::getter(fn verifiedentities)]
+	pub type VerifiedEntities<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, StatusOf>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new stream has been created.
-		/// \[creator identifier, stream hash, stream cid\]
-		StreamAnchored(StreamCreatorOf<T>, StreamHashOf<T>, StreamCidOf),
-		/// A stream has been revoked.
-		/// \[revoker identifier, stream hash\]
-		StreamRevoked(StreamCreatorOf<T>, StreamHashOf<T>),
-		/// A stream has been restored.
-		/// \[restorer identifier, stream hash\]
-		StreamRestored(StreamCreatorOf<T>, StreamHashOf<T>),
+		/// A new entity has been created.
+		/// \[entity identifier, controller\]
+		TransactionAdded(IdOf<T>, ControllerOf<T>),
+		/// An entityhas been created.
+		/// \[entity identifier, controller\]
+		TransactionUpdated(IdOf<T>, ControllerOf<T>),
+		/// An entity has been revoked.
+		/// \[entity identifier\]
+		TransactionStatusUpdated(IdOf<T>, ControllerOf<T>),
+		/// A entity has been restored.
+		/// \[entity identifier\]
+		EntityVerificationStatusUpdated(IdOf<T>, ControllerOf<T>),
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// There is already a stream with the same hash stored on
-		/// chain.
-		StreamAlreadyAnchored,
-		/// The stream has already been revoked.
-		StreamAlreadyRevoked,
-		/// No stream on chain matching the content hash.
-		StreamNotFound,
-		/// The schema hash does not match the schema specified
-		SchemaMismatch,
-		/// Only when the revoker is not the creator.
-		UnauthorizedRevocation,
-		/// Only when the restorer is not the creator.
-		UnauthorizedRestore,
-		/// only when trying to restore an active stream.
-		StreamStillActive,
-		/// Invalid Stream Cid encoding.
+		/// Invalid request
+		InvalidRequest,
+		/// Not all required inputs
+		MissingInputDetails,
+		/// Hash and ID are the same
+		CheckHashAndId,
+		/// Transaction idenfier is not unique
+		IdAlreadyExists,
+		/// Transaction idenfier not found
+		IdNotFound,
+		/// Transaction idenfier marked inactive
+		IdNotActive,
+		/// Transaction hash is not unique
+		HashAlreadyExists,
+		/// Transaction hash not found
+		HashNotFound,
+		/// Invalid CID encoding.
 		InvalidCidEncoding,
-		/// schema not authorised.
-		SchemaNotDelegated,
-		/// stream revoked
-		StreamRevoked,
+		/// CID already anchored
+		CidAlreadyMapped,
+		/// Transaction Link identifier not found
+		LinkIdNotFound,
+		/// Transaction Link hash not found
+		LinkHashNotFound,
+		/// Transaction Link marked inactive
+		LinkNotActive,
+		/// Only when the author is not the controller.
+		UnauthorizedUpdate,
+		/// There is no entity with the given ID
+		EntityNotFound,
+		/// The entity already exists.
+		EntityAlreadyExists,
+		/// Entity Link not found
+		EntityLinkNotFound,
+		/// Transaction Link not found
+		LinkNotFound,
+		/// Entity or Space Link not found
+		InvalidSpaceLink,
+		/// Schema Link not found
+		SchemaLinkNotFound,
+		/// Space Link not found
+		SpaceLinkNotFound,
+		/// Journal Link not found
+		JournalLinkNotFound,
+		/// Document Link not found
+		DocumentLinkNotFound,
+		// Linked Schema not found
+		SchemaNotFound,
+		/// Schema Link marked inactive
+		SchemaNotActive,
+		/// Schema idenfier not found
+		SchemaIdNotFound,
+		/// Schema hash not found
+		SchemaHashNotFound,
+		/// Schema parent link is not matcing with transaction
+		SchemaLinkMisMatch,
+		/// The space is marked inactive.
+		// EntityNotActive,
+		/// no status change required
+		StatusChangeNotRequired,
+		/// Only when the author is not the controller.
+		UnauthorizedOperation,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a new stream.
+		/// Create a new entity and associates it with its owner.
 		///
-		///
-		/// * origin: the identifier of the creator
-		/// * stream_hash: the hash of the conten to attest. It has to be unique
-		/// * schema_hash: the hash of the schema used for this stream
-		/// * stream_cid: CID of the stream content
-		/// * journal_stream_hash: Hash of the journal stream
+		/// * origin: the identifier of the schema owner
+		/// * tx_id: unique identifier of the incoming stream.
+		/// * tx_input: incoming stream details
 		#[pallet::weight(0)]
-		pub fn anchor(
+		pub fn create(
 			origin: OriginFor<T>,
-			stream_hash: StreamHashOf<T>,
-			stream_cid: StreamCidOf,
-			schema_hash: SchemaHashOf<T>,
-			journal_stream_hash: JournalStreamHashOf<T>,
+			tx_hash: HashOf<T>,
+			tx_input: TxInput<T>,
 		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			ensure!(
-				!<Streams<T>>::contains_key(&stream_hash),
-				Error::<T>::StreamAlreadyAnchored
+			//check request type
+			ensure!(TypeOf::is_valid(&tx_input.tx_type), Error::<T>::InvalidRequest);
+			//check input parameters
+			ensure!(TxInput::<T>::is_valid(&tx_input), Error::<T>::MissingInputDetails);
+			//check hash and id
+			ensure!(tx_hash != tx_input.tx_id, Error::<T>::CheckHashAndId);
+			//check cid encoding
+			ensure!(TxInput::<T>::check_cid(&tx_input.tx_cid), Error::<T>::InvalidCidEncoding);
+			//check transaction id
+			ensure!(!<StreamIds<T>>::contains_key(&tx_input.tx_id), Error::<T>::IdAlreadyExists);
+			//check transaction
+			ensure!(!<Streams<T>>::contains_key(&tx_hash), Error::<T>::HashAlreadyExists);
+
+			let tx_details = TxDetails::<T>::validate_tx(tx_input, controller.clone())?;
+			TxCommits::<T>::store_tx(tx_hash, &tx_details, RequestOf::Create)?;
+
+			log::debug!(
+				"Creating a new entity with ID {:?} and controller {:?}",
+				&tx_hash,
+				&controller
 			);
-
-			let schema =
-				<pallet_schema::Schemas<T>>::get(schema_hash).ok_or(pallet_schema::Error::<T>::SchemaNotFound)?;
-			ensure!(schema.owner == creator, pallet_schema::Error::<T>::SchemaNotDelegated);
-
-			let journal_stream = <pallet_journal::Journal<T>>::get(journal_stream_hash)
-				.ok_or(pallet_journal::Error::<T>::StreamNotFound)?;
-			ensure!(!journal_stream.revoked, pallet_journal::Error::<T>::RevokedStream);
-
-			let cid_base = str::from_utf8(&stream_cid).unwrap();
-			ensure!(
-				cid_base.len() <= 62
-					&& (pallet_schema::utils::is_base_32(cid_base) || pallet_schema::utils::is_base_58(cid_base)),
-				Error::<T>::InvalidCidEncoding
-			);
-			let block_number = <frame_system::Pallet<T>>::block_number();
-
-			// vector of stream hashes linked to journal stream hash
-			let mut linked_stream = <JournalStreams<T>>::get(journal_stream_hash).unwrap_or_default();
-			linked_stream.push(stream_hash);
-			<JournalStreams<T>>::insert(journal_stream_hash, linked_stream);
-
-			log::debug!("Anchor Stream");
-			<Streams<T>>::insert(
-				&stream_hash,
-				StreamDetails {
-					creator: creator.clone(),
-					stream_cid: stream_cid.clone(),
-					journal_stream_hash,
-					schema_hash,
-					block_number,
-					revoked: false,
-				},
-			);
-
-			Self::deposit_event(Event::StreamAnchored(creator, stream_hash, stream_cid));
+			<StreamIds<T>>::insert(&tx_details.tx_id, &tx_hash);
+			<Streams<T>>::insert(&tx_hash, tx_details);
+			Self::deposit_event(Event::TransactionAdded(tx_hash, controller));
 
 			Ok(())
 		}
-
-		/// Revoke an existing stream
+		/// Updates the entity information and associates it with its owner.
 		///
-		/// The revoker must be the creator of the stream
-		/// * origin: the identifier of the revoker
-		/// * stream_hash: the hash of the stream to revoke
+		/// * origin: the identifier of the schema owner
+		/// * tx_id: unique identifier of the incoming stream.
+		/// * tx_input: incoming stream details
 		#[pallet::weight(0)]
-		pub fn revoke(origin: OriginFor<T>, stream_hash: StreamHashOf<T>) -> DispatchResult {
-			let revoker = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+		pub fn update(
+			origin: OriginFor<T>,
+			tx_id: IdOf<T>,
+			tx_cid: CidOf,
+			tx_hash: HashOf<T>,
+		) -> DispatchResult {
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(TxInput::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
 
-			let stream = <Streams<T>>::get(&stream_hash).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(stream.creator == revoker, Error::<T>::UnauthorizedRevocation);
-			ensure!(!stream.revoked, Error::<T>::StreamAlreadyRevoked);
+			let tx_last_hash = <StreamIds<T>>::get(&tx_id).ok_or(Error::<T>::IdNotFound)?;
+			let tx_last = <Streams<T>>::get(&tx_last_hash).ok_or(Error::<T>::HashNotFound)?;
+			ensure!(tx_last.active, Error::<T>::IdNotActive);
+			ensure!(tx_last.controller == updater, Error::<T>::UnauthorizedUpdate);
+			ensure!(tx_cid != tx_last.tx_storage.tx_cid, Error::<T>::CidAlreadyMapped);
 
-			log::debug!("Revoking Stream");
+			if let Some(tx_last_link) = tx_last.tx_link {
+				let tx_last_link_hash =
+					<StreamIds<T>>::get(tx_last_link).ok_or(Error::<T>::LinkIdNotFound)?;
+				let tx_last_link =
+					<Streams<T>>::get(&tx_last_link_hash).ok_or(Error::<T>::LinkHashNotFound)?;
+				ensure!(tx_last_link.active, Error::<T>::LinkNotActive);
+			}
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			<Streams<T>>::insert(
-				&stream_hash,
-				StreamDetails {
-					block_number,
-					revoked: true,
-					..stream
+			let update_tx = TxDetails {
+				tx_storage: TxStorageOf {
+					tx_cid,
+					ptx_cid: Some(tx_last.tx_storage.tx_cid.clone()),
 				},
+				block: block_number,
+				..tx_last.clone()
+			};
+
+			TxCommits::<T>::update_tx(tx_hash, &update_tx, RequestOf::Update)?;
+
+			<Streams<T>>::insert(
+				&tx_last_hash,
+				TxDetails { block: block_number, active: false, ..tx_last },
 			);
-			Self::deposit_event(Event::StreamRevoked(revoker, stream_hash));
+			log::debug!("Updating entity with id {:?} and owner {:?}", &tx_hash, &updater);
+			<Streams<T>>::insert(&tx_hash, update_tx);
+			<StreamIds<T>>::insert(&tx_id, &tx_hash);
+
+			Self::deposit_event(Event::TransactionUpdated(tx_hash, updater));
 
 			Ok(())
 		}
-
-		// Restore a revoked stream.
+		/// Update the status of the entity - active or not
 		///
-		/// The restorer must be the creator of the stream being restored
-		/// * origin: the identifier of the restorer
-		/// * stream_hash: the hash of the stream to restore
+		/// This update can only be performed by a registrar account
+		/// * origin: the identifier of the registrar
+		/// * tx_type: type of the request - entity or space
+		/// * tx_id: unique identifier of the incoming stream.
+		/// * status: status to be updated
 		#[pallet::weight(0)]
-		pub fn restore(origin: OriginFor<T>, stream_hash: StreamHashOf<T>) -> DispatchResult {
-			let restorer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+		pub fn set_status(
+			origin: OriginFor<T>,
+			tx_id: IdOf<T>,
+			status: StatusOf,
+		) -> DispatchResult {
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let stream = <Streams<T>>::get(&stream_hash).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(stream.revoked, Error::<T>::StreamStillActive);
-			ensure!(stream.creator == restorer, Error::<T>::UnauthorizedRestore);
+			let tx_status_hash = <StreamIds<T>>::get(&tx_id).ok_or(Error::<T>::IdNotFound)?;
+			let tx_status = <Streams<T>>::get(&tx_status_hash).ok_or(Error::<T>::HashNotFound)?;
+			ensure!(tx_status.active == status, Error::<T>::StatusChangeNotRequired);
+			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedUpdate);
 
-			log::debug!("Restoring Stream");
+			log::debug!("Changing Transaction Status");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			<Streams<T>>::insert(
-				&stream_hash,
-				StreamDetails {
-					block_number,
-					revoked: false,
-					..stream
-				},
+			// vector of entity activities linked to entity Id
+			let mut commit = <Commits<T>>::get(tx_status.tx_id).unwrap();
+			commit.push(TxCommits {
+				tx_type: tx_status.tx_type.clone(),
+				tx_hash: tx_status_hash.clone(),
+				tx_cid: tx_status.tx_storage.tx_cid.clone(),
+				tx_link: tx_status.tx_link.clone(),
+				block: block_number.clone(),
+				commit: RequestOf::Status,
+			});
+			<Commits<T>>::insert(tx_status.tx_id, commit);
+
+			log::debug!(
+				"Updating transaction status with id {:?} and owner {:?}",
+				&tx_status.tx_id,
+				&updater
 			);
-			Self::deposit_event(Event::StreamRestored(restorer, stream_hash));
+			<Streams<T>>::insert(
+				&tx_status_hash,
+				TxDetails { block: block_number, active: status, ..tx_status },
+			);
+			Self::deposit_event(Event::TransactionStatusUpdated(tx_status_hash, updater));
+
+			Ok(())
+		}
+		/// Update the verificationstatus of the entity
+		///
+		/// This update can only be performed by a registrar account
+		/// * origin: the identifier of the registrar
+		/// * entity_id: unique identifier of the entity.
+		/// * status: status to be updated
+		#[pallet::weight(0)]
+		pub fn verify_entity(
+			origin: OriginFor<T>,
+			tx_id: IdOf<T>,
+			status: StatusOf,
+		) -> DispatchResult {
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(<Entities<T>>::contains_key(tx_id), Error::<T>::EntityNotFound);
+
+			let entity_hash = <StreamIds<T>>::get(&tx_id).ok_or(Error::<T>::IdNotFound)?;
+
+			let tx_verify = <Streams<T>>::get(&entity_hash).ok_or(Error::<T>::HashNotFound)?;
+			let registrar = <pallet_registrar::Registrars<T>>::get(&updater)
+				.ok_or(pallet_registrar::Error::<T>::RegistrarAccountNotFound)?;
+			ensure!(!registrar.revoked, pallet_registrar::Error::<T>::RegistrarAccountRevoked);
+
+			log::debug!("Changing Entity Verification Status");
+			let block_number = <frame_system::Pallet<T>>::block_number();
+
+			// vector of entity activities linked to entity Id
+			let mut commit = <Commits<T>>::get(tx_id).unwrap_or_default();
+			commit.push(TxCommits {
+				tx_type: TypeOf::Entity,
+				tx_hash: entity_hash.clone(),
+				tx_cid: tx_verify.tx_storage.tx_cid,
+				tx_link: tx_verify.tx_link,
+				block: block_number,
+				commit: RequestOf::Verify,
+			});
+			<Commits<T>>::insert(&tx_id, commit);
+
+			<VerifiedEntities<T>>::insert(&tx_id, status);
+			Self::deposit_event(Event::EntityVerificationStatusUpdated(tx_id, updater));
 
 			Ok(())
 		}

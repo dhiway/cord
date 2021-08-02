@@ -16,7 +16,7 @@ serde = { version = "1.0.123" }
 env_logger = {version = "0.8.3"}
 cord-primitives = { package = "cord-primitives", default-features = false, path = "../../primitives"}
 pallet-membership = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
-pallet-schema = {features = ["mock"], path = "../schema"}
+#pallet-schema = {features = ["mock"], path = "../schema"}
 
 [dependencies]
 codec = {default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
@@ -25,7 +25,7 @@ serde = { version = "1.0.123", optional = true}
 env_logger = {optional = true, default-features = false, version = "0.8.3"}
 log = {default-features = false, version = "0.4.14"}
 hex = {default-features = false, features = ["alloc"], version = "0.4.2"}
-pallet-mtype = {features = ["mock"], optional = true, path = "../mtype"}
+
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
@@ -40,7 +40,6 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 [features]
 default = [ 'std' ]
 mock = [
-  "pallet-mtype",
   "env_logger",
   "sp-keystore"
 ]

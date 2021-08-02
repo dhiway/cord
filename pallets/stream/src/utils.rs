@@ -1,4 +1,6 @@
-use sp_std::str;
+// use sp_std::str;
+
+use crate::*;
 
 /// Verifies that an input string contains only Base-32 ASCII characters.
 /// For more info about what those characters are, please visit the official RFC
