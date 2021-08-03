@@ -16,7 +16,7 @@ COPY . /build
 RUN cargo build "--$PROFILE"
 
 # test
-RUN cargo test --release --all
+# RUN cargo test --release --all
 
 # ===== SECOND STAGE ======
 
