@@ -11,9 +11,9 @@ pub struct TxInput<T: Config> {
 	pub tx_id: IdOf<T>,
 	/// Transaction CID.
 	pub tx_cid: CidOf,
-	/// \[OPTIONAL\] Transaction schema.
+	/// \[OPTIONAL\] Transaction schema ID.
 	pub tx_schema: Option<IdOf<T>>,
-	/// \[OPTIONAL\] Transaction link.
+	/// \[OPTIONAL\] Transaction link ID.
 	pub tx_link: Option<IdOf<T>>,
 }
 
@@ -48,14 +48,14 @@ impl<T: Config> TxInput<T> {
 	}
 }
 
-/// An on-chain transaction storage details.
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
-pub struct TxStorageOf {
-	/// Transaction CID.
-	pub tx_cid: CidOf,
-	/// Transaction parent CID.
-	pub ptx_cid: Option<CidOf>,
-}
+// /// An on-chain transaction storage details.
+// #[derive(Clone, Debug, Encode, Decode, PartialEq)]
+// pub struct TxStorageOf {
+// 	/// Transaction CID.
+// 	pub tx_cid: CidOf,
+// 	/// Transaction parent CID.
+// 	pub ptx_cid: Option<CidOf>,
+// }
 
 /// An on-chain transaction details written by a controller.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
@@ -66,8 +66,10 @@ pub struct TxDetails<T: Config> {
 	pub controller: ControllerOf<T>,
 	/// Transaction identifier.
 	pub tx_id: IdOf<T>,
-	/// Transaction storage details.
-	pub tx_storage: TxStorageOf,
+	/// Transaction CID.
+	pub tx_cid: CidOf,
+	/// Transaction parent CID.
+	pub ptx_cid: Option<CidOf>,
 	/// \[OPTIONAL\] Transaction schema.
 	pub tx_schema: Option<IdOf<T>>,
 	/// \[OPTIONAL\] CID data
@@ -84,26 +86,33 @@ impl<T: Config> TxDetails<T> {
 		controller: ControllerOf<T>,
 	) -> Result<TxDetails<T>, Error<T>> {
 		if let Some(schema_id) = &tx_input.tx_schema {
-			let hash = <Schemas<T>>::get(schema_id).ok_or(Error::<T>::SchemaNotFound)?;
-			let schema = <Streams<T>>::get(hash).ok_or(Error::<T>::SchemaHashNotFound)?;
-			ensure!(schema.active, Error::<T>::SchemaNotActive);
-			ensure!(schema.controller == controller, Error::<T>::UnauthorizedOperation);
+			if matches!(tx_input.tx_type, TypeOf::Journal | TypeOf::Document | TypeOf::Link) {
+				let hash = <Schemas<T>>::get(schema_id).ok_or(Error::<T>::SchemaNotFound)?;
+				let schema = <Streams<T>>::get(hash).ok_or(Error::<T>::SchemaHashNotFound)?;
+				ensure!(schema.active, Error::<T>::SchemaNotActive);
+				ensure!(schema.controller == controller, Error::<T>::UnauthorizedOperation);
+			}
 		}
 
 		if let Some(tx_link_id) = &tx_input.tx_link {
-			let hash = <StreamIds<T>>::get(tx_link_id).ok_or(Error::<T>::LinkNotFound)?;
-			let tx_link = <Streams<T>>::get(hash).ok_or(Error::<T>::LinkNotFound)?;
-			ensure!(tx_link.active, Error::<T>::LinkNotActive);
-			ensure!(tx_link.controller == controller, Error::<T>::UnauthorizedOperation);
+			if matches!(
+				tx_input.tx_type,
+				TypeOf::Space | TypeOf::Journal | TypeOf::Document | TypeOf::Link
+			) {
+				let hash = <StreamIds<T>>::get(tx_link_id).ok_or(Error::<T>::LinkNotFound)?;
+				let tx_link = <Streams<T>>::get(hash).ok_or(Error::<T>::LinkNotFound)?;
+				ensure!(tx_link.active, Error::<T>::LinkNotActive);
+				ensure!(tx_link.controller == controller, Error::<T>::UnauthorizedOperation);
+			}
 		}
-
 		let block_number = <frame_system::Pallet<T>>::block_number();
 
 		Ok(TxDetails {
 			tx_type: tx_input.tx_type,
 			controller,
 			tx_id: tx_input.tx_id,
-			tx_storage: TxStorageOf { tx_cid: tx_input.tx_cid, ptx_cid: None },
+			tx_cid: tx_input.tx_cid,
+			ptx_cid: None,
 			tx_schema: tx_input.tx_schema,
 			tx_link: tx_input.tx_link,
 			block: block_number,
@@ -184,7 +193,7 @@ impl<T: Config> TxCommits<T> {
 		commit.push(TxCommits {
 			tx_type: tx_details.tx_type.clone(),
 			tx_hash,
-			tx_cid: tx_details.tx_storage.tx_cid.clone(),
+			tx_cid: tx_details.tx_cid.clone(),
 			tx_link: tx_details.tx_link,
 			block: tx_details.block,
 			commit: tx_request,
@@ -223,7 +232,7 @@ impl<T: Config> TxCommits<T> {
 		commit.push(TxCommits {
 			tx_type: tx_details.tx_type.clone(),
 			tx_hash,
-			tx_cid: tx_details.tx_storage.tx_cid.clone(),
+			tx_cid: tx_details.tx_cid.clone(),
 			tx_link: tx_details.tx_link,
 			block: tx_details.block,
 			commit: tx_request,

@@ -20,12 +20,8 @@
     "tx_type": "TypeOf",
     "tx_id": "IdOf",
     "tx_cid": "CidOf",
-    "tx_schema_id": "Option<IdOf>",
-    "tx_link_id": "Option<IdOf>"
-  },
-  "TxStorageOf": {
-    "tx_cid": "CidOf",
-    "ptx_cid": "Option<CidOf>"
+    "tx_schema": "Option<IdOf>",
+    "tx_link": "Option<IdOf>"
   },
   "TxVerifiedOf": {
     "tx_hash": "HashOf",
@@ -35,7 +31,8 @@
     "tx_type": "TypeOf",
     "controller": "ControllerOf",
     "tx_id": "IdOf",
-    "tx_storage": "TxStorageOf",
+    "tx_cid": "CidOf",
+    "ptx_cid": "Option<CidOf>",
     "tx_schema": "Option<IdOf>",
     "tx_link": "Option<IdOf>",
     "block": "BlockNumber",
