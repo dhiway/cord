@@ -5,6 +5,7 @@
   "Balance": "u128",
   "LookupSource": "MultiAddress",
   "CidOf": "Text",
+  "CoordAccountOf": "AccountId",
   "ControllerOf": "AccountId",
   "IdOf": "Hash",
   "HashOf": "Hash",
@@ -26,6 +27,32 @@
   "TxVerifiedOf": {
     "tx_hash": "HashOf",
     "ptx_verified": "bool"
+  },
+  "EntityDetails": {
+    "tx_id": "IdOf",
+    "tx_cid": "CidOf",
+    "ptx_cid": "Option<CidOf>",
+    "controller": "ControllerOf",
+    "block": "BlockNumber",
+    "active": "bool"
+  },
+  "SpaceDetails": {
+    "tx_id": "IdOf",
+    "tx_cid": "CidOf",
+    "ptx_cid": "Option<CidOf>",
+    "tx_link": "Option<IdOf>",
+    "controller": "ControllerOf",
+    "block": "BlockNumber",
+    "active": "bool"
+  },
+  "SchemaDetails": {
+    "tx_id": "IdOf",
+    "tx_cid": "CidOf",
+    "ptx_cid": "Option<CidOf>",
+    "tx_link": "Option<IdOf>",
+    "controller": "ControllerOf",
+    "block": "BlockNumber",
+    "active": "bool"
   },
   "TxDetails": {
     "tx_type": "TypeOf",

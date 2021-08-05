@@ -1,9 +1,9 @@
 [package]
-name = 'pallet-stream'
+name = 'pallet-space'
 version = '0.5.2'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
-description = 'Enables adding Schemas.'
+description = 'Enables adding Entities.'
 
 [[package.metadata.docs.rs]]
 targets = ['x86_64-unknown-linux-gnu']

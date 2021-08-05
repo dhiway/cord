@@ -1,5 +1,5 @@
 [package]
-name = 'pallet-stream'
+name = 'pallet-schema'
 version = '0.5.2'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
@@ -16,6 +16,7 @@ codec = {default-features = false,features = ['derive'], package = 'parity-scale
 cord-primitives = { package = "cord-primitives", path="../../primitives", optional = true, default-features = false }
 serde = { version = "1.0.123", optional = true }
 pallet-entity = {  default-features = false, path = '../entity' }
+pallet-space = {  default-features = false, path = '../space' }
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
@@ -53,10 +54,11 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "cord-primitives/std",
+  "pallet-entity/std",
+  "pallet-space/std",
   "log/std",
   "sp-core/std",
   "sp-io/std",
   "sp-runtime/std",
   "sp-std/std",
-  "pallet-entity/std",
 ]

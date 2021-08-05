@@ -30,7 +30,7 @@ pub mod pallet {
 	/// Hash of the transaction.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a entity controller.
-	pub type ControllerOf<T> = pallet_registrar::CordAccountOf<T>;
+	pub type ControllerOf<T> = pallet_entity::ControllerOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// status Information
@@ -38,7 +38,7 @@ pub mod pallet {
 	/// CID type.
 	pub type CidOf = Vec<u8>;
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_registrar::Config {
+	pub trait Config: frame_system::Config + pallet_entity::Config {
 		type EnsureOrigin: EnsureOrigin<
 			Success = ControllerOf<Self>,
 			<Self as frame_system::Config>::Origin,
@@ -344,41 +344,41 @@ pub mod pallet {
 		/// * origin: the identifier of the registrar
 		/// * entity_id: unique identifier of the entity.
 		/// * status: status to be updated
-		#[pallet::weight(0)]
-		pub fn verify_entity(
-			origin: OriginFor<T>,
-			tx_id: IdOf<T>,
-			status: StatusOf,
-		) -> DispatchResult {
-			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(<Entities<T>>::contains_key(tx_id), Error::<T>::EntityNotFound);
+		// #[pallet::weight(0)]
+		// pub fn verify_entity(
+		// 	origin: OriginFor<T>,
+		// 	tx_id: IdOf<T>,
+		// 	status: StatusOf,
+		// ) -> DispatchResult {
+		// 	let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+		// 	ensure!(<Entities<T>>::contains_key(tx_id), Error::<T>::EntityNotFound);
 
-			let entity_hash = <StreamIds<T>>::get(&tx_id).ok_or(Error::<T>::IdNotFound)?;
+		// 	let entity_hash = <StreamIds<T>>::get(&tx_id).ok_or(Error::<T>::IdNotFound)?;
 
-			let tx_verify = <Streams<T>>::get(&entity_hash).ok_or(Error::<T>::HashNotFound)?;
-			let registrar = <pallet_registrar::Registrars<T>>::get(&updater)
-				.ok_or(pallet_registrar::Error::<T>::RegistrarAccountNotFound)?;
-			ensure!(!registrar.revoked, pallet_registrar::Error::<T>::RegistrarAccountRevoked);
+		// 	let tx_verify = <Streams<T>>::get(&entity_hash).ok_or(Error::<T>::HashNotFound)?;
+		// 	let registrar = <pallet_registrar::Registrars<T>>::get(&updater)
+		// 		.ok_or(pallet_registrar::Error::<T>::RegistrarAccountNotFound)?;
+		// 	ensure!(!registrar.revoked, pallet_registrar::Error::<T>::RegistrarAccountRevoked);
 
-			log::debug!("Changing Entity Verification Status");
-			let block_number = <frame_system::Pallet<T>>::block_number();
+		// 	log::debug!("Changing Entity Verification Status");
+		// 	let block_number = <frame_system::Pallet<T>>::block_number();
 
-			// vector of entity activities linked to entity Id
-			let mut commit = <Commits<T>>::get(tx_id).unwrap_or_default();
-			commit.push(TxCommits {
-				tx_type: TypeOf::Entity,
-				tx_hash: entity_hash.clone(),
-				tx_cid: tx_verify.tx_cid,
-				tx_link: tx_verify.tx_link,
-				block: block_number,
-				commit: RequestOf::Verify,
-			});
-			<Commits<T>>::insert(&tx_id, commit);
+		// 	// vector of entity activities linked to entity Id
+		// 	let mut commit = <Commits<T>>::get(tx_id).unwrap_or_default();
+		// 	commit.push(TxCommits {
+		// 		tx_type: TypeOf::Entity,
+		// 		tx_hash: entity_hash.clone(),
+		// 		tx_cid: tx_verify.tx_cid,
+		// 		tx_link: tx_verify.tx_link,
+		// 		block: block_number,
+		// 		commit: RequestOf::Verify,
+		// 	});
+		// 	<Commits<T>>::insert(&tx_id, commit);
 
-			<VerifiedEntities<T>>::insert(&tx_id, status);
-			Self::deposit_event(Event::EntityVerificationStatusUpdated(tx_id, updater));
+		// 	<VerifiedEntities<T>>::insert(&tx_id, status);
+		// 	Self::deposit_event(Event::EntityVerificationStatusUpdated(tx_id, updater));
 
-			Ok(())
-		}
+		// 	Ok(())
+		// }
 	}
 }

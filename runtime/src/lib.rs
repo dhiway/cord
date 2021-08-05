@@ -82,8 +82,11 @@ use constants::{currency::*, time::*};
 
 // Cord Pallets
 pub use pallet_did;
+pub use pallet_entity;
 pub use pallet_registrar;
-pub use pallet_stream;
+pub use pallet_schema;
+pub use pallet_space;
+// pub use pallet_stream;
 
 // Weights used in the runtime.
 pub mod weights;
@@ -1055,18 +1058,35 @@ impl pallet_did::Config for Runtime {
 
 impl pallet_registrar::Config for Runtime {
 	type Event = Event;
-	type CordAccountId = AccountId;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type ForceOrigin = MoreThanHalfCouncil;
 	type RegistrarOrigin = MoreThanHalfCouncil;
 	type WeightInfo = ();
 }
 
-impl pallet_stream::Config for Runtime {
+impl pallet_entity::Config for Runtime {
+	type Event = Event;
+	type CordAccountId = AccountId;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type WeightInfo = ();
+}
+
+impl pallet_space::Config for Runtime {
+	type Event = Event;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type WeightInfo = ();
+}
+impl pallet_schema::Config for Runtime {
 	type Event = Event;
 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type WeightInfo = ();
 }
 
+// impl pallet_stream::Config for Runtime {
+// 	type Event = Event;
+// 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+// 	type WeightInfo = ();
+// }
 // impl pallet_stream_digest::Config for Runtime {
 // 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 // 	type Event = Event;
@@ -1118,7 +1138,10 @@ construct_runtime! {
 
 		Did: pallet_did::{Pallet, Call, Storage, Event<T>, Origin<T>} = 31,
 		Registrar: pallet_registrar::{Pallet, Call, Storage, Event<T>} = 32,
-		Stream: pallet_stream::{Pallet, Call, Storage, Event<T>} = 33,
+		Entity: pallet_entity::{Pallet, Call, Storage, Event<T>} = 33,
+		Space: pallet_space::{Pallet, Call, Storage, Event<T>} = 34,
+		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 35,
+		// Stream: pallet_stream::{Pallet, Call, Storage, Event<T>} = 36,
 		// StreamDigest: pallet_stream_digest::{Pallet, Call, Storage, Event<T>} = 39,
 
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 41,
@@ -1134,9 +1157,10 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call 
 		&self,
 	) -> Option<pallet_did::DidVerificationKeyRelationship> {
 		match self {
-			Call::Stream(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			// Call::Space(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			// Call::Schema(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			// Call::Stream(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::Entity(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::Space(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			Call::Schema(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			// Call::Journal(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			// Call::Stream(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			// Call::StreamLink(_) => {

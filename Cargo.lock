@@ -1108,6 +1108,7 @@ dependencies = [
  "pallet-did",
  "pallet-election-provider-multi-phase",
  "pallet-elections-phragmen",
+ "pallet-entity",
  "pallet-grandpa",
  "pallet-im-online",
  "pallet-indices",
@@ -1119,11 +1120,12 @@ dependencies = [
  "pallet-randomness-collective-flip",
  "pallet-registrar",
  "pallet-scheduler",
+ "pallet-schema",
  "pallet-session",
  "pallet-session-benchmarking",
+ "pallet-space",
  "pallet-staking",
  "pallet-staking-reward-curve",
- "pallet-stream",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
@@ -4430,6 +4432,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-entity"
+version = "0.5.2"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "pallet-grandpa"
 version = "3.1.0"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.8#1b758b2a8d151d97d2242260c465b6df9cb8a7a4"
@@ -4585,6 +4606,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "pallet-entity",
  "parity-scale-codec",
  "serde",
  "sp-core",
@@ -4608,6 +4630,27 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-schema"
+version = "0.5.2"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-entity",
+ "pallet-space",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -4647,6 +4690,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-space"
+version = "0.5.2"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-entity",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "pallet-staking"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.8#1b758b2a8d151d97d2242260c465b6df9cb8a7a4"
@@ -4679,26 +4742,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "pallet-stream"
-version = "0.5.2"
-dependencies = [
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-registrar",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
