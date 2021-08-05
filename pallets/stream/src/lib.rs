@@ -258,7 +258,7 @@ pub mod pallet {
 			let tx_last = <Streams<T>>::get(&tx_last_hash).ok_or(Error::<T>::HashNotFound)?;
 			ensure!(tx_last.active, Error::<T>::IdNotActive);
 			ensure!(tx_last.controller == updater, Error::<T>::UnauthorizedUpdate);
-			ensure!(tx_cid != tx_last.tx_storage.tx_cid, Error::<T>::CidAlreadyMapped);
+			ensure!(tx_cid != tx_last.tx_cid, Error::<T>::CidAlreadyMapped);
 
 			if let Some(tx_last_link) = tx_last.tx_link {
 				let tx_last_link_hash =
@@ -270,10 +270,8 @@ pub mod pallet {
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			let update_tx = TxDetails {
-				tx_storage: TxStorageOf {
-					tx_cid,
-					ptx_cid: Some(tx_last.tx_storage.tx_cid.clone()),
-				},
+				tx_cid,
+				ptx_cid: Some(tx_last.tx_cid.clone()),
 				block: block_number,
 				..tx_last.clone()
 			};
@@ -320,7 +318,7 @@ pub mod pallet {
 			commit.push(TxCommits {
 				tx_type: tx_status.tx_type.clone(),
 				tx_hash: tx_status_hash.clone(),
-				tx_cid: tx_status.tx_storage.tx_cid.clone(),
+				tx_cid: tx_status.tx_cid.clone(),
 				tx_link: tx_status.tx_link.clone(),
 				block: block_number.clone(),
 				commit: RequestOf::Status,
@@ -370,7 +368,7 @@ pub mod pallet {
 			commit.push(TxCommits {
 				tx_type: TypeOf::Entity,
 				tx_hash: entity_hash.clone(),
-				tx_cid: tx_verify.tx_storage.tx_cid,
+				tx_cid: tx_verify.tx_cid,
 				tx_link: tx_verify.tx_link,
 				block: block_number,
 				commit: RequestOf::Verify,
