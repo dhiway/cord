@@ -22,12 +22,17 @@ pub struct JournalDetails<T: Config> {
 }
 
 impl<T: Config> JournalDetails<T> {
-	pub fn journal_status(tx_link: IdOf<T>, controller: CordAccountOf<T>) -> DispatchResult {
+	pub fn journal_status(tx_link: IdOf<T>) -> Result<IdOf<T>, Error<T>> {
 		let tx_journal_details = <Journals<T>>::get(tx_link).ok_or(Error::<T>::JournalNotFound)?;
 		ensure!(tx_journal_details.active, Error::<T>::JournalNotActive);
 
-		let _space_link_status =
-			pallet_space::SpaceDetails::<T>::space_status(tx_journal_details.tx_link, controller);
+		Ok(tx_journal_details.tx_link)
+	}
+
+	pub fn store_link_tx(tx_journal: &IdOf<T>, tx_mark: &IdOf<T>) -> DispatchResult {
+		let mut link = <Jlinks<T>>::get(tx_journal).unwrap_or_default();
+		link.push(*tx_mark);
+		<Jlinks<T>>::insert(tx_journal, link);
 		Ok(())
 	}
 }

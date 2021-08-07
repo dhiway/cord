@@ -56,6 +56,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn marks)]
 	pub type Marks<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, MarkDetails<T>>;
+	/// mark links stored on chain.
+	/// It maps from a mark Id to its links.
+	#[pallet::storage]
+	#[pallet::getter(fn mlinks)]
+	pub type Mlinks<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<IdOf<T>>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -116,8 +121,14 @@ pub mod pallet {
 
 			//check transaction
 			ensure!(!<Marks<T>>::contains_key(&tx_id), Error::<T>::MarkAlreadyExists);
-			let _link_status =
-				pallet_journal::JournalDetails::<T>::journal_status(tx_link, controller.clone());
+
+			let tx_space = pallet_journal::JournalDetails::<T>::journal_status(tx_link)
+				.map_err(<pallet_journal::Error<T>>::from)?;
+			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_space)
+				.map_err(<pallet_space::Error<T>>::from)?;
+			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, controller.clone())
+				.map_err(<pallet_entity::Error<T>>::from)?;
+
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			pallet_entity::TxCommits::<T>::store_commit_tx(
@@ -131,6 +142,8 @@ pub mod pallet {
 					commit: RequestOf::Create,
 				},
 			)?;
+
+			pallet_journal::JournalDetails::<T>::store_link_tx(&tx_link, &tx_id)?;
 
 			<Marks<T>>::insert(
 				&tx_id,
@@ -171,10 +184,14 @@ pub mod pallet {
 			ensure!(tx_prev.active, Error::<T>::MarkNotActive);
 			ensure!(tx_prev.controller == updater, Error::<T>::UnauthorizedOperation);
 			ensure!(tx_cid != tx_prev.tx_cid, Error::<T>::CidAlreadyMapped);
-			let _link_status = pallet_journal::JournalDetails::<T>::journal_status(
-				tx_prev.tx_link,
-				updater.clone(),
-			);
+
+			let tx_space = pallet_journal::JournalDetails::<T>::journal_status(tx_prev.tx_link)
+				.map_err(<pallet_journal::Error<T>>::from)?;
+			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_space)
+				.map_err(<pallet_space::Error<T>>::from)?;
+			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, updater.clone())
+				.map_err(<pallet_entity::Error<T>>::from)?;
+
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			pallet_entity::TxCommits::<T>::update_commit_tx(
@@ -222,10 +239,12 @@ pub mod pallet {
 			ensure!(tx_status.active != status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
 
-			let _link_status = pallet_journal::JournalDetails::<T>::journal_status(
-				tx_status.tx_link,
-				updater.clone(),
-			);
+			let tx_space = pallet_journal::Journals::<T>::get(&tx_status.tx_link)
+				.ok_or(pallet_journal::Error::<T>::JournalNotFound)?;
+			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_space.tx_link)
+				.map_err(<pallet_space::Error<T>>::from)?;
+			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, updater.clone())
+				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			log::debug!("Changing Transaction Status");
 			let block_number = <frame_system::Pallet<T>>::block_number();

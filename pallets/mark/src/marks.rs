@@ -22,14 +22,16 @@ pub struct MarkDetails<T: Config> {
 }
 
 impl<T: Config> MarkDetails<T> {
-	pub fn mark_status(tx_link: IdOf<T>, controller: CordAccountOf<T>) -> DispatchResult {
-		let tx_mark_details = <Marks<T>>::get(tx_link).ok_or(Error::<T>::MarkNotFound)?;
+	pub fn mark_status(tx_id: IdOf<T>) -> Result<IdOf<T>, Error<T>> {
+		let tx_mark_details = <Marks<T>>::get(tx_id).ok_or(Error::<T>::MarkNotFound)?;
 		ensure!(tx_mark_details.active, Error::<T>::MarkNotActive);
 
-		let _journal_link_status = pallet_journal::JournalDetails::<T>::journal_status(
-			tx_mark_details.tx_link,
-			controller,
-		);
+		Ok(tx_mark_details.tx_link)
+	}
+	pub fn store_link_tx(tx_mark: &IdOf<T>, tx_link: &IdOf<T>) -> DispatchResult {
+		let mut link = <Mlinks<T>>::get(tx_mark).unwrap_or_default();
+		link.push(*tx_link);
+		<Mlinks<T>>::insert(tx_mark, link);
 		Ok(())
 	}
 }

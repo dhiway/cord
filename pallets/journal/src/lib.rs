@@ -56,6 +56,12 @@ pub mod pallet {
 	#[pallet::getter(fn journals)]
 	pub type Journals<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, JournalDetails<T>>;
 
+	/// transactions stored on chain.
+	/// It maps from a transaction Id to its details.
+	#[pallet::storage]
+	#[pallet::getter(fn jlinks)]
+	pub type Jlinks<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<IdOf<T>>>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -116,8 +122,11 @@ pub mod pallet {
 			//check transaction
 			ensure!(!<Journals<T>>::contains_key(&tx_id), Error::<T>::JournalAlreadyExists);
 
-			let _link_status =
-				pallet_space::SpaceDetails::<T>::space_status(tx_link, controller.clone());
+			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_link)
+				.map_err(<pallet_space::Error<T>>::from)?;
+			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, controller.clone())
+				.map_err(<pallet_entity::Error<T>>::from)?;
+
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			pallet_entity::TxCommits::<T>::store_commit_tx(
@@ -171,8 +180,14 @@ pub mod pallet {
 			ensure!(tx_prev.active, Error::<T>::JournalNotActive);
 			ensure!(tx_prev.controller == updater, Error::<T>::UnauthorizedOperation);
 			ensure!(tx_cid != tx_prev.tx_cid, Error::<T>::CidAlreadyMapped);
-			let _link_status =
-				pallet_space::SpaceDetails::<T>::space_status(tx_prev.tx_link, updater.clone());
+
+			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_prev.tx_link)
+				.map_err(<pallet_space::Error<T>>::from)?;
+			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, updater.clone())
+				.map_err(<pallet_entity::Error<T>>::from)?;
+
+			// let _link_status =
+			// 	pallet_space::SpaceDetails::<T>::space_status(tx_prev.tx_link, updater.clone());
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			pallet_entity::TxCommits::<T>::update_commit_tx(
@@ -220,8 +235,13 @@ pub mod pallet {
 			ensure!(tx_status.active != status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
 
-			let _link_status =
-				pallet_space::SpaceDetails::<T>::space_status(tx_status.tx_link, updater.clone());
+			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_status.tx_link)
+				.map_err(<pallet_space::Error<T>>::from)?;
+			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, updater.clone())
+				.map_err(<pallet_entity::Error<T>>::from)?;
+
+			// let _link_status =
+			// 	pallet_space::SpaceDetails::<T>::space_status(tx_status.tx_link, updater.clone());
 
 			log::debug!("Changing Transaction Status");
 			let block_number = <frame_system::Pallet<T>>::block_number();

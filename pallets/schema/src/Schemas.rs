@@ -10,7 +10,7 @@ pub struct SchemaDetails<T: Config> {
 	pub tx_cid: CidOf,
 	/// Transaction parent CID.
 	pub ptx_cid: Option<CidOf>,
-	/// \[OPTIONAL\] Transaction link ID.
+	/// Space link ID.
 	pub tx_link: IdOf<T>,
 	/// The identity of the controller.
 	pub controller: CordAccountOf<T>,

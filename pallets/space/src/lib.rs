@@ -86,6 +86,10 @@ pub mod pallet {
 		SpaceNotFound,
 		/// Transaction idenfier marked inactive
 		SpaceNotActive,
+		/// Transaction idenfier not found
+		EntityNotFound,
+		/// Transaction idenfier marked inactive
+		EntityNotActive,
 		/// CID already anchored
 		CidAlreadyMapped,
 		/// no status change required
@@ -121,13 +125,8 @@ pub mod pallet {
 			//check transaction id
 			ensure!(!<Spaces<T>>::contains_key(&tx_id), Error::<T>::SpaceAlreadyExists);
 			//check transaction link
-			let tx_link_details = <pallet_entity::Entities<T>>::get(&tx_link)
-				.ok_or(pallet_entity::Error::<T>::EntityNotFound)?;
-			ensure!(tx_link_details.active, pallet_entity::Error::<T>::EntityNotActive);
-			ensure!(
-				tx_link_details.controller == controller,
-				pallet_entity::Error::<T>::UnauthorizedOperation
-			);
+			pallet_entity::EntityDetails::<T>::entity_status(tx_link, controller.clone())
+				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
@@ -187,15 +186,11 @@ pub mod pallet {
 			ensure!(tx_cid != tx_prev.tx_cid, Error::<T>::CidAlreadyMapped);
 
 			if let Some(tx_link_id) = &tx_link {
-				let tx_link_details = <pallet_entity::Entities<T>>::get(&tx_link_id)
-					.ok_or(pallet_entity::Error::<T>::EntityNotFound)?;
-				ensure!(tx_link_details.active, pallet_entity::Error::<T>::EntityNotActive);
-				ensure!(
-					tx_link_details.controller == updater,
-					pallet_entity::Error::<T>::UnauthorizedOperation
-				);
 				tx_prev.tx_link = *tx_link_id;
 			}
+
+			pallet_entity::EntityDetails::<T>::entity_status(tx_prev.tx_link, updater.clone())
+				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
@@ -244,6 +239,9 @@ pub mod pallet {
 			let tx_status = <Spaces<T>>::get(&tx_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(tx_status.active != status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
+
+			pallet_entity::EntityDetails::<T>::entity_status(tx_status.tx_link, updater.clone())
+				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			log::debug!("Changing Transaction Status");
 			let block_number = <frame_system::Pallet<T>>::block_number();

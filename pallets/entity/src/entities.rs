@@ -28,6 +28,12 @@ impl<T: Config> EntityDetails<T> {
 			false
 		}
 	}
+	pub fn entity_status(tx_id: IdOf<T>, controller: CordAccountOf<T>) -> Result<(), Error<T>> {
+		let tx_entity_details = <Entities<T>>::get(&tx_id).ok_or(Error::<T>::EntityNotFound)?;
+		ensure!(tx_entity_details.active, Error::<T>::EntityNotActive);
+		ensure!(tx_entity_details.controller == controller, Error::<T>::UnauthorizedOperation);
+		Ok(())
+	}
 }
 
 /// An on-chain commit details.
