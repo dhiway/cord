@@ -1,9 +1,9 @@
 [package]
-name = 'pallet-journal'
+name = 'pallet-link'
 version = '0.5.2'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
-description = 'Enables adding Journal Entries.'
+description = 'Enables adding Mark Links.'
 
 [[package.metadata.docs.rs]]
 targets = ['x86_64-unknown-linux-gnu']
@@ -16,7 +16,7 @@ codec = {default-features = false,features = ['derive'], package = 'parity-scale
 cord-primitives = { package = "cord-primitives", path="../../primitives", optional = true, default-features = false }
 serde = { version = "1.0.123", optional = true }
 pallet-entity = {  default-features = false, path = '../entity' }
-pallet-space = {  default-features = false, path = '../space' }
+pallet-mark = {  default-features = false, path = '../mark' }
 pallet-schema = {  default-features = false, path = '../schema' }
 
 # Substrate dependencies
@@ -61,7 +61,6 @@ std = [
   "sp-runtime/std",
   "sp-std/std",
   "pallet-entity/std",
-  "pallet-space/std",
+  "pallet-mark/std",
   "pallet-schema/std",
-
 ]

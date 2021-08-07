@@ -22,9 +22,10 @@ pub struct SchemaDetails<T: Config> {
 }
 
 impl<T: Config> SchemaDetails<T> {
+	//check schema status
 	pub fn schema_status(tx_schema: IdOf<T>, tx_link: IdOf<T>) -> DispatchResult {
-		//check schema status
 		let tx_schema_details = <Schemas<T>>::get(tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
+		ensure!(tx_schema_details.active, Error::<T>::SchemaNotActive);
 		ensure!(tx_schema_details.tx_link == tx_link, Error::<T>::UnauthorizedOperation);
 
 		Ok(())

@@ -77,6 +77,6 @@ pub enum TypeOf {
 	Space,
 	Schema,
 	Journal,
-	Document,
+	Mark,
 	Link,
 }

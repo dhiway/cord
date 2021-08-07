@@ -4,7 +4,7 @@ use sp_runtime::DispatchResult;
 
 /// An on-chain transaction details written by a controller.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
-pub struct JournalDetails<T: Config> {
+pub struct MarkDetails<T: Config> {
 	/// Transaction identifier.
 	pub tx_hash: HashOf<T>,
 	/// Transaction CID.
@@ -23,13 +23,15 @@ pub struct JournalDetails<T: Config> {
 	pub active: bool,
 }
 
-impl<T: Config> JournalDetails<T> {
-	pub fn journal_status(tx_link: IdOf<T>, controller: CordAccountOf<T>) -> DispatchResult {
-		let tx_journal_details = <Journals<T>>::get(tx_link).ok_or(Error::<T>::JournalNotFound)?;
-		ensure!(tx_journal_details.active, Error::<T>::JournalNotActive);
+impl<T: Config> MarkDetails<T> {
+	pub fn mark_status(tx_link: IdOf<T>, controller: CordAccountOf<T>) -> DispatchResult {
+		let tx_mark_details = <Marks<T>>::get(tx_link).ok_or(Error::<T>::MarkNotFound)?;
+		ensure!(tx_mark_details.active, Error::<T>::MarkNotActive);
 
-		let _space_link_status =
-			pallet_space::SpaceDetails::<T>::space_status(tx_journal_details.tx_link, controller);
+		let _journal_link_status = pallet_journal::JournalDetails::<T>::journal_status(
+			tx_mark_details.tx_link,
+			controller,
+		);
 		Ok(())
 	}
 }

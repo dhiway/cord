@@ -1,10 +1,6 @@
 // Copyright 2019-2021 Dhiway.
 // This file is part of CORD Platform.
 
-// derived from kilt project
-
-//! #MARK Types: Handles #MARK Types,
-//! adding #MARK Types.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 use sp_std::str;
@@ -15,7 +11,6 @@ pub mod weights;
 
 pub use crate::registrars::*;
 use crate::weights::WeightInfo;
-// use cord_primitives::StatusOf;
 pub use pallet::*;
 use pallet_entity::{RequestOf, TypeOf};
 

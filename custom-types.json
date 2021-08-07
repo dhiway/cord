@@ -6,7 +6,6 @@
   "LookupSource": "MultiAddress",
   "CidOf": "Text",
   "CordAccountOf": "AccountId",
-  "ControllerOf": "AccountId",
   "IdOf": "Hash",
   "HashOf": "Hash",
   "EntityIdOf": "Hash",
@@ -17,54 +16,41 @@
   "RequestOf": {
     "_enum": ["Create", "Update", "Status", "Verify"]
   },
-  "TxInput": {
-    "tx_type": "TypeOf",
-    "tx_id": "IdOf",
-    "tx_cid": "CidOf",
-    "tx_schema": "Option<IdOf>",
-    "tx_link": "Option<IdOf>"
-  },
   "TxVerifiedOf": {
     "tx_hash": "HashOf",
     "ptx_verified": "bool"
   },
+  "EtxDetails": {
+    "tx_hash": "HashOf",
+    "tx_cid": "CidOf",
+    "ptx_cid": "Option<CidOf>",
+    "tx_link": "IdOf",
+    "controller": "CordAccountOf",
+    "block": "BlockNumber",
+    "active": "bool"
+  },
+  "StxDetails": {
+    "tx_hash": "HashOf",
+    "tx_cid": "CidOf",
+    "ptx_cid": "Option<CidOf>",
+    "tx_link": "IdOf",
+    "controller": "CordAccountOf",
+    "block": "BlockNumber",
+    "active": "bool"
+  },
   "EntityDetails": {
-    "tx_id": "IdOf",
+    "tx_hash": "HashOf",
     "tx_cid": "CidOf",
     "ptx_cid": "Option<CidOf>",
-    "controller": "ControllerOf",
+    "controller": "CordAccountOf",
     "block": "BlockNumber",
     "active": "bool"
   },
-  "SpaceDetails": {
-    "tx_id": "IdOf",
-    "tx_cid": "CidOf",
-    "ptx_cid": "Option<CidOf>",
-    "tx_link": "Option<IdOf>",
-    "controller": "ControllerOf",
-    "block": "BlockNumber",
-    "active": "bool"
-  },
-  "SchemaDetails": {
-    "tx_id": "IdOf",
-    "tx_cid": "CidOf",
-    "ptx_cid": "Option<CidOf>",
-    "tx_link": "Option<IdOf>",
-    "controller": "ControllerOf",
-    "block": "BlockNumber",
-    "active": "bool"
-  },
-  "TxDetails": {
-    "tx_type": "TypeOf",
-    "controller": "ControllerOf",
-    "tx_id": "IdOf",
-    "tx_cid": "CidOf",
-    "ptx_cid": "Option<CidOf>",
-    "tx_schema": "Option<IdOf>",
-    "tx_link": "Option<IdOf>",
-    "block": "BlockNumber",
-    "active": "bool"
-  },
+  "SpaceDetails": "EtxDetails",
+  "SchemaDetails": "EtxDetails",
+  "JournalDetails": "JtxDetails",
+  "MarkDetails": "JtxDetails",
+  "LinklDetails": "JtxDetails",
   "TxCommits": {
     "tx_type": "TypeOf",
     "tx_hash": "HashOf",

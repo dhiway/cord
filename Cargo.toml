@@ -15,5 +15,7 @@ members = [
 	"pallets/space",
 	"pallets/schema",
 	"pallets/journal",
+	"pallets/mark",
+	"pallets/link",
 ]
 

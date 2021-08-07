@@ -1,14 +1,9 @@
 // Copyright 2019-2021 Dhiway.
 // This file is part of CORD Platform.
 
-// derived from kilt project
-
-//! #MARK Types: Handles #MARK Types,
-//! adding #MARK Types.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-// pub use cord_primitives::{CidOf, StatusOf};
-// use frame_support::traits::Len;
+
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
 pub mod entities;
@@ -232,7 +227,7 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let tx_status = <Entities<T>>::get(&tx_id).ok_or(Error::<T>::EntityNotFound)?;
-			ensure!(tx_status.active == status, Error::<T>::StatusChangeNotRequired);
+			// ensure!(tx_status.active == status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
 
 			log::debug!("Changing Transaction Status");

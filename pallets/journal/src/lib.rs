@@ -1,10 +1,6 @@
 // Copyright 2019-2021 Dhiway.
 // This file is part of CORD Platform.
 
-// derived from kilt project
-
-//! #MARK Types: Handles #MARK Types,
-//! adding #MARK Types.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 // pub use cord_primitives::{CidOf, StatusOf};
@@ -15,9 +11,8 @@ pub mod journals;
 pub mod weights;
 
 pub use crate::journals::*;
-pub use pallet::*;
-pub mod utils;
 use crate::weights::WeightInfo;
+pub use pallet::*;
 use pallet_entity::{RequestOf, TypeOf};
 
 #[frame_support::pallet]
@@ -126,7 +121,8 @@ pub mod pallet {
 			//check input parameters
 			let _schema_status =
 				pallet_schema::SchemaDetails::<T>::schema_status(tx_schema, tx_link);
-			let _link_status = JournalDetails::<T>::link_status(tx_link, controller.clone());
+			let _link_status =
+				pallet_space::SpaceDetails::<T>::space_status(tx_link, controller.clone());
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			pallet_entity::TxCommits::<T>::store_commit_tx(
@@ -181,7 +177,8 @@ pub mod pallet {
 			ensure!(tx_prev.active, Error::<T>::JournalNotActive);
 			ensure!(tx_prev.controller == updater, Error::<T>::UnauthorizedOperation);
 			ensure!(tx_cid != tx_prev.tx_cid, Error::<T>::CidAlreadyMapped);
-			let _link_status = JournalDetails::<T>::link_status(tx_prev.tx_link, updater.clone());
+			let _link_status =
+				pallet_space::SpaceDetails::<T>::space_status(tx_prev.tx_link, updater.clone());
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			pallet_entity::TxCommits::<T>::update_commit_tx(
@@ -229,7 +226,8 @@ pub mod pallet {
 			ensure!(tx_status.active == status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
 
-			let _link_status = JournalDetails::<T>::link_status(tx_status.tx_link, updater.clone());
+			let _link_status =
+				pallet_space::SpaceDetails::<T>::space_status(tx_status.tx_link, updater.clone());
 
 			log::debug!("Changing Transaction Status");
 			let block_number = <frame_system::Pallet<T>>::block_number();

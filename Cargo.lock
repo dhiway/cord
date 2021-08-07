@@ -1112,6 +1112,9 @@ dependencies = [
  "pallet-grandpa",
  "pallet-im-online",
  "pallet-indices",
+ "pallet-journal",
+ "pallet-link",
+ "pallet-mark",
  "pallet-membership",
  "pallet-mtype",
  "pallet-multisig",
@@ -4515,6 +4518,51 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-entity",
+ "pallet-schema",
+ "pallet-space",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "pallet-link"
+version = "0.5.2"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-entity",
+ "pallet-mark",
+ "pallet-schema",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "pallet-mark"
+version = "0.5.2"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-entity",
+ "pallet-journal",
  "pallet-schema",
  "pallet-space",
  "parity-scale-codec",

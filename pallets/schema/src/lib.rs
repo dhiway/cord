@@ -1,23 +1,16 @@
 // Copyright 2019-2021 Dhiway.
 // This file is part of CORD Platform.
 
-// derived from kilt project
-
-//! #MARK Types: Handles #MARK Types,
-//! adding #MARK Types.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-// pub use cord_primitives::{CidOf, StatusOf};
-// use frame_support::traits::Len;
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
 pub mod schemas;
 pub mod weights;
 
 pub use crate::schemas::*;
-pub use pallet::*;
-pub mod utils;
 use crate::weights::WeightInfo;
+pub use pallet::*;
 use pallet_entity::{RequestOf, TypeOf};
 
 #[frame_support::pallet]
