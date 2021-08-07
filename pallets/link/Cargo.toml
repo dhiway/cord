@@ -1,9 +1,9 @@
 [package]
-name = 'pallet-stream'
+name = 'pallet-link'
 version = '0.5.2'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
-description = 'Enables adding Schemas.'
+description = 'Enables adding Mark Links.'
 
 [[package.metadata.docs.rs]]
 targets = ['x86_64-unknown-linux-gnu']
@@ -15,7 +15,9 @@ substrate-wasm-builder = "4.0.0"
 codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
 cord-primitives = { package = "cord-primitives", path="../../primitives", optional = true, default-features = false }
 serde = { version = "1.0.123", optional = true }
-pallet-registrar = {  default-features = false, path = '../registrar' }
+pallet-entity = {  default-features = false, path = '../entity' }
+pallet-mark = {  default-features = false, path = '../mark' }
+pallet-schema = {  default-features = false, path = '../schema' }
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
@@ -58,5 +60,7 @@ std = [
   "sp-io/std",
   "sp-runtime/std",
   "sp-std/std",
-  "pallet-registrar/std",
+  "pallet-entity/std",
+  "pallet-mark/std",
+  "pallet-schema/std",
 ]
