@@ -16,28 +16,6 @@
   "RequestOf": {
     "_enum": ["Create", "Update", "Status", "Verify"]
   },
-  "TxVerifiedOf": {
-    "tx_hash": "HashOf",
-    "ptx_verified": "bool"
-  },
-  "EtxDetails": {
-    "tx_hash": "HashOf",
-    "tx_cid": "CidOf",
-    "ptx_cid": "Option<CidOf>",
-    "tx_link": "IdOf",
-    "controller": "CordAccountOf",
-    "block": "BlockNumber",
-    "active": "bool"
-  },
-  "StxDetails": {
-    "tx_hash": "HashOf",
-    "tx_cid": "CidOf",
-    "ptx_cid": "Option<CidOf>",
-    "tx_link": "IdOf",
-    "controller": "CordAccountOf",
-    "block": "BlockNumber",
-    "active": "bool"
-  },
   "EntityDetails": {
     "tx_hash": "HashOf",
     "tx_cid": "CidOf",
@@ -46,11 +24,23 @@
     "block": "BlockNumber",
     "active": "bool"
   },
-  "SpaceDetails": "EtxDetails",
-  "SchemaDetails": "EtxDetails",
-  "JournalDetails": "JtxDetails",
-  "MarkDetails": "JtxDetails",
-  "LinklDetails": "JtxDetails",
+  "SchemaDetails": {
+    "tx_hash": "HashOf",
+    "tx_cid": "CidOf",
+    "ptx_cid": "Option<CidOf>",
+    "tx_link": "IdOf",
+    "controller": "CordAccountOf",
+    "block": "BlockNumber"
+  },
+  "TxDetails": {
+    "tx_hash": "HashOf",
+    "tx_cid": "CidOf",
+    "ptx_cid": "Option<CidOf>",
+    "tx_link": "IdOf",
+    "controller": "CordAccountOf",
+    "block": "BlockNumber",
+    "active": "bool"
+  },
   "TxCommits": {
     "tx_type": "TypeOf",
     "tx_hash": "HashOf",
@@ -58,6 +48,19 @@
     "tx_link": "Option<IdOf>",
     "block": "BlockNumber",
     "commit": "RequestOf"
+  },
+  "SpaceDetails": "TxDetails",
+  "JournalDetails": "TxDetails",
+  "MarkDetails": "TxDetails",
+  "LinkDetails": "TxDetails",
+
+  "RegistrarDetails": {
+    "block": "BlockNumber",
+    "revoked": "bool"
+  },
+  "TxVerifiedOf": {
+    "tx_hash": "HashOf",
+    "ptx_verified": "bool"
   },
   "KeyIdOf": "Hash",
   "DidIdentifierOf": "AccountId",

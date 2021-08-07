@@ -16,8 +16,10 @@ codec = {default-features = false,features = ['derive'], package = 'parity-scale
 cord-primitives = { package = "cord-primitives", path="../../primitives", optional = true, default-features = false }
 serde = { version = "1.0.123", optional = true }
 pallet-entity = {  default-features = false, path = '../entity' }
-pallet-mark = {  default-features = false, path = '../mark' }
+pallet-space = {  default-features = false, path = '../space' }
 pallet-schema = {  default-features = false, path = '../schema' }
+pallet-journal = {  default-features = false, path = '../journal' }
+pallet-mark = {  default-features = false, path = '../mark' }
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
@@ -61,6 +63,8 @@ std = [
   "sp-runtime/std",
   "sp-std/std",
   "pallet-entity/std",
-  "pallet-mark/std",
+  "pallet-space/std",
   "pallet-schema/std",
+  "pallet-journal/std",
+  "pallet-mark/std",
 ]

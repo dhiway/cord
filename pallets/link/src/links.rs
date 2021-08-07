@@ -10,8 +10,6 @@ pub struct LinkDetails<T: Config> {
 	pub tx_cid: CidOf,
 	/// Transaction parent CID.
 	pub ptx_cid: Option<CidOf>,
-	// /// Transaction schema.
-	// pub tx_schema: IdOf<T>,
 	/// Space Link
 	pub tx_link: IdOf<T>,
 	/// The identity of the controller.

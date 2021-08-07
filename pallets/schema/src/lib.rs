@@ -133,8 +133,12 @@ pub mod pallet {
 			);
 			//check transaction id
 			ensure!(!<Schemas<T>>::contains_key(&tx_id), Error::<T>::SchemaAlreadyExists);
-			let _link_status =
-				pallet_space::SpaceDetails::<T>::space_status(tx_link, controller.clone());
+
+			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_link)
+				.map_err(<pallet_space::Error<T>>::from)?;
+			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, controller.clone())
+				.map_err(<pallet_entity::Error<T>>::from)?;
+
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			pallet_entity::TxCommits::<T>::store_commit_tx(
@@ -189,8 +193,10 @@ pub mod pallet {
 			ensure!(tx_prev.controller == updater, Error::<T>::UnauthorizedOperation);
 			ensure!(tx_cid != tx_prev.tx_cid, Error::<T>::CidAlreadyMapped);
 
-			let _link_status =
-				pallet_space::SpaceDetails::<T>::space_status(tx_prev.tx_link, updater.clone());
+			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_prev.tx_link)
+				.map_err(<pallet_space::Error<T>>::from)?;
+			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, updater.clone())
+				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
