@@ -30,7 +30,7 @@ pub mod pallet {
 	/// Hash of the transaction.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of an entity account.
-	pub type ControllerOf<T> = <T as Config>::CordAccountId;
+	pub type CordAccountOf<T> = <T as Config>::CordAccountId;
 	/// Type of a entity controller.
 	// pub type ControllerOf<T> = pallet_registrar::CordAccountOf<T>;
 	/// Type for a block number.
@@ -43,7 +43,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type CordAccountId: Parameter + Default;
 		type EnsureOrigin: EnsureOrigin<
-			Success = ControllerOf<Self>,
+			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
 		>;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -61,13 +61,7 @@ pub mod pallet {
 	/// It maps from a transaction Id to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn entities)]
-	pub type Entities<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, EntityDetails<T>>;
-
-	/// transactions stored on chain.
-	/// It maps from a transaction Id to its details.
-	#[pallet::storage]
-	#[pallet::getter(fn entityids)]
-	pub type EntityIds<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+	pub type Entities<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, EntityDetails<T>>;
 
 	/// transaction details stored on chain.
 	/// It maps from a transaction Id to a vector of transaction details.
@@ -80,16 +74,16 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new entity has been created.
 		/// \[entity identifier, controller\]
-		TransactionAdded(IdOf<T>, HashOf<T>, ControllerOf<T>),
+		TransactionAdded(IdOf<T>, HashOf<T>, CordAccountOf<T>),
 		/// An entity has been updated.
 		/// \[entity identifier, controller\]
-		TransactionUpdated(IdOf<T>, HashOf<T>, ControllerOf<T>),
+		TransactionUpdated(IdOf<T>, HashOf<T>, CordAccountOf<T>),
 		/// An entity transaction has been marked inactive.
 		/// \[entity identifier, controller\]
-		TransactionInactive(IdOf<T>, HashOf<T>, ControllerOf<T>),
+		TransactionInactive(IdOf<T>, HashOf<T>, CordAccountOf<T>),
 		/// An entity has been revoked.
 		/// \[entity identifier\]
-		TransactionStatusUpdated(IdOf<T>, ControllerOf<T>),
+		TransactionStatusUpdated(IdOf<T>, CordAccountOf<T>),
 	}
 
 	#[pallet::error]
@@ -99,7 +93,7 @@ pub mod pallet {
 		/// Not all required inputs
 		MissingInputDetails,
 		/// Hash and ID are the same
-		SameHashAndId,
+		SameEntityIdAndHash,
 		/// Transaction idenfier is not unique
 		EntityAlreadyExists,
 		/// Transaction idenfier not found
@@ -124,9 +118,10 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Create a new entity and associates it with its owner.
 		///
-		/// * origin: the identifier of the schema owner
-		/// * tx_id: unique identifier of the incoming stream.
-		/// * tx_input: incoming stream details
+		/// * origin: the identifier of the entity owner
+		/// * tx_id: unique identifier of the incoming entity stream.
+		/// * tx_hash: hash of the incoming entity stream.
+		/// * tx_cid: incoming entity stream Cid
 		#[pallet::weight(0)]
 		pub fn create(
 			origin: OriginFor<T>,
@@ -136,37 +131,47 @@ pub mod pallet {
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			//check hash and id
-			ensure!(tx_hash != tx_id, Error::<T>::SameHashAndId);
+			//check incoming Id and hash
+			ensure!(tx_hash != tx_id, Error::<T>::SameEntityIdAndHash);
 			//check cid encoding
 			ensure!(EntityDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
-			//check transaction
-			ensure!(!<Entities<T>>::contains_key(&tx_hash), Error::<T>::EntityHashAlreadyExists);
-			//check transaction id
-			ensure!(!<EntityIds<T>>::contains_key(&tx_id), Error::<T>::EntityAlreadyExists);
+			//check entity Id
+			ensure!(!<Entities<T>>::contains_key(&tx_id), Error::<T>::EntityAlreadyExists);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			let tx_details = EntityDetails {
-				tx_id: tx_id.clone(),
-				tx_cid: tx_cid.clone(),
-				ptx_cid: None,
-				controller: controller.clone(),
-				block: block_number.clone(),
-				active: true,
-			};
-			TxCommits::<T>::store_commit_tx(tx_hash, &tx_details, RequestOf::Create)?;
+			TxCommits::<T>::store_commit_tx(
+				&tx_id,
+				TxCommits {
+					tx_type: TypeOf::Entity,
+					tx_hash: tx_hash.clone(),
+					tx_cid: tx_cid.clone(),
+					tx_link: None,
+					block: block_number.clone(),
+					commit: RequestOf::Create,
+				},
+			)?;
 
-			<EntityIds<T>>::insert(&tx_id, &tx_hash);
-			<Entities<T>>::insert(&tx_hash, tx_details);
+			<Entities<T>>::insert(
+				&tx_id,
+				EntityDetails {
+					tx_hash: tx_hash.clone(),
+					tx_cid,
+					ptx_cid: None,
+					controller: controller.clone(),
+					block: block_number,
+					active: true,
+				},
+			);
 			Self::deposit_event(Event::TransactionAdded(tx_id, tx_hash, controller));
 
 			Ok(())
 		}
 		/// Updates the entity information and associates it with its owner.
 		///
-		/// * origin: the identifier of the schema owner
-		/// * tx_id: unique identifier of the incoming stream.
-		/// * tx_input: incoming stream details
+		/// * origin: the identifier of the entity owner
+		/// * tx_id: unique identifier of the incoming entity stream.
+		/// * tx_id: hash of the incoming entity stream.
+		/// * tx_cid: incoming entity stream Cid
 		#[pallet::weight(0)]
 		pub fn update(
 			origin: OriginFor<T>,
@@ -177,34 +182,35 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(EntityDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
 
-			let tx_prev_hash = <EntityIds<T>>::get(&tx_id).ok_or(Error::<T>::EntityNotFound)?;
-			let tx_prev =
-				<Entities<T>>::get(&tx_prev_hash).ok_or(Error::<T>::EntityHashNotFound)?;
+			let tx_prev = <Entities<T>>::get(&tx_id).ok_or(Error::<T>::EntityNotFound)?;
 			ensure!(tx_prev.active, Error::<T>::EntityNotActive);
 			ensure!(tx_prev.controller == updater, Error::<T>::UnauthorizedOperation);
 			ensure!(tx_cid != tx_prev.tx_cid, Error::<T>::CidAlreadyMapped);
+
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			let update_tx = EntityDetails {
-				tx_cid,
-				ptx_cid: Some(tx_prev.tx_cid.clone()),
-				block: block_number,
-				..tx_prev.clone()
-			};
-
-			TxCommits::<T>::update_commit_tx(tx_hash, &update_tx, RequestOf::Update)?;
+			TxCommits::<T>::update_commit_tx(
+				&tx_id,
+				TxCommits {
+					tx_type: TypeOf::Entity,
+					tx_hash: tx_hash.clone(),
+					tx_cid: tx_cid.clone(),
+					tx_link: None,
+					block: block_number.clone(),
+					commit: RequestOf::Update,
+				},
+			)?;
 
 			<Entities<T>>::insert(
-				&tx_prev_hash,
-				EntityDetails { block: block_number, active: false, ..tx_prev },
+				&tx_id,
+				EntityDetails {
+					tx_hash: tx_hash.clone(),
+					tx_cid,
+					ptx_cid: Some(tx_prev.tx_cid),
+					block: block_number,
+					..tx_prev
+				},
 			);
-			Self::deposit_event(Event::TransactionInactive(
-				tx_id.clone(),
-				tx_prev_hash,
-				updater.clone(),
-			));
-			<Entities<T>>::insert(&tx_hash, update_tx);
-			<EntityIds<T>>::insert(&tx_id, &tx_hash);
 
 			Self::deposit_event(Event::TransactionUpdated(tx_id, tx_hash, updater));
 
@@ -225,21 +231,31 @@ pub mod pallet {
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let tx_status_hash = <EntityIds<T>>::get(&tx_id).ok_or(Error::<T>::EntityNotFound)?;
-			let tx_status =
-				<Entities<T>>::get(&tx_status_hash).ok_or(Error::<T>::EntityHashNotFound)?;
+			let tx_status = <Entities<T>>::get(&tx_id).ok_or(Error::<T>::EntityNotFound)?;
 			ensure!(tx_status.active == status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
 
 			log::debug!("Changing Transaction Status");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			let update_tx =
-				EntityDetails { block: block_number, active: status, ..tx_status.clone() };
+			TxCommits::<T>::update_commit_tx(
+				&tx_id,
+				TxCommits {
+					tx_type: TypeOf::Entity,
+					tx_hash: tx_status.tx_hash.clone(),
+					tx_cid: tx_status.tx_cid.clone(),
+					tx_link: None,
+					block: block_number.clone(),
+					commit: RequestOf::Status,
+				},
+			)?;
 
-			TxCommits::<T>::update_commit_tx(tx_status_hash, &update_tx, RequestOf::Status)?;
-			<Entities<T>>::insert(&tx_status_hash, update_tx);
-			Self::deposit_event(Event::TransactionStatusUpdated(tx_status_hash, updater));
+			<Entities<T>>::insert(
+				&tx_id,
+				EntityDetails { block: block_number, active: status, ..tx_status },
+			);
+
+			Self::deposit_event(Event::TransactionStatusUpdated(tx_id, updater));
 
 			Ok(())
 		}

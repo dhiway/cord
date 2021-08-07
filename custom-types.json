@@ -5,7 +5,7 @@
   "Balance": "u128",
   "LookupSource": "MultiAddress",
   "CidOf": "Text",
-  "CoordAccountOf": "AccountId",
+  "CordAccountOf": "AccountId",
   "ControllerOf": "AccountId",
   "IdOf": "Hash",
   "HashOf": "Hash",

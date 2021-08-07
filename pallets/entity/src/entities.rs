@@ -6,13 +6,13 @@ use sp_runtime::DispatchResult;
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct EntityDetails<T: Config> {
 	/// Transaction identifier.
-	pub tx_id: IdOf<T>,
+	pub tx_hash: HashOf<T>,
 	/// Transaction CID.
 	pub tx_cid: CidOf,
 	/// Transaction parent CID.
 	pub ptx_cid: Option<CidOf>,
 	/// The identity of the controller.
-	pub controller: ControllerOf<T>,
+	pub controller: CordAccountOf<T>,
 	/// Transaction block number
 	pub block: BlockNumberOf<T>,
 	/// The flag indicating the status of the account.
@@ -48,39 +48,17 @@ pub struct TxCommits<T: Config> {
 }
 
 impl<T: Config> TxCommits<T> {
-	pub fn store_commit_tx(
-		tx_hash: HashOf<T>,
-		tx_details: &EntityDetails<T>,
-		tx_request: RequestOf,
-	) -> DispatchResult {
-		let mut commit = <Commits<T>>::get(tx_details.tx_id).unwrap_or_default();
-		commit.push(TxCommits {
-			tx_type: TypeOf::Entity,
-			tx_hash,
-			tx_cid: tx_details.tx_cid.clone(),
-			tx_link: None,
-			block: tx_details.block,
-			commit: tx_request,
-		});
-		<Commits<T>>::insert(tx_details.tx_id, commit);
+	pub fn store_commit_tx(tx_id: &IdOf<T>, tx_commit: TxCommits<T>) -> DispatchResult {
+		let mut commit = <Commits<T>>::get(tx_id).unwrap_or_default();
+		commit.push(tx_commit);
+		<Commits<T>>::insert(tx_id, commit);
 		Ok(())
 	}
 
-	pub fn update_commit_tx(
-		tx_hash: HashOf<T>,
-		tx_details: &EntityDetails<T>,
-		tx_request: RequestOf,
-	) -> DispatchResult {
-		let mut commit = <Commits<T>>::get(tx_details.tx_id).unwrap();
-		commit.push(TxCommits {
-			tx_type: TypeOf::Entity,
-			tx_hash,
-			tx_cid: tx_details.tx_cid.clone(),
-			tx_link: None,
-			block: tx_details.block,
-			commit: tx_request,
-		});
-		<Commits<T>>::insert(tx_details.tx_id, commit);
+	pub fn update_commit_tx(tx_id: &IdOf<T>, tx_commit: TxCommits<T>) -> DispatchResult {
+		let mut commit = <Commits<T>>::get(tx_id).unwrap();
+		commit.push(tx_commit);
+		<Commits<T>>::insert(tx_id, commit);
 		Ok(())
 	}
 }

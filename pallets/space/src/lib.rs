@@ -30,8 +30,8 @@ pub mod pallet {
 	pub type IdOf<T> = <T as frame_system::Config>::Hash;
 	/// Hash of the transaction.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
-	/// Type of a entity controller.
-	pub type ControllerOf<T> = pallet_entity::ControllerOf<T>;
+	/// Type of a entity creator.
+	pub type CordAccountOf<T> = pallet_entity::CordAccountOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// status Information
@@ -41,7 +41,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_entity::Config {
 		type EnsureOrigin: EnsureOrigin<
-			Success = ControllerOf<Self>,
+			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
 		>;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -59,57 +59,42 @@ pub mod pallet {
 	/// It maps from a transaction Id to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn spaces)]
-	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, SpaceDetails<T>>;
+	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, SpaceDetails<T>>;
 
-	/// transactions stored on chain.
-	/// It maps from a transaction Id to its details.
-	#[pallet::storage]
-	#[pallet::getter(fn spaceids)]
-	pub type SpaceIds<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+	// /// transactions stored on chain.
+	// /// It maps from a transaction Id to its details.
+	// #[pallet::storage]
+	// #[pallet::getter(fn spacehashes)]
+	// pub type SpaceHashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new entity has been created.
-		/// \[entity identifier, controller\]
-		TransactionAdded(IdOf<T>, HashOf<T>, ControllerOf<T>),
+		/// \[entity identifier, creator\]
+		TransactionAdded(IdOf<T>, HashOf<T>, CordAccountOf<T>),
 		/// An entity has been updated.
-		/// \[entity identifier, controller\]
-		TransactionUpdated(IdOf<T>, HashOf<T>, ControllerOf<T>),
-		/// An entity transaction has been marked inactive.
-		/// \[entity identifier, controller\]
-		TransactionInactive(IdOf<T>, HashOf<T>, ControllerOf<T>),
+		/// \[entity identifier, creator\]
+		TransactionUpdated(IdOf<T>, HashOf<T>, CordAccountOf<T>),
 		/// An entity has been revoked.
 		/// \[entity identifier\]
-		TransactionStatusUpdated(IdOf<T>, ControllerOf<T>),
+		TransactionStatusUpdated(IdOf<T>, CordAccountOf<T>),
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Invalid request
 		InvalidRequest,
-		/// Not all required inputs
-		MissingInputDetails,
 		/// Hash and ID are the same
-		SameHashAndId,
+		SameSpaceIdAndHash,
 		/// Transaction idenfier is not unique
 		SpaceAlreadyExists,
 		/// Transaction idenfier not found
 		SpaceNotFound,
 		/// Transaction idenfier marked inactive
 		SpaceNotActive,
-		/// Transaction ID is not unique
-		SpaceIdAlreadyExists,
-		/// Transaction hash is not unique
-		SpaceHashAlreadyExists,
-		/// Transaction hash not found
-		SpaceHashNotFound,
-		/// Invalid CID encoding.
-		InvalidCidEncoding,
 		/// CID already anchored
 		CidAlreadyMapped,
-		/// Only when the author is not the controller.
-		UnauthorizedUpdate,
 		/// no status change required
 		StatusChangeNotRequired,
 		/// Only when the author is not the controller.
@@ -134,21 +119,17 @@ pub mod pallet {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			//check hash and id
-			ensure!(tx_hash != tx_id, Error::<T>::SameHashAndId);
+			ensure!(tx_hash != tx_id, Error::<T>::SameSpaceIdAndHash);
 			//check cid encoding
 			ensure!(
 				pallet_entity::EntityDetails::<T>::check_cid(&tx_cid),
-				Error::<T>::InvalidCidEncoding
+				pallet_entity::Error::<T>::InvalidCidEncoding
 			);
-			//check transaction
-			ensure!(!<Spaces<T>>::contains_key(&tx_hash), Error::<T>::SpaceAlreadyExists);
 			//check transaction id
-			ensure!(!<SpaceIds<T>>::contains_key(&tx_id), Error::<T>::SpaceIdAlreadyExists);
+			ensure!(!<Spaces<T>>::contains_key(&tx_id), Error::<T>::SpaceAlreadyExists);
 			//check transaction link
-			let tx_link_hash = <pallet_entity::EntityIds<T>>::get(&tx_link)
+			let tx_link_details = <pallet_entity::Entities<T>>::get(&tx_link)
 				.ok_or(pallet_entity::Error::<T>::EntityNotFound)?;
-			let tx_link_details = <pallet_entity::Entities<T>>::get(&tx_link_hash)
-				.ok_or(pallet_entity::Error::<T>::EntityHashNotFound)?;
 			ensure!(tx_link_details.active, pallet_entity::Error::<T>::EntityNotActive);
 			ensure!(
 				tx_link_details.controller == controller,
@@ -157,18 +138,31 @@ pub mod pallet {
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			let tx_details = SpaceDetails {
-				tx_id: tx_id.clone(),
-				tx_cid,
-				ptx_cid: None,
-				tx_link,
-				controller: controller.clone(),
-				block: block_number.clone(),
-				active: true,
-			};
-			SpaceDetails::<T>::store_commit_tx(tx_hash, &tx_details, RequestOf::Create)?;
-			<SpaceIds<T>>::insert(&tx_id, &tx_hash);
-			<Spaces<T>>::insert(&tx_hash, tx_details);
+			pallet_entity::TxCommits::<T>::store_commit_tx(
+				&tx_id,
+				pallet_entity::TxCommits {
+					tx_type: TypeOf::Space,
+					tx_hash: tx_hash.clone(),
+					tx_cid: tx_cid.clone(),
+					tx_link: Some(tx_link.clone()),
+					block: block_number.clone(),
+					commit: RequestOf::Create,
+				},
+			)?;
+
+			<Spaces<T>>::insert(
+				&tx_id,
+				SpaceDetails {
+					tx_hash: tx_hash.clone(),
+					tx_cid,
+					ptx_cid: None,
+					tx_link,
+					controller: controller.clone(),
+					block: block_number,
+					active: true,
+				},
+			);
+
 			Self::deposit_event(Event::TransactionAdded(tx_id, tx_hash, controller));
 
 			Ok(())
@@ -189,49 +183,49 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
 				pallet_entity::EntityDetails::<T>::check_cid(&tx_cid),
-				Error::<T>::InvalidCidEncoding
+				pallet_entity::Error::<T>::InvalidCidEncoding
 			);
 
-			let tx_prev_hash = <SpaceIds<T>>::get(&tx_id).ok_or(Error::<T>::SpaceNotFound)?;
-			let tx_prev = <Spaces<T>>::get(&tx_prev_hash).ok_or(Error::<T>::SpaceHashNotFound)?;
+			let mut tx_prev = <Spaces<T>>::get(&tx_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(tx_prev.active, Error::<T>::SpaceNotActive);
-			ensure!(tx_prev.controller == updater, Error::<T>::UnauthorizedUpdate);
+			ensure!(tx_prev.controller == updater, Error::<T>::UnauthorizedOperation);
 			ensure!(tx_cid != tx_prev.tx_cid, Error::<T>::CidAlreadyMapped);
 
 			if let Some(tx_link_id) = &tx_link {
-				let tx_link_hash = <pallet_entity::EntityIds<T>>::get(&tx_link_id)
+				let tx_link_details = <pallet_entity::Entities<T>>::get(&tx_link_id)
 					.ok_or(pallet_entity::Error::<T>::EntityNotFound)?;
-				let tx_link_details = <pallet_entity::Entities<T>>::get(&tx_link_hash)
-					.ok_or(pallet_entity::Error::<T>::EntityHashNotFound)?;
 				ensure!(tx_link_details.active, pallet_entity::Error::<T>::EntityNotActive);
 				ensure!(
 					tx_link_details.controller == updater,
 					pallet_entity::Error::<T>::UnauthorizedOperation
 				);
+				tx_prev.tx_link = *tx_link_id;
 			}
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			let update_tx = SpaceDetails {
-				tx_cid,
-				ptx_cid: Some(tx_prev.tx_cid.clone()),
-				block: block_number,
-				..tx_prev.clone()
-			};
-
-			SpaceDetails::<T>::update_commit_tx(tx_hash, &update_tx, RequestOf::Update)?;
+			pallet_entity::TxCommits::<T>::update_commit_tx(
+				&tx_id,
+				pallet_entity::TxCommits {
+					tx_type: TypeOf::Space,
+					tx_hash: tx_hash.clone(),
+					tx_cid: tx_cid.clone(),
+					tx_link: Some(tx_prev.tx_link.clone()),
+					block: block_number.clone(),
+					commit: RequestOf::Update,
+				},
+			)?;
 
 			<Spaces<T>>::insert(
-				&tx_prev_hash,
-				SpaceDetails { block: block_number, active: false, ..tx_prev },
+				&tx_id,
+				SpaceDetails {
+					tx_hash: tx_hash.clone(),
+					tx_cid,
+					ptx_cid: Some(tx_prev.tx_cid),
+					block: block_number,
+					..tx_prev
+				},
 			);
-			Self::deposit_event(Event::TransactionInactive(
-				tx_id.clone(),
-				tx_prev_hash,
-				updater.clone(),
-			));
-			<Spaces<T>>::insert(&tx_hash, update_tx);
-			<SpaceIds<T>>::insert(&tx_id, &tx_hash);
 
 			Self::deposit_event(Event::TransactionUpdated(tx_id, tx_hash, updater));
 
@@ -252,23 +246,31 @@ pub mod pallet {
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let tx_status_hash = <SpaceIds<T>>::get(&tx_id).ok_or(Error::<T>::SpaceNotFound)?;
-			let tx_status =
-				<Spaces<T>>::get(&tx_status_hash).ok_or(Error::<T>::SpaceHashNotFound)?;
+			let tx_status = <Spaces<T>>::get(&tx_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(tx_status.active == status, Error::<T>::StatusChangeNotRequired);
-			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedUpdate);
+			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
 
 			log::debug!("Changing Transaction Status");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			let update_tx =
-				SpaceDetails { block: block_number, active: status, ..tx_status.clone() };
-			SpaceDetails::<T>::update_commit_tx(tx_status_hash, &update_tx, RequestOf::Status)?;
+			pallet_entity::TxCommits::<T>::update_commit_tx(
+				&tx_id,
+				pallet_entity::TxCommits {
+					tx_type: TypeOf::Space,
+					tx_hash: tx_status.tx_hash.clone(),
+					tx_cid: tx_status.tx_cid.clone(),
+					tx_link: Some(tx_status.tx_link.clone()),
+					block: block_number.clone(),
+					commit: RequestOf::Status,
+				},
+			)?;
+
 			<Spaces<T>>::insert(
-				&tx_status_hash,
+				&tx_id,
 				SpaceDetails { block: block_number, active: status, ..tx_status },
 			);
-			Self::deposit_event(Event::TransactionStatusUpdated(tx_status_hash, updater));
+
+			Self::deposit_event(Event::TransactionStatusUpdated(tx_id, updater));
 
 			Ok(())
 		}

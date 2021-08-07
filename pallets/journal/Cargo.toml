@@ -17,6 +17,7 @@ cord-primitives = { package = "cord-primitives", path="../../primitives", option
 serde = { version = "1.0.123", optional = true }
 pallet-entity = {  default-features = false, path = '../entity' }
 pallet-space = {  default-features = false, path = '../space' }
+pallet-schema = {  default-features = false, path = '../schema' }
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.8", default-features = false }
@@ -61,4 +62,6 @@ std = [
   "sp-std/std",
   "pallet-entity/std",
   "pallet-space/std",
+  "pallet-schema/std",
+
 ]

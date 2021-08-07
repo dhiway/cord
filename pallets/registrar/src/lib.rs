@@ -28,7 +28,7 @@ pub mod pallet {
 	/// ID of an entity.
 	pub type IdOf<T> = pallet_entity::IdOf<T>;
 	/// Type of a registrar.
-	pub type ControllerOf<T> = pallet_entity::ControllerOf<T>;
+	pub type CordAccountOf<T> = pallet_entity::CordAccountOf<T>;
 	// pub type ControllerOf<T> = <T as Config>::CordAccountId;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
@@ -39,7 +39,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + pallet_entity::Config + Debug {
 		// type CordAccountId: Parameter + Default;
 		type EnsureOrigin: EnsureOrigin<
-			Success = ControllerOf<Self>,
+			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
 		>;
 		/// The origin which may forcibly set or remove a name. Root can always do this.
@@ -63,7 +63,7 @@ pub mod pallet {
 	/// It maps from a schema hash to its owner.
 	#[pallet::storage]
 	#[pallet::getter(fn registrars)]
-	pub type Registrars<T> = StorageMap<_, Blake2_128Concat, ControllerOf<T>, RegistrarDetails<T>>;
+	pub type Registrars<T> = StorageMap<_, Blake2_128Concat, CordAccountOf<T>, RegistrarDetails<T>>;
 
 	/// entities verification information stored on chain.
 	/// It maps from a entity Id to its verification status.
@@ -75,12 +75,12 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A registrar was added. \[registrar identifier\]
-		RegistrarAdded(ControllerOf<T>),
+		RegistrarAdded(CordAccountOf<T>),
 		/// A registrar was added. \[registrar identifier\]
-		RegistrarRevoked(ControllerOf<T>),
+		RegistrarRevoked(CordAccountOf<T>),
 		/// A entity has been restored.
 		/// \[entity identifier\]
-		EntityVerificationStatusUpdated(IdOf<T>, ControllerOf<T>),
+		EntityVerificationStatusUpdated(IdOf<T>, CordAccountOf<T>),
 	}
 
 	#[pallet::error]
@@ -106,7 +106,7 @@ pub mod pallet {
 		/// * origin: Council or Root
 		/// * account: registrar account
 		#[pallet::weight(0)]
-		pub fn add_registrar(origin: OriginFor<T>, account: ControllerOf<T>) -> DispatchResult {
+		pub fn add_registrar(origin: OriginFor<T>, account: CordAccountOf<T>) -> DispatchResult {
 			T::RegistrarOrigin::ensure_origin(origin)?;
 
 			ensure!(!<Registrars<T>>::contains_key(&account), Error::<T>::RegistrarAlreadyExists);
@@ -126,7 +126,7 @@ pub mod pallet {
 		/// * origin: Council or Root
 		/// * account: registrar account
 		#[pallet::weight(0)]
-		pub fn revoke_registrar(origin: OriginFor<T>, account: ControllerOf<T>) -> DispatchResult {
+		pub fn revoke_registrar(origin: OriginFor<T>, account: CordAccountOf<T>) -> DispatchResult {
 			T::RegistrarOrigin::ensure_origin(origin)?;
 
 			let registrar =
@@ -156,10 +156,8 @@ pub mod pallet {
 			status: StatusOf,
 		) -> DispatchResult {
 			let verifier = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			let entity_hash = <pallet_entity::EntityIds<T>>::get(&tx_id)
+			let tx_verify = <pallet_entity::Entities<T>>::get(&tx_id)
 				.ok_or(pallet_entity::Error::<T>::EntityNotFound)?;
-			let tx_verify = <pallet_entity::Entities<T>>::get(&entity_hash)
-				.ok_or(pallet_entity::Error::<T>::EntityHashNotFound)?;
 
 			let registrar =
 				<Registrars<T>>::get(&verifier).ok_or(Error::<T>::RegistrarAccountNotFound)?;
@@ -172,7 +170,7 @@ pub mod pallet {
 			let mut commit = <pallet_entity::Commits<T>>::get(tx_id).unwrap_or_default();
 			commit.push(pallet_entity::TxCommits {
 				tx_type: TypeOf::Entity,
-				tx_hash: entity_hash.clone(),
+				tx_hash: tx_verify.tx_hash.clone(),
 				tx_cid: tx_verify.tx_cid,
 				tx_link: None,
 				block: block_number,
