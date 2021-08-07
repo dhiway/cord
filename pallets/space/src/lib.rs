@@ -174,6 +174,8 @@ pub mod pallet {
 			tx_link: Option<IdOf<T>>,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			//check hash and id
+			ensure!(tx_hash != tx_id, Error::<T>::SameSpaceIdAndHash);
 			ensure!(
 				pallet_entity::EntityDetails::<T>::check_cid(&tx_cid),
 				pallet_entity::Error::<T>::InvalidCidEncoding
@@ -240,7 +242,7 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let tx_status = <Spaces<T>>::get(&tx_id).ok_or(Error::<T>::SpaceNotFound)?;
-			ensure!(tx_status.active == status, Error::<T>::StatusChangeNotRequired);
+			ensure!(tx_status.active != status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
 
 			log::debug!("Changing Transaction Status");

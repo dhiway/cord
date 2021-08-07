@@ -85,8 +85,6 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Invalid request
 		InvalidRequest,
-		/// Not all required inputs
-		MissingInputDetails,
 		/// Hash and ID are the same
 		SameEntityIdAndHash,
 		/// Transaction idenfier is not unique
@@ -227,7 +225,7 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let tx_status = <Entities<T>>::get(&tx_id).ok_or(Error::<T>::EntityNotFound)?;
-			// ensure!(tx_status.active == status, Error::<T>::StatusChangeNotRequired);
+			ensure!(tx_status.active != status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
 
 			log::debug!("Changing Transaction Status");

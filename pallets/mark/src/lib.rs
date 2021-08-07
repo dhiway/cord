@@ -104,7 +104,6 @@ pub mod pallet {
 			tx_id: IdOf<T>,
 			tx_hash: HashOf<T>,
 			tx_cid: CidOf,
-			tx_schema: IdOf<T>,
 			tx_link: IdOf<T>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -117,9 +116,6 @@ pub mod pallet {
 
 			//check transaction
 			ensure!(!<Marks<T>>::contains_key(&tx_id), Error::<T>::MarkAlreadyExists);
-			//check input parameters
-			let _schema_status =
-				pallet_schema::SchemaDetails::<T>::schema_status(tx_schema, tx_link);
 			let _link_status =
 				pallet_journal::JournalDetails::<T>::journal_status(tx_link, controller.clone());
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -142,7 +138,6 @@ pub mod pallet {
 					tx_hash: tx_hash.clone(),
 					tx_cid,
 					ptx_cid: None,
-					tx_schema,
 					tx_link,
 					controller: controller.clone(),
 					block: block_number,
@@ -224,7 +219,7 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let tx_status = <Marks<T>>::get(&tx_id).ok_or(Error::<T>::MarkNotFound)?;
-			ensure!(tx_status.active == status, Error::<T>::StatusChangeNotRequired);
+			ensure!(tx_status.active != status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
 
 			let _link_status = pallet_journal::JournalDetails::<T>::journal_status(

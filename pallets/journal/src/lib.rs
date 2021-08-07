@@ -34,9 +34,7 @@ pub mod pallet {
 	/// CID type.
 	pub type CidOf = Vec<u8>;
 	#[pallet::config]
-	pub trait Config:
-		frame_system::Config + pallet_entity::Config + pallet_space::Config + pallet_schema::Config
-	{
+	pub trait Config: frame_system::Config + pallet_entity::Config + pallet_space::Config {
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
@@ -105,7 +103,6 @@ pub mod pallet {
 			tx_id: IdOf<T>,
 			tx_hash: HashOf<T>,
 			tx_cid: CidOf,
-			tx_schema: IdOf<T>,
 			tx_link: IdOf<T>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -118,9 +115,7 @@ pub mod pallet {
 
 			//check transaction
 			ensure!(!<Journals<T>>::contains_key(&tx_id), Error::<T>::JournalAlreadyExists);
-			//check input parameters
-			let _schema_status =
-				pallet_schema::SchemaDetails::<T>::schema_status(tx_schema, tx_link);
+
 			let _link_status =
 				pallet_space::SpaceDetails::<T>::space_status(tx_link, controller.clone());
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -143,7 +138,6 @@ pub mod pallet {
 					tx_hash: tx_hash.clone(),
 					tx_cid,
 					ptx_cid: None,
-					tx_schema,
 					tx_link,
 					controller: controller.clone(),
 					block: block_number,
@@ -223,7 +217,7 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let tx_status = <Journals<T>>::get(&tx_id).ok_or(Error::<T>::JournalNotFound)?;
-			ensure!(tx_status.active == status, Error::<T>::StatusChangeNotRequired);
+			ensure!(tx_status.active != status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
 
 			let _link_status =

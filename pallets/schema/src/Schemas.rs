@@ -1,6 +1,5 @@
 use crate::*;
 use codec::{Decode, Encode};
-use sp_runtime::DispatchResult;
 
 /// An on-chain transaction details written by a controller.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
@@ -17,17 +16,4 @@ pub struct SchemaDetails<T: Config> {
 	pub controller: CordAccountOf<T>,
 	/// Transaction block number
 	pub block: BlockNumberOf<T>,
-	/// The flag indicating the status of the account.
-	pub active: bool,
-}
-
-impl<T: Config> SchemaDetails<T> {
-	//check schema status
-	pub fn schema_status(tx_schema: IdOf<T>, tx_link: IdOf<T>) -> DispatchResult {
-		let tx_schema_details = <Schemas<T>>::get(tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
-		ensure!(tx_schema_details.active, Error::<T>::SchemaNotActive);
-		ensure!(tx_schema_details.tx_link == tx_link, Error::<T>::UnauthorizedOperation);
-
-		Ok(())
-	}
 }
