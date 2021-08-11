@@ -93,10 +93,6 @@ pub mod pallet {
 		EntityNotFound,
 		/// Transaction idenfier marked inactive
 		EntityNotActive,
-		/// Transaction hash is not unique
-		EntityHashAlreadyExists,
-		/// Transaction hash not found
-		EntityHashNotFound,
 		/// Invalid CID encoding.
 		InvalidCidEncoding,
 		/// CID already anchored

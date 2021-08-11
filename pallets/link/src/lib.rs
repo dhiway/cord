@@ -55,6 +55,12 @@ pub mod pallet {
 	#[pallet::getter(fn links)]
 	pub type Links<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, LinkDetails<T>>;
 
+	/// transactions stored on chain.
+	/// It maps from a transaction hash to Id.
+	#[pallet::storage]
+	#[pallet::getter(fn linkhashes)]
+	pub type LinkHashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdOf<T>>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -140,6 +146,8 @@ pub mod pallet {
 
 			pallet_mark::MarkDetails::<T>::store_link_tx(&tx_link, &tx_id)?;
 
+			<LinkHashes<T>>::insert(&tx_hash, &tx_id);
+
 			<Links<T>>::insert(
 				&tx_id,
 				LinkDetails {
@@ -202,6 +210,8 @@ pub mod pallet {
 					commit: RequestOf::Update,
 				},
 			)?;
+
+			<LinkHashes<T>>::insert(&tx_hash, &tx_id);
 
 			<Links<T>>::insert(
 				&tx_hash,

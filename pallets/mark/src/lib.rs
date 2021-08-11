@@ -56,11 +56,18 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn marks)]
 	pub type Marks<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, MarkDetails<T>>;
+
+	/// mark hashes stored on chain.
+	/// It maps from a mark hash to Id.
+	#[pallet::storage]
+	#[pallet::getter(fn markhashes)]
+	pub type MarkHashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdOf<T>>;
+
 	/// mark links stored on chain.
 	/// It maps from a mark Id to its links.
 	#[pallet::storage]
-	#[pallet::getter(fn mlinks)]
-	pub type Mlinks<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<IdOf<T>>>;
+	#[pallet::getter(fn marklinks)]
+	pub type MarkLinks<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<IdOf<T>>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -145,6 +152,7 @@ pub mod pallet {
 
 			pallet_journal::JournalDetails::<T>::store_link_tx(&tx_link, &tx_id)?;
 
+			<MarkHashes<T>>::insert(&tx_hash, &tx_id);
 			<Marks<T>>::insert(
 				&tx_id,
 				MarkDetails {
@@ -205,7 +213,7 @@ pub mod pallet {
 					commit: RequestOf::Update,
 				},
 			)?;
-
+			<MarkHashes<T>>::insert(&tx_hash, &tx_id);
 			<Marks<T>>::insert(
 				&tx_hash,
 				MarkDetails {

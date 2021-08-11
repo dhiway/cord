@@ -57,10 +57,16 @@ pub mod pallet {
 	pub type Journals<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, JournalDetails<T>>;
 
 	/// transactions stored on chain.
+	/// It maps from a transaction hash to Id.
+	#[pallet::storage]
+	#[pallet::getter(fn journalhashes)]
+	pub type JournalHashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdOf<T>>;
+
+	/// transactions stored on chain.
 	/// It maps from a transaction Id to its details.
 	#[pallet::storage]
-	#[pallet::getter(fn jlinks)]
-	pub type Jlinks<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<IdOf<T>>>;
+	#[pallet::getter(fn journallinks)]
+	pub type JournalLinks<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<IdOf<T>>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -141,6 +147,7 @@ pub mod pallet {
 				},
 			)?;
 
+			<JournalHashes<T>>::insert(&tx_hash, &tx_id);
 			<Journals<T>>::insert(
 				&tx_id,
 				JournalDetails {
@@ -201,6 +208,8 @@ pub mod pallet {
 					commit: RequestOf::Update,
 				},
 			)?;
+
+			<JournalHashes<T>>::insert(&tx_hash, &tx_id);
 
 			<Journals<T>>::insert(
 				&tx_hash,

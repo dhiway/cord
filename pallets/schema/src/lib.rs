@@ -89,22 +89,12 @@ pub mod pallet {
 		SchemaNotFound,
 		/// Transaction idenfier marked inactive
 		SchemaNotActive,
-		/// Transaction ID is not unique
-		SchemaIdAlreadyExists,
-		/// Transaction hash is not unique
-		SchemaHashAlreadyExists,
-		/// Transaction hash not found
-		SchemaHashNotFound,
-		/// Invalid CID encoding.
-		InvalidCidEncoding,
 		/// CID already anchored
 		CidAlreadyMapped,
 		/// no status change required
 		StatusChangeNotRequired,
 		/// Only when the author is not the controller.
 		UnauthorizedOperation,
-		/// Only when the author is not the controller.
-		SpaceSchemaError,
 	}
 
 	#[pallet::call]
@@ -129,7 +119,7 @@ pub mod pallet {
 			//check cid encoding
 			ensure!(
 				pallet_entity::EntityDetails::<T>::check_cid(&tx_cid),
-				Error::<T>::InvalidCidEncoding
+				pallet_entity::Error::<T>::InvalidCidEncoding
 			);
 			//check transaction id
 			ensure!(!<Schemas<T>>::contains_key(&tx_id), Error::<T>::SchemaAlreadyExists);
@@ -186,7 +176,7 @@ pub mod pallet {
 			ensure!(tx_hash != tx_id, Error::<T>::SameSchemaIdAndHash);
 			ensure!(
 				pallet_entity::EntityDetails::<T>::check_cid(&tx_cid),
-				Error::<T>::InvalidCidEncoding
+				pallet_entity::Error::<T>::InvalidCidEncoding
 			);
 
 			let tx_prev = <Schemas<T>>::get(&tx_id).ok_or(Error::<T>::SchemaNotFound)?;

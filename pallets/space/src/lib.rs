@@ -86,10 +86,6 @@ pub mod pallet {
 		SpaceNotFound,
 		/// Transaction idenfier marked inactive
 		SpaceNotActive,
-		/// Transaction idenfier not found
-		EntityNotFound,
-		/// Transaction idenfier marked inactive
-		EntityNotActive,
 		/// CID already anchored
 		CidAlreadyMapped,
 		/// no status change required

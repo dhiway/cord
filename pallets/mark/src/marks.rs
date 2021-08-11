@@ -29,9 +29,9 @@ impl<T: Config> MarkDetails<T> {
 		Ok(tx_mark_details.tx_link)
 	}
 	pub fn store_link_tx(tx_mark: &IdOf<T>, tx_link: &IdOf<T>) -> DispatchResult {
-		let mut link = <Mlinks<T>>::get(tx_mark).unwrap_or_default();
+		let mut link = <MarkLinks<T>>::get(tx_mark).unwrap_or_default();
 		link.push(*tx_link);
-		<Mlinks<T>>::insert(tx_mark, link);
+		<MarkLinks<T>>::insert(tx_mark, link);
 		Ok(())
 	}
 }
