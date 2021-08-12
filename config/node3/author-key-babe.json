@@ -1,0 +1,10 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "author_insertKey",
+  "params": [
+    "babe",
+    "0x37531f33c12c9a344e982b5919b53ab3b093f39a515cbd7a1ffe21d7673c9a89//3//babe",
+    "0xcaf72037137297537c8e00dfe6259a640801d62c71a55d825d9994a26d743b7d"
+  ]
+}

@@ -51,6 +51,7 @@ impl SubstrateCli for Cli {
 			}
 			"dev" => Box::new(chain_spec::amber_glow_development_config()),
 			"staging" => Box::new(chain_spec::amber_glow_staging_config()),
+			"local" => Box::new(chain_spec::amber_glow_staging_config()),
 			// "tnet" => Box::new(chain_spec::local_testnet_config()),
 			path => {
 				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
