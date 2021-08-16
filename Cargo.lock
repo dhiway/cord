@@ -4379,7 +4379,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-did"
-version = "0.5.1"
+version = "0.24.0"
 dependencies = [
  "cord-primitives",
  "env_logger 0.8.4",
@@ -4389,6 +4389,7 @@ dependencies = [
  "hex",
  "log",
  "pallet-membership",
+ "pallet-schema",
  "parity-scale-codec",
  "serde",
  "sp-core",
@@ -4396,7 +4397,7 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-std",
- "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "substrate-wasm-builder-runner",
 ]
 
 [[package]]
@@ -8488,6 +8489,12 @@ dependencies = [
  "walkdir",
  "wasm-gc-api",
 ]
+
+[[package]]
+name = "substrate-wasm-builder-runner"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "316626afcac0219c95116e6a2518e622484c2814182bd225fbf4da4f67e27e8f"
 
 [[package]]
 name = "subtle"

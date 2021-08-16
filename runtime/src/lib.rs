@@ -118,8 +118,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to equal spec_version. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 5010,
-	impl_version: 0,
+	spec_version: 5020,
+	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 0,
 };
@@ -1044,7 +1044,14 @@ impl pallet_vesting::Config for Runtime {
 parameter_types! {
 	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
 	pub const MaxVerificationKeysToRevoke: u32 = 10u32;
+	#[derive(Debug, Clone, PartialEq)]
 	pub const MaxUrlLength: u32 = 200u32;
+	// TODO: Find reasonable numbers
+	pub const MaxPublicKeysPerDid: u32 = 1000;
+	#[derive(Debug, Clone, PartialEq)]
+	pub const MaxTotalKeyAgreementKeys: u32 = 1000;
+	#[derive(Debug, Clone, PartialEq)]
+	pub const MaxEndpointUrlsCount: u32 = 3u32;
 }
 
 impl pallet_did::Config for Runtime {
@@ -1052,9 +1059,16 @@ impl pallet_did::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
 	type Origin = Origin;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<Self::DidIdentifier>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type EnsureOrigin = EnsureSigned<Self::DidIdentifier>;
 	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
+	type MaxTotalKeyAgreementKeys = MaxTotalKeyAgreementKeys;
+	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
 	type MaxVerificationKeysToRevoke = MaxVerificationKeysToRevoke;
 	type MaxUrlLength = MaxUrlLength;
+	type MaxEndpointUrlsCount = MaxEndpointUrlsCount;
 	type WeightInfo = ();
 }
 
@@ -1185,6 +1199,9 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call 
 			Call::Journal(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			Call::Mark(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			Call::Link(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			// DID creation is not allowed through the DID proxy.
+			Call::Did(pallet_did::Call::create(..)) => None,
+			Call::Did(_) => Some(pallet_did::DidVerificationKeyRelationship::Authentication),
 			#[cfg(not(feature = "runtime-benchmarks"))]
 			_ => None,
 			// By default, returns the authentication key

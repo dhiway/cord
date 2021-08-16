@@ -1,3 +1,21 @@
+// KILT Blockchain – https://botlabs.org
+// Copyright (C) 2019-2021 BOTLabs GmbH
+
+// The KILT Blockchain is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// The KILT Blockchain is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+// If you feel like getting in touch with us, you can do so at info@botlabs.org
+
 use crate::*;
 
 /// All the errors that can be generated when validating a DID operation.
@@ -13,6 +31,24 @@ pub enum DidError {
 	InputError(InputError),
 	/// An error that is not supposed to take place, yet it happened.
 	InternalError,
+}
+
+impl From<StorageError> for DidError {
+	fn from(err: StorageError) -> Self {
+		DidError::StorageError(err)
+	}
+}
+
+impl From<InputError> for DidError {
+	fn from(err: InputError) -> Self {
+		DidError::InputError(err)
+	}
+}
+
+impl From<UrlError> for DidError {
+	fn from(err: UrlError) -> Self {
+		DidError::UrlError(err)
+	}
 }
 
 /// Error involving the pallet's storage.
@@ -34,6 +70,12 @@ pub enum StorageError {
 	/// The maximum supported value for the DID tx counter has been reached.
 	/// No more operations with the DID are allowed.
 	MaxTxCounterValue,
+	/// The maximum number of public keys for this DID key identifier has
+	/// been reached.
+	MaxPublicKeysPerDidExceeded,
+	/// The maximum number of key agreements has been reached for the DID
+	/// subject.
+	MaxTotalKeyAgreementKeysExceeded,
 }
 
 /// Error generated when validating a DID operation.
@@ -46,13 +88,6 @@ pub enum SignatureError {
 	InvalidSignature,
 	/// The operation nonce is not equal to the current DID nonce + 1.
 	InvalidNonce,
-}
-
-pub enum KeyError {
-	/// The verification key provided does not match any supported key.
-	InvalidVerificationKeyFormat,
-	/// The encryption key provided does not match any supported key.
-	InvalidEncryptionKeyFormat,
 }
 
 /// Error generated when validating a byte-encoded endpoint URL.
@@ -76,4 +111,6 @@ pub enum InputError {
 	MaxVerificationKeysToRemoveLimitExceeded,
 	/// A URL longer than the maximum size allowed has been provided.
 	MaxUrlLengthExceeded,
+	/// More than the maximum number of URLs have been specified.
+	MaxUrlsCountExceeded,
 }
