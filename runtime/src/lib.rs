@@ -143,8 +143,8 @@ pub struct DealWithFees;
 impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
 		if let Some(fees) = fees_then_tips.next() {
-			// for fees, 80% to treasury, 20% to author
-			let mut split = fees.ration(80, 20);
+			// for fees, 40% to treasury, 30% to author, 30% to Dhiway
+			let mut split = fees.ration(40, 30);
 			if let Some(tips) = fees_then_tips.next() {
 				// for tips, if any, 100% to author
 				tips.merge_into(&mut split.1);
@@ -354,7 +354,7 @@ impl InstanceFilter<Call> for ProxyType {
 				Call::TechnicalCommittee(..) |
 				Call::Elections(..) |
 				Call::TechnicalMembership(..) |
-				Call::Treasury(..) |
+				// Call::Treasury(..) |
 				Call::Bounties(..) |
 				Call::Tips(..) |
 				Call::Vesting(pallet_vesting::Call::vest(..)) |
@@ -880,7 +880,7 @@ type ApproveOrigin = EnsureOneOf<
 	pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
 >;
 
-impl pallet_treasury::Config for Runtime {
+impl pallet_treasury::Config<pallet_treasury::Instance1> for Runtime {
 	type PalletId = TreasuryPalletId;
 	type Currency = Balances;
 	type ApproveOrigin = ApproveOrigin;
@@ -897,7 +897,39 @@ impl pallet_treasury::Config for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_bounties::Config for Runtime {
+parameter_types! {
+	pub const ReserveProposalBond: Permill = Permill::from_percent(5);
+	pub const ReserveProposalBondMinimum: Balance = 10 * MICRO_WAY;
+	pub const ReserveSpendPeriod: BlockNumber = 12 * DAYS;
+	pub const ReserveBurn: Permill = Permill::from_perthousand(0);
+	pub const ReserveTreasuryPalletId: PalletId = PalletId(*b"py/dwrsrv");
+}
+
+type ReserveOrigin = EnsureOneOf<
+	AccountId,
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
+>;
+
+// type ReserveTreasury = pallet_treasury::Instance2;
+impl pallet_treasury::Config<pallet_treasury::Instance2> for Runtime {
+	type PalletId = ReserveTreasuryPalletId;
+	type Currency = Balances;
+	type ApproveOrigin = ReserveOrigin;
+	type RejectOrigin = MoreThanHalfCouncil;
+	type Event = Event;
+	type OnSlash = ReserveTreasury;
+	type ProposalBond = ReserveProposalBond;
+	type ProposalBondMinimum = ReserveProposalBondMinimum;
+	type SpendPeriod = ReserveSpendPeriod;
+	type Burn = ReserveBurn;
+	type BurnDestination = ();
+	type SpendFunds = Bounties;
+	type MaxApprovals = MaxApprovals;
+	type WeightInfo = ();
+}
+
+impl pallet_bounties::Config<pallet_treasury::Instance1> for Runtime {
 	type Event = Event;
 	type BountyDepositBase = BountyDepositBase;
 	type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
@@ -909,7 +941,7 @@ impl pallet_bounties::Config for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_tips::Config for Runtime {
+impl pallet_tips::Config<pallet_treasury::Instance1> for Runtime {
 	type Event = Event;
 	type DataDepositPerByte = DataDepositPerByte;
 	type MaximumReasonLength = MaximumReasonLength;
@@ -1163,7 +1195,8 @@ construct_runtime! {
 		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 16,
 		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 17,
 		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 19,
+		Treasury: pallet_treasury::<Instance1>::{Pallet, Call, Storage, Config, Event<T>} = 19,
+		ReserveTreasury: pallet_treasury::<Instance2>::{Pallet, Call, Storage, Config, Event<T>} = 20,
 
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 21,
 		Utility: pallet_utility::{Pallet, Call, Event} = 22,
