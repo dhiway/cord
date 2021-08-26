@@ -6,7 +6,7 @@ name: CI
 on:
   # Trigger the workflow on push event
   push:
-    branches: [ main, develop, amber ]
+    branches: [ "*" ]
 
   # Allow to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -23,6 +23,7 @@ jobs:
 
     # A map of envvironment variables available to all steps in the job
     env:
+      ECR_LOGIN_SERVER: 398701577843.dkr.ecr.ap-south-1.amazonaws.com
       ACR_LOGIN_SERVER: 2pzinx547jo6coxz.azurecr.io
       IMAGE_REPOSITORY: ${{ github.event.repository.name }}
       IMAGE_TAG: ${{ github.sha }}
@@ -32,36 +33,30 @@ jobs:
       # Check-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      # Configure AWS credentials
-      - uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
-
       # Login to Amazon ECR
-      - id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+      - uses: docker/login-action@v1
+        with:
+          registry: ${{ env.ECR_LOGIN_SERVER }}
+          username: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          password: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       # Login to Azure ACR
-      - uses: azure/docker-login@v1
+      - uses: docker/login-action@v1
         with:
-          login-server: ${{ env.ACR_LOGIN_SERVER }}
+          registry: ${{ env.ACR_LOGIN_SERVER }}
           username: ${{ secrets.SP_APP_ID }}
           password: ${{ secrets.SP_PASSWD }}
 
       # Push image to Registry
-      - env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
-          docker build . --no-cache --file Dockerfile --tag ${{ env.IMAGE_REPOSITORY }}:latest
+      - run: |
+          docker build --no-cache --file Dockerfile --tag ${{ env.IMAGE_REPOSITORY }}:latest .
           
-          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:latest
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ECR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ECR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:latest
           
-          docker push $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-          docker push $ECR_REGISTRY/${{ env.IMAGE_REPOSITORY }}:latest
-
+          docker push $ECR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker push $ECR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:latest
+          
           docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
           docker tag ${{ env.IMAGE_REPOSITORY }}:latest $ACR_LOGIN_SERVER/${{ env.IMAGE_REPOSITORY }}:latest
           
