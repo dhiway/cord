@@ -120,7 +120,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
 	spec_version: 5020,
-	impl_version: 1,
+	impl_version: 2,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 0,
 };
@@ -355,7 +355,7 @@ impl InstanceFilter<Call> for ProxyType {
 				Call::Democracy(..) |
 				Call::Council(..) |
 				Call::TechnicalCommittee(..) |
-				Call::Elections(..) |
+				Call::PhragmenElection(..) |
 				Call::TechnicalMembership(..) |
 				Call::Treasury(..) |
 				Call::Bounties(..) |
@@ -371,7 +371,7 @@ impl InstanceFilter<Call> for ProxyType {
 				c,
 				Call::Democracy(..)
 					| Call::Council(..) | Call::TechnicalCommittee(..)
-					| Call::Elections(..)
+					| Call::PhragmenElection(..)
 					| Call::Treasury(..) | Call::Bounties(..)
 			),
 			ProxyType::Staking => {
@@ -774,7 +774,7 @@ impl pallet_democracy::Config for Runtime {
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 3 * DAYS;
 	pub const CouncilMaxProposals: u32 = 100;
-	pub const CouncilMaxMembers: u32 = 10;
+	pub const CouncilMaxMembers: u32 = 25;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
@@ -798,9 +798,9 @@ parameter_types! {
 	/// Weekly council elections; scaling up to monthly eventually.
 	pub const TermDuration: BlockNumber = 7 * DAYS;
 	/// 13 members initially, to be increased to 23 eventually.
-	pub const DesiredMembers: u32 = 10;
-	pub const DesiredRunnersUp: u32 = 5;
-	pub const ElectionsPhragmenPalletId: LockIdentifier = *b"phrelect";
+	pub const DesiredMembers: u32 = 13;
+	pub const DesiredRunnersUp: u32 = 20;
+	pub const PhragmenElectionPalletId: LockIdentifier = *b"phrelect";
 }
 
 // Make sure that there are no more than `MaxMembers` members elected via phragmen.
@@ -808,7 +808,7 @@ const_assert!(DesiredMembers::get() <= CouncilMaxMembers::get());
 
 impl pallet_elections_phragmen::Config for Runtime {
 	type Event = Event;
-	type PalletId = ElectionsPhragmenPalletId;
+	type PalletId = PhragmenElectionPalletId;
 	type Currency = Balances;
 	type ChangeMembers = Council;
 	// NOTE: this implies that council's genesis members cannot be set directly and must come from
@@ -928,7 +928,7 @@ impl pallet_tips::Config for Runtime {
 	type Event = Event;
 	type DataDepositPerByte = DataDepositPerByte;
 	type MaximumReasonLength = MaximumReasonLength;
-	type Tippers = Elections;
+	type Tippers = PhragmenElection;
 	type TipCountdown = TipCountdown;
 	type TipFindersFee = TipFindersFee;
 	type TipReportDepositBase = TipReportDepositBase;
@@ -1193,7 +1193,7 @@ construct_runtime! {
 		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 15,
 		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 16,
 		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 17,
-		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
+		PhragmenElection: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 19,
 		ReserveCouncil: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 20,
 		Reserve: pallet_reserve::{Pallet, Call, Storage, Config, Event<T>} = 26,
@@ -1520,7 +1520,7 @@ impl_runtime_apis! {
 			// add_benchmark!(params, batches, pallet_proxy, Proxy);
 			// add_benchmark!(params, batches, pallet_collective, Council);
 			// add_benchmark!(params, batches, pallet_democracy, Democracy);
-			// add_benchmark!(params, batches, pallet_elections_phragmen, Elections);
+			// add_benchmark!(params, batches, pallet_elections_phragmen, PhragmenElection);
 			// add_benchmark!(params, batches, pallet_membership, TechnicalMembership);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }

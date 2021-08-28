@@ -9,16 +9,23 @@ use crate::{
 use cord_executor::Executor;
 use cord_runtime::{Block, RuntimeApi};
 use cord_service::new_partial;
-use sc_cli::{ChainSpec, Result, Role, RuntimeVersion, SubstrateCli};
+use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
+
+fn get_exec_name() -> Option<String> {
+	std::env::current_exe()
+		.ok()
+		.and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
+		.and_then(|s| s.into_string().ok())
+}
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"CORD Node".into()
+		"Dhiway CORD".into()
 	}
 
 	fn impl_version() -> String {
-		env!("CARGO_PKG_VERSION").into()
+		env!("SUBSTRATE_CLI_IMPL_VERSION").into()
 	}
 
 	fn description() -> String {
@@ -38,26 +45,29 @@ impl SubstrateCli for Cli {
 	}
 
 	fn executable_name() -> String {
-		env!("CARGO_PKG_NAME").into()
+		"cord".into()
 	}
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-		let spec = match id {
-			"" => {
-				return Err(
-					"Please specify which chain you want to run, e.g. --dev or --chain=local"
-						.into(),
-				)
-			}
-			"dev" => Box::new(chain_spec::amber_glow_development_config()),
-			"staging" => Box::new(chain_spec::amber_glow_staging_config()),
-			"local" => Box::new(chain_spec::amber_glow_staging_config()),
-			// "tnet" => Box::new(chain_spec::local_testnet_config()),
+		let id = if id == "" {
+			let n = get_exec_name().unwrap_or_default();
+			["dev", "local", "stage"]
+				.iter()
+				.cloned()
+				.find(|&chain| n.starts_with(chain))
+				.unwrap_or("stage")
+		} else {
+			id
+		};
+		Ok(match id {
+			// "cord" => Box::new(chain_spec::cord_config()),
+			"cord-dev" | "dev" => Box::new(chain_spec::cord_development_config()?),
+			"cord-local" | "local" => Box::new(chain_spec::cord_local_testnet_config()?),
+			"cord-staging" | "stage" => Box::new(chain_spec::cord_staging_config()?),
 			path => {
 				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
 			}
-		};
-		Ok(spec)
+		})
 	}
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
@@ -66,7 +76,7 @@ impl SubstrateCli for Cli {
 }
 
 /// Parse command line arguments into service configuration.
-pub fn run() -> Result<()> {
+pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
 
 	match &cli.subcommand {
