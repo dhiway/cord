@@ -9,9 +9,9 @@ use cord_runtime::Block;
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig,
-	DemocracyConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, SessionConfig,
-	SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-	MAX_NOMINATIONS,
+	DemocracyConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig,
+	ReserveCouncilConfig, SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig,
+	SystemConfig, TechnicalCommitteeConfig, MAX_NOMINATIONS,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -352,6 +352,14 @@ fn amber_glow_development_genesis(
 				.collect(),
 			phantom: Default::default(),
 		},
+		reserve_council: ReserveCouncilConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
 		sudo: SudoConfig { key: root_key },
 		babe: BabeConfig {
 			authorities: vec![],
@@ -362,6 +370,7 @@ fn amber_glow_development_genesis(
 		grandpa: GrandpaConfig { authorities: vec![] },
 		technical_membership: Default::default(),
 		treasury: Default::default(),
+		reserve: Default::default(),
 		vesting: Default::default(),
 	}
 }
@@ -463,6 +472,14 @@ fn amber_glow_staging_genesis(
 				.collect(),
 			phantom: Default::default(),
 		},
+		reserve_council: ReserveCouncilConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
 		sudo: SudoConfig { key: root_key },
 		babe: BabeConfig {
 			authorities: vec![],
@@ -473,6 +490,7 @@ fn amber_glow_staging_genesis(
 		grandpa: GrandpaConfig { authorities: vec![] },
 		technical_membership: Default::default(),
 		treasury: Default::default(),
+		reserve: Default::default(),
 		vesting: Default::default(),
 	}
 }

@@ -26,6 +26,7 @@ pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-journal = {  default-features = false, path = '../pallets/journal' }
 pallet-mark = {  default-features = false, path = '../pallets/mark' }
 pallet-link = {  default-features = false, path = '../pallets/link' }
+pallet-reserve = {  default-features = false, path = '../pallets/reserve' }
 
 # cord primitives
 cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
@@ -167,5 +168,6 @@ std = [
 	"pallet-journal/std",
 	"pallet-mark/std",
 	"pallet-link/std",
+	"pallet-reserve/std",
   	"pallet-sudo/std",
 ]
