@@ -121,7 +121,7 @@ fn testnet_accounts() -> Vec<AccountId> {
 
 /// Development config.
 fn cord_development_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
-	cord_testnet_genesis(
+	cord_development_genesis(
 		wasm_binary,
 		vec![get_authority_keys_from_seed("Alice")],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -130,7 +130,7 @@ fn cord_development_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisC
 }
 
 fn cord_local_testnet_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
-	cord_testnet_genesis(
+	cord_development_genesis(
 		wasm_binary,
 		vec![get_authority_keys_from_seed("Alice"), get_authority_keys_from_seed("Bob")],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -348,7 +348,7 @@ pub fn cord_staging_config() -> Result<ChainSpec, String> {
 	))
 }
 
-fn cord_testnet_genesis(
+fn cord_development_genesis(
 	wasm_binary: &[u8],
 	initial_authorities: Vec<(
 		AccountId,
@@ -438,142 +438,3 @@ fn cord_testnet_genesis(
 		vesting: Default::default(),
 	}
 }
-
-// fn cord_staging_genesis(
-// 	wasm_binary: &[u8],
-// 	initial_authorities: Vec<(
-// 		AccountId,
-// 		AccountId,
-// 		BabeId,
-// 		GrandpaId,
-// 		ImOnlineId,
-// 		AuthorityDiscoveryId,
-// 	)>,
-// 	// initial_authorities: Vec<AccountId>,
-// 	root_key: AccountId,
-// 	endowed_accounts: Option<Vec<AccountId>>,
-// 	num_endowed_accounts: usize,
-// ) -> GenesisConfig {
-// 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
-// 	// const CONTROLLER_ENDOWMENT: u128 = 1_100 * WAY;
-// }
-
-// fn amber_glow_development_genesis(
-// 	initial_authorities: Vec<(
-// 		AccountId,
-// 		AccountId,
-// 		BabeId,
-// 		GrandpaId,
-// 		ImOnlineId,
-// 		AuthorityDiscoveryId,
-// 	)>,
-// 	initial_nominators: Vec<AccountId>,
-// 	root_key: AccountId,
-// 	endowed_accounts: Option<Vec<AccountId>>,
-// 	num_endowed_accounts: usize,
-// ) -> GenesisConfig {
-// 	let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
-// 		vec![
-// 			get_account_id_from_seed::<sr25519::Public>("Ashok"),
-// 			get_account_id_from_seed::<sr25519::Public>("Radha"),
-// 		]
-// 	});
-// 	// endow all authorities and nominators.
-// 	initial_authorities.iter().map(|x| &x.0).chain(initial_nominators.iter()).for_each(|x| {
-// 		if !endowed_accounts.contains(&x) {
-// 			endowed_accounts.push(x.clone())
-// 		}
-// 	});
-
-// 	// stakers: all validators and nominators.
-// 	let mut rng = rand::thread_rng();
-// 	let stakers = initial_authorities
-// 		.iter()
-// 		.map(|x| (x.0.clone(), x.1.clone(), CONTROLLER_ENDOWMENT, StakerStatus::Validator))
-// 		.chain(initial_nominators.iter().map(|x| {
-// 			use rand::{seq::SliceRandom, Rng};
-// 			let limit = (MAX_NOMINATIONS as usize).min(initial_authorities.len());
-// 			let count = rng.gen::<usize>() % limit;
-// 			let nominations = initial_authorities
-// 				.as_slice()
-// 				.choose_multiple(&mut rng, count)
-// 				.into_iter()
-// 				.map(|choice| choice.0.clone())
-// 				.collect::<Vec<_>>();
-// 			(x.clone(), x.clone(), CONTROLLER_ENDOWMENT, StakerStatus::Nominator(nominations))
-// 		}))
-// 		.collect::<Vec<_>>();
-
-// 	const CONTROLLER_ENDOWMENT: u128 = 1_100 * WAY;
-// 	const ENDOWMENT: u128 = 11_100 * WAY;
-// 	const CORD_STASH: u128 = 1_110_101_200 * WAY;
-
-// 	GenesisConfig {
-// 		system: SystemConfig {
-// 			code: wasm_binary_unwrap().to_vec(),
-// 			changes_trie_config: Default::default(),
-// 		},
-// 		balances: BalancesConfig {
-// 			balances: endowed_accounts.iter().cloned().map(|k| (k, CORD_STASH)).collect(),
-// 		},
-// 		indices: IndicesConfig { indices: vec![] },
-// 		session: SessionConfig {
-// 			keys: initial_authorities
-// 				.iter()
-// 				.map(|x| {
-// 					(
-// 						x.0.clone(),
-// 						x.0.clone(),
-// 						session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
-// 					)
-// 				})
-// 				.collect::<Vec<_>>(),
-// 		},
-// 		staking: StakingConfig {
-// 			minimum_validator_count: 1,
-// 			validator_count: initial_authorities.len() as u32,
-// 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-// 			slash_reward_fraction: Perbill::from_percent(10),
-// 			stakers,
-// 			..Default::default()
-// 		},
-// 		democracy: DemocracyConfig::default(),
-// 		phragmen_election: PhragmenElectionConfig {
-// 			members: endowed_accounts
-// 				.iter()
-// 				.take((num_endowed_accounts + 1) / 2)
-// 				.cloned()
-// 				.map(|member| (member, ENDOWMENT))
-// 				.collect(),
-// 		},
-// 		council: CouncilConfig::default(),
-// 		technical_committee: TechnicalCommitteeConfig {
-// 			members: endowed_accounts
-// 				.iter()
-// 				.take((num_endowed_accounts + 1) / 2)
-// 				.cloned()
-// 				.collect(),
-// 			phantom: Default::default(),
-// 		},
-// 		reserve_council: ReserveCouncilConfig {
-// 			members: endowed_accounts
-// 				.iter()
-// 				.take((num_endowed_accounts + 1) / 2)
-// 				.cloned()
-// 				.collect(),
-// 			phantom: Default::default(),
-// 		},
-// 		sudo: SudoConfig { key: root_key },
-// 		babe: BabeConfig {
-// 			authorities: vec![],
-// 			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
-// 		},
-// 		im_online: ImOnlineConfig { keys: vec![] },
-// 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
-// 		grandpa: GrandpaConfig { authorities: vec![] },
-// 		technical_membership: Default::default(),
-// 		treasury: Default::default(),
-// 		reserve: Default::default(),
-// 		vesting: Default::default(),
-// 	}
-// }
