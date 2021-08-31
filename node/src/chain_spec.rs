@@ -8,15 +8,16 @@ use cord_runtime::constants::currency::*;
 use cord_runtime::Block;
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig,
-	DemocracyConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, IndicesConfig, SessionConfig,
-	SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-	MAX_NOMINATIONS,
+	AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig, DemocracyConfig,
+	DhiCouncilConfig, IndicesConfig, PhragmenElectionConfig, SessionConfig, SessionKeys,
+	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_staking::Forcing;
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::{ChainType, Properties};
+use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
@@ -32,7 +33,7 @@ type AccountPublic = <Signature as Verify>::Signer;
 pub use cord_runtime::constants::time::*;
 
 // Note this is the URL for the telemetry server
-// const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+const STAGING_TELEMETRY_URL: &str = "wss://telemetry.dway.io/submit/";
 const DEFAULT_PROTOCOL_ID: &str = "cord";
 
 /// Node `ChainSpec` extensions.
@@ -46,18 +47,22 @@ pub struct Extensions {
 	pub fork_blocks: sc_client_api::ForkBlocks<Block>,
 	/// Known bad block hashes.
 	pub bad_blocks: sc_client_api::BadBlocks<Block>,
+	/// The light sync state.
+	///
+	/// This value will be set by the `sync-state rpc` implementation.
+	pub light_sync_state: sc_sync_state_rpc::LightSyncStateExtension,
 }
 
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
 fn session_keys(
-	grandpa: GrandpaId,
 	babe: BabeId,
+	grandpa: GrandpaId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
 ) -> SessionKeys {
-	SessionKeys { grandpa, babe, im_online, authority_discovery }
+	SessionKeys { babe, grandpa, im_online, authority_discovery }
 }
 
 /// Helper function to generate a crypto pair from seed
@@ -85,59 +90,96 @@ where
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-fn amber_glow_development_genesis_config() -> GenesisConfig {
-	let initial_authorities: Vec<(
-		AccountId,
-		AccountId,
-		GrandpaId,
-		BabeId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-	)> = vec![(
-		//3wF3nbuyb97oSkVBSgZe9dpYcFw5dypX8SPhBWrUcCpZxBWW
-		hex!["6ab68082628ad0cfab68b1a00377170ff0dea4da06030cdd0c21a364ecbbc23b"].into(),
-		//3yzE5N1DMjibaSesw1hAZ8wwvPJnxM3RzvQFanitVm4rkC8h
-		hex!["e41d2833b0b2f629e52a1bc1ace3079c395673bab26a14626b52c132b1fb5f1c"].into(),
-		//3xaQXFoMVNgQ2qMCXHazaEiQ4bzWfVX3TowLc1DHMB1sL4nx
-		hex!["a5b6331fcff809f2b3419332678fd7b23a2a9320240ec36652337fe66a7337e0"].unchecked_into(),
-		//3xuztVAW9ftgcU5FNc3dEXsEgrZW1AnbGWqWmeKKxpGnM4H2
-		hex!["b4a78c7de7cc60ed9a99029fcf487f40a3c4b5d5d78a7080387507a680ecb75e"].unchecked_into(),
-		//3xE2yQSUQ9hfeX1kZjP1Dg5hoU2EdLc1B9zFjzEcc5fgax2W
-		hex!["962cc02d5dddbb2fc03bd8d511844ec47e798b3bc20d9daf7400b3d09533d518"].unchecked_into(),
-		//3vL3vWTS2FZ9JDc4SyMFXQRa5TuitFBfSx8ZrygeEMzc7HkV
-		hex!["424af4547d488e65307cb14ffae20257b6e000658913f985824da5629afff13c"].unchecked_into(),
-	)];
+/// Helper function to generate stash, controller and session key from seed
+pub fn get_authority_keys_from_seed(
+	seed: &str,
+) -> (AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
+	let keys = get_authority_keys(seed);
+	(keys.0, keys.1, keys.2, keys.3, keys.4, keys.5)
+}
 
-	let endowed_accounts: Vec<AccountId> = vec![
-		//3x6FHDirZzxP1BPic2hqkA6LfLC5LHXD2ZS8B618R7rTWNBD
-		hex!["903c379067968d241b2293784ff353d533837f77bcb72154e278ed06e1026a4b"].into(),
-		//3zBmeQHiZ65FzXmHx8ZvvW8FSfvRU4xgsuqw4rhFeiMrXGJa
-		hex!["eceb211f4c13366434d1b8d96f91099e4810e5ce7f195d2de489baf207ce4576"].into(),
-		//3tygFJbrVhB9Fpe2g6bEqKDjWd5gRzioRxqtikruN6P37Sb6
-		hex!["0684d85c98b64e8af9cb23db1e5e5ed9acc2b65c4dbefc6c3feaba8176da3f13"].into(),
-		//3ttmwJLAfo3dCaoAHB11Cvv8vNzZhiBqTjtMZ4jsZrvceedD
-		hex!["02c7c55d71abbaffb9590bcaf48ad687b783c035f9ad1e94208b776ff4a6e13f"].into(),
-		//3xmViQrSRdQJoNE5GzBmEZAPBFkSsbxnjH4FVAgSbB7CoKC4
-		hex!["ae2b60ce50c8a6a0f9f1eba33eec5106facfb366e946a59591633bd30c090d7d"].into(),
-	];
-	let root_key: AccountId = endowed_accounts[0].clone();
-	let num_endowed_accounts = endowed_accounts.len();
-
-	amber_glow_development_genesis(
-		initial_authorities,
-		vec![],
-		root_key,
-		Some(endowed_accounts),
-		num_endowed_accounts,
+/// Helper function to generate stash, controller and session key from seed
+pub fn get_authority_keys(
+	seed: &str,
+) -> (AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
+	(
+		get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
+		get_account_id_from_seed::<sr25519::Public>(seed),
+		get_from_seed::<BabeId>(seed),
+		get_from_seed::<GrandpaId>(seed),
+		get_from_seed::<ImOnlineId>(seed),
+		get_from_seed::<AuthorityDiscoveryId>(seed),
 	)
 }
 
-fn amber_glow_staging_genesis_config() -> GenesisConfig {
+fn testnet_accounts() -> Vec<AccountId> {
+	vec![
+		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		get_account_id_from_seed::<sr25519::Public>("Bob"),
+		get_account_id_from_seed::<sr25519::Public>("Charlie"),
+		get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+		get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+		get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+	]
+}
+
+/// Development config.
+fn cord_development_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
+	cord_development_genesis(
+		wasm_binary,
+		vec![get_authority_keys_from_seed("Alice")],
+		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		None,
+	)
+}
+
+fn cord_local_testnet_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
+	cord_development_genesis(
+		wasm_binary,
+		vec![get_authority_keys_from_seed("Alice"), get_authority_keys_from_seed("Bob")],
+		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		None,
+	)
+}
+
+pub fn cord_development_config() -> Result<ChainSpec, String> {
+	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
+	let properties = get_properties("WAYT", 12, 29);
+	Ok(ChainSpec::from_genesis(
+		"Development",
+		"cord_dev",
+		ChainType::Development,
+		move || cord_development_config_genesis(wasm_binary),
+		vec![],
+		None,
+		Some(DEFAULT_PROTOCOL_ID),
+		Some(properties),
+		Default::default(),
+	))
+}
+
+pub fn cord_local_testnet_config() -> Result<ChainSpec, String> {
+	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
+	let properties = get_properties("WAYT", 12, 29);
+	Ok(ChainSpec::from_genesis(
+		"Local Testnet",
+		"cord_local",
+		ChainType::Local,
+		move || cord_local_testnet_genesis(wasm_binary),
+		vec![],
+		None,
+		Some(DEFAULT_PROTOCOL_ID),
+		Some(properties),
+		Default::default(),
+	))
+}
+
+fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
 	let initial_authorities: Vec<(
 		AccountId,
 		AccountId,
-		GrandpaId,
 		BabeId,
+		GrandpaId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
 	)> = vec![
@@ -146,11 +188,11 @@ fn amber_glow_staging_genesis_config() -> GenesisConfig {
 			hex!["6ab68082628ad0cfab68b1a00377170ff0dea4da06030cdd0c21a364ecbbc23b"].into(),
 			//3yzE5N1DMjibaSesw1hAZ8wwvPJnxM3RzvQFanitVm4rkC8h
 			hex!["e41d2833b0b2f629e52a1bc1ace3079c395673bab26a14626b52c132b1fb5f1c"].into(),
-			//3xaQXFoMVNgQ2qMCXHazaEiQ4bzWfVX3TowLc1DHMB1sL4nx
-			hex!["a5b6331fcff809f2b3419332678fd7b23a2a9320240ec36652337fe66a7337e0"]
-				.unchecked_into(),
 			//3xuztVAW9ftgcU5FNc3dEXsEgrZW1AnbGWqWmeKKxpGnM4H2
 			hex!["b4a78c7de7cc60ed9a99029fcf487f40a3c4b5d5d78a7080387507a680ecb75e"]
+				.unchecked_into(),
+			//3xaQXFoMVNgQ2qMCXHazaEiQ4bzWfVX3TowLc1DHMB1sL4nx
+			hex!["a5b6331fcff809f2b3419332678fd7b23a2a9320240ec36652337fe66a7337e0"]
 				.unchecked_into(),
 			//3xE2yQSUQ9hfeX1kZjP1Dg5hoU2EdLc1B9zFjzEcc5fgax2W
 			hex!["962cc02d5dddbb2fc03bd8d511844ec47e798b3bc20d9daf7400b3d09533d518"]
@@ -164,11 +206,11 @@ fn amber_glow_staging_genesis_config() -> GenesisConfig {
 			hex!["6efebd6198dc606b9074d7b3cd205261f36e143701a393ee880d29ebab55e92d"].into(),
 			//3uPAkKYpvJwYFzasFfEoj6K4hwRiKGbbX4qDsuXmngRcRDE8
 			hex!["186f6e121c08e7d2951f086cec0d6cf90e5b964a321175914ab5cb938cb51006"].into(),
-			//3yPbpB1VCL1mna4UFXqhcnepQuXJmoJFgfgedZXqteucf1W3
-			hex!["c9b4beb11d90a463dbf7dfc9a20d00538333429e1f93874bf3937de98e49939f"]
-				.unchecked_into(),
 			//3yBxXXsizEhxj5sMbxZ6iJtVAo5iJp4faNKzvEyua2waD9bB
 			hex!["c0d386cbb0f71fd8c22fe5724b02bb747a92d5241cfcb7ee81f2611491a4ec2f"]
+				.unchecked_into(),
+			//3yPbpB1VCL1mna4UFXqhcnepQuXJmoJFgfgedZXqteucf1W3
+			hex!["c9b4beb11d90a463dbf7dfc9a20d00538333429e1f93874bf3937de98e49939f"]
 				.unchecked_into(),
 			//3uWjtNikmuwLVKkLD1opoR2U92YAoExgaxDoKfA5S9N8S7GY
 			hex!["1e35b40417a5631c4762974cfd37128985aa626366d659eb37b7d19eca5ce676"]
@@ -182,11 +224,11 @@ fn amber_glow_staging_genesis_config() -> GenesisConfig {
 			hex!["0218be44e37405b283cd8e2ddf9fb73ec9bde2efc1b6567f2df55fc311bd4502"].into(),
 			//3yDhdkwPaAp1fghGhPW5KwL6xKDCmvM7LGtvtiYvLHMrtBXp
 			hex!["c227e25885b199a75429484278681c276062e6b0639c75aba6d7eba622ae773d"].into(),
-			//3zJUM1FL1xjSVZhcJhhYEeiHLwrJucC5XAWZpyJQr9XyDmgR
-			hex!["f2079c41fe0f05f17138e205da91e90958212daf50605d99699baf081daae49d"]
-				.unchecked_into(),
 			//3yRFafgrJNPfx5FNEBaBiMkdDpQksQCQ6GiA5MwNQuxJxqjV
 			hex!["caf72037137297537c8e00dfe6259a640801d62c71a55d825d9994a26d743b7d"]
+				.unchecked_into(),
+			//3zJUM1FL1xjSVZhcJhhYEeiHLwrJucC5XAWZpyJQr9XyDmgR
+			hex!["f2079c41fe0f05f17138e205da91e90958212daf50605d99699baf081daae49d"]
 				.unchecked_into(),
 			//3x8xZQoUYS9LdQp6NX4SuvWEPq3zsUqibM51Gc6W4y4Z9mjX
 			hex!["924daa7728eab557869188f55b30fd8d4810cbd60ad3280c6562e0a8cad3943a"]
@@ -211,109 +253,18 @@ fn amber_glow_staging_genesis_config() -> GenesisConfig {
 	];
 	let root_key: AccountId = endowed_accounts[0].clone();
 	let num_endowed_accounts = endowed_accounts.len();
-
-	amber_glow_staging_genesis(
-		initial_authorities,
-		vec![],
-		root_key,
-		Some(endowed_accounts),
-		num_endowed_accounts,
-	)
-}
-
-/// Development config.
-pub fn amber_glow_development_config() -> ChainSpec {
-	let boot_nodes = vec![];
-	let properties = get_properties("WAYT", 12, 29);
-	ChainSpec::from_genesis(
-		"Amber Glow",
-		"DevNode",
-		ChainType::Local,
-		amber_glow_development_genesis_config,
-		boot_nodes,
-		None,
-		Some(DEFAULT_PROTOCOL_ID),
-		Some(properties),
-		Default::default(),
-	)
-}
-
-/// Staging testnet config.
-pub fn amber_glow_staging_config() -> ChainSpec {
-	let boot_nodes = vec![];
-	let properties = get_properties("WAYT", 12, 29);
-	ChainSpec::from_genesis(
-		"Amber Glow",
-		"Staging TestNet",
-		ChainType::Live,
-		amber_glow_staging_genesis_config,
-		boot_nodes,
-		None,
-		Some(DEFAULT_PROTOCOL_ID),
-		Some(properties),
-		Default::default(),
-	)
-}
-
-fn amber_glow_development_genesis(
-	initial_authorities: Vec<(
-		AccountId,
-		AccountId,
-		GrandpaId,
-		BabeId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-	)>,
-	initial_nominators: Vec<AccountId>,
-	root_key: AccountId,
-	endowed_accounts: Option<Vec<AccountId>>,
-	num_endowed_accounts: usize,
-) -> GenesisConfig {
-	let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
-		vec![
-			get_account_id_from_seed::<sr25519::Public>("Ashok"),
-			get_account_id_from_seed::<sr25519::Public>("Radha"),
-		]
-	});
-	// endow all authorities and nominators.
-	initial_authorities.iter().map(|x| &x.0).chain(initial_nominators.iter()).for_each(|x| {
-		if !endowed_accounts.contains(&x) {
-			endowed_accounts.push(x.clone())
-		}
-	});
-
-	// stakers: all validators and nominators.
-	let mut rng = rand::thread_rng();
-	let stakers = initial_authorities
-		.iter()
-		.map(|x| (x.0.clone(), x.1.clone(), CONTROLLER_ENDOWMENT, StakerStatus::Validator))
-		.chain(initial_nominators.iter().map(|x| {
-			use rand::{seq::SliceRandom, Rng};
-			let limit = (MAX_NOMINATIONS as usize).min(initial_authorities.len());
-			let count = rng.gen::<usize>() % limit;
-			let nominations = initial_authorities
-				.as_slice()
-				.choose_multiple(&mut rng, count)
-				.into_iter()
-				.map(|choice| choice.0.clone())
-				.collect::<Vec<_>>();
-			(x.clone(), x.clone(), CONTROLLER_ENDOWMENT, StakerStatus::Nominator(nominations))
-		}))
-		.collect::<Vec<_>>();
-
-	const CONTROLLER_ENDOWMENT: u128 = 1_100 * WAY;
-	const ENDOWMENT: u128 = 11_100 * WAY;
-	const CORD_STASH: u128 = 1_110_101_200 * WAY;
+	const STASH: u128 = 100 * WAY;
+	const ENDOWMENT: u128 = 1_110_101_200 * WAY;
 
 	GenesisConfig {
 		system: SystemConfig {
-			code: wasm_binary_unwrap().to_vec(),
+			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
 		},
-		balances: BalancesConfig {
-			balances: endowed_accounts.iter().cloned().map(|k| (k, CORD_STASH)).collect(),
-		},
 		indices: IndicesConfig { indices: vec![] },
+		balances: BalancesConfig {
+			balances: endowed_accounts.iter().cloned().map(|k| (k, ENDOWMENT)).collect(),
+		},
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
@@ -327,24 +278,37 @@ fn amber_glow_development_genesis(
 				.collect::<Vec<_>>(),
 		},
 		staking: StakingConfig {
-			minimum_validator_count: 1,
-			validator_count: initial_authorities.len() as u32,
+			validator_count: 23,
+			minimum_validator_count: 3,
+			stakers: initial_authorities
+				.iter()
+				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
+				.collect(),
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
+			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
-			stakers,
 			..Default::default()
 		},
-		democracy: DemocracyConfig::default(),
-		elections: ElectionsConfig {
+		phragmen_election: PhragmenElectionConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.map(|member| (member, ENDOWMENT))
+				.map(|member| (member, STASH))
 				.collect(),
 		},
-		council: CouncilConfig::default(),
+		democracy: DemocracyConfig::default(),
+		council: CouncilConfig { members: vec![], phantom: Default::default() },
 		technical_committee: TechnicalCommitteeConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		technical_membership: Default::default(),
+		dhi_council: DhiCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -354,77 +318,66 @@ fn amber_glow_development_genesis(
 		},
 		sudo: SudoConfig { key: root_key },
 		babe: BabeConfig {
-			authorities: vec![],
+			authorities: Default::default(),
 			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
-		im_online: ImOnlineConfig { keys: vec![] },
+		grandpa: Default::default(),
+		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
-		grandpa: GrandpaConfig { authorities: vec![] },
-		technical_membership: Default::default(),
 		treasury: Default::default(),
+		dhi: Default::default(),
 		vesting: Default::default(),
 	}
 }
 
-fn amber_glow_staging_genesis(
+/// Staging testnet config.
+pub fn cord_staging_config() -> Result<ChainSpec, String> {
+	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
+	let boot_nodes = vec![];
+	let properties = get_properties("WAY", 12, 29);
+
+	Ok(ChainSpec::from_genesis(
+		"Cord Staging Testnet",
+		"cord_staging_testnet",
+		ChainType::Live,
+		move || cord_staging_config_genesis(wasm_binary),
+		boot_nodes,
+		Some(
+			TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
+				.expect("Staging telemetry url is valid; qed"),
+		),
+		Some(DEFAULT_PROTOCOL_ID),
+		Some(properties),
+		Default::default(),
+	))
+}
+
+fn cord_development_genesis(
+	wasm_binary: &[u8],
 	initial_authorities: Vec<(
 		AccountId,
 		AccountId,
-		GrandpaId,
 		BabeId,
+		GrandpaId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
 	)>,
-	initial_nominators: Vec<AccountId>,
 	root_key: AccountId,
 	endowed_accounts: Option<Vec<AccountId>>,
-	num_endowed_accounts: usize,
 ) -> GenesisConfig {
-	let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
-		vec![
-			get_account_id_from_seed::<sr25519::Public>("Ashok"),
-			get_account_id_from_seed::<sr25519::Public>("Radha"),
-		]
-	});
-	// endow all authorities and nominators.
-	initial_authorities.iter().map(|x| &x.0).chain(initial_nominators.iter()).for_each(|x| {
-		if !endowed_accounts.contains(&x) {
-			endowed_accounts.push(x.clone())
-		}
-	});
-
-	// stakers: all validators and nominators.
-	let mut rng = rand::thread_rng();
-	let stakers = initial_authorities
-		.iter()
-		.map(|x| (x.0.clone(), x.1.clone(), CONTROLLER_ENDOWMENT, StakerStatus::Validator))
-		.chain(initial_nominators.iter().map(|x| {
-			use rand::{seq::SliceRandom, Rng};
-			let limit = (MAX_NOMINATIONS as usize).min(initial_authorities.len());
-			let count = rng.gen::<usize>() % limit;
-			let nominations = initial_authorities
-				.as_slice()
-				.choose_multiple(&mut rng, count)
-				.into_iter()
-				.map(|choice| choice.0.clone())
-				.collect::<Vec<_>>();
-			(x.clone(), x.clone(), CONTROLLER_ENDOWMENT, StakerStatus::Nominator(nominations))
-		}))
-		.collect::<Vec<_>>();
-
-	const CONTROLLER_ENDOWMENT: u128 = 1_100 * WAY;
-	const ENDOWMENT: u128 = 11_100 * WAY;
-	const CORD_STASH: u128 = 1_110_101_200 * WAY;
-
+	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
+	let num_endowed_accounts = endowed_accounts.len();
+	const ENDOWMENT: u128 = 10_000 * WAY;
+	const STASH: u128 = 100 * WAY;
 	GenesisConfig {
 		system: SystemConfig {
-			code: wasm_binary_unwrap().to_vec(),
+			code: wasm_binary.to_vec(),
 			changes_trie_config: Default::default(),
 		},
-		balances: BalancesConfig {
-			balances: endowed_accounts.iter().cloned().map(|k| (k, CORD_STASH)).collect(),
-		},
 		indices: IndicesConfig { indices: vec![] },
+		balances: BalancesConfig {
+			balances: endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect(),
+		},
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
@@ -440,22 +393,35 @@ fn amber_glow_staging_genesis(
 		staking: StakingConfig {
 			minimum_validator_count: 1,
 			validator_count: initial_authorities.len() as u32,
+			stakers: initial_authorities
+				.iter()
+				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
+				.collect(),
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
+			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
-			stakers,
 			..Default::default()
 		},
-		democracy: DemocracyConfig::default(),
-		elections: ElectionsConfig {
+		phragmen_election: PhragmenElectionConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.map(|member| (member, ENDOWMENT))
+				.map(|member| (member, STASH))
 				.collect(),
 		},
-		council: CouncilConfig::default(),
+		democracy: DemocracyConfig::default(),
+		council: CouncilConfig { members: vec![], phantom: Default::default() },
 		technical_committee: TechnicalCommitteeConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		technical_membership: Default::default(),
+		dhi_council: DhiCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -465,14 +431,14 @@ fn amber_glow_staging_genesis(
 		},
 		sudo: SudoConfig { key: root_key },
 		babe: BabeConfig {
-			authorities: vec![],
+			authorities: Default::default(),
 			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
-		im_online: ImOnlineConfig { keys: vec![] },
+		grandpa: Default::default(),
+		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
-		grandpa: GrandpaConfig { authorities: vec![] },
-		technical_membership: Default::default(),
 		treasury: Default::default(),
+		dhi: Default::default(),
 		vesting: Default::default(),
 	}
 }
