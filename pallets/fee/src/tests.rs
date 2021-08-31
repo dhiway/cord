@@ -5,7 +5,7 @@
 #![cfg(test)]
 
 use super::*;
-use crate as pallet_reserve;
+use crate as pallet_dw_fee;
 
 use frame_support::{assert_noop, assert_ok, ord_parameter_types, parameter_types};
 use std::cell::RefCell;
@@ -101,10 +101,7 @@ impl Config for Test {
 // This function basically just builds a genesis storage key/value store
 // according to our desired mockup.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	frame_system::GenesisConfig::default()
-		.build_storage::<Test>()
-		.unwrap()
-		.into()
+	frame_system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
 }
 
 #[test]

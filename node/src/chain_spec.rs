@@ -9,7 +9,7 @@ use cord_runtime::Block;
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig, DemocracyConfig,
-	IndicesConfig, PhragmenElectionConfig, ReserveCouncilConfig, SessionConfig, SessionKeys,
+	DhiCouncilConfig, IndicesConfig, PhragmenElectionConfig, SessionConfig, SessionKeys,
 	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 };
 use hex_literal::hex;
@@ -47,6 +47,10 @@ pub struct Extensions {
 	pub fork_blocks: sc_client_api::ForkBlocks<Block>,
 	/// Known bad block hashes.
 	pub bad_blocks: sc_client_api::BadBlocks<Block>,
+	/// The light sync state.
+	///
+	/// This value will be set by the `sync-state rpc` implementation.
+	pub light_sync_state: sc_sync_state_rpc::LightSyncStateExtension,
 }
 
 /// Specialized `ChainSpec`.
@@ -281,7 +285,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
 				.collect(),
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-			force_era: Forcing::NotForcing,
+			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		},
@@ -304,7 +308,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 			phantom: Default::default(),
 		},
 		technical_membership: Default::default(),
-		reserve_council: ReserveCouncilConfig {
+		dhi_council: DhiCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -321,7 +325,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
-		reserve: Default::default(),
+		dhi: Default::default(),
 		vesting: Default::default(),
 	}
 }
@@ -394,7 +398,7 @@ fn cord_development_genesis(
 				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
 				.collect(),
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-			force_era: Forcing::NotForcing,
+			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
 			..Default::default()
 		},
@@ -417,7 +421,7 @@ fn cord_development_genesis(
 			phantom: Default::default(),
 		},
 		technical_membership: Default::default(),
-		reserve_council: ReserveCouncilConfig {
+		dhi_council: DhiCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -434,7 +438,7 @@ fn cord_development_genesis(
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
-		reserve: Default::default(),
+		dhi: Default::default(),
 		vesting: Default::default(),
 	}
 }

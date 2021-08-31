@@ -3,8 +3,10 @@
 
 //! Command ran by the CLI
 
-use crate::cli::{InspectCmd, InspectSubCmd};
-use crate::Inspector;
+use crate::{
+	cli::{InspectCmd, InspectSubCmd},
+	Inspector,
+};
 use sc_cli::{CliConfiguration, ImportParams, Result, SharedParams};
 use sc_service::{new_full_client, Configuration, NativeExecutionDispatch};
 use sp_runtime::traits::Block;

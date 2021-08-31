@@ -1,6 +1,6 @@
 // Copyright 2019-2021 Dhiway.
 // This file is part of CORD Platform.
-// A module in charge of accounting reserves
+// A module in charge of accounting dhi-treasury
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // pub mod benchmarking;
@@ -36,15 +36,15 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config<I: 'static = ()>: frame_system::Config {
-		/// Origin that is allowed to manage the reserve balance and initiate
+		/// Origin that is allowed to manage the dhi-treasury balance and initiate
 		/// withdrawals
-		type ReserveOrigin: EnsureOrigin<Self::Origin>;
+		type DhiOrigin: EnsureOrigin<Self::Origin>;
 		/// PalletId must be an unique 8 character string.
 		/// It is used to generate the account ID which holds the balance of the
-		/// reserve.
+		/// dhi-treasury.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
-		/// The pallet to use as the base currency for this reserve
+		/// The pallet to use as the base currency for this dhi-treasury.
 		type Currency: Currency<Self::AccountId>;
 		type Event: From<Event<Self, I>> + IsType<<Self as frame_system::Config>::Event>;
 		/// The weight for this pallet's extrinsics.
@@ -74,7 +74,7 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config<I>, I: 'static> GenesisBuild<T, I> for GenesisConfig {
 		fn build(&self) {
-			// Create Reserve account
+			// Create the dhi-treasury account
 			let account_id = <Pallet<T, I>>::account_id();
 			let min = T::Currency::minimum_balance();
 			if T::Currency::free_balance(&account_id) < min {
@@ -90,13 +90,13 @@ pub mod pallet {
 		/// Admin successfully transferred some funds from the treasury to
 		/// another account parameters. \[recipient, amount\]
 		Transfer(T::AccountId, BalanceOf<T, I>),
-		/// Some funds have been deposited. \[deposit\]
+		/// Some funds have been deposited  (e.g. for transaction fees). \[deposit\]
 		Deposit(BalanceOf<T, I>),
 	}
 
 	#[pallet::error]
 	pub enum Error<T, I = ()> {
-		/// Reserve balance is too low.
+		/// dhi-treasury balance is too low.
 		InsufficientBalance,
 	}
 
@@ -111,7 +111,7 @@ pub mod pallet {
 			beneficiary: <T::Lookup as StaticLookup>::Source,
 			#[pallet::compact] amount: BalanceOf<T, I>,
 		) -> DispatchResult {
-			T::ReserveOrigin::ensure_origin(origin)?;
+			T::DhiOrigin::ensure_origin(origin)?;
 			let beneficiary = T::Lookup::lookup(beneficiary)?;
 			let balance = T::Currency::free_balance(&Self::account_id());
 			ensure!(balance >= amount, Error::<T, I>::InsufficientBalance);
@@ -128,7 +128,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Deposit WAY units to the reserve account
+		/// Deposit WAY units to the dhi-treasury account
 		#[pallet::weight(0)]
 		pub fn receive(origin: OriginFor<T>, amount: BalanceOf<T, I>) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
@@ -150,7 +150,7 @@ pub mod pallet {
 		fn account_id() -> T::AccountId {
 			T::PalletId::get().into_account()
 		}
-		/// Return the amount of money in the reserve.
+		/// Return the amount of money in the treasury.
 		pub fn balance() -> BalanceOf<T, I> {
 			T::Currency::free_balance(&Self::account_id())
 				// Must never be less than 0 but better be safe.

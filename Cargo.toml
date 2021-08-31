@@ -17,6 +17,6 @@ members = [
 	"pallets/journal",
 	"pallets/mark",
 	"pallets/link",
-	"pallets/reserve",
+	"pallets/fee",
 ]
 

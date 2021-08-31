@@ -1,7 +1,7 @@
 // Copyright 2019-2021 Dhiway.
 // This file is part of CORD Platform.
 
-//! Benchmarking of Reserve
+//! Benchmarking of Dhi-Treasury
 
 #![cfg(feature = "runtime-benchmarks")]
 
