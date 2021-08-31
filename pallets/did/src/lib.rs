@@ -87,8 +87,6 @@
 //!
 //! - The maximum number of new key agreement keys that can be specified in a
 //!   creation or update operation is bounded by `MaxNewKeyAgreementKeys`.
-//! - The maximum number of new keys that can be deleted in an update operation
-//!   is bounded by `MaxVerificationKeysToRevoke`.
 //! - The maximum number of endpoint URLs for a new DID service description is
 //!   bounded by `MaxEndpointUrlsCount`.
 //! - The maximum length in ASCII characters of any endpoint URL is bounded by
@@ -103,7 +101,7 @@
 pub mod default_weights;
 pub mod did_details;
 pub mod errors;
-// pub mod migrations;
+pub mod migrations;
 pub mod origin;
 pub mod url;
 
@@ -119,7 +117,7 @@ mod mock_utils;
 #[cfg(test)]
 mod tests;
 
-// mod deprecated;
+mod deprecated;
 
 pub use crate::{
 	default_weights::WeightInfo, did_details::*, errors::*, origin::*, pallet::*, url::*,
@@ -129,7 +127,7 @@ use codec::Encode;
 use frame_support::{
 	dispatch::{Dispatchable, GetDispatchInfo, PostDispatchInfo},
 	ensure,
-	// pallet_prelude::Weight,
+	pallet_prelude::Weight,
 	storage::types::StorageMap,
 	traits::Get,
 	Parameter,
@@ -137,6 +135,7 @@ use frame_support::{
 use frame_system::ensure_signed;
 #[cfg(feature = "runtime-benchmarks")]
 use frame_system::RawOrigin;
+use migrations::*;
 use sp_runtime::SaturatedConversion;
 use sp_std::{boxed::Box, fmt::Debug, prelude::Clone};
 
@@ -193,16 +192,14 @@ pub mod pallet {
 		/// Overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		/// Maximum number of total public keys which can be stored per DID key
+		//// Maximum number of total public keys which can be stored per DID key
 		/// identifier. This includes the ones currently used for
-		/// authentication, key agreement, attestation, and delegation. It also
-		/// contains old attestation keys which cannot issue new attestations
-		/// but can still be used to verify previously issued attestations.
+		/// authentication, key agreement, attestation, and delegation.
 		#[pallet::constant]
 		type MaxPublicKeysPerDid: Get<u32>;
 
 		/// Maximum number of key agreement keys that can be added in a creation
-		/// or update operation.
+		/// operation.
 		#[pallet::constant]
 		type MaxNewKeyAgreementKeys: Get<u32>;
 
@@ -212,10 +209,6 @@ pub mod pallet {
 		/// Should be greater than `MaxNewKeyAgreementKeys`.
 		#[pallet::constant]
 		type MaxTotalKeyAgreementKeys: Get<u32> + Debug + Clone + PartialEq;
-
-		/// Maximum number of keys that can be removed in an update operation.
-		#[pallet::constant]
-		type MaxVerificationKeysToRevoke: Get<u32>;
 
 		/// Maximum length in ASCII characters of the endpoint URL specified in
 		/// a creation or update operation.
@@ -236,19 +229,19 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		// #[cfg(feature = "try-runtime")]
-		// fn pre_upgrade() -> Result<(), &'static str> {
-		// 	migrations::DidStorageMigrator::<T>::pre_migrate()
-		// }
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<(), &'static str> {
+			migrations::DidStorageMigrator::<T>::pre_migrate()
+		}
 
-		// fn on_runtime_upgrade() -> Weight {
-		// 	migrations::DidStorageMigrator::<T>::migrate()
-		// }
+		fn on_runtime_upgrade() -> Weight {
+			migrations::DidStorageMigrator::<T>::migrate()
+		}
 
-		// #[cfg(feature = "try-runtime")]
-		// fn post_upgrade() -> Result<(), &'static str> {
-		// 	migrations::DidStorageMigrator::<T>::post_migrate()
-		// }
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade() -> Result<(), &'static str> {
+			migrations::DidStorageMigrator::<T>::post_migrate()
+		}
 	}
 
 	/// DIDs stored on chain.
@@ -259,9 +252,9 @@ pub mod pallet {
 	pub type Did<T> = StorageMap<_, Blake2_128Concat, DidIdentifierOf<T>, DidDetails<T>>;
 
 	/// Contains the latest storage version deployed.
-	// #[pallet::storage]
-	// #[pallet::getter(fn last_version_migration_used)]
-	// pub(crate) type StorageVersion<T> = StorageValue<_, DidStorageVersion, ValueQuery>;
+	#[pallet::storage]
+	#[pallet::getter(fn last_version_migration_used)]
+	pub(crate) type StorageVersion<T> = StorageValue<_, DidStorageVersion, ValueQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -292,6 +285,8 @@ pub mod pallet {
 		DidAlreadyPresent,
 		/// No DID with the given identifier is present on chain.
 		DidNotPresent,
+		/// The DID fragment is not present in the DID details.
+		DidFragmentNotPresent,
 		/// One or more verification keys referenced are not stored in the set
 		/// of verification keys.
 		VerificationKeyNotPresent,
@@ -320,14 +315,14 @@ pub mod pallet {
 		MaxUrlLengthExceeded,
 		/// More than the maximum number of URLs have been specified.
 		MaxUrlsCountExceeded,
-		/// An error that is not supposed to take place, yet it happened.
-		InternalError,
 		/// The maximum number of public keys for this DID key identifier has
 		/// been reached.
 		MaxPublicKeysPerDidExceeded,
 		/// The maximum number of key agreements has been reached for the DID
 		/// subject.
 		MaxTotalKeyAgreementKeysExceeded,
+		/// An error that is not supposed to take place, yet it happened.
+		InternalError,
 	}
 
 	impl<T> From<DidError> for Error<T> {
@@ -347,7 +342,7 @@ pub mod pallet {
 			match error {
 				StorageError::DidNotPresent => Self::DidNotPresent,
 				StorageError::DidAlreadyPresent => Self::DidAlreadyPresent,
-				StorageError::DidKeyNotPresent(_) | StorageError::VerificationKeyNotPresent => {
+				StorageError::DidKeyNotPresent(_) | StorageError::KeyNotPresent => {
 					Self::VerificationKeyNotPresent
 				}
 				StorageError::MaxTxCounterValue => Self::MaxTxCounterValue,
@@ -477,109 +472,182 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Update an existing DID on chain.
-		///
-		/// The referenced DID identifier must be present on chain before the
-		/// update operation is evaluated.
-		///
-		/// Any new key specified is added to the set of public keys, and a
-		/// reference to it is updated in the relative field, i.e.,
-		/// authentication, key agreement, attestation or delegation.
-		/// As there can always be at most one active authentication,
-		/// attestation, or delegation key at any given time, the old version of
-		/// those keys, if updated, is replaced with the new one and also
-		/// removed from the set of public keys. The only exception is
-		/// represented by *key agreement keys* and *attestation keys*. For the
-		/// former, new keys added via update operations are always added to the
-		/// set of public keys, and their removal happens by including the ID of
-		/// the keys to remove in the `public_keys_to_remove` set in subsequent
-		/// update operations. In the latter case, the old key is replaced from
-		/// the `attestation_key` field by the new one but it is not removed
-		/// from the set of public keys. This means that the key can still be
-		/// retrieved (and used) by other parties to validate the signature of
-		/// attestations issued with that key, but the issuance of new
-		/// attestations using the now disabled key will fail. A
-		/// disabled attestation key can also be completely deleted (rendering
-		/// all the attestations invalid) by including its ID in the set of
-		/// `public_keys_to_remove` in a subsequent update operation.
-		///
-		/// For both key agreement and attestation keys, it is not possible to
-		/// add (in the former case) or disable (in the latter) a key
-		/// and also delete it within the same update operation. To do
-		/// so, first an update operation adding/disabling the
-		/// key must be submitted. Then, a second update operation must be
-		/// submitted which references the key in the set of
-		/// `public_keys_to_remove`, removing it completely from the chain.
-		///
-		/// All keys that are written as the result of the update operation also
-		/// contain information about the block number when the operation is
-		/// evaluated and executed.
-		///
-		/// The dispatch origin must be a DID origin proxied via the
-		/// `submit_did_call` extrinsic.
-		///
-		/// Emits `DidUpdated`.
-		///
-		/// # <weight>
-		/// - The transaction's complexity is mainly dependent on the number of
-		///   new key agreement keys and public keys to remove included in the
-		///   operation as well as the length of the longest URL endpoint and
-		///   the number of new URL endpoints, if present.
-		/// ---------
-		/// Weight: O(K) + O(D) + O(N * E) where K is the number of new key
-		/// agreement keys bounded by `MaxNewKeyAgreementKeys`, D is the number
-		/// of public keys to remove bounded by `MaxVerificationKeysToRevoke`,
-		/// E the length of the longest endpoint
-		/// URL bounded by `MaxUrlLength`, and N the maximum amount of endpoint
-		/// URLs, bounded by `MaxEndpointUrlsCount`.
-		/// - Reads: [Origin Account], Did
-		/// - Writes: Did (with K new key agreement keys, removing D public
-		///   keys, and replacing N service endpoint URLs)
-		/// # </weight>
-		#[pallet::weight({
-			let new_key_agreement_keys = details.new_key_agreement_keys.len().saturated_into::<u32>();
-			let keys_to_delete = details.public_keys_to_remove.len().saturated_into::<u32>();
-			let new_urls = if let DidFragmentUpdateAction::Change(ref new_service_endpoints) = details.service_endpoints_update {
-				new_service_endpoints.urls.clone()
-			} else {
-				BoundedVec::default()
-			};
-			// Again, max 3, so we can iterate quite easily.
-			let max_url_length = new_urls.iter().map(|url| url.len().saturated_into()).max().unwrap_or(0u32);
-
-			let ed25519_weight = <T as pallet::Config>::WeightInfo::update_ed25519_keys(
-				new_key_agreement_keys,
-				keys_to_delete,
-				new_urls.len().saturated_into(),
-				max_url_length
-			);
-			let sr25519_weight = <T as pallet::Config>::WeightInfo::update_sr25519_keys(
-				new_key_agreement_keys,
-				keys_to_delete,
-				new_urls.len().saturated_into(),
-				max_url_length
-			);
-			let ecdsa_weight = <T as pallet::Config>::WeightInfo::update_ecdsa_keys(
-				new_key_agreement_keys,
-				keys_to_delete,
-				new_urls.len().saturated_into(),
-				max_url_length
-			);
-
-			ed25519_weight.max(sr25519_weight).max(ecdsa_weight)
-		})]
-		pub fn update(origin: OriginFor<T>, details: DidUpdateDetails<T>) -> DispatchResult {
+		#[pallet::weight(10)]
+		pub fn set_authentication_key(
+			origin: OriginFor<T>,
+			new_key: DidVerificationKey,
+		) -> DispatchResult {
 			let did_subject = T::EnsureOrigin::ensure_origin(origin)?;
-
 			let mut did_details = <Did<T>>::get(&did_subject).ok_or(<Error<T>>::DidNotPresent)?;
 
-			did_details.apply_update_details(details).map_err(<Error<T>>::from)?;
+			log::debug!("Setting new authentication key {:?} for DID {:?}", &new_key, &did_subject);
 
-			log::debug!("Updating DID {:?}", did_subject);
+			did_details
+				.update_authentication_key(new_key, <frame_system::Pallet<T>>::block_number())
+				.map_err(<Error<T>>::from)?;
+
 			<Did<T>>::insert(&did_subject, did_details);
+			log::debug!("Authentication key set");
 
 			Self::deposit_event(Event::DidUpdated(did_subject));
+			Ok(())
+		}
 
+		//TODO: Add comment and weights after benchmarks
+		#[pallet::weight(10)]
+		pub fn set_delegation_key(
+			origin: OriginFor<T>,
+			new_key: DidVerificationKey,
+		) -> DispatchResult {
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?;
+			let mut did_details = <Did<T>>::get(&did_subject).ok_or(<Error<T>>::DidNotPresent)?;
+
+			log::debug!("Setting new delegation key {:?} for DID {:?}", &new_key, &did_subject);
+			did_details
+				.update_delegation_key(new_key, <frame_system::Pallet<T>>::block_number())
+				.map_err(<Error<T>>::from)?;
+
+			<Did<T>>::insert(&did_subject, did_details);
+			log::debug!("Delegation key set");
+
+			Self::deposit_event(Event::DidUpdated(did_subject));
+			Ok(())
+		}
+
+		//TODO: Add comment and weights after benchmarks
+		#[pallet::weight(10)]
+		pub fn remove_delegation_key(origin: OriginFor<T>) -> DispatchResult {
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?;
+			let mut did_details = <Did<T>>::get(&did_subject).ok_or(<Error<T>>::DidNotPresent)?;
+
+			log::debug!("Removing delegation key for DID {:?}", &did_subject);
+			did_details.remove_delegation_key().map_err(<Error<T>>::from)?;
+
+			<Did<T>>::insert(&did_subject, did_details);
+			log::debug!("Delegation key removed");
+
+			Self::deposit_event(Event::DidUpdated(did_subject));
+			Ok(())
+		}
+
+		//TODO: Add comment and weights after benchmarks
+		#[pallet::weight(10)]
+		pub fn set_attestation_key(
+			origin: OriginFor<T>,
+			new_key: DidVerificationKey,
+		) -> DispatchResult {
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?;
+			let mut did_details = <Did<T>>::get(&did_subject).ok_or(<Error<T>>::DidNotPresent)?;
+
+			log::debug!("Setting new attestation key {:?} for DID {:?}", &new_key, &did_subject);
+			did_details
+				.update_attestation_key(new_key, <frame_system::Pallet<T>>::block_number())
+				.map_err(<Error<T>>::from)?;
+
+			<Did<T>>::insert(&did_subject, did_details);
+			log::debug!("Attestation key set");
+
+			Self::deposit_event(Event::DidUpdated(did_subject));
+			Ok(())
+		}
+
+		//TODO: Add comment and weights after benchmarks
+		#[pallet::weight(10)]
+		pub fn remove_attestation_key(origin: OriginFor<T>) -> DispatchResult {
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?;
+			let mut did_details = <Did<T>>::get(&did_subject).ok_or(<Error<T>>::DidNotPresent)?;
+
+			log::debug!("Removing attestation key for DID {:?}", &did_subject);
+			did_details.remove_attestation_key().map_err(<Error<T>>::from)?;
+
+			<Did<T>>::insert(&did_subject, did_details);
+			log::debug!("Attestation key removed");
+
+			Self::deposit_event(Event::DidUpdated(did_subject));
+			Ok(())
+		}
+
+		//TODO: Add comment and weights after benchmarks
+		#[pallet::weight(10)]
+		pub fn add_key_agreement_key(
+			origin: OriginFor<T>,
+			new_key: DidEncryptionKey,
+		) -> DispatchResult {
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?;
+			let mut did_details = <Did<T>>::get(&did_subject).ok_or(<Error<T>>::DidNotPresent)?;
+
+			log::debug!("Adding new key agreement key {:?} for DID {:?}", &new_key, &did_subject);
+			did_details
+				.add_key_agreement_key(new_key, <frame_system::Pallet<T>>::block_number())
+				.map_err(<Error<T>>::from)?;
+
+			<Did<T>>::insert(&did_subject, did_details);
+			log::debug!("Key agreement key set");
+
+			Self::deposit_event(Event::DidUpdated(did_subject));
+			Ok(())
+		}
+
+		//TODO: Add comment and weights after benchmarks
+		#[pallet::weight(10)]
+		pub fn remove_key_agreement_key(
+			origin: OriginFor<T>,
+			key_id: KeyIdOf<T>,
+		) -> DispatchResult {
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?;
+			let mut did_details = <Did<T>>::get(&did_subject).ok_or(<Error<T>>::DidNotPresent)?;
+
+			log::debug!("Removing key agreement key for DID {:?}", &did_subject);
+			did_details.remove_key_agreement_key(key_id).map_err(<Error<T>>::from)?;
+
+			<Did<T>>::insert(&did_subject, did_details);
+			log::debug!("Key agreement key removed");
+
+			Self::deposit_event(Event::DidUpdated(did_subject));
+			Ok(())
+		}
+
+		//TODO: Add comment and weights after benchmarks
+		#[pallet::weight(10)]
+		pub fn set_service_endpoints(
+			origin: OriginFor<T>,
+			service_endpoints: ServiceEndpoints<T>,
+		) -> DispatchResult {
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?;
+			let mut did_details = <Did<T>>::get(&did_subject).ok_or(<Error<T>>::DidNotPresent)?;
+
+			log::debug!(
+				"Adding new service endpoints {:?} for DID {:?}",
+				&service_endpoints,
+				&did_subject
+			);
+			service_endpoints.validate_against_config_limits().map_err(<Error<T>>::from)?;
+
+			did_details.service_endpoints = Some(service_endpoints);
+
+			<Did<T>>::insert(&did_subject, did_details);
+			log::debug!("Service endpoints set");
+
+			Self::deposit_event(Event::DidUpdated(did_subject));
+			Ok(())
+		}
+
+		//TODO: Add comment and weights after benchmarks
+		#[pallet::weight(10)]
+		pub fn remove_service_endpoints(origin: OriginFor<T>) -> DispatchResult {
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?;
+			let mut did_details = <Did<T>>::get(&did_subject).ok_or(<Error<T>>::DidNotPresent)?;
+
+			log::debug!("Removing service endpoints for DID {:?}", &did_subject);
+			ensure!(
+				did_details.service_endpoints.take().is_some(),
+				<Error<T>>::DidFragmentNotPresent
+			);
+
+			<Did<T>>::insert(&did_subject, did_details);
+			log::debug!("Service endpoints removed");
+
+			Self::deposit_event(Event::DidUpdated(did_subject));
 			Ok(())
 		}
 
@@ -614,7 +682,7 @@ pub mod pallet {
 				<Error<T>>::DidNotPresent
 			);
 
-			log::debug!("Deleted DID {:?}", did_subject);
+			log::debug!("Deleting DID {:?}", did_subject);
 
 			Self::deposit_event(Event::DidDeleted(did_subject));
 
@@ -657,13 +725,13 @@ pub mod pallet {
 		/// # </weight>
 		#[allow(clippy::boxed_local)]
 		#[pallet::weight({
-    		let di = did_call.call.get_dispatch_info();
-    		let max_sig_weight = <T as pallet::Config>::WeightInfo::submit_did_call_ed25519_key()
-    		.max(<T as pallet::Config>::WeightInfo::submit_did_call_sr25519_key())
-    		.max(<T as pallet::Config>::WeightInfo::submit_did_call_ecdsa_key());
+			let di = did_call.call.get_dispatch_info();
+			let max_sig_weight = <T as pallet::Config>::WeightInfo::submit_did_call_ed25519_key()
+			.max(<T as pallet::Config>::WeightInfo::submit_did_call_sr25519_key())
+			.max(<T as pallet::Config>::WeightInfo::submit_did_call_ecdsa_key());
 
-    		(max_sig_weight.saturating_add(di.weight), di.class)
-  		})]
+			(max_sig_weight.saturating_add(di.weight), di.class)
+		})]
 		pub fn submit_did_call(
 			origin: OriginFor<T>,
 			did_call: Box<DidAuthorizedCallOperation<T>>,
@@ -755,8 +823,10 @@ impl<T: Config> Pallet<T> {
 		);
 
 		// Verify that the operation counter is equal to the stored one + 1
-		let expected_nonce_value =
-			did_details.get_tx_counter_value().checked_add(1).ok_or(DidError::InternalError)?;
+		let expected_nonce_value = did_details
+			.get_tx_counter_value()
+			.checked_add(1)
+			.ok_or(DidError::InternalError)?;
 		ensure!(
 			counter == expected_nonce_value,
 			DidError::SignatureError(SignatureError::InvalidNonce)
@@ -780,6 +850,8 @@ impl<T: Config> Pallet<T> {
 
 		// Verify that the signature matches the expected format, otherwise generate
 		// an error
-		verification_key.verify_signature(payload, signature).map_err(DidError::SignatureError)
+		verification_key
+			.verify_signature(payload, signature)
+			.map_err(DidError::SignatureError)
 	}
 }

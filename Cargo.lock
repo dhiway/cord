@@ -1008,6 +1008,7 @@ dependencies = [
 name = "cord-primitives"
 version = "0.5.3"
 dependencies = [
+ "frame-support",
  "frame-system",
  "parity-scale-codec",
  "serde",
@@ -4298,7 +4299,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-did"
-version = "0.24.0"
+version = "0.25.0"
 dependencies = [
  "cord-primitives",
  "env_logger 0.8.4",

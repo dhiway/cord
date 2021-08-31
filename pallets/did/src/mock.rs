@@ -78,7 +78,7 @@ impl frame_system::Config for Test {
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
-	type BaseCallFilter = ();
+	type BaseCallFilter = frame_support::traits::Everything;
 	type SystemWeightInfo = ();
 	type BlockWeights = ();
 	type BlockLength = ();
@@ -88,13 +88,12 @@ impl frame_system::Config for Test {
 
 parameter_types! {
 	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
-	pub const MaxVerificationKeysToRevoke: u32 = 10u32;
 	#[derive(Debug, Clone, PartialEq)]
 	pub const MaxUrlLength: u32 = 200u32;
-	#[derive(Debug, Clone)]
-	pub const MaxPublicKeysPerDid: u32 = 1000;
 	#[derive(Debug, Clone, PartialEq)]
-	pub const MaxTotalKeyAgreementKeys: u32 = 1000;
+	pub const MaxTotalKeyAgreementKeys: u32 = 10u32;
+	#[derive(Debug, Clone)]
+	pub const MaxPublicKeysPerDid: u32 = 10u32;
 	#[derive(Debug, Clone, PartialEq)]
 	pub const MaxEndpointUrlsCount: u32 = 3u32;
 }
@@ -108,7 +107,6 @@ impl Config for Test {
 	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
 	type MaxTotalKeyAgreementKeys = MaxTotalKeyAgreementKeys;
 	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
-	type MaxVerificationKeysToRevoke = MaxVerificationKeysToRevoke;
 	type MaxUrlLength = MaxUrlLength;
 	type MaxEndpointUrlsCount = MaxEndpointUrlsCount;
 	type WeightInfo = ();
@@ -130,8 +128,8 @@ pub(crate) const DEFAULT_ACCOUNT: cord_primitives::AccountId =
 
 const DEFAULT_AUTH_SEED: [u8; 32] = [4u8; 32];
 const ALTERNATIVE_AUTH_SEED: [u8; 32] = [40u8; 32];
-const DEFAULT_ENC_SEED: [u8; 32] = [5u8; 32];
-const ALTERNATIVE_ENC_SEED: [u8; 32] = [50u8; 32];
+const DEFAULT_ENC_SEED: [u8; 32] = [254u8; 32];
+const ALTERNATIVE_ENC_SEED: [u8; 32] = [255u8; 32];
 const DEFAULT_ATT_SEED: [u8; 32] = [6u8; 32];
 const ALTERNATIVE_ATT_SEED: [u8; 32] = [60u8; 32];
 const DEFAULT_DEL_SEED: [u8; 32] = [7u8; 32];

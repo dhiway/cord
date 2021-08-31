@@ -61,9 +61,8 @@ pub enum StorageError {
 	/// The given DID does not contain the right key to verify the signature
 	/// of a DID operation.
 	DidKeyNotPresent(DidVerificationKeyRelationship),
-	/// At least one verification key referenced is not stored in the set
-	/// of verification keys.
-	VerificationKeyNotPresent,
+	/// At least one key referenced is not stored under the given DID.
+	KeyNotPresent,
 	/// The user tries to delete a verification key that is currently being
 	/// used to authorize operations, and this is not allowed.
 	CurrentlyActiveKey,

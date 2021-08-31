@@ -23,8 +23,8 @@ use frame_support::{
 	BoundedVec,
 };
 use sp_core::{ecdsa, ed25519, sr25519};
-use sp_runtime::traits::Verify;
-use sp_std::{collections::btree_set::BTreeSet, convert::TryInto, fmt};
+use sp_runtime::{traits::Verify, MultiSignature};
+use sp_std::{convert::TryInto, fmt};
 
 use crate::*;
 
@@ -154,6 +154,16 @@ impl From<ecdsa::Signature> for DidSignature {
 	}
 }
 
+impl From<MultiSignature> for DidSignature {
+	fn from(sig: MultiSignature) -> Self {
+		match sig {
+			MultiSignature::Ed25519(sig) => Self::Ed25519(sig),
+			MultiSignature::Sr25519(sig) => Self::Sr25519(sig),
+			MultiSignature::Ecdsa(sig) => Self::Ecdsa(sig),
+		}
+	}
+}
+
 pub trait DidVerifiableIdentifier {
 	/// Allows a verifiable identifier to verify a signature it produces and
 	/// return the public key
@@ -165,8 +175,6 @@ pub trait DidVerifiableIdentifier {
 	) -> Result<DidVerificationKey, SignatureError>;
 }
 
-// TODO: did not manage to implement this trait in the cord_primitives crate due
-// to some circular dependency problems.
 impl DidVerifiableIdentifier for cord_primitives::DidIdentifier {
 	fn verify_and_recover_signature(
 		&self,
@@ -217,7 +225,7 @@ impl DidVerifiableIdentifier for cord_primitives::DidIdentifier {
 ///
 /// It is currently used to keep track of all the past and current
 /// attestation keys a DID might control.
-#[derive(Clone, Debug, Decode, Encode, PartialEq)]
+#[derive(Clone, Debug, Decode, Encode, PartialEq, Ord, PartialOrd, Eq)]
 pub struct DidPublicKeyDetails<T: Config> {
 	/// A public key the DID controls.
 	pub key: DidPublicKey,
@@ -233,7 +241,7 @@ pub struct DidDetails<T: Config> {
 	pub(crate) authentication_key: KeyIdOf<T>,
 	/// The set of the key agreement key IDs, which can be used to encrypt
 	/// data addressed to the DID subject.
-	pub(crate) key_agreement_keys: DidKeyAgreementKeys<T>,
+	pub(crate) key_agreement_keys: DidKeyAgreementKeySet<T>,
 	/// \[OPTIONAL\] The ID of the delegation key, used to verify the
 	/// signatures of the delegations created by the DID subject.
 	pub(crate) delegation_key: Option<KeyIdOf<T>>,
@@ -279,7 +287,7 @@ impl<T: Config> DidDetails<T> {
 			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
 		Ok(Self {
 			authentication_key: authentication_key_id,
-			key_agreement_keys: DidKeyAgreementKeys::<T>::default(),
+			key_agreement_keys: DidKeyAgreementKeySet::<T>::default(),
 			attestation_key: None,
 			delegation_key: None,
 			service_endpoints: None,
@@ -324,88 +332,11 @@ impl<T: Config> DidDetails<T> {
 
 		Ok(new_did_details)
 	}
-
-	// Updates a DID entry by applying the changes in the [DidUpdateDetails].
-	//
-	// The operation fails with a [DidError] if the update details instructs to
-	// delete a verification key that is not associated with the DID.
-	pub fn apply_update_details(
-		&mut self,
-		update_details: DidUpdateDetails<T>,
-	) -> Result<(), DidError> {
-		ensure!(
-			update_details.new_key_agreement_keys.len()
-				<= <<T as Config>::MaxNewKeyAgreementKeys>::get().saturated_into::<usize>(),
-			InputError::MaxKeyAgreementKeysLimitExceeded
-		);
-
-		ensure!(
-			update_details.public_keys_to_remove.len()
-				<= <<T as Config>::MaxVerificationKeysToRevoke>::get().saturated_into::<usize>(),
-			InputError::MaxVerificationKeysToRemoveLimitExceeded
-		);
-
-		if let DidFragmentUpdateAction::Change(ref service_endpoints) =
-			update_details.service_endpoints_update
-		{
-			service_endpoints.validate_against_config_limits().map_err(DidError::InputError)?;
-		}
-
-		let current_block_number = <frame_system::Pallet<T>>::block_number();
-
-		// Remove specified public keys.
-		self.remove_public_keys(&update_details.public_keys_to_remove)
-			.map_err(DidError::StorageError)?;
-
-		// Update the authentication key, if needed.
-		if let Some(new_authentication_key) = update_details.new_authentication_key {
-			self.update_authentication_key(new_authentication_key, current_block_number)?;
-		}
-
-		// Add any new key agreement keys.
-		self.add_key_agreement_keys(update_details.new_key_agreement_keys, current_block_number)?;
-
-		// Update/remove the attestation key, if needed.
-		match update_details.attestation_key_update {
-			DidFragmentUpdateAction::Delete => {
-				self.delete_attestation_key();
-			}
-			DidFragmentUpdateAction::Change(new_attestation_key) => {
-				self.update_attestation_key(new_attestation_key, current_block_number)?;
-			}
-			// Nothing happens.
-			DidFragmentUpdateAction::Ignore => {}
-		}
-
-		// Update/remove the delegation key, if needed.
-		match update_details.delegation_key_update {
-			DidFragmentUpdateAction::Delete => {
-				self.delete_delegation_key();
-			}
-			DidFragmentUpdateAction::Change(new_delegation_key) => {
-				self.update_delegation_key(new_delegation_key, current_block_number)?;
-			}
-			// Nothing happens.
-			DidFragmentUpdateAction::Ignore => {}
-		}
-
-		// Update/remove the service endpoints, if needed.
-		match update_details.service_endpoints_update {
-			DidFragmentUpdateAction::Delete => self.service_endpoints = None,
-			DidFragmentUpdateAction::Change(new_service_endpoints) => {
-				self.service_endpoints = Some(new_service_endpoints)
-			}
-			DidFragmentUpdateAction::Ignore => {}
-		}
-
-		Ok(())
-	}
-
 	/// Update the DID authentication key.
 	///
-	/// The old key is deleted from the set of verification keys if it is
+	/// The old key is deleted from the set of public keys if it is
 	/// not used in any other part of the DID. The new key is added to the
-	/// set of verification keys.
+	/// set of public keys.
 	pub fn update_authentication_key(
 		&mut self,
 		new_authentication_key: DidVerificationKey,
@@ -416,7 +347,7 @@ impl<T: Config> DidDetails<T> {
 			utils::calculate_key_id::<T>(&new_authentication_key.clone().into());
 		self.authentication_key = new_authentication_key_id;
 		// Remove old key ID from public keys, if not used anymore.
-		self.remove_key_if_unused(&old_authentication_key_id);
+		self.remove_key_if_unused(old_authentication_key_id);
 		// Add new key ID to public keys. If a key with the same ID is already present,
 		// the result is simply that the block number is updated.
 		self.public_keys
@@ -430,32 +361,52 @@ impl<T: Config> DidDetails<T> {
 
 	/// Add new key agreement keys to the DID.
 	///
-	/// The new keys are added to the set of verification keys.
+	/// The new keys are added to the set of public keys.
 	pub fn add_key_agreement_keys(
 		&mut self,
-		new_key_agreement_keys: DidNewKeyAgreementKeys<T>,
+		new_key_agreement_keys: DidNewKeyAgreementKeySet<T>,
 		block_number: BlockNumberOf<T>,
 	) -> Result<(), StorageError> {
 		for new_key_agreement_key in new_key_agreement_keys {
-			let new_key_agreement_id = utils::calculate_key_id::<T>(&new_key_agreement_key.into());
-			self.public_keys
-				.try_insert(
-					new_key_agreement_id,
-					DidPublicKeyDetails { key: new_key_agreement_key.into(), block_number },
-				)
-				.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
-			self.key_agreement_keys
-				.try_insert(new_key_agreement_id)
-				.map_err(|_| StorageError::MaxTotalKeyAgreementKeysExceeded)?;
+			self.add_key_agreement_key(new_key_agreement_key, block_number)?;
 		}
 		Ok(())
 	}
 
-	/// Update the DID attestation key.
+	/// Add a single new key agreement key to the DID.
 	///
-	/// The old key is not removed from the set of verification keys, hence
-	/// it can still be used to verify past attestations.
-	/// The new key is added to the set of verification keys.
+	/// The new key is added to the set of public keys.
+	pub fn add_key_agreement_key(
+		&mut self,
+		new_key_agreement_key: DidEncryptionKey,
+		block_number: BlockNumberOf<T>,
+	) -> Result<(), StorageError> {
+		let new_key_agreement_id = utils::calculate_key_id::<T>(&new_key_agreement_key.into());
+		self.public_keys
+			.try_insert(
+				new_key_agreement_id,
+				DidPublicKeyDetails { key: new_key_agreement_key.into(), block_number },
+			)
+			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
+		self.key_agreement_keys
+			.try_insert(new_key_agreement_id)
+			.map_err(|_| StorageError::MaxTotalKeyAgreementKeysExceeded)?;
+		Ok(())
+	}
+
+	/// Remove a key agreement key from both the set of key agreement keys and
+	/// the one of public keys.
+	pub fn remove_key_agreement_key(&mut self, key_id: KeyIdOf<T>) -> Result<(), StorageError> {
+		ensure!(self.key_agreement_keys.remove(&key_id), StorageError::KeyNotPresent);
+		self.remove_key_if_unused(key_id);
+		Ok(())
+	}
+
+	//// Update the DID attestation key, replacing the old one with the new one.
+	///
+	/// The old key is deleted from the set of public keys if it is
+	/// not used in any other part of the DID. The new key is added to the
+	/// set of public keys.
 	pub fn update_attestation_key(
 		&mut self,
 		new_attestation_key: DidVerificationKey,
@@ -463,6 +414,9 @@ impl<T: Config> DidDetails<T> {
 	) -> Result<(), StorageError> {
 		let new_attestation_key_id =
 			utils::calculate_key_id::<T>(&new_attestation_key.clone().into());
+		if let Some(old_attestation_key_id) = self.attestation_key.take() {
+			self.remove_key_if_unused(old_attestation_key_id);
+		}
 		self.attestation_key = Some(new_attestation_key_id);
 		self.public_keys
 			.try_insert(
@@ -482,23 +436,33 @@ impl<T: Config> DidDetails<T> {
 		self.attestation_key = None;
 	}
 
-	/// Update the DID delegation key.
+	/// Remove the DID attestation key.
 	///
-	/// The old key is deleted from the set of verification keys if it is
+	/// The old key is deleted from the set of public keys if it is
 	/// not used in any other part of the DID. The new key is added to the
-	/// set of verification keys.
+	/// set of public keys.
+	pub fn remove_attestation_key(&mut self) -> Result<(), StorageError> {
+		let old_key_id = self.attestation_key.take().ok_or(StorageError::KeyNotPresent)?;
+		self.remove_key_if_unused(old_key_id);
+		Ok(())
+	}
+
+	/// Update the DID delegation key, replacing the old one with the new one.
+	///
+	/// The old key is deleted from the set of public keys if it is
+	/// not used in any other part of the DID. The new key is added to the
+	/// set of public keys.
 	pub fn update_delegation_key(
 		&mut self,
 		new_delegation_key: DidVerificationKey,
 		block_number: BlockNumberOf<T>,
 	) -> Result<(), StorageError> {
-		let old_delegation_key_id = self.delegation_key;
 		let new_delegation_key_id =
 			utils::calculate_key_id::<T>(&new_delegation_key.clone().into());
-		self.delegation_key = Some(new_delegation_key_id);
-		if let Some(old_delegation_key) = old_delegation_key_id {
-			self.remove_key_if_unused(&old_delegation_key);
+		if let Some(old_delegation_key_id) = self.delegation_key.take() {
+			self.remove_key_if_unused(old_delegation_key_id);
 		}
+		self.delegation_key = Some(new_delegation_key_id);
 		self.public_keys
 			.try_insert(
 				new_delegation_key_id,
@@ -508,89 +472,27 @@ impl<T: Config> DidDetails<T> {
 		Ok(())
 	}
 
-	/// Delete the DID delegation key.
+	/// Remove the DID delegation key.
 	///
-	/// Once deleted, it cannot be used to write new delegations anymore.
-	/// The key is also removed from the set of verification keys if it not
-	/// used anywhere else in the DID.
-	pub fn delete_delegation_key(&mut self) {
-		if let Some(old_delegation_key_id) = self.delegation_key {
-			self.delegation_key = None;
-			self.remove_key_if_unused(&old_delegation_key_id);
-		}
-	}
-
-	/// Deletes a public key from the set of public keys stored on chain.
-	/// Additionally, if the public key to remove is among the key agreement
-	/// keys, it also eliminates it from there.
-	///
-	/// When deleting a public key, the following conditions are verified:
-	/// - 1. the set of keys to delete does not contain any of the currently
-	///   active verification keys, i.e., authentication, attestation, and
-	///   delegation key, i.e., only key agreement keys and past attestation
-	///   keys can be deleted.
-	/// - 2. the set of keys to delete contains key IDs that are not currently
-	///   stored on chain
-	fn remove_public_keys(&mut self, key_ids: &BTreeSet<KeyIdOf<T>>) -> Result<(), StorageError> {
-		// Consider the currently active authentication, attestation, and delegation key
-		// as forbidden to delete. They can be deleted with the right operation for the
-		// respective fields in the DidUpdateOperation.
-		let mut forbidden_verification_key_ids = BTreeSet::new();
-		forbidden_verification_key_ids.insert(self.authentication_key);
-		if let Some(attestation_key_id) = self.attestation_key {
-			forbidden_verification_key_ids.insert(attestation_key_id);
-		}
-		if let Some(delegation_key_id) = self.delegation_key {
-			forbidden_verification_key_ids.insert(delegation_key_id);
-		}
-
-		for key_id in key_ids.iter() {
-			// Check for condition 1.
-			ensure!(
-				!forbidden_verification_key_ids.contains(key_id),
-				StorageError::CurrentlyActiveKey
-			);
-			// Check for condition 2.
-			self.public_keys.remove(key_id).ok_or(StorageError::VerificationKeyNotPresent)?;
-			// Also remove from the set of key agreement keys, if present.
-			self.key_agreement_keys.remove(key_id);
-		}
-
+	/// The old key is deleted from the set of public keys if it is
+	/// not used in any other part of the DID. The new key is added to the
+	/// set of public keys.
+	pub fn remove_delegation_key(&mut self) -> Result<(), StorageError> {
+		let old_key_id = self.delegation_key.take().ok_or(StorageError::KeyNotPresent)?;
+		self.remove_key_if_unused(old_key_id);
 		Ok(())
 	}
 
 	// Remove a key from the map of public keys if none of the other keys, i.e.,
 	// authentication, key agreement, attestation, or delegation, is referencing it.
-	fn remove_key_if_unused(&mut self, key_id: &KeyIdOf<T>) {
-		if self.authentication_key != *key_id
-			&& self.attestation_key != Some(*key_id)
-			&& self.delegation_key != Some(*key_id)
-			&& !self.key_agreement_keys.contains(key_id)
+	pub fn remove_key_if_unused(&mut self, key_id: KeyIdOf<T>) {
+		if self.authentication_key != key_id
+			&& self.attestation_key != Some(key_id)
+			&& self.delegation_key != Some(key_id)
+			&& !self.key_agreement_keys.contains(&key_id)
 		{
-			self.public_keys.remove(key_id);
+			self.public_keys.remove(&key_id);
 		}
-	}
-
-	pub fn get_authentication_key_id(&self) -> KeyIdOf<T> {
-		self.authentication_key
-	}
-
-	pub fn get_key_agreement_keys_ids(
-		&self,
-	) -> &BoundedBTreeSet<KeyIdOf<T>, T::MaxTotalKeyAgreementKeys> {
-		&self.key_agreement_keys
-	}
-
-	pub fn get_attestation_key_id(&self) -> &Option<KeyIdOf<T>> {
-		&self.attestation_key
-	}
-
-	pub fn get_delegation_key_id(&self) -> &Option<KeyIdOf<T>> {
-		&self.delegation_key
-	}
-
-	pub fn get_public_keys(&self) -> &DidPublicKeyMap<T> {
-		&self.public_keys
 	}
 
 	/// Returns a reference to a specific verification key given the type of
@@ -633,12 +535,10 @@ impl<T: Config> DidDetails<T> {
 	}
 }
 
-pub(crate) type DidNewKeyAgreementKeys<T> =
+pub(crate) type DidNewKeyAgreementKeySet<T> =
 	BoundedBTreeSet<DidEncryptionKey, <T as Config>::MaxNewKeyAgreementKeys>;
-pub(crate) type DidKeyAgreementKeys<T> =
+pub(crate) type DidKeyAgreementKeySet<T> =
 	BoundedBTreeSet<KeyIdOf<T>, <T as Config>::MaxTotalKeyAgreementKeys>;
-pub(crate) type DidVerificationKeysToRevoke<T> =
-	BoundedBTreeSet<KeyIdOf<T>, <T as Config>::MaxVerificationKeysToRevoke>;
 pub(crate) type DidPublicKeyMap<T> =
 	BoundedBTreeMap<KeyIdOf<T>, DidPublicKeyDetails<T>, <T as Config>::MaxPublicKeysPerDid>;
 
@@ -648,7 +548,7 @@ pub struct DidCreationDetails<T: Config> {
 	/// The DID identifier. It has to be unique.
 	pub did: DidIdentifierOf<T>,
 	/// The new key agreement keys.
-	pub new_key_agreement_keys: DidNewKeyAgreementKeys<T>,
+	pub new_key_agreement_keys: DidNewKeyAgreementKeySet<T>,
 	/// \[OPTIONAL\] The new attestation key.
 	pub new_attestation_key: Option<DidVerificationKey>,
 	/// \[OPTIONAL\] The new delegation key.
@@ -666,40 +566,6 @@ impl<T: Config> fmt::Debug for DidCreationDetails<T> {
 			.field("new_attestation_key", &self.new_attestation_key)
 			.field("new_delegation_key", &self.new_delegation_key)
 			.field("new_service_endpoints", &self.new_service_endpoints)
-			.finish()
-	}
-}
-
-/// The details to update a DID.
-#[derive(Clone, Decode, Encode, PartialEq)]
-pub struct DidUpdateDetails<T: Config> {
-	/// \[OPTIONAL\] The new authentication key.
-	pub new_authentication_key: Option<DidVerificationKey>,
-	/// A new set of key agreement keys to add to the ones already stored.
-	pub new_key_agreement_keys: DidNewKeyAgreementKeys<T>,
-	/// \[OPTIONAL\] The attestation key update action.
-	pub attestation_key_update: DidFragmentUpdateAction<DidVerificationKey>,
-	/// \[OPTIONAL\] The delegation key update action.
-	pub delegation_key_update: DidFragmentUpdateAction<DidVerificationKey>,
-	/// The set of old attestation keys to remove, given their identifiers.
-	/// If the operation also replaces the current attestation key, it will
-	/// not be considered for removal in this operation, so it is not
-	/// possible to specify it for removal in this set.
-	pub public_keys_to_remove: DidVerificationKeysToRevoke<T>,
-	/// The update action on the service endpoints information.
-	pub service_endpoints_update: DidFragmentUpdateAction<ServiceEndpoints<T>>,
-}
-
-// required because BoundedTreeSet does not implement Debug outside of std
-impl<T: Config> fmt::Debug for DidUpdateDetails<T> {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		f.debug_struct("DidUpdateDetails")
-			.field("new_authentication_key", &self.new_authentication_key)
-			.field("new_key_agreement_keys", &self.new_key_agreement_keys.clone().into_inner())
-			.field("attestation_key_update", &self.attestation_key_update)
-			.field("delegation_key_update", &self.delegation_key_update)
-			.field("public_keys_to_remove", &self.public_keys_to_remove.clone().into_inner())
-			.field("service_endpoints_update", &self.service_endpoints_update)
 			.finish()
 	}
 }
@@ -737,25 +603,6 @@ impl<T: Config> ServiceEndpoints<T> {
 			InputError::MaxUrlLengthExceeded
 		);
 		Ok(())
-	}
-}
-
-/// Possible actions on a DID fragment (e.g, a verification key or the endpoint
-/// services) within a [DidUpdateOperation].
-#[derive(Copy, Clone, Decode, Debug, Encode, Eq, PartialEq)]
-pub enum DidFragmentUpdateAction<FragmentType> {
-	/// Do not change the DID fragment.
-	Ignore,
-	/// Change the DID fragment to the new one provided.
-	Change(FragmentType),
-	/// Delete the DID fragment.
-	Delete,
-}
-
-// Return the ignore operation by default
-impl<FragmentType> Default for DidFragmentUpdateAction<FragmentType> {
-	fn default() -> Self {
-		Self::Ignore
 	}
 }
 

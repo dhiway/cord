@@ -26,6 +26,7 @@ use frame_support::{
 };
 use frame_system::limits;
 use frame_system::{EnsureOneOf, EnsureRoot, EnsureSigned};
+use pallet_did::DidSignature;
 
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -1046,7 +1047,6 @@ impl pallet_vesting::Config for Runtime {
 
 parameter_types! {
 	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
-	pub const MaxVerificationKeysToRevoke: u32 = 10u32;
 	#[derive(Debug, Clone, PartialEq)]
 	pub const MaxUrlLength: u32 = 200u32;
 	// TODO: Find reasonable numbers
@@ -1069,7 +1069,6 @@ impl pallet_did::Config for Runtime {
 	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
 	type MaxTotalKeyAgreementKeys = MaxTotalKeyAgreementKeys;
 	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
-	type MaxVerificationKeysToRevoke = MaxVerificationKeysToRevoke;
 	type MaxUrlLength = MaxUrlLength;
 	type MaxEndpointUrlsCount = MaxEndpointUrlsCount;
 	type WeightInfo = ();
@@ -1085,38 +1084,38 @@ impl pallet_registrar::Config for Runtime {
 
 impl pallet_entity::Config for Runtime {
 	type Event = Event;
-	type CordAccountId = AccountId;
-	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type CordAccountId = DidIdentifier;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier>;
 	type WeightInfo = ();
 }
 
 impl pallet_space::Config for Runtime {
 	type Event = Event;
-	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier>;
 	type WeightInfo = ();
 }
 
 impl pallet_schema::Config for Runtime {
 	type Event = Event;
-	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier>;
 	type WeightInfo = ();
 }
 
 impl pallet_journal::Config for Runtime {
 	type Event = Event;
-	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier>;
 	type WeightInfo = ();
 }
 
 impl pallet_mark::Config for Runtime {
 	type Event = Event;
-	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier>;
 	type WeightInfo = ();
 }
 
 impl pallet_link::Config for Runtime {
 	type Event = Event;
-	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier>;
 	type WeightInfo = ();
 }
 
