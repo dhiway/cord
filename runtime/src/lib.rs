@@ -26,7 +26,7 @@ use frame_support::{
 };
 use frame_system::limits;
 use frame_system::{EnsureOneOf, EnsureRoot, EnsureSigned};
-use pallet_did::DidSignature;
+// use pallet_did::DidSignature;
 
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -1084,38 +1084,38 @@ impl pallet_registrar::Config for Runtime {
 
 impl pallet_entity::Config for Runtime {
 	type Event = Event;
-	type CordAccountId = DidIdentifier;
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier>;
+	type CordAccountId = AccountId;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type WeightInfo = ();
 }
 
 impl pallet_space::Config for Runtime {
 	type Event = Event;
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier>;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type WeightInfo = ();
 }
 
 impl pallet_schema::Config for Runtime {
 	type Event = Event;
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier>;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type WeightInfo = ();
 }
 
 impl pallet_journal::Config for Runtime {
 	type Event = Event;
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier>;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type WeightInfo = ();
 }
 
 impl pallet_mark::Config for Runtime {
 	type Event = Event;
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier>;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type WeightInfo = ();
 }
 
 impl pallet_link::Config for Runtime {
 	type Event = Event;
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier>;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type WeightInfo = ();
 }
 
