@@ -26,13 +26,6 @@ These abstractions are:
 * Session Keys: Session keys are "hot keys" that are used by validators to sign consensus-related messages. They are not meant to be used as account keys that control funds and should only be used for their intended purpose. They should be changed regulary.
   
 ## Session Keys
-Session keys are used by validators to sign consensus-related messages. CORD node uses an unique session key for AURA, GRANDPA, "I'm Online" and Authority Discovery operations. To prevent the wrong key being used for the wrong operation, strong Rust types wrap these keys, keeping them incompatible with one another and ensuring they are only used for their intended purpose.
+Session keys are used by validators to sign consensus-related messages. CORD node uses an unique session key for BABE, GRANDPA, "I'm Online" and Authority Discovery operations. To prevent the wrong key being used for the wrong operation, strong Rust types wrap these keys, keeping them incompatible with one another and ensuring they are only used for their intended purpose.
 
 If a Session key is compromised, attackers could commit slashable behavior. Session keys should be changed regularly (e.g. every session) via the [rotate_keys](accounts.mdhttps://substrate.dev/rustdocs/v2.0.0/sc_rpc/author/trait.AuthorApi.html#tymethod.rotate_keys) RPC for increased security.
-
-
-
-
-
-
-
