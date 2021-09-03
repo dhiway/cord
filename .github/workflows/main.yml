@@ -34,14 +34,14 @@ jobs:
 
       # Login to DockerHub
       - run: |
-         docker login $DOCKER_SERVER -u dhiway -p ${{ secrets.DOCKER_PASSWORD }}
+         docker login ${{ DOCKER_SERVER }} -u dhiway -p ${{ secrets.DOCKER_PASSWORD }}
 
       # Push image to Registry
       - run: |
           docker build . --no-cache --file Dockerfile --tag ${{ env.IMAGE_REPOSITORY }}:latest
 
-          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $DOCKER_SERVER/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-          docker tag ${{ env.IMAGE_REPOSITORY }}:latest $DOCKER_SERVER/${{ env.IMAGE_REPOSITORY }}:${GITHUB_REF##*/}
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest ${{ env.DOCKER_SERVER }}/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest ${{ env.DOCKER_SERVER }}/${{ env.IMAGE_REPOSITORY }}:${GITHUB_REF##*/}
 
-          docker push $DOCKER_SERVER/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-          docker push $DOCKER_SERVER/${{ env.IMAGE_REPOSITORY }}:${GITHUB_REF##*/}
+          docker push ${{ env.DOCKER_SERVER }}/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker push ${{ env.DOCKER_SERVER }}/${{ env.IMAGE_REPOSITORY }}:${GITHUB_REF##*/}
