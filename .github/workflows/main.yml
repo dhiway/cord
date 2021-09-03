@@ -6,7 +6,7 @@ name: CI
 on:
   # Trigger the workflow on push event
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
 
   # Allow to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -34,7 +34,7 @@ jobs:
 
       # Login to DockerHub
       - run: |
-         docker login ${{ env.DOCKER_SERVER }} -u dhiway -p ${{ secrets.DOCKER_PASSWORD }}
+         docker login ${{ env.DOCKER_SERVER }} -u dhiway -p "${{ secrets.DOCKER_PASSWORD }}"
 
       # Push image to Registry
       - run: |
