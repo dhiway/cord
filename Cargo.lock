@@ -1082,7 +1082,6 @@ dependencies = [
  "pallet-link",
  "pallet-mark",
  "pallet-membership",
- "pallet-mtype",
  "pallet-multisig",
  "pallet-offences",
  "pallet-proxy",
@@ -4528,25 +4527,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-mtype"
-version = "0.5.1"
-dependencies = [
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
