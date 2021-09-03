@@ -26,6 +26,7 @@ jobs:
       IMAGE_REPOSITORY: ${{ github.event.repository.name }}
       IMAGE_TAG: ${{ github.sha }}
       DOCKER_SERVER: docker.io
+      DOCKER_USER: dhiway
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -34,14 +35,14 @@ jobs:
 
       # Login to DockerHub
       - run: |
-         docker login ${{ env.DOCKER_SERVER }} -u dhiway -p "${{ secrets.DOCKER_PASSWORD }}"
+         docker login ${{ env.DOCKER_SERVER }} -u ${{ env.DOCKER_USER }} -p "${{ secrets.DOCKER_PASSWORD }}"
 
       # Push image to Registry
       - run: |
           docker build . --no-cache --file Dockerfile --tag ${{ env.IMAGE_REPOSITORY }}:latest
 
-          docker tag ${{ env.IMAGE_REPOSITORY }}:latest ${{ env.DOCKER_SERVER }}/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-          docker tag ${{ env.IMAGE_REPOSITORY }}:latest ${{ env.DOCKER_SERVER }}/${{ env.IMAGE_REPOSITORY }}:${GITHUB_REF##*/}
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker tag ${{ env.IMAGE_REPOSITORY }}:latest ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${GITHUB_REF##*/}
 
-          docker push ${{ env.DOCKER_SERVER }}/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-          docker push ${{ env.DOCKER_SERVER }}/${{ env.IMAGE_REPOSITORY }}:${GITHUB_REF##*/}
+          docker push ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker push ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${GITHUB_REF##*/}
