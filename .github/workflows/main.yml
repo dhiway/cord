@@ -34,7 +34,7 @@ jobs:
 
       # Login to DockerHub
       - run: |
-         docker login ${{ DOCKER_SERVER }} -u dhiway -p ${{ secrets.DOCKER_PASSWORD }}
+         docker login ${{ env.DOCKER_SERVER }} -u dhiway -p ${{ secrets.DOCKER_PASSWORD }}
 
       # Push image to Registry
       - run: |
