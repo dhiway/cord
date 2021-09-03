@@ -41,7 +41,7 @@ RUN apt-get update && \
 	mkdir -p /cord/.local/share && \
 	mkdir /data && \
 	chown -R cord:cord /data && \
-	ln -s /data /cord/.local/share/cord-node 
+	ln -s /data /cord/.local/share/cord
 
 COPY --from=builder /build/target/$PROFILE/cord /usr/local/bin
 
