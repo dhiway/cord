@@ -8,6 +8,9 @@ use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
 pub mod schemas;
 pub mod weights;
 
+// #[cfg(any(feature = "mock", test))]
+// pub mod mock;
+
 pub use crate::schemas::*;
 use crate::weights::WeightInfo;
 pub use pallet::*;

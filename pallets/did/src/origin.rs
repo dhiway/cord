@@ -35,7 +35,8 @@ pub struct EnsureDidOrigin<DidIdentifier>(PhantomData<DidIdentifier>);
 
 impl<OuterOrigin, DidIdentifier> EnsureOrigin<OuterOrigin> for EnsureDidOrigin<DidIdentifier>
 where
-	OuterOrigin: Into<Result<DidRawOrigin<DidIdentifier>, OuterOrigin>> + From<DidRawOrigin<DidIdentifier>>,
+	OuterOrigin:
+		Into<Result<DidRawOrigin<DidIdentifier>, OuterOrigin>> + From<DidRawOrigin<DidIdentifier>>,
 	DidIdentifier: Default,
 {
 	type Success = DidIdentifier;
@@ -44,7 +45,7 @@ where
 		o.into().map(|o| o.id)
 	}
 
-	#[cfg(feature = "runtime-benchmarks")]
+	// #[cfg(feature = "runtime-benchmarks")]
 	fn successful_origin() -> OuterOrigin {
 		OuterOrigin::from(DidRawOrigin { id: Default::default() })
 	}

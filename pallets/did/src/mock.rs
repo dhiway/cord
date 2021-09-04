@@ -39,8 +39,8 @@ pub type Block = frame_system::mocking::MockBlock<Test>;
 pub type TestDidIdentifier = cord_primitives::AccountId;
 pub type TestKeyId = did::KeyIdOf<Test>;
 pub type TestBlockNumber = cord_primitives::BlockNumber;
-pub type TestCtypeOwner = TestDidIdentifier;
-pub type TestCtypeHash = cord_primitives::Hash;
+pub type TestSchemaOwner = TestDidIdentifier;
+pub type TestSchemaHash = cord_primitives::Hash;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -49,7 +49,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		Did: did::{Pallet, Call, Storage, Event<T>, Origin<T>},
-		Ctype: ctype::{Pallet, Call, Storage, Event<T>},
+		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>},
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 	}
 );
@@ -112,12 +112,12 @@ impl Config for Test {
 	type WeightInfo = ();
 }
 
-impl ctype::Config for Test {
-	type CtypeCreatorId = TestCtypeOwner;
+impl pallet_schema::Config for Test {
+	// type SchemaCreatorId = TestSchemaOwner;
 	#[cfg(feature = "runtime-benchmarks")]
 	type EnsureOrigin = EnsureSigned<TestDidIdentifier>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type EnsureOrigin = did::EnsureDidOrigin<TestCtypeOwner>;
+	type EnsureOrigin = did::EnsureDidOrigin<TestSchemaOwner>;
 	type Event = ();
 	type WeightInfo = ();
 }
@@ -231,29 +231,29 @@ pub fn generate_key_id(key: &did::DidPublicKey) -> TestKeyId {
 	utils::calculate_key_id::<Test>(key)
 }
 
-pub(crate) fn get_attestation_key_test_input() -> TestCtypeHash {
-	TestCtypeHash::from_slice(&[0u8; 32])
+pub(crate) fn get_attestation_key_test_input() -> TestSchemaHash {
+	TestSchemaHash::from_slice(&[0u8; 32])
 }
 pub(crate) fn get_attestation_key_call() -> Call {
-	Call::Ctype(ctype::Call::add(get_attestation_key_test_input()))
+	Call::Schema(Schema::Call::add(get_attestation_key_test_input()))
 }
-pub(crate) fn get_authentication_key_test_input() -> TestCtypeHash {
-	TestCtypeHash::from_slice(&[1u8; 32])
+pub(crate) fn get_authentication_key_test_input() -> TestSchemaHash {
+	TestSchemaHash::from_slice(&[1u8; 32])
 }
 pub(crate) fn get_authentication_key_call() -> Call {
-	Call::Ctype(ctype::Call::add(get_authentication_key_test_input()))
+	Call::Schema(Schema::Call::add(get_authentication_key_test_input()))
 }
-pub(crate) fn get_delegation_key_test_input() -> TestCtypeHash {
-	TestCtypeHash::from_slice(&[2u8; 32])
+pub(crate) fn get_delegation_key_test_input() -> TestSchemaHash {
+	TestSchemaHash::from_slice(&[2u8; 32])
 }
 pub(crate) fn get_delegation_key_call() -> Call {
-	Call::Ctype(ctype::Call::add(get_delegation_key_test_input()))
+	Call::Schema(Schema::Call::add(get_delegation_key_test_input()))
 }
-pub(crate) fn get_none_key_test_input() -> TestCtypeHash {
-	TestCtypeHash::from_slice(&[3u8; 32])
+pub(crate) fn get_none_key_test_input() -> TestSchemaHash {
+	TestSchemaHash::from_slice(&[3u8; 32])
 }
 pub(crate) fn get_none_key_call() -> Call {
-	Call::Ctype(ctype::Call::add(get_none_key_test_input()))
+	Call::Schema(Schema::Call::add(get_none_key_test_input()))
 }
 
 impl did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call {

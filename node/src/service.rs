@@ -11,21 +11,25 @@ use cord_primitives::Block;
 use cord_runtime::RuntimeApi;
 use futures::prelude::*;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
-// pub use sc_consensus::{BlockImport, LongestChain};
 use sc_consensus_babe::{self, SlotProportion};
-// pub use sc_executor::NativeExecutionDispatch;
+pub use sc_executor::NativeExecutionDispatch;
 use sc_network::{Event, NetworkService};
 use sc_service::{
 	config::PrometheusConfig, error::Error as ServiceError, Configuration, RpcHandlers, TaskManager,
 };
 use sc_telemetry::{Telemetry, TelemetryWorker};
-use sp_runtime::traits::Block as BlockT;
 
-// pub use sp_runtime::traits::{self as runtime_traits, BlakeTwo256, Block as BlockT, DigestFor, HashFor};
-// use sc_executor::NativeElseWasmExecutor;
 use std::sync::Arc;
 use substrate_prometheus_endpoint::Registry;
 
+pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi, StateBackend};
+pub use sp_runtime::{
+	generic,
+	traits::{
+		self as runtime_traits, BlakeTwo256, Block as BlockT, DigestFor, HashFor,
+		Header as HeaderT, NumberFor,
+	},
+};
 // If we're using prometheus, use a registry with a prefix of `cord`.
 fn set_prometheus_registry(config: &mut Configuration) -> Result<(), sc_service::Error> {
 	if let Some(PrometheusConfig { registry, .. }) = config.prometheus_config.as_mut() {
@@ -52,10 +56,7 @@ pub fn new_partial(
 		sc_consensus::DefaultImportQueue<Block, FullClient>,
 		sc_transaction_pool::FullPool<Block, FullClient>,
 		(
-			impl Fn(
-				cord_rpc::DenyUnsafe,
-				sc_rpc::SubscriptionTaskExecutor,
-			) -> Result<cord_rpc::RpcExtension, sc_service::Error>,
+			impl sc_service::RpcExtensionBuilder,
 			(
 				sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
 				sc_finality_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
@@ -141,55 +142,50 @@ pub fn new_partial(
 		telemetry.as_ref().map(|x| x.handle()),
 	)?;
 
-	let import_setup = (block_import, grandpa_link, babe_link);
-	let (rpc_extensions_builder, rpc_setup) = {
-		let (_, grandpa_link, babe_link) = &import_setup;
+	let justification_stream = grandpa_link.justification_stream();
+	let shared_authority_set = grandpa_link.shared_authority_set().clone();
+	let shared_voter_state = sc_finality_grandpa::SharedVoterState::empty();
+	let finality_proof_provider = sc_finality_grandpa::FinalityProofProvider::new_for_service(
+		backend.clone(),
+		Some(shared_authority_set.clone()),
+	);
 
-		let justification_stream = grandpa_link.justification_stream();
-		let shared_authority_set = grandpa_link.shared_authority_set().clone();
-		let shared_voter_state = sc_finality_grandpa::SharedVoterState::empty();
-		let rpc_setup = shared_voter_state.clone();
+	let import_setup = (block_import.clone(), grandpa_link, babe_link.clone());
+	let rpc_setup = shared_voter_state.clone();
 
-		let finality_proof_provider = sc_finality_grandpa::FinalityProofProvider::new_for_service(
-			backend.clone(),
-			Some(shared_authority_set.clone()),
-		);
-
-		let babe_config = babe_link.config().clone();
-		let shared_epoch_changes = babe_link.epoch_changes().clone();
-
+	let shared_epoch_changes = babe_link.epoch_changes().clone();
+	let rpc_extensions_builder = {
 		let client = client.clone();
+		let keystore = keystore_container.sync_keystore();
 		let transaction_pool = transaction_pool.clone();
 		let select_chain = select_chain.clone();
-		let keystore = keystore_container.sync_keystore();
 		let chain_spec = config.chain_spec.cloned_box();
 
-		let rpc_extensions_builder =
-			move |deny_unsafe, subscription_executor: cord_rpc::SubscriptionTaskExecutor| {
-				let deps = cord_rpc::FullDeps {
-					client: client.clone(),
-					pool: transaction_pool.clone(),
-					select_chain: select_chain.clone(),
-					chain_spec: chain_spec.cloned_box(),
-					deny_unsafe,
-					babe: cord_rpc::BabeDeps {
-						babe_config: babe_config.clone(),
-						shared_epoch_changes: shared_epoch_changes.clone(),
-						keystore: keystore.clone(),
-					},
-					grandpa: cord_rpc::GrandpaDeps {
-						shared_voter_state: shared_voter_state.clone(),
-						shared_authority_set: shared_authority_set.clone(),
-						justification_stream: justification_stream.clone(),
-						subscription_executor: subscription_executor.clone(),
-						finality_provider: finality_proof_provider.clone(),
-					},
-				};
-
-				cord_rpc::create_full(deps).map_err(Into::into)
+		move |deny_unsafe,
+		      subscription_executor: cord_rpc::SubscriptionTaskExecutor|
+		      -> Result<cord_rpc::RpcExtension, ServiceError> {
+			let deps = cord_rpc::FullDeps {
+				client: client.clone(),
+				pool: transaction_pool.clone(),
+				select_chain: select_chain.clone(),
+				chain_spec: chain_spec.cloned_box(),
+				deny_unsafe,
+				babe: cord_rpc::BabeDeps {
+					babe_config: babe_config.clone(),
+					shared_epoch_changes: shared_epoch_changes.clone(),
+					keystore: keystore.clone(),
+				},
+				grandpa: cord_rpc::GrandpaDeps {
+					shared_voter_state: shared_voter_state.clone(),
+					shared_authority_set: shared_authority_set.clone(),
+					justification_stream: justification_stream.clone(),
+					subscription_executor: subscription_executor.clone(),
+					finality_provider: finality_proof_provider.clone(),
+				},
 			};
 
-		(rpc_extensions_builder, rpc_setup)
+			cord_rpc::create_full(deps).map_err(Into::into)
+		}
 	};
 
 	Ok(sc_service::PartialComponents {

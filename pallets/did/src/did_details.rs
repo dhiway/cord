@@ -402,7 +402,7 @@ impl<T: Config> DidDetails<T> {
 		Ok(())
 	}
 
-	//// Update the DID attestation key, replacing the old one with the new one.
+	/// Update the DID attestation key, replacing the old one with the new one.
 	///
 	/// The old key is deleted from the set of public keys if it is
 	/// not used in any other part of the DID. The new key is added to the
@@ -425,15 +425,6 @@ impl<T: Config> DidDetails<T> {
 			)
 			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
 		Ok(())
-	}
-
-	/// Delete the DID attestation key.
-	///
-	/// Once deleted, it cannot be used to write new attestations anymore.
-	/// The old key is not removed from the set of verification keys, hence
-	/// it can still be used to verify past attestations.
-	pub fn delete_attestation_key(&mut self) {
-		self.attestation_key = None;
 	}
 
 	/// Remove the DID attestation key.
@@ -539,6 +530,7 @@ pub(crate) type DidNewKeyAgreementKeySet<T> =
 	BoundedBTreeSet<DidEncryptionKey, <T as Config>::MaxNewKeyAgreementKeys>;
 pub(crate) type DidKeyAgreementKeySet<T> =
 	BoundedBTreeSet<KeyIdOf<T>, <T as Config>::MaxTotalKeyAgreementKeys>;
+
 pub(crate) type DidPublicKeyMap<T> =
 	BoundedBTreeMap<KeyIdOf<T>, DidPublicKeyDetails<T>, <T as Config>::MaxPublicKeysPerDid>;
 

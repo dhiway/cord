@@ -107,15 +107,15 @@ pub mod url;
 
 mod utils;
 
-#[cfg(feature = "runtime-benchmarks")]
-pub mod benchmarking;
+// #[cfg(feature = "runtime-benchmarks")]
+// pub mod benchmarking;
 
-#[cfg(test)]
-mod mock;
-#[cfg(any(feature = "runtime-benchmarks", test))]
-mod mock_utils;
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod mock;
+// #[cfg(any(feature = "runtime-benchmarks", test))]
+// mod mock_utils;
+// #[cfg(test)]
+// mod tests;
 
 mod deprecated;
 
@@ -192,7 +192,7 @@ pub mod pallet {
 		/// Overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		//// Maximum number of total public keys which can be stored per DID key
+		/// Maximum number of total public keys which can be stored per DID key
 		/// identifier. This includes the ones currently used for
 		/// authentication, key agreement, attestation, and delegation.
 		#[pallet::constant]

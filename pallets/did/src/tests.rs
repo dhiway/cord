@@ -24,7 +24,7 @@ use sp_std::{collections::btree_set::BTreeSet, convert::TryFrom};
 
 use crate::{self as did, mock::*, mock_utils::*};
 
-use ctype::mock as ctype_mock;
+use pallet_schema::mock as schema_mock;
 
 // create
 
@@ -1870,8 +1870,8 @@ fn check_call_attestation_key_error() {
 
 	let ext = ExtBuilder::default().with_dids(vec![(did.clone(), mock_did)]).build(None);
 	// CType already added to storage
-	let mut ext = ctype_mock::ExtBuilder::default()
-		.with_ctypes(vec![(get_attestation_key_test_input(), did.clone())])
+	let mut ext = schema_mock::ExtBuilder::default()
+		.with_schemas(vec![(get_attestation_key_test_input(), did.clone())])
 		.build(Some(ext));
 
 	let call_operation =
@@ -1885,7 +1885,7 @@ fn check_call_attestation_key_error() {
 				Box::new(call_operation.operation),
 				did::DidSignature::from(signature)
 			),
-			ctype::Error::<Test>::CTypeAlreadyExists
+			pallet_schema::Error::<Test>::CTypeAlreadyExists
 		);
 	});
 }
@@ -1933,8 +1933,8 @@ fn check_call_delegation_key_error() {
 
 	let ext = ExtBuilder::default().with_dids(vec![(did.clone(), mock_did)]).build(None);
 	// CType already added to storage
-	let mut ext = ctype_mock::ExtBuilder::default()
-		.with_ctypes(vec![(get_delegation_key_test_input(), did.clone())])
+	let mut ext = schema_mock::ExtBuilder::default()
+		.with_schemas(vec![(get_delegation_key_test_input(), did.clone())])
 		.build(Some(ext));
 
 	let call_operation =
@@ -1948,7 +1948,7 @@ fn check_call_delegation_key_error() {
 				Box::new(call_operation.operation),
 				did::DidSignature::from(signature)
 			),
-			ctype::Error::<Test>::CTypeAlreadyExists
+			pallet_schema::Error::<Test>::CTypeAlreadyExists
 		);
 	});
 }
@@ -1988,8 +1988,8 @@ fn check_call_authentication_key_error() {
 
 	let ext = ExtBuilder::default().with_dids(vec![(did.clone(), mock_did)]).build(None);
 	// CType already added to storage
-	let mut ext = ctype_mock::ExtBuilder::default()
-		.with_ctypes(vec![(get_authentication_key_test_input(), did.clone())])
+	let mut ext = schema_mock::ExtBuilder::default()
+		.with_schemas(vec![(get_authentication_key_test_input(), did.clone())])
 		.build(Some(ext));
 
 	let call_operation =
@@ -2003,7 +2003,7 @@ fn check_call_authentication_key_error() {
 				Box::new(call_operation.operation),
 				did::DidSignature::from(signature)
 			),
-			ctype::Error::<Test>::CTypeAlreadyExists
+			pallet_schema::Error::<Test>::CTypeAlreadyExists
 		);
 	});
 }
@@ -2355,12 +2355,12 @@ fn check_invalid_signature_operation_verification() {
 
 #[test]
 fn check_http_url() {
-	assert_ok!(did::HttpUrl::<Test>::try_from("http://kilt.io".as_bytes()));
+	assert_ok!(did::HttpUrl::<Test>::try_from("http://dway.io".as_bytes()));
 
-	assert_ok!(did::HttpUrl::<Test>::try_from("https://kilt.io".as_bytes()));
+	assert_ok!(did::HttpUrl::<Test>::try_from("https://dway.io".as_bytes()));
 
 	assert_ok!(did::HttpUrl::<Test>::try_from(
-		"https://super.long.domain.kilt.io:12345/public/files/test.txt".as_bytes()
+		"https://super.long.domain.dway.io:12345/public/files/test.txt".as_bytes()
 	));
 
 	// All other valid ASCII characters
@@ -2373,13 +2373,13 @@ fn check_http_url() {
 
 	// Non-printable ASCII characters
 	assert_eq!(
-		did::HttpUrl::<Test>::try_from("http://kilt.io/\x00".as_bytes()),
+		did::HttpUrl::<Test>::try_from("http://dway.io/\x00".as_bytes()),
 		Err(did::DidError::UrlError(did::UrlError::InvalidUrlEncoding))
 	);
 
 	// Some invalid ASCII characters
 	assert_eq!(
-		did::HttpUrl::<Test>::try_from("http://kilt.io/<tag>".as_bytes()),
+		did::HttpUrl::<Test>::try_from("http://dway.io/<tag>".as_bytes()),
 		Err(did::DidError::UrlError(did::UrlError::InvalidUrlEncoding))
 	);
 
@@ -2390,12 +2390,12 @@ fn check_http_url() {
 	);
 
 	assert_eq!(
-		did::HttpUrl::<Test>::try_from("htt://kilt.io".as_bytes()),
+		did::HttpUrl::<Test>::try_from("htt://dway.io".as_bytes()),
 		Err(did::DidError::UrlError(did::UrlError::InvalidUrlScheme))
 	);
 
 	assert_eq!(
-		did::HttpUrl::<Test>::try_from("httpss://kilt.io".as_bytes()),
+		did::HttpUrl::<Test>::try_from("httpss://dway.io".as_bytes()),
 		Err(did::DidError::UrlError(did::UrlError::InvalidUrlScheme))
 	);
 }
@@ -2404,12 +2404,12 @@ fn check_http_url() {
 
 #[test]
 fn check_ftp_url() {
-	assert_ok!(did::FtpUrl::<Test>::try_from("ftp://kilt.io".as_bytes()));
+	assert_ok!(did::FtpUrl::<Test>::try_from("ftp://dway.io".as_bytes()));
 
-	assert_ok!(did::FtpUrl::<Test>::try_from("ftps://kilt.io".as_bytes()));
+	assert_ok!(did::FtpUrl::<Test>::try_from("ftps://dway.io".as_bytes()));
 
 	assert_ok!(did::FtpUrl::<Test>::try_from(
-		"ftps://user@super.long.domain.kilt.io:12345/public/files/test.txt".as_bytes()
+		"ftps://user@super.long.domain.dway.io:12345/public/files/test.txt".as_bytes()
 	));
 
 	// All other valid ASCII characters
@@ -2422,13 +2422,13 @@ fn check_ftp_url() {
 
 	// Non-printable ASCII characters
 	assert_eq!(
-		did::HttpUrl::<Test>::try_from("http://kilt.io/\x00".as_bytes()),
+		did::HttpUrl::<Test>::try_from("http://dway.io/\x00".as_bytes()),
 		Err(did::DidError::UrlError(did::UrlError::InvalidUrlEncoding))
 	);
 
 	// Some invalid ASCII characters
 	assert_eq!(
-		did::FtpUrl::<Test>::try_from("ftp://kilt.io/<tag>".as_bytes()),
+		did::FtpUrl::<Test>::try_from("ftp://dway.io/<tag>".as_bytes()),
 		Err(did::DidError::UrlError(did::UrlError::InvalidUrlEncoding))
 	);
 
@@ -2439,12 +2439,12 @@ fn check_ftp_url() {
 	);
 
 	assert_eq!(
-		did::FtpUrl::<Test>::try_from("ft://kilt.io".as_bytes()),
+		did::FtpUrl::<Test>::try_from("ft://dway.io".as_bytes()),
 		Err(did::DidError::UrlError(did::UrlError::InvalidUrlScheme))
 	);
 
 	assert_eq!(
-		did::HttpUrl::<Test>::try_from("ftpss://kilt.io".as_bytes()),
+		did::HttpUrl::<Test>::try_from("ftpss://dway.io".as_bytes()),
 		Err(did::DidError::UrlError(did::UrlError::InvalidUrlScheme))
 	);
 }

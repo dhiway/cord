@@ -10,7 +10,7 @@ version = "0.25.0"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder-runner = {version = "3.0.0"}
+substrate-wasm-builder = "4.0.0"
 
 [dev-dependencies]
 env_logger = {version = "0.8.3"}
@@ -18,7 +18,7 @@ serde = {version = "1.0.101"}
 
 pallet-schema = {features = ["mock"], path = "../schema", version = "0.5.2"}
 cord-primitives = {default-features = false, path = "../../primitives"}
-pallet-membership = {branch = "polkadot-v0.9.9", default-features = false, git = "https://github.com/paritytech/substrate"}
+#pallet-membership = {branch = "polkadot-v0.9.9", default-features = false, git = "https://github.com/paritytech/substrate"}
 
 [dependencies]
 # Internal dependencies
