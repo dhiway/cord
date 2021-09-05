@@ -12,7 +12,7 @@ pub mod weights;
 pub use crate::marks::*;
 use crate::weights::WeightInfo;
 pub use pallet::*;
-use pallet_entity::{RequestOf, TypeOf};
+use pallet_entity::{CommitOf, TypeOf};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -146,7 +146,7 @@ pub mod pallet {
 					tx_cid: tx_cid.clone(),
 					tx_link: Some(tx_link.clone()),
 					block: block_number.clone(),
-					commit: RequestOf::Create,
+					commit: CommitOf::Genesis,
 				},
 			)?;
 
@@ -210,7 +210,7 @@ pub mod pallet {
 					tx_cid: tx_cid.clone(),
 					tx_link: Some(tx_prev.tx_link.clone()),
 					block: block_number.clone(),
-					commit: RequestOf::Update,
+					commit: CommitOf::Update,
 				},
 			)?;
 			<MarkHashes<T>>::insert(&tx_hash, &tx_id);
@@ -265,7 +265,7 @@ pub mod pallet {
 					tx_cid: tx_status.tx_cid.clone(),
 					tx_link: Some(tx_status.tx_link.clone()),
 					block: block_number.clone(),
-					commit: RequestOf::Status,
+					commit: CommitOf::Status,
 				},
 			)?;
 

@@ -50,7 +50,7 @@ pub struct TxCommits<T: Config> {
 	/// Transaction block number
 	pub block: BlockNumberOf<T>,
 	/// Transaction request type
-	pub commit: RequestOf,
+	pub commit: CommitOf,
 }
 
 impl<T: Config> TxCommits<T> {
@@ -70,8 +70,8 @@ impl<T: Config> TxCommits<T> {
 }
 
 #[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
-pub enum RequestOf {
-	Create,
+pub enum CommitOf {
+	Genesis,
 	Update,
 	Status,
 	Verify,

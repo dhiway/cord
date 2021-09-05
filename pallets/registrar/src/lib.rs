@@ -12,7 +12,7 @@ pub mod weights;
 pub use crate::registrars::*;
 use crate::weights::WeightInfo;
 pub use pallet::*;
-use pallet_entity::{RequestOf, TypeOf};
+use pallet_entity::{CommitOf, TypeOf};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -169,7 +169,7 @@ pub mod pallet {
 				tx_cid: tx_verify.tx_cid,
 				tx_link: None,
 				block: block_number,
-				commit: RequestOf::Verify,
+				commit: CommitOf::Verify,
 			});
 			<pallet_entity::Commits<T>>::insert(&tx_id, commit);
 

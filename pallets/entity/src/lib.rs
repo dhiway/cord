@@ -26,8 +26,6 @@ pub mod pallet {
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of an entity account.
 	pub type CordAccountOf<T> = <T as Config>::CordAccountId;
-	/// Type of a entity controller.
-	// pub type ControllerOf<T> = pallet_registrar::CordAccountOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// status Information
@@ -136,7 +134,7 @@ pub mod pallet {
 					tx_cid: tx_cid.clone(),
 					tx_link: None,
 					block: block_number.clone(),
-					commit: RequestOf::Create,
+					commit: CommitOf::Genesis,
 				},
 			)?;
 
@@ -186,7 +184,7 @@ pub mod pallet {
 					tx_cid: tx_cid.clone(),
 					tx_link: None,
 					block: block_number.clone(),
-					commit: RequestOf::Update,
+					commit: CommitOf::Update,
 				},
 			)?;
 
@@ -235,7 +233,7 @@ pub mod pallet {
 					tx_cid: tx_status.tx_cid.clone(),
 					tx_link: None,
 					block: block_number.clone(),
-					commit: RequestOf::Status,
+					commit: CommitOf::Status,
 				},
 			)?;
 

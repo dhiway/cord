@@ -43,7 +43,7 @@
     "tx_cid": "CidOf",
     "tx_link": "Option<IdOf>",
     "block": "BlockNumber",
-    "commit": "RequestOf"
+    "commit": "CommitOf"
   },
   "RegistrarDetails": {
     "block": "BlockNumber",
@@ -56,7 +56,7 @@
   "TypeOf": {
     "_enum": ["Entity", "Space", "Schema", "Journal", "Mark", "Link"]
   },
-  "RequestOf": {
+  "CommitOf": {
     "_enum": ["Create", "Update", "Status", "Verify"]
   },
   "KeyIdOf": "Hash",
