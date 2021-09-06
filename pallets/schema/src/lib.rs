@@ -55,7 +55,7 @@ pub mod pallet {
 	/// It maps from a transaction Id to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn schemas)]
-	pub type Schemas<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, SchemaDetails<T>>;
+	pub type Schemas<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, TxDetails<T>>;
 
 	/// transactions stored on chain.
 	/// It maps from a transaction Id to its details.
@@ -121,7 +121,7 @@ pub mod pallet {
 			ensure!(tx_hash != tx_id, Error::<T>::SameSchemaIdAndHash);
 			//check cid encoding
 			ensure!(
-				pallet_entity::EntityDetails::<T>::check_cid(&tx_cid),
+				pallet_entity::TxDetails::<T>::check_cid(&tx_cid),
 				pallet_entity::Error::<T>::InvalidCidEncoding
 			);
 			//check transaction id
@@ -129,7 +129,7 @@ pub mod pallet {
 
 			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_link)
 				.map_err(<pallet_space::Error<T>>::from)?;
-			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, controller.clone())
+			pallet_entity::TxDetails::<T>::entity_status(tx_entity, controller.clone())
 				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -148,7 +148,7 @@ pub mod pallet {
 
 			<Schemas<T>>::insert(
 				&tx_id,
-				SchemaDetails {
+				TxDetails {
 					tx_hash: tx_hash.clone(),
 					tx_cid,
 					ptx_cid: None,
@@ -178,7 +178,7 @@ pub mod pallet {
 			//check hash and id
 			ensure!(tx_hash != tx_id, Error::<T>::SameSchemaIdAndHash);
 			ensure!(
-				pallet_entity::EntityDetails::<T>::check_cid(&tx_cid),
+				pallet_entity::TxDetails::<T>::check_cid(&tx_cid),
 				pallet_entity::Error::<T>::InvalidCidEncoding
 			);
 
@@ -188,7 +188,7 @@ pub mod pallet {
 
 			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_prev.tx_link)
 				.map_err(<pallet_space::Error<T>>::from)?;
-			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, updater.clone())
+			pallet_entity::TxDetails::<T>::entity_status(tx_entity, updater.clone())
 				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -207,7 +207,7 @@ pub mod pallet {
 
 			<Schemas<T>>::insert(
 				&tx_id,
-				SchemaDetails {
+				TxDetails {
 					tx_hash,
 					tx_cid,
 					ptx_cid: Some(tx_prev.tx_cid),

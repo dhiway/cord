@@ -115,13 +115,13 @@ pub mod pallet {
 			ensure!(tx_hash != tx_id, Error::<T>::SameSpaceIdAndHash);
 			//check cid encoding
 			ensure!(
-				pallet_entity::EntityDetails::<T>::check_cid(&tx_cid),
+				pallet_entity::TxDetails::<T>::check_cid(&tx_cid),
 				pallet_entity::Error::<T>::InvalidCidEncoding
 			);
 			//check transaction id
 			ensure!(!<Spaces<T>>::contains_key(&tx_id), Error::<T>::SpaceAlreadyExists);
 			//check transaction link
-			pallet_entity::EntityDetails::<T>::entity_status(tx_link, controller.clone())
+			pallet_entity::TxDetails::<T>::entity_status(tx_link, controller.clone())
 				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -172,7 +172,7 @@ pub mod pallet {
 			//check hash and id
 			ensure!(tx_hash != tx_id, Error::<T>::SameSpaceIdAndHash);
 			ensure!(
-				pallet_entity::EntityDetails::<T>::check_cid(&tx_cid),
+				pallet_entity::TxDetails::<T>::check_cid(&tx_cid),
 				pallet_entity::Error::<T>::InvalidCidEncoding
 			);
 
@@ -185,7 +185,7 @@ pub mod pallet {
 				tx_prev.tx_link = *tx_link_id;
 			}
 
-			pallet_entity::EntityDetails::<T>::entity_status(tx_prev.tx_link, updater.clone())
+			pallet_entity::TxDetails::<T>::entity_status(tx_prev.tx_link, updater.clone())
 				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -236,7 +236,7 @@ pub mod pallet {
 			ensure!(tx_status.active != status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
 
-			pallet_entity::EntityDetails::<T>::entity_status(tx_status.tx_link, updater.clone())
+			pallet_entity::TxDetails::<T>::entity_status(tx_status.tx_link, updater.clone())
 				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			log::debug!("Changing Transaction Status");

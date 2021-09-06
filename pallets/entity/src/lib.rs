@@ -54,7 +54,7 @@ pub mod pallet {
 	/// It maps from a transaction Id to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn entities)]
-	pub type Entities<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, EntityDetails<T>>;
+	pub type Entities<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, TxDetails<T>>;
 
 	/// transaction details stored on chain.
 	/// It maps from a transaction Id to a vector of transaction details.
@@ -121,7 +121,7 @@ pub mod pallet {
 			//check incoming Id and hash
 			ensure!(tx_hash != tx_id, Error::<T>::SameEntityIdAndHash);
 			//check cid encoding
-			ensure!(EntityDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
+			ensure!(TxDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
 			//check entity Id
 			ensure!(!<Entities<T>>::contains_key(&tx_id), Error::<T>::EntityAlreadyExists);
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -140,7 +140,7 @@ pub mod pallet {
 
 			<Entities<T>>::insert(
 				&tx_id,
-				EntityDetails {
+				TxDetails {
 					tx_hash: tx_hash.clone(),
 					tx_cid,
 					ptx_cid: None,
@@ -167,7 +167,7 @@ pub mod pallet {
 			tx_cid: CidOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(EntityDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
+			ensure!(TxDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
 
 			let tx_prev = <Entities<T>>::get(&tx_id).ok_or(Error::<T>::EntityNotFound)?;
 			ensure!(tx_prev.active, Error::<T>::EntityNotActive);
@@ -190,7 +190,7 @@ pub mod pallet {
 
 			<Entities<T>>::insert(
 				&tx_id,
-				EntityDetails {
+				TxDetails {
 					tx_hash: tx_hash.clone(),
 					tx_cid,
 					ptx_cid: Some(tx_prev.tx_cid),
@@ -239,7 +239,7 @@ pub mod pallet {
 
 			<Entities<T>>::insert(
 				&tx_id,
-				EntityDetails { block: block_number, active: status, ..tx_status },
+				TxDetails { block: block_number, active: status, ..tx_status },
 			);
 
 			Self::deposit_event(Event::TransactionStatusUpdated(tx_id, updater));

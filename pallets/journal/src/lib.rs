@@ -121,7 +121,7 @@ pub mod pallet {
 			ensure!(tx_hash != tx_id, Error::<T>::SameJournalIdAndHash);
 			//check cid encoding
 			ensure!(
-				pallet_entity::EntityDetails::<T>::check_cid(&tx_cid),
+				pallet_entity::TxDetails::<T>::check_cid(&tx_cid),
 				pallet_entity::Error::<T>::InvalidCidEncoding
 			);
 
@@ -130,7 +130,7 @@ pub mod pallet {
 
 			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_link)
 				.map_err(<pallet_space::Error<T>>::from)?;
-			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, controller.clone())
+			pallet_entity::TxDetails::<T>::entity_status(tx_entity, controller.clone())
 				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -179,7 +179,7 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			//check cid encoding
 			ensure!(
-				pallet_entity::EntityDetails::<T>::check_cid(&tx_cid),
+				pallet_entity::TxDetails::<T>::check_cid(&tx_cid),
 				pallet_entity::Error::<T>::InvalidCidEncoding
 			);
 
@@ -190,7 +190,7 @@ pub mod pallet {
 
 			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_prev.tx_link)
 				.map_err(<pallet_space::Error<T>>::from)?;
-			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, updater.clone())
+			pallet_entity::TxDetails::<T>::entity_status(tx_entity, updater.clone())
 				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			// let _link_status =
@@ -246,7 +246,7 @@ pub mod pallet {
 
 			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_status.tx_link)
 				.map_err(<pallet_space::Error<T>>::from)?;
-			pallet_entity::EntityDetails::<T>::entity_status(tx_entity, updater.clone())
+			pallet_entity::TxDetails::<T>::entity_status(tx_entity, updater.clone())
 				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			// let _link_status =

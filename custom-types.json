@@ -8,23 +8,9 @@
   "IdOf": "Hash",
   "HashOf": "Hash",
   "StatusOf": "bool",
-  "EntityDetails": {
-    "tx_hash": "HashOf",
-    "tx_cid": "CidOf",
-    "ptx_cid": "Option<CidOf>",
-    "controller": "CordAccountOf",
-    "block": "BlockNumber",
-    "active": "bool"
-  },
-  "SchemaDetails": {
-    "tx_hash": "HashOf",
-    "tx_cid": "CidOf",
-    "ptx_cid": "Option<CidOf>",
-    "tx_link": "IdOf",
-    "controller": "CordAccountOf",
-    "block": "BlockNumber"
-  },
+  "EntityDetails": "TxDetails",
   "SpaceDetails": "TxDetails",
+  "SchemaDetails": "TxDetails",
   "JournalDetails": "TxDetails",
   "MarkDetails": "TxDetails",
   "LinkDetails": "TxDetails",

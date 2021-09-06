@@ -3,7 +3,7 @@ use codec::{Decode, Encode};
 
 /// An on-chain transaction details written by a controller.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
-pub struct SchemaDetails<T: Config> {
+pub struct TxDetails<T: Config> {
 	/// Transaction identifier.
 	pub tx_hash: HashOf<T>,
 	/// Transaction CID.

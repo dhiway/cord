@@ -4,7 +4,7 @@ use sp_runtime::DispatchResult;
 
 /// An on-chain transaction details written by a controller.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
-pub struct EntityDetails<T: Config> {
+pub struct TxDetails<T: Config> {
 	/// Transaction identifier.
 	pub tx_hash: HashOf<T>,
 	/// Transaction CID.
@@ -19,7 +19,7 @@ pub struct EntityDetails<T: Config> {
 	pub active: bool,
 }
 
-impl<T: Config> EntityDetails<T> {
+impl<T: Config> TxDetails<T> {
 	pub fn check_cid(incoming: &CidOf) -> bool {
 		let cid_base = str::from_utf8(incoming).unwrap();
 		if cid_base.len() <= 62 && (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)) {
