@@ -7,27 +7,29 @@
   "CidOf": "Text",
   "IdOf": "Hash",
   "HashOf": "Hash",
-  "StatusOf": "bool",
-  "EntityDetails": "TxDetails",
-  "SpaceDetails": "TxDetails",
-  "SchemaDetails": "TxDetails",
-  "JournalDetails": "TxDetails",
-  "MarkDetails": "TxDetails",
-  "LinkDetails": "TxDetails",
-  "TxDetails": {
+  "CommmitOf": "bool",
+  "StreamDetails": {
     "tx_hash": "HashOf",
-    "tx_cid": "CidOf",
+    "tx_cid": "Option<CidOf>",
     "ptx_cid": "Option<CidOf>",
-    "tx_link": "IdOf",
+    "tx_schema": "Option<IdOf>",
+    "tx_link": "Option<IdOf>",
     "controller": "CordAccountOf",
     "block": "BlockNumber",
-    "active": "bool"
+    "revoked": "bool"
+  },
+  "SchemaDetails": {
+    "tx_hash": "HashOf",
+    "tx_cid": "Option<CidOf>",
+    "ptx_cid": "Option<CidOf>",
+    "controller": "CordAccountOf",
+    "block": "BlockNumber",
+    "permissioned": "StatusOf",
+    "revoked": "bool"
   },
   "TxCommits": {
-    "tx_type": "TypeOf",
     "tx_hash": "HashOf",
-    "tx_cid": "CidOf",
-    "tx_link": "Option<IdOf>",
+    "tx_cid": "Option<CidOf>",
     "block": "BlockNumber",
     "commit": "CommitOf"
   },
@@ -39,11 +41,11 @@
     "tx_hash": "HashOf",
     "ptx_verified": "bool"
   },
-  "TypeOf": {
-    "_enum": ["Entity", "Space", "Schema", "Journal", "Mark", "Link"]
+  "SchemaCommitOf": {
+    "_enum": ["Genesis", "Update", "Delegate", "Permission", "Status"]
   },
-  "CommitOf": {
-    "_enum": ["Create", "Update", "Status", "Verify"]
+  "StreamCommitOf": {
+    "_enum": ["Create", "Update", "Status"]
   },
   "KeyIdOf": "Hash",
   "CordAccountOf": "AccountId",

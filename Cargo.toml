@@ -11,12 +11,8 @@ members = [
 	"node",
 	"pallets/did",
 	"pallets/registrar",
-	"pallets/entity",
-	"pallets/space",
 	"pallets/schema",
-	"pallets/journal",
-	"pallets/mark",
-	"pallets/link",
+	"pallets/stream",
 	"pallets/fee",
 ]
 

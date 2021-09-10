@@ -6,13 +6,14 @@
 
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
-pub mod marks;
+pub mod streams;
 pub mod weights;
 
-pub use crate::marks::*;
+pub use crate::streams::*;
+pub mod utils;
+
 use crate::weights::WeightInfo;
 pub use pallet::*;
-use pallet_entity::{CommitOf, TypeOf};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -25,7 +26,7 @@ pub mod pallet {
 	/// Hash of the transaction.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a entity controller.
-	pub type CordAccountOf<T> = pallet_entity::CordAccountOf<T>;
+	pub type CordAccountOf<T> = pallet_schema::CordAccountOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// status Information
@@ -33,9 +34,7 @@ pub mod pallet {
 	/// CID type.
 	pub type CidOf = Vec<u8>;
 	#[pallet::config]
-	pub trait Config:
-		frame_system::Config + pallet_entity::Config + pallet_journal::Config
-	{
+	pub trait Config: frame_system::Config + pallet_schema::Config {
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
@@ -51,36 +50,47 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	/// transactions stored on chain.
-	/// It maps from a transaction Id to its details.
+	/// streams stored on chain.
+	/// It maps from stream Id to its details.
 	#[pallet::storage]
-	#[pallet::getter(fn marks)]
-	pub type Marks<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, MarkDetails<T>>;
+	#[pallet::getter(fn streams)]
+	pub type Streams<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, StreamDetails<T>>;
 
-	/// mark hashes stored on chain.
-	/// It maps from a mark hash to Id.
+	/// stream commit details stored on chain.
+	/// It maps from a stream Id to a vector of commit details.
 	#[pallet::storage]
-	#[pallet::getter(fn markhashes)]
-	pub type MarkHashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdOf<T>>;
+	#[pallet::getter(fn commits)]
+	pub type Commits<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<StreamCommit<T>>>;
 
-	/// mark links stored on chain.
-	/// It maps from a mark Id to its links.
+	/// stream links stored on chain.
+	/// It maps from a stream Id to a vector of links.
 	#[pallet::storage]
-	#[pallet::getter(fn marklinks)]
-	pub type MarkLinks<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<IdOf<T>>>;
+	#[pallet::getter(fn links)]
+	pub type Links<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<IdOf<T>>>;
+
+	/// stream revocation details stored on chain.
+	#[pallet::storage]
+	#[pallet::getter(fn revoked)]
+	pub type Revoked<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, ()>;
+
+	/// stream hashes stored on chain.
+	/// It maps from a stream hash to Id.
+	#[pallet::storage]
+	#[pallet::getter(fn hashes)]
+	pub type Hashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new entity has been created.
 		/// \[entity identifier, controller\]
-		TransactionAdded(IdOf<T>, HashOf<T>, CordAccountOf<T>),
+		TxAdd(IdOf<T>, HashOf<T>, CordAccountOf<T>),
 		/// An entityhas been created.
 		/// \[entity identifier, controller\]
-		TransactionUpdated(IdOf<T>, HashOf<T>, CordAccountOf<T>),
+		TxUpdate(IdOf<T>, HashOf<T>, CordAccountOf<T>),
 		/// An entity has been revoked.
 		/// \[entity identifier\]
-		TransactionStatusUpdated(IdOf<T>, CordAccountOf<T>),
+		TxStatus(IdOf<T>, CordAccountOf<T>),
 	}
 
 	#[pallet::error]
@@ -88,19 +98,22 @@ pub mod pallet {
 		/// Invalid request
 		InvalidRequest,
 		/// Hash and ID are the same
-		SameMarkIdAndHash,
+		SameIdAndHash,
 		/// Transaction idenfier is not unique
-		MarkAlreadyExists,
+		StreamAlreadyExists,
 		/// Transaction idenfier not found
-		MarkNotFound,
+		StreamNotFound,
 		/// Transaction idenfier marked inactive
-		MarkNotActive,
+		StreamRevoked,
+		/// Invalid CID encoding.
+		InvalidCidEncoding,
 		/// CID already anchored
 		CidAlreadyMapped,
 		/// no status change required
 		StatusChangeNotRequired,
 		/// Only when the author is not the controller.
 		UnauthorizedOperation,
+		StreamLinkRevoked,
 	}
 
 	#[pallet::call]
@@ -115,57 +128,56 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			tx_id: IdOf<T>,
 			tx_hash: HashOf<T>,
-			tx_cid: CidOf,
-			tx_link: IdOf<T>,
+			tx_cid: Option<CidOf>,
+			tx_schema: Option<IdOf<T>>,
+			tx_link: Option<IdOf<T>>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(tx_hash != tx_id, Error::<T>::SameMarkIdAndHash);
+			ensure!(tx_hash != tx_id, Error::<T>::SameIdAndHash);
 			//check cid encoding
-			ensure!(
-				pallet_entity::TxDetails::<T>::check_cid(&tx_cid),
-				pallet_entity::Error::<T>::InvalidCidEncoding
-			);
-
-			//check transaction
-			ensure!(!<Marks<T>>::contains_key(&tx_id), Error::<T>::MarkAlreadyExists);
-
-			let tx_space = pallet_journal::JournalDetails::<T>::journal_status(tx_link)
-				.map_err(<pallet_journal::Error<T>>::from)?;
-			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_space)
-				.map_err(<pallet_space::Error<T>>::from)?;
-			pallet_entity::TxDetails::<T>::entity_status(tx_entity, controller.clone())
-				.map_err(<pallet_entity::Error<T>>::from)?;
+			if let Some(ref tx_cid) = tx_cid {
+				ensure!(StreamDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
+			}
+			//check stream anchor
+			ensure!(!<Streams<T>>::contains_key(&tx_id), Error::<T>::StreamAlreadyExists);
+			if let Some(tx_schema) = tx_schema {
+				pallet_schema::SchemaDetails::<T>::schema_status(tx_schema, controller.clone())
+					.map_err(<pallet_schema::Error<T>>::from)?;
+			}
+			//check link status
+			if let Some(ref tx_link) = tx_link {
+				ensure!(!<Revoked<T>>::contains_key(&tx_link), Error::<T>::StreamLinkRevoked);
+				StreamDetails::<T>::link_tx(&tx_link, &tx_id)?;
+			}
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			pallet_entity::TxCommits::<T>::store_commit_tx(
+			StreamCommit::<T>::store_tx(
 				&tx_id,
-				pallet_entity::TxCommits {
-					tx_type: TypeOf::Mark,
+				StreamCommit {
 					tx_hash: tx_hash.clone(),
 					tx_cid: tx_cid.clone(),
-					tx_link: Some(tx_link.clone()),
 					block: block_number.clone(),
-					commit: CommitOf::Genesis,
+					commit: StreamCommitOf::Genesis,
 				},
 			)?;
 
-			pallet_journal::JournalDetails::<T>::store_link_tx(&tx_link, &tx_id)?;
+			<Hashes<T>>::insert(&tx_hash, &tx_id);
 
-			<MarkHashes<T>>::insert(&tx_hash, &tx_id);
-			<Marks<T>>::insert(
+			<Streams<T>>::insert(
 				&tx_id,
-				MarkDetails {
+				StreamDetails {
 					tx_hash: tx_hash.clone(),
 					tx_cid,
 					ptx_cid: None,
+					tx_schema,
 					tx_link,
 					controller: controller.clone(),
 					block: block_number,
-					active: true,
+					revoked: false,
 				},
 			);
-			Self::deposit_event(Event::TransactionAdded(tx_id, tx_hash, controller));
+			Self::deposit_event(Event::TxAdd(tx_id, tx_hash, controller));
 
 			Ok(())
 		}
@@ -178,53 +190,48 @@ pub mod pallet {
 		pub fn update(
 			origin: OriginFor<T>,
 			tx_id: IdOf<T>,
-			tx_cid: CidOf,
 			tx_hash: HashOf<T>,
+			tx_cid: Option<CidOf>,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			//check cid encoding
-			ensure!(
-				pallet_entity::TxDetails::<T>::check_cid(&tx_cid),
-				pallet_entity::Error::<T>::InvalidCidEncoding
-			);
 
-			let tx_prev = <Marks<T>>::get(&tx_id).ok_or(Error::<T>::MarkNotFound)?;
-			ensure!(tx_prev.active, Error::<T>::MarkNotActive);
+			let tx_prev = <Streams<T>>::get(&tx_id).ok_or(Error::<T>::StreamNotFound)?;
+			//check cid encoding
+			if let Some(ref tx_cid) = tx_cid {
+				ensure!(StreamDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
+			}
+			ensure!(tx_prev.revoked, Error::<T>::StreamRevoked);
 			ensure!(tx_prev.controller == updater, Error::<T>::UnauthorizedOperation);
 			ensure!(tx_cid != tx_prev.tx_cid, Error::<T>::CidAlreadyMapped);
-
-			let tx_space = pallet_journal::JournalDetails::<T>::journal_status(tx_prev.tx_link)
-				.map_err(<pallet_journal::Error<T>>::from)?;
-			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_space)
-				.map_err(<pallet_space::Error<T>>::from)?;
-			pallet_entity::TxDetails::<T>::entity_status(tx_entity, updater.clone())
-				.map_err(<pallet_entity::Error<T>>::from)?;
+			ensure!(tx_hash != tx_id, Error::<T>::SameIdAndHash);
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			pallet_entity::TxCommits::<T>::update_commit_tx(
+			StreamCommit::<T>::store_tx(
 				&tx_id,
-				pallet_entity::TxCommits {
-					tx_type: TypeOf::Mark,
+				StreamCommit {
 					tx_hash: tx_hash.clone(),
 					tx_cid: tx_cid.clone(),
-					tx_link: Some(tx_prev.tx_link.clone()),
 					block: block_number.clone(),
-					commit: CommitOf::Update,
+					commit: StreamCommitOf::Update,
 				},
 			)?;
-			<MarkHashes<T>>::insert(&tx_hash, &tx_id);
-			<Marks<T>>::insert(
-				&tx_hash,
-				MarkDetails {
-					tx_hash,
+
+			<Hashes<T>>::insert(&tx_hash, &tx_id);
+
+			<Streams<T>>::insert(
+				&tx_id,
+				StreamDetails {
+					tx_hash: tx_hash.clone(),
 					tx_cid,
-					ptx_cid: Some(tx_prev.tx_cid),
+					ptx_cid: tx_prev.tx_cid,
+					controller: updater.clone(),
 					block: block_number,
 					..tx_prev
 				},
 			);
-			Self::deposit_event(Event::TransactionUpdated(tx_id, tx_hash, updater));
+
+			Self::deposit_event(Event::TxUpdate(tx_id, tx_hash, updater));
 
 			Ok(())
 		}
@@ -243,37 +250,29 @@ pub mod pallet {
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let tx_status = <Marks<T>>::get(&tx_id).ok_or(Error::<T>::MarkNotFound)?;
-			ensure!(tx_status.active != status, Error::<T>::StatusChangeNotRequired);
+			let tx_status = <Streams<T>>::get(&tx_id).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(tx_status.revoked != status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
-
-			let tx_space = pallet_journal::Journals::<T>::get(&tx_status.tx_link)
-				.ok_or(pallet_journal::Error::<T>::JournalNotFound)?;
-			let tx_entity = pallet_space::SpaceDetails::<T>::space_status(tx_space.tx_link)
-				.map_err(<pallet_space::Error<T>>::from)?;
-			pallet_entity::TxDetails::<T>::entity_status(tx_entity, updater.clone())
-				.map_err(<pallet_entity::Error<T>>::from)?;
 
 			log::debug!("Changing Transaction Status");
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			pallet_entity::TxCommits::<T>::update_commit_tx(
+			StreamCommit::<T>::store_tx(
 				&tx_id,
-				pallet_entity::TxCommits {
-					tx_type: TypeOf::Mark,
+				StreamCommit {
 					tx_hash: tx_status.tx_hash.clone(),
 					tx_cid: tx_status.tx_cid.clone(),
-					tx_link: Some(tx_status.tx_link.clone()),
 					block: block_number.clone(),
-					commit: CommitOf::Status,
+					commit: StreamCommitOf::Status,
 				},
 			)?;
 
-			<Marks<T>>::insert(
+			<Streams<T>>::insert(
 				&tx_id,
-				MarkDetails { block: block_number, active: status, ..tx_status },
+				StreamDetails { block: block_number, revoked: status, ..tx_status },
 			);
-			Self::deposit_event(Event::TransactionStatusUpdated(tx_id, updater));
+
+			Self::deposit_event(Event::TxStatus(tx_id, updater));
 
 			Ok(())
 		}

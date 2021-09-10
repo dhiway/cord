@@ -19,12 +19,8 @@ smallvec = "1.6.1"
 # cord pallets 
 pallet-did = {  default-features = false, path = '../pallets/did' }
 pallet-registrar = {  default-features = false, path = '../pallets/registrar' }
-pallet-entity = {  default-features = false, path = '../pallets/entity' }
-pallet-space = {  default-features = false, path = '../pallets/space' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
-pallet-journal = {  default-features = false, path = '../pallets/journal' }
-pallet-mark = {  default-features = false, path = '../pallets/mark' }
-pallet-link = {  default-features = false, path = '../pallets/link' }
+pallet-stream = {  default-features = false, path = '../pallets/stream' }
 pallet-dw-fee = {  default-features = false, path = '../pallets/fee' }
 
 # cord primitives
@@ -158,12 +154,8 @@ std = [
 	"frame-election-provider-support/std",
 	"pallet-did/std",
  	"pallet-registrar/std",
-  	"pallet-entity/std",
- 	"pallet-space/std",
- 	"pallet-schema/std",
-	"pallet-journal/std",
-	"pallet-mark/std",
-	"pallet-link/std",
+  	"pallet-schema/std",
+	"pallet-stream/std",
 	"pallet-dw-fee/std",
   	"pallet-sudo/std",
 ]

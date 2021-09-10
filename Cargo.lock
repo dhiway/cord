@@ -1073,13 +1073,9 @@ dependencies = [
  "pallet-dw-fee",
  "pallet-election-provider-multi-phase",
  "pallet-elections-phragmen",
- "pallet-entity",
  "pallet-grandpa",
  "pallet-im-online",
  "pallet-indices",
- "pallet-journal",
- "pallet-link",
- "pallet-mark",
  "pallet-membership",
  "pallet-multisig",
  "pallet-offences",
@@ -1091,9 +1087,9 @@ dependencies = [
  "pallet-schema",
  "pallet-session",
  "pallet-session-benchmarking",
- "pallet-space",
  "pallet-staking",
  "pallet-staking-reward-curve",
+ "pallet-stream",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-tips",
@@ -4376,25 +4372,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-entity"
-version = "0.5.3"
-dependencies = [
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 4.0.0",
-]
-
-[[package]]
 name = "pallet-grandpa"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.9#91061a7d925b5bc597804293da283477512ba4ff"
@@ -4449,75 +4426,6 @@ dependencies = [
  "sp-keyring",
  "sp-runtime",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-journal"
-version = "0.5.3"
-dependencies = [
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-entity",
- "pallet-schema",
- "pallet-space",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 4.0.0",
-]
-
-[[package]]
-name = "pallet-link"
-version = "0.5.3"
-dependencies = [
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-entity",
- "pallet-journal",
- "pallet-mark",
- "pallet-schema",
- "pallet-space",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 4.0.0",
-]
-
-[[package]]
-name = "pallet-mark"
-version = "0.5.3"
-dependencies = [
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-entity",
- "pallet-journal",
- "pallet-schema",
- "pallet-space",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 4.0.0",
 ]
 
 [[package]]
@@ -4625,7 +4533,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-entity",
  "parity-scale-codec",
  "serde",
  "sp-core",
@@ -4660,8 +4567,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-entity",
- "pallet-space",
  "parity-scale-codec",
  "serde",
  "sp-core",
@@ -4709,26 +4614,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-space"
-version = "0.5.3"
-dependencies = [
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-entity",
- "parity-scale-codec",
- "serde",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder 4.0.0",
-]
-
-[[package]]
 name = "pallet-staking"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.9#91061a7d925b5bc597804293da283477512ba4ff"
@@ -4761,6 +4646,26 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "pallet-stream"
+version = "0.5.3"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-schema",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder 4.0.0",
 ]
 
 [[package]]
