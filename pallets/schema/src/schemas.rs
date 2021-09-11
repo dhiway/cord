@@ -33,7 +33,7 @@ impl<T: Config> SchemaDetails<T> {
 
 	pub fn schema_status(tx_schema: IdOf<T>, controller: CordAccountOf<T>) -> Result<(), Error<T>> {
 		let schema_details = <Schemas<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
-		ensure!(schema_details.revoked, Error::<T>::SchemaNotActive);
+		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 		if schema_details.permissioned {
 			let delegates = <Delegations<T>>::take(&tx_schema);
 			ensure!(
@@ -72,6 +72,7 @@ pub enum SchemaCommitOf {
 	Genesis,
 	Update,
 	Delegate,
+	RevokeDelegation,
 	Permission,
-	Status,
+	StatusChange,
 }

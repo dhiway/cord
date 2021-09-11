@@ -1103,30 +1103,6 @@ impl pallet_stream::Config for Runtime {
 	type WeightInfo = ();
 }
 
-// impl pallet_space::Config for Runtime {
-// 	type Event = Event;
-// 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
-// 	type WeightInfo = ();
-// }
-
-// impl pallet_journal::Config for Runtime {
-// 	type Event = Event;
-// 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
-// 	type WeightInfo = ();
-// }
-
-// impl pallet_mark::Config for Runtime {
-// 	type Event = Event;
-// 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
-// 	type WeightInfo = ();
-// }
-
-// impl pallet_link::Config for Runtime {
-// 	type Event = Event;
-// 	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
-// 	type WeightInfo = ();
-// }
-
 parameter_types! {
 	pub const DhiPalletId: PalletId = PalletId(*b"py/dwtsy");
 }
@@ -1192,11 +1168,6 @@ construct_runtime! {
 		Registrar: pallet_registrar::{Pallet, Call, Storage, Event<T>} = 32,
 		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 33,
 		Stream: pallet_stream::{Pallet, Call, Storage, Event<T>} = 34,
-
-		// Entity: pallet_entity::{Pallet, Call, Storage, Event<T>} = 33,
-		// Journal: pallet_journal::{Pallet, Call, Storage, Event<T>} = 36,
-		// Mark: pallet_mark::{Pallet, Call, Storage, Event<T>} = 37,
-		// Link: pallet_link::{Pallet, Call, Storage, Event<T>} = 38,
 
 		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 41,
 		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 42,

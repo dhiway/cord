@@ -194,16 +194,16 @@ pub mod pallet {
 			tx_cid: Option<CidOf>,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(tx_hash != tx_id, Error::<T>::SameIdAndHash);
 
 			let tx_prev = <Streams<T>>::get(&tx_id).ok_or(Error::<T>::StreamNotFound)?;
 			//check cid encoding
 			if let Some(ref tx_cid) = tx_cid {
+				ensure!(tx_cid != tx_prev.tx_cid.as_ref().unwrap(), Error::<T>::CidAlreadyMapped);
 				ensure!(StreamDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
 			}
-			ensure!(tx_prev.revoked, Error::<T>::StreamRevoked);
+			ensure!(!tx_prev.revoked, Error::<T>::StreamRevoked);
 			ensure!(tx_prev.controller == updater, Error::<T>::UnauthorizedOperation);
-			ensure!(tx_cid != tx_prev.tx_cid, Error::<T>::CidAlreadyMapped);
-			ensure!(tx_hash != tx_id, Error::<T>::SameIdAndHash);
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
@@ -263,7 +263,7 @@ pub mod pallet {
 					tx_hash: tx_status.tx_hash.clone(),
 					tx_cid: tx_status.tx_cid.clone(),
 					block: block_number.clone(),
-					commit: StreamCommitOf::Status,
+					commit: StreamCommitOf::StatusChange,
 				},
 			)?;
 

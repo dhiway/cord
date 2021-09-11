@@ -79,5 +79,5 @@ impl<T: Config> StreamCommit<T> {
 pub enum StreamCommitOf {
 	Genesis,
 	Update,
-	Status,
+	StatusChange,
 }

@@ -7,7 +7,7 @@
   "CidOf": "Text",
   "IdOf": "Hash",
   "HashOf": "Hash",
-  "CommmitOf": "bool",
+  "StatusOf": "bool",
   "StreamDetails": {
     "tx_hash": "HashOf",
     "tx_cid": "Option<CidOf>",
@@ -18,20 +18,26 @@
     "block": "BlockNumber",
     "revoked": "bool"
   },
+  "StreamCommit": {
+    "tx_hash": "HashOf",
+    "tx_cid": "Option<CidOf>",
+    "block": "BlockNumber",
+    "commit": "StreamCommitOf"
+  },
   "SchemaDetails": {
     "tx_hash": "HashOf",
     "tx_cid": "Option<CidOf>",
     "ptx_cid": "Option<CidOf>",
     "controller": "CordAccountOf",
     "block": "BlockNumber",
-    "permissioned": "StatusOf",
+    "permissioned": "bool",
     "revoked": "bool"
   },
-  "TxCommits": {
+  "SchemaCommit": {
     "tx_hash": "HashOf",
     "tx_cid": "Option<CidOf>",
     "block": "BlockNumber",
-    "commit": "CommitOf"
+    "commit": "SchemaCommitOf"
   },
   "RegistrarDetails": {
     "block": "BlockNumber",

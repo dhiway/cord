@@ -113,7 +113,7 @@ pub mod pallet {
 		/// Transaction idenfier not found
 		SchemaNotFound,
 		/// Transaction idenfier marked inactive
-		SchemaNotActive,
+		SchemaRevoked,
 		/// Invalid CID encoding.
 		InvalidCidEncoding,
 		/// CID already anchored
@@ -197,7 +197,7 @@ pub mod pallet {
 						tx_hash: schema.tx_hash,
 						tx_cid: schema.tx_cid,
 						block: block_number,
-						commit: SchemaCommitOf::Delegate,
+						commit: SchemaCommitOf::RevokeDelegation,
 					},
 				)?;
 				Self::deposit_event(Event::TxRemoveDelegate(tx_schema, tx_delegate));
@@ -281,12 +281,18 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			//check hash and id
 			ensure!(tx_hash != tx_id, Error::<T>::SameSchemaIdAndHash);
+
+			let schema_details = <Schemas<T>>::get(&tx_id).ok_or(Error::<T>::SchemaNotFound)?;
+
 			//check cid encoding
 			if let Some(ref tx_cid) = tx_cid {
+				ensure!(
+					tx_cid != schema_details.tx_cid.as_ref().unwrap(),
+					Error::<T>::CidAlreadyMapped
+				);
 				ensure!(SchemaDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
 			}
-			let schema_details = <Schemas<T>>::get(&tx_id).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema_details.revoked, Error::<T>::SchemaNotActive);
+			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 			ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
@@ -341,7 +347,7 @@ pub mod pallet {
 					tx_hash: schema_details.tx_hash.clone(),
 					tx_cid: schema_details.tx_cid.clone(),
 					block: block_number,
-					commit: SchemaCommitOf::Status,
+					commit: SchemaCommitOf::StatusChange,
 				},
 			)?;
 
@@ -365,7 +371,7 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let schema_details = <Schemas<T>>::get(&tx_id).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema_details.revoked, Error::<T>::SchemaNotActive);
+			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
 			ensure!(schema_details.permissioned != tx_perm, Error::<T>::NoPermissionChangeRequired);
 			ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
 			let block_number = <frame_system::Pallet<T>>::block_number();
