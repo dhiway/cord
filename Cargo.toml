@@ -14,5 +14,6 @@ members = [
 	"pallets/schema",
 	"pallets/stream",
 	"pallets/fee",
+	"pallets/nix",
 ]
 

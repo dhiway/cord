@@ -79,14 +79,10 @@ use constants::{currency::*, time::*};
 // Cord Pallets
 pub use pallet_did;
 pub use pallet_dw_fee;
+pub use pallet_nix;
 pub use pallet_registrar;
 pub use pallet_schema;
 pub use pallet_stream;
-
-// pub use pallet_entity;
-// pub use pallet_journal;
-// pub use pallet_link;
-// pub use pallet_mark;
 
 // Weights used in the runtime.
 pub mod weights;
@@ -1007,6 +1003,7 @@ where
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			pallet_nix::NixAccount::<Runtime>::new(),
 		);
 		let raw_payload = SignedPayload::new(call, extra)
 			.map_err(|e| {
@@ -1120,6 +1117,11 @@ impl pallet_dw_fee::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_nix::Config for Runtime {
+	type Event = Event;
+	type AccountOrigin = MoreThanHalfCouncil;
+}
+
 impl pallet_sudo::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
@@ -1157,6 +1159,8 @@ construct_runtime! {
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 19,
 		DhiCouncil: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 20,
 		Dhi: pallet_dw_fee::{Pallet, Call, Storage, Config, Event<T>} = 26,
+		Nix: pallet_nix::{Pallet, Call, Storage, Config<T>, Event<T>} = 27,
+
 
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 21,
 		Utility: pallet_utility::{Pallet, Call, Event} = 22,
@@ -1221,6 +1225,7 @@ pub type SignedExtra = (
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	pallet_nix::NixAccount<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;

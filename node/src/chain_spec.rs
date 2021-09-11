@@ -331,6 +331,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
 		dhi: Default::default(),
+		nix: Default::default(),
 		vesting: Default::default(),
 	}
 }
@@ -444,6 +445,7 @@ fn cord_development_genesis(
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
 		dhi: Default::default(),
+		nix: Default::default(),
 		vesting: Default::default(),
 	}
 }
