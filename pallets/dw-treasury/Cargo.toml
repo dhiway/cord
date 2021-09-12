@@ -1,5 +1,5 @@
 [package]
-name = "pallet-dw-fee"
+name = "pallet-dw-treasury"
 version = '0.5.3'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']

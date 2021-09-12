@@ -21,7 +21,7 @@ pallet-did = {  default-features = false, path = '../pallets/did' }
 pallet-registrar = {  default-features = false, path = '../pallets/registrar' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
-pallet-dw-fee = {  default-features = false, path = '../pallets/fee' }
+pallet-dw-treasury = {  default-features = false, path = '../pallets/dw-treasury' }
 pallet-nix = {  default-features = false, path = '../pallets/nix' }
 
 # cord primitives
@@ -157,7 +157,7 @@ std = [
  	"pallet-registrar/std",
   	"pallet-schema/std",
 	"pallet-stream/std",
-	"pallet-dw-fee/std",
+	"pallet-dw-treasury/std",
 	"pallet-nix/std",
   	"pallet-sudo/std",
 ]

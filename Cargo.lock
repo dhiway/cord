@@ -1070,7 +1070,7 @@ dependencies = [
  "pallet-collective",
  "pallet-democracy",
  "pallet-did",
- "pallet-dw-fee",
+ "pallet-dw-treasury",
  "pallet-election-provider-multi-phase",
  "pallet-elections-phragmen",
  "pallet-grandpa",
@@ -4318,7 +4318,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-dw-fee"
+name = "pallet-dw-treasury"
 version = "0.5.3"
 dependencies = [
  "frame-benchmarking",
