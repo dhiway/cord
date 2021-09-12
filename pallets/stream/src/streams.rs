@@ -2,31 +2,31 @@ use crate::*;
 use codec::{Decode, Encode};
 use sp_runtime::DispatchResult;
 
-/// An on-chain transaction details written by a controller.
+/// An on-chain stream transaction details written by a controller.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct StreamDetails<T: Config> {
-	/// Transaction hash.
+	/// Stream tx hash.
 	pub tx_hash: HashOf<T>,
-	/// Transaction CID.
-	pub tx_cid: Option<CidOf>,
-	/// Transaction parent CID.
-	pub ptx_cid: Option<CidOf>,
-	/// Schema Link
+	/// Stream tx Store Id.
+	pub tx_sid: Option<SidOf>,
+	/// Stream parent Store Id.
+	pub ptx_sid: Option<SidOf>,
+	/// Schema tx Link
 	pub tx_schema: Option<IdOf<T>>,
-	/// Stream Link
+	/// Stream tx Link
 	pub tx_link: Option<IdOf<T>>,
 	/// The identity of the controller.
 	pub controller: CordAccountOf<T>,
 	/// Transaction block number
 	pub block: BlockNumberOf<T>,
 	/// The flag indicating the status of the journal entry.
-	pub revoked: bool,
+	pub revoked: StatusOf,
 }
 
 impl<T: Config> StreamDetails<T> {
-	pub fn check_cid(incoming: &CidOf) -> bool {
-		let cid_base = str::from_utf8(incoming).unwrap();
-		if cid_base.len() <= 64 && (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)) {
+	pub fn check_sid(incoming: &SidOf) -> bool {
+		let sid_base = str::from_utf8(incoming).unwrap();
+		if sid_base.len() <= 64 && (utils::is_base_32(sid_base) || utils::is_base_58(sid_base)) {
 			true
 		} else {
 			false
@@ -37,9 +37,9 @@ impl<T: Config> StreamDetails<T> {
 /// An on-chain commit details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct StreamLink<T: Config> {
-	/// The transaction hash.
+	/// The stream Id to link.
 	pub tx_id: IdOf<T>,
-	/// The identity of the controller.
+	/// The identity of the stream controller.
 	pub controller: CordAccountOf<T>,
 }
 
@@ -57,8 +57,8 @@ impl<T: Config> StreamLink<T> {
 pub struct StreamCommit<T: Config> {
 	/// The transaction hash.
 	pub tx_hash: HashOf<T>,
-	/// Transaction CID
-	pub tx_cid: Option<CidOf>,
+	/// Transaction Store Id
+	pub tx_sid: Option<SidOf>,
 	/// Transaction block number
 	pub block: BlockNumberOf<T>,
 	/// Transaction request type

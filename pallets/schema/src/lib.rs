@@ -3,6 +3,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+pub use cord_primitives::{SidOf, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
 pub mod schemas;
@@ -27,10 +28,6 @@ pub mod pallet {
 	pub type CordAccountOf<T> = <T as Config>::CordAccountId;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-	/// Type for schema status Information
-	pub type StatusOf = bool;
-	/// Storage ID type.
-	pub type SidOf = Vec<u8>;
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;

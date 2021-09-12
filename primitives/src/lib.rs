@@ -63,10 +63,7 @@ pub type BlockId = generic::BlockId<Block>;
 pub type DidIdentifier = AccountId;
 
 /// CID type.
-pub type CidOf = Vec<u8>;
-
-/// Entity Transaction Type Information
-// pub type ActivityOf = Vec<u8>;
+pub type SidOf = Vec<u8>;
 
 /// status Information
 pub type StatusOf = bool;

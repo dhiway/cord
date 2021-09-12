@@ -13,7 +13,7 @@ substrate-wasm-builder = "4.0.0"
 
 [dependencies]
 codec = {default-features = false,features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
-cord-primitives = { package = "cord-primitives", path="../../primitives", optional = true, default-features = false }
+cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 serde = { version = "1.0.123", optional = true }
 pallet-schema = {  default-features = false, path = '../schema' }
 
@@ -29,7 +29,6 @@ sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polka
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9", default-features = false, optional = true}
 
 [dev-dependencies]
-cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 serde = { version = "1.0.123" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9", default-features = false }
 sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9", default-features = false }
@@ -37,7 +36,6 @@ sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polka
 [features]
 default = [ 'std' ]
 mock = [
-  "cord-primitives",
   "serde",
   "sp-core",
   "sp-io",

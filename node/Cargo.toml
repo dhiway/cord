@@ -88,11 +88,11 @@ substrate-prometheus-endpoint = { git = "https://github.com/paritytech/substrate
 frame-benchmarking = {git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.9"}
 
 # node-specific dependencies
-cord-runtime = { package = "cord-runtime", path = "../runtime", version = "0.5.0" }
-cord-primitives = { package = "cord-primitives", path="../primitives", version = "0.5.0" }
-cord-executor = { package = "cord-executor", path = "../executor", version = "0.5.0" }
-cord-inspect = { package = "cord-inspect", path = "../inspect", version = "0.5.0" }
-cord-rpc = { package = "cord-rpc", path = "../rpc", version = "0.5.0" }
+cord-runtime = { package = "cord-runtime", path = "../runtime" }
+cord-primitives = { package = "cord-primitives", path="../primitives"}
+cord-executor = { package = "cord-executor", path = "../executor" }
+cord-inspect = { package = "cord-inspect", path = "../inspect" }
+cord-rpc = { package = "cord-rpc", path = "../rpc" }
 
 # CLI-specific dependencies
 sc-cli = { git = "https://github.com/paritytech/substrate", optional = true, branch = "polkadot-v0.9.9" }

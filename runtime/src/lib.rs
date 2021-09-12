@@ -78,7 +78,7 @@ use constants::{currency::*, time::*};
 
 // Cord Pallets
 pub use pallet_did;
-pub use pallet_dw_fee;
+pub use pallet_dw_treasury;
 pub use pallet_nix;
 pub use pallet_registrar;
 pub use pallet_schema;
@@ -144,7 +144,7 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 				// for tips, if any, 100% to author
 				tips.merge_into(&mut split.1);
 			}
-			Dhi::on_unbalanced(split_fee.0);
+			DhiTreasury::on_unbalanced(split_fee.0);
 			Treasury::on_unbalanced(split.0);
 			Author::on_unbalanced(split.1);
 		}
@@ -1109,7 +1109,7 @@ type DhiCollectiveOrigin = EnsureOneOf<
 	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, DhiCollective>,
 >;
 
-impl pallet_dw_fee::Config for Runtime {
+impl pallet_dw_treasury::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type DhiOrigin = DhiCollectiveOrigin;
@@ -1158,7 +1158,7 @@ construct_runtime! {
 		PhragmenElection: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 19,
 		DhiCouncil: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 20,
-		DhiTreasury: pallet_dw_fee::{Pallet, Call, Storage, Config, Event<T>} = 26,
+		DhiTreasury: pallet_dw_treasury::{Pallet, Call, Storage, Config, Event<T>} = 26,
 		Nix: pallet_nix::{Pallet, Call, Storage, Config<T>, Event<T>} = 27,
 
 

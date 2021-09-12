@@ -10,8 +10,8 @@
   "StatusOf": "bool",
   "StreamDetails": {
     "tx_hash": "HashOf",
-    "tx_cid": "Option<SidOf>",
-    "ptx_cid": "Option<SidOf>",
+    "tx_sid": "Option<SidOf>",
+    "ptx_sid": "Option<SidOf>",
     "tx_schema": "Option<IdOf>",
     "tx_link": "Option<IdOf>",
     "controller": "CordAccountOf",
@@ -20,14 +20,14 @@
   },
   "StreamCommit": {
     "tx_hash": "HashOf",
-    "tx_cid": "Option<SidOf>",
+    "tx_sid": "Option<SidOf>",
     "block": "BlockNumber",
     "commit": "StreamCommitOf"
   },
   "SchemaDetails": {
     "tx_hash": "HashOf",
-    "tx_cid": "Option<SidOf>",
-    "ptx_cid": "Option<SidOf>",
+    "tx_sid": "Option<SidOf>",
+    "ptx_sid": "Option<SidOf>",
     "controller": "CordAccountOf",
     "block": "BlockNumber",
     "permissioned": "StatusOf",
@@ -35,7 +35,7 @@
   },
   "SchemaCommit": {
     "tx_hash": "HashOf",
-    "tx_cid": "Option<SidOf>",
+    "tx_sid": "Option<SidOf>",
     "block": "BlockNumber",
     "commit": "SchemaCommitOf"
   },
