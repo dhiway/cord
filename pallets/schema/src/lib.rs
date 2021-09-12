@@ -147,7 +147,7 @@ pub mod pallet {
 
 			Delegations::<T>::try_mutate(&tx_schema, |ref mut delegates| {
 				ensure!(
-					delegates.len() + tx_delegates.len() < T::MaxDelegates::get() as usize,
+					delegates.len() + tx_delegates.len() <= T::MaxDelegates::get() as usize,
 					Error::<T>::TooManyDelegates
 				);
 				for delegate in tx_delegates {
