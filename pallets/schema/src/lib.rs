@@ -28,6 +28,7 @@ pub mod pallet {
 	pub type CordAccountOf<T> = <T as Config>::CordAccountId;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -87,7 +88,7 @@ pub mod pallet {
 		TxStatus(IdOf<T>, CordAccountOf<T>),
 		/// A schema delegate has been added.
 		/// \[schema identifier, controller\]
-		TxAddDelegate(IdOf<T>, CordAccountOf<T>),
+		TxAddDelegate(IdOf<T>),
 		/// A schema delegate has been removed.
 		/// \[schema identifier, controller\]
 		TxRemoveDelegate(IdOf<T>, CordAccountOf<T>),
@@ -133,10 +134,10 @@ pub mod pallet {
 		/// * tx_schema: unique identifier of the schema.
 		/// * tx_delegate: schema delegate to add
 		#[pallet::weight(0)]
-		pub fn add_delegate(
+		pub fn add_delegates(
 			origin: OriginFor<T>,
 			tx_schema: IdOf<T>,
-			tx_delegate: CordAccountOf<T>,
+			tx_delegates: Vec<CordAccountOf<T>>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let schema = <Schemas<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
@@ -146,12 +147,14 @@ pub mod pallet {
 
 			Delegations::<T>::try_mutate(&tx_schema, |ref mut delegates| {
 				ensure!(
-					delegates.len() < T::MaxDelegates::get() as usize,
+					delegates.len() + tx_delegates.len() < T::MaxDelegates::get() as usize,
 					Error::<T>::TooManyDelegates
 				);
-				delegates
-					.try_push(tx_delegate.clone())
-					.expect("delegates length checked above; qed");
+				for delegate in tx_delegates {
+					delegates
+						.try_push(delegate)
+						.expect("delegates length is less than T::MaxDelegates; qed");
+				}
 				SchemaCommit::<T>::store_tx(
 					&tx_schema,
 					SchemaCommit {
@@ -161,7 +164,7 @@ pub mod pallet {
 						commit: SchemaCommitOf::Delegate,
 					},
 				)?;
-				Self::deposit_event(Event::TxAddDelegate(tx_schema, tx_delegate));
+				Self::deposit_event(Event::TxAddDelegate(tx_schema));
 				Ok(())
 			})
 		}

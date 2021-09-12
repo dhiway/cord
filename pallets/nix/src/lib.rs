@@ -87,7 +87,6 @@ pub mod pallet {
 					<NixAccounts<T>>::insert(account, extrinsics);
 				}
 			}
-			// Pallet::<T>::initialize_nix_accounts(&self.nix_accounts);
 		}
 	}
 
@@ -125,16 +124,6 @@ pub mod pallet {
 		}
 	}
 }
-
-// impl<T: Config> Pallet<T> {
-// 	fn initialize_nix_accounts(nix_accounts: &[(T::AccountId, ())]) {
-// 		if !nix_accounts.is_empty() {
-// 			for (account, extrinsics) in nix_accounts.iter() {
-// 				<NixAccounts<T>>::insert(account, extrinsics);
-// 			}
-// 		}
-// 	}
-// }
 
 /// The following section implements the `SignedExtension` trait
 /// for the `NixAccount` type.
