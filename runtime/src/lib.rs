@@ -138,13 +138,13 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance>) {
 		if let Some(fees) = fees_then_tips.next() {
 			// for fees, 35% to treasury, 40% to author, 25% to DW
-			let split_fee = fees.ration(25, 75);
-			let mut split = split_fee.1.ration(35, 40);
+			let split_fee = fees.ration(30, 70);
+			let mut split = split_fee.1.ration(40, 30);
 			if let Some(tips) = fees_then_tips.next() {
 				// for tips, if any, 100% to author
 				tips.merge_into(&mut split.1);
 			}
-			DhiTreasury::on_unbalanced(split_fee.0);
+			Base::on_unbalanced(split_fee.0);
 			Treasury::on_unbalanced(split.0);
 			Author::on_unbalanced(split.1);
 		}
@@ -1158,7 +1158,7 @@ construct_runtime! {
 		PhragmenElection: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 19,
 		DhiCouncil: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 20,
-		DhiTreasury: pallet_dw_treasury::{Pallet, Call, Storage, Config, Event<T>} = 26,
+		Base: pallet_dw_treasury::{Pallet, Call, Storage, Config, Event<T>} = 26,
 		Nix: pallet_nix::{Pallet, Call, Storage, Config<T>, Event<T>} = 27,
 
 
