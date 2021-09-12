@@ -8,9 +8,6 @@ use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
 pub mod schemas;
 pub mod weights;
 
-// #[cfg(any(feature = "mock", test))]
-// pub mod mock;
-
 pub use crate::schemas::*;
 pub mod utils;
 use crate::weights::WeightInfo;
@@ -22,18 +19,18 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	/// ID of an entity.
+	/// ID of a schema.
 	pub type IdOf<T> = <T as frame_system::Config>::Hash;
-	/// Hash of the transaction.
+	/// Hash of the schema.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
-	/// Type of a entity controller.
+	/// Type of a CORD account.
 	pub type CordAccountOf<T> = <T as Config>::CordAccountId;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-	/// status Information
+	/// Type for schema status Information
 	pub type StatusOf = bool;
-	/// CID type.
-	pub type CidOf = Vec<u8>;
+	/// Storage ID type.
+	pub type SidOf = Vec<u8>;
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -114,10 +111,10 @@ pub mod pallet {
 		SchemaNotFound,
 		/// Transaction idenfier marked inactive
 		SchemaRevoked,
-		/// Invalid CID encoding.
-		InvalidCidEncoding,
-		/// CID already anchored
-		CidAlreadyMapped,
+		/// Invalid SID encoding.
+		InvalidStoreIdEncoding,
+		/// SID already anchored
+		StoreIdAlreadyMapped,
 		/// no status change required
 		StatusChangeNotRequired,
 		/// Only when the author is not the controller.
@@ -162,7 +159,7 @@ pub mod pallet {
 					&tx_schema,
 					SchemaCommit {
 						tx_hash: schema.tx_hash,
-						tx_cid: schema.tx_cid,
+						tx_sid: schema.tx_sid,
 						block: block_number,
 						commit: SchemaCommitOf::Delegate,
 					},
@@ -195,7 +192,7 @@ pub mod pallet {
 					&tx_schema,
 					SchemaCommit {
 						tx_hash: schema.tx_hash,
-						tx_cid: schema.tx_cid,
+						tx_sid: schema.tx_sid,
 						block: block_number,
 						commit: SchemaCommitOf::RevokeDelegation,
 					},
@@ -210,14 +207,14 @@ pub mod pallet {
 		/// * origin: the identifier of the schema owner
 		/// * tx_id: unique identifier of the incoming schema stream.
 		/// * tx_hash: hash of the incoming schema stream.
-		/// * tx_cid: CID of the incoming schema stream.
+		/// * tx_sid: SID of the incoming schema stream.
 		/// * tx_perm: schema type - permissioned or not.
 		#[pallet::weight(0)]
 		pub fn create(
 			origin: OriginFor<T>,
 			tx_id: IdOf<T>,
 			tx_hash: HashOf<T>,
-			tx_cid: Option<CidOf>,
+			tx_sid: Option<SidOf>,
 			tx_perm: StatusOf,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -225,9 +222,9 @@ pub mod pallet {
 			ensure!(!<Schemas<T>>::contains_key(&tx_id), Error::<T>::SchemaAlreadyExists);
 			//check hash and id
 			ensure!(tx_hash != tx_id, Error::<T>::SameSchemaIdAndHash);
-			//check cid encoding
-			if let Some(ref tx_cid) = tx_cid {
-				ensure!(SchemaDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
+			//check store id encoding
+			if let Some(ref tx_sid) = tx_sid {
+				ensure!(SchemaDetails::<T>::check_sid(&tx_sid), Error::<T>::InvalidStoreIdEncoding);
 			}
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
@@ -235,7 +232,7 @@ pub mod pallet {
 				&tx_id,
 				SchemaCommit {
 					tx_hash: tx_hash.clone(),
-					tx_cid: tx_cid.clone(),
+					tx_sid: tx_sid.clone(),
 					block: block_number.clone(),
 					commit: SchemaCommitOf::Genesis,
 				},
@@ -251,8 +248,8 @@ pub mod pallet {
 				&tx_id,
 				SchemaDetails {
 					tx_hash: tx_hash.clone(),
-					tx_cid,
-					ptx_cid: None,
+					tx_sid,
+					ptx_sid: None,
 					controller: controller.clone(),
 					block: block_number.clone(),
 					permissioned: tx_perm,
@@ -270,13 +267,13 @@ pub mod pallet {
 		/// * origin: the identifier of the schema owner
 		/// * tx_id: unique identifier of the incoming schema stream.
 		/// * tx_hash: hash of the incoming schema stream.
-		/// * tx_cid: CID of the incoming schema stream.
+		/// * tx_sid: SID of the incoming schema stream.
 		#[pallet::weight(0)]
 		pub fn update(
 			origin: OriginFor<T>,
 			tx_id: IdOf<T>,
 			tx_hash: HashOf<T>,
-			tx_cid: Option<CidOf>,
+			tx_sid: Option<SidOf>,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			//check hash and id
@@ -284,13 +281,13 @@ pub mod pallet {
 
 			let schema_details = <Schemas<T>>::get(&tx_id).ok_or(Error::<T>::SchemaNotFound)?;
 
-			//check cid encoding
-			if let Some(ref tx_cid) = tx_cid {
+			//check store id encoding
+			if let Some(ref tx_sid) = tx_sid {
 				ensure!(
-					tx_cid != schema_details.tx_cid.as_ref().unwrap(),
-					Error::<T>::CidAlreadyMapped
+					tx_sid != schema_details.tx_sid.as_ref().unwrap(),
+					Error::<T>::StoreIdAlreadyMapped
 				);
-				ensure!(SchemaDetails::<T>::check_cid(&tx_cid), Error::<T>::InvalidCidEncoding);
+				ensure!(SchemaDetails::<T>::check_sid(&tx_sid), Error::<T>::InvalidStoreIdEncoding);
 			}
 			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 			ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
@@ -301,7 +298,7 @@ pub mod pallet {
 				&tx_id,
 				SchemaCommit {
 					tx_hash: tx_hash.clone(),
-					tx_cid: tx_cid.clone(),
+					tx_sid: tx_sid.clone(),
 					block: block_number,
 					commit: SchemaCommitOf::Update,
 				},
@@ -311,8 +308,8 @@ pub mod pallet {
 				&tx_id,
 				SchemaDetails {
 					tx_hash,
-					tx_cid,
-					ptx_cid: schema_details.tx_cid,
+					tx_sid,
+					ptx_sid: schema_details.tx_sid,
 					block: block_number,
 					..schema_details
 				},
@@ -345,7 +342,7 @@ pub mod pallet {
 				&tx_id,
 				SchemaCommit {
 					tx_hash: schema_details.tx_hash.clone(),
-					tx_cid: schema_details.tx_cid.clone(),
+					tx_sid: schema_details.tx_sid.clone(),
 					block: block_number,
 					commit: SchemaCommitOf::StatusChange,
 				},
@@ -380,7 +377,7 @@ pub mod pallet {
 				&tx_id,
 				SchemaCommit {
 					tx_hash: schema_details.tx_hash.clone(),
-					tx_cid: schema_details.tx_cid.clone(),
+					tx_sid: schema_details.tx_sid.clone(),
 					block: block_number,
 					commit: SchemaCommitOf::Permission,
 				},

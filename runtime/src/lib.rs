@@ -1158,7 +1158,7 @@ construct_runtime! {
 		PhragmenElection: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 19,
 		DhiCouncil: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 20,
-		Dhi: pallet_dw_fee::{Pallet, Call, Storage, Config, Event<T>} = 26,
+		DhiTreasury: pallet_dw_fee::{Pallet, Call, Storage, Config, Event<T>} = 26,
 		Nix: pallet_nix::{Pallet, Call, Storage, Config<T>, Event<T>} = 27,
 
 

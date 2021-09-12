@@ -66,7 +66,7 @@ pub mod pallet {
 	/// It maps from a stream Id to a vector of links.
 	#[pallet::storage]
 	#[pallet::getter(fn links)]
-	pub type Links<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<IdOf<T>>>;
+	pub type Links<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<StreamLink<T>>>;
 
 	/// stream revocation details stored on chain.
 	#[pallet::storage]
@@ -113,6 +113,7 @@ pub mod pallet {
 		StatusChangeNotRequired,
 		/// Only when the author is not the controller.
 		UnauthorizedOperation,
+		/// Lined stream is revoked
 		StreamLinkRevoked,
 	}
 
@@ -147,7 +148,10 @@ pub mod pallet {
 			//check link status
 			if let Some(ref tx_link) = tx_link {
 				ensure!(!<Revoked<T>>::contains_key(&tx_link), Error::<T>::StreamLinkRevoked);
-				StreamDetails::<T>::link_tx(&tx_link, &tx_id)?;
+				StreamLink::<T>::link_tx(
+					&tx_link,
+					StreamLink { tx_id: tx_id.clone(), controller: controller.clone() },
+				)?;
 			}
 
 			let block_number = <frame_system::Pallet<T>>::block_number();

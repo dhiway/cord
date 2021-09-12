@@ -4,38 +4,38 @@
   "AmountOf": "i128",
   "Balance": "u128",
   "LookupSource": "MultiAddress",
-  "CidOf": "Text",
+  "SidOf": "Text",
   "IdOf": "Hash",
   "HashOf": "Hash",
   "StatusOf": "bool",
   "StreamDetails": {
     "tx_hash": "HashOf",
-    "tx_cid": "Option<CidOf>",
-    "ptx_cid": "Option<CidOf>",
+    "tx_cid": "Option<SidOf>",
+    "ptx_cid": "Option<SidOf>",
     "tx_schema": "Option<IdOf>",
     "tx_link": "Option<IdOf>",
     "controller": "CordAccountOf",
     "block": "BlockNumber",
-    "revoked": "bool"
+    "revoked": "StatusOf"
   },
   "StreamCommit": {
     "tx_hash": "HashOf",
-    "tx_cid": "Option<CidOf>",
+    "tx_cid": "Option<SidOf>",
     "block": "BlockNumber",
     "commit": "StreamCommitOf"
   },
   "SchemaDetails": {
     "tx_hash": "HashOf",
-    "tx_cid": "Option<CidOf>",
-    "ptx_cid": "Option<CidOf>",
+    "tx_cid": "Option<SidOf>",
+    "ptx_cid": "Option<SidOf>",
     "controller": "CordAccountOf",
     "block": "BlockNumber",
-    "permissioned": "bool",
-    "revoked": "bool"
+    "permissioned": "StatusOf",
+    "revoked": "StatusOf"
   },
   "SchemaCommit": {
     "tx_hash": "HashOf",
-    "tx_cid": "Option<CidOf>",
+    "tx_cid": "Option<SidOf>",
     "block": "BlockNumber",
     "commit": "SchemaCommitOf"
   },

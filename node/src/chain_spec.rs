@@ -48,7 +48,6 @@ pub struct Extensions {
 	/// Known bad block hashes.
 	pub bad_blocks: sc_client_api::BadBlocks<Block>,
 	/// The light sync state.
-	///
 	/// This value will be set by the `sync-state rpc` implementation.
 	pub light_sync_state: sc_sync_state_rpc::LightSyncStateExtension,
 }
@@ -330,7 +329,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
-		dhi: Default::default(),
+		dhitreasury: Default::default(),
 		nix: Default::default(),
 		vesting: Default::default(),
 	}
@@ -444,7 +443,7 @@ fn cord_development_genesis(
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
-		dhi: Default::default(),
+		dhitreasury: Default::default(),
 		nix: Default::default(),
 		vesting: Default::default(),
 	}

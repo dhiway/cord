@@ -26,22 +26,28 @@ pub struct StreamDetails<T: Config> {
 impl<T: Config> StreamDetails<T> {
 	pub fn check_cid(incoming: &CidOf) -> bool {
 		let cid_base = str::from_utf8(incoming).unwrap();
-		if cid_base.len() <= 62 && (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)) {
+		if cid_base.len() <= 64 && (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)) {
 			true
 		} else {
 			false
 		}
 	}
-	// pub fn mark_status(tx_id: IdOf<T>) -> Result<IdOf<T>, Error<T>> {
-	// 	let tx_mark_details = <Marks<T>>::get(tx_id).ok_or(Error::<T>::MarkNotFound)?;
-	// 	ensure!(tx_mark_details.active, Error::<T>::MarkNotActive);
+}
 
-	// 	Ok(tx_mark_details.tx_link)
-	// }
-	pub fn link_tx(tx_link: &IdOf<T>, tx_id: &IdOf<T>) -> DispatchResult {
-		let mut link = <Links<T>>::get(tx_link).unwrap_or_default();
-		link.push(*tx_id);
-		<Links<T>>::insert(tx_link, link);
+/// An on-chain commit details.
+#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+pub struct StreamLink<T: Config> {
+	/// The transaction hash.
+	pub tx_id: IdOf<T>,
+	/// The identity of the controller.
+	pub controller: CordAccountOf<T>,
+}
+
+impl<T: Config> StreamLink<T> {
+	pub fn link_tx(tx_stream: &IdOf<T>, tx_link: StreamLink<T>) -> DispatchResult {
+		let mut link = <Links<T>>::get(tx_stream).unwrap_or_default();
+		link.push(tx_link);
+		<Links<T>>::insert(tx_stream, link);
 		Ok(())
 	}
 }

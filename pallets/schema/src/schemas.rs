@@ -7,24 +7,24 @@ use sp_runtime::DispatchResult;
 pub struct SchemaDetails<T: Config> {
 	/// Schema identifier.
 	pub tx_hash: HashOf<T>,
-	/// \[OPTIONAL\] Schema CID.
-	pub tx_cid: Option<CidOf>,
-	/// \[OPTIONAL\] Schema parent CID.
-	pub ptx_cid: Option<CidOf>,
+	/// \[OPTIONAL\] Storage ID (base32/52).
+	pub tx_sid: Option<SidOf>,
+	/// \[OPTIONAL\] Previous Storage ID (base32/52).
+	pub ptx_sid: Option<SidOf>,
 	/// The identity of the controller.
 	pub controller: CordAccountOf<T>,
 	/// Transaction block number
 	pub block: BlockNumberOf<T>,
 	/// The flag indicating schema type.
-	pub permissioned: bool,
+	pub permissioned: StatusOf,
 	/// The flag indicating the status of the schema.
-	pub revoked: bool,
+	pub revoked: StatusOf,
 }
 
 impl<T: Config> SchemaDetails<T> {
-	pub fn check_cid(incoming: &CidOf) -> bool {
-		let cid_base = str::from_utf8(incoming).unwrap();
-		if cid_base.len() <= 62 && (utils::is_base_32(cid_base) || utils::is_base_58(cid_base)) {
+	pub fn check_sid(incoming: &SidOf) -> bool {
+		let sid_base = str::from_utf8(incoming).unwrap();
+		if sid_base.len() <= 64 && (utils::is_base_32(sid_base) || utils::is_base_58(sid_base)) {
 			true
 		} else {
 			false
@@ -48,13 +48,13 @@ impl<T: Config> SchemaDetails<T> {
 /// An on-chain commit details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct SchemaCommit<T: Config> {
-	/// The transaction hash.
+	/// schema hash.
 	pub tx_hash: HashOf<T>,
-	/// Transaction CID
-	pub tx_cid: Option<CidOf>,
-	/// Transaction block number
+	/// schema storage ID
+	pub tx_sid: Option<SidOf>,
+	/// schema tx block number
 	pub block: BlockNumberOf<T>,
-	/// Transaction request type
+	/// schema tx request type
 	pub commit: SchemaCommitOf,
 }
 
