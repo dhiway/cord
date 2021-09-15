@@ -6,11 +6,11 @@ use sp_runtime::DispatchResult;
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct SchemaDetails<T: Config> {
 	/// Schema identifier.
-	pub tx_hash: HashOf<T>,
+	pub hash: HashOf<T>,
 	/// \[OPTIONAL\] Storage ID (base32/52).
-	pub tx_sid: Option<SidOf>,
+	pub cid: Option<IdentifierOf>,
 	/// \[OPTIONAL\] Previous Storage ID (base32/52).
-	pub ptx_sid: Option<SidOf>,
+	pub parent_cid: Option<IdentifierOf>,
 	/// The identity of the controller.
 	pub controller: CordAccountOf<T>,
 	/// Transaction block number
@@ -22,7 +22,7 @@ pub struct SchemaDetails<T: Config> {
 }
 
 impl<T: Config> SchemaDetails<T> {
-	pub fn check_sid(incoming: &SidOf) -> bool {
+	pub fn check_sid(incoming: &IdentifierOf) -> bool {
 		let sid_base = str::from_utf8(incoming).unwrap();
 		if sid_base.len() <= 64 && (utils::is_base_32(sid_base) || utils::is_base_58(sid_base)) {
 			true
@@ -49,9 +49,9 @@ impl<T: Config> SchemaDetails<T> {
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct SchemaCommit<T: Config> {
 	/// schema hash.
-	pub tx_hash: HashOf<T>,
+	pub hash: HashOf<T>,
 	/// schema storage ID
-	pub tx_sid: Option<SidOf>,
+	pub cid: Option<IdentifierOf>,
 	/// schema tx block number
 	pub block: BlockNumberOf<T>,
 	/// schema tx request type
@@ -59,10 +59,10 @@ pub struct SchemaCommit<T: Config> {
 }
 
 impl<T: Config> SchemaCommit<T> {
-	pub fn store_tx(tx_id: &IdOf<T>, tx_commit: SchemaCommit<T>) -> DispatchResult {
-		let mut commit = <Commits<T>>::get(tx_id).unwrap_or_default();
+	pub fn store_tx(identifier: &IdOf<T>, tx_commit: SchemaCommit<T>) -> DispatchResult {
+		let mut commit = <Commits<T>>::get(identifier).unwrap_or_default();
 		commit.push(tx_commit);
-		<Commits<T>>::insert(tx_id, commit);
+		<Commits<T>>::insert(identifier, commit);
 		Ok(())
 	}
 }

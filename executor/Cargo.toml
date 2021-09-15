@@ -4,10 +4,13 @@ version = '0.5.3'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
 
+[build-dependencies]
+substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
+
 [dependencies]
-codec = { package = "parity-scale-codec", version = "2.0.0"}
-cord-runtime = { package = "cord-runtime", path = "../runtime", version = "0.5.0" }
-cord-primitives = { package = "cord-primitives", path="../primitives", version = "0.5.0" }
+codec = { package = "parity-scale-codec", version = "2.2.0"}
+cord-runtime = { package = "cord-runtime", path = "../runtime" }
+cord-primitives = { package = "cord-primitives", path="../primitives" }
 
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
@@ -15,6 +18,7 @@ sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polka
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
 sp-state-machine = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
 sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
+trie-root = "0.16.0"
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
 
 [dev-dependencies]

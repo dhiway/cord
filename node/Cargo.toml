@@ -19,19 +19,19 @@ required-features = ["cli"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-log = "0.4.13"
-structopt = { version = "0.3.21", optional = true }
-hex-literal = "0.3.3"
-serde = { version = "1.0.130", features = ["derive"] }
-thiserror = "1.0.26"
+futures = "0.3.15"
+hex-literal = "0.3.1"
+tracing = "0.1.26"
+serde = { version = "1.0.123", features = ["derive"] }
+thiserror = "1.0.23"
 kvdb = "0.10.0"
-kvdb-rocksdb = { version = "0.14.0", optional = true }
-async-trait = "0.1.51"
+kvdb-rocksdb = { version = "0.12.0", optional = true }
+async-trait = "0.1.42"
+log = "0.4.13"
 wasm-bindgen = { version = "0.2.70", optional = true }
 wasm-bindgen-futures = { version = "0.4.25", optional = true }
-futures = "0.3.15"
-env_logger = "0.9.0"
-assert_matches = "1.5.0"
+structopt = { version = "0.3.21", optional = true }
+
 
 # Substrate Client
 sc-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
@@ -63,7 +63,7 @@ sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
 sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
+#sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
 sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
 sp-offchain = { package = "sp-offchain", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.9" }
@@ -97,6 +97,11 @@ cord-rpc = { package = "cord-rpc", path = "../rpc" }
 # CLI-specific dependencies
 sc-cli = { git = "https://github.com/paritytech/substrate", optional = true, branch = "polkadot-v0.9.9" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", optional = true, branch = "polkadot-v0.9.9" }
+
+[dev-dependencies]
+env_logger = "0.9.0"
+log = "0.4.14"
+assert_matches = "1.5.0"
 
 [build-dependencies]
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9"}

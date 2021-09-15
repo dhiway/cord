@@ -63,7 +63,7 @@ pub type BlockId = generic::BlockId<Block>;
 pub type DidIdentifier = AccountId;
 
 /// CID type.
-pub type SidOf = Vec<u8>;
+pub type IdentifierOf = Vec<u8>;
 
 /// status Information
 pub type StatusOf = bool;

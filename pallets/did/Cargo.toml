@@ -10,7 +10,9 @@ version = "0.25.0"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = "4.0.0"
+substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }
+
+#substrate-wasm-builder = "4.0.0"
 
 [dev-dependencies]
 env_logger = {version = "0.8.3"}
@@ -30,7 +32,7 @@ env_logger = {default-features = false, optional = true, version = "0.8.3"}
 hex = {default-features = false, features = ["alloc"], version = "0.4.2"}
 log = {default-features = false, version = "0.4.14"}
 
-codec = {default-features = false, features = ["derive"], package = "parity-scale-codec", version = "2.0.0"}
+codec = {default-features = false, features = ["derive"], package = "parity-scale-codec", version = "2.2.0"}
 frame-support = {branch = "polkadot-v0.9.9", default-features = false, git = "https://github.com/paritytech/substrate"}
 frame-system = {branch = "polkadot-v0.9.9", default-features = false, git = "https://github.com/paritytech/substrate"}
 sp-core = {branch = "polkadot-v0.9.9", default-features = false, git = "https://github.com/paritytech/substrate"}

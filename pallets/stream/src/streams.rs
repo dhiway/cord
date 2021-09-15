@@ -6,15 +6,15 @@ use sp_runtime::DispatchResult;
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct StreamDetails<T: Config> {
 	/// Stream tx hash.
-	pub tx_hash: HashOf<T>,
+	pub hash: HashOf<T>,
 	/// Stream tx Store Id.
-	pub tx_sid: Option<SidOf>,
+	pub cid: Option<IdentifierOf>,
 	/// Stream parent Store Id.
-	pub ptx_sid: Option<SidOf>,
+	pub parent_cid: Option<IdentifierOf>,
 	/// Schema tx Link
-	pub tx_schema: Option<IdOf<T>>,
+	pub schema: Option<IdOf<T>>,
 	/// Stream tx Link
-	pub tx_link: Option<IdOf<T>>,
+	pub link: Option<IdOf<T>>,
 	/// The identity of the controller.
 	pub controller: CordAccountOf<T>,
 	/// Transaction block number
@@ -24,7 +24,7 @@ pub struct StreamDetails<T: Config> {
 }
 
 impl<T: Config> StreamDetails<T> {
-	pub fn check_sid(incoming: &SidOf) -> bool {
+	pub fn check_sid(incoming: &IdentifierOf) -> bool {
 		let sid_base = str::from_utf8(incoming).unwrap();
 		if sid_base.len() <= 64 && (utils::is_base_32(sid_base) || utils::is_base_58(sid_base)) {
 			true
@@ -38,16 +38,16 @@ impl<T: Config> StreamDetails<T> {
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct StreamLink<T: Config> {
 	/// The stream Id to link.
-	pub tx_id: IdOf<T>,
+	pub identifier: IdOf<T>,
 	/// The identity of the stream controller.
 	pub controller: CordAccountOf<T>,
 }
 
 impl<T: Config> StreamLink<T> {
-	pub fn link_tx(tx_stream: &IdOf<T>, tx_link: StreamLink<T>) -> DispatchResult {
-		let mut link = <Links<T>>::get(tx_stream).unwrap_or_default();
-		link.push(tx_link);
-		<Links<T>>::insert(tx_stream, link);
+	pub fn link_tx(stream: &IdOf<T>, link: StreamLink<T>) -> DispatchResult {
+		let mut links = <Links<T>>::get(stream).unwrap_or_default();
+		links.push(link);
+		<Links<T>>::insert(stream, links);
 		Ok(())
 	}
 }
@@ -56,9 +56,9 @@ impl<T: Config> StreamLink<T> {
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct StreamCommit<T: Config> {
 	/// The transaction hash.
-	pub tx_hash: HashOf<T>,
+	pub hash: HashOf<T>,
 	/// Transaction Store Id
-	pub tx_sid: Option<SidOf>,
+	pub cid: Option<IdentifierOf>,
 	/// Transaction block number
 	pub block: BlockNumberOf<T>,
 	/// Transaction request type
@@ -66,17 +66,17 @@ pub struct StreamCommit<T: Config> {
 }
 
 impl<T: Config> StreamCommit<T> {
-	pub fn store_tx(tx_id: &IdOf<T>, tx_commit: StreamCommit<T>) -> DispatchResult {
-		let mut commit = <Commits<T>>::get(tx_id).unwrap_or_default();
+	pub fn store_tx(identifier: &IdOf<T>, tx_commit: StreamCommit<T>) -> DispatchResult {
+		let mut commit = <Commits<T>>::get(identifier).unwrap_or_default();
 		commit.push(tx_commit);
-		<Commits<T>>::insert(tx_id, commit);
+		<Commits<T>>::insert(identifier, commit);
 		Ok(())
 	}
 
-	pub fn update_tx(tx_id: &IdOf<T>, tx_commit: StreamCommit<T>) -> DispatchResult {
-		let mut commit = <Commits<T>>::get(tx_id).unwrap();
+	pub fn update_tx(identifier: &IdOf<T>, tx_commit: StreamCommit<T>) -> DispatchResult {
+		let mut commit = <Commits<T>>::get(identifier).unwrap();
 		commit.push(tx_commit);
-		<Commits<T>>::insert(tx_id, commit);
+		<Commits<T>>::insert(identifier, commit);
 		Ok(())
 	}
 }

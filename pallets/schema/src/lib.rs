@@ -3,7 +3,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-pub use cord_primitives::{SidOf, StatusOf};
+pub use cord_primitives::{IdentifierOf, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
 pub mod schemas;
@@ -110,7 +110,7 @@ pub mod pallet {
 		/// Transaction idenfier marked inactive
 		SchemaRevoked,
 		/// Invalid SID encoding.
-		InvalidStoreIdEncoding,
+		InvalidContentIdentifierEncoding,
 		/// SID already anchored
 		StoreIdAlreadyMapped,
 		/// no status change required
@@ -131,40 +131,40 @@ pub mod pallet {
 		///
 		///This transaction can only be performed by the schema controller account
 		/// * origin: the identifier of the schema owner
-		/// * tx_schema: unique identifier of the schema.
-		/// * tx_delegate: schema delegate to add
+		/// * schema: unique identifier of the schema.
+		/// * delegate: schema delegate to add
 		#[pallet::weight(0)]
 		pub fn add_delegates(
 			origin: OriginFor<T>,
-			tx_schema: IdOf<T>,
-			tx_delegates: Vec<CordAccountOf<T>>,
+			schema: IdOf<T>,
+			delegates: Vec<CordAccountOf<T>>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			let schema = <Schemas<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema.permissioned, Error::<T>::SchemaNotPermissioned);
-			ensure!(schema.controller == controller, Error::<T>::UnauthorizedOperation);
+			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
+			ensure!(schema_details.permissioned, Error::<T>::SchemaNotPermissioned);
+			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			Delegations::<T>::try_mutate(&tx_schema, |ref mut delegates| {
+			Delegations::<T>::try_mutate(&schema, |ref mut delegation| {
 				ensure!(
-					delegates.len() + tx_delegates.len() <= T::MaxDelegates::get() as usize,
+					delegation.len() + delegates.len() <= T::MaxDelegates::get() as usize,
 					Error::<T>::TooManyDelegates
 				);
-				for delegate in tx_delegates {
-					delegates
+				for delegate in delegates {
+					delegation
 						.try_push(delegate)
 						.expect("delegates length is less than T::MaxDelegates; qed");
 				}
 				SchemaCommit::<T>::store_tx(
-					&tx_schema,
+					&schema,
 					SchemaCommit {
-						tx_hash: schema.tx_hash,
-						tx_sid: schema.tx_sid,
+						hash: schema_details.hash,
+						cid: schema_details.cid,
 						block: block_number,
 						commit: SchemaCommitOf::Delegate,
 					},
 				)?;
-				Self::deposit_event(Event::TxAddDelegate(tx_schema));
+				Self::deposit_event(Event::TxAddDelegate(schema));
 				Ok(())
 			})
 		}
@@ -172,32 +172,32 @@ pub mod pallet {
 		///
 		///This transaction can only be performed by the schema controller account
 		/// * origin: the identifier of the schema owner
-		/// * tx_schema: unique identifier of the schema.
-		/// * tx_delegate: schema delegate to be removed
+		/// * schema: unique identifier of the schema.
+		/// * delegate: schema delegate to be removed
 		#[pallet::weight(0)]
 		pub fn remove_delegate(
 			origin: OriginFor<T>,
-			tx_schema: IdOf<T>,
-			tx_delegate: CordAccountOf<T>,
+			schema: IdOf<T>,
+			delegate: CordAccountOf<T>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			let schema = <Schemas<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema.permissioned, Error::<T>::SchemaNotPermissioned);
-			ensure!(schema.controller == controller, Error::<T>::UnauthorizedOperation);
+			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
+			ensure!(schema_details.permissioned, Error::<T>::SchemaNotPermissioned);
+			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			Delegations::<T>::try_mutate(&tx_schema, |ref mut delegates| {
-				delegates.retain(|x| x != &tx_delegate);
+			Delegations::<T>::try_mutate(&schema, |ref mut delegation| {
+				delegation.retain(|x| x != &delegate);
 				SchemaCommit::<T>::store_tx(
-					&tx_schema,
+					&schema,
 					SchemaCommit {
-						tx_hash: schema.tx_hash,
-						tx_sid: schema.tx_sid,
+						hash: schema_details.hash,
+						cid: schema_details.cid,
 						block: block_number,
 						commit: SchemaCommitOf::RevokeDelegation,
 					},
 				)?;
-				Self::deposit_event(Event::TxRemoveDelegate(tx_schema, tx_delegate));
+				Self::deposit_event(Event::TxRemoveDelegate(schema, delegate));
 				Ok(())
 			})
 		}
@@ -205,59 +205,62 @@ pub mod pallet {
 		/// Create a new schema and associates it with its controller.
 		///
 		/// * origin: the identifier of the schema owner
-		/// * tx_id: unique identifier of the incoming schema stream.
-		/// * tx_hash: hash of the incoming schema stream.
-		/// * tx_sid: SID of the incoming schema stream.
-		/// * tx_perm: schema type - permissioned or not.
+		/// * identifier: unique identifier of the incoming schema stream.
+		/// * hash: hash of the incoming schema stream.
+		/// * cid: SID of the incoming schema stream.
+		/// * permissioned: schema type - permissioned or not.
 		#[pallet::weight(0)]
 		pub fn create(
 			origin: OriginFor<T>,
-			tx_id: IdOf<T>,
-			tx_hash: HashOf<T>,
-			tx_sid: Option<SidOf>,
-			tx_perm: StatusOf,
+			identifier: IdOf<T>,
+			hash: HashOf<T>,
+			cid: Option<IdentifierOf>,
+			permissioned: StatusOf,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			//check transaction id
-			ensure!(!<Schemas<T>>::contains_key(&tx_id), Error::<T>::SchemaAlreadyExists);
+			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyExists);
 			//check hash and id
-			ensure!(tx_hash != tx_id, Error::<T>::SameSchemaIdAndHash);
+			ensure!(hash != identifier, Error::<T>::SameSchemaIdAndHash);
 			//check store id encoding
-			if let Some(ref tx_sid) = tx_sid {
-				ensure!(SchemaDetails::<T>::check_sid(&tx_sid), Error::<T>::InvalidStoreIdEncoding);
+			if let Some(ref cid) = cid {
+				ensure!(
+					SchemaDetails::<T>::check_sid(&cid),
+					Error::<T>::InvalidContentIdentifierEncoding
+				);
 			}
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			SchemaCommit::<T>::store_tx(
-				&tx_id,
+				&identifier,
 				SchemaCommit {
-					tx_hash: tx_hash.clone(),
-					tx_sid: tx_sid.clone(),
+					hash: hash.clone(),
+					cid: cid.clone(),
 					block: block_number.clone(),
 					commit: SchemaCommitOf::Genesis,
 				},
 			)?;
-			if tx_perm {
-				Delegations::<T>::mutate(&tx_id, |ref mut delegates| {
+			if permissioned {
+				Delegations::<T>::mutate(&identifier, |ref mut delegates| {
 					delegates
 						.try_push(controller.clone())
 						.expect("delegates length checked above; qed");
 				});
 			}
 			<Schemas<T>>::insert(
-				&tx_id,
+				&identifier,
 				SchemaDetails {
-					tx_hash: tx_hash.clone(),
-					tx_sid,
-					ptx_sid: None,
+					hash: hash.clone(),
+					cid,
+					parent_cid: None,
 					controller: controller.clone(),
 					block: block_number.clone(),
-					permissioned: tx_perm,
+					permissioned,
 					revoked: false,
 				},
 			);
 
-			Self::deposit_event(Event::TxAdd(tx_id, tx_hash, controller));
+			Self::deposit_event(Event::TxAdd(identifier, hash, controller));
 
 			Ok(())
 		}
@@ -265,29 +268,33 @@ pub mod pallet {
 		///
 		///This transaction can only be performed by the schema controller account
 		/// * origin: the identifier of the schema owner
-		/// * tx_id: unique identifier of the incoming schema stream.
-		/// * tx_hash: hash of the incoming schema stream.
-		/// * tx_sid: SID of the incoming schema stream.
+		/// * identifier: unique identifier of the incoming schema stream.
+		/// * hash: hash of the incoming schema stream.
+		/// * cid: SID of the incoming schema stream.
 		#[pallet::weight(0)]
 		pub fn update(
 			origin: OriginFor<T>,
-			tx_id: IdOf<T>,
-			tx_hash: HashOf<T>,
-			tx_sid: Option<SidOf>,
+			identifier: IdOf<T>,
+			hash: HashOf<T>,
+			cid: Option<IdentifierOf>,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			//check hash and id
-			ensure!(tx_hash != tx_id, Error::<T>::SameSchemaIdAndHash);
+			ensure!(hash != identifier, Error::<T>::SameSchemaIdAndHash);
 
-			let schema_details = <Schemas<T>>::get(&tx_id).ok_or(Error::<T>::SchemaNotFound)?;
+			let schema_details =
+				<Schemas<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 
 			//check store id encoding
-			if let Some(ref tx_sid) = tx_sid {
+			if let Some(ref cid) = cid {
 				ensure!(
-					tx_sid != schema_details.tx_sid.as_ref().unwrap(),
+					cid != schema_details.cid.as_ref().unwrap(),
 					Error::<T>::StoreIdAlreadyMapped
 				);
-				ensure!(SchemaDetails::<T>::check_sid(&tx_sid), Error::<T>::InvalidStoreIdEncoding);
+				ensure!(
+					SchemaDetails::<T>::check_sid(&cid),
+					Error::<T>::InvalidContentIdentifierEncoding
+				);
 			}
 			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 			ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
@@ -295,27 +302,27 @@ pub mod pallet {
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			SchemaCommit::<T>::store_tx(
-				&tx_id,
+				&identifier,
 				SchemaCommit {
-					tx_hash: tx_hash.clone(),
-					tx_sid: tx_sid.clone(),
+					hash: hash.clone(),
+					cid: cid.clone(),
 					block: block_number,
 					commit: SchemaCommitOf::Update,
 				},
 			)?;
 
 			<Schemas<T>>::insert(
-				&tx_id,
+				&identifier,
 				SchemaDetails {
-					tx_hash,
-					tx_sid,
-					ptx_sid: schema_details.tx_sid,
+					hash,
+					cid,
+					parent_cid: schema_details.cid,
 					block: block_number,
 					..schema_details
 				},
 			);
 
-			Self::deposit_event(Event::TxUpdate(tx_id, tx_hash, updater));
+			Self::deposit_event(Event::TxUpdate(identifier, hash, updater));
 
 			Ok(())
 		}
@@ -323,33 +330,34 @@ pub mod pallet {
 		///
 		///This transaction can only be performed by the schema controller account
 		/// * origin: the identifier of the registrar
-		/// * tx_id: unique identifier of the incoming stream.
+		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated
 		#[pallet::weight(0)]
 		pub fn set_status(
 			origin: OriginFor<T>,
-			tx_id: IdOf<T>,
+			identifier: IdOf<T>,
 			status: StatusOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let schema_details = <Schemas<T>>::get(&tx_id).ok_or(Error::<T>::SchemaNotFound)?;
+			let schema_details =
+				<Schemas<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.revoked != status, Error::<T>::StatusChangeNotRequired);
 			ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			SchemaCommit::<T>::store_tx(
-				&tx_id,
+				&identifier,
 				SchemaCommit {
-					tx_hash: schema_details.tx_hash.clone(),
-					tx_sid: schema_details.tx_sid.clone(),
+					hash: schema_details.hash.clone(),
+					cid: schema_details.cid.clone(),
 					block: block_number,
 					commit: SchemaCommitOf::StatusChange,
 				},
 			)?;
 
-			<Schemas<T>>::insert(&tx_id, SchemaDetails { revoked: status, ..schema_details });
-			Self::deposit_event(Event::TxStatus(tx_id, updater));
+			<Schemas<T>>::insert(&identifier, SchemaDetails { revoked: status, ..schema_details });
+			Self::deposit_event(Event::TxStatus(identifier, updater));
 
 			Ok(())
 		}
@@ -357,34 +365,38 @@ pub mod pallet {
 		///
 		/// This update can only be performed by a registrar account
 		/// * origin: the identifier of the registrar
-		/// * tx_id: unique identifier of the incoming stream.
+		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated
 		#[pallet::weight(0)]
 		pub fn set_permission(
 			origin: OriginFor<T>,
-			tx_id: IdOf<T>,
-			tx_perm: StatusOf,
+			identifier: IdOf<T>,
+			permissioned: StatusOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let schema_details = <Schemas<T>>::get(&tx_id).ok_or(Error::<T>::SchemaNotFound)?;
+			let schema_details =
+				<Schemas<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
-			ensure!(schema_details.permissioned != tx_perm, Error::<T>::NoPermissionChangeRequired);
+			ensure!(
+				schema_details.permissioned != permissioned,
+				Error::<T>::NoPermissionChangeRequired
+			);
 			ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			SchemaCommit::<T>::store_tx(
-				&tx_id,
+				&identifier,
 				SchemaCommit {
-					tx_hash: schema_details.tx_hash.clone(),
-					tx_sid: schema_details.tx_sid.clone(),
+					hash: schema_details.hash.clone(),
+					cid: schema_details.cid.clone(),
 					block: block_number,
 					commit: SchemaCommitOf::Permission,
 				},
 			)?;
 
-			<Schemas<T>>::insert(&tx_id, SchemaDetails { permissioned: tx_perm, ..schema_details });
-			Self::deposit_event(Event::TxPermission(tx_id, updater));
+			<Schemas<T>>::insert(&identifier, SchemaDetails { permissioned, ..schema_details });
+			Self::deposit_event(Event::TxPermission(identifier, updater));
 
 			Ok(())
 		}
