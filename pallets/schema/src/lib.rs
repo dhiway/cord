@@ -10,9 +10,9 @@ pub mod schemas;
 pub mod weights;
 
 pub use crate::schemas::*;
-pub mod utils;
 use crate::weights::WeightInfo;
 pub use pallet::*;
+pub use sp_cid::{Cid, Version};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -102,20 +102,22 @@ pub mod pallet {
 		/// Invalid request
 		InvalidRequest,
 		/// Hash and ID are the same
-		SameSchemaIdAndHash,
+		SameIdentifierAndHash,
 		/// Transaction idenfier is not unique
-		SchemaAlreadyExists,
+		SchemaAlreadyAnchored,
 		/// Transaction idenfier not found
 		SchemaNotFound,
 		/// Transaction idenfier marked inactive
 		SchemaRevoked,
-		/// Invalid SID encoding.
-		InvalidContentIdentifierEncoding,
-		/// SID already anchored
-		StoreIdAlreadyMapped,
+		/// Invalid CID encoding.
+		InvalidCidEncoding,
+		/// CID already anchored
+		CidAlreadyAnchored,
+		/// Invalid CID version
+		InvalidCidVersion,
 		/// no status change required
 		StatusChangeNotRequired,
-		/// Only when the author is not the controller.
+		/// Only when the author is not the controller or delegate.
 		UnauthorizedOperation,
 		// Maximum Number of delegates reached.
 		TooManyDelegates,
@@ -123,6 +125,7 @@ pub mod pallet {
 		SchemaNotPermissioned,
 		// Schema permission matching with the change request
 		NoPermissionChangeRequired,
+		HashAlreadyAnchored,
 	}
 
 	#[pallet::call]
@@ -219,15 +222,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			//check transaction id
-			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyExists);
+			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 			//check hash and id
-			ensure!(hash != identifier, Error::<T>::SameSchemaIdAndHash);
+			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
 			//check store id encoding
 			if let Some(ref cid) = cid {
-				ensure!(
-					SchemaDetails::<T>::check_sid(&cid),
-					Error::<T>::InvalidContentIdentifierEncoding
-				);
+				SchemaDetails::<T>::is_valid(cid)?;
 			}
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
@@ -280,21 +280,19 @@ pub mod pallet {
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			//check hash and id
-			ensure!(hash != identifier, Error::<T>::SameSchemaIdAndHash);
+			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
 
 			let schema_details =
 				<Schemas<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
+			ensure!(hash != schema_details.hash, Error::<T>::HashAlreadyAnchored);
 
 			//check store id encoding
 			if let Some(ref cid) = cid {
 				ensure!(
 					cid != schema_details.cid.as_ref().unwrap(),
-					Error::<T>::StoreIdAlreadyMapped
+					Error::<T>::CidAlreadyAnchored
 				);
-				ensure!(
-					SchemaDetails::<T>::check_sid(&cid),
-					Error::<T>::InvalidContentIdentifierEncoding
-				);
+				SchemaDetails::<T>::is_valid(cid)?;
 			}
 			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 			ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);

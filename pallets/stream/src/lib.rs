@@ -12,7 +12,6 @@ pub mod streams;
 pub mod weights;
 
 pub use crate::streams::*;
-pub mod utils;
 
 use crate::weights::WeightInfo;
 pub use pallet::*;
@@ -92,17 +91,17 @@ pub mod pallet {
 		/// Invalid request
 		InvalidRequest,
 		/// Hash and ID are the same
-		SameIdAndHash,
+		SameIdentifierAndHash,
 		/// Transaction idenfier is not unique
-		StreamAlreadyExists,
+		StreamAlreadyAnchored,
 		/// Transaction idenfier not found
 		StreamNotFound,
 		/// Transaction idenfier marked inactive
 		StreamRevoked,
-		/// Invalid SID encoding.
-		InvalidStoreIdEncoding,
-		/// SID already anchored
-		StoreIdAlreadyMapped,
+		/// Invalid CID encoding.
+		InvalidCidEncoding,
+		/// CID already anchored
+		CidAlreadyAnchored,
 		/// no status change required
 		StatusChangeNotRequired,
 		/// Only when the author is not the controller.
@@ -133,12 +132,12 @@ pub mod pallet {
 			link: Option<IdOf<T>>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(hash != identifier, Error::<T>::SameIdAndHash);
+			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
 			//check store Id encoding
 			if let Some(ref cid) = cid {
-				ensure!(StreamDetails::<T>::check_sid(&cid), Error::<T>::InvalidStoreIdEncoding);
+				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
 			}
-			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyExists);
+			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
 			//check stream schema status
 			if let Some(schema) = schema {
 				pallet_schema::SchemaDetails::<T>::schema_status(schema, controller.clone())
@@ -199,13 +198,13 @@ pub mod pallet {
 			cid: Option<IdentifierOf>,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(hash != identifier, Error::<T>::SameIdAndHash);
+			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
 
 			let tx_prev = <Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
-			//check sid encoding
+			//check cid encoding
 			if let Some(ref cid) = cid {
-				ensure!(cid != tx_prev.cid.as_ref().unwrap(), Error::<T>::StoreIdAlreadyMapped);
-				ensure!(StreamDetails::<T>::check_sid(&cid), Error::<T>::InvalidStoreIdEncoding);
+				ensure!(cid != tx_prev.cid.as_ref().unwrap(), Error::<T>::CidAlreadyAnchored);
+				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
 			}
 			ensure!(!tx_prev.revoked, Error::<T>::StreamRevoked);
 			ensure!(tx_prev.controller == updater, Error::<T>::UnauthorizedOperation);

@@ -22,13 +22,14 @@ pub struct SchemaDetails<T: Config> {
 }
 
 impl<T: Config> SchemaDetails<T> {
-	pub fn check_sid(incoming: &IdentifierOf) -> bool {
-		let sid_base = str::from_utf8(incoming).unwrap();
-		if sid_base.len() <= 64 && (utils::is_base_32(sid_base) || utils::is_base_58(sid_base)) {
-			true
-		} else {
-			false
-		}
+	pub fn is_valid(incoming: &IdentifierOf) -> DispatchResult {
+		let cid_str = str::from_utf8(incoming).unwrap();
+		let cid_details: Cid = cid_str.parse().map_err(|_err| Error::<T>::InvalidCidEncoding)?;
+		ensure!(
+			(cid_details.version() == Version::V1 || cid_details.version() == Version::V0),
+			Error::<T>::InvalidCidVersion
+		);
+		Ok(())
 	}
 
 	pub fn schema_status(tx_schema: IdOf<T>, controller: CordAccountOf<T>) -> Result<(), Error<T>> {

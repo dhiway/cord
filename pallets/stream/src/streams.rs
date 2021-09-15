@@ -23,17 +23,6 @@ pub struct StreamDetails<T: Config> {
 	pub revoked: StatusOf,
 }
 
-impl<T: Config> StreamDetails<T> {
-	pub fn check_sid(incoming: &IdentifierOf) -> bool {
-		let sid_base = str::from_utf8(incoming).unwrap();
-		if sid_base.len() <= 64 && (utils::is_base_32(sid_base) || utils::is_base_58(sid_base)) {
-			true
-		} else {
-			false
-		}
-	}
-}
-
 /// An on-chain commit details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct StreamLink<T: Config> {
