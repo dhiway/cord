@@ -9,7 +9,6 @@ members = [
 	"executor",
 	"inspect",
 	"node",
-	"pallets/did",
 	"pallets/registrar",
 	"pallets/schema",
 	"pallets/stream",

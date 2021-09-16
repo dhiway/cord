@@ -17,7 +17,6 @@ static_assertions = "1.1.0"
 smallvec = "1.6.1"
 
 # cord pallets 
-pallet-did = {  default-features = false, path = '../pallets/did' }
 pallet-registrar = {  default-features = false, path = '../pallets/registrar' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
@@ -153,7 +152,6 @@ std = [
 	"sp-session/std",
 	"sp-npos-elections/std",
 	"frame-election-provider-support/std",
-	"pallet-did/std",
  	"pallet-registrar/std",
   	"pallet-schema/std",
 	"pallet-stream/std",

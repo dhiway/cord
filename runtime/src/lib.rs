@@ -11,7 +11,7 @@
 
 use codec::{Decode, Encode, MaxEncodedLen};
 pub use cord_primitives::{AccountId, Signature};
-use cord_primitives::{AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Index, Moment};
+use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
@@ -77,7 +77,6 @@ pub mod constants;
 use constants::{currency::*, time::*};
 
 // Cord Pallets
-pub use pallet_did;
 pub use pallet_dw_treasury;
 pub use pallet_nix;
 pub use pallet_registrar;
@@ -1042,35 +1041,6 @@ impl pallet_vesting::Config for Runtime {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
-	#[derive(Debug, Clone, PartialEq)]
-	pub const MaxUrlLength: u32 = 200u32;
-	// TODO: Find reasonable numbers
-	pub const MaxPublicKeysPerDid: u32 = 1000;
-	#[derive(Debug, Clone, PartialEq)]
-	pub const MaxTotalKeyAgreementKeys: u32 = 1000;
-	#[derive(Debug, Clone, PartialEq)]
-	pub const MaxEndpointUrlsCount: u32 = 3u32;
-}
-
-impl pallet_did::Config for Runtime {
-	type DidIdentifier = DidIdentifier;
-	type Event = Event;
-	type Call = Call;
-	type Origin = Origin;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<Self::DidIdentifier>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type EnsureOrigin = EnsureSigned<Self::DidIdentifier>;
-	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
-	type MaxTotalKeyAgreementKeys = MaxTotalKeyAgreementKeys;
-	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
-	type MaxUrlLength = MaxUrlLength;
-	type MaxEndpointUrlsCount = MaxEndpointUrlsCount;
-	type WeightInfo = ();
-}
-
 impl pallet_registrar::Config for Runtime {
 	type Event = Event;
 	type CordAccountId = AccountId;
@@ -1168,7 +1138,6 @@ construct_runtime! {
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 24,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 25,
 
-		Did: pallet_did::{Pallet, Call, Storage, Event<T>, Origin<T>} = 31,
 		Registrar: pallet_registrar::{Pallet, Call, Storage, Event<T>} = 32,
 		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 33,
 		Stream: pallet_stream::{Pallet, Call, Storage, Event<T>} = 34,
@@ -1179,31 +1148,6 @@ construct_runtime! {
 		ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 44,
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 51,
 	}
-}
-
-impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Call {
-	fn derive_verification_key_relationship(
-		&self,
-	) -> Option<pallet_did::DidVerificationKeyRelationship> {
-		match self {
-			Call::Schema(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			Call::Stream(_) => Some(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			// DID creation is not allowed through the DID proxy.
-			Call::Did(pallet_did::Call::create(..)) => None,
-			Call::Did(_) => Some(pallet_did::DidVerificationKeyRelationship::Authentication),
-			#[cfg(not(feature = "runtime-benchmarks"))]
-			_ => None,
-			// By default, returns the authentication key
-			#[cfg(feature = "runtime-benchmarks")]
-			_ => Some(pallet_did::DidVerificationKeyRelationship::Authentication),
-		}
-	}
-
-	// Always return a System::remark() extrinsic call
-	// #[cfg(feature = "runtime-benchmarks")]
-	// fn get_call_for_did_call_benchmark() -> Self {
-	// 	Call::System(frame_system::Call::remark(vec![]))
-	// }
 }
 
 /// The address format for describing accounts.
@@ -1525,14 +1469,6 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_utility, Utility);
 			add_benchmark!(params, batches, pallet_vesting, Vesting);
 
-
-			// CORD Pallets
-			// add_benchmark!(params, batches, pallet_mtype, Mtype);
-			// add_benchmark!(params, batches, pallet_delegation, Delegation);
-			// add_benchmark!(params, batches, pallet_mark, Mark);
-			// add_benchmark!(params, batches, pallet_did, Did);
-			// add_benchmark!(params, batches, pallet_digest, Digest);
-			// add_benchmark!(params, batches, pallet_reserve::<Instance1>, CordReserve);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
