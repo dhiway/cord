@@ -1,10 +1,24 @@
-// Copyright 2019-2021 Dhiway.
-// This file is part of CORD Platform.
+// CORD Blockchain – https://dhiway.network
+// Copyright (C) 2019-2021 Dhiway
+// SPDX-License-Identifier: GPL-3.0-or-later
 
-use crate::service as cord_service;
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 use crate::{
 	chain_spec,
 	cli::{Cli, Subcommand},
+	service as cord_service,
 };
 use cord_executor::Executor;
 use cord_runtime::{Block, RuntimeApi};
@@ -64,9 +78,8 @@ impl SubstrateCli for Cli {
 			"cord-dev" | "dev" => Box::new(chain_spec::cord_development_config()?),
 			"cord-local" | "local" => Box::new(chain_spec::cord_local_testnet_config()?),
 			"cord-staging" | "staging" => Box::new(chain_spec::cord_staging_config()?),
-			path => {
-				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
-			}
+			path =>
+				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		})
 	}
 
@@ -89,16 +102,16 @@ pub fn run() -> sc_cli::Result<()> {
 				}
 				.map_err(sc_cli::Error::Service)
 			})
-		}
+		},
 		Some(Subcommand::Inspect(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 
 			runner.sync_run(|config| cmd.run::<Block, RuntimeApi, Executor>(config))
-		}
+		},
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
-		}
+		},
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|mut config| {
@@ -106,21 +119,21 @@ pub fn run() -> sc_cli::Result<()> {
 					new_partial(&mut config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
-		}
+		},
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|mut config| {
 				let PartialComponents { client, task_manager, .. } = new_partial(&mut config)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
-		}
+		},
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|mut config| {
 				let PartialComponents { client, task_manager, .. } = new_partial(&mut config)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
-		}
+		},
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|mut config| {
@@ -128,11 +141,11 @@ pub fn run() -> sc_cli::Result<()> {
 					new_partial(&mut config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
-		}
+		},
 		Some(Subcommand::PurgeChain(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.database))
-		}
+		},
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|mut config| {
@@ -140,8 +153,8 @@ pub fn run() -> sc_cli::Result<()> {
 					new_partial(&mut config)?;
 				Ok((cmd.run(client, backend), task_manager))
 			})
-		}
-		Some(Subcommand::Benchmark(cmd)) => {
+		},
+		Some(Subcommand::Benchmark(cmd)) =>
 			if cfg!(feature = "runtime-benchmarks") {
 				let runner = cli.create_runner(cmd)?;
 				runner.sync_run(|config| cmd.run::<Block, Executor>(config))
@@ -149,8 +162,7 @@ pub fn run() -> sc_cli::Result<()> {
 				Err("Benchmarking wasn't enabled when building the node. \
 				You can enable it with `--features runtime-benchmarks`."
 					.into())
-			}
-		}
+			},
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
 		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
@@ -165,7 +177,7 @@ pub fn run() -> sc_cli::Result<()> {
 
 				Ok((cmd.run::<Block, Executor>(config), task_manager))
 			})
-		}
+		},
 		#[cfg(not(feature = "try-runtime"))]
 		Some(Subcommand::TryRuntime) => Err("TryRuntime wasn't enabled when building the node. \
 				You can enable it with `--features try-runtime`."

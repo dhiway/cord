@@ -1,11 +1,25 @@
-// Copyright 2019-2021 Dhiway.
-// This file is part of CORD Platform.
+// CORD Blockchain – https://dhiway.network
+// Copyright (C) 2019-2021 Dhiway
+// SPDX-License-Identifier: GPL-3.0-or-later
 
-//! A CLI extension for substrate node, adding sub-command to pretty print debug info
-//! about blocks and extrinsics.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+//! A CLI extension for CORD node, adding sub-command to pretty print debug
+//! info about blocks and extrinsics.
 //!
-//! The blocks and extrinsics can either be retrieved from the database (on-chain),
-//! or a raw SCALE-encoding can be provided.
+//! The blocks and extrinsics can either be retrieved from the database
+//! (on-chain), or a raw SCALE-encoding can be provided.
 
 #![warn(missing_docs)]
 
@@ -23,14 +37,16 @@ use sp_runtime::{
 use std::{fmt, fmt::Debug, marker::PhantomData, str::FromStr};
 
 /// A helper type for a generic block input.
-pub type BlockAddressFor<TBlock> = BlockAddress<<HashFor<TBlock> as Hash>::Output, NumberFor<TBlock>>;
+pub type BlockAddressFor<TBlock> =
+	BlockAddress<<HashFor<TBlock> as Hash>::Output, NumberFor<TBlock>>;
 
 /// A Pretty formatter implementation.
 pub trait PrettyPrinter<TBlock: Block> {
 	/// Nicely format block.
 	fn fmt_block(&self, fmt: &mut fmt::Formatter, block: &TBlock) -> fmt::Result;
 	/// Nicely format extrinsic.
-	fn fmt_extrinsic(&self, fmt: &mut fmt::Formatter, extrinsic: &TBlock::Extrinsic) -> fmt::Result;
+	fn fmt_extrinsic(&self, fmt: &mut fmt::Formatter, extrinsic: &TBlock::Extrinsic)
+		-> fmt::Result;
 }
 
 /// Default dummy debug printer.
@@ -49,7 +65,11 @@ impl<TBlock: Block> PrettyPrinter<TBlock> for DebugPrinter {
 		Ok(())
 	}
 
-	fn fmt_extrinsic(&self, fmt: &mut fmt::Formatter, extrinsic: &TBlock::Extrinsic) -> fmt::Result {
+	fn fmt_extrinsic(
+		&self,
+		fmt: &mut fmt::Formatter,
+		extrinsic: &TBlock::Extrinsic,
+	) -> fmt::Result {
 		writeln!(fmt, " {:#?}", extrinsic)?;
 		writeln!(fmt, " Bytes: {:?}", HexDisplay::from(&extrinsic.encode()))?;
 		Ok(())
@@ -105,11 +125,7 @@ impl<TBlock: Block, TPrinter: PrettyPrinter<TBlock>> Inspector<TBlock, TPrinter>
 
 	/// Customize pretty-printing of the data.
 	pub fn with_printer(chain: impl ChainAccess<TBlock> + 'static, printer: TPrinter) -> Self {
-		Inspector {
-			chain: Box::new(chain) as _,
-			printer,
-			_block: Default::default(),
-		}
+		Inspector { chain: Box::new(chain) as _, printer, _block: Default::default() }
 	}
 
 	/// Get a pretty-printed block.
@@ -135,12 +151,10 @@ impl<TBlock: Block, TPrinter: PrettyPrinter<TBlock>> Inspector<TBlock, TPrinter>
 					.chain
 					.block_body(&id)?
 					.ok_or_else(|| Error::NotFound(not_found.clone()))?;
-				let header = self
-					.chain
-					.header(id)?
-					.ok_or_else(|| Error::NotFound(not_found.clone()))?;
+				let header =
+					self.chain.header(id)?.ok_or_else(|| Error::NotFound(not_found.clone()))?;
 				TBlock::new(header, body)
-			}
+			},
 			BlockAddress::Hash(hash) => {
 				let id = BlockId::hash(hash);
 				let not_found = format!("Could not find block {:?}", id);
@@ -148,12 +162,10 @@ impl<TBlock: Block, TPrinter: PrettyPrinter<TBlock>> Inspector<TBlock, TPrinter>
 					.chain
 					.block_body(&id)?
 					.ok_or_else(|| Error::NotFound(not_found.clone()))?;
-				let header = self
-					.chain
-					.header(id)?
-					.ok_or_else(|| Error::NotFound(not_found.clone()))?;
+				let header =
+					self.chain.header(id)?.ok_or_else(|| Error::NotFound(not_found.clone()))?;
 				TBlock::new(header, body)
-			}
+			},
 		})
 	}
 
@@ -173,9 +185,12 @@ impl<TBlock: Block, TPrinter: PrettyPrinter<TBlock>> Inspector<TBlock, TPrinter>
 			ExtrinsicAddress::Block(block, index) => {
 				let block = self.get_block(block)?;
 				block.extrinsics().get(index).cloned().ok_or_else(|| {
-					Error::NotFound(format!("Could not find extrinsic {} in block {:?}", index, block))
+					Error::NotFound(format!(
+						"Could not find extrinsic {} in block {:?}",
+						index, block
+					))
 				})?
-			}
+			},
 			ExtrinsicAddress::Bytes(bytes) => TBlock::Extrinsic::decode(&mut &*bytes)?,
 		};
 
@@ -200,12 +215,12 @@ impl<Hash: FromStr, Number: FromStr> FromStr for BlockAddress<Hash, Number> {
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		// try to parse hash first
 		if let Ok(hash) = s.parse() {
-			return Ok(Self::Hash(hash));
+			return Ok(Self::Hash(hash))
 		}
 
 		// then number
 		if let Ok(number) = s.parse() {
-			return Ok(Self::Number(number));
+			return Ok(Self::Number(number))
 		}
 
 		// then assume it's bytes (hex-encoded)
@@ -233,7 +248,7 @@ impl<Hash: FromStr + Debug, Number: FromStr + Debug> FromStr for ExtrinsicAddres
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		// first try raw bytes
 		if let Ok(bytes) = sp_core::bytes::from_hex(s).map(Self::Bytes) {
-			return Ok(bytes);
+			return Ok(bytes)
 		}
 
 		// split by a bunch of different characters
@@ -269,9 +284,7 @@ mod tests {
 
 		assert_eq!(
 			b0,
-			Ok(BlockAddress::Hash(
-				"3BfC20f0B9aFcAcE800D73D2191166FF16540258".parse().unwrap()
-			))
+			Ok(BlockAddress::Hash("3BfC20f0B9aFcAcE800D73D2191166FF16540258".parse().unwrap()))
 		);
 		assert_eq!(b1, Ok(BlockAddress::Number(1234)));
 		assert_eq!(b2, Ok(BlockAddress::Number(0)));

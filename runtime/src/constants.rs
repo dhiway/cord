@@ -1,6 +1,19 @@
-// Copyright 2019-2021 Dhiway.
-// This file is part of CORD Platform.
+// CORD Blockchain – https://dhiway.network
+// Copyright (C) 2019-2021 Dhiway
+// SPDX-License-Identifier: GPL-3.0-or-later
 
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 //! A set of constant values used in runtime.
 
 /// Money matters.
@@ -38,15 +51,16 @@ pub mod time {
 	pub const MILLISECS_PER_BLOCK: Moment = 4000;
 	pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
 
-	// NOTE: Currently it is not possible to change the slot duration after the chain has started.
-	//       Attempting to do so will brick block production.
+	// NOTE: Currently it is not possible to change the slot duration after the
+	// chain has started.       Attempting to do so will brick block production.
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
 
-	// 1 in 4 blocks (on average, not counting collisions) will be primary BABE blocks.
+	// 1 in 4 blocks (on average, not counting collisions) will be primary BABE
+	// blocks.
 	pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
 
-	// NOTE: Currently it is not possible to change the epoch duration after the chain has started.
-	//       Attempting to do so will brick block production.
+	// NOTE: Currently it is not possible to change the epoch duration after the
+	// chain has started.       Attempting to do so will brick block production.
 	pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 2 * DAYS;
 	pub const EPOCH_DURATION_IN_SLOTS: u64 = {
 		const SLOT_FILL_RATE: f64 = MILLISECS_PER_BLOCK as f64 / SLOT_DURATION as f64;
@@ -64,28 +78,32 @@ pub mod time {
 pub mod fee {
 	use cord_primitives::Balance;
 	use frame_support::weights::{
-		constants::ExtrinsicBaseWeight, WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
+		constants::ExtrinsicBaseWeight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+		WeightToFeePolynomial,
 	};
 	use smallvec::smallvec;
 	pub use sp_runtime::Perbill;
 	/// The block saturation level. Fees will be updates based on this value.
 	pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
 
-	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
-	/// node's balance type.
+	/// Handles converting a weight scalar to a fee value, based on the scale
+	/// and granularity of the node's balance type.
 	///
 	/// This should typically create a mapping between the following ranges:
 	///   - [0, MAXIMUM_BLOCK_WEIGHT]
 	///   - [Balance::min, Balance::max]
 	///
-	/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
+	/// Yet, it can be used for any other sort of change to weight-fee. Some
+	/// examples being:
 	///   - Setting it to `0` will essentially disable the weight fee.
-	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
+	///   - Setting it to `1` will cause the literal `#[weight = x]` values to
+	///     be charged.
 	pub struct WeightToFee;
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-			// in Cord, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 MILLi_WAY:
+			// in Cord, extrinsic base weight (smallest non-zero weight) is mapped to 1/10
+			// MILLi_WAY:
 			let p = super::currency::MILLI_WAY;
 			let q = 10 * Balance::from(ExtrinsicBaseWeight::get());
 			smallvec![WeightToFeeCoefficient {

@@ -1,7 +1,19 @@
-// Copyright 2019-2021 Dhiway.
-// This file is part of CORD Platform.
+// CORD Blockchain – https://dhiway.network
+// Copyright (C) 2019-2021 Dhiway
+// SPDX-License-Identifier: GPL-3.0-or-later
 
-//! The CORD runtime. This can be compiled with `#[no_std]`, ready for Wasm.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
@@ -24,8 +36,7 @@ use frame_support::{
 	},
 	PalletId, RuntimeDebug,
 };
-use frame_system::limits;
-use frame_system::{EnsureOneOf, EnsureRoot, EnsureSigned};
+use frame_system::{limits, EnsureOneOf, EnsureRoot, EnsureSigned};
 
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -41,17 +52,16 @@ use sp_core::{
 	u32_trait::{_1, _2, _3, _4, _5},
 	OpaqueMetadata,
 };
-use sp_runtime::curve::PiecewiseLinear;
-use sp_runtime::traits::{
-	AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Dispatchable,
-	Extrinsic as ExtrinsicT, OpaqueKeys, SaturatedConversion, Verify, Zero,
-};
-use sp_runtime::transaction_validity::{
-	TransactionPriority, TransactionSource, TransactionValidity,
-};
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys, ApplyExtrinsicResult, FixedPointNumber,
-	FixedU128, Perbill, Percent, Permill, Perquintill,
+	create_runtime_str,
+	curve::PiecewiseLinear,
+	generic, impl_opaque_keys,
+	traits::{
+		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Dispatchable,
+		Extrinsic as ExtrinsicT, OpaqueKeys, SaturatedConversion, Verify, Zero,
+	},
+	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
+	ApplyExtrinsicResult, FixedPointNumber, FixedU128, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(any(feature = "std", test))]
@@ -68,7 +78,8 @@ pub use pallet_staking::StakerStatus;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
-/// Implementations of some helper traits passed into runtime modules as associated types.
+/// Implementations of some helper traits passed into runtime modules as
+/// associated types.
 pub mod impls;
 pub use impls::Author;
 
@@ -195,8 +206,9 @@ type MoreThanHalfCouncil = EnsureOneOf<
 	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
 >;
 
-/// We assume that an on-initialize consumes 1% of the weight on average, hence a single extrinsic
-/// will not be allowed to consume more than `AvailableBlockRatio - 1%`.
+/// We assume that an on-initialize consumes 1% of the weight on average, hence
+/// a single extrinsic will not be allowed to consume more than
+/// `AvailableBlockRatio - 1%`.
 const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
 /// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be
 /// used by  Operational  extrinsics.
@@ -361,14 +373,14 @@ impl InstanceFilter<Call> for ProxyType {
 			),
 			ProxyType::Governance => matches!(
 				c,
-				Call::Democracy(..)
-					| Call::Council(..) | Call::TechnicalCommittee(..)
-					| Call::PhragmenElection(..)
-					| Call::Treasury(..) | Call::Bounties(..)
+				Call::Democracy(..) |
+					Call::Council(..) | Call::TechnicalCommittee(..) |
+					Call::PhragmenElection(..) |
+					Call::Treasury(..) | Call::Bounties(..)
 			),
 			ProxyType::Staking => {
 				matches!(c, Call::Staking(..) | Call::Session(..) | Call::Utility(..))
-			}
+			},
 		}
 	}
 	fn is_superset(&self, o: &Self) -> bool {
@@ -704,21 +716,23 @@ impl pallet_democracy::Config for Runtime {
 		pallet_collective::EnsureProportionAtLeast<_1, _2, AccountId, CouncilCollective>,
 		frame_system::EnsureRoot<AccountId>,
 	>;
-	/// A super-majority can have the next scheduled referendum be a straight majority-carries vote.
+	/// A super-majority can have the next scheduled referendum be a straight
+	/// majority-carries vote.
 	type ExternalMajorityOrigin = frame_system::EnsureOneOf<
 		AccountId,
 		pallet_collective::EnsureProportionAtLeast<_3, _5, AccountId, CouncilCollective>,
 		frame_system::EnsureRoot<AccountId>,
 	>;
-	/// A unanimous council can have the next scheduled referendum be a straight default-carries
-	/// (NTB) vote.
+	/// A unanimous council can have the next scheduled referendum be a straight
+	/// default-carries (NTB) vote.
 	type ExternalDefaultOrigin = frame_system::EnsureOneOf<
 		AccountId,
 		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, CouncilCollective>,
 		frame_system::EnsureRoot<AccountId>,
 	>;
-	/// Two thirds of the technical committee can have an ExternalMajority/ExternalDefault vote
-	/// be tabled immediately and with a shorter voting/enactment period.
+	/// Two thirds of the technical committee can have an
+	/// ExternalMajority/ExternalDefault vote be tabled immediately and with a
+	/// shorter voting/enactment period.
 	type FastTrackOrigin = frame_system::EnsureOneOf<
 		AccountId,
 		pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, TechnicalCollective>,
@@ -731,21 +745,22 @@ impl pallet_democracy::Config for Runtime {
 	>;
 	type InstantAllowed = InstantAllowed;
 	type FastTrackVotingPeriod = FastTrackVotingPeriod;
-	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
+	// To cancel a proposal which has been passed, 2/3 of the council must agree to
+	// it.
 	type CancellationOrigin = EnsureOneOf<
 		AccountId,
 		pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilCollective>,
 		EnsureRoot<AccountId>,
-	>; // To cancel a proposal before it has been passed, the technical committee must be unanimous or
-   // Root must agree.
+	>; // To cancel a proposal before it has been passed, the technical committee must
+   // be unanimous or Root must agree.
 	type CancelProposalOrigin = EnsureOneOf<
 		AccountId,
 		pallet_collective::EnsureProportionAtLeast<_1, _1, AccountId, TechnicalCollective>,
 		EnsureRoot<AccountId>,
 	>;
 	type BlacklistOrigin = EnsureRoot<AccountId>;
-	// Any single technical committee member may veto a coming council proposal, however they can
-	// only do it once and it lasts only for the cool-off period.
+	// Any single technical committee member may veto a coming council proposal,
+	// however they can only do it once and it lasts only for the cool-off period.
 	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
 	type CooloffPeriod = CooloffPeriod;
 	type PreimageByteDeposit = PreimageByteDeposit;
@@ -790,7 +805,8 @@ parameter_types! {
 	pub const PhragmenElectionPalletId: LockIdentifier = *b"phrelect";
 }
 
-// Make sure that there are no more than `MaxMembers` members elected via phragmen.
+// Make sure that there are no more than `MaxMembers` members elected via
+// phragmen.
 const_assert!(DesiredMembers::get() <= CouncilMaxMembers::get());
 
 impl pallet_elections_phragmen::Config for Runtime {
@@ -798,8 +814,8 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type PalletId = PhragmenElectionPalletId;
 	type Currency = Balances;
 	type ChangeMembers = Council;
-	// NOTE: this implies that council's genesis members cannot be set directly and must come from
-	// this module.
+	// NOTE: this implies that council's genesis members cannot be set directly and
+	// must come from this module.
 	type InitializeMembers = Council;
 	type CurrencyToVote = U128CurrencyToVote;
 	type CandidacyBond = CandidacyBond;
@@ -969,8 +985,8 @@ impl pallet_grandpa::Config for Runtime {
 	type WeightInfo = ();
 }
 
-/// Submits a transaction with the node's public and signature type. Adheres to the signed extension
-/// format of the chain.
+/// Submits a transaction with the node's public and signature type. Adheres to
+/// the signed extension format of the chain.
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 where
 	Call: From<LocalCall>,

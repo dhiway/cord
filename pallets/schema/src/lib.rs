@@ -1,5 +1,19 @@
-// Copyright 2019-2021 Dhiway.
-// This file is part of CORD Platform.
+// CORD Blockchain – https://dhiway.network
+// Copyright (C) 2019-2021 Dhiway
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -132,7 +146,8 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Create a new schema delegate.
 		///
-		///This transaction can only be performed by the schema controller account
+		///This transaction can only be performed by the schema controller
+		/// account
 		/// * origin: the identifier of the schema owner
 		/// * schema: unique identifier of the schema.
 		/// * delegate: schema delegate to add
@@ -173,7 +188,8 @@ pub mod pallet {
 		}
 		/// Remove a schema delegate.
 		///
-		///This transaction can only be performed by the schema controller account
+		///This transaction can only be performed by the schema controller
+		/// account
 		/// * origin: the identifier of the schema owner
 		/// * schema: unique identifier of the schema.
 		/// * delegate: schema delegate to be removed
@@ -266,7 +282,8 @@ pub mod pallet {
 		}
 		/// Update an existing schema.
 		///
-		///This transaction can only be performed by the schema controller account
+		///This transaction can only be performed by the schema controller
+		/// account
 		/// * origin: the identifier of the schema owner
 		/// * identifier: unique identifier of the incoming schema stream.
 		/// * hash: hash of the incoming schema stream.
@@ -326,7 +343,8 @@ pub mod pallet {
 		}
 		/// Update the status of the schema - revoked or not
 		///
-		///This transaction can only be performed by the schema controller account
+		///This transaction can only be performed by the schema controller
+		/// account
 		/// * origin: the identifier of the registrar
 		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated

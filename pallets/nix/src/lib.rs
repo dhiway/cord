@@ -1,7 +1,25 @@
+// CORD Blockchain – https://dhiway.network
+// Copyright (C) 2019-2021 Dhiway
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 //! # Pallet Nix Accounts Filter
 //!
-//! The Nix Pallet provides functionality to restrict a set of accounts from extrinsic submission.
-//! The filtering of accounts is done during the transaction queue validation.
+//! The Nix Pallet provides functionality to restrict a set of accounts from
+//! extrinsic submission. The filtering of accounts is done during the
+//! transaction queue validation.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -14,9 +32,7 @@ use sp_runtime::{
 		TransactionValidityError, ValidTransaction,
 	},
 };
-use sp_std::fmt::Debug;
-use sp_std::marker::PhantomData;
-use sp_std::prelude::*;
+use sp_std::{fmt::Debug, marker::PhantomData, prelude::*};
 
 pub use pallet::*;
 
@@ -28,7 +44,8 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		/// The origin which may add or remove accounts. Root can always do this.
+		/// The origin which may add or remove accounts. Root can always do
+		/// this.
 		type AccountOrigin: EnsureOrigin<Self::Origin>;
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;

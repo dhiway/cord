@@ -1,5 +1,20 @@
-// Copyright 2019-2021 Dhiway.
-// This file is part of CORD Platform.
+// CORD Blockchain – https://dhiway.network
+// Copyright (C) 2019-2021 Dhiway
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 // A module in charge of accounting dhi-treasury
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -36,8 +51,8 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config<I: 'static = ()>: frame_system::Config {
-		/// Origin that is allowed to manage the dhi-treasury balance and initiate
-		/// withdrawals
+		/// Origin that is allowed to manage the dhi-treasury balance and
+		/// initiate withdrawals
 		type DhiOrigin: EnsureOrigin<Self::Origin>;
 		/// PalletId must be an unique 8 character string.
 		/// It is used to generate the account ID which holds the balance of the
@@ -90,7 +105,8 @@ pub mod pallet {
 		/// Admin successfully transferred some funds from the treasury to
 		/// another account parameters. \[recipient, amount\]
 		Transfer(T::AccountId, BalanceOf<T, I>),
-		/// Some funds have been deposited  (e.g. for transaction fees). \[deposit\]
+		/// Some funds have been deposited  (e.g. for transaction fees).
+		/// \[deposit\]
 		Deposit(BalanceOf<T, I>),
 	}
 

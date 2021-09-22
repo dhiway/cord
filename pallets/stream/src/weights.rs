@@ -1,6 +1,7 @@
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
+// Dummy file
 use frame_support::{
 	traits::Get,
 	weights::{constants::RocksDbWeight, Weight},

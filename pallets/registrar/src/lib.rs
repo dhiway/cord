@@ -1,10 +1,23 @@
-// Copyright 2019-2021 Dhiway.
-// This file is part of CORD Platform.
+// CORD Blockchain – https://dhiway.network
+// Copyright (C) 2019-2021 Dhiway
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-use sp_std::str;
-use sp_std::{fmt::Debug, prelude::Clone};
+use sp_std::{fmt::Debug, prelude::Clone, str};
 
 pub mod registrars;
 pub mod weights;
@@ -33,9 +46,11 @@ pub mod pallet {
 			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
 		>;
-		/// The origin which may forcibly set or remove a name. Root can always do this.
+		/// The origin which may forcibly set or remove a name. Root can always
+		/// do this.
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
-		/// The origin which may add or remove registrars. Root can always do this.
+		/// The origin which may add or remove registrars. Root can always do
+		/// this.
 		type RegistrarOrigin: EnsureOrigin<Self::Origin>;
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;

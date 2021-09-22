@@ -1,34 +1,51 @@
+// CORD Blockchain – https://dhiway.network
+// Copyright (C) 2019-2021 Dhiway
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 use crate::*;
 use codec::{Decode, Encode};
 use sp_runtime::DispatchResult;
 
-/// An on-chain stream transaction details written by a controller.
+/// An on-chain stream transaction details mapper to an Identifier.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct StreamDetails<T: Config> {
-	/// Stream tx hash.
+	/// Stream hash.
 	pub hash: HashOf<T>,
-	/// Stream tx Store Id.
+	/// Stream CID.
 	pub cid: Option<IdentifierOf>,
-	/// Stream parent Store Id.
+	/// Stream previous CID.
 	pub parent_cid: Option<IdentifierOf>,
-	/// Schema tx Link
+	/// Stream Schema
 	pub schema: Option<IdOf<T>>,
-	/// Stream tx Link
+	/// Stream Link
 	pub link: Option<IdOf<T>>,
-	/// The identity of the controller.
+	/// Stream controller.
 	pub controller: CordAccountOf<T>,
 	/// Transaction block number
 	pub block: BlockNumberOf<T>,
-	/// The flag indicating the status of the journal entry.
+	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
 }
 
-/// An on-chain commit details.
+/// An on-chain link details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct StreamLink<T: Config> {
-	/// The stream Id to link.
+	/// Stream Id to link.
 	pub identifier: IdOf<T>,
-	/// The identity of the stream controller.
+	/// Stream controller.
 	pub controller: CordAccountOf<T>,
 }
 
@@ -44,13 +61,13 @@ impl<T: Config> StreamLink<T> {
 /// An on-chain commit details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct StreamCommit<T: Config> {
-	/// The transaction hash.
+	/// Stream hash.
 	pub hash: HashOf<T>,
-	/// Transaction Store Id
+	/// Stream CID
 	pub cid: Option<IdentifierOf>,
-	/// Transaction block number
+	/// Stream block number
 	pub block: BlockNumberOf<T>,
-	/// Transaction request type
+	/// Stream commit type
 	pub commit: StreamCommitOf,
 }
 
