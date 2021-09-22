@@ -24,6 +24,10 @@
     "block": "BlockNumber",
     "commit": "StreamCommitOf"
   },
+  "StreamLink": {
+    "identifier": "IdOf",
+    "controller": "CordAccountOf"
+  },
   "SchemaDetails": {
     "hash": "HashOf",
     "cid": "Option<IdentifierOf>",
@@ -48,7 +52,14 @@
     "ptx_verified": "bool"
   },
   "SchemaCommitOf": {
-    "_enum": ["Genesis", "Update", "Delegate", "Permission", "Status"]
+    "_enum": [
+      "Genesis",
+      "Update",
+      "Delegate",
+      "RevokeDelegation",
+      "Permission",
+      "Status"
+    ]
   },
   "StreamCommitOf": {
     "_enum": ["Create", "Update", "Status"]
@@ -57,6 +68,7 @@
   "CordAccountOf": "AccountId",
   "DidIdentifierOf": "AccountId",
   "AccountIdentifierOf": "AccountId",
+  "NixAccount": "AccountId",
   "BlockNumberOf": "BlockNumber",
   "DidCallableOf": "Call",
   "DidVerificationKey": {
