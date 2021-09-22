@@ -36,11 +36,11 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	/// ID of an entity.
+	/// ID of a Stream.
 	pub type IdOf<T> = <T as frame_system::Config>::Hash;
-	/// Hash of the transaction.
+	/// Hash of the Stream.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
-	/// Type of a entity controller.
+	/// Type of the controller.
 	pub type CordAccountOf<T> = pallet_schema::CordAccountOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
@@ -75,13 +75,13 @@ pub mod pallet {
 	pub type Commits<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<StreamCommit<T>>>;
 
 	/// stream links stored on chain.
-	/// It maps from a stream Id to a vector of links.
+	/// It maps from a stream Id to a vector of stream links.
 	#[pallet::storage]
 	#[pallet::getter(fn links)]
 	pub type Links<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<StreamLink<T>>>;
 
 	/// stream hashes stored on chain.
-	/// It maps from a stream hash to Id.
+	/// It maps from a stream hash to Id (resolve from hash).
 	#[pallet::storage]
 	#[pallet::getter(fn hashes)]
 	pub type Hashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdOf<T>>;
@@ -89,14 +89,14 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new entity has been created.
-		/// \[entity identifier, controller\]
+		/// A new stream has been created.
+		/// \[stream identifier, controller\]
 		TxAdd(IdOf<T>, HashOf<T>, CordAccountOf<T>),
-		/// An entityhas been created.
-		/// \[entity identifier, controller\]
+		/// A stream has been updated.
+		/// \[stream identifier, controller\]
 		TxUpdate(IdOf<T>, HashOf<T>, CordAccountOf<T>),
-		/// An entity has been revoked.
-		/// \[entity identifier\]
+		/// A stream status has been changed.
+		/// \[stream identifier\]
 		TxStatus(IdOf<T>, CordAccountOf<T>),
 	}
 
@@ -104,25 +104,25 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Invalid request
 		InvalidRequest,
-		/// Hash and ID are the same
+		/// Hash and Identifier are the same
 		SameIdentifierAndHash,
-		/// Transaction idenfier is not unique
+		/// Stream idenfier is not unique
 		StreamAlreadyAnchored,
-		/// Transaction idenfier not found
+		/// Stream idenfier not found
 		StreamNotFound,
-		/// Transaction idenfier marked inactive
+		/// Stream idenfier marked inactive
 		StreamRevoked,
 		/// Invalid CID encoding.
-		InvalidCidEncoding,
+		// InvalidCidEncoding,
 		/// CID already anchored
 		CidAlreadyAnchored,
-		/// no status change required
+		/// No stream status change required
 		StatusChangeNotRequired,
-		/// Only when the author is not the controller.
+		/// Only when the author is not the controller/delegate.
 		UnauthorizedOperation,
 		/// Stream link does not exist
 		StreamLinkNotFound,
-		/// Linked stream is revoked
+		/// Stream Link is revoked
 		StreamLinkRevoked,
 	}
 
@@ -130,10 +130,10 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Create a new stream and associates it with its controller.
 		///
-		/// * origin: the identifier of the stream controller
+		/// * origin: the identity of the stream controller.
 		/// * identifier: unique identifier of the incoming stream.
 		/// * hash: hash of the incoming stream.
-		/// * cid: SID of the incoming  stream.
+		/// * cid: CID of the incoming  stream.
 		/// * schema: stream schema.
 		/// * link: stream link.
 		#[pallet::weight(0)]
@@ -147,17 +147,14 @@ pub mod pallet {
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
-			//check store Id encoding
 			if let Some(ref cid) = cid {
 				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
 			}
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
-			//check stream schema status
 			if let Some(schema) = schema {
 				pallet_schema::SchemaDetails::<T>::schema_status(schema, controller.clone())
 					.map_err(<pallet_schema::Error<T>>::from)?;
 			}
-			//check link status
 			if let Some(ref link) = link {
 				let links = <Streams<T>>::get(&link).ok_or(Error::<T>::StreamLinkNotFound)?;
 				ensure!(!links.revoked, Error::<T>::StreamLinkRevoked);
@@ -200,7 +197,7 @@ pub mod pallet {
 		}
 		/// Updates the stream information.
 		///
-		/// * origin: the identifier of the stream controller
+		/// * origin: the identity of the stream controller.
 		/// * identifier: unique identifier of the incoming stream.
 		/// * hash: hash of the incoming stream.
 		/// * cid: storage Id of the incoming stream.
@@ -215,7 +212,6 @@ pub mod pallet {
 			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
 
 			let tx_prev = <Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
-			//check cid encoding
 			if let Some(ref cid) = cid {
 				ensure!(cid != tx_prev.cid.as_ref().unwrap(), Error::<T>::CidAlreadyAnchored);
 				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
@@ -255,7 +251,7 @@ pub mod pallet {
 		}
 		/// Update the status of the stream
 		///
-		/// * origin: the identifier of the stream controller
+		/// * origin: the identity of the stream controller.
 		/// * identifier: unique identifier of the stream.
 		/// * status: stream revocation status (bool).
 		#[pallet::weight(0)]

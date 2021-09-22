@@ -19,10 +19,10 @@ use codec::{Decode, Encode};
 
 use crate::*;
 
-/// An on-chain schema written by an issuer.
+/// An on-chain registrar details anchored by the council.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct RegistrarDetails<T: Config> {
 	pub block: BlockNumberOf<T>,
-	/// The flag indicating the status of the entity account.
+	/// The flag indicating the status of the registrar account.
 	pub revoked: bool,
 }

@@ -19,18 +19,18 @@ use crate::*;
 use codec::{Decode, Encode};
 use sp_runtime::DispatchResult;
 
-/// An on-chain schema details written by a controller.
+/// An on-chain schema details mapped to an identifier.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct SchemaDetails<T: Config> {
 	/// Schema identifier.
 	pub hash: HashOf<T>,
-	/// \[OPTIONAL\] Storage ID (base32/52).
+	/// \[OPTIONAL\] Schema CID.
 	pub cid: Option<IdentifierOf>,
-	/// \[OPTIONAL\] Previous Storage ID (base32/52).
+	/// \[OPTIONAL\] Schema previous CID.
 	pub parent_cid: Option<IdentifierOf>,
-	/// The identity of the controller.
+	/// Schema controller.
 	pub controller: CordAccountOf<T>,
-	/// Transaction block number
+	/// Schema block number
 	pub block: BlockNumberOf<T>,
 	/// The flag indicating schema type.
 	pub permissioned: StatusOf,
@@ -68,7 +68,7 @@ impl<T: Config> SchemaDetails<T> {
 pub struct SchemaCommit<T: Config> {
 	/// schema hash.
 	pub hash: HashOf<T>,
-	/// schema storage ID
+	/// \[OPTIONAL\] schema storage ID
 	pub cid: Option<IdentifierOf>,
 	/// schema tx block number
 	pub block: BlockNumberOf<T>,

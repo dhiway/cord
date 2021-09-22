@@ -3,6 +3,7 @@ name = "pallet-nix"
 version = "0.5.3"
 authors = ["Gautam Dhameja <quasijatt@outlook.com>","Dhiway <info@dhiway.com>"]
 edition = "2018"
+description = 'Manage Identity Permissions.'
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.9" }

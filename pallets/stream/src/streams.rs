@@ -19,22 +19,22 @@ use crate::*;
 use codec::{Decode, Encode};
 use sp_runtime::DispatchResult;
 
-/// An on-chain stream transaction details mapper to an Identifier.
+/// An on-chain stream details mapper to an Identifier.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct StreamDetails<T: Config> {
 	/// Stream hash.
 	pub hash: HashOf<T>,
-	/// Stream CID.
+	/// \[OPTIONAL\] Stream CID.
 	pub cid: Option<IdentifierOf>,
-	/// Stream previous CID.
+	/// \[OPTIONAL\] Stream previous CID.
 	pub parent_cid: Option<IdentifierOf>,
-	/// Stream Schema
+	/// \[OPTIONAL\] Stream Schema
 	pub schema: Option<IdOf<T>>,
-	/// Stream Link
+	/// \[OPTIONAL\] Stream Link
 	pub link: Option<IdOf<T>>,
 	/// Stream controller.
 	pub controller: CordAccountOf<T>,
-	/// Transaction block number
+	/// Stream block number
 	pub block: BlockNumberOf<T>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
@@ -43,7 +43,7 @@ pub struct StreamDetails<T: Config> {
 /// An on-chain link details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq)]
 pub struct StreamLink<T: Config> {
-	/// Stream Id to link.
+	/// Stream link.
 	pub identifier: IdOf<T>,
 	/// Stream controller.
 	pub controller: CordAccountOf<T>,
@@ -63,7 +63,7 @@ impl<T: Config> StreamLink<T> {
 pub struct StreamCommit<T: Config> {
 	/// Stream hash.
 	pub hash: HashOf<T>,
-	/// Stream CID
+	/// \[OPTIONAL\] Stream CID
 	pub cid: Option<IdentifierOf>,
 	/// Stream block number
 	pub block: BlockNumberOf<T>,

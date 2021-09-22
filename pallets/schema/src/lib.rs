@@ -34,7 +34,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	/// ID of a schema.
+	/// Identifier of a schema.
 	pub type IdOf<T> = <T as frame_system::Config>::Hash;
 	/// Hash of the schema.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
@@ -66,7 +66,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	/// schemas stored on chain.
-	/// It maps from a schema Id to its details.
+	/// It maps from a schema identifier to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn schemas)]
 	pub type Schemas<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, SchemaDetails<T>>;
@@ -78,7 +78,7 @@ pub mod pallet {
 	pub type Commits<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<SchemaCommit<T>>>;
 
 	/// transactions stored on chain.
-	/// It maps from a transaction Id to its details.
+	/// It maps from an identifier to a vector of delegates.
 	#[pallet::storage]
 	#[pallet::getter(fn delegations)]
 	pub(super) type Delegations<T: Config> = StorageMap<
@@ -115,13 +115,15 @@ pub mod pallet {
 	pub enum Error<T> {
 		/// Invalid request
 		InvalidRequest,
-		/// Hash and ID are the same
+		/// Hash and Identifier are the same
 		SameIdentifierAndHash,
-		/// Transaction idenfier is not unique
+		/// Schema idenfier is not unique
 		SchemaAlreadyAnchored,
-		/// Transaction idenfier not found
+		//Schema Hash is not unique
+		HashAlreadyAnchored,
+		/// Schema idenfier not found
 		SchemaNotFound,
-		/// Transaction idenfier marked inactive
+		/// Schema revoked
 		SchemaRevoked,
 		/// Invalid CID encoding.
 		InvalidCidEncoding,
@@ -131,7 +133,7 @@ pub mod pallet {
 		InvalidCidVersion,
 		/// no status change required
 		StatusChangeNotRequired,
-		/// Only when the author is not the controller or delegate.
+		/// Only when the author is not the controller/delegate.
 		UnauthorizedOperation,
 		// Maximum Number of delegates reached.
 		TooManyDelegates,
@@ -139,18 +141,17 @@ pub mod pallet {
 		SchemaNotPermissioned,
 		// Schema permission matching with the change request
 		NoPermissionChangeRequired,
-		HashAlreadyAnchored,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Create a new schema delegate.
 		///
-		///This transaction can only be performed by the schema controller
-		/// account
-		/// * origin: the identifier of the schema owner
+		/// This transaction can only be performed by the schema controller.
+		///
+		/// * origin: the identity of the schema controller.
 		/// * schema: unique identifier of the schema.
-		/// * delegate: schema delegate to add
+		/// * delegates: schema delegates to add.
 		#[pallet::weight(0)]
 		pub fn add_delegates(
 			origin: OriginFor<T>,
@@ -188,11 +189,11 @@ pub mod pallet {
 		}
 		/// Remove a schema delegate.
 		///
-		///This transaction can only be performed by the schema controller
-		/// account
-		/// * origin: the identifier of the schema owner
+		/// This transaction can only be performed by the schema controller.
+		///
+		/// * origin: the identity of the schema controller.
 		/// * schema: unique identifier of the schema.
-		/// * delegate: schema delegate to be removed
+		/// * delegate: schema delegate to be removed.
 		#[pallet::weight(0)]
 		pub fn remove_delegate(
 			origin: OriginFor<T>,
@@ -221,12 +222,12 @@ pub mod pallet {
 			})
 		}
 
-		/// Create a new schema and associates it with its controller.
+		/// Create a new schema and associates with its identifier.
 		///
-		/// * origin: the identifier of the schema owner
+		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming schema stream.
 		/// * hash: hash of the incoming schema stream.
-		/// * cid: SID of the incoming schema stream.
+		/// * cid: CID of the incoming schema stream.
 		/// * permissioned: schema type - permissioned or not.
 		#[pallet::weight(0)]
 		pub fn create(
@@ -237,11 +238,8 @@ pub mod pallet {
 			permissioned: StatusOf,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			//check transaction id
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
-			//check hash and id
 			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
-			//check store id encoding
 			if let Some(ref cid) = cid {
 				SchemaDetails::<T>::is_valid(cid)?;
 			}
@@ -283,11 +281,11 @@ pub mod pallet {
 		/// Update an existing schema.
 		///
 		///This transaction can only be performed by the schema controller
-		/// account
-		/// * origin: the identifier of the schema owner
+		///
+		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming schema stream.
 		/// * hash: hash of the incoming schema stream.
-		/// * cid: SID of the incoming schema stream.
+		/// * cid: CID of the incoming schema stream.
 		#[pallet::weight(0)]
 		pub fn update(
 			origin: OriginFor<T>,
@@ -296,14 +294,12 @@ pub mod pallet {
 			cid: Option<IdentifierOf>,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			//check hash and id
 			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
 
 			let schema_details =
 				<Schemas<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(hash != schema_details.hash, Error::<T>::HashAlreadyAnchored);
 
-			//check store id encoding
 			if let Some(ref cid) = cid {
 				ensure!(
 					cid != schema_details.cid.as_ref().unwrap(),
@@ -344,8 +340,8 @@ pub mod pallet {
 		/// Update the status of the schema - revoked or not
 		///
 		///This transaction can only be performed by the schema controller
-		/// account
-		/// * origin: the identifier of the registrar
+		///
+		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated
 		#[pallet::weight(0)]
@@ -379,8 +375,9 @@ pub mod pallet {
 		}
 		/// Update the schema type - permissioned or not
 		///
-		/// This update can only be performed by a registrar account
-		/// * origin: the identifier of the registrar
+		/// This update can only be performed by by the schema controller
+		///
+		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated
 		#[pallet::weight(0)]

@@ -3,7 +3,7 @@ name = "pallet-dw-treasury"
 version = '0.5.3'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
-description = "Cord reserve module"
+description = "Dhiway Treasury Module"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.2.0", default-features = false, features = [

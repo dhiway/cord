@@ -48,6 +48,7 @@ pub mod pallet {
 		>;
 		/// The origin which may forcibly set or remove a name. Root can always
 		/// do this.
+		/// Only for bootstrapping the network. Should be removed later.
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
 		/// The origin which may add or remove registrars. Root can always do
 		/// this.
@@ -65,8 +66,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	/// registrars stored on chain.
-	/// It maps from a schema hash to its owner.
+	/// registrars stored on-chain.
 	#[pallet::storage]
 	#[pallet::getter(fn registrars)]
 	pub type Registrars<T> = StorageMap<_, Blake2_128Concat, CordAccountOf<T>, RegistrarDetails<T>>;
@@ -84,7 +84,7 @@ pub mod pallet {
 		TxAdd(CordAccountOf<T>),
 		/// A registrar was added. \[registrar identifier\]
 		TxRevoke(CordAccountOf<T>),
-		/// A identity has been verified.
+		/// An identity has been verified.
 		/// \[identity, verifier\]
 		TxVerify(CordAccountOf<T>, CordAccountOf<T>),
 	}
@@ -154,7 +154,7 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn verify_identity(
 			origin: OriginFor<T>,
-			tx_id: CordAccountOf<T>,
+			identity: CordAccountOf<T>,
 			status: StatusOf,
 		) -> DispatchResult {
 			let verifier = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -162,8 +162,8 @@ pub mod pallet {
 				<Registrars<T>>::get(&verifier).ok_or(Error::<T>::RegistrarAccountNotFound)?;
 			ensure!(!registrar.revoked, Error::<T>::RegistrarAccountRevoked);
 
-			<VerifiedIdentities<T>>::insert(&tx_id, status);
-			Self::deposit_event(Event::TxVerify(tx_id, verifier));
+			<VerifiedIdentities<T>>::insert(&identity, status);
+			Self::deposit_event(Event::TxVerify(identity, verifier));
 
 			Ok(())
 		}
