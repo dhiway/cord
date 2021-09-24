@@ -156,12 +156,13 @@ pub mod pallet {
 		pub fn add_delegates(
 			origin: OriginFor<T>,
 			schema: IdOf<T>,
+			creator: CordAccountOf<T>,
 			delegates: Vec<CordAccountOf<T>>,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.permissioned, Error::<T>::SchemaNotPermissioned);
-			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
+			ensure!(schema_details.creator == creator, Error::<T>::UnauthorizedOperation);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			Delegations::<T>::try_mutate(&schema, |ref mut delegation| {
@@ -198,12 +199,13 @@ pub mod pallet {
 		pub fn remove_delegate(
 			origin: OriginFor<T>,
 			schema: IdOf<T>,
+			creator: CordAccountOf<T>,
 			delegate: CordAccountOf<T>,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.permissioned, Error::<T>::SchemaNotPermissioned);
-			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
+			ensure!(schema_details.creator == creator, Error::<T>::UnauthorizedOperation);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			Delegations::<T>::try_mutate(&schema, |ref mut delegation| {
@@ -233,11 +235,12 @@ pub mod pallet {
 		pub fn create(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
+			creator: CordAccountOf<T>,
 			hash: HashOf<T>,
 			cid: Option<IdentifierOf>,
 			permissioned: StatusOf,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
 			if let Some(ref cid) = cid {
@@ -257,7 +260,7 @@ pub mod pallet {
 			if permissioned {
 				Delegations::<T>::mutate(&identifier, |ref mut delegates| {
 					delegates
-						.try_push(controller.clone())
+						.try_push(creator.clone())
 						.expect("delegates length checked above; qed");
 				});
 			}
@@ -267,14 +270,14 @@ pub mod pallet {
 					hash: hash.clone(),
 					cid,
 					parent_cid: None,
-					controller: controller.clone(),
+					creator: creator.clone(),
 					block: block_number.clone(),
 					permissioned,
 					revoked: false,
 				},
 			);
 
-			Self::deposit_event(Event::TxAdd(identifier, hash, controller));
+			Self::deposit_event(Event::TxAdd(identifier, hash, creator));
 
 			Ok(())
 		}
@@ -290,10 +293,11 @@ pub mod pallet {
 		pub fn update(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
+			updater: CordAccountOf<T>,
 			hash: HashOf<T>,
 			cid: Option<IdentifierOf>,
 		) -> DispatchResult {
-			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
 
 			let schema_details =
@@ -308,7 +312,7 @@ pub mod pallet {
 				SchemaDetails::<T>::is_valid(cid)?;
 			}
 			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
-			ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
+			ensure!(schema_details.creator == updater, Error::<T>::UnauthorizedOperation);
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
@@ -348,14 +352,15 @@ pub mod pallet {
 		pub fn set_status(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
+			updater: CordAccountOf<T>,
 			status: StatusOf,
 		) -> DispatchResult {
-			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let schema_details =
 				<Schemas<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.revoked != status, Error::<T>::StatusChangeNotRequired);
-			ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
+			ensure!(schema_details.creator == updater, Error::<T>::UnauthorizedOperation);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			SchemaCommit::<T>::store_tx(
@@ -384,9 +389,10 @@ pub mod pallet {
 		pub fn set_permission(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
+			updater: CordAccountOf<T>,
 			permissioned: StatusOf,
 		) -> DispatchResult {
-			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let schema_details =
 				<Schemas<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
@@ -395,7 +401,7 @@ pub mod pallet {
 				schema_details.permissioned != permissioned,
 				Error::<T>::NoPermissionChangeRequired
 			);
-			ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
+			ensure!(schema_details.creator == updater, Error::<T>::UnauthorizedOperation);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			SchemaCommit::<T>::store_tx(

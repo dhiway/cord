@@ -28,8 +28,8 @@ pub struct SchemaDetails<T: Config> {
 	pub cid: Option<IdentifierOf>,
 	/// \[OPTIONAL\] Schema previous CID.
 	pub parent_cid: Option<IdentifierOf>,
-	/// Schema controller.
-	pub controller: CordAccountOf<T>,
+	/// Schema creator.
+	pub creator: CordAccountOf<T>,
 	/// Schema block number
 	pub block: BlockNumberOf<T>,
 	/// The flag indicating schema type.
@@ -49,13 +49,13 @@ impl<T: Config> SchemaDetails<T> {
 		Ok(())
 	}
 
-	pub fn schema_status(tx_schema: IdOf<T>, controller: CordAccountOf<T>) -> Result<(), Error<T>> {
+	pub fn schema_status(tx_schema: IdOf<T>, requestor: CordAccountOf<T>) -> Result<(), Error<T>> {
 		let schema_details = <Schemas<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
 		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 		if schema_details.permissioned {
 			let delegates = <Delegations<T>>::take(&tx_schema);
 			ensure!(
-				(delegates.iter().find(|&delegate| *delegate == controller) == Some(&controller)),
+				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
 				Error::<T>::UnauthorizedOperation
 			);
 		}

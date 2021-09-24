@@ -33,7 +33,7 @@ pub struct StreamDetails<T: Config> {
 	/// \[OPTIONAL\] Stream Link
 	pub link: Option<IdOf<T>>,
 	/// Stream controller.
-	pub controller: CordAccountOf<T>,
+	pub creator: CordAccountOf<T>,
 	/// Stream block number
 	pub block: BlockNumberOf<T>,
 	/// The flag indicating the status of the stream.
@@ -45,8 +45,8 @@ pub struct StreamDetails<T: Config> {
 pub struct StreamLink<T: Config> {
 	/// Stream link.
 	pub identifier: IdOf<T>,
-	/// Stream controller.
-	pub controller: CordAccountOf<T>,
+	/// Link creator.
+	pub creator: CordAccountOf<T>,
 }
 
 impl<T: Config> StreamLink<T> {

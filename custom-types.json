@@ -14,7 +14,7 @@
     "parent_cid": "Option<IdentifierOf>",
     "schema": "Option<IdOf>",
     "link": "Option<IdOf>",
-    "controller": "CordAccountOf",
+    "creator": "CordAccountOf",
     "block": "BlockNumber",
     "revoked": "StatusOf"
   },
@@ -26,13 +26,13 @@
   },
   "StreamLink": {
     "identifier": "IdOf",
-    "controller": "CordAccountOf"
+    "creator": "CordAccountOf"
   },
   "SchemaDetails": {
     "hash": "HashOf",
     "cid": "Option<IdentifierOf>",
     "parent_cid": "Option<IdentifierOf>",
-    "controller": "CordAccountOf",
+    "creator": "CordAccountOf",
     "block": "BlockNumber",
     "permissioned": "StatusOf",
     "revoked": "StatusOf"

@@ -140,19 +140,20 @@ pub mod pallet {
 		pub fn create(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
+			creator: CordAccountOf<T>,
 			hash: HashOf<T>,
 			cid: Option<IdentifierOf>,
 			schema: Option<IdOf<T>>,
 			link: Option<IdOf<T>>,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
 			if let Some(ref cid) = cid {
 				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
 			}
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
 			if let Some(schema) = schema {
-				pallet_schema::SchemaDetails::<T>::schema_status(schema, controller.clone())
+				pallet_schema::SchemaDetails::<T>::schema_status(schema, creator.clone())
 					.map_err(<pallet_schema::Error<T>>::from)?;
 			}
 			if let Some(ref link) = link {
@@ -160,7 +161,7 @@ pub mod pallet {
 				ensure!(!links.revoked, Error::<T>::StreamLinkRevoked);
 				StreamLink::<T>::link_tx(
 					&link,
-					StreamLink { identifier: identifier.clone(), controller: controller.clone() },
+					StreamLink { identifier: identifier.clone(), creator: creator.clone() },
 				)?;
 			}
 
@@ -186,12 +187,12 @@ pub mod pallet {
 					parent_cid: None,
 					schema,
 					link,
-					controller: controller.clone(),
+					creator: creator.clone(),
 					block: block_number,
 					revoked: false,
 				},
 			);
-			Self::deposit_event(Event::TxAdd(identifier, hash, controller));
+			Self::deposit_event(Event::TxAdd(identifier, hash, creator));
 
 			Ok(())
 		}
@@ -205,10 +206,11 @@ pub mod pallet {
 		pub fn update(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
+			updater: CordAccountOf<T>,
 			hash: HashOf<T>,
 			cid: Option<IdentifierOf>,
 		) -> DispatchResult {
-			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
 
 			let tx_prev = <Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
@@ -217,7 +219,7 @@ pub mod pallet {
 				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
 			}
 			ensure!(!tx_prev.revoked, Error::<T>::StreamRevoked);
-			ensure!(tx_prev.controller == updater, Error::<T>::UnauthorizedOperation);
+			ensure!(tx_prev.creator == updater, Error::<T>::UnauthorizedOperation);
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
@@ -239,7 +241,7 @@ pub mod pallet {
 					hash: hash.clone(),
 					cid,
 					parent_cid: tx_prev.cid,
-					controller: updater.clone(),
+					creator: updater.clone(),
 					block: block_number,
 					..tx_prev
 				},
@@ -258,13 +260,14 @@ pub mod pallet {
 		pub fn set_status(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
+			updater: CordAccountOf<T>,
 			status: StatusOf,
 		) -> DispatchResult {
-			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let tx_status = <Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(tx_status.revoked != status, Error::<T>::StatusChangeNotRequired);
-			ensure!(tx_status.controller == updater, Error::<T>::UnauthorizedOperation);
+			ensure!(tx_status.creator == updater, Error::<T>::UnauthorizedOperation);
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
 

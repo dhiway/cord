@@ -373,14 +373,14 @@ impl InstanceFilter<Call> for ProxyType {
 			),
 			ProxyType::Governance => matches!(
 				c,
-				Call::Democracy(..) |
-					Call::Council(..) | Call::TechnicalCommittee(..) |
-					Call::PhragmenElection(..) |
-					Call::Treasury(..) | Call::Bounties(..)
+				Call::Democracy(..)
+					| Call::Council(..) | Call::TechnicalCommittee(..)
+					| Call::PhragmenElection(..)
+					| Call::Treasury(..) | Call::Bounties(..)
 			),
 			ProxyType::Staking => {
 				matches!(c, Call::Staking(..) | Call::Session(..) | Call::Utility(..))
-			},
+			}
 		}
 	}
 	fn is_superset(&self, o: &Self) -> bool {
@@ -1098,7 +1098,7 @@ type DhiCollectiveOrigin = EnsureOneOf<
 impl pallet_dw_treasury::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
-	type DhiOrigin = DhiCollectiveOrigin;
+	type DhiCouncilOrigin = DhiCollectiveOrigin;
 	type PalletId = DhiPalletId;
 	type WeightInfo = ();
 }

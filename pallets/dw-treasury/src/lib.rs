@@ -53,7 +53,7 @@ pub mod pallet {
 	pub trait Config<I: 'static = ()>: frame_system::Config {
 		/// Origin that is allowed to manage the dhi-treasury balance and
 		/// initiate withdrawals
-		type DhiOrigin: EnsureOrigin<Self::Origin>;
+		type DhiCouncilOrigin: EnsureOrigin<Self::Origin>;
 		/// PalletId must be an unique 8 character string.
 		/// It is used to generate the account ID which holds the balance of the
 		/// dhi-treasury.
@@ -127,7 +127,7 @@ pub mod pallet {
 			beneficiary: <T::Lookup as StaticLookup>::Source,
 			#[pallet::compact] amount: BalanceOf<T, I>,
 		) -> DispatchResult {
-			T::DhiOrigin::ensure_origin(origin)?;
+			T::DhiCouncilOrigin::ensure_origin(origin)?;
 			let beneficiary = T::Lookup::lookup(beneficiary)?;
 			let balance = T::Currency::free_balance(&Self::account_id());
 			ensure!(balance >= amount, Error::<T, I>::InsufficientBalance);
