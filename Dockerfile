@@ -2,7 +2,7 @@
 # pinned the version to avoid build cache invalidation
 # ===== FIRST (BUILD) STAGE ======
 
-FROM paritytech/ci-linux:production as builder
+FROM docker.io/paritytech/ci-linux:production as builder
 
 LABEL maintainer="engineering@dhiway.com"
 
@@ -20,40 +20,33 @@ RUN cargo build "--$PROFILE"
 
 # ===== SECOND STAGE ======
 
-FROM debian:bullseye-slim
+FROM docker.io/library/ubuntu:20.04
 LABEL maintainer="engineering@dhiway.com"
 
 ARG PROFILE=release
 
 # install tools and dependencies
 RUN apt-get update && \
-	DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
-	DEBIAN_FRONTEND=noninteractive apt-get install -y \
+	DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
 	libssl1.1 \
 	ca-certificates \
-	curl && \
-	# apt cleanup
+	curl \
+	gnupg && \
+	useradd -m -u 1000 -U -s /bin/sh -d /cord cord && \
 	apt-get autoremove -y && \
 	apt-get clean -y && \
-	find /var/lib/apt/lists/ -type f -not -name lock -delete; \
-	# add user
-	useradd -m -u 1000 -U -s /bin/sh -d /cord cord && \
-	mkdir -p /cord/.local/share && \
-	mkdir /data && \
+	rm -rf /var/lib/apt/lists/* ; \
+	mkdir -p /data /cord/.local/share && \
 	chown -R cord:cord /data && \
 	ln -s /data /cord/.local/share/cord
 
 COPY --from=builder /build/target/$PROFILE/cord /usr/local/bin
 
-# checks
-RUN ldd /usr/local/bin/cord && \
-	/usr/local/bin/cord --version
-
-# Shrinking
-# RUN rm -rf /usr/lib/python* && \
-# 	rm -rf /usr/bin /usr/sbin /usr/share/man
-
 USER cord
+
+# checks
+RUN /usr/local/bin/cord --version
+
 EXPOSE 30333 9933 9944 
 VOLUME ["/data"]
 
