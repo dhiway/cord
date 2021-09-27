@@ -20,7 +20,7 @@ RUN cargo build "--$PROFILE"
 
 # ===== SECOND STAGE ======
 
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 LABEL maintainer="engineering@dhiway.com"
 
 ARG PROFILE=release
