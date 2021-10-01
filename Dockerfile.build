@@ -1,0 +1,19 @@
+# this container builds the cord binary from source files and the runtime library
+# pinned the version to avoid build cache invalidation
+# ===== FIRST (BUILD) STAGE ======
+
+FROM docker.io/paritytech/ci-linux:production as builder
+
+LABEL maintainer="engineering@dhiway.com"
+
+ARG PROFILE=release
+
+WORKDIR /build
+
+COPY . /build
+
+#build
+RUN cargo build "--$PROFILE"
+
+# test
+# RUN cargo test --release --all
