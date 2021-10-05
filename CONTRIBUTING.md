@@ -8,15 +8,15 @@ We follow most of the details as per the [document here](https://help.github.com
 #### Get the Repository setup
 
 0. Fork Repository
-   - Fork [cord-node repository](https://github.com/dhiway/cord-node/fork).
+   - Fork [cord repository](https://github.com/dhiway/cord/fork).
 
 1. Clone Repository
-   - Clone the cord-node repo freshly from github using below steps.
+   - Clone the cord repo freshly from github using below steps.
 
 ```
-   git clone git@github.com:${username}/cord-node.git
-   cd cord-node/
-   git remote add upstream git@github.com:dhiway/cord-node.git
+   git clone git@github.com:${username}/cord.git
+   cd cord/
+   git remote add upstream git@github.com:dhiway/cord.git
 ```
 
 Above two tasks are one time for the life time. You can continue to use the same repository for all the work in future.
@@ -47,7 +47,7 @@ Above two tasks are one time for the life time. You can continue to use the same
    - PRs continue to have the title of format "component: \<title\>", like it is practiced now.
    - When you open a PR, having a reference Issue for the commit is mandatory in CORD project.
    - Commit message can have, either `Fixes: #NNNN` or `Updates: #NNNN` in a separate line in the commit message.
-     - Here, NNNN is the Issue ID in cord-node repository.
+     - Here, NNNN is the Issue ID in cord repository.
    - Each commit needs the author to have the "Signed-off-by: Name \<email\>" line.
      - Can do this by `-s` option for `git commit`.
    - If the PR is not ready for review, mark the PR as 'Draft'.
