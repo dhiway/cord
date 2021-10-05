@@ -34,11 +34,11 @@ Above two tasks are one time for the life time. You can continue to use the same
    - Build and test locally
 
 2. Keep up-to-date
-   - It is critical for developer to be up-to-date with `main` branch of the repo to be Conflict-Free when PR is opened.
+   - It is critical for developer to be up-to-date with `develop` branch of the repo to be Conflict-Free when PR is opened.
    - Git provides many options to keep up-to-date, below is one of them
 ```
    git fetch upstream
-   git rebase upstream/main
+   git rebase upstream/develop
 ```
    - It is recommended you keep pushing to your repo every day, so you don't loose any work.
 
