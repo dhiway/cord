@@ -1,4 +1,4 @@
-<!-- [![Build and Test](https://github.com/dhiway/cord-node/workflows/Build%20and%20Test/badge.svg)](https://github.com/dhiway/cord-node/actions) -->
+<!-- [![Build and Test](https://github.com/dhiway/cord/workflows/Build%20and%20Test/badge.svg)](https://github.com/dhiway/cord/actions) -->
 
 # CORD
 
@@ -53,7 +53,7 @@ cargo build --release
 #### Start the Node, by running:
 
 ```
-./target/<debug \ release> /cord-node [FLAGS] [OPTIONS]
+./target/<debug \ release> /cord [FLAGS] [OPTIONS]
 ```
 
 For CORD CLI options see the section about [Commands](#cord-cli-options).
@@ -61,13 +61,13 @@ For CORD CLI options see the section about [Commands](#cord-cli-options).
 #### Debug Mode
 
 ```
-./target/debug/cord-node --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
+./target/debug/cord --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
 ```
 
 #### Release Mode
 
 ```
-./target/release/cord-node --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
+./target/release/cord --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
 ```
 
 #### Setup the local node with session keys, by running
