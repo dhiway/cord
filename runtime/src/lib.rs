@@ -661,6 +661,7 @@ type SlashCancelOrigin = EnsureOneOf<
 >;
 pub const MAX_NOMINATIONS: u32 = <NposSolution16 as sp_npos_elections::NposSolution>::LIMIT as u32;
 
+
 // use frame_election_provider_support::onchain;
 impl pallet_staking::Config for Runtime {
 	const MAX_NOMINATIONS: u32 = MAX_NOMINATIONS;
