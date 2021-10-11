@@ -49,11 +49,11 @@ impl<T: Config> SchemaDetails<T> {
 		Ok(())
 	}
 
-	pub fn schema_status(tx_schema: IdOf<T>, requestor: CordAccountOf<T>) -> Result<(), Error<T>> {
-		let schema_details = <Schemas<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
+	pub fn schema_status(tx_schema: &IdOf<T>, requestor: CordAccountOf<T>) -> Result<(), Error<T>> {
+		let schema_details = <Schemas<T>>::get(tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
 		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 		if schema_details.permissioned {
-			let delegates = <Delegations<T>>::take(&tx_schema);
+			let delegates = <Delegations<T>>::get(tx_schema);
 			ensure!(
 				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
 				Error::<T>::UnauthorizedOperation

@@ -24,6 +24,9 @@
     "block": "BlockNumber",
     "commit": "StreamCommitOf"
   },
+  "StreamCommitOf": {
+    "_enum": ["Create", "Update", "Status"]
+  },
   "StreamLink": {
     "identifier": "IdOf",
     "creator": "CordAccountOf"
@@ -43,14 +46,6 @@
     "block": "BlockNumber",
     "commit": "SchemaCommitOf"
   },
-  "RegistrarDetails": {
-    "block": "BlockNumber",
-    "revoked": "bool"
-  },
-  "TxVerifiedOf": {
-    "tx_hash": "HashOf",
-    "ptx_verified": "bool"
-  },
   "SchemaCommitOf": {
     "_enum": [
       "Genesis",
@@ -61,135 +56,17 @@
       "Status"
     ]
   },
-  "StreamCommitOf": {
-    "_enum": ["Create", "Update", "Status"]
+  "RegistrarDetails": {
+    "block": "BlockNumber",
+    "revoked": "bool"
   },
-  "KeyIdOf": "Hash",
+  "TxVerifiedOf": {
+    "tx_hash": "HashOf",
+    "ptx_verified": "bool"
+  },
   "CordAccountOf": "AccountId",
   "DidIdentifierOf": "AccountId",
   "AccountIdentifierOf": "AccountId",
   "NixAccount": "AccountId",
-  "BlockNumberOf": "BlockNumber",
-  "DidCallableOf": "Call",
-  "DidVerificationKey": {
-    "_enum": {
-      "Ed25519": "[u8; 32]",
-      "Sr25519": "[u8; 32]"
-    }
-  },
-  "DidEncryptionKey": {
-    "_enum": {
-      "X25519": "[u8; 32]"
-    }
-  },
-  "DidPublicKey": {
-    "_enum": {
-      "PublicVerificationKey": "DidVerificationKey",
-      "PublicEncryptionKey": "DidEncryptionKey"
-    }
-  },
-  "DidVerificationKeyRelationship": {
-    "_enum": [
-      "Authentication",
-      "CapabilityDelegation",
-      "CapabilityInvocation",
-      "AssertionMethod"
-    ]
-  },
-  "DidSignature": {
-    "_enum": {
-      "Ed25519": "Ed25519Signature",
-      "Sr25519": "Sr25519Signature"
-    }
-  },
-  "DidError": {
-    "_enum": {
-      "StorageError": "StorageError",
-      "SignatureError": "SignatureError",
-      "UrlError": "UrlError",
-      "InternalError": "Null"
-    }
-  },
-  "StorageError": {
-    "_enum": {
-      "DidAlreadyPresent": "Null",
-      "DidNotPresent": "Null",
-      "DidKeyNotPresent": "DidVerificationKeyRelationship",
-      "VerificationKeyNotPresent": "Null",
-      "CurrentlyActiveKey": "Null",
-      "MaxTxCounterValue": "Null"
-    }
-  },
-  "SignatureError": {
-    "_enum": ["InvalidSignatureFormat", "InvalidSignature", "InvalidNonce"]
-  },
-  "KeyError": {
-    "_enum": ["InvalidVerificationKeyFormat", "InvalidEncryptionKeyFormat"]
-  },
-  "UrlError": {
-    "_enum": ["InvalidUrlEncoding", "InvalidUrlScheme"]
-  },
-  "DidPublicKeyDetails": {
-    "key": "DidPublicKey",
-    "blockNumber": "BlockNumberOf"
-  },
-  "DidDetails": {
-    "authenticationKey": "KeyIdOf",
-    "keyAgreementKeys": "BTreeSet<KeyIdOf>",
-    "delegationKey": "Option<KeyIdOf>",
-    "anchorKey": "Option<KeyIdOf>",
-    "publicKeys": "BTreeMap<KeyIdOf, DidPublicKeyDetails>",
-    "endpointUrl": "Option<Url>",
-    "lastTxCounter": "u64"
-  },
-  "DidCreationOperation": {
-    "did": "DidIdentifierOf",
-    "newAuthenticationKey": "DidVerificationKey",
-    "newKeyAgreementKeys": "BTreeSet<DidEncryptionKey>",
-    "newAnchorKey": "Option<DidVerificationKey>",
-    "newDelegationKey": "Option<DidVerificationKey>",
-    "newEndpointUrl": "Option<Url>"
-  },
-  "DidUpdateOperation": {
-    "did": "DidIdentifierOf",
-    "newAuthenticationKey": "Option<DidVerificationKey>",
-    "newKeyAgreementKeys": "BTreeSet<DidEncryptionKey>",
-    "anchorKeyUpdate": "DidVerificationKeyUpdateAction",
-    "delegationKeyUpdate": "DidVerificationKeyUpdateAction",
-    "publicKeysToRemove": "BTreeSet<KeyIdOf>",
-    "newEndpointUrl": "Option<Url>",
-    "txCounter": "u64"
-  },
-  "DidVerificationKeyUpdateAction": {
-    "_enum": {
-      "Ignore": "Null",
-      "Change": "DidVerificationKey",
-      "Delete": "Null"
-    }
-  },
-  "DidDeletionOperation": {
-    "did": "DidIdentifierOf",
-    "txCounter": "u64"
-  },
-  "DidAuthorizedCallOperation": {
-    "did": "DidIdentifierOf",
-    "txCounter": "u64",
-    "call": "DidCallableOf"
-  },
-  "HttpUrl": {
-    "payload": "Text"
-  },
-  "FtpUrl": {
-    "payload": "Text"
-  },
-  "IpfsUrl": {
-    "payload": "Text"
-  },
-  "Url": {
-    "_enum": {
-      "Http": "HttpUrl",
-      "Ftp": "FtpUrl",
-      "Ipfs": "IpfsUrl"
-    }
-  }
+  "BlockNumberOf": "BlockNumber"
 }
