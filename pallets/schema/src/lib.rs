@@ -123,6 +123,8 @@ pub mod pallet {
 		HashAlreadyAnchored,
 		/// Schema idenfier not found
 		SchemaNotFound,
+		/// Schema delegate not found
+		SchemaDelegateNotFound,
 		/// Schema revoked
 		SchemaRevoked,
 		/// Invalid CID encoding.

@@ -152,7 +152,7 @@ pub mod pallet {
 				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
 			}
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
-			if let Some(schema) = schema {
+			if let Some(ref schema) = schema {
 				pallet_schema::SchemaDetails::<T>::schema_status(schema, creator.clone())
 					.map_err(<pallet_schema::Error<T>>::from)?;
 			}
