@@ -89,8 +89,8 @@ impl<T: Config> SchemaCommit<T> {
 pub enum SchemaCommitOf {
 	Genesis,
 	Update,
-	Delegate,
-	RevokeDelegation,
+	Delegates,
+	RevokeDelegates,
 	Permission,
 	StatusChange,
 }
