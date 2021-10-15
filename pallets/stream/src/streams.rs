@@ -20,7 +20,8 @@ use codec::{Decode, Encode};
 use sp_runtime::DispatchResult;
 
 /// An on-chain stream details mapper to an Identifier.
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
+#[scale_info(skip_type_params(T))]
 pub struct StreamDetails<T: Config> {
 	/// Stream hash.
 	pub hash: HashOf<T>,
@@ -41,7 +42,8 @@ pub struct StreamDetails<T: Config> {
 }
 
 /// An on-chain link details.
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
+#[scale_info(skip_type_params(T))]
 pub struct StreamLink<T: Config> {
 	/// Stream link.
 	pub identifier: IdOf<T>,
@@ -59,7 +61,8 @@ impl<T: Config> StreamLink<T> {
 }
 
 /// An on-chain commit details.
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
+#[scale_info(skip_type_params(T))]
 pub struct StreamCommit<T: Config> {
 	/// Stream hash.
 	pub hash: HashOf<T>,
@@ -87,7 +90,7 @@ impl<T: Config> StreamCommit<T> {
 	}
 }
 
-#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq, scale_info::TypeInfo)]
 pub enum StreamCommitOf {
 	Genesis,
 	Update,

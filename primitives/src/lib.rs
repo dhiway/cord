@@ -34,14 +34,9 @@ pub type BlockNumber = u32;
 /// the chain.
 pub type Signature = MultiSignature;
 
-/// Alias to the public key used for this chain, actually a `MultiSigner`. Like
-/// the signature, this also isn't a fixed size when encoded, as different
-/// cryptos have different size public keys.
-pub type AccountPublic = <Signature as Verify>::Signer;
-
 /// Some way of identifying an account on the chain. We intentionally make it
 /// equivalent to the public key of our transaction signing scheme.
-pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
+pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
 /// The type for looking up accounts. We don't expect more than 4 billion of
 /// them.
@@ -72,9 +67,6 @@ pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 /// Block ID.
 pub type BlockId = generic::BlockId<Block>;
-
-/// A Cord DID subject identifier.
-pub type DidIdentifier = AccountId;
 
 /// CID type.
 pub type IdentifierOf = Vec<u8>;

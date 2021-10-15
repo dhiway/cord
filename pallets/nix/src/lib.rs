@@ -53,6 +53,7 @@ pub mod pallet {
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::generate_storage_info]
 	pub struct Pallet<T>(_);
 
 	// The pallet's runtime storage items.
@@ -61,7 +62,7 @@ pub mod pallet {
 	pub type NixAccounts<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, ()>;
 
 	#[pallet::event]
-	#[pallet::metadata(T::AccountId = "AccountId")]
+	// #[pallet::metadata(T::AccountId = "AccountId")]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		// When a new account is added to the allow-list.
@@ -155,7 +156,8 @@ pub mod pallet {
 ///  and the extrinsics are filtered out before they hit the pallet logic.
 
 /// The `NixAccount` struct.
-#[derive(Encode, Decode, Clone, Eq, PartialEq, Default)]
+#[derive(Encode, Decode, Clone, Eq, PartialEq, Default, scale_info::TypeInfo)]
+#[scale_info(skip_type_params(T))]
 pub struct NixAccount<T: Config + Send + Sync>(PhantomData<T>);
 
 impl<T: Config + Send + Sync> NixAccount<T> {

@@ -17,6 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{fmt::Debug, prelude::Clone, str};
 
 pub mod registrars;
@@ -29,11 +30,14 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	// use codec::MaxEncodedLen;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
 	/// Type of a registrar.
-	pub type CordAccountOf<T> = <T as Config>::CordAccountId;
+	// pub type CordAccountOf<T> = <T as Config>::CordAccountId;
+	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
+
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// status Information
@@ -41,7 +45,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type CordAccountId: Parameter + Default;
+		// type CordAccountId: Parameter + Default + MaxEncodedLen;
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
@@ -61,6 +65,7 @@ pub mod pallet {
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
+	// #[pallet::generate_storage_info]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
