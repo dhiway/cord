@@ -106,10 +106,10 @@ pub mod pallet {
 		TxStatus(IdOf<T>, CordAccountOf<T>),
 		/// A schema delegate has been added.
 		/// \[schema identifier, controller\]
-		TxAddDelegate(IdOf<T>),
+		TxAddDelegates(IdOf<T>),
 		/// A schema delegate has been removed.
 		/// \[schema identifier, controller\]
-		TxRemoveDelegate(IdOf<T>, CordAccountOf<T>),
+		TxRemoveDelegates(IdOf<T>),
 		/// A schema status has been changed.
 		/// \[schema identifier, controller\]
 		TxPermission(IdOf<T>, CordAccountOf<T>),
@@ -187,10 +187,10 @@ pub mod pallet {
 						hash: schema_details.hash,
 						cid: schema_details.cid,
 						block: block_number,
-						commit: SchemaCommitOf::Delegate,
+						commit: SchemaCommitOf::Delegates,
 					},
 				)?;
-				Self::deposit_event(Event::TxAddDelegate(schema));
+				Self::deposit_event(Event::TxAddDelegates(schema));
 				Ok(())
 			})
 		}
@@ -202,11 +202,11 @@ pub mod pallet {
 		/// * schema: unique identifier of the schema.
 		/// * delegate: schema delegate to be removed.
 		#[pallet::weight(0)]
-		pub fn remove_delegate(
+		pub fn remove_delegates(
 			origin: OriginFor<T>,
 			schema: IdOf<T>,
 			creator: CordAccountOf<T>,
-			delegate: CordAccountOf<T>,
+			delegates: Vec<CordAccountOf<T>>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
@@ -215,17 +215,19 @@ pub mod pallet {
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			Delegations::<T>::try_mutate(&schema, |ref mut delegation| {
-				delegation.retain(|x| x != &delegate);
+				for delegate in delegates {
+					delegation.retain(|x| x != &delegate);
+				}
 				SchemaCommit::<T>::store_tx(
 					&schema,
 					SchemaCommit {
 						hash: schema_details.hash,
 						cid: schema_details.cid,
 						block: block_number,
-						commit: SchemaCommitOf::RevokeDelegation,
+						commit: SchemaCommitOf::RevokeDelegates,
 					},
 				)?;
-				Self::deposit_event(Event::TxRemoveDelegate(schema, delegate));
+				Self::deposit_event(Event::TxRemoveDelegates(schema));
 				Ok(())
 			})
 		}
@@ -263,13 +265,6 @@ pub mod pallet {
 					commit: SchemaCommitOf::Genesis,
 				},
 			)?;
-			if permissioned {
-				Delegations::<T>::mutate(&identifier, |ref mut delegates| {
-					delegates
-						.try_push(creator.clone())
-						.expect("delegates length checked above; qed");
-				});
-			}
 			<Schemas<T>>::insert(
 				&identifier,
 				SchemaDetails {
