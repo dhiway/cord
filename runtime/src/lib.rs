@@ -1130,15 +1130,15 @@ parameter_types! {
 
 impl pallet_schema::Config for Runtime {
 	type Event = Event;
-	// type CordAccountId = AccountId;
-	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type CordAccountId = AccountId;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type MaxDelegates = MaxSchemaDelegates;
 	type WeightInfo = ();
 }
 
 impl pallet_stream::Config for Runtime {
 	type Event = Event;
-	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
 	type WeightInfo = ();
 }
 

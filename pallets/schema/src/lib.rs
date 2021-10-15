@@ -40,8 +40,7 @@ pub mod pallet {
 	/// Hash of the schema.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a CORD account.
-	// pub type CordAccountOf<T> = <T as Config>::CordAccountId;
-	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
+	pub type CordAccountOf<T> = <T as Config>::CordAccountId;
 
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
@@ -50,7 +49,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		// type CordAccountId: Parameter + Default + MaxEncodedLen;
+		type CordAccountId: Parameter + Default + MaxEncodedLen;
 
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
