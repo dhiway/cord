@@ -915,9 +915,6 @@ impl_runtime_apis! {
 			_set_id: fg_primitives::SetId,
 			_authority_id: GrandpaId,
 		) -> Option<fg_primitives::OpaqueKeyOwnershipProof> {
-			// NOTE: this is the only implementation possible since we've
-			// defined our key owner proof type as a bottom type (i.e. a type
-			// with no values).
 			None
 		}
 	}
