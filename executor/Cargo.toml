@@ -12,7 +12,6 @@ codec = { package = "parity-scale-codec", version = "2.3.1"}
 scale-info = { version = "1.0", features = ["derive"] }
 cord-runtime = { package = "cord-runtime", path = "../runtime" }
 cord-primitives = { package = "cord-primitives", path="../primitives" }
-
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
@@ -27,14 +26,12 @@ frame-support = { git = "https://github.com/paritytech/substrate", branch = "pol
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 pallet-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
-pallet-im-online = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 pallet-session = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 sp-application-crypto = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
-sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 sp-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
 wat = "1.0"

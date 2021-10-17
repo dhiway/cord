@@ -23,15 +23,15 @@
 use cord_executor::ExecutorDispatch;
 use cord_primitives::Block;
 use cord_runtime::RuntimeApi;
-use futures::prelude::*;
+// use futures::prelude::*;
 use sc_client_api::{ExecutorProvider, RemoteBackend};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 pub use sc_executor::NativeElseWasmExecutor;
 use sc_finality_grandpa::SharedVoterState;
 use sc_keystore::LocalKeystore;
-use sc_network::{Event, NetworkService};
+// use sc_network::{Event, NetworkService};
 use sc_service::{
-	config::PrometheusConfig, error::Error as ServiceError, Configuration, RpcHandlers, TaskManager,
+	config::PrometheusConfig, error::Error as ServiceError, Configuration, TaskManager,
 };
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_consensus::SlotData;
@@ -64,7 +64,7 @@ type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 
 pub fn new_partial(
-	config: &Configuration,
+	config: &mut Configuration,
 ) -> Result<
 	sc_service::PartialComponents<
 		FullClient,
@@ -89,7 +89,7 @@ pub fn new_partial(
 		return Err(ServiceError::Other(format!("Remote Keystores are not supported.")));
 	}
 
-	// set_prometheus_registry(&mut config)?;
+	set_prometheus_registry(config)?;
 	let telemetry = config
 		.telemetry_endpoints
 		.clone()
@@ -193,7 +193,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 		select_chain,
 		transaction_pool,
 		other: (block_import, grandpa_link, mut telemetry),
-	} = new_partial(&config)?;
+	} = new_partial(&mut config)?;
 
 	if let Some(url) = &config.keystore_remote {
 		match remote_keystore(url) {
@@ -324,7 +324,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 
 	let grandpa_config = sc_finality_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
-		gossip_duration: std::time::Duration::from_millis(333),
+		gossip_duration: Duration::from_millis(333),
 		justification_period: 512,
 		name: Some(name),
 		observer_enabled: false,

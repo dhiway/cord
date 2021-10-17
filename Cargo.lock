@@ -858,7 +858,6 @@ dependencies = [
  "futures 0.3.17",
  "pallet-balances",
  "pallet-grandpa",
- "pallet-im-online",
  "pallet-indices",
  "pallet-session",
  "pallet-timestamp",
@@ -868,7 +867,6 @@ dependencies = [
  "sc-executor",
  "scale-info",
  "sp-application-crypto",
- "sp-consensus-babe",
  "sp-core",
  "sp-externalities",
  "sp-io",
@@ -885,7 +883,6 @@ name = "cord-inspect"
 version = "0.5.5"
 dependencies = [
  "derive_more",
- "log",
  "parity-scale-codec",
  "sc-cli",
  "sc-client-api",
@@ -903,7 +900,6 @@ name = "cord-node"
 version = "0.5.5"
 dependencies = [
  "assert_matches",
- "async-trait",
  "cord-executor",
  "cord-inspect",
  "cord-primitives",
@@ -915,10 +911,9 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "futures 0.3.17",
  "hex-literal",
- "kvdb",
- "kvdb-rocksdb 0.12.1",
  "log",
  "pallet-transaction-payment-rpc-runtime-api",
+ "parity-scale-codec",
  "sc-basic-authorship",
  "sc-chain-spec",
  "sc-cli",
@@ -952,10 +947,6 @@ dependencies = [
  "structopt",
  "substrate-build-script-utils",
  "substrate-prometheus-endpoint",
- "thiserror",
- "tracing",
- "wasm-bindgen",
- "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -2814,24 +2805,6 @@ dependencies = [
 
 [[package]]
 name = "kvdb-rocksdb"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d169dbb316aa0fa185d02d847c047f1aa20e292cf1563d790c13536a2a732c8"
-dependencies = [
- "fs-swap",
- "kvdb",
- "log",
- "num_cpus",
- "owning_ref",
- "parity-util-mem",
- "parking_lot 0.11.2",
- "regex",
- "rocksdb",
- "smallvec",
-]
-
-[[package]]
-name = "kvdb-rocksdb"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b1b6ea8f2536f504b645ad78419c8246550e19d2c3419a167080ce08edee35a"
@@ -4171,25 +4144,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-session",
- "sp-staking",
- "sp-std 4.0.0-dev",
-]
-
-[[package]]
-name = "pallet-im-online"
-version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.11#57346f6b24875f8935280dba51fa8ab0a9ba1e39"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "pallet-authorship",
- "parity-scale-codec",
- "scale-info",
- "sp-application-crypto",
- "sp-core",
- "sp-io",
- "sp-runtime",
  "sp-staking",
  "sp-std 4.0.0-dev",
 ]
@@ -5701,7 +5655,7 @@ dependencies = [
  "hash-db",
  "kvdb",
  "kvdb-memorydb",
- "kvdb-rocksdb 0.14.0",
+ "kvdb-rocksdb",
  "linked-hash-map",
  "log",
  "parity-db",
