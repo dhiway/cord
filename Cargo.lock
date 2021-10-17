@@ -4068,6 +4068,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-authority"
+version = "0.5.5"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-session",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 4.0.0-dev",
+]
+
+[[package]]
 name = "pallet-authority-discovery"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.11#11e6bb0e0f472fc08b6b42348ee92545adb5dbbc"
