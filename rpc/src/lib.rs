@@ -19,11 +19,7 @@
 
 use std::sync::Arc;
 
-use cord_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
-use sc_client_api::{
-	light::{Fetcher, RemoteBlockchain},
-	AuxStore,
-};
+use cord_primitives::{AccountId, Balance, Block, Index};
 pub use sc_rpc::SubscriptionTaskExecutor;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
