@@ -19,7 +19,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::dispatch::Weight;
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -103,16 +102,4 @@ pub mod report {
 		type GenericSignature = sp_core::sr25519::Signature;
 		type GenericPublic = sp_core::sr25519::Public;
 	}
-}
-/// A trait that allows version migrators to access the underlying pallet's
-/// context, e.g., its Config trait.
-///
-/// In this way, the migrator can access the pallet's storage and the pallet's
-/// types directly.
-pub trait VersionMigratorTrait<T> {
-	#[cfg(feature = "try-runtime")]
-	fn pre_migrate(&self) -> Result<(), &str>;
-	fn migrate(&self) -> Weight;
-	#[cfg(feature = "try-runtime")]
-	fn post_migrate(&self) -> Result<(), &str>;
 }
