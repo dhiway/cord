@@ -1,14 +1,10 @@
-//! # Authorities Pallet
-//!
-//! The Authorities Pallet allows addition and removal of authorities
-//!
-//! The pallet uses the Session pallet and implements related traits for session
-//! management.
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use pallet_session::Pallet as Session;
-use sp_runtime::traits::{Convert, Zero};
+// #[cfg(test)]
+// mod mock;
+// #[cfg(test)]
+// mod tests;
+
 use sp_std::prelude::*;
 
 pub use pallet::*;
@@ -16,8 +12,18 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
+	use cord_primitives::DEFAULT_SESSION_PERIOD;
+	use frame_support::{pallet_prelude::*, sp_std};
 	use frame_system::pallet_prelude::*;
+	use pallet_session::{Pallet as Session, SessionManager};
+
+	#[pallet::storage]
+	#[pallet::getter(fn validators)]
+	pub type Validators<T: Config> = StorageValue<_, Vec<T::AccountId>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn session_for_validators_change)]
+	pub type SessionForValidatorsChange<T: Config> = StorageValue<_, u32>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_session::Config {
@@ -25,26 +31,15 @@ pub mod pallet {
 		type AuthorityOrigin: EnsureOrigin<Self::Origin>;
 	}
 
-	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
-	pub struct Pallet<T>(_);
-
-	// The pallet's storage items.
-	#[pallet::storage]
-	#[pallet::getter(fn authorities)]
-	pub type Authorities<T: Config> = StorageValue<_, Vec<T::AccountId>>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn flag)]
-	pub type Flag<T: Config> = StorageValue<_, bool>;
-
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		// New Authority added.
-		AuthorityAdded(T::AccountId),
+		AddAuthority(T::AccountId, u32),
 		// Authority removed.
-		AuthorityRemoved(T::AccountId),
+		RemoveAuthority(T::AccountId, u32),
+		//Rotate Validators
+		ChangeAuthorities(Vec<T::AccountId>, u32),
 	}
 
 	// Errors inform users that something went wrong.
@@ -53,153 +48,109 @@ pub mod pallet {
 		NoAuthorities,
 	}
 
+	pub struct CordSessionManager<T>(sp_std::marker::PhantomData<T>);
+
+	#[pallet::pallet]
+	pub struct Pallet<T>(sp_std::marker::PhantomData<T>);
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		#[pallet::weight(0)]
+		pub fn add_validator(origin: OriginFor<T>, validator: T::AccountId) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			let mut validators: Vec<T::AccountId>;
+			if <Validators<T>>::get().is_none() {
+				validators = vec![validator.clone()];
+			} else {
+				validators = <Validators<T>>::get().unwrap();
+				validators.push(validator.clone());
+			}
+
+			let current_session = Session::<T>::current_index();
+
+			Validators::<T>::put(validators);
+			SessionForValidatorsChange::<T>::put(current_session + 2);
+
+			Self::deposit_event(Event::AddAuthority(validator, current_session + 2));
+			Ok(())
+		}
+
+		#[pallet::weight(0)]
+		pub fn remove_validator(origin: OriginFor<T>, validator: T::AccountId) -> DispatchResult {
+			T::AuthorityOrigin::ensure_origin(origin)?;
+			let ref mut validators = <Validators<T>>::get().ok_or(Error::<T>::NoAuthorities)?;
+			validators.retain(|x| x != &validator);
+
+			let current_session = Session::<T>::current_index();
+
+			Validators::<T>::put(validators);
+			SessionForValidatorsChange::<T>::put(current_session + 2);
+
+			Self::deposit_event(Event::RemoveAuthority(validator, current_session + 2));
+			Ok(())
+		}
+	}
+
+	#[pallet::type_value]
+	pub(super) fn DefaultForSessionPeriod() -> u32 {
+		DEFAULT_SESSION_PERIOD
+	}
+
+	#[pallet::storage]
+	#[pallet::getter(fn session_period)]
+	pub(super) type SessionPeriod<T: Config> =
+		StorageValue<_, u32, ValueQuery, DefaultForSessionPeriod>;
+
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub authorities: Vec<T::AccountId>,
+		pub validators: Vec<T::AccountId>,
+		pub session_period: u32,
 	}
 
 	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { authorities: Vec::new() }
+			Self { validators: Vec::new(), session_period: DEFAULT_SESSION_PERIOD }
 		}
 	}
 
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
-			Pallet::<T>::initialize_authoritiess(&self.authorities);
+			Pallet::<T>::initialize_validators(&self.validators);
+			<SessionPeriod<T>>::put(&self.session_period);
 		}
 	}
 
-	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Add a new authority.
-		///
-		/// New authority's session keys should be set in session module before calling this.
-		#[pallet::weight(0)]
-		pub fn add_authority(origin: OriginFor<T>, authority_id: T::AccountId) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
-
-			let mut authorities: Vec<T::AccountId>;
-
-			if <Authorities<T>>::get().is_none() {
-				authorities = vec![authority_id.clone()];
-			} else {
-				authorities = <Authorities<T>>::get().unwrap();
-				authorities.push(authority_id.clone());
+		fn initialize_validators(validators: &[T::AccountId]) {
+			if !validators.is_empty() {
+				assert!(<Validators<T>>::get().is_none(), "Validators are already initialized!");
+				<Validators<T>>::put(validators);
 			}
-
-			<Authorities<T>>::put(authorities);
-
-			// Calling rotate_session to queue the new session keys.
-			Session::<T>::rotate_session();
-
-			// Triggering rotate session again for the queued keys to take effect.
-			Flag::<T>::put(true);
-
-			Self::deposit_event(Event::AuthorityAdded(authority_id));
-			Ok(())
-		}
-
-		/// Remove an authority.
-		///
-		#[pallet::weight(0)]
-		pub fn remove_authority(
-			origin: OriginFor<T>,
-			authority_id: T::AccountId,
-		) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
-
-			let ref mut authorities = <Authorities<T>>::get().ok_or(Error::<T>::NoAuthorities)?;
-			authorities.retain(|x| x != &authority_id);
-
-			<Authorities<T>>::put(authorities);
-
-			// Calling rotate_session to queue the new session keys.
-			<pallet_session::Pallet<T>>::rotate_session();
-
-			// Triggering rotate session again for the queued keys to take effect.
-			Flag::<T>::put(true);
-
-			Self::deposit_event(Event::AuthorityRemoved(authority_id));
-			Ok(())
-		}
-
-		/// Force rotate session using elevated privileges.
-		#[pallet::weight(0)]
-		pub fn force_rotate_session(origin: OriginFor<T>) -> DispatchResult {
-			T::AuthorityOrigin::ensure_origin(origin)?;
-
-			<pallet_session::Pallet<T>>::rotate_session();
-
-			// Triggering rotate session again for any queued keys to take effect.
-			// Not sure if double rotate is needed in this scenario. **TODO**
-			Flag::<T>::put(true);
-			Ok(())
 		}
 	}
-}
 
-impl<T: Config> Pallet<T> {
-	fn initialize_authoritiess(authorities: &[T::AccountId]) {
-		if !authorities.is_empty() {
-			assert!(<Authorities<T>>::get().is_none(), "Authorities are already initialized!");
-			<Authorities<T>>::put(authorities);
+	impl<T: Config> SessionManager<T::AccountId> for CordSessionManager<T> {
+		fn new_session(session: u32) -> Option<Vec<T::AccountId>> {
+			if let Some(session_for_validators_change) =
+				Pallet::<T>::session_for_validators_change()
+			{
+				if session_for_validators_change == session {
+					let validators = Pallet::<T>::validators().expect(
+						"Validators also should be Some(), when session_for_validators_change is",
+					);
+					return Some(validators);
+				}
+			}
+			None
 		}
-	}
-}
 
-/// Indicates to the session module if the session should be rotated.
-/// We set this flag to true when we add/remove a validator.
-impl<T: Config> pallet_session::ShouldEndSession<T::BlockNumber> for Pallet<T> {
-	fn should_end_session(_now: T::BlockNumber) -> bool {
-		Self::flag().unwrap()
-	}
-}
+		fn start_session(_: u32) {}
 
-/// Provides the new set of validators to the session module when session is being rotated.
-impl<T: Config> pallet_session::SessionManager<T::AccountId> for Pallet<T> {
-	fn new_session(_new_index: u32) -> Option<Vec<T::AccountId>> {
-		// Flag is set to false so that the session doesn't keep rotating.
-		Flag::<T>::put(false);
-
-		Self::authorities()
-	}
-
-	fn end_session(_end_index: u32) {}
-
-	fn start_session(_start_index: u32) {}
-}
-
-impl<T: Config> frame_support::traits::EstimateNextSessionRotation<T::BlockNumber> for Pallet<T> {
-	fn average_session_length() -> T::BlockNumber {
-		Zero::zero()
-	}
-
-	fn estimate_current_session_progress(
-		_now: T::BlockNumber,
-	) -> (Option<sp_runtime::Permill>, frame_support::dispatch::Weight) {
-		(None, Zero::zero())
-	}
-
-	fn estimate_next_session_rotation(
-		_now: T::BlockNumber,
-	) -> (Option<T::BlockNumber>, frame_support::dispatch::Weight) {
-		(None, Zero::zero())
-	}
-}
-
-/// Implementation of Convert trait for mapping AuthorityId with AccountId.
-/// This is mainly used to map stash and controller keys.
-/// In this module, for simplicity, we just return the same AccountId.
-pub struct AuthorityOf<T>(sp_std::marker::PhantomData<T>);
-
-impl<T: Config> Convert<T::AccountId, Option<T::AccountId>> for AuthorityOf<T> {
-	fn convert(account: T::AccountId) -> Option<T::AccountId> {
-		Some(account)
+		fn end_session(_: u32) {}
 	}
 }

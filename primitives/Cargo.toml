@@ -12,17 +12,20 @@ sp-core = {git = "https://github.com/paritytech/substrate", default-features = f
 frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.11"}
 sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.11"}
 sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.11"}
+sp-api = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.11"}
 sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.11"}
-#frame-support = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.11"}
+sp-consensus-aura = {default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.11"}
 
 [features]
 default = ["std"]
 std = [
   "codec/std",
   "scale-info/std",
+  "sp-api/std",
   "frame-system/std",
  	"sp-application-crypto/std",
   "sp-core/std",
   "sp-runtime/std",
-  "sp-std/std"
+  "sp-std/std",
+  "sp-consensus-aura/std",
 ]
