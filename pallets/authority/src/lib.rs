@@ -23,33 +23,26 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use pallet_session::{Pallet as Session, SessionManager};
 
-	#[pallet::type_value]
-	pub fn DefaultValidators<T: Config>() -> Option<Vec<T::AccountId>> {
-		None
-	}
+	// #[pallet::type_value]
+	// pub fn DefaultValidators<T: Config>() -> Option<Vec<T::AccountId>> {
+	// 	None
+	// }
 
 	#[pallet::storage]
 	#[pallet::getter(fn validators)]
-	pub type Validators<T: Config> =
-		StorageValue<_, Option<Vec<T::AccountId>>, ValueQuery, DefaultValidators<T>>;
+	pub type Validators<T: Config> = StorageValue<_, Vec<T::AccountId>>;
 
-	#[pallet::type_value]
-	pub fn DefaultSessionForValidatorsChange<T: Config>() -> Option<u32> {
-		None
-	}
+	// #[pallet::type_value]
+	// pub fn DefaultSessionForValidatorsChange<T: Config>() -> Option<u32> {
+	// 	None
+	// }
 
 	#[pallet::storage]
 	#[pallet::getter(fn session_for_validators_change)]
-	pub type SessionForValidatorsChange<T: Config> =
-		StorageValue<_, Option<u32>, ValueQuery, DefaultSessionForValidatorsChange<T>>;
+	pub type SessionForValidatorsChange<T: Config> = StorageValue<_, u32>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_session::Config {
-		type AuthorityId: Member
-			+ Parameter
-			+ RuntimeAppPublic
-			+ Default
-			+ MaybeSerializeDeserialize;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type AuthorityOrigin: EnsureOrigin<Self::Origin>;
 	}
@@ -81,7 +74,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+		#[pallet::weight(0)]
 		pub fn add_validator(origin: OriginFor<T>, validator: T::AccountId) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 			let mut validators: Vec<T::AccountId>;
@@ -94,14 +87,14 @@ pub mod pallet {
 
 			let current_session = Session::<T>::current_index();
 
-			Validators::<T>::put(Some(validators));
+			Validators::<T>::put(validators);
 			SessionForValidatorsChange::<T>::put(Some(current_session + 2));
 
 			Self::deposit_event(Event::AddAuthority(validator, current_session + 2));
 			Ok(())
 		}
 
-		#[pallet::weight((T::BlockWeights::get().max_block, DispatchClass::Operational))]
+		#[pallet::weight(0)]
 		pub fn remove_validator(origin: OriginFor<T>, validator: T::AccountId) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 			let ref mut validators = <Validators<T>>::get().ok_or(Error::<T>::NoAuthorities)?;
@@ -109,7 +102,7 @@ pub mod pallet {
 
 			let current_session = Session::<T>::current_index();
 
-			Validators::<T>::put(Some(validators));
+			Validators::<T>::put(validators);
 			SessionForValidatorsChange::<T>::put(Some(current_session + 2));
 
 			Self::deposit_event(Event::RemoveAuthority(validator, current_session + 2));
@@ -117,9 +110,9 @@ pub mod pallet {
 		}
 	}
 
-	#[pallet::storage]
-	#[pallet::getter(fn authorities)]
-	pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
+	// #[pallet::storage]
+	// #[pallet::getter(fn authorities)]
+	// pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
 	#[pallet::type_value]
 	pub(super) fn DefaultForSessionPeriod() -> u32 {
@@ -133,43 +126,43 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub authorities: Vec<T::AuthorityId>,
+		pub validators: Vec<T::AccountId>,
 		pub session_period: u32,
 	}
 
 	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { authorities: Vec::new(), session_period: DEFAULT_SESSION_PERIOD }
+			Self { validators: Vec::new(), session_period: DEFAULT_SESSION_PERIOD }
 		}
 	}
 
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
-			Pallet::<T>::initialize_authorities(&self.authorities);
+			Pallet::<T>::initialize_validators(&self.validators);
 			<SessionPeriod<T>>::put(&self.session_period);
 		}
 	}
 
 	impl<T: Config> Pallet<T> {
-		pub(crate) fn initialize_authorities(authorities: &[T::AuthorityId]) {
-			if !authorities.is_empty() {
-				assert!(<Authorities<T>>::get().is_empty(), "Authorities are already initialized!");
-				<Authorities<T>>::put(authorities);
+		pub(crate) fn initialize_validators(validators: &[T::AccountId]) {
+			if !validators.is_empty() {
+				assert!(<Validators<T>>::get().is_none(), "Validators are already initialized!");
+				<Validators<T>>::put(validators);
 			}
 		}
 
-		pub(crate) fn update_authorities(authorities: &[T::AuthorityId]) {
-			<Authorities<T>>::put(authorities);
-		}
+		// pub(crate) fn update_validators(validators: &[T::AccountId]) {
+		// 	<Validators<T>>::put(validators);
+		// }
 
-		pub fn next_session_authorities() -> Result<Vec<T::AuthorityId>, SessionApiError> {
-			Session::<T>::queued_keys()
-				.iter()
-				.map(|(_, key)| key.get(T::AuthorityId::ID).ok_or(SessionApiError::DecodeKey))
-				.collect::<Result<Vec<T::AuthorityId>, SessionApiError>>()
-		}
+		// pub fn next_session_authorities() -> Result<Vec<T::AuthorityId>, SessionApiError> {
+		// 	Session::<T>::queued_keys()
+		// 		.iter()
+		// 		.map(|(_, key)| key.get(T::AuthorityId::ID).ok_or(SessionApiError::DecodeKey))
+		// 		.collect::<Result<Vec<T::AuthorityId>, SessionApiError>>()
+		// }
 	}
 
 	impl<T: Config> SessionManager<T::AccountId> for CordSessionManager<T> {
@@ -192,31 +185,31 @@ pub mod pallet {
 		fn end_session(_: u32) {}
 	}
 
-	impl<T: Config> BoundToRuntimeAppPublic for Pallet<T> {
-		type Public = T::AuthorityId;
-	}
+	// impl<T: Config> BoundToRuntimeAppPublic for Pallet<T> {
+	// 	type Public = T::AuthorityId;
+	// }
 
-	impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
-		type Key = T::AuthorityId;
+	// impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
+	// 	type Key = T::AuthorityId;
 
-		fn on_genesis_session<'a, I: 'a>(validators: I)
-		where
-			I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
-			T::AccountId: 'a,
-		{
-			let authorities = validators.map(|(_, key)| key).collect::<Vec<_>>();
-			Self::initialize_authorities(authorities.as_slice());
-		}
+	// 	fn on_genesis_session<'a, I: 'a>(validators: I)
+	// 	where
+	// 		I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
+	// 		T::AccountId: 'a,
+	// 	{
+	// 		let authorities = validators.map(|(_, key)| key).collect::<Vec<_>>();
+	// 		Self::initialize_authorities(authorities.as_slice());
+	// 	}
 
-		fn on_new_session<'a, I: 'a>(_changed: bool, validators: I, _queued_validators: I)
-		where
-			I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
-			T::AccountId: 'a,
-		{
-			let authorities = validators.map(|(_, key)| key).collect::<Vec<_>>();
-			Self::update_authorities(authorities.as_slice());
-		}
+	// 	fn on_new_session<'a, I: 'a>(_changed: bool, validators: I, _queued_validators: I)
+	// 	where
+	// 		I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
+	// 		T::AccountId: 'a,
+	// 	{
+	// 		let authorities = validators.map(|(_, key)| key).collect::<Vec<_>>();
+	// 		Self::update_authorities(authorities.as_slice());
+	// 	}
 
-		fn on_disabled(_validator_index: usize) {}
-	}
+	// 	fn on_disabled(_validator_index: usize) {}
+	// }
 }
