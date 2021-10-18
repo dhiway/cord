@@ -15,12 +15,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
 
 use crate::*;
 
 /// An on-chain registrar details anchored by the council.
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, MaxEncodedLen, scale_info::TypeInfo)]
+#[scale_info(skip_type_params(T))]
 pub struct RegistrarDetails<T: Config> {
 	pub block: BlockNumberOf<T>,
 	/// The flag indicating the status of the registrar account.

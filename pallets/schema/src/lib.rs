@@ -31,6 +31,7 @@ pub use sp_cid::{Cid, Version};
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	// use codec::MaxEncodedLen;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
@@ -40,6 +41,7 @@ pub mod pallet {
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a CORD account.
 	pub type CordAccountOf<T> = <T as Config>::CordAccountId;
+
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 
@@ -47,7 +49,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		type CordAccountId: Parameter + Default;
+		type CordAccountId: Parameter + Default + MaxEncodedLen;
 
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
@@ -60,6 +62,7 @@ pub mod pallet {
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
+	// #[pallet::generate_storage_info]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]

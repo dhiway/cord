@@ -20,7 +20,8 @@ use codec::{Decode, Encode};
 use sp_runtime::DispatchResult;
 
 /// An on-chain schema details mapped to an identifier.
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
+#[scale_info(skip_type_params(T))]
 pub struct SchemaDetails<T: Config> {
 	/// Schema identifier.
 	pub hash: HashOf<T>,
@@ -64,7 +65,8 @@ impl<T: Config> SchemaDetails<T> {
 }
 
 /// An on-chain commit details.
-#[derive(Clone, Debug, Encode, Decode, PartialEq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
+#[scale_info(skip_type_params(T))]
 pub struct SchemaCommit<T: Config> {
 	/// schema hash.
 	pub hash: HashOf<T>,
@@ -85,7 +87,7 @@ impl<T: Config> SchemaCommit<T> {
 	}
 }
 
-#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq, scale_info::TypeInfo)]
 pub enum SchemaCommitOf {
 	Genesis,
 	Update,
