@@ -17,12 +17,13 @@
 
 //! CORD chain configurations.
 
-pub use cord_primitives::{AccountId, Balance, Signature};
+pub use cord_primitives::{AccountId, AuthorityId, Balance, Signature, DEFAULT_SESSION_PERIOD};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	constants::currency::*, AuraConfig, AuthorityConfig, BalancesConfig, Block, CouncilConfig,
-	DemocracyConfig, DhiCouncilConfig, GrandpaConfig, IndicesConfig, PhragmenElectionConfig,
-	SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	constants::currency::*, AuraConfig, BalancesConfig, Block, CordAuthoritiesConfig,
+	CouncilConfig, DemocracyConfig, DhiCouncilConfig, GrandpaConfig, IndicesConfig,
+	PhragmenElectionConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig,
+	TechnicalCommitteeConfig,
 };
 use hex_literal::hex;
 use sc_chain_spec::ChainSpecExtension;
@@ -37,11 +38,23 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 type AccountPublic = <Signature as Verify>::Signer;
 
 pub use cord_runtime::constants::time::*;
+use structopt::StructOpt;
 
 // Note this is the URL for the telemetry server
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.dway.io/submit/";
 const DEFAULT_PROTOCOL_ID: &str = "cord";
 
+#[derive(Debug, StructOpt, Clone)]
+pub struct ChainParams {
+	#[structopt(long)]
+	pub session_period: Option<u32>,
+}
+
+impl ChainParams {
+	pub fn session_period(&self) -> u32 {
+		self.session_period.unwrap_or(DEFAULT_SESSION_PERIOD)
+	}
+}
 /// Node `ChainSpec` extensions.
 ///
 /// Additional parameters for some Substrate core modules,
@@ -53,9 +66,6 @@ pub struct Extensions {
 	pub fork_blocks: sc_client_api::ForkBlocks<Block>,
 	/// Known bad block hashes.
 	pub bad_blocks: sc_client_api::BadBlocks<Block>,
-	/// The light sync state.
-	/// This value will be set by the `sync-state rpc` implementation.
-	pub light_sync_state: sc_sync_state_rpc::LightSyncStateExtension,
 }
 
 /// Specialized `ChainSpec`.
@@ -216,6 +226,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		//3yDhdkwPaAp1fghGhPW5KwL6xKDCmvM7LGtvtiYvLHMrtBXp
 		hex!["c227e25885b199a75429484278681c276062e6b0639c75aba6d7eba622ae773d"].into(),
 	];
+	let session_period = DEFAULT_SESSION_PERIOD;
 	let root_key: AccountId = endowed_accounts[0].clone();
 	let num_endowed_accounts = endowed_accounts.len();
 	const STASH: u128 = 100 * WAY;
@@ -235,8 +246,9 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
 				.collect(),
 		},
-		authority: AuthorityConfig {
+		cord_authorities: CordAuthoritiesConfig {
 			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			session_period,
 		},
 		session: SessionConfig {
 			keys: initial_authorities
@@ -308,6 +320,7 @@ fn cord_development_genesis(
 	root_key: AccountId,
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> GenesisConfig {
+	let session_period = DEFAULT_SESSION_PERIOD;
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 	let num_endowed_accounts = endowed_accounts.len();
 	const ENDOWMENT: u128 = 10_000 * WAY;
@@ -321,8 +334,9 @@ fn cord_development_genesis(
 		balances: BalancesConfig {
 			balances: endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect(),
 		},
-		authority: AuthorityConfig {
+		cord_authorities: CordAuthoritiesConfig {
 			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			session_period,
 		},
 		session: SessionConfig {
 			keys: initial_authorities

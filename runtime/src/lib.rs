@@ -22,7 +22,7 @@
 #![allow(clippy::from_over_into)]
 
 use codec::Encode;
-pub use cord_primitives::{AccountId, Signature};
+pub use cord_primitives::{AccountId, AuthorityId as CordId, SessionApiError, Signature};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -54,8 +54,8 @@ use sp_core::{
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdLookup, BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, NumberFor,
-		OpaqueKeys, SaturatedConversion, Verify,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Extrinsic as ExtrinsicT,
+		NumberFor, OpaqueKeys, SaturatedConversion, Verify,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
@@ -374,17 +374,38 @@ impl_opaque_keys! {
 	}
 }
 
+pub struct SessionPeriod;
+
+impl SessionPeriod {
+	pub fn get() -> u32 {
+		CordAuthorities::session_period()
+	}
+}
+
+impl<I: From<u32>> ::frame_support::traits::Get<I> for SessionPeriod {
+	fn get() -> I {
+		I::from(Self::get())
+	}
+}
+
+impl pallet_authority::Config for Runtime {
+	type AuthorityId = CordId;
+	type Event = Event;
+	type AuthorityOrigin = MoreThanHalfCouncil;
+}
+
 parameter_types! {
-	pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
+	pub const Offset: u32 = 0;
+	pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(30);
 }
 
 impl pallet_session::Config for Runtime {
 	type Event = Event;
-	type ValidatorId = AccountId;
-	type ValidatorIdOf = pallet_authority::AuthorityOf<Self>;
-	type ShouldEndSession = Authority;
-	type NextSessionRotation = Authority;
-	type SessionManager = Authority;
+	type ValidatorId = <Self as frame_system::Config>::AccountId;
+	type ValidatorIdOf = ConvertInto;
+	type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
+	type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
+	type SessionManager = pallet_authority::CordSessionManager<Self>;
 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
 	type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
@@ -700,11 +721,6 @@ where
 	type OverarchingCall = Call;
 }
 
-impl pallet_authority::Config for Runtime {
-	type Event = Event;
-	type AuthorityOrigin = MoreThanHalfCouncil;
-}
-
 impl pallet_registrar::Config for Runtime {
 	type Event = Event;
 	// type CordAccountId = AccountId;
@@ -772,7 +788,7 @@ construct_runtime! {
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 1,
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 2,
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 3,
-		Authority: pallet_authority::{Pallet, Call, Storage, Event<T>, Config<T>} = 4,
+		CordAuthorities: pallet_authority::{Pallet, Call, Storage, Event<T>, Config<T>} = 4,
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 5,
 		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 6,
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 7,
@@ -958,6 +974,26 @@ impl_runtime_apis! {
 		fn authorities() -> Vec<AuraId> {
 			Aura::authorities().into_inner()
 		}
+	}
+
+	impl cord_primitives::CordSessionApi<Block> for Runtime {
+
+		// fn future_session_validator_ids(session_id: u32) -> Result<Vec<CordId>, SessionApiError> {
+		// 	CordAuthorities::future_session_validator_ids(session_id)
+		// }
+
+		fn next_session_validator_keys() -> Result<Vec<CordId>, SessionApiError>{
+			CordAuthorities::next_session_authorities()
+		}
+
+		fn current_session_validator_keys() -> Vec<CordId> {
+			CordAuthorities::authorities()
+		}
+
+		fn session_period() -> u32 {
+			SessionPeriod::get()
+		}
+
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
