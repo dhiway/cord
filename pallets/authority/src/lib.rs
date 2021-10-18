@@ -5,37 +5,21 @@
 // #[cfg(test)]
 // mod tests;
 
-use frame_support::Parameter;
 use sp_std::prelude::*;
 
-use frame_support::{sp_runtime::BoundToRuntimeAppPublic, traits::OneSessionHandler};
 pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use cord_primitives::{SessionApiError, DEFAULT_SESSION_PERIOD};
-	use frame_support::{
-		pallet_prelude::*,
-		sp_runtime::{traits::OpaqueKeys, RuntimeAppPublic},
-		sp_std,
-	};
+	use cord_primitives::DEFAULT_SESSION_PERIOD;
+	use frame_support::{pallet_prelude::*, sp_std};
 	use frame_system::pallet_prelude::*;
 	use pallet_session::{Pallet as Session, SessionManager};
-
-	// #[pallet::type_value]
-	// pub fn DefaultValidators<T: Config>() -> Option<Vec<T::AccountId>> {
-	// 	None
-	// }
 
 	#[pallet::storage]
 	#[pallet::getter(fn validators)]
 	pub type Validators<T: Config> = StorageValue<_, Vec<T::AccountId>>;
-
-	// #[pallet::type_value]
-	// pub fn DefaultSessionForValidatorsChange<T: Config>() -> Option<u32> {
-	// 	None
-	// }
 
 	#[pallet::storage]
 	#[pallet::getter(fn session_for_validators_change)]
@@ -88,7 +72,7 @@ pub mod pallet {
 			let current_session = Session::<T>::current_index();
 
 			Validators::<T>::put(validators);
-			SessionForValidatorsChange::<T>::put(Some(current_session + 2));
+			SessionForValidatorsChange::<T>::put(current_session + 2);
 
 			Self::deposit_event(Event::AddAuthority(validator, current_session + 2));
 			Ok(())
@@ -103,16 +87,12 @@ pub mod pallet {
 			let current_session = Session::<T>::current_index();
 
 			Validators::<T>::put(validators);
-			SessionForValidatorsChange::<T>::put(Some(current_session + 2));
+			SessionForValidatorsChange::<T>::put(current_session + 2);
 
 			Self::deposit_event(Event::RemoveAuthority(validator, current_session + 2));
 			Ok(())
 		}
 	}
-
-	// #[pallet::storage]
-	// #[pallet::getter(fn authorities)]
-	// pub(super) type Authorities<T: Config> = StorageValue<_, Vec<T::AuthorityId>, ValueQuery>;
 
 	#[pallet::type_value]
 	pub(super) fn DefaultForSessionPeriod() -> u32 {
@@ -146,23 +126,12 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		pub(crate) fn initialize_validators(validators: &[T::AccountId]) {
+		fn initialize_validators(validators: &[T::AccountId]) {
 			if !validators.is_empty() {
 				assert!(<Validators<T>>::get().is_none(), "Validators are already initialized!");
 				<Validators<T>>::put(validators);
 			}
 		}
-
-		// pub(crate) fn update_validators(validators: &[T::AccountId]) {
-		// 	<Validators<T>>::put(validators);
-		// }
-
-		// pub fn next_session_authorities() -> Result<Vec<T::AuthorityId>, SessionApiError> {
-		// 	Session::<T>::queued_keys()
-		// 		.iter()
-		// 		.map(|(_, key)| key.get(T::AuthorityId::ID).ok_or(SessionApiError::DecodeKey))
-		// 		.collect::<Result<Vec<T::AuthorityId>, SessionApiError>>()
-		// }
 	}
 
 	impl<T: Config> SessionManager<T::AccountId> for CordSessionManager<T> {
@@ -184,32 +153,4 @@ pub mod pallet {
 
 		fn end_session(_: u32) {}
 	}
-
-	// impl<T: Config> BoundToRuntimeAppPublic for Pallet<T> {
-	// 	type Public = T::AuthorityId;
-	// }
-
-	// impl<T: Config> OneSessionHandler<T::AccountId> for Pallet<T> {
-	// 	type Key = T::AuthorityId;
-
-	// 	fn on_genesis_session<'a, I: 'a>(validators: I)
-	// 	where
-	// 		I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
-	// 		T::AccountId: 'a,
-	// 	{
-	// 		let authorities = validators.map(|(_, key)| key).collect::<Vec<_>>();
-	// 		Self::initialize_authorities(authorities.as_slice());
-	// 	}
-
-	// 	fn on_new_session<'a, I: 'a>(_changed: bool, validators: I, _queued_validators: I)
-	// 	where
-	// 		I: Iterator<Item = (&'a T::AccountId, T::AuthorityId)>,
-	// 		T::AccountId: 'a,
-	// 	{
-	// 		let authorities = validators.map(|(_, key)| key).collect::<Vec<_>>();
-	// 		Self::update_authorities(authorities.as_slice());
-	// 	}
-
-	// 	fn on_disabled(_validator_index: usize) {}
-	// }
 }

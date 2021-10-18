@@ -22,7 +22,7 @@
 #![allow(clippy::from_over_into)]
 
 use codec::Encode;
-pub use cord_primitives::{AccountId, AuthorityId as CordId, SessionApiError, Signature};
+pub use cord_primitives::{AccountId, SessionApiError, Signature, DEFAULT_SESSION_PERIOD};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -40,12 +40,16 @@ use frame_system::{limits, EnsureOneOf, EnsureRoot, EnsureSigned};
 use pallet_grandpa::{
 	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
 };
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_session::historical as pallet_session_historical;
 pub use pallet_transaction_payment::{
 	CurrencyAdapter, Multiplier, OnChargeTransaction, TargetedFeeAdjustment,
 };
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 use sp_api::impl_runtime_apis;
+use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_aura::{sr25519::AuthorityId as AuraId, SlotDuration};
+
 use sp_core::{
 	crypto::KeyTypeId,
 	u32_trait::{_1, _2, _3, _5},
@@ -57,7 +61,7 @@ use sp_runtime::{
 		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Extrinsic as ExtrinsicT,
 		NumberFor, OpaqueKeys, SaturatedConversion, Verify,
 	},
-	transaction_validity::{TransactionSource, TransactionValidity},
+	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
 };
 use sp_std::prelude::*;
@@ -364,39 +368,55 @@ impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
 	type UncleGenerations = UncleGenerations;
 	type FilterUncle = ();
-	type EventHandler = ();
+	type EventHandler = ImOnline;
 }
 
 impl_opaque_keys! {
 	pub struct SessionKeys {
 		pub grandpa: Grandpa,
 		pub aura: Aura,
-	}
-}
-
-pub struct SessionPeriod;
-
-impl SessionPeriod {
-	pub fn get() -> u32 {
-		CordAuthorities::session_period()
-	}
-}
-
-impl<I: From<u32>> ::frame_support::traits::Get<I> for SessionPeriod {
-	fn get() -> I {
-		I::from(Self::get())
+		pub im_online: ImOnline,
+		pub authority_discovery: AuthorityDiscovery,
 	}
 }
 
 impl pallet_authority::Config for Runtime {
-	type AuthorityId = CordId;
+	// type AuthorityId = CordId;
 	type Event = Event;
 	type AuthorityOrigin = MoreThanHalfCouncil;
 }
 
 parameter_types! {
+	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
+}
+
+impl pallet_im_online::Config for Runtime {
+	type AuthorityId = ImOnlineId;
+	type Event = Event;
+	type ValidatorSet = Historical;
+	type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
+	type ReportUnresponsiveness = Offences;
+	type UnsignedPriority = ImOnlineUnsignedPriority;
+	type WeightInfo = pallet_im_online::weights::SubstrateWeight<Runtime>;
+	type MaxKeys = MaxKeys;
+	type MaxPeerInHeartbeats = MaxPeerInHeartbeats;
+	type MaxPeerDataEncodingSize = MaxPeerDataEncodingSize;
+}
+
+impl pallet_offences::Config for Runtime {
+	type Event = Event;
+	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
+	type OnOffenceHandler = ();
+}
+
+impl pallet_authority_discovery::Config for Runtime {
+	type MaxAuthorities = MaxAuthorities;
+}
+
+parameter_types! {
 	pub const Offset: u32 = 0;
-	pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(30);
+	pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
+	pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(33);
 }
 
 impl pallet_session::Config for Runtime {
@@ -410,6 +430,11 @@ impl pallet_session::Config for Runtime {
 	type Keys = SessionKeys;
 	type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_session::historical::Config for Runtime {
+	type FullIdentification = <Self as frame_system::Config>::AccountId;
+	type FullIdentificationOf = ConvertInto;
 }
 
 parameter_types! {
@@ -795,6 +820,10 @@ construct_runtime! {
 		Aura: pallet_aura::{Pallet,Config<T>} = 8,
 		Authorship: pallet_authorship::{Pallet, Call, Storage} = 9,
 		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 10,
+		ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 11,
+		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 12,
+		Offences: pallet_offences::{Pallet, Storage, Event} = 13,
+
 		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 15,
 		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 16,
 		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 17,
@@ -808,6 +837,7 @@ construct_runtime! {
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 24,
 		Utility: pallet_utility::{Pallet, Call, Event} = 25,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 26,
+		Historical: pallet_session_historical::{Pallet} = 27,
 
 		Registrar: pallet_registrar::{Pallet, Call, Storage, Event<T>} = 32,
 		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 33,
@@ -935,6 +965,11 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl sp_authority_discovery::AuthorityDiscoveryApi<Block> for Runtime {
+		fn authorities() -> Vec<AuthorityDiscoveryId> {
+			AuthorityDiscovery::authorities()
+		}
+	}
 
 	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
 		fn account_nonce(account: AccountId) -> Index {
@@ -974,26 +1009,6 @@ impl_runtime_apis! {
 		fn authorities() -> Vec<AuraId> {
 			Aura::authorities().into_inner()
 		}
-	}
-
-	impl cord_primitives::CordSessionApi<Block> for Runtime {
-
-		// fn future_session_validator_ids(session_id: u32) -> Result<Vec<CordId>, SessionApiError> {
-		// 	CordAuthorities::future_session_validator_ids(session_id)
-		// }
-
-		fn next_session_validator_keys() -> Result<Vec<CordId>, SessionApiError>{
-			CordAuthorities::next_session_authorities()
-		}
-
-		fn current_session_validator_keys() -> Vec<CordId> {
-			CordAuthorities::authorities()
-		}
-
-		fn session_period() -> u32 {
-			SessionPeriod::get()
-		}
-
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]

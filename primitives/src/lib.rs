@@ -19,7 +19,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_core::crypto::KeyTypeId;
+// use sp_core::crypto::KeyTypeId;
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -27,19 +27,19 @@ use sp_runtime::{
 };
 use sp_std::vec::Vec;
 
-pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"way0");
+// pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+// pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"way0");
 
-mod app {
-	use sp_application_crypto::{app_crypto, sr25519};
-	app_crypto!(sr25519, super::KEY_TYPE);
-}
+// mod app {
+// 	use sp_application_crypto::{app_crypto, sr25519};
+// 	app_crypto!(sr25519, super::KEY_TYPE);
+// }
 
-sp_application_crypto::with_pair! {
-	pub type AuthorityPair = app::Pair;
-}
-pub type AuthoritySignature = app::Signature;
-pub type AuthorityId = app::Public;
+// sp_application_crypto::with_pair! {
+// 	pub type AuthorityPair = app::Pair;
+// }
+// pub type AuthoritySignature = app::Signature;
+// pub type AuthorityId = app::Public;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -88,7 +88,7 @@ pub type IdentifierOf = Vec<u8>;
 /// status Information
 pub type StatusOf = bool;
 
-pub const DEFAULT_SESSION_PERIOD: u32 = 5;
+pub const DEFAULT_SESSION_PERIOD: u32 = 1000;
 
 #[derive(codec::Encode, codec::Decode, PartialEq, Eq, sp_std::fmt::Debug)]
 pub enum SessionApiError {
@@ -96,14 +96,14 @@ pub enum SessionApiError {
 	DecodeKey,
 }
 
-sp_api::decl_runtime_apis! {
-	pub trait CordSessionApi
-	{
-		fn next_session_validator_keys() -> Result<Vec<AuthorityId>, SessionApiError>;
-		fn current_session_validator_keys() -> Vec<AuthorityId>;
-		fn session_period() -> u32;
-	}
-}
+// sp_api::decl_runtime_apis! {
+// 	pub trait CordSessionApi
+// 	{
+// 		fn next_session_validator_keys() -> Result<Vec<AuthorityId>, SessionApiError>;
+// 		fn current_session_validator_keys() -> Vec<AuthorityId>;
+// 		fn session_period() -> u32;
+// 	}
+// }
 
 // / App-specific crypto used for reporting equivocation/misbehavior in BABE and
 // / GRANDPA. Any rewards for misbehavior reporting will be paid out to this
