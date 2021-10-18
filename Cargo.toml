@@ -14,5 +14,6 @@ members = [
 	"pallets/stream",
 	"pallets/dw-treasury",
 	"pallets/nix",
+	"pallets/authority",
 ]
 
