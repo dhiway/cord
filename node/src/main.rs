@@ -19,13 +19,13 @@
 
 #![warn(missing_docs)]
 
-mod chain_spec;
+// mod chain_spec;
 
-#[macro_use]
-mod service;
-mod cli;
-mod command;
+// #[macro_use]
+// mod service;
+// mod cli;
+// mod command;
 
 fn main() -> sc_cli::Result<()> {
-	command::run()
+	cord_node::run()
 }
