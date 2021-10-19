@@ -35,7 +35,7 @@ fn get_exec_name() -> Option<String> {
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Dhiway CORD".into()
+		"CORD Node".into()
 	}
 
 	fn impl_version() -> String {
@@ -166,6 +166,9 @@ pub fn run() -> sc_cli::Result<()> {
 			}
 		}
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
+		Some(Subcommand::Sign(cmd)) => cmd.run(),
+		Some(Subcommand::Verify(cmd)) => cmd.run(),
+		Some(Subcommand::Vanity(cmd)) => cmd.run(),
 		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
