@@ -148,7 +148,11 @@ fn cord_development_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisC
 fn cord_local_testnet_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
 	cord_development_genesis(
 		wasm_binary,
-		vec![get_authority_keys_from_seed("Alice"), get_authority_keys_from_seed("Bob")],
+		vec![
+			get_authority_keys_from_seed("Alice"),
+			get_authority_keys_from_seed("Bob"),
+			get_authority_keys_from_seed("Charlie"),
+		],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		None,
 	)
@@ -180,6 +184,28 @@ pub fn cord_local_testnet_config() -> Result<ChainSpec, String> {
 		move || cord_local_testnet_genesis(wasm_binary),
 		vec![],
 		None,
+		Some(DEFAULT_PROTOCOL_ID),
+		Some(properties),
+		Default::default(),
+	))
+}
+
+/// Staging testnet config.
+pub fn cord_staging_config() -> Result<ChainSpec, String> {
+	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
+	let boot_nodes = vec![];
+	let properties = get_properties("WAY", 12, 29);
+
+	Ok(ChainSpec::from_genesis(
+		"Cord Staging Testnet",
+		"cord_staging_testnet",
+		ChainType::Live,
+		move || cord_staging_config_genesis(wasm_binary),
+		boot_nodes,
+		Some(
+			TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
+				.expect("Staging telemetry url is valid; qed"),
+		),
 		Some(DEFAULT_PROTOCOL_ID),
 		Some(properties),
 		Default::default(),
@@ -265,7 +291,8 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 	];
 	let root_key: AccountId = endowed_accounts[0].clone();
 	let num_endowed_accounts = endowed_accounts.len();
-	const STASH: u128 = 100 * WAY;
+	const STASH: u128 = 100_000 * WAY;
+	const BOND: u128 = 10_000 * WAY;
 	const ENDOWMENT: u128 = 1_110_101_200 * WAY;
 
 	GenesisConfig {
@@ -299,11 +326,13 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 			minimum_validator_count: 3,
 			stakers: initial_authorities
 				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
+				.map(|x| (x.0.clone(), x.1.clone(), BOND, StakerStatus::Validator))
 				.collect(),
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
 			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
+			min_nominator_bond: BOND,
+			min_validator_bond: BOND,
 			..Default::default()
 		},
 		phragmen_election: PhragmenElectionConfig {
@@ -311,7 +340,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.map(|member| (member, STASH))
+				.map(|member| (member, BOND))
 				.collect(),
 		},
 		democracy: DemocracyConfig::default(),
@@ -348,28 +377,6 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 	}
 }
 
-/// Staging testnet config.
-pub fn cord_staging_config() -> Result<ChainSpec, String> {
-	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
-	let boot_nodes = vec![];
-	let properties = get_properties("WAY", 12, 29);
-
-	Ok(ChainSpec::from_genesis(
-		"Cord Staging Testnet",
-		"cord_staging_testnet",
-		ChainType::Live,
-		move || cord_staging_config_genesis(wasm_binary),
-		boot_nodes,
-		Some(
-			TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-				.expect("Staging telemetry url is valid; qed"),
-		),
-		Some(DEFAULT_PROTOCOL_ID),
-		Some(properties),
-		Default::default(),
-	))
-}
-
 fn cord_development_genesis(
 	wasm_binary: &[u8],
 	initial_authorities: Vec<(
@@ -385,8 +392,8 @@ fn cord_development_genesis(
 ) -> GenesisConfig {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 	let num_endowed_accounts = endowed_accounts.len();
+	const BOND: u128 = 10_000 * WAY;
 	const ENDOWMENT: u128 = 10_000 * WAY;
-	const STASH: u128 = 100 * WAY;
 	GenesisConfig {
 		system: SystemConfig {
 			code: wasm_binary.to_vec(),
@@ -413,11 +420,13 @@ fn cord_development_genesis(
 			validator_count: initial_authorities.len() as u32,
 			stakers: initial_authorities
 				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
+				.map(|x| (x.0.clone(), x.1.clone(), BOND, StakerStatus::Validator))
 				.collect(),
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
 			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
+			min_nominator_bond: BOND,
+			min_validator_bond: BOND,
 			..Default::default()
 		},
 		phragmen_election: PhragmenElectionConfig {
@@ -425,7 +434,7 @@ fn cord_development_genesis(
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.map(|member| (member, STASH))
+				.map(|member| (member, BOND))
 				.collect(),
 		},
 		democracy: DemocracyConfig::default(),
