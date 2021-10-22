@@ -120,8 +120,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to equal spec_version. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 5050,
-	impl_version: 3,
+	spec_version: 5060,
+	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 0,
 };
@@ -494,10 +494,6 @@ impl_opaque_keys! {
 	}
 }
 
-parameter_types! {
-	pub const DisabledValidatorsThreshold: Perbill = Perbill::from_percent(17);
-}
-
 impl pallet_session::Config for Runtime {
 	type Event = Event;
 	type ValidatorId = AccountId;
@@ -507,7 +503,6 @@ impl pallet_session::Config for Runtime {
 	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Staking>;
 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
-	type DisabledValidatorsThreshold = DisabledValidatorsThreshold;
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
 
@@ -596,6 +591,7 @@ parameter_types! {
 	pub const SlashDeferDuration: pallet_staking::EraIndex = 1;
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 	pub const MaxNominatorRewardedPerValidator: u32 = 256;
+	pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(17);
 	pub OffchainRepeat: BlockNumber = 5;
 }
 
@@ -630,6 +626,7 @@ impl pallet_staking::Config for Runtime {
 	type SessionInterface = Self;
 	type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
 	type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
+	type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
 	type NextNewSession = Session;
 	type ElectionProvider = ElectionProviderMultiPhase;
 	type GenesisElectionProvider = elections::GenesisElectionOf<Self>;
@@ -1098,10 +1095,12 @@ construct_runtime! {
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 3,
 		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 4,
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
+		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 21,
 
 		Authorship: pallet_authorship::{Pallet, Call, Storage} = 6,
 		Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T> } = 7,
 		Offences: pallet_offences::{Pallet, Storage, Event} = 8,
+				Historical: pallet_session_historical::{Pallet} = 23,
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 9,
 		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 11,
 		ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 12,
@@ -1118,9 +1117,7 @@ construct_runtime! {
 		Nix: pallet_nix::{Pallet, Call, Storage, Config<T>, Event<T>} = 27,
 
 
-		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 21,
 		Utility: pallet_utility::{Pallet, Call, Event} = 22,
-		Historical: pallet_session_historical::{Pallet} = 23,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 24,
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 25,
 
