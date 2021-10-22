@@ -60,9 +60,9 @@ where
 {
 	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance<R>>) {
 		if let Some(fees) = fees_then_tips.next() {
-			// for fees, 30% to treasury, 40% to author, 30% to DW
-			let split_fee = fees.ration(30, 70);
-			let mut split = split_fee.1.ration(40, 30);
+			// for fees, 65% to treasury, 20% to author, 15% to DW
+			let split_fee = fees.ration(15, 85);
+			let mut split = split_fee.1.ration(65, 20);
 			if let Some(tips) = fees_then_tips.next() {
 				// for tips, if any, 100% to author
 				tips.merge_into(&mut split.1);

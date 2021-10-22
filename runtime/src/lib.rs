@@ -121,7 +121,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
 	spec_version: 5050,
-	impl_version: 0,
+	impl_version: 3,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 0,
 };
@@ -653,10 +653,10 @@ parameter_types! {
 	pub const VotingPeriod: BlockNumber = 3 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
 	pub const InstantAllowed: bool = true;
-	pub const MinimumDeposit: Balance = 100 * MILLI_WAY;
+	pub const MinimumDeposit: Balance = 10 * MILLI_WAY;
 	pub const EnactmentPeriod: BlockNumber = 3 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 1 * DAYS;
-	pub const PreimageByteDeposit: Balance = 10 * MILLI_WAY;
+	pub const PreimageByteDeposit: Balance = 1 * MICRO_WAY;
 	pub const MaxVotes: u32 = 100;
 	pub const MaxProposals: u32 = 100;
 }
