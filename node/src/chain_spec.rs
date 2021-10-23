@@ -21,9 +21,9 @@ pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	constants::currency::*, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
-	CouncilConfig, DemocracyConfig, DhiCouncilConfig, IndicesConfig, PhragmenElectionConfig,
+	CouncilConfig, DemocracyConfig, IndicesConfig, NetworkCouncilConfig, PhragmenElectionConfig,
 	SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
-	TechnicalCommitteeConfig,
+	TechnicalCouncilConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -345,7 +345,16 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		},
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig { members: vec![], phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig {
+		network_council: NetworkCouncilConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		network_membership: Default::default(),
+		technical_council: TechnicalCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -354,14 +363,6 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 			phantom: Default::default(),
 		},
 		technical_membership: Default::default(),
-		dhi_council: DhiCouncilConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
-			phantom: Default::default(),
-		},
 		sudo: SudoConfig { key: root_key },
 		babe: BabeConfig {
 			authorities: Default::default(),
@@ -370,9 +371,10 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		grandpa: Default::default(),
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
-		treasury: Default::default(),
-		base: Default::default(),
+		council_treasury: Default::default(),
+		network_treasury: Default::default(),
 		nix: Default::default(),
+		assets: Default::default(),
 		vesting: Default::default(),
 	}
 }
@@ -439,7 +441,16 @@ fn cord_development_genesis(
 		},
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig { members: vec![], phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig {
+		network_council: NetworkCouncilConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		network_membership: Default::default(),
+		technical_council: TechnicalCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -448,14 +459,6 @@ fn cord_development_genesis(
 			phantom: Default::default(),
 		},
 		technical_membership: Default::default(),
-		dhi_council: DhiCouncilConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
-			phantom: Default::default(),
-		},
 		sudo: SudoConfig { key: root_key },
 		babe: BabeConfig {
 			authorities: Default::default(),
@@ -464,9 +467,10 @@ fn cord_development_genesis(
 		grandpa: Default::default(),
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
-		treasury: Default::default(),
-		base: Default::default(),
+		council_treasury: Default::default(),
+		network_treasury: Default::default(),
 		nix: Default::default(),
+		assets: Default::default(),
 		vesting: Default::default(),
 	}
 }

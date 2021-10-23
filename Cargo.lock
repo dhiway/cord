@@ -1056,7 +1056,6 @@ dependencies = [
 name = "cord-runtime"
 version = "0.5.6"
 dependencies = [
- "bitvec 0.20.4",
  "cord-primitives",
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -1067,6 +1066,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "hex-literal",
  "log",
+ "pallet-assets",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -1075,7 +1075,6 @@ dependencies = [
  "pallet-bounties",
  "pallet-collective",
  "pallet-democracy",
- "pallet-dw-treasury",
  "pallet-election-provider-multi-phase",
  "pallet-elections-phragmen",
  "pallet-grandpa",
@@ -1083,6 +1082,7 @@ dependencies = [
  "pallet-indices",
  "pallet-membership",
  "pallet-multisig",
+ "pallet-network-treasury",
  "pallet-nix",
  "pallet-offences",
  "pallet-offences-benchmarking",
@@ -1102,14 +1102,12 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
+ "pallet-uniques",
  "pallet-utility",
  "pallet-vesting",
  "parity-scale-codec",
- "rustc-hex",
  "scale-info",
  "separator",
- "serde",
- "serde_derive",
  "serde_json",
  "smallvec",
  "sp-api",
@@ -4157,6 +4155,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-assets"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.12#ce1c7c2c0c9bab718e6b04c9c65141e253e71861"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "sp-std 4.0.0-dev",
+]
+
+[[package]]
 name = "pallet-authority-discovery"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.12#ce1c7c2c0c9bab718e6b04c9c65141e253e71861"
@@ -4293,24 +4305,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-dw-treasury"
-version = "0.5.6"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 4.0.0-dev",
-]
-
-[[package]]
 name = "pallet-election-provider-multi-phase"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.12#ce1c7c2c0c9bab718e6b04c9c65141e253e71861"
@@ -4439,6 +4433,24 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 4.0.0-dev",
+]
+
+[[package]]
+name = "pallet-network-treasury"
+version = "0.5.6"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "impl-trait-for-tuples",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std 4.0.0-dev",
@@ -4786,6 +4798,19 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-runtime",
+ "sp-std 4.0.0-dev",
+]
+
+[[package]]
+name = "pallet-uniques"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.12#ce1c7c2c0c9bab718e6b04c9c65141e253e71861"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
  "sp-runtime",
  "sp-std 4.0.0-dev",
 ]

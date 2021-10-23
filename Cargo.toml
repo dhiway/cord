@@ -12,7 +12,7 @@ members = [
 	"pallets/registrar",
 	"pallets/schema",
 	"pallets/stream",
-	"pallets/dw-treasury",
+	"pallets/network-treasury",
 	"pallets/nix",
 ]
 
