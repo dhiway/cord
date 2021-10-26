@@ -51,10 +51,7 @@ where
 pub struct DealWithFees<R>(sp_std::marker::PhantomData<R>);
 impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithFees<R>
 where
-	R: pallet_balances::Config
-		+ pallet_treasury::Config
-		+ pallet_network_treasury::Config
-		+ pallet_authorship::Config,
+	R: pallet_balances::Config + pallet_treasury::Config + pallet_authorship::Config,
 	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
 	pallet_network_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
 	<R as frame_system::Config>::AccountId: From<cord_primitives::AccountId>,
