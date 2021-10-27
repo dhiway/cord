@@ -9,7 +9,7 @@ members = [
 	"executor",
 	"inspect",
 	"node",
-	"pallets/registrar",
+	"pallets/entity",
 	"pallets/schema",
 	"pallets/stream",
 	"pallets/network-treasury",

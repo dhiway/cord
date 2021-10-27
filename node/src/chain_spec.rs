@@ -346,20 +346,12 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		},
 		council: CouncilConfig { members: vec![], phantom: Default::default() },
 		network_council: NetworkCouncilConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
+			members: vec![],
 			phantom: Default::default(),
 		},
 		network_membership: Default::default(),
 		technical_committee: TechnicalCommitteeConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
+			members: vec![],
 			phantom: Default::default(),
 		},
 		technical_membership: Default::default(),
@@ -374,7 +366,6 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		treasury: Default::default(),
 		network_treasury: Default::default(),
 		nix: Default::default(),
-		assets: Default::default(),
 		vesting: Default::default(),
 	}
 }
@@ -442,19 +433,11 @@ fn cord_development_genesis(
 		},
 		council: CouncilConfig { members: vec![], phantom: Default::default() },
 		network_council: NetworkCouncilConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
+			members: vec![],
 			phantom: Default::default(),
 		},
 		technical_committee: TechnicalCommitteeConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
+			members: vec![],
 			phantom: Default::default(),
 		},
 		sudo: SudoConfig { key: root_key },
@@ -470,7 +453,6 @@ fn cord_development_genesis(
 		network_membership: Default::default(),
 		technical_membership: Default::default(),
 		nix: Default::default(),
-		assets: Default::default(),
 		vesting: Default::default(),
 	}
 }

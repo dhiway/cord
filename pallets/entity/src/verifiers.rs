@@ -22,8 +22,8 @@ use crate::*;
 /// An on-chain registrar details anchored by the council.
 #[derive(Clone, Debug, Encode, Decode, PartialEq, MaxEncodedLen, scale_info::TypeInfo)]
 #[scale_info(skip_type_params(T))]
-pub struct RegistrarDetails<T: Config> {
+pub struct VerifierDetails<T: Config> {
 	pub block: BlockNumberOf<T>,
-	/// The flag indicating the status of the registrar account.
+	/// The flag indicating the status of the verifier account.
 	pub revoked: bool,
 }

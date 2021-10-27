@@ -18,7 +18,7 @@ static_assertions = "1.1.0"
 smallvec = "1.6.1"
 
 # cord pallets 
-pallet-registrar = {  default-features = false, path = '../pallets/registrar' }
+pallet-entity = {  default-features = false, path = '../pallets/entity' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
 pallet-network-treasury = {  default-features = false, path = '../pallets/network-treasury' }
@@ -123,7 +123,6 @@ std = [
 	"frame-executive/std",
 	"pallet-authority-discovery/std",
     "pallet-authorship/std",
-	"pallet-assets/std",
 	"pallet-balances/std",
 	"pallet-bounties/std",
 	"pallet-transaction-payment/std",
@@ -163,7 +162,7 @@ std = [
 	"sp-session/std",
 	"sp-npos-elections/std",
 	"frame-election-provider-support/std",
- 	"pallet-registrar/std",
+ 	"pallet-entity/std",
   	"pallet-schema/std",
 	"pallet-stream/std",
 	"pallet-network-treasury/std",
