@@ -3,7 +3,7 @@ name = "pallet-network-treasury"
 version = '0.5.6'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
-description = "Dhiway Treasury Module"
+description = "Network Treasury Module"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = [

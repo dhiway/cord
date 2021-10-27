@@ -15,85 +15,51 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Benchmarking of Network NetworkTreasury
+//! Benchmarking of Dhi-Treasury
 
 #![cfg(feature = "runtime-benchmarks")]
 
-use super::{Pallet as NetworkTreasury, *};
+use super::*;
 
-use frame_benchmarking::{account, benchmarks_instance_pallet};
-use frame_support::{ensure, traits::OnInitialize};
+pub use cord_primitives::{AccountId, Balance};
+use frame_benchmarking::{account, benchmarks_instance, whitelisted_caller};
 use frame_system::RawOrigin;
+use sp_std::{boxed::Box, vec, vec::Vec};
 
 const SEED: u32 = 0;
 
-// Create the pre-requisite information needed to create a treasury `propose_spend`.
-fn setup_proposal<T: Config<I>, I: 'static>(
-	u: u32,
-) -> (T::AccountId, BalanceOf<T, I>, <T::Lookup as StaticLookup>::Source) {
-	let caller = account("caller", u, SEED);
-	let value: BalanceOf<T, I> = T::ProposalBondMinimum::get().saturating_mul(100u32.into());
-	let _ = T::Currency::make_free_balance_be(&caller, value);
-	let beneficiary = account("beneficiary", u, SEED);
-	let beneficiary_lookup = T::Lookup::unlookup(beneficiary);
-	(caller, value, beneficiary_lookup)
-}
+benchmarks_instance! {
 
-// Create proposals that are approved for use in `on_initialize`.
-fn create_approved_proposals<T: Config<I>, I: 'static>(n: u32) -> Result<(), &'static str> {
-	for i in 0..n {
-		let (caller, value, lookup) = setup_proposal::<T, I>(i);
-		NetworkTreasury::<T, I>::propose_spend(RawOrigin::Signed(caller).into(), value, lookup)?;
-		let proposal_id = <ProposalCount<T, I>>::get() - 1;
-		NetworkTreasury::<T, I>::approve_proposal(RawOrigin::Root.into(), proposal_id)?;
-	}
-	ensure!(<Approvals<T, I>>::get().len() == n as usize, "Not all approved");
-	Ok(())
-}
+	transfer {
+		let origin = T::ExternalOrigin::successful_origin();
+		let receiver = account("receiver", 0, SEED);
+	}: _(RawOrigin::Root, receiver, 1u32.into())
+	verify{
 
-fn setup_pot_account<T: Config<I>, I: 'static>() {
-	let pot_account = NetworkTreasury::<T, I>::account_id();
-	let value = T::Currency::minimum_balance().saturating_mul(1_000_000_000u32.into());
-	let _ = T::Currency::make_free_balance_be(&pot_account, value);
-}
-
-benchmarks_instance_pallet! {
-	propose_spend {
-		let (caller, value, beneficiary_lookup) = setup_proposal::<T, _>(SEED);
-		// Whitelist caller account from further DB operations.
-		let caller_key = frame_system::Account::<T>::hashed_key_for(&caller);
-		frame_benchmarking::benchmarking::add_to_whitelist(caller_key.into());
-	}: _(RawOrigin::Signed(caller), value, beneficiary_lookup)
-
-	reject_proposal {
-		let (caller, value, beneficiary_lookup) = setup_proposal::<T, _>(SEED);
-		NetworkTreasury::<T, _>::propose_spend(
-			RawOrigin::Signed(caller).into(),
-			value,
-			beneficiary_lookup
-		)?;
-		let proposal_id = NetworkTreasury::<T, _>::proposal_count() - 1;
-	}: _(RawOrigin::Root, proposal_id)
-
-	approve_proposal {
-		let p in 0 .. T::MaxApprovals::get() - 1;
-		create_approved_proposals::<T, _>(p)?;
-		let (caller, value, beneficiary_lookup) = setup_proposal::<T, _>(SEED);
-		NetworkTreasury::<T, _>::propose_spend(
-			RawOrigin::Signed(caller).into(),
-			value,
-			beneficiary_lookup
-		)?;
-		let proposal_id = NetworkTreasury::<T, _>::proposal_count() - 1;
-	}: _(RawOrigin::Root, proposal_id)
-
-	on_initialize_proposals {
-		let p in 0 .. T::MaxApprovals::get();
-		setup_pot_account::<T, _>();
-		create_approved_proposals::<T, _>(p)?;
-	}: {
-		NetworkTreasury::<T, _>::on_initialize(T::BlockNumber::zero());
 	}
 
-	impl_benchmark_test_suite!(NetworkTreasury, crate::tests::new_test_ext(), crate::tests::Test);
+	receive {
+		let caller :T::AccountId = account("sender", 0, SEED);
+		let acc: T::AccountId = whitelisted_caller();
+		let balance = T::Currency::free_balance(&caller);
+
+	}: _(RawOrigin::Signed(acc.clone()),balance)
+	verify {
+	}
+
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::tests::{new_test_ext, Test};
+	use frame_support::assert_ok;
+
+	#[test]
+	fn test_benchmarks() {
+		new_test_ext().execute_with(|| {
+			assert_ok!(test_benchmark_transfer::<Test>());
+			assert_ok!(test_benchmark_receive::<Test>());
+		});
+	}
 }
