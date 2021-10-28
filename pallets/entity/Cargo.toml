@@ -1,9 +1,9 @@
 [package]
-name = 'pallet-schema'
+name = 'pallet-entity'
 version = '0.5.6'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
-description = 'Manage Schemas.'
+description = 'Manage Entities.'
 
 [[package.metadata.docs.rs]]
 targets = ['x86_64-unknown-linux-gnu']
@@ -14,13 +14,13 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "1.0", default-features = false, features = ["derive"] }
-cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
+cord-primitives = { package = "cord-primitives", path="../../primitives", version = "0.5.0", optional = true, default-features = false }
 serde = { version = "1.0.130", optional = true }
-sp-cid = "0.2.0"
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false }
+log = {default-features = false, version = "0.4.14"}
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false, optional = true}
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false }
@@ -28,9 +28,16 @@ sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0
 sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false, optional = true}
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false, optional = true}
 
+[dev-dependencies]
+cord-primitives = { package = "cord-primitives", path="../../primitives", version = "0.5.0", default-features = false }
+serde = { version = "1.0.130" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false }
+sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12", default-features = false }
+
 [features]
 default = [ 'std' ]
 mock = [
+  "cord-primitives",
   "serde",
   "sp-core",
   "sp-io",
@@ -47,6 +54,7 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "cord-primitives/std",
+  "log/std",
   "sp-core/std",
   "sp-io/std",
   "sp-runtime/std",

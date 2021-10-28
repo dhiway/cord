@@ -49,7 +49,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		type CordAccountId: Parameter + Default + MaxEncodedLen;
+		type CordAccountId: Parameter + Default;
 
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,

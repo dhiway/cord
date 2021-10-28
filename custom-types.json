@@ -1,72 +1,78 @@
 {
-  "AccountInfo": "AccountInfoWithTripleRefCount",
-  "Address": "MultiAddress",
-  "AmountOf": "i128",
-  "Balance": "u128",
-  "LookupSource": "MultiAddress",
-  "IdentifierOf": "Text",
-  "IdOf": "Hash",
-  "HashOf": "Hash",
-  "StatusOf": "bool",
-  "StreamDetails": {
-    "hash": "HashOf",
-    "cid": "Option<IdentifierOf>",
-    "parent_cid": "Option<IdentifierOf>",
-    "schema": "Option<IdOf>",
-    "link": "Option<IdOf>",
-    "creator": "CordAccountOf",
-    "block": "BlockNumber",
-    "revoked": "StatusOf"
+  "instances": {
+    "treasury": ["councilTreasury"],
+    "technicalCommittee": ["technicalCouncil"]
   },
-  "StreamCommit": {
-    "hash": "HashOf",
-    "cid": "Option<IdentifierOf>",
-    "block": "BlockNumber",
-    "commit": "StreamCommitOf"
-  },
-  "StreamCommitOf": {
-    "_enum": ["Create", "Update", "Status"]
-  },
-  "StreamLink": {
-    "identifier": "IdOf",
-    "creator": "CordAccountOf"
-  },
-  "SchemaDetails": {
-    "hash": "HashOf",
-    "cid": "Option<IdentifierOf>",
-    "parent_cid": "Option<IdentifierOf>",
-    "creator": "CordAccountOf",
-    "block": "BlockNumber",
-    "permissioned": "StatusOf",
-    "revoked": "StatusOf"
-  },
-  "SchemaCommit": {
-    "hash": "HashOf",
-    "cid": "Option<IdentifierOf>",
-    "block": "BlockNumber",
-    "commit": "SchemaCommitOf"
-  },
-  "SchemaCommitOf": {
-    "_enum": [
-      "Genesis",
-      "Update",
-      "Delegate",
-      "RevokeDelegation",
-      "Permission",
-      "Status"
-    ]
-  },
-  "RegistrarDetails": {
-    "block": "BlockNumber",
-    "revoked": "bool"
-  },
-  "TxVerifiedOf": {
-    "tx_hash": "HashOf",
-    "ptx_verified": "bool"
-  },
-  "CordAccountOf": "AccountId",
-  "DidIdentifierOf": "AccountId",
-  "AccountIdentifierOf": "AccountId",
-  "NixAccount": "AccountId",
-  "BlockNumberOf": "BlockNumber"
+  "types": {
+    "AccountInfo": "AccountInfoWithTripleRefCount",
+    "Address": "MultiAddress",
+    "AmountOf": "i128",
+    "Balance": "u128",
+    "LookupSource": "MultiAddress",
+    "IdentifierOf": "Text",
+    "IdOf": "Hash",
+    "HashOf": "Hash",
+    "StatusOf": "bool",
+    "StreamDetails": {
+      "hash": "HashOf",
+      "cid": "Option<IdentifierOf>",
+      "parent_cid": "Option<IdentifierOf>",
+      "schema": "Option<IdOf>",
+      "link": "Option<IdOf>",
+      "creator": "CordAccountOf",
+      "block": "BlockNumber",
+      "revoked": "StatusOf"
+    },
+    "StreamCommit": {
+      "hash": "HashOf",
+      "cid": "Option<IdentifierOf>",
+      "block": "BlockNumber",
+      "commit": "StreamCommitOf"
+    },
+    "StreamCommitOf": {
+      "_enum": ["Create", "Update", "Status"]
+    },
+    "StreamLink": {
+      "identifier": "IdOf",
+      "creator": "CordAccountOf"
+    },
+    "SchemaDetails": {
+      "hash": "HashOf",
+      "cid": "Option<IdentifierOf>",
+      "parent_cid": "Option<IdentifierOf>",
+      "creator": "CordAccountOf",
+      "block": "BlockNumber",
+      "permissioned": "StatusOf",
+      "revoked": "StatusOf"
+    },
+    "SchemaCommit": {
+      "hash": "HashOf",
+      "cid": "Option<IdentifierOf>",
+      "block": "BlockNumber",
+      "commit": "SchemaCommitOf"
+    },
+    "SchemaCommitOf": {
+      "_enum": [
+        "Genesis",
+        "Update",
+        "Delegate",
+        "RevokeDelegation",
+        "Permission",
+        "Status"
+      ]
+    },
+    "RegistrarDetails": {
+      "block": "BlockNumber",
+      "revoked": "bool"
+    },
+    "TxVerifiedOf": {
+      "tx_hash": "HashOf",
+      "ptx_verified": "bool"
+    },
+    "CordAccountOf": "AccountId",
+    "DidIdentifierOf": "AccountId",
+    "AccountIdentifierOf": "AccountId",
+    "NixAccount": "AccountId",
+    "BlockNumberOf": "BlockNumber"
+  }
 }

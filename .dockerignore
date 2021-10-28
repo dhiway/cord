@@ -10,3 +10,4 @@ task-definition*
 docker-compose.yml
 Dockerfile
 .dockerignore
+.env*
