@@ -23,7 +23,7 @@ use cord_runtime::{
 	constants::currency::*, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
 	CouncilConfig, DemocracyConfig, IndicesConfig, NetworkCouncilConfig, PhragmenElectionConfig,
 	SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
-	TechnicalCommitteeConfig, 
+	TechnicalCommitteeConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -162,7 +162,7 @@ pub fn cord_development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
 	let properties = get_properties("WAYT", 12, 29);
 	Ok(ChainSpec::from_genesis(
-		"Development",
+		"Cord Dev.",
 		"cord_dev",
 		ChainType::Development,
 		move || cord_development_config_genesis(wasm_binary),
@@ -178,7 +178,7 @@ pub fn cord_local_testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
 	let properties = get_properties("WAYT", 12, 29);
 	Ok(ChainSpec::from_genesis(
-		"Local Testnet",
+		"Cord Local",
 		"cord_local",
 		ChainType::Local,
 		move || cord_local_testnet_genesis(wasm_binary),
@@ -197,7 +197,7 @@ pub fn cord_staging_config() -> Result<ChainSpec, String> {
 	let properties = get_properties("WAY", 12, 29);
 
 	Ok(ChainSpec::from_genesis(
-		"Cord Staging Testnet",
+		"Cord Staging",
 		"cord_staging_testnet",
 		ChainType::Live,
 		move || cord_staging_config_genesis(wasm_binary),
@@ -345,10 +345,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 		},
 		council: CouncilConfig { members: vec![], phantom: Default::default() },
-		network_council: NetworkCouncilConfig {
-			members: vec![],
-			phantom: Default::default(),
-		},
+		network_council: NetworkCouncilConfig { members: vec![], phantom: Default::default() },
 		network_membership: Default::default(),
 		technical_committee: TechnicalCommitteeConfig {
 			members: vec![],
@@ -432,10 +429,7 @@ fn cord_development_genesis(
 				.collect(),
 		},
 		council: CouncilConfig { members: vec![], phantom: Default::default() },
-		network_council: NetworkCouncilConfig {
-			members: vec![],
-			phantom: Default::default(),
-		},
+		network_council: NetworkCouncilConfig { members: vec![], phantom: Default::default() },
 		technical_committee: TechnicalCommitteeConfig {
 			members: vec![],
 			phantom: Default::default(),
