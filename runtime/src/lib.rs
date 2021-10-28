@@ -86,9 +86,9 @@ mod voter_bags;
 use constants::{currency::*, time::*};
 
 // Cord Pallets
+pub use pallet_entity;
 pub use pallet_network_treasury;
 pub use pallet_nix;
-pub use pallet_entity;
 pub use pallet_schema;
 pub use pallet_stream;
 
@@ -249,7 +249,6 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
-
 impl pallet_utility::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
@@ -352,15 +351,15 @@ impl InstanceFilter<Call> for ProxyType {
 			ProxyType::Governance => matches!(
 				c,
 				Call::Democracy(..)
-					| Call::Council(..) | Call::NetworkCouncil(..) 
+					| Call::Council(..) | Call::NetworkCouncil(..)
 					| Call::TechnicalCommittee(..)
 					| Call::PhragmenElection(..)
-					| Call::Treasury(..)
-					| Call::Bounties(..) | Call::Utility(..)
+					| Call::Treasury(..) | Call::Bounties(..)
+					| Call::Utility(..)
 			),
 			ProxyType::Staking => {
 				matches!(c, Call::Staking(..) | Call::Session(..) | Call::Utility(..))
-			},
+			}
 			// ProxyType::CancelProxy => {
 			// 	matches!(c, Call::Proxy(pallet_proxy::Call::reject_announcement { .. }))
 			// },
@@ -617,12 +616,11 @@ pallet_staking_reward_curve::build! {
 }
 
 parameter_types! {
-	// Six sessions in an era (12 days).
+	// Six sessions in an era (24 hours).
 	pub const SessionsPerEra: sp_staking::SessionIndex = 6;
-	// 2 eras for unbonding (24 days).
-	pub const BondingDuration: pallet_staking::EraIndex = 2;
-	// 1 eras in which slashes can be cancelled.
-	pub const SlashDeferDuration: pallet_staking::EraIndex = 1;
+	// 28 eras for unbonding (28 days).
+	pub const BondingDuration: pallet_staking::EraIndex = 28;
+	pub const SlashDeferDuration: pallet_staking::EraIndex = 27;
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
 	pub const MaxNominatorRewardedPerValidator: u32 = 256;
 	pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(17);
@@ -680,13 +678,13 @@ impl pallet_bags_list::Config for Runtime {
 }
 
 parameter_types! {
-	pub const LaunchPeriod: BlockNumber = 3 * DAYS;
-	pub const VotingPeriod: BlockNumber = 3 * DAYS;
+	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
+	pub const VotingPeriod: BlockNumber = 7 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
 	pub const InstantAllowed: bool = true;
 	pub const MinimumDeposit: Balance = 10 * MILLI_WAY;
-	pub const EnactmentPeriod: BlockNumber = 3 * DAYS;
-	pub const CooloffPeriod: BlockNumber = 1 * DAYS;
+	pub const EnactmentPeriod: BlockNumber = 8 * DAYS;
+	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
 	pub const PreimageByteDeposit: Balance = 1 * MICRO_WAY;
 	pub const MaxVotes: u32 = 100;
 	pub const MaxProposals: u32 = 100;
@@ -894,19 +892,19 @@ impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
 	pub const ProposalBondMinimum: Balance = 100 * WAY;
-	pub const SpendPeriod: BlockNumber = 12 * DAYS;
-	pub const Burn: Permill = Permill::from_perthousand(1);
+	pub const SpendPeriod: BlockNumber = 24 * DAYS;
+	pub const Burn: Permill = Permill::from_perthousand(2);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const TipCountdown: BlockNumber = 1 * DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(10);
-	pub const TipReportDepositBase: Balance = 1 * MILLI_WAY;
-	pub const DataDepositPerByte: Balance = 10 * MICRO_WAY;
-	pub const BountyDepositBase: Balance = 1 * MILLI_WAY;
-	pub const BountyDepositPayoutDelay: BlockNumber = 7 * DAYS;
+	pub const TipReportDepositBase: Balance = 1 * WAY;
+	pub const DataDepositPerByte: Balance = 1 * MILLI_WAY;
+	pub const BountyDepositBase: Balance = 1 * WAY;
+	pub const BountyDepositPayoutDelay: BlockNumber = 8 * DAYS;
 	pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
 	pub const MaximumReasonLength: u32 = 16384;
 	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-	pub const BountyValueMinimum: Balance = 10 * MICRO_WAY;
+	pub const BountyValueMinimum: Balance = 10 * WAY;
 	pub const MaxApprovals: u32 = 100;
 	pub const MaxAuthorities: u32 = 1_000;
 	pub const MaxKeys: u32 = 10_000;
@@ -1086,8 +1084,6 @@ impl pallet_vesting::Config for Runtime {
 	const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
-
-
 impl pallet_entity::Config for Runtime {
 	type Event = Event;
 	// type CordAccountId = AccountId;
@@ -1156,7 +1152,6 @@ construct_runtime! {
 
 		// Must be before session.
 		Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned} = 1,
-		
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
 		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 3,
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 4,
@@ -1182,10 +1177,8 @@ construct_runtime! {
 		TechnicalMembership: pallet_membership::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>} = 20,
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 21,
 		NetworkTreasury: pallet_network_treasury::{Pallet, Call, Storage, Config, Event<T>} = 22,
-    
 		// Utility module.
 		Utility: pallet_utility::{Pallet, Call, Event} = 23,
-		
 		// Identity module.
 		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 24,
 
@@ -1200,7 +1193,6 @@ construct_runtime! {
 
 		// Multisig module.
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 28,
-		
 		// CORD modules
 		Entity: pallet_entity::{Pallet, Call, Storage, Event<T>} = 32,
 		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 33,
@@ -1219,7 +1211,7 @@ construct_runtime! {
 		// Provides a semi-sorted list of nominators for staking.
 		BagsList: pallet_bags_list::{Pallet, Call, Storage, Event<T>} = 45,
 
-		// Sudo. Usable initially, but to be removed 
+		// Sudo. Usable initially, but to be removed
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 51,
 	}
 }

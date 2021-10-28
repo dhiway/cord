@@ -160,7 +160,7 @@ fn cord_local_testnet_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig
 
 pub fn cord_development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
-	let properties = get_properties("WAYT", 12, 29);
+	let properties = get_properties("WAY", 12, 29);
 	Ok(ChainSpec::from_genesis(
 		"Cord Dev.",
 		"cord_dev",
@@ -176,7 +176,7 @@ pub fn cord_development_config() -> Result<ChainSpec, String> {
 
 pub fn cord_local_testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
-	let properties = get_properties("WAYT", 12, 29);
+	let properties = get_properties("WAY", 12, 29);
 	Ok(ChainSpec::from_genesis(
 		"Cord Local",
 		"cord_local",
@@ -382,7 +382,7 @@ fn cord_development_genesis(
 ) -> GenesisConfig {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 	let num_endowed_accounts = endowed_accounts.len();
-	const BOND: u128 = 10_000 * WAY;
+	const BOND: u128 = 8_000 * WAY;
 	const ENDOWMENT: u128 = 10_000 * WAY;
 	GenesisConfig {
 		system: SystemConfig {
