@@ -111,7 +111,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Add a new account to the nix-list.
-		#[pallet::weight(0)]
+		#[pallet::weight(182_886_000)]
 		pub fn add(origin: OriginFor<T>, add_account: T::AccountId) -> DispatchResult {
 			T::AccountOrigin::ensure_origin(origin)?;
 			ensure!(
@@ -127,7 +127,7 @@ pub mod pallet {
 		}
 
 		/// Remove an account from the nix-list.
-		#[pallet::weight(0)]
+		#[pallet::weight(182_886_000)]
 		pub fn remove(origin: OriginFor<T>, account_to_remove: T::AccountId) -> DispatchResult {
 			T::AccountOrigin::ensure_origin(origin)?;
 			ensure!(

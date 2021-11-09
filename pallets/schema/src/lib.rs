@@ -157,7 +157,7 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * schema: unique identifier of the schema.
 		/// * delegates: schema delegates to add.
-		#[pallet::weight(0)]
+		#[pallet::weight(182_886_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn add_delegates(
 			origin: OriginFor<T>,
 			schema: IdOf<T>,
@@ -200,7 +200,7 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * schema: unique identifier of the schema.
 		/// * delegate: schema delegate to be removed.
-		#[pallet::weight(0)]
+		#[pallet::weight(182_886_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn remove_delegates(
 			origin: OriginFor<T>,
 			schema: IdOf<T>,
@@ -238,7 +238,7 @@ pub mod pallet {
 		/// * hash: hash of the incoming schema stream.
 		/// * cid: CID of the incoming schema stream.
 		/// * permissioned: schema type - permissioned or not.
-		#[pallet::weight(0)]
+		#[pallet::weight(682_886_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
@@ -289,7 +289,7 @@ pub mod pallet {
 		/// * identifier: unique identifier of the incoming schema stream.
 		/// * hash: hash of the incoming schema stream.
 		/// * cid: CID of the incoming schema stream.
-		#[pallet::weight(0)]
+		#[pallet::weight(471_532_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn update(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
@@ -348,7 +348,7 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated
-		#[pallet::weight(0)]
+		#[pallet::weight(121_825_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn set_status(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
@@ -385,7 +385,7 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated
-		#[pallet::weight(0)]
+		#[pallet::weight(121_825_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn set_permission(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
