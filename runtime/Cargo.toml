@@ -1,6 +1,6 @@
 [package]
 name = 'cord-runtime'
-version = '0.5.6'
+version = '0.5.7'
 build = 'build.rs'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
@@ -21,7 +21,7 @@ smallvec = "1.6.1"
 pallet-entity = {  default-features = false, path = '../pallets/entity' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
-pallet-network-treasury = {  default-features = false, path = '../pallets/network-treasury' }
+pallet-network-treasury = {  default-features = false, path = '../pallets/treasury' }
 pallet-nix = {  default-features = false, path = '../pallets/nix' }
 
 # cord primitives

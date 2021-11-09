@@ -21,9 +21,9 @@ pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	constants::currency::*, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
-	CouncilConfig, DemocracyConfig, IndicesConfig, NetworkCouncilConfig, PhragmenElectionConfig,
-	SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
-	TechnicalCommitteeConfig,
+	CouncilConfig, DemocracyConfig, IndicesConfig, NetworkCouncilMembershipConfig,
+	PhragmenElectionConfig, SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig,
+	SystemConfig, TechnicalCommitteeMembershipConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -162,7 +162,7 @@ pub fn cord_development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
 	let properties = get_properties("WAY", 12, 29);
 	Ok(ChainSpec::from_genesis(
-		"Cord Dev.",
+		"Dev. Node",
 		"cord_dev",
 		ChainType::Development,
 		move || cord_development_config_genesis(wasm_binary),
@@ -178,7 +178,7 @@ pub fn cord_local_testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
 	let properties = get_properties("WAY", 12, 29);
 	Ok(ChainSpec::from_genesis(
-		"Cord Local",
+		"Local",
 		"cord_local",
 		ChainType::Local,
 		move || cord_local_testnet_genesis(wasm_binary),
@@ -197,7 +197,7 @@ pub fn cord_staging_config() -> Result<ChainSpec, String> {
 	let properties = get_properties("WAY", 12, 29);
 
 	Ok(ChainSpec::from_genesis(
-		"Cord Staging",
+		"Staging",
 		"cord_staging_testnet",
 		ChainType::Live,
 		move || cord_staging_config_genesis(wasm_binary),
@@ -345,13 +345,16 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 		},
 		council: CouncilConfig { members: vec![], phantom: Default::default() },
-		network_council: NetworkCouncilConfig { members: vec![], phantom: Default::default() },
-		network_membership: Default::default(),
-		technical_committee: TechnicalCommitteeConfig {
+		network_council: Default::default(),
+		network_council_membership: NetworkCouncilMembershipConfig {
 			members: vec![],
 			phantom: Default::default(),
 		},
-		technical_membership: Default::default(),
+		technical_committee: Default::default(),
+		technical_committee_membership: TechnicalCommitteeMembershipConfig {
+			members: vec![],
+			phantom: Default::default(),
+		},
 		sudo: SudoConfig { key: root_key },
 		babe: BabeConfig {
 			authorities: Default::default(),
@@ -429,9 +432,22 @@ fn cord_development_genesis(
 				.collect(),
 		},
 		council: CouncilConfig { members: vec![], phantom: Default::default() },
-		network_council: NetworkCouncilConfig { members: vec![], phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig {
-			members: vec![],
+		network_council: Default::default(),
+		network_council_membership: NetworkCouncilMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		technical_committee: Default::default(),
+		technical_committee_membership: TechnicalCommitteeMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
 			phantom: Default::default(),
 		},
 		sudo: SudoConfig { key: root_key },
@@ -444,8 +460,6 @@ fn cord_development_genesis(
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
 		network_treasury: Default::default(),
-		network_membership: Default::default(),
-		technical_membership: Default::default(),
 		nix: Default::default(),
 		vesting: Default::default(),
 	}

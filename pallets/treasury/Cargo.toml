@@ -1,9 +1,9 @@
 [package]
 name = "pallet-network-treasury"
-version = '0.5.6'
+version = '0.5.7'
 edition = '2018'
-authors = ['Dhiway <info@dhiway.com>']
-description = "Network Treasury Module"
+authors = ["Parity Technologies <admin@parity.io>", 'Dhiway <info@dhiway.com>']
+description = "Network Treasury Module - Instance of Pallet Treasury"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = [

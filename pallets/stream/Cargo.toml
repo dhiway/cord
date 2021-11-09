@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-stream'
-version = '0.5.6'
+version = '0.5.7'
 edition = '2018'
 authors = ['Dhiway <info@dhiway.com>']
 description = 'Manage Stream Entries.'

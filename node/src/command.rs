@@ -35,7 +35,7 @@ fn get_exec_name() -> Option<String> {
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Cord Node".into()
+		"Cord".into()
 	}
 
 	fn impl_version() -> String {

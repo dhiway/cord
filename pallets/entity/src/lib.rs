@@ -117,7 +117,10 @@ pub mod pallet {
 		/// * origin: Council or Root
 		/// * account: registrar account
 		#[pallet::weight(0)]
-		pub fn add_entity_verifier(origin: OriginFor<T>, account: CordAccountOf<T>) -> DispatchResult {
+		pub fn add_entity_verifier(
+			origin: OriginFor<T>,
+			account: CordAccountOf<T>,
+		) -> DispatchResult {
 			T::EntityOrigin::ensure_origin(origin)?;
 
 			ensure!(!<Verifiers<T>>::contains_key(&account), Error::<T>::VerifierAlreadyExists);
@@ -135,7 +138,10 @@ pub mod pallet {
 		/// * origin: Council or Root
 		/// * account: registrar account
 		#[pallet::weight(0)]
-		pub fn revoke_entity_verifier(origin: OriginFor<T>, account: CordAccountOf<T>) -> DispatchResult {
+		pub fn revoke_entity_verifier(
+			origin: OriginFor<T>,
+			account: CordAccountOf<T>,
+		) -> DispatchResult {
 			T::EntityOrigin::ensure_origin(origin)?;
 
 			let verifier =
