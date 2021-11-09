@@ -116,7 +116,7 @@ pub mod pallet {
 		///
 		/// * origin: Council or Root
 		/// * account: registrar account
-		#[pallet::weight(0)]
+		#[pallet::weight(182_886_000)]
 		pub fn add_entity_verifier(
 			origin: OriginFor<T>,
 			account: CordAccountOf<T>,
@@ -162,7 +162,7 @@ pub mod pallet {
 		/// * origin: the identifier of the registrar
 		/// * tx_id: identity to verify.
 		/// * status: status to be updated
-		#[pallet::weight(0)]
+		#[pallet::weight(182_886_000)]
 		pub fn verify_entity(
 			origin: OriginFor<T>,
 			identity: CordAccountOf<T>,
