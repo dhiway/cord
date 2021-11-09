@@ -12,7 +12,7 @@ members = [
 	"pallets/entity",
 	"pallets/schema",
 	"pallets/stream",
-	"pallets/network-treasury",
+	"pallets/treasury",
 	"pallets/nix",
 ]
 

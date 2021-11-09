@@ -1,6 +1,6 @@
 [package]
 name = "pallet-nix"
-version = "0.5.6"
+version = "0.5.7"
 authors = ["Gautam Dhameja <quasijatt@outlook.com>","Dhiway <info@dhiway.com>"]
 edition = "2018"
 description = 'Manage Identity Permissions.'
