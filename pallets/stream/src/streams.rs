@@ -24,7 +24,7 @@ use sp_runtime::DispatchResult;
 #[scale_info(skip_type_params(T))]
 pub struct StreamDetails<T: Config> {
 	/// Stream hash.
-	pub hash: HashOf<T>,
+	pub stream_hash: HashOf<T>,
 	/// \[OPTIONAL\] Stream CID.
 	pub cid: Option<IdentifierOf>,
 	/// \[OPTIONAL\] Stream previous CID.
@@ -65,7 +65,7 @@ impl<T: Config> StreamLink<T> {
 #[scale_info(skip_type_params(T))]
 pub struct StreamCommit<T: Config> {
 	/// Stream hash.
-	pub hash: HashOf<T>,
+	pub stream_hash: HashOf<T>,
 	/// \[OPTIONAL\] Stream CID
 	pub cid: Option<IdentifierOf>,
 	/// Stream block number
