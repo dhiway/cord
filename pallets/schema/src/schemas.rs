@@ -24,7 +24,7 @@ use sp_runtime::DispatchResult;
 #[scale_info(skip_type_params(T))]
 pub struct SchemaDetails<T: Config> {
 	/// Schema identifier.
-	pub hash: HashOf<T>,
+	pub schema_hash: HashOf<T>,
 	/// \[OPTIONAL\] Schema CID.
 	pub cid: Option<IdentifierOf>,
 	/// \[OPTIONAL\] Schema previous CID.
@@ -69,7 +69,7 @@ impl<T: Config> SchemaDetails<T> {
 #[scale_info(skip_type_params(T))]
 pub struct SchemaCommit<T: Config> {
 	/// schema hash.
-	pub hash: HashOf<T>,
+	pub schema_hash: HashOf<T>,
 	/// \[OPTIONAL\] schema storage ID
 	pub cid: Option<IdentifierOf>,
 	/// schema tx block number

@@ -183,7 +183,7 @@ pub mod pallet {
 				SchemaCommit::<T>::store_tx(
 					&schema,
 					SchemaCommit {
-						hash: schema_details.hash,
+						schema_hash: schema_details.schema_hash,
 						cid: schema_details.cid,
 						block: block_number,
 						commit: SchemaCommitOf::Delegates,
@@ -220,7 +220,7 @@ pub mod pallet {
 				SchemaCommit::<T>::store_tx(
 					&schema,
 					SchemaCommit {
-						hash: schema_details.hash,
+						schema_hash: schema_details.schema_hash,
 						cid: schema_details.cid,
 						block: block_number,
 						commit: SchemaCommitOf::RevokeDelegates,
@@ -243,13 +243,13 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			creator: CordAccountOf<T>,
-			hash: HashOf<T>,
+			schema_hash: HashOf<T>,
 			cid: Option<IdentifierOf>,
 			permissioned: StatusOf,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
-			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
+			ensure!(schema_hash != identifier, Error::<T>::SameIdentifierAndHash);
 			if let Some(ref cid) = cid {
 				SchemaDetails::<T>::is_valid(cid)?;
 			}
@@ -258,7 +258,7 @@ pub mod pallet {
 			SchemaCommit::<T>::store_tx(
 				&identifier,
 				SchemaCommit {
-					hash: hash.clone(),
+					schema_hash: schema_hash.clone(),
 					cid: cid.clone(),
 					block: block_number.clone(),
 					commit: SchemaCommitOf::Genesis,
@@ -267,7 +267,7 @@ pub mod pallet {
 			<Schemas<T>>::insert(
 				&identifier,
 				SchemaDetails {
-					hash: hash.clone(),
+					schema_hash: schema_hash.clone(),
 					cid,
 					parent_cid: None,
 					creator: creator.clone(),
@@ -277,7 +277,7 @@ pub mod pallet {
 				},
 			);
 
-			Self::deposit_event(Event::TxAdd(identifier, hash, creator));
+			Self::deposit_event(Event::TxAdd(identifier, schema_hash, creator));
 
 			Ok(())
 		}
@@ -294,15 +294,15 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			updater: CordAccountOf<T>,
-			hash: HashOf<T>,
+			schema_hash: HashOf<T>,
 			cid: Option<IdentifierOf>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(hash != identifier, Error::<T>::SameIdentifierAndHash);
+			ensure!(schema_hash != identifier, Error::<T>::SameIdentifierAndHash);
 
 			let schema_details =
 				<Schemas<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(hash != schema_details.hash, Error::<T>::HashAlreadyAnchored);
+			ensure!(schema_hash != schema_details.schema_hash, Error::<T>::HashAlreadyAnchored);
 
 			if let Some(ref cid) = cid {
 				ensure!(
@@ -319,7 +319,7 @@ pub mod pallet {
 			SchemaCommit::<T>::store_tx(
 				&identifier,
 				SchemaCommit {
-					hash: hash.clone(),
+					schema_hash: schema_hash.clone(),
 					cid: cid.clone(),
 					block: block_number,
 					commit: SchemaCommitOf::Update,
@@ -329,7 +329,7 @@ pub mod pallet {
 			<Schemas<T>>::insert(
 				&identifier,
 				SchemaDetails {
-					hash,
+					schema_hash,
 					cid,
 					parent_cid: schema_details.cid,
 					block: block_number,
@@ -337,7 +337,7 @@ pub mod pallet {
 				},
 			);
 
-			Self::deposit_event(Event::TxUpdate(identifier, hash, updater));
+			Self::deposit_event(Event::TxUpdate(identifier, schema_hash, updater));
 
 			Ok(())
 		}
@@ -366,7 +366,7 @@ pub mod pallet {
 			SchemaCommit::<T>::store_tx(
 				&identifier,
 				SchemaCommit {
-					hash: schema_details.hash.clone(),
+					schema_hash: schema_details.schema_hash.clone(),
 					cid: schema_details.cid.clone(),
 					block: block_number,
 					commit: SchemaCommitOf::StatusChange,
@@ -407,7 +407,7 @@ pub mod pallet {
 			SchemaCommit::<T>::store_tx(
 				&identifier,
 				SchemaCommit {
-					hash: schema_details.hash.clone(),
+					schema_hash: schema_details.schema_hash.clone(),
 					cid: schema_details.cid.clone(),
 					block: block_number,
 					commit: SchemaCommitOf::Permission,
