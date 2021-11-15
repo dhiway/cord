@@ -49,71 +49,42 @@ pub mod time {
 /// Fee-related.
 pub mod fee {
 	use cord_primitives::Balance;
-	use frame_support::weights::{
-		constants::ExtrinsicBaseWeight, WeightToFeeCoefficient, WeightToFeeCoefficients,
-		WeightToFeePolynomial,
+
+	use frame_support::{
+		parameter_types,
+		weights::{
+			constants::WEIGHT_PER_MILLIS, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+			WeightToFeePolynomial,
+		},
 	};
+
 	use smallvec::smallvec;
 	pub use sp_runtime::Perbill;
-	/// The block saturation level. Fees will be updates based on this value.
-	pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
 
-	/// Handles converting a weight scalar to a fee value, based on the scale
-	/// and granularity of the node's balance type.
-	///
-	/// This should typically create a mapping between the following ranges:
-	///   - [0, MAXIMUM_BLOCK_WEIGHT]
-	///   - [Balance::min, Balance::max]
-	///
-	/// Yet, it can be used for any other sort of change to weight-fee. Some
-	/// examples being:
-	///   - Setting it to `0` will essentially disable the weight fee.
-	///   - Setting it to `1` will cause the literal `#[weight = x]` values to
-	///     be charged.
+	parameter_types! {
+		/// 180 ms is needed to process an empty extrinsic.
+		pub const ExtrinsicBaseWeight: Weight = 180 * WEIGHT_PER_MILLIS;
+		/// We want the no-op transaction to cost 0.05 WAY
+		pub const CordBaseFee: Balance = 50 * super::currency::MILLI_WAY;
+	}
+	/// Converts Weight to Fee
 	pub struct WeightToFee;
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;
+		/// We want a 0.05 WAY fee per ExtrinsicBaseWeight.
+		/// 180_000_000_000 weight = 50_000_000_000 fee => 3.6 weight = 1 fee.
+		/// Hence, 1 fee = 0 + 1/3.6 weight.
+		/// This implies, coeff_integer = 0 and coeff_frac = 1/3.6.
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-			// in Cord, extrinsic base weight (smallest non-zero weight) is mapped to 1/10
-			// MILLi_WAY:
-			let p = super::currency::MILLI_WAY;
-			let q = 10 * Balance::from(ExtrinsicBaseWeight::get());
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
+				coeff_frac: Perbill::from_rational(
+					CordBaseFee::get().into(),
+					ExtrinsicBaseWeight::get() as u128
+				),
+				coeff_integer: 0u128, // Coefficient is zero.
 				negative: false,
-				coeff_frac: Perbill::from_rational(p % q, q),
-				coeff_integer: p / q,
 			}]
 		}
-	}
-}
-
-#[cfg(test)]
-mod tests {
-	use super::{
-		currency::{MICRO_WAY, MILLI_WAY},
-		fee::WeightToFee,
-	};
-	use frame_support::weights::{
-		ExtrinsicBaseWeight, WeightToFeePolynomial, MAXIMUM_BLOCK_WEIGHT,
-	};
-	#[test]
-	// This function tests that the fee for `MAXIMUM_BLOCK_WEIGHT` of weight is correct
-	fn full_block_fee_is_correct() {
-		// A full block should cost 1,600 MICRO_WAYS
-		println!("Base: {}", ExtrinsicBaseWeight::get());
-		let x = WeightToFee::calc(&MAXIMUM_BLOCK_WEIGHT);
-		let y = 16 * 100 * MILLI_WAY;
-		assert!(x.max(y) - x.min(y) < MICRO_WAY);
-	}
-
-	#[test]
-	// This function tests that the fee for `ExtrinsicBaseWeight` of weight is correct
-	fn extrinsic_base_fee_is_correct() {
-		// `ExtrinsicBaseWeight` should cost 1/10 of a MICRO_WAY
-		println!("Base: {}", ExtrinsicBaseWeight::get());
-		let x = WeightToFee::calc(&ExtrinsicBaseWeight::get());
-		let y = MILLI_WAY / 10;
-		assert!(x.max(y) - x.min(y) < MICRO_WAY);
 	}
 }

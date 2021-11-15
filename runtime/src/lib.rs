@@ -28,8 +28,8 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{Everything, InstanceFilter, KeyOwnerProofSystem, LockIdentifier, U128CurrencyToVote},
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		DispatchClass, IdentityFee, Weight,
+		constants::{WEIGHT_PER_MICROS, WEIGHT_PER_MILLIS, WEIGHT_PER_SECOND},
+		DispatchClass, RuntimeDbWeight, Weight,
 	},
 	PalletId, RuntimeDebug,
 };
@@ -83,8 +83,7 @@ pub use impls::DealWithFees;
 pub mod constants;
 pub mod elections;
 mod voter_bags;
-use constants::{currency::*, time::*};
-
+use constants::{currency::*, time::*, fee::WeightToFee};
 // Cord Pallets
 pub use pallet_network_treasury;
 pub use pallet_entity;
@@ -159,6 +158,18 @@ const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO
 
 parameter_types! {
 	pub const BlockHashCount: BlockNumber = 900;
+	/// 20 ms is needed to create a block.
+    pub const BlockExecutionWeight: Weight = 20 * WEIGHT_PER_MILLIS;
+    /// 180 ms is needed to process an empty extrinsic.
+	pub const ExtrinsicBaseWeight: Weight = 180 * WEIGHT_PER_MILLIS;
+	/// When the read/writes are cached/buffered, they take 25/100 microseconds on NVMe disks.
+    /// When they are uncached, they take 250/450 microseconds on NVMe disks.
+    /// Most read will be cached and writes will be buffered in production.
+    /// We are taking a number slightly higher than what cached suggest to allow for some extra breathing room.
+    pub const RocksDbWeight: RuntimeDbWeight = RuntimeDbWeight {
+        read: 50 * WEIGHT_PER_MICROS,   // ~50 µs @ 100,000 items
+        write: 200 * WEIGHT_PER_MICROS, // ~200 µs @ 100,000 items
+    };
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
@@ -171,7 +182,7 @@ parameter_types! {
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	/// Maximum length of block. Up to 5MB.
 	pub RuntimeBlockLength: limits::BlockLength =
-		limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
+		limits::BlockLength::max_with_normal_ratio(10 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub RuntimeBlockWeights: limits::BlockWeights = limits::BlockWeights::builder()
 		.base_block(BlockExecutionWeight::get())
 		.for_class(DispatchClass::all(), |weights| {
@@ -491,7 +502,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction = CurrencyAdapter<Balances, DealWithFees<Runtime>>;
 	type TransactionByteFee = TransactionByteFee;
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
-	type WeightToFee = IdentityFee<Balance>;
+	type WeightToFee = WeightToFee;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 }
 
