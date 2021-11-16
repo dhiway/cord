@@ -62,19 +62,19 @@ pub mod fee {
 	pub use sp_runtime::Perbill;
 
 	parameter_types! {
-		/// 180 ms is needed to process an empty extrinsic.
-		pub const ExtrinsicBaseWeight: Weight = 180 * WEIGHT_PER_MILLIS;
-		/// We want the no-op transaction to cost 0.05 WAY
-		pub const CordBaseFee: Balance = 50 * super::currency::MILLI_WAY;
+		/// 50 ms to process an empty extrinsic.
+		pub const ExtrinsicBaseWeight: Weight = 50 * WEIGHT_PER_MILLIS;
+		/// We want the no-op transaction to cost 0.04 WAY
+		pub const CordBaseFee: Balance = 40 * super::currency::MILLI_WAY;
 	}
 	/// Converts Weight to Fee
 	pub struct WeightToFee;
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;
-		/// We want a 0.05 WAY fee per ExtrinsicBaseWeight.
-		/// 180_000_000_000 weight = 50_000_000_000 fee => 3.6 weight = 1 fee.
-		/// Hence, 1 fee = 0 + 1/3.6 weight.
-		/// This implies, coeff_integer = 0 and coeff_frac = 1/3.6.
+		/// We want a 0.04 WAY fee per ExtrinsicBaseWeight.
+		/// 50_000_000_000 weight = 40_000_000_000 fee => 1.25 weight = 1 fee.
+		/// Hence, 1 fee = 0 + 1/1.25 weight.
+		/// This implies, coeff_integer = 0 and coeff_frac = 1/1.25.
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,

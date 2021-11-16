@@ -160,8 +160,8 @@ parameter_types! {
 	pub const BlockHashCount: BlockNumber = 900;
 	/// 20 ms is needed to create a block.
     pub const BlockExecutionWeight: Weight = 20 * WEIGHT_PER_MILLIS;
-    /// 180 ms is needed to process an empty extrinsic.
-	pub const ExtrinsicBaseWeight: Weight = 180 * WEIGHT_PER_MILLIS;
+    /// 50 ms to process an empty extrinsic.
+	pub const ExtrinsicBaseWeight: Weight = 50 * WEIGHT_PER_MILLIS;
 	/// When the read/writes are cached/buffered, they take 25/100 microseconds on NVMe disks.
     /// When they are uncached, they take 250/450 microseconds on NVMe disks.
     /// Most read will be cached and writes will be buffered in production.
@@ -180,9 +180,9 @@ parameter_types! {
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	/// See `multiplier_can_grow_from_zero`.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
-	/// Maximum length of block. Up to 5MB.
+	/// Maximum length of block. Up to 4MB.
 	pub RuntimeBlockLength: limits::BlockLength =
-		limits::BlockLength::max_with_normal_ratio(10 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
+		limits::BlockLength::max_with_normal_ratio(4 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub RuntimeBlockWeights: limits::BlockWeights = limits::BlockWeights::builder()
 		.base_block(BlockExecutionWeight::get())
 		.for_class(DispatchClass::all(), |weights| {
