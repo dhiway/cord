@@ -26,7 +26,7 @@ pub use cord_primitives::{AccountId, Signature};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Everything, InstanceFilter, KeyOwnerProofSystem, LockIdentifier, U128CurrencyToVote},
+	traits::{Currency, EqualPrivilegeOnly, Everything, Imbalance, InstanceFilter, KeyOwnerProofSystem, LockIdentifier, Nothing, OnUnbalanced, U128CurrencyToVote},
 	weights::{
 		constants::{WEIGHT_PER_MICROS, WEIGHT_PER_MILLIS, WEIGHT_PER_SECOND},
 		DispatchClass, RuntimeDbWeight, Weight,
@@ -263,6 +263,7 @@ impl pallet_identity::Config for Runtime {
 impl pallet_utility::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
+	type PalletsOrigin = OriginCaller;
 	type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
 }
 
@@ -422,6 +423,7 @@ impl pallet_scheduler::Config for Runtime {
 	type ScheduleOrigin = ScheduleOrigin;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
+	type OriginPrivilegeCmp = EqualPrivilegeOnly;
 }
 
 parameter_types! {
@@ -1164,71 +1166,71 @@ construct_runtime! {
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		// Basic stuff;
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
+		System: frame_system = 0,
 
 		// Must be before session.
-		Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned} = 1,
-		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
-		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 3,
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 4,
-		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 29,
+		Babe: pallet_babe = 1,
+		Timestamp: pallet_timestamp = 2,
+		Indices: pallet_indices = 3,
+		Balances: pallet_balances = 4,
+		TransactionPayment: pallet_transaction_payment = 29,
 
 		// Consensus support.
-		Authorship: pallet_authorship::{Pallet, Call, Storage} = 5,
-		Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T> } = 6,
-		Offences: pallet_offences::{Pallet, Storage, Event} = 7,
+		Authorship: pallet_authorship = 5,
+		Staking: pallet_staking = 6,
+		Offences: pallet_offences = 7,
 		Historical: pallet_session_historical::{Pallet} = 41,
-		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 8,
-		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 9,
-		ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 10,
-		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 11,
+		Session: pallet_session = 8,
+		Grandpa: pallet_grandpa = 9,
+		ImOnline: pallet_im_online = 10,
+		AuthorityDiscovery: pallet_authority_discovery = 11,
 
 		// Governance stuff
-		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 14,
-		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 15,
-		NetworkCouncil: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 16,
-		TechnicalCommittee: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 17,
-		PhragmenElection: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
-		NetworkCouncilMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 19,
-		TechnicalCommitteeMembership: pallet_membership::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>} = 20,
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 21,
-		NetworkTreasury: pallet_network_treasury::{Pallet, Call, Storage, Config, Event<T>} = 22,
+		Democracy: pallet_democracy = 14,
+		Council: pallet_collective::<Instance1> = 15,
+		NetworkCouncil: pallet_collective::<Instance2> = 16,
+		TechnicalCommittee: pallet_collective::<Instance3> = 17,
+		PhragmenElection: pallet_elections_phragmen = 18,
+		NetworkCouncilMembership: pallet_membership::<Instance1> = 19,
+		TechnicalCommitteeMembership: pallet_membership::<Instance2> = 20,
+		Treasury: pallet_treasury = 21,
+		NetworkTreasury: pallet_network_treasury = 22,
 		// Utility module.
-		Utility: pallet_utility::{Pallet, Call, Event} = 23,
+		Utility: pallet_utility = 23,
 		// Identity module.
-		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 24,
+		Identity: pallet_identity = 24,
 
 		// Vesting. Usable initially, but removed once all vesting is finished.
-		Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 25,
+		Vesting: pallet_vesting = 25,
 
 		// System scheduler.
-		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 26,
+		Scheduler: pallet_scheduler = 26,
 
 		// Proxy module.
-		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 27,
+		Proxy: pallet_proxy = 27,
 
 		// Multisig module.
-		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 28,
+		Multisig: pallet_multisig = 28,
 		// CORD modules
-		Entity: pallet_entity::{Pallet, Call, Storage, Event<T>} = 32,
-		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 33,
-		Stream: pallet_stream::{Pallet, Call, Storage, Event<T>} = 34,
-		Nix: pallet_nix::{Pallet, Call, Storage, Config<T>, Event<T>} = 35,
+		Entity: pallet_entity = 32,
+		Schema: pallet_schema = 33,
+		Stream: pallet_stream = 34,
+		Nix: pallet_nix = 35,
 
 		// Bounties module.
-		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 42,
+		Bounties: pallet_bounties = 42,
 
 		// Tips module.
-		Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 43,
+		Tips: pallet_tips = 43,
 
 		// Election pallet. Only works with staking, but placed here to maintain indices.
-		ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 44,
+		ElectionProviderMultiPhase: pallet_election_provider_multi_phase = 44,
 
 		// Provides a semi-sorted list of nominators for staking.
-		BagsList: pallet_bags_list::{Pallet, Call, Storage, Event<T>} = 45,
+		BagsList: pallet_bags_list = 45,
 
 		// Sudo. Usable initially, but to be removed
-		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 51,
+		Sudo: pallet_sudo = 51,
 	}
 }
 
@@ -1264,6 +1266,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPallets,
+	pallet_bags_list::migrations::CheckCounterPrefix<Runtime>,
 >;
 
 impl_runtime_apis! {
@@ -1463,9 +1466,11 @@ impl_runtime_apis! {
 			use pallet_session_benchmarking::Pallet as SessionBench;
 			use pallet_offences_benchmarking::Pallet as OffencesBench;
 			use frame_system_benchmarking::Pallet as SystemBench;
+			use baseline::Pallet as BaselineBench;
 
 			let mut list = Vec::<BenchmarkList>::new();
 
+			list_benchmark!(list, extra, frame_benchmarking, BaselineBench::<Runtime>);
 			list_benchmark!(list, extra, pallet_babe, Babe);
 			list_benchmark!(list, extra, pallet_bags_list, BagsList);
 			list_benchmark!(list, extra, pallet_balances, Balances);
@@ -1503,14 +1508,16 @@ impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkBatch>,
 			sp_runtime::RuntimeString,
 		> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
+			use frame_benchmarking::{baseline,Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
 			use pallet_session_benchmarking::Pallet as SessionBench;
 			use pallet_offences_benchmarking::Pallet as OffencesBench;
 			use frame_system_benchmarking::Pallet as SystemBench;
+			use baseline::Pallet as BaselineBench;
 
 			impl pallet_session_benchmarking::Config for Runtime {}
 			impl pallet_offences_benchmarking::Config for Runtime {}
 			impl frame_system_benchmarking::Config for Runtime {}
+			impl baseline::Config for Runtime {}
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -1531,6 +1538,7 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			// Substrate
+			add_benchmark!(params, batches, frame_benchmarking, BaselineBench::<Runtime>);
 			add_benchmark!(params, batches, pallet_babe, Babe);
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_bags_list, BagsList);
