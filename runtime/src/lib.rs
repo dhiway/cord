@@ -26,7 +26,7 @@ pub use cord_primitives::{AccountId, Signature};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Currency, EqualPrivilegeOnly, Everything, Imbalance, InstanceFilter, KeyOwnerProofSystem, LockIdentifier, Nothing, OnUnbalanced, U128CurrencyToVote},
+	traits::{ EqualPrivilegeOnly, Everything, InstanceFilter, KeyOwnerProofSystem, LockIdentifier, U128CurrencyToVote},
 	weights::{
 		constants::{WEIGHT_PER_MICROS, WEIGHT_PER_MILLIS, WEIGHT_PER_SECOND},
 		DispatchClass, RuntimeDbWeight, Weight,
@@ -93,7 +93,6 @@ pub use pallet_stream;
 
 // Weights used in the runtime.
 pub mod weights;
-// use pallet_election_provider_multi_phase::WeightInfo;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -119,8 +118,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to equal spec_version. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 5070,
-	impl_version: 4,
+	spec_version: 5080,
+	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 0,
 };
@@ -866,11 +865,6 @@ parameter_types! {
 	pub const TechnicalMaxProposals: u32 = 100;
 	pub const TechnicalMaxMembers: u32 = 25;
 }
-// type MoreThanHalfTechCouncil = EnsureOneOf<
-// 	AccountId,
-// 	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, TechnicalCommitteeInstance>,
-// 	frame_system::EnsureRoot<AccountId>,
-// >;
 
 type TechnicalCommitteeInstance = pallet_collective::Instance3;
 impl pallet_collective::Config<TechnicalCommitteeInstance> for Runtime {
@@ -1122,7 +1116,6 @@ impl pallet_vesting::Config for Runtime {
 
 impl pallet_entity::Config for Runtime {
 	type Event = Event;
-	// type CordAccountId = AccountId;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
 	type ForceOrigin = MoreThanHalfCouncil;
 	type EntityOrigin = MoreThanHalfCouncil;
@@ -1167,14 +1160,12 @@ construct_runtime! {
 	{
 		// Basic stuff;
 		System: frame_system = 0,
-
 		// Must be before session.
 		Babe: pallet_babe = 1,
 		Timestamp: pallet_timestamp = 2,
 		Indices: pallet_indices = 3,
 		Balances: pallet_balances = 4,
 		TransactionPayment: pallet_transaction_payment = 29,
-
 		// Consensus support.
 		Authorship: pallet_authorship = 5,
 		Staking: pallet_staking = 6,
@@ -1184,7 +1175,6 @@ construct_runtime! {
 		Grandpa: pallet_grandpa = 9,
 		ImOnline: pallet_im_online = 10,
 		AuthorityDiscovery: pallet_authority_discovery = 11,
-
 		// Governance stuff
 		Democracy: pallet_democracy = 14,
 		Council: pallet_collective::<Instance1> = 15,
@@ -1199,16 +1189,12 @@ construct_runtime! {
 		Utility: pallet_utility = 23,
 		// Identity module.
 		Identity: pallet_identity = 24,
-
 		// Vesting. Usable initially, but removed once all vesting is finished.
 		Vesting: pallet_vesting = 25,
-
 		// System scheduler.
 		Scheduler: pallet_scheduler = 26,
-
 		// Proxy module.
 		Proxy: pallet_proxy = 27,
-
 		// Multisig module.
 		Multisig: pallet_multisig = 28,
 		// CORD modules
@@ -1216,19 +1202,14 @@ construct_runtime! {
 		Schema: pallet_schema = 33,
 		Stream: pallet_stream = 34,
 		Nix: pallet_nix = 35,
-
 		// Bounties module.
 		Bounties: pallet_bounties = 42,
-
 		// Tips module.
 		Tips: pallet_tips = 43,
-
 		// Election pallet. Only works with staking, but placed here to maintain indices.
 		ElectionProviderMultiPhase: pallet_election_provider_multi_phase = 44,
-
 		// Provides a semi-sorted list of nominators for staking.
 		BagsList: pallet_bags_list = 45,
-
 		// Sudo. Usable initially, but to be removed
 		Sudo: pallet_sudo = 51,
 	}

@@ -1,9 +1,12 @@
 [package]
 name = 'cord-node'
-version = '0.5.7'
+version = '0.5.8'
+authors = ['Dhiway <info@dhiway.com>']
 build = 'build.rs'
 edition = '2021'
-authors = ['Dhiway <info@dhiway.com>']
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
 
 [package.metadata.wasm-pack.profile.release]
 # `wasm-opt` has some problems on linux, see
@@ -50,6 +53,7 @@ sc-sync-state-rpc = { git = "https://github.com/paritytech/substrate", branch = 
 sp-authority-discovery = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 sp-finality-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13" }
 sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
@@ -59,7 +63,6 @@ sp-keyring = { git = "https://github.com/paritytech/substrate", branch = "polkad
 sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 sp-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 
 # Substrate Pallets
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
@@ -105,23 +108,25 @@ sc-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = 
 sc-consensus-epochs = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 sc-service-test = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 futures = "0.3.16"
 tempfile = "3.1.0"
 assert_cmd = "2.0.2"
-nix = "0.19"
+nix = "0.23"
 serde_json = "1.0"
 regex = "1"
-platforms = "1.1"
+platforms = "2.0"
 async-std = { version = "1.10.0", features = ["attributes"] }
 soketto = "0.4.2"
 criterion = { version = "0.3.5", features = [ "async_tokio" ] }
-tokio = { version = "1.10", features = ["macros", "time"] }
-jsonrpsee-ws-client = { version = "0.3.1", default-features = false, features = ["tokio1"] }
+tokio = { version = "1.13", features = ["macros", "time"] }
+jsonrpsee-ws-client = "0.4.1"
 wait-timeout = "0.2"
 remote-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 
 [build-dependencies]
-structopt = { version = "0.3.8", optional = true }
+structopt = { version = "0.3.25", optional = true }
 cord-inspect = { package = "cord-inspect", optional = true, path = "../inspect" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", optional = true, branch = "polkadot-v0.9.13" }
 substrate-build-script-utils = { git = "https://github.com/paritytech/substrate",optional = true, branch = "polkadot-v0.9.13"}

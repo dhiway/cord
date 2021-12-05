@@ -1,9 +1,12 @@
 [package]
 name = "pallet-nix"
-version = "0.5.7"
-authors = ["Gautam Dhameja <quasijatt@outlook.com>","Dhiway <info@dhiway.com>"]
-edition = "2018"
 description = 'Manage Identity Permissions.'
+version = '0.5.8'
+authors = ["Gautam Dhameja <quasijatt@outlook.com>","Dhiway <info@dhiway.com>"]
+edition = '2021'
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }

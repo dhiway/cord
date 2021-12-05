@@ -1,8 +1,11 @@
 [package]
 name = "pallet-network-treasury"
-version = '0.5.7'
-edition = '2021'
+version = '0.5.8'
 authors = ["Parity Technologies <admin@parity.io>", 'Dhiway <info@dhiway.com>']
+edition = '2021'
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
 description = "Network Treasury Module - Instance of Pallet Treasury"
 
 [dependencies]

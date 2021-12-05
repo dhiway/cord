@@ -1,11 +1,14 @@
 [package]
 name = 'pallet-schema'
-version = '0.5.7'
-edition = '2021'
+description = 'Manage Schemas'
+version = '0.5.8'
 authors = ['Dhiway <info@dhiway.com>']
-description = 'Manage Schemas.'
+edition = '2021'
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
 
-[[package.metadata.docs.rs]]
+[package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
@@ -16,7 +19,7 @@ codec = { package = "parity-scale-codec", version = "2.3.1", default-features = 
 scale-info = { version = "1.0", default-features = false, features = ["derive"] }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 serde = { version = "1.0.130", optional = true }
-sp-cid = "0.2.0"
+sp-cid = "0.3.0"
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13", default-features = false }

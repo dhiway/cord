@@ -1,9 +1,12 @@
 [package]
 name = 'cord-runtime'
-version = '0.5.7'
+version = '0.5.8'
+authors = ['Dhiway <info@dhiway.com>']
 build = 'build.rs'
 edition = '2021'
-authors = ['Dhiway <info@dhiway.com>']
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -18,16 +21,6 @@ scale-info = { version = "1.0", default-features = false, features = ["derive"] 
 static_assertions = "1.1.0"
 hex-literal = { version = "0.3.4", optional = true }
 log = { version = "0.4.14", default-features = false }
-
-
-#bitvec = { version = "0.20.1", default-features = false, features = ["alloc"] }
-#codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = ["derive","max-encoded-len"] }
-#scale-info = { version = "1.0", default-features = false, features = ["derive"] }
-#log = { version = "0.4.14", default-features = false  }
-#rustc-hex = { version = "2.1.0", default-features = false }
-#serde = { version = "1.0.130", default-features = false }
-#serde_derive = { version = "1.0.117", optional = true }
-#static_assertions = "1.1.0"
 smallvec = "1.6.1"
 
 # cord pallets 
@@ -57,8 +50,6 @@ sp-transaction-pool = {git = "https://github.com/paritytech/substrate", default-
 sp-version = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13"}
 sp-npos-elections = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13" }
 sp-io = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13"}
-
-#sp-arithmetic = { package = "sp-arithmetic", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13", default-features = false }
 
 # pallet dependencies
 frame-executive = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13"}
@@ -104,16 +95,6 @@ frame-benchmarking = { git = "https://github.com/paritytech/substrate",  default
 frame-system-benchmarking = { git = "https://github.com/paritytech/substrate",  default-features = false, optional = true, branch = "polkadot-v0.9.13" }
 pallet-offences-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13", default-features = false, optional = true }
 pallet-session-benchmarking = { git = "https://github.com/paritytech/substrate",  default-features = false, optional = true, branch = "polkadot-v0.9.13" }
-#hex-literal = { version = "0.3.1", optional = true }
-
-#[dev-dependencies]
-#hex-literal = "0.3.3"
-#tiny-keccak = "2.0.2"
-#keyring = { package = "sp-keyring", git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
-#sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
-#trie-db = "0.22.3"
-#serde_json = "1.0.67"
-#separator = "0.4.1"
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
