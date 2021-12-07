@@ -297,8 +297,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 
 	GenesisConfig {
 		system: SystemConfig {
-			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
+			code: wasm_binary.to_vec(), // changes_trie_config: Default::default(),
 		},
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig {
@@ -366,6 +365,8 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		treasury: Default::default(),
 		network_treasury: Default::default(),
 		nix: Default::default(),
+		scheduler: Default::default(),
+		transaction_payment: Default::default(),
 		vesting: Default::default(),
 	}
 }
@@ -389,8 +390,7 @@ fn cord_development_genesis(
 	const ENDOWMENT: u128 = 10_000 * WAY;
 	GenesisConfig {
 		system: SystemConfig {
-			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
+			code: wasm_binary.to_vec(), // changes_trie_config: Default::default(),
 		},
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig {
@@ -461,6 +461,8 @@ fn cord_development_genesis(
 		treasury: Default::default(),
 		network_treasury: Default::default(),
 		nix: Default::default(),
+		scheduler: Default::default(),
+		transaction_payment: Default::default(),
 		vesting: Default::default(),
 	}
 }

@@ -20,10 +20,7 @@
 use std::sync::Arc;
 
 use cord_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
-use sc_client_api::{
-	light::{Fetcher, RemoteBlockchain},
-	AuxStore,
-};
+use sc_client_api::AuxStore;
 use sc_consensus_babe::{Config, Epoch};
 use sc_consensus_babe_rpc::BabeRpcHandler;
 use sc_consensus_epochs::SharedEpochChanges;
@@ -43,18 +40,6 @@ use sp_keystore::SyncCryptoStorePtr;
 
 /// A IO handler that uses all Full RPC extensions.
 pub type RpcExtension = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
-
-/// Light client extra dependencies.
-pub struct LightDeps<C, F, P> {
-	/// The client instance to use.
-	pub client: Arc<C>,
-	/// Transaction pool instance.
-	pub pool: Arc<P>,
-	/// Remote access to the blockchain (async).
-	pub remote_blockchain: Arc<dyn RemoteBlockchain<Block>>,
-	/// Fetcher instance.
-	pub fetcher: Arc<F>,
-}
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
@@ -162,27 +147,4 @@ where
 	)?));
 
 	Ok(io)
-}
-
-//// Instantiate all Light RPC extensions.
-pub fn create_light<C, P, M, F>(deps: LightDeps<C, F, P>) -> jsonrpc_core::IoHandler<M>
-where
-	C: HeaderBackend<Block>,
-	C: Send + Sync + 'static,
-	F: Fetcher<Block> + 'static,
-	P: TransactionPool + 'static,
-	M: jsonrpc_core::Metadata + Default,
-{
-	use frame_rpc_system::{LightSystem, SystemApi};
-
-	let LightDeps { client, pool, remote_blockchain, fetcher } = deps;
-	let mut io = jsonrpc_core::IoHandler::default();
-	io.extend_with(SystemApi::<Hash, AccountId, Index>::to_delegate(LightSystem::new(
-		client,
-		remote_blockchain,
-		fetcher,
-		pool,
-	)));
-
-	io
 }

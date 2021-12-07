@@ -1,19 +1,20 @@
 [package]
 name = 'cord-primitives'
-version = '0.5.7'
-edition = '2018'
+version = '0.5.8'
 authors = ['Dhiway <info@dhiway.com>']
+edition = '2021'
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
 
 [dependencies]
-serde = { version = "1.0.130", optional = true, features = ["derive"] }
-scale-info = { version = "1.0", default-features = false, features = ["bit-vec", "derive"] }
 codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = ["bit-vec", "derive"] }
-sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12"}
-frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12"}
-sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12"}
-sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12"}
-sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12"}
-frame-support = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12"}
+scale-info = { version = "1.0", default-features = false, features = ["bit-vec", "derive"] }
+frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13"}
+sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13"}
+sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13"}
+sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13"}
+sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.13"}
 
 [features]
 default = ["std"]
@@ -24,5 +25,5 @@ std = [
  	"sp-application-crypto/std",
   "sp-core/std",
   "sp-runtime/std",
-  "sp-std/std"
+  "sp-std/std",
 ]
