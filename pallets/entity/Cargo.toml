@@ -1,6 +1,6 @@
 [package]
-name = 'pallet-stream'
-description = 'Manage Stream Entries.'
+name = 'pallet-entity'
+description = 'Manage Entities.'
 version = '0.5.8'
 authors = ['Dhiway <info@dhiway.com>']
 edition = '2021'
@@ -17,9 +17,8 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = ["derive"] }
 scale-info = { version = "1.0", default-features = false, features = ["derive"] }
-cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
+cord-primitives = { package = "cord-primitives", path="../../primitives", version = "0.5.0", optional = true, default-features = false }
 serde = { version = "1.0.130", optional = true }
-pallet-schema = {  default-features = false, path = '../schema' }
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.14", default-features = false }
@@ -33,6 +32,7 @@ sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polka
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.14", default-features = false, optional = true}
 
 [dev-dependencies]
+cord-primitives = { package = "cord-primitives", path="../../primitives", version = "0.5.0", default-features = false }
 serde = { version = "1.0.130" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.14", default-features = false }
 sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.14", default-features = false }
@@ -40,6 +40,7 @@ sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polka
 [features]
 default = [ 'std' ]
 mock = [
+  "cord-primitives",
   "serde",
   "sp-core",
   "sp-io",
@@ -61,5 +62,4 @@ std = [
   "sp-io/std",
   "sp-runtime/std",
   "sp-std/std",
-  "pallet-schema/std",
 ]

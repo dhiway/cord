@@ -20,10 +20,10 @@
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{fmt::Debug, prelude::Clone, str};
 
-pub mod registrars;
+pub mod verifiers;
 pub mod weights;
 
-pub use crate::registrars::*;
+pub use crate::verifiers::*;
 use crate::weights::WeightInfo;
 pub use pallet::*;
 
@@ -56,7 +56,7 @@ pub mod pallet {
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
 		/// The origin which may add or remove registrars. Root can always do
 		/// this.
-		type RegistrarOrigin: EnsureOrigin<Self::Origin>;
+		type EntityOrigin: EnsureOrigin<Self::Origin>;
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		/// Weight information for extrinsics in this pallet.
@@ -73,14 +73,14 @@ pub mod pallet {
 
 	/// registrars stored on-chain.
 	#[pallet::storage]
-	#[pallet::getter(fn registrars)]
-	pub type Registrars<T> = StorageMap<_, Blake2_128Concat, CordAccountOf<T>, RegistrarDetails<T>>;
+	#[pallet::getter(fn verifiers)]
+	pub type Verifiers<T> = StorageMap<_, Blake2_128Concat, CordAccountOf<T>, VerifierDetails<T>>;
 
 	/// identity verification information stored on chain.
 	/// It maps from an identity to its verification status.
 	#[pallet::storage]
-	#[pallet::getter(fn verifiedentities)]
-	pub type VerifiedIdentities<T> = StorageMap<_, Blake2_128Concat, CordAccountOf<T>, StatusOf>;
+	#[pallet::getter(fn entities)]
+	pub type Entities<T> = StorageMap<_, Blake2_128Concat, CordAccountOf<T>, StatusOf>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -97,78 +97,84 @@ pub mod pallet {
 	#[pallet::error]
 	pub enum Error<T> {
 		/// There is no registrar with the given ID.
-		RegistrarAccountNotFound,
+		VerifierAccountNotFound,
 		/// The registrar already exists.
-		RegistrarAlreadyExists,
+		VerifierAlreadyExists,
 		/// The registrar has already been revoked.
 		AccountAlreadyRevoked,
 		/// Only when the revoker is permitted.
 		UnauthorizedRevocation,
 		/// registrar account revoked
-		RegistrarAccountRevoked,
+		VerifierAccountRevoked,
 		/// current status matches proposed change
 		NoChangeRequired,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a new registrar.
+		/// Create a new entity verifier.
 		///
 		/// * origin: Council or Root
 		/// * account: registrar account
-		#[pallet::weight(0)]
-		pub fn add_registrar(origin: OriginFor<T>, account: CordAccountOf<T>) -> DispatchResult {
-			T::RegistrarOrigin::ensure_origin(origin)?;
+		#[pallet::weight(182_886_000)]
+		pub fn add_entity_verifier(
+			origin: OriginFor<T>,
+			account: CordAccountOf<T>,
+		) -> DispatchResult {
+			T::EntityOrigin::ensure_origin(origin)?;
 
-			ensure!(!<Registrars<T>>::contains_key(&account), Error::<T>::RegistrarAlreadyExists);
+			ensure!(!<Verifiers<T>>::contains_key(&account), Error::<T>::VerifierAlreadyExists);
 
 			let block = <frame_system::Pallet<T>>::block_number();
 
-			<Registrars<T>>::insert(&account, RegistrarDetails { block, revoked: false });
+			<Verifiers<T>>::insert(&account, VerifierDetails { block, revoked: false });
 
 			Self::deposit_event(Event::TxAdd(account));
 
 			Ok(())
 		}
-		/// Revoke an existing registrar account.
+		/// Revoke an existing entity verifier account.
 		///
 		/// * origin: Council or Root
 		/// * account: registrar account
 		#[pallet::weight(0)]
-		pub fn revoke_registrar(origin: OriginFor<T>, account: CordAccountOf<T>) -> DispatchResult {
-			T::RegistrarOrigin::ensure_origin(origin)?;
+		pub fn revoke_entity_verifier(
+			origin: OriginFor<T>,
+			account: CordAccountOf<T>,
+		) -> DispatchResult {
+			T::EntityOrigin::ensure_origin(origin)?;
 
-			let registrar =
-				<Registrars<T>>::get(&account).ok_or(Error::<T>::RegistrarAccountNotFound)?;
-			ensure!(!registrar.revoked, Error::<T>::AccountAlreadyRevoked);
+			let verifier =
+				<Verifiers<T>>::get(&account).ok_or(Error::<T>::VerifierAccountNotFound)?;
+			ensure!(!verifier.revoked, Error::<T>::AccountAlreadyRevoked);
 			let block = <frame_system::Pallet<T>>::block_number();
 
-			<Registrars<T>>::insert(&account, RegistrarDetails { block, revoked: true });
+			<Verifiers<T>>::insert(&account, VerifierDetails { block, revoked: true });
 
 			Self::deposit_event(Event::TxRevoke(account));
 
 			Ok(())
 		}
 
-		/// Update the verification status of an identity
+		/// Update the verification status of an entity
 		///
 		/// This update can only be performed by a registrar
 		/// * origin: the identifier of the registrar
 		/// * tx_id: identity to verify.
 		/// * status: status to be updated
-		#[pallet::weight(0)]
-		pub fn verify_identity(
+		#[pallet::weight(182_886_000)]
+		pub fn verify_entity(
 			origin: OriginFor<T>,
 			identity: CordAccountOf<T>,
 			status: StatusOf,
 		) -> DispatchResult {
-			let verifier = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			let registrar =
-				<Registrars<T>>::get(&verifier).ok_or(Error::<T>::RegistrarAccountNotFound)?;
-			ensure!(!registrar.revoked, Error::<T>::RegistrarAccountRevoked);
+			let requestor = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let verifier =
+				<Verifiers<T>>::get(&requestor).ok_or(Error::<T>::VerifierAccountNotFound)?;
+			ensure!(!verifier.revoked, Error::<T>::VerifierAccountRevoked);
 
-			<VerifiedIdentities<T>>::insert(&identity, status);
-			Self::deposit_event(Event::TxVerify(identity, verifier));
+			<Entities<T>>::insert(&identity, status);
+			Self::deposit_event(Event::TxVerify(identity, requestor));
 
 			Ok(())
 		}

@@ -23,7 +23,7 @@ use crate::{
 use cord_executor::ExecutorDispatch;
 use cord_runtime::{Block, RuntimeApi};
 use cord_service::new_partial;
-use sc_cli::{ChainSpec, Role, RuntimeVersion, SubstrateCli};
+use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
 
 fn get_exec_name() -> Option<String> {
@@ -35,7 +35,7 @@ fn get_exec_name() -> Option<String> {
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Dhiway CORD".into()
+		"Cord".into()
 	}
 
 	fn impl_version() -> String {
@@ -97,11 +97,7 @@ pub fn run() -> sc_cli::Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
-				match config.role {
-					Role::Light => cord_service::new_light(config),
-					_ => cord_service::new_full(config),
-				}
-				.map_err(sc_cli::Error::Service)
+				cord_service::new_full(config).map_err(sc_cli::Error::Service)
 			})
 		}
 		Some(Subcommand::Inspect(cmd)) => {
@@ -166,6 +162,9 @@ pub fn run() -> sc_cli::Result<()> {
 			}
 		}
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
+		Some(Subcommand::Sign(cmd)) => cmd.run(),
+		Some(Subcommand::Verify(cmd)) => cmd.run(),
+		Some(Subcommand::Vanity(cmd)) => cmd.run(),
 		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
 			let runner = cli.create_runner(cmd)?;

@@ -21,9 +21,9 @@ pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	constants::currency::*, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
-	CouncilConfig, DemocracyConfig, DhiCouncilConfig, IndicesConfig, PhragmenElectionConfig,
-	SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
-	TechnicalCommitteeConfig,
+	CouncilConfig, DemocracyConfig, IndicesConfig, NetworkCouncilMembershipConfig,
+	PhragmenElectionConfig, SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig,
+	SystemConfig, TechnicalCommitteeMembershipConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -148,7 +148,11 @@ fn cord_development_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisC
 fn cord_local_testnet_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
 	cord_development_genesis(
 		wasm_binary,
-		vec![get_authority_keys_from_seed("Alice"), get_authority_keys_from_seed("Bob")],
+		vec![
+			get_authority_keys_from_seed("Alice"),
+			get_authority_keys_from_seed("Bob"),
+			get_authority_keys_from_seed("Charlie"),
+		],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		None,
 	)
@@ -156,9 +160,9 @@ fn cord_local_testnet_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig
 
 pub fn cord_development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
-	let properties = get_properties("WAYT", 12, 29);
+	let properties = get_properties("WAY", 12, 29);
 	Ok(ChainSpec::from_genesis(
-		"Development",
+		"Dev. Node",
 		"cord_dev",
 		ChainType::Development,
 		move || cord_development_config_genesis(wasm_binary),
@@ -172,14 +176,36 @@ pub fn cord_development_config() -> Result<ChainSpec, String> {
 
 pub fn cord_local_testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
-	let properties = get_properties("WAYT", 12, 29);
+	let properties = get_properties("WAY", 12, 29);
 	Ok(ChainSpec::from_genesis(
-		"Local Testnet",
+		"Local",
 		"cord_local",
 		ChainType::Local,
 		move || cord_local_testnet_genesis(wasm_binary),
 		vec![],
 		None,
+		Some(DEFAULT_PROTOCOL_ID),
+		Some(properties),
+		Default::default(),
+	))
+}
+
+/// Staging testnet config.
+pub fn cord_staging_config() -> Result<ChainSpec, String> {
+	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
+	let boot_nodes = vec![];
+	let properties = get_properties("WAY", 12, 29);
+
+	Ok(ChainSpec::from_genesis(
+		"Staging",
+		"cord_staging_testnet",
+		ChainType::Live,
+		move || cord_staging_config_genesis(wasm_binary),
+		boot_nodes,
+		Some(
+			TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
+				.expect("Staging telemetry url is valid; qed"),
+		),
 		Some(DEFAULT_PROTOCOL_ID),
 		Some(properties),
 		Default::default(),
@@ -265,13 +291,13 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 	];
 	let root_key: AccountId = endowed_accounts[0].clone();
 	let num_endowed_accounts = endowed_accounts.len();
-	const STASH: u128 = 100 * WAY;
+	const STASH: u128 = 100_000 * WAY;
+	const BOND: u128 = 10_000 * WAY;
 	const ENDOWMENT: u128 = 1_110_101_200 * WAY;
 
 	GenesisConfig {
 		system: SystemConfig {
-			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
+			code: wasm_binary.to_vec(), // changes_trie_config: Default::default(),
 		},
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig {
@@ -299,38 +325,33 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 			minimum_validator_count: 3,
 			stakers: initial_authorities
 				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
+				.map(|x| (x.0.clone(), x.1.clone(), BOND, StakerStatus::Validator))
 				.collect(),
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
 			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
+			min_nominator_bond: BOND,
+			min_validator_bond: BOND,
 			..Default::default()
 		},
+		democracy: DemocracyConfig::default(),
 		phragmen_election: PhragmenElectionConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.map(|member| (member, STASH))
+				.map(|member| (member, BOND))
 				.collect(),
 		},
-		democracy: DemocracyConfig::default(),
 		council: CouncilConfig { members: vec![], phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
+		network_council: Default::default(),
+		network_council_membership: NetworkCouncilMembershipConfig {
+			members: vec![],
 			phantom: Default::default(),
 		},
-		technical_membership: Default::default(),
-		dhi_council: DhiCouncilConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
+		technical_committee: Default::default(),
+		technical_committee_membership: TechnicalCommitteeMembershipConfig {
+			members: vec![],
 			phantom: Default::default(),
 		},
 		sudo: SudoConfig { key: root_key },
@@ -342,32 +363,12 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
-		base: Default::default(),
+		network_treasury: Default::default(),
 		nix: Default::default(),
+		scheduler: Default::default(),
+		transaction_payment: Default::default(),
 		vesting: Default::default(),
 	}
-}
-
-/// Staging testnet config.
-pub fn cord_staging_config() -> Result<ChainSpec, String> {
-	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
-	let boot_nodes = vec![];
-	let properties = get_properties("WAY", 12, 29);
-
-	Ok(ChainSpec::from_genesis(
-		"Cord Staging Testnet",
-		"cord_staging_testnet",
-		ChainType::Live,
-		move || cord_staging_config_genesis(wasm_binary),
-		boot_nodes,
-		Some(
-			TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
-				.expect("Staging telemetry url is valid; qed"),
-		),
-		Some(DEFAULT_PROTOCOL_ID),
-		Some(properties),
-		Default::default(),
-	))
 }
 
 fn cord_development_genesis(
@@ -385,12 +386,11 @@ fn cord_development_genesis(
 ) -> GenesisConfig {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 	let num_endowed_accounts = endowed_accounts.len();
+	const BOND: u128 = 8_000 * WAY;
 	const ENDOWMENT: u128 = 10_000 * WAY;
-	const STASH: u128 = 100 * WAY;
 	GenesisConfig {
 		system: SystemConfig {
-			code: wasm_binary.to_vec(),
-			changes_trie_config: Default::default(),
+			code: wasm_binary.to_vec(), // changes_trie_config: Default::default(),
 		},
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig {
@@ -413,24 +413,27 @@ fn cord_development_genesis(
 			validator_count: initial_authorities.len() as u32,
 			stakers: initial_authorities
 				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
+				.map(|x| (x.0.clone(), x.1.clone(), BOND, StakerStatus::Validator))
 				.collect(),
 			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
 			force_era: Forcing::ForceNone,
 			slash_reward_fraction: Perbill::from_percent(10),
+			min_nominator_bond: BOND,
+			min_validator_bond: BOND,
 			..Default::default()
 		},
+		democracy: DemocracyConfig::default(),
 		phragmen_election: PhragmenElectionConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.map(|member| (member, STASH))
+				.map(|member| (member, BOND))
 				.collect(),
 		},
-		democracy: DemocracyConfig::default(),
 		council: CouncilConfig { members: vec![], phantom: Default::default() },
-		technical_committee: TechnicalCommitteeConfig {
+		network_council: Default::default(),
+		network_council_membership: NetworkCouncilMembershipConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -438,8 +441,8 @@ fn cord_development_genesis(
 				.collect(),
 			phantom: Default::default(),
 		},
-		technical_membership: Default::default(),
-		dhi_council: DhiCouncilConfig {
+		technical_committee: Default::default(),
+		technical_committee_membership: TechnicalCommitteeMembershipConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -456,8 +459,10 @@ fn cord_development_genesis(
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
-		base: Default::default(),
+		network_treasury: Default::default(),
 		nix: Default::default(),
+		scheduler: Default::default(),
+		transaction_payment: Default::default(),
 		vesting: Default::default(),
 	}
 }
