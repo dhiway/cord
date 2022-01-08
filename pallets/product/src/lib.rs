@@ -105,6 +105,9 @@ pub mod pallet {
 		/// An order status has been changed.
 		/// \[order identifier\]
 		TxReturn(IdOf<T>, CordAccountOf<T>),
+		/// An order rating has been changed.
+		/// \[order identifier\]
+		TxRating(IdOf<T>, CordAccountOf<T>),
 		/// A stream status has been changed.
 		/// \[stream identifier\]
 		TxStatus(IdOf<T>, CordAccountOf<T>),
@@ -481,7 +484,7 @@ pub mod pallet {
 				ProductDetails { block: block_number, rating: Some(rating), ..tx_order },
 			);
 
-			Self::deposit_event(Event::TxReturn(identifier, buyer));
+			Self::deposit_event(Event::TxRating(identifier, buyer));
 
 			Ok(())
 		}
