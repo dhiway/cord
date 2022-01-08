@@ -158,11 +158,11 @@ pub mod pallet {
 		/// * schema: unique identifier of the schema.
 		/// * delegates: schema delegates to add.
 		#[pallet::weight(126_475_000 + T::DbWeight::get().reads_writes(2, 2))]
-		pub fn add_delegates(
+		pub fn add_delegate(
 			origin: OriginFor<T>,
 			schema: IdOf<T>,
 			creator: CordAccountOf<T>,
-			delegates: Vec<CordAccountOf<T>>,
+			delegate: CordAccountOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
@@ -172,14 +172,12 @@ pub mod pallet {
 
 			Delegations::<T>::try_mutate(&schema, |ref mut delegation| {
 				ensure!(
-					delegation.len() + delegates.len() <= T::MaxDelegates::get() as usize,
+					delegation.len() + 1 <= T::MaxDelegates::get() as usize,
 					Error::<T>::TooManyDelegates
 				);
-				for delegate in delegates {
-					delegation
-						.try_push(delegate)
-						.expect("delegates length is less than T::MaxDelegates; qed");
-				}
+				delegation
+					.try_push(delegate)
+					.expect("delegates length is less than T::MaxDelegates; qed");
 				SchemaCommit::<T>::store_tx(
 					&schema,
 					SchemaCommit {
@@ -201,11 +199,11 @@ pub mod pallet {
 		/// * schema: unique identifier of the schema.
 		/// * delegate: schema delegate to be removed.
 		#[pallet::weight(126_475_000 + T::DbWeight::get().reads_writes(2, 2))]
-		pub fn remove_delegates(
+		pub fn remove_delegate(
 			origin: OriginFor<T>,
 			schema: IdOf<T>,
 			creator: CordAccountOf<T>,
-			delegates: Vec<CordAccountOf<T>>,
+			delegate: CordAccountOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
@@ -214,9 +212,7 @@ pub mod pallet {
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			Delegations::<T>::try_mutate(&schema, |ref mut delegation| {
-				for delegate in delegates {
-					delegation.retain(|x| x != &delegate);
-				}
+				delegation.retain(|x| x != &delegate);
 				SchemaCommit::<T>::store_tx(
 					&schema,
 					SchemaCommit {

@@ -105,6 +105,9 @@ pub mod pallet {
 		/// An order status has been changed.
 		/// \[order identifier\]
 		TxReturn(IdOf<T>, CordAccountOf<T>),
+		/// An order rating has been changed.
+		/// \[order identifier\]
+		TxRating(IdOf<T>, CordAccountOf<T>),
 		/// A stream status has been changed.
 		/// \[stream identifier\]
 		TxStatus(IdOf<T>, CordAccountOf<T>),
@@ -142,6 +145,8 @@ pub mod pallet {
 		OrderNotFound,
 		/// Product Link is status
 		ProductLinkstatus,
+		/// Invalid Rating, Should be between 1 & 10
+		InvalidRating,
 	}
 
 	#[pallet::call]
@@ -197,6 +202,7 @@ pub mod pallet {
 					schema,
 					creator: creator.clone(),
 					link: None,
+					price: None,
 					rating: None,
 					block: block_number,
 					status: true,
@@ -221,23 +227,25 @@ pub mod pallet {
 			creator: CordAccountOf<T>,
 			tx_hash: HashOf<T>,
 			store_id: IdOf<T>,
+			price: Option<u32>,
 			cid: Option<IdentifierOf>,
-			schema: Option<IdOf<T>>,
 			link: Option<IdOf<T>>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(tx_hash != identifier, Error::<T>::SameIdentifierAndHash);
+
 			if let Some(ref cid) = cid {
 				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
 			}
 			ensure!(!<Products<T>>::contains_key(&identifier), Error::<T>::ProductAlreadyListed);
-			if let Some(ref schema) = schema {
-				pallet_schema::SchemaDetails::<T>::schema_status(schema, creator.clone())
-					.map_err(<pallet_schema::Error<T>>::from)?;
-			}
+
 			if let Some(ref link) = link {
 				let links = <Products<T>>::get(&link).ok_or(Error::<T>::ProductLinkNotFound)?;
 				ensure!(links.status, Error::<T>::ProductNotAvailable);
+				pallet_schema::SchemaDetails::<T>::schema_status(
+					&links.schema.unwrap(),
+					creator.clone(),
+				)
+				.map_err(<pallet_schema::Error<T>>::from)?;
 				ProductLink::<T>::link_tx(
 					&link,
 					ProductLink {
@@ -269,8 +277,9 @@ pub mod pallet {
 					cid,
 					parent_cid: None,
 					store_id: Some(store_id),
-					schema,
+					schema: None,
 					link,
+					price,
 					rating: None,
 					creator: creator.clone(),
 					block: block_number,
@@ -435,6 +444,47 @@ pub mod pallet {
 			);
 
 			Self::deposit_event(Event::TxReturn(identifier, buyer));
+
+			Ok(())
+		}
+
+		/// Update the status of the order
+		///
+		/// * origin: the identity of the stream controller.
+		/// * identifier: unique identifier of the stream.
+		/// * status: stream revocation status (bool).
+		#[pallet::weight(124_410_000 + T::DbWeight::get().reads_writes(1, 2))]
+		pub fn rating(
+			origin: OriginFor<T>,
+			identifier: IdOf<T>,
+			buyer: CordAccountOf<T>,
+			rating: u8,
+		) -> DispatchResult {
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+
+			ensure!(rating < 1 || rating > 10, Error::<T>::InvalidRating);
+
+			let tx_order = <Products<T>>::get(&identifier).ok_or(Error::<T>::OrderNotFound)?;
+			ensure!(tx_order.creator == buyer, Error::<T>::UnauthorizedOperation);
+
+			let block_number = <frame_system::Pallet<T>>::block_number();
+
+			ProductCommit::<T>::store_tx(
+				&tx_order.link.unwrap(),
+				ProductCommit {
+					tx_hash: tx_order.tx_hash.clone(),
+					cid: tx_order.cid.clone(),
+					block: block_number.clone(),
+					commit: ProductCommitOf::Rating,
+				},
+			)?;
+
+			<Products<T>>::insert(
+				&tx_order.link.unwrap(),
+				ProductDetails { block: block_number, rating: Some(rating), ..tx_order },
+			);
+
+			Self::deposit_event(Event::TxRating(identifier, buyer));
 
 			Ok(())
 		}

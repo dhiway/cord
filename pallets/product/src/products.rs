@@ -38,9 +38,9 @@ pub struct ProductDetails<T: Config> {
 	/// Stream controller.
 	pub creator: CordAccountOf<T>,
 	/// Product price in INR as currency basis
-	// pub price: Option<f32>,
-	/// The number of times a given product has been upvoted.
-	pub rating: Option<u32>,
+	pub price: Option<u32>,
+	/// List rating.
+	pub rating: Option<u8>,
 	/// Stream block number
 	pub block: BlockNumberOf<T>,
 	/// The flag indicating the availability status of the product.
