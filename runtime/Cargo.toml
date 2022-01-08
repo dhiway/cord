@@ -27,6 +27,7 @@ smallvec = "1.6.1"
 pallet-entity = {  default-features = false, path = '../pallets/entity' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
+pallet-product = {  default-features = false, path = '../pallets/product' }
 pallet-network-treasury = {  default-features = false, path = '../pallets/treasury' }
 pallet-nix = {  default-features = false, path = '../pallets/nix' }
 
@@ -160,6 +161,7 @@ std = [
  	"pallet-entity/std",
   	"pallet-schema/std",
 	"pallet-stream/std",
+	"pallet-product/std",
 	"pallet-network-treasury/std",
 	"pallet-nix/std",
 	"sp-io/std"

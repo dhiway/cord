@@ -1063,6 +1063,7 @@ dependencies = [
  "pallet-nix",
  "pallet-offences",
  "pallet-offences-benchmarking",
+ "pallet-product",
  "pallet-proxy",
  "pallet-randomness-collective-flip",
  "pallet-scheduler",
@@ -4641,6 +4642,27 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-std 4.0.0-dev",
+]
+
+[[package]]
+name = "pallet-product"
+version = "0.5.8"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-schema",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std 4.0.0-dev",
+ "substrate-wasm-builder",
 ]
 
 [[package]]

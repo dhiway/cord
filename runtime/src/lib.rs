@@ -90,6 +90,7 @@ pub use pallet_entity;
 pub use pallet_nix;
 pub use pallet_schema;
 pub use pallet_stream;
+pub use pallet_product;
 
 // Weights used in the runtime.
 pub mod weights;
@@ -1142,6 +1143,12 @@ impl pallet_stream::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_product::Config for Runtime {
+	type Event = Event;
+	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type WeightInfo = ();
+}
+
 impl pallet_nix::Config for Runtime {
 	type Event = Event;
 	type AccountOrigin = MoreThanHalfCouncil;
@@ -1202,6 +1209,7 @@ construct_runtime! {
 		Schema: pallet_schema = 33,
 		Stream: pallet_stream = 34,
 		Nix: pallet_nix = 35,
+		Product: pallet_product = 36,
 		// Bounties module.
 		Bounties: pallet_bounties = 42,
 		// Tips module.
