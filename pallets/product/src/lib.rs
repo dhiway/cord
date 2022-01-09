@@ -81,6 +81,12 @@ pub mod pallet {
 	#[pallet::getter(fn links)]
 	pub type Links<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<ProductLink<T>>>;
 
+	/// product ratings stored on chain.
+	/// It maps from a stream Id to a vector of stream links.
+	#[pallet::storage]
+	#[pallet::getter(fn ratings)]
+	pub type Ratings<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<u32>>;
+
 	/// product hashes stored on chain.
 	/// It maps from a product hash to Id (resolve from hash).
 	#[pallet::storage]
@@ -147,6 +153,10 @@ pub mod pallet {
 		ProductLinkstatus,
 		/// Invalid Rating, Should be between 1 & 10
 		InvalidRating,
+		/// Invalid Listing
+		ListingNotFound,
+		/// More than Max Ratings
+		TooManyRatings,
 	}
 
 	#[pallet::call]
@@ -226,9 +236,10 @@ pub mod pallet {
 			identifier: IdOf<T>,
 			creator: CordAccountOf<T>,
 			tx_hash: HashOf<T>,
-			store_id: IdOf<T>,
+			store_id: Option<IdOf<T>>,
 			price: Option<u32>,
 			cid: Option<IdentifierOf>,
+			schema: Option<IdOf<T>>,
 			link: Option<IdOf<T>>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -237,6 +248,8 @@ pub mod pallet {
 				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
 			}
 			ensure!(!<Products<T>>::contains_key(&identifier), Error::<T>::ProductAlreadyListed);
+
+			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			if let Some(ref link) = link {
 				let links = <Products<T>>::get(&link).ok_or(Error::<T>::ProductLinkNotFound)?;
@@ -250,20 +263,18 @@ pub mod pallet {
 					&link,
 					ProductLink {
 						identifier: identifier.clone(),
-						store_id: store_id.clone(),
+						store_id: store_id.clone().unwrap(),
 						creator: creator.clone(),
 					},
 				)?;
 			}
-
-			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			ProductCommit::<T>::store_tx(
 				&identifier,
 				ProductCommit {
 					tx_hash: tx_hash.clone(),
 					cid: cid.clone(),
-					block: block_number.clone(),
+					block: block_number,
 					commit: ProductCommitOf::List,
 				},
 			)?;
@@ -276,13 +287,13 @@ pub mod pallet {
 					tx_hash: tx_hash.clone(),
 					cid,
 					parent_cid: None,
-					store_id: Some(store_id),
-					schema: None,
+					store_id,
+					schema,
 					link,
 					price,
 					rating: None,
 					creator: creator.clone(),
-					block: block_number,
+					block: block_number.clone(),
 					status: true,
 				},
 			);
@@ -304,8 +315,11 @@ pub mod pallet {
 			identifier: IdOf<T>,
 			buyer: CordAccountOf<T>,
 			tx_hash: HashOf<T>,
+			store_id: Option<IdOf<T>>,
+			price: Option<u32>,
 			cid: Option<IdentifierOf>,
-			link: IdOf<T>,
+			schema: Option<IdOf<T>>,
+			link: Option<IdOf<T>>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(tx_hash != identifier, Error::<T>::SameIdentifierAndHash);
@@ -315,24 +329,27 @@ pub mod pallet {
 				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
 			}
 
-			let links = <Products<T>>::get(&link).ok_or(Error::<T>::ProductLinkNotFound)?;
-			ensure!(links.status, Error::<T>::ProductNotAvailable);
-			ProductLink::<T>::link_tx(
-				&link,
-				ProductLink {
-					identifier: identifier.clone(),
-					store_id: links.store_id.clone().unwrap(),
-					creator: buyer.clone(),
-				},
-			)?;
 			let block_number = <frame_system::Pallet<T>>::block_number();
+
+			if let Some(ref link) = link {
+				let links = <Products<T>>::get(&link).ok_or(Error::<T>::ProductLinkNotFound)?;
+				ensure!(links.status, Error::<T>::ProductNotAvailable);
+				ProductLink::<T>::link_tx(
+					&link,
+					ProductLink {
+						identifier: identifier.clone(),
+						store_id: links.store_id.clone().unwrap(),
+						creator: buyer.clone(),
+					},
+				)?;
+			}
 
 			ProductCommit::<T>::store_tx(
 				&identifier,
 				ProductCommit {
 					tx_hash: tx_hash.clone(),
 					cid: cid.clone(),
-					block: block_number.clone(),
+					block: block_number,
 					commit: ProductCommitOf::Order,
 				},
 			)?;
@@ -344,12 +361,17 @@ pub mod pallet {
 				ProductDetails {
 					tx_hash: tx_hash.clone(),
 					cid,
+					parent_cid: None,
+					store_id,
+					schema,
+					link,
+					price,
+					rating: None,
 					creator: buyer.clone(),
-					block: block_number,
-					..links
+					block: block_number.clone(),
+					status: true,
 				},
 			);
-
 			Self::deposit_event(Event::TxOrder(identifier, tx_hash, buyer));
 
 			Ok(())
@@ -458,33 +480,57 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			buyer: CordAccountOf<T>,
-			rating: u8,
+			tx_hash: HashOf<T>,
+			store_id: Option<IdOf<T>>,
+			price: Option<u32>,
+			cid: Option<IdentifierOf>,
+			schema: Option<IdOf<T>>,
+			link: Option<IdOf<T>>,
+			rating: u32,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(tx_hash != identifier, Error::<T>::SameIdentifierAndHash);
 
-			ensure!(rating < 1 || rating > 10, Error::<T>::InvalidRating);
+			let min: u32 = 1;
+			let max: u32 = 5;
+			ensure!(rating > min && rating <= max, Error::<T>::InvalidRating);
 
-			let tx_order = <Products<T>>::get(&identifier).ok_or(Error::<T>::OrderNotFound)?;
+			let tx_order =
+				<Products<T>>::get(&link.as_ref().unwrap()).ok_or(Error::<T>::OrderNotFound)?;
 			ensure!(tx_order.creator == buyer, Error::<T>::UnauthorizedOperation);
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
+			let mut ratings =
+				<Ratings<T>>::get(tx_order.link.as_ref().unwrap()).unwrap_or_default();
+			ratings.push(rating);
+			<Ratings<T>>::insert(tx_order.link.as_ref().unwrap(), ratings);
 
 			ProductCommit::<T>::store_tx(
-				&tx_order.link.unwrap(),
+				&link.as_ref().unwrap(),
 				ProductCommit {
-					tx_hash: tx_order.tx_hash.clone(),
-					cid: tx_order.cid.clone(),
+					tx_hash: tx_hash.clone(),
+					cid: cid.clone(),
 					block: block_number.clone(),
 					commit: ProductCommitOf::Rating,
 				},
 			)?;
-
 			<Products<T>>::insert(
-				&tx_order.link.unwrap(),
-				ProductDetails { block: block_number, rating: Some(rating), ..tx_order },
+				&identifier,
+				ProductDetails {
+					tx_hash: tx_hash.clone(),
+					cid,
+					parent_cid: None,
+					store_id,
+					schema,
+					link,
+					price,
+					rating: Some(rating),
+					creator: buyer.clone(),
+					block: block_number.clone(),
+					status: true,
+				},
 			);
-
-			Self::deposit_event(Event::TxRating(identifier, buyer));
+			Self::deposit_event(Event::TxRating(link.unwrap(), buyer));
 
 			Ok(())
 		}
