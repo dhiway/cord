@@ -40,7 +40,7 @@ pub struct ProductDetails<T: Config> {
 	/// Product price in INR as currency basis
 	pub price: Option<u32>,
 	/// List rating.
-	pub rating: Option<u8>,
+	pub rating: Option<u32>,
 	/// Stream block number
 	pub block: BlockNumberOf<T>,
 	/// The flag indicating the availability status of the product.
