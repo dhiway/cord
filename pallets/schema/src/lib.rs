@@ -36,7 +36,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	/// Milti-format Identifier of a schema.
+	/// Multi-format Identifier of a schema.
 	pub type IdOf<T> = BoundedVec<u8, <T as Config>::MaxLength>;
 	/// Hash of the schema.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
@@ -141,7 +141,7 @@ pub mod pallet {
 		InvalidCidVersion,
 		/// no status change required
 		StatusChangeNotRequired,
-		/// Only when the author is not the controller/delegate.
+		/// Only when the author is not the controller.
 		UnauthorizedOperation,
 		// Maximum Number of delegates reached.
 		TooManyDelegates,
@@ -155,8 +155,11 @@ pub mod pallet {
 		DelegatesNotFound,
 		// Base schema link not found
 		SchemaBaseNotFound,
+		// Delegate schema link not found
 		DelegateSchemaNotFound,
+		// Delegate schema link revoked
 		DelegateSchemaRevoked,
+		// Only when the author is not the controller
 		UnauthorizedDelegation,
 	}
 
