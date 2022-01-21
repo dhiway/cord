@@ -23,16 +23,14 @@ use sp_runtime::DispatchResult;
 #[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct SchemaDetails<T: Config> {
+	/// Schema Version.
+	pub version: IdOf<T>,
 	/// Schema identifier.
 	pub schema_hash: HashOf<T>,
-	/// \[OPTIONAL\] Schema CID.
-	pub cid: Option<IdentifierOf>,
-	/// \[OPTIONAL\] Schema previous CID.
-	pub parent_cid: Option<IdentifierOf>,
 	/// Schema creator.
 	pub creator: CordAccountOf<T>,
-	/// Schema block number
-	pub block: BlockNumberOf<T>,
+	/// \[OPTIONAL\] Base Schema Link
+	pub base_schema: Option<IdOf<T>>,
 	/// The flag indicating schema type.
 	pub permissioned: StatusOf,
 	/// The flag indicating the status of the schema.
@@ -40,13 +38,11 @@ pub struct SchemaDetails<T: Config> {
 }
 
 impl<T: Config> SchemaDetails<T> {
-	pub fn is_valid(incoming: &IdentifierOf) -> DispatchResult {
-		let cid_str = str::from_utf8(incoming).unwrap();
-		let cid_details: Cid = cid_str.parse().map_err(|_err| Error::<T>::InvalidCidEncoding)?;
-		ensure!(
-			(cid_details.version() == Version::V1 || cid_details.version() == Version::V0),
-			Error::<T>::InvalidCidVersion
-		);
+	pub fn is_valid(incoming: &IdOf<T>) -> DispatchResult {
+		let identifier_str = str::from_utf8(incoming).unwrap();
+		let identifier_details: Cid =
+			identifier_str.parse().map_err(|_err| Error::<T>::InvalidCidEncoding)?;
+		ensure!((identifier_details.version() == CidType::V1), Error::<T>::InvalidCidVersion);
 		Ok(())
 	}
 
@@ -68,10 +64,10 @@ impl<T: Config> SchemaDetails<T> {
 #[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct SchemaCommit<T: Config> {
-	/// schema hash.
-	pub schema_hash: HashOf<T>,
-	/// \[OPTIONAL\] schema storage ID
-	pub cid: Option<IdentifierOf>,
+	/// schema identifier.
+	pub id: IdOf<T>,
+	/// Schema Version.
+	pub version: IdOf<T>,
 	/// schema tx block number
 	pub block: BlockNumberOf<T>,
 	/// schema tx request type
@@ -90,7 +86,7 @@ impl<T: Config> SchemaCommit<T> {
 #[derive(Clone, Debug, Encode, Decode, PartialEq, Eq, scale_info::TypeInfo)]
 pub enum SchemaCommitOf {
 	Genesis,
-	Update,
+	VersionUpdate,
 	Delegates,
 	RevokeDelegates,
 	Permission,

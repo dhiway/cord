@@ -4698,6 +4698,7 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "scale-info",
+ "semver 1.0.4",
  "serde",
  "sp-cid",
  "sp-core",

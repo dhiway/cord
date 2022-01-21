@@ -18,30 +18,30 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 pub use cord_primitives::{IdentifierOf, StatusOf};
-use frame_support::{ensure, storage::types::StorageMap};
+use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
+use semver::Version;
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
+
 pub mod schemas;
 pub mod weights;
 
 pub use crate::schemas::*;
 use crate::weights::WeightInfo;
 pub use pallet::*;
-pub use sp_cid::{Cid, Version};
+pub use sp_cid::{Cid, Version as CidType};
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	// use codec::MaxEncodedLen;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	/// Identifier of a schema.
-	pub type IdOf<T> = <T as frame_system::Config>::Hash;
+	/// Milti-format Identifier of a schema.
+	pub type IdOf<T> = BoundedVec<u8, <T as Config>::MaxLength>;
 	/// Hash of the schema.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a CORD account.
 	pub type CordAccountOf<T> = <T as Config>::CordAccountId;
-
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 
@@ -55,14 +55,17 @@ pub mod pallet {
 			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
 		>;
+		/// The maximum number of delegates for a schema.
 		#[pallet::constant]
 		type MaxDelegates: Get<u32>;
+		/// The maximum length of an Identifier.
+		#[pallet::constant]
+		type MaxLength: Get<u32>;
 		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
-	// #[pallet::generate_storage_info]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
@@ -80,7 +83,7 @@ pub mod pallet {
 	#[pallet::getter(fn commits)]
 	pub type Commits<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<SchemaCommit<T>>>;
 
-	/// transactions stored on chain.
+	/// schema delegations stored on chain.
 	/// It maps from an identifier to a vector of delegates.
 	#[pallet::storage]
 	#[pallet::getter(fn delegations)]
@@ -95,23 +98,23 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new schema has been created.
-		/// \[schema identifier, schema hash, controller\]
-		TxAdd(IdOf<T>, HashOf<T>, CordAccountOf<T>),
+		/// \[schema identifier, version, controller\]
+		TxAdd(IdOf<T>, IdOf<T>, CordAccountOf<T>),
 		/// A schema has been updated.
-		/// \[schema identifier, schema hash, controller\]
-		TxUpdate(IdOf<T>, HashOf<T>, CordAccountOf<T>),
+		/// \[schema identifier, version, controller\]
+		TxUpdate(IdOf<T>, IdOf<T>, CordAccountOf<T>),
 		/// A schema status has been changed.
-		/// \[schema identifier, controller\]
-		TxStatus(IdOf<T>, CordAccountOf<T>),
-		/// A schema delegate has been added.
-		/// \[schema identifier, controller\]
-		TxAddDelegates(IdOf<T>),
-		/// A schema delegate has been removed.
-		/// \[schema identifier, controller\]
-		TxRemoveDelegates(IdOf<T>),
+		/// \[schema identifier, version, controller\]
+		TxStatus(IdOf<T>, IdOf<T>, CordAccountOf<T>),
+		/// Schema delegates has been added.
+		/// \[schema identifier, version, controller\]
+		TxAddDelegates(IdOf<T>, IdOf<T>, CordAccountOf<T>),
+		/// Schema delegates has been removed.
+		/// \[schema identifier, version, controller\]
+		TxRemoveDelegates(IdOf<T>, IdOf<T>, CordAccountOf<T>),
 		/// A schema status has been changed.
-		/// \[schema identifier, controller\]
-		TxPermission(IdOf<T>, CordAccountOf<T>),
+		/// \[schema identifier, version, controller\]
+		TxPermission(IdOf<T>, IdOf<T>, CordAccountOf<T>),
 	}
 
 	#[pallet::error]
@@ -146,16 +149,26 @@ pub mod pallet {
 		SchemaNotPermissioned,
 		// Schema permission matching with the change request
 		NoPermissionChangeRequired,
+		// Invalid Schema Semver
+		InvalidSchemaVersion,
+		// No Delegates found for this schema
+		DelegatesNotFound,
+		// Base schema link not found
+		SchemaBaseNotFound,
+		DelegateSchemaNotFound,
+		DelegateSchemaRevoked,
+		UnauthorizedDelegation,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a new schema delegate.
+		/// Add delegates to a schema.
 		///
 		/// This transaction can only be performed by the schema controller.
 		///
 		/// * origin: the identity of the schema controller.
 		/// * schema: unique identifier of the schema.
+		/// * creator: controller of the schema.
 		/// * delegates: schema delegates to add.
 		#[pallet::weight(126_475_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn add_delegates(
@@ -167,10 +180,10 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.permissioned, Error::<T>::SchemaNotPermissioned);
-			ensure!(schema_details.creator == creator, Error::<T>::UnauthorizedOperation);
+			ensure!(schema_details.creator == creator, Error::<T>::UnauthorizedDelegation);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			Delegations::<T>::try_mutate(&schema, |ref mut delegation| {
+			Delegations::<T>::try_mutate(schema.clone(), |ref mut delegation| {
 				ensure!(
 					delegation.len() + delegates.len() <= T::MaxDelegates::get() as usize,
 					Error::<T>::TooManyDelegates
@@ -183,23 +196,24 @@ pub mod pallet {
 				SchemaCommit::<T>::store_tx(
 					&schema,
 					SchemaCommit {
-						schema_hash: schema_details.schema_hash,
-						cid: schema_details.cid,
+						id: schema.clone(),
+						version: schema_details.version.clone(),
 						block: block_number,
 						commit: SchemaCommitOf::Delegates,
 					},
 				)?;
-				Self::deposit_event(Event::TxAddDelegates(schema));
+				Self::deposit_event(Event::TxAddDelegates(schema, schema_details.version, creator));
 				Ok(())
 			})
 		}
-		/// Remove a schema delegate.
+		/// Remove schema delegates.
 		///
 		/// This transaction can only be performed by the schema controller.
 		///
 		/// * origin: the identity of the schema controller.
 		/// * schema: unique identifier of the schema.
-		/// * delegate: schema delegate to be removed.
+		/// * creator: controller of the schema.
+		/// * delegates: schema delegates to be removed.
 		#[pallet::weight(126_475_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn remove_delegates(
 			origin: OriginFor<T>,
@@ -210,23 +224,27 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.permissioned, Error::<T>::SchemaNotPermissioned);
-			ensure!(schema_details.creator == creator, Error::<T>::UnauthorizedOperation);
+			ensure!(schema_details.creator == creator, Error::<T>::UnauthorizedDelegation);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			Delegations::<T>::try_mutate(&schema, |ref mut delegation| {
+			Delegations::<T>::try_mutate(schema.clone(), |ref mut delegation| {
 				for delegate in delegates {
 					delegation.retain(|x| x != &delegate);
 				}
 				SchemaCommit::<T>::store_tx(
 					&schema,
 					SchemaCommit {
-						schema_hash: schema_details.schema_hash,
-						cid: schema_details.cid,
+						id: schema.clone(),
+						version: schema_details.version.clone(),
 						block: block_number,
 						commit: SchemaCommitOf::RevokeDelegates,
 					},
 				)?;
-				Self::deposit_event(Event::TxRemoveDelegates(schema));
+				Self::deposit_event(Event::TxRemoveDelegates(
+					schema,
+					schema_details.version,
+					creator,
+				));
 				Ok(())
 			})
 		}
@@ -235,31 +253,33 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming schema stream.
+		/// * creator: controller of the schema.
+		/// * version: version of the  schema stream.
 		/// * hash: hash of the incoming schema stream.
-		/// * cid: CID of the incoming schema stream.
 		/// * permissioned: schema type - permissioned or not.
 		#[pallet::weight(570_952_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			creator: CordAccountOf<T>,
-			schema_hash: HashOf<T>,
-			cid: Option<IdentifierOf>,
+			version: IdOf<T>,
+			hash: HashOf<T>,
 			permissioned: StatusOf,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
-			ensure!(schema_hash != identifier, Error::<T>::SameIdentifierAndHash);
-			if let Some(ref cid) = cid {
-				SchemaDetails::<T>::is_valid(cid)?;
-			}
+			Version::parse(str::from_utf8(&version).unwrap())
+				.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
+
+			SchemaDetails::<T>::is_valid(&identifier)?;
+
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
 			SchemaCommit::<T>::store_tx(
 				&identifier,
 				SchemaCommit {
-					schema_hash: schema_hash.clone(),
-					cid: cid.clone(),
+					id: identifier.clone(),
+					version: version.clone(),
 					block: block_number.clone(),
 					commit: SchemaCommitOf::Genesis,
 				},
@@ -267,17 +287,16 @@ pub mod pallet {
 			<Schemas<T>>::insert(
 				&identifier,
 				SchemaDetails {
-					schema_hash: schema_hash.clone(),
-					cid,
-					parent_cid: None,
+					version: version.clone(),
+					schema_hash: hash,
 					creator: creator.clone(),
-					block: block_number.clone(),
+					base_schema: None,
 					permissioned,
 					revoked: false,
 				},
 			);
 
-			Self::deposit_event(Event::TxAdd(identifier, schema_hash, creator));
+			Self::deposit_event(Event::TxAdd(identifier, version, creator));
 
 			Ok(())
 		}
@@ -287,59 +306,107 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming schema stream.
+		/// * updater: controller of the schema.
+		/// * version: version of the  schema stream.
 		/// * hash: hash of the incoming schema stream.
+		/// * delegated: status of the parent
 		/// * cid: CID of the incoming schema stream.
 		#[pallet::weight(191_780_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn update(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			updater: CordAccountOf<T>,
-			schema_hash: HashOf<T>,
-			cid: Option<IdentifierOf>,
+			version: IdOf<T>,
+			hash: HashOf<T>,
+			base: IdOf<T>,
+			permissioned: StatusOf,
+			delegate_from: Option<IdOf<T>>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(schema_hash != identifier, Error::<T>::SameIdentifierAndHash);
+			SchemaDetails::<T>::is_valid(&identifier)?;
+			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
+			let new_version = Version::parse(str::from_utf8(&version).unwrap())
+				.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
 
-			let schema_details =
-				<Schemas<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema_hash != schema_details.schema_hash, Error::<T>::HashAlreadyAnchored);
-
-			if let Some(ref cid) = cid {
-				ensure!(
-					cid != schema_details.cid.as_ref().unwrap(),
-					Error::<T>::CidAlreadyAnchored
-				);
-				SchemaDetails::<T>::is_valid(cid)?;
-			}
+			let schema_details = <Schemas<T>>::get(&base).ok_or(Error::<T>::SchemaBaseNotFound)?;
+			let old_version = Version::parse(str::from_utf8(&schema_details.version).unwrap())
+				.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
+			ensure!(new_version > old_version, Error::<T>::InvalidSchemaVersion);
 			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 			ensure!(schema_details.creator == updater, Error::<T>::UnauthorizedOperation);
 
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			SchemaCommit::<T>::store_tx(
-				&identifier,
-				SchemaCommit {
-					schema_hash: schema_hash.clone(),
-					cid: cid.clone(),
-					block: block_number,
-					commit: SchemaCommitOf::Update,
-				},
-			)?;
+			if permissioned {
+				if let Some(ref delegate_from) = delegate_from {
+					let delegate_from_schema =
+						<Schemas<T>>::get(&base).ok_or(Error::<T>::DelegateSchemaNotFound)?;
+					ensure!(!delegate_from_schema.revoked, Error::<T>::DelegateSchemaRevoked);
+					ensure!(
+						delegate_from_schema.creator == updater,
+						Error::<T>::UnauthorizedDelegation
+					);
 
-			<Schemas<T>>::insert(
-				&identifier,
-				SchemaDetails {
-					schema_hash,
-					cid,
-					parent_cid: schema_details.cid,
-					block: block_number,
-					..schema_details
-				},
-			);
+					let delegates = Delegations::<T>::get(&delegate_from).into_inner();
 
-			Self::deposit_event(Event::TxUpdate(identifier, schema_hash, updater));
+					Delegations::<T>::try_mutate(delegate_from.clone(), |ref mut delegation| {
+						for delegate in delegates {
+							delegation
+								.try_push(delegate)
+								.expect("delegates length is less than T::MaxDelegates; qed");
+						}
+						SchemaCommit::<T>::store_tx(
+							&base,
+							SchemaCommit {
+								id: base.clone(),
+								version: schema_details.version,
+								block: block_number,
+								commit: SchemaCommitOf::VersionUpdate,
+							},
+						)?;
+						<Schemas<T>>::insert(
+							&identifier,
+							SchemaDetails {
+								version: version.clone(),
+								schema_hash: hash,
+								creator: updater.clone(),
+								base_schema: Some(base),
+								permissioned,
+								revoked: false,
+							},
+						);
+						Self::deposit_event(Event::TxUpdate(identifier, version, updater));
 
-			Ok(())
+						Ok(())
+					})
+				} else {
+					Ok(())
+				}
+			} else {
+				SchemaCommit::<T>::store_tx(
+					&base,
+					SchemaCommit {
+						id: base.clone(),
+						version: schema_details.version,
+						block: block_number,
+						commit: SchemaCommitOf::VersionUpdate,
+					},
+				)?;
+				<Schemas<T>>::insert(
+					&identifier,
+					SchemaDetails {
+						version: version.clone(),
+						schema_hash: hash,
+						creator: updater.clone(),
+						base_schema: Some(base),
+						permissioned,
+						revoked: false,
+					},
+				);
+
+				Self::deposit_event(Event::TxUpdate(identifier, version, updater));
+				Ok(())
+			}
 		}
 		/// Update the status of the schema - revoked or not
 		///
@@ -366,15 +433,22 @@ pub mod pallet {
 			SchemaCommit::<T>::store_tx(
 				&identifier,
 				SchemaCommit {
-					schema_hash: schema_details.schema_hash.clone(),
-					cid: schema_details.cid.clone(),
+					id: identifier.clone(),
+					version: schema_details.version.clone(),
 					block: block_number,
 					commit: SchemaCommitOf::StatusChange,
 				},
 			)?;
 
-			<Schemas<T>>::insert(&identifier, SchemaDetails { revoked: status, ..schema_details });
-			Self::deposit_event(Event::TxStatus(identifier, updater));
+			<Schemas<T>>::insert(
+				&identifier,
+				SchemaDetails {
+					version: schema_details.version.clone(),
+					revoked: status,
+					..schema_details
+				},
+			);
+			Self::deposit_event(Event::TxStatus(identifier, schema_details.version, updater));
 
 			Ok(())
 		}
@@ -407,15 +481,22 @@ pub mod pallet {
 			SchemaCommit::<T>::store_tx(
 				&identifier,
 				SchemaCommit {
-					schema_hash: schema_details.schema_hash.clone(),
-					cid: schema_details.cid.clone(),
+					id: identifier.clone(),
+					version: schema_details.version.clone(),
 					block: block_number,
 					commit: SchemaCommitOf::Permission,
 				},
 			)?;
 
-			<Schemas<T>>::insert(&identifier, SchemaDetails { permissioned, ..schema_details });
-			Self::deposit_event(Event::TxPermission(identifier, updater));
+			<Schemas<T>>::insert(
+				&identifier,
+				SchemaDetails {
+					version: schema_details.version.clone(),
+					permissioned,
+					..schema_details
+				},
+			);
+			Self::deposit_event(Event::TxPermission(identifier, schema_details.version, updater));
 
 			Ok(())
 		}
