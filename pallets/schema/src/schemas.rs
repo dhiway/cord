@@ -30,11 +30,13 @@ pub struct SchemaDetails<T: Config> {
 	/// Schema creator.
 	pub creator: CordAccountOf<T>,
 	/// \[OPTIONAL\] Base Schema Link
-	pub base_schema: Option<IdOf<T>>,
+	pub genesis: IdOf<T>,
 	/// The flag indicating schema type.
 	pub permissioned: StatusOf,
 	/// The flag indicating the status of the schema.
 	pub revoked: StatusOf,
+	/// The flag indicating the status of the schema version.
+	pub base: StatusOf,
 }
 
 impl<T: Config> SchemaDetails<T> {
@@ -50,7 +52,10 @@ impl<T: Config> SchemaDetails<T> {
 		let schema_details = <Schemas<T>>::get(tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
 		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 		if schema_details.creator != requestor && schema_details.permissioned {
-			let delegates = <Delegations<T>>::get(tx_schema);
+			let genesis_schema_details =
+				<Schemas<T>>::get(schema_details.genesis).ok_or(Error::<T>::SchemaNotFound)?;
+			ensure!(!genesis_schema_details.revoked, Error::<T>::GenesisSchemaRevoked);
+			let delegates = <Delegations<T>>::get(genesis_schema_details.genesis);
 			ensure!(
 				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
 				Error::<T>::UnauthorizedOperation
@@ -80,6 +85,17 @@ impl<T: Config> SchemaCommit<T> {
 		commit.push(tx_commit);
 		<Commits<T>>::insert(identifier, commit);
 		Ok(())
+	}
+
+	pub fn transfer_delegates(schema: IdOf<T>, delegates: Vec<CordAccountOf<T>>) -> DispatchResult {
+		Delegations::<T>::try_mutate(schema.clone(), |ref mut delegation| {
+			for delegate in delegates {
+				delegation
+					.try_push(delegate)
+					.expect("delegates length is less than T::MaxDelegates; qed");
+			}
+			Ok(())
+		})
 	}
 }
 

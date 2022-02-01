@@ -119,20 +119,18 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Invalid request
-		InvalidRequest,
 		/// Hash and Identifier are the same
-		SameIdentifierAndHash,
+		SameIdentifierAsGenesis,
+		/// Not a genesis Identifier
+		NotGenesisIdentifier,
 		/// Schema idenfier is not unique
 		SchemaAlreadyAnchored,
-		//Schema Hash is not unique
-		HashAlreadyAnchored,
 		/// Schema idenfier not found
 		SchemaNotFound,
-		/// Schema delegate not found
-		SchemaDelegateNotFound,
 		/// Schema revoked
 		SchemaRevoked,
+		/// Genesis Schema revoked
+		GenesisSchemaRevoked,
 		/// Invalid CID encoding.
 		InvalidCidEncoding,
 		/// CID already anchored
@@ -151,14 +149,8 @@ pub mod pallet {
 		NoPermissionChangeRequired,
 		// Invalid Schema Semver
 		InvalidSchemaVersion,
-		// No Delegates found for this schema
-		DelegatesNotFound,
 		// Base schema link not found
-		SchemaBaseNotFound,
-		// Delegate schema link not found
-		DelegateSchemaNotFound,
-		// Delegate schema link revoked
-		DelegateSchemaRevoked,
+		SchemaGenesisNotFound,
 		// Only when the author is not the controller
 		UnauthorizedDelegation,
 	}
@@ -293,9 +285,10 @@ pub mod pallet {
 					version: version.clone(),
 					schema_hash: hash,
 					creator: creator.clone(),
-					base_schema: None,
+					genesis: identifier.clone(),
 					permissioned,
 					revoked: false,
+					base: true,
 				},
 			);
 
@@ -303,7 +296,7 @@ pub mod pallet {
 
 			Ok(())
 		}
-		/// Update an existing schema.
+		/// Update version of an existing schema.
 		///
 		///This transaction can only be performed by the schema controller
 		///
@@ -312,104 +305,62 @@ pub mod pallet {
 		/// * updater: controller of the schema.
 		/// * version: version of the  schema stream.
 		/// * hash: hash of the incoming schema stream.
-		/// * delegated: status of the parent
-		/// * cid: CID of the incoming schema stream.
+		/// * genesis: schema genesis identifier
 		#[pallet::weight(191_780_000 + T::DbWeight::get().reads_writes(1, 2))]
-		pub fn update(
+		pub fn version_update(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			updater: CordAccountOf<T>,
 			version: IdOf<T>,
 			hash: HashOf<T>,
-			base: IdOf<T>,
-			permissioned: StatusOf,
-			delegate_from: Option<IdOf<T>>,
+			genesis: IdOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(identifier != genesis, Error::<T>::SameIdentifierAsGenesis);
+
 			SchemaDetails::<T>::is_valid(&identifier)?;
+
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 			let new_version = Version::parse(str::from_utf8(&version).unwrap())
 				.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
 
-			let schema_details = <Schemas<T>>::get(&base).ok_or(Error::<T>::SchemaBaseNotFound)?;
-			let old_version = Version::parse(str::from_utf8(&schema_details.version).unwrap())
-				.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
-			ensure!(new_version > old_version, Error::<T>::InvalidSchemaVersion);
+			let schema_details =
+				<Schemas<T>>::get(&genesis).ok_or(Error::<T>::SchemaGenesisNotFound)?;
+			ensure!(!schema_details.base, Error::<T>::NotGenesisIdentifier);
+
 			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 			ensure!(schema_details.creator == updater, Error::<T>::UnauthorizedOperation);
 
+			let old_version = Version::parse(str::from_utf8(&schema_details.version).unwrap())
+				.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
+			ensure!(new_version > old_version, Error::<T>::InvalidSchemaVersion);
 			let block_number = <frame_system::Pallet<T>>::block_number();
 
-			if permissioned {
-				if let Some(ref delegate_from) = delegate_from {
-					let delegate_from_schema =
-						<Schemas<T>>::get(&base).ok_or(Error::<T>::DelegateSchemaNotFound)?;
-					ensure!(!delegate_from_schema.revoked, Error::<T>::DelegateSchemaRevoked);
-					ensure!(
-						delegate_from_schema.creator == updater,
-						Error::<T>::UnauthorizedDelegation
-					);
+			SchemaCommit::<T>::store_tx(
+				&genesis,
+				SchemaCommit {
+					id: genesis.clone(),
+					version: schema_details.version,
+					block: block_number,
+					commit: SchemaCommitOf::VersionUpdate,
+				},
+			)?;
 
-					let delegates = Delegations::<T>::get(&delegate_from).into_inner();
+			<Schemas<T>>::insert(
+				&identifier,
+				SchemaDetails {
+					version: version.clone(),
+					schema_hash: hash,
+					creator: updater.clone(),
+					genesis,
+					base: false,
+					..schema_details
+				},
+			);
 
-					Delegations::<T>::try_mutate(delegate_from.clone(), |ref mut delegation| {
-						for delegate in delegates {
-							delegation
-								.try_push(delegate)
-								.expect("delegates length is less than T::MaxDelegates; qed");
-						}
-						SchemaCommit::<T>::store_tx(
-							&base,
-							SchemaCommit {
-								id: base.clone(),
-								version: schema_details.version,
-								block: block_number,
-								commit: SchemaCommitOf::VersionUpdate,
-							},
-						)?;
-						<Schemas<T>>::insert(
-							&identifier,
-							SchemaDetails {
-								version: version.clone(),
-								schema_hash: hash,
-								creator: updater.clone(),
-								base_schema: Some(base),
-								permissioned,
-								revoked: false,
-							},
-						);
-						Self::deposit_event(Event::TxUpdate(identifier, version, updater));
-
-						Ok(())
-					})
-				} else {
-					Ok(())
-				}
-			} else {
-				SchemaCommit::<T>::store_tx(
-					&base,
-					SchemaCommit {
-						id: base.clone(),
-						version: schema_details.version,
-						block: block_number,
-						commit: SchemaCommitOf::VersionUpdate,
-					},
-				)?;
-				<Schemas<T>>::insert(
-					&identifier,
-					SchemaDetails {
-						version: version.clone(),
-						schema_hash: hash,
-						creator: updater.clone(),
-						base_schema: Some(base),
-						permissioned,
-						revoked: false,
-					},
-				);
-
-				Self::deposit_event(Event::TxUpdate(identifier, version, updater));
-				Ok(())
-			}
+			Self::deposit_event(Event::TxUpdate(identifier, version, updater));
+			Ok(())
+			// }
 		}
 		/// Update the status of the schema - revoked or not
 		///
