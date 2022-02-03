@@ -20,6 +20,7 @@
 use super::{BlockExecutionWeight, RuntimeBlockLength, RuntimeBlockWeights};
 use frame_support::{
 	parameter_types,
+	traits::ConstU32,
 	weights::{DispatchClass, Weight},
 };
 use sp_runtime::Perbill;
@@ -48,8 +49,8 @@ parameter_types! {
 /// The numbers configured here could always be more than the the maximum limits of staking pallet
 /// to ensure election snapshot will not run out of memory. For now, we set them to smaller values
 /// since the staking is bounded and the weight pipeline takes hours for this single pallet.
-pub struct BenchmarkConfig;
-impl pallet_election_provider_multi_phase::BenchmarkingConfig for BenchmarkConfig {
+pub struct ElectionProviderBenchmarkConfig;
+impl pallet_election_provider_multi_phase::BenchmarkingConfig for ElectionProviderBenchmarkConfig {
 	const VOTERS: [u32; 2] = [1000, 2000];
 	const TARGETS: [u32; 2] = [500, 1000];
 	const ACTIVE_VOTERS: [u32; 2] = [500, 800];
@@ -86,9 +87,16 @@ impl frame_support::pallet_prelude::Get<Option<(usize, sp_npos_elections::Extend
 					.expect("input is padded with zeroes; qed")
 					% max.saturating_add(1);
 				random as usize
-			}
+			},
 		};
 
 		Some((iters, 0))
 	}
+}
+
+/// A reasonable benchmarking config for staking pallet.
+pub struct StakingBenchmarkingConfig;
+impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
+	type MaxValidators = ConstU32<1000>;
+	type MaxNominators = ConstU32<1000>;
 }
