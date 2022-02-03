@@ -68,7 +68,10 @@ pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 pub type BlockId = generic::BlockId<Block>;
 
 /// CID type.
-pub type IdentifierOf = Vec<u8>;
+pub type CidOf = Vec<u8>;
+
+/// Version type.
+pub type VersionOf = Vec<u8>;
 
 /// status Information
 pub type StatusOf = bool;

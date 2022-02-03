@@ -24,38 +24,39 @@ use sp_runtime::DispatchResult;
 #[scale_info(skip_type_params(T))]
 pub struct SchemaDetails<T: Config> {
 	/// Schema Version.
-	pub version: IdOf<T>,
+	pub version: VersionOf,
 	/// Schema identifier.
-	pub schema_hash: HashOf<T>,
+	pub schema_id: IdOf<T>,
 	/// Schema creator.
 	pub creator: CordAccountOf<T>,
-	/// \[OPTIONAL\] Base Schema Link
-	pub genesis: IdOf<T>,
+	/// \[OPTIONAL\] IPFS CID.
+	pub cid: Option<CidOf>,
+	/// \[OPTIONAL\] Schema Parent hash.
+	pub parent: Option<HashOf<T>>,
 	/// The flag indicating schema type.
 	pub permissioned: StatusOf,
 	/// The flag indicating the status of the schema.
 	pub revoked: StatusOf,
-	/// The flag indicating the status of the schema version.
-	pub base: StatusOf,
 }
 
 impl<T: Config> SchemaDetails<T> {
-	pub fn is_valid(incoming: &IdOf<T>) -> DispatchResult {
-		let identifier_str = str::from_utf8(incoming).unwrap();
-		let identifier_details: Cid =
-			identifier_str.parse().map_err(|_err| Error::<T>::InvalidCidEncoding)?;
-		ensure!((identifier_details.version() == CidType::V1), Error::<T>::InvalidCidVersion);
+	pub fn is_valid(incoming: &CidOf) -> DispatchResult {
+		let cid_str = str::from_utf8(incoming).unwrap();
+		let cid_details: Cid = cid_str.parse().map_err(|_err| Error::<T>::InvalidCidEncoding)?;
+		ensure!(
+			(cid_details.version() == CidType::V1 || cid_details.version() == CidType::V0),
+			Error::<T>::InvalidCidVersion
+		);
 		Ok(())
 	}
 
 	pub fn schema_status(tx_schema: &IdOf<T>, requestor: CordAccountOf<T>) -> Result<(), Error<T>> {
-		let schema_details = <Schemas<T>>::get(tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
+		let schema_hash = <SchemaId<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
+		let schema_details = <Schemas<T>>::get(schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
 		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
+
 		if schema_details.creator != requestor && schema_details.permissioned {
-			let genesis_schema_details =
-				<Schemas<T>>::get(schema_details.genesis).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(!genesis_schema_details.revoked, Error::<T>::GenesisSchemaRevoked);
-			let delegates = <Delegations<T>>::get(genesis_schema_details.genesis);
+			let delegates = <Delegations<T>>::get(schema_details.schema_id);
 			ensure!(
 				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
 				Error::<T>::UnauthorizedOperation
@@ -63,48 +64,4 @@ impl<T: Config> SchemaDetails<T> {
 		}
 		Ok(())
 	}
-}
-
-/// An on-chain commit details.
-#[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
-#[scale_info(skip_type_params(T))]
-pub struct SchemaCommit<T: Config> {
-	/// schema identifier.
-	pub id: IdOf<T>,
-	/// Schema Version.
-	pub version: IdOf<T>,
-	/// schema tx block number
-	pub block: BlockNumberOf<T>,
-	/// schema tx request type
-	pub commit: SchemaCommitOf,
-}
-
-impl<T: Config> SchemaCommit<T> {
-	pub fn store_tx(identifier: &IdOf<T>, tx_commit: SchemaCommit<T>) -> DispatchResult {
-		let mut commit = <Commits<T>>::get(identifier).unwrap_or_default();
-		commit.push(tx_commit);
-		<Commits<T>>::insert(identifier, commit);
-		Ok(())
-	}
-
-	pub fn transfer_delegates(schema: IdOf<T>, delegates: Vec<CordAccountOf<T>>) -> DispatchResult {
-		Delegations::<T>::try_mutate(schema.clone(), |ref mut delegation| {
-			for delegate in delegates {
-				delegation
-					.try_push(delegate)
-					.expect("delegates length is less than T::MaxDelegates; qed");
-			}
-			Ok(())
-		})
-	}
-}
-
-#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq, scale_info::TypeInfo)]
-pub enum SchemaCommitOf {
-	Genesis,
-	VersionUpdate,
-	Delegates,
-	RevokeDelegates,
-	Permission,
-	StatusChange,
 }
