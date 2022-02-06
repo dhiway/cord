@@ -579,6 +579,8 @@ sp_npos_elections::generate_solution_type!(
 	>(16)
 );
 
+
+
 impl pallet_election_provider_multi_phase::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
@@ -612,7 +614,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<_2, _3, AccountId, CouncilInstance>,
 	>;
-	type BenchmarkingConfig = ();
+	type BenchmarkingConfig = elections::ElectionProviderBenchmarkConfig;
 	type VoterSnapshotPerBlock = VoterSnapshotPerBlock;
 }
 
@@ -652,6 +654,7 @@ impl frame_election_provider_support::onchain::Config for Runtime {
 	type DataProvider = Staking;
 }
 
+
 // use frame_election_provider_support::onchain;
 impl pallet_staking::Config for Runtime {
 	const MAX_NOMINATIONS: u32 = MAX_NOMINATIONS;
@@ -676,6 +679,7 @@ impl pallet_staking::Config for Runtime {
 	type GenesisElectionProvider = elections::GenesisElectionOf<Self>;
 	type SortedListProvider = BagsList;
 	type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
+	type BenchmarkingConfig = elections::StakingBenchmarkingConfig;
 }
 
 parameter_types! {

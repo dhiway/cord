@@ -18,9 +18,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-use cord_primitives::{IdentifierOf, StatusOf};
+use cord_primitives::{CidOf, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap};
-use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
+use sp_std::{fmt::Debug, prelude::Clone, str};
 
 pub mod streams;
 pub mod weights;
@@ -36,7 +36,7 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	/// ID of a Stream.
+	/// Identifier of a Stream.
 	pub type IdOf<T> = <T as frame_system::Config>::Hash;
 	/// Hash of the Stream.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
@@ -44,7 +44,6 @@ pub mod pallet {
 	pub type CordAccountOf<T> = pallet_schema::CordAccountOf<T>;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_schema::Config {
 		type EnsureOrigin: EnsureOrigin<
@@ -60,51 +59,34 @@ pub mod pallet {
 	// #[pallet::generate_storage_info]
 	pub struct Pallet<T>(_);
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
-
 	/// streams stored on chain.
 	/// It maps from stream Id to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn streams)]
-	pub type Streams<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, StreamDetails<T>>;
-
-	/// stream commit details stored on chain.
-	/// It maps from a stream Id to a vector of commit details.
-	#[pallet::storage]
-	#[pallet::getter(fn commits)]
-	pub type Commits<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<StreamCommit<T>>>;
-
-	/// stream links stored on chain.
-	/// It maps from a stream Id to a vector of stream links.
-	#[pallet::storage]
-	#[pallet::getter(fn links)]
-	pub type Links<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<StreamLink<T>>>;
+	pub type Streams<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, StreamDetails<T>>;
 
 	/// stream hashes stored on chain.
 	/// It maps from a stream hash to Id (resolve from hash).
 	#[pallet::storage]
-	#[pallet::getter(fn streamhash)]
-	pub type StreamHash<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdOf<T>>;
+	#[pallet::getter(fn streamid)]
+	pub type StreamId<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new stream has been created.
 		/// \[stream identifier, controller\]
-		TxAdd(IdOf<T>, HashOf<T>, CordAccountOf<T>),
+		Anchor(IdOf<T>, HashOf<T>, CordAccountOf<T>),
 		/// A stream has been updated.
 		/// \[stream identifier, controller\]
-		TxUpdate(IdOf<T>, HashOf<T>, CordAccountOf<T>),
+		Update(IdOf<T>, HashOf<T>, CordAccountOf<T>),
 		/// A stream status has been changed.
 		/// \[stream identifier\]
-		TxStatus(IdOf<T>, CordAccountOf<T>),
+		Status(IdOf<T>, CordAccountOf<T>),
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Invalid request
-		InvalidRequest,
 		/// Hash and Identifier are the same
 		SameIdentifierAndHash,
 		/// Stream idenfier is not unique
@@ -131,67 +113,58 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the stream controller.
 		/// * identifier: unique identifier of the incoming stream.
-		/// * hash: hash of the incoming stream.
-		/// * cid: CID of the incoming  stream.
-		/// * schema: stream schema.
-		/// * link: stream link.
-		#[pallet::weight(470_952_000 + T::DbWeight::get().reads_writes(3, 4))]
-		pub fn create(
+		/// * updater: creator (issuer) of the stream.
+		/// * stream_hash: hash of the incoming stream.
+		/// * holder: \[OPTIONAL\] holder(recipient) of the stream.
+		/// * schema: \[OPTIONAL\] stream schema.
+		/// * cid: \[OPTIONAL\] CID of the incoming  stream.
+		/// * link: \[OPTIONAL\]stream link.
+		#[pallet::weight(470_952_000 + T::DbWeight::get().reads_writes(4, 2))]
+		pub fn anchor(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			creator: CordAccountOf<T>,
 			stream_hash: HashOf<T>,
-			cid: Option<IdentifierOf>,
+			holder: Option<CordAccountOf<T>>,
 			schema: Option<IdOf<T>>,
+			cid: Option<CidOf>,
 			link: Option<IdOf<T>>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(stream_hash != identifier, Error::<T>::SameIdentifierAndHash);
+			// ensure!(stream_hash != identifier, Error::<T>::SameIdentifierAndHash);
 			if let Some(ref cid) = cid {
 				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
 			}
-			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
+
+			ensure!(!<StreamId<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
 			if let Some(ref schema) = schema {
 				pallet_schema::SchemaDetails::<T>::schema_status(schema, creator.clone())
 					.map_err(<pallet_schema::Error<T>>::from)?;
 			}
+
 			if let Some(ref link) = link {
-				let links = <Streams<T>>::get(&link).ok_or(Error::<T>::StreamLinkNotFound)?;
-				ensure!(!links.revoked, Error::<T>::StreamLinkRevoked);
-				StreamLink::<T>::link_tx(
-					&link,
-					StreamLink { identifier: identifier.clone(), creator: creator.clone() },
-				)?;
+				let link_hash = <StreamId<T>>::get(&link).ok_or(Error::<T>::StreamLinkNotFound)?;
+				let link_details =
+					<Streams<T>>::get(&link_hash).ok_or(Error::<T>::StreamLinkNotFound)?;
+				ensure!(!link_details.revoked, Error::<T>::StreamLinkRevoked);
 			}
 
-			let block_number = <frame_system::Pallet<T>>::block_number();
-
-			StreamCommit::<T>::store_tx(
-				&identifier,
-				StreamCommit {
-					stream_hash: stream_hash.clone(),
-					cid: cid.clone(),
-					block: block_number.clone(),
-					commit: StreamCommitOf::Genesis,
-				},
-			)?;
-
-			<StreamHash<T>>::insert(&stream_hash, &identifier);
+			<StreamId<T>>::insert(&identifier, &stream_hash);
 
 			<Streams<T>>::insert(
-				&identifier,
+				&stream_hash,
 				StreamDetails {
-					stream_hash: stream_hash.clone(),
-					cid,
-					parent_cid: None,
-					schema,
-					link,
+					stream_id: identifier.clone(),
 					creator: creator.clone(),
-					block: block_number,
+					holder,
+					schema,
+					cid,
+					parent: None,
+					link,
 					revoked: false,
 				},
 			);
-			Self::deposit_event(Event::TxAdd(identifier, stream_hash, creator));
+			Self::deposit_event(Event::Anchor(identifier, stream_hash, creator));
 
 			Ok(())
 		}
@@ -199,54 +172,43 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the stream controller.
 		/// * identifier: unique identifier of the incoming stream.
+		/// * updater: controller of the stream.
 		/// * hash: hash of the incoming stream.
 		/// * cid: storage Id of the incoming stream.
-		#[pallet::weight(171_780_000 + T::DbWeight::get().reads_writes(1, 3))]
+		#[pallet::weight(171_780_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn update(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			updater: CordAccountOf<T>,
 			stream_hash: HashOf<T>,
-			cid: Option<IdentifierOf>,
+			cid: Option<CidOf>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(stream_hash != identifier, Error::<T>::SameIdentifierAndHash);
 
-			let tx_prev = <Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 			if let Some(ref cid) = cid {
-				ensure!(cid != tx_prev.cid.as_ref().unwrap(), Error::<T>::CidAlreadyAnchored);
 				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
 			}
-			ensure!(!tx_prev.revoked, Error::<T>::StreamRevoked);
-			ensure!(tx_prev.creator == updater, Error::<T>::UnauthorizedOperation);
 
-			let block_number = <frame_system::Pallet<T>>::block_number();
+			let tx_prev_hash = <StreamId<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
+			let tx_prev_details =
+				<Streams<T>>::get(&tx_prev_hash).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
+			ensure!(tx_prev_details.creator == updater, Error::<T>::UnauthorizedOperation);
 
-			StreamCommit::<T>::store_tx(
-				&identifier,
-				StreamCommit {
-					stream_hash: stream_hash.clone(),
-					cid: cid.clone(),
-					block: block_number.clone(),
-					commit: StreamCommitOf::Update,
-				},
-			)?;
-
-			<StreamHash<T>>::insert(&stream_hash, &identifier);
+			<StreamId<T>>::insert(&identifier, &stream_hash);
 
 			<Streams<T>>::insert(
-				&identifier,
+				&stream_hash,
 				StreamDetails {
-					stream_hash: stream_hash.clone(),
+					stream_id: identifier.clone(),
 					cid,
-					parent_cid: tx_prev.cid,
+					parent: Some(tx_prev_hash),
 					creator: updater.clone(),
-					block: block_number,
-					..tx_prev
+					..tx_prev_details
 				},
 			);
 
-			Self::deposit_event(Event::TxUpdate(identifier, stream_hash, updater));
+			Self::deposit_event(Event::Update(identifier, stream_hash, updater));
 
 			Ok(())
 		}
@@ -254,8 +216,9 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the stream controller.
 		/// * identifier: unique identifier of the stream.
+		/// * updater: controller of the stream.
 		/// * status: stream revocation status (bool).
-		#[pallet::weight(124_410_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(124_410_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn set_status(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
@@ -264,28 +227,14 @@ pub mod pallet {
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let tx_status = <Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
+			let stream_hash = <StreamId<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
+			let tx_status = <Streams<T>>::get(&stream_hash).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(tx_status.revoked != status, Error::<T>::StatusChangeNotRequired);
 			ensure!(tx_status.creator == updater, Error::<T>::UnauthorizedOperation);
 
-			let block_number = <frame_system::Pallet<T>>::block_number();
+			<Streams<T>>::insert(&stream_hash, StreamDetails { revoked: status, ..tx_status });
 
-			StreamCommit::<T>::store_tx(
-				&identifier,
-				StreamCommit {
-					stream_hash: tx_status.stream_hash.clone(),
-					cid: tx_status.cid.clone(),
-					block: block_number.clone(),
-					commit: StreamCommitOf::StatusChange,
-				},
-			)?;
-
-			<Streams<T>>::insert(
-				&identifier,
-				StreamDetails { block: block_number, revoked: status, ..tx_status },
-			);
-
-			Self::deposit_event(Event::TxStatus(identifier, updater));
+			Self::deposit_event(Event::Status(identifier, updater));
 
 			Ok(())
 		}

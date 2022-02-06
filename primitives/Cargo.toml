@@ -10,11 +10,11 @@ repository = "https://github.com/dhiway/cord"
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = ["bit-vec", "derive"] }
 scale-info = { version = "1.0", default-features = false, features = ["bit-vec", "derive"] }
-frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.14"}
-sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.14"}
-sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.14"}
-sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.14"}
-sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.14"}
+frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.15-1"}
+sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.15-1"}
+sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.15-1"}
+sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.15-1"}
+sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.15-1"}
 
 [features]
 default = ["std"]
