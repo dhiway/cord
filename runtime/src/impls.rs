@@ -1,5 +1,5 @@
 // CORD Blockchain – https://dhiway.network
-// Copyright (C) 2019-2021 Dhiway
+// Copyright (C) 2019-2022 Dhiway
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -25,9 +25,9 @@ pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
 >>::NegativeImbalance;
 
 /// Logic for the block author to get a portion of fees.
-pub struct Author<R>(sp_std::marker::PhantomData<R>);
+pub struct ToAuthor<R>(sp_std::marker::PhantomData<R>);
 
-impl<R> OnUnbalanced<NegativeImbalance<R>> for Author<R>
+impl<R> OnUnbalanced<NegativeImbalance<R>> for ToAuthor<R>
 where
 	R: pallet_balances::Config + pallet_authorship::Config,
 	<R as frame_system::Config>::AccountId: From<cord_primitives::AccountId>,
@@ -35,15 +35,56 @@ where
 	<R as frame_system::Config>::Event: From<pallet_balances::Event<R>>,
 {
 	fn on_nonzero_unbalanced(amount: NegativeImbalance<R>) {
-		let numeric_amount = amount.peek();
-		let author = <pallet_authorship::Pallet<R>>::author();
-		<pallet_balances::Pallet<R>>::resolve_creating(
-			&<pallet_authorship::Pallet<R>>::author(),
-			amount,
-		);
-		<frame_system::Pallet<R>>::deposit_event(pallet_balances::Event::Deposit(
-			author,
-			numeric_amount,
-		));
+		if let Some(author) = <pallet_authorship::Pallet<R>>::author() {
+			<pallet_balances::Pallet<R>>::resolve_creating(&author, amount);
+		}
+	}
+}
+
+pub struct DealWithFees<R>(sp_std::marker::PhantomData<R>);
+impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithFees<R>
+where
+	R: pallet_balances::Config + pallet_treasury::Config + pallet_authorship::Config,
+	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
+	pallet_network_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
+	<R as frame_system::Config>::AccountId: From<cord_primitives::AccountId>,
+	<R as frame_system::Config>::AccountId: Into<cord_primitives::AccountId>,
+	<R as frame_system::Config>::Event: From<pallet_balances::Event<R>>,
+{
+	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance<R>>) {
+		if let Some(fees) = fees_then_tips.next() {
+			// for fees, 80% to treasury, 10% to author, 10% to Network treasury
+			let split_fee = fees.ration(10, 90);
+			let mut split = split_fee.1.ration(80, 10);
+			if let Some(tips) = fees_then_tips.next() {
+				// for tips, if any, 100% to author
+				tips.merge_into(&mut split.1);
+			}
+			use pallet_network_treasury::Pallet as Network;
+			use pallet_treasury::Pallet as Treasury;
+			<Network<R> as OnUnbalanced<_>>::on_unbalanced(split_fee.0);
+			<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(split.0);
+			<ToAuthor<R> as OnUnbalanced<_>>::on_unbalanced(split.1);
+		}
+	}
+}
+
+pub struct DealWithCredits<R>(sp_std::marker::PhantomData<R>);
+impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithCredits<R>
+where
+	R: pallet_balances::Config + pallet_treasury::Config + pallet_authorship::Config,
+	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
+	<R as frame_system::Config>::AccountId: From<cord_primitives::AccountId>,
+	<R as frame_system::Config>::AccountId: Into<cord_primitives::AccountId>,
+	<R as frame_system::Config>::Event: From<pallet_balances::Event<R>>,
+{
+	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance<R>>) {
+		if let Some(mut fees) = fees_then_tips.next() {
+			if let Some(tips) = fees_then_tips.next() {
+				tips.merge_into(&mut fees);
+			}
+			use pallet_treasury::Pallet as Treasury;
+			<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(fees);
+		}
 	}
 }

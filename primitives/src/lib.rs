@@ -1,5 +1,5 @@
 // CORD Blockchain – https://dhiway.network
-// Copyright (C) 2019-2021 Dhiway
+// Copyright (C) 2019-2022 Dhiway
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -19,27 +19,15 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use codec::{Decode, Encode};
 // use sp_core::crypto::KeyTypeId;
+// use sp_runtime::ConsensusEngineId;
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature, OpaqueExtrinsic,
 };
 use sp_std::vec::Vec;
-
-// pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-// pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"way0");
-
-// mod app {
-// 	use sp_application_crypto::{app_crypto, sr25519};
-// 	app_crypto!(sr25519, super::KEY_TYPE);
-// }
-
-// sp_application_crypto::with_pair! {
-// 	pub type AuthorityPair = app::Pair;
-// }
-// pub type AuthoritySignature = app::Signature;
-// pub type AuthorityId = app::Public;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -74,7 +62,7 @@ pub type Hash = sp_core::H256;
 pub type Timestamp = u64;
 
 /// Digest item type.
-pub type DigestItem = generic::DigestItem<Hash>;
+pub type DigestItem = generic::DigestItem;
 /// Header type.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type.
@@ -83,55 +71,19 @@ pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 pub type BlockId = generic::BlockId<Block>;
 
 /// CID type.
-pub type IdentifierOf = Vec<u8>;
+pub type CidOf = Vec<u8>;
+
+/// Version type.
+pub type VersionOf = Vec<u8>;
 
 /// status Information
 pub type StatusOf = bool;
 
-pub const DEFAULT_SESSION_PERIOD: u32 = 1000;
+pub const DEFAULT_SESSION_PERIOD: u32 = 900;
+pub const DEFAULT_MILLISECS_PER_BLOCK: u64 = 1000;
 
-#[derive(codec::Encode, codec::Decode, PartialEq, Eq, sp_std::fmt::Debug)]
+#[derive(Encode, Decode, PartialEq, Eq, sp_std::fmt::Debug)]
 pub enum SessionApiError {
 	TooLowSessionId,
 	DecodeKey,
 }
-
-// sp_api::decl_runtime_apis! {
-// 	pub trait CordSessionApi
-// 	{
-// 		fn next_session_validator_keys() -> Result<Vec<AuthorityId>, SessionApiError>;
-// 		fn current_session_validator_keys() -> Vec<AuthorityId>;
-// 		fn session_period() -> u32;
-// 	}
-// }
-
-// / App-specific crypto used for reporting equivocation/misbehavior in BABE and
-// / GRANDPA. Any rewards for misbehavior reporting will be paid out to this
-// / account.
-// pub mod report {
-// 	use super::{Signature, Verify};
-// 	use frame_system::offchain::AppCrypto;
-// 	use sp_core::crypto::{key_types, KeyTypeId};
-
-// 	/// Key type for the reporting module. Used for reporting BABE and GRANDPA
-// 	/// equivocations.
-// 	pub const KEY_TYPE: KeyTypeId = key_types::REPORTING;
-
-// 	mod app {
-// 		use sp_application_crypto::{app_crypto, sr25519};
-// 		app_crypto!(sr25519, super::KEY_TYPE);
-// 	}
-
-// 	/// Identity of the equivocation/misbehavior reporter.
-// 	pub type ReporterId = app::Public;
-
-// 	/// An `AppCrypto` type to allow submitting signed transactions using the
-// 	/// reporting application key as signer.
-// 	pub struct ReporterAppCrypto;
-
-// 	impl AppCrypto<<Signature as Verify>::Signer, Signature> for ReporterAppCrypto {
-// 		type RuntimeAppPublic = ReporterId;
-// 		type GenericSignature = sp_core::sr25519::Signature;
-// 		type GenericPublic = sp_core::sr25519::Public;
-// 	}
-// }

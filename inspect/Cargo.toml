@@ -1,24 +1,27 @@
 [package]
 name = 'cord-inspect'
-version = '0.5.5'
-edition = '2018'
+version = '0.6.0'
 authors = ['Dhiway <info@dhiway.com>']
+edition = '2021'
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
+substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.3.1" }
 derive_more = "0.99"
 #log = "0.4.8"
-sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
-sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
-sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11", default-features = false }
-sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
-sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.11" }
+sc-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sc-service = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16" }
 structopt = "0.3.8"
