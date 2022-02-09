@@ -61,6 +61,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, KeyTypeId, Perbill, Percent, Permill, Perquintill,
 };
+use sp_staking::SessionIndex;
 use sp_std::prelude::*;
 
 #[cfg(any(feature = "std", test))]
@@ -244,9 +245,11 @@ impl pallet_preimage::Config for Runtime {
 parameter_types! {
 	// NOTE: Currently it is not possible to change the epoch duration after the chain has started.
 	// Attempting to do so will brick block production.
+	// Six sessions in an era (6 hours).
+	pub storage SessionsPerEra: SessionIndex = 6;
 	pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS as u64;
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
-	pub const ReportLongevity: u64 = EpochDuration::get() as u64 * 10;
+	pub ReportLongevity: u64 = SessionsPerEra::get() as u64 * EpochDuration::get();
 }
 
 impl pallet_babe::Config for Runtime {
@@ -324,6 +327,7 @@ impl pallet_transaction_payment::Config for Runtime {
 
 parameter_types! {
 	pub const MinimumPeriod: Moment = SLOT_DURATION / 2;
+	pub SessionDuration: BlockNumber = EPOCH_DURATION_IN_SLOTS;
 }
 
 impl pallet_timestamp::Config for Runtime {
