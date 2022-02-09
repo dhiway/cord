@@ -1,5 +1,5 @@
 // CORD Blockchain – https://dhiway.network
-// Copyright (C) 2019-2021 Dhiway
+// Copyright (C) 2019-2022 Dhiway
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -21,13 +21,11 @@ pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	constants::currency::*, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
-	CouncilConfig, DemocracyConfig, IndicesConfig, NetworkCouncilMembershipConfig,
-	PhragmenElectionConfig, SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig,
-	SystemConfig, TechnicalCommitteeMembershipConfig,
+	CouncilConfig, DemocracyConfig, ElectionsConfig, IndicesConfig, SessionConfig, SessionKeys,
+	SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use pallet_staking::Forcing;
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::{ChainType, Properties};
 use sc_telemetry::TelemetryEndpoints;
@@ -36,10 +34,7 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::{
-	traits::{IdentifyAccount, Verify},
-	Perbill,
-};
+use sp_runtime::traits::{IdentifyAccount, Verify};
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -169,6 +164,7 @@ pub fn cord_development_config() -> Result<ChainSpec, String> {
 		vec![],
 		None,
 		Some(DEFAULT_PROTOCOL_ID),
+		None,
 		Some(properties),
 		Default::default(),
 	))
@@ -185,6 +181,7 @@ pub fn cord_local_testnet_config() -> Result<ChainSpec, String> {
 		vec![],
 		None,
 		Some(DEFAULT_PROTOCOL_ID),
+		None,
 		Some(properties),
 		Default::default(),
 	))
@@ -207,6 +204,7 @@ pub fn cord_staging_config() -> Result<ChainSpec, String> {
 				.expect("Staging telemetry url is valid; qed"),
 		),
 		Some(DEFAULT_PROTOCOL_ID),
+		None,
 		Some(properties),
 		Default::default(),
 	))
@@ -296,9 +294,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 	const ENDOWMENT: u128 = 1_110_101_200 * WAY;
 
 	GenesisConfig {
-		system: SystemConfig {
-			code: wasm_binary.to_vec(), // changes_trie_config: Default::default(),
-		},
+		system: SystemConfig { code: wasm_binary.to_vec() },
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig {
 			balances: endowed_accounts
@@ -320,22 +316,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				})
 				.collect::<Vec<_>>(),
 		},
-		staking: StakingConfig {
-			validator_count: 23,
-			minimum_validator_count: 3,
-			stakers: initial_authorities
-				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), BOND, StakerStatus::Validator))
-				.collect(),
-			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-			force_era: Forcing::ForceNone,
-			slash_reward_fraction: Perbill::from_percent(10),
-			min_nominator_bond: BOND,
-			min_validator_bond: BOND,
-			..Default::default()
-		},
-		democracy: DemocracyConfig::default(),
-		phragmen_election: PhragmenElectionConfig {
+		elections: ElectionsConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -343,18 +324,18 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.map(|member| (member, BOND))
 				.collect(),
 		},
+		democracy: DemocracyConfig::default(),
 		council: CouncilConfig { members: vec![], phantom: Default::default() },
-		network_council: Default::default(),
-		network_council_membership: NetworkCouncilMembershipConfig {
-			members: vec![],
-			phantom: Default::default(),
-		},
 		technical_committee: Default::default(),
-		technical_committee_membership: TechnicalCommitteeMembershipConfig {
-			members: vec![],
+		technical_membership: TechnicalMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
 			phantom: Default::default(),
 		},
-		sudo: SudoConfig { key: root_key },
+		sudo: SudoConfig { key: Some(root_key) },
 		babe: BabeConfig {
 			authorities: Default::default(),
 			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
@@ -363,11 +344,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
-		network_treasury: Default::default(),
-		nix: Default::default(),
-		scheduler: Default::default(),
 		transaction_payment: Default::default(),
-		vesting: Default::default(),
 	}
 }
 
@@ -389,9 +366,7 @@ fn cord_development_genesis(
 	const BOND: u128 = 8_000 * WAY;
 	const ENDOWMENT: u128 = 10_000 * WAY;
 	GenesisConfig {
-		system: SystemConfig {
-			code: wasm_binary.to_vec(), // changes_trie_config: Default::default(),
-		},
+		system: SystemConfig { code: wasm_binary.to_vec() },
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig {
 			balances: endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect(),
@@ -408,22 +383,7 @@ fn cord_development_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		staking: StakingConfig {
-			minimum_validator_count: 1,
-			validator_count: initial_authorities.len() as u32,
-			stakers: initial_authorities
-				.iter()
-				.map(|x| (x.0.clone(), x.1.clone(), BOND, StakerStatus::Validator))
-				.collect(),
-			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
-			force_era: Forcing::ForceNone,
-			slash_reward_fraction: Perbill::from_percent(10),
-			min_nominator_bond: BOND,
-			min_validator_bond: BOND,
-			..Default::default()
-		},
-		democracy: DemocracyConfig::default(),
-		phragmen_election: PhragmenElectionConfig {
+		elections: ElectionsConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -431,18 +391,10 @@ fn cord_development_genesis(
 				.map(|member| (member, BOND))
 				.collect(),
 		},
+		democracy: DemocracyConfig::default(),
 		council: CouncilConfig { members: vec![], phantom: Default::default() },
-		network_council: Default::default(),
-		network_council_membership: NetworkCouncilMembershipConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
-			phantom: Default::default(),
-		},
 		technical_committee: Default::default(),
-		technical_committee_membership: TechnicalCommitteeMembershipConfig {
+		technical_membership: TechnicalMembershipConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -450,7 +402,7 @@ fn cord_development_genesis(
 				.collect(),
 			phantom: Default::default(),
 		},
-		sudo: SudoConfig { key: root_key },
+		sudo: SudoConfig { key: Some(root_key) },
 		babe: BabeConfig {
 			authorities: Default::default(),
 			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
@@ -459,10 +411,6 @@ fn cord_development_genesis(
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
-		network_treasury: Default::default(),
-		nix: Default::default(),
-		scheduler: Default::default(),
 		transaction_payment: Default::default(),
-		vesting: Default::default(),
 	}
 }
