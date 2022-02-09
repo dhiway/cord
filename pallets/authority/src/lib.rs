@@ -1,158 +1,147 @@
+// CORD Blockchain – https://dhiway.network
+// Copyright (C) 2019-2022 Dhiway
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see <https://www.gnu.org/licenses/>.
+//
+//! A pallet for managing authorities on CORD.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
-// #[cfg(test)]
-// mod mock;
-// #[cfg(test)]
-// mod tests;
-
-use sp_std::prelude::*;
+use sp_staking::SessionIndex;
+use sp_std::vec::Vec;
 
 pub use pallet::*;
+
+type Session<T> = pallet_session::Pallet<T>;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use cord_primitives::DEFAULT_SESSION_PERIOD;
-	use frame_support::{pallet_prelude::*, sp_std};
+	use frame_support::{dispatch::DispatchResult, pallet_prelude::*, traits::EnsureOrigin};
 	use frame_system::pallet_prelude::*;
-	use pallet_session::{Pallet as Session, SessionManager};
 
-	#[pallet::storage]
-	#[pallet::getter(fn validators)]
-	pub type Validators<T: Config> = StorageValue<_, Vec<T::AccountId>>;
+	#[pallet::pallet]
+	#[pallet::without_storage_info]
+	pub struct Pallet<T>(_);
 
-	#[pallet::storage]
-	#[pallet::getter(fn session_for_validators_change)]
-	pub type SessionForValidatorsChange<T: Config> = StorageValue<_, u32>;
-
+	/// Configuration for the parachain proposer.
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_session::Config {
+		/// The overreaching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-		type AuthorityOrigin: EnsureOrigin<Self::Origin>;
+
+		/// Privileged origin that can add or remove validators.
+		type AuthorityOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		// New Authority added.
-		AddAuthority(T::AccountId, u32),
-		// Authority removed.
-		RemoveAuthority(T::AccountId, u32),
-		//Rotate Validators
-		ChangeAuthorities(Vec<T::AccountId>, u32),
+		/// New Authorities were added to the set.
+		AuthoritiesRegistered(Vec<T::ValidatorId>),
+		/// Authorities were removed from the set.
+		AuthoritiesDeregistered(Vec<T::ValidatorId>),
 	}
 
-	// Errors inform users that something went wrong.
-	#[pallet::error]
-	pub enum Error<T> {
-		NoAuthorities,
-	}
+	/// Authorities that should be retired.
+	#[pallet::storage]
+	pub(crate) type AuthoritiesToRetire<T: Config> =
+		StorageValue<_, Vec<T::ValidatorId>, ValueQuery>;
 
-	pub struct CordSessionManager<T>(sp_std::marker::PhantomData<T>);
-
-	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
-	#[pallet::without_storage_info]
-	pub struct Pallet<T>(sp_std::marker::PhantomData<T>);
-
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	/// Authorities that should be added.
+	#[pallet::storage]
+	pub(crate) type AuthoritiesToAdd<T: Config> = StorageValue<_, Vec<T::ValidatorId>, ValueQuery>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		#[pallet::weight(0)]
-		pub fn add_validator(origin: OriginFor<T>, validator: T::AccountId) -> DispatchResult {
+		/// Add new authorities to the set.
+		///
+		/// The new authorities will be active from current session + 2.
+		#[pallet::weight(100_000)]
+		pub fn register_authorities(
+			origin: OriginFor<T>,
+			authorities: Vec<T::ValidatorId>,
+		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
-			let mut validators: Vec<T::AccountId>;
-			if <Validators<T>>::get().is_none() {
-				validators = vec![validator.clone()];
-			} else {
-				validators = <Validators<T>>::get().unwrap();
-				validators.push(validator.clone());
-			}
 
-			let current_session = Session::<T>::current_index();
+			authorities.clone().into_iter().for_each(|v| AuthoritiesToAdd::<T>::append(v));
 
-			Validators::<T>::put(validators);
-			SessionForValidatorsChange::<T>::put(current_session + 2);
-
-			Self::deposit_event(Event::AddAuthority(validator, current_session + 2));
+			Self::deposit_event(Event::AuthoritiesRegistered(authorities));
 			Ok(())
 		}
 
-		#[pallet::weight(0)]
-		pub fn remove_validator(origin: OriginFor<T>, validator: T::AccountId) -> DispatchResult {
+		/// Remove authorities from the set.
+		///
+		/// The removed authorities will be deactivated from current session + 2.
+		#[pallet::weight(100_000)]
+		pub fn deregister_validators(
+			origin: OriginFor<T>,
+			authorities: Vec<T::ValidatorId>,
+		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
-			let ref mut validators = <Validators<T>>::get().ok_or(Error::<T>::NoAuthorities)?;
-			validators.retain(|x| x != &validator);
 
-			let current_session = Session::<T>::current_index();
+			authorities
+				.clone()
+				.into_iter()
+				.for_each(|v| AuthoritiesToRetire::<T>::append(v));
 
-			Validators::<T>::put(validators);
-			SessionForValidatorsChange::<T>::put(current_session + 2);
-
-			Self::deposit_event(Event::RemoveAuthority(validator, current_session + 2));
+			Self::deposit_event(Event::AuthoritiesDeregistered(authorities));
 			Ok(())
 		}
 	}
+}
 
-	#[pallet::type_value]
-	pub(super) fn DefaultForSessionPeriod() -> u32 {
-		DEFAULT_SESSION_PERIOD
-	}
-
-	#[pallet::storage]
-	#[pallet::getter(fn session_period)]
-	pub(super) type SessionPeriod<T: Config> =
-		StorageValue<_, u32, ValueQuery, DefaultForSessionPeriod>;
-
-	#[pallet::genesis_config]
-	pub struct GenesisConfig<T: Config> {
-		pub validators: Vec<T::AccountId>,
-		pub session_period: u32,
-	}
-
-	#[cfg(feature = "std")]
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			Self { validators: Vec::new(), session_period: DEFAULT_SESSION_PERIOD }
+impl<T: Config> pallet_session::SessionManager<T::ValidatorId> for Pallet<T> {
+	fn new_session(new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> {
+		if new_index <= 1 {
+			return None;
 		}
-	}
 
-	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
-		fn build(&self) {
-			Pallet::<T>::initialize_validators(&self.validators);
-			<SessionPeriod<T>>::put(&self.session_period);
-		}
-	}
+		let mut validators = Session::<T>::validators();
 
-	impl<T: Config> Pallet<T> {
-		fn initialize_validators(validators: &[T::AccountId]) {
-			if !validators.is_empty() {
-				assert!(<Validators<T>>::get().is_none(), "Validators are already initialized!");
-				<Validators<T>>::put(validators);
+		AuthoritiesToRetire::<T>::take().iter().for_each(|v| {
+			if let Some(pos) = validators.iter().position(|r| r == v) {
+				validators.swap_remove(pos);
 			}
-		}
+		});
+
+		AuthoritiesToAdd::<T>::take().into_iter().for_each(|v| {
+			if !validators.contains(&v) {
+				validators.push(v);
+			}
+		});
+
+		Some(validators)
 	}
 
-	impl<T: Config> SessionManager<T::AccountId> for CordSessionManager<T> {
-		fn new_session(session: u32) -> Option<Vec<T::AccountId>> {
-			if let Some(session_for_validators_change) =
-				Pallet::<T>::session_for_validators_change()
-			{
-				if session_for_validators_change == session {
-					let validators = Pallet::<T>::validators().expect(
-						"Validators also should be Some(), when session_for_validators_change is",
-					);
-					return Some(validators);
-				}
-			}
-			None
-		}
+	fn end_session(_: SessionIndex) {}
 
-		fn start_session(_: u32) {}
+	fn start_session(_start_index: SessionIndex) {}
+}
 
-		fn end_session(_: u32) {}
+impl<T: Config> pallet_session::historical::SessionManager<T::ValidatorId, ()> for Pallet<T> {
+	fn new_session(new_index: SessionIndex) -> Option<Vec<(T::ValidatorId, ())>> {
+		<Self as pallet_session::SessionManager<_>>::new_session(new_index)
+			.map(|r| r.into_iter().map(|v| (v, Default::default())).collect())
+	}
+
+	fn start_session(start_index: SessionIndex) {
+		<Self as pallet_session::SessionManager<_>>::start_session(start_index)
+	}
+
+	fn end_session(end_index: SessionIndex) {
+		<Self as pallet_session::SessionManager<_>>::end_session(end_index)
 	}
 }

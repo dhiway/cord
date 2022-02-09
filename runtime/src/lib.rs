@@ -59,8 +59,8 @@ use sp_core::{
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Extrinsic as ExtrinsicT,
-		NumberFor, OpaqueKeys, SaturatedConversion, Verify,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, NumberFor,
+		OpaqueKeys, SaturatedConversion, Verify,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
@@ -318,21 +318,37 @@ impl_opaque_keys! {
 	}
 }
 
+/// Special `ValidatorIdOf` implementation that is just returning the input as result.
+pub struct ValidatorIdOf;
+impl sp_runtime::traits::Convert<AccountId, Option<AccountId>> for ValidatorIdOf {
+	fn convert(a: AccountId) -> Option<AccountId> {
+		Some(a)
+	}
+}
+
 impl pallet_session::Config for Runtime {
 	type Event = Event;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
-	type ValidatorIdOf = ConvertInto;
+	type ValidatorIdOf = ValidatorIdOf;
 	type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
 	type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-	type SessionManager = pallet_authority::CordSessionManager<Self>;
+	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Authorities>;
 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
 
+/// Special `FullIdentificationOf` implementation that is returning for every input `Some(Default::default())`.
+pub struct FullIdentificationOf;
+impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf {
+	fn convert(_: AccountId) -> Option<()> {
+		Some(Default::default())
+	}
+}
+
 impl pallet_session::historical::Config for Runtime {
-	type FullIdentification = <Self as frame_system::Config>::AccountId;
-	type FullIdentificationOf = ConvertInto;
+	type FullIdentification = ();
+	type FullIdentificationOf = FullIdentificationOf;
 }
 
 parameter_types! {
