@@ -23,7 +23,6 @@ structopt = "0.3.25"
 pallet-authority = {  default-features = false, path = '../pallets/authority' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
-pallet-network-treasury = {  default-features = false, path = '../pallets/treasury' }
 
 # cord primitives
 cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
@@ -136,7 +135,6 @@ std = [
 	"pallet-authority/std",
   	"pallet-schema/std",
 	"pallet-stream/std",
-	"pallet-network-treasury/std",
   	"pallet-sudo/std",
 ]
 runtime-benchmarks = [

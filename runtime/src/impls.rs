@@ -41,34 +41,6 @@ where
 	}
 }
 
-pub struct DealWithFees<R>(sp_std::marker::PhantomData<R>);
-impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithFees<R>
-where
-	R: pallet_balances::Config + pallet_treasury::Config + pallet_authorship::Config,
-	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
-	pallet_network_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
-	<R as frame_system::Config>::AccountId: From<cord_primitives::AccountId>,
-	<R as frame_system::Config>::AccountId: Into<cord_primitives::AccountId>,
-	<R as frame_system::Config>::Event: From<pallet_balances::Event<R>>,
-{
-	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance<R>>) {
-		if let Some(fees) = fees_then_tips.next() {
-			// for fees, 80% to treasury, 10% to author, 10% to Network treasury
-			let split_fee = fees.ration(10, 90);
-			let mut split = split_fee.1.ration(80, 10);
-			if let Some(tips) = fees_then_tips.next() {
-				// for tips, if any, 100% to author
-				tips.merge_into(&mut split.1);
-			}
-			use pallet_network_treasury::Pallet as Network;
-			use pallet_treasury::Pallet as Treasury;
-			<Network<R> as OnUnbalanced<_>>::on_unbalanced(split_fee.0);
-			<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(split.0);
-			<ToAuthor<R> as OnUnbalanced<_>>::on_unbalanced(split.1);
-		}
-	}
-}
-
 pub struct DealWithCredits<R>(sp_std::marker::PhantomData<R>);
 impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithCredits<R>
 where
