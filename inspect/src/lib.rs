@@ -1,5 +1,5 @@
 // CORD Blockchain – https://dhiway.network
-// Copyright (C) 2019-2021 Dhiway
+// Copyright (C) 2019-2022 Dhiway
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -215,12 +215,12 @@ impl<Hash: FromStr, Number: FromStr> FromStr for BlockAddress<Hash, Number> {
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		// try to parse hash first
 		if let Ok(hash) = s.parse() {
-			return Ok(Self::Hash(hash))
+			return Ok(Self::Hash(hash));
 		}
 
 		// then number
 		if let Ok(number) = s.parse() {
-			return Ok(Self::Number(number))
+			return Ok(Self::Number(number));
 		}
 
 		// then assume it's bytes (hex-encoded)
@@ -248,7 +248,7 @@ impl<Hash: FromStr + Debug, Number: FromStr + Debug> FromStr for ExtrinsicAddres
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		// first try raw bytes
 		if let Ok(bytes) = sp_core::bytes::from_hex(s).map(Self::Bytes) {
-			return Ok(bytes)
+			return Ok(bytes);
 		}
 
 		// split by a bunch of different characters

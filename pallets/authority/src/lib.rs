@@ -51,6 +51,8 @@ pub mod pallet {
 	pub struct CordSessionManager<T>(sp_std::marker::PhantomData<T>);
 
 	#[pallet::pallet]
+	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::without_storage_info]
 	pub struct Pallet<T>(sp_std::marker::PhantomData<T>);
 
 	#[pallet::hooks]

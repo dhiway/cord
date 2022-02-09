@@ -1,5 +1,5 @@
 // CORD Blockchain – https://dhiway.network
-// Copyright (C) 2019-2021 Dhiway
+// Copyright (C) 2019-2022 Dhiway
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
