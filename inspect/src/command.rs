@@ -1,5 +1,5 @@
 // CORD Blockchain – https://dhiway.network
-// Copyright (C) 2019-2021 Dhiway
+// Copyright (C) 2019-2022 Dhiway
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -40,6 +40,7 @@ impl InspectCmd {
 			config.wasm_method,
 			config.default_heap_pages,
 			config.max_runtime_instances,
+			config.runtime_cache_size,
 		);
 		let client = new_full_client::<B, RA, _>(&config, None, executor)?;
 		let inspect = Inspector::<B>::new(client);
@@ -50,13 +51,13 @@ impl InspectCmd {
 				let res = inspect.block(input).map_err(|e| format!("{}", e))?;
 				println!("{}", res);
 				Ok(())
-			}
+			},
 			InspectSubCmd::Extrinsic { input } => {
 				let input = input.parse()?;
 				let res = inspect.extrinsic(input).map_err(|e| format!("{}", e))?;
 				println!("{}", res);
 				Ok(())
-			}
+			},
 		}
 	}
 }
