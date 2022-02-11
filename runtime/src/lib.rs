@@ -55,8 +55,8 @@ use sp_core::{
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdLookup, BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, OpaqueKeys,
-		SaturatedConversion, Verify,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Extrinsic as ExtrinsicT,
+		OpaqueKeys, SaturatedConversion, Verify,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, KeyTypeId, Perbill, Percent, Permill, Perquintill,
@@ -82,7 +82,7 @@ pub mod constants;
 
 use constants::{currency::*, fee::WeightToFee, time::*};
 // Cord Pallets
-pub use pallet_authority;
+pub use pallet_authorities;
 pub use pallet_schema;
 pub use pallet_stream;
 
@@ -95,8 +95,8 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 pub fn wasm_binary_unwrap() -> &'static [u8] {
 	WASM_BINARY.expect(
 		"Development wasm binary is not available. This means the client is \
-  		 built with `SKIP_WASM_BUILD` flag and it is only usable for \
-		 production chains. Please rebuild with the flag disabled.",
+           built with `SKIP_WASM_BUILD` flag and it is only usable for \
+         production chains. Please rebuild with the flag disabled.",
 	)
 }
 
@@ -130,8 +130,8 @@ pub fn native_version() -> NativeVersion {
 }
 
 type MoreThanHalfCouncil = EnsureOneOf<
-	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
+	EnsureRoot<AccountId>,
 >;
 
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
@@ -143,7 +143,7 @@ parameter_types! {
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub RuntimeBlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
-		::with_sensible_defaults(666 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
+		::with_sensible_defaults(333 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
 	pub RuntimeBlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
 		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u8 = 29;
@@ -368,7 +368,7 @@ impl sp_runtime::traits::Convert<AccountId, Option<AccountId>> for ValidatorIdOf
 impl pallet_session::Config for Runtime {
 	type Event = Event;
 	type ValidatorId = AccountId;
-	type ValidatorIdOf = ValidatorIdOf;
+	type ValidatorIdOf = ConvertInto;
 	type ShouldEndSession = Babe;
 	type NextSessionRotation = Babe;
 	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Authorities>;
@@ -716,7 +716,7 @@ where
 	type OverarchingCall = Call;
 }
 
-impl pallet_authority::Config for Runtime {
+impl pallet_authorities::Config for Runtime {
 	type Event = Event;
 	type AuthorityOrigin = MoreThanHalfCouncil;
 }
@@ -771,7 +771,7 @@ construct_runtime! {
 		Elections: pallet_elections_phragmen = 23,
 		TechnicalMembership: pallet_membership::<Instance1> = 24,
 		Treasury: pallet_treasury = 25,
-		Authorities: pallet_authority = 26,
+		Authorities: pallet_authorities = 26,
 		Scheduler: pallet_scheduler = 27,
 		Schema: pallet_schema = 31,
 		Stream: pallet_stream = 32,

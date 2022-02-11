@@ -36,7 +36,7 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-	/// Configuration for the parachain proposer.
+	/// Configuration for the proposer.
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_session::Config {
 		/// The overreaching event type.
@@ -110,7 +110,6 @@ impl<T: Config> pallet_session::SessionManager<T::ValidatorId> for Pallet<T> {
 		}
 
 		let mut validators = Session::<T>::validators();
-
 		AuthoritiesToRetire::<T>::take().iter().for_each(|v| {
 			if let Some(pos) = validators.iter().position(|r| r == v) {
 				validators.swap_remove(pos);

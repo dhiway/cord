@@ -1039,7 +1039,7 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "log",
- "pallet-authority",
+ "pallet-authorities",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -4239,7 +4239,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-authority"
+name = "pallet-authorities"
 version = "0.6.0"
 dependencies = [
  "cord-primitives",
