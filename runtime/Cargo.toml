@@ -1,6 +1,6 @@
 [package]
 name = 'cord-runtime'
-version = '0.6.0'
+version = '0.6.1'
 authors = ['Dhiway <info@dhiway.com>']
 build = 'build.rs'
 edition = '2021'
@@ -20,7 +20,7 @@ smallvec = "1.6.1"
 structopt = "0.3.25"
 
 # cord pallets 
-pallet-authority = {  default-features = false, path = '../pallets/authority' }
+pallet-authorities = {  default-features = false, path = '../pallets/authorities' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
 
@@ -132,7 +132,7 @@ std = [
     "log/std",
 	"sp-session/std",
 	"sp-version/std",
-	"pallet-authority/std",
+	"pallet-authorities/std",
   	"pallet-schema/std",
 	"pallet-stream/std",
   	"pallet-sudo/std",

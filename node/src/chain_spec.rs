@@ -17,7 +17,7 @@
 
 //! CORD chain configurations.
 
-pub use cord_primitives::{AccountId, Balance, Signature, DEFAULT_SESSION_PERIOD};
+pub use cord_primitives::{AccountId, Balance, Signature, CORD_SESSION_PERIOD};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	constants::currency::*, AuraConfig, AuthoritiesConfig, AuthorityDiscoveryConfig,
@@ -260,7 +260,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		//3xmViQrSRdQJoNE5GzBmEZAPBFkSsbxnjH4FVAgSbB7CoKC4
 		hex!["ae2b60ce50c8a6a0f9f1eba33eec5106facfb366e946a59591633bd30c090d7d"].into(),
 	];
-	let session_period = DEFAULT_SESSION_PERIOD;
+	let session_period = CORD_SESSION_PERIOD;
 	let root_key: AccountId = endowed_accounts[0].clone();
 	let num_endowed_accounts = endowed_accounts.len();
 	const STASH: u128 = 100 * WAY;
@@ -278,7 +278,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 		},
 		authorities: AuthoritiesConfig {
-			validators: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
 			session_period,
 		},
 		session: SessionConfig {
@@ -358,7 +358,7 @@ fn cord_development_genesis(
 	root_key: AccountId,
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> GenesisConfig {
-	let session_period = DEFAULT_SESSION_PERIOD;
+	let session_period = CORD_SESSION_PERIOD;
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 	let num_endowed_accounts = endowed_accounts.len();
 	const ENDOWMENT: u128 = 10_000 * WAY;
@@ -370,7 +370,7 @@ fn cord_development_genesis(
 			balances: endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect(),
 		},
 		authorities: AuthoritiesConfig {
-			validators: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
 			session_period,
 		},
 		session: SessionConfig {
