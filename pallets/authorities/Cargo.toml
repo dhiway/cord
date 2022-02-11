@@ -1,6 +1,6 @@
 [package]
-name = "pallet-authority"
-description = "Dhiway Authorities Module"
+name = "pallet-authorities"
+description = "CORD authorities manager"
 version = '0.6.0'
 edition = '2021'
 license = "GPL-3.0"
