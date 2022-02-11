@@ -13,4 +13,3 @@ members = [
 	"pallets/stream",
 	"pallets/authorities",
 ]
-

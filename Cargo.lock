@@ -1039,7 +1039,11 @@ dependencies = [
  "frame-system-benchmarking",
  "frame-system-rpc-runtime-api",
  "log",
+<<<<<<< HEAD
  "pallet-authorities",
+=======
+ "pallet-authority",
+>>>>>>> upstream/cord-pos
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -4239,7 +4243,11 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "pallet-authorities"
+=======
+name = "pallet-authority"
+>>>>>>> upstream/cord-pos
 version = "0.6.0"
 dependencies = [
  "cord-primitives",
