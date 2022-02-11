@@ -971,7 +971,7 @@ dependencies = [
  "hex-literal",
  "log",
  "pallet-aura",
- "pallet-authority",
+ "pallet-authorities",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-balances",
@@ -4048,7 +4048,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-authority"
+name = "pallet-authorities"
 version = "0.6.0"
 dependencies = [
  "cord-primitives",
