@@ -22,7 +22,7 @@
 #![allow(clippy::from_over_into)]
 
 use codec::Encode;
-pub use cord_primitives::{AccountId, SessionApiError, Signature, DEFAULT_SESSION_PERIOD};
+pub use cord_primitives::{AccountId, SessionApiError, Signature, CORD_SESSION_PERIOD};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -89,12 +89,18 @@ use constants::{currency::*, fee::WeightToFee, time::*};
 use sp_runtime::generic::Era;
 
 // Cord Pallets
+<<<<<<< HEAD
 pub use pallet_authority;
 pub use pallet_schema;
 pub use pallet_stream;
 // Weights used in the runtime.
 pub mod weights;
 // use pallet_election_provider_multi_phase::WeightInfo;
+=======
+pub use pallet_authorities;
+pub use pallet_schema;
+pub use pallet_stream;
+>>>>>>> upstream/cord-poa
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -120,7 +126,11 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to equal spec_version. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
+<<<<<<< HEAD
 	spec_version: 6000,
+=======
+	spec_version: 6010,
+>>>>>>> upstream/cord-poa
 	impl_version: 0,
 	#[cfg(not(feature = "disable-runtime-api"))]
 	apis: RUNTIME_API_VERSIONS,
@@ -145,12 +155,20 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
+<<<<<<< HEAD
 	pub const BlockHashCount: BlockNumber = 900;
+=======
+	pub const BlockHashCount: BlockNumber = 1200;
+>>>>>>> upstream/cord-poa
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub RuntimeBlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
+<<<<<<< HEAD
 		::with_sensible_defaults(666 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
+=======
+		::with_sensible_defaults(333 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
+>>>>>>> upstream/cord-poa
 	pub RuntimeBlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
 		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u8 = 29;
@@ -318,6 +336,7 @@ impl_opaque_keys! {
 	}
 }
 
+<<<<<<< HEAD
 /// Special `ValidatorIdOf` implementation that is just returning the input as result.
 pub struct ValidatorIdOf;
 impl sp_runtime::traits::Convert<AccountId, Option<AccountId>> for ValidatorIdOf {
@@ -333,11 +352,21 @@ impl pallet_session::Config for Runtime {
 	type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
 	type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
 	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Authorities>;
+=======
+impl pallet_session::Config for Runtime {
+	type Event = Event;
+	type ValidatorId = <Self as frame_system::Config>::AccountId;
+	type ValidatorIdOf = ConvertInto;
+	type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
+	type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
+	type SessionManager = pallet_authorities::CordSessionManager<Self>;
+>>>>>>> upstream/cord-poa
 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
 
+<<<<<<< HEAD
 /// Special `FullIdentificationOf` implementation that is returning for every input `Some(Default::default())`.
 pub struct FullIdentificationOf;
 impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf {
@@ -349,6 +378,11 @@ impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf
 impl pallet_session::historical::Config for Runtime {
 	type FullIdentification = ();
 	type FullIdentificationOf = FullIdentificationOf;
+=======
+impl pallet_session::historical::Config for Runtime {
+	type FullIdentification = <Self as frame_system::Config>::AccountId;
+	type FullIdentificationOf = ConvertInto;
+>>>>>>> upstream/cord-poa
 }
 
 parameter_types! {
@@ -369,7 +403,11 @@ impl pallet_multisig::Config for Runtime {
 	type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
 }
 
+<<<<<<< HEAD
 impl pallet_authority::Config for Runtime {
+=======
+impl pallet_authorities::Config for Runtime {
+>>>>>>> upstream/cord-poa
 	type Event = Event;
 	type AuthorityOrigin = MoreThanHalfCouncil;
 }
@@ -403,7 +441,11 @@ impl pallet_authority_discovery::Config for Runtime {
 
 parameter_types! {
 	pub const Offset: u32 = 0;
+<<<<<<< HEAD
 	pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
+=======
+	pub const SessionPeriod: u32 = CORD_SESSION_PERIOD;
+>>>>>>> upstream/cord-poa
 }
 
 parameter_types! {
@@ -730,6 +772,12 @@ construct_runtime! {
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: frame_system,
+<<<<<<< HEAD
+=======
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip,
+		Session: pallet_session,
+		Authorities: pallet_authorities,
+>>>>>>> upstream/cord-poa
 		Scheduler: pallet_scheduler,
 		Aura: pallet_aura,
 		Timestamp: pallet_timestamp,
@@ -737,7 +785,10 @@ construct_runtime! {
 		Indices: pallet_indices,
 		Balances: pallet_balances,
 		TransactionPayment: pallet_transaction_payment,
+<<<<<<< HEAD
 		Session: pallet_session,
+=======
+>>>>>>> upstream/cord-poa
 		Democracy: pallet_democracy,
 		Council: pallet_collective::<Instance1>,
 		TechnicalCommittee: pallet_collective::<Instance2>,
@@ -745,12 +796,19 @@ construct_runtime! {
 		TechnicalMembership: pallet_membership::<Instance1>,
 		Grandpa: pallet_grandpa,
 		Treasury: pallet_treasury,
+<<<<<<< HEAD
 		Authorities: pallet_authority,
 		ImOnline: pallet_im_online,
 		AuthorityDiscovery: pallet_authority_discovery,
 		Offences: pallet_offences,
 		Historical: pallet_session_historical::{Pallet},
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip,
+=======
+		ImOnline: pallet_im_online,
+		AuthorityDiscovery: pallet_authority_discovery,
+		Offences: pallet_offences,
+		Historical: pallet_session_historical,
+>>>>>>> upstream/cord-poa
 		Schema: pallet_schema,
 		Stream: pallet_stream,
 		Preimage: pallet_preimage,
@@ -931,51 +989,25 @@ impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{list_benchmark, Benchmarking, BenchmarkList};
+			use frame_benchmarking::{Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 
-			use pallet_session_benchmarking::Pallet as SessionBench;
-			use pallet_offences_benchmarking::Pallet as OffencesBench;
-			use frame_system_benchmarking::Pallet as SystemBench;
-
 			let mut list = Vec::<BenchmarkList>::new();
-
-			list_benchmark!(list, extra, pallet_balances, Balances);
-			list_benchmark!(list, extra, pallet_collective, Council);
-			list_benchmark!(list, extra, pallet_collective, TechnicalCommittee);
-			list_benchmark!(list, extra, pallet_democracy, Democracy);
-			list_benchmark!(list, extra, pallet_elections_phragmen, PhragmenElection);
-			list_benchmark!(list, extra, pallet_indices, Indices);
-			list_benchmark!(list, extra, pallet_membership, TechnicalMembership);
-			list_benchmark!(list, extra, pallet_multisig, Multisig);
-			list_benchmark!(list, extra, pallet_scheduler, Scheduler);
-			list_benchmark!(list, extra, pallet_session, SessionBench::<Runtime>);
-			list_benchmark!(list, extra, frame_system, SystemBench::<Runtime>);
-			list_benchmark!(list, extra, pallet_timestamp, Timestamp);
-			list_benchmark!(list, extra, pallet_treasury, Treasury);
-			list_benchmark!(list, extra, pallet_utility, Utility);
-			list_benchmark!(list, extra, pallet_vesting, Vesting);
+			list_benchmarks!(list, extra);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
-
 			return (list, storage_info)
 		}
 
 		fn dispatch_benchmark(
-			config: frame_benchmarking::BenchmarkConfig
+			config: frame_benchmarking::BenchmarkConfig,
 		) -> Result<
 			Vec<frame_benchmarking::BenchmarkBatch>,
 			sp_runtime::RuntimeString,
 		> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
-			use pallet_session_benchmarking::Pallet as SessionBench;
-			use pallet_offences_benchmarking::Pallet as OffencesBench;
-			use frame_system_benchmarking::Pallet as SystemBench;
+			use frame_benchmarking::{Benchmarking, BenchmarkBatch, TrackedStorageKey};
 
-			impl pallet_session_benchmarking::Config for Runtime {}
-			impl pallet_offences_benchmarking::Config for Runtime {}
-			impl frame_system_benchmarking::Config for Runtime {}
-
+			let mut batches = Vec::<BenchmarkBatch>::new();
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
 				hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
@@ -987,30 +1019,10 @@ impl_runtime_apis! {
 				hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef70a98fdbe9ce6c55837576c60c7af3850").to_vec().into(),
 				// System Events
 				hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec().into(),
-				// Treasury Account
-				hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef7b99d880ec681799c0cf30e8886371da95ecffd7b6c0f78751baa9d281e0bfa3a6d6f646c70792f74727372790000000000000000000000000000000000000000").to_vec().into(),
 			];
-
-			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
+			add_benchmarks!(params, batches);
 
-			// Substrate
-			add_benchmark!(params, batches, pallet_balances, Balances);
-			add_benchmark!(params, batches, pallet_collective, Council);
-			add_benchmark!(params, batches, pallet_collective, TechnicalCommittee);
-			add_benchmark!(params, batches, pallet_democracy, Democracy);
-			add_benchmark!(params, batches, pallet_elections_phragmen, PhragmenElection);
-			add_benchmark!(params, batches, pallet_indices, Indices);
-			add_benchmark!(params, batches, pallet_membership, TechnicalMembership);
-			add_benchmark!(params, batches, pallet_scheduler, Scheduler);
-			add_benchmark!(params, batches, pallet_session, SessionBench::<Runtime>);
-			add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
-			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-			add_benchmark!(params, batches, pallet_treasury, Treasury);
-			add_benchmark!(params, batches, pallet_utility, Utility);
-			add_benchmark!(params, batches, pallet_vesting, Vesting);
-
-			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
 		}
 	}

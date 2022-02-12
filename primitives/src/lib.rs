@@ -20,8 +20,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode};
-// use sp_core::crypto::KeyTypeId;
-// use sp_runtime::ConsensusEngineId;
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -79,11 +77,10 @@ pub type VersionOf = Vec<u8>;
 /// status Information
 pub type StatusOf = bool;
 
-pub const DEFAULT_SESSION_PERIOD: u32 = 900;
-pub const DEFAULT_MILLISECS_PER_BLOCK: u64 = 1000;
+// Cord Session Duration - Blocks
+pub const CORD_SESSION_PERIOD: u32 = 900;
 
 #[derive(Encode, Decode, PartialEq, Eq, sp_std::fmt::Debug)]
 pub enum SessionApiError {
-	TooLowSessionId,
 	DecodeKey,
 }

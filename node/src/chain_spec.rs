@@ -17,12 +17,12 @@
 
 //! CORD chain configurations.
 
-pub use cord_primitives::{AccountId, Balance, Signature, DEFAULT_SESSION_PERIOD};
+pub use cord_primitives::{AccountId, Balance, Signature, CORD_SESSION_PERIOD};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	constants::currency::*, AuraConfig, AuthorityDiscoveryConfig, BalancesConfig, Block,
-	CouncilConfig, DemocracyConfig, ElectionsConfig, GrandpaConfig, IndicesConfig, SessionConfig,
-	SessionKeys, SudoConfig, SystemConfig, TechnicalMembershipConfig,
+	constants::currency::*, AuraConfig, AuthoritiesConfig, AuthorityDiscoveryConfig,
+	BalancesConfig, Block, CouncilConfig, DemocracyConfig, ElectionsConfig, GrandpaConfig,
+	IndicesConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -260,6 +260,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		//3xmViQrSRdQJoNE5GzBmEZAPBFkSsbxnjH4FVAgSbB7CoKC4
 		hex!["ae2b60ce50c8a6a0f9f1eba33eec5106facfb366e946a59591633bd30c090d7d"].into(),
 	];
+	let session_period = CORD_SESSION_PERIOD;
 	let root_key: AccountId = endowed_accounts[0].clone();
 	let num_endowed_accounts = endowed_accounts.len();
 	const STASH: u128 = 100 * WAY;
@@ -275,6 +276,10 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.map(|k| (k, ENDOWMENT))
 				.chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
 				.collect(),
+		},
+		authorities: AuthoritiesConfig {
+			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			session_period,
 		},
 		session: SessionConfig {
 			keys: initial_authorities
@@ -353,6 +358,7 @@ fn cord_development_genesis(
 	root_key: AccountId,
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> GenesisConfig {
+	let session_period = CORD_SESSION_PERIOD;
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 	let num_endowed_accounts = endowed_accounts.len();
 	const ENDOWMENT: u128 = 10_000 * WAY;
@@ -362,6 +368,10 @@ fn cord_development_genesis(
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig {
 			balances: endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect(),
+		},
+		authorities: AuthoritiesConfig {
+			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			session_period,
 		},
 		session: SessionConfig {
 			keys: initial_authorities

@@ -11,6 +11,6 @@ members = [
 	"node",
 	"pallets/schema",
 	"pallets/stream",
-	"pallets/authority",
+	"pallets/authorities",
 ]
 
