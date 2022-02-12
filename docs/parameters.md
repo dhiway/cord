@@ -5,27 +5,15 @@ Many of these parameter values can be updated via on-chain governance. If you re
 Periods of common actions and attributes
 
 Slot: 4 seconds \*(generally one block per slot, although see note below)
-Epoch: 2 days (43_200 slots x 4 seconds)
 Session: 2 days (6 sessions per Era)
 Era: 12 days (259_200 slots x 4 seconds)
 
 | Cord    | Time      | Slots\* |
 | ------- | --------- | ------- |
 | Slot    | 4 seconds | 1       |
-| Epoch   | 2 days    | 43_200  |
 | Session | 2 days    | 43_200  |
-| Era     | 12 days   | 259_200 |
 
 \*A maximum of one block per slot can be in a canonical chain. Occasionally, a slot will be without a block in the chain. Thus, the times given are estimates.
-
-# Staking, Validating, and Nominating
-
-| Kusama               | Time    | Slots   | Description                                                                                                                                                                                         |
-| -------------------- | ------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Term duration        | 2 days  | 43_200  | The time for which a validator is in the set after being elected. Note, this duration can be shortened in the case the a validator misbehaves.                                                      |
-| Nomination period    | 2 days  | 43_200  | How often a new validator set is elected.                                                                                                                                                           |
-| Bonding duration     | 24 days | 518_400 | How long until your funds will be transferrable after unbonding. Note that the bonding duration is defined in eras, not directly by slots.                                                          |
-| Slash defer duration | 24 days | 518_400 | Prevents overslashing and validators "escaping" and getting their nominators slashed with no repercussions to themselves. Note that the bonding duration is defined in eras, not directly by slots. |
 
 # Treasury
 

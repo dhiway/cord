@@ -59,8 +59,8 @@ use sp_core::{
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdLookup, BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, NumberFor,
-		OpaqueKeys, SaturatedConversion, Verify,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Extrinsic as ExtrinsicT,
+		NumberFor, OpaqueKeys, SaturatedConversion, Verify,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
@@ -89,18 +89,9 @@ use constants::{currency::*, fee::WeightToFee, time::*};
 use sp_runtime::generic::Era;
 
 // Cord Pallets
-<<<<<<< HEAD
-pub use pallet_authority;
-pub use pallet_schema;
-pub use pallet_stream;
-// Weights used in the runtime.
-pub mod weights;
-// use pallet_election_provider_multi_phase::WeightInfo;
-=======
 pub use pallet_authorities;
 pub use pallet_schema;
 pub use pallet_stream;
->>>>>>> upstream/cord-poa
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -126,11 +117,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to equal spec_version. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-<<<<<<< HEAD
-	spec_version: 6000,
-=======
 	spec_version: 6010,
->>>>>>> upstream/cord-poa
 	impl_version: 0,
 	#[cfg(not(feature = "disable-runtime-api"))]
 	apis: RUNTIME_API_VERSIONS,
@@ -155,20 +142,12 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
-<<<<<<< HEAD
-	pub const BlockHashCount: BlockNumber = 900;
-=======
 	pub const BlockHashCount: BlockNumber = 1200;
->>>>>>> upstream/cord-poa
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub RuntimeBlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
-<<<<<<< HEAD
-		::with_sensible_defaults(666 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
-=======
 		::with_sensible_defaults(333 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
->>>>>>> upstream/cord-poa
 	pub RuntimeBlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
 		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u8 = 29;
@@ -336,23 +315,6 @@ impl_opaque_keys! {
 	}
 }
 
-<<<<<<< HEAD
-/// Special `ValidatorIdOf` implementation that is just returning the input as result.
-pub struct ValidatorIdOf;
-impl sp_runtime::traits::Convert<AccountId, Option<AccountId>> for ValidatorIdOf {
-	fn convert(a: AccountId) -> Option<AccountId> {
-		Some(a)
-	}
-}
-
-impl pallet_session::Config for Runtime {
-	type Event = Event;
-	type ValidatorId = <Self as frame_system::Config>::AccountId;
-	type ValidatorIdOf = ValidatorIdOf;
-	type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-	type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
-	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Authorities>;
-=======
 impl pallet_session::Config for Runtime {
 	type Event = Event;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
@@ -360,29 +322,14 @@ impl pallet_session::Config for Runtime {
 	type ShouldEndSession = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
 	type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
 	type SessionManager = pallet_authorities::CordSessionManager<Self>;
->>>>>>> upstream/cord-poa
 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
 
-<<<<<<< HEAD
-/// Special `FullIdentificationOf` implementation that is returning for every input `Some(Default::default())`.
-pub struct FullIdentificationOf;
-impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf {
-	fn convert(_: AccountId) -> Option<()> {
-		Some(Default::default())
-	}
-}
-
-impl pallet_session::historical::Config for Runtime {
-	type FullIdentification = ();
-	type FullIdentificationOf = FullIdentificationOf;
-=======
 impl pallet_session::historical::Config for Runtime {
 	type FullIdentification = <Self as frame_system::Config>::AccountId;
 	type FullIdentificationOf = ConvertInto;
->>>>>>> upstream/cord-poa
 }
 
 parameter_types! {
@@ -403,11 +350,7 @@ impl pallet_multisig::Config for Runtime {
 	type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
 }
 
-<<<<<<< HEAD
-impl pallet_authority::Config for Runtime {
-=======
 impl pallet_authorities::Config for Runtime {
->>>>>>> upstream/cord-poa
 	type Event = Event;
 	type AuthorityOrigin = MoreThanHalfCouncil;
 }
@@ -441,11 +384,7 @@ impl pallet_authority_discovery::Config for Runtime {
 
 parameter_types! {
 	pub const Offset: u32 = 0;
-<<<<<<< HEAD
-	pub const SessionPeriod: u32 = DEFAULT_SESSION_PERIOD;
-=======
 	pub const SessionPeriod: u32 = CORD_SESSION_PERIOD;
->>>>>>> upstream/cord-poa
 }
 
 parameter_types! {
@@ -772,12 +711,9 @@ construct_runtime! {
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: frame_system,
-<<<<<<< HEAD
-=======
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip,
 		Session: pallet_session,
 		Authorities: pallet_authorities,
->>>>>>> upstream/cord-poa
 		Scheduler: pallet_scheduler,
 		Aura: pallet_aura,
 		Timestamp: pallet_timestamp,
@@ -785,10 +721,6 @@ construct_runtime! {
 		Indices: pallet_indices,
 		Balances: pallet_balances,
 		TransactionPayment: pallet_transaction_payment,
-<<<<<<< HEAD
-		Session: pallet_session,
-=======
->>>>>>> upstream/cord-poa
 		Democracy: pallet_democracy,
 		Council: pallet_collective::<Instance1>,
 		TechnicalCommittee: pallet_collective::<Instance2>,
@@ -796,19 +728,10 @@ construct_runtime! {
 		TechnicalMembership: pallet_membership::<Instance1>,
 		Grandpa: pallet_grandpa,
 		Treasury: pallet_treasury,
-<<<<<<< HEAD
-		Authorities: pallet_authority,
-		ImOnline: pallet_im_online,
-		AuthorityDiscovery: pallet_authority_discovery,
-		Offences: pallet_offences,
-		Historical: pallet_session_historical::{Pallet},
-		RandomnessCollectiveFlip: pallet_randomness_collective_flip,
-=======
 		ImOnline: pallet_im_online,
 		AuthorityDiscovery: pallet_authority_discovery,
 		Offences: pallet_offences,
 		Historical: pallet_session_historical,
->>>>>>> upstream/cord-poa
 		Schema: pallet_schema,
 		Stream: pallet_stream,
 		Preimage: pallet_preimage,
