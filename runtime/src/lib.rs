@@ -249,6 +249,7 @@ parameter_types! {
 	pub storage SessionsPerEra: SessionIndex = 6;
 	pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS as u64;
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
+	pub storage EpochDurationInBlocks: BlockNumber = EPOCH_DURATION_IN_SLOTS;
 	pub ReportLongevity: u64 = SessionsPerEra::get() as u64 * EpochDuration::get();
 }
 
