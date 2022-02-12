@@ -18,15 +18,6 @@ Periods of common actions and attributes
 
 \*A maximum of one block per slot can be in a canonical chain. Occasionally, a slot will be without a block in the chain. Thus, the times given are estimates.
 
-# Staking, Validating, and Nominating
-
-| Cord                 | Time    | Slots   | Description                                                                                                                                                                                         |
-| -------------------- | ------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Term duration        | 1 day   | 14_400  | The time for which a validator is in the set after being elected. Note, this duration can be shortened in the case the a validator misbehaves.                                                      |
-| Nomination period    | 1 day   | 14_400  | How often a new validator set is elected.                                                                                                                                                           |
-| Bonding duration     | 28 days | 403_200 | How long until your funds will be transferrable after unbonding. Note that the bonding duration is defined in eras, not directly by slots.                                                          |
-| Slash defer duration | 28 days | 403_200 | Prevents overslashing and validators "escaping" and getting their nominators slashed with no repercussions to themselves. Note that the bonding duration is defined in eras, not directly by slots. |
-
 # Treasury
 
 | Treasury               | Time    | Slots   | Description                                                  |
@@ -39,9 +30,7 @@ Burn percentage is currently 0.20%.
 
 WAYT have 12 decimals of precision. In other words, 1e12 (1_000_000_000_000, or one trillion) Plancks make up a single WAYT.
 
-# Only for Demo
-
-## Governance
+# OnchainGovernance
 
 | Democracy        | Time   | Slots   | Description                                                                                                                                                   |
 | ---------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |

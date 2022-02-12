@@ -55,7 +55,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn copyright_start_year() -> i32 {
-		2020
+		2019
 	}
 
 	fn executable_name() -> String {

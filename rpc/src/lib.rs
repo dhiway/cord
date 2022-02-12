@@ -106,7 +106,6 @@ where
 {
 	use frame_rpc_system::{FullSystem, SystemApi};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
-	// use sc_consensus_babe_rpc::BabeRpcHandler;
 	use sc_finality_grandpa_rpc::{GrandpaApi, GrandpaRpcHandler};
 	let mut io = jsonrpc_core::IoHandler::default();
 	let FullDeps { client, pool, select_chain, chain_spec, deny_unsafe, babe, grandpa } = deps;

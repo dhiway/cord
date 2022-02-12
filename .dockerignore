@@ -1,8 +1,9 @@
+doc
 .git
 .github
 .gitignore
 task-definition*
-**/target
+**target*
 **/*.rs.bk
 *.iml
 .vscode
@@ -10,4 +11,7 @@ task-definition*
 docker-compose.yml
 Dockerfile
 .dockerignore
+.idea/
+.local
 .env*
+
