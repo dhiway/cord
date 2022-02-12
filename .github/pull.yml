@@ -1,0 +1,11 @@
+version: "1"
+rules:
+  - base: develop
+    upstream: dhiway:master
+    mergeMethod: hardreset
+  - base: cord-poa
+    upstream: dhiway:cord-poa
+    mergeMethod: hardreset
+  - base: cord-pos
+    upstream: dhiway:pos
+    mergeMethod: hardreset
