@@ -18,12 +18,12 @@
 //! CORD chain configurations.
 
 pub use cord_primitives::{AccountId, Balance, Signature};
-pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	constants::currency::*, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
 	CouncilConfig, DemocracyConfig, ElectionsConfig, IndicesConfig, SessionConfig, SessionKeys,
 	SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
+pub use cord_runtime::{EpochDurationInBlocks, GenesisConfig};
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
@@ -62,6 +62,27 @@ pub struct Extensions {
 
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+pub type CordChainSpec = sc_service::GenericChainSpec<CordGenesisConfig, Extensions>;
+/// Extension for the CORD genesis config to support session length.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct CordGenesisConfig {
+	/// The runtime genesis config.
+	runtime_genesis_config: GenesisConfig,
+	/// The session length in blocks.
+	/// If `None` is supplied, the default value is used.
+	session_length_in_blocks: Option<u32>,
+}
+
+impl sp_runtime::BuildStorage for CordGenesisConfig {
+	fn assimilate_storage(&self, storage: &mut sp_core::storage::Storage) -> Result<(), String> {
+		sp_state_machine::BasicExternalities::execute_with_storage(storage, || {
+			if let Some(length) = self.session_length_in_blocks.as_ref() {
+				EpochDurationInBlocks::set(length);
+			}
+		});
+		self.runtime_genesis_config.assimilate_storage(storage)
+	}
+}
 
 fn session_keys(
 	babe: BabeId,
@@ -152,14 +173,17 @@ fn cord_local_testnet_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig
 	)
 }
 
-pub fn cord_development_config() -> Result<ChainSpec, String> {
+pub fn cord_development_config() -> Result<CordChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
 	let properties = get_properties("WAY", 12, 29);
-	Ok(ChainSpec::from_genesis(
+	Ok(CordChainSpec::from_genesis(
 		"Dev. Node",
 		"cord_dev",
 		ChainType::Development,
-		move || cord_development_config_genesis(wasm_binary),
+		move || CordGenesisConfig {
+			runtime_genesis_config: cord_development_config_genesis(wasm_binary),
+			session_length_in_blocks: Some(10),
+		},
 		vec![],
 		None,
 		Some(DEFAULT_PROTOCOL_ID),
