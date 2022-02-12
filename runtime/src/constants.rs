@@ -37,7 +37,7 @@ pub mod time {
 	/// up by `pallet_aura` to implement `fn slot_duration()`.
 	///
 	/// Change this to adjust the block time.
-	pub const MILLISECS_PER_BLOCK: Moment = 1000;
+	pub const MILLISECS_PER_BLOCK: Moment = 2000;
 	// pub const SECS_PER_BLOCK: Moment = MILLISECS_PER_BLOCK / 1000;
 
 	// NOTE: Currently it is not possible to change the slot duration after the

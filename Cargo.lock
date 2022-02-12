@@ -819,7 +819,11 @@ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "cord-executor"
+<<<<<<< HEAD
+version = "0.6.0"
+=======
 version = "0.6.1"
+>>>>>>> upstream/cord-poa
 dependencies = [
  "cord-primitives",
  "cord-runtime",
@@ -852,7 +856,11 @@ dependencies = [
 
 [[package]]
 name = "cord-inspect"
+<<<<<<< HEAD
+version = "0.6.0"
+=======
 version = "0.6.1"
+>>>>>>> upstream/cord-poa
 dependencies = [
  "derive_more",
  "parity-scale-codec",
@@ -869,7 +877,11 @@ dependencies = [
 
 [[package]]
 name = "cord-node"
+<<<<<<< HEAD
+version = "0.6.0"
+=======
 version = "0.6.1"
+>>>>>>> upstream/cord-poa
 dependencies = [
  "assert_matches",
  "cord-executor",
@@ -926,7 +938,11 @@ dependencies = [
 
 [[package]]
 name = "cord-primitives"
+<<<<<<< HEAD
+version = "0.6.0"
+=======
 version = "0.6.1"
+>>>>>>> upstream/cord-poa
 dependencies = [
  "frame-system",
  "parity-scale-codec",
@@ -941,7 +957,11 @@ dependencies = [
 
 [[package]]
 name = "cord-rpc"
+<<<<<<< HEAD
+version = "0.6.0"
+=======
 version = "0.6.1"
+>>>>>>> upstream/cord-poa
 dependencies = [
  "cord-primitives",
  "jsonrpc-core",
@@ -959,7 +979,11 @@ dependencies = [
 
 [[package]]
 name = "cord-runtime"
+<<<<<<< HEAD
+version = "0.6.0"
+=======
 version = "0.6.1"
+>>>>>>> upstream/cord-poa
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
@@ -4048,8 +4072,13 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
+name = "pallet-authority"
+version = "0.6.0"
+=======
 name = "pallet-authorities"
 version = "0.6.1"
+>>>>>>> upstream/cord-poa
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
@@ -4318,7 +4347,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-schema"
+<<<<<<< HEAD
+version = "0.6.0"
+=======
 version = "0.6.1"
+>>>>>>> upstream/cord-poa
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
@@ -4397,7 +4430,11 @@ dependencies = [
 
 [[package]]
 name = "pallet-stream"
+<<<<<<< HEAD
+version = "0.6.0"
+=======
 version = "0.6.1"
+>>>>>>> upstream/cord-poa
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
