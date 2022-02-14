@@ -55,11 +55,11 @@ use sp_core::{
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Extrinsic as ExtrinsicT,
-		OpaqueKeys, SaturatedConversion, Verify,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, OpaqueKeys,
+		SaturatedConversion, Verify,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, KeyTypeId, Perbill, Percent, Permill, Perquintill,
+	ApplyExtrinsicResult, FixedPointNumber, KeyTypeId, Perbill, Permill, Perquintill,
 };
 use sp_staking::SessionIndex;
 use sp_std::prelude::*;
@@ -106,7 +106,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cord"),
 	impl_name: create_runtime_str!("dhiway-cord"),
 	authoring_version: 0,
-	spec_version: 6000,
+	spec_version: 6010,
 	impl_version: 1,
 	#[cfg(not(feature = "disable-runtime-api"))]
 	apis: RUNTIME_API_VERSIONS,
@@ -135,6 +135,11 @@ type MoreThanHalfCouncil = EnsureOneOf<
 >;
 
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
+// A single block should take 1s, of which 333ms is for creation,
+// and the remaining for propagation and validation.
+const MAX_BLOCK_WEIGHT: Weight = 400 * WEIGHT_PER_MILLIS;
+/// Maximum length of block. Up to 5MB.
+pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
@@ -143,9 +148,9 @@ parameter_types! {
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub RuntimeBlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
-		::with_sensible_defaults(333 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
+		::with_sensible_defaults(MAX_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO);
 	pub RuntimeBlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
-		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
+		::max_with_normal_ratio(MAX_BLOCK_SIZE, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u8 = 29;
 }
 
@@ -245,8 +250,7 @@ impl pallet_preimage::Config for Runtime {
 parameter_types! {
 	// NOTE: Currently it is not possible to change the epoch duration after the chain has started.
 	// Attempting to do so will brick block production.
-	// Six sessions in an era (6 hours).
-	pub storage SessionsPerEra: SessionIndex = 6;
+	pub storage SessionsPerEra: SessionIndex = 2;
 	pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS as u64;
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 	pub ReportLongevity: u64 = SessionsPerEra::get() as u64 * EpochDuration::get();
@@ -313,7 +317,7 @@ pub type SlowAdjustingFeeUpdate<R> =
 	TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 25 * MICRO_WAY;
+	pub const TransactionByteFee: Balance = 10 * MILLI_WAY;
 	pub const OperationalFeeMultiplier: u8 = 5;
 }
 
@@ -357,7 +361,7 @@ impl_opaque_keys! {
 	}
 }
 
-/// Special `ValidatorIdOf` implementation that is just returning the input as result.
+/// `ValidatorIdOf` implementation that is just returning the input as result.
 pub struct ValidatorIdOf;
 impl sp_runtime::traits::Convert<AccountId, Option<AccountId>> for ValidatorIdOf {
 	fn convert(a: AccountId) -> Option<AccountId> {
@@ -368,7 +372,7 @@ impl sp_runtime::traits::Convert<AccountId, Option<AccountId>> for ValidatorIdOf
 impl pallet_session::Config for Runtime {
 	type Event = Event;
 	type ValidatorId = AccountId;
-	type ValidatorIdOf = ConvertInto;
+	type ValidatorIdOf = ValidatorIdOf;
 	type ShouldEndSession = Babe;
 	type NextSessionRotation = Babe;
 	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Authorities>;
@@ -377,7 +381,7 @@ impl pallet_session::Config for Runtime {
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
 
-/// Special `FullIdentificationOf` implementation that is returning for every input `Some(Default::default())`.
+/// `FullIdentificationOf` implementation that is returning for every input `Some(Default::default())`.
 pub struct FullIdentificationOf;
 impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf {
 	fn convert(_: AccountId) -> Option<()> {
@@ -392,13 +396,12 @@ impl pallet_session::historical::Config for Runtime {
 
 parameter_types! {
 	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
-	pub const VotingPeriod: BlockNumber = 7 * DAYS;
+	pub const VotingPeriod: BlockNumber = 5 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
 	pub const InstantAllowed: bool = true;
 	pub const MinimumDeposit: Balance = 10 * MILLI_WAY;
 	pub const EnactmentPeriod: BlockNumber = 8 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
-	// pub const PreimageByteDeposit: Balance = 1 * MICRO_WAY;
 	pub const MaxVotes: u32 = 100;
 	pub const MaxProposals: u32 = 100;
 }
@@ -474,11 +477,11 @@ parameter_types! {
 	pub const VotingBondBase: Balance = deposit(1, 64);
 	// additional data per vote is 32 bytes (account id).
 	pub const VotingBondFactor: Balance = deposit(0, 32);
-	/// Weekly council elections; scaling up to monthly eventually.
-	pub const TermDuration: BlockNumber = 7 * DAYS;
-	/// 13 members initially, to be increased to 23 eventually.
-	pub const DesiredMembers: u32 = 13;
-	pub const DesiredRunnersUp: u32 = 20;
+	/// Monthly council elections.
+	pub const TermDuration: BlockNumber = 30 * DAYS;
+	/// 15 members initially, to be increased to 24 eventually.
+	pub const DesiredMembers: u32 = 15;
+	pub const DesiredRunnersUp: u32 = 10;
 	pub const PhragmenElectionPalletId: LockIdentifier = *b"phrelect";
 }
 
@@ -506,8 +509,8 @@ impl pallet_elections_phragmen::Config for Runtime {
 
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 2 * DAYS;
-	pub const CouncilMaxProposals: u32 = 100;
-	pub const CouncilMaxMembers: u32 = 25;
+	pub const CouncilMaxProposals: u32 = 50;
+	pub const CouncilMaxMembers: u32 = 15;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
@@ -524,14 +527,14 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 
 parameter_types! {
 	pub const NetworkMotionDuration: BlockNumber = 2 * DAYS;
-	pub const NetworkMaxProposals: u32 = 100;
-	pub const NetworkMaxMembers: u32 = 20;
+	pub const NetworkMaxProposals: u32 = 50;
+	pub const NetworkMaxMembers: u32 = 15;
 }
 
 parameter_types! {
 	pub const TechnicalMotionDuration: BlockNumber = 2 * DAYS;
-	pub const TechnicalMaxProposals: u32 = 100;
-	pub const TechnicalMaxMembers: u32 = 25;
+	pub const TechnicalMaxProposals: u32 = 50;
+	pub const TechnicalMaxMembers: u32 = 15;
 }
 
 type TechnicalCollective = pallet_collective::Instance2;
@@ -560,25 +563,14 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 }
 
 parameter_types! {
-	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = 100 * WAY;
-	pub const SpendPeriod: BlockNumber = 24 * DAYS;
-	pub const Burn: Permill = Permill::from_perthousand(2);
+	pub const ProposalBond: Permill = Permill::from_percent(0);
+	pub const ProposalBondMinimum: Balance = 10 * WAY;
+	pub const SpendPeriod: BlockNumber = 8 * HOURS;
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-	pub const TipCountdown: BlockNumber = 1 * DAYS;
-	pub const TipFindersFee: Percent = Percent::from_percent(10);
-	pub const TipReportDepositBase: Balance = 1 * WAY;
-	pub const DataDepositPerByte: Balance = 1 * MILLI_WAY;
-	pub const BountyDepositBase: Balance = 1 * WAY;
-	pub const BountyDepositPayoutDelay: BlockNumber = 8 * DAYS;
-	pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
-	pub const MaximumReasonLength: u32 = 16384;
-	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-	pub const BountyValueMinimum: Balance = 10 * WAY;
-	pub const MaxApprovals: u32 = 100;
-	pub const MaxAuthorities: u32 = 1_000;
-	pub const MaxKeys: u32 = 10_000;
-	pub const MaxPeerInHeartbeats: u32 = 10_000;
+	pub const MaxApprovals: u32 = 30;
+	pub const MaxAuthorities: u32 = 100;
+	pub const MaxKeys: u32 = 1_000;
+	pub const MaxPeerInHeartbeats: u32 = 1_000;
 	pub const MaxPeerDataEncodingSize: u32 = 1_000;
 }
 
@@ -724,7 +716,7 @@ impl pallet_authorities::Config for Runtime {
 parameter_types! {
 	// TODO: Find reasonable numbers
 	#[derive(Debug, Clone, PartialEq)]
-	pub const MaxSchemaDelegates: u32 = 1000;
+	pub const MaxSchemaDelegates: u32 = 1_000_000;
 }
 
 impl pallet_schema::Config for Runtime {

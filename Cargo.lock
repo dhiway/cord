@@ -859,7 +859,7 @@ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "cord-executor"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "cord-primitives",
  "cord-runtime",
@@ -889,7 +889,7 @@ dependencies = [
 
 [[package]]
 name = "cord-inspect"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "derive_more",
  "log",
@@ -907,7 +907,7 @@ dependencies = [
 
 [[package]]
 name = "cord-node"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "assert_cmd",
  "async-std",
@@ -987,7 +987,7 @@ dependencies = [
 
 [[package]]
 name = "cord-primitives"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "frame-system",
  "parity-scale-codec",
@@ -1000,7 +1000,7 @@ dependencies = [
 
 [[package]]
 name = "cord-rpc"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "cord-primitives",
  "jsonrpc-core",
@@ -1028,7 +1028,7 @@ dependencies = [
 
 [[package]]
 name = "cord-runtime"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
@@ -4218,7 +4218,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-authorities"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
@@ -4520,7 +4520,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-schema"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
@@ -4600,7 +4600,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stream"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
