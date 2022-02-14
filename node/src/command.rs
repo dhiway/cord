@@ -1,4 +1,4 @@
-// CORD Blockchain – https://dhiway.network
+// CORD Chain Node – https://cord.network
 // Copyright (C) 2019-2022 Dhiway
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -55,7 +55,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn copyright_start_year() -> i32 {
-		2020
+		2019
 	}
 
 	fn executable_name() -> String {

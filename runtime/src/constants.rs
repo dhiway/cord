@@ -1,4 +1,4 @@
-// CORD Blockchain – https://dhiway.network
+// CORD Chain Node – https://cord.network
 // Copyright (C) 2019-2022 Dhiway
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -33,7 +33,7 @@ pub mod time {
 	use cord_primitives::{BlockNumber, Moment};
 	pub const MILLISECS_PER_BLOCK: Moment = 1000;
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = 10 * MINUTES;
+	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = 96 * HOURS;
 
 	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);

@@ -6,14 +6,28 @@
 runtime/wasm/target/
 **/._*
 **/*.rs.bk
+**/._*
+**/.criterion/
+config/
 
 # IntelliJ project files
 *.iml
-.idea
+.idea/
 
 # ignore vscode settings
 .vscode
 
 .DS_Store
+nohup.out
+rls*.log
+*.orig
+*.rej
+**/wip/*.stderr
+.local
+**/hfuzz_target/
+**/hfuzz_workspace/
+.cargo-remote.toml
+*.bin
 !.rpm/*
 .cargo
+

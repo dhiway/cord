@@ -1,4 +1,4 @@
-// CORD Blockchain – https://dhiway.network
+// CORD Chain Node – https://cord.network
 // Copyright (C) 2019-2022 Dhiway
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -18,13 +18,6 @@
 //! CORD CLI Library.
 
 #![warn(missing_docs)]
-
-// mod chain_spec;
-
-// #[macro_use]
-// mod service;
-// mod cli;
-// mod command;
 
 fn main() -> sc_cli::Result<()> {
 	cord_node::run()
