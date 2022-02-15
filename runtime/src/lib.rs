@@ -21,23 +21,24 @@
 // The `from_over_into` warning originates from `construct_runtime` macro.
 #![allow(clippy::from_over_into)]
 
-use codec::Encode;
+use codec::{Decode, Encode, MaxEncodedLen};
 pub use cord_primitives::{AccountId, Signature};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		EnsureOneOf, EqualPrivilegeOnly, Everything, KeyOwnerProofSystem, LockIdentifier,
-		U128CurrencyToVote,
+		EnsureOneOf, EqualPrivilegeOnly, Everything, InstanceFilter, KeyOwnerProofSystem,
+		LockIdentifier, U128CurrencyToVote,
 	},
 	weights::{
-		constants::{RocksDbWeight, WEIGHT_PER_MILLIS},
-		Weight,
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_MILLIS},
+		DispatchClass, Weight,
 	},
-	PalletId,
+	PalletId, RuntimeDebug,
 };
 use frame_system::{EnsureRoot, EnsureSigned};
 
+use frame_system::limits;
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as session_historical;
@@ -134,30 +135,59 @@ type MoreThanHalfCouncil = EnsureOneOf<
 	EnsureRoot<AccountId>,
 >;
 
+pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 // A single block should take 1s, of which 333ms is for creation,
-// and the remaining for propagation and validation.
-const MAX_BLOCK_WEIGHT: Weight = 400 * WEIGHT_PER_MILLIS;
+// and the remaining for validation.
+const MAX_BLOCK_WEIGHT: Weight = 333 * WEIGHT_PER_MILLIS;
 /// Maximum length of block. Up to 5MB.
 pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
-	pub const BlockHashCount: BlockNumber = 900;
-	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
-	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
-	pub RuntimeBlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
-		::with_sensible_defaults(MAX_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO);
-	pub RuntimeBlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
-		::max_with_normal_ratio(MAX_BLOCK_SIZE, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u8 = 29;
+}
+
+parameter_types! {
+	pub const BlockHashCount: BlockNumber = 3600;
+	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
+	/// than this will decrease the weight and more will increase.
+	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
+	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
+	/// change the fees more rapidly.
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
+	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
+	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
+	/// See `multiplier_can_grow_from_zero`.
+	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
+	/// Maximum length of block. Up to 5MB.
+	pub BlockLength: limits::BlockLength =
+		limits::BlockLength::max_with_normal_ratio(MAX_BLOCK_SIZE, NORMAL_DISPATCH_RATIO);
+	/// Block weights base values and limits.
+	pub BlockWeights: limits::BlockWeights = limits::BlockWeights::builder()
+		.base_block(BlockExecutionWeight::get())
+		.for_class(DispatchClass::all(), |weights| {
+			weights.base_extrinsic = ExtrinsicBaseWeight::get();
+		})
+		.for_class(DispatchClass::Normal, |weights| {
+			weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT);
+		})
+		.for_class(DispatchClass::Operational, |weights| {
+			weights.max_total = Some(MAX_BLOCK_WEIGHT);
+			// Operational transactions have an extra reserved space, so that they
+			// are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
+			weights.reserved = Some(
+				MAX_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT,
+			);
+		})
+		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
+		.build_or_panic();
 }
 
 impl frame_system::Config for Runtime {
 	type BaseCallFilter = Everything;
-	type BlockWeights = RuntimeBlockWeights;
-	type BlockLength = RuntimeBlockLength;
+	type BlockWeights = BlockWeights;
+	type BlockLength = BlockLength;
 	type DbWeight = RocksDbWeight;
 	type Origin = Origin;
 	type Call = Call;
@@ -179,6 +209,30 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+}
+
+parameter_types! {
+	pub const BasicDeposit: Balance = 100 * MILLI_WAY;       // 258 bytes on-chain
+	pub const FieldDeposit: Balance = 50 * MILLI_WAY;        // 66 bytes on-chain
+	pub const SubAccountDeposit: Balance = 100 * MILLI_WAY;   // 53 bytes on-chain
+	pub const MaxSubAccounts: u32 = 100;
+	pub const MaxAdditionalFields: u32 = 20;
+	pub const MaxRegistrars: u32 = 30;
+}
+
+impl pallet_identity::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type BasicDeposit = BasicDeposit;
+	type FieldDeposit = FieldDeposit;
+	type SubAccountDeposit = SubAccountDeposit;
+	type MaxSubAccounts = MaxSubAccounts;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxRegistrars = MaxRegistrars;
+	type Slashed = Treasury;
+	type ForceOrigin = MoreThanHalfCouncil;
+	type RegistrarOrigin = MoreThanHalfCouncil;
+	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -207,7 +261,83 @@ impl pallet_multisig::Config for Runtime {
 }
 
 parameter_types! {
-	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
+	// One storage item; key size 32, value size 8; .
+	pub const ProxyDepositBase: Balance = deposit(1, 8);
+	// Additional storage item size of 33 bytes.
+	pub const ProxyDepositFactor: Balance = deposit(0, 33);
+	pub const MaxProxies: u16 = 32;
+	pub const AnnouncementDepositBase: Balance = deposit(1, 8);
+	pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
+	pub const MaxPending: u16 = 32;
+}
+
+/// The type used to represent the kinds of proxying allowed.
+#[derive(
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	Encode,
+	Decode,
+	RuntimeDebug,
+	MaxEncodedLen,
+	scale_info::TypeInfo,
+)]
+pub enum ProxyType {
+	Any,
+	Governance,
+	CancelProxy,
+}
+impl Default for ProxyType {
+	fn default() -> Self {
+		Self::Any
+	}
+}
+impl InstanceFilter<Call> for ProxyType {
+	fn filter(&self, c: &Call) -> bool {
+		match self {
+			ProxyType::Any => true,
+			ProxyType::Governance => matches!(
+				c,
+				Call::Democracy(..)
+					| Call::Council(..) | Call::TechnicalCommittee(..)
+					| Call::Elections(..)
+					| Call::Treasury(..) | Call::Utility(..)
+			),
+			ProxyType::CancelProxy => {
+				matches!(c, Call::Proxy(pallet_proxy::Call::reject_announcement { .. }))
+			},
+		}
+	}
+	fn is_superset(&self, o: &Self) -> bool {
+		match (self, o) {
+			(x, y) if x == y => true,
+			(ProxyType::Any, _) => true,
+			(_, ProxyType::Any) => false,
+			_ => false,
+		}
+	}
+}
+
+impl pallet_proxy::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type Currency = Balances;
+	type ProxyType = ProxyType;
+	type ProxyDepositBase = ProxyDepositBase;
+	type ProxyDepositFactor = ProxyDepositFactor;
+	type MaxProxies = MaxProxies;
+	type WeightInfo = pallet_proxy::weights::SubstrateWeight<Runtime>;
+	type MaxPending = MaxPending;
+	type CallHasher = BlakeTwo256;
+	type AnnouncementDepositBase = AnnouncementDepositBase;
+	type AnnouncementDepositFactor = AnnouncementDepositFactor;
+}
+
+parameter_types! {
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
 	pub const MaxScheduledPerBlock: u32 = 50;
 	pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
@@ -250,7 +380,7 @@ impl pallet_preimage::Config for Runtime {
 parameter_types! {
 	// NOTE: Currently it is not possible to change the epoch duration after the chain has started.
 	// Attempting to do so will brick block production.
-	pub storage SessionsPerEra: SessionIndex = 2;
+	pub storage SessionsPerEra: SessionIndex = 24;
 	pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS as u64;
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 	pub ReportLongevity: u64 = SessionsPerEra::get() as u64 * EpochDuration::get();
@@ -757,20 +887,22 @@ construct_runtime! {
 		Grandpa: pallet_grandpa = 10,
 		ImOnline: pallet_im_online = 11,
 		AuthorityDiscovery: pallet_authority_discovery = 12,
+		Authorities: pallet_authorities = 13,
 		Democracy: pallet_democracy = 20,
 		Council: pallet_collective::<Instance1> = 21,
 		TechnicalCommittee: pallet_collective::<Instance2> = 22,
 		Elections: pallet_elections_phragmen = 23,
 		TechnicalMembership: pallet_membership::<Instance1> = 24,
 		Treasury: pallet_treasury = 25,
-		Authorities: pallet_authorities = 26,
-		Scheduler: pallet_scheduler = 27,
-		Schema: pallet_schema = 31,
-		Stream: pallet_stream = 32,
-		Preimage: pallet_preimage = 40,
-		Utility: pallet_utility = 41,
-		Multisig: pallet_multisig = 42,
-		Sudo: pallet_sudo = 51,
+		Identity: pallet_identity = 26,
+		Proxy: pallet_proxy = 27,
+		Multisig: pallet_multisig = 28,
+		Utility: pallet_utility = 29,
+		Scheduler: pallet_scheduler = 30,
+		Schema: pallet_schema = 41,
+		Stream: pallet_stream = 42,
+		Preimage: pallet_preimage = 70,
+		Sudo: pallet_sudo = 91,
 	}
 }
 

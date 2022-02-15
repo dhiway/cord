@@ -65,9 +65,11 @@ pallet-elections-phragmen = {git = "https://github.com/paritytech/substrate", de
 pallet-grandpa = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16"}
 pallet-im-online = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16"}
 pallet-indices = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16"}
+pallet-identity = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16"}
 pallet-membership = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16"}
 pallet-multisig = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16" }
 pallet-offences = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16" }
+pallet-proxy = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16" }
 pallet-session = {git = "https://github.com/paritytech/substrate", features = ["historical"], default-features = false, branch = "polkadot-v0.9.16"}
 pallet-scheduler = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16"}
 pallet-sudo = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16"}
@@ -109,10 +111,12 @@ std = [
 	"sp-inherents/std",
 	"pallet-membership/std",
 	"pallet-multisig/std",
+	"pallet-identity/std",
 	"pallet-scheduler/std",
     "cord-primitives/std",
    	"sp-offchain/std",
 	"pallet-offences/std",
+	"pallet-proxy/std",
 	"pallet-preimage/std",
 	"sp-core/std",
 	"sp-std/std",
