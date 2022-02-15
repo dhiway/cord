@@ -380,7 +380,7 @@ impl pallet_preimage::Config for Runtime {
 parameter_types! {
 	// NOTE: Currently it is not possible to change the epoch duration after the chain has started.
 	// Attempting to do so will brick block production.
-	pub storage SessionsPerEra: SessionIndex = 2;
+	pub storage SessionsPerEra: SessionIndex = 24;
 	pub const EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS as u64;
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 	pub ReportLongevity: u64 = SessionsPerEra::get() as u64 * EpochDuration::get();
