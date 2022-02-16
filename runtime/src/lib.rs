@@ -424,7 +424,7 @@ impl pallet_indices::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance =  100 * MICRO_WAY;
+	pub const ExistentialDeposit: Balance =  10 * MICRO_WAY;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
@@ -447,7 +447,7 @@ pub type SlowAdjustingFeeUpdate<R> =
 	TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * MILLI_WAY;
+	pub const TransactionByteFee: Balance = 10 * MICRO_WAY;
 	pub const OperationalFeeMultiplier: u8 = 5;
 }
 
