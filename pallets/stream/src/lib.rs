@@ -153,9 +153,9 @@ pub mod pallet {
 					creator: creator.clone(),
 					holder,
 					schema,
-					cid,
-					parent: None,
 					link,
+					parent: None,
+					cid,
 					revoked: false,
 				},
 			);
@@ -196,9 +196,9 @@ pub mod pallet {
 				&stream_hash,
 				StreamDetails {
 					stream_id: identifier.clone(),
-					cid,
-					parent: Some(tx_prev_hash),
 					creator: updater.clone(),
+					parent: Some(tx_prev_hash),
+					cid,
 					..tx_prev_details
 				},
 			);

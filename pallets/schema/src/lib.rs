@@ -254,8 +254,8 @@ pub mod pallet {
 					version: version.clone(),
 					schema_id: identifier.clone(),
 					creator: creator.clone(),
-					cid,
 					parent: None,
+					cid,
 					permissioned,
 					revoked: false,
 				},
@@ -313,8 +313,8 @@ pub mod pallet {
 					version: version.clone(),
 					schema_id: identifier,
 					creator: updater.clone(),
-					cid,
 					parent: Some(prev_schema_hash),
+					cid,
 					..schema_details
 				},
 			);

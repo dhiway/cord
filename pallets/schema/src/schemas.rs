@@ -29,10 +29,10 @@ pub struct SchemaDetails<T: Config> {
 	pub schema_id: IdOf<T>,
 	/// Schema creator.
 	pub creator: CordAccountOf<T>,
-	/// \[OPTIONAL\] IPFS CID.
-	pub cid: Option<CidOf>,
 	/// \[OPTIONAL\] Schema Parent hash.
 	pub parent: Option<HashOf<T>>,
+	/// \[OPTIONAL\] IPFS CID.
+	pub cid: Option<CidOf>,
 	/// The flag indicating schema type.
 	pub permissioned: StatusOf,
 	/// The flag indicating the status of the schema.
