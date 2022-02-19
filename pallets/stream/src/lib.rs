@@ -87,16 +87,12 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Hash and Identifier are the same
-		SameIdentifierAndHash,
 		/// Stream idenfier is not unique
 		StreamAlreadyAnchored,
 		/// Stream idenfier not found
 		StreamNotFound,
 		/// Stream idenfier marked inactive
 		StreamRevoked,
-		/// CID already anchored
-		CidAlreadyAnchored,
 		/// No stream status change required
 		StatusChangeNotRequired,
 		/// Only when the author is not the controller/delegate.
@@ -120,7 +116,7 @@ pub mod pallet {
 		/// * cid: \[OPTIONAL\] CID of the incoming  stream.
 		/// * link: \[OPTIONAL\]stream link.
 		#[pallet::weight(470_952_000 + T::DbWeight::get().reads_writes(4, 2))]
-		pub fn anchor(
+		pub fn create(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			creator: CordAccountOf<T>,
@@ -131,7 +127,6 @@ pub mod pallet {
 			link: Option<IdOf<T>>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			// ensure!(stream_hash != identifier, Error::<T>::SameIdentifierAndHash);
 			if let Some(ref cid) = cid {
 				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
 			}
@@ -158,9 +153,9 @@ pub mod pallet {
 					creator: creator.clone(),
 					holder,
 					schema,
-					cid,
-					parent: None,
 					link,
+					parent: None,
+					cid,
 					revoked: false,
 				},
 			);
@@ -201,9 +196,9 @@ pub mod pallet {
 				&stream_hash,
 				StreamDetails {
 					stream_id: identifier.clone(),
-					cid,
-					parent: Some(tx_prev_hash),
 					creator: updater.clone(),
+					parent: Some(tx_prev_hash),
+					cid,
 					..tx_prev_details
 				},
 			);
@@ -219,7 +214,7 @@ pub mod pallet {
 		/// * updater: controller of the stream.
 		/// * status: stream revocation status (bool).
 		#[pallet::weight(124_410_000 + T::DbWeight::get().reads_writes(2, 1))]
-		pub fn set_status(
+		pub fn status(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			updater: CordAccountOf<T>,

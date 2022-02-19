@@ -30,12 +30,12 @@ pub struct StreamDetails<T: Config> {
 	pub holder: Option<CordAccountOf<T>>,
 	/// \[OPTIONAL\] Schema Identifier
 	pub schema: Option<IdOf<T>>,
-	/// \[OPTIONAL\] Stream CID.
-	pub cid: Option<CidOf>,
-	/// \[OPTIONAL\] parent Stream ID.
-	pub parent: Option<HashOf<T>>,
 	/// \[OPTIONAL\] Stream Link
 	pub link: Option<IdOf<T>>,
+	/// \[OPTIONAL\] parent Stream ID.
+	pub parent: Option<HashOf<T>>,
+	/// \[OPTIONAL\] Stream CID.
+	pub cid: Option<CidOf>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
 }

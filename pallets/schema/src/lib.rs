@@ -117,22 +117,14 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Hash and Identifier are the same
-		SameIdentifierAsGenesis,
-		/// Not a genesis Identifier
-		NotGenesisIdentifier,
 		/// Schema idenfier is not unique
 		SchemaAlreadyAnchored,
 		/// Schema idenfier not found
 		SchemaNotFound,
 		/// Schema revoked
 		SchemaRevoked,
-		/// Genesis Schema revoked
-		GenesisSchemaRevoked,
 		/// Invalid CID encoding.
 		InvalidCidEncoding,
-		/// CID already anchored
-		CidAlreadyAnchored,
 		/// Invalid CID version
 		InvalidCidVersion,
 		/// no status change required
@@ -155,16 +147,17 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Add delegates to a schema.
+		/// Add schema authorisations (delegation).
 		///
-		/// This transaction can only be performed by the schema controller.
+		/// This transaction can only be performed by the schema controller on
+		/// permissioned schemas.
 		///
 		/// * origin: the identity of the schema controller.
 		/// * schema: unique identifier of the schema.
 		/// * creator: controller of the schema.
-		/// * delegates: schema delegates to add.
-		#[pallet::weight(126_475_000 + T::DbWeight::get().reads_writes(2, 2))]
-		pub fn add_delegates(
+		/// * delegates: authorised identities to add.
+		#[pallet::weight(126_475_000 + T::DbWeight::get().reads_writes(2, 1))]
+		pub fn authorise(
 			origin: OriginFor<T>,
 			schema: IdOf<T>,
 			creator: CordAccountOf<T>,
@@ -177,7 +170,6 @@ pub mod pallet {
 				<Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
 
 			ensure!(schema_details.permissioned, Error::<T>::SchemaNotPermissioned);
-			// ensure!(schema_details.base, Error::<T>::NotGenesisIdentifier);
 			ensure!(schema_details.creator == creator, Error::<T>::UnauthorizedDelegation);
 
 			Delegations::<T>::try_mutate(schema.clone(), |ref mut delegation| {
@@ -194,16 +186,17 @@ pub mod pallet {
 				Ok(())
 			})
 		}
-		/// Remove schema delegates.
+		/// Remove schema authorisations (delegation).
 		///
-		/// This transaction can only be performed by the schema controller.
+		/// This transaction can only be performed by the schema controller
+		/// permissioned schemas.
 		///
 		/// * origin: the identity of the schema controller.
 		/// * schema: unique identifier of the schema.
 		/// * creator: controller of the schema.
-		/// * delegates: schema delegates to be removed.
-		#[pallet::weight(126_475_000 + T::DbWeight::get().reads_writes(2, 2))]
-		pub fn remove_delegates(
+		/// * delegates: identities (delegates) to be removed.
+		#[pallet::weight(126_475_000 + T::DbWeight::get().reads_writes(2, 1))]
+		pub fn deauthorise(
 			origin: OriginFor<T>,
 			schema: IdOf<T>,
 			creator: CordAccountOf<T>,
@@ -214,7 +207,6 @@ pub mod pallet {
 			let schema_details =
 				<Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.permissioned, Error::<T>::SchemaNotPermissioned);
-			// ensure!(schema_details.base, Error::<T>::NotGenesisIdentifier);
 			ensure!(schema_details.creator == creator, Error::<T>::UnauthorizedDelegation);
 
 			Delegations::<T>::try_mutate(schema.clone(), |ref mut delegation| {
@@ -232,10 +224,11 @@ pub mod pallet {
 		/// * identifier: unique identifier of the incoming schema stream.
 		/// * creator: controller of the schema.
 		/// * version: version of the  schema stream.
-		/// * hash: hash of the incoming schema stream.
+		/// * schema_hash: hash of the incoming schema stream.
+		/// * cid: \[OPTIONAL\] storage Id of the incoming stream.
 		/// * permissioned: schema type - permissioned or not.
 		#[pallet::weight(570_952_000 + T::DbWeight::get().reads_writes(1, 2))]
-		pub fn anchor(
+		pub fn create(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			creator: CordAccountOf<T>,
@@ -261,11 +254,10 @@ pub mod pallet {
 					version: version.clone(),
 					schema_id: identifier.clone(),
 					creator: creator.clone(),
-					cid,
 					parent: None,
+					cid,
 					permissioned,
 					revoked: false,
-					// base: true,
 				},
 			);
 
@@ -281,20 +273,18 @@ pub mod pallet {
 		/// * identifier: unique identifier of the incoming schema stream.
 		/// * updater: controller of the schema.
 		/// * version: version of the  schema stream.
-		/// * hash: hash of the incoming schema stream.
-		/// * genesis: schema genesis identifier
+		/// * schema_hash: hash of the new schema stream.
+		/// * cid: \[OPTIONAL\] storage Id of the incoming stream.
 		#[pallet::weight(191_780_000 + T::DbWeight::get().reads_writes(1, 2))]
-		pub fn update_version(
+		pub fn version(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			updater: CordAccountOf<T>,
 			version: VersionOf,
 			schema_hash: HashOf<T>,
-			// parent: IdOf<T>,
 			cid: Option<CidOf>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			// ensure!(identifier != parent, Error::<T>::SameIdentifierAsGenesis);
 			let prev_schema_hash =
 				<SchemaId<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 
@@ -302,13 +292,11 @@ pub mod pallet {
 				SchemaDetails::<T>::is_valid(cid)?;
 			}
 
-			// ensure!(!<Schemas<T>>::contains_key(&schema_hash), Error::<T>::SchemaAlreadyAnchored);
 			let new_version = Version::parse(str::from_utf8(&version).unwrap())
 				.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
 
 			let schema_details =
 				<Schemas<T>>::get(&prev_schema_hash).ok_or(Error::<T>::SchemaGenesisNotFound)?;
-			// ensure!(schema_details.base, Error::<T>::NotGenesisIdentifier);
 
 			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 			ensure!(schema_details.creator == updater, Error::<T>::UnauthorizedOperation);
@@ -325,9 +313,8 @@ pub mod pallet {
 					version: version.clone(),
 					schema_id: identifier,
 					creator: updater.clone(),
+					parent: Some(prev_schema_hash),
 					cid,
-					parent: Some(schema_hash),
-					// base: false,
 					..schema_details
 				},
 			);
@@ -344,7 +331,7 @@ pub mod pallet {
 		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated
 		#[pallet::weight(124_410_000 + T::DbWeight::get().reads_writes(1, 2))]
-		pub fn set_status(
+		pub fn status(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			updater: CordAccountOf<T>,
@@ -366,13 +353,13 @@ pub mod pallet {
 		}
 		/// Update the schema type - permissioned or not
 		///
-		/// This update can only be performed by by the schema controller
+		/// This update can only be performed by the schema controller
 		///
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated
 		#[pallet::weight(124_410_000 + T::DbWeight::get().reads_writes(1, 2))]
-		pub fn set_permission(
+		pub fn permission(
 			origin: OriginFor<T>,
 			identifier: IdOf<T>,
 			updater: CordAccountOf<T>,

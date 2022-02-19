@@ -70,10 +70,7 @@ pub mod pallet {
 		///
 		/// The new authorities will be active from current session + 2.
 		#[pallet::weight(100_000)]
-		pub fn register_authorities(
-			origin: OriginFor<T>,
-			authorities: Vec<T::ValidatorId>,
-		) -> DispatchResult {
+		pub fn register(origin: OriginFor<T>, authorities: Vec<T::ValidatorId>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
 			authorities.clone().into_iter().for_each(|v| AuthoritiesToAdd::<T>::append(v));
@@ -86,7 +83,7 @@ pub mod pallet {
 		///
 		/// The removed authorities will be deactivated from current session + 2.
 		#[pallet::weight(100_000)]
-		pub fn deregister_validators(
+		pub fn deregister(
 			origin: OriginFor<T>,
 			authorities: Vec<T::ValidatorId>,
 		) -> DispatchResult {
