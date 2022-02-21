@@ -45,6 +45,7 @@ pub struct ProductDetails<T: Config> {
 	pub block: BlockNumberOf<T>,
 	/// The flag indicating the availability status of the product.
 	pub status: StatusOf,
+	pub quantity: Option<u32>,
 }
 
 /// An on-chain link details.

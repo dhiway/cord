@@ -105,7 +105,7 @@ pub mod pallet {
 		TxStatus(IdOf<T>, CordAccountOf<T>),
 		/// A schema delegate has been added.
 		/// \[schema identifier, controller\]
-		TxAddDelegates(IdOf<T>),
+		TxAddDelegates(IdOf<T>, Option<u32>),
 		/// A schema delegate has been removed.
 		/// \[schema identifier, controller\]
 		TxRemoveDelegates(IdOf<T>),
@@ -161,6 +161,7 @@ pub mod pallet {
 		pub fn add_delegate(
 			origin: OriginFor<T>,
 			schema: IdOf<T>,
+			quantity: Option<u32>,
 			creator: CordAccountOf<T>,
 			delegate: CordAccountOf<T>,
 		) -> DispatchResult {
@@ -187,7 +188,7 @@ pub mod pallet {
 						commit: SchemaCommitOf::Delegates,
 					},
 				)?;
-				Self::deposit_event(Event::TxAddDelegates(schema));
+				Self::deposit_event(Event::TxAddDelegates(schema, quantity));
 				Ok(())
 			})
 		}

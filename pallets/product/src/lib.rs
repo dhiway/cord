@@ -176,6 +176,7 @@ pub mod pallet {
 			tx_hash: HashOf<T>,
 			cid: Option<IdentifierOf>,
 			schema: Option<IdOf<T>>,
+			quantity: Option<u32>
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(tx_hash != identifier, Error::<T>::SameIdentifierAndHash);
@@ -216,6 +217,7 @@ pub mod pallet {
 					rating: None,
 					block: block_number,
 					status: true,
+					quantity,
 				},
 			);
 			Self::deposit_event(Event::TxCreate(identifier, tx_hash, creator));
@@ -238,6 +240,7 @@ pub mod pallet {
 			tx_hash: HashOf<T>,
 			store_id: Option<IdOf<T>>,
 			price: Option<u32>,
+			quantity: Option<u32>,
 			cid: Option<IdentifierOf>,
 			schema: Option<IdOf<T>>,
 			link: Option<IdOf<T>>,
@@ -292,6 +295,7 @@ pub mod pallet {
 					link,
 					price,
 					rating: None,
+					quantity,
 					creator: creator.clone(),
 					block: block_number.clone(),
 					status: true,
@@ -317,6 +321,7 @@ pub mod pallet {
 			tx_hash: HashOf<T>,
 			store_id: Option<IdOf<T>>,
 			price: Option<u32>,
+			quantity: Option<u32>,
 			cid: Option<IdentifierOf>,
 			schema: Option<IdOf<T>>,
 			link: Option<IdOf<T>>,
@@ -367,6 +372,7 @@ pub mod pallet {
 					link,
 					price,
 					rating: None,
+					quantity,
 					creator: buyer.clone(),
 					block: block_number.clone(),
 					status: true,
@@ -528,6 +534,7 @@ pub mod pallet {
 					creator: buyer.clone(),
 					block: block_number.clone(),
 					status: true,
+					quantity: None,
 				},
 			);
 			Self::deposit_event(Event::TxRating(link.unwrap(), buyer));
