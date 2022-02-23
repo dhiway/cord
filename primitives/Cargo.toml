@@ -15,12 +15,14 @@ sp-application-crypto = {git = "https://github.com/paritytech/substrate", defaul
 sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16"}
 sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16"}
 sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16"}
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.16", default-features = false }
 
 [features]
 default = ["std"]
 std = [
   "codec/std",
   "scale-info/std",
+  "frame-support/std",
   "frame-system/std",
  	"sp-application-crypto/std",
   "sp-core/std",

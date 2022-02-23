@@ -989,6 +989,7 @@ dependencies = [
 name = "cord-primitives"
 version = "0.6.1"
 dependencies = [
+ "frame-support",
  "frame-system",
  "parity-scale-codec",
  "scale-info",
