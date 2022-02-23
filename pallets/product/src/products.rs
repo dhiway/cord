@@ -69,6 +69,29 @@ impl<T: Config> ProductLink<T> {
 	}
 }
 
+
+/// An on-chain link details.
+#[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
+#[scale_info(skip_type_params(T))]
+pub struct ProductDelegate<T: Config> {
+	/// Stream link.
+	pub identifier: IdOf<T>,
+	/// Link creator.
+	pub creator: CordAccountOf<T>,
+        /// Quantity
+        pub quantity: Option<u32>,
+}
+
+impl<T: Config> ProductDelegate<T> {
+	pub fn delegate_tx(product: &IdOf<T>, delegate: ProductDelegate<T>) -> DispatchResult {
+		let mut delegates = <Delegates<T>>::get(product).unwrap_or_default();
+		delegates.push(delegate);
+		<Delegates<T>>::insert(product, delegates);
+		Ok(())
+	}
+}
+
+
 /// An on-chain commit details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
 #[scale_info(skip_type_params(T))]
@@ -108,4 +131,5 @@ pub enum ProductCommitOf {
 	Return,
 	Rating,
 	StatusChange,
+	Delegate,
 }

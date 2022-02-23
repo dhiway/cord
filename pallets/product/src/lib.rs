@@ -75,6 +75,12 @@ pub mod pallet {
 	#[pallet::getter(fn commits)]
 	pub type Commits<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<ProductCommit<T>>>;
 
+	/// product delegates stored on chain.
+	/// It maps from a product Id to a vector of product delegates.
+	#[pallet::storage]
+	#[pallet::getter(fn delegates)]
+	pub type Delegates<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, Vec<ProductDelegate<T>>>;
+
 	/// product links stored on chain.
 	/// It maps from a stream Id to a vector of stream links.
 	#[pallet::storage]
@@ -99,6 +105,9 @@ pub mod pallet {
 		/// A new stream has been created.
 		/// \[stream identifier, controller\]
 		TxCreate(IdOf<T>, HashOf<T>, CordAccountOf<T>),
+		/// A new product delegate has been created.
+		/// \[listing identifier, controller\]
+                TxDelegate(IdOf<T>, HashOf<T>, CordAccountOf<T>, Option<u32>),
 		/// A new product listing has been created.
 		/// \[listing identifier, controller\]
 		TxList(IdOf<T>, HashOf<T>, CordAccountOf<T>),
@@ -129,6 +138,8 @@ pub mod pallet {
 		ProductAlreadyCreated,
 		/// List idenfier is not unique
 		ProductAlreadyListed,
+		/// List idenfier is not unique
+		ProductAlreadyDelegated,
 		/// Order idenfier is not unique
 		OrderAlreadyCreated,
 		/// Product idenfier not found
@@ -225,6 +236,88 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Create a new product delegate and associates it with its controller.
+		///
+		/// * origin: the identity of the stream controller.
+		/// * identifier: unique identifier of the incoming stream.
+		/// * hash: hash of the incoming stream.
+		/// * cid: CID of the incoming  stream.
+		/// * schema: stream schema.
+		#[pallet::weight(470_952_000 + T::DbWeight::get().reads_writes(3, 4))]
+		pub fn delegate(
+			origin: OriginFor<T>,
+			identifier: IdOf<T>,
+			creator: CordAccountOf<T>,
+			tx_hash: HashOf<T>,
+			store_id: Option<IdOf<T>>,
+			quantity: Option<u32>,
+			cid: Option<IdentifierOf>,
+			schema: Option<IdOf<T>>,
+			link: Option<IdOf<T>>,
+		) -> DispatchResult {
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+
+			if let Some(ref cid) = cid {
+				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
+			}
+			// TODO: ideally, second delegation should increase the quantity
+			// TODO: add check for quantity of all delegates 
+			ensure!(!<Products<T>>::contains_key(&identifier), Error::<T>::ProductAlreadyDelegated);
+
+			let block_number = <frame_system::Pallet<T>>::block_number();
+
+			if let Some(ref link) = link {
+				let links = <Products<T>>::get(&link).ok_or(Error::<T>::ProductLinkNotFound)?;
+				ensure!(links.status, Error::<T>::ProductNotAvailable);
+				pallet_schema::SchemaDetails::<T>::schema_status(
+					&links.schema.unwrap(),
+					creator.clone(),
+				)
+				.map_err(<pallet_schema::Error<T>>::from)?;
+				ProductDelegate::<T>::delegate_tx(
+					&link,
+					ProductDelegate {
+						identifier: identifier.clone(),
+						creator: creator.clone(),
+                                                quantity: quantity.clone(),
+					},
+				)?;
+			}
+
+			ProductCommit::<T>::store_tx(
+				&identifier,
+				ProductCommit {
+					tx_hash: tx_hash.clone(),
+					cid: cid.clone(),
+					block: block_number,
+					commit: ProductCommitOf::Delegate,
+				},
+			)?;
+
+			<ProductHash<T>>::insert(&tx_hash, &identifier);
+
+			<Products<T>>::insert(
+				&identifier,
+				ProductDetails {
+					tx_hash: tx_hash.clone(),
+					cid,
+					parent_cid: None,
+					store_id,
+					schema,
+					link,
+				        price: None,
+					rating: None,
+					quantity,
+					creator: creator.clone(),
+					block: block_number.clone(),
+					status: true,
+				},
+			);
+			Self::deposit_event(Event::TxDelegate(identifier, tx_hash, creator, quantity));
+
+			Ok(())
+		}
+		
 		/// Create a new product listing and associates it with its controller.
 		///
 		/// * origin: the identity of the stream controller.
