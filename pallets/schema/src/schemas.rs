@@ -54,7 +54,7 @@ impl<T: Config> SchemaDetails<T> {
 		let identifier = str::from_utf8(id).map_err(|_| Error::<T>::InvalidIdentifier)?;
 		let data = identifier.from_base58().map_err(|_| Error::<T>::InvalidIdentifier)?;
 		ensure!(
-			identifier.len() == 48 || identifier.len() == 49,
+			(identifier.len() > 2 && identifier.len() < 50),
 			Error::<T>::InvalidIdentifierLength
 		);
 		let (_prefix_len, ident) = match data[0] {

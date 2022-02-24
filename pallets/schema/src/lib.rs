@@ -41,7 +41,7 @@ pub mod pallet {
 	/// Type of a CORD account.
 	pub type CordAccountOf<T> = <T as Config>::CordAccountId;
 	// schema identifier prefix.
-	pub const SCHEMA_IDENTIFIER_PREFIX: u16 = 1041;
+	pub const SCHEMA_IDENTIFIER_PREFIX: u16 = 33;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {

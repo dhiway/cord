@@ -41,7 +41,7 @@ pub mod pallet {
 	/// Type of the controller.
 	pub type CordAccountOf<T> = pallet_schema::CordAccountOf<T>;
 	// stream identifier prefix.
-	pub const STREAM_IDENTIFIER_PREFIX: u16 = 4042;
+	pub const STREAM_IDENTIFIER_PREFIX: u16 = 43;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_schema::Config {
