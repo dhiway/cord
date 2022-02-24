@@ -47,7 +47,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		type CordAccountId: Parameter + Default;
+		type CordAccountId: Parameter;
 
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
@@ -158,7 +158,7 @@ pub mod pallet {
 		/// * schema: unique identifier of the schema.
 		/// * creator: controller of the schema.
 		/// * delegates: authorised identities to add.
-		#[pallet::weight(126_475_000 + T::DbWeight::get().reads_writes(2, 1))]
+		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn authorise(
 			origin: OriginFor<T>,
 			schema: IdentifierOf,
@@ -197,7 +197,7 @@ pub mod pallet {
 		/// * schema: unique identifier of the schema.
 		/// * creator: controller of the schema.
 		/// * delegates: identities (delegates) to be removed.
-		#[pallet::weight(126_475_000 + T::DbWeight::get().reads_writes(2, 1))]
+		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn deauthorise(
 			origin: OriginFor<T>,
 			schema: IdentifierOf,
@@ -229,7 +229,7 @@ pub mod pallet {
 		/// * schema_hash: hash of the incoming schema stream.
 		/// * cid: \[OPTIONAL\] storage Id of the incoming stream.
 		/// * permissioned: schema type - permissioned or not.
-		#[pallet::weight(570_952_000 + T::DbWeight::get().reads_writes(2, 2))]
+		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
@@ -279,7 +279,7 @@ pub mod pallet {
 		/// * version: version of the  schema stream.
 		/// * schema_hash: hash of the new schema stream.
 		/// * cid: \[OPTIONAL\] storage Id of the incoming stream.
-		#[pallet::weight(191_780_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn version(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
@@ -336,7 +336,7 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated
-		#[pallet::weight(124_410_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn status(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
@@ -364,7 +364,7 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated
-		#[pallet::weight(124_410_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn permission(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,

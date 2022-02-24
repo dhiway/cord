@@ -114,7 +114,7 @@ pub mod pallet {
 		/// * schema: \[OPTIONAL\] stream schema.
 		/// * cid: \[OPTIONAL\] CID of the incoming  stream.
 		/// * link: \[OPTIONAL\]stream link.
-		#[pallet::weight(470_952_000 + T::DbWeight::get().reads_writes(4, 2))]
+		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(6, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
@@ -173,7 +173,7 @@ pub mod pallet {
 		/// * updater: controller of the stream.
 		/// * hash: hash of the incoming stream.
 		/// * cid: storage Id of the incoming stream.
-		#[pallet::weight(171_780_000 + T::DbWeight::get().reads_writes(2, 2))]
+		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn update(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
@@ -216,7 +216,7 @@ pub mod pallet {
 		/// * identifier: unique identifier of the stream.
 		/// * updater: controller of the stream.
 		/// * status: stream revocation status (bool).
-		#[pallet::weight(124_410_000 + T::DbWeight::get().reads_writes(2, 1))]
+		#[pallet::weight(30_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn status(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
