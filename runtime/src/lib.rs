@@ -107,7 +107,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cord"),
 	impl_name: create_runtime_str!("dhiway-cord"),
 	authoring_version: 0,
-	spec_version: 6010,
+	spec_version: 6020,
 	impl_version: 1,
 	#[cfg(not(feature = "disable-runtime-api"))]
 	apis: RUNTIME_API_VERSIONS,
@@ -139,7 +139,7 @@ pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 // A single block should take 1s, of which 333ms is for creation,
 // and the remaining for validation.
-const MAX_BLOCK_WEIGHT: Weight = 333 * WEIGHT_PER_MILLIS;
+const MAX_BLOCK_WEIGHT: Weight = 300 * WEIGHT_PER_MILLIS;
 /// Maximum length of block. Up to 5MB.
 pub const MAX_BLOCK_SIZE: u32 = 5 * 1024 * 1024;
 

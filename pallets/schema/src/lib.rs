@@ -17,7 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-pub use cord_primitives::{CidOf, StatusOf, VersionOf};
+pub use cord_primitives::{CidOf, IdentifierOf, StatusOf, VersionOf};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 use semver::Version;
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
@@ -36,22 +36,18 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	/// Identifier of a schema.
-	pub type IdOf<T> = <T as frame_system::Config>::Hash;
-	/// IPFS CID of a schema.
-	// pub type VidOf<T> = BoundedVec<u8, <T as Config>::MaxLength>;
 	/// Hash of the schema.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a CORD account.
 	pub type CordAccountOf<T> = <T as Config>::CordAccountId;
-	/// Type for a block number.
-	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
+	// schema identifier prefix.
+	pub const SCHEMA_IDENTIFIER_PREFIX: u16 = 33;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		type CordAccountId: Parameter + Default;
+		type CordAccountId: Parameter;
 
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
@@ -78,7 +74,7 @@ pub mod pallet {
 	/// It maps from a schema identifier to hash.
 	#[pallet::storage]
 	#[pallet::getter(fn schemaid)]
-	pub type SchemaId<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+	pub type SchemaId<T> = StorageMap<_, Blake2_128Concat, IdentifierOf, HashOf<T>>;
 
 	/// schema delegations stored on chain.
 	/// It maps from an identifier to a vector of delegates.
@@ -87,7 +83,7 @@ pub mod pallet {
 	pub(super) type Delegations<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		IdOf<T>,
+		IdentifierOf,
 		BoundedVec<CordAccountOf<T>, T::MaxDelegates>,
 		ValueQuery,
 	>;
@@ -97,22 +93,22 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new schema has been created.
 		/// \[schema identifier, version, controller\]
-		Anchor(IdOf<T>, VersionOf, CordAccountOf<T>),
+		Anchor(IdentifierOf, VersionOf, CordAccountOf<T>),
 		/// A schema has been updated.
 		/// \[schema identifier, version, controller\]
-		Update(IdOf<T>, VersionOf, CordAccountOf<T>),
+		Update(IdentifierOf, VersionOf, CordAccountOf<T>),
 		/// A schema status has been changed.
 		/// \[schema identifier, controller\]
-		Status(IdOf<T>, CordAccountOf<T>),
+		Status(IdentifierOf, CordAccountOf<T>),
 		/// Schema delegates has been added.
 		/// \[schema identifier,  controller\]
-		AddDelegates(IdOf<T>, CordAccountOf<T>),
+		AddDelegates(IdentifierOf, CordAccountOf<T>),
 		/// Schema delegates has been removed.
 		/// \[schema identifier,  controller\]
-		RemoveDelegates(IdOf<T>, CordAccountOf<T>),
+		RemoveDelegates(IdentifierOf, CordAccountOf<T>),
 		/// A schema status has been changed.
 		/// \[schema identifier, version, controller\]
-		Permission(IdOf<T>, CordAccountOf<T>),
+		Permission(IdentifierOf, CordAccountOf<T>),
 	}
 
 	#[pallet::error]
@@ -143,6 +139,12 @@ pub mod pallet {
 		SchemaGenesisNotFound,
 		// Only when the author is not the controller
 		UnauthorizedDelegation,
+		// Invalid Identifier
+		InvalidIdentifier,
+		// Invalid Identifier Length
+		InvalidIdentifierLength,
+		// Invalid Identifier Prefix
+		InvalidIdentifierPrefix,
 	}
 
 	#[pallet::call]
@@ -156,10 +158,10 @@ pub mod pallet {
 		/// * schema: unique identifier of the schema.
 		/// * creator: controller of the schema.
 		/// * delegates: authorised identities to add.
-		#[pallet::weight(126_475_000 + T::DbWeight::get().reads_writes(2, 1))]
+		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn authorise(
 			origin: OriginFor<T>,
-			schema: IdOf<T>,
+			schema: IdentifierOf,
 			creator: CordAccountOf<T>,
 			delegates: Vec<CordAccountOf<T>>,
 		) -> DispatchResult {
@@ -195,10 +197,10 @@ pub mod pallet {
 		/// * schema: unique identifier of the schema.
 		/// * creator: controller of the schema.
 		/// * delegates: identities (delegates) to be removed.
-		#[pallet::weight(126_475_000 + T::DbWeight::get().reads_writes(2, 1))]
+		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn deauthorise(
 			origin: OriginFor<T>,
-			schema: IdOf<T>,
+			schema: IdentifierOf,
 			creator: CordAccountOf<T>,
 			delegates: Vec<CordAccountOf<T>>,
 		) -> DispatchResult {
@@ -227,10 +229,10 @@ pub mod pallet {
 		/// * schema_hash: hash of the incoming schema stream.
 		/// * cid: \[OPTIONAL\] storage Id of the incoming stream.
 		/// * permissioned: schema type - permissioned or not.
-		#[pallet::weight(570_952_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
-			identifier: IdOf<T>,
+			identifier: IdentifierOf,
 			creator: CordAccountOf<T>,
 			version: VersionOf,
 			schema_hash: HashOf<T>,
@@ -238,14 +240,16 @@ pub mod pallet {
 			permissioned: StatusOf,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(!<SchemaId<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
-			Version::parse(str::from_utf8(&version).unwrap())
-				.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
-
+			ensure!(!<Schemas<T>>::contains_key(&schema_hash), Error::<T>::SchemaAlreadyAnchored);
+			SchemaDetails::<T>::is_valid_identifier(&identifier, SCHEMA_IDENTIFIER_PREFIX)?;
+			Version::parse(
+				str::from_utf8(&version).map_err(|_err| Error::<T>::InvalidSchemaVersion)?,
+			)
+			.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
 			if let Some(ref cid) = cid {
-				SchemaDetails::<T>::is_valid(cid)?;
+				SchemaDetails::<T>::is_valid_cid(cid)?;
 			}
-
+			ensure!(!<SchemaId<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 			<SchemaId<T>>::insert(&identifier, &schema_hash);
 
 			<Schemas<T>>::insert(
@@ -275,10 +279,10 @@ pub mod pallet {
 		/// * version: version of the  schema stream.
 		/// * schema_hash: hash of the new schema stream.
 		/// * cid: \[OPTIONAL\] storage Id of the incoming stream.
-		#[pallet::weight(191_780_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn version(
 			origin: OriginFor<T>,
-			identifier: IdOf<T>,
+			identifier: IdentifierOf,
 			updater: CordAccountOf<T>,
 			version: VersionOf,
 			schema_hash: HashOf<T>,
@@ -289,11 +293,13 @@ pub mod pallet {
 				<SchemaId<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 
 			if let Some(ref cid) = cid {
-				SchemaDetails::<T>::is_valid(cid)?;
+				SchemaDetails::<T>::is_valid_cid(cid)?;
 			}
 
-			let new_version = Version::parse(str::from_utf8(&version).unwrap())
-				.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
+			let new_version = Version::parse(
+				str::from_utf8(&version).map_err(|_err| Error::<T>::InvalidSchemaVersion)?,
+			)
+			.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
 
 			let schema_details =
 				<Schemas<T>>::get(&prev_schema_hash).ok_or(Error::<T>::SchemaGenesisNotFound)?;
@@ -311,7 +317,7 @@ pub mod pallet {
 				&schema_hash,
 				SchemaDetails {
 					version: version.clone(),
-					schema_id: identifier,
+					schema_id: identifier.clone(),
 					creator: updater.clone(),
 					parent: Some(prev_schema_hash),
 					cid,
@@ -330,10 +336,10 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated
-		#[pallet::weight(124_410_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn status(
 			origin: OriginFor<T>,
-			identifier: IdOf<T>,
+			identifier: IdentifierOf,
 			updater: CordAccountOf<T>,
 			status: StatusOf,
 		) -> DispatchResult {
@@ -358,10 +364,10 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming stream.
 		/// * status: status to be updated
-		#[pallet::weight(124_410_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn permission(
 			origin: OriginFor<T>,
-			identifier: IdOf<T>,
+			identifier: IdentifierOf,
 			updater: CordAccountOf<T>,
 			permissioned: StatusOf,
 		) -> DispatchResult {

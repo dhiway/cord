@@ -23,15 +23,15 @@ use codec::{Decode, Encode};
 #[scale_info(skip_type_params(T))]
 pub struct StreamDetails<T: Config> {
 	/// Stream hash.
-	pub stream_id: IdOf<T>,
+	pub stream_id: IdentifierOf,
 	/// Stream controller.
 	pub creator: CordAccountOf<T>,
 	/// Stream holder.
 	pub holder: Option<CordAccountOf<T>>,
 	/// \[OPTIONAL\] Schema Identifier
-	pub schema: Option<IdOf<T>>,
+	pub schema: Option<IdentifierOf>,
 	/// \[OPTIONAL\] Stream Link
-	pub link: Option<IdOf<T>>,
+	pub link: Option<IdentifierOf>,
 	/// \[OPTIONAL\] parent Stream ID.
 	pub parent: Option<HashOf<T>>,
 	/// \[OPTIONAL\] Stream CID.

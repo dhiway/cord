@@ -19,6 +19,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+// use frame_support::{traits::ConstU32, BoundedVec};
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -69,6 +70,9 @@ pub type BlockId = generic::BlockId<Block>;
 
 /// CID type.
 pub type CidOf = Vec<u8>;
+
+/// IDentifier type.
+pub type IdentifierOf = Vec<u8>;
 
 /// Version type.
 pub type VersionOf = Vec<u8>;

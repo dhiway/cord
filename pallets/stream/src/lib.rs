@@ -18,7 +18,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-use cord_primitives::{CidOf, StatusOf};
+use cord_primitives::{CidOf, IdentifierOf, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{fmt::Debug, prelude::Clone, str};
 
@@ -36,14 +36,13 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	/// Identifier of a Stream.
-	pub type IdOf<T> = <T as frame_system::Config>::Hash;
 	/// Hash of the Stream.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of the controller.
 	pub type CordAccountOf<T> = pallet_schema::CordAccountOf<T>;
-	/// Type for a block number.
-	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
+	// stream identifier prefix.
+	pub const STREAM_IDENTIFIER_PREFIX: u16 = 43;
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_schema::Config {
 		type EnsureOrigin: EnsureOrigin<
@@ -69,20 +68,20 @@ pub mod pallet {
 	/// It maps from a stream hash to Id (resolve from hash).
 	#[pallet::storage]
 	#[pallet::getter(fn streamid)]
-	pub type StreamId<T> = StorageMap<_, Blake2_128Concat, IdOf<T>, HashOf<T>>;
+	pub type StreamId<T> = StorageMap<_, Blake2_128Concat, IdentifierOf, HashOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new stream has been created.
 		/// \[stream identifier, controller\]
-		Anchor(IdOf<T>, HashOf<T>, CordAccountOf<T>),
+		Anchor(IdentifierOf, HashOf<T>, CordAccountOf<T>),
 		/// A stream has been updated.
 		/// \[stream identifier, controller\]
-		Update(IdOf<T>, HashOf<T>, CordAccountOf<T>),
+		Update(IdentifierOf, HashOf<T>, CordAccountOf<T>),
 		/// A stream status has been changed.
 		/// \[stream identifier\]
-		Status(IdOf<T>, CordAccountOf<T>),
+		Status(IdentifierOf, CordAccountOf<T>),
 	}
 
 	#[pallet::error]
@@ -115,20 +114,24 @@ pub mod pallet {
 		/// * schema: \[OPTIONAL\] stream schema.
 		/// * cid: \[OPTIONAL\] CID of the incoming  stream.
 		/// * link: \[OPTIONAL\]stream link.
-		#[pallet::weight(470_952_000 + T::DbWeight::get().reads_writes(4, 2))]
+		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(6, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
-			identifier: IdOf<T>,
+			identifier: IdentifierOf,
 			creator: CordAccountOf<T>,
 			stream_hash: HashOf<T>,
 			holder: Option<CordAccountOf<T>>,
-			schema: Option<IdOf<T>>,
+			schema: Option<IdentifierOf>,
 			cid: Option<CidOf>,
-			link: Option<IdOf<T>>,
+			link: Option<IdentifierOf>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			pallet_schema::SchemaDetails::<T>::is_valid_identifier(
+				&identifier,
+				STREAM_IDENTIFIER_PREFIX,
+			)?;
 			if let Some(ref cid) = cid {
-				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
+				pallet_schema::SchemaDetails::<T>::is_valid_cid(cid)?;
 			}
 
 			ensure!(!<StreamId<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
@@ -170,10 +173,10 @@ pub mod pallet {
 		/// * updater: controller of the stream.
 		/// * hash: hash of the incoming stream.
 		/// * cid: storage Id of the incoming stream.
-		#[pallet::weight(171_780_000 + T::DbWeight::get().reads_writes(2, 2))]
+		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn update(
 			origin: OriginFor<T>,
-			identifier: IdOf<T>,
+			identifier: IdentifierOf,
 			updater: CordAccountOf<T>,
 			stream_hash: HashOf<T>,
 			cid: Option<CidOf>,
@@ -181,7 +184,7 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			if let Some(ref cid) = cid {
-				pallet_schema::SchemaDetails::<T>::is_valid(cid)?;
+				pallet_schema::SchemaDetails::<T>::is_valid_cid(cid)?;
 			}
 
 			let tx_prev_hash = <StreamId<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
@@ -213,10 +216,10 @@ pub mod pallet {
 		/// * identifier: unique identifier of the stream.
 		/// * updater: controller of the stream.
 		/// * status: stream revocation status (bool).
-		#[pallet::weight(124_410_000 + T::DbWeight::get().reads_writes(2, 1))]
+		#[pallet::weight(30_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn status(
 			origin: OriginFor<T>,
-			identifier: IdOf<T>,
+			identifier: IdentifierOf,
 			updater: CordAccountOf<T>,
 			status: StatusOf,
 		) -> DispatchResult {
