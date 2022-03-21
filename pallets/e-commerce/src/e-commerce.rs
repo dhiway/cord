@@ -19,7 +19,7 @@ use crate::*;
 use codec::{Decode, Encode};
 use sp_runtime::DispatchResult;
 
-/// An on-chain product details mapper to an Identifier.
+/// An on-chain account details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct Account<T: Config> {
@@ -28,6 +28,7 @@ pub struct Account<T: Config> {
 	pub trade_no: String;
 }
 
+/// An on-chain manufacturer mapper to an Account and product details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct Manufacturer<T: Config> {
@@ -36,6 +37,7 @@ pub struct Manufacturer<T: Config> {
 	pub quantity: i64;
 }
 
+/// An on-chain seller mapper to an Account and product details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct Seller<T: Config> {
@@ -45,19 +47,20 @@ pub struct Seller<T: Config> {
 	pub quantity: i64;
 }
 
+/// An on-chain buyer mapper to an Account and product details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct Buyer<T: Config> {
 	pub account: Account;
 	pub product: ProductDetails;
-	pub linked_to: Account;
+	pub seller: Seller;
 	pub quantity: i64;
 }
-
+/// An on-chain transaction mapper linked to buyer and seller Account and product details.
 #[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct Transaction<T: Config> {
-	pub seller: Seller;
-	pub buyer: Buyer;
+	pub seller: Account;
+	pub buyer: Account;
 	pub product: ProductDetails;
 }
