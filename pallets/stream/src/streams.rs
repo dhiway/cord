@@ -17,25 +17,67 @@
 
 use crate::*;
 use codec::{Decode, Encode};
+use scale_info::TypeInfo;
+use sp_runtime::DispatchResult;
 
 /// An on-chain stream details mapper to an Identifier.
-#[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct StreamDetails<T: Config> {
 	/// Stream hash.
-	pub stream_id: IdentifierOf,
+	pub stream_hash: HashOf<T>,
 	/// Stream controller.
-	pub creator: CordAccountOf<T>,
+	pub controller: CordAccountOf<T>,
 	/// Stream holder.
 	pub holder: Option<CordAccountOf<T>>,
 	/// \[OPTIONAL\] Schema Identifier
 	pub schema: Option<IdentifierOf>,
 	/// \[OPTIONAL\] Stream Link
 	pub link: Option<IdentifierOf>,
-	/// \[OPTIONAL\] parent Stream ID.
-	pub parent: Option<HashOf<T>>,
-	/// \[OPTIONAL\] Stream CID.
-	pub cid: Option<CidOf>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
+}
+
+/// An on-chain commit details.
+#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
+#[scale_info(skip_type_params(T))]
+pub struct StreamCommit<T: Config> {
+	/// Stream block number
+	pub block: BlockNumberOf<T>,
+	/// Stream commit type
+	pub commit: StreamCommitOf,
+}
+
+impl<T: Config> StreamCommit<T> {
+	pub fn store_tx(identifier: &IdentifierOf, tx_commit: StreamCommit<T>) -> DispatchResult {
+		let mut commit = <Commits<T>>::get(identifier).unwrap_or_default();
+		commit.push(tx_commit);
+		<Commits<T>>::insert(identifier, commit);
+		Ok(())
+	}
+
+	pub fn update_tx(identifier: &IdentifierOf, tx_commit: StreamCommit<T>) -> DispatchResult {
+		let mut commit = <Commits<T>>::get(identifier).unwrap();
+		commit.push(tx_commit);
+		<Commits<T>>::insert(identifier, commit);
+		Ok(())
+	}
+}
+
+/// An on-chain commit details.
+#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
+#[scale_info(skip_type_params(T))]
+pub struct DepositDetail<T: Config> {
+	/// Author details
+	pub author: CordAccountOf<T>,
+	/// deposit amout
+	pub deposit: BalanceOf<T>,
+}
+
+#[derive(Clone, Debug, Encode, Decode, PartialEq, Eq, TypeInfo)]
+pub enum StreamCommitOf {
+	Genesis,
+	Update,
+	Status,
+	Remove,
 }

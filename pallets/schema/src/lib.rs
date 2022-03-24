@@ -39,7 +39,8 @@ pub mod pallet {
 	/// Hash of the schema.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a CORD account.
-	pub type CordAccountOf<T> = <T as Config>::CordAccountId;
+	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
+	// <T as Config>::CordAccountId;
 	// schema identifier prefix.
 	pub const SCHEMA_IDENTIFIER_PREFIX: u16 = 33;
 
@@ -47,7 +48,7 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		type CordAccountId: Parameter;
+		// type CordAccountId: Parameter;
 
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,

@@ -62,6 +62,9 @@ use sp_runtime::{
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, KeyTypeId, Perbill, Permill, Perquintill,
 };
+
+// use sp_runtime::traits::IdentifyAccount;
+
 use sp_staking::SessionIndex;
 use sp_std::prelude::*;
 
@@ -137,7 +140,7 @@ type MoreThanHalfCouncil = EnsureOneOf<
 
 pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-// A single block should take 1s, of which 333ms is for creation,
+// A single block should take 1s, of which 300ms is for creation,
 // and the remaining for validation.
 const MAX_BLOCK_WEIGHT: Weight = 300 * WEIGHT_PER_MILLIS;
 /// Maximum length of block. Up to 5MB.
@@ -851,15 +854,24 @@ parameter_types! {
 
 impl pallet_schema::Config for Runtime {
 	type Event = Event;
-	type CordAccountId = AccountId;
-	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	// type CordAccountId = AccountId;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
 	type MaxDelegates = MaxSchemaDelegates;
 	type WeightInfo = ();
 }
-
+parameter_types! {
+	#[derive(Debug, Clone, PartialEq)]
+	pub const StreamDeposit: Balance = 5 * MILLI_WAY;
+}
 impl pallet_stream::Config for Runtime {
 	type Event = Event;
-	type EnsureOrigin = EnsureSigned<Self::CordAccountId>;
+	type Signature = Signature;
+	type Signer = <Signature as Verify>::Signer;
+	type Currency = Balances;
+	type Deposit = StreamDeposit;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type ForceOrigin = MoreThanHalfCouncil;
+	type Slashed = Treasury;
 	type WeightInfo = ();
 }
 
