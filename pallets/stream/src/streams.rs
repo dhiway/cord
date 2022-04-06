@@ -64,6 +64,7 @@ impl<T: Config> StreamCommit<T> {
 	}
 }
 
+
 #[derive(Clone, Debug, Encode, Decode, PartialEq, Eq, TypeInfo)]
 pub enum StreamCommitOf {
 	Genesis,
