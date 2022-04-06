@@ -40,16 +40,12 @@ pub mod pallet {
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a CORD account.
 	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
-	// <T as Config>::CordAccountId;
 	// schema identifier prefix.
 	pub const SCHEMA_IDENTIFIER_PREFIX: u16 = 33;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-
-		// type CordAccountId: Parameter;
-
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
@@ -94,7 +90,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new schema has been created.
 		/// \[schema identifier, version, controller\]
-		Anchor(IdentifierOf, VersionOf, CordAccountOf<T>),
+		Anchor(HashOf<T>, IdentifierOf, CordAccountOf<T>),
 		/// A schema has been updated.
 		/// \[schema identifier, version, controller\]
 		Update(IdentifierOf, VersionOf, CordAccountOf<T>),
@@ -157,23 +153,20 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the schema controller.
 		/// * schema: unique identifier of the schema.
-		/// * creator: controller of the schema.
 		/// * delegates: authorised identities to add.
 		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn authorise(
 			origin: OriginFor<T>,
 			schema: IdentifierOf,
-			creator: CordAccountOf<T>,
 			delegates: Vec<CordAccountOf<T>>,
 		) -> DispatchResult {
-			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let schema_hash = <SchemaId<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			let schema_details =
 				<Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
-
 			ensure!(schema_details.permissioned, Error::<T>::SchemaNotPermissioned);
-			ensure!(schema_details.creator == creator, Error::<T>::UnauthorizedDelegation);
+			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedDelegation);
 
 			Delegations::<T>::try_mutate(schema.clone(), |ref mut delegation| {
 				ensure!(
@@ -185,7 +178,8 @@ pub mod pallet {
 						.try_push(delegate)
 						.expect("delegates length is less than T::MaxDelegates; qed");
 				}
-				Self::deposit_event(Event::AddDelegates(schema, creator));
+
+				Self::deposit_event(Event::AddDelegates(schema, controller));
 				Ok(())
 			})
 		}
@@ -196,27 +190,27 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the schema controller.
 		/// * schema: unique identifier of the schema.
-		/// * creator: controller of the schema.
 		/// * delegates: identities (delegates) to be removed.
 		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn deauthorise(
 			origin: OriginFor<T>,
 			schema: IdentifierOf,
-			creator: CordAccountOf<T>,
 			delegates: Vec<CordAccountOf<T>>,
 		) -> DispatchResult {
-			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+
 			let schema_hash = <SchemaId<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			let schema_details =
 				<Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.permissioned, Error::<T>::SchemaNotPermissioned);
-			ensure!(schema_details.creator == creator, Error::<T>::UnauthorizedDelegation);
+			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedDelegation);
 
 			Delegations::<T>::try_mutate(schema.clone(), |ref mut delegation| {
 				for delegate in delegates {
 					delegation.retain(|x| x != &delegate);
 				}
-				Self::deposit_event(Event::RemoveDelegates(schema, creator));
+
+				Self::deposit_event(Event::RemoveDelegates(schema, controller));
 				Ok(())
 			})
 		}
@@ -224,8 +218,6 @@ pub mod pallet {
 		/// Create a new schema and associates with its identifier.
 		///
 		/// * origin: the identity of the schema controller.
-		/// * identifier: unique identifier of the incoming schema stream.
-		/// * creator: controller of the schema.
 		/// * version: version of the  schema stream.
 		/// * schema_hash: hash of the incoming schema stream.
 		/// * cid: \[OPTIONAL\] storage Id of the incoming stream.
@@ -233,16 +225,17 @@ pub mod pallet {
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
-			identifier: IdentifierOf,
-			creator: CordAccountOf<T>,
 			version: VersionOf,
 			schema_hash: HashOf<T>,
 			cid: Option<CidOf>,
 			permissioned: StatusOf,
 		) -> DispatchResult {
-			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(!<Schemas<T>>::contains_key(&schema_hash), Error::<T>::SchemaAlreadyAnchored);
-			SchemaDetails::<T>::is_valid_identifier(&identifier, SCHEMA_IDENTIFIER_PREFIX)?;
+			let identifier: IdentifierOf =
+				schemas::create_identifier(&(&schema_hash).encode()[..], SCHEMA_IDENTIFIER_PREFIX)
+					.into_bytes();
+
 			Version::parse(
 				str::from_utf8(&version).map_err(|_err| Error::<T>::InvalidSchemaVersion)?,
 			)
@@ -258,15 +251,14 @@ pub mod pallet {
 				SchemaDetails {
 					version: version.clone(),
 					schema_id: identifier.clone(),
-					creator: creator.clone(),
+					controller: controller.clone(),
 					parent: None,
 					cid,
 					permissioned,
 					revoked: false,
 				},
 			);
-
-			Self::deposit_event(Event::Anchor(identifier, version, creator));
+			Self::deposit_event(Event::Anchor(schema_hash, identifier, controller));
 
 			Ok(())
 		}
@@ -276,20 +268,21 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming schema stream.
-		/// * updater: controller of the schema.
 		/// * version: version of the  schema stream.
 		/// * schema_hash: hash of the new schema stream.
 		/// * cid: \[OPTIONAL\] storage Id of the incoming stream.
 		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(1, 2))]
-		pub fn version(
+		pub fn update(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
-			updater: CordAccountOf<T>,
 			version: VersionOf,
 			schema_hash: HashOf<T>,
 			cid: Option<CidOf>,
 		) -> DispatchResult {
-			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			SchemaDetails::<T>::is_valid_identifier(&identifier, SCHEMA_IDENTIFIER_PREFIX)
+				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+
 			let prev_schema_hash =
 				<SchemaId<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 
@@ -304,9 +297,8 @@ pub mod pallet {
 
 			let schema_details =
 				<Schemas<T>>::get(&prev_schema_hash).ok_or(Error::<T>::SchemaGenesisNotFound)?;
-
+			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
 			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
-			ensure!(schema_details.creator == updater, Error::<T>::UnauthorizedOperation);
 
 			let old_version = Version::parse(str::from_utf8(&schema_details.version).unwrap())
 				.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
@@ -319,14 +311,14 @@ pub mod pallet {
 				SchemaDetails {
 					version: version.clone(),
 					schema_id: identifier.clone(),
-					creator: updater.clone(),
+					controller: controller.clone(),
 					parent: Some(prev_schema_hash),
 					cid,
 					..schema_details
 				},
 			);
 
-			Self::deposit_event(Event::Update(identifier, version, updater));
+			Self::deposit_event(Event::Update(identifier, version, controller));
 			Ok(())
 		}
 
@@ -341,20 +333,21 @@ pub mod pallet {
 		pub fn status(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
-			updater: CordAccountOf<T>,
 			status: StatusOf,
 		) -> DispatchResult {
-			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			SchemaDetails::<T>::is_valid_identifier(&identifier, SCHEMA_IDENTIFIER_PREFIX)
+				.map_err(|_| Error::<T>::InvalidIdentifier)?;
 
 			let schema_hash = <SchemaId<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 
 			let schema_details =
 				<Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
+			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
 			ensure!(schema_details.revoked != status, Error::<T>::StatusChangeNotRequired);
-			ensure!(schema_details.creator == updater, Error::<T>::UnauthorizedOperation);
 
 			<Schemas<T>>::insert(&schema_hash, SchemaDetails { revoked: status, ..schema_details });
-			Self::deposit_event(Event::Status(identifier, updater));
+			Self::deposit_event(Event::Status(identifier, controller));
 
 			Ok(())
 		}
@@ -369,23 +362,25 @@ pub mod pallet {
 		pub fn permission(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
-			updater: CordAccountOf<T>,
 			permissioned: StatusOf,
 		) -> DispatchResult {
-			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			SchemaDetails::<T>::is_valid_identifier(&identifier, SCHEMA_IDENTIFIER_PREFIX)
+				.map_err(|_| Error::<T>::InvalidIdentifier)?;
 			let schema_hash = <SchemaId<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 
 			let schema_details =
 				<Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
+			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
 			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
 			ensure!(
 				schema_details.permissioned != permissioned,
 				Error::<T>::NoPermissionChangeRequired
 			);
-			ensure!(schema_details.creator == updater, Error::<T>::UnauthorizedOperation);
 
 			<Schemas<T>>::insert(&schema_hash, SchemaDetails { permissioned, ..schema_details });
-			Self::deposit_event(Event::Permission(identifier, updater));
+
+			Self::deposit_event(Event::Permission(identifier, controller));
 
 			Ok(())
 		}

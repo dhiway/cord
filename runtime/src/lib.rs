@@ -110,7 +110,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cord"),
 	impl_name: create_runtime_str!("dhiway-cord"),
 	authoring_version: 0,
-	spec_version: 6020,
+	spec_version: 7000,
 	impl_version: 1,
 	#[cfg(not(feature = "disable-runtime-api"))]
 	apis: RUNTIME_API_VERSIONS,
@@ -854,7 +854,6 @@ parameter_types! {
 
 impl pallet_schema::Config for Runtime {
 	type Event = Event;
-	// type CordAccountId = AccountId;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
 	type MaxDelegates = MaxSchemaDelegates;
 	type WeightInfo = ();
@@ -867,11 +866,8 @@ impl pallet_stream::Config for Runtime {
 	type Event = Event;
 	type Signature = Signature;
 	type Signer = <Signature as Verify>::Signer;
-	type Currency = Balances;
-	type Deposit = StreamDeposit;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
 	type ForceOrigin = MoreThanHalfCouncil;
-	type Slashed = Treasury;
 	type WeightInfo = ();
 }
 

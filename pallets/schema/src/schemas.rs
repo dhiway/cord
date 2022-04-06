@@ -16,9 +16,12 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
+use base58::{FromBase58, ToBase58};
+use blake2_rfc::blake2b::{Blake2b, Blake2bResult};
 use codec::{Decode, Encode};
+use scale_info::prelude::string::String;
 use sp_runtime::DispatchResult;
-use sp_std::str;
+use sp_std::vec;
 
 /// An on-chain schema details mapped to an identifier.
 #[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
@@ -29,7 +32,7 @@ pub struct SchemaDetails<T: Config> {
 	/// Schema identifier.
 	pub schema_id: IdentifierOf,
 	/// Schema creator.
-	pub creator: CordAccountOf<T>,
+	pub controller: CordAccountOf<T>,
 	/// \[OPTIONAL\] Schema Parent hash.
 	pub parent: Option<HashOf<T>>,
 	/// \[OPTIONAL\] IPFS CID.
@@ -71,13 +74,16 @@ impl<T: Config> SchemaDetails<T> {
 	}
 	pub fn schema_status(
 		tx_schema: &IdentifierOf,
+		controller: CordAccountOf<T>,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
 		let schema_hash = <SchemaId<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
 		let schema_details = <Schemas<T>>::get(schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
 		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 
-		if schema_details.creator != requestor && schema_details.permissioned {
+		if (schema_details.controller != controller || schema_details.controller != requestor)
+			&& schema_details.permissioned
+		{
 			let delegates = <Delegations<T>>::get(schema_details.schema_id);
 			ensure!(
 				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
@@ -88,109 +94,35 @@ impl<T: Config> SchemaDetails<T> {
 	}
 }
 
-/// Base58-to-text encoding
-///
-/// Based on https://github.com/trezor/trezor-crypto/blob/master/base58.c
-///          https://github.com/debris/base58/blob/master/src/lib.rs
+/// CORD Identifier Prefix
+const PREFIX: &[u8] = b"IDFRPRE";
 
-const B58_DIGITS_MAP: &'static [i8] = &[
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-	-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, -1, -1, -1, -1, -1, -1, -1, 9, 10, 11, 12, 13, 14, 15, 16, -1,
-	17, 18, 19, 20, 21, -1, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, -1, -1, -1, -1, -1, -1, 33,
-	34, 35, 36, 37, 38, 39, 40, 41, 42, 43, -1, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
-	57, -1, -1, -1, -1, -1,
-];
-// const PREFIX: &[u8] = b"IDFRPRE";
-
-/// Errors that can occur when decoding base58 encoded string.
-#[derive(Debug, PartialEq)]
-pub enum FromBase58Error {
-	/// The input contained a character which is not a part of the base58 format.
-	InvalidBase58Character(char, usize),
-	/// The input had invalid length.
-	InvalidBase58Length,
+/// Generate Blake2b Hash
+pub fn ss58hash(data: &[u8]) -> Blake2bResult {
+	let mut context = Blake2b::new(64);
+	context.update(PREFIX);
+	context.update(data);
+	context.finalize()
 }
 
-/// A trait for converting base58 encoded values.
-pub trait FromBase58 {
-	/// Convert a value of `self`, interpreted as base58 encoded data, into an owned vector of bytes, returning a vector.
-	fn from_base58(&self) -> Result<Vec<u8>, FromBase58Error>;
-}
+/// Create a new cryptographic identifier.
+pub fn create_identifier(data: &[u8], id_ident: u16) -> String {
+	let ident: u16 = u16::from(id_ident) & 0b0011_1111_1111_1111;
 
-impl FromBase58 for str {
-	fn from_base58(&self) -> Result<Vec<u8>, FromBase58Error> {
-		let mut bin = [0u8; 132];
-		let mut out = [0u32; (132 + 3) / 4];
-		let bytesleft = (bin.len() % 4) as u8;
-		let zeromask = match bytesleft {
-			0 => 0u32,
-			_ => 0xffffffff << (bytesleft * 8),
-		};
-
-		let zcount = self.chars().take_while(|x| *x == '1').count();
-		let mut i = zcount;
-		let b58: Vec<u8> = self.bytes().collect();
-
-		while i < self.len() {
-			if (b58[i] & 0x80) != 0 {
-				// High-bit set on invalid digit
-				return Err(FromBase58Error::InvalidBase58Character(b58[i] as char, i));
-			}
-
-			if B58_DIGITS_MAP[b58[i] as usize] == -1 {
-				// // Invalid base58 digit
-				return Err(FromBase58Error::InvalidBase58Character(b58[i] as char, i));
-			}
-
-			let mut c = B58_DIGITS_MAP[b58[i] as usize] as u64;
-			let mut j = out.len();
-			while j != 0 {
-				j -= 1;
-				let t = out[j] as u64 * 58 + c;
-				c = (t & 0x3f00000000) >> 32;
-				out[j] = (t & 0xffffffff) as u32;
-			}
-
-			if c != 0 {
-				// Output number too big (carry to the next int32)
-				return Err(FromBase58Error::InvalidBase58Length);
-			}
-
-			if (out[0] & zeromask) != 0 {
-				// Output number too big (last int32 filled too far)
-				return Err(FromBase58Error::InvalidBase58Length);
-			}
-
-			i += 1;
-		}
-
-		let mut i = 1;
-		let mut j = 0;
-
-		bin[0] = match bytesleft {
-			3 => ((out[0] & 0xff0000) >> 16) as u8,
-			2 => ((out[0] & 0xff00) >> 8) as u8,
-			1 => {
-				j = 1;
-				(out[0] & 0xff) as u8
-			},
-			_ => {
-				i = 0;
-				bin[0]
-			},
-		};
-
-		while j < out.len() {
-			bin[i] = ((out[j] >> 0x18) & 0xff) as u8;
-			bin[i + 1] = ((out[j] >> 0x10) & 0xff) as u8;
-			bin[i + 2] = ((out[j] >> 8) & 0xff) as u8;
-			bin[i + 3] = ((out[j] >> 0) & 0xff) as u8;
-			i += 4;
-			j += 1;
-		}
-
-		let leading_zeros = bin.iter().take_while(|x| **x == 0).count();
-		Ok(bin[leading_zeros - zcount..].to_vec())
-	}
+	let mut v = match ident {
+		0..=63 => vec![ident as u8],
+		64..=16_383 => {
+			// upper six bits of the lower byte(!)
+			let first = ((ident & 0b0000_0000_1111_1100) as u8) >> 2;
+			// lower two bits of the lower byte in the high pos,
+			// lower bits of the upper byte in the low pos
+			let second = ((ident >> 8) as u8) | ((ident & 0b0000_0000_0000_0011) as u8) << 6;
+			vec![first | 0b01000000, second]
+		},
+		_ => unreachable!("masked out the upper two bits; qed"),
+	};
+	v.extend(data.as_ref());
+	let r = ss58hash(&v);
+	v.extend(&r.as_bytes()[0..2]);
+	v.to_base58()
 }

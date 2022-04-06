@@ -64,16 +64,6 @@ impl<T: Config> StreamCommit<T> {
 	}
 }
 
-/// An on-chain commit details.
-#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
-#[scale_info(skip_type_params(T))]
-pub struct DepositDetail<T: Config> {
-	/// Author details
-	pub author: CordAccountOf<T>,
-	/// deposit amout
-	pub deposit: BalanceOf<T>,
-}
-
 #[derive(Clone, Debug, Encode, Decode, PartialEq, Eq, TypeInfo)]
 pub enum StreamCommitOf {
 	Genesis,
