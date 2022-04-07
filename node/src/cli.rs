@@ -63,6 +63,9 @@ pub enum Subcommand {
 	/// The custom benchmark subcommmand benchmarking runtime pallets.
 	#[clap(name = "benchmark", about = "Benchmark runtime pallets.")]
 	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+	/// Sub command for benchmarking the storage speed.
+	#[clap(name = "benchmark-storage", about = "Benchmark storage speed.")]
+	BenchmarkStorage(frame_benchmarking_cli::StorageCmd),
 	/// Verify a signature for a message, provided on STDIN, with a given (public or secret) key.
 	Verify(sc_cli::VerifyCmd),
 

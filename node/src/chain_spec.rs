@@ -22,10 +22,11 @@ pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	constants::currency::*, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
 	CouncilConfig, DemocracyConfig, ElectionsConfig, IndicesConfig, SessionConfig, SessionKeys,
-	SudoConfig, SystemConfig, TechnicalMembershipConfig,
+	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_staking::Forcing;
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::{ChainType, Properties};
 use sc_telemetry::TelemetryEndpoints;
@@ -34,7 +35,10 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use sp_runtime::{
+	traits::{IdentifyAccount, Verify},
+	Perbill,
+};
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -315,6 +319,20 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				})
 				.collect::<Vec<_>>(),
 		},
+		staking: StakingConfig {
+			validator_count: 23,
+			minimum_validator_count: 3,
+			stakers: initial_authorities
+				.iter()
+				.map(|x| (x.0.clone(), x.1.clone(), BOND, StakerStatus::Validator))
+				.collect(),
+			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
+			force_era: Forcing::ForceNone,
+			slash_reward_fraction: Perbill::from_percent(10),
+			min_nominator_bond: BOND,
+			min_validator_bond: BOND,
+			..Default::default()
+		},
 		elections: ElectionsConfig {
 			members: endowed_accounts
 				.iter()
@@ -381,6 +399,20 @@ fn cord_development_genesis(
 					)
 				})
 				.collect::<Vec<_>>(),
+		},
+		staking: StakingConfig {
+			validator_count: 23,
+			minimum_validator_count: 3,
+			stakers: initial_authorities
+				.iter()
+				.map(|x| (x.0.clone(), x.1.clone(), BOND, StakerStatus::Validator))
+				.collect(),
+			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
+			force_era: Forcing::ForceNone,
+			slash_reward_fraction: Perbill::from_percent(10),
+			min_nominator_bond: BOND,
+			min_validator_bond: BOND,
+			..Default::default()
 		},
 		elections: ElectionsConfig {
 			members: endowed_accounts
