@@ -1,6 +1,6 @@
 [package]
 name = 'cord-primitives'
-version = '0.6.2'
+version = '0.7.0'
 authors = ['Dhiway <info@dhiway.com>']
 edition = '2021'
 license = "GPL-3.0"
@@ -8,14 +8,14 @@ homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "2.3.1", default-features = false, features = ["bit-vec", "derive"] }
-scale-info = { version = "1.0", default-features = false, features = ["bit-vec", "derive"] }
-frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.17"}
-sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.17"}
-sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.17"}
-sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.17"}
-sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.17"}
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.17", default-features = false }
+codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["bit-vec", "derive"] }
+scale-info = { version = "2.0.1", default-features = false, features = ["bit-vec", "derive"] }
+frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
+sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
+sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
+sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
+sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18", default-features = false }
 
 [features]
 default = ["std"]

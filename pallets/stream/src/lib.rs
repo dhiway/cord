@@ -19,7 +19,6 @@
 #![allow(clippy::unused_unit)]
 
 use cord_primitives::{IdentifierOf, StatusOf};
-use frame_support::traits::{Currency, OnUnbalanced, ReservableCurrency};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
@@ -31,11 +30,6 @@ pub use crate::streams::*;
 
 use crate::weights::WeightInfo;
 pub use pallet::*;
-type BalanceOf<T> =
-	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
-	<T as frame_system::Config>::AccountId,
->>::NegativeImbalance;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -60,16 +54,8 @@ pub mod pallet {
 			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
 		>;
-		/// The currency trait.
-		type Currency: ReservableCurrency<Self::AccountId>;
-		/// slashed funds.
-		type Slashed: OnUnbalanced<NegativeImbalanceOf<Self>>;
-		/// The amount held on deposit for a registered mark
-		#[pallet::constant]
-		type Deposit: Get<BalanceOf<Self>>;
-		/// The origin which may forcibly remove a mark. Root can always do this.
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
-		type Signature: Verify<Signer = Self::Signer> + Parameter;
+		type Signature: Verify<Signer = <Self as pallet::Config>::Signer> + Parameter;
 		type Signer: IdentifyAccount<AccountId = CordAccountOf<Self>> + Parameter;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type WeightInfo: WeightInfo;
@@ -97,45 +83,27 @@ pub mod pallet {
 	pub type Commits<T> =
 		StorageMap<_, Blake2_128Concat, IdentifierOf, Vec<StreamCommit<T>>, OptionQuery>;
 
-	/// stream deposit details stored on chain.
-	/// It maps from a stream Id to the author and deposit.
-	#[pallet::storage]
-	#[pallet::getter(fn deposit_of)]
-	pub type DepositOf<T> = StorageMap<
-		_,
-		Blake2_128Concat,
-		IdentifierOf,
-		(CordAccountOf<T>, BalanceOf<T>),
-		OptionQuery,
-	>;
 	/// stream hashes stored on chain.
 	/// It maps from a stream hash to Id (resolve from hash).
 	#[pallet::storage]
 	#[pallet::getter(fn hashes_of)]
 	pub type HashesOf<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
 
-	/// stream hashes stored on chain.
-	/// It maps from a stream hash to Id (resolve from hash).
-	#[pallet::storage]
-	#[pallet::getter(fn expired_of)]
-	pub type ExpiredOf<T> =
-		StorageMap<_, Blake2_128Concat, SignatureOf<T>, IdentifierOf, OptionQuery>;
-
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new stream has been created.
-		/// \[stream identifier, controller\]
-		Anchor(IdentifierOf, HashOf<T>, CordAccountOf<T>),
+		/// \[stream hash, identifier, controller\]
+		Anchor(HashOf<T>, IdentifierOf, CordAccountOf<T>),
 		/// A stream has been updated.
-		/// \[stream identifier, controller\]
+		/// \[stream identifier, hash, controller\]
 		Update(IdentifierOf, HashOf<T>, CordAccountOf<T>),
 		/// A stream status has been changed.
-		/// \[stream identifier\]
+		/// \[stream identifier, controller\]
 		Status(IdentifierOf, CordAccountOf<T>),
 		/// A stream has been removed.
 		/// \[stream identifier\]
-		Remove(IdentifierOf, CordAccountOf<T>),
+		Remove(IdentifierOf),
 	}
 
 	#[pallet::error]
@@ -154,16 +122,14 @@ pub mod pallet {
 		StreamLinkNotFound,
 		/// Stream Link is revoked
 		StreamLinkRevoked,
-		// Unable to pay stream deposit
-		UnableToPayDeposit,
 		// Invalid creator signature
 		InvalidSignature,
-		// Author deposit details not found
-		DepositDetailsNotFound,
 		//Stream has is not unique
 		HashAlreadyAnchored,
 		// Expired Tx Signature
 		ExpiredSignature,
+		// Invalid Stream Identifier
+		InvalidIdentifier,
 	}
 
 	#[pallet::call]
@@ -171,17 +137,15 @@ pub mod pallet {
 		/// Create a new stream and associates it with its controller.
 		///
 		/// * origin: the identity of the Tx Author.
-		/// * identifier: unique identifier of the incoming stream.
 		/// * creator: creator (controller) of the stream.
 		/// * stream_hash: hash of the incoming stream.
 		/// * holder: \[OPTIONAL\] holder (recipient) of the stream.
 		/// * schema: \[OPTIONAL\] stream schema identifier.
 		/// * link: \[OPTIONAL\] stream link identifier.
 		/// * tx_signature: creator signature.
-		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(6, 4))]
+		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(4, 3))]
 		pub fn create(
 			origin: OriginFor<T>,
-			identifier: IdentifierOf,
 			creator: CordAccountOf<T>,
 			stream_hash: HashOf<T>,
 			holder: Option<CordAccountOf<T>>,
@@ -189,22 +153,27 @@ pub mod pallet {
 			link: Option<IdentifierOf>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
 				tx_signature.verify(&(&stream_hash).encode()[..], &creator),
 				Error::<T>::InvalidSignature
 			);
-			pallet_schema::SchemaDetails::<T>::is_valid_identifier(
-				&identifier,
+
+			let identifier: IdentifierOf = pallet_schema::schemas::create_identifier(
+				&(&stream_hash).encode()[..],
 				STREAM_IDENTIFIER_PREFIX,
-			)?;
+			)
+			.into_bytes();
 
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
-			ensure!(!<HashesOf<T>>::contains_key(&stream_hash), Error::<T>::HashAlreadyAnchored);
 
 			if let Some(ref schema) = schema {
-				pallet_schema::SchemaDetails::<T>::schema_status(schema, creator.clone())
-					.map_err(<pallet_schema::Error<T>>::from)?;
+				pallet_schema::SchemaDetails::<T>::schema_status(
+					schema,
+					controller,
+					creator.clone(),
+				)
+				.map_err(<pallet_schema::Error<T>>::from)?;
 			}
 
 			if let Some(ref link) = link {
@@ -214,9 +183,6 @@ pub mod pallet {
 			}
 
 			let now_block_number = frame_system::Pallet::<T>::block_number();
-			let deposit = T::Deposit::get();
-			T::Currency::reserve(&author, deposit).map_err(|_| Error::<T>::UnableToPayDeposit)?;
-			<DepositOf<T>>::insert(&identifier, (author, deposit));
 			<HashesOf<T>>::insert(&stream_hash, &identifier);
 
 			StreamCommit::<T>::store_tx(
@@ -235,9 +201,8 @@ pub mod pallet {
 					revoked: false,
 				},
 			);
-			<ExpiredOf<T>>::insert(tx_signature, &identifier);
 
-			Self::deposit_event(Event::Anchor(identifier, stream_hash, creator));
+			Self::deposit_event(Event::Anchor(stream_hash, identifier, creator));
 
 			Ok(())
 		}
@@ -254,17 +219,32 @@ pub mod pallet {
 			stream_hash: HashOf<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
-			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(!<HashesOf<T>>::contains_key(&stream_hash), Error::<T>::HashAlreadyAnchored);
+			pallet_schema::SchemaDetails::<T>::is_valid_identifier(
+				&identifier,
+				STREAM_IDENTIFIER_PREFIX,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifier)?;
 
 			let tx_prev_details =
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
+
 			let updater = tx_prev_details.controller.clone();
 			ensure!(
 				tx_signature.verify(&(&stream_hash).encode()[..], &updater),
 				Error::<T>::InvalidSignature
 			);
+
+			if let Some(ref schema) = tx_prev_details.schema {
+				pallet_schema::SchemaDetails::<T>::schema_status(
+					schema,
+					controller,
+					updater.clone(),
+				)
+				.map_err(<pallet_schema::Error<T>>::from)?;
+			}
 
 			let now_block_number = frame_system::Pallet::<T>::block_number();
 
@@ -278,7 +258,6 @@ pub mod pallet {
 				&identifier,
 				StreamDetails { stream_hash: stream_hash.clone(), ..tx_prev_details },
 			);
-			<ExpiredOf<T>>::insert(tx_signature, &identifier);
 			Self::deposit_event(Event::Update(identifier, stream_hash, updater));
 
 			Ok(())
@@ -294,19 +273,30 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
 			status: StatusOf,
+			tx_hash: HashOf<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
-			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(!<ExpiredOf<T>>::contains_key(&tx_signature), Error::<T>::ExpiredSignature);
-
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			pallet_schema::SchemaDetails::<T>::is_valid_identifier(
+				&identifier,
+				STREAM_IDENTIFIER_PREFIX,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifier)?;
 			let tx_status = <Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(tx_status.revoked != status, Error::<T>::StatusChangeNotRequired);
 			let updater = tx_status.controller.clone();
 			ensure!(
-				tx_signature.verify(&(&tx_status.stream_hash).encode()[..], &updater),
+				tx_signature.verify(&(&tx_hash).encode()[..], &updater),
 				Error::<T>::InvalidSignature
 			);
-
+			if let Some(ref schema) = tx_status.schema {
+				pallet_schema::SchemaDetails::<T>::schema_status(
+					schema,
+					controller,
+					updater.clone(),
+				)
+				.map_err(<pallet_schema::Error<T>>::from)?;
+			}
 			let now_block_number = frame_system::Pallet::<T>::block_number();
 
 			StreamCommit::<T>::store_tx(
@@ -314,7 +304,6 @@ pub mod pallet {
 				StreamCommit { block: now_block_number, commit: StreamCommitOf::Status },
 			)?;
 			<Streams<T>>::insert(&identifier, StreamDetails { revoked: status, ..tx_status });
-			<ExpiredOf<T>>::insert(tx_signature, &identifier);
 			Self::deposit_event(Event::Status(identifier, updater));
 
 			Ok(())
@@ -323,35 +312,24 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the Tx Author.
 		/// * identifier: unique identifier of the incoming stream.
-		/// * tx_signature: signature of the contoller.
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(3, 3))]
-		pub fn remove(
-			origin: OriginFor<T>,
-			identifier: IdentifierOf,
-			tx_signature: SignatureOf<T>,
-		) -> DispatchResult {
-			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(!<ExpiredOf<T>>::contains_key(&tx_signature), Error::<T>::ExpiredSignature);
-
-			let tx_stream = <Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
-			let creator = tx_stream.controller.clone();
-			ensure!(
-				tx_signature.verify(&(&tx_stream.stream_hash).encode()[..], &creator),
-				Error::<T>::InvalidSignature
-			);
+		pub fn remove(origin: OriginFor<T>, identifier: IdentifierOf) -> DispatchResult {
+			<T as Config>::ForceOrigin::ensure_origin(origin)?;
+			pallet_schema::SchemaDetails::<T>::is_valid_identifier(
+				&identifier,
+				STREAM_IDENTIFIER_PREFIX,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifier)?;
+			<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 
 			let now_block_number = frame_system::Pallet::<T>::block_number();
-			let (author, deposit) =
-				<DepositOf<T>>::get(&identifier).ok_or(Error::<T>::DepositDetailsNotFound)?;
 
 			<Streams<T>>::remove(&identifier);
 			StreamCommit::<T>::store_tx(
 				&identifier,
 				StreamCommit { block: now_block_number, commit: StreamCommitOf::Remove },
 			)?;
-			T::Currency::unreserve(&author, deposit);
-			<ExpiredOf<T>>::insert(tx_signature, &identifier);
-			Self::deposit_event(Event::Remove(identifier, creator));
+			Self::deposit_event(Event::Remove(identifier));
 
 			Ok(())
 		}
