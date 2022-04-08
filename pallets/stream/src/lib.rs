@@ -166,7 +166,6 @@ pub mod pallet {
 			.into_bytes();
 
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
-			ensure!(!<HashesOf<T>>::contains_key(&stream_hash), Error::<T>::HashAlreadyAnchored);
 
 			if let Some(ref schema) = schema {
 				pallet_schema::SchemaDetails::<T>::schema_status(

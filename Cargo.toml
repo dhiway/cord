@@ -28,5 +28,6 @@ members = [
 	"node",
 	"pallets/schema",
 	"pallets/stream",
+	"pallets/builder",
 ]
 

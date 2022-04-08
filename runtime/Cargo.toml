@@ -28,6 +28,7 @@ hex-literal = { version = "0.3.4", optional = true }
 # cord pallets 
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
+pallet-builder-treasury = {  default-features = false, path = '../pallets/builder' }
 
 # cord primitives
 cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
@@ -149,6 +150,7 @@ std = [
 	"frame-try-runtime/std",
   	"pallet-schema/std",
 	"pallet-stream/std",
+	"pallet-builder-treasury/std",
 	"sp-npos-elections/std",
 	"sp-io/std",
 ]

@@ -1085,6 +1085,7 @@ dependencies = [
  "pallet-babe",
  "pallet-bags-list",
  "pallet-balances",
+ "pallet-builder-treasury",
  "pallet-collective",
  "pallet-democracy",
  "pallet-election-provider-multi-phase",
@@ -4480,6 +4481,24 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
+ "sp-runtime",
+ "sp-std 4.0.0",
+]
+
+[[package]]
+name = "pallet-builder-treasury"
+version = "0.7.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "impl-trait-for-tuples",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std 4.0.0",
 ]

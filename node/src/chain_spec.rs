@@ -21,8 +21,9 @@ pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	constants::currency::*, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
-	CouncilConfig, DemocracyConfig, ElectionsConfig, IndicesConfig, SessionConfig, SessionKeys,
-	StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalMembershipConfig,
+	BuilderCouncilMembershipConfig, CouncilConfig, DemocracyConfig, ElectionsConfig, IndicesConfig,
+	SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
+	TechnicalMembershipConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -352,6 +353,15 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 			phantom: Default::default(),
 		},
+		builder_council: Default::default(),
+		builder_council_membership: BuilderCouncilMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
 		sudo: SudoConfig { key: Some(root_key) },
 		babe: BabeConfig {
 			authorities: Default::default(),
@@ -361,6 +371,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
+		builder_treasury: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }
@@ -433,6 +444,15 @@ fn cord_development_genesis(
 				.collect(),
 			phantom: Default::default(),
 		},
+		builder_council: Default::default(),
+		builder_council_membership: BuilderCouncilMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
 		sudo: SudoConfig { key: Some(root_key) },
 		babe: BabeConfig {
 			authorities: Default::default(),
@@ -442,6 +462,7 @@ fn cord_development_genesis(
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		treasury: Default::default(),
+		builder_treasury: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }

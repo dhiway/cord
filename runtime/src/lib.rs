@@ -839,12 +839,6 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 }
 
 parameter_types! {
-	pub const NetworkMotionDuration: BlockNumber = 2 * DAYS;
-	pub const NetworkMaxProposals: u32 = 50;
-	pub const NetworkMaxMembers: u32 = 15;
-}
-
-parameter_types! {
 	pub const TechnicalMotionDuration: BlockNumber = 2 * DAYS;
 	pub const TechnicalMaxProposals: u32 = 50;
 	pub const TechnicalMaxMembers: u32 = 15;
@@ -862,6 +856,24 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const NetworkMotionDuration: BlockNumber = 2 * DAYS;
+	pub const NetworkMaxProposals: u32 = 50;
+	pub const NetworkMaxMembers: u32 = 15;
+}
+
+type BuilderCouncilCollective = pallet_collective::Instance3;
+impl pallet_collective::Config<BuilderCouncilCollective> for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+	type MotionDuration = NetworkMotionDuration;
+	type MaxProposals = NetworkMaxProposals;
+	type MaxMembers = NetworkMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+}
+
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 	type Event = Event;
 	type AddOrigin = MoreThanHalfCouncil;
@@ -875,11 +887,30 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }
 
+type MoreThanHalfBuilderCouncil = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionMoreThan<AccountId, BuilderCouncilCollective, 1, 2>,
+>;
+
+impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
+	type Event = Event;
+	type AddOrigin = MoreThanHalfBuilderCouncil;
+	type RemoveOrigin = MoreThanHalfBuilderCouncil;
+	type SwapOrigin = MoreThanHalfBuilderCouncil;
+	type ResetOrigin = MoreThanHalfBuilderCouncil;
+	type PrimeOrigin = MoreThanHalfBuilderCouncil;
+	type MembershipInitialized = BuilderCouncil;
+	type MembershipChanged = BuilderCouncil;
+	type MaxMembers = NetworkMaxMembers;
+	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
+}
+
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(0);
 	pub const ProposalBondMinimum: Balance = 10 * WAY;
 	pub const SpendPeriod: BlockNumber = 8 * HOURS;
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+	pub const BuilderTreasuryPalletId: PalletId = PalletId(*b"py/buldr");
 	pub const MaxApprovals: u32 = 30;
 
 }
@@ -905,6 +936,29 @@ impl pallet_treasury::Config for Runtime {
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
 	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
+}
+
+type BuilderCouncilInstanceOrigin = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionMoreThan<AccountId, BuilderCouncilCollective, 3, 5>,
+>;
+
+impl pallet_builder_treasury::Config for Runtime {
+	type PalletId = BuilderTreasuryPalletId;
+	type Currency = Balances;
+	type ApproveOrigin = BuilderCouncilInstanceOrigin;
+	type RejectOrigin = MoreThanHalfBuilderCouncil;
+	type Event = Event;
+	type OnSlash = BuilderTreasury;
+	type ProposalBond = ProposalBond;
+	type ProposalBondMinimum = ProposalBondMinimum;
+	type ProposalBondMaximum = ();
+	type SpendPeriod = SpendPeriod;
+	type Burn = ();
+	type BurnDestination = ();
+	type SpendFunds = ();
+	type MaxApprovals = MaxApprovals;
+	type WeightInfo = pallet_builder_treasury::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_offences::Config for Runtime {
@@ -1089,22 +1143,25 @@ construct_runtime! {
 		Democracy: pallet_democracy = 11,
 		Council: pallet_collective::<Instance1> = 12,
 		TechnicalCommittee: pallet_collective::<Instance2> = 13,
-		Elections: pallet_elections_phragmen = 14,
-		TechnicalMembership: pallet_membership::<Instance1> = 15,
-		Grandpa: pallet_grandpa = 16,
-		Treasury: pallet_treasury = 17,
-		Sudo: pallet_sudo = 18,
-		ImOnline: pallet_im_online = 19,
-		AuthorityDiscovery: pallet_authority_discovery = 20,
-		Offences: pallet_offences = 21,
-		Historical: session_historical = 22,
-		Identity: pallet_identity = 23,
-		Recovery: pallet_recovery = 24,
-		Scheduler: pallet_scheduler = 25,
-		Preimage: pallet_preimage = 26,
-		Proxy: pallet_proxy = 27,
-		Multisig: pallet_multisig = 28,
-		BagsList: pallet_bags_list = 29,
+		BuilderCouncil: pallet_collective::<Instance3> = 14,
+		Elections: pallet_elections_phragmen = 15,
+		TechnicalMembership: pallet_membership::<Instance1> = 16,
+		BuilderCouncilMembership: pallet_membership::<Instance2> = 17,
+		Grandpa: pallet_grandpa = 18,
+		Treasury: pallet_treasury = 19,
+		BuilderTreasury: pallet_builder_treasury = 20,
+		Sudo: pallet_sudo = 21,
+		ImOnline: pallet_im_online = 22,
+		AuthorityDiscovery: pallet_authority_discovery = 23,
+		Offences: pallet_offences = 24,
+		Historical: session_historical = 25,
+		Identity: pallet_identity = 26,
+		Recovery: pallet_recovery = 27,
+		Scheduler: pallet_scheduler = 28,
+		Preimage: pallet_preimage = 29,
+		Proxy: pallet_proxy = 30,
+		Multisig: pallet_multisig = 31,
+		BagsList: pallet_bags_list = 32,
 		Schema: pallet_schema = 51,
 		Stream: pallet_stream = 52,
 	}
