@@ -1018,15 +1018,18 @@ dependencies = [
  "log",
  "pallet-aura",
  "pallet-authorities",
+ "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-balances",
  "pallet-collective",
  "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-grandpa",
+ "pallet-im-online",
  "pallet-indices",
  "pallet-membership",
  "pallet-multisig",
+ "pallet-offences",
  "pallet-preimage",
  "pallet-scheduler",
  "pallet-schema",
@@ -4305,6 +4308,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-authority-discovery"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.18#fc3fd073d3a0acf9933c3994b660ebd7b5833f65"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-session",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-application-crypto",
+ "sp-authority-discovery",
+ "sp-runtime",
+ "sp-std 4.0.0",
+]
+
+[[package]]
 name = "pallet-authorship"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.18#fc3fd073d3a0acf9933c3994b660ebd7b5833f65"
@@ -4470,6 +4489,23 @@ dependencies = [
  "scale-info",
  "sp-io",
  "sp-runtime",
+ "sp-std 4.0.0",
+]
+
+[[package]]
+name = "pallet-offences"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.18#fc3fd073d3a0acf9933c3994b660ebd7b5833f65"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-runtime",
+ "sp-staking",
  "sp-std 4.0.0",
 ]
 

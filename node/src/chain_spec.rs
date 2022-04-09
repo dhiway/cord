@@ -20,15 +20,17 @@
 pub use cord_primitives::{AccountId, Balance, Signature, CORD_SESSION_PERIOD};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	constants::currency::*, AuraConfig, AuthoritiesConfig, BalancesConfig, Block, CouncilConfig,
-	DemocracyConfig, ElectionsConfig, GrandpaConfig, IndicesConfig, SessionConfig, SessionKeys,
-	SudoConfig, SystemConfig, TechnicalMembershipConfig,
+	constants::currency::*, AuraConfig, AuthoritiesConfig, AuthorityDiscoveryConfig,
+	BalancesConfig, Block, CouncilConfig, DemocracyConfig, ElectionsConfig, GrandpaConfig,
+	IndicesConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
 use hex_literal::hex;
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::{ChainType, Properties};
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
+use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -58,8 +60,13 @@ pub struct Extensions {
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
-fn session_keys(aura: AuraId, grandpa: GrandpaId) -> SessionKeys {
-	SessionKeys { aura, grandpa }
+fn session_keys(
+	aura: AuraId,
+	grandpa: GrandpaId,
+	im_online: ImOnlineId,
+	authority_discovery: AuthorityDiscoveryId,
+) -> SessionKeys {
+	SessionKeys { aura, grandpa, im_online, authority_discovery }
 }
 
 /// Helper function to generate a crypto pair from seed
@@ -88,18 +95,24 @@ where
 }
 
 /// Helper function to generate stash, controller and session key from seed
-pub fn get_authority_keys_from_seed(seed: &str) -> (AccountId, AccountId, AuraId, GrandpaId) {
+pub fn get_authority_keys_from_seed(
+	seed: &str,
+) -> (AccountId, AccountId, AuraId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
 	let keys = get_authority_keys(seed);
-	(keys.0, keys.1, keys.2, keys.3)
+	(keys.0, keys.1, keys.2, keys.3, keys.4, keys.5)
 }
 
 /// Helper function to generate stash, controller and session key from seed
-pub fn get_authority_keys(seed: &str) -> (AccountId, AccountId, AuraId, GrandpaId) {
+pub fn get_authority_keys(
+	seed: &str,
+) -> (AccountId, AccountId, AuraId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
 	(
 		get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
 		get_account_id_from_seed::<sr25519::Public>(seed),
 		get_from_seed::<AuraId>(seed),
 		get_from_seed::<GrandpaId>(seed),
+		get_from_seed::<ImOnlineId>(seed),
+		get_from_seed::<AuthorityDiscoveryId>(seed),
 	)
 }
 
@@ -168,7 +181,14 @@ pub fn cord_local_testnet_config() -> Result<ChainSpec, String> {
 }
 
 fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
-	let initial_authorities: Vec<(AccountId, AccountId, AuraId, GrandpaId)> = vec![
+	let initial_authorities: Vec<(
+		AccountId,
+		AccountId,
+		AuraId,
+		GrandpaId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+	)> = vec![
 		(
 			//3wF3nbuyb97oSkVBSgZe9dpYcFw5dypX8SPhBWrUcCpZxBWW
 			hex!["6ab68082628ad0cfab68b1a00377170ff0dea4da06030cdd0c21a364ecbbc23b"].into(),
@@ -179,6 +199,12 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.unchecked_into(),
 			//3xaQXFoMVNgQ2qMCXHazaEiQ4bzWfVX3TowLc1DHMB1sL4nx
 			hex!["a5b6331fcff809f2b3419332678fd7b23a2a9320240ec36652337fe66a7337e0"]
+				.unchecked_into(),
+			//3xE2yQSUQ9hfeX1kZjP1Dg5hoU2EdLc1B9zFjzEcc5fgax2W
+			hex!["962cc02d5dddbb2fc03bd8d511844ec47e798b3bc20d9daf7400b3d09533d518"]
+				.unchecked_into(),
+			//3vL3vWTS2FZ9JDc4SyMFXQRa5TuitFBfSx8ZrygeEMzc7HkV
+			hex!["424af4547d488e65307cb14ffae20257b6e000658913f985824da5629afff13c"]
 				.unchecked_into(),
 		),
 		(
@@ -192,6 +218,12 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 			//3yPbpB1VCL1mna4UFXqhcnepQuXJmoJFgfgedZXqteucf1W3
 			hex!["c9b4beb11d90a463dbf7dfc9a20d00538333429e1f93874bf3937de98e49939f"]
 				.unchecked_into(),
+			//3uWjtNikmuwLVKkLD1opoR2U92YAoExgaxDoKfA5S9N8S7GY
+			hex!["1e35b40417a5631c4762974cfd37128985aa626366d659eb37b7d19eca5ce676"]
+				.unchecked_into(),
+			//3ur2S4iPwFJfehHCRBRQoTR171GrohDHK7ent21xF5YjRSxE
+			hex!["2ceb10e043fd67269c33758d0f65d245a2edcd293049b2cb78a807106643ed4c"]
+				.unchecked_into(),
 		),
 		(
 			//3tssweCjh9wU7A33RJ1WhTsmXkdUJwyhrE3h7AwHum7YXy5M
@@ -203,6 +235,12 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.unchecked_into(),
 			//3zJUM1FL1xjSVZhcJhhYEeiHLwrJucC5XAWZpyJQr9XyDmgR
 			hex!["f2079c41fe0f05f17138e205da91e90958212daf50605d99699baf081daae49d"]
+				.unchecked_into(),
+			//3x8xZQoUYS9LdQp6NX4SuvWEPq3zsUqibM51Gc6W4y4Z9mjX
+			hex!["924daa7728eab557869188f55b30fd8d4810cbd60ad3280c6562e0a8cad3943a"]
+				.unchecked_into(),
+			//3v9USUnkQpKLYGsDAbzncF6PsHQdCHJqAgt2gKYfmZvdGKEi
+			hex!["3a39c922f4c6f6efe8893260b7d326964b12686c28b84a3b83b973c279215243"]
 				.unchecked_into(),
 		),
 	];
@@ -243,7 +281,13 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
-				.map(|x| (x.0.clone(), x.0.clone(), session_keys(x.2.clone(), x.3.clone())))
+				.map(|x| {
+					(
+						x.0.clone(),
+						x.0.clone(),
+						session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+					)
+				})
 				.collect::<Vec<_>>(),
 		},
 		elections: ElectionsConfig {
@@ -267,6 +311,8 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		},
 		aura: AuraConfig { authorities: vec![] },
 		grandpa: GrandpaConfig { authorities: vec![] },
+		im_online: Default::default(),
+		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		transaction_payment: Default::default(),
@@ -298,7 +344,14 @@ pub fn cord_staging_config() -> Result<ChainSpec, String> {
 
 fn cord_development_genesis(
 	wasm_binary: &[u8],
-	initial_authorities: Vec<(AccountId, AccountId, AuraId, GrandpaId)>,
+	initial_authorities: Vec<(
+		AccountId,
+		AccountId,
+		AuraId,
+		GrandpaId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+	)>,
 	root_key: AccountId,
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> GenesisConfig {
@@ -320,7 +373,13 @@ fn cord_development_genesis(
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
-				.map(|x| (x.0.clone(), x.0.clone(), session_keys(x.2.clone(), x.3.clone())))
+				.map(|x| {
+					(
+						x.0.clone(),
+						x.0.clone(),
+						session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+					)
+				})
 				.collect::<Vec<_>>(),
 		},
 		elections: ElectionsConfig {
@@ -340,6 +399,8 @@ fn cord_development_genesis(
 		},
 		aura: AuraConfig { authorities: vec![] },
 		grandpa: GrandpaConfig { authorities: vec![] },
+		im_online: Default::default(),
+		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		transaction_payment: Default::default(),
