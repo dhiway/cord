@@ -1024,6 +1024,7 @@ dependencies = [
  "pallet-builder",
  "pallet-collective",
  "pallet-democracy",
+ "pallet-foundation",
  "pallet-grandpa",
  "pallet-im-online",
  "pallet-indices",
@@ -4398,6 +4399,24 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 4.0.0",
+]
+
+[[package]]
+name = "pallet-foundation"
+version = "0.7.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "impl-trait-for-tuples",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std 4.0.0",

@@ -24,6 +24,7 @@ pallet-authorities = {  default-features = false, path = '../pallets/authorities
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
 pallet-builder = {  default-features = false, path = '../pallets/builder' }
+pallet-foundation = {  default-features = false, path = '../pallets/foundation' }
 
 # cord primitives
 cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
@@ -126,6 +127,7 @@ std = [
 	"sp-version/std",
 	"pallet-authorities/std",
 	"pallet-builder/std",
+	"pallet-foundation/std",	
   	"pallet-schema/std",
 	"pallet-stream/std",
   	"pallet-sudo/std",

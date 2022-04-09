@@ -55,7 +55,7 @@ use sp_runtime::{
 		NumberFor, OpaqueKeys, SaturatedConversion, Verify,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
+	ApplyExtrinsicResult, FixedPointNumber, Perbill, Permill, Perquintill,
 };
 use sp_std::prelude::*;
 #[cfg(any(feature = "std", test))]
@@ -346,6 +346,9 @@ impl pallet_authorities::Config for Runtime {
 
 parameter_types! {
 	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
+	pub const MaxPeerInHeartbeats: u32 = 10_000;
+	pub const MaxPeerDataEncodingSize: u32 = 1_000;
+	pub const MaxKeys: u32 = 10_000;
 }
 
 impl pallet_im_online::Config for Runtime {
@@ -365,10 +368,6 @@ impl pallet_offences::Config for Runtime {
 	type Event = Event;
 	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
 	type OnOffenceHandler = ();
-}
-
-impl pallet_authority_discovery::Config for Runtime {
-	type MaxAuthorities = MaxAuthorities;
 }
 
 parameter_types! {
@@ -454,7 +453,7 @@ impl pallet_democracy::Config for Runtime {
 }
 
 parameter_types! {
-	pub const CouncilMotionDuration: BlockNumber = 2 * DAYS;
+	pub const CouncilMotionDuration: BlockNumber = 7 * DAYS;
 	pub const CouncilMaxProposals: u32 = 100;
 	pub const CouncilMaxMembers: u32 = 15;
 }
@@ -483,12 +482,6 @@ impl pallet_membership::Config<CouncilMembershipInstance> for Runtime {
 	type MembershipChanged = Council;
 	type MaxMembers = CouncilMaxMembers;
 	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
-}
-
-parameter_types! {
-	pub const NetworkMotionDuration: BlockNumber = 2 * DAYS;
-	pub const NetworkMaxProposals: u32 = 100;
-	pub const NetworkMaxMembers: u32 = 20;
 }
 
 parameter_types! {
@@ -524,33 +517,88 @@ impl pallet_membership::Config<TechCouncilMembershipInstance> for Runtime {
 }
 
 parameter_types! {
-	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = 100 * WAY;
-	pub const SpendPeriod: BlockNumber = 24 * DAYS;
-	pub const Burn: Permill = Permill::from_perthousand(2);
-	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-	pub const NetworkTreasuryPalletId: PalletId = PalletId(*b"py/ntwrk");
-	pub const TipCountdown: BlockNumber = 1 * DAYS;
-	pub const TipFindersFee: Percent = Percent::from_percent(10);
-	pub const TipReportDepositBase: Balance = 1 * WAY;
-	pub const DataDepositPerByte: Balance = 1 * MILLI_WAY;
-	pub const BountyDepositBase: Balance = 1 * WAY;
-	pub const BountyDepositPayoutDelay: BlockNumber = 8 * DAYS;
-	pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
-	pub const MaximumReasonLength: u32 = 16384;
-	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
-	pub const BountyValueMinimum: Balance = 10 * WAY;
-	pub const MaxApprovals: u32 = 100;
-	pub const MaxAuthorities: u32 = 1_000;
-	pub const MaxKeys: u32 = 10_000;
-	pub const MaxPeerInHeartbeats: u32 = 10_000;
-	pub const MaxPeerDataEncodingSize: u32 = 1_000;
+	pub const BuilderMotionDuration: BlockNumber = 2 * DAYS;
+	pub const BuilderMaxProposals: u32 = 100;
+	pub const BuilderMaxMembers: u32 = 4;
 }
 
-// type CouncilApproveOrigin = EnsureOneOf<
-// 	EnsureRoot<AccountId>,
-// 	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
-// >;
+type BuilderCollective = pallet_collective::Instance3;
+impl pallet_collective::Config<BuilderCollective> for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+	type MotionDuration = BuilderMotionDuration;
+	type MaxProposals = BuilderMaxProposals;
+	type MaxMembers = BuilderMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+}
+
+type BuilderCouncilApproval = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, BuilderCollective, 1, 2>,
+>;
+
+pub type BuilderCouncilMembershipInstance = pallet_membership::Instance3;
+impl pallet_membership::Config<BuilderCouncilMembershipInstance> for Runtime {
+	type Event = Event;
+	type AddOrigin = BuilderCouncilApproval;
+	type RemoveOrigin = BuilderCouncilApproval;
+	type SwapOrigin = BuilderCouncilApproval;
+	type ResetOrigin = BuilderCouncilApproval;
+	type PrimeOrigin = BuilderCouncilApproval;
+	type MembershipInitialized = BuilderCouncil;
+	type MembershipChanged = BuilderCouncil;
+	type MaxMembers = BuilderMaxMembers;
+	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const FoundationMotionDuration: BlockNumber = 7 * DAYS;
+	pub const FoundationMaxProposals: u32 = 100;
+	pub const FoundationMaxMembers: u32 = 12;
+}
+
+type FoundationCollective = pallet_collective::Instance4;
+impl pallet_collective::Config<FoundationCollective> for Runtime {
+	type Origin = Origin;
+	type Proposal = Call;
+	type Event = Event;
+	type MotionDuration = FoundationMotionDuration;
+	type MaxProposals = FoundationMaxProposals;
+	type MaxMembers = FoundationMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+}
+
+type FoundationCouncilApproval = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, FoundationCollective, 1, 2>,
+>;
+
+pub type FoundationMembershipInstance = pallet_membership::Instance4;
+impl pallet_membership::Config<FoundationMembershipInstance> for Runtime {
+	type Event = Event;
+	type AddOrigin = FoundationCouncilApproval;
+	type RemoveOrigin = FoundationCouncilApproval;
+	type SwapOrigin = FoundationCouncilApproval;
+	type ResetOrigin = FoundationCouncilApproval;
+	type PrimeOrigin = FoundationCouncilApproval;
+	type MembershipInitialized = FoundationCouncil;
+	type MembershipChanged = FoundationCouncil;
+	type MaxMembers = FoundationMaxMembers;
+	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const ProposalBond: Permill = Permill::from_percent(5);
+	pub const ProposalBondMinimum: Balance = 100 * WAY;
+	pub const SpendPeriod: BlockNumber = 7 * DAYS;
+	pub const Burn: Permill = Permill::from_perthousand(2);
+	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+	pub const MaxApprovals: u32 = 100;
+
+}
 
 impl pallet_treasury::Config for Runtime {
 	type PalletId = TreasuryPalletId;
@@ -568,6 +616,14 @@ impl pallet_treasury::Config for Runtime {
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
 	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const MaxAuthorities: u32 = 124;
+}
+
+impl pallet_authority_discovery::Config for Runtime {
+	type MaxAuthorities = MaxAuthorities;
 }
 
 impl pallet_grandpa::Config for Runtime {
@@ -661,6 +717,18 @@ impl pallet_builder::Config for Runtime {
 }
 
 parameter_types! {
+	pub const FoundationPalletId: PalletId = PalletId(*b"py/fndtn");
+}
+
+impl pallet_foundation::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type FoundationOrigin = MoreThanHalfCouncil;
+	type PalletId = FoundationPalletId;
+	type WeightInfo = ();
+}
+
+parameter_types! {
 	// TODO: Find reasonable numbers
 	#[derive(Debug, Clone, PartialEq)]
 	pub const MaxSchemaDelegates: u32 = 1_000_000;
@@ -712,12 +780,17 @@ construct_runtime! {
 		CouncilMembership: pallet_membership::<Instance1> = 16,
 		TechnicalCommittee: pallet_collective::<Instance2> = 17,
 		TechnicalMembership: pallet_membership::<Instance2> = 18,
-		Treasury: pallet_treasury = 19,
-		ImOnline: pallet_im_online = 20,
-		AuthorityDiscovery: pallet_authority_discovery = 21,
-		Offences: pallet_offences = 22,
-		Historical: pallet_session_historical = 23,
-		Builder: pallet_builder = 24,
+		BuilderCouncil: pallet_collective::<Instance3> = 19,
+		BuilderCouncilMembership: pallet_membership::<Instance3> = 20,
+		FoundationCouncil: pallet_collective::<Instance4> = 21,
+		FoundationCouncilMembership: pallet_membership::<Instance4> = 22,
+		Treasury: pallet_treasury = 23,
+		ImOnline: pallet_im_online = 24,
+		AuthorityDiscovery: pallet_authority_discovery = 25,
+		Offences: pallet_offences = 26,
+		Historical: pallet_session_historical = 27,
+		Builder: pallet_builder = 28,
+		Foundation: pallet_foundation = 29,
 		Schema: pallet_schema = 41,
 		Stream: pallet_stream = 42,
 		Sudo: pallet_sudo = 43,

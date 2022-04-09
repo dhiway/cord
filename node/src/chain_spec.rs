@@ -21,7 +21,8 @@ pub use cord_primitives::{AccountId, Balance, Signature, CORD_SESSION_PERIOD};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	constants::currency::*, AuraConfig, AuthoritiesConfig, AuthorityDiscoveryConfig,
-	BalancesConfig, Block, CouncilMembershipConfig, DemocracyConfig, GrandpaConfig, IndicesConfig,
+	BalancesConfig, Block, BuilderCouncilMembershipConfig, CouncilMembershipConfig,
+	DemocracyConfig, FoundationCouncilMembershipConfig, GrandpaConfig, IndicesConfig,
 	SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
 use hex_literal::hex;
@@ -309,6 +310,24 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 			phantom: Default::default(),
 		},
+		builder_council: Default::default(),
+		builder_council_membership: BuilderCouncilMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		foundation_council: Default::default(),
+		foundation_council_membership: FoundationCouncilMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
 		aura: AuraConfig { authorities: vec![] },
 		grandpa: GrandpaConfig { authorities: vec![] },
 		im_online: Default::default(),
@@ -316,6 +335,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		builder: Default::default(),
+		foundation: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }
@@ -402,6 +422,24 @@ fn cord_development_genesis(
 				.collect(),
 			phantom: Default::default(),
 		},
+		builder_council: Default::default(),
+		builder_council_membership: BuilderCouncilMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		foundation_council: Default::default(),
+		foundation_council_membership: FoundationCouncilMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
 		aura: AuraConfig { authorities: vec![] },
 		grandpa: GrandpaConfig { authorities: vec![] },
 		im_online: Default::default(),
@@ -409,6 +447,7 @@ fn cord_development_genesis(
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		builder: Default::default(),
+		foundation: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }
