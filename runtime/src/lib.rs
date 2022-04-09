@@ -547,15 +547,15 @@ parameter_types! {
 	pub const MaxPeerDataEncodingSize: u32 = 1_000;
 }
 
-type CouncilApproveOrigin = EnsureOneOf<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
->;
+// type CouncilApproveOrigin = EnsureOneOf<
+// 	EnsureRoot<AccountId>,
+// 	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
+// >;
 
 impl pallet_treasury::Config for Runtime {
 	type PalletId = TreasuryPalletId;
 	type Currency = Balances;
-	type ApproveOrigin = CouncilApproveOrigin;
+	type ApproveOrigin = MoreThanHalfCouncil;
 	type RejectOrigin = MoreThanHalfCouncil;
 	type Event = Event;
 	type OnSlash = Treasury;
@@ -649,6 +649,18 @@ where
 }
 
 parameter_types! {
+	pub const BuilderPalletId: PalletId = PalletId(*b"py/buldr");
+}
+
+impl pallet_builder::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type BuilderOrigin = MoreThanHalfCouncil;
+	type PalletId = BuilderPalletId;
+	type WeightInfo = ();
+}
+
+parameter_types! {
 	// TODO: Find reasonable numbers
 	#[derive(Debug, Clone, PartialEq)]
 	pub const MaxSchemaDelegates: u32 = 1_000_000;
@@ -705,6 +717,7 @@ construct_runtime! {
 		AuthorityDiscovery: pallet_authority_discovery = 21,
 		Offences: pallet_offences = 22,
 		Historical: pallet_session_historical = 23,
+		Builder: pallet_builder = 24,
 		Schema: pallet_schema = 41,
 		Stream: pallet_stream = 42,
 		Sudo: pallet_sudo = 43,

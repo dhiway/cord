@@ -12,5 +12,6 @@ members = [
 	"pallets/schema",
 	"pallets/stream",
 	"pallets/authorities",
+	"pallets/builder",
 ]
 

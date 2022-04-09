@@ -1021,6 +1021,7 @@ dependencies = [
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-balances",
+ "pallet-builder",
  "pallet-collective",
  "pallet-democracy",
  "pallet-grandpa",
@@ -4347,6 +4348,24 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
+ "sp-runtime",
+ "sp-std 4.0.0",
+]
+
+[[package]]
+name = "pallet-builder"
+version = "0.7.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "impl-trait-for-tuples",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std 4.0.0",
 ]

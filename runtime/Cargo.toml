@@ -23,6 +23,7 @@ hex-literal = { version = "0.3.4", optional = true }
 pallet-authorities = {  default-features = false, path = '../pallets/authorities' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
+pallet-builder = {  default-features = false, path = '../pallets/builder' }
 
 # cord primitives
 cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
@@ -124,6 +125,7 @@ std = [
 	"sp-session/std",
 	"sp-version/std",
 	"pallet-authorities/std",
+	"pallet-builder/std",
   	"pallet-schema/std",
 	"pallet-stream/std",
   	"pallet-sudo/std",

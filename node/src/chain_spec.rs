@@ -315,6 +315,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
+		builder: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }
@@ -385,6 +386,7 @@ fn cord_development_genesis(
 		council: Default::default(),
 		council_membership: CouncilMembershipConfig {
 			members: endowed_accounts
+				.clone()
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
@@ -406,6 +408,7 @@ fn cord_development_genesis(
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
+		builder: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }
