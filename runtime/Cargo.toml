@@ -15,7 +15,6 @@ scale-info = { version = "2.0.1", default-features = false, features = ["derive"
 log = { version = "0.4.14", default-features = false  }
 serde = { version = "1.0.136", default-features = false }
 serde_derive = { version = "1.0.117", optional = true }
-static_assertions = "1.1.0"
 smallvec = "1.8.0"
 structopt = "0.3.25"
 hex-literal = { version = "0.3.4", optional = true }
@@ -71,7 +70,6 @@ pallet-membership = {git = "https://github.com/paritytech/substrate", default-fe
 pallet-democracy = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
 pallet-multisig = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
 pallet-indices = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
-pallet-elections-phragmen = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
 
 frame-benchmarking = { git = "https://github.com/paritytech/substrate",  default-features = false, optional = true, branch = "polkadot-v0.9.18" }
 frame-system-benchmarking = { git = "https://github.com/paritytech/substrate",  default-features = false, optional = true, branch = "polkadot-v0.9.18" }
@@ -95,7 +93,6 @@ std = [
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-collective/std",
     "pallet-democracy/std",
-	"pallet-elections-phragmen/std",
 	"pallet-authority-discovery/std",
 	"pallet-offences/std",
 	"pallet-im-online/std",

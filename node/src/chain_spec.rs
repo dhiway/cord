@@ -21,8 +21,8 @@ pub use cord_primitives::{AccountId, Balance, Signature, CORD_SESSION_PERIOD};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	constants::currency::*, AuraConfig, AuthoritiesConfig, AuthorityDiscoveryConfig,
-	BalancesConfig, Block, CouncilConfig, DemocracyConfig, ElectionsConfig, GrandpaConfig,
-	IndicesConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalMembershipConfig,
+	BalancesConfig, Block, CouncilMembershipConfig, DemocracyConfig, GrandpaConfig, IndicesConfig,
+	SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -290,16 +290,16 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				})
 				.collect::<Vec<_>>(),
 		},
-		elections: ElectionsConfig {
+		democracy: DemocracyConfig::default(),
+		council: Default::default(),
+		council_membership: CouncilMembershipConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.map(|member| (member, STASH))
 				.collect(),
+			phantom: Default::default(),
 		},
-		democracy: DemocracyConfig::default(),
-		council: CouncilConfig { members: vec![], phantom: Default::default() },
 		technical_committee: Default::default(),
 		technical_membership: TechnicalMembershipConfig {
 			members: endowed_accounts
@@ -359,7 +359,6 @@ fn cord_development_genesis(
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 	let num_endowed_accounts = endowed_accounts.len();
 	const ENDOWMENT: u128 = 10_000 * WAY;
-	const STASH: u128 = 100 * WAY;
 	GenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec() },
 		indices: IndicesConfig { indices: vec![] },
@@ -382,19 +381,23 @@ fn cord_development_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		elections: ElectionsConfig {
+		democracy: DemocracyConfig::default(),
+		council: Default::default(),
+		council_membership: CouncilMembershipConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.map(|member| (member, STASH))
 				.collect(),
+			phantom: Default::default(),
 		},
-		democracy: DemocracyConfig::default(),
-		council: CouncilConfig { members: vec![], phantom: Default::default() },
 		technical_committee: Default::default(),
 		technical_membership: TechnicalMembershipConfig {
-			members: vec![],
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
 			phantom: Default::default(),
 		},
 		aura: AuraConfig { authorities: vec![] },

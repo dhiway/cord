@@ -1023,7 +1023,6 @@ dependencies = [
  "pallet-balances",
  "pallet-collective",
  "pallet-democracy",
- "pallet-elections-phragmen",
  "pallet-grandpa",
  "pallet-im-online",
  "pallet-indices",
@@ -1060,7 +1059,6 @@ dependencies = [
  "sp-std 4.0.0",
  "sp-transaction-pool",
  "sp-version",
- "static_assertions",
  "structopt",
  "substrate-wasm-builder",
 ]
@@ -4387,23 +4385,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-elections-phragmen"
-version = "5.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.18#fc3fd073d3a0acf9933c3994b660ebd7b5833f65"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-npos-elections",
- "sp-runtime",
- "sp-std 4.0.0",
-]
-
-[[package]]
 name = "pallet-grandpa"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.18#fc3fd073d3a0acf9933c3994b660ebd7b5833f65"
@@ -7381,32 +7362,6 @@ dependencies = [
  "quote",
  "syn",
  "synstructure",
-]
-
-[[package]]
-name = "sp-npos-elections"
-version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.18#fc3fd073d3a0acf9933c3994b660ebd7b5833f65"
-dependencies = [
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-arithmetic",
- "sp-core",
- "sp-npos-elections-solution-type",
- "sp-runtime",
- "sp-std 4.0.0",
-]
-
-[[package]]
-name = "sp-npos-elections-solution-type"
-version = "4.0.0-dev"
-source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.18#fc3fd073d3a0acf9933c3994b660ebd7b5833f65"
-dependencies = [
- "proc-macro-crate 1.1.0",
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]

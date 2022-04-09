@@ -26,10 +26,7 @@ pub use cord_primitives::{AccountId, SessionApiError, Signature, CORD_SESSION_PE
 use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{
-		EnsureOneOf, EqualPrivilegeOnly, Everything, KeyOwnerProofSystem, LockIdentifier,
-		U128CurrencyToVote,
-	},
+	traits::{EnsureOneOf, EqualPrivilegeOnly, Everything, KeyOwnerProofSystem},
 	weights::{
 		constants::{RocksDbWeight, WEIGHT_PER_MILLIS},
 		Weight,
@@ -64,7 +61,6 @@ use sp_std::prelude::*;
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-use static_assertions::const_assert;
 
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
@@ -458,45 +454,9 @@ impl pallet_democracy::Config for Runtime {
 }
 
 parameter_types! {
-	pub const CandidacyBond: Balance = 10 * WAY;
-	// 1 storage item created, key size is 32 bytes, value size is 16+16.
-	pub const VotingBondBase: Balance = deposit(1, 64);
-	// additional data per vote is 32 bytes (account id).
-	pub const VotingBondFactor: Balance = deposit(0, 32);
-	/// Monthly council elections.
-	pub const TermDuration: BlockNumber = 30 * DAYS;
-	/// 15 members initially, to be increased to 24 eventually.
-	pub const DesiredMembers: u32 = 13;
-	pub const DesiredRunnersUp: u32 = 7;
-	pub const PhragmenElectionPalletId: LockIdentifier = *b"phrelect";
-}
-
-// Make sure that there are no more than `MaxMembers` members elected via
-// phragmen.
-const_assert!(DesiredMembers::get() <= CouncilMaxMembers::get());
-
-impl pallet_elections_phragmen::Config for Runtime {
-	type Event = Event;
-	type PalletId = PhragmenElectionPalletId;
-	type Currency = Balances;
-	type ChangeMembers = Council;
-	type InitializeMembers = Council;
-	type CurrencyToVote = U128CurrencyToVote;
-	type CandidacyBond = CandidacyBond;
-	type VotingBondBase = VotingBondBase;
-	type VotingBondFactor = VotingBondFactor;
-	type LoserCandidate = Treasury;
-	type KickedMember = Treasury;
-	type DesiredMembers = DesiredMembers;
-	type DesiredRunnersUp = DesiredRunnersUp;
-	type TermDuration = TermDuration;
-	type WeightInfo = pallet_elections_phragmen::weights::SubstrateWeight<Runtime>;
-}
-
-parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 2 * DAYS;
 	pub const CouncilMaxProposals: u32 = 100;
-	pub const CouncilMaxMembers: u32 = 25;
+	pub const CouncilMaxMembers: u32 = 15;
 }
 
 type CouncilCollective = pallet_collective::Instance1;
@@ -509,6 +469,20 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+}
+
+pub type CouncilMembershipInstance = pallet_membership::Instance1;
+impl pallet_membership::Config<CouncilMembershipInstance> for Runtime {
+	type Event = Event;
+	type AddOrigin = MoreThanHalfCouncil;
+	type RemoveOrigin = MoreThanHalfCouncil;
+	type SwapOrigin = MoreThanHalfCouncil;
+	type ResetOrigin = MoreThanHalfCouncil;
+	type PrimeOrigin = MoreThanHalfCouncil;
+	type MembershipInitialized = Council;
+	type MembershipChanged = Council;
+	type MaxMembers = CouncilMaxMembers;
+	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -534,7 +508,9 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
-impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
+
+pub type TechCouncilMembershipInstance = pallet_membership::Instance2;
+impl pallet_membership::Config<TechCouncilMembershipInstance> for Runtime {
 	type Event = Event;
 	type AddOrigin = MoreThanHalfCouncil;
 	type RemoveOrigin = MoreThanHalfCouncil;
@@ -721,9 +697,9 @@ construct_runtime! {
 		TransactionPayment: pallet_transaction_payment =13,
 		Democracy: pallet_democracy = 14,
 		Council: pallet_collective::<Instance1> = 15,
-		TechnicalCommittee: pallet_collective::<Instance2> = 16,
-		TechnicalMembership: pallet_membership::<Instance1> = 17,
-		Elections: pallet_elections_phragmen = 18,
+		CouncilMembership: pallet_membership::<Instance1> = 16,
+		TechnicalCommittee: pallet_collective::<Instance2> = 17,
+		TechnicalMembership: pallet_membership::<Instance2> = 18,
 		Treasury: pallet_treasury = 19,
 		ImOnline: pallet_im_online = 20,
 		AuthorityDiscovery: pallet_authority_discovery = 21,
