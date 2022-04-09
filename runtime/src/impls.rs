@@ -44,19 +44,29 @@ where
 pub struct DealWithCredits<R>(sp_std::marker::PhantomData<R>);
 impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithCredits<R>
 where
-	R: pallet_balances::Config + pallet_treasury::Config + pallet_authorship::Config,
-	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
+	R: pallet_balances::Config
+		+ pallet_builder::Config
+		+ pallet_foundation::Config
+		+ pallet_authorship::Config,
+	pallet_builder::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
+	pallet_foundation::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
 	<R as frame_system::Config>::AccountId: From<cord_primitives::AccountId>,
 	<R as frame_system::Config>::AccountId: Into<cord_primitives::AccountId>,
 	<R as frame_system::Config>::Event: From<pallet_balances::Event<R>>,
 {
 	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance<R>>) {
-		if let Some(mut fees) = fees_then_tips.next() {
+		if let Some(fees) = fees_then_tips.next() {
+			// for fees, 40% to builder, 60% to foundation
+			let mut split = fees.ration(40, 60);
 			if let Some(tips) = fees_then_tips.next() {
-				tips.merge_into(&mut fees);
+				// for tips, if any, 100% to foundation
+				tips.merge_into(&mut split.1);
 			}
-			use pallet_treasury::Pallet as Treasury;
-			<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(fees);
+
+			use pallet_builder::Pallet as Builder;
+			use pallet_foundation::Pallet as Foundation;
+			<Builder<R> as OnUnbalanced<_>>::on_unbalanced(split.0);
+			<Foundation<R> as OnUnbalanced<_>>::on_unbalanced(split.1);
 		}
 	}
 }

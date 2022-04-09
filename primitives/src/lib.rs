@@ -61,10 +61,13 @@ pub type Timestamp = u64;
 
 /// Digest item type.
 pub type DigestItem = generic::DigestItem;
+
 /// Header type.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+
 /// Block type.
 pub type Block = generic::Block<Header, OpaqueExtrinsic>;
+
 /// Block ID.
 pub type BlockId = generic::BlockId<Block>;
 
@@ -73,6 +76,9 @@ pub type CidOf = Vec<u8>;
 
 /// Version type.
 pub type VersionOf = Vec<u8>;
+
+/// IDentifier type.
+pub type IdentifierOf = Vec<u8>;
 
 /// status Information
 pub type StatusOf = bool;

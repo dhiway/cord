@@ -21,8 +21,9 @@ pub use cord_primitives::{AccountId, Balance, Signature, CORD_SESSION_PERIOD};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	constants::currency::*, AuraConfig, AuthoritiesConfig, AuthorityDiscoveryConfig,
-	BalancesConfig, Block, CouncilConfig, DemocracyConfig, ElectionsConfig, GrandpaConfig,
-	IndicesConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalMembershipConfig,
+	BalancesConfig, Block, BuilderCouncilMembershipConfig, CouncilMembershipConfig,
+	DemocracyConfig, FoundationCouncilMembershipConfig, GrandpaConfig, IndicesConfig,
+	SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -55,9 +56,6 @@ pub struct Extensions {
 	pub fork_blocks: sc_client_api::ForkBlocks<Block>,
 	/// Known bad block hashes.
 	pub bad_blocks: sc_client_api::BadBlocks<Block>,
-	/// The light sync state.
-	/// This value will be set by the `sync-state rpc` implementation.
-	pub light_sync_state: sc_sync_state_rpc::LightSyncStateExtension,
 }
 
 /// Specialized `ChainSpec`.
@@ -151,7 +149,7 @@ fn cord_local_testnet_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig
 
 pub fn cord_development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
-	let properties = get_properties("WAYT", 12, 29);
+	let properties = get_properties("WAY", 12, 29);
 	Ok(ChainSpec::from_genesis(
 		"Dev. Node",
 		"cord_dev",
@@ -168,7 +166,7 @@ pub fn cord_development_config() -> Result<ChainSpec, String> {
 
 pub fn cord_local_testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
-	let properties = get_properties("WAYT", 12, 29);
+	let properties = get_properties("WAY", 12, 29);
 	Ok(ChainSpec::from_genesis(
 		"Local",
 		"cord_local",
@@ -293,18 +291,36 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				})
 				.collect::<Vec<_>>(),
 		},
-		elections: ElectionsConfig {
+		democracy: DemocracyConfig::default(),
+		council: Default::default(),
+		council_membership: CouncilMembershipConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.map(|member| (member, STASH))
 				.collect(),
+			phantom: Default::default(),
 		},
-		democracy: DemocracyConfig::default(),
-		council: CouncilConfig { members: vec![], phantom: Default::default() },
 		technical_committee: Default::default(),
 		technical_membership: TechnicalMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		builder_council: Default::default(),
+		builder_council_membership: BuilderCouncilMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		foundation_council: Default::default(),
+		foundation_council_membership: FoundationCouncilMembershipConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -318,6 +334,8 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
+		builder: Default::default(),
+		foundation: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }
@@ -362,7 +380,6 @@ fn cord_development_genesis(
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 	let num_endowed_accounts = endowed_accounts.len();
 	const ENDOWMENT: u128 = 10_000 * WAY;
-	const STASH: u128 = 100 * WAY;
 	GenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec() },
 		indices: IndicesConfig { indices: vec![] },
@@ -385,19 +402,42 @@ fn cord_development_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		elections: ElectionsConfig {
+		democracy: DemocracyConfig::default(),
+		council: Default::default(),
+		council_membership: CouncilMembershipConfig {
+			members: endowed_accounts
+				.clone()
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		technical_committee: Default::default(),
+		technical_membership: TechnicalMembershipConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.map(|member| (member, STASH))
 				.collect(),
+			phantom: Default::default(),
 		},
-		democracy: DemocracyConfig::default(),
-		council: CouncilConfig { members: vec![], phantom: Default::default() },
-		technical_committee: Default::default(),
-		technical_membership: TechnicalMembershipConfig {
-			members: vec![],
+		builder_council: Default::default(),
+		builder_council_membership: BuilderCouncilMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		foundation_council: Default::default(),
+		foundation_council_membership: FoundationCouncilMembershipConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
 			phantom: Default::default(),
 		},
 		aura: AuraConfig { authorities: vec![] },
@@ -406,6 +446,8 @@ fn cord_development_genesis(
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
+		builder: Default::default(),
+		foundation: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }
