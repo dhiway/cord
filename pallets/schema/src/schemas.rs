@@ -74,16 +74,13 @@ impl<T: Config> SchemaDetails<T> {
 	}
 	pub fn schema_status(
 		tx_schema: &IdentifierOf,
-		controller: CordAccountOf<T>,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
 		let schema_hash = <SchemaId<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
 		let schema_details = <Schemas<T>>::get(schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
 		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 
-		if (schema_details.controller != controller || schema_details.controller != requestor)
-			&& schema_details.permissioned
-		{
+		if schema_details.controller != requestor && schema_details.permissioned {
 			let delegates = <Delegations<T>>::get(schema_details.schema_id);
 			ensure!(
 				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
