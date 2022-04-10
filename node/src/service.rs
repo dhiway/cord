@@ -37,15 +37,6 @@ use std::{sync::Arc, time::Duration};
 
 use substrate_prometheus_endpoint::Registry;
 
-// pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi, StateBackend};
-// pub use sp_runtime::{
-// 	generic,
-// 	traits::{
-// 		self as runtime_traits, BlakeTwo256, Block as BlockT, DigestFor, HashFor,
-// 		Header as HeaderT, NumberFor,
-// 	},
-// };
-
 // If we're using prometheus, use a registry with a prefix of `cord`.
 fn set_prometheus_registry(config: &mut Configuration) -> Result<(), sc_service::Error> {
 	if let Some(PrometheusConfig { registry, .. }) = config.prometheus_config.as_mut() {
