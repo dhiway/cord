@@ -162,7 +162,7 @@ pub mod pallet {
 			link: Option<IdentifierOf>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
 				tx_signature.verify(&(&stream_hash).encode()[..], &creator),
 				Error::<T>::InvalidSignature
@@ -177,12 +177,8 @@ pub mod pallet {
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
 
 			if let Some(ref schema) = schema {
-				pallet_schema::SchemaDetails::<T>::schema_status(
-					schema,
-					controller,
-					creator.clone(),
-				)
-				.map_err(<pallet_schema::Error<T>>::from)?;
+				pallet_schema::SchemaDetails::<T>::schema_status(schema, creator.clone())
+					.map_err(<pallet_schema::Error<T>>::from)?;
 			}
 
 			if let Some(ref link) = link {
@@ -219,16 +215,18 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the Tx Author.
 		/// * identifier: unique identifier of the incoming stream.
+		/// * updater: controller or delegate of the stream.
 		/// * stream_hash: hash of the incoming stream.
 		/// * tx_signature: signature of the controller.
 		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(2, 4))]
 		pub fn update(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
+			updater: CordAccountOf<T>,
 			stream_hash: HashOf<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(!<HashesOf<T>>::contains_key(&stream_hash), Error::<T>::HashAlreadyAnchored);
 			pallet_schema::SchemaDetails::<T>::is_valid_identifier(
 				&identifier,
@@ -240,19 +238,14 @@ pub mod pallet {
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
 
-			let updater = tx_prev_details.controller.clone();
 			ensure!(
 				tx_signature.verify(&(&stream_hash).encode()[..], &updater),
 				Error::<T>::InvalidSignature
 			);
 
 			if let Some(ref schema) = tx_prev_details.schema {
-				pallet_schema::SchemaDetails::<T>::schema_status(
-					schema,
-					controller,
-					updater.clone(),
-				)
-				.map_err(<pallet_schema::Error<T>>::from)?;
+				pallet_schema::SchemaDetails::<T>::schema_status(schema, updater.clone())
+					.map_err(<pallet_schema::Error<T>>::from)?;
 			}
 
 			let now_block_number = frame_system::Pallet::<T>::block_number();
@@ -265,7 +258,11 @@ pub mod pallet {
 
 			<Streams<T>>::insert(
 				&identifier,
-				StreamDetails { stream_hash: stream_hash.clone(), ..tx_prev_details },
+				StreamDetails {
+					controller: updater.clone(),
+					stream_hash: stream_hash.clone(),
+					..tx_prev_details
+				},
 			);
 			Self::deposit_event(Event::Update(identifier, stream_hash, updater));
 
@@ -275,6 +272,7 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the Tx Author.
 		/// * identifier: unique identifier of the stream.
+		/// * updater: controller or delegate of the stream.
 		/// * status: stream revocation status (bool).
 		/// * tx_hash: transaction hash.
 		/// * tx_signature: signature of the contoller.
@@ -282,11 +280,12 @@ pub mod pallet {
 		pub fn status(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
+			updater: CordAccountOf<T>,
 			status: StatusOf,
 			tx_hash: HashOf<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			pallet_schema::SchemaDetails::<T>::is_valid_identifier(
 				&identifier,
 				STREAM_IDENTIFIER_PREFIX,
@@ -294,18 +293,13 @@ pub mod pallet {
 			.map_err(|_| Error::<T>::InvalidIdentifier)?;
 			let tx_status = <Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(tx_status.revoked != status, Error::<T>::StatusChangeNotRequired);
-			let updater = tx_status.controller.clone();
 			ensure!(
 				tx_signature.verify(&(&tx_hash).encode()[..], &updater),
 				Error::<T>::InvalidSignature
 			);
 			if let Some(ref schema) = tx_status.schema {
-				pallet_schema::SchemaDetails::<T>::schema_status(
-					schema,
-					controller,
-					updater.clone(),
-				)
-				.map_err(<pallet_schema::Error<T>>::from)?;
+				pallet_schema::SchemaDetails::<T>::schema_status(schema, updater.clone())
+					.map_err(<pallet_schema::Error<T>>::from)?;
 			}
 			let now_block_number = frame_system::Pallet::<T>::block_number();
 
@@ -313,7 +307,10 @@ pub mod pallet {
 				&identifier,
 				StreamCommit { block: now_block_number, commit: StreamCommitOf::Status },
 			)?;
-			<Streams<T>>::insert(&identifier, StreamDetails { revoked: status, ..tx_status });
+			<Streams<T>>::insert(
+				&identifier,
+				StreamDetails { controller: updater.clone(), revoked: status, ..tx_status },
+			);
 			Self::deposit_event(Event::Status(identifier, updater));
 
 			Ok(())
@@ -347,16 +344,18 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the Tx Author.
 		/// * identifier: unique identifier of the incoming stream.
+		/// * creator: controller or delegate of the stream.
 		/// * digest_hash: hash of the incoming stream.
 		/// * tx_signature: signature of the controller.
 		#[pallet::weight(30_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn digest(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
+			creator: CordAccountOf<T>,
 			digest_hash: HashOf<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(!<DigestOf<T>>::contains_key(&digest_hash), Error::<T>::HashAlreadyAnchored);
 			pallet_schema::SchemaDetails::<T>::is_valid_identifier(
 				&identifier,
@@ -368,24 +367,19 @@ pub mod pallet {
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
 
-			let updater = tx_prev_details.controller.clone();
 			ensure!(
-				tx_signature.verify(&(&digest_hash).encode()[..], &updater),
+				tx_signature.verify(&(&digest_hash).encode()[..], &creator),
 				Error::<T>::InvalidSignature
 			);
 
 			if let Some(ref schema) = tx_prev_details.schema {
-				pallet_schema::SchemaDetails::<T>::schema_status(
-					schema,
-					controller,
-					updater.clone(),
-				)
-				.map_err(<pallet_schema::Error<T>>::from)?;
+				pallet_schema::SchemaDetails::<T>::schema_status(schema, creator.clone())
+					.map_err(<pallet_schema::Error<T>>::from)?;
 			}
 
 			<DigestOf<T>>::insert(&digest_hash, &identifier);
 
-			Self::deposit_event(Event::Digest(identifier, digest_hash, updater));
+			Self::deposit_event(Event::Digest(identifier, digest_hash, creator));
 
 			Ok(())
 		}
