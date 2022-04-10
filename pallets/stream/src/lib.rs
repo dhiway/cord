@@ -89,6 +89,12 @@ pub mod pallet {
 	#[pallet::getter(fn hashes_of)]
 	pub type HashesOf<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
 
+	/// stream digest stored on chain.
+	/// It maps from a stream digest hash to Id (resolve from hash).
+	#[pallet::storage]
+	#[pallet::getter(fn digest_of)]
+	pub type DigestOf<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -98,6 +104,9 @@ pub mod pallet {
 		/// A stream has been updated.
 		/// \[stream identifier, hash, controller\]
 		Update(IdentifierOf, HashOf<T>, CordAccountOf<T>),
+		/// A stream digest has been added.
+		/// \[stream identifier, hash, controller\]
+		Digest(IdentifierOf, HashOf<T>, CordAccountOf<T>),
 		/// A stream status has been changed.
 		/// \[stream identifier, controller\]
 		Status(IdentifierOf, CordAccountOf<T>),
@@ -267,6 +276,7 @@ pub mod pallet {
 		/// * origin: the identity of the Tx Author.
 		/// * identifier: unique identifier of the stream.
 		/// * status: stream revocation status (bool).
+		/// * tx_hash: transaction hash.
 		/// * tx_signature: signature of the contoller.
 		#[pallet::weight(30_000 + T::DbWeight::get().reads_writes(2, 3))]
 		pub fn status(
@@ -310,7 +320,7 @@ pub mod pallet {
 		}
 		///  Remove a stream from the chain.
 		///
-		/// * origin: the identity of the Tx Author.
+		/// * origin: the identity of the council origin.
 		/// * identifier: unique identifier of the incoming stream.
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(3, 3))]
 		pub fn remove(origin: OriginFor<T>, identifier: IdentifierOf) -> DispatchResult {
@@ -330,6 +340,52 @@ pub mod pallet {
 				StreamCommit { block: now_block_number, commit: StreamCommitOf::Remove },
 			)?;
 			Self::deposit_event(Event::Remove(identifier));
+
+			Ok(())
+		}
+		/// Adds stream digest information.
+		///
+		/// * origin: the identity of the Tx Author.
+		/// * identifier: unique identifier of the incoming stream.
+		/// * digest_hash: hash of the incoming stream.
+		/// * tx_signature: signature of the controller.
+		#[pallet::weight(30_000 + T::DbWeight::get().reads_writes(2, 1))]
+		pub fn digest(
+			origin: OriginFor<T>,
+			identifier: IdentifierOf,
+			digest_hash: HashOf<T>,
+			tx_signature: SignatureOf<T>,
+		) -> DispatchResult {
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(!<DigestOf<T>>::contains_key(&digest_hash), Error::<T>::HashAlreadyAnchored);
+			pallet_schema::SchemaDetails::<T>::is_valid_identifier(
+				&identifier,
+				STREAM_IDENTIFIER_PREFIX,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifier)?;
+
+			let tx_prev_details =
+				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
+
+			let updater = tx_prev_details.controller.clone();
+			ensure!(
+				tx_signature.verify(&(&digest_hash).encode()[..], &updater),
+				Error::<T>::InvalidSignature
+			);
+
+			if let Some(ref schema) = tx_prev_details.schema {
+				pallet_schema::SchemaDetails::<T>::schema_status(
+					schema,
+					controller,
+					updater.clone(),
+				)
+				.map_err(<pallet_schema::Error<T>>::from)?;
+			}
+
+			<DigestOf<T>>::insert(&digest_hash, &identifier);
+
+			Self::deposit_event(Event::Digest(identifier, digest_hash, updater));
 
 			Ok(())
 		}
