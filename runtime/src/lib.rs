@@ -260,7 +260,7 @@ pub type SlowAdjustingFeeUpdate<R> =
 	TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * MICRO_WAY;
+	pub const TransactionByteFee: Balance = 50 * MICRO_WAY;
 	pub const OperationalFeeMultiplier: u8 = 5;
 }
 
@@ -453,7 +453,7 @@ impl pallet_democracy::Config for Runtime {
 }
 
 parameter_types! {
-	pub const CouncilMotionDuration: BlockNumber = 7 * DAYS;
+	pub const CouncilMotionDuration: BlockNumber = 3 * DAYS;
 	pub const CouncilMaxProposals: u32 = 100;
 	pub const CouncilMaxMembers: u32 = 15;
 }
@@ -554,7 +554,7 @@ impl pallet_membership::Config<BuilderCouncilMembershipInstance> for Runtime {
 }
 
 parameter_types! {
-	pub const FoundationMotionDuration: BlockNumber = 7 * DAYS;
+	pub const FoundationMotionDuration: BlockNumber = 3 * DAYS;
 	pub const FoundationMaxProposals: u32 = 100;
 	pub const FoundationMaxMembers: u32 = 12;
 }
@@ -591,9 +591,10 @@ impl pallet_membership::Config<FoundationMembershipInstance> for Runtime {
 }
 
 parameter_types! {
-	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = 100 * WAY;
-	pub const SpendPeriod: BlockNumber = 7 * DAYS;
+	pub const ProposalBond: Permill = Permill::from_percent(2);
+	pub const ProposalBondMinimum: Balance = 5 * WAY;
+	pub const ProposalBondMaximum: Balance = 50 * WAY;
+	pub const SpendPeriod: BlockNumber = 10 * MINUTES;
 	pub const Burn: Permill = Permill::from_perthousand(2);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const MaxApprovals: u32 = 100;
@@ -609,9 +610,9 @@ impl pallet_treasury::Config for Runtime {
 	type OnSlash = Treasury;
 	type ProposalBond = ProposalBond;
 	type ProposalBondMinimum = ProposalBondMinimum;
-	type ProposalBondMaximum = ();
+	type ProposalBondMaximum = ProposalBondMaximum;
 	type SpendPeriod = SpendPeriod;
-	type Burn = Burn;
+	type Burn = ();
 	type BurnDestination = ();
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;

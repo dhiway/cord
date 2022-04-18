@@ -124,7 +124,15 @@ fn testnet_accounts() -> Vec<AccountId> {
 		get_account_id_from_seed::<sr25519::Public>("Charlie"),
 		get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
 		get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-		get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+	]
+}
+
+fn default_foundation_accounts() -> Vec<AccountId> {
+	vec![
+		//3vVxwYrXdmfQb5GZkM5oYnfYuZzgPX5JWv9mcTU7Agf2ALQ9
+		hex!["49daa32c7287890f38b7e1a8cd2961723d36d20baa0bf3b82e0c4bdda93b1c0a"].into(),
+		// 3wJcok3UjwBDwtHzXNkxvMdpN67Yhn9EN2rhkv3qjHdqRKj7
+		hex!["6d6f646c70792f74727372790000000000000000000000000000000000000000"].into(),
 	]
 }
 
@@ -257,6 +265,8 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		hex!["02c7c55d71abbaffb9590bcaf48ad687b783c035f9ad1e94208b776ff4a6e13f"].into(),
 		//3xmViQrSRdQJoNE5GzBmEZAPBFkSsbxnjH4FVAgSbB7CoKC4
 		hex!["ae2b60ce50c8a6a0f9f1eba33eec5106facfb366e946a59591633bd30c090d7d"].into(),
+		//3vVxwYrXdmfQb5GZkM5oYnfYuZzgPX5JWv9mcTU7Agf2ALQ9
+		// hex!["49daa32c7287890f38b7e1a8cd2961723d36d20baa0bf3b82e0c4bdda93b1c0a"].into(),
 	];
 	let session_period = CORD_SESSION_PERIOD;
 	let root_key: AccountId = endowed_accounts[0].clone();
@@ -378,13 +388,19 @@ fn cord_development_genesis(
 ) -> GenesisConfig {
 	let session_period = CORD_SESSION_PERIOD;
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
+	let foundation_accounts: Vec<AccountId> = default_foundation_accounts();
 	let num_endowed_accounts = endowed_accounts.len();
 	const ENDOWMENT: u128 = 10_000 * WAY;
 	GenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec() },
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig {
-			balances: endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect(),
+			balances: endowed_accounts
+				.iter()
+				.cloned()
+				.map(|k| (k, ENDOWMENT))
+				.chain(foundation_accounts.iter().map(|x| (x.clone(), ENDOWMENT)))
+				.collect(),
 		},
 		authorities: AuthoritiesConfig {
 			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
