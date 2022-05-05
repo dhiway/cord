@@ -11,13 +11,13 @@ repository = "https://github.com/dhiway/cord"
 #serde = { version = "1.0.136", optional = true, features = ["derive"] }
 scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive"] }
-sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
-frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
-sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
-sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
-sp-api = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
-sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18"}
-sp-consensus-aura = {default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.18"}
+sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19"}
+frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19"}
+sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19"}
+sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19"}
+sp-api = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19"}
+sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19"}
+sp-consensus-aura = {default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.19"}
 
 [features]
 default = ["std"]

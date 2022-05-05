@@ -46,7 +46,7 @@ fn set_prometheus_registry(config: &mut Configuration) -> Result<(), sc_service:
 	Ok(())
 }
 
-type FullClient =
+pub(crate) type FullClient =
 	sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
