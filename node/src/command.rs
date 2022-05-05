@@ -18,13 +18,17 @@
 use crate::{
 	chain_spec,
 	cli::{Cli, Subcommand},
+	command_helper::{inherent_benchmark_data, BenchmarkExtrinsicBuilder},
 	service as cord_service,
 };
 use cord_executor::ExecutorDispatch;
-use cord_runtime::{Block, RuntimeApi};
+use cord_primitives::Block;
+use cord_runtime::RuntimeApi;
 use cord_service::new_partial;
+use frame_benchmarking_cli::BenchmarkCmd;
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
+use std::sync::Arc;
 
 fn get_exec_name() -> Option<String> {
 	std::env::current_exe()
@@ -145,18 +149,54 @@ pub fn run() -> sc_cli::Result<()> {
 			runner.async_run(|mut config| {
 				let PartialComponents { client, task_manager, backend, .. } =
 					new_partial(&mut config)?;
-				Ok((cmd.run(client, backend), task_manager))
+				let aux_revert = Box::new(|client, _, blocks| {
+					sc_finality_grandpa::revert(client, blocks)?;
+					Ok(())
+				});
+				Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
 			})
 		},
 		Some(Subcommand::Benchmark(cmd)) => {
-			if cfg!(feature = "runtime-benchmarks") {
-				let runner = cli.create_runner(cmd)?;
-				runner.sync_run(|config| cmd.run::<Block, ExecutorDispatch>(config))
-			} else {
-				Err("Benchmarking wasn't enabled when building the node. \
-				You can enable it with `--features runtime-benchmarks`."
-					.into())
-			}
+			let runner = cli.create_runner(cmd)?;
+
+			runner.sync_run(|mut config| {
+				// This switch needs to be in the client, since the client decides
+				// which sub-commands it wants to support.
+				match cmd {
+					BenchmarkCmd::Pallet(cmd) => {
+						if !cfg!(feature = "runtime-benchmarks") {
+							return Err(
+								"Runtime benchmarking wasn't enabled when building the node. \
+							You can enable it with `--features runtime-benchmarks`."
+									.into(),
+							);
+						}
+
+						cmd.run::<Block, ExecutorDispatch>(config)
+					},
+					BenchmarkCmd::Block(cmd) => {
+						let PartialComponents { client, .. } =
+							cord_service::new_partial(&mut config)?;
+						cmd.run(client)
+					},
+					BenchmarkCmd::Storage(cmd) => {
+						let PartialComponents { client, backend, .. } =
+							cord_service::new_partial(&mut config)?;
+						let db = backend.expose_db();
+						let storage = backend.expose_storage();
+
+						cmd.run(config, client, db, storage)
+					},
+					BenchmarkCmd::Overhead(cmd) => {
+						let PartialComponents { client, .. } =
+							cord_service::new_partial(&mut config)?;
+						let ext_builder = BenchmarkExtrinsicBuilder::new(client.clone());
+
+						cmd.run(config, client, inherent_benchmark_data()?, Arc::new(ext_builder))
+					},
+					BenchmarkCmd::Machine(cmd) => cmd.run(&config),
+				}
+			})
 		},
 		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
@@ -179,7 +219,8 @@ pub fn run() -> sc_cli::Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
-				cord_service::new_full(config).map_err(sc_cli::Error::Service)
+				cord_service::new_full(config, cli.no_hardware_benchmarks)
+					.map_err(sc_cli::Error::Service)
 			})
 		},
 	}

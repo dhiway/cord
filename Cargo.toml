@@ -1,5 +1,21 @@
 [profile.release]
 panic = 'unwind'
+opt-level = 3
+
+[profile.production]
+inherits = "release"
+lto = true
+codegen-units = 1
+
+# make sure dev builds with backtrace do
+# not slow us down
+[profile.dev.package.backtrace]
+inherits = "release"
+
+[profile.dev]
+debug = 1 # debug symbols are useful for profilers
+debug-assertions = true
+overflow-checks = true
 
 [workspace]
 members = [
