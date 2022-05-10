@@ -50,7 +50,7 @@ pub mod pallet {
 		>;
 		/// The maximum number of delegates for a space.
 		#[pallet::constant]
-		type MaxDelegates: Get<u32>;
+		type MaxSpaceDelegates: Get<u32>;
 		type WeightInfo: WeightInfo;
 	}
 
@@ -73,7 +73,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		IdentifierOf,
-		BoundedVec<CordAccountOf<T>, T::MaxDelegates>,
+		BoundedVec<CordAccountOf<T>, T::MaxSpaceDelegates>,
 		ValueQuery,
 	>;
 
@@ -136,7 +136,7 @@ pub mod pallet {
 
 			Delegations::<T>::try_mutate(space.clone(), |ref mut delegation| {
 				ensure!(
-					delegation.len() + delegates.len() <= T::MaxDelegates::get() as usize,
+					delegation.len() + delegates.len() <= T::MaxSpaceDelegates::get() as usize,
 					Error::<T>::TooManyDelegates
 				);
 				for delegate in delegates {

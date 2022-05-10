@@ -17,48 +17,31 @@
 
 use crate::*;
 use codec::{Decode, Encode};
-use sp_runtime::DispatchResult;
 
 /// An on-chain schema details mapped to an identifier.
 #[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct SchemaDetails<T: Config> {
-	/// Schema Version.
-	pub version: VersionOf,
-	/// Schema identifier.
-	pub schema_id: IdentifierOf,
+	/// Schema hash.
+	pub schema_hash: HashOf<T>,
 	/// Schema creator.
 	pub controller: CordAccountOf<T>,
-	/// \[OPTIONAL\] Schema Parent hash.
-	pub parent: Option<HashOf<T>>,
-	/// \[OPTIONAL\] IPFS CID.
-	pub cid: Option<CidOf>,
-	/// The flag indicating schema type.
-	pub permissioned: StatusOf,
+	/// \[OPTIONAL\] Space ID.
+	pub space_id: Option<IdentifierOf>,
 	/// The flag indicating the status of the schema.
 	pub revoked: StatusOf,
 }
 
 impl<T: Config> SchemaDetails<T> {
-	pub fn is_valid_cid(incoming: &CidOf) -> DispatchResult {
-		let cid_str = str::from_utf8(incoming).map_err(|_err| Error::<T>::InvalidCidEncoding)?;
-		let cid_details: Cid = cid_str.parse().map_err(|_err| Error::<T>::InvalidCidEncoding)?;
-		ensure!(
-			(cid_details.version() == CidType::V1 || cid_details.version() == CidType::V0),
-			Error::<T>::InvalidCidVersion
-		);
-		Ok(())
-	}
-	pub fn schema_status(
+	pub fn from_schema_identities(
 		tx_schema: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
-		let schema_hash = <SchemaId<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
-		let schema_details = <Schemas<T>>::get(schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
+		let schema_details = <Schemas<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
 		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 
-		if schema_details.controller != requestor && schema_details.permissioned {
-			let delegates = <Delegations<T>>::get(schema_details.schema_id);
+		if schema_details.controller != requestor {
+			let delegates = <Delegations<T>>::get(tx_schema);
 			ensure!(
 				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
 				Error::<T>::UnauthorizedOperation

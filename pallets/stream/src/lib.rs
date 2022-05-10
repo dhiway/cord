@@ -165,7 +165,7 @@ pub mod pallet {
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
 
 			if let Some(ref schema) = schema {
-				pallet_schema::SchemaDetails::<T>::schema_status(schema, creator.clone())
+				pallet_schema::SchemaDetails::<T>::from_schema_identities(schema, creator.clone())
 					.map_err(<pallet_schema::Error<T>>::from)?;
 			}
 
@@ -223,7 +223,7 @@ pub mod pallet {
 			);
 
 			if let Some(ref schema) = tx_prev_details.schema {
-				pallet_schema::SchemaDetails::<T>::schema_status(schema, updater.clone())
+				pallet_schema::SchemaDetails::<T>::from_schema_identities(schema, updater.clone())
 					.map_err(<pallet_schema::Error<T>>::from)?;
 			}
 
@@ -266,7 +266,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 			if let Some(ref schema) = tx_status.schema {
-				pallet_schema::SchemaDetails::<T>::schema_status(schema, updater.clone())
+				pallet_schema::SchemaDetails::<T>::from_schema_identities(schema, updater.clone())
 					.map_err(<pallet_schema::Error<T>>::from)?;
 			}
 
@@ -324,7 +324,7 @@ pub mod pallet {
 			);
 
 			if let Some(ref schema) = tx_prev_details.schema {
-				pallet_schema::SchemaDetails::<T>::schema_status(schema, creator.clone())
+				pallet_schema::SchemaDetails::<T>::from_schema_identities(schema, creator.clone())
 					.map_err(<pallet_schema::Error<T>>::from)?;
 			}
 

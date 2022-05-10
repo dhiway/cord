@@ -19,7 +19,6 @@
 #![allow(clippy::unused_unit)]
 pub use cord_primitives::{mark, CidOf, IdentifierOf, StatusOf, VersionOf};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
-use semver::Version;
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
 
 pub mod schemas;
@@ -28,7 +27,6 @@ pub mod weights;
 pub use crate::schemas::*;
 use crate::weights::WeightInfo;
 pub use pallet::*;
-pub use sp_cid::{Cid, Version as CidType};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -44,7 +42,7 @@ pub mod pallet {
 	pub const SCHEMA_IDENTIFIER_PREFIX: u16 = 33;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_space::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
@@ -52,7 +50,7 @@ pub mod pallet {
 		>;
 		/// The maximum number of delegates for a schema.
 		#[pallet::constant]
-		type MaxDelegates: Get<u32>;
+		type MaxSchemaDelegates: Get<u32>;
 		type WeightInfo: WeightInfo;
 	}
 
@@ -65,13 +63,15 @@ pub mod pallet {
 	/// It maps from a schema identifier to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn schemas)]
-	pub type Schemas<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, SchemaDetails<T>>;
+	pub type Schemas<T> =
+		StorageMap<_, Blake2_128Concat, IdentifierOf, SchemaDetails<T>, OptionQuery>;
 
 	/// schema identifiers stored on chain.
 	/// It maps from a schema identifier to hash.
 	#[pallet::storage]
-	#[pallet::getter(fn schemaid)]
-	pub type SchemaId<T> = StorageMap<_, Blake2_128Concat, IdentifierOf, HashOf<T>>;
+	#[pallet::getter(fn schema_hashes)]
+	pub type SchemaHashes<T> =
+		StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
 
 	/// schema delegations stored on chain.
 	/// It maps from an identifier to a vector of delegates.
@@ -81,7 +81,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		IdentifierOf,
-		BoundedVec<CordAccountOf<T>, T::MaxDelegates>,
+		BoundedVec<CordAccountOf<T>, T::MaxSchemaDelegates>,
 		ValueQuery,
 	>;
 
@@ -116,24 +116,10 @@ pub mod pallet {
 		SchemaNotFound,
 		/// Schema revoked
 		SchemaRevoked,
-		/// Invalid CID encoding.
-		InvalidCidEncoding,
-		/// Invalid CID version
-		InvalidCidVersion,
-		/// no status change required
-		StatusChangeNotRequired,
 		/// Only when the author is not the controller.
 		UnauthorizedOperation,
 		// Maximum Number of delegates reached.
 		TooManyDelegates,
-		// Not a permissioned schema
-		SchemaNotPermissioned,
-		// Schema permission matching with the change request
-		NoPermissionChangeRequired,
-		// Invalid Schema Semver
-		InvalidSchemaVersion,
-		// Base schema link not found
-		SchemaGenesisNotFound,
 		// Only when the author is not the controller
 		UnauthorizedDelegation,
 		// Invalid Identifier
@@ -142,6 +128,8 @@ pub mod pallet {
 		InvalidIdentifierLength,
 		// Invalid Identifier Prefix
 		InvalidIdentifierPrefix,
+		// Schema not part of Space
+		SpaceSchemaNotFound,
 	}
 
 	#[pallet::call]
@@ -158,25 +146,42 @@ pub mod pallet {
 		pub fn authorise(
 			origin: OriginFor<T>,
 			schema: IdentifierOf,
+			space_id: Option<IdentifierOf>,
 			delegates: Vec<CordAccountOf<T>>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
+			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
 
-			let schema_hash = <SchemaId<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
-			let schema_details =
-				<Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema_details.permissioned, Error::<T>::SchemaNotPermissioned);
-			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedDelegation);
+			if let Some(ref space_id) = space_id {
+				ensure!(
+					schema_details.space_id == Some(space_id.to_vec()),
+					Error::<T>::SpaceSchemaNotFound
+				);
+
+				if schema_details.controller != controller {
+					pallet_space::SpaceDetails::<T>::from_known_identities(
+						&space_id,
+						controller.clone(),
+					)
+					.map_err(<pallet_space::Error<T>>::from)?;
+				}
+			} else {
+				ensure!(
+					schema_details.controller == controller,
+					Error::<T>::UnauthorizedDelegation
+				);
+			}
 
 			Delegations::<T>::try_mutate(schema.clone(), |ref mut delegation| {
 				ensure!(
-					delegation.len() + delegates.len() <= T::MaxDelegates::get() as usize,
+					delegation.len() + delegates.len() <= T::MaxSchemaDelegates::get() as usize,
 					Error::<T>::TooManyDelegates
 				);
 				for delegate in delegates {
 					delegation
 						.try_push(delegate)
-						.expect("delegates length is less than T::MaxDelegates; qed");
+						.expect("delegates length is less than T::MaxSchemaDelegates; qed");
 				}
 
 				Self::deposit_event(Event::AddDelegates(schema, controller));
@@ -195,15 +200,29 @@ pub mod pallet {
 		pub fn deauthorise(
 			origin: OriginFor<T>,
 			schema: IdentifierOf,
+			space_id: Option<IdentifierOf>,
 			delegates: Vec<CordAccountOf<T>>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
+			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
 
-			let schema_hash = <SchemaId<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
-			let schema_details =
-				<Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema_details.permissioned, Error::<T>::SchemaNotPermissioned);
-			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedDelegation);
+			if let Some(ref space_id) = space_id {
+				ensure!(
+					schema_details.space_id == Some(space_id.to_vec()),
+					Error::<T>::SpaceSchemaNotFound
+				);
+
+				if schema_details.controller != controller {
+					pallet_space::SpaceDetails::<T>::from_known_identities(
+						&space_id,
+						controller.clone(),
+					)
+					.map_err(<pallet_space::Error<T>>::from)?;
+				}
+			} else {
+				ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
+			}
 
 			Delegations::<T>::try_mutate(schema.clone(), |ref mut delegation| {
 				for delegate in delegates {
@@ -225,99 +244,34 @@ pub mod pallet {
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
-			version: VersionOf,
 			schema_hash: HashOf<T>,
-			cid: Option<CidOf>,
-			permissioned: StatusOf,
+			space_id: Option<IdentifierOf>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(!<Schemas<T>>::contains_key(&schema_hash), Error::<T>::SchemaAlreadyAnchored);
+
 			let identifier: IdentifierOf =
 				mark::generate(&(&schema_hash).encode()[..], SCHEMA_IDENTIFIER_PREFIX).into_bytes();
+			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 
-			Version::parse(
-				str::from_utf8(&version).map_err(|_err| Error::<T>::InvalidSchemaVersion)?,
-			)
-			.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
-			if let Some(ref cid) = cid {
-				SchemaDetails::<T>::is_valid_cid(cid)?;
+			if let Some(ref space_id) = space_id {
+				ensure!(
+					!<pallet_space::Spaces<T>>::contains_key(&space_id),
+					<pallet_space::Error<T>>::SpaceNotFound
+				);
 			}
-			ensure!(!<SchemaId<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
-			<SchemaId<T>>::insert(&identifier, &schema_hash);
+			<SchemaHashes<T>>::insert(&schema_hash, &identifier);
 
 			<Schemas<T>>::insert(
-				&schema_hash,
+				&identifier,
 				SchemaDetails {
-					version: version.clone(),
-					schema_id: identifier.clone(),
+					schema_hash: schema_hash.clone(),
 					controller: controller.clone(),
-					parent: None,
-					cid,
-					permissioned,
+					space_id,
 					revoked: false,
 				},
 			);
 			Self::deposit_event(Event::Anchor(schema_hash, identifier, controller));
 
-			Ok(())
-		}
-		/// Update version of an existing schema.
-		///
-		///This transaction can only be performed by the schema controller
-		///
-		/// * origin: the identity of the schema controller.
-		/// * identifier: unique identifier of the incoming schema stream.
-		/// * version: version of the  schema stream.
-		/// * schema_hash: hash of the new schema stream.
-		/// * cid: \[OPTIONAL\] storage Id of the incoming stream.
-		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(1, 2))]
-		pub fn update(
-			origin: OriginFor<T>,
-			identifier: IdentifierOf,
-			version: VersionOf,
-			schema_hash: HashOf<T>,
-			cid: Option<CidOf>,
-		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			mark::from_known_format(&identifier, SCHEMA_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
-
-			let prev_schema_hash =
-				<SchemaId<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
-
-			if let Some(ref cid) = cid {
-				SchemaDetails::<T>::is_valid_cid(cid)?;
-			}
-
-			let new_version = Version::parse(
-				str::from_utf8(&version).map_err(|_err| Error::<T>::InvalidSchemaVersion)?,
-			)
-			.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
-
-			let schema_details =
-				<Schemas<T>>::get(&prev_schema_hash).ok_or(Error::<T>::SchemaGenesisNotFound)?;
-			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
-			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
-
-			let old_version = Version::parse(str::from_utf8(&schema_details.version).unwrap())
-				.map_err(|_err| Error::<T>::InvalidSchemaVersion)?;
-			ensure!(new_version > old_version, Error::<T>::InvalidSchemaVersion);
-
-			<SchemaId<T>>::insert(&identifier, &schema_hash);
-
-			<Schemas<T>>::insert(
-				&schema_hash,
-				SchemaDetails {
-					version: version.clone(),
-					schema_id: identifier.clone(),
-					controller: controller.clone(),
-					parent: Some(prev_schema_hash),
-					cid,
-					..schema_details
-				},
-			);
-
-			Self::deposit_event(Event::Update(identifier, version, controller));
 			Ok(())
 		}
 
@@ -328,53 +282,38 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming stream.
 		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
-		pub fn revoke(origin: OriginFor<T>, identifier: IdentifierOf) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			mark::from_known_format(&identifier, SCHEMA_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
-
-			let schema_hash = <SchemaId<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
-
-			let schema_details =
-				<Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
-			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
-
-			<Schemas<T>>::insert(&schema_hash, SchemaDetails { revoked: true, ..schema_details });
-			Self::deposit_event(Event::Revoke(identifier, controller));
-
-			Ok(())
-		}
-		/// Update the schema type - permissioned or not
-		///
-		/// This update can only be performed by the schema controller
-		///
-		/// * origin: the identity of the schema controller.
-		/// * identifier: unique identifier of the incoming stream.
-		/// * status: status to be updated
-		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
-		pub fn permission(
+		pub fn revoke(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
-			permissioned: StatusOf,
+			space_id: Option<IdentifierOf>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			mark::from_known_format(&identifier, SCHEMA_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidIdentifier)?;
-			let schema_hash = <SchemaId<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 
 			let schema_details =
-				<Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
+				<Schemas<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
-			ensure!(
-				schema_details.permissioned != permissioned,
-				Error::<T>::NoPermissionChangeRequired
-			);
 
-			<Schemas<T>>::insert(&schema_hash, SchemaDetails { permissioned, ..schema_details });
+			if let Some(ref space_id) = space_id {
+				ensure!(
+					schema_details.space_id == Some(space_id.to_vec()),
+					Error::<T>::SpaceSchemaNotFound
+				);
 
-			Self::deposit_event(Event::Permission(identifier, controller));
+				if schema_details.controller != controller {
+					pallet_space::SpaceDetails::<T>::from_known_identities(
+						&space_id,
+						controller.clone(),
+					)
+					.map_err(<pallet_space::Error<T>>::from)?;
+				}
+			} else {
+				ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
+			}
+
+			<Schemas<T>>::insert(&identifier, SchemaDetails { revoked: true, ..schema_details });
+			Self::deposit_event(Event::Revoke(identifier, controller));
 
 			Ok(())
 		}

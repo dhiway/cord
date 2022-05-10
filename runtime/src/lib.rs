@@ -761,14 +761,14 @@ parameter_types! {
 impl pallet_space::Config for Runtime {
 	type Event = Event;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-	type MaxDelegates = MaxSpaceDelegates;
+	type MaxSpaceDelegates = MaxSpaceDelegates;
 	type WeightInfo = ();
 }
 
 impl pallet_schema::Config for Runtime {
 	type Event = Event;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-	type MaxDelegates = MaxSchemaDelegates;
+	type MaxSchemaDelegates = MaxSchemaDelegates;
 	type WeightInfo = ();
 }
 
