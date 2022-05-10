@@ -10,9 +10,9 @@ repository = "https://github.com/dhiway/cord"
 
 [dependencies]
 # third-party dependencies
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = ["derive","max-encoded-len"] }
-scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
-log = { version = "0.4.14", default-features = false  }
+codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = ["derive","max-encoded-len"] }
+scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+log = { version = "0.4.16", default-features = false  }
 serde = { version = "1.0.136", default-features = false }
 serde_derive = { version = "1.0.117", optional = true }
 smallvec = "1.8.0"
@@ -131,7 +131,7 @@ std = [
   	"pallet-schema/std",
 	"pallet-stream/std",
   	"pallet-sudo/std",
-	"hex-literal"
+	"hex-literal",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",

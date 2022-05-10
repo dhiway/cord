@@ -9,12 +9,12 @@ repository = "https://github.com/dhiway/cord"
 description = "Foundation Treasury Module"
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0", default-features = false, features = [
+codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = [
 	"derive",
 	"max-encoded-len",
 ] }
-scale-info = { version = "2.0.1", default-features = false, features = ["derive"] }
-serde = { version = "1.0.126", features = ["derive"], optional = true }
+scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
+serde = { version = "1.0.136", features = ["derive"], optional = true }
 impl-trait-for-tuples = "0.2.1"
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20", default-features = false }

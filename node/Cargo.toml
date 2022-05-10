@@ -22,11 +22,11 @@ required-features = ["cli"]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0" }
+codec = { package = "parity-scale-codec", version = "3.1.2" }
 serde = { version = "1.0.136", features = ["derive"] }
 futures = "0.3.21"
-hex-literal = "0.3.1"
-log = "0.4.13"
+hex-literal = "0.3.4"
+log = "0.4.16"
 clap = { version = "3.1.6", features = ["derive"], optional = true }
 
 # Substrate Client
@@ -101,12 +101,6 @@ sp-trie = { git = "https://github.com/paritytech/substrate", optional = true, br
 ] }
 
 [dev-dependencies]
-# sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20" }
-# sc-client-db = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20" }
-# sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20" }
-# sc-service-test = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20" }
-# sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20" }
-# sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20" }
 futures = "0.3.21"
 tempfile = "3.1.0"
 assert_cmd = "2.0.2"
