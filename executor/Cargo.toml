@@ -11,8 +11,8 @@ repository = "https://github.com/dhiway/cord"
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20" }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0"}
-scale-info = { version = "2.0.1", features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.1.2"}
+scale-info = { version = "2.1.1", features = ["derive"] }
 cord-runtime = { package = "cord-runtime", path = "../runtime" }
 cord-primitives = { package = "cord-primitives", path="../primitives" }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20" }

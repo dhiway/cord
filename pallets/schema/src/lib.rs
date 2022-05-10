@@ -17,7 +17,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-pub use cord_primitives::{CidOf, IdentifierOf, StatusOf, VersionOf};
+pub use cord_primitives::{mark, CidOf, IdentifierOf, StatusOf, VersionOf};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 use semver::Version;
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
@@ -233,8 +233,7 @@ pub mod pallet {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(!<Schemas<T>>::contains_key(&schema_hash), Error::<T>::SchemaAlreadyAnchored);
 			let identifier: IdentifierOf =
-				schemas::create_identifier(&(&schema_hash).encode()[..], SCHEMA_IDENTIFIER_PREFIX)
-					.into_bytes();
+				mark::generate(&(&schema_hash).encode()[..], SCHEMA_IDENTIFIER_PREFIX).into_bytes();
 
 			Version::parse(
 				str::from_utf8(&version).map_err(|_err| Error::<T>::InvalidSchemaVersion)?,
@@ -280,7 +279,7 @@ pub mod pallet {
 			cid: Option<CidOf>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			SchemaDetails::<T>::is_valid_identifier(&identifier, SCHEMA_IDENTIFIER_PREFIX)
+			mark::from_known_format(&identifier, SCHEMA_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidIdentifier)?;
 
 			let prev_schema_hash =
@@ -322,21 +321,16 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Update the status of the schema - revoked or not
+		/// Revoke a Schema
 		///
 		///This transaction can only be performed by the schema controller
 		///
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming stream.
-		/// * status: status to be updated
 		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
-		pub fn status(
-			origin: OriginFor<T>,
-			identifier: IdentifierOf,
-			status: StatusOf,
-		) -> DispatchResult {
+		pub fn revoke(origin: OriginFor<T>, identifier: IdentifierOf) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			SchemaDetails::<T>::is_valid_identifier(&identifier, SCHEMA_IDENTIFIER_PREFIX)
+			mark::from_known_format(&identifier, SCHEMA_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidIdentifier)?;
 
 			let schema_hash = <SchemaId<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
@@ -344,9 +338,9 @@ pub mod pallet {
 			let schema_details =
 				<Schemas<T>>::get(&schema_hash).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
-			ensure!(schema_details.revoked != status, Error::<T>::StatusChangeNotRequired);
+			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
 
-			<Schemas<T>>::insert(&schema_hash, SchemaDetails { revoked: status, ..schema_details });
+			<Schemas<T>>::insert(&schema_hash, SchemaDetails { revoked: true, ..schema_details });
 			Self::deposit_event(Event::Status(identifier, controller));
 
 			Ok(())
@@ -365,7 +359,7 @@ pub mod pallet {
 			permissioned: StatusOf,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			SchemaDetails::<T>::is_valid_identifier(&identifier, SCHEMA_IDENTIFIER_PREFIX)
+			mark::from_known_format(&identifier, SCHEMA_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidIdentifier)?;
 			let schema_hash = <SchemaId<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
 

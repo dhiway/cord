@@ -26,6 +26,7 @@ use sp_runtime::{
 	MultiSignature, OpaqueExtrinsic,
 };
 use sp_std::vec::Vec;
+pub mod mark;
 
 /// An index to a block.
 pub type BlockNumber = u32;
