@@ -102,7 +102,7 @@ pub mod pallet {
 		Digest(IdentifierOf, HashOf<T>, CordAccountOf<T>),
 		/// A stream status has been changed.
 		/// \[stream identifier, controller\]
-		Status(IdentifierOf, CordAccountOf<T>),
+		Revoke(IdentifierOf, CordAccountOf<T>),
 		/// A stream has been removed.
 		/// \[stream identifier\]
 		Remove(IdentifierOf),
@@ -274,7 +274,7 @@ pub mod pallet {
 				&identifier,
 				StreamDetails { controller: updater.clone(), revoked: true, ..tx_status },
 			);
-			Self::deposit_event(Event::Status(identifier, updater));
+			Self::deposit_event(Event::Revoke(identifier, updater));
 
 			Ok(())
 		}

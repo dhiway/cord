@@ -96,7 +96,7 @@ pub mod pallet {
 		Update(IdentifierOf, VersionOf, CordAccountOf<T>),
 		/// A schema status has been changed.
 		/// \[schema identifier, controller\]
-		Status(IdentifierOf, CordAccountOf<T>),
+		Revoke(IdentifierOf, CordAccountOf<T>),
 		/// Schema delegates has been added.
 		/// \[schema identifier,  controller\]
 		AddDelegates(IdentifierOf, CordAccountOf<T>),
@@ -341,7 +341,7 @@ pub mod pallet {
 			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
 
 			<Schemas<T>>::insert(&schema_hash, SchemaDetails { revoked: true, ..schema_details });
-			Self::deposit_event(Event::Status(identifier, controller));
+			Self::deposit_event(Event::Revoke(identifier, controller));
 
 			Ok(())
 		}
