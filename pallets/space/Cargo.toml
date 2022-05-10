@@ -1,6 +1,6 @@
 [package]
-name = 'pallet-stream'
-description = 'Manage Stream Entries.'
+name = 'pallet-space'
+description = 'Manage Spaces'
 version = '0.7.0'
 authors = ['Dhiway <info@dhiway.com>']
 edition = '2021'
@@ -8,7 +8,7 @@ license = "GPL-3.0"
 homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
 
-[[package.metadata.docs.rs]]
+[package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
@@ -19,34 +19,21 @@ codec = { package = "parity-scale-codec", version = "3.1.2", default-features = 
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 serde = { version = "1.0.136", optional = true }
-pallet-schema = {  default-features = false, path = '../schema' }
+
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20", default-features = false }
-log = {default-features = false, version = "0.4.16"}
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20", default-features = false, optional = true}
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20", default-features = false }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20", default-features = false, optional = true}
-sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20", default-features = false, optional = true}
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20", default-features = false, optional = true}
 
-[dev-dependencies]
-serde = { version = "1.0.136" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20", default-features = false }
-sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20", default-features = false }
 
 [features]
 default = [ 'std' ]
-mock = [
-  "serde",
-  "sp-core",
-  "sp-io",
-  "sp-keystore"
-]
+mock = []
 runtime-benchmarks = [
-  "frame-benchmarking",
+  "sp-runtime/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
 ]
@@ -56,10 +43,10 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "cord-primitives/std",
-  "log/std",
   "sp-core/std",
-  "sp-io/std",
   "sp-runtime/std",
   "sp-std/std",
-  "pallet-schema/std",
+] 
+try-runtime = [
+  "frame-support/try-runtime",
 ]

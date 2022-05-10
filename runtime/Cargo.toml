@@ -21,6 +21,7 @@ hex-literal = { version = "0.3.4", optional = true }
 
 # cord pallets 
 pallet-authorities = {  default-features = false, path = '../pallets/authorities' }
+pallet-space = {  default-features = false, path = '../pallets/space' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
 pallet-builder = {  default-features = false, path = '../pallets/builder' }
@@ -127,7 +128,8 @@ std = [
 	"sp-version/std",
 	"pallet-authorities/std",
 	"pallet-builder/std",
-	"pallet-foundation/std",	
+	"pallet-foundation/std",
+	"pallet-space/std",	
   	"pallet-schema/std",
 	"pallet-stream/std",
   	"pallet-sudo/std",

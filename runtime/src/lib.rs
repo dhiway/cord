@@ -754,7 +754,15 @@ impl pallet_foundation::Config for Runtime {
 parameter_types! {
 	// TODO: Find reasonable numbers
 	#[derive(Debug, Clone, PartialEq)]
+	pub const MaxSpaceDelegates: u32 = 30;
 	pub const MaxSchemaDelegates: u32 = 1_000_000;
+}
+
+impl pallet_space::Config for Runtime {
+	type Event = Event;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type MaxDelegates = MaxSpaceDelegates;
+	type WeightInfo = ();
 }
 
 impl pallet_schema::Config for Runtime {
@@ -814,9 +822,10 @@ construct_runtime! {
 		Historical: pallet_session_historical = 27,
 		Builder: pallet_builder = 28,
 		Foundation: pallet_foundation = 29,
-		Schema: pallet_schema = 41,
-		Stream: pallet_stream = 42,
-		Sudo: pallet_sudo = 43,
+		Space: pallet_space = 41,
+		Schema: pallet_schema = 42,
+		Stream: pallet_stream = 43,
+		Sudo: pallet_sudo = 70,
 	}
 }
 
