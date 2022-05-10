@@ -129,7 +129,7 @@ pub mod pallet {
 		// Invalid Identifier Prefix
 		InvalidIdentifierPrefix,
 		// Schema not part of Space
-		SpaceSchemaNotFound,
+		SchemaSpaceMismatch,
 	}
 
 	#[pallet::call]
@@ -142,12 +142,13 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * schema: unique identifier of the schema.
 		/// * delegates: authorised identities to add.
+		/// * space_id: \[OPTIONAL\] schema space link identifier.
 		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn authorise(
 			origin: OriginFor<T>,
 			schema: IdentifierOf,
-			space_id: Option<IdentifierOf>,
 			delegates: Vec<CordAccountOf<T>>,
+			space_id: Option<IdentifierOf>,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
@@ -156,7 +157,7 @@ pub mod pallet {
 			if let Some(ref space_id) = space_id {
 				ensure!(
 					schema_details.space_id == Some(space_id.to_vec()),
-					Error::<T>::SpaceSchemaNotFound
+					Error::<T>::SchemaSpaceMismatch
 				);
 
 				if schema_details.controller != controller {
@@ -196,6 +197,7 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * schema: unique identifier of the schema.
 		/// * delegates: identities (delegates) to be removed.
+		/// * space_id: \[OPTIONAL\] schema space link identifier.
 		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn deauthorise(
 			origin: OriginFor<T>,
@@ -210,7 +212,7 @@ pub mod pallet {
 			if let Some(ref space_id) = space_id {
 				ensure!(
 					schema_details.space_id == Some(space_id.to_vec()),
-					Error::<T>::SpaceSchemaNotFound
+					Error::<T>::SchemaSpaceMismatch
 				);
 
 				if schema_details.controller != controller {
@@ -239,8 +241,7 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * version: version of the  schema stream.
 		/// * schema_hash: hash of the incoming schema stream.
-		/// * cid: \[OPTIONAL\] storage Id of the incoming stream.
-		/// * permissioned: schema type - permissioned or not.
+		/// * space_id: \[OPTIONAL\] schema space link identifier.
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
@@ -281,6 +282,7 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the schema controller.
 		/// * identifier: unique identifier of the incoming stream.
+		/// * space_id: \[OPTIONAL\] schema space link identifier.
 		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn revoke(
 			origin: OriginFor<T>,
@@ -298,7 +300,7 @@ pub mod pallet {
 			if let Some(ref space_id) = space_id {
 				ensure!(
 					schema_details.space_id == Some(space_id.to_vec()),
-					Error::<T>::SpaceSchemaNotFound
+					Error::<T>::SchemaSpaceMismatch
 				);
 
 				if schema_details.controller != controller {

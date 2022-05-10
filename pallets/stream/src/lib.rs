@@ -130,6 +130,8 @@ pub mod pallet {
 		ExpiredSignature,
 		// Invalid Stream Identifier
 		InvalidIdentifier,
+		// Stream not part of space
+		StreamSpaceMismatch,
 	}
 
 	#[pallet::call]
@@ -143,6 +145,7 @@ pub mod pallet {
 		/// * schema: \[OPTIONAL\] stream schema identifier.
 		/// * link: \[OPTIONAL\] stream link identifier.
 		/// * tx_signature: creator signature.
+		/// * space_id: \[OPTIONAL\] stream space link identifier.
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(3, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
@@ -151,6 +154,7 @@ pub mod pallet {
 			holder: Option<CordAccountOf<T>>,
 			schema: Option<IdentifierOf>,
 			link: Option<IdentifierOf>,
+			space_id: Option<IdentifierOf>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -174,6 +178,12 @@ pub mod pallet {
 					<Streams<T>>::get(&link).ok_or(Error::<T>::StreamLinkNotFound)?;
 				ensure!(!link_details.revoked, Error::<T>::StreamLinkRevoked);
 			}
+			if let Some(ref space_id) = space_id {
+				ensure!(
+					!<pallet_space::Spaces<T>>::contains_key(&space_id),
+					<pallet_space::Error<T>>::SpaceNotFound
+				);
+			}
 
 			<HashesOf<T>>::insert(&stream_hash, &identifier);
 
@@ -185,6 +195,7 @@ pub mod pallet {
 					holder,
 					schema,
 					link,
+					space_id,
 					revoked: false,
 				},
 			);
@@ -200,6 +211,7 @@ pub mod pallet {
 		/// * updater: controller or delegate of the stream.
 		/// * stream_hash: hash of the incoming stream.
 		/// * tx_signature: signature of the controller.
+		/// * space_id: \[OPTIONAL\] stream space link identifier.
 		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn update(
 			origin: OriginFor<T>,
@@ -207,6 +219,7 @@ pub mod pallet {
 			updater: CordAccountOf<T>,
 			stream_hash: HashOf<T>,
 			tx_signature: SignatureOf<T>,
+			space_id: Option<IdentifierOf>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(!<HashesOf<T>>::contains_key(&stream_hash), Error::<T>::HashAlreadyAnchored);
@@ -221,10 +234,21 @@ pub mod pallet {
 				tx_signature.verify(&(&stream_hash).encode()[..], &updater),
 				Error::<T>::InvalidSignature
 			);
+			if let Some(ref space_id) = space_id {
+				ensure!(
+					tx_prev_details.space_id == Some(space_id.to_vec()),
+					Error::<T>::StreamSpaceMismatch
+				);
 
-			if let Some(ref schema) = tx_prev_details.schema {
-				pallet_schema::SchemaDetails::<T>::from_schema_identities(schema, updater.clone())
-					.map_err(<pallet_schema::Error<T>>::from)?;
+				if tx_prev_details.controller != updater {
+					pallet_space::SpaceDetails::<T>::from_known_identities(
+						&space_id,
+						updater.clone(),
+					)
+					.map_err(<pallet_space::Error<T>>::from)?;
+				}
+			} else {
+				ensure!(tx_prev_details.controller == updater, Error::<T>::UnauthorizedOperation);
 			}
 
 			<HashesOf<T>>::insert(&stream_hash, &identifier);
@@ -248,6 +272,7 @@ pub mod pallet {
 		/// * updater: controller or delegate of the stream.
 		/// * tx_hash: transaction hash.
 		/// * tx_signature: signature of the contoller.
+		/// * space_id: \[OPTIONAL\] stream space link identifier.
 		#[pallet::weight(30_000 + T::DbWeight::get().reads_writes(2, 3))]
 		pub fn revoke(
 			origin: OriginFor<T>,
@@ -255,35 +280,87 @@ pub mod pallet {
 			updater: CordAccountOf<T>,
 			tx_hash: HashOf<T>,
 			tx_signature: SignatureOf<T>,
+			space_id: Option<IdentifierOf>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidIdentifier)?;
-			let tx_status = <Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(tx_status.revoked, Error::<T>::StreamRevoked);
+			let tx_prev_details =
+				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(tx_prev_details.revoked, Error::<T>::StreamRevoked);
 			ensure!(
 				tx_signature.verify(&(&tx_hash).encode()[..], &updater),
 				Error::<T>::InvalidSignature
 			);
-			if let Some(ref schema) = tx_status.schema {
-				pallet_schema::SchemaDetails::<T>::from_schema_identities(schema, updater.clone())
-					.map_err(<pallet_schema::Error<T>>::from)?;
+
+			if let Some(ref space_id) = space_id {
+				ensure!(
+					tx_prev_details.space_id == Some(space_id.to_vec()),
+					Error::<T>::StreamSpaceMismatch
+				);
+
+				if tx_prev_details.controller != updater {
+					pallet_space::SpaceDetails::<T>::from_known_identities(
+						&space_id,
+						updater.clone(),
+					)
+					.map_err(<pallet_space::Error<T>>::from)?;
+				}
+			} else {
+				ensure!(tx_prev_details.controller == updater, Error::<T>::UnauthorizedOperation);
 			}
 
 			<Streams<T>>::insert(
 				&identifier,
-				StreamDetails { controller: updater.clone(), revoked: true, ..tx_status },
+				StreamDetails { controller: updater.clone(), revoked: true, ..tx_prev_details },
 			);
 			Self::deposit_event(Event::Revoke(identifier, updater));
 
 			Ok(())
 		}
-		///  Remove a stream from the chain.
+
+		///  Remove a stream from the chain using space identities.
+		///
+		/// * origin: the identity of the space origin.
+		/// * identifier: unique identifier of the incoming stream.
+		/// * space_id: stream space link identifier.
+		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(3, 3))]
+		pub fn remove_space_stream(
+			origin: OriginFor<T>,
+			identifier: IdentifierOf,
+			space_id: IdentifierOf,
+		) -> DispatchResult {
+			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
+				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+
+			let stream_details =
+				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(
+				stream_details.space_id == Some(space_id.to_vec()),
+				Error::<T>::StreamSpaceMismatch
+			);
+
+			if stream_details.controller != controller {
+				pallet_space::SpaceDetails::<T>::from_known_identities(
+					&space_id,
+					controller.clone(),
+				)
+				.map_err(<pallet_space::Error<T>>::from)?;
+			}
+
+			<Streams<T>>::remove(&identifier);
+			Self::deposit_event(Event::Remove(identifier));
+
+			Ok(())
+		}
+
+		///  Remove a stream from the chain using council origin.
 		///
 		/// * origin: the identity of the council origin.
 		/// * identifier: unique identifier of the incoming stream.
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(3, 3))]
-		pub fn remove(origin: OriginFor<T>, identifier: IdentifierOf) -> DispatchResult {
+		pub fn council_remove(origin: OriginFor<T>, identifier: IdentifierOf) -> DispatchResult {
 			<T as Config>::ForceOrigin::ensure_origin(origin)?;
 			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidIdentifier)?;
