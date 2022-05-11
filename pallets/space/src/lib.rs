@@ -40,7 +40,7 @@ pub mod pallet {
 	/// Type of a CORD account.
 	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
 	// space identifier prefix.
-	pub const SPACE_IDENTIFIER_PREFIX: u16 = 1;
+	pub const SPACE_IDENTIFIER_PREFIX: u16 = 0;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -108,7 +108,7 @@ pub mod pallet {
 		// Only when the author is not the controller
 		UnauthorizedDelegation,
 		// Invalid Identifier
-		InvalidIdentifier,
+		InvalidSpaceIdentifier,
 		// Invalid Identifier Length
 		InvalidIdentifierLength,
 		// Invalid Identifier Prefix
@@ -211,7 +211,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			mark::from_known_format(&identifier, SPACE_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 			let space_controller =
 				<Spaces<T>>::get(&identifier).ok_or(Error::<T>::SpaceNotFound)?;

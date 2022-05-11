@@ -180,10 +180,8 @@ pub mod pallet {
 				ensure!(!link_details.revoked, Error::<T>::StreamLinkRevoked);
 			}
 			if let Some(ref space_id) = space_id {
-				ensure!(
-					!<pallet_space::Spaces<T>>::contains_key(&space_id),
-					<pallet_space::Error<T>>::SpaceNotFound
-				);
+				pallet_space::SpaceDetails::<T>::from_known_identities(&space_id, creator.clone())
+					.map_err(<pallet_space::Error<T>>::from)?;
 			}
 
 			<HashesOf<T>>::insert(&stream_hash, &identifier);

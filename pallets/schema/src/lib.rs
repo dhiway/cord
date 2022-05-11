@@ -256,10 +256,11 @@ pub mod pallet {
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 
 			if let Some(ref space_id) = space_id {
-				ensure!(
-					!<pallet_space::Spaces<T>>::contains_key(&space_id),
-					<pallet_space::Error<T>>::SpaceNotFound
-				);
+				pallet_space::SpaceDetails::<T>::from_known_identities(
+					&space_id,
+					controller.clone(),
+				)
+				.map_err(<pallet_space::Error<T>>::from)?;
 			}
 			<SchemaHashes<T>>::insert(&schema_hash, &identifier);
 
