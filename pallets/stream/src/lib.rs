@@ -130,7 +130,7 @@ pub mod pallet {
 		// Expired Tx Signature
 		ExpiredSignature,
 		// Invalid Stream Identifier
-		InvalidIdentifier,
+		InvalidStreamIdentifier,
 		// Stream not part of space
 		StreamSpaceMismatch,
 		//Stream digest is not unique
@@ -229,7 +229,7 @@ pub mod pallet {
 			);
 
 			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			ensure!(!<HashesOf<T>>::contains_key(&stream_hash), Error::<T>::HashAlreadyAnchored);
 
@@ -292,7 +292,7 @@ pub mod pallet {
 			);
 
 			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			let tx_prev_details =
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
@@ -337,7 +337,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			let stream_details =
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
@@ -368,7 +368,7 @@ pub mod pallet {
 		pub fn council_remove(origin: OriginFor<T>, identifier: IdentifierOf) -> DispatchResult {
 			<T as Config>::ForceOrigin::ensure_origin(origin)?;
 			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 			<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 
 			<Streams<T>>::remove(&identifier);
@@ -398,7 +398,7 @@ pub mod pallet {
 			);
 
 			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			ensure!(
 				!<DigestOf<T>>::contains_key(&digest_hash),

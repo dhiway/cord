@@ -116,25 +116,25 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Schema idenfier is not unique
+		/// Schema identifier is not unique
 		SchemaAlreadyAnchored,
-		/// Schema idenfier not found
+		/// Schema not found
 		SchemaNotFound,
-		/// Schema revoked
+		/// Schema is revoked
 		SchemaRevoked,
-		/// Only when the author is not the controller.
+		/// When the author is not the controller or delegate.
 		UnauthorizedOperation,
 		// Maximum Number of delegates reached.
 		TooManyDelegates,
-		// Only when the author is not the controller
+		// When the author is not the controller or delegate
 		UnauthorizedDelegation,
-		// Invalid Identifier
-		InvalidIdentifier,
-		// Invalid Identifier Length
+		// Invalid Schema Identifier
+		InvalidSchemaIdentifier,
+		// Invalid Schema Identifier Length
 		InvalidIdentifierLength,
-		// Invalid Identifier Prefix
+		// Invalid Schema Identifier Prefix
 		InvalidIdentifierPrefix,
-		// Schema not part of Space
+		// Schema is not part of the Space
 		SchemaSpaceMismatch,
 		// Invalid creator signature
 		InvalidSignature,
@@ -144,22 +144,25 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Add schema authorisations (delegation).
 		///
-		/// This transaction can only be performed by the schema controller on
-		/// permissioned schemas.
+		/// This transaction can only be performed by the schema controller or
+		/// delegates.
 		///
-		/// * origin: the identity of the schema controller.
+		/// * origin: the identity of the schema anchor.
+		/// * creator: creator (controller) of the schema.
 		/// * schema: unique identifier of the schema.
+		/// * tx_hash: transaction hash to verify the signature.
 		/// * delegates: authorised identities to add.
 		/// * space_id: \[OPTIONAL\] schema space link identifier.
+		/// * tx_signature: creator signature.
 		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn authorise(
 			origin: OriginFor<T>,
 			creator: CordAccountOf<T>,
 			schema: IdentifierOf,
 			tx_hash: HashOf<T>,
-			tx_signature: SignatureOf<T>,
 			delegates: Vec<CordAccountOf<T>>,
 			space_id: Option<IdentifierOf>,
+			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
@@ -168,7 +171,7 @@ pub mod pallet {
 			);
 
 			mark::from_known_format(&schema, SCHEMA_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
@@ -207,22 +210,25 @@ pub mod pallet {
 		}
 		/// Remove schema authorisations (delegation).
 		///
-		/// This transaction can only be performed by the schema controller
-		/// permissioned schemas.
+		/// This transaction can only be performed by the schema controller or
+		/// delegates.
 		///
-		/// * origin: the identity of the schema controller.
+		/// * origin: the identity of the schema anchor.
+		/// * updater: updater (controller) of the schema.
 		/// * schema: unique identifier of the schema.
-		/// * delegates: identities (delegates) to be removed.
+		/// * tx_hash: transaction hash to verify the signature.
+		/// * delegates: authorised identities to add.
 		/// * space_id: \[OPTIONAL\] schema space link identifier.
+		/// * tx_signature: updater signature.
 		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn deauthorise(
 			origin: OriginFor<T>,
 			updater: CordAccountOf<T>,
 			schema: IdentifierOf,
 			tx_hash: HashOf<T>,
-			tx_signature: SignatureOf<T>,
-			space_id: Option<IdentifierOf>,
 			delegates: Vec<CordAccountOf<T>>,
+			space_id: Option<IdentifierOf>,
+			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
@@ -231,7 +237,7 @@ pub mod pallet {
 			);
 
 			mark::from_known_format(&schema, SCHEMA_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
@@ -265,10 +271,11 @@ pub mod pallet {
 
 		/// Create a new schema and associates with its identifier.
 		///
-		/// * origin: the identity of the schema controller.
-		/// * version: version of the  schema stream.
+		/// * origin: the identity of the schema anchor.
+		/// * creator: creator (controller) of the schema.
 		/// * schema_hash: hash of the incoming schema stream.
 		/// * space_id: \[OPTIONAL\] schema space link identifier.
+		/// * tx_signature: creator signature.
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
@@ -309,11 +316,15 @@ pub mod pallet {
 
 		/// Revoke a Schema
 		///
-		///This transaction can only be performed by the schema controller
+		///This transaction can only be performed by the schema controller or
+		/// delegates
 		///
 		/// * origin: the identity of the schema controller.
+		/// * updater: updater (controller) of the schema.
 		/// * identifier: unique identifier of the incoming stream.
+		/// * tx_hash: transaction hash to verify the signature.
 		/// * space_id: \[OPTIONAL\] schema space link identifier.
+		/// * tx_signature: updater signature.
 		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn revoke(
 			origin: OriginFor<T>,
@@ -330,7 +341,7 @@ pub mod pallet {
 			);
 
 			mark::from_known_format(&identifier, SCHEMA_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 			let schema_details =
 				<Schemas<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
