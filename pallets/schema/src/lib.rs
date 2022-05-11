@@ -20,6 +20,7 @@
 #![allow(clippy::unused_unit)]
 pub use cord_primitives::{mark, CidOf, IdentifierOf, StatusOf, VersionOf};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
+use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
 
 pub mod schemas;
@@ -41,6 +42,8 @@ pub mod pallet {
 	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
 	// schema identifier prefix.
 	pub const SCHEMA_IDENTIFIER_PREFIX: u16 = 33;
+	/// Type for a cord signature.
+	pub type SignatureOf<T> = <T as Config>::Signature;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_space::Config {
@@ -52,6 +55,8 @@ pub mod pallet {
 		/// The maximum number of delegates for a schema.
 		#[pallet::constant]
 		type MaxSchemaDelegates: Get<u32>;
+		type Signature: Verify<Signer = <Self as pallet::Config>::Signer> + Parameter;
+		type Signer: IdentifyAccount<AccountId = CordAccountOf<Self>> + Parameter;
 		type WeightInfo: WeightInfo;
 	}
 
@@ -131,6 +136,8 @@ pub mod pallet {
 		InvalidIdentifierPrefix,
 		// Schema not part of Space
 		SchemaSpaceMismatch,
+		// Invalid creator signature
+		InvalidSignature,
 	}
 
 	#[pallet::call]
@@ -147,11 +154,22 @@ pub mod pallet {
 		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn authorise(
 			origin: OriginFor<T>,
+			creator: CordAccountOf<T>,
 			schema: IdentifierOf,
+			tx_hash: HashOf<T>,
+			tx_signature: SignatureOf<T>,
 			delegates: Vec<CordAccountOf<T>>,
 			space_id: Option<IdentifierOf>,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(
+				tx_signature.verify(&(&tx_hash).encode()[..], &creator),
+				Error::<T>::InvalidSignature
+			);
+
+			mark::from_known_format(&schema, SCHEMA_IDENTIFIER_PREFIX)
+				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
 
@@ -161,18 +179,15 @@ pub mod pallet {
 					Error::<T>::SchemaSpaceMismatch
 				);
 
-				if schema_details.controller != controller {
+				if schema_details.controller != creator {
 					pallet_space::SpaceDetails::<T>::from_known_identities(
 						&space_id,
-						controller.clone(),
+						creator.clone(),
 					)
 					.map_err(<pallet_space::Error<T>>::from)?;
 				}
 			} else {
-				ensure!(
-					schema_details.controller == controller,
-					Error::<T>::UnauthorizedDelegation
-				);
+				ensure!(schema_details.controller == creator, Error::<T>::UnauthorizedDelegation);
 			}
 
 			Delegations::<T>::try_mutate(schema.clone(), |ref mut delegation| {
@@ -186,7 +201,7 @@ pub mod pallet {
 						.expect("delegates length is less than T::MaxSchemaDelegates; qed");
 				}
 
-				Self::deposit_event(Event::AddDelegates(schema, controller));
+				Self::deposit_event(Event::AddDelegates(schema, creator));
 				Ok(())
 			})
 		}
@@ -202,11 +217,22 @@ pub mod pallet {
 		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn deauthorise(
 			origin: OriginFor<T>,
+			updater: CordAccountOf<T>,
 			schema: IdentifierOf,
+			tx_hash: HashOf<T>,
+			tx_signature: SignatureOf<T>,
 			space_id: Option<IdentifierOf>,
 			delegates: Vec<CordAccountOf<T>>,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(
+				tx_signature.verify(&(&tx_hash).encode()[..], &updater),
+				Error::<T>::InvalidSignature
+			);
+
+			mark::from_known_format(&schema, SCHEMA_IDENTIFIER_PREFIX)
+				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
 
@@ -216,15 +242,15 @@ pub mod pallet {
 					Error::<T>::SchemaSpaceMismatch
 				);
 
-				if schema_details.controller != controller {
+				if schema_details.controller != updater {
 					pallet_space::SpaceDetails::<T>::from_known_identities(
 						&space_id,
-						controller.clone(),
+						updater.clone(),
 					)
 					.map_err(<pallet_space::Error<T>>::from)?;
 				}
 			} else {
-				ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
+				ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
 			}
 
 			Delegations::<T>::try_mutate(schema.clone(), |ref mut delegation| {
@@ -232,7 +258,7 @@ pub mod pallet {
 					delegation.retain(|x| x != &delegate);
 				}
 
-				Self::deposit_event(Event::RemoveDelegates(schema, controller));
+				Self::deposit_event(Event::RemoveDelegates(schema, updater));
 				Ok(())
 			})
 		}
@@ -246,21 +272,24 @@ pub mod pallet {
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
+			creator: CordAccountOf<T>,
 			schema_hash: HashOf<T>,
 			space_id: Option<IdentifierOf>,
+			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(
+				tx_signature.verify(&(&schema_hash).encode()[..], &creator),
+				Error::<T>::InvalidSignature
+			);
 
 			let identifier: IdentifierOf =
 				mark::generate(&(&schema_hash).encode()[..], SCHEMA_IDENTIFIER_PREFIX).into_bytes();
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 
 			if let Some(ref space_id) = space_id {
-				pallet_space::SpaceDetails::<T>::from_known_identities(
-					&space_id,
-					controller.clone(),
-				)
-				.map_err(<pallet_space::Error<T>>::from)?;
+				pallet_space::SpaceDetails::<T>::from_known_identities(&space_id, creator.clone())
+					.map_err(<pallet_space::Error<T>>::from)?;
 			}
 			<SchemaHashes<T>>::insert(&schema_hash, &identifier);
 
@@ -268,12 +297,12 @@ pub mod pallet {
 				&identifier,
 				SchemaDetails {
 					schema_hash: schema_hash.clone(),
-					controller: controller.clone(),
+					controller: creator.clone(),
 					space_id,
 					revoked: false,
 				},
 			);
-			Self::deposit_event(Event::Anchor(schema_hash, identifier, controller));
+			Self::deposit_event(Event::Anchor(schema_hash, identifier, creator));
 
 			Ok(())
 		}
@@ -289,9 +318,17 @@ pub mod pallet {
 		pub fn revoke(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
+			updater: CordAccountOf<T>,
+			tx_hash: HashOf<T>,
 			space_id: Option<IdentifierOf>,
+			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(
+				tx_signature.verify(&(&tx_hash).encode()[..], &updater),
+				Error::<T>::InvalidSignature
+			);
+
 			mark::from_known_format(&identifier, SCHEMA_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidIdentifier)?;
 
@@ -305,19 +342,19 @@ pub mod pallet {
 					Error::<T>::SchemaSpaceMismatch
 				);
 
-				if schema_details.controller != controller {
+				if schema_details.controller != updater {
 					pallet_space::SpaceDetails::<T>::from_known_identities(
 						&space_id,
-						controller.clone(),
+						updater.clone(),
 					)
 					.map_err(<pallet_space::Error<T>>::from)?;
 				}
 			} else {
-				ensure!(schema_details.controller == controller, Error::<T>::UnauthorizedOperation);
+				ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
 			}
 
 			<Schemas<T>>::insert(&identifier, SchemaDetails { revoked: true, ..schema_details });
-			Self::deposit_event(Event::Revoke(identifier, controller));
+			Self::deposit_event(Event::Revoke(identifier, updater));
 
 			Ok(())
 		}
