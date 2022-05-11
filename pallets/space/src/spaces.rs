@@ -32,6 +32,7 @@ impl<T: Config> SpaceDetails<T> {
 		tx_space_id: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
+		mark::from_known_format(&tx_space_id, 0).map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 		let space_controller = <Spaces<T>>::get(&tx_space_id).ok_or(Error::<T>::SpaceNotFound)?;
 
 		if space_controller != requestor {

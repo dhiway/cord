@@ -761,6 +761,8 @@ parameter_types! {
 
 impl pallet_space::Config for Runtime {
 	type Event = Event;
+	type Signature = Signature;
+	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
 	type MaxSpaceDelegates = MaxSpaceDelegates;
 	type WeightInfo = ();
@@ -768,6 +770,8 @@ impl pallet_space::Config for Runtime {
 
 impl pallet_schema::Config for Runtime {
 	type Event = Event;
+	type Signature = Signature;
+	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
 	type MaxSchemaDelegates = MaxSchemaDelegates;
 	type WeightInfo = ();

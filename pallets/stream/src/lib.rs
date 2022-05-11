@@ -46,7 +46,7 @@ pub mod pallet {
 	pub const STREAM_IDENTIFIER_PREFIX: u16 = 43;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-	/// Type for a block time.
+	/// Type for a cord signature.
 	pub type SignatureOf<T> = <T as Config>::Signature;
 
 	#[pallet::config]
@@ -125,14 +125,16 @@ pub mod pallet {
 		StreamLinkRevoked,
 		// Invalid creator signature
 		InvalidSignature,
-		//Stream has is not unique
+		//Stream hash is not unique
 		HashAlreadyAnchored,
 		// Expired Tx Signature
 		ExpiredSignature,
 		// Invalid Stream Identifier
-		InvalidIdentifier,
+		InvalidStreamIdentifier,
 		// Stream not part of space
 		StreamSpaceMismatch,
+		//Stream digest is not unique
+		DigestHashAlreadyAnchored,
 	}
 
 	#[pallet::call]
@@ -180,10 +182,8 @@ pub mod pallet {
 				ensure!(!link_details.revoked, Error::<T>::StreamLinkRevoked);
 			}
 			if let Some(ref space_id) = space_id {
-				ensure!(
-					!<pallet_space::Spaces<T>>::contains_key(&space_id),
-					<pallet_space::Error<T>>::SpaceNotFound
-				);
+				pallet_space::SpaceDetails::<T>::from_known_identities(&space_id, creator.clone())
+					.map_err(<pallet_space::Error<T>>::from)?;
 			}
 
 			<HashesOf<T>>::insert(&stream_hash, &identifier);
@@ -223,18 +223,20 @@ pub mod pallet {
 			space_id: Option<IdentifierOf>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(!<HashesOf<T>>::contains_key(&stream_hash), Error::<T>::HashAlreadyAnchored);
+			ensure!(
+				tx_signature.verify(&(&stream_hash).encode()[..], &updater),
+				Error::<T>::InvalidSignature
+			);
+
 			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
+
+			ensure!(!<HashesOf<T>>::contains_key(&stream_hash), Error::<T>::HashAlreadyAnchored);
 
 			let tx_prev_details =
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
 
-			ensure!(
-				tx_signature.verify(&(&stream_hash).encode()[..], &updater),
-				Error::<T>::InvalidSignature
-			);
 			if let Some(ref space_id) = space_id {
 				ensure!(
 					tx_prev_details.space_id == Some(space_id.to_vec()),
@@ -284,15 +286,17 @@ pub mod pallet {
 			space_id: Option<IdentifierOf>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
-			let tx_prev_details =
-				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(tx_prev_details.revoked, Error::<T>::StreamRevoked);
 			ensure!(
 				tx_signature.verify(&(&tx_hash).encode()[..], &updater),
 				Error::<T>::InvalidSignature
 			);
+
+			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
+
+			let tx_prev_details =
+				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(tx_prev_details.revoked, Error::<T>::StreamRevoked);
 
 			if let Some(ref space_id) = space_id {
 				ensure!(
@@ -333,7 +337,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			let stream_details =
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
@@ -364,7 +368,7 @@ pub mod pallet {
 		pub fn council_remove(origin: OriginFor<T>, identifier: IdentifierOf) -> DispatchResult {
 			<T as Config>::ForceOrigin::ensure_origin(origin)?;
 			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 			<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 
 			<Streams<T>>::remove(&identifier);
@@ -388,18 +392,22 @@ pub mod pallet {
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-			ensure!(!<DigestOf<T>>::contains_key(&digest_hash), Error::<T>::HashAlreadyAnchored);
-			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
-
-			let tx_prev_details =
-				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
-
 			ensure!(
 				tx_signature.verify(&(&digest_hash).encode()[..], &creator),
 				Error::<T>::InvalidSignature
 			);
+
+			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
+
+			ensure!(
+				!<DigestOf<T>>::contains_key(&digest_hash),
+				Error::<T>::DigestHashAlreadyAnchored
+			);
+
+			let tx_prev_details =
+				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
 
 			if let Some(ref schema) = tx_prev_details.schema {
 				pallet_schema::SchemaDetails::<T>::from_schema_identities(schema, creator.clone())
