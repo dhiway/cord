@@ -69,7 +69,7 @@ pub mod pallet {
 	/// It maps from a space identifier to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn schemas)]
-	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, IdentifierOf, CordAccountOf<T>>;
+	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, IdentifierOf, SpaceDetails<T>>;
 
 	/// space delegations stored on chain.
 	/// It maps from an identifier to a vector of delegates.
@@ -86,18 +86,24 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new space has been created.
-		/// \[space hash, space identifier, controller\]
-		Create(HashOf<T>, IdentifierOf, CordAccountOf<T>),
-		/// A space controller has changed.
-		/// \[space identifier, new controller\]
-		Transfer(IdentifierOf, CordAccountOf<T>),
 		/// Space delegates has been added.
 		/// \[space identifier,  controller\]
 		AddDelegates(IdentifierOf, CordAccountOf<T>),
 		/// Space delegates has been removed.
 		/// \[space identifier,  controller\]
 		RemoveDelegates(IdentifierOf, CordAccountOf<T>),
+		/// A new space has been created.
+		/// \[space hash, space identifier, controller\]
+		Create(HashOf<T>, IdentifierOf, CordAccountOf<T>),
+		/// A space controller has changed.
+		/// \[space identifier, new controller\]
+		Transfer(IdentifierOf, CordAccountOf<T>),
+		/// A spaces has been archived.
+		/// \[space identifier\]
+		Archive(IdentifierOf, CordAccountOf<T>),
+		/// A spaces has been restored.
+		/// \[space identifier\]
+		Restore(IdentifierOf, CordAccountOf<T>),
 	}
 
 	#[pallet::error]
@@ -120,6 +126,12 @@ pub mod pallet {
 		InvalidIdentifierPrefix,
 		// Invalid creator signature
 		InvalidSignature,
+		// Archived Space
+		ArchivedSpace,
+		// Space Archived
+		SpaceAlreadyArchived,
+		// Space not Archived
+		SpaceNotArchived,
 	}
 
 	#[pallet::call]
@@ -154,7 +166,7 @@ pub mod pallet {
 			mark::from_known_format(&space, SPACE_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
-			SpaceDetails::from_known_identities(&space, creator.clone())
+			SpaceDetails::from_space_identities(&space, creator.clone())
 				.map_err(Error::<T>::from)?;
 
 			Delegations::<T>::try_mutate(space.clone(), |ref mut delegation| {
@@ -200,7 +212,7 @@ pub mod pallet {
 			mark::from_known_format(&space, SPACE_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
-			SpaceDetails::from_known_identities(&space, updater.clone())
+			SpaceDetails::from_space_identities(&space, updater.clone())
 				.map_err(<Error<T>>::from)?;
 
 			Delegations::<T>::try_mutate(space.clone(), |ref mut delegation| {
@@ -237,12 +249,105 @@ pub mod pallet {
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
 
-			<Spaces<T>>::insert(&identifier, creator.clone());
+			<Spaces<T>>::insert(
+				&identifier,
+				SpaceDetails { space_hash, controller: creator.clone(), archived: false },
+			);
 			Self::deposit_event(Event::Create(space_hash, identifier, creator));
 
 			Ok(())
 		}
-		/// Transfer the space to a new controller.
+		/// Archive a Space
+		///
+		///This transaction can only be performed by the space controller or
+		/// delegates
+		///
+		/// * origin: the identity of the space controller.
+		/// * updater: updater (controller) of the space.
+		/// * identifier: unique identifier of the space.
+		/// * tx_hash: transaction hash to verify the signature.
+		/// * tx_signature: updater signature.
+		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
+		pub fn archive(
+			origin: OriginFor<T>,
+			updater: CordAccountOf<T>,
+			space: IdentifierOf,
+			tx_hash: HashOf<T>,
+			tx_signature: SignatureOf<T>,
+		) -> DispatchResult {
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(
+				tx_signature.verify(&(&tx_hash).encode()[..], &updater),
+				Error::<T>::InvalidSignature
+			);
+
+			mark::from_known_format(&space, SPACE_IDENTIFIER_PREFIX)
+				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
+
+			let space_details = <Spaces<T>>::get(&space).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(space_details.archived, Error::<T>::SpaceAlreadyArchived);
+
+			if space_details.controller != updater {
+				let delegates = <Delegations<T>>::get(&space);
+				ensure!(
+					(delegates.iter().find(|&delegate| *delegate == updater) == Some(&updater)),
+					Error::<T>::UnauthorizedOperation
+				);
+			} else {
+				ensure!(space_details.controller == updater, Error::<T>::UnauthorizedOperation);
+			}
+
+			<Spaces<T>>::insert(&space, SpaceDetails { archived: true, ..space_details });
+			Self::deposit_event(Event::Archive(space, updater));
+
+			Ok(())
+		}
+		/// Restore an archived space
+		///
+		/// This transaction can only be performed by the space controller or
+		/// delegates
+		///
+		/// * origin: the identity of the space controller.
+		/// * updater: updater (controller) of the space.
+		/// * identifier: unique identifier of the space.
+		/// * tx_hash: transaction hash to verify the signature.
+		/// * tx_signature: updater signature.
+		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
+		pub fn restore(
+			origin: OriginFor<T>,
+			updater: CordAccountOf<T>,
+			space: IdentifierOf,
+			tx_hash: HashOf<T>,
+			tx_signature: SignatureOf<T>,
+		) -> DispatchResult {
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			ensure!(
+				tx_signature.verify(&(&tx_hash).encode()[..], &updater),
+				Error::<T>::InvalidSignature
+			);
+
+			mark::from_known_format(&space, SPACE_IDENTIFIER_PREFIX)
+				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
+
+			let space_details = <Spaces<T>>::get(&space).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archived, Error::<T>::SpaceNotArchived);
+
+			if space_details.controller != updater {
+				let delegates = <Delegations<T>>::get(&space);
+				ensure!(
+					(delegates.iter().find(|&delegate| *delegate == updater) == Some(&updater)),
+					Error::<T>::UnauthorizedOperation
+				);
+			} else {
+				ensure!(space_details.controller == updater, Error::<T>::UnauthorizedOperation);
+			}
+
+			<Spaces<T>>::insert(&space, SpaceDetails { archived: false, ..space_details });
+			Self::deposit_event(Event::Restore(space, updater));
+
+			Ok(())
+		}
+		/// Transfer an active space to a new controller.
 		///
 		///This transaction can only be performed by the space controller
 		///
@@ -270,13 +375,16 @@ pub mod pallet {
 			mark::from_known_format(&space, SPACE_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
-			let space_controller = <Spaces<T>>::get(&space).ok_or(Error::<T>::SpaceNotFound)?;
-			if space_controller != updater {
-				SpaceDetails::<T>::from_known_identities(&space, updater.clone())
+			let space_details = <Spaces<T>>::get(&space).ok_or(Error::<T>::SpaceNotFound)?;
+			if space_details.controller != updater {
+				SpaceDetails::<T>::from_space_identities(&space, updater.clone())
 					.map_err(<Error<T>>::from)?;
 			}
 
-			<Spaces<T>>::insert(&space, transfer_to.clone());
+			<Spaces<T>>::insert(
+				&space,
+				SpaceDetails { controller: transfer_to.clone(), ..space_details },
+			);
 
 			Self::deposit_event(Event::Transfer(space, transfer_to));
 			Ok(())

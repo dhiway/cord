@@ -182,7 +182,7 @@ pub mod pallet {
 				ensure!(!link_details.revoked, Error::<T>::StreamLinkRevoked);
 			}
 			if let Some(ref space_id) = space_id {
-				pallet_space::SpaceDetails::<T>::from_known_identities(&space_id, creator.clone())
+				pallet_space::SpaceDetails::<T>::from_space_identities(&space_id, creator.clone())
 					.map_err(<pallet_space::Error<T>>::from)?;
 			}
 
@@ -244,7 +244,7 @@ pub mod pallet {
 				);
 
 				if tx_prev_details.controller != updater {
-					pallet_space::SpaceDetails::<T>::from_known_identities(
+					pallet_space::SpaceDetails::<T>::from_space_identities(
 						&space_id,
 						updater.clone(),
 					)
@@ -274,7 +274,7 @@ pub mod pallet {
 		/// * identifier: unique identifier of the stream.
 		/// * updater: controller or delegate of the stream.
 		/// * tx_hash: transaction hash.
-		/// * tx_signature: signature of the contoller.
+		/// * tx_signature: signature of the controller.
 		/// * space_id: \[OPTIONAL\] stream space link identifier.
 		#[pallet::weight(30_000 + T::DbWeight::get().reads_writes(2, 3))]
 		pub fn revoke(
@@ -305,7 +305,7 @@ pub mod pallet {
 				);
 
 				if tx_prev_details.controller != updater {
-					pallet_space::SpaceDetails::<T>::from_known_identities(
+					pallet_space::SpaceDetails::<T>::from_space_identities(
 						&space_id,
 						updater.clone(),
 					)
@@ -347,7 +347,7 @@ pub mod pallet {
 			);
 
 			if stream_details.controller != controller {
-				pallet_space::SpaceDetails::<T>::from_known_identities(
+				pallet_space::SpaceDetails::<T>::from_space_identities(
 					&space_id,
 					controller.clone(),
 				)
