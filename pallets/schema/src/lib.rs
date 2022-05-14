@@ -183,7 +183,7 @@ pub mod pallet {
 				);
 
 				if schema_details.controller != creator {
-					pallet_space::SpaceDetails::<T>::from_known_identities(
+					pallet_space::SpaceDetails::<T>::from_space_identities(
 						&space_id,
 						creator.clone(),
 					)
@@ -249,7 +249,7 @@ pub mod pallet {
 				);
 
 				if schema_details.controller != updater {
-					pallet_space::SpaceDetails::<T>::from_known_identities(
+					pallet_space::SpaceDetails::<T>::from_space_identities(
 						&space_id,
 						updater.clone(),
 					)
@@ -295,7 +295,7 @@ pub mod pallet {
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 
 			if let Some(ref space_id) = space_id {
-				pallet_space::SpaceDetails::<T>::from_known_identities(&space_id, creator.clone())
+				pallet_space::SpaceDetails::<T>::from_space_identities(&space_id, creator.clone())
 					.map_err(<pallet_space::Error<T>>::from)?;
 			}
 			<SchemaHashes<T>>::insert(&schema_hash, &identifier);
@@ -328,8 +328,8 @@ pub mod pallet {
 		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn revoke(
 			origin: OriginFor<T>,
-			identifier: IdentifierOf,
 			updater: CordAccountOf<T>,
+			schema: IdentifierOf,
 			tx_hash: HashOf<T>,
 			space_id: Option<IdentifierOf>,
 			tx_signature: SignatureOf<T>,
@@ -340,11 +340,10 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			mark::from_known_format(&identifier, SCHEMA_IDENTIFIER_PREFIX)
+			mark::from_known_format(&schema, SCHEMA_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
-			let schema_details =
-				<Schemas<T>>::get(&identifier).ok_or(Error::<T>::SchemaNotFound)?;
+			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
 
 			if let Some(ref space_id) = space_id {
@@ -354,7 +353,7 @@ pub mod pallet {
 				);
 
 				if schema_details.controller != updater {
-					pallet_space::SpaceDetails::<T>::from_known_identities(
+					pallet_space::SpaceDetails::<T>::from_space_identities(
 						&space_id,
 						updater.clone(),
 					)
@@ -364,8 +363,8 @@ pub mod pallet {
 				ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
 			}
 
-			<Schemas<T>>::insert(&identifier, SchemaDetails { revoked: true, ..schema_details });
-			Self::deposit_event(Event::Revoke(identifier, updater));
+			<Schemas<T>>::insert(&schema, SchemaDetails { revoked: true, ..schema_details });
+			Self::deposit_event(Event::Revoke(schema, updater));
 
 			Ok(())
 		}

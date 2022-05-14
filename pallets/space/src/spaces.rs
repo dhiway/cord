@@ -23,19 +23,25 @@ use codec::{Decode, Encode};
 #[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct SpaceDetails<T: Config> {
+	/// Space hash.
+	pub space_hash: HashOf<T>,
 	/// Space creator.
 	pub controller: CordAccountOf<T>,
+	/// The flag indicating the status of the space.
+	pub archived: StatusOf,
 }
 
 impl<T: Config> SpaceDetails<T> {
-	pub fn from_known_identities(
+	pub fn from_space_identities(
 		tx_space_id: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
 		mark::from_known_format(&tx_space_id, 0).map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
-		let space_controller = <Spaces<T>>::get(&tx_space_id).ok_or(Error::<T>::SpaceNotFound)?;
 
-		if space_controller != requestor {
+		let space_details = <Spaces<T>>::get(&tx_space_id).ok_or(Error::<T>::SpaceNotFound)?;
+		ensure!(space_details.archived, Error::<T>::ArchivedSpace);
+
+		if space_details.controller != requestor {
 			let delegates = <Delegations<T>>::get(tx_space_id);
 			ensure!(
 				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
