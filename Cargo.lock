@@ -999,7 +999,6 @@ dependencies = [
  "frame-support",
  "parity-scale-codec",
  "scale-info",
- "serde",
  "sp-core",
  "sp-runtime",
  "sp-std",
@@ -4241,13 +4240,9 @@ dependencies = [
  "cord-primitives",
  "frame-support",
  "frame-system",
- "pallet-balances",
  "pallet-session",
- "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",
- "serde",
- "sp-core",
  "sp-std",
 ]
 
@@ -4301,13 +4296,10 @@ dependencies = [
 name = "pallet-builder"
 version = "0.7.1"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
  "scale-info",
- "sp-core",
- "sp-io",
  "sp-runtime",
  "sp-std",
 ]
@@ -4349,13 +4341,10 @@ dependencies = [
 name = "pallet-foundation"
 version = "0.7.1"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
  "scale-info",
- "sp-core",
- "sp-io",
  "sp-runtime",
  "sp-std",
 ]
@@ -4508,7 +4497,6 @@ dependencies = [
  "pallet-space",
  "parity-scale-codec",
  "scale-info",
- "serde",
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",

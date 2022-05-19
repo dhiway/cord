@@ -1,15 +1,12 @@
 #!/usr/bin/env bash
-BASEDIR=$(dirname "$0")
 set -e
 
 echo "*** Initializing WASM build environment"
 
-if [ -z $CI_PROJECT_NAME ] ; then
-#   rustup default stable
-#   rustup update
-   rustup update nightly
-   rustup update nightly
-fi
+rustup default stable
+rustup update stable
+rustup component add rls-preview --toolchain nightly
+rustup update nightly
 
 rustup target add wasm32-unknown-unknown --toolchain nightly
 

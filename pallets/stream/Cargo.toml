@@ -30,15 +30,12 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.22", default-features = false, optional = true}
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.22", default-features = false, optional = true}
 
-[dev-dependencies]
-serde = { version = "1.0.136" }
-sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.22", default-features = false }
 
 [features]
 default = [ 'std' ]
 mock = [
   "serde",
-  "sp-keystore"
+  "sp-keystore" 
 ]
 runtime-benchmarks = [
   "frame-benchmarking",
