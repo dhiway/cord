@@ -1,8 +1,8 @@
 [package]
 name = 'pallet-schema'
 description = 'Manage Schemas'
-version = '0.7.1'
-authors = ['Dhiway <info@dhiway.com>']
+version = '0.7.2'
+authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'
 license = "GPL-3.0"
 homepage = "https://cord.network"
