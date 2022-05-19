@@ -20,6 +20,7 @@
 //! substrate service.
 
 #![warn(unused_extern_crates)]
+#![warn(unused_crate_dependencies)]
 
 use cord_executor::ExecutorDispatch;
 use cord_primitives::Block;
@@ -99,7 +100,7 @@ pub fn new_partial(
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
-			&config,
+			config,
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
 		)?;
@@ -257,7 +258,7 @@ pub fn new_full(
 			let deps =
 				cord_rpc::FullDeps { client: client.clone(), pool: pool.clone(), deny_unsafe };
 
-			Ok(cord_rpc::create_full(deps))
+			cord_rpc::create_full(deps).map_err(Into::into)
 		})
 	};
 	let _rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
@@ -266,7 +267,7 @@ pub fn new_full(
 		keystore: keystore_container.sync_keystore(),
 		task_manager: &mut task_manager,
 		transaction_pool: transaction_pool.clone(),
-		rpc_extensions_builder,
+		rpc_builder: rpc_extensions_builder,
 		backend,
 		system_rpc_tx,
 		config,
@@ -301,7 +302,7 @@ pub fn new_full(
 		let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _, _>(
 			StartAuraParams {
 				slot_duration,
-				client: client.clone(),
+				client,
 				select_chain,
 				block_import,
 				proposer_factory,

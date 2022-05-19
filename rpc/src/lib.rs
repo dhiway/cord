@@ -18,9 +18,12 @@
 
 //! A collection of CORD specific RPC methods.
 
+#![warn(unused_crate_dependencies)]
+
 use std::sync::Arc;
 
 use cord_primitives::{AccountId, Balance, Block, Index};
+use jsonrpsee::RpcModule;
 pub use sc_rpc::SubscriptionTaskExecutor;
 pub use sc_rpc_api::DenyUnsafe;
 use sc_transaction_pool_api::TransactionPool;
@@ -29,7 +32,7 @@ use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 
 /// A IO handler that uses all Full RPC extensions.
-pub type RpcExtension = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
+pub type RpcExtension = RpcModule<()>;
 
 //// Full client dependencies.
 pub struct FullDeps<C, P> {
@@ -42,7 +45,9 @@ pub struct FullDeps<C, P> {
 }
 
 /// Instantiate all full RPC extensions.
-pub fn create_full<C, P>(deps: FullDeps<C, P>) -> RpcExtension
+pub fn create_full<C, P>(
+	deps: FullDeps<C, P>,
+) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
 	C: ProvideRuntimeApi<Block>,
 	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + 'static,
@@ -52,15 +57,15 @@ where
 	C::Api: BlockBuilder<Block>,
 	P: TransactionPool + 'static,
 {
-	use frame_rpc_system::{FullSystem, SystemApi};
-	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
+	use frame_rpc_system::{SystemApiServer, SystemRpc};
+	use pallet_transaction_payment_rpc::{TransactionPaymentApiServer, TransactionPaymentRpc};
 
-	let mut io = jsonrpc_core::IoHandler::default();
+	let mut io = RpcModule::new(());
 	let FullDeps { client, pool, deny_unsafe } = deps;
 
-	io.extend_with(SystemApi::to_delegate(FullSystem::new(client.clone(), pool, deny_unsafe)));
+	io.merge(SystemRpc::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
 
-	io.extend_with(TransactionPaymentApi::to_delegate(TransactionPayment::new(client.clone())));
+	io.merge(TransactionPaymentRpc::new(client.clone()).into_rpc())?;
 
-	io
+	Ok(io)
 }

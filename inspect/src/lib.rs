@@ -23,6 +23,7 @@
 //! (on-chain), or a raw SCALE-encoding can be provided.
 
 #![warn(missing_docs)]
+#![warn(unused_crate_dependencies)]
 
 pub mod cli;
 pub mod command;

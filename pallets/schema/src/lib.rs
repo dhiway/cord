@@ -18,6 +18,8 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+#![warn(unused_crate_dependencies)]
+
 pub use cord_primitives::{mark, CidOf, IdentifierOf, StatusOf, VersionOf};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 use sp_runtime::traits::{IdentifyAccount, Verify};

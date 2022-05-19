@@ -19,6 +19,8 @@
 // Foundation Treasury Module
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![warn(unused_crate_dependencies)]
+
 pub mod weights;
 
 use sp_runtime::traits::{AccountIdConversion, Saturating, StaticLookup};

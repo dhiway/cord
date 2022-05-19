@@ -19,6 +19,7 @@
 //! Low-level types used throughout the CORD code.
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![warn(unused_crate_dependencies)]
 
 use codec::{Decode, Encode};
 use sp_runtime::{

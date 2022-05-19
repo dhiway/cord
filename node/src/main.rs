@@ -19,6 +19,7 @@
 //! CORD CLI Library.
 
 #![warn(missing_docs)]
+#![warn(unused_crate_dependencies)]
 
 mod chain_spec;
 

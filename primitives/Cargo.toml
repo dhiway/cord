@@ -12,31 +12,31 @@ scale-info = { version = "2.1.1", default-features = false, features = ["derive"
 codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = ["derive"] }
 serde = { version = "1.0.136", optional = true }
 base58 = "0.2.0"
-sp-cid = "0.3.0"
-semver = { version = "1.0", default-features = false }
+# sp-cid = "0.3.0"
+# semver = { version = "1.0", default-features = false }
 blake2-rfc = {version = "0.2.18", default-features = false}
 
 
-sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.21"}
-frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.21"}
-frame-support = { git = "https://github.com/paritytech/substrate",  default-features = false, branch = "polkadot-v0.9.21"}
-sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.21"}
-sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.21"}
-sp-api = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.21"}
-sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.21"}
-sp-consensus-aura = {default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.21"}
+sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
+# frame-system = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
+frame-support = { git = "https://github.com/paritytech/substrate",  default-features = false, branch = "polkadot-v0.9.22"}
+sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
+sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
+# sp-api = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
+# sp-application-crypto = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
+# sp-consensus-aura = {default-features = false, git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.22"}
 
 [features]
 default = ["std"]
 std = [
   "codec/std",
   "scale-info/std",
-  "sp-api/std",
-  "frame-system/std",
+  # "sp-api/std",
+  # "frame-system/std",
   "frame-support/std",
- 	"sp-application-crypto/std",
+ 	# "sp-application-crypto/std",
   "sp-core/std",
   "sp-runtime/std",
   "sp-std/std",
-  "sp-consensus-aura/std",
+  # "sp-consensus-aura/std",
 ]
