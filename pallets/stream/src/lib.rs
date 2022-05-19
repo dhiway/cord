@@ -50,7 +50,7 @@ pub mod pallet {
 	pub type SignatureOf<T> = <T as Config>::Signature;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_schema::Config {
+	pub trait Config: frame_system::Config + pallet_schema::Config + pallet_space::Config {
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
@@ -147,8 +147,8 @@ pub mod pallet {
 		/// * holder: \[OPTIONAL\] holder (recipient) of the stream.
 		/// * schema: \[OPTIONAL\] stream schema identifier.
 		/// * link: \[OPTIONAL\] stream link identifier.
+		/// * space: \[OPTIONAL\] stream space link identifier.
 		/// * tx_signature: creator signature.
-		/// * space_id: \[OPTIONAL\] stream space link identifier.
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(3, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
@@ -157,7 +157,7 @@ pub mod pallet {
 			holder: Option<CordAccountOf<T>>,
 			schema: Option<IdentifierOf>,
 			link: Option<IdentifierOf>,
-			space_id: Option<IdentifierOf>,
+			space: Option<IdentifierOf>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -181,8 +181,8 @@ pub mod pallet {
 					<Streams<T>>::get(&link).ok_or(Error::<T>::StreamLinkNotFound)?;
 				ensure!(!link_details.revoked, Error::<T>::StreamLinkRevoked);
 			}
-			if let Some(ref space_id) = space_id {
-				pallet_space::SpaceDetails::<T>::from_space_identities(&space_id, creator.clone())
+			if let Some(ref space) = space {
+				pallet_space::SpaceDetails::<T>::from_space_identities(space, creator.clone())
 					.map_err(<pallet_space::Error<T>>::from)?;
 			}
 
@@ -196,7 +196,7 @@ pub mod pallet {
 					holder,
 					schema,
 					link,
-					space_id,
+					space,
 					revoked: false,
 				},
 			);
@@ -212,7 +212,7 @@ pub mod pallet {
 		/// * updater: controller or delegate of the stream.
 		/// * stream_hash: hash of the incoming stream.
 		/// * tx_signature: signature of the controller.
-		/// * space_id: \[OPTIONAL\] stream space link identifier.
+		/// * space: \[OPTIONAL\] stream space link identifier.
 		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn update(
 			origin: OriginFor<T>,
@@ -220,7 +220,7 @@ pub mod pallet {
 			updater: CordAccountOf<T>,
 			stream_hash: HashOf<T>,
 			tx_signature: SignatureOf<T>,
-			space_id: Option<IdentifierOf>,
+			space: Option<IdentifierOf>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
@@ -237,18 +237,15 @@ pub mod pallet {
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
 
-			if let Some(ref space_id) = space_id {
+			if let Some(ref space) = space {
 				ensure!(
-					tx_prev_details.space_id == Some(space_id.to_vec()),
+					tx_prev_details.space == Some(space.to_vec()),
 					Error::<T>::StreamSpaceMismatch
 				);
 
 				if tx_prev_details.controller != updater {
-					pallet_space::SpaceDetails::<T>::from_space_identities(
-						&space_id,
-						updater.clone(),
-					)
-					.map_err(<pallet_space::Error<T>>::from)?;
+					pallet_space::SpaceDetails::<T>::from_space_identities(space, updater.clone())
+						.map_err(<pallet_space::Error<T>>::from)?;
 				}
 			} else {
 				ensure!(tx_prev_details.controller == updater, Error::<T>::UnauthorizedOperation);
@@ -275,7 +272,7 @@ pub mod pallet {
 		/// * updater: controller or delegate of the stream.
 		/// * tx_hash: transaction hash.
 		/// * tx_signature: signature of the controller.
-		/// * space_id: \[OPTIONAL\] stream space link identifier.
+		/// * space: \[OPTIONAL\] stream space link identifier.
 		#[pallet::weight(30_000 + T::DbWeight::get().reads_writes(2, 3))]
 		pub fn revoke(
 			origin: OriginFor<T>,
@@ -283,7 +280,7 @@ pub mod pallet {
 			updater: CordAccountOf<T>,
 			tx_hash: HashOf<T>,
 			tx_signature: SignatureOf<T>,
-			space_id: Option<IdentifierOf>,
+			space: Option<IdentifierOf>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
@@ -298,18 +295,15 @@ pub mod pallet {
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(tx_prev_details.revoked, Error::<T>::StreamRevoked);
 
-			if let Some(ref space_id) = space_id {
+			if let Some(ref space) = space {
 				ensure!(
-					tx_prev_details.space_id == Some(space_id.to_vec()),
+					tx_prev_details.space == Some(space.to_vec()),
 					Error::<T>::StreamSpaceMismatch
 				);
 
 				if tx_prev_details.controller != updater {
-					pallet_space::SpaceDetails::<T>::from_space_identities(
-						&space_id,
-						updater.clone(),
-					)
-					.map_err(<pallet_space::Error<T>>::from)?;
+					pallet_space::SpaceDetails::<T>::from_space_identities(space, updater.clone())
+						.map_err(<pallet_space::Error<T>>::from)?;
 				}
 			} else {
 				ensure!(tx_prev_details.controller == updater, Error::<T>::UnauthorizedOperation);
@@ -328,12 +322,12 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the space origin.
 		/// * identifier: unique identifier of the incoming stream.
-		/// * space_id: stream space link identifier.
+		/// * space: stream space link identifier.
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(3, 3))]
 		pub fn remove_space_stream(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
-			space_id: IdentifierOf,
+			space: IdentifierOf,
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
@@ -341,17 +335,11 @@ pub mod pallet {
 
 			let stream_details =
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(
-				stream_details.space_id == Some(space_id.to_vec()),
-				Error::<T>::StreamSpaceMismatch
-			);
+			ensure!(stream_details.space == Some(space.to_vec()), Error::<T>::StreamSpaceMismatch);
 
 			if stream_details.controller != controller {
-				pallet_space::SpaceDetails::<T>::from_space_identities(
-					&space_id,
-					controller.clone(),
-				)
-				.map_err(<pallet_space::Error<T>>::from)?;
+				pallet_space::SpaceDetails::<T>::from_space_identities(&space, controller.clone())
+					.map_err(<pallet_space::Error<T>>::from)?;
 			}
 
 			<Streams<T>>::remove(&identifier);

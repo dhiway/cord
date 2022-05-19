@@ -28,7 +28,7 @@ pub struct SchemaDetails<T: Config> {
 	/// Schema creator.
 	pub controller: CordAccountOf<T>,
 	/// \[OPTIONAL\] Space ID.
-	pub space_id: Option<IdentifierOf>,
+	pub space: Option<IdentifierOf>,
 	/// The flag indicating the status of the schema.
 	pub revoked: StatusOf,
 }
@@ -38,7 +38,8 @@ impl<T: Config> SchemaDetails<T> {
 		tx_schema: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
-		mark::from_known_format(&tx_schema, 33).map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
+		mark::from_known_format(&tx_schema, SCHEMA_IDENTIFIER_PREFIX)
+			.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 		let schema_details = <Schemas<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
 		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);

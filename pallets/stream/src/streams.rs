@@ -35,7 +35,7 @@ pub struct StreamDetails<T: Config> {
 	/// \[OPTIONAL\] Stream Link
 	pub link: Option<IdentifierOf>,
 	/// \[OPTIONAL\] Space ID.
-	pub space_id: Option<IdentifierOf>,
+	pub space: Option<IdentifierOf>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
 }

@@ -152,7 +152,7 @@ pub mod pallet {
 		/// * schema: unique identifier of the schema.
 		/// * tx_hash: transaction hash to verify the signature.
 		/// * delegates: authorised identities to add.
-		/// * space_id: \[OPTIONAL\] schema space link identifier.
+		/// * space: \[OPTIONAL\] schema space link identifier.
 		/// * tx_signature: creator signature.
 		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn authorise(
@@ -161,7 +161,7 @@ pub mod pallet {
 			schema: IdentifierOf,
 			tx_hash: HashOf<T>,
 			delegates: Vec<CordAccountOf<T>>,
-			space_id: Option<IdentifierOf>,
+			space: Option<IdentifierOf>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -176,18 +176,15 @@ pub mod pallet {
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
 
-			if let Some(ref space_id) = space_id {
+			if let Some(ref space) = space {
 				ensure!(
-					schema_details.space_id == Some(space_id.to_vec()),
+					schema_details.space == Some(space.to_vec()),
 					Error::<T>::SchemaSpaceMismatch
 				);
 
 				if schema_details.controller != creator {
-					pallet_space::SpaceDetails::<T>::from_space_identities(
-						&space_id,
-						creator.clone(),
-					)
-					.map_err(<pallet_space::Error<T>>::from)?;
+					pallet_space::SpaceDetails::<T>::from_space_identities(&space, creator.clone())
+						.map_err(<pallet_space::Error<T>>::from)?;
 				}
 			} else {
 				ensure!(schema_details.controller == creator, Error::<T>::UnauthorizedDelegation);
@@ -218,7 +215,7 @@ pub mod pallet {
 		/// * schema: unique identifier of the schema.
 		/// * tx_hash: transaction hash to verify the signature.
 		/// * delegates: authorised identities to add.
-		/// * space_id: \[OPTIONAL\] schema space link identifier.
+		/// * space: \[OPTIONAL\] schema space link identifier.
 		/// * tx_signature: updater signature.
 		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn deauthorise(
@@ -227,7 +224,7 @@ pub mod pallet {
 			schema: IdentifierOf,
 			tx_hash: HashOf<T>,
 			delegates: Vec<CordAccountOf<T>>,
-			space_id: Option<IdentifierOf>,
+			space: Option<IdentifierOf>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -242,18 +239,15 @@ pub mod pallet {
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
 
-			if let Some(ref space_id) = space_id {
+			if let Some(ref space) = space {
 				ensure!(
-					schema_details.space_id == Some(space_id.to_vec()),
+					schema_details.space == Some(space.to_vec()),
 					Error::<T>::SchemaSpaceMismatch
 				);
 
 				if schema_details.controller != updater {
-					pallet_space::SpaceDetails::<T>::from_space_identities(
-						&space_id,
-						updater.clone(),
-					)
-					.map_err(<pallet_space::Error<T>>::from)?;
+					pallet_space::SpaceDetails::<T>::from_space_identities(&space, updater.clone())
+						.map_err(<pallet_space::Error<T>>::from)?;
 				}
 			} else {
 				ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
@@ -274,14 +268,14 @@ pub mod pallet {
 		/// * origin: the identity of the schema anchor.
 		/// * creator: creator (controller) of the schema.
 		/// * schema_hash: hash of the incoming schema stream.
-		/// * space_id: \[OPTIONAL\] schema space link identifier.
+		/// * space: \[OPTIONAL\] schema space link identifier.
 		/// * tx_signature: creator signature.
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn create(
 			origin: OriginFor<T>,
 			creator: CordAccountOf<T>,
 			schema_hash: HashOf<T>,
-			space_id: Option<IdentifierOf>,
+			space: Option<IdentifierOf>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -294,10 +288,11 @@ pub mod pallet {
 				mark::generate(&(&schema_hash).encode()[..], SCHEMA_IDENTIFIER_PREFIX).into_bytes();
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 
-			if let Some(ref space_id) = space_id {
-				pallet_space::SpaceDetails::<T>::from_space_identities(&space_id, creator.clone())
+			if let Some(ref space) = space {
+				pallet_space::SpaceDetails::<T>::from_space_identities(&space, creator.clone())
 					.map_err(<pallet_space::Error<T>>::from)?;
 			}
+
 			<SchemaHashes<T>>::insert(&schema_hash, &identifier);
 
 			<Schemas<T>>::insert(
@@ -305,7 +300,7 @@ pub mod pallet {
 				SchemaDetails {
 					schema_hash: schema_hash.clone(),
 					controller: creator.clone(),
-					space_id,
+					space,
 					revoked: false,
 				},
 			);
@@ -323,7 +318,7 @@ pub mod pallet {
 		/// * updater: updater (controller) of the schema.
 		/// * identifier: unique identifier of the incoming stream.
 		/// * tx_hash: transaction hash to verify the signature.
-		/// * space_id: \[OPTIONAL\] schema space link identifier.
+		/// * space: \[OPTIONAL\] schema space link identifier.
 		/// * tx_signature: updater signature.
 		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn revoke(
@@ -331,7 +326,7 @@ pub mod pallet {
 			updater: CordAccountOf<T>,
 			schema: IdentifierOf,
 			tx_hash: HashOf<T>,
-			space_id: Option<IdentifierOf>,
+			space: Option<IdentifierOf>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -346,18 +341,15 @@ pub mod pallet {
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
 
-			if let Some(ref space_id) = space_id {
+			if let Some(ref space) = space {
 				ensure!(
-					schema_details.space_id == Some(space_id.to_vec()),
+					schema_details.space == Some(space.to_vec()),
 					Error::<T>::SchemaSpaceMismatch
 				);
 
 				if schema_details.controller != updater {
-					pallet_space::SpaceDetails::<T>::from_space_identities(
-						&space_id,
-						updater.clone(),
-					)
-					.map_err(<pallet_space::Error<T>>::from)?;
+					pallet_space::SpaceDetails::<T>::from_space_identities(&space, updater.clone())
+						.map_err(<pallet_space::Error<T>>::from)?;
 				}
 			} else {
 				ensure!(schema_details.controller == updater, Error::<T>::UnauthorizedOperation);
