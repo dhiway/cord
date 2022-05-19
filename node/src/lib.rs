@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Cord. If not, see <https://www.gnu.org/licenses/>.
 
+#![warn(unused_crate_dependencies)]
+
 pub mod chain_spec;
 #[macro_use]
 mod service;

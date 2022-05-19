@@ -21,6 +21,7 @@
 #![recursion_limit = "256"]
 // The `from_over_into` warning originates from `construct_runtime` macro.
 #![allow(clippy::from_over_into)]
+#![warn(unused_crate_dependencies)]
 
 use codec::Encode;
 pub use cord_primitives::{AccountId, SessionApiError, Signature, CORD_SESSION_PERIOD};
