@@ -13,11 +13,8 @@ repository = "https://github.com/dhiway/cord"
 codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = ["derive","max-encoded-len"] }
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 log = { version = "0.4.16", default-features = false  }
-serde = { version = "1.0.136", default-features = false }
 serde_derive = { version = "1.0.117", optional = true }
 smallvec = "1.8.0"
-structopt = "0.3.25"
-hex-literal = { version = "0.3.4", optional = true }
 
 # cord pallets 
 pallet-authorities = {  default-features = false, path = '../pallets/authorities' }
@@ -41,7 +38,6 @@ pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/parityt
 # Substrate dependencies
 sp-authority-discovery = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
 sp-api = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
-sp-arithmetic = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
 sp-block-builder = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
 sp-consensus-aura = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22" }
 sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
@@ -50,7 +46,6 @@ sp-offchain = {git = "https://github.com/paritytech/substrate", default-features
 sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
 sp-session = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
 sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
-sp-io = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
 sp-transaction-pool = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
 sp-version = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
 pallet-aura = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22" }
@@ -112,8 +107,6 @@ std = [
 	"sp-inherents/std",
 	"sp-core/std",
 	"sp-api/std",
-	"sp-io/std",
-	"sp-arithmetic/std",
 	"sp-transaction-pool/std",
 	"sp-block-builder/std",
    	"sp-consensus-aura/std",
@@ -122,7 +115,6 @@ std = [
 	"sp-runtime/std",
 	"frame-system/std",
 	"frame-system-rpc-runtime-api/std",
-	"serde/std",
     "log/std",
 	"sp-session/std",
 	"sp-version/std",
@@ -133,7 +125,6 @@ std = [
   	"pallet-schema/std",
 	"pallet-stream/std",
   	"pallet-sudo/std",
-	"hex-literal",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",

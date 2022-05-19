@@ -20,7 +20,6 @@
 //! substrate service.
 
 #![warn(unused_extern_crates)]
-#![warn(unused_crate_dependencies)]
 
 use cord_executor::ExecutorDispatch;
 use cord_primitives::Block;

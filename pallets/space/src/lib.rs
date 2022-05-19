@@ -18,7 +18,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-#![warn(unused_crate_dependencies)]
 
 pub use cord_primitives::{mark, IdentifierOf, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
