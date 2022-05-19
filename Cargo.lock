@@ -880,7 +880,7 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
 name = "cord-executor"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "cord-primitives",
  "cord-runtime",
@@ -914,7 +914,7 @@ dependencies = [
 
 [[package]]
 name = "cord-inspect"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "clap 3.1.18",
  "parity-scale-codec",
@@ -931,7 +931,7 @@ dependencies = [
 
 [[package]]
 name = "cord-node"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "assert_cmd",
  "async-std",
@@ -992,7 +992,7 @@ dependencies = [
 
 [[package]]
 name = "cord-primitives"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "base58",
  "blake2-rfc",
@@ -1006,7 +1006,7 @@ dependencies = [
 
 [[package]]
 name = "cord-rpc"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "cord-primitives",
  "jsonrpsee",
@@ -1022,7 +1022,7 @@ dependencies = [
 
 [[package]]
 name = "cord-runtime"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
@@ -4235,7 +4235,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-authorities"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "cord-primitives",
  "frame-support",
@@ -4294,7 +4294,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-builder"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4339,7 +4339,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-foundation"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4489,7 +4489,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-schema"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "cord-primitives",
  "frame-support",
@@ -4525,7 +4525,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-space"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "cord-primitives",
  "frame-support",
@@ -4540,7 +4540,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stream"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
