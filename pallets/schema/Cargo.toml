@@ -20,6 +20,8 @@ scale-info = { version = "2.1.1", default-features = false, features = ["derive"
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 serde = { version = "1.0.136", optional = true }
 pallet-space = {  default-features = false, path = '../space' }
+log = {default-features = false, version = "0.4.14"}
+
 
 
 # Substrate dependencies
@@ -47,6 +49,8 @@ std = [
   "sp-core/std",
   "sp-runtime/std",
   "sp-std/std",
+  "pallet-space/std",
+  "log/std",
 ] 
 try-runtime = [
   "frame-support/try-runtime",

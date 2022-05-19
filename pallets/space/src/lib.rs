@@ -18,7 +18,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-pub use cord_primitives::{mark, CidOf, IdentifierOf, StatusOf, VersionOf};
+pub use cord_primitives::{mark, IdentifierOf, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
@@ -41,7 +41,7 @@ pub mod pallet {
 	/// Type of a CORD account.
 	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
 	// space identifier prefix.
-	pub const SPACE_IDENTIFIER_PREFIX: u16 = 0;
+	pub const SPACE_IDENTIFIER_PREFIX: u16 = 13;
 	/// Type for a cord signature.
 	pub type SignatureOf<T> = <T as Config>::Signature;
 
@@ -65,11 +65,12 @@ pub mod pallet {
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
-	/// schemas stored on chain.
+	/// spacess stored on chain.
 	/// It maps from a space identifier to its details.
 	#[pallet::storage]
-	#[pallet::getter(fn schemas)]
-	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, IdentifierOf, SpaceDetails<T>>;
+	#[pallet::getter(fn spaces)]
+	pub type Spaces<T> =
+		StorageMap<_, Blake2_128Concat, IdentifierOf, SpaceDetails<T>, OptionQuery>;
 
 	/// space delegations stored on chain.
 	/// It maps from an identifier to a vector of delegates.

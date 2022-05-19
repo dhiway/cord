@@ -26,7 +26,7 @@ use scale_info::prelude::string::String;
 use sp_std::{fmt::Debug, prelude::Clone, str, vec};
 
 /// CORD Identifier Prefix
-const PREFIX: &[u8] = b"IDFRPRE";
+const PREFIX: &[u8] = b"CRDIDFR";
 
 // The Result of the signature verification.
 pub type IdentifierVerificationResult = Result<(), IdentifierVerificationError>;
@@ -36,6 +36,8 @@ pub type IdentifierVerificationResult = Result<(), IdentifierVerificationError>;
 pub enum IdentifierVerificationError {
 	/// The data format is invalid.
 	InvalidFormat,
+	/// The data format is invalid.
+	InvalidPrefix,
 	/// The identifier is not valid.
 	InvalidIdentifier,
 	/// The identifier has an invalid length.
@@ -77,6 +79,9 @@ pub fn from_known_format(id: &IdentifierOf, id_ident: u16) -> IdentifierVerifica
 	let data = identifier
 		.from_base58()
 		.map_err(|_| IdentifierVerificationError::InvalidIdentifier)?;
+	if data.len() < 2 {
+		return Err(IdentifierVerificationError::InvalidIdentifierLength);
+	}
 	ensure!(
 		(identifier.len() > 2 && identifier.len() < 50),
 		IdentifierVerificationError::InvalidIdentifierLength
@@ -88,8 +93,8 @@ pub fn from_known_format(id: &IdentifierOf, id_ident: u16) -> IdentifierVerifica
 			let upper = data[1] & 0b00111111;
 			(2, (lower as u16) | ((upper as u16) << 8))
 		},
-		_ => unreachable!("identifier not within the range; qed"),
+		_ => return Err(IdentifierVerificationError::InvalidPrefix),
 	};
-	ensure!(ident == id_ident, IdentifierVerificationError::InvalidIdentifierLength);
+	ensure!(ident == id_ident, IdentifierVerificationError::InvalidPrefix);
 	Ok(())
 }
