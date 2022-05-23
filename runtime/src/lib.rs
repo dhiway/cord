@@ -133,12 +133,12 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
-	pub const BlockHashCount: BlockNumber = 1200;
+	pub const BlockHashCount: BlockNumber = 900;
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub RuntimeBlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
-		::with_sensible_defaults(350 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
+		::with_sensible_defaults(1200 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
 	pub RuntimeBlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
 		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u8 = 29;
@@ -617,7 +617,7 @@ parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(2);
 	pub const ProposalBondMinimum: Balance = 5 * WAY;
 	pub const ProposalBondMaximum: Balance = 50 * WAY;
-	pub const SpendPeriod: BlockNumber = 10 * MINUTES;
+	pub const SpendPeriod: BlockNumber = 120 * MINUTES;
 	pub const Burn: Permill = Permill::from_perthousand(2);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const MaxApprovals: u32 = 100;
