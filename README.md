@@ -1,155 +1,189 @@
-<!-- [![Build and Test](https://github.com/dhiway/cord/workflows/Build%20and%20Test/badge.svg)](https://github.com/dhiway/cord/actions) -->
+This repository contains the Rust implementation of a [Cord Network][cord-homepage] node based on the [Substrate][substrate-homepage] framework.
 
 # CORD
 
-The CORD node implementation uses Parity Substrate as the underlying
-technology stack with custome pallets and hierarchical trust Modules.
+Cord is designed to be a global public utility and trust framework that creates new possibilities in how we address trust gaps, manage transactions and exchanges of value at scale.
 
-- [CORD](#cord)
-  - [Accounts](#accounts)
-  - [Build & Run](#build--run)
-    - [Building in dev mode](#building-in-dev-mode)
-    - [Building in performant release mode](#building-in-performant-release-mode)
-    - [Start the Node, by running:](#start-the-node-by-running)
-    - [Debug Mode](#debug-mode)
-    - [Release Mode](#release-mode)
-    - [Setup the local node with session keys, by running](#setup-the-local-node-with-session-keys-by-running)
-  - [CORD User Accounts](#cord-user-accounts)
-    - [Polkadot{.js} Browser Plugin](#polkadotjs-browser-plugin)
-    - [Polkadot Web UI](#polkadot-web-ui)
-  - [Building docker image](#building-docker-image)
-  - [Node Modules functionalities](#node-modules-functionalities)
-    - [Substrate Documentation](#substrate-documentation)
-    - [Substrate Tutorials](#substrate-tutorials)
-    - [Substrate JSON-RPC API](#substrate-json-rpc-api)
-    - [Substrate Reference Rust Docs](#substrate-reference-rust-docs)
+It is designed to simplify the management of information, making it easier for owners to control; agencies and businesses to discover, access and use data to deliver networked public services. It provides a transparent history of information and protects it from unauthorised tampering from within or without the system.
 
-### Accounts
+Cord leverages the modular approach of Substrate framework and defines a rich set of primitives to catalyse exceptional levels of innovation in both existing and emerging industries-from conducting transactions and maintaining records, across many sectors of the economy such as finance, trade, health, energy, water, resources, agriculture and credentials.
 
-[Documentation](./docs/accounts.md)
+### Getting Started
 
-### Build & Run
+This section will guide you through the **following steps** needed to prepare a computer for **Cord** development. Since Cord is built with [the Rust programming language](https://www.rust-lang.org/), the first thing you will need to do is prepare the computer for Rust development - these steps will vary based on the computer's operating system.
 
-You need to have [rust and cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed. Clone this repo and navigate into it.
+Once Rust is configured, you will use its toolchains to interact with Rust projects; the commands for Rust's toolchains will be the same for all supported, Unix-based operating systems.
 
-You can build it by executing these commands:
+Also, join and discover the various [discord] channels where you can engage, participate and keep up with the latest developments.
 
-```
-./scripts/init.sh
+## 1. Install dependencies
+
+### Ubuntu/Debian
+
+Use a terminal shell to execute the following commands:
+
+```bash
+sudo apt update
+# May prompt for location information
+sudo apt install -y git clang curl libssl-dev llvm libudev-dev pkg-config
 ```
 
-#### Building in dev mode
+### Arch Linux
 
-```
-cargo build
-```
+Run these commands from a terminal:
 
-#### Building in performant release mode
-
-```
-cargo build --release
+```bash
+pacman -Syu --needed --noconfirm curl git clang
 ```
 
-#### Start the Node, by running:
+### Fedora
 
-```
-./target/<debug \ release> /cord [FLAGS] [OPTIONS]
-```
+Run these commands from a terminal:
 
-For CORD CLI options see the section about [Commands](#cord-cli-options).
-
-#### Debug Mode
-
-```
-./target/debug/cord --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
+```bash
+sudo dnf update
+sudo dnf install clang curl git openssl-devel
 ```
 
-#### Release Mode
+### OpenSUSE
 
-```
-./target/release/cord --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
-```
+Run these commands from a terminal:
 
-#### Setup the local node with session keys, by running
-
-```
-bash ./scripts/setup-dev-chain.sh
+```bash
+sudo zypper install clang curl git openssl-devel llvm-devel libudev-devel
 ```
 
-### CORD User Accounts
+### macOS
 
-A valid account only requires a private key that can sign on one of the supported curves and signature schemes. CORD uses Sr25519 as the signature scheme for all inhjected accounts.
+Open the Terminal application and execute the following commands:
 
-#### Polkadot{.js} Browser Plugin
+```bash
+# Install Homebrew if necessary https://brew.sh/
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 
-The browser plugin is available for both [Google Chrome](https://chrome.google.com/webstore/detail/polkadot%7Bjs%7D-extension/mopnmbcafieddcagagdcbnhejhlodfdd?hl=en) (and Chromium based browsers like Brave) and [FireFox](https://addons.mozilla.org/en-US/firefox/addon/polkadot-js-extension).
-
-#### Polkadot Web UI
-
-Add the content from [custom-types.json](./custom-types.json) code to `Developer` -> `Settings`
-
-### Building docker image
-
-Clone this repo and navigate into it.
-
-Build docker image:
-
-```
-docker build -t local/cord:main .
+# Make sure Homebrew is up-to-date, install openssl
+brew update
+brew install openssl
 ```
 
-start, by running:
+## 2. Rust developer environment
 
+This guide uses <https://rustup.rs> installer and the `rustup` tool to manage the Rust toolchain.
+First install and configure `rustup`:
+
+```bash
+# Install
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# Configure
+source ~/.cargo/env
 ```
-docker run -p 9944:9944 -p 9933:9933 local/cord:main --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
+
+Configure the Rust toolchain to default to the latest stable version, add nightly and the nightly wasm target:
+
+```bash
+rustup default stable
+rustup update
+rustup update nightly
+rustup target add wasm32-unknown-unknown --toolchain nightly
 ```
 
-with persistent mount that will keep the chain data locally:
+## 3. Build the node
 
-```
-docker run -p 9944:9944 -p 9933:9933 -v /my/local/folder:/cord local/cord:main  --dev --ws-port 9944 --ws-external --rpc-external --rpc-methods Unsafe
-```
+You can use rustup to install a specific version of rust, including its custom compilation targets. Using rustup, it should set a proper toolchain automatically while you call rustup show within project's root directory. Naturally, we can try to use different versions of these dependencies, i.e. delivered by system's default package manager. To compile the Cord node:
 
-## Node Modules functionalities
+1. Clone this repository by running the following command:
 
-The CORD node provides an immutable transaction ledger for various workflows supported by the network.
+   ```bash
+   git clone https://github.com/dhiway/cord
+   ```
 
-**Remote Procedure Calls**
+1. Change to the root of the node template directory by running the following command:
 
-The [Polkadot API](https://polkadot.js.org/api/) helps with communicating with the JSON-RPC endpoint, and the clients and services never have to talk directly with the endpoint.
+   ```bash
+   cd cord
+   git checkout develop
+   ```
 
-**Blocktime**
+1. Compile by running the following command:
 
-The blocktime is currently set to 4 seconds, but this setting is subject to change based on further research.
+   ```bash
+   cargo build --release
+   ```
 
-**Extrinsics and Block Storage**
+   You should always use the `--release` flag to build optimized artifacts.
 
-In Substrate, the blockchain transactions are abstracted away and are generalised as [extrinsics](https://docs.substrate.dev/docs/extrinsics) in the system. They are called extrinsics since they can represent any piece of information that is regarded as input from “the outside world” (i.e. from users of the network) to the blockchain logic. The blockchain transactions are implemented through these general extrinsics, that are signed by the originator of the transaction. We use this framework to write the protocol specific data entries on the blockchain: [SCHEMA] and [STREAM]. The processing of each of these entry types is handled by our custom runtime modules.
+## 4. Run the node
 
-Under the current consensus algorithm, authority validator nodes (whose addresses are listed
-in the genesis block) can create new blocks. These nodes [validate](https://substrate.dev/docs/en/knowledgebase/learn-substrate/tx-pool#transaction-lifecycle) incoming transactions, put them into the pool, and include them in a new block. While creating the block, the node executes the transactions and stores the resulting state changes in its local storage. Note that the size of the entry depends on the number of arguments the transaction, (i.e., the respective extrinsic method) has. The size of the block is hence dynamic and will depend on the number and type of transactions included in the new block. The valid new blocks are propagated through the network and other nodes execute these blocks to update their local state (storage).
+1. Start the single-node development chain, by running:
 
-**Authoring & Consensus Algorithm**
+   ```
+   ./target/release/cord --dev
+   ```
 
-For Authoring we use Babe.
+1. Detailed logs may be shown by running the chain with the following environment variables set:
 
-For consensus we use [GRANDPA](https://github.com/paritytech/substrate#2-description).
+   ```bash
+   RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/cord --dev
+   ```
 
-**Governance**
+1. Additional CLI usage options
 
-- [TBD]
+   ```
+   ./target/release/cord --help
+   ```
 
-## Substrate Benchmarking -
+## 5. Using Docker
 
-To know more about generating weights for the specific pallets -
-Go to - docs/benchmarking.md
+The easiest/faster option to run Cord in Docker is to use the latest release images. These are small images that use the latest official release of the Cord binary, pulled from our package repository.
 
-or check out the weights file in the respective pallets.
+1. Let's first check the version we have. The first time you run this command, the Cord docker image will be downloaded. This takes a bit of time and bandwidth, be patient:
 
-### Substrate Documentation
+   ```bash
+    docker run --rm -it dhiway/cord:latest --version
+   ```
 
-#### [Substrate Tutorials](https://substrate.dev/en/tutorials)
+   You can also pass any argument/flag that Cord supports:
 
-#### [Substrate JSON-RPC API](https://polkadot.js.org/docs/substrate/rpc)
+   ```bash
+    docker run --rm -it dhiway/cord:latest --dev --name "CordDocker"
+   ```
 
-#### [Substrate Reference Rust Docs](https://substrate.dev/rustdocs/v2.0.0/sc_service/index.html)
+   Once you are done experimenting and picking the best node name :) you can start Cord as daemon, exposes the COrd ports and mount a volume that will keep your blockchain data locally. Make sure that you set the ownership of your local directory to the Cord user that is used by the container. Set user id 1000 and group id 1000, by running `chown 1000.1000 /my/local/folder -R` if you use a bind mount.
+
+1. To start a Cord node on default rpc port 9933 and default p2p port 30333 use the following command. If you want to connect to rpc port 9933, then must add Cord startup parameter: `--rpc-external`.
+
+   ```bash
+   docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord parity/cord:latest --dev --rpc-external --rpc-cors all
+   ```
+
+1. Additionally if you want to have custom node name you can add the `--name "YourName"` at the end
+
+   ```bash
+   docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord parity/cord:latest --dev --rpc-external --rpc-cors all --name "CordDocker"
+   ```
+
+1. If you also want to expose the webservice port 9944 use the following command:
+
+   ```bash
+   docker run -d -p 30333:30333 -p 9933:9933 -p 9944:9944 -v /my/local/folder:/cord parity/cord:latest --dev --ws-external --rpc-external --rpc-cors all --name "CordDocker"
+   ```
+
+1. To get up and running with the smallest footprint on your system, you may use the Cord Docker image.
+   You can build it yourself (it takes a while...).
+
+   ```
+    docker build -t local/cord:develop .
+   ```
+
+## Contributing
+
+If you would like to contribute, please fork the repository, follow the [contributions] guidelines, introduce your changes and submit a pull request. All pull requests are warmly welcome.
+
+## License
+
+The code in this repository is licensed under the terms of the [GPL 3.0 licensed](LICENSE-GPL3).
+
+[cord-homepage]: https://cord.network
+[substrate-homepage]: https://substrate.io
+[contributions]: ./CONTRIBUTING.md
+[discord]: https://discord.gg/bcwZFznb7Z
