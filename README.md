@@ -1,4 +1,4 @@
-This repository contains the Rust implementation of a [Cord Network][cord-homepage] node based on the [Substrate][substrate-homepage] framework.
+This repository contains the Rust implementation of a [CORD Network][cord-homepage] node based on the [Substrate][substrate-homepage] framework.
 
 # CORD
 

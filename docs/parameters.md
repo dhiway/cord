@@ -8,7 +8,7 @@ Slot: 4 seconds \*(generally one block per slot, although see note below)
 Session: 2 days (6 sessions per Era)
 Era: 12 days (259_200 slots x 4 seconds)
 
-| Cord    | Time      | Slots\* |
+| CORD    | Time      | Slots\* |
 | ------- | --------- | ------- |
 | Slot    | 4 seconds | 1       |
 | Session | 2 days    | 43_200  |
@@ -42,7 +42,7 @@ WAYT have 12 decimals of precision. In other words, 1e12 (1_000_000_000_000, or 
 | Term duration | 7 days | 151_200 | The length of a council member's term until the next election round. |
 | Voting period | 7 days | 151_200 | The council's voting period for motions.                             |
 
-The Cord Council consists of up to 10 members and up to 5 runners up.
+The CORD Council consists of up to 10 members and up to 5 runners up.
 
 | Technical committee     | Time    | Slots   | Description                                                                                    |
 | ----------------------- | ------- | ------- | ---------------------------------------------------------------------------------------------- |
