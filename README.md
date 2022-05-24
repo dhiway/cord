@@ -2,15 +2,15 @@ This repository contains the Rust implementation of a [Cord Network][cord-homepa
 
 # CORD
 
-Cord is designed to be a global public utility and trust framework that creates new possibilities in how we address trust gaps, manage transactions and exchanges of value at scale.
+CORD is a global public utility and trust framework that is designed to address trust gaps, manage transactions and exchange of value at scale.
 
 It is designed to simplify the management of information, making it easier for owners to control; agencies and businesses to discover, access and use data to deliver networked public services. It provides a transparent history of information and protects it from unauthorised tampering from within or without the system.
 
-Cord leverages the modular approach of Substrate framework and defines a rich set of primitives to catalyse exceptional levels of innovation in both existing and emerging industries-from conducting transactions and maintaining records, across many sectors of the economy such as finance, trade, health, energy, water, resources, agriculture and credentials.
+CORD builds on the modular approach of Substrate framework. It defines a rich set of primitives to help design exceptional levels of innovations for existing and emerging industries. Such innovative approaches cover conducting transactions and maintaining records across a number of sectors such as finance, trade, health, energy, water resources, agriculture and related credentials.
 
 ### Getting Started
 
-This section will guide you through the **following steps** needed to prepare a computer for **Cord** development. Since Cord is built with [the Rust programming language](https://www.rust-lang.org/), the first thing you will need to do is prepare the computer for Rust development - these steps will vary based on the computer's operating system.
+This section will guide you through the **following steps** needed to prepare a computer for **CORD** development. Since CORD is built with [the Rust programming language](https://www.rust-lang.org/), the first thing you will need to do is prepare the computer for Rust development - these steps will vary based on the computer's operating system.
 
 Once Rust is configured, you will use its toolchains to interact with Rust projects; the commands for Rust's toolchains will be the same for all supported, Unix-based operating systems.
 
@@ -89,7 +89,7 @@ rustup target add wasm32-unknown-unknown --toolchain nightly
 
 ## 3. Build the node
 
-You can use rustup to install a specific version of rust, including its custom compilation targets. Using rustup, it should set a proper toolchain automatically while you call rustup show within project's root directory. Naturally, we can try to use different versions of these dependencies, i.e. delivered by system's default package manager. To compile the Cord node:
+You can use rustup to install a specific version of rust, including its custom compilation targets. Using rustup, it should set a proper toolchain automatically while you call rustup show within project's root directory. Naturally, we can try to use different versions of these dependencies, i.e. delivered by system's default package manager. To compile the CORD node:
 
 1. Clone this repository by running the following command:
 
@@ -134,41 +134,41 @@ You can use rustup to install a specific version of rust, including its custom c
 
 ## 5. Using Docker
 
-The easiest/faster option to run Cord in Docker is to use the latest release images. These are small images that use the latest official release of the Cord binary, pulled from our package repository.
+The easiest/faster option to run CORD in Docker is to use the latest release images. These are small images that use the latest official release of the CORD binary, pulled from our package repository.
 
-1. Let's first check the version we have. The first time you run this command, the Cord docker image will be downloaded. This takes a bit of time and bandwidth, be patient:
+1. Let's first check the version we have. The first time you run this command, the CORD docker image will be downloaded. This takes a bit of time and bandwidth, be patient:
 
    ```bash
     docker run --rm -it dhiway/cord:latest --version
    ```
 
-   You can also pass any argument/flag that Cord supports:
+   You can also pass any argument/flag that CORD supports:
 
    ```bash
     docker run --rm -it dhiway/cord:latest --dev --name "CordDocker"
    ```
 
-   Once you are done experimenting and picking the best node name :) you can start Cord as daemon, exposes the COrd ports and mount a volume that will keep your blockchain data locally. Make sure that you set the ownership of your local directory to the Cord user that is used by the container. Set user id 1000 and group id 1000, by running `chown 1000.1000 /my/local/folder -R` if you use a bind mount.
+   Once you are done experimenting and picking the best node name :) you can start CORD as daemon, exposes the CORD ports and mount a volume that will keep your blockchain data locally. Make sure that you set the ownership of your local directory to the CORD user that is used by the container. Set user id 1000 and group id 1000, by running `chown 1000.1000 /my/local/folder -R` if you use a bind mount.
 
-1. To start a Cord node on default rpc port 9933 and default p2p port 30333 use the following command. If you want to connect to rpc port 9933, then must add Cord startup parameter: `--rpc-external`.
+1. To start a CORD node on default rpc port 9933 and default p2p port 30333 use the following command. If you want to connect to rpc port 9933, then must add CORD startup parameter: `--rpc-external`.
 
    ```bash
-   docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord parity/cord:latest --dev --rpc-external --rpc-cors all
+   docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord dhiway/cord:latest --dev --rpc-external --rpc-cors all
    ```
 
 1. Additionally if you want to have custom node name you can add the `--name "YourName"` at the end
 
    ```bash
-   docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord parity/cord:latest --dev --rpc-external --rpc-cors all --name "CordDocker"
+   docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord dhiway/cord:latest --dev --rpc-external --rpc-cors all --name "CordDocker"
    ```
 
 1. If you also want to expose the webservice port 9944 use the following command:
 
    ```bash
-   docker run -d -p 30333:30333 -p 9933:9933 -p 9944:9944 -v /my/local/folder:/cord parity/cord:latest --dev --ws-external --rpc-external --rpc-cors all --name "CordDocker"
+   docker run -d -p 30333:30333 -p 9933:9933 -p 9944:9944 -v /my/local/folder:/cord dhiway/cord:latest --dev --ws-external --rpc-external --rpc-cors all --name "CordDocker"
    ```
 
-1. To get up and running with the smallest footprint on your system, you may use the Cord Docker image.
+1. To get up and running with the smallest footprint on your system, you may use the CORD Docker image.
    You can build it yourself (it takes a while...).
 
    ```
