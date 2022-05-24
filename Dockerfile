@@ -31,9 +31,6 @@ RUN useradd -m -u 1000 -U -s /bin/sh -d /cord cord && \
 
 USER cord
 
-# checks
-RUN /usr/local/bin/cord --version
-
 EXPOSE 30333 9933 9944 9615 
 VOLUME ["/data"]
 
