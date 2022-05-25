@@ -1,20 +1,20 @@
-// This file is part of Cord – https://cord.network
+// This file is part of CORD – https://cord.network
 
 // Copyright (C) 2019-2022 Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Cord is free software: you can redistribute it and/or modify
+// CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Cord is distributed in the hope that it will be useful,
+// CORD is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Cord. If not, see <https://www.gnu.org/licenses/>.
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
 	chain_spec,
@@ -40,7 +40,7 @@ fn get_exec_name() -> Option<String> {
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Dhiway Cord".into()
+		"Dhiway CORD".into()
 	}
 
 	fn impl_version() -> String {
