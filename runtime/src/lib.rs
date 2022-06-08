@@ -138,7 +138,7 @@ parameter_types! {
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub RuntimeBlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
-		::with_sensible_defaults(350 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
+		::with_sensible_defaults(2000 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
 	pub RuntimeBlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
 		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u8 = 29;

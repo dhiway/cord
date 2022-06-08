@@ -21,6 +21,7 @@
 pub mod currency {
 	use cord_primitives::Balance;
 
+	pub const CRD: Balance = 10u128.pow(15);
 	pub const WAY: Balance = 10u128.pow(12);
 	pub const MILLI_WAY: Balance = 10u128.pow(9); // mWAY
 	pub const MICRO_WAY: Balance = 10u128.pow(6); // uWAY
@@ -39,7 +40,7 @@ pub mod time {
 	/// slot_duration()`.
 	///
 	/// Change this to adjust the block time.
-	pub const MILLISECS_PER_BLOCK: Moment = 3000;
+	pub const MILLISECS_PER_BLOCK: Moment = 4000;
 
 	// NOTE: Currently it is not possible to change the slot duration after the
 	// chain has started. Attempting to do so will brick block production.
