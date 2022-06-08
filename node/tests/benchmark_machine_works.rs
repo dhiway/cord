@@ -19,7 +19,8 @@
 use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 
-/// Tests that the `benchmark machine` command works for the substrate dev runtime.
+/// Tests that the `benchmark machine` command works for the substrate dev
+/// runtime.
 #[test]
 fn benchmark_machine_works() {
 	let status = Command::new(cargo_bin("cord"))

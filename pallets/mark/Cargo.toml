@@ -1,12 +1,9 @@
 [package]
-name = 'pallet-stream'
-description = 'Manage Stream Entries.'
+name = 'pallet-mark'
 version = '0.7.2'
-authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'
-license = "GPL-3.0"
-homepage = "https://cord.network"
-repository = "https://github.com/dhiway/cord"
+authors = ['Dhiway <info@dhiway.com>']
+description = 'Enables adding and revoking marks.'
 
 [[package.metadata.docs.rs]]
 targets = ['x86_64-unknown-linux-gnu']
@@ -15,35 +12,32 @@ targets = ['x86_64-unknown-linux-gnu']
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.22" }
 
 [dependencies]
+bitflags = { default-features = false, version = '1.2.1' }
 codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = ["derive"] }
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
-serde = { version = "1.0.136", optional = true }
-pallet-schema = {  default-features = false, path = '../schema' }
-pallet-space = {  default-features = false, path = '../space' }
+
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.22", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.22", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.22", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.22", default-features = false }
-sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.22", default-features = false, optional = true}
+
+# pallets
+pallet-mtype = { version = "0.7.2", default-features = false, path = '../mtype' }
 
 
 [features]
 default = [ 'std' ]
-mock = [
-  "serde",
-  "sp-keystore" 
-]
 runtime-benchmarks = []
 std = [
-  "codec/std",
-  "scale-info/std",
-  "frame-support/std",
-  "frame-system/std",
-  "cord-primitives/std",
-  "sp-runtime/std",
-  "sp-std/std",
-  "pallet-schema/std", 
+	'codec/std',
+	"scale-info/std",
+  	"cord-primitives/std",
+	'frame-support/std',
+	'frame-system/std',
+	'sp-runtime/std',
+	'sp-std/std',
+	'pallet-mtype/std',
 ]

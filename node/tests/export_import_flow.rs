@@ -68,7 +68,8 @@ impl<'a> ExportImportRevertExecutor<'a> {
 		Self { base_path, exported_blocks_file, db_path, num_exported_blocks: None }
 	}
 
-	/// Helper method to run a command. Returns a string corresponding to what has been logged.
+	/// Helper method to run a command. Returns a string corresponding to what
+	/// has been logged.
 	fn run_block_command(
 		&self,
 		sub_command: SubCommand,
@@ -174,7 +175,8 @@ impl<'a> ExportImportRevertExecutor<'a> {
 		assert!(output.status.success());
 	}
 
-	/// Helper function that runs the whole export / import / revert flow and checks for errors.
+	/// Helper function that runs the whole export / import / revert flow and
+	/// checks for errors.
 	fn run(&mut self, export_fmt: FormatOpt, import_fmt: FormatOpt, expected_to_fail: bool) {
 		self.run_export(export_fmt);
 		self.run_import(import_fmt, expected_to_fail);

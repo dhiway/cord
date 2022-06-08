@@ -75,7 +75,7 @@ pub fn new_partial(
 	ServiceError,
 > {
 	if config.keystore_remote.is_some() {
-		return Err(ServiceError::Other("Remote Keystores are not supported.".into()));
+		return Err(ServiceError::Other("Remote Keystores are not supported.".into()))
 	}
 
 	set_prometheus_registry(config)?;
@@ -199,12 +199,11 @@ pub fn new_full(
 	if let Some(url) = &config.keystore_remote {
 		match remote_keystore(url) {
 			Ok(k) => keystore_container.set_remote_keystore(k),
-			Err(e) => {
+			Err(e) =>
 				return Err(ServiceError::Other(format!(
 					"Error hooking up remote keystore for {}: {}",
 					url, e
-				)))
-			},
+				))),
 		};
 	}
 	let grandpa_protocol_name = sc_finality_grandpa::protocol_standard_name(
@@ -342,7 +341,7 @@ pub fn new_full(
 
 	let grandpa_config = sc_finality_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
-		gossip_duration: Duration::from_millis(333),
+		gossip_duration: Duration::from_millis(1000),
 		justification_period: 512,
 		name: Some(name),
 		observer_enabled: false,

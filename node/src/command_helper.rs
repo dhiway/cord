@@ -16,8 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! Contains code to setup the command invocations in [`super::command`] which would
-//! otherwise bloat that module.
+//! Contains code to setup the command invocations in [`super::command`] which
+//! would otherwise bloat that module.
 
 use crate::service::FullClient;
 

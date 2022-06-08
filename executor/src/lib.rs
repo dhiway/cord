@@ -16,17 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! A `CodeExecutor` specialization which uses natively compiled runtime when the wasm to be
-//! executed is equivalent to the natively compiled code.
+//! A `CodeExecutor` specialization which uses natively compiled runtime when
+//! the wasm to be executed is equivalent to the natively compiled code.
 
 pub use sc_executor::NativeElseWasmExecutor;
 
-// Declare an instance of the native executor named `ExecutorDispatch`. Include the wasm binary as
-// the equivalent wasm code.
+// Declare an instance of the native executor named `ExecutorDispatch`. Include
+// the wasm binary as the equivalent wasm code.
 pub struct ExecutorDispatch;
 
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
-	/// Only enable the benchmarking host functions when we actually want to benchmark.
+	/// Only enable the benchmarking host functions when we actually want to
+	/// benchmark.
 	#[cfg(feature = "runtime-benchmarks")]
 	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
 	/// Otherwise we only use the default Substrate host functions.

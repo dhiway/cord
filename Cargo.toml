@@ -31,5 +31,7 @@ members = [
 	"pallets/authorities",
 	"pallets/builder",
 	"pallets/foundation",
+	"pallets/mark",
+	"pallets/mtype",
 ]
 

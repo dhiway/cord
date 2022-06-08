@@ -1045,7 +1045,9 @@ dependencies = [
  "pallet-grandpa",
  "pallet-im-online",
  "pallet-indices",
+ "pallet-mark",
  "pallet-membership",
+ "pallet-mtype",
  "pallet-multisig",
  "pallet-offences",
  "pallet-preimage",
@@ -4408,6 +4410,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-mark"
+version = "0.7.2"
+dependencies = [
+ "bitflags",
+ "cord-primitives",
+ "frame-support",
+ "frame-system",
+ "pallet-mtype",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-membership"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.22#616d33ea23bab86cafffaf116fc607b6790fb4eb"
@@ -4422,6 +4440,20 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-mtype"
+version = "0.7.2"
+dependencies = [
+ "cord-primitives",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -4543,7 +4575,6 @@ name = "pallet-stream"
 version = "0.7.2"
 dependencies = [
  "cord-primitives",
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-schema",
