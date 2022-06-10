@@ -21,7 +21,9 @@
 pub mod currency {
 	use cord_primitives::Balance;
 
-	pub const CRD: Balance = 10u128.pow(15);
+	//Royal Blue
+	pub const DCU: Balance = 10u128.pow(18);
+
 	pub const WAY: Balance = 10u128.pow(12);
 	pub const MILLI_WAY: Balance = 10u128.pow(9); // mWAY
 	pub const MICRO_WAY: Balance = 10u128.pow(6); // uWAY
