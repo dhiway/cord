@@ -2,7 +2,8 @@ use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 use tempfile::tempdir;
 
-/// Tests that the `benchmark overhead` command works for the substrate dev runtime.
+/// Tests that the `benchmark overhead` command works for the substrate dev
+/// runtime.
 #[test]
 fn benchmark_overhead_works() {
 	let tmp_dir = tempdir().expect("could not create a temp dir");

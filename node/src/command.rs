@@ -83,6 +83,7 @@ impl SubstrateCli for Cli {
 			"cord-dev" | "dev" => Box::new(chain_spec::cord_development_config()?),
 			"cord-local" | "local" => Box::new(chain_spec::cord_local_testnet_config()?),
 			"cord-staging" | "staging" => Box::new(chain_spec::cord_staging_config()?),
+			"royal-blue" | "rbnet" => Box::new(chain_spec::royal_blue_config()?),
 			path => {
 				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
 			},

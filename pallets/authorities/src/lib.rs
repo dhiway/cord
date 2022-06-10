@@ -104,7 +104,8 @@ pub mod pallet {
 
 		/// Remove authorities from the set.
 		///
-		/// The removed authorities will be deactivated from current session + 2.
+		/// The removed authorities will be deactivated from current session +
+		/// 2.
 		#[pallet::weight(100_000)]
 		pub fn deregister_authorities(
 			origin: OriginFor<T>,
@@ -173,7 +174,7 @@ pub mod pallet {
 					let authorities = Pallet::<T>::authorities().expect(
 						"Authorities also should be Some(), when session_for_authorities_change is",
 					);
-					return Some(authorities);
+					return Some(authorities)
 				}
 			}
 			None

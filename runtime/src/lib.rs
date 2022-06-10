@@ -138,7 +138,7 @@ parameter_types! {
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub RuntimeBlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
-		::with_sensible_defaults(1200 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
+		::with_sensible_defaults(2000 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
 	pub RuntimeBlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
 		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u8 = 29;
@@ -787,6 +787,20 @@ impl pallet_stream::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_mtype::Config for Runtime {
+	type Event = Event;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type WeightInfo = ();
+}
+
+impl pallet_mark::Config for Runtime {
+	type Event = Event;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type DelegationNodeId = Hash;
+	type MaxDelegatedAttestations = MaxSpaceDelegates;
+	type WeightInfo = ();
+}
+
 impl pallet_sudo::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
@@ -828,6 +842,8 @@ construct_runtime! {
 		Historical: pallet_session_historical = 27,
 		Builder: pallet_builder = 28,
 		Foundation: pallet_foundation = 29,
+		Mtype: pallet_mtype = 32,
+		Mark:pallet_mark = 33,
 		Space: pallet_space = 41,
 		Schema: pallet_schema = 42,
 		Stream: pallet_stream = 43,

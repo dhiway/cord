@@ -80,7 +80,7 @@ pub fn from_known_format(id: &IdentifierOf, id_ident: u16) -> IdentifierVerifica
 		.from_base58()
 		.map_err(|_| IdentifierVerificationError::InvalidIdentifier)?;
 	if data.len() < 2 {
-		return Err(IdentifierVerificationError::InvalidIdentifierLength);
+		return Err(IdentifierVerificationError::InvalidIdentifierLength)
 	}
 	ensure!(
 		(identifier.len() > 2 && identifier.len() < 50),

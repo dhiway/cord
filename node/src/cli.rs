@@ -69,7 +69,8 @@ pub enum Subcommand {
 	#[clap(subcommand)]
 	Key(sc_cli::KeySubcommand),
 
-	/// Verify a signature for a message, provided on STDIN, with a given (public or secret) key.
+	/// Verify a signature for a message, provided on STDIN, with a given
+	/// (public or secret) key.
 	Verify(sc_cli::VerifyCmd),
 
 	/// Generate a seed that provides a vanity address.

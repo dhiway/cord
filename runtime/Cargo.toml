@@ -21,6 +21,9 @@ pallet-authorities = {  default-features = false, path = '../pallets/authorities
 pallet-space = {  default-features = false, path = '../pallets/space' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
+pallet-mtype = {  default-features = false, path = '../pallets/mtype' }
+pallet-mark = {  default-features = false, path = '../pallets/mark' }
+
 pallet-builder = {  default-features = false, path = '../pallets/builder' }
 pallet-foundation = {  default-features = false, path = '../pallets/foundation' }
 
@@ -124,6 +127,8 @@ std = [
 	"pallet-space/std",	
   	"pallet-schema/std",
 	"pallet-stream/std",
+	"pallet-mtype/std",
+	"pallet-mark/std",
   	"pallet-sudo/std",
 ]
 runtime-benchmarks = [
