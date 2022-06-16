@@ -139,13 +139,13 @@ The easiest/faster option to run CORD in Docker is to use the latest release ima
 1. Let's first check the version we have. The first time you run this command, the CORD docker image will be downloaded. This takes a bit of time and bandwidth, be patient:
 
    ```bash
-    docker run --rm -it dhiway/cord:latest --version
+    docker run --rm -it dhiway/cord:develop --version
    ```
 
    You can also pass any argument/flag that CORD supports:
 
    ```bash
-    docker run --rm -it dhiway/cord:latest --dev --name "CordDocker"
+    docker run --rm -it dhiway/cord:develop --dev --name "CordDocker"
    ```
 
    Once you are done experimenting and picking the best node name :) you can start CORD as daemon, exposes the CORD ports and mount a volume that will keep your blockchain data locally. Make sure that you set the ownership of your local directory to the CORD user that is used by the container. Set user id 1000 and group id 1000, by running `chown 1000.1000 /my/local/folder -R` if you use a bind mount.
@@ -153,19 +153,19 @@ The easiest/faster option to run CORD in Docker is to use the latest release ima
 1. To start a CORD node on default rpc port 9933 and default p2p port 30333 use the following command. If you want to connect to rpc port 9933, then must add CORD startup parameter: `--rpc-external`.
 
    ```bash
-   docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord dhiway/cord:latest --dev --rpc-external --rpc-cors all
+   docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord dhiway/cord:develop --dev --rpc-external --rpc-cors all
    ```
 
 1. Additionally if you want to have custom node name you can add the `--name "YourName"` at the end
 
    ```bash
-   docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord dhiway/cord:latest --dev --rpc-external --rpc-cors all --name "CordDocker"
+   docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord dhiway/cord:develop --dev --rpc-external --rpc-cors all --name "CordDocker"
    ```
 
 1. If you also want to expose the webservice port 9944 use the following command:
 
    ```bash
-   docker run -d -p 30333:30333 -p 9933:9933 -p 9944:9944 -v /my/local/folder:/cord dhiway/cord:latest --dev --ws-external --rpc-external --rpc-cors all --name "CordDocker"
+   docker run -d -p 30333:30333 -p 9933:9933 -p 9944:9944 -v /my/local/folder:/cord dhiway/cord:develop --dev --ws-external --rpc-external --rpc-cors all --name "CordDocker"
    ```
 
 1. To get up and running with the smallest footprint on your system, you may use the CORD Docker image.
