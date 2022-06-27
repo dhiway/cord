@@ -294,7 +294,7 @@ pub mod pallet {
 
 			let tx_prev_details =
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(tx_prev_details.revoked, Error::<T>::StreamRevoked);
+			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
 
 			if let Some(ref space) = space {
 				ensure!(

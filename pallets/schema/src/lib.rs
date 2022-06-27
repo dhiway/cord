@@ -176,7 +176,7 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
+			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 
 			if let Some(ref space) = space {
 				ensure!(
@@ -239,7 +239,7 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
+			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 
 			if let Some(ref space) = space {
 				ensure!(
@@ -341,7 +341,7 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 			let schema_details = <Schemas<T>>::get(&schema).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(schema_details.revoked, Error::<T>::SchemaRevoked);
+			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 
 			if let Some(ref space) = space {
 				ensure!(

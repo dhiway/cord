@@ -287,7 +287,7 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 			let space_details = <Spaces<T>>::get(&space).ok_or(Error::<T>::SpaceNotFound)?;
-			ensure!(space_details.archived, Error::<T>::SpaceAlreadyArchived);
+			ensure!(!space_details.archived, Error::<T>::SpaceAlreadyArchived);
 
 			if space_details.controller != updater {
 				let delegates = <Delegations<T>>::get(&space);
@@ -332,7 +332,7 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 			let space_details = <Spaces<T>>::get(&space).ok_or(Error::<T>::SpaceNotFound)?;
-			ensure!(!space_details.archived, Error::<T>::SpaceNotArchived);
+			ensure!(space_details.archived, Error::<T>::SpaceNotArchived);
 
 			if space_details.controller != updater {
 				let delegates = <Delegations<T>>::get(&space);
