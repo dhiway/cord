@@ -1,6 +1,6 @@
 [package]
 name = 'cord-primitives'
-version = '0.7.2'
+version = '0.7.3'
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'
 license = "GPL-3.0"
@@ -14,10 +14,10 @@ base58 = "0.2.0"
 blake2-rfc = {version = "0.2.18", default-features = false}
 
 
-sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
-frame-support = { git = "https://github.com/paritytech/substrate",  default-features = false, branch = "polkadot-v0.9.22"}
-sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
-sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.22"}
+sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.24"}
+frame-support = { git = "https://github.com/paritytech/substrate",  default-features = false, branch = "polkadot-v0.9.24"}
+sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.24"}
+sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.24"}
 
 [features]
 default = ["std"]
