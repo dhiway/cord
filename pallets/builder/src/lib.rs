@@ -157,7 +157,7 @@ pub mod pallet {
 
 	impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		fn account_id() -> T::AccountId {
-			T::PalletId::get().into_account()
+			T::PalletId::get().into_account_truncating()
 		}
 		/// Return the amount of money in the treasury.
 		pub fn balance() -> BalanceOf<T, I> {
