@@ -31,7 +31,7 @@ pub mod currency {
 
 /// Time and blocks.
 pub mod time {
-	use cord_primitives::{BlockNumber, Moment};
+	use cord_primitives::{prod_or_fast, BlockNumber, Moment};
 	/// This determines the average expected block time that we are targetting.
 	/// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
 	/// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
@@ -43,11 +43,15 @@ pub mod time {
 	// NOTE: Currently it is not possible to change the slot duration after the
 	// chain has started.       Attempting to do so will brick block production.
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
+	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(1 * HOURS, 1 * MINUTES);
 
 	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
 	pub const HOURS: BlockNumber = MINUTES * 60;
 	pub const DAYS: BlockNumber = HOURS * 24;
+
+	// 1 in 4 blocks (on average, not counting collisions) will be primary babe blocks.
+	pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
 }
 
 /// Fee-related.

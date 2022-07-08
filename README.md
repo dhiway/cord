@@ -2,11 +2,11 @@ This repository contains the Rust implementation of a [CORD Network][cord-homepa
 
 # CORD
 
-CORD is a global public utility and trust framework that is designed to address trust gaps, manage transactions and exchange of value at scale.
+CORD is a global public utility and trust framework that is designed to address trust gaps, manage transactions and exchange value at scale.
 
-It is designed to simplify the management of information, making it easier for owners to control; agencies and businesses to discover, access and use data to deliver networked public services. It provides a transparent history of information and protects it from unauthorised tampering from within or without the system.
+It is designed to simplify the management of information, making it easier for owners to control; agencies and businesses to discover, access and use data to deliver networked public services. It provides a transparent history of information and protects it from unauthorized tampering from within or without the system.
 
-CORD builds on the modular approach of Substrate framework. It defines a rich set of primitives to help design exceptional levels of innovations for existing and emerging industries. Such innovative approaches cover conducting transactions and maintaining records across a number of sectors such as finance, trade, health, energy, water resources, agriculture and related credentials.
+CORD builds on the modular approach of the Substrate framework. It defines a rich set of primitives to help design exceptional levels of innovations for existing and emerging industries. Such innovative approaches cover conducting transactions and maintaining records across several sectors such as finance, trade, health, energy, water resources, agriculture and many more.
 
 ### Getting Started
 
@@ -69,7 +69,7 @@ brew install openssl
 ## 2. Rust developer environment
 
 This guide uses <https://rustup.rs> installer and the `rustup` tool to manage the Rust toolchain.
-First install and configure `rustup`:
+First, install and configure `rustup`:
 
 ```bash
 # Install

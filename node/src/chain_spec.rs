@@ -21,10 +21,9 @@
 pub use cord_primitives::{AccountId, Balance, Signature, CORD_SESSION_PERIOD};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	constants::currency::*, AuraConfig, AuthoritiesConfig, AuthorityDiscoveryConfig,
-	BalancesConfig, Block, BuilderCouncilMembershipConfig, CouncilMembershipConfig,
-	DemocracyConfig, FoundationCouncilMembershipConfig, GrandpaConfig, IndicesConfig,
-	SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalMembershipConfig,
+	constants::currency::*, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
+	BuilderCouncilConfig, CouncilConfig, DemocracyConfig, FoundationCouncilConfig, GrandpaConfig,
+	IndicesConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -33,7 +32,7 @@ use sc_service::{ChainType, Properties};
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
@@ -57,18 +56,20 @@ pub struct Extensions {
 	pub fork_blocks: sc_client_api::ForkBlocks<Block>,
 	/// Known bad block hashes.
 	pub bad_blocks: sc_client_api::BadBlocks<Block>,
+	/// The light sync state extension used by the sync-state rpc.
+	pub light_sync_state: sc_sync_state_rpc::LightSyncStateExtension,
 }
 
 /// Specialized `ChainSpec`.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
 
 fn session_keys(
-	aura: AuraId,
+	babe: BabeId,
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
 ) -> SessionKeys {
-	SessionKeys { aura, grandpa, im_online, authority_discovery }
+	SessionKeys { babe, grandpa, im_online, authority_discovery }
 }
 
 /// Helper function to generate a crypto pair from seed
@@ -99,7 +100,7 @@ where
 /// Helper function to generate stash, controller and session key from seed
 pub fn get_authority_keys_from_seed(
 	seed: &str,
-) -> (AccountId, AccountId, AuraId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
+) -> (AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
 	let keys = get_authority_keys(seed);
 	(keys.0, keys.1, keys.2, keys.3, keys.4, keys.5)
 }
@@ -107,11 +108,11 @@ pub fn get_authority_keys_from_seed(
 /// Helper function to generate stash, controller and session key from seed
 pub fn get_authority_keys(
 	seed: &str,
-) -> (AccountId, AccountId, AuraId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
+) -> (AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
 	(
 		get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
 		get_account_id_from_seed::<sr25519::Public>(seed),
-		get_from_seed::<AuraId>(seed),
+		get_from_seed::<BabeId>(seed),
 		get_from_seed::<GrandpaId>(seed),
 		get_from_seed::<ImOnlineId>(seed),
 		get_from_seed::<AuthorityDiscoveryId>(seed),
@@ -194,7 +195,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 	let initial_authorities: Vec<(
 		AccountId,
 		AccountId,
-		AuraId,
+		BabeId,
 		GrandpaId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
@@ -286,10 +287,6 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.chain(initial_authorities.iter().map(|x| (x.0.clone(), STASH)))
 				.collect(),
 		},
-		authorities: AuthoritiesConfig {
-			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
-			session_period,
-		},
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
@@ -303,8 +300,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect::<Vec<_>>(),
 		},
 		democracy: DemocracyConfig::default(),
-		council: Default::default(),
-		council_membership: CouncilMembershipConfig {
+		council: CouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -312,8 +308,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 			phantom: Default::default(),
 		},
-		technical_committee: Default::default(),
-		technical_membership: TechnicalMembershipConfig {
+		technical_committee: TechnicalCommitteeConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -321,8 +316,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 			phantom: Default::default(),
 		},
-		builder_council: Default::default(),
-		builder_council_membership: BuilderCouncilMembershipConfig {
+		builder_council: BuilderCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -330,8 +324,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 			phantom: Default::default(),
 		},
-		foundation_council: Default::default(),
-		foundation_council_membership: FoundationCouncilMembershipConfig {
+		foundation_council: FoundationCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -339,14 +332,21 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 			phantom: Default::default(),
 		},
-		aura: AuraConfig { authorities: vec![] },
+		babe: BabeConfig {
+			authorities: Default::default(),
+			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
+		},
 		grandpa: GrandpaConfig { authorities: vec![] },
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(root_key) },
+		council_membership: Default::default(),
+		technical_membership: Default::default(),
 		treasury: Default::default(),
 		builder: Default::default(),
+		builder_council_membership: Default::default(),
 		foundation: Default::default(),
+		foundation_council_membership: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }
@@ -379,7 +379,7 @@ fn cord_development_genesis(
 	initial_authorities: Vec<(
 		AccountId,
 		AccountId,
-		AuraId,
+		BabeId,
 		GrandpaId,
 		ImOnlineId,
 		AuthorityDiscoveryId,
@@ -396,16 +396,7 @@ fn cord_development_genesis(
 		system: SystemConfig { code: wasm_binary.to_vec() },
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig {
-			balances: endowed_accounts
-				.iter()
-				.cloned()
-				.map(|k| (k, ENDOWMENT))
-				.chain(foundation_accounts.iter().map(|x| (x.clone(), ENDOWMENT)))
-				.collect(),
-		},
-		authorities: AuthoritiesConfig {
-			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
-			session_period,
+			balances: endowed_accounts.iter().cloned().map(|k| (k, ENDOWMENT)).collect(),
 		},
 		session: SessionConfig {
 			keys: initial_authorities
@@ -420,18 +411,7 @@ fn cord_development_genesis(
 				.collect::<Vec<_>>(),
 		},
 		democracy: DemocracyConfig::default(),
-		council: Default::default(),
-		council_membership: CouncilMembershipConfig {
-			members: endowed_accounts
-				.clone()
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
-			phantom: Default::default(),
-		},
-		technical_committee: Default::default(),
-		technical_membership: TechnicalMembershipConfig {
+		council: CouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -439,8 +419,7 @@ fn cord_development_genesis(
 				.collect(),
 			phantom: Default::default(),
 		},
-		builder_council: Default::default(),
-		builder_council_membership: BuilderCouncilMembershipConfig {
+		technical_committee: TechnicalCommitteeConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -448,8 +427,7 @@ fn cord_development_genesis(
 				.collect(),
 			phantom: Default::default(),
 		},
-		foundation_council: Default::default(),
-		foundation_council_membership: FoundationCouncilMembershipConfig {
+		builder_council: BuilderCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -457,14 +435,29 @@ fn cord_development_genesis(
 				.collect(),
 			phantom: Default::default(),
 		},
-		aura: AuraConfig { authorities: vec![] },
+		foundation_council: FoundationCouncilConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		babe: BabeConfig {
+			authorities: Default::default(),
+			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
+		},
 		grandpa: GrandpaConfig { authorities: vec![] },
 		im_online: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(root_key) },
+		council_membership: Default::default(),
+		technical_membership: Default::default(),
 		treasury: Default::default(),
 		builder: Default::default(),
+		builder_council_membership: Default::default(),
 		foundation: Default::default(),
+		foundation_council_membership: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }
