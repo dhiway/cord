@@ -101,9 +101,9 @@ pub enum SessionApiError {
 /// Usage:
 /// ```Rust
 /// parameter_types! {
-/// 	// Note that the env variable version parameter cannot be const.
-/// 	pub LaunchPeriod: BlockNumber = prod_or_fast!(7 * DAYS, 1, "CORD_LAUNCH_PERIOD");
-/// 	pub const VotingPeriod: BlockNumber = prod_or_fast!(7 * DAYS, 1 * MINUTES);
+///     // Note that the env variable version parameter cannot be const.
+///     pub LaunchPeriod: BlockNumber = prod_or_fast!(7 * DAYS, 1, "CORD_LAUNCH_PERIOD");
+///     pub const VotingPeriod: BlockNumber = prod_or_fast!(7 * DAYS, 1 * MINUTES);
 /// }
 /// ```
 #[macro_export]

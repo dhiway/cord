@@ -21,11 +21,9 @@
 
 #![warn(unused_extern_crates)]
 
-use codec::Encode;
 use cord_executor::ExecutorDispatch;
 use cord_primitives::Block;
 use cord_runtime::RuntimeApi;
-use frame_system_rpc_runtime_api::AccountNonceApi;
 use futures::prelude::*;
 use sc_client_api::{BlockBackend, ExecutorProvider};
 use sc_consensus_babe::{self, SlotProportion};
@@ -33,9 +31,7 @@ use sc_executor::NativeElseWasmExecutor;
 use sc_network::{Event, NetworkService};
 use sc_service::{config::Configuration, error::Error as ServiceError, RpcHandlers, TaskManager};
 use sc_telemetry::{Telemetry, TelemetryWorker};
-use sp_api::ProvideRuntimeApi;
-use sp_core::crypto::Pair;
-use sp_runtime::{generic, traits::Block as BlockT, SaturatedConversion};
+use sp_runtime::traits::Block as BlockT;
 use std::sync::Arc;
 
 pub(crate) type FullClient =

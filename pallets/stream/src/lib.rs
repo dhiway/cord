@@ -192,7 +192,7 @@ pub mod pallet {
 			<Streams<T>>::insert(
 				&identifier,
 				StreamDetails {
-					stream_hash: stream_hash.clone(),
+					stream_hash,
 					controller: creator.clone(),
 					holder,
 					schema,
@@ -256,11 +256,7 @@ pub mod pallet {
 
 			<Streams<T>>::insert(
 				&identifier,
-				StreamDetails {
-					controller: updater.clone(),
-					stream_hash: stream_hash.clone(),
-					..tx_prev_details
-				},
+				StreamDetails { controller: updater.clone(), stream_hash, ..tx_prev_details },
 			);
 			Self::deposit_event(Event::Update(identifier, stream_hash, updater));
 
@@ -339,7 +335,7 @@ pub mod pallet {
 			ensure!(stream_details.space == Some(space.to_vec()), Error::<T>::StreamSpaceMismatch);
 
 			if stream_details.controller != controller {
-				pallet_space::SpaceDetails::<T>::from_space_identities(&space, controller.clone())
+				pallet_space::SpaceDetails::<T>::from_space_identities(&space, controller)
 					.map_err(<pallet_space::Error<T>>::from)?;
 			}
 

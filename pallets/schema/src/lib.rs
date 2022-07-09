@@ -185,7 +185,7 @@ pub mod pallet {
 				);
 
 				if schema_details.controller != creator {
-					pallet_space::SpaceDetails::<T>::from_space_identities(&space, creator.clone())
+					pallet_space::SpaceDetails::<T>::from_space_identities(space, creator.clone())
 						.map_err(<pallet_space::Error<T>>::from)?;
 				}
 			} else {
@@ -248,7 +248,7 @@ pub mod pallet {
 				);
 
 				if schema_details.controller != updater {
-					pallet_space::SpaceDetails::<T>::from_space_identities(&space, updater.clone())
+					pallet_space::SpaceDetails::<T>::from_space_identities(space, updater.clone())
 						.map_err(<pallet_space::Error<T>>::from)?;
 				}
 			} else {
@@ -291,7 +291,7 @@ pub mod pallet {
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 
 			if let Some(ref space) = space {
-				pallet_space::SpaceDetails::<T>::from_space_identities(&space, creator.clone())
+				pallet_space::SpaceDetails::<T>::from_space_identities(space, creator.clone())
 					.map_err(<pallet_space::Error<T>>::from)?;
 			}
 
@@ -299,12 +299,7 @@ pub mod pallet {
 
 			<Schemas<T>>::insert(
 				&identifier,
-				SchemaDetails {
-					schema_hash: schema_hash.clone(),
-					controller: creator.clone(),
-					space,
-					revoked: false,
-				},
+				SchemaDetails { schema_hash, controller: creator.clone(), space, revoked: false },
 			);
 			Self::deposit_event(Event::Anchor(schema_hash, identifier, creator));
 
@@ -350,7 +345,7 @@ pub mod pallet {
 				);
 
 				if schema_details.controller != updater {
-					pallet_space::SpaceDetails::<T>::from_space_identities(&space, updater.clone())
+					pallet_space::SpaceDetails::<T>::from_space_identities(space, updater.clone())
 						.map_err(<pallet_space::Error<T>>::from)?;
 				}
 			} else {

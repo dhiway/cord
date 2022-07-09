@@ -74,7 +74,7 @@ pub mod pallet {
 		pub fn register(origin: OriginFor<T>, authorities: Vec<T::ValidatorId>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
-			authorities.clone().into_iter().for_each(|v| AuthoritiesToAdd::<T>::append(v));
+			authorities.clone().into_iter().for_each(AuthoritiesToAdd::<T>::append);
 
 			Self::deposit_event(Event::AuthoritiesRegistered(authorities));
 			Ok(())
@@ -90,10 +90,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
-			authorities
-				.clone()
-				.into_iter()
-				.for_each(|v| AuthoritiesToRetire::<T>::append(v));
+			authorities.clone().into_iter().for_each(AuthoritiesToRetire::<T>::append);
 
 			Self::deposit_event(Event::AuthoritiesDeregistered(authorities));
 			Ok(())

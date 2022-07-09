@@ -379,7 +379,7 @@ pub mod pallet {
 
 			let space_details = <Spaces<T>>::get(&space).ok_or(Error::<T>::SpaceNotFound)?;
 			if space_details.controller != updater {
-				SpaceDetails::<T>::from_space_identities(&space, updater.clone())
+				SpaceDetails::<T>::from_space_identities(&space, updater)
 					.map_err(<Error<T>>::from)?;
 			}
 

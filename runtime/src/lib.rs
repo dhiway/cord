@@ -30,8 +30,7 @@ pub use cord_primitives::{AccountId, SessionApiError, Signature, CORD_SESSION_PE
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		AsEnsureOriginWithArg, ConstU32, EitherOfDiverse, Everything, InstanceFilter,
-		KeyOwnerProofSystem, PrivilegeCmp,
+		ConstU32, EitherOfDiverse, Everything, InstanceFilter, KeyOwnerProofSystem, PrivilegeCmp,
 	},
 	weights::{
 		constants::{RocksDbWeight, WEIGHT_PER_MILLIS},
