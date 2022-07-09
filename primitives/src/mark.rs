@@ -54,7 +54,7 @@ pub fn ss58hash(data: &[u8]) -> Blake2bResult {
 
 /// Create a new cryptographic identifier.
 pub fn generate(data: &[u8], id_ident: u16) -> String {
-	let ident: u16 = u16::from(id_ident) & 0b0011_1111_1111_1111;
+	let ident: u16 = id_ident & 0b0011_1111_1111_1111;
 
 	let mut v = match ident {
 		0..=63 => vec![ident as u8],

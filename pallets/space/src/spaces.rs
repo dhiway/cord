@@ -17,11 +17,11 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
 /// An on-chain space details mapped to an identifier.
-#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
+#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
 pub struct SpaceDetails<T: Config> {
 	/// Space hash.
@@ -37,7 +37,7 @@ impl<T: Config> SpaceDetails<T> {
 		tx_space: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
-		mark::from_known_format(&tx_space, SPACE_IDENTIFIER_PREFIX)
+		mark::from_known_format(tx_space, SPACE_IDENTIFIER_PREFIX)
 			.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 		let space_details = <Spaces<T>>::get(&tx_space).ok_or(Error::<T>::SpaceNotFound)?;

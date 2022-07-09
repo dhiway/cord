@@ -39,7 +39,7 @@ use frame_support::{
 	},
 	PalletId, RuntimeDebug,
 };
-use frame_system::{EnsureRoot, EnsureRootWithSuccess, EnsureSigned};
+use frame_system::{EnsureRoot, EnsureSigned};
 
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -144,12 +144,12 @@ const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
-	pub const BlockHashCount: BlockNumber = 900;
+	pub const BlockHashCount: BlockNumber = 2400;
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub RuntimeBlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
-		::with_sensible_defaults(1200 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
+		::with_sensible_defaults(350 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
 	pub RuntimeBlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
 		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u8 = 29;
@@ -470,9 +470,14 @@ impl pallet_recovery::Config for Runtime {
 	type RecoveryDeposit = RecoveryDeposit;
 }
 
+type AuthorityOrigin = EitherOfDiverse<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
+>;
+
 impl pallet_authorities::Config for Runtime {
 	type Event = Event;
-	type AuthorityOrigin = MoreThanHalfCouncil;
+	type AuthorityOrigin = AuthorityOrigin;
 }
 
 parameter_types! {
@@ -848,10 +853,15 @@ parameter_types! {
 
 }
 
+type ApproveOrigin = EitherOfDiverse<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
+>;
+
 impl pallet_treasury::Config for Runtime {
 	type PalletId = TreasuryPalletId;
 	type Currency = Balances;
-	type ApproveOrigin = MoreThanHalfCouncil;
+	type ApproveOrigin = ApproveOrigin;
 	type RejectOrigin = MoreThanHalfCouncil;
 	type Event = Event;
 	type OnSlash = Treasury;
@@ -954,6 +964,11 @@ where
 	type OverarchingCall = Call;
 }
 
+type BuilderOrigin = EitherOfDiverse<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
+>;
+
 parameter_types! {
 	pub const BuilderPalletId: PalletId = PalletId(*b"py/buldr");
 }
@@ -961,10 +976,15 @@ parameter_types! {
 impl pallet_builder::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
-	type BuilderOrigin = MoreThanHalfCouncil;
+	type BuilderOrigin = BuilderOrigin;
 	type PalletId = BuilderPalletId;
 	type WeightInfo = ();
 }
+
+type FoundationOrigin = EitherOfDiverse<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
+>;
 
 parameter_types! {
 	pub const FoundationPalletId: PalletId = PalletId(*b"py/fndtn");
@@ -973,7 +993,7 @@ parameter_types! {
 impl pallet_foundation::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
-	type FoundationOrigin = MoreThanHalfCouncil;
+	type FoundationOrigin = FoundationOrigin;
 	type PalletId = FoundationPalletId;
 	type WeightInfo = ();
 }
@@ -1003,12 +1023,16 @@ impl pallet_schema::Config for Runtime {
 	type WeightInfo = ();
 }
 
+type StreamApproveOrigin = EitherOfDiverse<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
+>;
 impl pallet_stream::Config for Runtime {
 	type Event = Event;
 	type Signature = Signature;
 	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-	type ForceOrigin = MoreThanHalfCouncil;
+	type ForceOrigin = StreamApproveOrigin;
 	type WeightInfo = ();
 }
 
