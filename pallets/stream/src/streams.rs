@@ -17,17 +17,18 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
 /// An on-chain stream details mapper to an Identifier.
-#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
-pub struct StreamDetails<T: Config> {
+// #[codec(mel_bound())]
+pub struct StreamType<T: Config> {
 	/// Stream hash.
-	pub stream_hash: HashOf<T>,
+	pub hash: HashOf<T>,
 	/// Stream controller.
-	pub controller: CordAccountOf<T>,
+	pub author: CordAccountOf<T>,
 	/// Stream holder.
 	pub holder: Option<CordAccountOf<T>>,
 	/// \[OPTIONAL\] Schema Identifier
@@ -36,6 +37,44 @@ pub struct StreamDetails<T: Config> {
 	pub link: Option<IdentifierOf>,
 	/// \[OPTIONAL\] Space ID.
 	pub space: Option<IdentifierOf>,
+}
+
+impl<T: Config> sp_std::fmt::Debug for StreamType<T> {
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		Ok(())
+	}
+}
+
+/// An on-chain stream details mapper to an Identifier.
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+// #[codec(mel_bound())]
+pub struct StreamDetails<T: Config> {
+	/// Stream hash.
+	pub stream: StreamType<T>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
+}
+
+impl<T: Config> sp_std::fmt::Debug for StreamDetails<T> {
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		Ok(())
+	}
+}
+
+/// An on-chain schema details mapped to an identifier.
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+// #[codec(mel_bound())]
+pub struct StreamParams<T: Config> {
+	/// Schema identifier
+	pub identifier: IdentifierOf,
+	/// Schema hash.
+	pub stream: StreamType<T>,
+}
+
+impl<T: Config> sp_std::fmt::Debug for StreamParams<T> {
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		Ok(())
+	}
 }

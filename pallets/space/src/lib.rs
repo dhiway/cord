@@ -42,7 +42,7 @@ pub mod pallet {
 	/// Type of a CORD account.
 	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
 	// space identifier prefix.
-	pub const SPACE_IDENTIFIER_PREFIX: u16 = 13;
+	pub const SPACE_IDENTIFIER_PREFIX: u16 = 31;
 	/// Type for a cord signature.
 	pub type SignatureOf<T> = <T as Config>::Signature;
 
@@ -246,8 +246,14 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			let identifier: IdentifierOf =
-				mark::generate(&(&space_hash).encode()[..], SPACE_IDENTIFIER_PREFIX).into_bytes();
+			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
+				mark::generate(&(&space_hash).encode()[..], SPACE_IDENTIFIER_PREFIX).into_bytes(),
+			)
+			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
+
+			sp_std::if_std! {
+						println!("space identifier{:#?}", identifier);
+			}
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
 

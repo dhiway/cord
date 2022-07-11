@@ -22,6 +22,7 @@
 #![warn(unused_crate_dependencies)]
 
 use codec::{Decode, Encode};
+use frame_support::{traits::ConstU32, BoundedVec};
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -80,8 +81,10 @@ pub type CidOf = Vec<u8>;
 /// Version type.
 pub type VersionOf = Vec<u8>;
 
+pub const MAX_SIZE: u32 = 48;
+
 /// IDentifier type.
-pub type IdentifierOf = Vec<u8>;
+pub type IdentifierOf = BoundedVec<u8, ConstU32<MAX_SIZE>>;
 
 /// status Information
 pub type StatusOf = bool;
