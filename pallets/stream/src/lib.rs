@@ -23,7 +23,7 @@
 use cord_primitives::{mark, IdentifierOf, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use sp_std::{prelude::Clone, str, vec::Vec};
+use sp_std::{prelude::Clone, str};
 
 pub mod streams;
 pub mod weights;
@@ -57,7 +57,10 @@ pub mod pallet {
 			<Self as frame_system::Config>::Origin,
 		>;
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
-		type Signature: Verify<Signer = <Self as pallet::Config>::Signer> + Parameter;
+		type Signature: Verify<Signer = <Self as pallet::Config>::Signer>
+			+ Parameter
+			+ MaxEncodedLen
+			+ TypeInfo;
 		type Signer: IdentifyAccount<AccountId = CordAccountOf<Self>> + Parameter;
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type WeightInfo: WeightInfo;

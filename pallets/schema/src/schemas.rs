@@ -77,7 +77,7 @@ impl<T: Config> SchemaDetails<T> {
 }
 
 /// An on-chain schema details mapped to an identifier.
-#[derive(Clone, Encode, Decode, PartialEq, TypeInfo)]
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
 pub struct SchemaParams<T: Config> {
 	/// Schema identifier
