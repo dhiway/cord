@@ -47,21 +47,19 @@ pub use pallet_transaction_payment::{
 	CurrencyAdapter, Multiplier, OnChargeTransaction, TargetedFeeAdjustment,
 };
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
-use scale_info::TypeInfo;
-use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H256};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Extrinsic as ExtrinsicT,
-		NumberFor, OpaqueKeys, SaturatedConversion, Verify,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, NumberFor,
+		OpaqueKeys, SaturatedConversion, Verify,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, Perbill, Permill, Perquintill,
 };
 use sp_staking::SessionIndex;
-use sp_std::{cmp::Ordering, collections::btree_map::BTreeMap, prelude::*};
+use sp_std::{cmp::Ordering, prelude::*};
 
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;

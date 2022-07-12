@@ -22,8 +22,7 @@
 pub use cord_primitives::{mark, IdentifierOf, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use sp_std::{fmt::Debug, prelude::Clone, str, vec::Vec};
-
+use sp_std::{prelude::Clone, str, vec::Vec};
 pub mod spaces;
 pub mod weights;
 
