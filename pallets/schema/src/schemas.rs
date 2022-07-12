@@ -25,7 +25,7 @@ use scale_info::TypeInfo;
 #[scale_info(skip_type_params(T))]
 pub struct SchemaType<T: Config> {
 	/// Schema hash.
-	pub hash: HashOf<T>,
+	pub digest: HashOf<T>,
 	/// Schema delegator.
 	pub author: CordAccountOf<T>,
 	/// \[OPTIONAL\] Space ID.

@@ -168,12 +168,12 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SpaceHashes<T>>::contains_key(&auth.space.hash),
+				!<SpaceHashes<T>>::contains_key(&auth.space.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&auth.space.hash).encode()[..], &auth.space.controller),
+				tx_signature.verify(&(&auth.space.digest).encode()[..], &auth.space.controller),
 				Error::<T>::InvalidSignature
 			);
 
@@ -194,11 +194,11 @@ pub mod pallet {
 						.expect("delegates length is less than T::MaxDelegates; qed");
 				}
 
-				<SpaceHashes<T>>::insert(&auth.space.hash, &auth.identifier);
+				<SpaceHashes<T>>::insert(&auth.space.digest, &auth.identifier);
 
 				Self::deposit_event(Event::AddDelegates {
 					identifier: auth.identifier,
-					hash: auth.space.hash,
+					hash: auth.space.digest,
 					author: auth.space.controller,
 				});
 
@@ -226,12 +226,12 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SpaceHashes<T>>::contains_key(&deauth.space.hash),
+				!<SpaceHashes<T>>::contains_key(&deauth.space.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&deauth.space.hash).encode()[..], &deauth.space.controller),
+				tx_signature.verify(&(&deauth.space.digest).encode()[..], &deauth.space.controller),
 				Error::<T>::InvalidSignature
 			);
 			ss58identifier::from_known_format(&deauth.identifier, SPACE_IDENTIFIER_PREFIX)
@@ -248,11 +248,11 @@ pub mod pallet {
 					delegation.retain(|x| x != &delegate);
 				}
 
-				<SpaceHashes<T>>::insert(&deauth.space.hash, &deauth.identifier);
+				<SpaceHashes<T>>::insert(&deauth.space.digest, &deauth.identifier);
 
 				Self::deposit_event(Event::RemoveDelegates {
 					identifier: deauth.identifier,
-					hash: deauth.space.hash,
+					hash: deauth.space.digest,
 					author: deauth.space.controller,
 				});
 
@@ -274,19 +274,19 @@ pub mod pallet {
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
-				tx_signature.verify(&(&space.hash).encode()[..], &space.controller),
+				tx_signature.verify(&(&space.digest).encode()[..], &space.controller),
 				Error::<T>::InvalidSignature
 			);
 
 			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
-				ss58identifier::generate(&(&space.hash).encode()[..], SPACE_IDENTIFIER_PREFIX)
+				ss58identifier::generate(&(&space.digest).encode()[..], SPACE_IDENTIFIER_PREFIX)
 					.into_bytes(),
 			)
 			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
 
-			<SpaceHashes<T>>::insert(&space.hash, &identifier);
+			<SpaceHashes<T>>::insert(&space.digest, &identifier);
 
 			<Spaces<T>>::insert(
 				&identifier,
@@ -294,7 +294,7 @@ pub mod pallet {
 			);
 			Self::deposit_event(Event::Create {
 				identifier,
-				hash: space.hash,
+				hash: space.digest,
 				author: space.controller,
 			});
 
@@ -319,12 +319,12 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SpaceHashes<T>>::contains_key(&arch.space.hash),
+				!<SpaceHashes<T>>::contains_key(&arch.space.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&arch.space.hash).encode()[..], &arch.space.controller),
+				tx_signature.verify(&(&arch.space.digest).encode()[..], &arch.space.controller),
 				Error::<T>::InvalidSignature
 			);
 
@@ -376,12 +376,12 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SpaceHashes<T>>::contains_key(&resto.space.hash),
+				!<SpaceHashes<T>>::contains_key(&resto.space.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&resto.space.hash).encode()[..], &resto.space.controller),
+				tx_signature.verify(&(&resto.space.digest).encode()[..], &resto.space.controller),
 				Error::<T>::InvalidSignature
 			);
 
@@ -406,7 +406,7 @@ pub mod pallet {
 				);
 			}
 
-			<SpaceHashes<T>>::insert(&resto.space.hash, &resto.identifier);
+			<SpaceHashes<T>>::insert(&resto.space.digest, &resto.identifier);
 
 			<Spaces<T>>::insert(
 				&resto.identifier,
@@ -439,12 +439,12 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SpaceHashes<T>>::contains_key(&trans.space.hash),
+				!<SpaceHashes<T>>::contains_key(&trans.space.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&trans.space.hash).encode()[..], &trans.space.controller),
+				tx_signature.verify(&(&trans.space.digest).encode()[..], &trans.space.controller),
 				Error::<T>::InvalidSignature
 			);
 

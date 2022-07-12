@@ -165,17 +165,17 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<StreamHashes<T>>::contains_key(&stream.hash),
+				!<StreamHashes<T>>::contains_key(&stream.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&stream.hash).encode()[..], &stream.author),
+				tx_signature.verify(&(&stream.digest).encode()[..], &stream.author),
 				Error::<T>::InvalidSignature
 			);
 
 			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
-				ss58identifier::generate(&(&stream.hash).encode()[..], STREAM_IDENTIFIER_PREFIX)
+				ss58identifier::generate(&(&stream.digest).encode()[..], STREAM_IDENTIFIER_PREFIX)
 					.into_bytes(),
 			)
 			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
@@ -202,7 +202,7 @@ pub mod pallet {
 				)
 				.map_err(<pallet_space::Error<T>>::from)?;
 			}
-			<StreamHashes<T>>::insert(&stream.hash, &identifier);
+			<StreamHashes<T>>::insert(&stream.digest, &identifier);
 
 			<Streams<T>>::insert(
 				&identifier,
@@ -211,7 +211,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::Anchor {
 				identifier,
-				hash: stream.hash,
+				hash: stream.digest,
 				author: stream.author,
 			});
 
@@ -231,12 +231,12 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<StreamHashes<T>>::contains_key(&update.stream.hash),
+				!<StreamHashes<T>>::contains_key(&update.stream.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&update.stream.hash).encode()[..], &update.stream.author),
+				tx_signature.verify(&(&update.stream.digest).encode()[..], &update.stream.author),
 				Error::<T>::InvalidSignature
 			);
 
@@ -267,7 +267,7 @@ pub mod pallet {
 				);
 			}
 
-			<StreamHashes<T>>::insert(&update.stream.hash, &update.identifier);
+			<StreamHashes<T>>::insert(&update.stream.digest, &update.identifier);
 
 			<Streams<T>>::insert(
 				&update.identifier,
@@ -275,7 +275,7 @@ pub mod pallet {
 			);
 			Self::deposit_event(Event::Update {
 				identifier: update.identifier,
-				hash: update.stream.hash,
+				hash: update.stream.digest,
 				author: update.stream.author,
 			});
 
@@ -295,12 +295,12 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<StreamHashes<T>>::contains_key(&revoke.stream.hash),
+				!<StreamHashes<T>>::contains_key(&revoke.stream.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&revoke.stream.hash).encode()[..], &revoke.stream.author),
+				tx_signature.verify(&(&revoke.stream.digest).encode()[..], &revoke.stream.author),
 				Error::<T>::InvalidSignature
 			);
 
@@ -331,7 +331,7 @@ pub mod pallet {
 				);
 			}
 
-			<StreamHashes<T>>::insert(&revoke.stream.hash, &revoke.identifier);
+			<StreamHashes<T>>::insert(&revoke.stream.digest, &revoke.identifier);
 
 			<Streams<T>>::insert(
 				&revoke.identifier,
@@ -347,7 +347,7 @@ pub mod pallet {
 			);
 			Self::deposit_event(Event::Revoke {
 				identifier: revoke.identifier,
-				hash: revoke.stream.hash,
+				hash: revoke.stream.digest,
 				author: revoke.stream.author,
 			});
 

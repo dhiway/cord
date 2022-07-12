@@ -26,7 +26,7 @@ use scale_info::TypeInfo;
 // #[codec(mel_bound())]
 pub struct StreamType<T: Config> {
 	/// Stream hash.
-	pub hash: HashOf<T>,
+	pub digest: HashOf<T>,
 	/// Stream controller.
 	pub author: CordAccountOf<T>,
 	/// Stream holder.

@@ -164,12 +164,12 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SchemaHashes<T>>::contains_key(&auth.schema.hash),
+				!<SchemaHashes<T>>::contains_key(&auth.schema.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&auth.schema.hash).encode()[..], &auth.schema.author),
+				tx_signature.verify(&(&auth.schema.digest).encode()[..], &auth.schema.author),
 				Error::<T>::InvalidSignature
 			);
 
@@ -213,11 +213,11 @@ pub mod pallet {
 						.expect("delegates length is less than T::MaxSchemaDelegates; qed");
 				}
 
-				<SchemaHashes<T>>::insert(&auth.schema.hash, &auth.identifier);
+				<SchemaHashes<T>>::insert(&auth.schema.digest, &auth.identifier);
 
 				Self::deposit_event(Event::AddDelegates {
 					identifier: auth.identifier,
-					hash: auth.schema.hash,
+					hash: auth.schema.digest,
 					author: auth.schema.author,
 				});
 				Ok(())
@@ -242,12 +242,12 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SchemaHashes<T>>::contains_key(&deauth.schema.hash),
+				!<SchemaHashes<T>>::contains_key(&deauth.schema.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&deauth.schema.hash).encode()[..], &deauth.schema.author),
+				tx_signature.verify(&(&deauth.schema.digest).encode()[..], &deauth.schema.author),
 				Error::<T>::InvalidSignature
 			);
 
@@ -287,11 +287,11 @@ pub mod pallet {
 					schema_delegates.retain(|x| x != &delegate);
 				}
 
-				<SchemaHashes<T>>::insert(&deauth.schema.hash, &deauth.identifier);
+				<SchemaHashes<T>>::insert(&deauth.schema.digest, &deauth.identifier);
 
 				Self::deposit_event(Event::RemoveDelegates {
 					identifier: deauth.identifier,
-					hash: deauth.schema.hash,
+					hash: deauth.schema.digest,
 					author: deauth.schema.author,
 				});
 				Ok(())
@@ -311,12 +311,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
-				tx_signature.verify(&(&schema.hash).encode()[..], &schema.author),
+				tx_signature.verify(&(&schema.digest).encode()[..], &schema.author),
 				Error::<T>::InvalidSignature
 			);
 
 			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
-				ss58identifier::generate(&(&schema.hash).encode()[..], SCHEMA_IDENTIFIER_PREFIX)
+				ss58identifier::generate(&(&schema.digest).encode()[..], SCHEMA_IDENTIFIER_PREFIX)
 					.into_bytes(),
 			)
 			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
@@ -331,7 +331,7 @@ pub mod pallet {
 				.map_err(<pallet_space::Error<T>>::from)?;
 			}
 
-			<SchemaHashes<T>>::insert(&schema.hash, &identifier);
+			<SchemaHashes<T>>::insert(&schema.digest, &identifier);
 
 			<Schemas<T>>::insert(
 				&identifier,
@@ -340,7 +340,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::Create {
 				identifier,
-				hash: schema.hash,
+				hash: schema.digest,
 				author: schema.author,
 			});
 
@@ -364,12 +364,12 @@ pub mod pallet {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SchemaHashes<T>>::contains_key(&rev.schema.hash),
+				!<SchemaHashes<T>>::contains_key(&rev.schema.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&rev.schema.hash).encode()[..], &rev.schema.author),
+				tx_signature.verify(&(&rev.schema.digest).encode()[..], &rev.schema.author),
 				Error::<T>::InvalidSignature
 			);
 
@@ -400,7 +400,7 @@ pub mod pallet {
 				);
 			}
 
-			<SchemaHashes<T>>::insert(&rev.schema.hash, &rev.identifier);
+			<SchemaHashes<T>>::insert(&rev.schema.digest, &rev.identifier);
 
 			<Schemas<T>>::insert(
 				&rev.identifier,
@@ -408,7 +408,7 @@ pub mod pallet {
 			);
 			Self::deposit_event(Event::Revoke {
 				identifier: rev.identifier,
-				hash: rev.schema.hash,
+				hash: rev.schema.digest,
 				author: rev.schema.author,
 			});
 

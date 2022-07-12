@@ -25,7 +25,7 @@ use scale_info::TypeInfo;
 #[scale_info(skip_type_params(T))]
 pub struct SpaceType<T: Config> {
 	/// Space hash.
-	pub hash: HashOf<T>,
+	pub digest: HashOf<T>,
 	/// Space creator.
 	pub controller: CordAccountOf<T>,
 }
