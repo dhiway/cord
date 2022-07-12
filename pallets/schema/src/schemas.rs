@@ -59,7 +59,7 @@ impl<T: Config> SchemaDetails<T> {
 		tx_schema: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
-		mark::from_known_format(tx_schema, SCHEMA_IDENTIFIER_PREFIX)
+		ss58identifier::from_known_format(tx_schema, SCHEMA_IDENTIFIER_PREFIX)
 			.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 		let schema_details = <Schemas<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;

@@ -19,7 +19,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-pub use cord_primitives::{mark, IdentifierOf, StatusOf};
+pub use cord_primitives::{ss58identifier, IdentifierOf, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::{prelude::Clone, str, vec::Vec};
@@ -65,7 +65,6 @@ pub mod pallet {
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
-	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	/// spacess stored on chain.
@@ -178,7 +177,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			mark::from_known_format(&auth.identifier, SPACE_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&auth.identifier, SPACE_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 			SpaceDetails::from_space_identities(&auth.identifier, auth.space.controller.clone())
@@ -235,7 +234,7 @@ pub mod pallet {
 				tx_signature.verify(&(&deauth.space.hash).encode()[..], &deauth.space.controller),
 				Error::<T>::InvalidSignature
 			);
-			mark::from_known_format(&deauth.identifier, SPACE_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&deauth.identifier, SPACE_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 			SpaceDetails::from_space_identities(
@@ -280,7 +279,8 @@ pub mod pallet {
 			);
 
 			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
-				mark::generate(&(&space.hash).encode()[..], SPACE_IDENTIFIER_PREFIX).into_bytes(),
+				ss58identifier::generate(&(&space.hash).encode()[..], SPACE_IDENTIFIER_PREFIX)
+					.into_bytes(),
 			)
 			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
 
@@ -328,7 +328,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			mark::from_known_format(&arch.identifier, SPACE_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&arch.identifier, SPACE_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 			let space_details =
@@ -385,7 +385,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			mark::from_known_format(&resto.identifier, SPACE_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&resto.identifier, SPACE_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 			let space_details =
@@ -448,7 +448,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			mark::from_known_format(&trans.identifier, SPACE_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&trans.identifier, SPACE_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 			let space_details =

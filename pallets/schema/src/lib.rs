@@ -20,7 +20,7 @@
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
 
-pub use cord_primitives::{mark, CidOf, IdentifierOf, StatusOf, VersionOf};
+pub use cord_primitives::{ss58identifier, CidOf, IdentifierOf, StatusOf, VersionOf};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::{prelude::Clone, str, vec::Vec};
@@ -173,7 +173,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			mark::from_known_format(&auth.identifier, SCHEMA_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&auth.identifier, SCHEMA_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 			let schema_details =
@@ -251,7 +251,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			mark::from_known_format(&deauth.identifier, SCHEMA_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&deauth.identifier, SCHEMA_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 			let schema_details =
@@ -316,7 +316,8 @@ pub mod pallet {
 			);
 
 			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
-				mark::generate(&(&schema.hash).encode()[..], SCHEMA_IDENTIFIER_PREFIX).into_bytes(),
+				ss58identifier::generate(&(&schema.hash).encode()[..], SCHEMA_IDENTIFIER_PREFIX)
+					.into_bytes(),
 			)
 			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
 
@@ -372,7 +373,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			mark::from_known_format(&rev.identifier, SCHEMA_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&rev.identifier, SCHEMA_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 			let schema_details =

@@ -20,7 +20,7 @@
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
 
-use cord_primitives::{mark, IdentifierOf, StatusOf};
+use cord_primitives::{ss58identifier, IdentifierOf, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::{prelude::Clone, str};
@@ -68,7 +68,6 @@ pub mod pallet {
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
-	// #[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
@@ -176,7 +175,8 @@ pub mod pallet {
 			);
 
 			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
-				mark::generate(&(&stream.hash).encode()[..], STREAM_IDENTIFIER_PREFIX).into_bytes(),
+				ss58identifier::generate(&(&stream.hash).encode()[..], STREAM_IDENTIFIER_PREFIX)
+					.into_bytes(),
 			)
 			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
 
@@ -240,7 +240,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			mark::from_known_format(&update.identifier, STREAM_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&update.identifier, STREAM_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			let tx_prev_details =
@@ -304,7 +304,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			mark::from_known_format(&revoke.identifier, STREAM_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&revoke.identifier, STREAM_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			let tx_prev_details =
@@ -367,7 +367,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			let stream_details =
@@ -396,7 +396,7 @@ pub mod pallet {
 		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(3, 3))]
 		pub fn council_remove(origin: OriginFor<T>, identifier: IdentifierOf) -> DispatchResult {
 			<T as Config>::ForceOrigin::ensure_origin(origin)?;
-			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 			<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 
@@ -426,7 +426,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			mark::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			ensure!(

@@ -60,7 +60,7 @@ impl<T: Config> SpaceDetails<T> {
 		sp_std::if_std! {
 					println!("input space{:#?}", tx_space);
 		}
-		mark::from_known_format(tx_space, SPACE_IDENTIFIER_PREFIX)
+		ss58identifier::from_known_format(tx_space, SPACE_IDENTIFIER_PREFIX)
 			.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 		let space_details = <Spaces<T>>::get(&tx_space).ok_or(Error::<T>::SpaceNotFound)?;
