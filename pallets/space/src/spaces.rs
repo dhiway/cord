@@ -17,19 +17,39 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
 /// An on-chain space details mapped to an identifier.
-#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
-pub struct SpaceDetails<T: Config> {
+pub struct SpaceType<T: Config> {
 	/// Space hash.
-	pub space_hash: HashOf<T>,
+	pub digest: HashOf<T>,
 	/// Space creator.
 	pub controller: CordAccountOf<T>,
+}
+
+impl<T: Config> sp_std::fmt::Debug for SpaceType<T> {
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		Ok(())
+	}
+}
+
+/// An on-chain space details mapped to an identifier.
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+pub struct SpaceDetails<T: Config> {
+	/// Space type.
+	pub space: SpaceType<T>,
 	/// The flag indicating the status of the space.
 	pub archived: StatusOf,
+}
+
+impl<T: Config> sp_std::fmt::Debug for SpaceDetails<T> {
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		Ok(())
+	}
 }
 
 impl<T: Config> SpaceDetails<T> {
@@ -37,19 +57,38 @@ impl<T: Config> SpaceDetails<T> {
 		tx_space: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
-		mark::from_known_format(&tx_space, SPACE_IDENTIFIER_PREFIX)
+		sp_std::if_std! {
+					println!("input space{:#?}", tx_space);
+		}
+		ss58identifier::from_known_format(tx_space, SPACE_IDENTIFIER_PREFIX)
 			.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 		let space_details = <Spaces<T>>::get(&tx_space).ok_or(Error::<T>::SpaceNotFound)?;
 		ensure!(!space_details.archived, Error::<T>::ArchivedSpace);
 
-		if space_details.controller != requestor {
+		if space_details.space.controller != requestor {
 			let delegates = <Delegations<T>>::get(tx_space);
 			ensure!(
 				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
 				Error::<T>::UnauthorizedOperation
 			);
 		}
+		Ok(())
+	}
+}
+
+/// An on-chain schema details mapped to an identifier.
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+pub struct SpaceParams<T: Config> {
+	/// Space identifier
+	pub identifier: IdentifierOf,
+	/// Space Type.
+	pub space: SpaceType<T>,
+}
+
+impl<T: Config> sp_std::fmt::Debug for SpaceParams<T> {
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		Ok(())
 	}
 }

@@ -17,20 +17,41 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
 
-/// An on-chain schema details mapped to an identifier.
-#[derive(Clone, Debug, Encode, Decode, PartialEq, scale_info::TypeInfo)]
+/// schema type details.
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
-pub struct SchemaDetails<T: Config> {
+pub struct SchemaType<T: Config> {
 	/// Schema hash.
-	pub schema_hash: HashOf<T>,
-	/// Schema creator.
-	pub controller: CordAccountOf<T>,
+	pub digest: HashOf<T>,
+	/// Schema delegator.
+	pub author: CordAccountOf<T>,
 	/// \[OPTIONAL\] Space ID.
 	pub space: Option<IdentifierOf>,
+}
+
+impl<T: Config> sp_std::fmt::Debug for SchemaType<T> {
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		Ok(())
+	}
+}
+
+/// An on-chain schema details mapped to an identifier.
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+pub struct SchemaDetails<T: Config> {
+	/// Schema Type.
+	pub schema: SchemaType<T>,
 	/// The flag indicating the status of the schema.
 	pub revoked: StatusOf,
+}
+
+impl<T: Config> sp_std::fmt::Debug for SchemaDetails<T> {
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		Ok(())
+	}
 }
 
 impl<T: Config> SchemaDetails<T> {
@@ -38,19 +59,35 @@ impl<T: Config> SchemaDetails<T> {
 		tx_schema: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
-		mark::from_known_format(&tx_schema, SCHEMA_IDENTIFIER_PREFIX)
+		ss58identifier::from_known_format(tx_schema, SCHEMA_IDENTIFIER_PREFIX)
 			.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 		let schema_details = <Schemas<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
 		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 
-		if schema_details.controller != requestor {
+		if schema_details.schema.author != requestor {
 			let delegates = <Delegations<T>>::get(tx_schema);
 			ensure!(
 				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
 				Error::<T>::UnauthorizedOperation
 			);
 		}
+		Ok(())
+	}
+}
+
+/// An on-chain schema details mapped to an identifier.
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+pub struct SchemaParams<T: Config> {
+	/// Schema identifier
+	pub identifier: IdentifierOf,
+	/// Schema Type.
+	pub schema: SchemaType<T>,
+}
+
+impl<T: Config> sp_std::fmt::Debug for SchemaParams<T> {
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		Ok(())
 	}
 }

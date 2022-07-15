@@ -153,7 +153,7 @@ pub mod pallet {
 	impl<T: Config<I>, I: 'static> OnUnbalanced<NegativeImbalanceOf<T, I>> for Pallet<T, I> {
 		fn on_nonzero_unbalanced(amount: NegativeImbalanceOf<T, I>) {
 			// Must resolve into existing but better to be safe.
-			let _ = T::Currency::resolve_creating(&Self::account_id(), amount);
+			T::Currency::resolve_creating(&Self::account_id(), amount);
 		}
 	}
 }
