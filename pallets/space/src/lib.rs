@@ -97,13 +97,13 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Space delegates has been added.
 		/// \[space identifier,  controller\]
-		AddDelegates { identifier: IdentifierOf, hash: HashOf<T>, author: CordAccountOf<T> },
+		AddDelegates { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// Space delegates has been removed.
 		/// \[space identifier,  controller\]
-		RemoveDelegates { identifier: IdentifierOf, hash: HashOf<T>, author: CordAccountOf<T> },
+		RemoveDelegates { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// A new space has been created.
 		/// \[space hash, space identifier, controller\]
-		Create { identifier: IdentifierOf, hash: HashOf<T>, author: CordAccountOf<T> },
+		Create { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// A space controller has changed.
 		/// \[space identifier, new controller\]
 		Transfer { identifier: IdentifierOf, transfer: CordAccountOf<T>, author: CordAccountOf<T> },
@@ -198,7 +198,7 @@ pub mod pallet {
 
 				Self::deposit_event(Event::AddDelegates {
 					identifier: auth.identifier,
-					hash: auth.space.digest,
+					digest: auth.space.digest,
 					author: auth.space.controller,
 				});
 
@@ -252,7 +252,7 @@ pub mod pallet {
 
 				Self::deposit_event(Event::RemoveDelegates {
 					identifier: deauth.identifier,
-					hash: deauth.space.digest,
+					digest: deauth.space.digest,
 					author: deauth.space.controller,
 				});
 
@@ -294,7 +294,7 @@ pub mod pallet {
 			);
 			Self::deposit_event(Event::Create {
 				identifier,
-				hash: space.digest,
+				digest: space.digest,
 				author: space.controller,
 			});
 
