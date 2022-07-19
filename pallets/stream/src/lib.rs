@@ -99,16 +99,16 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new stream has been created.
 		/// \[stream hash, identifier, controller\]
-		Anchor { identifier: IdentifierOf, hash: HashOf<T>, author: CordAccountOf<T> },
+		Anchor { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// A stream has been updated.
 		/// \[stream identifier, hash, controller\]
-		Update { identifier: IdentifierOf, hash: HashOf<T>, author: CordAccountOf<T> },
+		Update { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// A stream digest has been added.
 		/// \[stream identifier, hash, controller\]
-		Digest { identifier: IdentifierOf, hash: HashOf<T>, author: CordAccountOf<T> },
+		Digest { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// A stream status has been changed.
 		/// \[stream identifier, controller\]
-		Revoke { identifier: IdentifierOf, hash: HashOf<T>, author: CordAccountOf<T> },
+		Revoke { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// A stream has been removed.
 		/// \[stream identifier\]
 		Remove { identifier: IdentifierOf, author: CordAccountOf<T> },
@@ -211,7 +211,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::Anchor {
 				identifier,
-				hash: stream.digest,
+				digest: stream.digest,
 				author: stream.author,
 			});
 
@@ -275,7 +275,7 @@ pub mod pallet {
 			);
 			Self::deposit_event(Event::Update {
 				identifier: update.identifier,
-				hash: update.stream.digest,
+				digest: update.stream.digest,
 				author: update.stream.author,
 			});
 
@@ -347,7 +347,7 @@ pub mod pallet {
 			);
 			Self::deposit_event(Event::Revoke {
 				identifier: revoke.identifier,
-				hash: revoke.stream.digest,
+				digest: revoke.stream.digest,
 				author: revoke.stream.author,
 			});
 
@@ -445,7 +445,7 @@ pub mod pallet {
 
 			<StreamDigests<T>>::insert(&digest_hash, &identifier);
 
-			Self::deposit_event(Event::Digest { identifier, hash: digest_hash, author: creator });
+			Self::deposit_event(Event::Digest { identifier, digest: digest_hash, author: creator });
 
 			Ok(())
 		}

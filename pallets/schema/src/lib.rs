@@ -101,16 +101,16 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new schema has been created.
 		/// \[schema identifier, version, controller\]
-		Create { identifier: IdentifierOf, hash: HashOf<T>, author: CordAccountOf<T> },
+		Create { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// A schema status has been changed.
 		/// \[schema identifier, controller\]
-		Revoke { identifier: IdentifierOf, hash: HashOf<T>, author: CordAccountOf<T> },
+		Revoke { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// Schema delegates has been added.
 		/// \[schema identifier,  controller\]
-		AddDelegates { identifier: IdentifierOf, hash: HashOf<T>, author: CordAccountOf<T> },
+		AddDelegates { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// Schema delegates has been removed.
 		/// \[schema identifier,  controller\]
-		RemoveDelegates { identifier: IdentifierOf, hash: HashOf<T>, author: CordAccountOf<T> },
+		RemoveDelegates { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 	}
 
 	#[pallet::error]
@@ -217,7 +217,7 @@ pub mod pallet {
 
 				Self::deposit_event(Event::AddDelegates {
 					identifier: auth.identifier,
-					hash: auth.schema.digest,
+					digest: auth.schema.digest,
 					author: auth.schema.author,
 				});
 				Ok(())
@@ -291,7 +291,7 @@ pub mod pallet {
 
 				Self::deposit_event(Event::RemoveDelegates {
 					identifier: deauth.identifier,
-					hash: deauth.schema.digest,
+					digest: deauth.schema.digest,
 					author: deauth.schema.author,
 				});
 				Ok(())
@@ -340,7 +340,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::Create {
 				identifier,
-				hash: schema.digest,
+				digest: schema.digest,
 				author: schema.author,
 			});
 
@@ -408,7 +408,7 @@ pub mod pallet {
 			);
 			Self::deposit_event(Event::Revoke {
 				identifier: rev.identifier,
-				hash: rev.schema.digest,
+				digest: rev.schema.digest,
 				author: rev.schema.author,
 			});
 
