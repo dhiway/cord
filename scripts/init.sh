@@ -5,7 +5,6 @@ echo "*** Initializing WASM build environment"
 
 rustup default stable
 rustup update stable
-rustup component add rls-preview --toolchain nightly
 rustup update nightly
 
 rustup target add wasm32-unknown-unknown --toolchain nightly
