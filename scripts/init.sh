@@ -7,7 +7,7 @@ rustup default stable
 rustup update stable
 rustup update nightly
 
-rustup target add wasm32-unknown-unknown --toolchain nightly
+rustup target add wasm32-unknown-unknown --toolchain nightly-2022-05-11
 
 # Install wasm-gc. It's useful for stripping slimming down wasm binaries.
 command -v wasm-gc || \
