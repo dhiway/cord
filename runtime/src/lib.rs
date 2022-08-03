@@ -146,7 +146,7 @@ parameter_types! {
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub RuntimeBlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
-		::with_sensible_defaults(350 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
+		::with_sensible_defaults(400 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
 	pub RuntimeBlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
 		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u8 = 29;
@@ -196,7 +196,7 @@ pub struct OriginPrivilegeCmp;
 impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
 		if left == right {
-			return Some(Ordering::Equal);
+			return Some(Ordering::Equal)
 		}
 
 		match (left, right) {
@@ -375,7 +375,8 @@ impl_opaque_keys! {
 	}
 }
 
-/// Special `ValidatorIdOf` implementation that is just returning the input as result.
+/// Special `ValidatorIdOf` implementation that is just returning the input as
+/// result.
 pub struct ValidatorIdOf;
 impl sp_runtime::traits::Convert<AccountId, Option<AccountId>> for ValidatorIdOf {
 	fn convert(a: AccountId) -> Option<AccountId> {
@@ -395,7 +396,8 @@ impl pallet_session::Config for Runtime {
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
 
-/// `FullIdentificationOf` implementation that is returning for every input `Some(Default::default())`.
+/// `FullIdentificationOf` implementation that is returning for every input
+/// `Some(Default::default())`.
 pub struct FullIdentificationOf;
 impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf {
 	fn convert(_: AccountId) -> Option<()> {
@@ -555,9 +557,9 @@ impl InstanceFilter<Call> for ProxyType {
 			),
 			ProxyType::Governance => matches!(
 				c,
-				Call::Democracy(..)
-					| Call::Council(..) | Call::TechnicalCommittee(..)
-					| Call::Treasury(..) | Call::Utility(..)
+				Call::Democracy(..) |
+					Call::Council(..) | Call::TechnicalCommittee(..) |
+					Call::Treasury(..) | Call::Utility(..)
 			),
 			ProxyType::IdentityJudgement => matches!(
 				c,
