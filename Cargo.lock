@@ -993,7 +993,6 @@ dependencies = [
  "base58",
  "blake2-rfc",
  "frame-support",
- "parity-scale-codec",
  "scale-info",
  "sp-core",
  "sp-runtime",

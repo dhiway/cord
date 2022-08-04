@@ -78,48 +78,44 @@ pub mod pallet {
 	#[pallet::storage_prefix = "Hashes"]
 	pub type EntryHashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
 
-	/// governance authorisations stored on chain.
-	/// It maps from an identifier to a vector of delegates.
+	/// registry entry metadata stored on chain.
+	/// It maps from an identifier to metadata.
 	#[pallet::storage]
 	#[pallet::storage_prefix = "Metadata"]
 	pub(super) type Metadata<T: Config> =
-		StorageMap<_, Blake2_128Concat, IdentifierOf, MetaDataOf, ValueQuery>;
+		StorageMap<_, Blake2_128Concat, IdentifierOf, MetadataEntry<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new space has been created.
-		/// \[space hash, space identifier, controller\]
+		/// A new registry entry has been created.
+		/// \[identifier, digest, controller\]
 		Create { identifier: IdentifierOf, digest: HashOf<T>, controller: CordAccountOf<T> },
-		/// A new space has been created.
-		/// \[space hash, space identifier, controller\]
+		/// A registery entry has been created.
+		/// \[identifier, digest, controller\]
 		Update { identifier: IdentifierOf, digest: HashOf<T>, controller: CordAccountOf<T> },
-		/// A spaces has been archived.
-		/// \[space identifier\]
+		/// A registry entry has been revoked.
+		/// \[identifier, controller\]
 		Revoke { identifier: IdentifierOf, controller: CordAccountOf<T> },
-		/// A spaces has been restored.
-		/// \[space identifier\]
+		/// A registry entry has been removed.
+		/// \[identifier, controller\]
 		Remove { identifier: IdentifierOf, controller: CordAccountOf<T> },
-		/// A spaces has been restored.
-		/// \[space identifier\]
+		/// A metedata entry has been added.
+		/// \[identifier, controller\]
 		MetadataSet { identifier: IdentifierOf, controller: CordAccountOf<T> },
-		/// A spaces has been restored.
-		/// \[space identifier\]
+		/// A metadata entry has been cleared.
+		/// \[identifier, controller\]
 		MetadataCleared { identifier: IdentifierOf, controller: CordAccountOf<T> },
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Space idenfier is not unique
+		/// Entry idenfier is not unique
 		EntryAlreadyAnchored,
-		/// Space idenfier not found
+		/// Entryidenfier not found
 		EntryNotFound,
 		/// Only when the author is not the controller.
 		UnauthorizedOperation,
-		// Maximum Number of delegates reached.
-		TooManyDelegates,
-		// Only when the author is not the controller
-		UnauthorizedDelegation,
 		// Invalid Identifier
 		InvalidRegistryIdentifier,
 		// Invalid Identifier Length
@@ -128,33 +124,33 @@ pub mod pallet {
 		InvalidIdentifierPrefix,
 		// Invalid creator signature
 		InvalidSignature,
-		// Archived Space
-		RevokedEntry,
-		// Space Archived
+		// Entry Revoked
 		EntryAlreadyRevoked,
-		// Space not Archived
+		// Entry not Revoked
 		EntryNotRevoked,
 		// Invalid transaction hash
 		InvalidTransactionHash,
+		// Entry Revoked
 		EntryRevoked,
+		// Entry Space mismatch
 		EntrySpaceMismatch,
+		// Metadata limit exceeded
 		MetadataLimitExceeded,
+		// Metadata already set for the entry
 		MetadataAlreadySet,
+		// Metadata not found for the entry
 		MetadataNotFound,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Add space authorisations (delegation).
+		/// Set metadata for a registry entry.
 		///
-		/// This transaction can only be performed by the space controller or
-		/// delegates.
+		/// This transaction can only be performed by the entry controller or
+		/// space delegates.
 		///
 		/// * origin: the identity of the space controller.
-		/// * creator: creator (controller) of the space.
-		/// * space: unique identifier of the space.
-		/// * tx_hash: transaction hash to verify the signature.
-		/// * delegates: authorised identities to add.
+		/// * entry: anchored entry details.
 		/// * tx_signature: creator signature.
 		#[pallet::weight(10_255_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn set_metadata(
@@ -208,7 +204,19 @@ pub mod pallet {
 			let bounded_metadata: MetaDataOf =
 				meta.try_into().map_err(|_| Error::<T>::MetadataLimitExceeded)?;
 
-			Metadata::<T>::insert(entry.identifier.clone(), bounded_metadata);
+			Metadata::<T>::insert(
+				entry.identifier.clone(),
+				MetadataEntry {
+					metadata: bounded_metadata,
+					digest: entry.stream.digest,
+					controller: entry.stream.controller.clone(),
+				},
+			);
+
+			<Entries<T>>::insert(
+				&entry.identifier,
+				EntryDetails { metadata: true, ..entry_details },
+			);
 
 			Self::deposit_event(Event::MetadataSet {
 				identifier: entry.identifier,
@@ -217,17 +225,14 @@ pub mod pallet {
 
 			Ok(())
 		}
-		/// Remove space authorisations (delegation).
+		/// Clear metadata for a registry entry.
 		///
-		/// This transaction can only be performed by the space controller or
-		/// delegates.
+		/// This transaction can only be performed by the entry controller or
+		/// space delegates.
 		///
 		/// * origin: the identity of the space controller.
-		/// * updater: updater (controller) of the space.
-		/// * space: unique identifier of the space.
-		/// * tx_hash: transaction hash to verify the signature.
-		/// * delegates: identities (delegates) to be removed.
-		/// * tx_signature: updater signature.
+		/// * entry: anchored entry details.
+		/// * tx_signature: creator signature.
 		#[pallet::weight(55_000 + T::DbWeight::get().reads_writes(2, 1))]
 		pub fn clear_metadata(
 			origin: OriginFor<T>,
@@ -274,6 +279,10 @@ pub mod pallet {
 			}
 
 			Metadata::<T>::remove(entry.identifier.clone());
+			<Entries<T>>::insert(
+				&entry.identifier,
+				EntryDetails { metadata: false, ..entry_details },
+			);
 
 			Self::deposit_event(Event::MetadataCleared {
 				identifier: entry.identifier,
@@ -312,7 +321,7 @@ pub mod pallet {
 
 			<Entries<T>>::insert(
 				&identifier,
-				EntryDetails { stream: entry.clone(), revoked: false },
+				EntryDetails { stream: entry.clone(), revoked: false, metadata: false },
 			);
 			Self::deposit_event(Event::Create {
 				identifier,
@@ -322,10 +331,11 @@ pub mod pallet {
 
 			Ok(())
 		}
-		/// Updates the stream information.
+
+		/// Update the entry information.
 		///
 		/// * origin: the identity of the Tx Author.
-		/// * update: the incoming stream.
+		/// * entry: anchored entry details.
 		/// * tx_signature: signature of the controller.
 		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(2, 2))]
 		pub fn update(
@@ -374,7 +384,7 @@ pub mod pallet {
 
 			<Entries<T>>::insert(
 				&entry.identifier,
-				EntryDetails { stream: entry.stream.clone(), revoked: false },
+				EntryDetails { stream: entry.stream.clone(), ..entry_details },
 			);
 			Self::deposit_event(Event::Update {
 				identifier: entry.identifier,
@@ -387,12 +397,10 @@ pub mod pallet {
 		/// Revoke a registry entry
 		///
 		/// This transaction can only be performed by the entry controller or
-		/// delegates
+		/// space delegates
 		///
 		/// * origin: the identity of the space controller.
-		/// * updater: updater (controller) of the space.
-		/// * identifier: unique identifier of the space.
-		/// * tx_hash: transaction hash to verify the signature.
+		/// * entry: anchored entry details.
 		/// * tx_signature: updater signature.
 		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn revoke(
@@ -443,15 +451,13 @@ pub mod pallet {
 
 			Ok(())
 		}
-		/// Restore an archived space
+		/// Remove a registry entry and associated metadata
 		///
 		/// This transaction can only be performed by the space controller or
-		/// delegates
+		/// space delegates
 		///
 		/// * origin: the identity of the space controller.
-		/// * updater: updater (controller) of the space.
-		/// * identifier: unique identifier of the space.
-		/// * tx_hash: transaction hash to verify the signature.
+		/// * entru: anchored entry details.
 		/// * tx_signature: updater signature.
 		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
 		pub fn remove(
@@ -492,7 +498,9 @@ pub mod pallet {
 			}
 
 			<Entries<T>>::remove(&entry.identifier);
-			<Metadata<T>>::remove(&entry.identifier);
+			if entry_details.metadata {
+				<Metadata<T>>::remove(&entry.identifier);
+			}
 
 			Self::deposit_event(Event::Remove {
 				identifier: entry.identifier,

@@ -48,6 +48,8 @@ pub struct EntryDetails<T: Config> {
 	pub stream: EntryType<T>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
+	/// The flag indicating the status of the metadata.
+	pub metadata: StatusOf,
 }
 
 impl<T: Config> sp_std::fmt::Debug for EntryDetails<T> {
@@ -68,6 +70,20 @@ pub struct EntryParams<T: Config> {
 }
 
 impl<T: Config> sp_std::fmt::Debug for EntryParams<T> {
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		Ok(())
+	}
+}
+
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+pub struct MetadataEntry<T: Config> {
+	pub metadata: MetaDataOf,
+	pub digest: HashOf<T>,
+	pub controller: CordAccountOf<T>,
+}
+
+impl<T: Config> sp_std::fmt::Debug for MetadataEntry<T> {
 	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		Ok(())
 	}

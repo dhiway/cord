@@ -21,7 +21,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(unused_crate_dependencies)]
 
-use codec::{Decode, Encode};
+// use codec::{Decode, Encode};
 use frame_support::{traits::ConstU32, BoundedVec};
 use sp_runtime::{
 	generic,
@@ -81,8 +81,6 @@ pub type CidOf = Vec<u8>;
 /// Version type.
 pub type VersionOf = Vec<u8>;
 
-// pub const MAX_SIZE: u32 = 48;
-
 /// IDentifier type.
 pub type IdentifierOf = BoundedVec<u8, ConstU32<48>>;
 
@@ -91,9 +89,6 @@ pub type MetaDataOf = BoundedVec<u8, ConstU32<8192>>;
 
 /// status Information
 pub type StatusOf = bool;
-
-// CORD Session Duration - Blocks
-// pub const CORD_SESSION_PERIOD: u32 = 900;
 
 /// space identifier prefix.
 pub const SPACE_IDENTIFIER_PREFIX: u16 = 31;
@@ -104,10 +99,10 @@ pub const STREAM_IDENTIFIER_PREFIX: u16 = 51;
 /// registry identifier prefix.
 pub const REGISTRY_IDENTIFIER_PREFIX: u16 = 61;
 
-#[derive(Encode, Decode, PartialEq, Eq, sp_std::fmt::Debug)]
-pub enum SessionApiError {
-	DecodeKey,
-}
+// #[derive(Encode, Decode, PartialEq, Eq, sp_std::fmt::Debug)]
+// pub enum SessionApiError {
+// 	DecodeKey,
+// }
 
 /// Macro to set a value (e.g. when using the `parameter_types` macro) to either
 /// a production value or to an environment variable or testing value (in case
