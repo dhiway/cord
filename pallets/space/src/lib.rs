@@ -19,7 +19,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-pub use cord_primitives::{ss58identifier, IdentifierOf, StatusOf};
+pub use cord_primitives::{ss58identifier, IdentifierOf, StatusOf, SPACE_IDENTIFIER_PREFIX};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::{prelude::Clone, str, vec::Vec};
@@ -40,8 +40,6 @@ pub mod pallet {
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a CORD account.
 	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
-	// space identifier prefix.
-	pub const SPACE_IDENTIFIER_PREFIX: u16 = 31;
 	/// Type for a cord signature.
 	pub type SignatureOf<T> = <T as Config>::Signature;
 
@@ -338,8 +336,8 @@ pub mod pallet {
 			if space_details.space.controller != arch.space.controller {
 				let delegates = <Delegations<T>>::get(&arch.identifier);
 				ensure!(
-					(delegates.iter().find(|&delegate| *delegate == arch.space.controller)
-						== Some(&arch.space.controller)),
+					(delegates.iter().find(|&delegate| *delegate == arch.space.controller) ==
+						Some(&arch.space.controller)),
 					Error::<T>::UnauthorizedOperation
 				);
 			} else {
@@ -395,8 +393,8 @@ pub mod pallet {
 			if space_details.space.controller != resto.space.controller {
 				let delegates = <Delegations<T>>::get(&resto.identifier);
 				ensure!(
-					(delegates.iter().find(|&delegate| *delegate == resto.space.controller)
-						== Some(&resto.space.controller)),
+					(delegates.iter().find(|&delegate| *delegate == resto.space.controller) ==
+						Some(&resto.space.controller)),
 					Error::<T>::UnauthorizedOperation
 				);
 			} else {

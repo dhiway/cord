@@ -25,7 +25,7 @@
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use cord_primitives::{prod_or_fast, AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
-pub use cord_primitives::{AccountId, SessionApiError, Signature, CORD_SESSION_PERIOD};
+pub use cord_primitives::{AccountId, Signature};
 
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -607,7 +607,7 @@ impl pallet_im_online::Config for Runtime {
 	type AuthorityId = ImOnlineId;
 	type Event = Event;
 	type ValidatorSet = Historical;
-	type NextSessionRotation = pallet_session::PeriodicSessions<SessionPeriod, Offset>;
+	type NextSessionRotation = Babe;
 	type ReportUnresponsiveness = Offences;
 	type UnsignedPriority = ImOnlineUnsignedPriority;
 	type WeightInfo = pallet_im_online::weights::SubstrateWeight<Runtime>;
@@ -622,10 +622,10 @@ impl pallet_offences::Config for Runtime {
 	type OnOffenceHandler = ();
 }
 
-parameter_types! {
-	pub const Offset: u32 = 0;
-	pub const SessionPeriod: u32 = CORD_SESSION_PERIOD;
-}
+// parameter_types! {
+// 	pub const Offset: u32 = 0;
+// 	pub const SessionPeriod: u32 = CORD_SESSION_PERIOD;
+// }
 
 parameter_types! {
 	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
@@ -1036,6 +1036,14 @@ impl pallet_stream::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_registry::Config for Runtime {
+	type Event = Event;
+	type Signature = Signature;
+	type Signer = <Signature as Verify>::Signer;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type WeightInfo = ();
+}
+
 impl pallet_sudo::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
@@ -1085,6 +1093,7 @@ construct_runtime! {
 		Space: pallet_space = 52,
 		Schema: pallet_schema = 53,
 		Stream: pallet_stream = 54,
+		Registry: pallet_registry = 55,
 		Sudo: pallet_sudo = 70,
 	}
 }

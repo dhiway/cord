@@ -1060,6 +1060,7 @@ dependencies = [
  "pallet-preimage",
  "pallet-proxy",
  "pallet-recovery",
+ "pallet-registry",
  "pallet-scheduler",
  "pallet-schema",
  "pallet-session",
@@ -4556,6 +4557,22 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-registry"
+version = "0.7.6"
+dependencies = [
+ "cord-primitives",
+ "frame-support",
+ "frame-system",
+ "pallet-space",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]

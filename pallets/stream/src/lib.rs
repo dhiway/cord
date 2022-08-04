@@ -20,7 +20,7 @@
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
 
-use cord_primitives::{ss58identifier, IdentifierOf, StatusOf};
+use cord_primitives::{ss58identifier, IdentifierOf, StatusOf, STREAM_IDENTIFIER_PREFIX};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::{prelude::Clone, str};
@@ -43,8 +43,6 @@ pub mod pallet {
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of the controller.
 	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
-	// stream identifier prefix.
-	pub const STREAM_IDENTIFIER_PREFIX: u16 = 51;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// Type for a cord signature.
@@ -70,8 +68,8 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+	// #[pallet::hooks]
+	// impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	/// streams stored on chain.
 	/// It maps from stream Id to its details.

@@ -20,7 +20,9 @@
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
 
-pub use cord_primitives::{ss58identifier, CidOf, IdentifierOf, StatusOf, VersionOf};
+pub use cord_primitives::{
+	ss58identifier, CidOf, IdentifierOf, StatusOf, VersionOf, SCHEMA_IDENTIFIER_PREFIX,
+};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::{prelude::Clone, str, vec::Vec};
@@ -43,8 +45,6 @@ pub mod pallet {
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a CORD account.
 	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
-	// schema identifier prefix.
-	pub const SCHEMA_IDENTIFIER_PREFIX: u16 = 41;
 	/// Type for a cord signature.
 	pub type SignatureOf<T> = <T as Config>::Signature;
 
