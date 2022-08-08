@@ -288,7 +288,7 @@ impl pallet_babe::Config for Runtime {
 }
 
 parameter_types! {
-	pub const IndexDeposit: Balance =  100 * MILLI_WAY;
+	pub const IndexDeposit: Balance =  WAY;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -307,7 +307,7 @@ impl pallet_utility::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance =  100 * MICRO_WAY;
+	pub const ExistentialDeposit: Balance = WAY ;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
@@ -330,7 +330,7 @@ pub type SlowAdjustingFeeUpdate<R> =
 	TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 50 * MICRO_WAY;
+	pub const TransactionByteFee: Balance = 10 * UNITS;
 	pub const OperationalFeeMultiplier: u8 = 5;
 }
 
@@ -411,9 +411,9 @@ impl pallet_session::historical::Config for Runtime {
 }
 
 parameter_types! {
-	pub const BasicDeposit: Balance = 100 * MILLI_WAY;       // 258 bytes on-chain
-	pub const FieldDeposit: Balance = 50 * MILLI_WAY;        // 66 bytes on-chain
-	pub const SubAccountDeposit: Balance = 100 * MILLI_WAY;   // 53 bytes on-chain
+	pub const BasicDeposit: Balance = WAY;       // 258 bytes on-chain
+	pub const FieldDeposit: Balance = 50 * MILLIUNITS;        // 66 bytes on-chain
+	pub const SubAccountDeposit: Balance = 10 * UNITS;   // 53 bytes on-chain
 	pub const MaxSubAccounts: u32 = 100;
 	pub const MaxAdditionalFields: u32 = 20;
 	pub const MaxRegistrars: u32 = 30;
@@ -453,10 +453,10 @@ impl pallet_multisig::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ConfigDepositBase: Balance = 100 * MILLI_WAY;
-	pub const FriendDepositFactor: Balance = 50 * MILLI_WAY;
+	pub const ConfigDepositBase: Balance = WAY;
+	pub const FriendDepositFactor: Balance = 50 * UNITS;
 	pub const MaxFriends: u16 = 9;
-	pub const RecoveryDeposit: Balance = 100 * MILLI_WAY;
+	pub const RecoveryDeposit: Balance = WAY;
 }
 
 impl pallet_recovery::Config for Runtime {
@@ -622,17 +622,12 @@ impl pallet_offences::Config for Runtime {
 	type OnOffenceHandler = ();
 }
 
-// parameter_types! {
-// 	pub const Offset: u32 = 0;
-// 	pub const SessionPeriod: u32 = CORD_SESSION_PERIOD;
-// }
-
 parameter_types! {
 	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
 	pub const VotingPeriod: BlockNumber = 7 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
 	pub const InstantAllowed: bool = true;
-	pub const MinimumDeposit: Balance = 10 * MILLI_WAY;
+	pub const MinimumDeposit: Balance = 10 * WAY;
 	pub const EnactmentPeriod: BlockNumber = 8 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
 	pub const MaxVotes: u32 = 100;
@@ -844,8 +839,8 @@ impl pallet_membership::Config<FoundationMembershipInstance> for Runtime {
 
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(2);
-	pub const ProposalBondMinimum: Balance = 5 * WAY;
-	pub const ProposalBondMaximum: Balance = 50 * WAY;
+	pub const ProposalBondMinimum: Balance = 100 * WAY;
+	pub const ProposalBondMaximum: Balance = 500 * WAY;
 	pub const SpendPeriod: BlockNumber = 120 * MINUTES;
 	pub const Burn: Permill = Permill::from_perthousand(2);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
@@ -1011,7 +1006,7 @@ impl pallet_space::Config for Runtime {
 	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
 	type MaxSpaceDelegates = MaxSpaceDelegates;
-	type WeightInfo = ();
+	type WeightInfo = pallet_space::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_schema::Config for Runtime {
@@ -1020,7 +1015,7 @@ impl pallet_schema::Config for Runtime {
 	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
 	type MaxSchemaDelegates = MaxSchemaDelegates;
-	type WeightInfo = ();
+	type WeightInfo = pallet_schema::weights::SubstrateWeight<Runtime>;
 }
 
 type StreamApproveOrigin = EitherOfDiverse<
@@ -1033,15 +1028,7 @@ impl pallet_stream::Config for Runtime {
 	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
 	type ForceOrigin = StreamApproveOrigin;
-	type WeightInfo = ();
-}
-
-impl pallet_registry::Config for Runtime {
-	type Event = Event;
-	type Signature = Signature;
-	type Signer = <Signature as Verify>::Signer;
-	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-	type WeightInfo = ();
+	type WeightInfo = pallet_stream::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -1093,7 +1080,6 @@ construct_runtime! {
 		Space: pallet_space = 52,
 		Schema: pallet_schema = 53,
 		Stream: pallet_stream = 54,
-		Registry: pallet_registry = 55,
 		Sudo: pallet_sudo = 70,
 	}
 }

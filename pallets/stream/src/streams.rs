@@ -54,6 +54,8 @@ pub struct StreamDetails<T: Config> {
 	pub stream: StreamType<T>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
+	/// The flag indicating the status of the metadata.
+	pub metadata: StatusOf,
 }
 
 impl<T: Config> sp_std::fmt::Debug for StreamDetails<T> {

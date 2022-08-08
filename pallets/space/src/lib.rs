@@ -156,7 +156,7 @@ pub mod pallet {
 		/// * tx_hash: transaction hash to verify the signature.
 		/// * delegates: authorised identities to add.
 		/// * tx_signature: creator signature.
-		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::authorise())]
 		pub fn authorise(
 			origin: OriginFor<T>,
 			auth: SpaceParams<T>,
@@ -214,7 +214,7 @@ pub mod pallet {
 		/// * tx_hash: transaction hash to verify the signature.
 		/// * delegates: identities (delegates) to be removed.
 		/// * tx_signature: updater signature.
-		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::deauthorise())]
 		pub fn deauthorise(
 			origin: OriginFor<T>,
 			deauth: SpaceParams<T>,
@@ -264,7 +264,7 @@ pub mod pallet {
 		/// * creator: creator (controller) of the space.
 		/// * space_hash: hash of the incoming space stream.
 		/// * tx_signature: creator signature.
-		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(2, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(
 			origin: OriginFor<T>,
 			space: SpaceType<T>,
@@ -308,7 +308,7 @@ pub mod pallet {
 		/// * identifier: unique identifier of the space.
 		/// * tx_hash: transaction hash to verify the signature.
 		/// * tx_signature: updater signature.
-		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::archive())]
 		pub fn archive(
 			origin: OriginFor<T>,
 			arch: SpaceParams<T>,
@@ -365,7 +365,7 @@ pub mod pallet {
 		/// * identifier: unique identifier of the space.
 		/// * tx_hash: transaction hash to verify the signature.
 		/// * tx_signature: updater signature.
-		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::restore())]
 		pub fn restore(
 			origin: OriginFor<T>,
 			resto: SpaceParams<T>,
@@ -427,7 +427,7 @@ pub mod pallet {
 		/// * transfer_to: new controller of the space.
 		/// * tx_hash: transaction hash to verify the signature.
 		/// * tx_signature: creator signature.
-		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::transfer())]
 		pub fn transfer(
 			origin: OriginFor<T>,
 			trans: SpaceParams<T>,

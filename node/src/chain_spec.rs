@@ -150,7 +150,7 @@ fn cord_local_testnet_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig
 
 pub fn cord_development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
-	let properties = get_properties("WAY", 12, 29);
+	let properties = get_properties("WAY", 10, 29);
 	Ok(ChainSpec::from_genesis(
 		"Dev. Node",
 		"cord_dev",
@@ -167,7 +167,7 @@ pub fn cord_development_config() -> Result<ChainSpec, String> {
 
 pub fn cord_local_testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
-	let properties = get_properties("WAY", 12, 29);
+	let properties = get_properties("WAY", 10, 29);
 	Ok(ChainSpec::from_genesis(
 		"Local",
 		"cord_local",
@@ -345,7 +345,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 pub fn cord_staging_config() -> Result<ChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
 	let boot_nodes = vec![];
-	let properties = get_properties("WAY", 12, 29);
+	let properties = get_properties("WAY", 10, 29);
 
 	Ok(ChainSpec::from_genesis(
 		"CORD Staging Testnet",

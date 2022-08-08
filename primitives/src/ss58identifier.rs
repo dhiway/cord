@@ -95,6 +95,7 @@ pub fn from_known_format(id: &IdentifierOf, id_ident: u16) -> IdentifierVerifica
 		},
 		_ => return Err(IdentifierVerificationError::InvalidPrefix),
 	};
+
 	ensure!(ident == id_ident, IdentifierVerificationError::InvalidPrefix);
 	Ok(())
 }

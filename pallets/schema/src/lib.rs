@@ -154,7 +154,7 @@ pub mod pallet {
 		/// * schema: delegation schema details.
 		/// * delegates: authorised identities to add.
 		/// * tx_signature: transaction author signature.
-		#[pallet::weight(30_000 + T::DbWeight::get().reads_writes(3, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::authorise())]
 		pub fn authorise(
 			origin: OriginFor<T>,
 			auth: SchemaParams<T>,
@@ -178,8 +178,6 @@ pub mod pallet {
 
 			let schema_details =
 				<Schemas<T>>::get(&auth.identifier).ok_or(Error::<T>::SchemaNotFound)?;
-			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
-
 			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 
 			if let Some(space) = auth.schema.space {
@@ -232,7 +230,7 @@ pub mod pallet {
 		/// * schema: delegation schema details.
 		/// * delegates: identities to be removed.
 		/// * tx_signature: transaction author signature.
-		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(3, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::deauthorise())]
 		pub fn deauthorise(
 			origin: OriginFor<T>,
 			deauth: SchemaParams<T>,
@@ -303,7 +301,7 @@ pub mod pallet {
 		/// * origin: the identity of the schema anchor.
 		/// * schema: details of the incoming schema stream.
 		/// * tx_signature: transaction author signature.
-		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(2, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(
 			origin: OriginFor<T>,
 			schema: SchemaType<T>,
@@ -355,7 +353,7 @@ pub mod pallet {
 		/// * origin: the identity of the schema controller.
 		/// * rev: schema to be revoked.
 		/// * tx_signature:  transaction author signature.
-		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::revoke())]
 		pub fn revoke(
 			origin: OriginFor<T>,
 			rev: SchemaParams<T>,

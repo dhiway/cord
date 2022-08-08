@@ -20,17 +20,19 @@
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
 
-use cord_primitives::{ss58identifier, IdentifierOf, StatusOf, STREAM_IDENTIFIER_PREFIX};
+use cord_primitives::{
+	ss58identifier, IdentifierOf, MetaDataOf, StatusOf, STREAM_IDENTIFIER_PREFIX,
+};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use sp_std::{prelude::Clone, str};
+use sp_std::{prelude::Clone, str, vec::Vec};
 
 pub mod streams;
 pub mod weights;
 
 pub use crate::streams::*;
 
-use crate::weights::WeightInfo;
+pub use crate::weights::WeightInfo;
 pub use pallet::*;
 
 #[frame_support::pallet]
@@ -92,6 +94,12 @@ pub mod pallet {
 	pub type StreamDigests<T> =
 		StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
 
+	/// metadata stored on chain.
+	/// It maps from a stream identifier to metadata.
+	#[pallet::storage]
+	#[pallet::storage_prefix = "Metadata"]
+	pub(super) type Metadata<T: Config> = StorageMap<_, Blake2_128Concat, IdentifierOf, MetaDataOf>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -113,6 +121,12 @@ pub mod pallet {
 		/// A stream has been removed by the council.
 		/// \[stream identifier\]
 		CouncilRemove { identifier: IdentifierOf },
+		/// A metedata entry has been added.
+		/// \[identifier, controller\]
+		MetadataSet { identifier: IdentifierOf, controller: CordAccountOf<T> },
+		/// A metadata entry has been cleared.
+		/// \[identifier, controller\]
+		MetadataCleared { identifier: IdentifierOf, controller: CordAccountOf<T> },
 	}
 
 	#[pallet::error]
@@ -145,6 +159,12 @@ pub mod pallet {
 		DigestHashAlreadyAnchored,
 		// Invalid transaction hash
 		InvalidTransactionHash,
+		// Metadata limit exceeded
+		MetadataLimitExceeded,
+		// Metadata already set for the entry
+		MetadataAlreadySet,
+		// Metadata not found for the entry
+		MetadataNotFound,
 	}
 
 	#[pallet::call]
@@ -154,7 +174,7 @@ pub mod pallet {
 		/// * origin: the identity of the Tx Author.
 		/// * stream: the incoming stream.
 		/// * tx_signature: creator signature.
-		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(3, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(
 			origin: OriginFor<T>,
 			stream: StreamType<T>,
@@ -204,7 +224,7 @@ pub mod pallet {
 
 			<Streams<T>>::insert(
 				&identifier,
-				StreamDetails { stream: stream.clone(), revoked: false },
+				StreamDetails { stream: stream.clone(), revoked: false, metadata: false },
 			);
 
 			Self::deposit_event(Event::Anchor {
@@ -220,14 +240,13 @@ pub mod pallet {
 		/// * origin: the identity of the Tx Author.
 		/// * update: the incoming stream.
 		/// * tx_signature: signature of the controller.
-		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(2, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update())]
 		pub fn update(
 			origin: OriginFor<T>,
 			update: StreamParams<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-
 			ensure!(
 				!<StreamHashes<T>>::contains_key(&update.stream.digest),
 				Error::<T>::InvalidTransactionHash
@@ -269,7 +288,7 @@ pub mod pallet {
 
 			<Streams<T>>::insert(
 				&update.identifier,
-				StreamDetails { stream: update.stream.clone(), revoked: false },
+				StreamDetails { stream: update.stream.clone(), ..tx_prev_details },
 			);
 			Self::deposit_event(Event::Update {
 				identifier: update.identifier,
@@ -284,7 +303,7 @@ pub mod pallet {
 		/// * origin: the identity of the Tx Author.
 		/// * revoke: the stream to revoke.
 		/// * tx_signature: signature of the controller.
-		#[pallet::weight(30_000 + T::DbWeight::get().reads_writes(2, 3))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::revoke())]
 		pub fn revoke(
 			origin: OriginFor<T>,
 			revoke: StreamParams<T>,
@@ -341,6 +360,7 @@ pub mod pallet {
 							..tx_prev_details.stream
 						}
 					},
+					..tx_prev_details
 				},
 			);
 			Self::deposit_event(Event::Revoke {
@@ -355,34 +375,58 @@ pub mod pallet {
 		///  Remove a stream from the chain using space identities.
 		///
 		/// * origin: the identity of the space origin.
-		/// * identifier: unique identifier of the incoming stream.
-		/// * space: stream space link identifier.
-		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(3, 3))]
-		pub fn remove_space_stream(
+		/// * remove: the stream to remove.
+		/// * tx_signature: signature of the controller.
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove())]
+		pub fn remove(
 			origin: OriginFor<T>,
-			identifier: IdentifierOf,
-			space: IdentifierOf,
+			remove: StreamParams<T>,
+			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
-			let controller = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			ss58identifier::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
+			ensure!(
+				!<StreamHashes<T>>::contains_key(&remove.stream.digest),
+				Error::<T>::InvalidTransactionHash
+			);
+
+			ensure!(
+				tx_signature.verify(&(&remove.stream.digest).encode()[..], &remove.stream.author),
+				Error::<T>::InvalidSignature
+			);
+
+			ss58identifier::from_known_format(&remove.identifier, STREAM_IDENTIFIER_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			let stream_details =
-				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
+				<Streams<T>>::get(&remove.identifier).ok_or(Error::<T>::StreamNotFound)?;
 
-			ensure!(
-				stream_details.stream.space == Some(space.clone()),
-				Error::<T>::StreamSpaceMismatch
-			);
+			if let Some(space) = remove.stream.space {
+				ensure!(
+					stream_details.stream.space == Some(space.clone()),
+					Error::<T>::StreamSpaceMismatch
+				);
 
-			if stream_details.stream.author != controller {
-				pallet_space::SpaceDetails::<T>::from_space_identities(&space, controller.clone())
+				if stream_details.stream.author != remove.stream.author {
+					pallet_space::SpaceDetails::<T>::from_space_identities(
+						&space,
+						remove.stream.author.clone(),
+					)
 					.map_err(<pallet_space::Error<T>>::from)?;
+				}
+			} else {
+				ensure!(
+					stream_details.stream.author == remove.stream.author,
+					Error::<T>::UnauthorizedOperation
+				);
 			}
+			<StreamHashes<T>>::insert(&remove.stream.digest, &remove.identifier);
 
-			<Streams<T>>::remove(&identifier);
-			Self::deposit_event(Event::Remove { identifier, author: controller });
+			<Streams<T>>::remove(&remove.identifier);
+			Self::deposit_event(Event::Remove {
+				identifier: remove.identifier,
+				author: remove.stream.author,
+			});
 
 			Ok(())
 		}
@@ -391,7 +435,7 @@ pub mod pallet {
 		///
 		/// * origin: the identity of the council origin.
 		/// * identifier: unique identifier of the incoming stream.
-		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(3, 3))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::council_remove())]
 		pub fn council_remove(origin: OriginFor<T>, identifier: IdentifierOf) -> DispatchResult {
 			<T as Config>::ForceOrigin::ensure_origin(origin)?;
 			ss58identifier::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
@@ -410,7 +454,7 @@ pub mod pallet {
 		/// * creator: controller or delegate of the stream.
 		/// * digest_hash: hash of the incoming stream.
 		/// * tx_signature: signature of the controller.
-		#[pallet::weight(30_000 + T::DbWeight::get().reads_writes(2, 1))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::digest())]
 		pub fn digest(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
@@ -444,6 +488,135 @@ pub mod pallet {
 			<StreamDigests<T>>::insert(&digest_hash, &identifier);
 
 			Self::deposit_event(Event::Digest { identifier, digest: digest_hash, author: creator });
+
+			Ok(())
+		}
+		/// Set metadata for a stream entry.
+		///
+		/// This transaction can only be performed by the stream controller or
+		/// space delegates.
+		///
+		/// * origin: the identity of the space controller.
+		/// * identifier: unique identifier of the incoming stream.
+		/// * controller: controller or delegate of the stream.
+		/// * meta: An opaque blob representing the metadata for the proposal.
+		///   Could be JSON, a Hash, or raw text. Up to the community to decide
+		///   how exactly to use this.
+		/// * meta_hash: hash of the incoming stream.
+		/// * tx_signature: controller signature.
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_metadata())]
+		pub fn set_metadata(
+			origin: OriginFor<T>,
+			identifier: IdentifierOf,
+			controller: CordAccountOf<T>,
+			meta: Vec<u8>,
+			meta_hash: HashOf<T>,
+			tx_signature: SignatureOf<T>,
+		) -> DispatchResult {
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+
+			ensure!(
+				!<StreamHashes<T>>::contains_key(&meta_hash),
+				Error::<T>::InvalidTransactionHash
+			);
+
+			ensure!(
+				tx_signature.verify(&(&meta_hash).encode()[..], &controller),
+				Error::<T>::InvalidSignature
+			);
+
+			ss58identifier::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
+
+			ensure!(!<Metadata<T>>::contains_key(&identifier), Error::<T>::MetadataAlreadySet);
+
+			let stream_details =
+				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
+
+			if let Some(space) = stream_details.stream.space.clone() {
+				if stream_details.stream.author != controller {
+					pallet_space::SpaceDetails::<T>::from_space_identities(
+						&space,
+						controller.clone(),
+					)
+					.map_err(<pallet_space::Error<T>>::from)?;
+				}
+			} else {
+				ensure!(
+					stream_details.stream.author == controller,
+					Error::<T>::UnauthorizedOperation
+				);
+			}
+
+			let bounded_metadata: MetaDataOf =
+				meta.try_into().map_err(|_| Error::<T>::MetadataLimitExceeded)?;
+
+			Metadata::<T>::insert(identifier.clone(), bounded_metadata);
+
+			<StreamHashes<T>>::insert(&meta_hash, &identifier);
+			<Streams<T>>::insert(&identifier, StreamDetails { metadata: true, ..stream_details });
+
+			Self::deposit_event(Event::MetadataSet { identifier, controller });
+
+			Ok(())
+		}
+		/// Clear metadata for a stream.
+		///
+		/// This transaction can only be performed by the entry controller or
+		/// space delegates.
+		///
+		/// * origin: the identity of the space controller.
+		/// * identifier: unique identifier of the incoming stream.
+		/// * controller: controller or delegate of the stream.
+		/// * tx_hash: transaction hash .
+		/// * tx_signature: controller signature.
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::clear_metadata())]
+		pub fn clear_metadata(
+			origin: OriginFor<T>,
+			identifier: IdentifierOf,
+			controller: CordAccountOf<T>,
+			tx_hash: HashOf<T>,
+			tx_signature: SignatureOf<T>,
+		) -> DispatchResult {
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+
+			ensure!(!<StreamHashes<T>>::contains_key(&tx_hash), Error::<T>::InvalidTransactionHash);
+
+			ensure!(
+				tx_signature.verify(&(&tx_hash).encode()[..], &controller),
+				Error::<T>::InvalidSignature
+			);
+
+			ss58identifier::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
+
+			ensure!(<Metadata<T>>::contains_key(&identifier), Error::<T>::MetadataNotFound);
+
+			let stream_details =
+				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
+
+			if let Some(space) = stream_details.stream.space.clone() {
+				if stream_details.stream.author != controller {
+					pallet_space::SpaceDetails::<T>::from_space_identities(
+						&space,
+						controller.clone(),
+					)
+					.map_err(<pallet_space::Error<T>>::from)?;
+				}
+			} else {
+				ensure!(
+					stream_details.stream.author == controller,
+					Error::<T>::UnauthorizedOperation
+				);
+			}
+
+			Metadata::<T>::remove(identifier.clone());
+
+			<StreamHashes<T>>::insert(&tx_hash, &identifier);
+			<Streams<T>>::insert(&identifier, StreamDetails { metadata: false, ..stream_details });
+
+			Self::deposit_event(Event::MetadataCleared { identifier, controller });
 
 			Ok(())
 		}

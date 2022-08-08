@@ -21,11 +21,11 @@
 pub mod currency {
 	use cord_primitives::Balance;
 
-	pub const WAY: Balance = 10u128.pow(12);
-	pub const MILLI_WAY: Balance = 10u128.pow(9); // mWAY
-	pub const MICRO_WAY: Balance = 10u128.pow(6); // uWAY
+	pub const WAY: Balance = 1_000_000_000;
+	pub const UNITS: Balance = WAY / 100;
+	pub const MILLIUNITS: Balance = UNITS / 100;
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * 200 * MILLI_WAY + (bytes as Balance) * 100 * MICRO_WAY
+		items as Balance * 10 * WAY + (bytes as Balance) * 100 * MILLIUNITS
 	}
 }
 
@@ -81,20 +81,33 @@ pub mod fee {
 	pub struct WeightToFee;
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;
-		/// We want a 0.01 WAY fee per ExtrinsicBaseWeight.
-		/// 20_000_000_000 weight = 10_000_000_000 fee => 2 weight = 1 fee.
-		/// Hence, 1 fee = 0 + 1/2 weight.
-		/// This implies, coeff_integer = 0 and coeff_frac = 1/2.
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+			let p = super::currency::UNITS;
+			let q = Balance::from(ExtrinsicBaseWeight::get());
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
-				coeff_frac: Perbill::from_rational(
-					ExtrinsicBaseFee::get(),
-					ExtrinsicBaseWeight::get() as u128
-				),
-				coeff_integer: 0u128, // Coefficient is zero.
 				negative: false,
+				coeff_frac: Perbill::from_rational(p % q, q),
+				coeff_integer: p / q,
 			}]
 		}
 	}
+	// impl WeightToFeePolynomial for WeightToFee {
+	// 	type Balance = Balance;
+	// 	/// We want a 0.01 WAY fee per ExtrinsicBaseWeight.
+	// 	/// 20_000_000_000 weight = 10_000_000_000 fee => 2 weight = 1 fee.
+	// 	/// Hence, 1 fee = 0 + 1/2 weight.
+	// 	/// This implies, coeff_integer = 0 and coeff_frac = 1/2.
+	// 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
+	// 		smallvec![WeightToFeeCoefficient {
+	// 			degree: 1,
+	// 			coeff_frac: Perbill::from_rational(
+	// 				ExtrinsicBaseFee::get(),
+	// 				ExtrinsicBaseWeight::get() as u128
+	// 			),
+	// 			coeff_integer: 0u128, // Coefficient is zero.
+	// 			negative: false,
+	// 		}]
+	// 	}
+	// }
 }

@@ -99,11 +99,6 @@ pub const STREAM_IDENTIFIER_PREFIX: u16 = 51;
 /// registry identifier prefix.
 pub const REGISTRY_IDENTIFIER_PREFIX: u16 = 61;
 
-// #[derive(Encode, Decode, PartialEq, Eq, sp_std::fmt::Debug)]
-// pub enum SessionApiError {
-// 	DecodeKey,
-// }
-
 /// Macro to set a value (e.g. when using the `parameter_types` macro) to either
 /// a production value or to an environment variable or testing value (in case
 /// the `fast-runtime` feature is selected). Note that the environment variable
