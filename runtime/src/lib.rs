@@ -33,13 +33,15 @@ use frame_support::{
 		ConstU32, EitherOfDiverse, Everything, InstanceFilter, KeyOwnerProofSystem, PrivilegeCmp,
 	},
 	weights::{
-		constants::{RocksDbWeight, WEIGHT_PER_MILLIS},
-		ConstantMultiplier, Weight,
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+		ConstantMultiplier, DispatchClass, Weight,
 	},
 	PalletId, RuntimeDebug,
 };
-use frame_system::{EnsureRoot, EnsureSigned};
-
+use frame_system::{
+	limits::{BlockLength, BlockWeights},
+	EnsureRoot, EnsureSigned,
+};
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
@@ -137,18 +139,38 @@ type MoreThanHalfCouncil = EitherOfDiverse<
 	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
 >;
 
+/// We assume that ~10% of the block weight is consumed by `on_initialize`
+/// handlers. This is used to limit the maximal weight of a single extrinsic.
+const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
+/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be
+/// used by  Operational  extrinsics.
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
+/// We allow for 2 seconds of compute with a 6 second average block time.
+const MAXIMUM_BLOCK_WEIGHT: Weight = 2 * WEIGHT_PER_SECOND;
 
 parameter_types! {
-	pub const Version: RuntimeVersion = VERSION;
 	pub const BlockHashCount: BlockNumber = 2400;
-	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
-	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
-	pub RuntimeBlockWeights: frame_system::limits::BlockWeights = frame_system::limits::BlockWeights
-		::with_sensible_defaults(400 * WEIGHT_PER_MILLIS, NORMAL_DISPATCH_RATIO);
-	pub RuntimeBlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
-		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
+	pub const Version: RuntimeVersion = VERSION;
+	pub RuntimeBlockLength: BlockLength =
+		BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
+	pub RuntimeBlockWeights: BlockWeights = BlockWeights::builder()
+		.base_block(BlockExecutionWeight::get())
+		.for_class(DispatchClass::all(), |weights| {
+			weights.base_extrinsic = ExtrinsicBaseWeight::get();
+		})
+		.for_class(DispatchClass::Normal, |weights| {
+			weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT);
+		})
+		.for_class(DispatchClass::Operational, |weights| {
+			weights.max_total = Some(MAXIMUM_BLOCK_WEIGHT);
+			// Operational transactions have some extra reserved space, so that they
+			// are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
+			weights.reserved = Some(
+				MAXIMUM_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT
+			);
+		})
+		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
+		.build_or_panic();
 	pub const SS58Prefix: u8 = 29;
 }
 
@@ -324,15 +346,25 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const TransactionByteFee: Balance = 9 * MILLIUNITS;
+	pub const OperationalFeeMultiplier: u8 = 3;
+	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
+	/// than this will decrease the weight and more will increase.
+	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
+	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
+	/// change the fees more rapidly.
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(75, 1_000_000);
+	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
+	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
+	/// See `multiplier_can_grow_from_zero`.
+	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 10u128);
+}
+
 /// Parameterized slow adjusting fee updated based on
 /// https://w3f-research.readthedocs.io/en/latest/polkadot/Token%20Economics.html#-2.-slow-adjusting-mechanism
 pub type SlowAdjustingFeeUpdate<R> =
 	TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
-
-parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * UNITS;
-	pub const OperationalFeeMultiplier: u8 = 5;
-}
 
 impl pallet_transaction_payment::Config for Runtime {
 	type Event = Event;
