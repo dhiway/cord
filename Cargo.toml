@@ -28,9 +28,7 @@ members = [
 	"pallets/space",
 	"pallets/schema",
 	"pallets/stream",
-	"pallets/authorities",
-	"pallets/builder",
-	"pallets/foundation",
+	"pallets/anchor",
 	"pallets/meta",
 ]
 

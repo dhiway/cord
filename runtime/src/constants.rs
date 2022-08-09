@@ -21,9 +21,9 @@
 pub mod currency {
 	use cord_primitives::Balance;
 
-	pub const WAY: Balance = 1_000_000_000;
+	pub const WAY: Balance = 1_000_000_000_000;
 	pub const UNITS: Balance = WAY / 100;
-	pub const MILLIUNITS: Balance = UNITS / 10;
+	pub const MILLIUNITS: Balance = UNITS / 100;
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
 		items as Balance * 10 * WAY + (bytes as Balance) * 100 * MILLIUNITS
 	}
@@ -52,7 +52,7 @@ pub mod time {
 	// NOTE: Currently it is not possible to change the slot duration after the
 	// chain has started.       Attempting to do so will brick block production.
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(4 * HOURS, 2 * MINUTES);
+	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(8 * HOURS, 2 * MINUTES);
 
 	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);

@@ -63,8 +63,11 @@ sp-consensus-babe = { git = "https://github.com/paritytech/substrate", branch = 
 sp-transaction-storage-proof = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
 
 # Substrate Pallets
+pallet-babe = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
 pallet-im-online = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
 pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
+pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
+pallet-staking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
 
 # Substrate Other
 frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }

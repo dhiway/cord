@@ -96,8 +96,6 @@ pub const SPACE_IDENTIFIER_PREFIX: u16 = 31;
 pub const SCHEMA_IDENTIFIER_PREFIX: u16 = 41;
 /// stream identifier prefix.
 pub const STREAM_IDENTIFIER_PREFIX: u16 = 51;
-/// registry identifier prefix.
-pub const REGISTRY_IDENTIFIER_PREFIX: u16 = 61;
 
 /// Macro to set a value (e.g. when using the `parameter_types` macro) to either
 /// a production value or to an environment variable or testing value (in case

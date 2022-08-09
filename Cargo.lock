@@ -931,10 +931,13 @@ dependencies = [
  "futures",
  "hex-literal",
  "jsonrpsee",
+ "pallet-babe",
  "pallet-balances",
  "pallet-im-online",
+ "pallet-staking",
  "pallet-timestamp",
  "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
  "parity-scale-codec",
  "regex",
  "remote-externalities",
@@ -1033,6 +1036,7 @@ version = "0.7.6"
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
+ "frame-election-provider-support",
  "frame-executive",
  "frame-support",
  "frame-system",
@@ -1040,15 +1044,15 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "frame-try-runtime",
  "log",
- "pallet-authorities",
+ "pallet-anchor",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
+ "pallet-bags-list",
  "pallet-balances",
- "pallet-builder",
  "pallet-collective",
  "pallet-democracy",
- "pallet-foundation",
+ "pallet-election-provider-multi-phase",
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
@@ -1064,6 +1068,8 @@ dependencies = [
  "pallet-schema",
  "pallet-session",
  "pallet-space",
+ "pallet-staking",
+ "pallet-staking-reward-curve",
  "pallet-stream",
  "pallet-sudo",
  "pallet-timestamp",
@@ -1080,6 +1086,8 @@ dependencies = [
  "sp-consensus-babe",
  "sp-core",
  "sp-inherents",
+ "sp-io",
+ "sp-npos-elections",
  "sp-offchain",
  "sp-runtime",
  "sp-session",
@@ -1971,6 +1979,33 @@ dependencies = [
  "tempfile",
  "thiserror",
  "thousands",
+]
+
+[[package]]
+name = "frame-election-provider-solution-type"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.27#8eff668a42325aeb4433eace1604f4d286a6ec05"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "frame-election-provider-support"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.27#8eff668a42325aeb4433eace1604f4d286a6ec05"
+dependencies = [
+ "frame-election-provider-solution-type",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-arithmetic",
+ "sp-npos-elections",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -4244,23 +4279,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-authorities"
+name = "pallet-anchor"
 version = "0.7.6"
 dependencies = [
- "cord-primitives",
- "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-balances",
- "pallet-session",
- "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",
- "serde",
- "sp-core",
- "sp-io",
  "sp-runtime",
- "sp-staking",
  "sp-std",
 ]
 
@@ -4320,11 +4346,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-balances"
+name = "pallet-bags-list"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.27#8eff668a42325aeb4433eace1604f4d286a6ec05"
 dependencies = [
- "frame-benchmarking",
+ "frame-election-provider-support",
  "frame-support",
  "frame-system",
  "log",
@@ -4335,11 +4361,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-builder"
-version = "0.7.6"
+name = "pallet-balances"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.27#8eff668a42325aeb4433eace1604f4d286a6ec05"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
@@ -4380,15 +4409,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-foundation"
-version = "0.7.6"
+name = "pallet-election-provider-multi-phase"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.27#8eff668a42325aeb4433eace1604f4d286a6ec05"
 dependencies = [
+ "frame-benchmarking",
+ "frame-election-provider-support",
  "frame-support",
  "frame-system",
+ "log",
  "parity-scale-codec",
+ "rand 0.7.3",
  "scale-info",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-npos-elections",
  "sp-runtime",
  "sp-std",
+ "static_assertions",
+ "strum",
 ]
 
 [[package]]
@@ -4641,6 +4681,38 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-staking"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.27#8eff668a42325aeb4433eace1604f4d286a6ec05"
+dependencies = [
+ "frame-election-provider-support",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-authorship",
+ "pallet-session",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-application-crypto",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-staking-reward-curve"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.27#8eff668a42325aeb4433eace1604f4d286a6ec05"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -7608,6 +7680,20 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.27#8e
 dependencies = [
  "thiserror",
  "zstd",
+]
+
+[[package]]
+name = "sp-npos-elections"
+version = "4.0.0-dev"
+source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.27#8eff668a42325aeb4433eace1604f4d286a6ec05"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
