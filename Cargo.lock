@@ -1054,6 +1054,7 @@ dependencies = [
  "pallet-im-online",
  "pallet-indices",
  "pallet-membership",
+ "pallet-meta",
  "pallet-multisig",
  "pallet-offences",
  "pallet-preimage",
@@ -4479,6 +4480,24 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-meta"
+version = "0.7.6"
+dependencies = [
+ "cord-primitives",
+ "frame-support",
+ "frame-system",
+ "pallet-schema",
+ "pallet-space",
+ "pallet-stream",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]

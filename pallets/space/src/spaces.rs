@@ -44,6 +44,8 @@ pub struct SpaceDetails<T: Config> {
 	pub space: SpaceType<T>,
 	/// The flag indicating the status of the space.
 	pub archived: StatusOf,
+	/// The flag indicating the status of the metadata.
+	pub metadata: StatusOf,
 }
 
 impl<T: Config> sp_std::fmt::Debug for SpaceDetails<T> {
@@ -70,6 +72,25 @@ impl<T: Config> SpaceDetails<T> {
 				Error::<T>::UnauthorizedOperation
 			);
 		}
+		Ok(())
+	}
+	pub fn set_space_metadata(
+		tx_space: &IdentifierOf,
+		requestor: CordAccountOf<T>,
+		status: bool,
+	) -> Result<(), Error<T>> {
+		let space_details = <Spaces<T>>::get(&tx_space).ok_or(Error::<T>::SpaceNotFound)?;
+		ensure!(!space_details.archived, Error::<T>::ArchivedSpace);
+
+		if space_details.space.controller != requestor {
+			let delegates = <Delegations<T>>::get(tx_space);
+			ensure!(
+				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
+				Error::<T>::UnauthorizedOperation
+			);
+		}
+		<Spaces<T>>::insert(&tx_space, SpaceDetails { metadata: status, ..space_details });
+
 		Ok(())
 	}
 }

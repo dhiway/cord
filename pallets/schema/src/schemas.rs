@@ -46,6 +46,8 @@ pub struct SchemaDetails<T: Config> {
 	pub schema: SchemaType<T>,
 	/// The flag indicating the status of the schema.
 	pub revoked: StatusOf,
+	/// The flag indicating the status of the metadata.
+	pub metadata: StatusOf,
 }
 
 impl<T: Config> sp_std::fmt::Debug for SchemaDetails<T> {
@@ -72,6 +74,25 @@ impl<T: Config> SchemaDetails<T> {
 				Error::<T>::UnauthorizedOperation
 			);
 		}
+		Ok(())
+	}
+	pub fn set_schema_metadata(
+		tx_schema: &IdentifierOf,
+		requestor: CordAccountOf<T>,
+		status: bool,
+	) -> Result<(), Error<T>> {
+		let schema_details = <Schemas<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
+		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
+
+		if schema_details.schema.author != requestor {
+			let delegates = <Delegations<T>>::get(tx_schema);
+			ensure!(
+				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
+				Error::<T>::UnauthorizedOperation
+			);
+		}
+		<Schemas<T>>::insert(&tx_schema, SchemaDetails { metadata: status, ..schema_details });
+
 		Ok(())
 	}
 }

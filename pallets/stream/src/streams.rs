@@ -64,6 +64,30 @@ impl<T: Config> sp_std::fmt::Debug for StreamDetails<T> {
 	}
 }
 
+impl<T: Config> StreamDetails<T> {
+	pub fn set_stream_metadata(
+		tx_stream: &IdentifierOf,
+		requestor: CordAccountOf<T>,
+		status: bool,
+	) -> Result<(), Error<T>> {
+		let stream_details = <Streams<T>>::get(&tx_stream).ok_or(Error::<T>::StreamNotFound)?;
+		ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
+
+		if let Some(ref space) = stream_details.stream.space {
+			if stream_details.stream.author != requestor {
+				pallet_space::SpaceDetails::<T>::from_space_identities(space, requestor)
+					.map_err(|_| Error::<T>::UnauthorizedOperation)?;
+			}
+		} else {
+			ensure!(stream_details.stream.author == requestor, Error::<T>::UnauthorizedOperation);
+		}
+
+		<Streams<T>>::insert(&tx_stream, StreamDetails { metadata: status, ..stream_details });
+
+		Ok(())
+	}
+}
+
 /// An on-chain schema details mapped to an identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]

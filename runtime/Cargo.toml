@@ -75,6 +75,7 @@ pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
 pallet-builder = {  default-features = false, path = '../pallets/builder' }
 pallet-foundation = {  default-features = false, path = '../pallets/foundation' }
+pallet-meta = {  default-features = false, path = '../pallets/meta' }
 
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
@@ -119,6 +120,7 @@ std = [
 	"pallet-space/std",	
   	"pallet-schema/std",
 	"pallet-stream/std",
+	"pallet-meta/std",
 	"sp-inherents/std",
 	"frame-support/std",
 	"sp-api/std",

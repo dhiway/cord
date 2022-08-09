@@ -63,7 +63,7 @@ pub mod fee {
 	use frame_support::{
 		parameter_types,
 		weights::{
-			constants::WEIGHT_PER_MILLIS, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+			constants::WEIGHT_PER_NANOS, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
 			WeightToFeePolynomial,
 		},
 	};
@@ -73,9 +73,9 @@ pub mod fee {
 
 	parameter_types! {
 		/// 20 ms to process an empty extrinsic.
-		pub const ExtrinsicBaseWeight: Weight = 10 * WEIGHT_PER_MILLIS;
-		/// We want the no-op transaction to cost 0.4 WAY
-		pub const ExtrinsicBaseFee: Balance = super::currency::WAY / 5;
+	pub const ExtrinsicBaseWeight: Weight = 86_309 * WEIGHT_PER_NANOS;
+		// / We want the no-op transaction to cost 0.4 WAY
+		// pub const ExtrinsicBaseFee: Balance = super::currency::UNITS / 10;
 	}
 	/// Converts Weight to Fee
 	pub struct WeightToFee;
@@ -83,7 +83,7 @@ pub mod fee {
 		type Balance = Balance;
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 			let p = super::currency::UNITS;
-			let q = Balance::from(ExtrinsicBaseWeight::get());
+			let q = 100 * Balance::from(ExtrinsicBaseWeight::get());
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
 				negative: false,

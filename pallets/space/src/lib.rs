@@ -288,7 +288,7 @@ pub mod pallet {
 
 			<Spaces<T>>::insert(
 				&identifier,
-				SpaceDetails { space: space.clone(), archived: false },
+				SpaceDetails { space: space.clone(), archived: false, metadata: false },
 			);
 			Self::deposit_event(Event::Create {
 				identifier,
@@ -467,6 +467,7 @@ pub mod pallet {
 				SpaceDetails {
 					archived: false,
 					space: { SpaceType { controller: transfer_to.clone(), ..space_details.space } },
+					..space_details
 				},
 			);
 			Self::deposit_event(Event::Transfer {

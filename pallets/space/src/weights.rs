@@ -31,8 +31,8 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	fn create() -> Weight {
-		(522_000_000 as Weight)
-			.saturating_add((20_000 as Weight).saturating_mul(350 as Weight))
+		(322_000_000 as Weight)
+			// .saturating_add((2000 as Weight).saturating_mul(10 as Weight))
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}

@@ -31,6 +31,9 @@ const PREFIX: &[u8] = b"CRDIDFR";
 // The Result of the signature verification.
 pub type IdentifierVerificationResult = Result<(), IdentifierVerificationError>;
 
+// The Result of the signature verification.
+pub type IdentVerificationResult = Result<u16, IdentifierVerificationError>;
+
 /// An error with the interpretation of a secret.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IdentifierVerificationError {
@@ -98,4 +101,35 @@ pub fn from_known_format(id: &IdentifierOf, id_ident: u16) -> IdentifierVerifica
 
 	ensure!(ident == id_ident, IdentifierVerificationError::InvalidPrefix);
 	Ok(())
+}
+
+pub fn from_known_identifier(id: &IdentifierOf) -> IdentVerificationResult {
+	let identifier = str::from_utf8(id).map_err(|_| IdentifierVerificationError::InvalidFormat)?;
+	let data = identifier
+		.from_base58()
+		.map_err(|_| IdentifierVerificationError::InvalidIdentifier)?;
+	if data.len() < 2 {
+		return Err(IdentifierVerificationError::InvalidIdentifierLength)
+	}
+	ensure!(
+		(identifier.len() > 2 && identifier.len() < 50),
+		IdentifierVerificationError::InvalidIdentifierLength
+	);
+	let (_prefix_len, ident) = match data[0] {
+		0..=63 => (1, data[0] as u16),
+		64..=127 => {
+			let lower = (data[0] << 2) | (data[1] >> 6);
+			let upper = data[1] & 0b00111111;
+			(2, (lower as u16) | ((upper as u16) << 8))
+		},
+		_ => return Err(IdentifierVerificationError::InvalidPrefix),
+	};
+
+	ensure!(
+		(ident == SPACE_IDENTIFIER_PREFIX ||
+			ident == SCHEMA_IDENTIFIER_PREFIX ||
+			ident == STREAM_IDENTIFIER_PREFIX),
+		IdentifierVerificationError::InvalidPrefix
+	);
+	Ok(ident)
 }

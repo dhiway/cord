@@ -333,7 +333,7 @@ pub mod pallet {
 
 			<Schemas<T>>::insert(
 				&identifier,
-				SchemaDetails { schema: schema.clone(), revoked: false },
+				SchemaDetails { schema: schema.clone(), revoked: false, metadata: false },
 			);
 
 			Self::deposit_event(Event::Create {
