@@ -636,8 +636,7 @@ parameter_types! {
 	pub const SlashDeferDuration: sp_staking::EraIndex = 13;
 	pub const MaxNominatorRewardedPerValidator: u32 = 256;
 	pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
-	pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(17);
-	// 16
+	pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(15);
 	pub const MaxNominations: u32 = <NposCompactSolution16 as frame_election_provider_support::NposSolution>::LIMIT as u32;
 }
 
@@ -900,8 +899,8 @@ impl pallet_offences::Config for Runtime {
 
 parameter_types! {
 	pub LaunchPeriod: BlockNumber = prod_or_fast!(7 * DAYS, 1, "CRD_LAUNCH_PERIOD");
-	pub VotingPeriod: BlockNumber = prod_or_fast!(7 * DAYS, 1 * MINUTES, "CRD_VOTING_PERIOD");
-	pub FastTrackVotingPeriod: BlockNumber = prod_or_fast!(3 * HOURS, 1 * MINUTES, "CRD_FAST_TRACK_VOTING_PERIOD");
+	pub VotingPeriod: BlockNumber = prod_or_fast!(7 * DAYS, 2 * MINUTES, "CRD_VOTING_PERIOD");
+	pub FastTrackVotingPeriod: BlockNumber = prod_or_fast!(3 * HOURS, 2 * MINUTES, "CRD_FAST_TRACK_VOTING_PERIOD");
 	pub const MinimumDeposit: Balance = 100 * WAY;
 	pub EnactmentPeriod: BlockNumber = prod_or_fast!(8 * DAYS, 1, "CRD_ENACTMENT_PERIOD");
 	pub CooloffPeriod: BlockNumber = prod_or_fast!(7 * DAYS, 1, "CRD_COOLOFF_PERIOD");
@@ -1081,7 +1080,7 @@ parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(2);
 	pub const ProposalBondMinimum: Balance = 100 * UNITS;
 	pub const ProposalBondMaximum: Balance = 500 * UNITS;
-	pub const SpendPeriod: BlockNumber = 240 * MINUTES;
+	pub const SpendPeriod: BlockNumber = 24 * HOURS;
 	pub const Burn: Permill = Permill::from_perthousand(2);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const MaxApprovals: u32 = 100;
