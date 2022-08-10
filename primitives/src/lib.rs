@@ -85,7 +85,7 @@ pub type VersionOf = Vec<u8>;
 pub type IdentifierOf = BoundedVec<u8, ConstU32<48>>;
 
 /// MetaData type.
-pub type MetaDataOf = BoundedVec<u8, ConstU32<8192>>;
+pub type MetaDataOf = BoundedVec<u8, ConstU32<15360>>;
 
 /// status Information
 pub type StatusOf = bool;

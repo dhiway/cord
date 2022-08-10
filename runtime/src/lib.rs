@@ -1264,11 +1264,18 @@ impl pallet_stream::Config for Runtime {
 	type WeightInfo = pallet_stream::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const MetadataBaseDeposit: Balance = 100 * UNITS;
+	pub const MetadataByteDeposit: Balance = NANOUNITS;
+}
 impl pallet_meta::Config for Runtime {
 	type Event = Event;
+	type Currency = Balances;
 	type Signature = Signature;
 	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type BaseDeposit = MetadataBaseDeposit;
+	type ByteDeposit = MetadataByteDeposit;
 	type WeightInfo = pallet_meta::weights::SubstrateWeight<Runtime>;
 }
 

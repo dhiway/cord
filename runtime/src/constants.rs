@@ -24,6 +24,8 @@ pub mod currency {
 	pub const WAY: Balance = 1_000_000_000_000;
 	pub const UNITS: Balance = WAY / 100;
 	pub const MILLIUNITS: Balance = UNITS / 100;
+	pub const NANOUNITS: Balance = MILLIUNITS / 100;
+
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
 		items as Balance * 10 * WAY + (bytes as Balance) * 100 * MILLIUNITS
 	}

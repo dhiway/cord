@@ -23,22 +23,27 @@ pub use cord_primitives::{
 	ss58identifier, IdentifierOf, MetaDataOf, StatusOf, SCHEMA_IDENTIFIER_PREFIX,
 	SPACE_IDENTIFIER_PREFIX, STREAM_IDENTIFIER_PREFIX,
 };
-use frame_support::{ensure, storage::types::StorageMap};
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use frame_support::{
+	ensure,
+	storage::types::StorageMap,
+	traits::{Currency, ReservableCurrency},
+};
+use sp_runtime::traits::{IdentifyAccount, Saturating, Verify};
 use sp_std::{prelude::Clone, str, vec::Vec};
 pub mod meta;
 pub mod weights;
 
 pub use crate::meta::*;
 use crate::weights::WeightInfo;
+
+use frame_support::pallet_prelude::*;
+use frame_system::pallet_prelude::*;
+
 pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-
-	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::*;
 
 	/// Hash of the space.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
@@ -46,6 +51,11 @@ pub mod pallet {
 	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type for a cord signature.
 	pub type SignatureOf<T> = <T as Config>::Signature;
+
+	pub(crate) type BalanceOf<T> =
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
+	pub(crate) type CurrencyOf<T> = <T as Config>::Currency;
 
 	#[pallet::config]
 	pub trait Config:
@@ -61,6 +71,9 @@ pub mod pallet {
 			+ MaxEncodedLen
 			+ TypeInfo;
 		type Signer: IdentifyAccount<AccountId = CordAccountOf<Self>> + Parameter;
+		type Currency: ReservableCurrency<Self::AccountId>;
+		type BaseDeposit: Get<BalanceOf<Self>>;
+		type ByteDeposit: Get<BalanceOf<Self>>;
 		type WeightInfo: WeightInfo;
 	}
 
@@ -74,6 +87,13 @@ pub mod pallet {
 	#[pallet::storage_prefix = "Metadata"]
 	pub(super) type Metadata<T: Config> =
 		StorageMap<_, Blake2_128Concat, IdentifierOf, MetadataEntry<T>>;
+
+	/// metadata deposit stored on chain.
+	/// It maps from an identifier to metadata author and deposit amount.
+	#[pallet::storage]
+	#[pallet::storage_prefix = "Deposit"]
+	pub(super) type MetadataDeposit<T: Config> =
+		StorageMap<_, Blake2_128Concat, IdentifierOf, MetaDeposit<T>>;
 
 	/// registry entry hashes stored on chain.
 	/// It maps from an entry hash to Id (resolve from hash).
@@ -111,6 +131,8 @@ pub mod pallet {
 		MetadataAlreadySet,
 		// Metadata not found for the entry
 		MetadataNotFound,
+		// Metadata deposit not found
+		MetadataDepositNotFound,
 	}
 
 	#[pallet::call]
@@ -126,14 +148,14 @@ pub mod pallet {
 		///   proposal. Could be JSON, a Hash, or raw text. Up to the community
 		///   to decide how exactly to use this.
 		/// * tx_signature: controller signature.
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_metadata(metadata.len() as u32))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_metadata())]
 		pub fn set_metadata(
 			origin: OriginFor<T>,
 			meta: MetaParams<T>,
 			metadata: Vec<u8>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
-			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
 				!<MetaHashes<T>>::contains_key(&meta.digest),
@@ -152,6 +174,14 @@ pub mod pallet {
 
 			MetaParams::<T>::add_to_identitifier(&meta.identifier, meta.controller.clone(), true)
 				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+
+			let length = bounded_metadata.len() as u32;
+			let deposit = T::BaseDeposit::get()
+				.saturating_add(T::ByteDeposit::get().saturating_mul(length.into()));
+
+			CurrencyOf::<T>::reserve(&author, deposit)?;
+
+			<MetadataDeposit<T>>::insert(&meta.identifier, MetaDeposit { author, deposit });
 
 			<MetaHashes<T>>::insert(&meta.digest, &meta.identifier);
 
@@ -199,12 +229,18 @@ pub mod pallet {
 
 			ensure!(<Metadata<T>>::contains_key(&meta.identifier), Error::<T>::MetadataNotFound);
 
+			let deposit_details = <MetadataDeposit<T>>::get(&meta.identifier)
+				.ok_or(Error::<T>::MetadataDepositNotFound)?;
+
 			MetaParams::<T>::add_to_identitifier(&meta.identifier, meta.controller.clone(), false)
 				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+
+			CurrencyOf::<T>::unreserve(&deposit_details.author, deposit_details.deposit);
 
 			<MetaHashes<T>>::insert(&meta.digest, &meta.identifier);
 
 			Metadata::<T>::remove(meta.identifier.clone());
+			MetadataDeposit::<T>::remove(meta.identifier.clone());
 
 			Self::deposit_event(Event::MetadataCleared {
 				identifier: meta.identifier,

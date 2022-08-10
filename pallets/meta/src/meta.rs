@@ -23,7 +23,7 @@ use scale_info::TypeInfo;
 /// An on-chain stream details mapper to an Identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
-// #[codec(mel_bound())]
+#[codec(mel_bound())]
 pub struct MetaParams<T: Config> {
 	/// Identifier
 	pub identifier: IdentifierOf,
@@ -71,16 +71,19 @@ impl<T: Config> MetaParams<T> {
 	}
 }
 
-#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[scale_info(skip_type_params(T))]
+#[codec(mel_bound())]
 pub struct MetadataEntry<T: Config> {
 	pub metadata: MetaDataOf,
 	pub digest: HashOf<T>,
 	pub controller: CordAccountOf<T>,
 }
 
-impl<T: Config> sp_std::fmt::Debug for MetadataEntry<T> {
-	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
-		Ok(())
-	}
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[scale_info(skip_type_params(T))]
+#[codec(mel_bound())]
+pub struct MetaDeposit<T: Config> {
+	pub author: CordAccountOf<T>,
+	pub deposit: BalanceOf<T>,
 }
