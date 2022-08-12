@@ -90,12 +90,12 @@ pub type MetaDataOf = BoundedVec<u8, ConstU32<15360>>;
 /// status Information
 pub type StatusOf = bool;
 
-/// space identifier prefix.
-pub const SPACE_IDENTIFIER_PREFIX: u16 = 31;
+/// collection identifier prefix.
+pub const REGISTRY_INDEX: u16 = 31;
 /// schema identifier prefix.
-pub const SCHEMA_IDENTIFIER_PREFIX: u16 = 41;
+pub const SCHEMA_PREFIX: u16 = 41;
 /// stream identifier prefix.
-pub const STREAM_IDENTIFIER_PREFIX: u16 = 51;
+pub const STREAM_PREFIX: u16 = 51;
 
 /// Macro to set a value (e.g. when using the `parameter_types` macro) to either
 /// a production value or to an environment variable or testing value (in case

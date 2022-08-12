@@ -75,7 +75,7 @@ pallet-treasury = { git = "https://github.com/paritytech/substrate", default-fea
 pallet-utility = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.27" }
 pallet-election-provider-multi-phase = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.27" }
 
-pallet-space = {  default-features = false, path = '../pallets/space' }
+pallet-collection = {  default-features = false, path = '../pallets/collection' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
 pallet-anchor = {  default-features = false, path = '../pallets/anchor' }
@@ -122,7 +122,7 @@ std = [
 	"pallet-multisig/std",
 	"pallet-preimage/std",
 	"pallet-anchor/std",
-	"pallet-space/std",	
+	"pallet-collection/std",	
   	"pallet-schema/std",
 	"pallet-stream/std",
 	"pallet-meta/std",

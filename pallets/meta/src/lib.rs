@@ -20,8 +20,8 @@
 #![allow(clippy::unused_unit)]
 
 pub use cord_primitives::{
-	ss58identifier, IdentifierOf, MetaDataOf, StatusOf, SCHEMA_IDENTIFIER_PREFIX,
-	SPACE_IDENTIFIER_PREFIX, STREAM_IDENTIFIER_PREFIX,
+	ss58identifier, IdentifierOf, MetaDataOf, StatusOf, REGISTRY_INDEX, SCHEMA_PREFIX,
+	STREAM_PREFIX,
 };
 use frame_support::{
 	ensure,

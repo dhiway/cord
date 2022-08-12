@@ -49,17 +49,17 @@ impl<T: Config> MetaParams<T> {
 			.map_err(|_| Error::<T>::InvalidIdentifier)?;
 
 		match ident {
-			SPACE_IDENTIFIER_PREFIX => {
+			REGISTRY_INDEX => {
 				pallet_space::SpaceDetails::<T>::set_space_metadata(identifier, requestor, status)
 					.map_err(|_| Error::<T>::UnauthorizedOperation)?;
 			},
-			SCHEMA_IDENTIFIER_PREFIX => {
+			SCHEMA_PREFIX => {
 				pallet_schema::SchemaDetails::<T>::set_schema_metadata(
 					identifier, requestor, status,
 				)
 				.map_err(|_| Error::<T>::UnauthorizedOperation)?;
 			},
-			STREAM_IDENTIFIER_PREFIX => {
+			STREAM_PREFIX => {
 				pallet_stream::StreamDetails::<T>::set_stream_metadata(
 					identifier, requestor, status,
 				)

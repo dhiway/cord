@@ -20,9 +20,7 @@
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
 
-use cord_primitives::{
-	ss58identifier, IdentifierOf, MetaDataOf, StatusOf, STREAM_IDENTIFIER_PREFIX,
-};
+use cord_primitives::{ss58identifier, IdentifierOf, MetaDataOf, StatusOf, STREAM_PREFIX};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::{prelude::Clone, str};
@@ -193,7 +191,7 @@ pub mod pallet {
 			);
 
 			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
-				ss58identifier::generate(&(&stream.digest).encode()[..], STREAM_IDENTIFIER_PREFIX)
+				ss58identifier::generate(&(&stream.digest).encode()[..], STREAM_PREFIX)
 					.into_bytes(),
 			)
 			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
@@ -257,7 +255,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			ss58identifier::from_known_format(&update.identifier, STREAM_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&update.identifier, STREAM_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			let tx_prev_details =
@@ -321,7 +319,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			ss58identifier::from_known_format(&revoke.identifier, STREAM_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&revoke.identifier, STREAM_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			let tx_prev_details =
@@ -395,7 +393,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			ss58identifier::from_known_format(&remove.identifier, STREAM_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&remove.identifier, STREAM_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			let stream_details =
@@ -438,7 +436,7 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::council_remove())]
 		pub fn council_remove(origin: OriginFor<T>, identifier: IdentifierOf) -> DispatchResult {
 			<T as Config>::ForceOrigin::ensure_origin(origin)?;
-			ss58identifier::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&identifier, STREAM_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 			<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 
@@ -468,7 +466,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			ss58identifier::from_known_format(&identifier, STREAM_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&identifier, STREAM_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			ensure!(
