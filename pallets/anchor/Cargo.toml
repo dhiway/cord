@@ -1,6 +1,6 @@
 [package]
 name = "pallet-anchor"
-version = '0.7.6'
+version = '0.7.7'
 edition = '2021'
 authors = ['Dhiway Networks <info@dhiway.com>']
 license = "GPL-3.0"

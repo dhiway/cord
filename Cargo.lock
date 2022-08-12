@@ -865,7 +865,7 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 
 [[package]]
 name = "cord-executor"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "cord-primitives",
  "cord-runtime",
@@ -899,7 +899,7 @@ dependencies = [
 
 [[package]]
 name = "cord-inspect"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "clap 3.2.16",
  "parity-scale-codec",
@@ -916,7 +916,7 @@ dependencies = [
 
 [[package]]
 name = "cord-node"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "clap 3.2.16",
  "clap_complete",
@@ -991,7 +991,7 @@ dependencies = [
 
 [[package]]
 name = "cord-primitives"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "base58",
  "blake2-rfc",
@@ -1004,7 +1004,7 @@ dependencies = [
 
 [[package]]
 name = "cord-rpc"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "cord-primitives",
  "jsonrpsee",
@@ -1032,7 +1032,7 @@ dependencies = [
 
 [[package]]
 name = "cord-runtime"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
@@ -4280,7 +4280,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-anchor"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4524,7 +4524,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-meta"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "cord-primitives",
  "frame-support",
@@ -4634,7 +4634,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-schema"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "cord-primitives",
  "frame-support",
@@ -4670,7 +4670,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-space"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "cord-primitives",
  "frame-support",
@@ -4717,7 +4717,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stream"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",

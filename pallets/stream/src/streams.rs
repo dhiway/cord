@@ -73,8 +73,8 @@ impl<T: Config> StreamDetails<T> {
 		let stream_details = <Streams<T>>::get(&tx_stream).ok_or(Error::<T>::StreamNotFound)?;
 		ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
 
-		if let Some(ref space) = stream_details.stream.space {
-			if stream_details.stream.author != requestor {
+		if stream_details.stream.author != requestor {
+			if let Some(ref space) = stream_details.stream.space {
 				pallet_space::SpaceDetails::<T>::from_space_identities(space, requestor)
 					.map_err(|_| Error::<T>::UnauthorizedOperation)?;
 			}

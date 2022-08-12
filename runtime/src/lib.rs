@@ -124,7 +124,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// and set impl_version to equal spec_version. If only runtime
 	// implementation changes and behavior does not, then leave spec_version as
 	// is and increment impl_version.
-	spec_version: 7060,
+	spec_version: 7070,
 	impl_version: 0,
 	#[cfg(not(feature = "disable-runtime-api"))]
 	apis: RUNTIME_API_VERSIONS,
@@ -363,8 +363,8 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 9 * MILLIUNITS;
-	pub const OperationalFeeMultiplier: u8 = 3;
+	pub const TransactionByteFee: Balance = 5 * MILLIUNITS;
+	pub const OperationalFeeMultiplier: u8 = 2;
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
@@ -1265,7 +1265,7 @@ impl pallet_stream::Config for Runtime {
 
 parameter_types! {
 	pub const MetadataBaseDeposit: Balance = 100 * UNITS;
-	pub const MetadataByteDeposit: Balance = NANOUNITS;
+	pub const MetadataByteDeposit: Balance = 2 * NANOUNITS;
 }
 impl pallet_meta::Config for Runtime {
 	type Event = Event;

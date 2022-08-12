@@ -43,6 +43,8 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use pallet_stream::StreamDetails;
+
 	use super::*;
 
 	/// Hash of the space.
@@ -173,7 +175,8 @@ pub mod pallet {
 				metadata.try_into().map_err(|_| Error::<T>::MetadataLimitExceeded)?;
 
 			MetaParams::<T>::add_to_identitifier(&meta.identifier, meta.controller.clone(), true)
-				.map_err(|_| Error::<T>::InvalidIdentifier)?;
+				.map_err(Error::<T>::from)?;
+			// .map_err(|_| Error::<T>::InvalidIdentifier)?;
 
 			let length = bounded_metadata.len() as u32;
 			let deposit = T::BaseDeposit::get()
