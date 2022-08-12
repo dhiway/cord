@@ -1050,7 +1050,6 @@ dependencies = [
  "pallet-babe",
  "pallet-bags-list",
  "pallet-balances",
- "pallet-collection",
  "pallet-collective",
  "pallet-democracy",
  "pallet-election-provider-multi-phase",
@@ -1065,6 +1064,7 @@ dependencies = [
  "pallet-preimage",
  "pallet-proxy",
  "pallet-recovery",
+ "pallet-registry",
  "pallet-scheduler",
  "pallet-schema",
  "pallet-session",
@@ -4376,21 +4376,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-collection"
-version = "0.7.7"
-dependencies = [
- "cord-primitives",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
 name = "pallet-collective"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.27#8eff668a42325aeb4433eace1604f4d286a6ec05"
@@ -4544,7 +4529,7 @@ dependencies = [
  "cord-primitives",
  "frame-support",
  "frame-system",
- "pallet-collection",
+ "pallet-registry",
  "pallet-schema",
  "pallet-stream",
  "parity-scale-codec",
@@ -4632,6 +4617,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-registry"
+version = "0.7.7"
+dependencies = [
+ "cord-primitives",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-scheduler"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.27#8eff668a42325aeb4433eace1604f4d286a6ec05"
@@ -4654,7 +4654,7 @@ dependencies = [
  "cord-primitives",
  "frame-support",
  "frame-system",
- "pallet-collection",
+ "pallet-registry",
  "parity-scale-codec",
  "scale-info",
  "sp-runtime",
@@ -4723,7 +4723,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-collection",
+ "pallet-registry",
  "pallet-schema",
  "parity-scale-codec",
  "scale-info",

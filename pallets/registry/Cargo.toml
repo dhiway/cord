@@ -1,6 +1,6 @@
 [package]
-name = 'pallet-collection'
-description = 'Manage Stream Collections'
+name = 'pallet-registry'
+description = 'Manage Stream Registries'
 version = '0.7.7'
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'

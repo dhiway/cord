@@ -20,7 +20,7 @@ scale-info = { version = "2.1.1", default-features = false, features = ["derive"
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 serde = { version = "1.0.136", optional = true }
 pallet-schema = {  default-features = false, path = '../schema' }
-pallet-collection = {  default-features = false, path = '../collection' }
+pallet-registry = {  default-features = false, path = '../registry' }
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27", default-features = false }
