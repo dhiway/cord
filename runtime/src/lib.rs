@@ -1226,19 +1226,21 @@ impl pallet_anchor::Config for Runtime {
 }
 
 parameter_types! {
-	// TODO: Find reasonable numbers
-	#[derive(Debug, Clone, PartialEq)]
-	pub const MaxSpaceDelegates: u32 = 30;
-	pub const MaxSchemaDelegates: u32 = 1_000_000;
+	// #[derive(Debug, Clone, PartialEq)]
+	pub const MaxRegistryDelegates: u32 = 100;
+	pub const MaxRegistrySchemas: u32 = 100;
+	pub const MaxSchemaDelegates: u32 = 100;
+	pub const MaxStreamDelegates: u32 = 100;
 }
 
-impl pallet_space::Config for Runtime {
+impl pallet_registry::Config for Runtime {
 	type Event = Event;
 	type Signature = Signature;
 	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-	type MaxSpaceDelegates = MaxSpaceDelegates;
-	type WeightInfo = pallet_space::weights::SubstrateWeight<Runtime>;
+	type MaxRegistryDelegates = MaxRegistryDelegates;
+	type MaxRegistrySchemas = MaxRegistrySchemas;
+	type WeightInfo = pallet_registry::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_schema::Config for Runtime {
@@ -1260,6 +1262,7 @@ impl pallet_stream::Config for Runtime {
 	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
 	type ForceOrigin = StreamApproveOrigin;
+	type MaxStreamDelegates = MaxStreamDelegates;
 	type WeightInfo = pallet_stream::weights::SubstrateWeight<Runtime>;
 }
 
@@ -1335,7 +1338,7 @@ construct_runtime! {
 		ElectionProviderMultiPhase: pallet_election_provider_multi_phase = 31,
 
 		Anchor: pallet_anchor = 51,
-		Space: pallet_space = 52,
+		Registry: pallet_registry = 52,
 		Schema: pallet_schema = 53,
 		Stream: pallet_stream = 54,
 		Meta: pallet_meta = 55,

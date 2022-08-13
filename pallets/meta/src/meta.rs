@@ -50,8 +50,10 @@ impl<T: Config> MetaParams<T> {
 
 		match ident {
 			REGISTRY_INDEX => {
-				pallet_space::SpaceDetails::<T>::set_space_metadata(identifier, requestor, status)
-					.map_err(|_| Error::<T>::UnauthorizedOperation)?;
+				pallet_registry::RegistryDetails::<T>::set_registry_metadata(
+					identifier, requestor, status,
+				)
+				.map_err(|_| Error::<T>::UnauthorizedOperation)?;
 			},
 			SCHEMA_PREFIX => {
 				pallet_schema::SchemaDetails::<T>::set_schema_metadata(

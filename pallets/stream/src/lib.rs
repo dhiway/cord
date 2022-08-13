@@ -20,10 +20,10 @@
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
 
-use cord_primitives::{ss58identifier, IdentifierOf, MetaDataOf, StatusOf, STREAM_PREFIX};
+use cord_primitives::{ss58identifier, IdentifierOf, StatusOf, STREAM_PREFIX};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use sp_std::{prelude::Clone, str};
+use sp_std::{prelude::Clone, str, vec::Vec};
 
 pub mod streams;
 pub mod weights;
@@ -49,12 +49,17 @@ pub mod pallet {
 	pub type SignatureOf<T> = <T as Config>::Signature;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_schema::Config + pallet_space::Config {
+	pub trait Config:
+		frame_system::Config + pallet_schema::Config + pallet_registry::Config
+	{
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
 		>;
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
+		/// The maximum number of delegates for a stream.
+		#[pallet::constant]
+		type MaxStreamDelegates: Get<u32>;
 		type Signature: Verify<Signer = <Self as pallet::Config>::Signer>
 			+ Parameter
 			+ MaxEncodedLen
@@ -85,36 +90,35 @@ pub mod pallet {
 	pub type StreamHashes<T> =
 		StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
 
-	/// stream digest stored on chain.
-	/// It maps from a stream digest hash to Id (resolve from hash).
+	/// stream delegations stored on chain.
+	/// It maps from an identifier to a vector of delegates.
 	#[pallet::storage]
-	#[pallet::storage_prefix = "Digests"]
-	pub type StreamDigests<T> =
-		StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
-
-	/// metadata stored on chain.
-	/// It maps from a stream identifier to metadata.
-	#[pallet::storage]
-	#[pallet::storage_prefix = "Metadata"]
-	pub(super) type Metadata<T: Config> = StorageMap<_, Blake2_128Concat, IdentifierOf, MetaDataOf>;
+	#[pallet::storage_prefix = "Delegates"]
+	pub(super) type StreamDelegations<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		IdentifierOf,
+		BoundedVec<CordAccountOf<T>, T::MaxStreamDelegates>,
+		ValueQuery,
+	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new stream has been created.
-		/// \[stream hash, identifier, controller\]
+		/// \[stream identifier, stream hash, controller\]
 		Anchor { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// A stream has been updated.
 		/// \[stream identifier, hash, controller\]
 		Update { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// A stream digest has been added.
-		/// \[stream identifier, hash, controller\]
+		/// \[stream identifier, digest, controller\]
 		Digest { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// A stream status has been changed.
-		/// \[stream identifier, controller\]
+		/// \[stream identifier, digest, controller\]
 		Revoke { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
 		/// A stream has been removed.
-		/// \[stream identifier\]
+		/// \[stream identifier, digest, controller\]
 		Remove { identifier: IdentifierOf, author: CordAccountOf<T> },
 		/// A stream has been removed by the council.
 		/// \[stream identifier\]
@@ -125,6 +129,12 @@ pub mod pallet {
 		/// A metadata entry has been cleared.
 		/// \[identifier, controller\]
 		MetadataCleared { identifier: IdentifierOf, controller: CordAccountOf<T> },
+		/// Stream delegates has been added.
+		/// \[stream identifier,  delegator\]
+		AddDelegates { identifier: IdentifierOf, digest: HashOf<T>, delegator: CordAccountOf<T> },
+		/// Stream delegates has been removed.
+		/// \[stream identifier,  delegator\]
+		RemoveDelegates { identifier: IdentifierOf, digest: HashOf<T>, delegator: CordAccountOf<T> },
 	}
 
 	#[pallet::error]
@@ -152,7 +162,7 @@ pub mod pallet {
 		// Invalid Schema Identifier Length
 		InvalidIdentifierLength,
 		// Stream not part of space
-		StreamSpaceMismatch,
+		StreamRegistryMismatch,
 		//Stream digest is not unique
 		DigestHashAlreadyAnchored,
 		// Invalid transaction hash
@@ -163,6 +173,10 @@ pub mod pallet {
 		MetadataAlreadySet,
 		// Metadata not found for the entry
 		MetadataNotFound,
+		// Maximum Number of delegates reached.
+		TooManyDelegates,
+		// Maximum Number of delegates reached.
+		TooManyDelegatesToRemove,
 	}
 
 	#[pallet::call]
@@ -175,60 +189,64 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(
 			origin: OriginFor<T>,
-			stream: StreamType<T>,
+			tx_stream: StreamType<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<StreamHashes<T>>::contains_key(&stream.digest),
+				!<StreamHashes<T>>::contains_key(&tx_stream.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&stream.digest).encode()[..], &stream.author),
+				tx_signature.verify(&(&tx_stream.digest).encode()[..], &tx_stream.controller),
 				Error::<T>::InvalidSignature
 			);
 
 			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
-				ss58identifier::generate(&(&stream.digest).encode()[..], STREAM_PREFIX)
+				ss58identifier::generate(&(&tx_stream.digest).encode()[..], STREAM_PREFIX)
 					.into_bytes(),
 			)
 			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
 
-			if let Some(ref schema) = stream.schema {
+			if let Some(ref register) = tx_stream.register {
+				pallet_registry::RegistryDetails::<T>::from_registry_identities(
+					register,
+					tx_stream.controller.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+			} else if let Some(ref schema) = tx_stream.schema {
 				pallet_schema::SchemaDetails::<T>::from_schema_identities(
 					schema,
-					stream.author.clone(),
+					tx_stream.controller.clone(),
 				)
 				.map_err(<pallet_schema::Error<T>>::from)?;
 			}
-
-			if let Some(ref link) = stream.link {
+			if let Some(ref link) = tx_stream.link {
 				let link_details =
 					<Streams<T>>::get(&link).ok_or(Error::<T>::StreamLinkNotFound)?;
 				ensure!(!link_details.revoked, Error::<T>::StreamLinkRevoked);
 			}
-			if let Some(ref space) = stream.space {
-				pallet_space::SpaceDetails::<T>::from_space_identities(
-					space,
-					stream.author.clone(),
-				)
-				.map_err(<pallet_space::Error<T>>::from)?;
-			}
-			<StreamHashes<T>>::insert(&stream.digest, &identifier);
+
+			<StreamHashes<T>>::insert(&tx_stream.digest, &identifier);
 
 			<Streams<T>>::insert(
 				&identifier,
-				StreamDetails { stream: stream.clone(), revoked: false, metadata: false },
+				StreamDetails {
+					stream: tx_stream.clone(),
+					revoked: false,
+					metadata: false,
+					delegation: false,
+				},
 			);
 
 			Self::deposit_event(Event::Anchor {
 				identifier,
-				digest: stream.digest,
-				author: stream.author,
+				digest: tx_stream.digest,
+				author: tx_stream.controller,
 			});
 
 			Ok(())
@@ -241,57 +259,71 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::update())]
 		pub fn update(
 			origin: OriginFor<T>,
-			update: StreamParams<T>,
+			tx_stream: StreamParams<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
-				!<StreamHashes<T>>::contains_key(&update.stream.digest),
+				!<StreamHashes<T>>::contains_key(&tx_stream.stream.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&update.stream.digest).encode()[..], &update.stream.author),
+				tx_signature
+					.verify(&(&tx_stream.stream.digest).encode()[..], &tx_stream.stream.controller),
 				Error::<T>::InvalidSignature
 			);
 
-			ss58identifier::from_known_format(&update.identifier, STREAM_PREFIX)
+			ss58identifier::from_known_format(&tx_stream.identifier, STREAM_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
-			let tx_prev_details =
-				<Streams<T>>::get(&update.identifier).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
+			let stream_details =
+				<Streams<T>>::get(&tx_stream.identifier).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
 
-			if let Some(ref space) = update.stream.space {
+			if let Some(ref register) = tx_stream.stream.register {
 				ensure!(
-					tx_prev_details.stream.space == Some(space.clone()),
-					Error::<T>::StreamSpaceMismatch
+					stream_details.stream.register == Some(register.clone()),
+					Error::<T>::StreamRegistryMismatch
 				);
-
-				if tx_prev_details.stream.author != update.stream.author {
-					pallet_space::SpaceDetails::<T>::from_space_identities(
-						space,
-						update.stream.author.clone(),
-					)
-					.map_err(<pallet_space::Error<T>>::from)?;
-				}
+				pallet_registry::RegistryDetails::<T>::from_registry_identities(
+					register,
+					tx_stream.stream.controller.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+			} else if let Some(ref schema) = tx_stream.stream.schema {
+				pallet_schema::SchemaDetails::from_schema_delegates(
+					schema,
+					stream_details.stream.controller.clone(),
+					tx_stream.stream.controller.clone(),
+				)
+				.map_err(<pallet_schema::Error<T>>::from)?;
 			} else {
 				ensure!(
-					tx_prev_details.stream.author == update.stream.author,
+					stream_details.stream.controller == tx_stream.stream.controller,
 					Error::<T>::UnauthorizedOperation
 				);
 			}
 
-			<StreamHashes<T>>::insert(&update.stream.digest, &update.identifier);
+			<StreamHashes<T>>::insert(&tx_stream.stream.digest, &tx_stream.identifier);
 
 			<Streams<T>>::insert(
-				&update.identifier,
-				StreamDetails { stream: update.stream.clone(), ..tx_prev_details },
+				&tx_stream.identifier,
+				StreamDetails {
+					stream: {
+						StreamType {
+							controller: stream_details.stream.controller.clone(),
+							..stream_details.stream
+						}
+					},
+					..stream_details
+				},
 			);
+
 			Self::deposit_event(Event::Update {
-				identifier: update.identifier,
-				digest: update.stream.digest,
-				author: update.stream.author,
+				identifier: tx_stream.identifier,
+				digest: tx_stream.stream.digest,
+				author: tx_stream.stream.controller,
 			});
 
 			Ok(())
@@ -304,67 +336,72 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::revoke())]
 		pub fn revoke(
 			origin: OriginFor<T>,
-			revoke: StreamParams<T>,
+			tx_stream: StreamParams<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<StreamHashes<T>>::contains_key(&revoke.stream.digest),
+				!<StreamHashes<T>>::contains_key(&tx_stream.stream.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&revoke.stream.digest).encode()[..], &revoke.stream.author),
+				tx_signature
+					.verify(&(&tx_stream.stream.digest).encode()[..], &tx_stream.stream.controller),
 				Error::<T>::InvalidSignature
 			);
 
-			ss58identifier::from_known_format(&revoke.identifier, STREAM_PREFIX)
+			ss58identifier::from_known_format(&tx_stream.identifier, STREAM_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
-			let tx_prev_details =
-				<Streams<T>>::get(&revoke.identifier).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
+			let stream_details =
+				<Streams<T>>::get(&tx_stream.identifier).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
 
-			if let Some(space) = revoke.stream.space {
+			if let Some(ref register) = tx_stream.stream.register {
 				ensure!(
-					tx_prev_details.stream.space == Some(space.clone()),
-					Error::<T>::StreamSpaceMismatch
+					stream_details.stream.register == Some(register.clone()),
+					Error::<T>::StreamRegistryMismatch
 				);
-
-				if tx_prev_details.stream.author != revoke.stream.author {
-					pallet_space::SpaceDetails::<T>::from_space_identities(
-						&space,
-						revoke.stream.author.clone(),
-					)
-					.map_err(<pallet_space::Error<T>>::from)?;
-				}
+				pallet_registry::RegistryDetails::<T>::from_registry_identities(
+					register,
+					tx_stream.stream.controller.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+			} else if let Some(ref schema) = tx_stream.stream.schema {
+				pallet_schema::SchemaDetails::from_schema_delegates(
+					schema,
+					stream_details.stream.controller.clone(),
+					tx_stream.stream.controller.clone(),
+				)
+				.map_err(<pallet_schema::Error<T>>::from)?;
 			} else {
 				ensure!(
-					tx_prev_details.stream.author == revoke.stream.author,
+					stream_details.stream.controller == tx_stream.stream.controller,
 					Error::<T>::UnauthorizedOperation
 				);
 			}
 
-			<StreamHashes<T>>::insert(&revoke.stream.digest, &revoke.identifier);
+			<StreamHashes<T>>::insert(&tx_stream.stream.digest, &tx_stream.identifier);
 
 			<Streams<T>>::insert(
-				&revoke.identifier,
+				&tx_stream.identifier,
 				StreamDetails {
 					revoked: true,
 					stream: {
 						StreamType {
-							author: revoke.stream.author.clone(),
-							..tx_prev_details.stream
+							controller: stream_details.stream.controller.clone(),
+							..stream_details.stream
 						}
 					},
-					..tx_prev_details
+					..stream_details
 				},
 			);
 			Self::deposit_event(Event::Revoke {
-				identifier: revoke.identifier,
-				digest: revoke.stream.digest,
-				author: revoke.stream.author,
+				identifier: tx_stream.identifier,
+				digest: tx_stream.stream.digest,
+				author: tx_stream.stream.controller,
 			});
 
 			Ok(())
@@ -378,52 +415,58 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove())]
 		pub fn remove(
 			origin: OriginFor<T>,
-			remove: StreamParams<T>,
+			tx_stream: StreamParams<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<StreamHashes<T>>::contains_key(&remove.stream.digest),
+				!<StreamHashes<T>>::contains_key(&tx_stream.stream.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&remove.stream.digest).encode()[..], &remove.stream.author),
+				tx_signature
+					.verify(&(&tx_stream.stream.digest).encode()[..], &tx_stream.stream.controller),
 				Error::<T>::InvalidSignature
 			);
 
-			ss58identifier::from_known_format(&remove.identifier, STREAM_PREFIX)
+			ss58identifier::from_known_format(&tx_stream.identifier, STREAM_PREFIX)
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			let stream_details =
-				<Streams<T>>::get(&remove.identifier).ok_or(Error::<T>::StreamNotFound)?;
+				<Streams<T>>::get(&tx_stream.identifier).ok_or(Error::<T>::StreamNotFound)?;
 
-			if let Some(space) = remove.stream.space {
+			if let Some(ref register) = tx_stream.stream.register {
 				ensure!(
-					stream_details.stream.space == Some(space.clone()),
-					Error::<T>::StreamSpaceMismatch
+					stream_details.stream.register == Some(register.clone()),
+					Error::<T>::StreamRegistryMismatch
 				);
-
-				if stream_details.stream.author != remove.stream.author {
-					pallet_space::SpaceDetails::<T>::from_space_identities(
-						&space,
-						remove.stream.author.clone(),
-					)
-					.map_err(<pallet_space::Error<T>>::from)?;
-				}
+				pallet_registry::RegistryDetails::<T>::from_registry_identities(
+					register,
+					tx_stream.stream.controller.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+			} else if let Some(ref schema) = tx_stream.stream.schema {
+				pallet_schema::SchemaDetails::from_schema_delegates(
+					schema,
+					stream_details.stream.controller,
+					tx_stream.stream.controller.clone(),
+				)
+				.map_err(<pallet_schema::Error<T>>::from)?;
 			} else {
 				ensure!(
-					stream_details.stream.author == remove.stream.author,
+					stream_details.stream.controller == tx_stream.stream.controller,
 					Error::<T>::UnauthorizedOperation
 				);
 			}
-			<StreamHashes<T>>::insert(&remove.stream.digest, &remove.identifier);
 
-			<Streams<T>>::remove(&remove.identifier);
+			<StreamHashes<T>>::insert(&tx_stream.stream.digest, &tx_stream.identifier);
+
+			<Streams<T>>::remove(&tx_stream.identifier);
 			Self::deposit_event(Event::Remove {
-				identifier: remove.identifier,
-				author: remove.stream.author,
+				identifier: tx_stream.identifier,
+				author: tx_stream.stream.controller,
 			});
 
 			Ok(())
@@ -456,13 +499,13 @@ pub mod pallet {
 		pub fn digest(
 			origin: OriginFor<T>,
 			identifier: IdentifierOf,
-			creator: CordAccountOf<T>,
+			author: CordAccountOf<T>,
 			digest_hash: HashOf<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
-				tx_signature.verify(&(&digest_hash).encode()[..], &creator),
+				tx_signature.verify(&(&digest_hash).encode()[..], &author),
 				Error::<T>::InvalidSignature
 			);
 
@@ -470,24 +513,210 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
 
 			ensure!(
-				!<StreamDigests<T>>::contains_key(&digest_hash),
+				!<StreamHashes<T>>::contains_key(&digest_hash),
 				Error::<T>::DigestHashAlreadyAnchored
 			);
 
-			let tx_prev_details =
+			let stream_details =
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(!tx_prev_details.revoked, Error::<T>::StreamRevoked);
+			ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
 
-			if let Some(ref schema) = tx_prev_details.stream.schema {
-				pallet_schema::SchemaDetails::<T>::from_schema_identities(schema, creator.clone())
-					.map_err(<pallet_schema::Error<T>>::from)?;
+			if let Some(ref register) = stream_details.stream.register {
+				pallet_registry::RegistryDetails::<T>::from_registry_identities(
+					register,
+					author.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+			} else if let Some(ref schema) = stream_details.stream.schema {
+				pallet_schema::SchemaDetails::from_schema_delegates(
+					schema,
+					stream_details.stream.controller.clone(),
+					author.clone(),
+				)
+				.map_err(<pallet_schema::Error<T>>::from)?;
+			} else {
+				ensure!(
+					stream_details.stream.controller == author,
+					Error::<T>::UnauthorizedOperation
+				);
 			}
 
-			<StreamDigests<T>>::insert(&digest_hash, &identifier);
+			<StreamHashes<T>>::insert(&digest_hash, &identifier);
 
-			Self::deposit_event(Event::Digest { identifier, digest: digest_hash, author: creator });
+			Self::deposit_event(Event::Digest { identifier, digest: digest_hash, author });
 
 			Ok(())
+		}
+		/// Add schema authorisations (delegation).
+		///
+		/// This transaction can only be performed by the schema controller or
+		/// delegates.
+		///
+		/// * origin: the identity of the schema anchor.
+		/// * auth: delegation schema details.
+		/// * delegates: authorised identities to add.
+		/// * tx_signature: transaction author signature.
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::delegate())]
+		pub fn delegate(
+			origin: OriginFor<T>,
+			tx_delegation: StreamDelegationParams<T>,
+			delegates: Vec<CordAccountOf<T>>,
+			tx_signature: SignatureOf<T>,
+		) -> DispatchResult {
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+
+			ensure!(
+				!<StreamHashes<T>>::contains_key(&tx_delegation.digest),
+				Error::<T>::InvalidTransactionHash
+			);
+			ensure!(
+				tx_signature
+					.verify(&(&tx_delegation.digest).encode()[..], &tx_delegation.delegator),
+				Error::<T>::InvalidSignature
+			);
+
+			ss58identifier::from_known_format(&tx_delegation.identifier, STREAM_PREFIX)
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
+
+			let stream_details =
+				<Streams<T>>::get(&tx_delegation.identifier).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
+
+			if stream_details.stream.holder != tx_delegation.delegator {
+				if let Some(ref register) = stream_details.stream.register {
+					pallet_registry::RegistryDetails::<T>::from_registry_identities(
+						register,
+						tx_delegation.delegator.clone(),
+					)
+					.map_err(<pallet_registry::Error<T>>::from)?;
+				} else if let Some(ref schema) = stream_details.stream.schema {
+					pallet_schema::SchemaDetails::from_schema_delegates(
+						schema,
+						stream_details.stream.controller.clone(),
+						tx_delegation.delegator.clone(),
+					)
+					.map_err(<pallet_schema::Error<T>>::from)?;
+				} else {
+					ensure!(
+						stream_details.stream.controller == tx_delegation.delegator,
+						Error::<T>::UnauthorizedOperation
+					);
+				}
+			}
+
+			StreamDelegations::<T>::try_mutate(
+				tx_delegation.identifier.clone(),
+				|ref mut delegation| {
+					ensure!(
+						delegation.len() + delegates.len() <= T::MaxSchemaDelegates::get() as usize,
+						Error::<T>::TooManyDelegates
+					);
+					for delegate in delegates {
+						delegation
+							.try_push(delegate)
+							.expect("delegates length is less than T::MaxSchemaDelegates; qed");
+					}
+
+					<StreamHashes<T>>::insert(&tx_delegation.digest, &tx_delegation.identifier);
+					<Streams<T>>::insert(
+						&tx_delegation.identifier,
+						StreamDetails { delegation: true, ..stream_details },
+					);
+
+					Self::deposit_event(Event::AddDelegates {
+						identifier: tx_delegation.identifier,
+						digest: tx_delegation.digest,
+						delegator: tx_delegation.delegator,
+					});
+					Ok(())
+				},
+			)
+		}
+		/// Remove schema authorisations (delegation).
+		///
+		/// This transaction can only be performed by the schema controller or
+		/// delegates.
+		///
+		/// * origin: the identity of the schema anchor.
+		/// * schema: delegation schema details.
+		/// * delegates: identities to be removed.
+		/// * tx_signature: transaction author signature.
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::undelegate())]
+		pub fn undelegate(
+			origin: OriginFor<T>,
+			tx_delegation: StreamDelegationParams<T>,
+			delegates: Vec<CordAccountOf<T>>,
+			tx_signature: SignatureOf<T>,
+		) -> DispatchResult {
+			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+
+			ensure!(
+				!<StreamHashes<T>>::contains_key(&tx_delegation.digest),
+				Error::<T>::InvalidTransactionHash
+			);
+			ensure!(
+				tx_signature
+					.verify(&(&tx_delegation.digest).encode()[..], &tx_delegation.delegator),
+				Error::<T>::InvalidSignature
+			);
+
+			ss58identifier::from_known_format(&tx_delegation.identifier, STREAM_PREFIX)
+				.map_err(|_| Error::<T>::InvalidStreamIdentifier)?;
+
+			let stream_details =
+				<Streams<T>>::get(&tx_delegation.identifier).ok_or(Error::<T>::StreamNotFound)?;
+			ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
+
+			if stream_details.stream.holder != tx_delegation.delegator {
+				if let Some(ref register) = stream_details.stream.register {
+					pallet_registry::RegistryDetails::<T>::from_registry_identities(
+						register,
+						tx_delegation.delegator.clone(),
+					)
+					.map_err(<pallet_registry::Error<T>>::from)?;
+				} else if let Some(ref schema) = stream_details.stream.schema {
+					pallet_schema::SchemaDetails::from_schema_delegates(
+						schema,
+						stream_details.stream.controller.clone(),
+						tx_delegation.delegator.clone(),
+					)
+					.map_err(<pallet_schema::Error<T>>::from)?;
+				} else {
+					ensure!(
+						stream_details.stream.controller == tx_delegation.delegator,
+						Error::<T>::UnauthorizedOperation
+					);
+				}
+			}
+
+			StreamDelegations::<T>::try_mutate(
+				tx_delegation.identifier.clone(),
+				|ref mut delegation| {
+					ensure!(
+						delegates.len() <= T::MaxSchemaDelegates::get() as usize,
+						Error::<T>::TooManyDelegatesToRemove
+					);
+					for delegate in delegates {
+						delegation.retain(|x| x != &delegate);
+					}
+
+					if delegation.is_empty() {
+						<Streams<T>>::insert(
+							&tx_delegation.identifier,
+							StreamDetails { delegation: false, ..stream_details },
+						);
+					}
+
+					<StreamHashes<T>>::insert(&tx_delegation.digest, &tx_delegation.identifier);
+
+					Self::deposit_event(Event::RemoveDelegates {
+						identifier: tx_delegation.identifier,
+						digest: tx_delegation.digest,
+						delegator: tx_delegation.delegator,
+					});
+					Ok(())
+				},
+			)
 		}
 	}
 }

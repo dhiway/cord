@@ -49,7 +49,7 @@ pub mod pallet {
 	pub type SignatureOf<T> = <T as Config>::Signature;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_space::Config {
+	pub trait Config: frame_system::Config + pallet_registry::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
@@ -88,7 +88,7 @@ pub mod pallet {
 	/// It maps from an identifier to a vector of delegates.
 	#[pallet::storage]
 	#[pallet::storage_prefix = "Delegates"]
-	pub(super) type Delegations<T: Config> = StorageMap<
+	pub(super) type SchemaDelegations<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		IdentifierOf,
@@ -136,7 +136,7 @@ pub mod pallet {
 		// Invalid Schema Identifier Prefix
 		InvalidIdentifierPrefix,
 		// Schema is not part of the Space
-		SchemaSpaceMismatch,
+		SchemaRegistryMismatch,
 		// Invalid creator signature
 		InvalidSignature,
 		// Invalid transaction hash
@@ -151,7 +151,7 @@ pub mod pallet {
 		/// delegates.
 		///
 		/// * origin: the identity of the schema anchor.
-		/// * schema: delegation schema details.
+		/// * auth: delegation schema details.
 		/// * delegates: authorised identities to add.
 		/// * tx_signature: transaction author signature.
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::authorise())]
@@ -169,7 +169,7 @@ pub mod pallet {
 			);
 
 			ensure!(
-				tx_signature.verify(&(&auth.schema.digest).encode()[..], &auth.schema.author),
+				tx_signature.verify(&(&auth.schema.digest).encode()[..], &auth.schema.controller),
 				Error::<T>::InvalidSignature
 			);
 
@@ -180,27 +180,26 @@ pub mod pallet {
 				<Schemas<T>>::get(&auth.identifier).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 
-			if let Some(space) = auth.schema.space {
+			if let Some(register) = auth.schema.register {
 				ensure!(
-					schema_details.schema.space == Some(space.clone()),
-					Error::<T>::SchemaSpaceMismatch
+					schema_details.schema.register == Some(register.clone()),
+					Error::<T>::SchemaRegistryMismatch
 				);
-
-				if schema_details.schema.author != auth.schema.author {
-					pallet_space::SpaceDetails::<T>::from_space_identities(
-						&space,
-						auth.schema.author.clone(),
-					)
-					.map_err(<pallet_space::Error<T>>::from)?;
-				}
+				pallet_registry::RegistryDetails::<T>::from_registry_identities(
+					&register,
+					auth.schema.controller.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
 			} else {
-				ensure!(
-					schema_details.schema.author == auth.schema.author,
-					Error::<T>::UnauthorizedDelegation
-				);
+				SchemaDetails::from_schema_delegates(
+					&auth.identifier,
+					schema_details.schema.controller,
+					auth.schema.controller.clone(),
+				)
+				.map_err(<Error<T>>::from)?;
 			}
 
-			Delegations::<T>::try_mutate(auth.identifier.clone(), |ref mut delegation| {
+			SchemaDelegations::<T>::try_mutate(auth.identifier.clone(), |ref mut delegation| {
 				ensure!(
 					delegation.len() + delegates.len() <= T::MaxSchemaDelegates::get() as usize,
 					Error::<T>::TooManyDelegates
@@ -216,7 +215,7 @@ pub mod pallet {
 				Self::deposit_event(Event::AddDelegates {
 					identifier: auth.identifier,
 					digest: auth.schema.digest,
-					author: auth.schema.author,
+					author: auth.schema.controller,
 				});
 				Ok(())
 			})
@@ -245,7 +244,8 @@ pub mod pallet {
 			);
 
 			ensure!(
-				tx_signature.verify(&(&deauth.schema.digest).encode()[..], &deauth.schema.author),
+				tx_signature
+					.verify(&(&deauth.schema.digest).encode()[..], &deauth.schema.controller),
 				Error::<T>::InvalidSignature
 			);
 
@@ -256,44 +256,46 @@ pub mod pallet {
 				<Schemas<T>>::get(&deauth.identifier).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 
-			if let Some(space) = deauth.schema.space {
+			if let Some(register) = deauth.schema.register {
 				ensure!(
-					schema_details.schema.space == Some(space.clone()),
-					Error::<T>::SchemaSpaceMismatch
+					schema_details.schema.register == Some(register.clone()),
+					Error::<T>::SchemaRegistryMismatch
 				);
-
-				if schema_details.schema.author != deauth.schema.author {
-					pallet_space::SpaceDetails::<T>::from_space_identities(
-						&space,
-						deauth.schema.author.clone(),
-					)
-					.map_err(<pallet_space::Error<T>>::from)?;
-				}
+				pallet_registry::RegistryDetails::<T>::from_registry_identities(
+					&register,
+					deauth.schema.controller.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
 			} else {
-				ensure!(
-					schema_details.schema.author == deauth.schema.author,
-					Error::<T>::UnauthorizedOperation
-				);
+				SchemaDetails::from_schema_delegates(
+					&deauth.identifier,
+					schema_details.schema.controller,
+					deauth.schema.controller.clone(),
+				)
+				.map_err(<Error<T>>::from)?;
 			}
 
-			Delegations::<T>::try_mutate(deauth.identifier.clone(), |ref mut schema_delegates| {
-				ensure!(
-					delegates.len() <= T::MaxSchemaDelegates::get() as usize,
-					Error::<T>::TooManyDelegatesToRemove
-				);
-				for delegate in delegates {
-					schema_delegates.retain(|x| x != &delegate);
-				}
+			SchemaDelegations::<T>::try_mutate(
+				deauth.identifier.clone(),
+				|ref mut schema_delegates| {
+					ensure!(
+						delegates.len() <= T::MaxSchemaDelegates::get() as usize,
+						Error::<T>::TooManyDelegatesToRemove
+					);
+					for delegate in delegates {
+						schema_delegates.retain(|x| x != &delegate);
+					}
 
-				<SchemaHashes<T>>::insert(&deauth.schema.digest, &deauth.identifier);
+					<SchemaHashes<T>>::insert(&deauth.schema.digest, &deauth.identifier);
 
-				Self::deposit_event(Event::RemoveDelegates {
-					identifier: deauth.identifier,
-					digest: deauth.schema.digest,
-					author: deauth.schema.author,
-				});
-				Ok(())
-			})
+					Self::deposit_event(Event::RemoveDelegates {
+						identifier: deauth.identifier,
+						digest: deauth.schema.digest,
+						author: deauth.schema.controller,
+					});
+					Ok(())
+				},
+			)
 		}
 
 		/// Create a new schema and associates with its identifier.
@@ -304,42 +306,43 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(
 			origin: OriginFor<T>,
-			schema: SchemaType<T>,
+			tx_schema: SchemaType<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
-				tx_signature.verify(&(&schema.digest).encode()[..], &schema.author),
+				tx_signature.verify(&(&tx_schema.digest).encode()[..], &tx_schema.controller),
 				Error::<T>::InvalidSignature
 			);
 
 			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
-				ss58identifier::generate(&(&schema.digest).encode()[..], SCHEMA_PREFIX)
+				ss58identifier::generate(&(&tx_schema.digest).encode()[..], SCHEMA_PREFIX)
 					.into_bytes(),
 			)
 			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 
-			if let Some(ref space) = schema.space {
-				pallet_space::SpaceDetails::<T>::from_space_identities(
-					space,
-					schema.author.clone(),
+			if let Some(ref register) = tx_schema.register {
+				pallet_registry::RegistryDetails::<T>::set_registry_schema(
+					register,
+					tx_schema.controller.clone(),
+					identifier.clone(),
 				)
-				.map_err(<pallet_space::Error<T>>::from)?;
+				.map_err(<pallet_registry::Error<T>>::from)?;
 			}
 
-			<SchemaHashes<T>>::insert(&schema.digest, &identifier);
+			<SchemaHashes<T>>::insert(&tx_schema.digest, &identifier);
 
 			<Schemas<T>>::insert(
 				&identifier,
-				SchemaDetails { schema: schema.clone(), revoked: false, metadata: false },
+				SchemaDetails { schema: tx_schema.clone(), revoked: false, metadata: false },
 			);
 
 			Self::deposit_event(Event::Create {
 				identifier,
-				digest: schema.digest,
-				author: schema.author,
+				digest: tx_schema.digest,
+				author: tx_schema.controller,
 			});
 
 			Ok(())
@@ -356,58 +359,58 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::revoke())]
 		pub fn revoke(
 			origin: OriginFor<T>,
-			rev: SchemaParams<T>,
+			tx_schema: SchemaParams<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SchemaHashes<T>>::contains_key(&rev.schema.digest),
+				!<SchemaHashes<T>>::contains_key(&tx_schema.schema.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&rev.schema.digest).encode()[..], &rev.schema.author),
+				tx_signature
+					.verify(&(&tx_schema.schema.digest).encode()[..], &tx_schema.schema.controller),
 				Error::<T>::InvalidSignature
 			);
 
-			ss58identifier::from_known_format(&rev.identifier, SCHEMA_PREFIX)
+			ss58identifier::from_known_format(&tx_schema.identifier, SCHEMA_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
 			let schema_details =
-				<Schemas<T>>::get(&rev.identifier).ok_or(Error::<T>::SchemaNotFound)?;
+				<Schemas<T>>::get(&tx_schema.identifier).ok_or(Error::<T>::SchemaNotFound)?;
 			ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 
-			if let Some(space) = rev.schema.space {
+			if let Some(register) = tx_schema.schema.register {
 				ensure!(
-					schema_details.schema.space == Some(space.clone()),
-					Error::<T>::SchemaSpaceMismatch
+					schema_details.schema.register == Some(register.clone()),
+					Error::<T>::SchemaRegistryMismatch
 				);
-
-				if schema_details.schema.author != rev.schema.author {
-					pallet_space::SpaceDetails::<T>::from_space_identities(
-						&space,
-						rev.schema.author.clone(),
-					)
-					.map_err(<pallet_space::Error<T>>::from)?;
-				}
+				pallet_registry::RegistryDetails::<T>::from_registry_identities(
+					&register,
+					tx_schema.schema.controller.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
 			} else {
-				ensure!(
-					schema_details.schema.author == rev.schema.author,
-					Error::<T>::UnauthorizedOperation
-				);
+				SchemaDetails::from_schema_delegates(
+					&tx_schema.identifier,
+					schema_details.schema.controller.clone(),
+					tx_schema.schema.controller.clone(),
+				)
+				.map_err(<Error<T>>::from)?;
 			}
 
-			<SchemaHashes<T>>::insert(&rev.schema.digest, &rev.identifier);
+			<SchemaHashes<T>>::insert(&tx_schema.schema.digest, &tx_schema.identifier);
 
 			<Schemas<T>>::insert(
-				&rev.identifier,
+				&tx_schema.identifier,
 				SchemaDetails { revoked: true, ..schema_details },
 			);
 			Self::deposit_event(Event::Revoke {
-				identifier: rev.identifier,
-				digest: rev.schema.digest,
-				author: rev.schema.author,
+				identifier: tx_schema.identifier,
+				digest: tx_schema.schema.digest,
+				author: tx_schema.schema.controller,
 			});
 
 			Ok(())

@@ -20,13 +20,14 @@ use crate::*;
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
-/// An on-chain space details mapped to an identifier.
+/// An on-chain registry details mapped to an identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
+#[codec(mel_bound())]
 pub struct RegistryType<T: Config> {
-	/// Collection hash.
+	/// Registry hash.
 	pub digest: HashOf<T>,
-	/// Collection creator.
+	/// Registry creator.
 	pub controller: CordAccountOf<T>,
 }
 
@@ -36,13 +37,16 @@ impl<T: Config> sp_std::fmt::Debug for RegistryType<T> {
 	}
 }
 
-/// An on-chain space details mapped to an identifier.
+/// An on-chain registry details mapped to an identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
+#[codec(mel_bound())]
 pub struct RegistryDetails<T: Config> {
-	/// Collection type.
-	pub registry: RegistryType<T>,
-	/// The flag indicating the status of the collection.
+	/// Registry type.
+	pub register: RegistryType<T>,
+	/// \[OPTIONAL\] Schema Identifier
+	pub schema: Option<IdentifierOf>,
+	/// The flag indicating the status of the registry.
 	pub archived: StatusOf,
 	/// The flag indicating the status of the metadata.
 	pub metadata: StatusOf,
@@ -55,56 +59,39 @@ impl<T: Config> sp_std::fmt::Debug for RegistryDetails<T> {
 }
 
 impl<T: Config> RegistryDetails<T> {
-	pub fn from_collection_identities(
+	pub fn from_registry_identities(
 		tx_ident: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
 		ss58identifier::from_known_format(tx_ident, REGISTRY_INDEX)
-			.map_err(|_| Error::<T>::InvalidCollectionIdentifier)?;
+			.map_err(|_| Error::<T>::InvalidRegistryIdentifier)?;
 
 		let registry_details =
-			<Registries<T>>::get(&tx_ident).ok_or(Error::<T>::CollectionNotFound)?;
-		ensure!(!registry_details.archived, Error::<T>::ArchivedCollection);
+			<Registries<T>>::get(&tx_ident).ok_or(Error::<T>::RegistryNotFound)?;
+		ensure!(!registry_details.archived, Error::<T>::ArchivedRegistry);
 
-		if registry_details.registry.controller != requestor {
-			let delegates = <Delegations<T>>::get(tx_ident);
-			ensure!(
-				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
-				Error::<T>::UnauthorizedOperation
-			);
-		}
+		Self::from_registry_delegates(tx_ident, registry_details.register.controller, requestor)
+			.map_err(Error::<T>::from)?;
+
 		Ok(())
 	}
-	pub fn from_collection_delegates(
-		tx_ident: &IdentifierOf,
-		requestor: CordAccountOf<T>,
-		controller: CordAccountOf<T>,
-	) -> Result<(), Error<T>> {
-		if controller != requestor {
-			let delegates = <Delegations<T>>::get(tx_ident);
-			ensure!(
-				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
-				Error::<T>::UnauthorizedOperation
-			);
-		}
-		Ok(())
-	}
-	pub fn set_collection_metadata(
+
+	pub fn set_registry_metadata(
 		tx_ident: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 		status: bool,
 	) -> Result<(), Error<T>> {
 		let registry_details =
-			<Registries<T>>::get(&tx_ident).ok_or(Error::<T>::CollectionNotFound)?;
-		ensure!(!registry_details.archived, Error::<T>::ArchivedCollection);
+			<Registries<T>>::get(&tx_ident).ok_or(Error::<T>::RegistryNotFound)?;
+		ensure!(!registry_details.archived, Error::<T>::ArchivedRegistry);
 
-		if registry_details.registry.controller != requestor {
-			let delegates = <Delegations<T>>::get(tx_ident);
-			ensure!(
-				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
-				Error::<T>::UnauthorizedOperation
-			);
-		}
+		Self::from_registry_delegates(
+			tx_ident,
+			registry_details.register.controller.clone(),
+			requestor,
+		)
+		.map_err(Error::<T>::from)?;
+
 		<Registries<T>>::insert(
 			&tx_ident,
 			RegistryDetails { metadata: status, ..registry_details },
@@ -112,16 +99,56 @@ impl<T: Config> RegistryDetails<T> {
 
 		Ok(())
 	}
+
+	pub fn set_registry_schema(
+		tx_ident: &IdentifierOf,
+		requestor: CordAccountOf<T>,
+		tx_schema: IdentifierOf,
+	) -> Result<(), Error<T>> {
+		let registry_details =
+			<Registries<T>>::get(&tx_ident).ok_or(Error::<T>::RegistryNotFound)?;
+		ensure!(!registry_details.archived, Error::<T>::ArchivedRegistry);
+
+		Self::from_registry_delegates(
+			tx_ident,
+			registry_details.register.controller.clone(),
+			requestor,
+		)
+		.map_err(Error::<T>::from)?;
+
+		<Registries<T>>::insert(
+			&tx_ident,
+			RegistryDetails { schema: Some(tx_schema), ..registry_details },
+		);
+
+		Ok(())
+	}
+
+	pub fn from_registry_delegates(
+		tx_ident: &IdentifierOf,
+		requestor: CordAccountOf<T>,
+		controller: CordAccountOf<T>,
+	) -> Result<(), Error<T>> {
+		if controller != requestor {
+			let delegates = <RegistryDelegations<T>>::get(tx_ident);
+			ensure!(
+				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
+				Error::<T>::UnauthorizedOperation
+			);
+		}
+		Ok(())
+	}
 }
 
 /// An on-chain schema details mapped to an identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
+#[codec(mel_bound())]
 pub struct RegistryParams<T: Config> {
-	/// Collection identifier
+	/// Registry identifier
 	pub identifier: IdentifierOf,
-	/// Collection Type.
-	pub registry: RegistryType<T>,
+	/// Registry Type.
+	pub register: RegistryType<T>,
 }
 
 impl<T: Config> sp_std::fmt::Debug for RegistryParams<T> {

@@ -43,7 +43,6 @@ pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use pallet_stream::StreamDetails;
 
 	use super::*;
 
@@ -61,7 +60,10 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_space::Config + pallet_schema::Config + pallet_stream::Config
+		frame_system::Config
+		+ pallet_registry::Config
+		+ pallet_schema::Config
+		+ pallet_stream::Config
 	{
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type EnsureOrigin: EnsureOrigin<
@@ -176,7 +178,6 @@ pub mod pallet {
 
 			MetaParams::<T>::add_to_identitifier(&meta.identifier, meta.controller.clone(), true)
 				.map_err(Error::<T>::from)?;
-			// .map_err(|_| Error::<T>::InvalidIdentifier)?;
 
 			let length = bounded_metadata.len() as u32;
 			let deposit = T::BaseDeposit::get()

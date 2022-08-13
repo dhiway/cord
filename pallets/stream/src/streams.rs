@@ -23,20 +23,20 @@ use scale_info::TypeInfo;
 /// An on-chain stream details mapper to an Identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
-// #[codec(mel_bound())]
+#[codec(mel_bound())]
 pub struct StreamType<T: Config> {
 	/// Stream hash.
 	pub digest: HashOf<T>,
 	/// Stream controller.
-	pub author: CordAccountOf<T>,
+	pub controller: CordAccountOf<T>,
 	/// Stream holder.
-	pub holder: Option<CordAccountOf<T>>,
+	pub holder: CordAccountOf<T>,
 	/// \[OPTIONAL\] Schema Identifier
 	pub schema: Option<IdentifierOf>,
 	/// \[OPTIONAL\] Stream Link
 	pub link: Option<IdentifierOf>,
-	/// \[OPTIONAL\] Space ID.
-	pub space: Option<IdentifierOf>,
+	/// \[OPTIONAL\] Registry ID.
+	pub register: Option<IdentifierOf>,
 }
 
 impl<T: Config> sp_std::fmt::Debug for StreamType<T> {
@@ -48,14 +48,16 @@ impl<T: Config> sp_std::fmt::Debug for StreamType<T> {
 /// An on-chain stream details mapper to an Identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
-// #[codec(mel_bound())]
+#[codec(mel_bound())]
 pub struct StreamDetails<T: Config> {
 	/// Stream hash.
 	pub stream: StreamType<T>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
-	/// The flag indicating the status of the metadata.
+	/// The flag indicating the status of metadata.
 	pub metadata: StatusOf,
+	/// The flag indicating the status of delegation.
+	pub delegation: StatusOf,
 }
 
 impl<T: Config> sp_std::fmt::Debug for StreamDetails<T> {
@@ -73,13 +75,18 @@ impl<T: Config> StreamDetails<T> {
 		let stream_details = <Streams<T>>::get(&tx_stream).ok_or(Error::<T>::StreamNotFound)?;
 		ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
 
-		if stream_details.stream.author != requestor {
-			if let Some(ref space) = stream_details.stream.space {
-				pallet_space::SpaceDetails::<T>::from_space_identities(space, requestor)
-					.map_err(|_| Error::<T>::UnauthorizedOperation)?;
+		if stream_details.stream.controller != requestor {
+			if let Some(ref register) = stream_details.stream.register {
+				pallet_registry::RegistryDetails::<T>::from_registry_identities(
+					register, requestor,
+				)
+				.map_err(|_| Error::<T>::UnauthorizedOperation)?;
 			}
 		} else {
-			ensure!(stream_details.stream.author == requestor, Error::<T>::UnauthorizedOperation);
+			ensure!(
+				stream_details.stream.controller == requestor,
+				Error::<T>::UnauthorizedOperation
+			);
 		}
 
 		<Streams<T>>::insert(&tx_stream, StreamDetails { metadata: status, ..stream_details });
@@ -91,7 +98,7 @@ impl<T: Config> StreamDetails<T> {
 /// An on-chain schema details mapped to an identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
-// #[codec(mel_bound())]
+#[codec(mel_bound())]
 pub struct StreamParams<T: Config> {
 	/// Schema identifier
 	pub identifier: IdentifierOf,
@@ -100,6 +107,25 @@ pub struct StreamParams<T: Config> {
 }
 
 impl<T: Config> sp_std::fmt::Debug for StreamParams<T> {
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		Ok(())
+	}
+}
+
+/// An on-chain schema details mapped to an identifier.
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+#[codec(mel_bound())]
+pub struct StreamDelegationParams<T: Config> {
+	/// Stream identifier
+	pub identifier: IdentifierOf,
+	/// Stream hash.
+	pub digest: HashOf<T>,
+	/// Stream controller.
+	pub delegator: CordAccountOf<T>,
+}
+
+impl<T: Config> sp_std::fmt::Debug for StreamDelegationParams<T> {
 	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		Ok(())
 	}
