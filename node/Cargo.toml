@@ -108,6 +108,8 @@ sc-block-builder ={ git = "https://github.com/paritytech/substrate", branch = "p
 sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
 sp-blockchain ={ git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
 assert_cmd = "2.0.4"
+nix = "0.24.1"
+async-std = { version = "1.10.0", features = ["attributes"] }
 futures = "0.3.21"
 tempfile = "3.1.0"
 serde_json = "1.0"

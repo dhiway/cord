@@ -188,7 +188,7 @@ pub mod pallet {
 			Metadata::<T>::insert(
 				meta.identifier.clone(),
 				MetadataEntry {
-					metadata: bounded_metadata,
+					meta: bounded_metadata,
 					digest: meta.digest,
 					controller: meta.controller.clone(),
 				},

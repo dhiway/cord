@@ -75,7 +75,7 @@ impl<T: Config> MetaParams<T> {
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
 pub struct MetadataEntry<T: Config> {
-	pub metadata: MetaDataOf,
+	pub meta: MetaDataOf,
 	pub digest: HashOf<T>,
 	pub controller: CordAccountOf<T>,
 }
