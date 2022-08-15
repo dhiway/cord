@@ -44,7 +44,7 @@ pub mod pallet {
 	pub type SignatureOf<T> = <T as Config>::Signature;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_schema::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
@@ -153,7 +153,7 @@ pub mod pallet {
 		/// * tx_space: space transaction details.
 		/// * delegates: authorised identities to add.
 		/// * tx_signature: creator signature.
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::authorise())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::delegate())]
 		pub fn delegate(
 			origin: OriginFor<T>,
 			tx_space: SpaceParams<T>,
@@ -210,7 +210,7 @@ pub mod pallet {
 		/// * auth: space transaction details.
 		/// * delegates: authorised identities to add.
 		/// * tx_signature: creator signature.
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::deauthorise())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::undelegate())]
 		pub fn undelegate(
 			origin: OriginFor<T>,
 			tx_space: SpaceParams<T>,
@@ -278,16 +278,18 @@ pub mod pallet {
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
 
+			if let Some(ref schema) = tx_space.schema {
+				pallet_schema::SchemaDetails::<T>::from_schema_identities(
+					schema,
+					tx_space.controller.clone(),
+				)
+				.map_err(<pallet_schema::Error<T>>::from)?;
+			}
 			<SpaceHashes<T>>::insert(&tx_space.digest, &identifier);
 
 			<Spaces<T>>::insert(
 				&identifier,
-				SpaceDetails {
-					space: tx_space.clone(),
-					schema: None,
-					archived: false,
-					metadata: false,
-				},
+				SpaceDetails { space: tx_space.clone(), archived: false, meta: false },
 			);
 			Self::deposit_event(Event::Create {
 				identifier,

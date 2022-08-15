@@ -8,7 +8,7 @@ use frame_support::{
 };
 use sp_std::marker::PhantomData;
 
-/// Weight functions needed for pallet_identity.
+/// Weight functions needed for pallet_stream.
 pub trait WeightInfo {
 	fn create() -> Weight;
 	fn update() -> Weight;

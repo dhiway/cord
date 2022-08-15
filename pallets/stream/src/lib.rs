@@ -49,9 +49,7 @@ pub mod pallet {
 	pub type SignatureOf<T> = <T as Config>::Signature;
 
 	#[pallet::config]
-	pub trait Config:
-		frame_system::Config + pallet_schema::Config + pallet_registry::Config
-	{
+	pub trait Config: frame_system::Config + pallet_schema::Config + pallet_space::Config {
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
@@ -162,7 +160,7 @@ pub mod pallet {
 		// Invalid Schema Identifier Length
 		InvalidIdentifierLength,
 		// Stream not part of space
-		StreamRegistryMismatch,
+		StreamSpaceMismatch,
 		//Stream digest is not unique
 		DigestHashAlreadyAnchored,
 		// Invalid transaction hash
@@ -212,12 +210,12 @@ pub mod pallet {
 
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
 
-			if let Some(ref register) = tx_stream.register {
-				pallet_registry::RegistryDetails::<T>::from_registry_identities(
-					register,
+			if let Some(ref space) = tx_stream.space {
+				pallet_space::SpaceDetails::<T>::from_space_identities(
+					space,
 					tx_stream.controller.clone(),
 				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+				.map_err(<pallet_space::Error<T>>::from)?;
 			} else if let Some(ref schema) = tx_stream.schema {
 				pallet_schema::SchemaDetails::<T>::from_schema_identities(
 					schema,
@@ -238,8 +236,8 @@ pub mod pallet {
 				StreamDetails {
 					stream: tx_stream.clone(),
 					revoked: false,
-					metadata: false,
-					delegation: false,
+					meta: false,
+					delegates: false,
 				},
 			);
 
@@ -281,16 +279,16 @@ pub mod pallet {
 				<Streams<T>>::get(&tx_stream.identifier).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
 
-			if let Some(ref register) = tx_stream.stream.register {
+			if let Some(ref space) = tx_stream.stream.space {
 				ensure!(
-					stream_details.stream.register == Some(register.clone()),
-					Error::<T>::StreamRegistryMismatch
+					stream_details.stream.space == Some(space.clone()),
+					Error::<T>::StreamSpaceMismatch
 				);
-				pallet_registry::RegistryDetails::<T>::from_registry_identities(
-					register,
+				pallet_space::SpaceDetails::<T>::from_space_identities(
+					space,
 					tx_stream.stream.controller.clone(),
 				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+				.map_err(<pallet_space::Error<T>>::from)?;
 			} else if let Some(ref schema) = tx_stream.stream.schema {
 				pallet_schema::SchemaDetails::from_schema_delegates(
 					schema,
@@ -311,10 +309,7 @@ pub mod pallet {
 				&tx_stream.identifier,
 				StreamDetails {
 					stream: {
-						StreamType {
-							controller: stream_details.stream.controller.clone(),
-							..stream_details.stream
-						}
+						StreamType { digest: tx_stream.stream.digest, ..stream_details.stream }
 					},
 					..stream_details
 				},
@@ -359,16 +354,16 @@ pub mod pallet {
 				<Streams<T>>::get(&tx_stream.identifier).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
 
-			if let Some(ref register) = tx_stream.stream.register {
+			if let Some(ref space) = tx_stream.stream.space {
 				ensure!(
-					stream_details.stream.register == Some(register.clone()),
-					Error::<T>::StreamRegistryMismatch
+					stream_details.stream.space == Some(space.clone()),
+					Error::<T>::StreamSpaceMismatch
 				);
-				pallet_registry::RegistryDetails::<T>::from_registry_identities(
-					register,
+				pallet_space::SpaceDetails::<T>::from_space_identities(
+					space,
 					tx_stream.stream.controller.clone(),
 				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+				.map_err(<pallet_space::Error<T>>::from)?;
 			} else if let Some(ref schema) = tx_stream.stream.schema {
 				pallet_schema::SchemaDetails::from_schema_delegates(
 					schema,
@@ -387,16 +382,7 @@ pub mod pallet {
 
 			<Streams<T>>::insert(
 				&tx_stream.identifier,
-				StreamDetails {
-					revoked: true,
-					stream: {
-						StreamType {
-							controller: stream_details.stream.controller.clone(),
-							..stream_details.stream
-						}
-					},
-					..stream_details
-				},
+				StreamDetails { revoked: true, ..stream_details },
 			);
 			Self::deposit_event(Event::Revoke {
 				identifier: tx_stream.identifier,
@@ -437,16 +423,16 @@ pub mod pallet {
 			let stream_details =
 				<Streams<T>>::get(&tx_stream.identifier).ok_or(Error::<T>::StreamNotFound)?;
 
-			if let Some(ref register) = tx_stream.stream.register {
+			if let Some(ref space) = tx_stream.stream.space {
 				ensure!(
-					stream_details.stream.register == Some(register.clone()),
-					Error::<T>::StreamRegistryMismatch
+					stream_details.stream.space == Some(space.clone()),
+					Error::<T>::StreamSpaceMismatch
 				);
-				pallet_registry::RegistryDetails::<T>::from_registry_identities(
-					register,
+				pallet_space::SpaceDetails::<T>::from_space_identities(
+					space,
 					tx_stream.stream.controller.clone(),
 				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+				.map_err(<pallet_space::Error<T>>::from)?;
 			} else if let Some(ref schema) = tx_stream.stream.schema {
 				pallet_schema::SchemaDetails::from_schema_delegates(
 					schema,
@@ -521,12 +507,9 @@ pub mod pallet {
 				<Streams<T>>::get(&identifier).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
 
-			if let Some(ref register) = stream_details.stream.register {
-				pallet_registry::RegistryDetails::<T>::from_registry_identities(
-					register,
-					author.clone(),
-				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+			if let Some(ref space) = stream_details.stream.space {
+				pallet_space::SpaceDetails::<T>::from_space_identities(space, author.clone())
+					.map_err(<pallet_space::Error<T>>::from)?;
 			} else if let Some(ref schema) = stream_details.stream.schema {
 				pallet_schema::SchemaDetails::from_schema_delegates(
 					schema,
@@ -583,12 +566,12 @@ pub mod pallet {
 			ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
 
 			if stream_details.stream.holder != tx_delegation.delegator {
-				if let Some(ref register) = stream_details.stream.register {
-					pallet_registry::RegistryDetails::<T>::from_registry_identities(
-						register,
+				if let Some(ref space) = stream_details.stream.space {
+					pallet_space::SpaceDetails::<T>::from_space_identities(
+						space,
 						tx_delegation.delegator.clone(),
 					)
-					.map_err(<pallet_registry::Error<T>>::from)?;
+					.map_err(<pallet_space::Error<T>>::from)?;
 				} else if let Some(ref schema) = stream_details.stream.schema {
 					pallet_schema::SchemaDetails::from_schema_delegates(
 						schema,
@@ -620,7 +603,7 @@ pub mod pallet {
 					<StreamHashes<T>>::insert(&tx_delegation.digest, &tx_delegation.identifier);
 					<Streams<T>>::insert(
 						&tx_delegation.identifier,
-						StreamDetails { delegation: true, ..stream_details },
+						StreamDetails { delegates: true, ..stream_details },
 					);
 
 					Self::deposit_event(Event::AddDelegates {
@@ -668,12 +651,12 @@ pub mod pallet {
 			ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
 
 			if stream_details.stream.holder != tx_delegation.delegator {
-				if let Some(ref register) = stream_details.stream.register {
-					pallet_registry::RegistryDetails::<T>::from_registry_identities(
-						register,
+				if let Some(ref space) = stream_details.stream.space {
+					pallet_space::SpaceDetails::<T>::from_space_identities(
+						space,
 						tx_delegation.delegator.clone(),
 					)
-					.map_err(<pallet_registry::Error<T>>::from)?;
+					.map_err(<pallet_space::Error<T>>::from)?;
 				} else if let Some(ref schema) = stream_details.stream.schema {
 					pallet_schema::SchemaDetails::from_schema_delegates(
 						schema,
@@ -703,7 +686,7 @@ pub mod pallet {
 					if delegation.is_empty() {
 						<Streams<T>>::insert(
 							&tx_delegation.identifier,
-							StreamDetails { delegation: false, ..stream_details },
+							StreamDetails { delegates: false, ..stream_details },
 						);
 					}
 

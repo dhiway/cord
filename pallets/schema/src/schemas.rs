@@ -28,8 +28,6 @@ pub struct SchemaType<T: Config> {
 	pub digest: HashOf<T>,
 	/// Schema delegator.
 	pub controller: CordAccountOf<T>,
-	/// \[OPTIONAL\] Registry Identifier.
-	pub register: Option<IdentifierOf>,
 }
 
 impl<T: Config> sp_std::fmt::Debug for SchemaType<T> {
@@ -47,7 +45,7 @@ pub struct SchemaDetails<T: Config> {
 	/// The flag indicating the status of the schema.
 	pub revoked: StatusOf,
 	/// The flag indicating the status of the metadata.
-	pub metadata: StatusOf,
+	pub meta: StatusOf,
 }
 
 impl<T: Config> sp_std::fmt::Debug for SchemaDetails<T> {
@@ -82,7 +80,7 @@ impl<T: Config> SchemaDetails<T> {
 		Self::from_schema_delegates(tx_ident, schema_details.schema.controller.clone(), requestor)
 			.map_err(Error::<T>::from)?;
 
-		<Schemas<T>>::insert(&tx_ident, SchemaDetails { metadata: status, ..schema_details });
+		<Schemas<T>>::insert(&tx_ident, SchemaDetails { meta: status, ..schema_details });
 
 		Ok(())
 	}

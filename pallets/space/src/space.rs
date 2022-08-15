@@ -29,6 +29,8 @@ pub struct SpaceType<T: Config> {
 	pub digest: HashOf<T>,
 	/// Space creator.
 	pub controller: CordAccountOf<T>,
+	/// \[OPTIONAL\] Schema Identifier
+	pub schema: Option<IdentifierOf>,
 }
 
 impl<T: Config> sp_std::fmt::Debug for SpaceType<T> {
@@ -44,12 +46,10 @@ impl<T: Config> sp_std::fmt::Debug for SpaceType<T> {
 pub struct SpaceDetails<T: Config> {
 	/// Space type.
 	pub space: SpaceType<T>,
-	/// \[OPTIONAL\] Schema Identifier
-	pub schema: Option<IdentifierOf>,
 	/// The flag indicating the status of the space.
 	pub archived: StatusOf,
 	/// The flag indicating the status of the metadata.
-	pub metadata: StatusOf,
+	pub meta: StatusOf,
 }
 
 impl<T: Config> sp_std::fmt::Debug for SpaceDetails<T> {
@@ -86,26 +86,28 @@ impl<T: Config> SpaceDetails<T> {
 		Self::from_space_delegates(tx_ident, space_details.space.controller.clone(), requestor)
 			.map_err(Error::<T>::from)?;
 
-		<Spaces<T>>::insert(&tx_ident, SpaceDetails { metadata: status, ..space_details });
+		<Spaces<T>>::insert(&tx_ident, SpaceDetails { meta: status, ..space_details });
 
 		Ok(())
 	}
 
-	pub fn set_space_schema(
-		tx_ident: &IdentifierOf,
-		requestor: CordAccountOf<T>,
-		tx_schema: IdentifierOf,
-	) -> Result<(), Error<T>> {
-		let space_details = <Spaces<T>>::get(&tx_ident).ok_or(Error::<T>::SpaceNotFound)?;
-		ensure!(!space_details.archived, Error::<T>::ArchivedSpace);
+	// pub fn set_space_schema(
+	// 	tx_ident: &IdentifierOf,
+	// 	requestor: CordAccountOf<T>,
+	// 	tx_schema: IdentifierOf,
+	// ) -> Result<(), Error<T>> {
+	// 	let space_details =
+	// <Spaces<T>>::get(&tx_ident).ok_or(Error::<T>::SpaceNotFound)?;
+	// 	ensure!(!space_details.archived, Error::<T>::ArchivedSpace);
 
-		Self::from_space_delegates(tx_ident, space_details.space.controller.clone(), requestor)
-			.map_err(Error::<T>::from)?;
+	// 	Self::from_space_delegates(tx_ident, space_details.space.controller.clone(),
+	// requestor) 		.map_err(Error::<T>::from)?;
 
-		<Spaces<T>>::insert(&tx_ident, SpaceDetails { schema: Some(tx_schema), ..space_details });
+	// 	<Spaces<T>>::insert(&tx_ident, SpaceDetails { schema: Some(tx_schema),
+	// ..space_details });
 
-		Ok(())
-	}
+	// 	Ok(())
+	// }
 
 	pub fn from_space_delegates(
 		tx_ident: &IdentifierOf,

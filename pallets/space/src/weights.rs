@@ -8,10 +8,10 @@ use frame_support::{
 };
 use sp_std::marker::PhantomData;
 
-/// Weight functions needed for pallet_identity.
+/// Weight functions needed for pallet_spaces.
 pub trait WeightInfo {
-	fn authorise() -> Weight;
-	fn deauthorise() -> Weight;
+	fn delegate() -> Weight;
+	fn undelegate() -> Weight;
 	fn create() -> Weight;
 	fn archive() -> Weight;
 	fn restore() -> Weight;
@@ -20,12 +20,12 @@ pub trait WeightInfo {
 
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	fn authorise() -> Weight {
+	fn delegate() -> Weight {
 		(322_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
-	fn deauthorise() -> Weight {
+	fn undelegate() -> Weight {
 		(322_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))

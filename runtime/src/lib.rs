@@ -1227,20 +1227,20 @@ impl pallet_anchor::Config for Runtime {
 
 parameter_types! {
 	// #[derive(Debug, Clone, PartialEq)]
-	pub const MaxRegistryDelegates: u32 = 100;
-	pub const MaxRegistrySchemas: u32 = 100;
+	pub const MaxSpaceDelegates: u32 = 100;
+	pub const MaxSpaceSchemas: u32 = 100;
 	pub const MaxSchemaDelegates: u32 = 100;
 	pub const MaxStreamDelegates: u32 = 100;
 }
 
-impl pallet_registry::Config for Runtime {
+impl pallet_space::Config for Runtime {
 	type Event = Event;
 	type Signature = Signature;
 	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-	type MaxRegistryDelegates = MaxRegistryDelegates;
-	type MaxRegistrySchemas = MaxRegistrySchemas;
-	type WeightInfo = pallet_registry::weights::SubstrateWeight<Runtime>;
+	type MaxSpaceDelegates = MaxSpaceDelegates;
+	type MaxSpaceSchemas = MaxSpaceSchemas;
+	type WeightInfo = pallet_space::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_schema::Config for Runtime {
@@ -1338,7 +1338,7 @@ construct_runtime! {
 		ElectionProviderMultiPhase: pallet_election_provider_multi_phase = 31,
 
 		Anchor: pallet_anchor = 51,
-		Registry: pallet_registry = 52,
+		Space: pallet_space = 52,
 		Schema: pallet_schema = 53,
 		Stream: pallet_stream = 54,
 		Meta: pallet_meta = 55,

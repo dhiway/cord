@@ -59,10 +59,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config
-		+ pallet_registry::Config
-		+ pallet_schema::Config
-		+ pallet_stream::Config
+		frame_system::Config + pallet_space::Config + pallet_schema::Config + pallet_stream::Config
 	{
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type EnsureOrigin: EnsureOrigin<

@@ -26,7 +26,6 @@ clap = { version = "3.1.18", features = ["derive"], optional = true }
 codec = { package = "parity-scale-codec", version = "3.1.2" }
 serde = { version = "1.0.136", features = ["derive"] }
 jsonrpsee = { version = "0.14.0", features = ["server"] }
-# tracing-core = "=0.1.26"
 futures = "0.3.21"
 hex-literal = "0.3.4"
 
@@ -108,6 +107,7 @@ sc-service-test = { git = "https://github.com/paritytech/substrate", branch = "p
 sc-block-builder ={ git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
 sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
 sp-blockchain ={ git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27" }
+assert_cmd = "2.0.4"
 futures = "0.3.21"
 tempfile = "3.1.0"
 serde_json = "1.0"

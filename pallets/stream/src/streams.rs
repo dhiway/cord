@@ -36,7 +36,7 @@ pub struct StreamType<T: Config> {
 	/// \[OPTIONAL\] Stream Link
 	pub link: Option<IdentifierOf>,
 	/// \[OPTIONAL\] Registry ID.
-	pub register: Option<IdentifierOf>,
+	pub space: Option<IdentifierOf>,
 }
 
 impl<T: Config> sp_std::fmt::Debug for StreamType<T> {
@@ -55,9 +55,9 @@ pub struct StreamDetails<T: Config> {
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
 	/// The flag indicating the status of metadata.
-	pub metadata: StatusOf,
+	pub meta: StatusOf,
 	/// The flag indicating the status of delegation.
-	pub delegation: StatusOf,
+	pub delegates: StatusOf,
 }
 
 impl<T: Config> sp_std::fmt::Debug for StreamDetails<T> {
@@ -76,11 +76,9 @@ impl<T: Config> StreamDetails<T> {
 		ensure!(!stream_details.revoked, Error::<T>::StreamRevoked);
 
 		if stream_details.stream.controller != requestor {
-			if let Some(ref register) = stream_details.stream.register {
-				pallet_registry::RegistryDetails::<T>::from_registry_identities(
-					register, requestor,
-				)
-				.map_err(|_| Error::<T>::UnauthorizedOperation)?;
+			if let Some(ref space) = stream_details.stream.space {
+				pallet_space::SpaceDetails::<T>::from_space_identities(space, requestor)
+					.map_err(|_| Error::<T>::UnauthorizedOperation)?;
 			}
 		} else {
 			ensure!(
@@ -89,7 +87,7 @@ impl<T: Config> StreamDetails<T> {
 			);
 		}
 
-		<Streams<T>>::insert(&tx_stream, StreamDetails { metadata: status, ..stream_details });
+		<Streams<T>>::insert(&tx_stream, StreamDetails { meta: status, ..stream_details });
 
 		Ok(())
 	}
