@@ -126,7 +126,7 @@ pub fn from_known_identifier(id: &IdentifierOf) -> IdentVerificationResult {
 	};
 
 	ensure!(
-		(ident == REGISTRY_INDEX || ident == SCHEMA_PREFIX || ident == STREAM_PREFIX),
+		(ident == SPACE_INDEX || ident == SCHEMA_PREFIX || ident == STREAM_PREFIX),
 		IdentifierVerificationError::InvalidPrefix
 	);
 	Ok(ident)

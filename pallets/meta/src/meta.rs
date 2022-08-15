@@ -49,7 +49,7 @@ impl<T: Config> MetaParams<T> {
 			.map_err(|_| Error::<T>::InvalidIdentifier)?;
 
 		match ident {
-			REGISTRY_INDEX => {
+			SPACE_INDEX => {
 				pallet_registry::RegistryDetails::<T>::set_registry_metadata(
 					identifier, requestor, status,
 				)

@@ -20,117 +20,100 @@ use crate::*;
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
-/// An on-chain registry details mapped to an identifier.
+/// An on-chain space details mapped to an identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
-pub struct RegistryType<T: Config> {
-	/// Registry hash.
+pub struct SpaceType<T: Config> {
+	/// Space hash.
 	pub digest: HashOf<T>,
-	/// Registry creator.
+	/// Space creator.
 	pub controller: CordAccountOf<T>,
 }
 
-impl<T: Config> sp_std::fmt::Debug for RegistryType<T> {
+impl<T: Config> sp_std::fmt::Debug for SpaceType<T> {
 	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		Ok(())
 	}
 }
 
-/// An on-chain registry details mapped to an identifier.
+/// An on-chain space details mapped to an identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
-pub struct RegistryDetails<T: Config> {
-	/// Registry type.
-	pub register: RegistryType<T>,
+pub struct SpaceDetails<T: Config> {
+	/// Space type.
+	pub space: SpaceType<T>,
 	/// \[OPTIONAL\] Schema Identifier
 	pub schema: Option<IdentifierOf>,
-	/// The flag indicating the status of the registry.
+	/// The flag indicating the status of the space.
 	pub archived: StatusOf,
 	/// The flag indicating the status of the metadata.
 	pub metadata: StatusOf,
 }
 
-impl<T: Config> sp_std::fmt::Debug for RegistryDetails<T> {
+impl<T: Config> sp_std::fmt::Debug for SpaceDetails<T> {
 	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		Ok(())
 	}
 }
 
-impl<T: Config> RegistryDetails<T> {
-	pub fn from_registry_identities(
+impl<T: Config> SpaceDetails<T> {
+	pub fn from_space_identities(
 		tx_ident: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
-		ss58identifier::from_known_format(tx_ident, REGISTRY_INDEX)
-			.map_err(|_| Error::<T>::InvalidRegistryIdentifier)?;
+		ss58identifier::from_known_format(tx_ident, SPACE_INDEX)
+			.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
-		let registry_details =
-			<Registries<T>>::get(&tx_ident).ok_or(Error::<T>::RegistryNotFound)?;
-		ensure!(!registry_details.archived, Error::<T>::ArchivedRegistry);
+		let space_details = <Spaces<T>>::get(&tx_ident).ok_or(Error::<T>::SpaceNotFound)?;
+		ensure!(!space_details.archived, Error::<T>::ArchivedSpace);
 
-		Self::from_registry_delegates(tx_ident, registry_details.register.controller, requestor)
+		Self::from_space_delegates(tx_ident, space_details.space.controller, requestor)
 			.map_err(Error::<T>::from)?;
 
 		Ok(())
 	}
 
-	pub fn set_registry_metadata(
+	pub fn set_space_metadata(
 		tx_ident: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 		status: bool,
 	) -> Result<(), Error<T>> {
-		let registry_details =
-			<Registries<T>>::get(&tx_ident).ok_or(Error::<T>::RegistryNotFound)?;
-		ensure!(!registry_details.archived, Error::<T>::ArchivedRegistry);
+		let space_details = <Spaces<T>>::get(&tx_ident).ok_or(Error::<T>::SpaceNotFound)?;
+		ensure!(!space_details.archived, Error::<T>::ArchivedSpace);
 
-		Self::from_registry_delegates(
-			tx_ident,
-			registry_details.register.controller.clone(),
-			requestor,
-		)
-		.map_err(Error::<T>::from)?;
+		Self::from_space_delegates(tx_ident, space_details.space.controller.clone(), requestor)
+			.map_err(Error::<T>::from)?;
 
-		<Registries<T>>::insert(
-			&tx_ident,
-			RegistryDetails { metadata: status, ..registry_details },
-		);
+		<Spaces<T>>::insert(&tx_ident, SpaceDetails { metadata: status, ..space_details });
 
 		Ok(())
 	}
 
-	pub fn set_registry_schema(
+	pub fn set_space_schema(
 		tx_ident: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 		tx_schema: IdentifierOf,
 	) -> Result<(), Error<T>> {
-		let registry_details =
-			<Registries<T>>::get(&tx_ident).ok_or(Error::<T>::RegistryNotFound)?;
-		ensure!(!registry_details.archived, Error::<T>::ArchivedRegistry);
+		let space_details = <Spaces<T>>::get(&tx_ident).ok_or(Error::<T>::SpaceNotFound)?;
+		ensure!(!space_details.archived, Error::<T>::ArchivedSpace);
 
-		Self::from_registry_delegates(
-			tx_ident,
-			registry_details.register.controller.clone(),
-			requestor,
-		)
-		.map_err(Error::<T>::from)?;
+		Self::from_space_delegates(tx_ident, space_details.space.controller.clone(), requestor)
+			.map_err(Error::<T>::from)?;
 
-		<Registries<T>>::insert(
-			&tx_ident,
-			RegistryDetails { schema: Some(tx_schema), ..registry_details },
-		);
+		<Spaces<T>>::insert(&tx_ident, SpaceDetails { schema: Some(tx_schema), ..space_details });
 
 		Ok(())
 	}
 
-	pub fn from_registry_delegates(
+	pub fn from_space_delegates(
 		tx_ident: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 		controller: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
 		if controller != requestor {
-			let delegates = <RegistryDelegations<T>>::get(tx_ident);
+			let delegates = <SpaceDelegates<T>>::get(tx_ident);
 			ensure!(
 				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
 				Error::<T>::UnauthorizedOperation
@@ -144,14 +127,14 @@ impl<T: Config> RegistryDetails<T> {
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
-pub struct RegistryParams<T: Config> {
-	/// Registry identifier
+pub struct SpaceParams<T: Config> {
+	/// Space identifier
 	pub identifier: IdentifierOf,
-	/// Registry Type.
-	pub register: RegistryType<T>,
+	/// Space Type.
+	pub space: SpaceType<T>,
 }
 
-impl<T: Config> sp_std::fmt::Debug for RegistryParams<T> {
+impl<T: Config> sp_std::fmt::Debug for SpaceParams<T> {
 	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		Ok(())
 	}

@@ -91,7 +91,7 @@ pub type MetaDataOf = BoundedVec<u8, ConstU32<15360>>;
 pub type StatusOf = bool;
 
 /// collection identifier prefix.
-pub const REGISTRY_INDEX: u16 = 31;
+pub const SPACE_INDEX: u16 = 31;
 /// schema identifier prefix.
 pub const SCHEMA_PREFIX: u16 = 41;
 /// stream identifier prefix.

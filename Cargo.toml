@@ -25,7 +25,7 @@ members = [
 	"executor",
 	"inspect",
 	"node",
-	"pallets/registry",
+	"pallets/space",
 	"pallets/schema",
 	"pallets/stream",
 	"pallets/anchor",
