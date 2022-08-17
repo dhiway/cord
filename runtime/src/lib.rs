@@ -1040,39 +1040,39 @@ impl pallet_membership::Config<TechCouncilMembershipInstance> for Runtime {
 }
 
 parameter_types! {
-	pub const AnchorMotionDuration: BlockNumber = 3 * DAYS;
-	pub const AnchorMaxProposals: u32 = 100;
-	pub const AnchorMaxMembers: u32 = 12;
+	pub const CreditTreasuryMotionDuration: BlockNumber = 3 * DAYS;
+	pub const CreditTreasuryMaxProposals: u32 = 100;
+	pub const CreditTreasuryMaxMembers: u32 = 12;
 }
 
-type AnchorCollective = pallet_collective::Instance4;
-impl pallet_collective::Config<AnchorCollective> for Runtime {
+type CreditTreasuryCollective = pallet_collective::Instance4;
+impl pallet_collective::Config<CreditTreasuryCollective> for Runtime {
 	type Origin = Origin;
 	type Proposal = Call;
 	type Event = Event;
-	type MotionDuration = AnchorMotionDuration;
-	type MaxProposals = AnchorMaxProposals;
-	type MaxMembers = AnchorMaxMembers;
+	type MotionDuration = CreditTreasuryMotionDuration;
+	type MaxProposals = CreditTreasuryMaxProposals;
+	type MaxMembers = CreditTreasuryMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
-type AnchorCouncilApproval = EitherOfDiverse<
+type CreditTreasuryApproval = EitherOfDiverse<
 	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionAtLeast<AccountId, AnchorCollective, 1, 2>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CreditTreasuryCollective, 1, 2>,
 >;
 
-pub type AnchorMembershipInstance = pallet_membership::Instance4;
-impl pallet_membership::Config<AnchorMembershipInstance> for Runtime {
+pub type CreditTreasuryMembershipInstance = pallet_membership::Instance4;
+impl pallet_membership::Config<CreditTreasuryMembershipInstance> for Runtime {
 	type Event = Event;
-	type AddOrigin = AnchorCouncilApproval;
-	type RemoveOrigin = AnchorCouncilApproval;
-	type SwapOrigin = AnchorCouncilApproval;
-	type ResetOrigin = AnchorCouncilApproval;
-	type PrimeOrigin = AnchorCouncilApproval;
-	type MembershipInitialized = AnchorCouncil;
-	type MembershipChanged = AnchorCouncil;
-	type MaxMembers = AnchorMaxMembers;
+	type AddOrigin = CreditTreasuryApproval;
+	type RemoveOrigin = CreditTreasuryApproval;
+	type SwapOrigin = CreditTreasuryApproval;
+	type ResetOrigin = CreditTreasuryApproval;
+	type PrimeOrigin = CreditTreasuryApproval;
+	type MembershipInitialized = CreditTreasuryCouncil;
+	type MembershipChanged = CreditTreasuryCouncil;
+	type MaxMembers = CreditTreasuryMaxMembers;
 	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }
 
@@ -1208,21 +1208,21 @@ where
 	type OverarchingCall = Call;
 }
 
-type AnchorOrigin = EitherOfDiverse<
+type CreditTreasuryOrigin = EitherOfDiverse<
 	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionAtLeast<AccountId, AnchorCollective, 1, 2>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CreditTreasuryCollective, 1, 2>,
 >;
 
 parameter_types! {
-	pub const AnchorPalletId: PalletId = PalletId(*b"py/anchr");
+	pub const CreditTreasuryPalletId: PalletId = PalletId(*b"py/crdit");
 }
 
-impl pallet_anchor::Config for Runtime {
+impl pallet_credit::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
-	type AnchorOrigin = AnchorOrigin;
-	type PalletId = AnchorPalletId;
-	type WeightInfo = ();
+	type AnchorOrigin = CreditTreasuryOrigin;
+	type PalletId = CreditTreasuryPalletId;
+	type WeightInfo = pallet_credit::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -1323,9 +1323,10 @@ construct_runtime! {
 		CouncilMembership: pallet_membership::<Instance1> = 16,
 		TechnicalCommittee: pallet_collective::<Instance2> = 17,
 		TechnicalMembership: pallet_membership::<Instance2> = 18,
-		AnchorCouncil: pallet_collective::<Instance4> = 19,
-		AnchorCouncilMembership: pallet_membership::<Instance4> = 20,
+		CreditTreasuryCouncil: pallet_collective::<Instance4> = 19,
+		CreditTreasuryCouncilMembership: pallet_membership::<Instance4> = 20,
 		Treasury: pallet_treasury = 23,
+		CreditTreasury: pallet_credit = 51,
 
 		Utility: pallet_utility = 25,
 		Identity: pallet_identity = 26,
@@ -1337,7 +1338,6 @@ construct_runtime! {
 		// Election pallet. Only works with staking, but placed here to maintain indices.
 		ElectionProviderMultiPhase: pallet_election_provider_multi_phase = 31,
 
-		Anchor: pallet_anchor = 51,
 		Space: pallet_space = 52,
 		Schema: pallet_schema = 53,
 		Stream: pallet_stream = 54,

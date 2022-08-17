@@ -21,8 +21,8 @@
 pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	constants::currency::*, AnchorCouncilConfig, AuthorityDiscoveryConfig, BabeConfig,
-	BalancesConfig, Block, CouncilConfig, DemocracyConfig, GrandpaConfig, IndicesConfig,
+	constants::currency::*, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
+	CouncilConfig, CreditTreasuryCouncilConfig, DemocracyConfig, GrandpaConfig, IndicesConfig,
 	SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
 	TechnicalCommitteeConfig,
 };
@@ -323,7 +323,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 			phantom: Default::default(),
 		},
-		anchor_council: AnchorCouncilConfig {
+		credit_treasury_council: CreditTreasuryCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -342,8 +342,8 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		council_membership: Default::default(),
 		technical_membership: Default::default(),
 		treasury: Default::default(),
-		anchor: Default::default(),
-		anchor_council_membership: Default::default(),
+		credit_treasury: Default::default(),
+		credit_treasury_council_membership: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }
@@ -437,7 +437,7 @@ fn cord_development_genesis(
 				.collect(),
 			phantom: Default::default(),
 		},
-		anchor_council: AnchorCouncilConfig {
+		credit_treasury_council: CreditTreasuryCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -456,8 +456,8 @@ fn cord_development_genesis(
 		council_membership: Default::default(),
 		technical_membership: Default::default(),
 		treasury: Default::default(),
-		anchor: Default::default(),
-		anchor_council_membership: Default::default(),
+		credit_treasury: Default::default(),
+		credit_treasury_council_membership: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }

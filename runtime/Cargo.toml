@@ -78,7 +78,7 @@ pallet-election-provider-multi-phase = { git = "https://github.com/paritytech/su
 pallet-space = {  default-features = false, path = '../pallets/space' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
-pallet-anchor = {  default-features = false, path = '../pallets/anchor' }
+pallet-credit = {  default-features = false, path = '../pallets/credit' }
 pallet-meta = {  default-features = false, path = '../pallets/meta' }
 
 [build-dependencies]
@@ -121,7 +121,7 @@ std = [
 	"pallet-utility/std",
 	"pallet-multisig/std",
 	"pallet-preimage/std",
-	"pallet-anchor/std",
+	"pallet-credit/std",
 	"pallet-space/std",	
   	"pallet-schema/std",
 	"pallet-stream/std",

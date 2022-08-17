@@ -45,8 +45,8 @@ where
 pub struct DealWithCredits<R>(sp_std::marker::PhantomData<R>);
 impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithCredits<R>
 where
-	R: pallet_balances::Config + pallet_anchor::Config + pallet_treasury::Config,
-	pallet_anchor::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
+	R: pallet_balances::Config + pallet_credit::Config + pallet_treasury::Config,
+	pallet_credit::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
 	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
 	<R as frame_system::Config>::AccountId: From<cord_primitives::AccountId>,
 	<R as frame_system::Config>::AccountId: Into<cord_primitives::AccountId>,
@@ -58,9 +58,9 @@ where
 			if let Some(tips) = fees_then_tips.next() {
 				tips.merge_into(&mut split.0);
 			}
-			use pallet_anchor::Pallet as Anchor;
+			use pallet_credit::Pallet as CreditTreasury;
 			use pallet_treasury::Pallet as Treasury;
-			<Anchor<R> as OnUnbalanced<_>>::on_unbalanced(split.0);
+			<CreditTreasury<R> as OnUnbalanced<_>>::on_unbalanced(split.0);
 			<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(split.1);
 		}
 	}
