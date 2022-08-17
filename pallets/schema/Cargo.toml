@@ -1,7 +1,7 @@
 [package]
 name = 'pallet-schema'
 description = 'Manage Schemas'
-version = '0.7.6'
+version = '0.7.7'
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'
 license = "GPL-3.0"
@@ -18,7 +18,6 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", bran
 codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = ["derive"] }
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
-pallet-space = {  default-features = false, path = '../space' }
 
 
 
@@ -45,7 +44,6 @@ std = [
   "cord-primitives/std",
   "sp-runtime/std",
   "sp-std/std",
-  "pallet-space/std",
 ] 
 try-runtime = [
   "frame-support/try-runtime",

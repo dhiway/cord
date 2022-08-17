@@ -52,7 +52,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config<I: 'static = ()>: frame_system::Config {
 		/// Origin from which approvals must come.
-		type FoundationOrigin: EnsureOrigin<Self::Origin>;
+		type AnchorOrigin: EnsureOrigin<Self::Origin>;
 		/// The pallet id, used for deriving its sovereign account ID.
 		#[pallet::constant]
 		type PalletId: Get<PalletId>;
@@ -87,7 +87,6 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config<I>, I: 'static> GenesisBuild<T, I> for GenesisConfig {
 		fn build(&self) {
-			// Create foundation account
 			let account_id = <Pallet<T, I>>::account_id();
 			let min = T::Currency::minimum_balance();
 			if T::Currency::free_balance(&account_id) < min {
@@ -99,7 +98,7 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config<I>, I: 'static = ()> {
-		/// Some funds have been transfered  \[recipient, amount\].
+		/// Some credits have been transfered  \[recipient, amount\].
 		Transfer(T::AccountId, BalanceOf<T, I>),
 	}
 
@@ -120,7 +119,7 @@ pub mod pallet {
 			beneficiary: <T::Lookup as StaticLookup>::Source,
 			#[pallet::compact] amount: BalanceOf<T, I>,
 		) -> DispatchResult {
-			T::FoundationOrigin::ensure_origin(origin)?;
+			T::AnchorOrigin::ensure_origin(origin)?;
 			let beneficiary = T::Lookup::lookup(beneficiary)?;
 			let balance = T::Currency::free_balance(&Self::account_id());
 			ensure!(balance >= amount, Error::<T, I>::InsufficientBalance);

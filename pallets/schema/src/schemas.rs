@@ -27,9 +27,7 @@ pub struct SchemaType<T: Config> {
 	/// Schema hash.
 	pub digest: HashOf<T>,
 	/// Schema delegator.
-	pub author: CordAccountOf<T>,
-	/// \[OPTIONAL\] Space ID.
-	pub space: Option<IdentifierOf>,
+	pub controller: CordAccountOf<T>,
 }
 
 impl<T: Config> sp_std::fmt::Debug for SchemaType<T> {
@@ -46,6 +44,8 @@ pub struct SchemaDetails<T: Config> {
 	pub schema: SchemaType<T>,
 	/// The flag indicating the status of the schema.
 	pub revoked: StatusOf,
+	/// The flag indicating the status of the metadata.
+	pub meta: StatusOf,
 }
 
 impl<T: Config> sp_std::fmt::Debug for SchemaDetails<T> {
@@ -56,17 +56,42 @@ impl<T: Config> sp_std::fmt::Debug for SchemaDetails<T> {
 
 impl<T: Config> SchemaDetails<T> {
 	pub fn from_schema_identities(
-		tx_schema: &IdentifierOf,
+		tx_ident: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
-		ss58identifier::from_known_format(tx_schema, SCHEMA_IDENTIFIER_PREFIX)
+		ss58identifier::from_known_format(tx_ident, SCHEMA_PREFIX)
 			.map_err(|_| Error::<T>::InvalidSchemaIdentifier)?;
 
-		let schema_details = <Schemas<T>>::get(&tx_schema).ok_or(Error::<T>::SchemaNotFound)?;
+		let schema_details = <Schemas<T>>::get(&tx_ident).ok_or(Error::<T>::SchemaNotFound)?;
+		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
+		Self::from_schema_delegates(tx_ident, schema_details.schema.controller, requestor)
+			.map_err(Error::<T>::from)?;
+
+		Ok(())
+	}
+	pub fn set_schema_metadata(
+		tx_ident: &IdentifierOf,
+		requestor: CordAccountOf<T>,
+		status: bool,
+	) -> Result<(), Error<T>> {
+		let schema_details = <Schemas<T>>::get(&tx_ident).ok_or(Error::<T>::SchemaNotFound)?;
 		ensure!(!schema_details.revoked, Error::<T>::SchemaRevoked);
 
-		if schema_details.schema.author != requestor {
-			let delegates = <Delegations<T>>::get(tx_schema);
+		Self::from_schema_delegates(tx_ident, schema_details.schema.controller.clone(), requestor)
+			.map_err(Error::<T>::from)?;
+
+		<Schemas<T>>::insert(&tx_ident, SchemaDetails { meta: status, ..schema_details });
+
+		Ok(())
+	}
+
+	pub fn from_schema_delegates(
+		tx_ident: &IdentifierOf,
+		requestor: CordAccountOf<T>,
+		controller: CordAccountOf<T>,
+	) -> Result<(), Error<T>> {
+		if controller != requestor {
+			let delegates = <SchemaDelegations<T>>::get(tx_ident);
 			ensure!(
 				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
 				Error::<T>::UnauthorizedOperation

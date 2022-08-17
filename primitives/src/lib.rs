@@ -21,7 +21,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(unused_crate_dependencies)]
 
-use codec::{Decode, Encode};
+// use codec::{Decode, Encode};
 use frame_support::{traits::ConstU32, BoundedVec};
 use sp_runtime::{
 	generic,
@@ -81,25 +81,26 @@ pub type CidOf = Vec<u8>;
 /// Version type.
 pub type VersionOf = Vec<u8>;
 
-pub const MAX_SIZE: u32 = 48;
-
 /// IDentifier type.
-pub type IdentifierOf = BoundedVec<u8, ConstU32<MAX_SIZE>>;
+pub type IdentifierOf = BoundedVec<u8, ConstU32<48>>;
+
+/// MetaData type.
+pub type MetaDataOf = BoundedVec<u8, ConstU32<15360>>;
 
 /// status Information
 pub type StatusOf = bool;
 
-// CORD Session Duration - Blocks
-pub const CORD_SESSION_PERIOD: u32 = 900;
+/// collection identifier prefix.
+pub const SPACE_INDEX: u16 = 31;
+/// schema identifier prefix.
+pub const SCHEMA_PREFIX: u16 = 41;
+/// stream identifier prefix.
+pub const STREAM_PREFIX: u16 = 51;
 
-#[derive(Encode, Decode, PartialEq, Eq, sp_std::fmt::Debug)]
-pub enum SessionApiError {
-	DecodeKey,
-}
-
-/// Macro to set a value (e.g. when using the `parameter_types` macro) to either a production value
-/// or to an environment variable or testing value (in case the `fast-runtime` feature is selected).
-/// Note that the environment variable is evaluated _at compile time_.
+/// Macro to set a value (e.g. when using the `parameter_types` macro) to either
+/// a production value or to an environment variable or testing value (in case
+/// the `fast-runtime` feature is selected). Note that the environment variable
+/// is evaluated _at compile time_.
 ///
 /// Usage:
 /// ```Rust

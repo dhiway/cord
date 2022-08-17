@@ -23,11 +23,14 @@ use scale_info::TypeInfo;
 /// An on-chain space details mapped to an identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
+#[codec(mel_bound())]
 pub struct SpaceType<T: Config> {
 	/// Space hash.
 	pub digest: HashOf<T>,
 	/// Space creator.
 	pub controller: CordAccountOf<T>,
+	/// \[OPTIONAL\] Schema Identifier
+	pub schema: Option<IdentifierOf>,
 }
 
 impl<T: Config> sp_std::fmt::Debug for SpaceType<T> {
@@ -39,11 +42,14 @@ impl<T: Config> sp_std::fmt::Debug for SpaceType<T> {
 /// An on-chain space details mapped to an identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
+#[codec(mel_bound())]
 pub struct SpaceDetails<T: Config> {
 	/// Space type.
 	pub space: SpaceType<T>,
 	/// The flag indicating the status of the space.
 	pub archived: StatusOf,
+	/// The flag indicating the status of the metadata.
+	pub meta: StatusOf,
 }
 
 impl<T: Config> sp_std::fmt::Debug for SpaceDetails<T> {
@@ -54,17 +60,62 @@ impl<T: Config> sp_std::fmt::Debug for SpaceDetails<T> {
 
 impl<T: Config> SpaceDetails<T> {
 	pub fn from_space_identities(
-		tx_space: &IdentifierOf,
+		tx_ident: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
-		ss58identifier::from_known_format(tx_space, SPACE_IDENTIFIER_PREFIX)
+		ss58identifier::from_known_format(tx_ident, SPACE_INDEX)
 			.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
-		let space_details = <Spaces<T>>::get(&tx_space).ok_or(Error::<T>::SpaceNotFound)?;
+		let space_details = <Spaces<T>>::get(&tx_ident).ok_or(Error::<T>::SpaceNotFound)?;
 		ensure!(!space_details.archived, Error::<T>::ArchivedSpace);
 
-		if space_details.space.controller != requestor {
-			let delegates = <Delegations<T>>::get(tx_space);
+		Self::from_space_delegates(tx_ident, space_details.space.controller, requestor)
+			.map_err(Error::<T>::from)?;
+
+		Ok(())
+	}
+
+	pub fn set_space_metadata(
+		tx_ident: &IdentifierOf,
+		requestor: CordAccountOf<T>,
+		status: bool,
+	) -> Result<(), Error<T>> {
+		let space_details = <Spaces<T>>::get(&tx_ident).ok_or(Error::<T>::SpaceNotFound)?;
+		ensure!(!space_details.archived, Error::<T>::ArchivedSpace);
+
+		Self::from_space_delegates(tx_ident, space_details.space.controller.clone(), requestor)
+			.map_err(Error::<T>::from)?;
+
+		<Spaces<T>>::insert(&tx_ident, SpaceDetails { meta: status, ..space_details });
+
+		Ok(())
+	}
+
+	// pub fn set_space_schema(
+	// 	tx_ident: &IdentifierOf,
+	// 	requestor: CordAccountOf<T>,
+	// 	tx_schema: IdentifierOf,
+	// ) -> Result<(), Error<T>> {
+	// 	let space_details =
+	// <Spaces<T>>::get(&tx_ident).ok_or(Error::<T>::SpaceNotFound)?;
+	// 	ensure!(!space_details.archived, Error::<T>::ArchivedSpace);
+
+	// 	Self::from_space_delegates(tx_ident, space_details.space.controller.clone(),
+	// requestor) 		.map_err(Error::<T>::from)?;
+
+	// 	<Spaces<T>>::insert(&tx_ident, SpaceDetails { schema: Some(tx_schema),
+	// ..space_details });
+
+	// 	Ok(())
+	// }
+
+	pub fn from_space_delegates(
+		tx_ident: &IdentifierOf,
+		requestor: CordAccountOf<T>,
+		controller: CordAccountOf<T>,
+	) -> Result<(), Error<T>> {
+		if controller != requestor {
+			let delegates = <SpaceDelegates<T>>::get(tx_ident);
 			ensure!(
 				(delegates.iter().find(|&delegate| *delegate == requestor) == Some(&requestor)),
 				Error::<T>::UnauthorizedOperation
@@ -77,6 +128,7 @@ impl<T: Config> SpaceDetails<T> {
 /// An on-chain schema details mapped to an identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
+#[codec(mel_bound())]
 pub struct SpaceParams<T: Config> {
 	/// Space identifier
 	pub identifier: IdentifierOf,

@@ -22,11 +22,13 @@ pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	constants::currency::*, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
-	BuilderCouncilConfig, CouncilConfig, DemocracyConfig, FoundationCouncilConfig, GrandpaConfig,
-	IndicesConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	CouncilConfig, CreditTreasuryCouncilConfig, DemocracyConfig, GrandpaConfig, IndicesConfig,
+	SessionConfig, SessionKeys, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
+	TechnicalCommitteeConfig,
 };
 use hex_literal::hex;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_staking::Forcing;
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::{ChainType, Properties};
 use sc_telemetry::TelemetryEndpoints;
@@ -35,7 +37,10 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use sp_runtime::{
+	traits::{IdentifyAccount, Verify},
+	Perbill,
+};
 
 type AccountPublic = <Signature as Verify>::Signer;
 
@@ -289,6 +294,18 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				})
 				.collect::<Vec<_>>(),
 		},
+		staking: StakingConfig {
+			validator_count: 20,
+			minimum_validator_count: 2,
+			stakers: initial_authorities
+				.iter()
+				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
+				.collect(),
+			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
+			force_era: Forcing::ForceNone,
+			slash_reward_fraction: Perbill::from_percent(10),
+			..Default::default()
+		},
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig {
 			members: endowed_accounts
@@ -306,15 +323,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 			phantom: Default::default(),
 		},
-		builder_council: BuilderCouncilConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
-			phantom: Default::default(),
-		},
-		foundation_council: FoundationCouncilConfig {
+		credit_treasury_council: CreditTreasuryCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -333,10 +342,8 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		council_membership: Default::default(),
 		technical_membership: Default::default(),
 		treasury: Default::default(),
-		builder: Default::default(),
-		builder_council_membership: Default::default(),
-		foundation: Default::default(),
-		foundation_council_membership: Default::default(),
+		credit_treasury: Default::default(),
+		credit_treasury_council_membership: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }
@@ -379,7 +386,8 @@ fn cord_development_genesis(
 ) -> GenesisConfig {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 	let num_endowed_accounts = endowed_accounts.len();
-	const ENDOWMENT: u128 = 10_000 * WAY;
+	const STASH: u128 = 25_000 * WAY;
+	const ENDOWMENT: u128 = 50_000 * WAY;
 	GenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec() },
 		indices: IndicesConfig { indices: vec![] },
@@ -398,6 +406,20 @@ fn cord_development_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
+		staking: StakingConfig {
+			validator_count: initial_authorities.len() as u32,
+			minimum_validator_count: 1,
+			/// Will be updated to 500,000 Units once network has stabalised.
+			min_validator_bond: 3_000,
+			stakers: initial_authorities
+				.iter()
+				.map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
+				.collect(),
+			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
+			force_era: Forcing::ForceNone,
+			slash_reward_fraction: Perbill::from_percent(10),
+			..Default::default()
+		},
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig {
 			members: endowed_accounts
@@ -415,15 +437,7 @@ fn cord_development_genesis(
 				.collect(),
 			phantom: Default::default(),
 		},
-		builder_council: BuilderCouncilConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
-			phantom: Default::default(),
-		},
-		foundation_council: FoundationCouncilConfig {
+		credit_treasury_council: CreditTreasuryCouncilConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
@@ -442,10 +456,8 @@ fn cord_development_genesis(
 		council_membership: Default::default(),
 		technical_membership: Default::default(),
 		treasury: Default::default(),
-		builder: Default::default(),
-		builder_council_membership: Default::default(),
-		foundation: Default::default(),
-		foundation_council_membership: Default::default(),
+		credit_treasury: Default::default(),
+		credit_treasury_council_membership: Default::default(),
 		transaction_payment: Default::default(),
 	}
 }

@@ -1,12 +1,12 @@
 [package]
-name = "pallet-foundation"
-version = '0.7.6'
+name = "pallet-credit"
+version = '0.7.7'
 edition = '2021'
 authors = ['Dhiway Networks <info@dhiway.com>']
 license = "GPL-3.0"
 homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
-description = "Foundation Treasury Module"
+description = "Treasury Module to handle transaction credit splits"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = [

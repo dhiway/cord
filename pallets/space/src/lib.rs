@@ -19,14 +19,14 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-pub use cord_primitives::{ss58identifier, IdentifierOf, StatusOf};
+pub use cord_primitives::{ss58identifier, IdentifierOf, StatusOf, SPACE_INDEX};
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 use sp_std::{prelude::Clone, str, vec::Vec};
-pub mod spaces;
+pub mod space;
 pub mod weights;
 
-pub use crate::spaces::*;
+pub use crate::space::*;
 use crate::weights::WeightInfo;
 pub use pallet::*;
 
@@ -40,21 +40,20 @@ pub mod pallet {
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a CORD account.
 	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
-	// space identifier prefix.
-	pub const SPACE_IDENTIFIER_PREFIX: u16 = 31;
 	/// Type for a cord signature.
 	pub type SignatureOf<T> = <T as Config>::Signature;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_schema::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type EnsureOrigin: EnsureOrigin<
 			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
 		>;
-		/// The maximum number of delegates for a space.
 		#[pallet::constant]
 		type MaxSpaceDelegates: Get<u32>;
+		#[pallet::constant]
+		type MaxSpaceSchemas: Get<u32>;
 		type Signature: Verify<Signer = <Self as pallet::Config>::Signer>
 			+ Parameter
 			+ MaxEncodedLen
@@ -67,15 +66,15 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	/// spacess stored on chain.
-	/// It maps from a space identifier to its details.
+	/// space information stored on chain.
+	/// It maps from an identifier to its details.
 	#[pallet::storage]
 	#[pallet::storage_prefix = "Identifiers"]
 	pub type Spaces<T> =
 		StorageMap<_, Blake2_128Concat, IdentifierOf, SpaceDetails<T>, OptionQuery>;
 
-	/// schema identifiers stored on chain.
-	/// It maps from a schema identifier to hash.
+	/// space stream identifiers stored on chain.
+	/// It maps from hash to an identifier.
 	#[pallet::storage]
 	#[pallet::storage_prefix = "Hashes"]
 	pub type SpaceHashes<T> = StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
@@ -84,7 +83,7 @@ pub mod pallet {
 	/// It maps from an identifier to a vector of delegates.
 	#[pallet::storage]
 	#[pallet::storage_prefix = "Delegates"]
-	pub(super) type Delegations<T: Config> = StorageMap<
+	pub(super) type SpaceDelegates<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		IdentifierOf,
@@ -107,19 +106,19 @@ pub mod pallet {
 		/// A space controller has changed.
 		/// \[space identifier, new controller\]
 		Transfer { identifier: IdentifierOf, transfer: CordAccountOf<T>, author: CordAccountOf<T> },
-		/// A spaces has been archived.
+		/// A space has been archived.
 		/// \[space identifier\]
 		Archive { identifier: IdentifierOf, author: CordAccountOf<T> },
-		/// A spaces has been restored.
+		/// A space has been restored.
 		/// \[space identifier\]
 		Restore { identifier: IdentifierOf, author: CordAccountOf<T> },
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Space idenfier is not unique
+		/// Space identifier is not unique
 		SpaceAlreadyAnchored,
-		/// Space idenfier not found
+		/// Space identifier not found
 		SpaceNotFound,
 		/// Only when the author is not the controller.
 		UnauthorizedOperation,
@@ -135,10 +134,8 @@ pub mod pallet {
 		InvalidIdentifierPrefix,
 		// Invalid creator signature
 		InvalidSignature,
-		// Archived Space
+		// Archived space
 		ArchivedSpace,
-		// Space Archived
-		SpaceAlreadyArchived,
 		// Space not Archived
 		SpaceNotArchived,
 		// Invalid transaction hash
@@ -149,41 +146,40 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Add space authorisations (delegation).
 		///
-		/// This transaction can only be performed by the space controller or
-		/// delegates.
+		/// This transaction can only be performed by the space controller
+		/// or delegates.
 		///
 		/// * origin: the identity of the space controller.
-		/// * creator: creator (controller) of the space.
-		/// * space: unique identifier of the space.
-		/// * tx_hash: transaction hash to verify the signature.
+		/// * tx_space: space transaction details.
 		/// * delegates: authorised identities to add.
 		/// * tx_signature: creator signature.
-		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
-		pub fn authorise(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::delegate())]
+		pub fn delegate(
 			origin: OriginFor<T>,
-			auth: SpaceParams<T>,
+			tx_space: SpaceParams<T>,
 			delegates: Vec<CordAccountOf<T>>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SpaceHashes<T>>::contains_key(&auth.space.digest),
+				!<SpaceHashes<T>>::contains_key(&tx_space.space.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&auth.space.digest).encode()[..], &auth.space.controller),
+				tx_signature
+					.verify(&(&tx_space.space.digest).encode()[..], &tx_space.space.controller),
 				Error::<T>::InvalidSignature
 			);
 
-			ss58identifier::from_known_format(&auth.identifier, SPACE_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
+			SpaceDetails::from_space_identities(
+				&tx_space.identifier,
+				tx_space.space.controller.clone(),
+			)
+			.map_err(Error::<T>::from)?;
 
-			SpaceDetails::from_space_identities(&auth.identifier, auth.space.controller.clone())
-				.map_err(Error::<T>::from)?;
-
-			Delegations::<T>::try_mutate(auth.identifier.clone(), |ref mut delegation| {
+			SpaceDelegates::<T>::try_mutate(tx_space.identifier.clone(), |ref mut delegation| {
 				ensure!(
 					delegation.len() + delegates.len() <= T::MaxSpaceDelegates::get() as usize,
 					Error::<T>::TooManyDelegates
@@ -191,15 +187,15 @@ pub mod pallet {
 				for delegate in delegates {
 					delegation
 						.try_push(delegate)
-						.expect("delegates length is less than T::MaxDelegates; qed");
+						.expect("delegates length is less than T::MaxCollectionDelegates; qed");
 				}
 
-				<SpaceHashes<T>>::insert(&auth.space.digest, &auth.identifier);
+				<SpaceHashes<T>>::insert(&tx_space.space.digest, &tx_space.identifier);
 
 				Self::deposit_event(Event::AddDelegates {
-					identifier: auth.identifier,
-					digest: auth.space.digest,
-					author: auth.space.controller,
+					identifier: tx_space.identifier,
+					digest: tx_space.space.digest,
+					author: tx_space.space.controller,
 				});
 
 				Ok(())
@@ -207,53 +203,50 @@ pub mod pallet {
 		}
 		/// Remove space authorisations (delegation).
 		///
-		/// This transaction can only be performed by the space controller or
-		/// delegates.
+		/// This transaction can only be performed by the space controller
+		/// or delegates.
 		///
 		/// * origin: the identity of the space controller.
-		/// * updater: updater (controller) of the space.
-		/// * space: unique identifier of the space.
-		/// * tx_hash: transaction hash to verify the signature.
-		/// * delegates: identities (delegates) to be removed.
-		/// * tx_signature: updater signature.
-		#[pallet::weight(25_000 + T::DbWeight::get().reads_writes(2, 1))]
-		pub fn deauthorise(
+		/// * auth: space transaction details.
+		/// * delegates: authorised identities to add.
+		/// * tx_signature: creator signature.
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::undelegate())]
+		pub fn undelegate(
 			origin: OriginFor<T>,
-			deauth: SpaceParams<T>,
+			tx_space: SpaceParams<T>,
 			delegates: Vec<CordAccountOf<T>>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SpaceHashes<T>>::contains_key(&deauth.space.digest),
+				!<SpaceHashes<T>>::contains_key(&tx_space.space.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&deauth.space.digest).encode()[..], &deauth.space.controller),
+				tx_signature
+					.verify(&(&tx_space.space.digest).encode()[..], &tx_space.space.controller),
 				Error::<T>::InvalidSignature
 			);
-			ss58identifier::from_known_format(&deauth.identifier, SPACE_IDENTIFIER_PREFIX)
-				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 			SpaceDetails::from_space_identities(
-				&deauth.identifier,
-				deauth.space.controller.clone(),
+				&tx_space.identifier,
+				tx_space.space.controller.clone(),
 			)
-			.map_err(<Error<T>>::from)?;
+			.map_err(Error::<T>::from)?;
 
-			Delegations::<T>::try_mutate(deauth.identifier.clone(), |ref mut delegation| {
+			SpaceDelegates::<T>::try_mutate(tx_space.identifier.clone(), |ref mut delegation| {
 				for delegate in delegates {
 					delegation.retain(|x| x != &delegate);
 				}
 
-				<SpaceHashes<T>>::insert(&deauth.space.digest, &deauth.identifier);
+				<SpaceHashes<T>>::insert(&tx_space.space.digest, &tx_space.identifier);
 
 				Self::deposit_event(Event::RemoveDelegates {
-					identifier: deauth.identifier,
-					digest: deauth.space.digest,
-					author: deauth.space.controller,
+					identifier: tx_space.identifier,
+					digest: tx_space.space.digest,
+					author: tx_space.space.controller,
 				});
 
 				Ok(())
@@ -263,96 +256,99 @@ pub mod pallet {
 		/// Create a new space and associates with its identifier.
 		///
 		/// * origin: the identity of the space controller.
-		/// * creator: creator (controller) of the space.
-		/// * space_hash: hash of the incoming space stream.
+		/// * space: incoming space stream.
 		/// * tx_signature: creator signature.
-		#[pallet::weight(52_000 + T::DbWeight::get().reads_writes(2, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(
 			origin: OriginFor<T>,
-			space: SpaceType<T>,
+			tx_space: SpaceType<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			ensure!(
-				tx_signature.verify(&(&space.digest).encode()[..], &space.controller),
+				tx_signature.verify(&(&tx_space.digest).encode()[..], &tx_space.controller),
 				Error::<T>::InvalidSignature
 			);
 
 			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
-				ss58identifier::generate(&(&space.digest).encode()[..], SPACE_IDENTIFIER_PREFIX)
+				ss58identifier::generate(&(&tx_space.digest).encode()[..], SPACE_INDEX)
 					.into_bytes(),
 			)
 			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
 
-			<SpaceHashes<T>>::insert(&space.digest, &identifier);
+			if let Some(ref schema) = tx_space.schema {
+				pallet_schema::SchemaDetails::<T>::from_schema_identities(
+					schema,
+					tx_space.controller.clone(),
+				)
+				.map_err(<pallet_schema::Error<T>>::from)?;
+			}
+			<SpaceHashes<T>>::insert(&tx_space.digest, &identifier);
 
 			<Spaces<T>>::insert(
 				&identifier,
-				SpaceDetails { space: space.clone(), archived: false },
+				SpaceDetails { space: tx_space.clone(), archived: false, meta: false },
 			);
 			Self::deposit_event(Event::Create {
 				identifier,
-				digest: space.digest,
-				author: space.controller,
+				digest: tx_space.digest,
+				author: tx_space.controller,
 			});
 
 			Ok(())
 		}
-		/// Archive a Space
+		/// Archive a space
 		///
-		///This transaction can only be performed by the space controller or
-		/// delegates
+		///This transaction can only be performed by the space controller
+		/// or delegates
 		///
 		/// * origin: the identity of the space controller.
-		/// * updater: updater (controller) of the space.
-		/// * identifier: unique identifier of the space.
-		/// * tx_hash: transaction hash to verify the signature.
+		/// * arch: space params to archive.
 		/// * tx_signature: updater signature.
-		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::archive())]
 		pub fn archive(
 			origin: OriginFor<T>,
-			arch: SpaceParams<T>,
+			tx_space: SpaceParams<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SpaceHashes<T>>::contains_key(&arch.space.digest),
+				!<SpaceHashes<T>>::contains_key(&tx_space.space.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&arch.space.digest).encode()[..], &arch.space.controller),
+				tx_signature
+					.verify(&(&tx_space.space.digest).encode()[..], &tx_space.space.controller),
 				Error::<T>::InvalidSignature
 			);
 
-			ss58identifier::from_known_format(&arch.identifier, SPACE_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&tx_space.identifier, SPACE_INDEX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
-			let space_details =
-				<Spaces<T>>::get(&arch.identifier).ok_or(Error::<T>::SpaceNotFound)?;
-			ensure!(!space_details.archived, Error::<T>::SpaceAlreadyArchived);
+			let registry_details =
+				<Spaces<T>>::get(&tx_space.identifier).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!registry_details.archived, Error::<T>::ArchivedSpace);
 
-			if space_details.space.controller != arch.space.controller {
-				let delegates = <Delegations<T>>::get(&arch.identifier);
-				ensure!(
-					(delegates.iter().find(|&delegate| *delegate == arch.space.controller)
-						== Some(&arch.space.controller)),
-					Error::<T>::UnauthorizedOperation
-				);
-			} else {
-				ensure!(
-					space_details.space.controller == arch.space.controller,
-					Error::<T>::UnauthorizedOperation
-				);
-			}
+			SpaceDetails::from_space_delegates(
+				&tx_space.identifier,
+				tx_space.space.controller.clone(),
+				registry_details.space.controller.clone(),
+			)
+			.map_err(<Error<T>>::from)?;
 
-			<Spaces<T>>::insert(&arch.identifier, SpaceDetails { archived: true, ..space_details });
+			<SpaceHashes<T>>::insert(&tx_space.space.digest, &tx_space.identifier);
+
+			<Spaces<T>>::insert(
+				&tx_space.identifier,
+				SpaceDetails { archived: true, ..registry_details },
+			);
 			Self::deposit_event(Event::Archive {
-				identifier: arch.identifier,
-				author: arch.space.controller,
+				identifier: tx_space.identifier,
+				author: tx_space.space.controller,
 			});
 
 			Ok(())
@@ -367,54 +363,48 @@ pub mod pallet {
 		/// * identifier: unique identifier of the space.
 		/// * tx_hash: transaction hash to verify the signature.
 		/// * tx_signature: updater signature.
-		#[pallet::weight(20_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::restore())]
 		pub fn restore(
 			origin: OriginFor<T>,
-			resto: SpaceParams<T>,
+			tx_space: SpaceParams<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SpaceHashes<T>>::contains_key(&resto.space.digest),
+				!<SpaceHashes<T>>::contains_key(&tx_space.space.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&resto.space.digest).encode()[..], &resto.space.controller),
+				tx_signature
+					.verify(&(&tx_space.space.digest).encode()[..], &tx_space.space.controller),
 				Error::<T>::InvalidSignature
 			);
 
-			ss58identifier::from_known_format(&resto.identifier, SPACE_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&tx_space.identifier, SPACE_INDEX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
-			let space_details =
-				<Spaces<T>>::get(&resto.identifier).ok_or(Error::<T>::SpaceNotFound)?;
-			ensure!(space_details.archived, Error::<T>::SpaceNotArchived);
+			let registry_details =
+				<Spaces<T>>::get(&tx_space.identifier).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!registry_details.archived, Error::<T>::ArchivedSpace);
 
-			if space_details.space.controller != resto.space.controller {
-				let delegates = <Delegations<T>>::get(&resto.identifier);
-				ensure!(
-					(delegates.iter().find(|&delegate| *delegate == resto.space.controller)
-						== Some(&resto.space.controller)),
-					Error::<T>::UnauthorizedOperation
-				);
-			} else {
-				ensure!(
-					space_details.space.controller == resto.space.controller,
-					Error::<T>::UnauthorizedOperation
-				);
-			}
+			SpaceDetails::from_space_delegates(
+				&tx_space.identifier,
+				tx_space.space.controller.clone(),
+				registry_details.space.controller.clone(),
+			)
+			.map_err(<Error<T>>::from)?;
 
-			<SpaceHashes<T>>::insert(&resto.space.digest, &resto.identifier);
+			<SpaceHashes<T>>::insert(&tx_space.space.digest, &tx_space.identifier);
 
 			<Spaces<T>>::insert(
-				&resto.identifier,
-				SpaceDetails { archived: false, ..space_details },
+				&tx_space.identifier,
+				SpaceDetails { archived: false, ..registry_details },
 			);
 			Self::deposit_event(Event::Archive {
-				identifier: resto.identifier,
-				author: resto.space.controller,
+				identifier: tx_space.identifier,
+				author: tx_space.space.controller,
 			});
 
 			Ok(())
@@ -429,52 +419,54 @@ pub mod pallet {
 		/// * transfer_to: new controller of the space.
 		/// * tx_hash: transaction hash to verify the signature.
 		/// * tx_signature: creator signature.
-		#[pallet::weight(50_000 + T::DbWeight::get().reads_writes(1, 2))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::transfer())]
 		pub fn transfer(
 			origin: OriginFor<T>,
-			trans: SpaceParams<T>,
+			tx_space: SpaceParams<T>,
 			transfer_to: CordAccountOf<T>,
 			tx_signature: SignatureOf<T>,
 		) -> DispatchResult {
 			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<SpaceHashes<T>>::contains_key(&trans.space.digest),
+				!<SpaceHashes<T>>::contains_key(&tx_space.space.digest),
 				Error::<T>::InvalidTransactionHash
 			);
 
 			ensure!(
-				tx_signature.verify(&(&trans.space.digest).encode()[..], &trans.space.controller),
+				tx_signature
+					.verify(&(&tx_space.space.digest).encode()[..], &tx_space.space.controller),
 				Error::<T>::InvalidSignature
 			);
 
-			ss58identifier::from_known_format(&trans.identifier, SPACE_IDENTIFIER_PREFIX)
+			ss58identifier::from_known_format(&tx_space.identifier, SPACE_INDEX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
-			let space_details =
-				<Spaces<T>>::get(&trans.identifier).ok_or(Error::<T>::SpaceNotFound)?;
+			let registry_details =
+				<Spaces<T>>::get(&tx_space.identifier).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!registry_details.archived, Error::<T>::ArchivedSpace);
 
-			ensure!(!space_details.archived, Error::<T>::ArchivedSpace);
-
-			if space_details.space.controller != trans.space.controller {
-				SpaceDetails::<T>::from_space_identities(
-					&trans.identifier,
-					trans.space.controller.clone(),
-				)
-				.map_err(<Error<T>>::from)?;
-			}
+			SpaceDetails::from_space_delegates(
+				&tx_space.identifier,
+				tx_space.space.controller.clone(),
+				registry_details.space.controller.clone(),
+			)
+			.map_err(<Error<T>>::from)?;
 
 			<Spaces<T>>::insert(
-				&trans.identifier,
+				&tx_space.identifier,
 				SpaceDetails {
 					archived: false,
-					space: { SpaceType { controller: transfer_to.clone(), ..space_details.space } },
+					space: {
+						SpaceType { controller: transfer_to.clone(), ..registry_details.space }
+					},
+					..registry_details
 				},
 			);
 			Self::deposit_event(Event::Transfer {
-				identifier: trans.identifier,
+				identifier: tx_space.identifier,
 				transfer: transfer_to,
-				author: trans.space.controller,
+				author: tx_space.space.controller,
 			});
 
 			Ok(())

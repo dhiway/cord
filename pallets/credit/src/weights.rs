@@ -26,10 +26,9 @@ use frame_support::{
 };
 use sp_std::marker::PhantomData;
 
-/// Weight functions needed for pallet_builder.
+/// Weight functions needed for pallet_credit.
 pub trait WeightInfo {
 	fn transfer() -> Weight;
-	// fn receive() -> Weight;
 }
 
 //// Weights for pallet_reserve using the Substrate node and recommended
@@ -39,9 +38,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn transfer() -> Weight {
 		(254_453_000 as Weight).saturating_add(T::DbWeight::get().reads(2 as Weight))
 	}
-	// fn receive() -> Weight {
-	// 	(112_761_000 as Weight)
-	// }
 }
 
 // For backwards compatibility and tests
@@ -49,7 +45,4 @@ impl WeightInfo for () {
 	fn transfer() -> Weight {
 		(254_453_000 as Weight).saturating_add(RocksDbWeight::get().reads(2 as Weight))
 	}
-	// fn receive() -> Weight {
-	// 	(112_761_000 as Weight)
-	// }
 }
