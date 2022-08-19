@@ -175,6 +175,32 @@ The easiest/faster option to run CORD in Docker is to use the latest release ima
     docker build -t local/cord:develop .
    ```
 
+
+## Other projects of interest
+
+This repository contains the complete code of the CORD Network Blockchain. To interact with the chain, one needs multiple things.
+
+1. SDK to connect and build on top.
+
+  - Check [CORD.js](https://github.com/dhiway/cord.js) repository for SDK development. You can interact with the pallets implemented here through the corresponding modules in the `cord.js` project.
+
+2. A UI to explore the chain.
+
+  - There are multiple projects which are required when we need to monitor the chain, and make use of the transactions.
+
+  - [Telemetry](https://telemetry.cord.network) - This is hosted through 'substrate-telemetry' project.
+
+  - [Apps UI](https://apps.cord.network) - This project is managed through [apps](https://github.com/dhiway/apps) repository.
+
+  - [GraphQL Interface](/) - This project is still in beta. Development work is happening at [cord-subql](https://github.com/dhiway/cord-subql) repository.
+
+3. Demostratable scripts and services, so one can take and build upon
+
+  - [Demo Scripts](https://github.com/dhiway/cord-demo-scripts) - Demo scripts are provided to connect and interact with the CORD Chain pallets/modules. This uses CORD.js SDK to interact with chain.
+
+  - [Demo API Service](https://github.com/dhiway/cord-agent-app-v1) - Demo API Server using nodejs/express.js combination, which uses SDK to in backend and provides basic APIs and also provides a mechanism to store application data in DB, so data along with chain interactions can be managed.
+
+
 ## Contributing
 
 If you would like to contribute, please fork the repository, follow the [contributions] guidelines, introduce your changes and submit a pull request. All pull requests are warmly welcome.
