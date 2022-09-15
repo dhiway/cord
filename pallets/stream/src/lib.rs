@@ -16,6 +16,108 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+//! # Stream Pallet
+//!
+//! The Stream palllet is used to anchor identifiers representing off-chain data
+//! streams. The pallet provides means of creating, updating, revoking and
+//! removing identifier data on-chain and holder delegations.
+//!
+//! - [`Config`]
+//! - [`Call`]
+//! - [`Pallet`]
+//!
+//! ### Terminology
+//!
+//! - **Identifier:**: A unique persistent identifier representing a stream,
+//!   controller, holder, links (space, schema, identifier) and it's current
+//!   status.
+// ! - **Holder:**: The holder is the person or organization to whom the
+// !   stream/credentials is issued to. The crytographic identity of the holder
+// !   is attached to the identifier. The holder keeps the stream as a
+// !   stream/verifiable credential in their digital wallet. An example of a
+// !   holder would be the citizen that received his or her driver’s license from
+// !   the DMV.
+// !
+// ! - **Issuer:**: The issuer is the person or organization that creates the
+// !   stream, anchors the identifier on-chain and assigns it to a holder
+// !   (person, organization, or thing). An example of an issuer would be a DMV
+// !   which issues driver’s licenses.
+// !
+// ! - **Verifier:**: The verifier is the person or organization that gets
+// !   information shared with them. They can authenticate the information they
+// !   receive instantaneously. An example of a verifier would be the security
+// !   agent at the airport that asks to see a person’s driver’s license to
+// !   verify their identity.
+// !
+// ! - **Schema:**: Schemas are templates used to guarantee the structure, and by
+// !   extension the semantics, of the set of claims comprising a
+// !   Stream/Verifiable Credential. A shared Schema allows all parties to
+// !   reference data in a known way. An identifier can optionally link to a
+// !   valid schema identifier.
+// !
+// ! - **Space:**: Spaces allows grouping of identifiers with control
+// !   delegations. Spaces can also be used to support various registry use-cases
+// !   as the registries usually are a collection of data streams and
+// !   identifiers. The space delegates can perform actions on behalf of the
+// !   identifier owner. An example is a space linking all identifiers
+// !   representing approved ecocystem applications and the associated delegates
+// !   can perform addtion, revokation and removal operations.
+// !
+// ! - **Link:**: Link functionality is  used to attach an identifier with
+// !   another valid identifier. This allows credential to be stacked and linked.
+// !   This capality allows identifiers to be used to support dynamic additions
+// !   according to the ecosystem governance rules. An example here would be of
+// !   an identifier representing an immunization card and various identifiers
+// !   representing vaccinations details getting linked to it overtime.
+// !
+// ! - **Delegation:**: An stream identifier that is not issued by the issuer
+// !   directly but via a (chain of) delegations which entitle the delegated
+// !   issuer. The delegation hireachy is checked from the space and schema
+// !   delegates the identifier is attached to. This could be an employe of a
+// !   company which is authorized to sign and issue documents.
+//!
+//! ## Interface
+//!
+//! ### Dispatchable Functions
+//!
+//! The dispatchable functions of the Stream pallet enable the steps needed for
+//! entities to anchor, update, remove link identifiers change their role,
+//! alongside some helper functions to get/set the holder delgates and digest
+//! information for the identifier.
+//!
+//! - `create` - Create a new identifier for a given stream which is based on a
+//!   Schema. The issuer can optionally provide a reference to an existing
+//!   identifier that will be saved along with the identifier.
+//! - `update` - Update an existing identifier with stream revision details. The
+//!   revision hashes get attached to the identifier to form an immutable audit
+//!   log.
+//! - `revoke` - Revoke an existing identifier. The revoker must be either the
+//!   creator of the identifier being revoked or an entity that in the
+//!   delegation tree is an ancestor of the issuer, i.e., it was either the
+//!   delegator of the issuer or an ancestor thereof.
+//! - `remove` - Remove an existing identifier and associated on-chain data.The
+//!   remover must be either the creator of the identifier being revoked or an
+//!   entity that in the delegation tree is an ancestor of the issuer, i.e., it
+//!   was either the delegator of the issuer or an ancestor thereof.
+//! - `council_remove` - Remove an existing identifier and associated on-chain
+//!   data via on-chain governance.
+//! - `digest` - Create a presention digest for the identifier. This feature can
+//!   be used to support various presenation models used to represent a
+//!   stream/credential in the digtal/physical world.
+//! - `delegate` - Create a delegation hirearchy for the holder. This allows the
+//!   credential to be shared with the delgates. An exampled of holder
+//!   delegation is Gaurdianship
+//! - `undelegate` - Remove delegates from the delegation hirearchy for the
+//!   holder.
+//!
+//! ## Related Modules
+//!
+//! - [Space](../pallet_space/index.html): Used to manage Spaces (collections,
+//!   registries) and delegates.
+//! - [Schema](../pallet_schema/index.html): Used to manage schemas and
+//!   delegates.
+//! - [Meta](../pallet_meta/index.html): Used to manage data blobs attached to
+//!   an identifier. Optional, but usefull for crededntials with public data.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
@@ -39,13 +141,13 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	/// Hash of the Stream.
+	/// Hash of the stream.
 	pub type HashOf<T> = <T as frame_system::Config>::Hash;
-	/// Type of the controller.
+	/// Type of the identitiy.
 	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-	/// Type for a cord signature.
+	/// Type for a signature.
 	pub type SignatureOf<T> = <T as Config>::Signature;
 
 	#[pallet::config]
@@ -58,12 +160,16 @@ pub mod pallet {
 		/// The maximum number of delegates for a stream.
 		#[pallet::constant]
 		type MaxStreamDelegates: Get<u32>;
+		/// The signature of the stream issuer.
 		type Signature: Verify<Signer = <Self as pallet::Config>::Signer>
 			+ Parameter
 			+ MaxEncodedLen
 			+ TypeInfo;
+		/// The identity of the stream issuer.
 		type Signer: IdentifyAccount<AccountId = CordAccountOf<Self>> + Parameter;
+		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
 
@@ -71,18 +177,16 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	// #[pallet::hooks]
-	// impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
-
-	/// streams stored on chain.
-	/// It maps from stream Id to its details.
+	/// stream identifiers stored on chain.
+	/// It maps from an identifier to its details. Chain will only store the
+	/// last updated state of the data.
 	#[pallet::storage]
 	#[pallet::storage_prefix = "Identifiers"]
 	pub type Streams<T> =
 		StorageMap<_, Blake2_128Concat, IdentifierOf, StreamDetails<T>, OptionQuery>;
 
 	/// stream hashes stored on chain.
-	/// It maps from a stream hash to Id (resolve from hash).
+	/// It maps from a stream hash to an identifier (resolve from hash).
 	#[pallet::storage]
 	#[pallet::storage_prefix = "Hashes"]
 	pub type StreamHashes<T> =
@@ -103,35 +207,35 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new stream has been created.
+		/// A new stream identifier has been created.
 		/// \[stream identifier, stream hash, controller\]
 		Anchor { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
-		/// A stream has been updated.
+		/// A stream identifier has been updated.
 		/// \[stream identifier, hash, controller\]
 		Update { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
-		/// A stream digest has been added.
+		/// A stream digest has been added to the identifier.
 		/// \[stream identifier, digest, controller\]
 		Digest { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
-		/// A stream status has been changed.
+		/// A stream identifier status has been changed.
 		/// \[stream identifier, digest, controller\]
 		Revoke { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
-		/// A stream has been removed.
+		/// A stream identifier has been removed.
 		/// \[stream identifier, digest, controller\]
-		Remove { identifier: IdentifierOf, author: CordAccountOf<T> },
-		/// A stream has been removed by the council.
+		Remove { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
+		/// A stream identifier has been removed by the council.
 		/// \[stream identifier\]
 		CouncilRemove { identifier: IdentifierOf },
-		/// A metedata entry has been added.
-		/// \[identifier, controller\]
+		/// A metedata entry has been added to the identifier.
+		/// \[stream identifier, controller\]
 		MetadataSet { identifier: IdentifierOf, controller: CordAccountOf<T> },
-		/// A metadata entry has been cleared.
-		/// \[identifier, controller\]
+		/// An identifier metadata entry has been cleared.
+		/// \[stream identifier, controller\]
 		MetadataCleared { identifier: IdentifierOf, controller: CordAccountOf<T> },
-		/// Stream delegates has been added.
-		/// \[stream identifier,  delegator\]
+		/// Delegates has been added to the identifier.
+		/// \[stream identifier, digest, delegator\]
 		AddDelegates { identifier: IdentifierOf, digest: HashOf<T>, delegator: CordAccountOf<T> },
-		/// Stream delegates has been removed.
-		/// \[stream identifier,  delegator\]
+		/// Stream identifier delegates has been removed.
+		/// \[stream identifier, digest, delegator\]
 		RemoveDelegates { identifier: IdentifierOf, digest: HashOf<T>, delegator: CordAccountOf<T> },
 	}
 
@@ -173,17 +277,22 @@ pub mod pallet {
 		MetadataNotFound,
 		// Maximum Number of delegates reached.
 		TooManyDelegates,
-		// Maximum Number of delegates reached.
+		// More than the maximum mumber of delegates.
 		TooManyDelegatesToRemove,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a new stream and associates it with its controller.
+		/// Create a new stream identifier and associates it with its
+		/// controller. The controller (issuer) is the owner of the identifier.
 		///
-		/// * origin: the identity of the Tx Author.
-		/// * stream: the incoming stream.
-		/// * tx_signature: creator signature.
+		/// * origin: the identity of the Transaction Author. Transaction author
+		///   pays the transaction fees and the author identity can be different
+		///   from the stream issuer
+		/// * tx_stream: the incoming stream. Identifier is generated from the
+		///   genesis digest (hash) provided as part of the details
+		/// * tx_signature: signature of the issuer aganist the stream genesis
+		///   digest (hash).
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(
 			origin: OriginFor<T>,
@@ -249,11 +358,17 @@ pub mod pallet {
 
 			Ok(())
 		}
-		/// Updates the stream information.
+		/// Updates the stream identifier with a new digest. The updated digest
+		/// represents the changes a stream might have undergone. This operation
+		/// can only be performed by the stream issuer or delegates.
 		///
-		/// * origin: the identity of the Tx Author.
-		/// * update: the incoming stream.
-		/// * tx_signature: signature of the controller.
+		/// * origin: the identity of the Transaction Author. Transaction author
+		///   pays the transaction fees and the author identity can be different
+		///   from the stream issuer.
+		/// * tx_stream: the incoming stream. Only updates the stream digest
+		///   (hash).
+		/// * tx_signature: signature of the issuer/delegate  aganist the stream
+		///   digest (hash).
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::update())]
 		pub fn update(
 			origin: OriginFor<T>,
@@ -323,11 +438,16 @@ pub mod pallet {
 
 			Ok(())
 		}
-		/// Revoke a stream
+		/// Revoke a stream identifier. This operation can only be performed by
+		/// the stream issuer or delegates.
 		///
-		/// * origin: the identity of the Tx Author.
-		/// * revoke: the stream to revoke.
-		/// * tx_signature: signature of the controller.
+		/// * origin: the identity of the Transaction Author. Transaction author
+		///   pays the transaction fees and the author identity can be different
+		///   from the stream issuer.
+		/// * tx_stream: the identifier to revoke along with a unique tx digest
+		///   (hash).
+		/// * tx_signature: signature of the issuer/delegate aganist the tx
+		///   digest (hash).
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::revoke())]
 		pub fn revoke(
 			origin: OriginFor<T>,
@@ -452,6 +572,7 @@ pub mod pallet {
 			<Streams<T>>::remove(&tx_stream.identifier);
 			Self::deposit_event(Event::Remove {
 				identifier: tx_stream.identifier,
+				digest: tx_stream.stream.digest,
 				author: tx_stream.stream.controller,
 			});
 

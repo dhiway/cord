@@ -1,6 +1,6 @@
 [package]
 name = "pallet-credit"
-version = '0.7.7'
+version = '0.7.8'
 edition = '2021'
 authors = ['Dhiway Networks <info@dhiway.com>']
 license = "GPL-3.0"
@@ -14,10 +14,10 @@ codec = { package = "parity-scale-codec", version = "3.1.2", default-features = 
 	"max-encoded-len",
 ] }
 scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27", default-features = false }
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.27", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
 
 
 [features]
