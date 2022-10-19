@@ -1,6 +1,6 @@
 [package]
 name = 'cord-executor'
-version = '0.7.8'
+version = '0.7.10'
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'
 license = "GPL-3.0"
@@ -8,36 +8,27 @@ homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.1.2"}
-scale-info = { version = "2.1.1", features = ["derive"] }
 cord-runtime = { package = "cord-runtime", path = "../runtime" }
-cord-primitives = { package = "cord-primitives", path="../primitives" }
-sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-state-machine = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-tracing = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-trie = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+sc-executor = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
 
 [dev-dependencies]
 criterion = "0.3.0"
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-grandpa = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-indices = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-session = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-pallet-treasury = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-application-crypto = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
-sp-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+pallet-grandpa = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+pallet-indices = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+pallet-session = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+pallet-timestamp = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+pallet-transaction-payment = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+pallet-treasury = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+sp-application-crypto = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+sp-externalities = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
 wat = "1.0"
 futures = "0.3.21"
 
@@ -45,6 +36,5 @@ futures = "0.3.21"
 wasmtime = [
 	"sc-executor/wasmtime",
 ]
-wasmi-errno = [
-	"sc-executor/wasmi-errno",
-]
+stress-test = []
+
