@@ -284,13 +284,19 @@ impl pallet_preimage::Config for Runtime {
 }
 
 parameter_types! {
+	pub EpochDuration: u64 = prod_or_fast!(
+		EPOCH_DURATION_IN_SLOTS as u64,
+		2 * MINUTES as u64,
+		"CORD_EPOCH_DURATION"
+	);
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
-	pub ReportLongevity: u64 = EpochDurationInBlocks::get() as u64 * 10;
+	pub ReportLongevity: u64 =
+		BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
 	pub const MaxAuthorities: u32 = 1_000;
 }
 
 impl pallet_babe::Config for Runtime {
-	type EpochDuration = EpochDurationInBlocks;
+	type EpochDuration = EpochDuration;
 	type ExpectedBlockTime = ExpectedBlockTime;
 
 	// session module is the trigger
@@ -378,7 +384,12 @@ impl pallet_transaction_payment::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
+	// pub const MinimumPeriod: u64 = prod_or_fast!(SLOT_DURATION / 2, 500);
+		pub MinimumPeriod: u64 = prod_or_fast!(
+		MIN_BLOCK_PERIOD as u64,
+		500 as u64,
+		"CORD_MIN_BLOCK_DURATION"
+	);
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -1200,7 +1211,7 @@ sp_api::impl_runtime_apis! {
 			let epoch_config = Babe::epoch_config().unwrap_or(BABE_GENESIS_EPOCH_CONFIG);
 			sp_consensus_babe::BabeConfiguration {
 				slot_duration: Babe::slot_duration(),
-				epoch_length: EpochDurationInBlocks::get().into(),
+				epoch_length: EpochDuration::get().into(),
 				c: epoch_config.c,
 				authorities: Babe::authorities().to_vec(),
 				randomness: Babe::randomness(),

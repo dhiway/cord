@@ -63,13 +63,14 @@ zeroize = { opt-level = 3 }
 
 [workspace]
 members = [
+	"node",
+	"pallets/*",
 	"primitives",
 	"runtime",
 	"runtime/constants",
 	"rpc",
 	"executor",
 	"inspect",
-	"node",
-	"pallets/schema",
 ]
+resolver = "2"
 

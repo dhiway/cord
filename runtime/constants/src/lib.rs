@@ -43,10 +43,8 @@ pub mod time {
 	use cord_primitives::{prod_or_fast, BlockNumber, Moment};
 	pub const MILLISECS_PER_BLOCK: Moment = 6000;
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-	pub const DEFAULT_EPOCH_DURATION: BlockNumber = prod_or_fast!(1 * HOURS, 1 * MINUTES);
-	frame_support::parameter_types! {
-		pub storage EpochDurationInBlocks: BlockNumber = DEFAULT_EPOCH_DURATION;
-	}
+	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(8 * HOURS, 4 * MINUTES);
+	pub const MIN_BLOCK_PERIOD: u64 = SLOT_DURATION / 2;
 
 	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);

@@ -144,6 +144,10 @@ cli = [
 	"try-runtime-cli",
 ]
 
+fast-runtime = [
+	"cord-runtime/fast-runtime",
+]
+
 runtime-benchmarks = [
   "cord-runtime/runtime-benchmarks",
   "frame-benchmarking-cli/runtime-benchmarks"
