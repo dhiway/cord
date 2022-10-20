@@ -28,6 +28,7 @@ sp-std = {git = "https://github.com/dhiway/substrate", default-features = false,
 sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.30"}
 sp-staking = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.30" }
 sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.30"}
+# sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.30"}
 sp-session = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.30"}
 sp-version = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.30"}
 sp-transaction-pool = {  git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.30" }
@@ -68,7 +69,7 @@ frame-benchmarking = { git = "https://github.com/dhiway/substrate",  default-fea
 frame-system-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, optional = true, branch = "release-v0.9.30" }
 frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.30" }
 
-# pallet-space = {  default-features = false, path = '../pallets/space' }
+pallet-schema = {  default-features = false, path = '../pallets/schema' }
 
 [dev-dependencies]
 hex-literal = "0.3.4"
@@ -122,6 +123,7 @@ std = [
 	"pallet-treasury/std",
 	"pallet-utility/std",
 	"pallet-babe/std",
+	"pallet-schema/std",
 	"sp-runtime/std",
 	"sp-staking/std",
 	"frame-system/std",

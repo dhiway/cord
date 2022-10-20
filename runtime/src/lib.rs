@@ -43,7 +43,7 @@ use frame_support::{
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot,
+	EnsureRoot, EnsureSigned,
 };
 use pallet_grandpa::{
 	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
@@ -93,10 +93,9 @@ use cord_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 
 // Weights used in the runtime.
 mod weights;
-
-mod authority_manager;
-
 // CORD Pallets
+mod authority_manager;
+pub use pallet_schema;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -823,16 +822,6 @@ impl pallet_recovery::Config for Runtime {
 	type RecoveryDeposit = RecoveryDeposit;
 }
 
-// type AuthorityOrigin = EitherOfDiverse<
-// 	EnsureRoot<AccountId>,
-// 	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1,
-// 2>, >;
-
-// impl pallet_authorities::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type AuthorityOrigin = AuthorityOrigin;
-// }
-
 parameter_types! {
 	// One storage item; key size 32, value size 8; .
 	pub const ProxyDepositBase: Balance = deposit(1, 8);
@@ -959,6 +948,23 @@ impl authority_manager::Config for Runtime {
 	type AuthorityOrigin = MoreThanHalfCouncil;
 }
 
+parameter_types! {
+	pub const Fee: Balance = 10 * WAY;
+	pub const MaxEncodedMetaLength: u32 = 5_000;	// 5 Kb
+}
+
+impl pallet_schema::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type Fee = Fee;
+	type FeeCollector = DealWithCredits<Runtime>;
+	type Signature = Signature;
+	type Signer = <Signature as Verify>::Signer;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type MaxEncodedMetaLength = MaxEncodedMetaLength;
+	type WeightInfo = weights::pallet_schema::WeightInfo<Runtime>;
+}
+
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
@@ -1021,6 +1027,9 @@ construct_runtime! {
 
 		// Authority Manager pallet.
 		AuthorityManager: authority_manager::{Pallet, Call, Storage, Event<T>} = 252,
+
+		// Schema Manager pallet.
+		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 253,
 
 		// Sudo.
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,

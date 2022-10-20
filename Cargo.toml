@@ -70,5 +70,6 @@ members = [
 	"executor",
 	"inspect",
 	"node",
+	"pallets/schema",
 ]
 

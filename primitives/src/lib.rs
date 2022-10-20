@@ -21,7 +21,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(unused_crate_dependencies)]
 
-// use codec::{Decode, Encode};
 use frame_support::{traits::ConstU32, BoundedVec};
 use sp_runtime::{
 	generic,
@@ -83,6 +82,7 @@ pub type VersionOf = Vec<u8>;
 
 /// IDentifier type.
 pub type IdentifierOf = BoundedVec<u8, ConstU32<48>>;
+// pub type IdentifierOf = Vec<u8>;
 
 /// MetaData type.
 pub type MetaDataOf = BoundedVec<u8, ConstU32<15360>>;
