@@ -70,6 +70,7 @@ frame-system-benchmarking = { git = "https://github.com/dhiway/substrate",  defa
 frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.30" }
 
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
+pallet-credit-treasury = {  default-features = false, path = '../pallets/credit-treasury' }
 
 [dev-dependencies]
 hex-literal = "0.3.4"
@@ -124,6 +125,7 @@ std = [
 	"pallet-utility/std",
 	"pallet-babe/std",
 	"pallet-schema/std",
+	"pallet-credit-treasury/std",
 	"sp-runtime/std",
 	"sp-staking/std",
 	"frame-system/std",

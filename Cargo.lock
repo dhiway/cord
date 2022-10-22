@@ -1119,6 +1119,7 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-collective",
+ "pallet-credit-treasury",
  "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-grandpa",
@@ -4540,6 +4541,18 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-credit-treasury"
+version = "0.7.10"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
  "sp-runtime",
  "sp-std",
 ]

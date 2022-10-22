@@ -39,6 +39,7 @@ use sp_keystore::SyncCryptoStorePtr;
 /// A IO handler that uses all Full RPC extensions.
 pub type RpcExtension = RpcModule<()>;
 
+
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
 	/// BABE protocol config.

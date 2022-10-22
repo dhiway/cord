@@ -517,7 +517,7 @@ impl pallet_democracy::Config for Runtime {
 	type CooloffPeriod = CooloffPeriod;
 	type PreimageByteDeposit = PreimageByteDeposit;
 	type OperationalPreimageOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
-	type Slash = Treasury;
+	type Slash = CreditTreasury;
 	type Scheduler = Scheduler;
 	type PalletsOrigin = OriginCaller;
 	type MaxVotes = MaxVotes;
@@ -544,7 +544,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 }
 
 parameter_types! {
-	pub const CandidacyBond: Balance = 100 * UNITS;
+	pub const CandidacyBond: Balance = 100_000 * WAY;
 	// 1 storage item created, key size is 32 bytes, value size is 16+16.
 	pub const VotingBondBase: Balance = deposit(1, 64);
 	// additional data per vote is 32 bytes (account id).
@@ -571,8 +571,8 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type CandidacyBond = CandidacyBond;
 	type VotingBondBase = VotingBondBase;
 	type VotingBondFactor = VotingBondFactor;
-	type LoserCandidate = Treasury;
-	type KickedMember = Treasury;
+	type LoserCandidate = CreditTreasury;
+	type KickedMember = CreditTreasury;
 	type DesiredMembers = DesiredMembers;
 	type DesiredRunnersUp = DesiredRunnersUp;
 	type TermDuration = TermDuration;
@@ -614,10 +614,47 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 }
 
 parameter_types! {
-	pub const ProposalBond: Permill = Permill::from_percent(2);
+	pub PalletCreditMotionDuration: BlockNumber = prod_or_fast!(2 * DAYS, 2 * MINUTES,
+"CORD_CREDIT_MOTION_DURATION");
+	pub const PalletCreditMaxProposals: u32 = 100;
+	pub const PalletCreditMaxMembers: u32 = 10;
+}
+
+type CreditTreasuryCollective = pallet_collective::Instance3;
+impl pallet_collective::Config<CreditTreasuryCollective> for Runtime {
+	type RuntimeOrigin = RuntimeOrigin;
+	type Proposal = RuntimeCall;
+	type RuntimeEvent = RuntimeEvent;
+	type MotionDuration = PalletCreditMotionDuration;
+	type MaxProposals = PalletCreditMaxProposals;
+	type MaxMembers = PalletCreditMaxMembers;
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
+	type WeightInfo = weights::pallet_collective_credit::WeightInfo<Runtime>;
+}
+
+type CreditCouncilApproval = EitherOfDiverse<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CreditTreasuryCollective, 1, 2>,
+>;
+
+impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type AddOrigin = CreditCouncilApproval;
+	type RemoveOrigin = CreditCouncilApproval;
+	type SwapOrigin = CreditCouncilApproval;
+	type ResetOrigin = CreditCouncilApproval;
+	type PrimeOrigin = CreditCouncilApproval;
+	type MembershipInitialized = CreditTreasuryCouncil;
+	type MembershipChanged = CreditTreasuryCouncil;
+	type MaxMembers = PalletCreditMaxMembers;
+	type WeightInfo = weights::pallet_membership::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub const ProposalBond: Permill = Permill::from_percent(5);
 	pub const ProposalBondMinimum: Balance = 100 * UNITS;
 	pub const ProposalBondMaximum: Balance = 500 * UNITS;
-	pub const SpendPeriod: BlockNumber = 24 * HOURS;
+	pub const SpendPeriod: BlockNumber = 7 * DAYS;
 	pub const Burn: Permill = Permill::from_perthousand(2);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const MaxApprovals: u32 = 100;
@@ -639,13 +676,13 @@ impl pallet_treasury::Config for Runtime {
 	type ApproveOrigin = ApproveOrigin;
 	type RejectOrigin = RejectOrigin;
 	type RuntimeEvent = RuntimeEvent;
-	type OnSlash = Treasury;
+	type OnSlash = CreditTreasury;
 	type ProposalBond = ProposalBond;
 	type ProposalBondMinimum = ProposalBondMinimum;
 	type ProposalBondMaximum = ProposalBondMaximum;
 	type SpendPeriod = SpendPeriod;
-	type Burn = ();
-	type BurnDestination = ();
+	type Burn = Burn;
+	type BurnDestination = CreditTreasury;
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
 	type WeightInfo = weights::pallet_treasury::WeightInfo<Runtime>;
@@ -893,7 +930,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::Democracy(..) |
 				RuntimeCall::Council(..) |
 				RuntimeCall::TechnicalCommittee(..) |
-				RuntimeCall::PhragmenElection(..) |
+				RuntimeCall::Elections(..) |
 				RuntimeCall::TechnicalMembership(..) |
 				RuntimeCall::Treasury(..) |
 				RuntimeCall::Utility(..) |
@@ -914,7 +951,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::Democracy(..) |
 					RuntimeCall::Council(..) |
 					RuntimeCall::TechnicalCommittee(..) |
-					RuntimeCall::PhragmenElection(..) |
+					RuntimeCall::Elections(..) |
 					RuntimeCall::Treasury(..) |
 					RuntimeCall::Utility(..)
 			),
@@ -959,6 +996,23 @@ impl authority_manager::Config for Runtime {
 	type AuthorityOrigin = MoreThanHalfCouncil;
 }
 
+type CreditTreasuryApproveOrigin = EitherOfDiverse<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureMember<AccountId, CreditTreasuryCollective>,
+>;
+
+parameter_types! {
+	pub const CreditTreasuryPalletId: PalletId = PalletId(*b"py/crdit");
+}
+
+impl pallet_credit_treasury::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type ApproveOrigin = CreditTreasuryApproveOrigin;
+	type PalletId = CreditTreasuryPalletId;
+	type WeightInfo = pallet_credit_treasury::weights::SubstrateWeight<Runtime>;
+}
+
 parameter_types! {
 	pub const Fee: Balance = 10 * WAY;
 	pub const MaxEncodedMetaLength: u32 = 5_000;	// 5 Kb
@@ -968,7 +1022,7 @@ impl pallet_schema::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type Fee = Fee;
-	type FeeCollector = DealWithCredits<Runtime>;
+	type FeeCollector = CreditTreasury;
 	type Signature = Signature;
 	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
@@ -989,58 +1043,57 @@ construct_runtime! {
 	{
 		// Basic stuff; balances is uncallable initially.
 		System: frame_system::{Pallet, Call, Storage, Config, Event<T>} = 0,
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 1,
+		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 10,
 
 		// Babe must be before session.
-		Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned} = 1,
+		Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned} = 2,
 
-		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
-		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 3,
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 4,
-		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 33,
+		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 3,
+		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 4,
+		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
+		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 32,
 
 		// Consensus support.
-		Authorship: pallet_authorship::{Pallet, Call, Storage} = 5,
+		Authorship: pallet_authorship::{Pallet, Call, Storage} = 6,
 		Offences: pallet_offences::{Pallet, Storage, Event} = 7,
-		Historical: pallet_session_historical::{Pallet} = 34,
+		Historical: pallet_session_historical::{Pallet} = 33,
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 8,
-		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 10,
-		ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 11,
-		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 12,
+		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 11,
+		ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 12,
+		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 13,
 
 		// Governance stuff; uncallable initially.
-		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 13,
-		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 14,
-		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 15,
-		PhragmenElection: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 16,
-		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 17,
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 18,
+		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 15,
+		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 16,
+		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 17,
+		CreditTreasuryCouncil: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 18,
+		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 19,
+		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 20,
+		CreditTreasuryMembership: pallet_membership::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>} = 21,
+		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 22,
+		CreditTreasury: pallet_credit_treasury::{Pallet, Call, Storage, Config, Event<T>} = 23,
 
 		// Utility module.
-		Utility: pallet_utility::{Pallet, Call, Event} = 24,
+		Utility: pallet_utility::{Pallet, Call, Event} = 31,
 
 		// Less simple identity module.
-		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 25,
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 35,
 
 		// Social recovery module.
-		Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 27,
-
-		// System scheduler.
-		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 29,
+		Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 36,
 
 		// Proxy module. Late addition.
-		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 30,
+		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 37,
 
 		// Multisig module. Late addition.
-		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 31,
-
-		// Preimage registrar.
-		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 32,
+		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 38,
 
 		// Authority Manager pallet.
-		AuthorityManager: authority_manager::{Pallet, Call, Storage, Event<T>} = 252,
+		AuthorityManager: authority_manager::{Pallet, Call, Storage, Event<T>} = 251,
 
 		// Schema Manager pallet.
-		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 253,
+		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 252,
 
 		// Sudo.
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,

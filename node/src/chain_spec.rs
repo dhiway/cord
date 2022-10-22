@@ -21,8 +21,9 @@
 pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block, CouncilConfig, DemocracyConfig,
-	IndicesConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block, CouncilConfig,
+	CreditTreasuryCouncilConfig, DemocracyConfig, IndicesConfig, SessionConfig, SessionKeys,
+	SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
@@ -307,6 +308,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 			"ae2b60ce50c8a6a0f9f1eba33eec5106facfb366e946a59591633bd30c090d7d",
 		),
 	];
+
 	let num_endowed_accounts = endowed_accounts.len();
 	const STASH: u128 = 100 * WAY;
 	const ENDOWMENT: u128 = 1_110_101_200 * WAY;
@@ -333,7 +335,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				})
 				.collect::<Vec<_>>(),
 		},
-		phragmen_election: Default::default(),
+		elections: Default::default(),
 		babe: BabeConfig {
 			authorities: Default::default(),
 			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
@@ -357,8 +359,18 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 			phantom: Default::default(),
 		},
+		credit_treasury_council: CreditTreasuryCouncilConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		credit_treasury_membership: Default::default(),
 		technical_membership: Default::default(),
 		treasury: Default::default(),
+		credit_treasury: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(endowed_accounts[0].clone()) },
 	}
@@ -401,13 +413,25 @@ fn cord_development_genesis(
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> GenesisConfig {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
+	// 3wJcok3UjwBBecxbTtueZSrQG7KQdauaZTFrFC27pNez8F1E - Credit Treasury
+
+	let credit_endowed_accounts: Vec<AccountId> = vec![
+		// 3wJcok3UjwBBecxbTtueZSrQG7KQdauaZTFrFC27pNez8F1E - Credit Treasury
+		array_bytes::hex_n_into_unchecked(
+			"6d6f646c70792f63726469740000000000000000000000000000000000000000",
+		),
+	];
 	let num_endowed_accounts = endowed_accounts.len();
 	const ENDOWMENT: u128 = 50_000 * WAY;
 
 	GenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec() },
 		balances: BalancesConfig {
-			balances: endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect(),
+			balances: endowed_accounts
+				.iter()
+				.map(|k| (k.clone(), ENDOWMENT))
+				.chain(credit_endowed_accounts.iter().map(|x| (x.clone(), ENDOWMENT)))
+				.collect(),
 		},
 		indices: IndicesConfig { indices: vec![] },
 		session: SessionConfig {
@@ -422,8 +446,7 @@ fn cord_development_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-
-		phragmen_election: Default::default(),
+		elections: Default::default(),
 		babe: BabeConfig {
 			authorities: Default::default(),
 			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
@@ -448,7 +471,17 @@ fn cord_development_genesis(
 			phantom: Default::default(),
 		},
 		technical_membership: Default::default(),
+		credit_treasury_council: CreditTreasuryCouncilConfig {
+			members: endowed_accounts
+				.iter()
+				.take((num_endowed_accounts + 1) / 2)
+				.cloned()
+				.collect(),
+			phantom: Default::default(),
+		},
+		credit_treasury_membership: Default::default(),
 		treasury: Default::default(),
+		credit_treasury: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(root_key.clone()) },
 	}
