@@ -17,24 +17,18 @@
 // --output=./pallets/reserve/src/weights.rs
 // --template=./.maintain/weight-template.hbs
 
+
+#![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{
-	traits::Get,
-	weights::{constants::RocksDbWeight, Weight},
-};
+use frame_support::{traits::Get, weights::{Weight}};
 use sp_std::marker::PhantomData;
-
-/// Weight functions needed for pallet_credit.
-pub trait WeightInfo {
-	fn transfer() -> Weight;
-}
 
 //// Weights for pallet_reserve using the Substrate node and recommended
 //// hardware.
-pub struct SubstrateWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+pub struct WeightInfo<T>(PhantomData<T>);
+impl<T: frame_system::Config> pallet_credit_treasury::WeightInfo for WeightInfo<T> {
 	fn transfer() -> Weight {
 		Weight::from_ref_time(41_860_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
@@ -42,11 +36,3 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	}
 }
 
-// For backwards compatibility and tests
-impl WeightInfo for () {
-	fn transfer() -> Weight {
-		Weight::from_ref_time(41_860_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(1 as u64))
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
-	}
-}

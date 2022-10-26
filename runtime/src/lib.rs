@@ -95,6 +95,8 @@ use cord_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 mod weights;
 // CORD Pallets
 mod authority_manager;
+pub use pallet_author_registry;
+pub use pallet_credit_treasury;
 pub use pallet_schema;
 
 // Make the WASM binary available.
@@ -776,6 +778,7 @@ where
 			)),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
+			pallet_author_registry::CheckAuthorRegistry::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
 		);
 		let raw_payload = SignedPayload::new(call, extra)
@@ -996,6 +999,34 @@ impl authority_manager::Config for Runtime {
 	type AuthorityOrigin = MoreThanHalfCouncil;
 }
 
+parameter_types! {
+
+	pub AuthorshipDuration: BlockNumber = prod_or_fast!(
+		AUTHORSHIP_DURATION_IN_BLOCKS,
+		16 * MINUTES,
+		"CORD_AUTHORSHIP_DURATION"
+	);
+	pub DelegationBlockLimit: BlockNumber = prod_or_fast!(
+		AUTHORSHIP_DELEGATION_IN_BLOCKS,
+		8 * MINUTES,
+		"CORD_AUTHORSHIP_DELEGATION_DURATION"
+	);
+	pub const MaxBlockProposals: u32 = 25;
+	pub const MaxRegistryBlockEntries: u32 = 5000;
+}
+
+impl pallet_author_registry::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type ApproveOrigin = MoreThanHalfCouncil;
+	type Currency = Balances;
+	type CreditCollector = CreditTreasury;
+	type AuthorshipDuration = AuthorshipDuration;
+	type DelegationBlockLimit = DelegationBlockLimit;
+	type MaxBlockProposals = MaxBlockProposals;
+	type MaxRegistryBlockEntries = MaxRegistryBlockEntries;
+	type WeightInfo = weights::pallet_author_registry::WeightInfo<Runtime>;
+}
+
 type CreditTreasuryApproveOrigin = EitherOfDiverse<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureMember<AccountId, CreditTreasuryCollective>,
@@ -1010,7 +1041,7 @@ impl pallet_credit_treasury::Config for Runtime {
 	type Currency = Balances;
 	type ApproveOrigin = CreditTreasuryApproveOrigin;
 	type PalletId = CreditTreasuryPalletId;
-	type WeightInfo = pallet_credit_treasury::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_credit_treasury::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -1092,8 +1123,11 @@ construct_runtime! {
 		// Authority Manager pallet.
 		AuthorityManager: authority_manager::{Pallet, Call, Storage, Event<T>} = 251,
 
+		// Author Registry pallet.
+		AuthorRegistry: pallet_author_registry::{Pallet, Call, Storage, Event<T>, Config<T>} = 252,
+
 		// Schema Manager pallet.
-		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 252,
+		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 253,
 
 		// Sudo.
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,
@@ -1120,6 +1154,7 @@ pub type SignedExtra = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
+	pallet_author_registry::CheckAuthorRegistry<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 

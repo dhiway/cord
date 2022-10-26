@@ -51,7 +51,11 @@ pub mod time {
 	pub const HOURS: BlockNumber = MINUTES * 60;
 	pub const DAYS: BlockNumber = HOURS * 24;
 	pub const WEEKS: BlockNumber = DAYS * 7;
+	// Julian year as Substrate handles it
+	pub const YEAR: BlockNumber = DAYS * 36525 / 100;
 
+	pub const AUTHORSHIP_DURATION_IN_BLOCKS: BlockNumber = prod_or_fast!(YEAR, 16 * MINUTES);
+	pub const AUTHORSHIP_DELEGATION_IN_BLOCKS: BlockNumber = prod_or_fast!(HOURS, 8 * MINUTES);
 	// 1 in 4 blocks (on average, not counting collisions) will be primary babe
 	// blocks. The choice of is done in accordance to the slot duration and expected
 	// target block time, for safely resisting network delays of maximum two

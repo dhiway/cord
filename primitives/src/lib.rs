@@ -90,10 +90,16 @@ pub type MetaDataOf = BoundedVec<u8, ConstU32<15360>>;
 /// status Information
 pub type StatusOf = bool;
 
+/// Authorship period
+// pub const AUTHORSHIP_PERIOD: u32 = 5256000;
+pub const AUTHORSHIP_PERIOD: u32 = 20;
+
 /// collection identifier prefix.
 pub const SPACE_INDEX: u16 = 31;
+
 /// schema identifier prefix.
 pub const SCHEMA_PREFIX: u16 = 41;
+
 /// stream identifier prefix.
 pub const STREAM_PREFIX: u16 = 51;
 

@@ -21,9 +21,9 @@
 pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block, CouncilConfig,
-	CreditTreasuryCouncilConfig, DemocracyConfig, IndicesConfig, SessionConfig, SessionKeys,
-	SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	AuthorRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
+	CouncilConfig, CreditTreasuryCouncilConfig, DemocracyConfig, IndicesConfig, SessionConfig,
+	SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
@@ -129,6 +129,14 @@ fn testnet_accounts() -> Vec<AccountId> {
 		get_account_id_from_seed::<sr25519::Public>("Charlie"),
 		get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
 		get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+	]
+}
+
+fn author_accounts() -> Vec<(AccountId, ())> {
+	vec![
+		(get_account_id_from_seed::<sr25519::Public>("Alice"), ()),
+		(get_account_id_from_seed::<sr25519::Public>("Bob"), ()),
+		(get_account_id_from_seed::<sr25519::Public>("Charlie"), ()),
 	]
 }
 
@@ -342,6 +350,10 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		},
 		grandpa: Default::default(),
 		im_online: Default::default(),
+		author_registry: AuthorRegistryConfig {
+			authors: author_accounts(),
+			phantom: Default::default(),
+		},
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig {
 			members: endowed_accounts
@@ -453,6 +465,10 @@ fn cord_development_genesis(
 		},
 		grandpa: Default::default(),
 		im_online: Default::default(),
+		author_registry: AuthorRegistryConfig {
+			authors: author_accounts(),
+			phantom: Default::default(),
+		},
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig {
 			members: endowed_accounts

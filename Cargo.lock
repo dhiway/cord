@@ -1003,6 +1003,7 @@ dependencies = [
  "futures",
  "jsonrpsee",
  "nix",
+ "pallet-author-registry",
  "pallet-balances",
  "pallet-im-online",
  "pallet-timestamp",
@@ -1114,6 +1115,7 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal",
  "log",
+ "pallet-author-registry",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -4456,6 +4458,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ff55baddef9e4ad00f88b6c743a2a8062d4c6ade126c2a528644b8e444d52ce"
 dependencies = [
  "stable_deref_trait",
+]
+
+[[package]]
+name = "pallet-author-registry"
+version = "0.7.10"
+dependencies = [
+ "cord-primitives",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
