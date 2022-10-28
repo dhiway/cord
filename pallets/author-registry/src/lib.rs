@@ -291,7 +291,10 @@ pub mod pallet {
 			let block_number = frame_system::Pallet::<T>::block_number();
 			let check_duration =
 				parent_block.saturating_add(period.saturating_sub(T::DelegationBlockLimit::get()));
-			ensure!(check_duration > block_number, Error::<T>::AuthorshipExpiringSoon);
+
+			if parent_block > Zero::zero() {
+				ensure!(check_duration > block_number, Error::<T>::AuthorshipExpiringSoon);
+			}
 
 			<AuthorProposals<T>>::mutate(|proposals| {
 				if proposals.len() + 1 > T::MaxBlockProposals::get() as usize {

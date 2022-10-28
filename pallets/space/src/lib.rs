@@ -48,10 +48,10 @@ pub mod pallet {
 	/// Type for a cord signature.
 	pub type SignatureOf<T> = <T as Config>::Signature;
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-	pub type InputSpaceMetatOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedMetaLength>;
+	pub type InputSpaceMetaOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedMetaLength>;
 
 	pub type SpaceEntryOf<T> =
-		SpaceEntry<HashOf<T>, CordAccountOf<T>, InputSpaceMetatOf<T>, StatusOf>;
+		SpaceEntry<HashOf<T>, CordAccountOf<T>, InputSpaceMetaOf<T>, StatusOf>;
 
 	pub type SpaceRegistryEntryOf<T> =
 		SpaceRegistryEntry<HashOf<T>, CordAccountOf<T>, SpaceCommitOf, BlockNumberFor<T>>;
@@ -62,7 +62,7 @@ pub mod pallet {
 		<<T as Config>::Currency as Currency<CordAccountOf<T>>>::NegativeImbalance;
 
 	pub type SpaceInputOf<T> =
-		SpaceInput<HashOf<T>, CordAccountOf<T>, SignatureOf<T>, InputSpaceMetatOf<T>>;
+		SpaceInput<HashOf<T>, CordAccountOf<T>, SignatureOf<T>, InputSpaceMetaOf<T>>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
