@@ -98,6 +98,7 @@ mod authority_manager;
 pub use pallet_author_registry;
 pub use pallet_credit_treasury;
 pub use pallet_schema;
+pub use pallet_space;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -1045,20 +1046,42 @@ impl pallet_credit_treasury::Config for Runtime {
 }
 
 parameter_types! {
-	pub const Fee: Balance = 10 * WAY;
+	pub const SchemaFee: Balance = 10 * WAY;
 	pub const MaxEncodedMetaLength: u32 = 5_000;	// 5 Kb
 }
 
 impl pallet_schema::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	type Fee = Fee;
+	type SchemaFee = SchemaFee;
 	type FeeCollector = CreditTreasury;
 	type Signature = Signature;
 	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
 	type MaxEncodedMetaLength = MaxEncodedMetaLength;
 	type WeightInfo = weights::pallet_schema::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub const SpaceFee: Balance = 10 * WAY;
+	pub const BaseFee: Balance = 2 * WAY;
+	pub const MaxSpaceAuthorities: u32 = 50;
+	pub const MaxRegistryEntries: u32 = 1_000;
+}
+
+impl pallet_space::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type SpaceFee = SpaceFee;
+	type BaseFee = BaseFee;
+	type FeeCollector = CreditTreasury;
+	type Signature = Signature;
+	type Signer = <Signature as Verify>::Signer;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type MaxSpaceAuthorities = MaxSpaceAuthorities;
+	type MaxRegistryEntries = MaxRegistryEntries;
+	type MaxEncodedMetaLength = MaxEncodedMetaLength;
+	type WeightInfo = weights::pallet_space::WeightInfo<Runtime>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -1128,6 +1151,9 @@ construct_runtime! {
 
 		// Schema Manager pallet.
 		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 253,
+
+		// Schema Manager pallet.
+		Space: pallet_space::{Pallet, Call, Storage, Event<T>} = 254,
 
 		// Sudo.
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,

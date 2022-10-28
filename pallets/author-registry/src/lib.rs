@@ -80,9 +80,13 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type Currency: Currency<CordAccountOf<Self>>;
 		type CreditCollector: OnUnbalanced<NegativeImbalanceOf<Self>>;
+		#[pallet::constant]
 		type AuthorshipDuration: Get<Self::BlockNumber>;
+		#[pallet::constant]
 		type DelegationBlockLimit: Get<Self::BlockNumber>;
+		#[pallet::constant]
 		type MaxBlockProposals: Get<u32>;
+		#[pallet::constant]
 		type MaxRegistryBlockEntries: Get<u32>;
 		type WeightInfo: WeightInfo;
 	}

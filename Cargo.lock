@@ -1137,6 +1137,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-schema",
  "pallet-session",
+ "pallet-space",
  "pallet-staking",
  "pallet-sudo",
  "pallet-timestamp",
@@ -4831,6 +4832,27 @@ dependencies = [
  "sp-staking",
  "sp-std",
  "sp-trie",
+]
+
+[[package]]
+name = "pallet-space"
+version = "0.7.8"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]

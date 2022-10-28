@@ -18,7 +18,7 @@
 
 //! # Schema Pallet
 //!
-//! A simple pallet which enables users to generate Schema Identifier,
+//! A pallet which enables users to generate Schema Identifier,
 //! store the Schema hash (blake2b as hex string) on chain and
 //!  associate it with their account id.
 //!
@@ -53,8 +53,8 @@ pub mod benchmarking;
 pub mod tests;
 
 pub mod types;
-pub use crate::{pallet::*, weights::WeightInfo};
-pub use types::*;
+pub use crate::{types::*, weights::WeightInfo};
+pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -99,7 +99,7 @@ pub mod pallet {
 			Success = CordAccountOf<Self>,
 		>;
 		type Currency: Currency<CordAccountOf<Self>>;
-		type Fee: Get<BalanceOf<Self>>;
+		type SchemaFee: Get<BalanceOf<Self>>;
 		type FeeCollector: OnUnbalanced<NegativeImbalanceOf<Self>>;
 		type Signature: Verify<Signer = <Self as pallet::Config>::Signer>
 			+ Parameter
@@ -169,9 +169,9 @@ pub mod pallet {
 			let balance = <T::Currency as Currency<CordAccountOf<T>>>::free_balance(&author);
 			<T::Currency as Currency<CordAccountOf<T>>>::ensure_can_withdraw(
 				&author,
-				T::Fee::get(),
+				T::SchemaFee::get(),
 				WithdrawReasons::FEE,
-				balance.saturating_sub(T::Fee::get()),
+				balance.saturating_sub(T::SchemaFee::get()),
 			)?;
 
 			let SchemaInput { digest, controller, signature, meta } = *tx_schema.clone();
@@ -192,7 +192,7 @@ pub mod pallet {
 			// the beginning.
 			let imbalance = <T::Currency as Currency<CordAccountOf<T>>>::withdraw(
 				&author,
-				T::Fee::get(),
+				T::SchemaFee::get(),
 				WithdrawReasons::FEE,
 				ExistenceRequirement::AllowDeath,
 			)
