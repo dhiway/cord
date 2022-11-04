@@ -16,14 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{ss58identifier, Config, SchemaHashOf, SchemaIdentifierOf, SCHEMA_PREFIX};
+use crate::{ss58identifier, Config, HashOf, IdentifierOf, SCHEMA_PREFIX};
 use codec::Encode;
 use sp_core::H256;
 
 const DEFAULT_SCHEMA_HASH_SEED: u64 = 1u64;
 const ALTERNATIVE_SCHEMA_HASH_SEED: u64 = 2u64;
 
-pub fn get_schema_hash<T>(default: bool) -> SchemaHashOf<T>
+pub fn get_schema_hash<T>(default: bool) -> HashOf<T>
 where
 	T: Config,
 	T::Hash: From<H256>,
@@ -35,8 +35,8 @@ where
 	}
 }
 
-pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdentifierOf {
-	let identifier: SchemaIdentifierOf =
+pub fn generate_schema_id<T: Config>(digest: &HashOf<T>) -> IdentifierOf {
+	let identifier: IdentifierOf =
 		ss58identifier::generate(&(&digest).encode()[..], SCHEMA_PREFIX)
 			.into_bytes()
 			.try_into()
@@ -162,15 +162,15 @@ pub mod runtime {
 
 	#[derive(Clone, Default)]
 	pub(crate) struct ExtBuilder {
-		schemas_stored: Vec<(SchemaIdentifierOf, ControllerId)>,
-		schema_hashes_stored: Vec<(SchemaHashOf<Test>, SchemaIdentifierOf)>,
+		schemas_stored: Vec<(IdentifierOf, ControllerId)>,
+		schema_hashes_stored: Vec<(HashOf<Test>, IdentifierOf)>,
 		balances: Vec<(AccountId, BalanceOf<Test>)>,
 	}
 
 	impl ExtBuilder {
 		pub(crate) fn with_schemas(
 			mut self,
-			schemas: Vec<(SchemaIdentifierOf, ControllerId)>,
+			schemas: Vec<(IdentifierOf, ControllerId)>,
 		) -> Self {
 			self.schemas_stored = schemas;
 			self

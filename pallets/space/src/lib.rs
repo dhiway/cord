@@ -29,7 +29,7 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	pub use cord_primitives::{ss58identifier, IdentifierOf, StatusOf, SPACE_INDEX};
+	pub use cord_primitives::{ss58identifier, IdentifierOf, StatusOf, SPACE_PREFIX};
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{Currency, ExistenceRequirement, OnUnbalanced, WithdrawReasons},
@@ -264,7 +264,7 @@ pub mod pallet {
 			// let digest = <T as frame_system::Config>::Hashing::hash(&tx_space[..]);
 
 			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
-				ss58identifier::generate(&(digest).encode()[..], SPACE_INDEX).into_bytes(),
+				ss58identifier::generate(&(digest).encode()[..], SPACE_PREFIX).into_bytes(),
 			)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
@@ -321,7 +321,7 @@ pub mod pallet {
 				Error::<T>::InvalidControllerSignature
 			);
 
-			ss58identifier::from_known_format(&space, SPACE_INDEX)
+			ss58identifier::from_known_format(&space, SPACE_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 			let space_details = <Spaces<T>>::get(&space).ok_or(Error::<T>::SpaceNotFound)?;
@@ -385,7 +385,7 @@ pub mod pallet {
 				Error::<T>::InvalidControllerSignature
 			);
 
-			ss58identifier::from_known_format(&space, SPACE_INDEX)
+			ss58identifier::from_known_format(&space, SPACE_PREFIX)
 				.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 			let space_details = <Spaces<T>>::get(&space).ok_or(Error::<T>::SpaceNotFound)?;
@@ -436,7 +436,7 @@ impl<T: Config> Pallet<T> {
 		tx_ident: &IdentifierOf,
 		requestor: CordAccountOf<T>,
 	) -> Result<(), Error<T>> {
-		ss58identifier::from_known_format(tx_ident, SPACE_INDEX)
+		ss58identifier::from_known_format(tx_ident, SPACE_PREFIX)
 			.map_err(|_| Error::<T>::InvalidSpaceIdentifier)?;
 
 		let space_details = <Spaces<T>>::get(&tx_ident).ok_or(Error::<T>::SpaceNotFound)?;

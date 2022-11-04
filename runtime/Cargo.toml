@@ -72,6 +72,7 @@ frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-featu
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-credit-treasury = {  default-features = false, path = '../pallets/credit-treasury' }
 pallet-author-registry = {  default-features = false, path = '../pallets/author-registry' }
+pallet-trust-hierarchy = {  default-features = false, path = '../pallets/trust-hierarchy' }
 pallet-space = {  default-features = false, path = '../pallets/space' }
 
 [dev-dependencies]
@@ -129,6 +130,7 @@ std = [
 	"pallet-schema/std",
 	"pallet-credit-treasury/std",
 	"pallet-author-registry/std",
+	"pallet-trust-hierarchy/std",
 	"pallet-space/std",
 	"sp-runtime/std",
 	"sp-staking/std",

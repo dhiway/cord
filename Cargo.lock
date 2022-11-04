@@ -1144,6 +1144,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
+ "pallet-trust-hierarchy",
  "pallet-utility",
  "parity-scale-codec",
  "scale-info",
@@ -4967,6 +4968,30 @@ dependencies = [
  "serde",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-trust-hierarchy"
+version = "0.7.10"
+dependencies = [
+ "bitflags",
+ "cord-primitives",
+ "env_logger",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "pallet-schema",
+ "pallet-space",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]

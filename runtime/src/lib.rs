@@ -1084,6 +1084,30 @@ impl pallet_space::Config for Runtime {
 	type WeightInfo = weights::pallet_space::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const MaxParentChecks: u32 = 5;
+	pub const MaxRevocations: u32 = 5;
+	pub const MaxRemovals: u32 = 5;
+	#[derive(Clone)]
+	pub const MaxChildren: u32 = 1000;
+}
+
+impl pallet_trust_hierarchy::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type HierarchyFee = SpaceFee;
+	type NodeFee = BaseFee;
+	type FeeCollector = CreditTreasury;
+	type Signature = Signature;
+	type Signer = <Signature as Verify>::Signer;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type MaxParentChecks = MaxParentChecks;
+	type MaxRevocations = MaxRevocations;
+	type MaxRemovals = MaxRemovals;
+	type MaxChildren = MaxChildren;
+	type WeightInfo = weights::pallet_trust_hierarchy::WeightInfo<Runtime>;
+}
+
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
@@ -1144,20 +1168,22 @@ construct_runtime! {
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 38,
 
 		// Authority Manager pallet.
-		AuthorityManager: authority_manager::{Pallet, Call, Storage, Event<T>} = 251,
+		AuthorityManager: authority_manager::{Pallet, Call, Storage, Event<T>} = 101,
 
 		// Author Registry pallet.
-		AuthorRegistry: pallet_author_registry::{Pallet, Call, Storage, Event<T>, Config<T>} = 252,
+		AuthorRegistry: pallet_author_registry::{Pallet, Call, Storage, Event<T>, Config<T>} =102,
+
+		// Trust Hierarchy pallet.
+		TrustHierarchy: pallet_trust_hierarchy::{Pallet, Call, Storage, Event<T>} = 103,
 
 		// Schema Manager pallet.
-		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 253,
+		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 104,
 
 		// Schema Manager pallet.
-		Space: pallet_space::{Pallet, Call, Storage, Event<T>} = 254,
+		Space: pallet_space::{Pallet, Call, Storage, Event<T>} = 105,
 
 		// Sudo.
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,
-
 	}
 }
 
