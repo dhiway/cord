@@ -4652,6 +4652,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-rating"
+version = "0.7.8"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-recovery"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#34a0621761c4a333cb2074ff720f7acbfb92dbb8"
