@@ -1093,6 +1093,7 @@ dependencies = [
  "pallet-offences",
  "pallet-preimage",
  "pallet-proxy",
+ "pallet-rating",
  "pallet-recovery",
  "pallet-scheduler",
  "pallet-schema",

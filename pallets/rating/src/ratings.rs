@@ -36,7 +36,7 @@ pub struct RatingType<T: Config> {
 	/// Rating Count (Number of people rated)
 	pub count: u32,
 	/// SSP Identifier (app id, product id, count, score)
-	pub identifier: IdentifierOf,
+	pub identifier: Option<RatingEntityOf>,
 }
 
 impl<T: Config> sp_std::fmt::Debug for RatingType<T> {
