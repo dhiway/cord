@@ -29,12 +29,14 @@ pub struct RatingType<T: Config> {
 	pub digest: HashOf<T>,
 	/// Rating controller.
 	pub controller: CordAccountOf<T>,
-	/// Rating holder.
-        pub entity: IdentifierOf,
-	/// Rating (avg rating)
+	/// Rating of identifier
+	pub entity: RatingEntityOf,
+	/// Rating (aggregated rating)
 	pub rating: u32,
-	/// Rating Quantity (Number of people rated)
-	pub quantity: u32,
+	/// Rating Count (Number of people rated)
+	pub count: u32,
+	/// SSP Identifier (app id, product id, count, score)
+	pub identifier: IdentifierOf,
 }
 
 impl<T: Config> sp_std::fmt::Debug for RatingType<T> {
@@ -65,9 +67,9 @@ impl<T: Config> sp_std::fmt::Debug for RatingDetails<T> {
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
 pub struct RatingParams<T: Config> {
-	/// Schema identifier
+	/// Rating identifier
 	pub identifier: IdentifierOf,
-	/// Schema hash.
+	/// Rating hash.
 	pub rating: RatingType<T>,
 }
 

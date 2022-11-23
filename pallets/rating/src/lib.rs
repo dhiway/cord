@@ -19,8 +19,8 @@
 //! # Rating Pallet
 //!
 //! The Rating palllet is used to anchor identifiers representing rating seeked
-//! from the sellers. The pallet provides means of creating and removing of identifier
-//! data on-chain.
+//! from the sellers. The pallet provides means of creating and removing of
+//! identifier data on-chain.
 //!
 //! - [`Config`]
 //! - [`Call`]
@@ -66,10 +66,10 @@
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
 
-use cord_primitives::{ss58identifier, IdentifierOf, StatusOf, RATING_PREFIX};
+use cord_primitives::{ss58identifier, IdentifierOf, RatingEntityOf, StatusOf, RATING_PREFIX};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_runtime::traits::{IdentifyAccount, Verify};
-use sp_std::{prelude::Clone, str, vec::Vec};
+use sp_std::{prelude::Clone, str};
 
 pub mod ratings;
 pub mod weights;
@@ -101,9 +101,6 @@ pub mod pallet {
 			<Self as frame_system::Config>::Origin,
 		>;
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
-		/// The maximum number of delegates for a rating.
-		#[pallet::constant]
-		type MaxRatingDelegates: Get<u32>;
 		/// The signature of the rating issuer.
 		type Signature: Verify<Signer = <Self as pallet::Config>::Signer>
 			+ Parameter
@@ -136,51 +133,18 @@ pub mod pallet {
 	pub type RatingHashes<T> =
 		StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
 
-	/// rating delegations stored on chain.
-	/// It maps from an identifier to a vector of delegates.
-	#[pallet::storage]
-	#[pallet::storage_prefix = "Delegates"]
-	pub(super) type RatingDelegations<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		IdentifierOf,
-		BoundedVec<CordAccountOf<T>, T::MaxRatingDelegates>,
-		ValueQuery,
-	>;
-
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new rating identifier has been created.
 		/// \[rating identifier, rating hash, controller\]
 		Anchor { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
-		/// A rating identifier has been updated.
-		/// \[rating identifier, hash, controller\]
-		Update { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
-		/// A rating digest has been added to the identifier.
-		/// \[rating identifier, digest, controller\]
-		Digest { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
-		/// A rating identifier status has been changed.
-		/// \[rating identifier, digest, controller\]
-		Revoke { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
-		/// A rating identifier has been removed.
-		/// \[rating identifier, digest, controller\]
-		Remove { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
-		/// A rating identifier has been removed by the council.
-		/// \[rating identifier\]
-		CouncilRemove { identifier: IdentifierOf },
 		/// A metedata entry has been added to the identifier.
 		/// \[rating identifier, controller\]
 		MetadataSet { identifier: IdentifierOf, controller: CordAccountOf<T> },
 		/// An identifier metadata entry has been cleared.
 		/// \[rating identifier, controller\]
 		MetadataCleared { identifier: IdentifierOf, controller: CordAccountOf<T> },
-		/// Delegates has been added to the identifier.
-		/// \[rating identifier, digest, delegator\]
-		AddDelegates { identifier: IdentifierOf, digest: HashOf<T>, delegator: CordAccountOf<T> },
-		/// Rating identifier delegates has been removed.
-		/// \[rating identifier, digest, delegator\]
-		RemoveDelegates { identifier: IdentifierOf, digest: HashOf<T>, delegator: CordAccountOf<T> },
 	}
 
 	#[pallet::error]
@@ -189,14 +153,8 @@ pub mod pallet {
 		RatingAlreadyAnchored,
 		/// Rating idenfier not found
 		RatingNotFound,
-		/// Rating idenfier marked inactive
-		RatingRevoked,
 		/// Only when the author is not the controller/delegate.
 		UnauthorizedOperation,
-		/// Rating link does not exist
-		RatingLinkNotFound,
-		/// Rating Link is revoked
-		RatingLinkRevoked,
 		// Invalid creator signature
 		InvalidSignature,
 		//Rating hash is not unique
@@ -261,63 +219,13 @@ pub mod pallet {
 
 			<Ratings<T>>::insert(
 				&identifier,
-				RatingDetails {
-					rating: tx_rating.clone(),
-					meta: false,
-				},
+				RatingDetails { rating: tx_rating.clone(), meta: false },
 			);
 
 			Self::deposit_event(Event::Anchor {
 				identifier,
 				digest: tx_rating.digest,
 				author: tx_rating.controller,
-			});
-
-			Ok(())
-		}
-
-		///  Remove a rating from the chain using space identities.
-		///
-		/// * origin: the identity of the space origin.
-		/// * remove: the rating to remove.
-		/// * tx_signature: signature of the controller.
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove())]
-		pub fn remove(
-			origin: OriginFor<T>,
-			tx_rating: RatingParams<T>,
-			tx_signature: SignatureOf<T>,
-		) -> DispatchResult {
-			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
-
-			ensure!(
-				!<RatingHashes<T>>::contains_key(&tx_rating.rating.digest),
-				Error::<T>::InvalidTransactionHash
-			);
-
-			ensure!(
-				tx_signature
-					.verify(&(&tx_rating.rating.digest).encode()[..], &tx_rating.rating.controller),
-				Error::<T>::InvalidSignature
-			);
-
-			ss58identifier::from_known_format(&tx_rating.identifier, RATING_PREFIX)
-				.map_err(|_| Error::<T>::InvalidRatingIdentifier)?;
-
-			let rating_details =
-				<Ratings<T>>::get(&tx_rating.identifier).ok_or(Error::<T>::RatingNotFound)?;
-			
-			ensure!(
-				rating_details.rating.controller == tx_rating.rating.controller,
-				Error::<T>::UnauthorizedOperation
-				);
-
-			<RatingHashes<T>>::insert(&tx_rating.rating.digest, &tx_rating.identifier);
-
-			<Ratings<T>>::remove(&tx_rating.identifier);
-			Self::deposit_event(Event::Remove {
-				identifier: tx_rating.identifier,
-				digest: tx_rating.rating.digest,
-				author: tx_rating.rating.controller,
 			});
 
 			Ok(())

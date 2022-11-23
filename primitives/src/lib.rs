@@ -84,6 +84,9 @@ pub type VersionOf = Vec<u8>;
 /// IDentifier type.
 pub type IdentifierOf = BoundedVec<u8, ConstU32<48>>;
 
+/// Rating Identifier.
+pub type RatingEntityOf = BoundedVec<u8, ConstU32<48>>;
+
 /// MetaData type.
 pub type MetaDataOf = BoundedVec<u8, ConstU32<15360>>;
 
