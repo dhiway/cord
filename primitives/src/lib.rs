@@ -101,7 +101,7 @@ pub const SCHEMA_PREFIX: u16 = 41;
 pub const STREAM_PREFIX: u16 = 51;
 
 /// ratings identifier prefix
-pub const RATING_PREFIX: u16 = 101;
+pub const RATING_PREFIX: u16 = 61;
 
 /// Macro to set a value (e.g. when using the `parameter_types` macro) to either
 /// a production value or to an environment variable or testing value (in case
