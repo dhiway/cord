@@ -1281,6 +1281,15 @@ impl pallet_meta::Config for Runtime {
 	type WeightInfo = pallet_meta::weights::SubstrateWeight<Runtime>;
 }
 
+impl pallet_rating::Config for Runtime {
+	type Event = Event;
+	type Signature = Signature;
+	type Signer = <Signature as Verify>::Signer;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type ForceOrigin = StreamApproveOrigin;
+	type WeightInfo = pallet_rating::weights::SubstrateWeight<Runtime>;
+}
+
 impl pallet_sudo::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
@@ -1342,6 +1351,7 @@ construct_runtime! {
 		Schema: pallet_schema = 53,
 		Stream: pallet_stream = 54,
 		Meta: pallet_meta = 55,
+		Rating: pallet_rating = 56,
 
 		Sudo: pallet_sudo = 70,
 	}
