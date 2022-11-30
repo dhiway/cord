@@ -24,19 +24,35 @@ use scale_info::TypeInfo;
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
+pub struct RatingCore {
+	/// Rating value
+	pub rating: u32,
+	/// Rating Count (Number of people rated)
+	pub count: u32,
+}
+
+impl sp_std::fmt::Debug for RatingCore {
+	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+		Ok(())
+	}
+}
+
+#[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
+#[scale_info(skip_type_params(T))]
+#[codec(mel_bound())]
 pub struct RatingType<T: Config> {
 	/// Rating hash.
 	pub digest: HashOf<T>,
 	/// Rating controller.
 	pub controller: CordAccountOf<T>,
 	/// Rating (aggregated rating)
-	pub rating: u32,
-	/// Rating Count (Number of people rated)
-	pub count: u32,
-	/// Rating of identifier
+	pub rating: RatingCore,
+	/// Seller (Actual Seller) identifier
 	pub entity: RatingEntityOf,
-	//SSP Identifier (app id, product id, count, score)
-	//pub identifier: Option<RatingEntityOf>,
+	/// Seller App Identifier
+	pub seller_app: Option<RatingEntityOf>,
+	/// Buyer App Identifier
+	pub buyer_app: Option<RatingEntityOf>,
 }
 
 impl<T: Config> sp_std::fmt::Debug for RatingType<T> {
@@ -71,6 +87,8 @@ pub struct RatingParams<T: Config> {
 	pub identifier: IdentifierOf,
 	/// Rating hash.
 	pub rating: RatingType<T>,
+	/// Seller Entity (Actual Shop).
+	pub entity: RatingEntityOf,
 }
 
 impl<T: Config> sp_std::fmt::Debug for RatingParams<T> {

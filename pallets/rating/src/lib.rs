@@ -133,24 +133,42 @@ pub mod pallet {
 	pub type RatingHashes<T> =
 		StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
 
+	/// rating entities stored on chain.
+	/// It maps from an entity to its details. Chain will only store the
+	/// last updated state of the data.
+	#[pallet::storage]
+	#[pallet::storage_prefix = "Entities"]
+	pub type RatingEntities<T> =
+		StorageMap<_, Blake2_128Concat, RatingEntityOf, RatingCore, OptionQuery>;
+
+	/// rating of entities stored on chain.
+	/// It maps from an entity to its details (including previous calls).
+	/// Chain will only store the
+	/// last updated state of the data.
+	#[pallet::storage]
+	#[pallet::storage_prefix = "EntityHistory"]
+	pub type RatingEntityHistory<T> = StorageMap<
+		_,
+		Blake2_128Concat,
+		RatingEntityOf,
+		BoundedVec<RatingCore, ConstU32<366>>,
+		OptionQuery,
+	>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new rating identifier has been created.
 		/// \[rating identifier, rating hash, controller\]
 		Anchor { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
-		/// A metedata entry has been added to the identifier.
-		/// \[rating identifier, controller\]
-		MetadataSet { identifier: IdentifierOf, controller: CordAccountOf<T> },
-		/// An identifier metadata entry has been cleared.
-		/// \[rating identifier, controller\]
-		MetadataCleared { identifier: IdentifierOf, controller: CordAccountOf<T> },
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Rating idenfier is not unique
 		RatingAlreadyAnchored,
+		/// Invalid Identifer Length
+		InvalidIdentifierLength,
 		/// Rating idenfier not found
 		RatingNotFound,
 		/// Only when the author is not the controller/delegate.
@@ -163,18 +181,10 @@ pub mod pallet {
 		ExpiredSignature,
 		// Invalid Rating Identifier
 		InvalidRatingIdentifier,
-		// Invalid Schema Identifier Length
-		InvalidIdentifierLength,
 		//Rating digest is not unique
 		DigestHashAlreadyAnchored,
 		// Invalid transaction hash
 		InvalidTransactionHash,
-		// Metadata limit exceeded
-		MetadataLimitExceeded,
-		// Metadata already set for the entry
-		MetadataAlreadySet,
-		// Metadata not found for the entry
-		MetadataNotFound,
 	}
 
 	#[pallet::call]
@@ -222,6 +232,12 @@ pub mod pallet {
 				RatingDetails { rating: tx_rating.clone(), meta: false },
 			);
 
+			let mut rating: RatingCore = RatingCore { rating: 0, count: 0 };
+			let mut _all = <RatingEntities<T>>::get(&tx_rating.entity);
+			rating.rating += tx_rating.rating.rating;
+			rating.count += tx_rating.rating.count;
+
+			<RatingEntities<T>>::insert(&tx_rating.entity, rating.clone());
 			Self::deposit_event(Event::Anchor {
 				identifier,
 				digest: tx_rating.digest,
