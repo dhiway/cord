@@ -47,8 +47,8 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + pallet_schema::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type EnsureOrigin: EnsureOrigin<
-			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
+			Success = CordAccountOf<Self>,
 		>;
 		#[pallet::constant]
 		type MaxSpaceDelegates: Get<u32>;
@@ -270,7 +270,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
+			let identifier = IdentifierOf::try_from(
 				ss58identifier::generate(&(&tx_space.digest).encode()[..], SPACE_INDEX)
 					.into_bytes(),
 			)

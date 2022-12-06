@@ -16,60 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! # Rating Pallet
-//!
-//! The Rating palllet is used to anchor identifiers representing rating seeked
-//! from the sellers. The pallet provides means of creating and removing of
-//! identifier data on-chain.
-//!
-//! - [`Config`]
-//! - [`Call`]
-//! - [`Pallet`]
-//!
-//! ### Terminology
-//!
-//! - **Identifier:**: A unique persistent identifier representing a rating,
-//!   controller, ratings and number of people who rated in last interval.
-// !
-// ! - **Issuer:**: The issuer is the person or organization that creates the
-// !   rating, anchors the identifier on-chain and assigns it to a holder
-// !   (person, organization, or thing). An example of an issuer would be a DMV
-// !   which issues driver’s licenses.
-// !
-// ! - **Rating:**: Avg rating.
-// !
-// ! - **Quantity:**: Number of reviews.
-// !
-//!
-//! ## Interface
-//!
-//! ### Dispatchable Functions
-//!
-//! The dispatchable functions of the Rating pallet enable the steps needed for
-//! entities to anchor, update, remove link identifiers change their role,
-//! alongside some helper functions to get/set the holder delgates and digest
-//! information for the identifier.
-//!
-//! - `create` - Create a new identifier for a given rating which is based on a
-//!   Schema. The issuer can optionally provide a reference to an existing
-//!   identifier that will be saved along with the identifier.
-//! - `remove` - Remove an existing identifier and associated on-chain data.The
-//!   remover must be either the creator of the identifier being revoked or an
-//!   entity that in the delegation tree is an ancestor of the issuer, i.e., it
-//!   was either the delegator of the issuer or an ancestor thereof.
-//!
-//! ## Related Modules
-//!
-//! - [Meta](../pallet_meta/index.html): Used to manage data blobs attached to
-//!   an identifier. Optional, but usefull for crededntials with public data.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
 
-use cord_primitives::{ss58identifier, IdentifierOf, RatingEntityOf, StatusOf, RATING_PREFIX};
+use cord_primitives::{ss58identifier, IdentifierOf, RATING_PREFIX};
 use frame_support::{ensure, storage::types::StorageMap};
-use sp_runtime::traits::{IdentifyAccount, Verify};
-use sp_std::{prelude::Clone, str};
+use sp_runtime::{traits::Zero, SaturatedConversion};
+use sp_std::{prelude::Clone, str, vec::Vec};
 
 pub mod ratings;
 pub mod weights;
@@ -82,34 +36,33 @@ pub use pallet::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::pallet_prelude::*;
+	use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
 	use frame_system::pallet_prelude::*;
 
 	/// Hash of the rating.
-	pub type HashOf<T> = <T as frame_system::Config>::Hash;
+	pub type RatingHashOf<T> = <T as frame_system::Config>::Hash;
+	pub type EntityIdentifierOf<T> = <T as frame_system::Config>::AccountId;
+	pub type ProviderIdentifierOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type of the identitiy.
 	pub type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-	/// Type for a signature.
-	pub type SignatureOf<T> = <T as Config>::Signature;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type EnsureOrigin: EnsureOrigin<
-			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
+			Success = CordAccountOf<Self>,
 		>;
-		type ForceOrigin: EnsureOrigin<Self::Origin>;
-		/// The signature of the rating issuer.
-		type Signature: Verify<Signer = <Self as pallet::Config>::Signer>
-			+ Parameter
-			+ MaxEncodedLen
-			+ TypeInfo;
-		/// The identity of the rating issuer.
-		type Signer: IdentifyAccount<AccountId = CordAccountOf<Self>> + Parameter;
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		/// The maximum number of delegates for a schema.
+		#[pallet::constant]
+		type MaxJournalInputEntries: Get<u32>;
+		#[pallet::constant]
+		type MinRatingValue: Get<u32>;
+		#[pallet::constant]
+		type MaxRatingValue: Get<u32>;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -119,48 +72,24 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	/// rating identifiers stored on chain.
-	/// It maps from an identifier to its details. Chain will only store the
-	/// last updated state of the data.
+	/// rating journal - maps from an identifier to its details.
 	#[pallet::storage]
-	#[pallet::storage_prefix = "Identifiers"]
-	pub type Ratings<T> =
-		StorageMap<_, Blake2_128Concat, IdentifierOf, RatingDetails<T>, OptionQuery>;
+	#[pallet::getter(fn journal)]
+	pub type Journal<T> =
+		StorageMap<_, Blake2_128Concat, IdentifierOf, RatingJournal<T>, OptionQuery>;
 
-	/// rating hashes stored on chain.
-	/// It maps from a rating hash to an identifier (resolve from hash).
+	/// network score - aggregated and mapped to an entity identifier.
 	#[pallet::storage]
-	#[pallet::storage_prefix = "Hashes"]
-	pub type RatingHashes<T> =
-		StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
-
-	/// rating entities stored on chain.
-	/// It maps from an entity to its details. Chain will only store the
-	/// last updated state of the data.
-	#[pallet::storage]
-	#[pallet::storage_prefix = "Entities"]
-	pub type RatingEntities<T> =
-		StorageMap<_, Blake2_128Concat, RatingEntityOf, RatingCore, OptionQuery>;
-
-	/// rating of entities stored on chain.
-	/// It maps from an entity to its details (including previous calls).
-	/// Chain will only store the
-	/// last updated state of the data.
-	#[pallet::storage]
-	#[pallet::storage_prefix = "EntityHistory"]
-	pub type RatingEntityHistory<T> = StorageMap<
-		_,
-		Blake2_128Concat,
-		RatingEntityOf,
-		BoundedVec<RatingCore, ConstU32<366>>,
-		OptionQuery,
-	>;
+	#[pallet::getter(fn score)]
+	pub type Score<T> =
+		StorageMap<_, Blake2_128Concat, EntityIdentifierOf<T>, RatingEntry, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new rating identifier has been created.
-		/// \[rating identifier, rating hash, controller\]
-		Anchor { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
+		/// \[rating identifier, entity, author\]
+		Entry { identifier: IdentifierOf, entity: EntityIdentifierOf<T>, author: CordAccountOf<T> },
 	}
 
 	#[pallet::error]
@@ -185,6 +114,9 @@ pub mod pallet {
 		DigestHashAlreadyAnchored,
 		// Invalid transaction hash
 		InvalidTransactionHash,
+		JournalAlreadyAnchored,
+		InvalidRatingValue,
+		TooManyEntries,
 	}
 
 	#[pallet::call]
@@ -193,57 +125,112 @@ pub mod pallet {
 		/// controller. The controller (issuer) is the owner of the identifier.
 		///
 		/// * origin: the identity of the Transaction Author. Transaction author
-		///   pays the transaction fees and the author identity can be different
-		///   from the rating issuer
-		/// * tx_rating: the incoming rating. Identifier is generated from the
-		///   genesis digest (hash) provided as part of the details
-		/// * tx_signature: signature of the issuer aganist the rating genesis
-		///   digest (hash).
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
-		pub fn create(
-			origin: OriginFor<T>,
-			tx_rating: RatingType<T>,
-			tx_signature: SignatureOf<T>,
-		) -> DispatchResult {
-			<T as Config>::EnsureOrigin::ensure_origin(origin)?;
+		///   pays the transaction fees
+		/// * tx_journal: the incoming rating entry. Identifier is generated from the
+		///   combination of the digest (hash), entity identifier and author identity provided as part of the details
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::add(tx_journal.len().saturated_into()))]
+		pub fn add(origin: OriginFor<T>, tx_journal: Vec<RatingJournalEntry<T>>) -> DispatchResult {
+			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			ensure!(
-				!<RatingHashes<T>>::contains_key(&tx_rating.digest),
-				Error::<T>::InvalidTransactionHash
+				tx_journal.len() <= T::MaxJournalInputEntries::get() as usize,
+				Error::<T>::TooManyEntries
 			);
 
-			ensure!(
-				tx_signature.verify(&(&tx_rating.digest).encode()[..], &tx_rating.controller),
-				Error::<T>::InvalidSignature
-			);
+			for journal_entry in tx_journal {
+				ensure!(
+					journal_entry.overall.rating
+						<= journal_entry.overall.count * T::MaxRatingValue::get(),
+					Error::<T>::InvalidRatingValue
+				);
 
-			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
-				ss58identifier::generate(&(&tx_rating.digest).encode()[..], RATING_PREFIX)
-					.into_bytes(),
-			)
-			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
+				ensure!(
+					journal_entry.delivery.rating
+						<= journal_entry.delivery.count * T::MaxRatingValue::get(),
+					Error::<T>::InvalidRatingValue
+				);
 
-			ensure!(!<Ratings<T>>::contains_key(&identifier), Error::<T>::RatingAlreadyAnchored);
+				let id_digest = <T as frame_system::Config>::Hashing::hash(
+					&[
+						&journal_entry.digest.encode()[..],
+						&journal_entry.entity.encode()[..],
+						&author.encode()[..],
+					]
+					.concat()[..],
+				);
 
-			<RatingHashes<T>>::insert(&tx_rating.digest, &identifier);
+				let identifier = IdentifierOf::try_from(
+					ss58identifier::generate(&(&id_digest).encode()[..], RATING_PREFIX)
+						.into_bytes(),
+				)
+				.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
 
-			<Ratings<T>>::insert(
-				&identifier,
-				RatingDetails { rating: tx_rating.clone(), meta: false },
-			);
+				ensure!(
+					!<Journal<T>>::contains_key(&identifier),
+					Error::<T>::JournalAlreadyAnchored
+				);
 
-			let mut rating: RatingCore = RatingCore { rating: 0, count: 0 };
-			let mut _all = <RatingEntities<T>>::get(&tx_rating.entity);
-			rating.rating += tx_rating.rating.rating;
-			rating.count += tx_rating.rating.count;
+				let block_number = frame_system::Pallet::<T>::block_number();
 
-			<RatingEntities<T>>::insert(&tx_rating.entity, rating.clone());
-			Self::deposit_event(Event::Anchor {
-				identifier,
-				digest: tx_rating.digest,
-				author: tx_rating.controller,
-			});
+				<Journal<T>>::insert(
+					&identifier,
+					RatingJournal {
+						entry: journal_entry.clone(),
+						provider: author.clone(),
+						block: block_number,
+					},
+				);
 
+				if let Some(mut score_entry) = <Score<T>>::get(&journal_entry.entity) {
+					if !journal_entry.overall.count.is_zero() {
+						ensure!(
+							journal_entry.overall.rating >= T::MinRatingValue::get(),
+							Error::<T>::InvalidRatingValue
+						);
+
+						score_entry.overall.count =
+							score_entry.overall.count.saturating_add(journal_entry.overall.count);
+						score_entry.overall.rating =
+							score_entry.overall.rating.saturating_add(journal_entry.overall.rating);
+					}
+
+					if !journal_entry.delivery.count.is_zero() {
+						ensure!(
+							journal_entry.delivery.rating >= T::MinRatingValue::get(),
+							Error::<T>::InvalidRatingValue
+						);
+
+						score_entry.delivery.count =
+							score_entry.delivery.count.saturating_add(journal_entry.delivery.count);
+						score_entry.delivery.rating = score_entry
+							.delivery
+							.rating
+							.saturating_add(journal_entry.delivery.rating);
+					}
+
+					<Score<T>>::insert(
+						&journal_entry.entity,
+						RatingEntry {
+							overall: score_entry.overall,
+							delivery: score_entry.delivery,
+						},
+					);
+				} else {
+					<Score<T>>::insert(
+						&journal_entry.entity,
+						RatingEntry {
+							overall: journal_entry.overall,
+							delivery: journal_entry.delivery,
+						},
+					);
+				}
+
+				Self::deposit_event(Event::Entry {
+					identifier,
+					entity: journal_entry.entity,
+					author: author.clone(),
+				});
+			}
 			Ok(())
 		}
 	}

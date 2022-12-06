@@ -24,14 +24,14 @@ use scale_info::TypeInfo;
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
-pub struct RatingCore {
+pub struct RatingValues {
+	/// Rating Count
+	pub count: u32,
 	/// Rating value
 	pub rating: u32,
-	/// Rating Count (Number of people rated)
-	pub count: u32,
 }
 
-impl sp_std::fmt::Debug for RatingCore {
+impl sp_std::fmt::Debug for RatingValues {
 	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		Ok(())
 	}
@@ -40,58 +40,52 @@ impl sp_std::fmt::Debug for RatingCore {
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
-pub struct RatingType<T: Config> {
-	/// Rating hash.
-	pub digest: HashOf<T>,
-	/// Rating controller.
-	pub controller: CordAccountOf<T>,
-	/// Rating (aggregated rating)
-	pub rating: RatingCore,
-	/// Seller (Actual Seller) identifier
-	pub entity: RatingEntityOf,
-	/// Seller App Identifier
-	pub seller_app: Option<RatingEntityOf>,
-	/// Buyer App Identifier
-	pub buyer_app: Option<RatingEntityOf>,
+pub struct RatingJournalEntry<T: Config> {
+	/// entity identifier
+	pub entity: EntityIdentifierOf<T>,
+	/// entity rating
+	pub overall: RatingValues,
+	/// delivery rating
+	pub delivery: RatingValues,
+	/// transaction digest
+	pub digest: RatingHashOf<T>,
 }
 
-impl<T: Config> sp_std::fmt::Debug for RatingType<T> {
+impl<T: Config> sp_std::fmt::Debug for RatingJournalEntry<T> {
 	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		Ok(())
 	}
 }
 
-/// An on-chain rating details mapper to an Identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
-pub struct RatingDetails<T: Config> {
-	/// Rating hash.
-	pub rating: RatingType<T>,
-	/// The flag indicating the status of metadata.
-	pub meta: StatusOf,
+pub struct RatingJournal<T: Config> {
+	/// rating details
+	pub entry: RatingJournalEntry<T>,
+	/// rating provider
+	pub provider: ProviderIdentifierOf<T>,
+	/// The block number in which journal entry is included
+	pub block: BlockNumberOf<T>,
 }
 
-impl<T: Config> sp_std::fmt::Debug for RatingDetails<T> {
+impl<T: Config> sp_std::fmt::Debug for RatingJournal<T> {
 	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		Ok(())
 	}
 }
 
-/// An on-chain schema details mapped to an identifier.
 #[derive(Clone, Encode, Decode, PartialEq, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
-pub struct RatingParams<T: Config> {
-	/// Rating identifier
-	pub identifier: IdentifierOf,
-	/// Rating hash.
-	pub rating: RatingType<T>,
-	/// Seller Entity (Actual Shop).
-	pub entity: RatingEntityOf,
+pub struct RatingEntry {
+	/// overall rating
+	pub overall: RatingValues,
+	/// delivery rating
+	pub delivery: RatingValues,
 }
 
-impl<T: Config> sp_std::fmt::Debug for RatingParams<T> {
+impl sp_std::fmt::Debug for RatingEntry {
 	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
 		Ok(())
 	}
