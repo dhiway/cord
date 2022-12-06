@@ -1232,7 +1232,7 @@ parameter_types! {
 	pub const MaxSchemaDelegates: u32 = 100;
 	pub const MaxStreamDelegates: u32 = 100;
 	pub const MaxJournalInputEntries: u32 = 1000;
-	pub const MinRatingValue: u32 = 10;
+	pub const MinRatingValue: u32 = 1;
 	pub const MaxRatingValue: u32 = 50;
 
 }

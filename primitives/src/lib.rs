@@ -96,9 +96,8 @@ pub const SPACE_INDEX: u16 = 31;
 pub const SCHEMA_PREFIX: u16 = 41;
 /// stream identifier prefix.
 pub const STREAM_PREFIX: u16 = 51;
-
 /// ratings identifier prefix
-pub const RATING_PREFIX: u16 = 61;
+pub const RATING_PREFIX: u16 = 101;
 
 /// Macro to set a value (e.g. when using the `parameter_types` macro) to either
 /// a production value or to an environment variable or testing value (in case
