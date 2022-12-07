@@ -239,7 +239,7 @@ pub struct OriginPrivilegeCmp;
 impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
 		if left == right {
-			return Some(Ordering::Equal)
+			return Some(Ordering::Equal);
 		}
 
 		match (left, right) {
@@ -524,8 +524,8 @@ impl Get<Option<BalancingConfig>> for OffchainRandomBalancing {
 			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
-					.expect("input is padded with zeroes; qed") %
-					max.saturating_add(1);
+					.expect("input is padded with zeroes; qed")
+					% max.saturating_add(1);
 				random as usize
 			},
 		};
@@ -828,9 +828,9 @@ impl InstanceFilter<Call> for ProxyType {
 			),
 			ProxyType::Governance => matches!(
 				c,
-				Call::Democracy(..) |
-					Call::Council(..) | Call::TechnicalCommittee(..) |
-					Call::Treasury(..) | Call::Utility(..)
+				Call::Democracy(..)
+					| Call::Council(..) | Call::TechnicalCommittee(..)
+					| Call::Treasury(..) | Call::Utility(..)
 			),
 			ProxyType::Staking => {
 				matches!(c, Call::Staking(..) | Call::Session(..) | Call::Utility(..))
@@ -1231,6 +1231,10 @@ parameter_types! {
 	pub const MaxSpaceSchemas: u32 = 100;
 	pub const MaxSchemaDelegates: u32 = 100;
 	pub const MaxStreamDelegates: u32 = 100;
+	pub const MaxJournalInputEntries: u32 = 1000;
+	pub const MinRatingValue: u32 = 1;
+	pub const MaxRatingValue: u32 = 50;
+
 }
 
 impl pallet_space::Config for Runtime {
@@ -1283,10 +1287,10 @@ impl pallet_meta::Config for Runtime {
 
 impl pallet_rating::Config for Runtime {
 	type Event = Event;
-	type Signature = Signature;
-	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-	type ForceOrigin = StreamApproveOrigin;
+	type MaxJournalInputEntries = MaxJournalInputEntries;
+	type MinRatingValue = MinRatingValue;
+	type MaxRatingValue = MaxRatingValue;
 	type WeightInfo = pallet_rating::weights::SubstrateWeight<Runtime>;
 }
 
