@@ -1,6 +1,6 @@
 [package]
-name = 'pallet-rating'
-description = 'Manage ONDC Rating Entries.'
+name = 'pallet-score'
+description = 'Manage ONDC Network Scores.'
 version = '0.7.8'
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'
