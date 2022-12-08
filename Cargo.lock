@@ -1131,10 +1131,10 @@ dependencies = [
  "pallet-offences",
  "pallet-preimage",
  "pallet-proxy",
- "pallet-rating",
  "pallet-recovery",
  "pallet-scheduler",
  "pallet-schema",
+ "pallet-score",
  "pallet-session",
  "pallet-space",
  "pallet-staking",
@@ -4796,23 +4796,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-rating"
-version = "0.7.8"
-dependencies = [
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
 name = "pallet-recovery"
 version = "4.0.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.28#ce10b9f29353e89fc3e59d447041bb29622def3f"
@@ -4852,6 +4835,23 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "scale-info",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-score"
+version = "0.7.8"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-keystore",
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",

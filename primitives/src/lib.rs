@@ -81,8 +81,17 @@ pub type CidOf = Vec<u8>;
 /// Version type.
 pub type VersionOf = Vec<u8>;
 
+/// Score type.
+pub type ScoreOf = u32;
+
+/// Score count type.
+pub type CountOf = u32;
+
 /// IDentifier type.
 pub type IdentifierOf = BoundedVec<u8, ConstU32<49>>;
+
+/// IDentifier type.
+pub type ScoreIdentifierOf = BoundedVec<u8, ConstU32<72>>;
 
 /// MetaData type.
 pub type MetaDataOf = BoundedVec<u8, ConstU32<15360>>;
@@ -97,7 +106,7 @@ pub const SCHEMA_PREFIX: u16 = 41;
 /// stream identifier prefix.
 pub const STREAM_PREFIX: u16 = 51;
 /// ratings identifier prefix
-pub const RATING_PREFIX: u16 = 101;
+pub const SCORE_PREFIX: u16 = 101;
 
 /// Macro to set a value (e.g. when using the `parameter_types` macro) to either
 /// a production value or to an environment variable or testing value (in case

@@ -363,7 +363,7 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 5 * MILLIUNITS;
+	pub const TransactionByteFee: Balance = 10 * NANOUNITS;
 	pub const OperationalFeeMultiplier: u8 = 2;
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.
@@ -1231,9 +1231,8 @@ parameter_types! {
 	pub const MaxSpaceSchemas: u32 = 100;
 	pub const MaxSchemaDelegates: u32 = 100;
 	pub const MaxStreamDelegates: u32 = 100;
-	pub const MaxJournalInputEntries: u32 = 1000;
-	pub const MinRatingValue: u32 = 1;
-	pub const MaxRatingValue: u32 = 50;
+	pub const MinScoreValue: u32 = 1;
+	pub const MaxScoreValue: u32 = 50;
 
 }
 
@@ -1285,13 +1284,14 @@ impl pallet_meta::Config for Runtime {
 	type WeightInfo = pallet_meta::weights::SubstrateWeight<Runtime>;
 }
 
-impl pallet_rating::Config for Runtime {
+impl pallet_score::Config for Runtime {
 	type Event = Event;
+	type Signature = Signature;
+	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-	type MaxJournalInputEntries = MaxJournalInputEntries;
-	type MinRatingValue = MinRatingValue;
-	type MaxRatingValue = MaxRatingValue;
-	type WeightInfo = pallet_rating::weights::SubstrateWeight<Runtime>;
+	type MinScoreValue = MinScoreValue;
+	type MaxScoreValue = MaxScoreValue;
+	type WeightInfo = pallet_score::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -1355,7 +1355,7 @@ construct_runtime! {
 		Schema: pallet_schema = 53,
 		Stream: pallet_stream = 54,
 		Meta: pallet_meta = 55,
-		Rating: pallet_rating = 56,
+		Score: pallet_score = 56,
 
 		Sudo: pallet_sudo = 70,
 	}

@@ -74,6 +74,6 @@ members = [
 	"pallets/stream",
 	"pallets/meta",
 	"pallets/credit",
-	"pallets/rating",
+	"pallets/score",
 ]
 
