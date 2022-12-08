@@ -129,8 +129,14 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn tid_entries)]
-	pub type TidEntries<T> =
-		StorageMap<_, Blake2_128Concat, (TransactionIdentifierOf, ScoreTypeOf), (), ValueQuery>;
+	pub type TidEntries<T> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		TransactionIdentifierOf,
+		Blake2_128Concat,
+		ScoreTypeOf,
+		EntityIdentifierOf<T>,
+	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -204,13 +210,9 @@ pub mod pallet {
 			.map_err(|()| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
-				!<TidEntries<T>>::contains_key((&journal.entry.tid, &journal.entry.score_type)),
+				!<TidEntries<T>>::contains_key(&journal.entry.tid, &journal.entry.score_type),
 				Error::<T>::TransactionAlreadyRated
 			);
-			// ensure!(
-			// 	!<Journal<T>>::contains_key(&identifier, &journal.entry.score_type),
-			// 	Error::<T>::JournalAlreadyAnchored
-			// );
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
@@ -224,7 +226,11 @@ pub mod pallet {
 				},
 			);
 			<JournalHashes<T>>::insert(&journal.digest, ());
-			<TidEntries<T>>::insert((&journal.entry.tid, &journal.entry.score_type), ());
+			<TidEntries<T>>::insert(
+				&journal.entry.tid,
+				&journal.entry.score_type,
+				&journal.entry.entity,
+			);
 
 			Self::deposit_event(Event::JournalEntry {
 				identifier,

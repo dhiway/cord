@@ -363,7 +363,7 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 2 * MILLIUNITS;
+	pub const TransactionByteFee: Balance = 10 * NANOUNITS;
 	pub const OperationalFeeMultiplier: u8 = 2;
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.

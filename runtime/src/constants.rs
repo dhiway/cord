@@ -82,10 +82,7 @@ pub mod fee {
 	pub use sp_runtime::Perbill;
 
 	parameter_types! {
-		/// 20 ms to process an empty extrinsic.
 	pub const ExtrinsicBaseWeight: Weight = 26_309 * WEIGHT_PER_NANOS;
-		// / We want the no-op transaction to cost 0.4 WAY
-		// pub const ExtrinsicBaseFee: Balance = super::currency::UNITS / 10;
 	}
 	/// Converts Weight to Fee
 	pub struct WeightToFee;
