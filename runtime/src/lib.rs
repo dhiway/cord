@@ -239,7 +239,7 @@ pub struct OriginPrivilegeCmp;
 impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
 		if left == right {
-			return Some(Ordering::Equal)
+			return Some(Ordering::Equal);
 		}
 
 		match (left, right) {
@@ -363,7 +363,7 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 5 * MILLIUNITS;
+	pub const TransactionByteFee: Balance = 10 * NANOUNITS;
 	pub const OperationalFeeMultiplier: u8 = 2;
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.
@@ -524,8 +524,8 @@ impl Get<Option<BalancingConfig>> for OffchainRandomBalancing {
 			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
-					.expect("input is padded with zeroes; qed") %
-					max.saturating_add(1);
+					.expect("input is padded with zeroes; qed")
+					% max.saturating_add(1);
 				random as usize
 			},
 		};
@@ -828,9 +828,9 @@ impl InstanceFilter<Call> for ProxyType {
 			),
 			ProxyType::Governance => matches!(
 				c,
-				Call::Democracy(..) |
-					Call::Council(..) | Call::TechnicalCommittee(..) |
-					Call::Treasury(..) | Call::Utility(..)
+				Call::Democracy(..)
+					| Call::Council(..) | Call::TechnicalCommittee(..)
+					| Call::Treasury(..) | Call::Utility(..)
 			),
 			ProxyType::Staking => {
 				matches!(c, Call::Staking(..) | Call::Session(..) | Call::Utility(..))
@@ -1231,6 +1231,9 @@ parameter_types! {
 	pub const MaxSpaceSchemas: u32 = 100;
 	pub const MaxSchemaDelegates: u32 = 100;
 	pub const MaxStreamDelegates: u32 = 100;
+	pub const MinScoreValue: u32 = 1;
+	pub const MaxScoreValue: u32 = 50;
+
 }
 
 impl pallet_space::Config for Runtime {
@@ -1279,6 +1282,16 @@ impl pallet_meta::Config for Runtime {
 	type BaseDeposit = MetadataBaseDeposit;
 	type ByteDeposit = MetadataByteDeposit;
 	type WeightInfo = pallet_meta::weights::SubstrateWeight<Runtime>;
+}
+
+impl pallet_score::Config for Runtime {
+	type Event = Event;
+	type Signature = Signature;
+	type Signer = <Signature as Verify>::Signer;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type MinScoreValue = MinScoreValue;
+	type MaxScoreValue = MaxScoreValue;
+	type WeightInfo = pallet_score::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -1342,6 +1355,7 @@ construct_runtime! {
 		Schema: pallet_schema = 53,
 		Stream: pallet_stream = 54,
 		Meta: pallet_meta = 55,
+		Score: pallet_score = 56,
 
 		Sudo: pallet_sudo = 70,
 	}

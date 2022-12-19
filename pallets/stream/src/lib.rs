@@ -153,8 +153,8 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_schema::Config + pallet_space::Config {
 		type EnsureOrigin: EnsureOrigin<
-			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
+			Success = CordAccountOf<Self>,
 		>;
 		type ForceOrigin: EnsureOrigin<Self::Origin>;
 		/// The maximum number of delegates for a stream.
@@ -311,7 +311,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
+			let identifier =IdentifierOf::try_from(
 				ss58identifier::generate(&(&tx_stream.digest).encode()[..], STREAM_PREFIX)
 					.into_bytes(),
 			)

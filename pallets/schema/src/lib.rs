@@ -52,8 +52,8 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type EnsureOrigin: EnsureOrigin<
-			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
+			Success = CordAccountOf<Self>,
 		>;
 		/// The maximum number of delegates for a schema.
 		#[pallet::constant]
@@ -295,7 +295,7 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
-			let identifier: IdentifierOf = BoundedVec::<u8, ConstU32<48>>::try_from(
+			let identifier = IdentifierOf::try_from(
 				ss58identifier::generate(&(&tx_schema.digest).encode()[..], SCHEMA_PREFIX)
 					.into_bytes(),
 			)

@@ -63,8 +63,8 @@ pub mod pallet {
 	{
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		type EnsureOrigin: EnsureOrigin<
-			Success = CordAccountOf<Self>,
 			<Self as frame_system::Config>::Origin,
+			Success = CordAccountOf<Self>,
 		>;
 		type Signature: Verify<Signer = <Self as pallet::Config>::Signer>
 			+ Parameter
