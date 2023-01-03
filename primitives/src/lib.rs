@@ -21,7 +21,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(unused_crate_dependencies)]
 
-// use codec::{Decode, Encode};
 use frame_support::{traits::ConstU32, BoundedVec};
 use sp_runtime::{
 	generic,
@@ -88,10 +87,8 @@ pub type ScoreOf = u32;
 pub type CountOf = u32;
 
 /// IDentifier type.
-pub type IdentifierOf = BoundedVec<u8, ConstU32<49>>;
-
-/// IDentifier type.
-pub type ScoreIdentifierOf = BoundedVec<u8, ConstU32<72>>;
+pub type IdentifierOf = BoundedVec<u8, ConstU32<48>>;
+// pub type IdentifierOf = Vec<u8>;
 
 /// MetaData type.
 pub type MetaDataOf = BoundedVec<u8, ConstU32<15360>>;
@@ -99,14 +96,23 @@ pub type MetaDataOf = BoundedVec<u8, ConstU32<15360>>;
 /// status Information
 pub type StatusOf = bool;
 
+/// Authorship period
+// pub const AUTHORSHIP_PERIOD: u32 = 5256000;
+pub const AUTHORSHIP_PERIOD: u32 = 20;
+
 /// collection identifier prefix.
-pub const SPACE_INDEX: u16 = 31;
+pub const SPACE_PREFIX: u16 = 31;
+
 /// schema identifier prefix.
 pub const SCHEMA_PREFIX: u16 = 41;
+
 /// stream identifier prefix.
 pub const STREAM_PREFIX: u16 = 51;
 /// ratings identifier prefix
 pub const SCORE_PREFIX: u16 = 101;
+
+/// stream identifier prefix.
+pub const HIERARCHY_PREFIX: u16 = 1_383;
 
 /// Macro to set a value (e.g. when using the `parameter_types` macro) to either
 /// a production value or to an environment variable or testing value (in case

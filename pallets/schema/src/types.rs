@@ -1,0 +1,53 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) 2019-2022 Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::RuntimeDebug;
+use scale_info::TypeInfo;
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo)]
+pub struct SchemaInput<HashOf, CordAccountOf, Signature, InputSchemaMetatOf> {
+	/// Schema hash.
+	pub digest: HashOf,
+	/// Schema controller.
+	pub controller: CordAccountOf,
+	/// Controller Signature
+	pub signature: Signature,
+	/// An optional opaque blob representing the metadata for the schema. Could
+	/// be JSON, a link, a Hash, or raw text. Up to the community to decide how
+	/// exactly to use this.
+	pub meta: Option<InputSchemaMetatOf>,
+}
+
+/// An on-chain schema details mapped to an identifier.
+#[derive(
+	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
+)]
+
+pub struct SchemaEntry<HashOf, CordAccountOf, InputSchemaMetatOf, BlockNumber> {
+	/// Schema hash.
+	pub digest: HashOf,
+	/// Schema controller.
+	pub controller: CordAccountOf,
+	/// An optional opaque blob representing the metadata for the schema. Could
+	/// be JSON, a link, a Hash, or raw text. Up to the community to decide how
+	/// exactly to use this.
+	pub meta: Option<InputSchemaMetatOf>,
+	/// The block number in which schema is included
+	pub block_number: BlockNumber,
+}

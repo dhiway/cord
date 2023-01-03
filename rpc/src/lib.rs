@@ -39,10 +39,11 @@ use sp_keystore::SyncCryptoStorePtr;
 /// A IO handler that uses all Full RPC extensions.
 pub type RpcExtension = RpcModule<()>;
 
+
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
 	/// BABE protocol config.
-	pub babe_config: sc_consensus_babe::Config,
+	pub babe_config: sc_consensus_babe::BabeConfiguration,
 	/// BABE pending epoch changes.
 	pub shared_epoch_changes: sc_consensus_epochs::SharedEpochChanges<Block, Epoch>,
 	/// The keystore that manages the keys of the node.
@@ -149,8 +150,7 @@ where
 	)?;
 
 	io.merge(
-		SyncState::new(chain_spec, client, shared_authority_set, shared_epoch_changes)?
-			.into_rpc(),
+		SyncState::new(chain_spec, client, shared_authority_set, shared_epoch_changes)?.into_rpc(),
 	)?;
 
 	Ok(io)

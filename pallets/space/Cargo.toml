@@ -12,40 +12,62 @@ repository = "https://github.com/dhiway/cord"
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+
+[dev-dependencies]
+pallet-balances = {git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30"}
+serde = "1.0.142"
+sp-core = {git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30"}
+sp-keystore = {git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30"}
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = ["derive"] }
-scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
-cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
+codec = { package = "parity-scale-codec", version = "3.1.5", default-features = false, features = ["derive"] }
+log = "0.4.17"
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 serde = { version = "1.0.136", optional = true }
-pallet-schema = {  default-features = false, path = '../schema' }
+cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 
 # Substrate dependencies
-frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28", default-features = false }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30", default-features = false, optional = true }
+frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30", default-features = false }
+frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30", default-features = false }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30", default-features = false, optional = true }
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30", default-features = false, optional = true }
+sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30", default-features = false, optional = true }
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30", default-features = false, optional = true }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30", default-features = false }
 
 
 [features]
 default = [ 'std' ]
-mock = []
+mock = [
+  "pallet-balances",
+  "serde",
+  "sp-core",
+  "sp-io",
+  "sp-keystore",
+]
 runtime-benchmarks = [
-  "sp-runtime/runtime-benchmarks",
-  "frame-support/runtime-benchmarks",
+  "frame-benchmarking",
   "frame-system/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
 ]
 std = [
   "codec/std",
-  "scale-info/std",
+  "frame-benchmarking/std",
   "frame-support/std",
   "frame-system/std",
   "cord-primitives/std",
+  "log/std",
+  "pallet-balances/std",
+  "scale-info/std",
+  "sp-core/std",
+  "sp-io/std",
+  "sp-keystore/std",
   "sp-runtime/std",
   "sp-std/std",
-  "pallet-schema/std", 
-] 
+]
 try-runtime = [
   "frame-support/try-runtime",
 ]

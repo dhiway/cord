@@ -1,6 +1,6 @@
 [package]
 name = 'cord-primitives'
-version = '0.7.8'
+version = '0.7.10'
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'
 license = "GPL-3.0"
@@ -8,16 +8,15 @@ homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
 
 [dependencies]
-scale-info = { version = "2.1.1", default-features = false, features = ["derive"] }
-# codec = { package = "parity-scale-codec", version = "3.1.2", default-features = false, features = ["derive"] }
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 base58 = "0.2.0"
 blake2-rfc = {version = "0.2.18", default-features = false}
 
 
-sp-core = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.28"}
-frame-support = { git = "https://github.com/paritytech/substrate",  default-features = false, branch = "polkadot-v0.9.28"}
-sp-runtime = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.28"}
-sp-std = {git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.28"}
+sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.30"}
+frame-support = { git = "https://github.com/dhiway/substrate",  default-features = false, branch = "release-v0.9.30"}
+sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.30"}
+sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.30"}
 
 [features]
 default = ["std"]
