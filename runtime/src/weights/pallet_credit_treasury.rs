@@ -1,22 +1,20 @@
-// Copyright 2019-2021 Dhiway.
-// This file is part of the CORD Platform.
+// This file is part of CORD – https://cord.network
 
-//! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 3.0.0
-//! for pallet_reserve DATE: 2021-05-17, STEPS: `[20, ]`, REPEAT: 10,
-//! EXECUTION: Some(Wasm), WASM-EXECUTION: Interpreted, CHAIN: Some("dev")
+// Copyright (C) 2019-2022 Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
-// Executed Command:
-// ./target/release/cord
-// benchmark
-// --chain=dev
-// --execution=wasm
-// --pallet=pallet_reserve
-// --extrinsic=*
-// --steps=20
-// --repeat=10
-// --output=./pallets/reserve/src/weights.rs
-// --template=./.maintain/weight-template.hbs
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]

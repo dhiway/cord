@@ -11,16 +11,16 @@ repository = "https://github.com/dhiway/cord"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "master" }
 
 [dependencies]
 clap = { version = "4.0.9", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "3.1.5" }
 thiserror = "1.0"
-sc-cli = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
-sc-client-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
-sc-executor = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
-sc-service = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36", default-features = false }
-sp-blockchain = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
-sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
-sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+sc-cli = { git = "https://github.com/dhiway/substrate", branch = "master" }
+sc-client-api = { git = "https://github.com/dhiway/substrate", branch = "master" }
+sc-executor = { git = "https://github.com/dhiway/substrate", branch = "master" }
+sc-service = { git = "https://github.com/dhiway/substrate", branch = "master", default-features = false }
+sp-blockchain = { git = "https://github.com/dhiway/substrate", branch = "master" }
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "master" }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "master" }
