@@ -25,31 +25,30 @@
 //! WEIGHT-PATH: `runtime/rococo/constants/src/weights/`
 //! WEIGHT-METRIC: `Average`, WEIGHT-MUL: `1`, WEIGHT-ADD: `0`
 
-use frame_support::{
-	parameter_types,
-	weights::{constants::WEIGHT_PER_NANOS, Weight},
-};
+use sp_core::parameter_types;
+use sp_weights::{constants::WEIGHT_REF_TIME_PER_NANOS, Weight};
 
 parameter_types! {
 	/// Time to execute an empty block.
-	/// Calculated by multiplying the *Average* with `1` and adding `0`.
+	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 4_039_227, 4_394_160
-	///   Average:  4_084_738
-	///   Median:   4_077_180
-	///   Std-Dev:  44325.29
+	///   Min, Max: 5_285_413, 5_582_840
+	///   Average:  5_334_883
+	///   Median:   5_320_357
+	///   Std-Dev:  54133.56
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 4_189_094
-	///   95th: 4_152_261
-	///   75th: 4_098_529
-	pub const BlockExecutionWeight: Weight = WEIGHT_PER_NANOS.saturating_mul(4_084_738);
+	///   99th: 5_495_378
+	///   95th: 5_453_765
+	///   75th: 5_352_587
+	pub const BlockExecutionWeight: Weight =
+		Weight::from_ref_time(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(5_334_883));
 }
 
 #[cfg(test)]
 mod test_weights {
-	use frame_support::weights::constants;
+	use sp_weights::constants;
 
 	/// Checks that the weight exists and is sane.
 	// NOTE: If this test fails but you are sure that the generated values are fine,
@@ -60,12 +59,12 @@ mod test_weights {
 
 		// At least 100 µs.
 		assert!(
-			w.ref_time() >= 100u64 * constants::WEIGHT_PER_MICROS.ref_time(),
+			w.ref_time() >= 100u64 * constants::WEIGHT_REF_TIME_PER_MICROS,
 			"Weight should be at least 100 µs."
 		);
 		// At most 50 ms.
 		assert!(
-			w.ref_time() <= 50u64 * constants::WEIGHT_PER_MILLIS.ref_time(),
+			w.ref_time() <= 50u64 * constants::WEIGHT_REF_TIME_PER_MILLIS,
 			"Weight should be at most 50 ms."
 		);
 	}

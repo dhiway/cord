@@ -182,6 +182,7 @@ pub mod pallet {
 		///
 		/// This transaction can only be performed by the space controller
 		/// or delegates.
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::delegate())]
 		pub fn delegate(
 			origin: OriginFor<T>,
@@ -215,6 +216,7 @@ pub mod pallet {
 		///
 		/// This transaction can only be performed by the space controller
 		/// or delegated authorities.
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::undelegate())]
 		pub fn undelegate(
 			origin: OriginFor<T>,
@@ -237,6 +239,7 @@ pub mod pallet {
 		}
 
 		/// Create a new space and associates with its identifier.
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create(tx_space
 				.meta
 				.as_ref()
@@ -287,7 +290,7 @@ pub mod pallet {
 
 			SpaceRegistry::<T>::mutate(identifier.clone(), |a| {
 				if a.len() + 1 > T::MaxRegistryEntries::get() as usize {
-					return Err(Error::<T>::TooManyRegistryEntries)
+					return Err(Error::<T>::TooManyRegistryEntries);
 				}
 				a.try_push(SpaceRegistryEntry {
 					digest,
@@ -306,6 +309,7 @@ pub mod pallet {
 		///
 		///This transaction can only be performed by the space controller
 		/// or delegated authorities
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::archive())]
 		pub fn archive(
 			origin: OriginFor<T>,
@@ -351,7 +355,7 @@ pub mod pallet {
 
 			SpaceRegistry::<T>::mutate(space.clone(), |a| {
 				if a.len() + 1 > T::MaxRegistryEntries::get() as usize {
-					return Err(Error::<T>::TooManyRegistryEntries)
+					return Err(Error::<T>::TooManyRegistryEntries);
 				}
 				a.try_push(SpaceRegistryEntry {
 					digest,
@@ -370,6 +374,7 @@ pub mod pallet {
 		///
 		/// This transaction can only be performed by the space controller
 		/// or delegated authorities
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::restore())]
 		pub fn restore(
 			origin: OriginFor<T>,
@@ -414,7 +419,7 @@ pub mod pallet {
 			);
 			SpaceRegistry::<T>::mutate(space.clone(), |a| {
 				if a.len() + 1 > T::MaxRegistryEntries::get() as usize {
-					return Err(Error::<T>::TooManyRegistryEntries)
+					return Err(Error::<T>::TooManyRegistryEntries);
 				}
 				a.try_push(SpaceRegistryEntry {
 					digest,

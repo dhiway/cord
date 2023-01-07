@@ -190,6 +190,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Create a new hierarchy root associated with a given space and schema
 		/// identifiers.
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::create_hierarchy())]
 		pub fn create_hierarchy(
 			origin: OriginFor<T>,
@@ -254,6 +255,7 @@ pub mod pallet {
 		}
 
 		/// Create a new delegation node.
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_delegation())]
 		pub fn add_delegation(
 			origin: OriginFor<T>,
@@ -322,6 +324,7 @@ pub mod pallet {
 
 		/// Revoke a delegation node (potentially a root node) and all its
 		/// children.
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::revoke_delegation_root_child(*max_revocations, *max_parent_checks)
 				.max(<T as Config>::WeightInfo::revoke_delegation_leaf(*max_revocations, *max_parent_checks)))]
 		pub fn revoke_delegation(
@@ -385,6 +388,7 @@ pub mod pallet {
 
 		/// Remove a delegation node (potentially a root node) and all its
 		/// children.
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::remove_delegation(*max_removals))]
 		pub fn remove_delegation(
 			origin: OriginFor<T>,

@@ -8,33 +8,30 @@ homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
 
 [dependencies]
 cord-runtime = { package = "cord-runtime", path = "../runtime" }
-sc-executor = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
-frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+sc-executor = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
 
 [dev-dependencies]
 criterion = "0.3.0"
-frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
-frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
-pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
-pallet-grandpa = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
-pallet-indices = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
-pallet-session = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
-pallet-timestamp = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
-pallet-transaction-payment = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
-pallet-treasury = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
-sp-application-crypto = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
-sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
-sp-externalities = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.30" }
+frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+pallet-grandpa = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+pallet-indices = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+pallet-session = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+pallet-timestamp = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+pallet-transaction-payment = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+pallet-treasury = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+sp-application-crypto = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
+sp-externalities = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.36" }
 wat = "1.0"
 futures = "0.3.21"
 
 [features]
-wasmtime = [
-	"sc-executor/wasmtime",
-]
 stress-test = []
 

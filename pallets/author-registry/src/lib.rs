@@ -266,6 +266,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Add a new author proposal.
+		#[pallet::call_index(0)]
 		#[pallet::weight(182_886_000)]
 		pub fn add(
 			origin: OriginFor<T>,
@@ -298,7 +299,7 @@ pub mod pallet {
 
 			<AuthorProposals<T>>::mutate(|proposals| {
 				if proposals.len() + 1 > T::MaxBlockProposals::get() as usize {
-					return Err(Error::<T>::TooManyProposals)
+					return Err(Error::<T>::TooManyProposals);
 				}
 				proposals
 					.try_push(ProposalInfo {
@@ -324,6 +325,7 @@ pub mod pallet {
 
 		/// Remove an author. Only root or council orgin can perform this
 		/// action.
+		#[pallet::call_index(1)]
 		#[pallet::weight(182_886_000)]
 		pub fn remove(origin: OriginFor<T>, remove_author: CordAccountOf<T>) -> DispatchResult {
 			T::ApproveOrigin::ensure_origin(origin)?;

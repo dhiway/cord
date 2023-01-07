@@ -157,6 +157,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Create a new schema and associates with its identifier.
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create(tx_schema
 				.meta
 				.as_ref()
