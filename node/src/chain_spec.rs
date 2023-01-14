@@ -350,10 +350,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		},
 		grandpa: Default::default(),
 		im_online: Default::default(),
-		author_registry: AuthorRegistryConfig {
-			authors: author_accounts(),
-			phantom: Default::default(),
-		},
+		author_registry: AuthorRegistryConfig { authors: author_accounts() },
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig {
 			members: endowed_accounts
@@ -465,10 +462,7 @@ fn cord_development_genesis(
 		},
 		grandpa: Default::default(),
 		im_online: Default::default(),
-		author_registry: AuthorRegistryConfig {
-			authors: author_accounts(),
-			phantom: Default::default(),
-		},
+		author_registry: AuthorRegistryConfig { authors: author_accounts() },
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig {
 			members: endowed_accounts

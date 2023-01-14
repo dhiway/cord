@@ -1008,30 +1008,13 @@ impl authority_manager::Config for Runtime {
 }
 
 parameter_types! {
-
-	pub AuthorshipDuration: BlockNumber = prod_or_fast!(
-		AUTHORSHIP_DURATION_IN_BLOCKS,
-		16 * MINUTES,
-		"CORD_AUTHORSHIP_DURATION"
-	);
-	pub DelegationBlockLimit: BlockNumber = prod_or_fast!(
-		AUTHORSHIP_DELEGATION_IN_BLOCKS,
-		8 * MINUTES,
-		"CORD_AUTHORSHIP_DELEGATION_DURATION"
-	);
-	pub const MaxBlockProposals: u32 = 25;
-	pub const MaxRegistryBlockEntries: u32 = 5000;
+	pub const MaxAuthorityProposals: u32 = 50;
 }
 
 impl pallet_author_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type ApproveOrigin = MoreThanHalfCouncil;
-	type Currency = Balances;
-	type CreditCollector = CreditTreasury;
-	type AuthorshipDuration = AuthorshipDuration;
-	type DelegationBlockLimit = DelegationBlockLimit;
-	type MaxBlockProposals = MaxBlockProposals;
-	type MaxRegistryBlockEntries = MaxRegistryBlockEntries;
+	type AuthorApproveOrigin = MoreThanHalfCouncil;
+	type MaxAuthorityProposals = MaxAuthorityProposals;
 	type WeightInfo = weights::pallet_author_registry::WeightInfo<Runtime>;
 }
 
