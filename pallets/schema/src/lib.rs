@@ -60,52 +60,69 @@ pub use pallet::*;
 pub mod pallet {
 	use super::*;
 	pub use cord_primitives::{ss58identifier, IdentifierOf, SCHEMA_PREFIX};
+	pub use cord_utilities::signature::{SignatureVerificationError, VerifySignature};
 	use frame_support::{
 		pallet_prelude::*,
 		traits::{Currency, ExistenceRequirement, OnUnbalanced, WithdrawReasons},
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::{
-		traits::{IdentifyAccount, Saturating, Verify},
-		SaturatedConversion,
-	};
+	use sp_runtime::{traits::Saturating, SaturatedConversion};
+	use sp_std::vec::Vec;
+
 	use sp_std::boxed::Box;
+	/// The current storage version.
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	/// Hash of the schema.
-	pub type HashOf<T> = <T as frame_system::Config>::Hash;
+	pub type SchemaHashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a CORD account.
-	pub(crate) type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
-	/// Type for a cord signature.
-	pub type SignatureOf<T> = <T as Config>::Signature;
+	pub(crate) type CordAccountIdOf<T> = <T as frame_system::Config>::AccountId;
+	/// Type of a Schema creator.
+	pub type SchemaCreatorOf<T> = <T as Config>::SchemaCreatorId;
+	/// Type of a signature verification operation over the creator details.
+	pub type CreatorSignatureVerificationOf<T> = <T as Config>::CreatorSignatureVerification;
+	/// Type of the DID signature that the creator generates.
+	pub type CreatorSignatureTypeOf<T> =
+		<CreatorSignatureVerificationOf<T> as VerifySignature>::Signature;
+
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	pub type InputSchemaMetatOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedMetaLength>;
 
-	pub type SchemaEntryOf<T> =
-		SchemaEntry<HashOf<T>, CordAccountOf<T>, InputSchemaMetatOf<T>, BlockNumberFor<T>>;
+	pub type InputSchemaOf<T> = SchemaInput<
+		SchemaHashOf<T>,
+		SchemaCreatorOf<T>,
+		CreatorSignatureTypeOf<T>,
+		InputSchemaMetatOf<T>,
+	>;
 
-	pub(crate) type BalanceOf<T> = <<T as Config>::Currency as Currency<CordAccountOf<T>>>::Balance;
+	pub type SchemaEntryOf<T> =
+		SchemaEntry<SchemaHashOf<T>, SchemaCreatorOf<T>, InputSchemaMetatOf<T>, BlockNumberFor<T>>;
+
+	pub(crate) type BalanceOf<T> =
+		<<T as Config>::Currency as Currency<CordAccountIdOf<T>>>::Balance;
 
 	type NegativeImbalanceOf<T> =
-		<<T as Config>::Currency as Currency<CordAccountOf<T>>>::NegativeImbalance;
-
-	pub type InputSchemaOf<T> =
-		SchemaInput<HashOf<T>, CordAccountOf<T>, SignatureOf<T>, InputSchemaMetatOf<T>>;
+		<<T as Config>::Currency as Currency<CordAccountIdOf<T>>>::NegativeImbalance;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = CordAccountOf<Self>,
+			Success = CordAccountIdOf<Self>,
 		>;
-		type Currency: Currency<CordAccountOf<Self>>;
+		type Signature: Parameter;
+		type CreatorSignatureVerification: VerifySignature<
+			SignerId = Self::SchemaCreatorId,
+			Payload = Vec<u8>,
+			Signature = Self::Signature,
+		>;
+		type SchemaCreatorId: Parameter + MaxEncodedLen;
+		type Currency: Currency<CordAccountIdOf<Self>>;
 		type SchemaFee: Get<BalanceOf<Self>>;
 		type FeeCollector: OnUnbalanced<NegativeImbalanceOf<Self>>;
-		type Signature: Verify<Signer = <Self as pallet::Config>::Signer>
-			+ Parameter
-			+ MaxEncodedLen
-			+ TypeInfo;
-		type Signer: IdentifyAccount<AccountId = CordAccountOf<Self>> + Parameter;
+		#[pallet::constant]
+		type MaxSignatureByteLength: Get<u16>;
 		#[pallet::constant]
 		type MaxEncodedMetaLength: Get<u32>;
 		type WeightInfo: WeightInfo;
@@ -113,6 +130,7 @@ pub mod pallet {
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
@@ -126,18 +144,18 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, IdentifierOf, SchemaEntryOf<T>, OptionQuery>;
 
 	/// schema identifiers stored on chain.
-	/// It maps from a schema identifier to hash.
+	/// It maps from a schema hash to identifier.
 	#[pallet::storage]
 	#[pallet::getter(fn schema_hashes)]
 	pub type SchemaHashes<T> =
-		StorageMap<_, Blake2_128Concat, HashOf<T>, IdentifierOf, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, SchemaHashOf<T>, IdentifierOf, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new schema has been created.
 		/// \[schema identifier, digest, author\]
-		Created { identifier: IdentifierOf, digest: HashOf<T>, author: CordAccountOf<T> },
+		Created { identifier: IdentifierOf, digest: SchemaHashOf<T>, author: CordAccountIdOf<T> },
 	}
 
 	#[pallet::error]
@@ -150,8 +168,10 @@ pub mod pallet {
 		InvalidIdentifierLength,
 		/// The paying account was unable to pay the fees for creating a schema.
 		UnableToPayFees,
-		// Invalid creator signature
+		/// Invalid creator signature
 		InvalidSignature,
+		/// Creator DID information not found
+		CreatorNotFound,
 	}
 
 	#[pallet::call]
@@ -167,8 +187,8 @@ pub mod pallet {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			// Check the free balance before we do any heavy computation
-			let balance = <T::Currency as Currency<CordAccountOf<T>>>::free_balance(&author);
-			<T::Currency as Currency<CordAccountOf<T>>>::ensure_can_withdraw(
+			let balance = <T::Currency as Currency<CordAccountIdOf<T>>>::free_balance(&author);
+			<T::Currency as Currency<CordAccountIdOf<T>>>::ensure_can_withdraw(
 				&author,
 				T::SchemaFee::get(),
 				WithdrawReasons::FEE,
@@ -177,10 +197,18 @@ pub mod pallet {
 
 			let SchemaInput { digest, controller, signature, meta } = *tx_schema.clone();
 
-			ensure!(
-				signature.verify(&(&digest).encode()[..], &controller),
-				Error::<T>::InvalidSignature
-			);
+			// Verify that the hash root signature is correct.
+			CreatorSignatureVerificationOf::<T>::verify_authentication_signature(
+				&controller,
+				&digest.encode(),
+				&signature,
+			)
+			.map_err(|err| match err {
+				SignatureVerificationError::SignerInformationNotPresent => {
+					Error::<T>::CreatorNotFound
+				},
+				SignatureVerificationError::SignatureInvalid => Error::<T>::InvalidSignature,
+			})?;
 
 			let identifier = IdentifierOf::try_from(
 				ss58identifier::generate(&(digest).encode()[..], SCHEMA_PREFIX).into_bytes(),
@@ -189,9 +217,8 @@ pub mod pallet {
 
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 
-			// Collect the fees. This should not fail since we checked the free balance in
-			// the beginning.
-			let imbalance = <T::Currency as Currency<CordAccountOf<T>>>::withdraw(
+			// Collect the fees.
+			let imbalance = <T::Currency as Currency<CordAccountIdOf<T>>>::withdraw(
 				&author,
 				T::SchemaFee::get(),
 				WithdrawReasons::FEE,

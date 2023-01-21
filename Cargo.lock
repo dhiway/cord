@@ -5208,6 +5208,7 @@ name = "pallet-schema"
 version = "0.8.0"
 dependencies = [
  "cord-primitives",
+ "cord-utilities",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
