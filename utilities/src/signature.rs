@@ -31,8 +31,6 @@ pub enum SignatureVerificationError {
 	SignerInformationNotPresent,
 	/// The signature is not valid for the given payload.
 	SignatureInvalid,
-	/// The signer key type is not valid.
-	InvalidSignerKey,
 }
 
 /// A signature verification implementation.
@@ -43,15 +41,29 @@ pub trait VerifySignature {
 	type Payload;
 	/// The type of the signature that is expected by the implementation.
 	type Signature;
-	/// The type of the key that is expected by the implementation.
-	type KeyType;
-	/// Verifies that the signature matches the payload and has been generated
+
+	/// Verifies that the authentication signature matches the payload generated
 	/// by the signer.
-	fn verify(
+	fn verify_authentication_signature(
 		signer: &Self::SignerId,
 		payload: &Self::Payload,
 		signature: &Self::Signature,
-		key: &Self::KeyType,
+	) -> SignatureVerificationResult;
+
+	/// Verifies that the assertion signature matches the payload generated
+	/// by the signer.
+	fn verify_assertion_signature(
+		signer: &Self::SignerId,
+		payload: &Self::Payload,
+		signature: &Self::Signature,
+	) -> SignatureVerificationResult;
+
+	/// Verifies that the delegattionsignature matches the payload generated
+	/// by the signer.
+	fn verify_delegation_signature(
+		signer: &Self::SignerId,
+		payload: &Self::Payload,
+		signature: &Self::Signature,
 	) -> SignatureVerificationResult;
 
 	/// The weight if the signature verification.

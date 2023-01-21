@@ -27,7 +27,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use cord_primitives::{
 	prod_or_fast, AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Index, Moment,
 };
-pub use cord_primitives::{AccountId, Signature};
+pub use cord_primitives::{AccountId, DidIdentifier, Signature};
 
 use frame_support::{
 	construct_runtime,
@@ -103,6 +103,8 @@ pub use pallet_author_registry;
 pub use pallet_credit_treasury;
 pub use pallet_schema;
 pub use pallet_space;
+pub mod benchmark;
+pub use benchmark::DummySignature;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -1036,6 +1038,7 @@ impl pallet_credit_treasury::Config for Runtime {
 parameter_types! {
 	pub const SchemaFee: Balance = 10 * WAY;
 	pub const MaxEncodedMetaLength: u32 = 5_000;	// 5 Kb
+	pub const MaxSignatureByteLength: u16 = 64;
 }
 
 impl pallet_schema::Config for Runtime {
@@ -1043,9 +1046,18 @@ impl pallet_schema::Config for Runtime {
 	type Currency = Balances;
 	type SchemaFee = SchemaFee;
 	type FeeCollector = CreditTreasury;
-	type Signature = Signature;
-	type Signer = <Signature as Verify>::Signer;
+	type SchemaCreatorId = DidIdentifier;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Signature = pallet_did::DidSignature;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type CreatorSignatureVerification = pallet_did::DidSignatureVerify<Self>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Signature = DummySignature;
+	#[cfg(feature = "runtime-benchmarks")]
+	type DelegationSignatureVerification =
+		cord_utilities::signature::AlwaysVerify<AccountId, Vec<u8>, Self::Signature>;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type MaxSignatureByteLength = MaxSignatureByteLength;
 	type MaxEncodedMetaLength = MaxEncodedMetaLength;
 	type WeightInfo = weights::pallet_schema::WeightInfo<Runtime>;
 }
