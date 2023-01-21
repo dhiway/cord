@@ -21,13 +21,13 @@ use frame_support::RuntimeDebug;
 use scale_info::TypeInfo;
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo)]
-pub struct SchemaInput<HashOf, CordAccountOf, Signature, InputSchemaMetatOf> {
+pub struct SchemaInput<SchemaHashOf, SchemaCreatorOf, CreatorSignatureTypeOf, InputSchemaMetatOf> {
 	/// Schema hash.
-	pub digest: HashOf,
+	pub digest: SchemaHashOf,
 	/// Schema controller.
-	pub controller: CordAccountOf,
+	pub controller: SchemaCreatorOf,
 	/// Controller Signature
-	pub signature: Signature,
+	pub signature: CreatorSignatureTypeOf,
 	/// An optional opaque blob representing the metadata for the schema. Could
 	/// be JSON, a link, a Hash, or raw text. Up to the community to decide how
 	/// exactly to use this.
@@ -39,11 +39,11 @@ pub struct SchemaInput<HashOf, CordAccountOf, Signature, InputSchemaMetatOf> {
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
 
-pub struct SchemaEntry<HashOf, CordAccountOf, InputSchemaMetatOf, BlockNumber> {
+pub struct SchemaEntry<SchemaHashOf, SchemaCreatorOf, InputSchemaMetatOf, BlockNumber> {
 	/// Schema hash.
-	pub digest: HashOf,
+	pub digest: SchemaHashOf,
 	/// Schema controller.
-	pub controller: CordAccountOf,
+	pub controller: SchemaCreatorOf,
 	/// An optional opaque blob representing the metadata for the schema. Could
 	/// be JSON, a link, a Hash, or raw text. Up to the community to decide how
 	/// exactly to use this.
