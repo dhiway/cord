@@ -1,0 +1,83 @@
+[package]
+name = 'pallet-trust-hierarchy'
+description = "Enables creating and revoking nodes of trust hierarchies; adding and revoking delegation nodes based on the hierarchy root."
+version = "0.8.0"
+authors = ['Dhiway Networks <info@dhiway.com>']
+edition = "2021"
+repository = "https://github.com/dhiway/cord"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[build-dependencies]
+substrate-wasm-builder = {git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37"}
+
+[dev-dependencies]
+pallet-space = {features = ["mock"], path = "../space"}
+pallet-schema = {features = ["mock"], path = "../schema"}
+
+# External dependencies
+env_logger = "0.9.0"
+
+# Substrate dependencies
+pallet-balances = {git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+sp-core = { git = "https://github.com/dhiway/substrate",branch = "release-v0.9.37" }
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+
+[dependencies]
+# Internal dependencies
+pallet-space = {default-features = false, path = "../space"}
+pallet-schema = {default-features = false, path = "../schema"}
+cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
+
+# External dependencies
+bitflags = {default-features = false, version = "1.3.2"}
+codec = {package = "parity-scale-codec", version = "3.1.5", default-features = false, features = ["derive"]}
+log = "0.4.17"
+scale-info = {version = "2.1.2", default-features = false, features = ["derive"]}
+
+# Substrate dependencies
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false, optional = true }
+frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
+frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false, optional = true }
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false, optional = true }
+sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false, optional = true }
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false, optional = true }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
+
+
+[features]
+default = ["std"]
+mock = [
+  "pallet-balances",
+  "sp-core",
+  "sp-io",
+  "sp-keystore",
+]
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "sp-core",
+  "sp-io",
+]
+std = [
+  "codec/std",
+  "pallet-space/std",
+  "pallet-schema/std",
+  "frame-support/std",
+  "frame-system/std",
+  "cord-primitives/std",
+  "log/std",
+  "pallet-balances/std",
+  "scale-info/std",
+  "sp-core/std",
+  "sp-io/std",
+  "sp-runtime/std",
+  "sp-std/std",
+]
+try-runtime = [
+  "frame-support/try-runtime",
+]

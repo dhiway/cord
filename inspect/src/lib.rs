@@ -141,24 +141,24 @@ impl<TBlock: Block, TPrinter: PrettyPrinter<TBlock>> Inspector<TBlock, TPrinter>
 			BlockAddress::Bytes(bytes) => TBlock::decode(&mut &*bytes)?,
 			BlockAddress::Number(number) => {
 				let id = BlockId::number(number);
+				let hash = self.chain.expect_block_hash_from_id(&id)?;
 				let not_found = format!("Could not find block {:?}", id);
 				let body = self
 					.chain
-					.block_body(&id)?
+					.block_body(hash)?
 					.ok_or_else(|| Error::NotFound(not_found.clone()))?;
 				let header =
-					self.chain.header(id)?.ok_or_else(|| Error::NotFound(not_found.clone()))?;
+					self.chain.header(hash)?.ok_or_else(|| Error::NotFound(not_found.clone()))?;
 				TBlock::new(header, body)
 			},
 			BlockAddress::Hash(hash) => {
-				let id = BlockId::hash(hash);
-				let not_found = format!("Could not find block {:?}", id);
+				let not_found = format!("Could not find block {:?}", BlockId::<TBlock>::Hash(hash));
 				let body = self
 					.chain
-					.block_body(&id)?
+					.block_body(hash)?
 					.ok_or_else(|| Error::NotFound(not_found.clone()))?;
 				let header =
-					self.chain.header(id)?.ok_or_else(|| Error::NotFound(not_found.clone()))?;
+					self.chain.header(hash)?.ok_or_else(|| Error::NotFound(not_found.clone()))?;
 				TBlock::new(header, body)
 			},
 		})
@@ -210,12 +210,12 @@ impl<Hash: FromStr, Number: FromStr> FromStr for BlockAddress<Hash, Number> {
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		// try to parse hash first
 		if let Ok(hash) = s.parse() {
-			return Ok(Self::Hash(hash))
+			return Ok(Self::Hash(hash));
 		}
 
 		// then number
 		if let Ok(number) = s.parse() {
-			return Ok(Self::Number(number))
+			return Ok(Self::Number(number));
 		}
 
 		// then assume it's bytes (hex-encoded)
@@ -243,7 +243,7 @@ impl<Hash: FromStr + Debug, Number: FromStr + Debug> FromStr for ExtrinsicAddres
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		// first try raw bytes
 		if let Ok(bytes) = sp_core::bytes::from_hex(s).map(Self::Bytes) {
-			return Ok(bytes)
+			return Ok(bytes);
 		}
 
 		// split by a bunch of different characters
