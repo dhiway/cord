@@ -1,7 +1,7 @@
 [package]
 name = "pallet-author-registry"
 description = 'Manage network authorship.'
-version = '0.7.10'
+version = "0.8.0"
 authors = ["Dhiway <info@dhiway.com>"]
 edition = '2021'
 license = "GPL-3.0"
@@ -9,7 +9,7 @@ homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "master" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.1.5", default-features = false, features = [
@@ -21,12 +21,12 @@ serde = { version = "1.0.137", default-features = false, optional = true }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 
 
-sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "master"}
-sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "master"}
-sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "master"}
-frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "master"}
-frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "master"}
-sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "master"}
+sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 
 [features]
 default = ['std']

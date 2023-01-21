@@ -24,7 +24,9 @@
 #![warn(unused_crate_dependencies)]
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use cord_primitives::{prod_or_fast, AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
+use cord_primitives::{
+	prod_or_fast, AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Index, Moment,
+};
 pub use cord_primitives::{AccountId, Signature};
 
 use frame_support::{
@@ -122,11 +124,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cord"),
 	impl_name: create_runtime_str!("dhiway-cord"),
 	authoring_version: 0,
-	// Per convention: if the runtime behavior changes, increment spec_version
-	// and set impl_version to equal spec_version. If only runtime
-	// implementation changes and behavior does not, then leave spec_version as
-	// is and increment impl_version.
-	spec_version: 7100,
+	spec_version: 8000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -1075,6 +1073,37 @@ impl pallet_space::Config for Runtime {
 }
 
 parameter_types! {
+	#[derive(Debug, Clone, Eq, PartialEq)]
+	pub const MaxUrlLength: u32 = 200;
+	pub const MaxPublicKeysPerDid: u32 = 100;
+	#[derive(Debug, Clone, Eq, PartialEq)]
+	pub const MaxKeyAgreementKeys: u32 = 50;
+	#[derive(Debug, Clone, Eq, PartialEq)]
+	pub const MaxEndpointUrlsCount: u32 = 3;
+	pub const MaxNumberOfServicesPerDid: u32 = 25;
+	pub const MaxServiceIdLength: u32 = 50;
+	pub const MaxServiceTypeLength: u32 = 50;
+	pub const MaxServiceUrlLength: u32 = 200;
+	pub const MaxNumberOfTypesPerService: u32 = 1;
+	pub const MaxNumberOfUrlsPerService: u32 = 1;
+}
+
+impl pallet_did::Config for Runtime {
+	type DidIdentifier = DidIdentifier;
+	type RuntimeEvent = RuntimeEvent;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type MaxKeyAgreementKeys = MaxKeyAgreementKeys;
+	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
+	type MaxNumberOfServicesPerDid = MaxNumberOfServicesPerDid;
+	type MaxServiceIdLength = MaxServiceIdLength;
+	type MaxServiceTypeLength = MaxServiceTypeLength;
+	type MaxServiceUrlLength = MaxServiceUrlLength;
+	type MaxNumberOfTypesPerService = MaxNumberOfTypesPerService;
+	type MaxNumberOfUrlsPerService = MaxNumberOfUrlsPerService;
+	type WeightInfo = ();
+}
+
+parameter_types! {
 	pub const MaxParentChecks: u32 = 5;
 	pub const MaxRevocations: u32 = 5;
 	pub const MaxRemovals: u32 = 5;
@@ -1173,14 +1202,17 @@ construct_runtime! {
 		// Author Registry pallet.
 		AuthorRegistry: pallet_author_registry::{Pallet, Call, Storage, Event<T>, Config<T>} =102,
 
+		// DID management pallet.
+		Did: pallet_did::{Pallet, Call, Storage, Event<T>} = 103,
+
 		// Trust Hierarchy pallet.
-		TrustHierarchy: pallet_trust_hierarchy::{Pallet, Call, Storage, Event<T>} = 103,
+		TrustHierarchy: pallet_trust_hierarchy::{Pallet, Call, Storage, Event<T>} = 104,
 
 		// Schema Manager pallet.
-		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 104,
+		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 105,
 
 		// Schema Manager pallet.
-		Space: pallet_space::{Pallet, Call, Storage, Event<T>} = 105,
+		Space: pallet_space::{Pallet, Call, Storage, Event<T>} = 106,
 
 		// Sudo.
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,

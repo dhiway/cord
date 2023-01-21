@@ -71,6 +71,7 @@ members = [
 	"rpc",
 	"executor",
 	"inspect",
+	"utilities",
 ]
 resolver = "2"
 

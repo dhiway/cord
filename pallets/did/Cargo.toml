@@ -1,0 +1,83 @@
+[package]
+name = 'pallet-did'
+description = "Enables adding and removing decentralized identifiers (DIDs)."
+version = "0.8.0"
+authors = ['Dhiway <info@dhiway.com>']
+edition = "2021"
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[build-dependencies]
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+
+[dev-dependencies]
+env_logger = {version = "0.9.0"}
+serde = {version = "1.0.142"}
+pallet-schema = {  default-features = false, path = '../schema' }
+pallet-balances = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+cord-primitives = { package = "cord-primitives", path = "../../primitives", default-features = false }
+cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
+
+[dependencies]
+# Internal dependencies
+pallet-schema = {  optional = true, path = '../schema' }
+cord-primitives = { package = "cord-primitives", path = "../../primitives", default-features = false }
+cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
+
+# External dependencies
+hex = {default-features = false, features = ["alloc"], version = "0.4.3"}
+log = "0.4.17"
+serde = {version = "1.0.142", optional = true, features = ["derive"]}
+
+codec = { package = "parity-scale-codec", version = "3.1.5", default-features = false, features = ["derive","max-encoded-len"] }
+scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+
+# benchmarking
+frame-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, branch = "release-v0.9.37", optional = true }
+pallet-balances = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37", optional = true}
+sp-keystore = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37", optional = true}
+
+[features]
+default = ["std"]
+mock = [
+  "pallet-schema",
+  "pallet-balances",
+  "sp-keystore",
+]
+runtime-benchmarks = [
+  "frame-benchmarking",
+  "pallet-balances/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+]
+std = [
+  "codec/std",
+  "pallet-schema/std",
+  "frame-support/std",
+  "frame-system/std",
+  "hex/std",
+  "cord-primitives/std",
+  "cord-utilities/std",
+  "log/std",
+  "pallet-balances/std",
+  "scale-info/std",
+  "serde",
+  "sp-core/std",
+  "sp-io/std",
+  "sp-keystore/std",
+  "sp-runtime/std",
+  "sp-std/std",
+]
+try-runtime = [
+  "frame-support/try-runtime",
+]

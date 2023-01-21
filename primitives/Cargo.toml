@@ -1,6 +1,6 @@
 [package]
 name = 'cord-primitives'
-version = '0.7.10'
+version = "0.8.0"
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'
 license = "GPL-3.0"
@@ -13,10 +13,10 @@ base58 = "0.2.0"
 blake2-rfc = {version = "0.2.18", default-features = false}
 
 
-sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "master"}
-frame-support = { git = "https://github.com/dhiway/substrate",  default-features = false, branch = "master"}
-sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "master"}
-sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "master"}
+sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+frame-support = { git = "https://github.com/dhiway/substrate",  default-features = false, branch = "release-v0.9.37"}
+sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 
 [features]
 default = ["std"]

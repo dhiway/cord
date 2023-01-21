@@ -1,6 +1,6 @@
 [package]
 name = 'cord-executor'
-version = '0.7.10'
+version = "0.8.0"
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'
 license = "GPL-3.0"
@@ -8,27 +8,27 @@ homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "master" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
 
 [dependencies]
 cord-runtime = { package = "cord-runtime", path = "../runtime" }
-sc-executor = { git = "https://github.com/dhiway/substrate", branch = "master" }
-frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "master" }
+sc-executor = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
 
 [dev-dependencies]
 criterion = "0.3.0"
-frame-support = { git = "https://github.com/dhiway/substrate", branch = "master" }
-frame-system = { git = "https://github.com/dhiway/substrate", branch = "master" }
-pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "master" }
-pallet-grandpa = { git = "https://github.com/dhiway/substrate", branch = "master" }
-pallet-indices = { git = "https://github.com/dhiway/substrate", branch = "master" }
-pallet-session = { git = "https://github.com/dhiway/substrate", branch = "master" }
-pallet-timestamp = { git = "https://github.com/dhiway/substrate", branch = "master" }
-pallet-transaction-payment = { git = "https://github.com/dhiway/substrate", branch = "master" }
-pallet-treasury = { git = "https://github.com/dhiway/substrate", branch = "master" }
-sp-application-crypto = { git = "https://github.com/dhiway/substrate", branch = "master" }
-sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "master" }
-sp-externalities = { git = "https://github.com/dhiway/substrate", branch = "master" }
+frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+pallet-grandpa = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+pallet-indices = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+pallet-session = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+pallet-timestamp = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+pallet-transaction-payment = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+pallet-treasury = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+sp-application-crypto = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+sp-externalities = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
 wat = "1.0"
 futures = "0.3.21"
 

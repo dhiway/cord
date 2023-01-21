@@ -1,7 +1,7 @@
 [package]
 name = 'pallet-trust-hierarchy'
 description = "Enables creating and revoking nodes of trust hierarchies; adding and revoking delegation nodes based on the hierarchy root."
-version = '0.7.10'
+version = "0.8.0"
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = "2021"
 repository = "https://github.com/dhiway/cord"
@@ -10,7 +10,7 @@ repository = "https://github.com/dhiway/cord"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = {git = "https://github.com/dhiway/substrate", branch = "master"}
+substrate-wasm-builder = {git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37"}
 
 [dev-dependencies]
 pallet-space = {features = ["mock"], path = "../space"}
@@ -20,9 +20,9 @@ pallet-schema = {features = ["mock"], path = "../schema"}
 env_logger = "0.9.0"
 
 # Substrate dependencies
-pallet-balances = {git = "https://github.com/dhiway/substrate", branch = "master" }
-sp-core = { git = "https://github.com/dhiway/substrate",branch = "master" }
-sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "master" }
+pallet-balances = {git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+sp-core = { git = "https://github.com/dhiway/substrate",branch = "release-v0.9.37" }
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
 
 [dependencies]
 # Internal dependencies
@@ -37,15 +37,15 @@ log = "0.4.17"
 scale-info = {version = "2.1.2", default-features = false, features = ["derive"]}
 
 # Substrate dependencies
-frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "master", default-features = false, optional = true }
-frame-support = { git = "https://github.com/dhiway/substrate", branch = "master", default-features = false }
-frame-system = { git = "https://github.com/dhiway/substrate", branch = "master", default-features = false }
-pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "master", default-features = false, optional = true }
-sp-core = { git = "https://github.com/dhiway/substrate", branch = "master", default-features = false, optional = true }
-sp-io = { git = "https://github.com/dhiway/substrate", branch = "master", default-features = false, optional = true }
-sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "master", default-features = false, optional = true }
-sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "master", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate", branch = "master", default-features = false }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false, optional = true }
+frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
+frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false, optional = true }
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false, optional = true }
+sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false, optional = true }
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false, optional = true }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
 
 
 [features]
