@@ -1,0 +1,24 @@
+[package]
+name = "cord-runtime-constants"
+version = "0.8.0"
+authors = ['Dhiway Networks <info@dhiway.com>']
+edition = "2021"
+
+[dependencies]
+smallvec = "1.8.0"
+
+frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
+cord-primitives = { path = "../../primitives", default-features = false }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
+sp-weights = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+	"frame-support/std",
+	"cord-primitives/std",
+	"sp-core/std",
+	"sp-runtime/std",
+	"sp-weights/std"
+	]

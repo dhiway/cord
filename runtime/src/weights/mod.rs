@@ -1,0 +1,44 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) 2019-2022 Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
+//! A list of the different weight modules for our runtime.
+
+pub mod frame_system;
+pub mod pallet_author_registry;
+pub mod pallet_balances;
+pub mod pallet_collective_council;
+pub mod pallet_collective_credit;
+pub mod pallet_collective_technical_committee;
+pub mod pallet_credit_treasury;
+pub mod pallet_democracy;
+pub mod pallet_elections_phragmen;
+pub mod pallet_identity;
+pub mod pallet_im_online;
+pub mod pallet_indices;
+pub mod pallet_membership;
+pub mod pallet_multisig;
+pub mod pallet_preimage;
+pub mod pallet_proxy;
+pub mod pallet_scheduler;
+pub mod pallet_schema;
+pub mod pallet_session;
+pub mod pallet_space;
+pub mod pallet_timestamp;
+pub mod pallet_treasury;
+pub mod pallet_trust_hierarchy;
+pub mod pallet_utility;

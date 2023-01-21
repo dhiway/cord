@@ -109,74 +109,6 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
 	}
 }
 
-// /// Fetch the nonce of the given `account` from the chain state.
-// ///
-// /// Note: Should only be used for tests.
-// pub fn fetch_nonce(client: &FullClient, account: sp_core::sr25519::Pair) ->
-// u32 { 	let best_hash = client.chain_info().best_hash;
-// 	client
-// 		.runtime_api()
-// 		.account_nonce(&generic::BlockId::Hash(best_hash), account.public().into())
-// 		.expect("Fetching account nonce works; qed")
-// }
-
-// /// Create a transaction using the given `call`.
-// ///
-// /// Note: Should only be used for benchmarking.
-// pub fn create_extrinsic(
-// 	client: &FullClient,
-// 	sender: sp_core::sr25519::Pair,
-// 	function: impl Into<cord_runtime::Call>,
-// 	nonce: u32,
-// ) -> cord_runtime::UncheckedExtrinsic {
-// 	let function = function.into();
-// 	let genesis_hash = client.block_hash(0).ok().flatten().expect("Genesis block
-// exists; qed"); 	let best_hash = client.chain_info().best_hash;
-// 	let best_block = client.chain_info().best_number;
-// 	let nonce = nonce.unwrap_or_else(|| fetch_nonce(client, sender.clone()));
-
-// 	let period = cord_runtime::BlockHashCount::get()
-// 		.checked_next_power_of_two()
-// 		.map(|c| c / 2)
-// 		.unwrap_or(2) as u64;
-// 	let extra: cord_runtime::SignedExtra = (
-// 		frame_system::CheckNonZeroSender::<cord_runtime::Runtime>::new(),
-// 		frame_system::CheckSpecVersion::<cord_runtime::Runtime>::new(),
-// 		frame_system::CheckTxVersion::<cord_runtime::Runtime>::new(),
-// 		frame_system::CheckGenesis::<cord_runtime::Runtime>::new(),
-// 		frame_system::CheckEra::<cord_runtime::Runtime>::from(sp_runtime::generic::
-// Era::mortal( 			period,
-// 			best_block.saturated_into(),
-// 		)),
-// 		frame_system::CheckNonce::<cord_runtime::Runtime>::from(nonce),
-// 		frame_system::CheckWeight::<cord_runtime::Runtime>::new(),
-// 		pallet_transaction_payment::ChargeTransactionPayment::<cord_runtime::
-// Runtime>::from(0), 	);
-
-// 	let raw_payload = cord_runtime::SignedPayload::from_raw(
-// 		function.clone(),
-// 		extra.clone(),
-// 		(
-// 			(),
-// 			cord_runtime::VERSION.spec_version,
-// 			cord_runtime::VERSION.transaction_version,
-// 			genesis_hash,
-// 			best_hash,
-// 			(),
-// 			(),
-// 			(),
-// 		),
-// 	);
-// 	let signature = raw_payload.using_encoded(|e| sender.sign(e));
-
-// 	cord_runtime::UncheckedExtrinsic::new_signed(
-// 		function,
-// 		sp_runtime::AccountId32::from(sender.public()).into(),
-// 		cord_runtime::Signature::Sr25519(signature.clone()),
-// 		extra,
-// 	)
-// }
-
 /// Generates inherent data for the `benchmark overhead` command.
 ///
 /// Note: Should only be used for benchmarking.
@@ -185,8 +117,7 @@ pub fn inherent_benchmark_data() -> Result<InherentData> {
 	let d = Duration::from_millis(0);
 	let timestamp = sp_timestamp::InherentDataProvider::new(d.into());
 
-	timestamp
-		.provide_inherent_data(&mut inherent_data)
+	futures::executor::block_on(timestamp.provide_inherent_data(&mut inherent_data))
 		.map_err(|e| format!("creating inherent data: {:?}", e))?;
 	Ok(inherent_data)
 }
