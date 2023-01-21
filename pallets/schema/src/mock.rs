@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2022 Dhiway Networks Pvt. Ltd.
+// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // CORD is free software: you can redistribute it and/or modify
@@ -36,11 +36,10 @@ where
 }
 
 pub fn generate_schema_id<T: Config>(digest: &HashOf<T>) -> IdentifierOf {
-	let identifier: IdentifierOf =
-		ss58identifier::generate(&(&digest).encode()[..], SCHEMA_PREFIX)
-			.into_bytes()
-			.try_into()
-			.unwrap();
+	let identifier: IdentifierOf = ss58identifier::generate(&(&digest).encode()[..], SCHEMA_PREFIX)
+		.into_bytes()
+		.try_into()
+		.unwrap();
 	identifier
 }
 
@@ -168,10 +167,7 @@ pub mod runtime {
 	}
 
 	impl ExtBuilder {
-		pub(crate) fn with_schemas(
-			mut self,
-			schemas: Vec<(IdentifierOf, ControllerId)>,
-		) -> Self {
+		pub(crate) fn with_schemas(mut self, schemas: Vec<(IdentifierOf, ControllerId)>) -> Self {
 			self.schemas_stored = schemas;
 			self
 		}

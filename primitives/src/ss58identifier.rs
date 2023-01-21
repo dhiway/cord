@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2022 Dhiway Networks Pvt. Ltd.
+// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // CORD is free software: you can redistribute it and/or modify
@@ -83,7 +83,7 @@ pub fn from_known_format(id: &IdentifierOf, id_ident: u16) -> IdentifierVerifica
 		.from_base58()
 		.map_err(|_| IdentifierVerificationError::InvalidIdentifier)?;
 	if data.len() < 2 {
-		return Err(IdentifierVerificationError::InvalidIdentifierLength)
+		return Err(IdentifierVerificationError::InvalidIdentifierLength);
 	}
 	ensure!(
 		(identifier.len() > 2 && identifier.len() < 50),
@@ -109,7 +109,7 @@ pub fn from_known_identifier(id: &IdentifierOf) -> IdentVerificationResult {
 		.from_base58()
 		.map_err(|_| IdentifierVerificationError::InvalidIdentifier)?;
 	if data.len() < 2 {
-		return Err(IdentifierVerificationError::InvalidIdentifierLength)
+		return Err(IdentifierVerificationError::InvalidIdentifierLength);
 	}
 	ensure!(
 		(identifier.len() > 2 && identifier.len() < 50),
@@ -126,10 +126,10 @@ pub fn from_known_identifier(id: &IdentifierOf) -> IdentVerificationResult {
 	};
 
 	ensure!(
-		(ident == SPACE_PREFIX ||
-			ident == SCHEMA_PREFIX ||
-			ident == STREAM_PREFIX ||
-			ident == HIERARCHY_PREFIX),
+		(ident == SPACE_PREFIX
+			|| ident == SCHEMA_PREFIX
+			|| ident == STREAM_PREFIX
+			|| ident == HIERARCHY_PREFIX),
 		IdentifierVerificationError::InvalidPrefix
 	);
 	Ok(ident)
