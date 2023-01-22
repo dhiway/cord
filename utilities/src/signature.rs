@@ -82,7 +82,23 @@ impl<Account, Payload, Signature: Default> VerifySignature
 
 	type Signature = Signature;
 
-	fn verify(
+	fn verify_authentication_signature(
+		_delegate: &Self::SignerId,
+		_payload: &Self::Payload,
+		_signature: &Self::Signature,
+	) -> SignatureVerificationResult {
+		SignatureVerificationResult::Ok(())
+	}
+
+	fn verify_assertion_signature(
+		_delegate: &Self::SignerId,
+		_payload: &Self::Payload,
+		_signature: &Self::Signature,
+	) -> SignatureVerificationResult {
+		SignatureVerificationResult::Ok(())
+	}
+
+	fn verify_delegation_signature(
 		_delegate: &Self::SignerId,
 		_payload: &Self::Payload,
 		_signature: &Self::Signature,
@@ -109,7 +125,31 @@ where
 
 	type Signature = (Account, Payload);
 
-	fn verify(
+	fn verify_authentication_signature(
+		delegate: &Self::SignerId,
+		payload: &Self::Payload,
+		signature: &Self::Signature,
+	) -> SignatureVerificationResult {
+		if (delegate, payload) == (&signature.0, &signature.1) {
+			SignatureVerificationResult::Ok(())
+		} else {
+			SignatureVerificationResult::Err(SignatureVerificationError::SignatureInvalid)
+		}
+	}
+
+	fn verify_assertion_signature(
+		delegate: &Self::SignerId,
+		payload: &Self::Payload,
+		signature: &Self::Signature,
+	) -> SignatureVerificationResult {
+		if (delegate, payload) == (&signature.0, &signature.1) {
+			SignatureVerificationResult::Ok(())
+		} else {
+			SignatureVerificationResult::Err(SignatureVerificationError::SignatureInvalid)
+		}
+	}
+
+	fn verify_delegation_signature(
 		delegate: &Self::SignerId,
 		payload: &Self::Payload,
 		signature: &Self::Signature,
