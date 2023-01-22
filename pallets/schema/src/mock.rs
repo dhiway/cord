@@ -16,14 +16,29 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{ss58identifier, Config, HashOf, IdentifierOf, SCHEMA_PREFIX};
+use crate::{
+	ss58identifier, Config, CreatorSignatureTypeOf, IdentifierOf, InputSchemaOf, SchemaHashOf,
+	SCHEMA_PREFIX,
+};
 use codec::Encode;
 use sp_core::H256;
+// use cord_utilities::signature;
+#[cfg(test)]
+pub use self::runtime::*;
 
 const DEFAULT_SCHEMA_HASH_SEED: u64 = 1u64;
 const ALTERNATIVE_SCHEMA_HASH_SEED: u64 = 2u64;
 
-pub fn get_schema_hash<T>(default: bool) -> HashOf<T>
+// Generate a schema input using a many Default::default() as possible.
+pub fn generate_base_schema_creation_op<T: Config>(
+	digest: SchemaHashOf<T>,
+	creator: T::SchemaCreatorId,
+	signature: CreatorSignatureTypeOf<Test>,
+) -> InputSchemaOf<T> {
+	InputSchemaOf::<T> { digest, creator, signature }
+}
+
+pub fn get_schema_hash<T>(default: bool) -> SchemaHashOf<T>
 where
 	T: Config,
 	T::Hash: From<H256>,
@@ -35,7 +50,7 @@ where
 	}
 }
 
-pub fn generate_schema_id<T: Config>(digest: &HashOf<T>) -> IdentifierOf {
+pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> IdentifierOf {
 	let identifier: IdentifierOf = ss58identifier::generate(&(&digest).encode()[..], SCHEMA_PREFIX)
 		.into_bytes()
 		.try_into()
@@ -45,17 +60,21 @@ pub fn generate_schema_id<T: Config>(digest: &HashOf<T>) -> IdentifierOf {
 
 #[cfg(test)]
 pub mod runtime {
-	use cord_utilities::mock::{mock_origin, ControllerId};
-	use frame_support::{parameter_types, weights::constants::RocksDbWeight};
+	use frame_support::{
+		parameter_types,
+		traits::{ConstU32, ConstU64},
+		weights::constants::RocksDbWeight,
+	};
+	use sp_core::{ed25519, sr25519, Pair};
 	use sp_runtime::{
 		testing::Header,
 		traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-		AccountId32, MultiSignature,
+		AccountId32, MultiSignature, MultiSigner,
 	};
 
-	use crate::{BalanceOf, SchemaHashes, Schemas};
-
 	use super::*;
+	use crate::{BalanceOf, SchemaHashes, Schemas};
+	use cord_utilities::{mock::CreatorId, signature::EqualVerify};
 
 	pub type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 	pub type Block = frame_system::mocking::MockBlock<Test>;
@@ -77,18 +96,19 @@ pub mod runtime {
 			System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 			Schema: crate::{Pallet, Call, Storage, Event<T>},
 			Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
-			MockOrigin: mock_origin::{Pallet, Origin<T>},
 		}
 	);
 
 	parameter_types! {
 		pub const SS58Prefix: u8 = 29;
-		pub const BlockHashCount: u64 = 250;
 	}
 
 	impl frame_system::Config for Test {
-		type Origin = Origin;
-		type Call = Call;
+		type BaseCallFilter = frame_support::traits::Everything;
+		type BlockWeights = ();
+		type BlockLength = ();
+		type RuntimeOrigin = RuntimeOrigin;
+		type RuntimeCall = RuntimeCall;
 		type Index = u64;
 		type BlockNumber = u64;
 		type Hash = Hash;
@@ -96,78 +116,80 @@ pub mod runtime {
 		type AccountId = AccountId;
 		type Lookup = IdentityLookup<Self::AccountId>;
 		type Header = Header;
-		type Event = ();
-		type BlockHashCount = BlockHashCount;
+		type RuntimeEvent = ();
+		type BlockHashCount = ConstU64<250>;
 		type DbWeight = RocksDbWeight;
 		type Version = ();
-
 		type PalletInfo = PalletInfo;
 		type AccountData = pallet_balances::AccountData<Balance>;
 		type OnNewAccount = ();
 		type OnKilledAccount = ();
-		type BaseCallFilter = frame_support::traits::Everything;
 		type SystemWeightInfo = ();
-		type BlockWeights = ();
-		type BlockLength = ();
 		type SS58Prefix = SS58Prefix;
 		type OnSetCode = ();
-		type MaxConsumers = frame_support::traits::ConstU32<16>;
+		type MaxConsumers = ConstU32<16>;
 	}
 
 	parameter_types! {
 		pub const ExistentialDeposit: Balance = 500;
-		pub const MaxLocks: u32 = 50;
-		pub const MaxReserves: u32 = 50;
 	}
 
 	impl pallet_balances::Config for Test {
 		type Balance = Balance;
 		type DustRemoval = ();
-		type Event = ();
+		type RuntimeEvent = ();
 		type ExistentialDeposit = ExistentialDeposit;
 		type AccountStore = System;
 		type WeightInfo = ();
-		type MaxLocks = MaxLocks;
-		type MaxReserves = MaxReserves;
+		type MaxLocks = ConstU32<50>;
+		type MaxReserves = ConstU32<50>;
 		type ReserveIdentifier = [u8; 8];
-	}
-
-	impl mock_origin::Config for Test {
-		type Origin = Origin;
-		type AccountId = AccountId;
-		type ControllerId = ControllerId;
 	}
 
 	parameter_types! {
 		pub const Fee: Balance = 500;
+		pub const MaxSignatureByteLength: u16 = 64;
+		pub const MaxEncodedMetaLength: u32 = 5_000;
 	}
 
 	impl Config for Test {
-		type Signature = (ControllerId, Vec<u8>);
-		type SignatureVerification = Verify<ControllerId, Vec<u8>>;
-		type SchemaCreatorId = ControllerId;
-		type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, ControllerId>;
-		type OriginSuccess = mock_origin::DoubleOrigin<AccountId, ControllerId>;
-		type Event = ();
-		type WeightInfo = ();
-
+		type Signature = (CreatorId, Vec<u8>);
+		type CreatorSignatureVerification = EqualVerify<Self::SchemaCreatorId, Vec<u8>>;
+		type SchemaCreatorId = CreatorId;
+		type EnsureOrigin = frame_system::EnsureSigned<Self::AccountId>;
+		type RuntimeEvent = ();
 		type Currency = Balances;
 		type Fee = Fee;
+		type MaxSignatureByteLength = MaxSignatureByteLength;
+		type MaxEncodedMetaLength = MaxEncodedMetaLength;
 		type FeeCollector = ();
+		type WeightInfo = ();
 	}
 
-	pub(crate) const DID_00: ControllerId = ControllerId(AccountId32::new([1u8; 32]));
+	pub(crate) const DID_00: CreatorId = CreatorId(AccountId32::new([1u8; 32]));
 	pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
+
+	pub(crate) fn ed25519_did_from_seed(seed: &[u8; 32]) -> CreatorId {
+		MultiSigner::from(ed25519::Pair::from_seed(seed).public()).into_account().into()
+	}
+
+	pub(crate) fn sr25519_did_from_seed(seed: &[u8; 32]) -> CreatorId {
+		MultiSigner::from(sr25519::Pair::from_seed(seed).public()).into_account().into()
+	}
+
+	pub(crate) fn hash_to_u8<Hash: Encode>(hash: Hash) -> Vec<u8> {
+		hash.encode()
+	}
 
 	#[derive(Clone, Default)]
 	pub(crate) struct ExtBuilder {
-		schemas_stored: Vec<(IdentifierOf, ControllerId)>,
-		schema_hashes_stored: Vec<(HashOf<Test>, IdentifierOf)>,
+		schemas_stored: Vec<(IdentifierOf,)>,
+		schema_hashes_stored: Vec<(SchemaHashOf<Test>, IdentifierOf)>,
 		balances: Vec<(AccountId, BalanceOf<Test>)>,
 	}
 
 	impl ExtBuilder {
-		pub(crate) fn with_schemas(mut self, schemas: Vec<(IdentifierOf, ControllerId)>) -> Self {
+		pub(crate) fn with_schemas(mut self, schemas: Vec<(IdentifierOf, CreatorId)>) -> Self {
 			self.schemas_stored = schemas;
 			self
 		}

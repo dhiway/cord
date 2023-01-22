@@ -15,9 +15,23 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-#![cfg_attr(not(feature = "std"), no_std)]
+///! This module contains utilities for testing.
+use codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+use sp_core::sr25519;
+use sp_runtime::AccountId32;
 
-pub mod signature;
+#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen)]
+pub struct CreatorId(pub AccountId32);
 
-#[cfg(any(feature = "runtime-benchmarks", feature = "mock"))]
-pub mod mock;
+impl From<AccountId32> for CreatorId {
+	fn from(acc: AccountId32) -> Self {
+		CreatorId(acc)
+	}
+}
+
+impl From<sr25519::Public> for CreatorId {
+	fn from(acc: sr25519::Public) -> Self {
+		CreatorId(acc.into())
+	}
+}

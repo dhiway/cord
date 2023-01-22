@@ -27,7 +27,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use cord_primitives::{
 	prod_or_fast, AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Index, Moment,
 };
-pub use cord_primitives::{AccountId, DidIdentifier, Signature};
+pub use cord_primitives::{AccountId, Signature};
 
 use frame_support::{
 	construct_runtime,

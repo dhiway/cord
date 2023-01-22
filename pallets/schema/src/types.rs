@@ -15,23 +15,18 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::RuntimeDebug;
 use scale_info::TypeInfo;
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo)]
-pub struct SchemaInput<SchemaHashOf, SchemaCreatorOf, CreatorSignatureTypeOf, InputSchemaMetatOf> {
+pub struct SchemaInput<SchemaHashOf, SchemaCreatorOf, CreatorSignatureTypeOf> {
 	/// Schema hash.
 	pub digest: SchemaHashOf,
 	/// Schema controller.
-	pub controller: SchemaCreatorOf,
+	pub creator: SchemaCreatorOf,
 	/// Controller Signature
 	pub signature: CreatorSignatureTypeOf,
-	/// An optional opaque blob representing the metadata for the schema. Could
-	/// be JSON, a link, a Hash, or raw text. Up to the community to decide how
-	/// exactly to use this.
-	pub meta: Option<InputSchemaMetatOf>,
 }
 
 /// An on-chain schema details mapped to an identifier.
@@ -39,15 +34,11 @@ pub struct SchemaInput<SchemaHashOf, SchemaCreatorOf, CreatorSignatureTypeOf, In
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
 
-pub struct SchemaEntry<SchemaHashOf, SchemaCreatorOf, InputSchemaMetatOf, BlockNumber> {
+pub struct SchemaEntry<SchemaHashOf, SchemaCreatorOf, BlockNumber> {
 	/// Schema hash.
 	pub digest: SchemaHashOf,
 	/// Schema controller.
-	pub controller: SchemaCreatorOf,
-	/// An optional opaque blob representing the metadata for the schema. Could
-	/// be JSON, a link, a Hash, or raw text. Up to the community to decide how
-	/// exactly to use this.
-	pub meta: Option<InputSchemaMetatOf>,
+	pub creator: SchemaCreatorOf,
 	/// The block number in which schema is included
 	pub block_number: BlockNumber,
 }
