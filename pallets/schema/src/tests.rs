@@ -17,7 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use cord_primitives::IdentifierOf;
-use cord_utilities::mock::mock_origin::DoubleOrigin;
+// use cord_utilities::mock::mock_origin::DoubleOrigin;
 use frame_support::{assert_noop, assert_ok, sp_runtime::traits::Hash};
 
 use crate::{

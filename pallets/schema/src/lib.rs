@@ -66,10 +66,9 @@ pub mod pallet {
 		traits::{Currency, ExistenceRequirement, OnUnbalanced, WithdrawReasons},
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::{traits::Saturating, SaturatedConversion};
+	use sp_runtime::traits::Saturating;
 	use sp_std::vec::Vec;
 
-	use sp_std::boxed::Box;
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
@@ -88,15 +87,10 @@ pub mod pallet {
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	pub type InputSchemaMetatOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedMetaLength>;
 
-	pub type InputSchemaOf<T> = SchemaInput<
-		SchemaHashOf<T>,
-		SchemaCreatorOf<T>,
-		CreatorSignatureTypeOf<T>,
-		InputSchemaMetatOf<T>,
-	>;
+	pub type InputSchemaOf<T> =
+		SchemaInput<SchemaHashOf<T>, SchemaCreatorOf<T>, CreatorSignatureTypeOf<T>>;
 
-	pub type SchemaEntryOf<T> =
-		SchemaEntry<SchemaHashOf<T>, SchemaCreatorOf<T>, InputSchemaMetatOf<T>, BlockNumberFor<T>>;
+	pub type SchemaEntryOf<T> = SchemaEntry<SchemaHashOf<T>, SchemaCreatorOf<T>, BlockNumberFor<T>>;
 
 	pub(crate) type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<CordAccountIdOf<T>>>::Balance;
@@ -168,7 +162,7 @@ pub mod pallet {
 		InvalidIdentifierLength,
 		/// The paying account was unable to pay the fees for creating a schema.
 		UnableToPayFees,
-		/// Invalid creator signature
+		// Invalid creator signature
 		InvalidSignature,
 		/// Creator DID information not found
 		CreatorNotFound,
@@ -178,12 +172,8 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Create a new schema and associates with its identifier.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create(tx_schema
-				.meta
-				.as_ref()
-				.map(|ac| ac.len().saturated_into::<u32>())
-				.unwrap_or(0)))]
-		pub fn create(origin: OriginFor<T>, tx_schema: Box<InputSchemaOf<T>>) -> DispatchResult {
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		pub fn create(origin: OriginFor<T>, tx_schema: InputSchemaOf<T>) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			// Check the free balance before we do any heavy computation
@@ -194,14 +184,13 @@ pub mod pallet {
 				WithdrawReasons::FEE,
 				balance.saturating_sub(T::SchemaFee::get()),
 			)?;
-
-			let SchemaInput { digest, controller, signature, meta } = *tx_schema.clone();
+			// let SchemaInput { digest, creator, signature } = *tx_schema.clone();
 
 			// Verify that the hash root signature is correct.
 			CreatorSignatureVerificationOf::<T>::verify_authentication_signature(
-				&controller,
-				&digest.encode(),
-				&signature,
+				&tx_schema.creator,
+				&tx_schema.digest.encode(),
+				&tx_schema.signature,
 			)
 			.map_err(|err| match err {
 				SignatureVerificationError::SignerInformationNotPresent => {
@@ -211,13 +200,15 @@ pub mod pallet {
 			})?;
 
 			let identifier = IdentifierOf::try_from(
-				ss58identifier::generate(&(digest).encode()[..], SCHEMA_PREFIX).into_bytes(),
+				ss58identifier::generate(&(tx_schema.digest).encode()[..], SCHEMA_PREFIX)
+					.into_bytes(),
 			)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 
-			// Collect the fees.
+			// Collect the fees. This should not fail since we checked the free balance in
+			// the beginning.
 			let imbalance = <T::Currency as Currency<CordAccountIdOf<T>>>::withdraw(
 				&author,
 				T::SchemaFee::get(),
@@ -230,13 +221,17 @@ pub mod pallet {
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
-			<SchemaHashes<T>>::insert(&digest, &identifier);
+			<SchemaHashes<T>>::insert(&tx_schema.digest, &identifier);
 			<Schemas<T>>::insert(
 				&identifier,
-				SchemaEntryOf::<T> { digest, controller, meta, block_number },
+				SchemaEntryOf::<T> {
+					digest: tx_schema.digest,
+					creator: tx_schema.creator,
+					block_number,
+				},
 			);
 
-			Self::deposit_event(Event::Created { identifier, digest, author });
+			Self::deposit_event(Event::Created { identifier, digest: tx_schema.digest, author });
 
 			Ok(())
 		}
