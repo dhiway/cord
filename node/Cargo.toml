@@ -116,7 +116,7 @@ tempfile = "3.1.0"
 serde_json = "1.0"
 regex = "1.5.5"
 soketto = "0.7.1"
-tokio = { version = "1.17.0", features = ["macros", "time", "parking_lot"] }
+tokio = { version = "1.24.2", features = ["macros", "time", "parking_lot"] }
 wait-timeout = "0.2"
 remote-externalities = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.28" }
