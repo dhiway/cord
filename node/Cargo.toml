@@ -76,7 +76,7 @@ cord-executor = { package = "cord-executor", path = "../executor" }
 cord-inspect = { package = "cord-inspect", path = "../inspect" }
 cord-rpc = { package = "cord-rpc", path = "../rpc" }
 cord-runtime-constants = { package = "cord-runtime-constants", path = "../runtime/constants" }
-pallet_author_registry = { package = "pallet-author-registry", path = "../pallets/author-registry" }
+pallet_author = { package = "pallet-author", path = "../pallets/author" }
 
 # CLI-specific dependencies
 sc-cli = { git = "https://github.com/dhiway/substrate", optional = true, branch = "release-v0.9.37" }
