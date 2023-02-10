@@ -1151,10 +1151,10 @@ dependencies = [
  "futures",
  "jsonrpsee",
  "nix",
- "pallet-author",
  "pallet-balances",
  "pallet-im-online",
  "pallet-timestamp",
+ "pallet-transaction-authorship",
  "pallet-transaction-payment",
  "parity-scale-codec",
  "regex",
@@ -1262,7 +1262,6 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal",
  "log",
- "pallet-author",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -1288,6 +1287,7 @@ dependencies = [
  "pallet-staking",
  "pallet-sudo",
  "pallet-timestamp",
+ "pallet-transaction-authorship",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
@@ -4835,23 +4835,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-author"
-version = "0.8.0"
-dependencies = [
- "cord-primitives",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
 name = "pallet-authority-discovery"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.37#946507ba9ef13e263534176b7b74e26fc56efbd4"
@@ -5304,6 +5287,23 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
+]
+
+[[package]]
+name = "pallet-transaction-authorship"
+version = "0.8.0"
+dependencies = [
+ "cord-primitives",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]

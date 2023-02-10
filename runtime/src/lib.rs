@@ -99,10 +99,9 @@ use cord_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 mod weights;
 // CORD Pallets
 mod authority_manager;
-pub use pallet_author_registry;
-pub use pallet_credit_treasury;
 pub use pallet_schema;
 pub use pallet_space;
+pub use pallet_transaction_authorship;
 pub mod benchmark;
 pub use benchmark::DummySignature;
 
@@ -363,10 +362,10 @@ parameter_types! {
 	pub const OperationalFeeMultiplier: u8 = 5;
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.
-	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
+	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(75);
 	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
 	/// change the fees more rapidly.
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(75, 1_000_000);
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(25, 1_000_000);
 	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	/// See `multiplier_can_grow_from_zero`.
@@ -524,7 +523,7 @@ impl pallet_democracy::Config for Runtime {
 	// however they can only do it once and it lasts only for the cooloff period.
 	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
 	type CooloffPeriod = CooloffPeriod;
-	type Slash = CreditTreasury;
+	type Slash = Treasury;
 	type Scheduler = Scheduler;
 	type PalletsOrigin = OriginCaller;
 	type MaxVotes = MaxVotes;
@@ -581,8 +580,8 @@ impl pallet_elections_phragmen::Config for Runtime {
 	type CandidacyBond = CandidacyBond;
 	type VotingBondBase = VotingBondBase;
 	type VotingBondFactor = VotingBondFactor;
-	type LoserCandidate = CreditTreasury;
-	type KickedMember = CreditTreasury;
+	type LoserCandidate = Treasury;
+	type KickedMember = Treasury;
 	type DesiredMembers = DesiredMembers;
 	type DesiredRunnersUp = DesiredRunnersUp;
 	type TermDuration = TermDuration;
@@ -624,43 +623,6 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 }
 
 parameter_types! {
-	pub PalletCreditMotionDuration: BlockNumber = prod_or_fast!(2 * DAYS, 2 * MINUTES,
-"CORD_CREDIT_MOTION_DURATION");
-	pub const PalletCreditMaxProposals: u32 = 100;
-	pub const PalletCreditMaxMembers: u32 = 10;
-}
-
-type CreditTreasuryCollective = pallet_collective::Instance3;
-impl pallet_collective::Config<CreditTreasuryCollective> for Runtime {
-	type RuntimeOrigin = RuntimeOrigin;
-	type Proposal = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type MotionDuration = PalletCreditMotionDuration;
-	type MaxProposals = PalletCreditMaxProposals;
-	type MaxMembers = PalletCreditMaxMembers;
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::pallet_collective_credit::WeightInfo<Runtime>;
-}
-
-type CreditCouncilApproval = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionAtLeast<AccountId, CreditTreasuryCollective, 1, 2>,
->;
-
-impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type AddOrigin = CreditCouncilApproval;
-	type RemoveOrigin = CreditCouncilApproval;
-	type SwapOrigin = CreditCouncilApproval;
-	type ResetOrigin = CreditCouncilApproval;
-	type PrimeOrigin = CreditCouncilApproval;
-	type MembershipInitialized = CreditTreasuryCouncil;
-	type MembershipChanged = CreditTreasuryCouncil;
-	type MaxMembers = PalletCreditMaxMembers;
-	type WeightInfo = weights::pallet_membership::WeightInfo<Runtime>;
-}
-
-parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
 	pub const ProposalBondMinimum: Balance = 100 * UNITS;
 	pub const ProposalBondMaximum: Balance = 500 * UNITS;
@@ -686,13 +648,13 @@ impl pallet_treasury::Config for Runtime {
 	type ApproveOrigin = ApproveOrigin;
 	type RejectOrigin = RejectOrigin;
 	type RuntimeEvent = RuntimeEvent;
-	type OnSlash = CreditTreasury;
+	type OnSlash = Treasury;
 	type ProposalBond = ProposalBond;
 	type ProposalBondMinimum = ProposalBondMinimum;
 	type ProposalBondMaximum = ProposalBondMaximum;
 	type SpendPeriod = SpendPeriod;
 	type Burn = Burn;
-	type BurnDestination = CreditTreasury;
+	type BurnDestination = Treasury;
 	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
 	type WeightInfo = weights::pallet_treasury::WeightInfo<Runtime>;
@@ -786,7 +748,7 @@ where
 			)),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_author_registry::CheckAuthorRegistry::<Runtime>::new(),
+			pallet_transaction_authorship::CheckAuthorRegistry::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
 		);
 		let raw_payload = SignedPayload::new(call, extra)
@@ -1011,29 +973,17 @@ parameter_types! {
 	pub const MaxAuthorityProposals: u32 = 50;
 }
 
-impl pallet_author_registry::Config for Runtime {
+impl pallet_transaction_authorship::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorApproveOrigin = MoreThanHalfCouncil;
 	type MaxAuthorityProposals = MaxAuthorityProposals;
-	type WeightInfo = weights::pallet_author::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_transaction_authorship::WeightInfo<Runtime>;
 }
 
-type CreditTreasuryApproveOrigin = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureMember<AccountId, CreditTreasuryCollective>,
->;
-
-parameter_types! {
-	pub const CreditTreasuryPalletId: PalletId = PalletId(*b"py/crdit");
-}
-
-impl pallet_credit_treasury::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type ApproveOrigin = CreditTreasuryApproveOrigin;
-	type PalletId = CreditTreasuryPalletId;
-	type WeightInfo = weights::pallet_credit_treasury::WeightInfo<Runtime>;
-}
+// type TreasuryApproveOrigin = EitherOfDiverse<
+// 	EnsureRoot<AccountId>,
+// 	pallet_collective::EnsureMember<AccountId, TreasuryCollective>,
+// >;
 
 parameter_types! {
 	pub const SchemaFee: Balance = 10 * WAY;
@@ -1045,7 +995,7 @@ impl pallet_schema::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type SchemaFee = SchemaFee;
-	type FeeCollector = CreditTreasury;
+	type FeeCollector = Treasury;
 	type SchemaCreatorId = DidIdentifier;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type Signature = pallet_did::DidSignature;
@@ -1074,7 +1024,7 @@ impl pallet_space::Config for Runtime {
 	type Currency = Balances;
 	type SpaceFee = SpaceFee;
 	type BaseFee = BaseFee;
-	type FeeCollector = CreditTreasury;
+	type FeeCollector = Treasury;
 	type Signature = Signature;
 	type Signer = <Signature as Verify>::Signer;
 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
@@ -1115,29 +1065,29 @@ impl pallet_did::Config for Runtime {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub const MaxParentChecks: u32 = 5;
-	pub const MaxRevocations: u32 = 5;
-	pub const MaxRemovals: u32 = 5;
-	#[derive(Clone)]
-	pub const MaxChildren: u32 = 1000;
-}
+// parameter_types! {
+// 	pub const MaxParentChecks: u32 = 5;
+// 	pub const MaxRevocations: u32 = 5;
+// 	pub const MaxRemovals: u32 = 5;
+// 	#[derive(Clone)]
+// 	pub const MaxChildren: u32 = 1000;
+// }
 
-impl pallet_trust_hierarchy::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type HierarchyFee = SpaceFee;
-	type NodeFee = BaseFee;
-	type FeeCollector = CreditTreasury;
-	type Signature = Signature;
-	type Signer = <Signature as Verify>::Signer;
-	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-	type MaxParentChecks = MaxParentChecks;
-	type MaxRevocations = MaxRevocations;
-	type MaxRemovals = MaxRemovals;
-	type MaxChildren = MaxChildren;
-	type WeightInfo = weights::pallet_trust_hierarchy::WeightInfo<Runtime>;
-}
+// impl pallet_trust_hierarchy::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type Currency = Balances;
+// 	type HierarchyFee = SpaceFee;
+// 	type NodeFee = BaseFee;
+// 	type FeeCollector = Treasury;
+// 	type Signature = Signature;
+// 	type Signer = <Signature as Verify>::Signer;
+// 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+// 	type MaxParentChecks = MaxParentChecks;
+// 	type MaxRevocations = MaxRevocations;
+// 	type MaxRemovals = MaxRemovals;
+// 	type MaxChildren = MaxChildren;
+// 	type WeightInfo = weights::pallet_trust_hierarchy::WeightInfo<Runtime>;
+// }
 
 // impl pallet_score::Config for Runtime {
 // 	type Event = Event;
@@ -1186,12 +1136,10 @@ construct_runtime! {
 		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 15,
 		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 16,
 		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 17,
-		CreditTreasuryCouncil: pallet_collective::<Instance3>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 18,
-		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 19,
-		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 20,
-		CreditTreasuryMembership: pallet_membership::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>} = 21,
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 22,
-		CreditTreasury: pallet_credit_treasury::{Pallet, Call, Storage, Config, Event<T>} = 23,
+		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
+		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 19,
+		// TreasuryMembership: pallet_membership::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>} = 20,
+		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 21,
 
 		// Utility module.
 		Utility: pallet_utility::{Pallet, Call, Event} = 31,
@@ -1211,14 +1159,14 @@ construct_runtime! {
 		// Authority Manager pallet.
 		AuthorityManager: authority_manager::{Pallet, Call, Storage, Event<T>} = 101,
 
-		// Author Registry pallet.
-		AuthorRegistry: pallet_author_registry::{Pallet, Call, Storage, Event<T>, Config<T>} =102,
+		// Author pallet.
+		TransactionAuthorship: pallet_transaction_authorship::{Pallet, Call, Storage, Event<T>, Config<T>} =102,
 
 		// DID management pallet.
 		Did: pallet_did::{Pallet, Call, Storage, Event<T>} = 103,
 
 		// Trust Hierarchy pallet.
-		TrustHierarchy: pallet_trust_hierarchy::{Pallet, Call, Storage, Event<T>} = 104,
+		// TrustHierarchy: pallet_trust_hierarchy::{Pallet, Call, Storage, Event<T>} = 104,
 
 		// Schema Manager pallet.
 		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 105,
@@ -1250,7 +1198,7 @@ pub type SignedExtra = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_author_registry::CheckAuthorRegistry<Runtime>,
+	pallet_transaction_authorship::CheckAuthorRegistry<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 
