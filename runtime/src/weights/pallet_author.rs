@@ -24,7 +24,7 @@ use frame_support::{traits::Get, weights::Weight};
 use sp_std::marker::PhantomData;
 
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_author_registry::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> pallet_author::WeightInfo for WeightInfo<T> {
 	fn add(l: u32, ) -> Weight {
 		Weight::from_ref_time(50_978_000 as u64)
 			// Standard Error: 0

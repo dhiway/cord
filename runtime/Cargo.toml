@@ -72,7 +72,6 @@ frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-featu
 pallet-did = {  default-features = false, path = '../pallets/did' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-author = {  default-features = false, path = '../pallets/author' }
-pallet-trust-hierarchy = {  default-features = false, path = '../pallets/trust-hierarchy' }
 pallet-space = {  default-features = false, path = '../pallets/space' }
 
 [dev-dependencies]
@@ -130,7 +129,6 @@ std = [
 	"pallet-did/std",
 	"pallet-schema/std",
 	"pallet-author/std",
-	"pallet-trust-hierarchy/std",
 	"pallet-space/std",
 	"sp-runtime/std",
 	"sp-staking/std",

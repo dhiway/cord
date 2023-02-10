@@ -1015,7 +1015,7 @@ impl pallet_author_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorApproveOrigin = MoreThanHalfCouncil;
 	type MaxAuthorityProposals = MaxAuthorityProposals;
-	type WeightInfo = weights::pallet_author_registry::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_author::WeightInfo<Runtime>;
 }
 
 type CreditTreasuryApproveOrigin = EitherOfDiverse<
