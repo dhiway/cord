@@ -1,5 +1,5 @@
 [package]
-name = "pallet-author-registry"
+name = "pallet-author"
 description = 'Manage network authorship.'
 version = "0.8.0"
 authors = ["Dhiway <info@dhiway.com>"]

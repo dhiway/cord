@@ -1151,7 +1151,7 @@ dependencies = [
  "futures",
  "jsonrpsee",
  "nix",
- "pallet-author-registry",
+ "pallet-author",
  "pallet-balances",
  "pallet-im-online",
  "pallet-timestamp",
@@ -1262,7 +1262,7 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal",
  "log",
- "pallet-author-registry",
+ "pallet-author",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -4837,7 +4837,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-author-registry"
+name = "pallet-author"
 version = "0.8.0"
 dependencies = [
  "cord-primitives",
