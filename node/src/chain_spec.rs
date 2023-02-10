@@ -21,9 +21,9 @@
 pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	AuthorRegistryConfig, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block,
-	CouncilConfig, CreditTreasuryCouncilConfig, DemocracyConfig, IndicesConfig, SessionConfig,
-	SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block, CouncilConfig, DemocracyConfig,
+	IndicesConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	TransactionAuthorshipConfig,
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
@@ -350,7 +350,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		},
 		grandpa: Default::default(),
 		im_online: Default::default(),
-		author_registry: AuthorRegistryConfig { authors: author_accounts() },
+		transaction_authorship: TransactionAuthorshipConfig { authors: author_accounts() },
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig {
 			members: endowed_accounts
@@ -368,18 +368,8 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 			phantom: Default::default(),
 		},
-		credit_treasury_council: CreditTreasuryCouncilConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
-			phantom: Default::default(),
-		},
-		credit_treasury_membership: Default::default(),
 		technical_membership: Default::default(),
 		treasury: Default::default(),
-		credit_treasury: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(endowed_accounts[0].clone()) },
 	}
@@ -462,7 +452,7 @@ fn cord_development_genesis(
 		},
 		grandpa: Default::default(),
 		im_online: Default::default(),
-		author_registry: AuthorRegistryConfig { authors: author_accounts() },
+		transaction_authorship: TransactionAuthorshipConfig { authors: author_accounts() },
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig {
 			members: endowed_accounts
@@ -481,17 +471,7 @@ fn cord_development_genesis(
 			phantom: Default::default(),
 		},
 		technical_membership: Default::default(),
-		credit_treasury_council: CreditTreasuryCouncilConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect(),
-			phantom: Default::default(),
-		},
-		credit_treasury_membership: Default::default(),
 		treasury: Default::default(),
-		credit_treasury: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(root_key.clone()) },
 	}

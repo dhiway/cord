@@ -97,7 +97,7 @@ exists; qed",
 		)),
 		frame_system::CheckNonce::<cord_runtime::Runtime>::from(nonce),
 		frame_system::CheckWeight::<cord_runtime::Runtime>::new(),
-		pallet_author_registry::CheckAuthorRegistry::<cord_runtime::Runtime>::new(),
+		pallet_transaction_authorship::CheckAuthorRegistry::<cord_runtime::Runtime>::new(),
 		pallet_transaction_payment::ChargeTransactionPayment::<cord_runtime::Runtime>::from(tip),
 	);
 

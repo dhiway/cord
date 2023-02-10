@@ -19,7 +19,6 @@
 //! A list of the different weight modules for our runtime.
 
 pub mod frame_system;
-pub mod pallet_author;
 pub mod pallet_balances;
 pub mod pallet_collective_council;
 pub mod pallet_collective_technical_committee;
@@ -37,6 +36,7 @@ pub mod pallet_schema;
 pub mod pallet_session;
 pub mod pallet_space;
 pub mod pallet_timestamp;
+pub mod pallet_transaction_authorship;
 pub mod pallet_treasury;
-pub mod pallet_trust_hierarchy;
+// pub mod pallet_trust_hierarchy;
 pub mod pallet_utility;
