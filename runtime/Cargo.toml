@@ -71,8 +71,8 @@ frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-featu
 
 pallet-did = {  default-features = false, path = '../pallets/did' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
-pallet-author = {  default-features = false, path = '../pallets/author' }
 pallet-space = {  default-features = false, path = '../pallets/space' }
+pallet-transaction-authorship = {  default-features = false, path = '../pallets/authorship' }
 
 [dev-dependencies]
 hex-literal = "0.3.4"
@@ -128,7 +128,7 @@ std = [
 	"pallet-babe/std",
 	"pallet-did/std",
 	"pallet-schema/std",
-	"pallet-author/std",
+	"pallet-transaction-authorship/std",
 	"pallet-space/std",
 	"sp-runtime/std",
 	"sp-staking/std",

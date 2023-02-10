@@ -1,6 +1,6 @@
 [package]
-name = "pallet-author"
-description = 'Manage network authorship.'
+name = "pallet-transaction-authorship"
+description = 'Manage network transaction authorship.'
 version = "0.8.0"
 authors = ["Dhiway <info@dhiway.com>"]
 edition = '2021'
