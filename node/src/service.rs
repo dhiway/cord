@@ -73,10 +73,7 @@ pub fn create_extrinsic(
 	nonce: Option<u32>,
 ) -> cord_runtime::UncheckedExtrinsic {
 	let function = function.into();
-	let genesis_hash = client.block_hash(0).ok().flatten().expect(
-		"Genesis block
-exists; qed",
-	);
+	let genesis_hash = client.block_hash(0).ok().flatten().expect("Genesis block exists; qed");
 	let best_hash = client.chain_info().best_hash;
 	let best_block = client.chain_info().best_number;
 	let nonce = nonce.unwrap_or_else(|| fetch_nonce(client, sender.clone()));
@@ -97,7 +94,7 @@ exists; qed",
 		)),
 		frame_system::CheckNonce::<cord_runtime::Runtime>::from(nonce),
 		frame_system::CheckWeight::<cord_runtime::Runtime>::new(),
-		pallet_transaction_authorship::CheckExtrinsicAuthor::<cord_runtime::Runtime>::new(),
+		pallet_extrinsic_authorship::CheckExtrinsicAuthor::<cord_runtime::Runtime>::new(),
 		pallet_transaction_payment::ChargeTransactionPayment::<cord_runtime::Runtime>::from(tip),
 	);
 

@@ -22,8 +22,8 @@ pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block, CouncilConfig, DemocracyConfig,
-	IndicesConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
-	TransactionAuthorshipConfig,
+	ExtrinsicAuthorshipConfig, IndicesConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig,
+	TechnicalCommitteeConfig,
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
@@ -350,7 +350,7 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		},
 		grandpa: Default::default(),
 		im_online: Default::default(),
-		transaction_authorship: TransactionAuthorshipConfig { authors: author_accounts() },
+		extrinsic_authorship: ExtrinsicAuthorshipConfig { authors: author_accounts() },
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig {
 			members: endowed_accounts
@@ -452,7 +452,7 @@ fn cord_development_genesis(
 		},
 		grandpa: Default::default(),
 		im_online: Default::default(),
-		transaction_authorship: TransactionAuthorshipConfig { authors: author_accounts() },
+		extrinsic_authorship: ExtrinsicAuthorshipConfig { authors: author_accounts() },
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig {
 			members: endowed_accounts
