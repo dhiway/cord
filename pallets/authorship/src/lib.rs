@@ -61,8 +61,7 @@ pub mod pallet {
 
 	// The pallet's runtime authors.
 	#[pallet::storage]
-	pub(super) type TransactionAuthors<T: Config> =
-		StorageMap<_, Blake2_128Concat, T::AccountId, ()>;
+	pub(super) type ExtrinsicAuthors<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, ()>;
 
 	#[pallet::event]
 	// #[pallet::metadata(T::AccountId = "AccountId")]
@@ -116,7 +115,7 @@ pub mod pallet {
 			let authors = &self.authors;
 			if !authors.is_empty() {
 				for (account, extrinsics) in authors.iter() {
-					<TransactionAuthors<T>>::insert(account, extrinsics);
+					<ExtrinsicAuthors<T>>::insert(account, extrinsics);
 				}
 			}
 		}
@@ -136,8 +135,8 @@ pub mod pallet {
 			let mut authors_added: Vec<CordAccountOf<T>> = Vec::new();
 
 			for author in authors {
-				if !<TransactionAuthors<T>>::contains_key(&author) {
-					<TransactionAuthors<T>>::insert(&author, ());
+				if !<ExtrinsicAuthors<T>>::contains_key(&author) {
+					<ExtrinsicAuthors<T>>::insert(&author, ());
 					authors_added.push(author);
 				}
 			}
@@ -156,8 +155,8 @@ pub mod pallet {
 			let mut authors_removed: Vec<CordAccountOf<T>> = Vec::new();
 
 			for author in authors {
-				if <TransactionAuthors<T>>::contains_key(&author) {
-					<TransactionAuthors<T>>::remove(&author);
+				if <ExtrinsicAuthors<T>>::contains_key(&author) {
+					<ExtrinsicAuthors<T>>::remove(&author);
 					authors_removed.push(author);
 				}
 			}
@@ -171,12 +170,12 @@ pub mod pallet {
 /// The `CheckAuthorRegistry` struct.
 #[derive(Encode, Decode, Clone, Eq, PartialEq, Default, scale_info::TypeInfo)]
 #[scale_info(skip_type_params(T))]
-pub struct CheckAuthorRegistry<T: Config + Send + Sync>(PhantomData<T>);
+pub struct CheckExtrinsicAuthor<T: Config + Send + Sync>(PhantomData<T>);
 
-impl<T: Config + Send + Sync> sp_std::fmt::Debug for CheckAuthorRegistry<T> {
+impl<T: Config + Send + Sync> sp_std::fmt::Debug for CheckExtrinsicAuthor<T> {
 	#[cfg(feature = "std")]
 	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
-		write!(f, "CheckAuthorRegistry")
+		write!(f, "CheckExtrinsicAuthor")
 	}
 
 	#[cfg(not(feature = "std"))]
@@ -185,7 +184,7 @@ impl<T: Config + Send + Sync> sp_std::fmt::Debug for CheckAuthorRegistry<T> {
 	}
 }
 
-impl<T: Config + Send + Sync> CheckAuthorRegistry<T> {
+impl<T: Config + Send + Sync> CheckExtrinsicAuthor<T> {
 	/// Create new `SignedExtension` to check author permission.
 	pub fn new() -> Self {
 		Self(sp_std::marker::PhantomData)
@@ -194,7 +193,7 @@ impl<T: Config + Send + Sync> CheckAuthorRegistry<T> {
 
 /// Implementation of the `SignedExtension` trait for the
 /// `CheckAuthorRegistry` struct.
-impl<T: Config + Send + Sync> SignedExtension for CheckAuthorRegistry<T>
+impl<T: Config + Send + Sync> SignedExtension for CheckExtrinsicAuthor<T>
 where
 	T::RuntimeCall: Dispatchable<Info = DispatchInfo>,
 {
@@ -202,7 +201,7 @@ where
 	type Call = T::RuntimeCall;
 	type AdditionalSigned = ();
 	type Pre = ();
-	const IDENTIFIER: &'static str = "CheckAuthorRegistry";
+	const IDENTIFIER: &'static str = "CheckExtrinsicAuthor";
 
 	fn additional_signed(&self) -> sp_std::result::Result<(), TransactionValidityError> {
 		Ok(())
@@ -225,7 +224,7 @@ where
 		_info: &DispatchInfoOf<Self::Call>,
 		_len: usize,
 	) -> TransactionValidity {
-		if <TransactionAuthors<T>>::contains_key(who) {
+		if <ExtrinsicAuthors<T>>::contains_key(who) {
 			Ok(ValidTransaction {
 				priority: 0,
 				longevity: TransactionLongevity::max_value(),
