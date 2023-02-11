@@ -99,9 +99,9 @@ use cord_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 mod weights;
 // CORD Pallets
 mod authority_manager;
+pub use pallet_extrinsic_authorship;
 pub use pallet_schema;
 pub use pallet_space;
-pub use pallet_transaction_authorship;
 pub mod benchmark;
 pub use benchmark::DummySignature;
 
@@ -748,7 +748,7 @@ where
 			)),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_authorship::CheckExtrinsicAuthor::<Runtime>::new(),
+			pallet_extrinsic_authorship::CheckExtrinsicAuthor::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
 		);
 		let raw_payload = SignedPayload::new(call, extra)
@@ -973,11 +973,11 @@ parameter_types! {
 	pub const MaxAuthorityProposals: u32 = 50;
 }
 
-impl pallet_transaction_authorship::Config for Runtime {
+impl pallet_extrinsic_authorship::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorApproveOrigin = MoreThanHalfCouncil;
 	type MaxAuthorityProposals = MaxAuthorityProposals;
-	type WeightInfo = weights::pallet_transaction_authorship::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_extrinsic_authorship::WeightInfo<Runtime>;
 }
 
 // type TreasuryApproveOrigin = EitherOfDiverse<
@@ -1160,7 +1160,7 @@ construct_runtime! {
 		AuthorityManager: authority_manager::{Pallet, Call, Storage, Event<T>} = 101,
 
 		// Author pallet.
-		TransactionAuthorship: pallet_transaction_authorship::{Pallet, Call, Storage, Event<T>, Config<T>} =102,
+		ExtrinsicAuthorship: pallet_extrinsic_authorship::{Pallet, Call, Storage, Event<T>, Config<T>} =102,
 
 		// DID management pallet.
 		Did: pallet_did::{Pallet, Call, Storage, Event<T>} = 103,
@@ -1198,7 +1198,7 @@ pub type SignedExtra = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_authorship::CheckExtrinsicAuthor<Runtime>,
+	pallet_extrinsic_authorship::CheckExtrinsicAuthor<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 

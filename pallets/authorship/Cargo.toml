@@ -1,5 +1,5 @@
 [package]
-name = "pallet-transaction-authorship"
+name = "pallet-extrinsic-authorship"
 description = 'Manage network transaction authorship.'
 version = "0.8.0"
 authors = ["Dhiway <info@dhiway.com>"]
