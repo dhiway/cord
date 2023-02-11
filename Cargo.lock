@@ -1269,18 +1269,14 @@ dependencies = [
  "pallet-collective",
  "pallet-democracy",
  "pallet-did",
- "pallet-elections-phragmen",
  "pallet-extrinsic-authorship",
  "pallet-grandpa",
- "pallet-identity",
  "pallet-im-online",
  "pallet-indices",
  "pallet-membership",
  "pallet-multisig",
  "pallet-offences",
  "pallet-preimage",
- "pallet-proxy",
- "pallet-recovery",
  "pallet-scheduler",
  "pallet-schema",
  "pallet-session",
@@ -2148,26 +2144,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c9720bba047d567ffc8a3cba48bf19126600e249ab7f128e9233e6376976a116"
 dependencies = [
  "heck",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "enumflags2"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e75d4cd21b95383444831539909fbb14b9dc3fdceb2a6f5d36577329a1f55ccb"
-dependencies = [
- "enumflags2_derive",
-]
-
-[[package]]
-name = "enumflags2_derive"
-version = "0.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f58dc3c5e468259f19f2d46304a6b28f1c3d034442e14b322d2b850e36f6d5ae"
-dependencies = [
  "proc-macro2",
  "quote",
  "syn",
@@ -4965,24 +4941,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-elections-phragmen"
-version = "5.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.37#946507ba9ef13e263534176b7b74e26fc56efbd4"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-npos-elections",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-extrinsic-authorship"
 version = "0.8.0"
 dependencies = [
@@ -5019,22 +4977,6 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-identity"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.37#946507ba9ef13e263534176b7b74e26fc56efbd4"
-dependencies = [
- "enumflags2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
  "sp-std",
 ]
 
@@ -5137,36 +5079,6 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-proxy"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.37#946507ba9ef13e263534176b7b74e26fc56efbd4"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-recovery"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.37#946507ba9ef13e263534176b7b74e26fc56efbd4"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
  "sp-io",
  "sp-runtime",
  "sp-std",

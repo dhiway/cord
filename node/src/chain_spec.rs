@@ -343,7 +343,6 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				})
 				.collect::<Vec<_>>(),
 		},
-		elections: Default::default(),
 		babe: BabeConfig {
 			authorities: Default::default(),
 			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
@@ -445,7 +444,6 @@ fn cord_development_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		elections: Default::default(),
 		babe: BabeConfig {
 			authorities: Default::default(),
 			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),

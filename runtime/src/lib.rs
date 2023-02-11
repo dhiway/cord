@@ -23,7 +23,7 @@
 #![allow(clippy::from_over_into)]
 #![warn(unused_crate_dependencies)]
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::Encode;
 use cord_primitives::{
 	prod_or_fast, AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Index, Moment,
 };
@@ -33,17 +33,14 @@ use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
 	parameter_types,
-	traits::{
-		ConstU32, Contains, EitherOfDiverse, InstanceFilter, KeyOwnerProofSystem, LockIdentifier,
-		PrivilegeCmp,
-	},
+	traits::{ConstU32, Contains, EitherOfDiverse, KeyOwnerProofSystem, PrivilegeCmp},
 	weights::{
 		constants::{
 			BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
 		},
 		ConstantMultiplier, Weight,
 	},
-	PalletId, RuntimeDebug,
+	PalletId,
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
@@ -553,45 +550,6 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 }
 
 parameter_types! {
-	pub const CandidacyBond: Balance = 100_000 * WAY;
-	// 1 storage item created, key size is 32 bytes, value size is 16+16.
-	pub const VotingBondBase: Balance = deposit(1, 64);
-	// additional data per vote is 32 bytes (account id).
-	pub const VotingBondFactor: Balance = deposit(0, 32);
-	/// Daily council elections
-	pub TermDuration: BlockNumber = prod_or_fast!(24 * HOURS, 2 * MINUTES, "CORD_TERM_DURATION");
-	pub const DesiredMembers: u32 = 15;
-	pub const DesiredRunnersUp: u32 = 13;
-	pub const MaxVoters: u32 = 10 * 500;
-	pub const MaxCandidates: u32 = 100;
-	pub const PhragmenElectionPalletId: LockIdentifier = *b"phrelect";
-}
-
-// Make sure that there are no more than MaxMembers members elected via
-// phragmen.
-const_assert!(DesiredMembers::get() <= CouncilMaxMembers::get());
-
-impl pallet_elections_phragmen::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type ChangeMembers = Council;
-	type InitializeMembers = Council;
-	type CurrencyToVote = frame_support::traits::U128CurrencyToVote;
-	type CandidacyBond = CandidacyBond;
-	type VotingBondBase = VotingBondBase;
-	type VotingBondFactor = VotingBondFactor;
-	type LoserCandidate = Treasury;
-	type KickedMember = Treasury;
-	type DesiredMembers = DesiredMembers;
-	type DesiredRunnersUp = DesiredRunnersUp;
-	type TermDuration = TermDuration;
-	type MaxVoters = MaxVoters;
-	type MaxCandidates = MaxCandidates;
-	type PalletId = PhragmenElectionPalletId;
-	type WeightInfo = weights::pallet_elections_phragmen::WeightInfo<Runtime>;
-}
-
-parameter_types! {
 	pub TechnicalMotionDuration: BlockNumber = prod_or_fast!(3 * DAYS, 2 * MINUTES, "CORD_MOTION_DURATION");
 	pub const TechnicalMaxProposals: u32 = 100;
 	pub const TechnicalMaxMembers: u32 = 50;
@@ -776,30 +734,6 @@ where
 	type OverarchingCall = RuntimeCall;
 }
 
-parameter_types! {
-	pub const BasicDeposit: Balance = 200 * UNITS;       // 258 bytes on-chain
-	pub const FieldDeposit: Balance = 50 * UNITS;        // 66 bytes on-chain
-	pub const SubAccountDeposit: Balance = 50 * UNITS;   // 53 bytes on-chain
-	pub const MaxSubAccounts: u32 = 100;
-	pub const MaxAdditionalFields: u32 = 100;
-	pub const MaxRegistrars: u32 = 20;
-}
-
-impl pallet_identity::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type BasicDeposit = BasicDeposit;
-	type FieldDeposit = FieldDeposit;
-	type SubAccountDeposit = SubAccountDeposit;
-	type MaxSubAccounts = MaxSubAccounts;
-	type MaxAdditionalFields = MaxAdditionalFields;
-	type MaxRegistrars = MaxRegistrars;
-	type Slashed = Treasury;
-	type ForceOrigin = MoreThanHalfCouncil;
-	type RegistrarOrigin = MoreThanHalfCouncil;
-	type WeightInfo = weights::pallet_identity::WeightInfo<Runtime>;
-}
-
 impl pallet_utility::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
@@ -826,24 +760,6 @@ impl pallet_multisig::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ConfigDepositBase: Balance = 200 * UNITS;
-	pub const FriendDepositFactor: Balance = 50 * UNITS;
-	pub const MaxFriends: u16 = 9;
-	pub const RecoveryDeposit: Balance = 500 * UNITS;
-}
-
-impl pallet_recovery::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-	type RuntimeCall = RuntimeCall;
-	type Currency = Balances;
-	type ConfigDepositBase = ConfigDepositBase;
-	type FriendDepositFactor = FriendDepositFactor;
-	type MaxFriends = MaxFriends;
-	type RecoveryDeposit = RecoveryDeposit;
-}
-
-parameter_types! {
 	// One storage item; key size 32, value size 8; .
 	pub const ProxyDepositBase: Balance = deposit(1, 8);
 	// Additional storage item size of 33 bytes.
@@ -852,116 +768,6 @@ parameter_types! {
 	pub const AnnouncementDepositBase: Balance = deposit(1, 8);
 	pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
 	pub const MaxPending: u16 = 32;
-}
-
-/// The type used to represent the kinds of proxying allowed.
-#[derive(
-	Copy,
-	Clone,
-	Eq,
-	PartialEq,
-	Ord,
-	PartialOrd,
-	Encode,
-	Decode,
-	RuntimeDebug,
-	MaxEncodedLen,
-	scale_info::TypeInfo,
-)]
-pub enum ProxyType {
-	Any,
-	NonTransfer,
-	Governance,
-	IdentityJudgement,
-	CancelProxy,
-}
-
-impl Default for ProxyType {
-	fn default() -> Self {
-		Self::Any
-	}
-}
-
-impl InstanceFilter<RuntimeCall> for ProxyType {
-	fn filter(&self, c: &RuntimeCall) -> bool {
-		match self {
-			ProxyType::Any => true,
-			ProxyType::NonTransfer => matches!(
-				c,
-				RuntimeCall::System(..) |
-				RuntimeCall::Babe(..) |
-				RuntimeCall::Timestamp(..) |
-				RuntimeCall::Indices(pallet_indices::Call::claim {..}) |
-				RuntimeCall::Indices(pallet_indices::Call::free {..}) |
-				RuntimeCall::Indices(pallet_indices::Call::freeze {..}) |
-				// Specifically omitting Indices `transfer`, `force_transfer`
-				// Specifically omitting the entire Balances pallet
-				RuntimeCall::Authorship(..) |
-				RuntimeCall::Session(..) |
-				RuntimeCall::Grandpa(..) |
-				RuntimeCall::ImOnline(..) |
-				RuntimeCall::Democracy(..) |
-				RuntimeCall::Council(..) |
-				RuntimeCall::TechnicalCommittee(..) |
-				RuntimeCall::Elections(..) |
-				RuntimeCall::TechnicalMembership(..) |
-				RuntimeCall::Treasury(..) |
-				RuntimeCall::Utility(..) |
-				RuntimeCall::Identity(..) |
-				RuntimeCall::Recovery(pallet_recovery::Call::as_recovered {..}) |
-				RuntimeCall::Recovery(pallet_recovery::Call::vouch_recovery {..}) |
-				RuntimeCall::Recovery(pallet_recovery::Call::claim_recovery {..}) |
-				RuntimeCall::Recovery(pallet_recovery::Call::close_recovery {..}) |
-				RuntimeCall::Recovery(pallet_recovery::Call::remove_recovery {..}) |
-				RuntimeCall::Recovery(pallet_recovery::Call::cancel_recovered {..}) |
-				// Specifically omitting Recovery `create_recovery`, `initiate_recovery`
-				RuntimeCall::Scheduler(..) |
-				RuntimeCall::Proxy(..) |
-				RuntimeCall::Multisig(..)
-			),
-			ProxyType::Governance => matches!(
-				c,
-				RuntimeCall::Democracy(..)
-					| RuntimeCall::Council(..)
-					| RuntimeCall::TechnicalCommittee(..)
-					| RuntimeCall::Elections(..)
-					| RuntimeCall::Treasury(..)
-					| RuntimeCall::Utility(..)
-			),
-			ProxyType::IdentityJudgement => matches!(
-				c,
-				RuntimeCall::Identity(pallet_identity::Call::provide_judgement { .. })
-					| RuntimeCall::Utility(..)
-			),
-			ProxyType::CancelProxy => {
-				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
-			},
-		}
-	}
-	fn is_superset(&self, o: &Self) -> bool {
-		match (self, o) {
-			(x, y) if x == y => true,
-			(ProxyType::Any, _) => true,
-			(_, ProxyType::Any) => false,
-			(ProxyType::NonTransfer, _) => true,
-			_ => false,
-		}
-	}
-}
-
-impl pallet_proxy::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeCall = RuntimeCall;
-	type Currency = Balances;
-	type ProxyType = ProxyType;
-	type ProxyDepositBase = ProxyDepositBase;
-	type ProxyDepositFactor = ProxyDepositFactor;
-	type MaxProxies = MaxProxies;
-	type WeightInfo = weights::pallet_proxy::WeightInfo<Runtime>;
-	type MaxPending = MaxPending;
-	type CallHasher = BlakeTwo256;
-	type AnnouncementDepositBase = AnnouncementDepositBase;
-	type AnnouncementDepositFactor = AnnouncementDepositFactor;
 }
 
 impl authority_manager::Config for Runtime {
@@ -979,11 +785,6 @@ impl pallet_extrinsic_authorship::Config for Runtime {
 	type MaxAuthorityProposals = MaxAuthorityProposals;
 	type WeightInfo = weights::pallet_extrinsic_authorship::WeightInfo<Runtime>;
 }
-
-// type TreasuryApproveOrigin = EitherOfDiverse<
-// 	EnsureRoot<AccountId>,
-// 	pallet_collective::EnsureMember<AccountId, TreasuryCollective>,
-// >;
 
 parameter_types! {
 	pub const SchemaFee: Balance = 10 * WAY;
@@ -1136,25 +937,15 @@ construct_runtime! {
 		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 15,
 		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 16,
 		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 17,
-		Elections: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
-		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 19,
-		// TreasuryMembership: pallet_membership::<Instance2>::{Pallet, Call, Storage, Event<T>, Config<T>} = 20,
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 21,
+		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
+		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 19,
 
 		// Utility module.
 		Utility: pallet_utility::{Pallet, Call, Event} = 31,
 
-		// Less simple identity module.
-		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 35,
-
-		// Social recovery module.
-		Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 36,
-
-		// Proxy module. Late addition.
-		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 37,
 
 		// Multisig module. Late addition.
-		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 38,
+		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 35,
 
 		// Authority Manager pallet.
 		AuthorityManager: authority_manager::{Pallet, Call, Storage, Event<T>} = 101,
@@ -1229,7 +1020,6 @@ mod benches {
 		[pallet_collective, Council]
 		[pallet_democracy, Democracy]
 		[pallet_grandpa, Grandpa]
-		[pallet_identity, Identity]
 		[pallet_im_online, ImOnline]
 		[pallet_indices, Indices]
 		[pallet_membership, TechnicalMembership]
@@ -1237,7 +1027,6 @@ mod benches {
 		[pallet_offences, OffencesBench::<Runtime>]
 		[pallet_preimage, Preimage]
 		[pallet_proxy, Proxy]
-		[pallet_recovery, Recovery]
 		[pallet_scheduler, Scheduler]
 		[pallet_session, SessionBench::<Runtime>]
 		[frame_system, SystemBench::<Runtime>]
