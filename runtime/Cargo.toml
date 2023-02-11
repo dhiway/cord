@@ -42,18 +42,14 @@ pallet-transaction-payment = {git = "https://github.com/dhiway/substrate", defau
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37" }
 pallet-collective = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 pallet-democracy = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
-pallet-elections-phragmen = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 frame-executive = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 pallet-grandpa = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
-pallet-identity = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 pallet-im-online = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 pallet-indices = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 pallet-membership = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 pallet-multisig = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 pallet-offences = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 pallet-preimage = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
-pallet-proxy = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
-pallet-recovery = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37" }
 pallet-scheduler = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 pallet-session = {git = "https://github.com/dhiway/substrate", features = ["historical"], default-features = false, branch = "release-v0.9.37"}
 pallet-sudo = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
@@ -106,18 +102,14 @@ std = [
 	"pallet-transaction-payment/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-collective/std",
-	"pallet-elections-phragmen/std",
 	"pallet-democracy/std",
 	"pallet-grandpa/std",
-	"pallet-identity/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
 	"pallet-membership/std",
 	"pallet-multisig/std",
 	"pallet-offences/std",
 	"pallet-preimage/std",
-	"pallet-proxy/std",
-	"pallet-recovery/std",
 	"pallet-scheduler/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
@@ -152,17 +144,13 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
-	"pallet-elections-phragmen/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
-	"pallet-identity/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
-	"pallet-proxy/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
-	"pallet-recovery/runtime-benchmarks",
 	"pallet-staking/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
@@ -178,18 +166,14 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"pallet-collective/try-runtime",
-	"pallet-elections-phragmen/try-runtime",
 	"pallet-democracy/try-runtime",
 	"pallet-grandpa/try-runtime",
-	"pallet-identity/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-membership/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-offences/try-runtime",
 	"pallet-preimage/try-runtime",
-	"pallet-proxy/try-runtime",
-	"pallet-recovery/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
