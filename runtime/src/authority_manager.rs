@@ -40,7 +40,6 @@ pub mod pallet {
 	pub trait Config: frame_system::Config + pallet_session::Config {
 		/// The overreaching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-
 		/// Privileged origin that can add or remove validators.
 		type AuthorityOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 	}
@@ -66,7 +65,6 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Add new authorities to the set.
-		///
 		/// The new authorities will be active from current session + 2.
 		#[pallet::call_index(0)]
 		#[pallet::weight(100_000)]
@@ -80,7 +78,6 @@ pub mod pallet {
 		}
 
 		/// Remove authorities from the set.
-		///
 		/// The removed authorities will be deactivated from current session +
 		/// 2.
 		#[pallet::call_index(1)]
@@ -97,6 +94,28 @@ pub mod pallet {
 			Ok(())
 		}
 	}
+
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		pub authorities: Vec<T::ValidatorId>,
+	}
+
+	#[cfg(feature = "std")]
+	impl<T: Config> Default for GenesisConfig<T> {
+		fn default() -> Self {
+			Self { authorities: Default::default() }
+		}
+	}
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+		fn build(&self) {
+			let authorities = &self.authorities;
+
+			if !authorities.is_empty() {
+				AuthoritiesToAdd::<T>::put(authorities);
+			}
+		}
+	}
 }
 
 impl<T: Config> pallet_session::SessionManager<T::ValidatorId> for Pallet<T> {
@@ -105,39 +124,24 @@ impl<T: Config> pallet_session::SessionManager<T::ValidatorId> for Pallet<T> {
 			return None;
 		}
 
-		let mut validators = Session::<T>::validators();
+		let mut authorities = Session::<T>::validators();
 
 		AuthoritiesToRetire::<T>::take().iter().for_each(|v| {
-			if let Some(pos) = validators.iter().position(|r| r == v) {
-				validators.swap_remove(pos);
+			if let Some(pos) = authorities.iter().position(|r| r == v) {
+				authorities.swap_remove(pos);
 			}
 		});
 
 		AuthoritiesToAdd::<T>::take().into_iter().for_each(|v| {
-			if !validators.contains(&v) {
-				validators.push(v);
+			if !authorities.contains(&v) {
+				authorities.push(v);
 			}
 		});
 
-		Some(validators)
+		Some(authorities)
 	}
 
 	fn end_session(_: SessionIndex) {}
 
 	fn start_session(_start_index: SessionIndex) {}
-}
-
-impl<T: Config> pallet_session::historical::SessionManager<T::ValidatorId, ()> for Pallet<T> {
-	fn new_session(new_index: SessionIndex) -> Option<Vec<(T::ValidatorId, ())>> {
-		<Self as pallet_session::SessionManager<_>>::new_session(new_index)
-			.map(|r| r.into_iter().map(|v| (v, Default::default())).collect())
-	}
-
-	fn start_session(start_index: SessionIndex) {
-		<Self as pallet_session::SessionManager<_>>::start_session(start_index)
-	}
-
-	fn end_session(end_index: SessionIndex) {
-		<Self as pallet_session::SessionManager<_>>::end_session(end_index)
-	}
 }

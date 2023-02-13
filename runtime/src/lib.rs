@@ -285,8 +285,8 @@ impl pallet_preimage::Config for Runtime {
 
 parameter_types! {
 	pub EpochDuration: u64 = prod_or_fast!(
-		EPOCH_DURATION_IN_SLOTS as u64,
-		2 * MINUTES as u64,
+		EPOCH_DURATION as u64,
+		4 * MINUTES as u64,
 		"CORD_EPOCH_DURATION"
 	);
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
@@ -390,7 +390,6 @@ impl pallet_transaction_payment::Config for Runtime {
 }
 
 parameter_types! {
-	// pub const MinimumPeriod: u64 = prod_or_fast!(SLOT_DURATION / 2, 500);
 		pub MinimumPeriod: u64 = prod_or_fast!(
 		MIN_BLOCK_PERIOD as u64,
 		500 as u64,
@@ -440,7 +439,7 @@ impl pallet_session::Config for Runtime {
 	type ValidatorIdOf = ValidatorIdOf;
 	type ShouldEndSession = Babe;
 	type NextSessionRotation = Babe;
-	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, AuthorityManager>;
+	type SessionManager = AuthorityManager;
 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
 	type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
@@ -926,9 +925,10 @@ construct_runtime! {
 
 		// Consensus support.
 		Authorship: pallet_authorship::{Pallet, Call, Storage} = 6,
-		Offences: pallet_offences::{Pallet, Storage, Event} = 7,
+		AuthorityManager: authority_manager::{Pallet, Call, Storage, Event<T>, Config<T>} = 7,
+		Offences: pallet_offences::{Pallet, Storage, Event} = 8,
 		Historical: pallet_session_historical::{Pallet} = 33,
-		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 8,
+		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 9,
 		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 11,
 		ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 12,
 		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 13,
@@ -946,9 +946,6 @@ construct_runtime! {
 
 		// Multisig module. Late addition.
 		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 35,
-
-		// Authority Manager pallet.
-		AuthorityManager: authority_manager::{Pallet, Call, Storage, Event<T>} = 101,
 
 		// Author pallet.
 		ExtrinsicAuthorship: pallet_extrinsic_authorship::{Pallet, Call, Storage, Event<T>, Config<T>} =102,

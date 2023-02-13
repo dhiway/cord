@@ -21,9 +21,9 @@
 pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, Block, CouncilConfig, DemocracyConfig,
-	ExtrinsicAuthorshipConfig, IndicesConfig, SessionConfig, SessionKeys, SudoConfig, SystemConfig,
-	TechnicalCommitteeConfig,
+	AuthorityDiscoveryConfig, AuthorityManagerConfig, BabeConfig, BalancesConfig, Block,
+	CouncilConfig, DemocracyConfig, ExtrinsicAuthorshipConfig, IndicesConfig, SessionConfig,
+	SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
@@ -150,7 +150,7 @@ fn cord_development_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisC
 	)
 }
 
-fn cord_local_testnet_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
+fn cord_local_testnet_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
 	cord_development_genesis(
 		wasm_binary,
 		vec![get_authority_keys_from_seed("Alice"), get_authority_keys_from_seed("Bob")],
@@ -183,7 +183,7 @@ pub fn cord_local_testnet_config() -> Result<CordChainSpec, String> {
 		"Local",
 		"cord_local",
 		ChainType::Local,
-		move || cord_local_testnet_genesis(wasm_binary),
+		move || cord_local_testnet_config_genesis(wasm_binary),
 		vec![],
 		None,
 		Some(DEFAULT_PROTOCOL_ID),
@@ -316,7 +316,6 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 			"ae2b60ce50c8a6a0f9f1eba33eec5106facfb366e946a59591633bd30c090d7d",
 		),
 	];
-
 	let num_endowed_accounts = endowed_accounts.len();
 	const STASH: u128 = 100 * WAY;
 	const ENDOWMENT: u128 = 1_110_101_200 * WAY;
@@ -331,6 +330,9 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 				.collect(),
 		},
 		indices: IndicesConfig { indices: vec![] },
+		authority_manager: AuthorityManagerConfig {
+			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+		},
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
@@ -432,6 +434,9 @@ fn cord_development_genesis(
 				.collect(),
 		},
 		indices: IndicesConfig { indices: vec![] },
+		authority_manager: AuthorityManagerConfig {
+			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+		},
 		session: SessionConfig {
 			keys: initial_authorities
 				.iter()
