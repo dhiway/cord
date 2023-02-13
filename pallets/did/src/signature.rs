@@ -24,9 +24,13 @@ use sp_runtime::SaturatedConversion;
 use sp_std::{marker::PhantomData, vec::Vec};
 
 use crate::{
-	did_details::{DidSignature, DidVerificationKeyRelationship},
+	did_details::DidSignature,
+	// DidVerificationKeyRelationship},
 	errors::DidError,
-	Config, Did, Pallet, WeightInfo,
+	Config,
+	Did,
+	Pallet,
+	WeightInfo,
 };
 
 pub struct DidSignatureVerify<T>(PhantomData<T>);
@@ -42,55 +46,14 @@ impl<T: Config> VerifySignature for DidSignatureVerify<T> {
 	) -> SignatureVerificationResult {
 		let creator_details = Did::<T>::get(creator)
 			.ok_or(SignatureVerificationError::SignerInformationNotPresent)?;
-		Pallet::verify_signature_with_did_key_type(
-			payload,
-			signature,
-			&creator_details,
-			DidVerificationKeyRelationship::Authentication,
-		)
-		.map_err(|err| match err {
-			DidError::SignatureError(_) => SignatureVerificationError::SignatureInvalid,
-			_ => SignatureVerificationError::SignerInformationNotPresent,
+		Pallet::verify_signature_with_did_key(payload, signature, &creator_details).map_err(|err| {
+			match err {
+				DidError::SignatureError(_) => SignatureVerificationError::SignatureInvalid,
+				_ => SignatureVerificationError::SignerInformationNotPresent,
+			}
 		})
 	}
 
-	fn verify_assertion_signature(
-		creator: &Self::SignerId,
-		payload: &Self::Payload,
-		signature: &Self::Signature,
-	) -> SignatureVerificationResult {
-		let creator_details = Did::<T>::get(creator)
-			.ok_or(SignatureVerificationError::SignerInformationNotPresent)?;
-		Pallet::verify_signature_with_did_key_type(
-			payload,
-			signature,
-			&creator_details,
-			DidVerificationKeyRelationship::AssertionMethod,
-		)
-		.map_err(|err| match err {
-			DidError::SignatureError(_) => SignatureVerificationError::SignatureInvalid,
-			_ => SignatureVerificationError::SignerInformationNotPresent,
-		})
-	}
-
-	fn verify_delegation_signature(
-		delegate: &Self::SignerId,
-		payload: &Self::Payload,
-		signature: &Self::Signature,
-	) -> SignatureVerificationResult {
-		let delegate_details = Did::<T>::get(delegate)
-			.ok_or(SignatureVerificationError::SignerInformationNotPresent)?;
-		Pallet::verify_signature_with_did_key_type(
-			payload,
-			signature,
-			&delegate_details,
-			DidVerificationKeyRelationship::CapabilityDelegation,
-		)
-		.map_err(|err| match err {
-			DidError::SignatureError(_) => SignatureVerificationError::SignatureInvalid,
-			_ => SignatureVerificationError::SignerInformationNotPresent,
-		})
-	}
 	fn weight(payload_byte_length: usize) -> dispatch::Weight {
 		<T as Config>::WeightInfo::signature_verification_sr25519(
 			payload_byte_length.saturated_into(),
