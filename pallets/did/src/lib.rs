@@ -91,7 +91,8 @@ mod utils;
 
 pub use crate::{
 	default_weights::WeightInfo,
-	did_details::{DidSignature, DidVerificationKeyRelationship},
+	did_details::DidSignature,
+	// DidVerificationKeyRelationship},
 	// origin::{DidRawOrigin, EnsureDidOrigin},
 	pallet::*,
 	signature::DidSignatureVerify,
@@ -317,7 +318,7 @@ pub mod pallet {
 			match error {
 				StorageError::DidNotPresent => Self::DidNotPresent,
 				StorageError::DidAlreadyPresent => Self::DidAlreadyPresent,
-				StorageError::DidKeyNotPresent(_) | StorageError::KeyNotPresent => {
+				StorageError::DidKeyNotPresent | StorageError::KeyNotPresent => {
 					Self::VerificationKeyNotPresent
 				},
 				StorageError::MaxPublicKeysPerDidExceeded => Self::MaxPublicKeysPerDidExceeded,
@@ -428,8 +429,8 @@ pub mod pallet {
 		pub fn set_authentication_key(
 			origin: OriginFor<T>,
 			did_identifier: DidIdentifierOf<T>,
-			call_nonce: CallNonceOf<T>,
 			new_key: DidVerificationKey,
+			did_nonce: CallNonceOf<T>,
 			signature: DidSignature,
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -437,13 +438,8 @@ pub mod pallet {
 			let mut did_details =
 				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
 
-			Self::verify_signature_with_did_key_type(
-				&call_nonce.encode(),
-				&signature,
-				&did_details,
-				DidVerificationKeyRelationship::Authentication,
-			)
-			.map_err(Error::<T>::from)?;
+			Self::verify_signature_with_did_key(&did_nonce.encode(), &signature, &did_details)
+				.map_err(Error::<T>::from)?;
 
 			log::debug!(
 				"Setting new authentication key {:?} for DID {:?}",
@@ -463,180 +459,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Set or update the DID delegation key.
-		///
-		/// If an old key existed, it is deleted from the set of public keys if
-		/// it is not used in any other part of the DID. The new key is added to
-		/// the set of public keys.
-		///
-		/// # <weight>
-		/// Weight: O(1)
-		/// - Reads: [Origin Account], Did
-		/// - Writes: Did
-		/// # </weight>
-		#[pallet::call_index(2)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_delegation_key())]
-		pub fn set_delegation_key(
-			origin: OriginFor<T>,
-			did_identifier: DidIdentifierOf<T>,
-			call_nonce: CallNonceOf<T>,
-			new_key: DidVerificationKey,
-			signature: DidSignature,
-		) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-
-			let mut did_details =
-				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
-
-			Self::verify_signature_with_did_key_type(
-				&call_nonce.encode(),
-				&signature,
-				&did_details,
-				DidVerificationKeyRelationship::Authentication,
-			)
-			.map_err(Error::<T>::from)?;
-
-			log::debug!("Setting new delegation key {:?} for DID {:?}", &new_key, &did_identifier);
-
-			did_details
-				.update_delegation_key(new_key, frame_system::Pallet::<T>::block_number())
-				.map_err(Error::<T>::from)?;
-
-			// *** No Fail beyond this call ***
-
-			Did::<T>::insert(&did_identifier, did_details);
-			log::debug!("Delegation key set");
-
-			Self::deposit_event(Event::Updated { author, identifier: did_identifier });
-			Ok(())
-		}
-
-		/// Remove the DID delegation key.
-		///
-		/// The old key is deleted from the set of public keys if
-		/// it is not used in any other part of the DID.
-		///
-		/// # <weight>
-		/// Weight: O(1)
-		/// - Reads: [Origin Account], Did
-		/// - Writes: Did
-		/// # </weight>
-		#[pallet::call_index(3)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_delegation_key())]
-		pub fn remove_delegation_key(
-			origin: OriginFor<T>,
-			did_identifier: DidIdentifierOf<T>,
-			call_nonce: CallNonceOf<T>,
-			signature: DidSignature,
-		) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-
-			let mut did_details =
-				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
-
-			Self::verify_signature_with_did_key_type(
-				&call_nonce.encode(),
-				&signature,
-				&did_details,
-				DidVerificationKeyRelationship::Authentication,
-			)
-			.map_err(Error::<T>::from)?;
-
-			log::debug!("Removing delegation key for DID {:?}", &did_identifier);
-			did_details.remove_delegation_key().map_err(Error::<T>::from)?;
-
-			Did::<T>::insert(&did_identifier, did_details);
-			log::debug!("Delegation key removed");
-
-			Self::deposit_event(Event::Updated { author, identifier: did_identifier });
-			Ok(())
-		}
-
-		/// Set or update the DID assertion key.
-		///
-		/// The new key is added to the set of public keys.
-		///
-		/// # <weight>
-		/// Weight: O(1)
-		/// - Reads: [Origin Account], Did
-		/// - Writes: Did
-		/// # </weight>
-		#[pallet::call_index(4)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_attestation_key())]
-		pub fn set_assertion_key(
-			origin: OriginFor<T>,
-			did_identifier: DidIdentifierOf<T>,
-			call_nonce: CallNonceOf<T>,
-			new_key: DidVerificationKey,
-			signature: DidSignature,
-		) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-
-			let mut did_details =
-				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
-
-			Self::verify_signature_with_did_key_type(
-				&call_nonce.encode(),
-				&signature,
-				&did_details,
-				DidVerificationKeyRelationship::Authentication,
-			)
-			.map_err(Error::<T>::from)?;
-
-			log::debug!("Setting new assertion key {:?} for DID {:?}", &new_key, &did_identifier);
-			did_details
-				.update_assertion_key(new_key, frame_system::Pallet::<T>::block_number())
-				.map_err(Error::<T>::from)?;
-
-			Did::<T>::insert(&did_identifier, did_details);
-			log::debug!("Assertion key set");
-
-			Self::deposit_event(Event::Updated { author, identifier: did_identifier });
-			Ok(())
-		}
-
-		/// Remove the DID assertion key.
-		///
-		/// The old key is deleted from the set of public keys if
-		/// it is not used in any other part of the DID.
-		///
-		/// # <weight>
-		/// Weight: O(1)
-		/// - Reads: [Origin Account], Did
-		/// - Writes: Did
-		/// # </weight>
-		#[pallet::call_index(5)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_attestation_key())]
-		pub fn remove_assertion_key(
-			origin: OriginFor<T>,
-			did_identifier: DidIdentifierOf<T>,
-			key_id: KeyIdOf<T>,
-			call_nonce: CallNonceOf<T>,
-			signature: DidSignature,
-		) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-
-			let mut did_details =
-				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
-
-			Self::verify_signature_with_did_key_type(
-				&call_nonce.encode(),
-				&signature,
-				&did_details,
-				DidVerificationKeyRelationship::Authentication,
-			)
-			.map_err(Error::<T>::from)?;
-
-			log::debug!("Removing assertion key for DID {:?}", &did_identifier);
-			did_details.remove_assertion_key(key_id).map_err(Error::<T>::from)?;
-
-			Did::<T>::insert(&did_identifier, did_details);
-			log::debug!("Assertion key removed");
-
-			Self::deposit_event(Event::Updated { author, identifier: did_identifier });
-			Ok(())
-		}
-
 		/// Add a single new key agreement key to the DID.
 		///
 		/// The new key is added to the set of public keys.
@@ -652,7 +474,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			did_identifier: DidIdentifierOf<T>,
 			new_key: DidEncryptionKey,
-			call_nonce: CallNonceOf<T>,
+			did_nonce: CallNonceOf<T>,
 			signature: DidSignature,
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -660,13 +482,8 @@ pub mod pallet {
 			let mut did_details =
 				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
 
-			Self::verify_signature_with_did_key_type(
-				&call_nonce.encode(),
-				&signature,
-				&did_details,
-				DidVerificationKeyRelationship::Authentication,
-			)
-			.map_err(Error::<T>::from)?;
+			Self::verify_signature_with_did_key(&did_nonce.encode(), &signature, &did_details)
+				.map_err(Error::<T>::from)?;
 
 			log::debug!(
 				"Adding new key agreement key {:?} for DID {:?}",
@@ -701,7 +518,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			did_identifier: DidIdentifierOf<T>,
 			key_id: KeyIdOf<T>,
-			call_nonce: CallNonceOf<T>,
+			did_nonce: CallNonceOf<T>,
 			signature: DidSignature,
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -709,13 +526,8 @@ pub mod pallet {
 			let mut did_details =
 				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
 
-			Self::verify_signature_with_did_key_type(
-				&call_nonce.encode(),
-				&signature,
-				&did_details,
-				DidVerificationKeyRelationship::Authentication,
-			)
-			.map_err(Error::<T>::from)?;
+			Self::verify_signature_with_did_key(&did_nonce.encode(), &signature, &did_details)
+				.map_err(Error::<T>::from)?;
 
 			log::debug!("Removing key agreement key for DID {:?}", &did_identifier);
 			did_details.remove_key_agreement_key(key_id).map_err(Error::<T>::from)?;
@@ -740,20 +552,15 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			did_identifier: DidIdentifierOf<T>,
 			service_endpoint: DidEndpoint<T>,
-			call_nonce: CallNonceOf<T>,
+			did_nonce: CallNonceOf<T>,
 			signature: DidSignature,
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let did_details = Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
 
-			Self::verify_signature_with_did_key_type(
-				&call_nonce.encode(),
-				&signature,
-				&did_details,
-				DidVerificationKeyRelationship::Authentication,
-			)
-			.map_err(Error::<T>::from)?;
+			Self::verify_signature_with_did_key(&did_nonce.encode(), &signature, &did_details)
+				.map_err(Error::<T>::from)?;
 
 			service_endpoint.validate_against_constraints().map_err(Error::<T>::from)?;
 
@@ -800,20 +607,15 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			did_identifier: DidIdentifierOf<T>,
 			service_id: ServiceEndpointId<T>,
-			call_nonce: CallNonceOf<T>,
+			did_nonce: CallNonceOf<T>,
 			signature: DidSignature,
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let did_details = Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
 
-			Self::verify_signature_with_did_key_type(
-				&call_nonce.encode(),
-				&signature,
-				&did_details,
-				DidVerificationKeyRelationship::Authentication,
-			)
-			.map_err(Error::<T>::from)?;
+			Self::verify_signature_with_did_key(&did_nonce.encode(), &signature, &did_details)
+				.map_err(Error::<T>::from)?;
 
 			ensure!(
 				ServiceEndpoints::<T>::take(&did_identifier, &service_id).is_some(),
@@ -839,17 +641,16 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Verify a generic payload signature using a given DID verification
 		/// key type.
-		pub fn verify_signature_with_did_key_type(
+		pub fn verify_signature_with_did_key(
 			payload: &Payload,
 			signature: &DidSignature,
 			did_details: &DidDetails<T>,
-			key_type: DidVerificationKeyRelationship,
 		) -> Result<(), DidError> {
 			// Retrieve the needed verification key from the DID details, or generate an
 			// error if there is no key of the type required
 			let verification_key = did_details
-				.get_verification_key_for_key_type(key_type)
-				.ok_or(DidError::StorageError(StorageError::DidKeyNotPresent(key_type)))?;
+				.get_verification_key_for_did()
+				.ok_or(DidError::StorageError(StorageError::DidKeyNotPresent))?;
 
 			// Verify that the signature matches the expected format, otherwise generate
 			// an error

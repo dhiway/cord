@@ -131,21 +131,6 @@ impl From<DidEncryptionKey> for DidPublicKey {
 	}
 }
 
-/// Verification methods a verification key can
-/// fulfil, according to the [DID specification](https://w3c.github.io/did-spec-registries/#verification-relationships).
-#[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub enum DidVerificationKeyRelationship {
-	/// Key used to authenticate all the DID operations.
-	Authentication,
-	/// Key used to write and revoke delegations on chain.
-	CapabilityDelegation,
-	/// Key used to write and revoke invocations on chain.
-	/// Not used for now.
-	CapabilityInvocation,
-	/// Key used to write and revoke assertions on chain.
-	AssertionMethod,
-}
-
 /// Types of signatures supported by this pallet.
 #[derive(Clone, Decode, RuntimeDebug, Encode, Eq, PartialEq, TypeInfo)]
 pub enum DidSignature {
@@ -270,21 +255,10 @@ pub struct DidDetails<T: Config> {
 	/// The set of the key agreement key IDs, which can be used to encrypt
 	/// data addressed to the DID subject.
 	pub key_agreement_keys: DidKeyAgreementKeySet<T>,
-	/// \[OPTIONAL\] The ID of the delegation key, used to verify the
-	/// signatures of the delegations created by the DID subject.
-	pub delegation_key: KeyIdOf<T>,
-	/// \[OPTIONAL\] The ID of the assertion key, used to verify the
-	/// signatures of the assertions created by the DID subject.
-	pub assertion_key: KeyIdOf<T>,
-	/// The map of public keys, with the key label as the key map and the
-	/// tuple (key, addition_block_number) as the map value.
-	///
 	/// The map includes all the keys under the control of the DID subject,
 	/// including the ones currently used for authentication, key agreement,
-	/// assertion, and delegation. Other than those, the map also contains
-	/// the old assertion keys that have been rotated,they cannot be used
-	/// to create new assertions but can still be used to verify previously
-	/// issued assertions.
+	/// assertion, and delegation.
+	/// [TODO] map the oldkeys that have been rotated,
 	pub public_keys: DidPublicKeyMap<T>,
 }
 
@@ -306,8 +280,6 @@ impl<T: Config> DidDetails<T> {
 		Ok(Self {
 			authentication_key: authentication_key_id,
 			key_agreement_keys: DidKeyAgreementKeySet::<T>::default(),
-			assertion_key: authentication_key_id,
-			delegation_key: authentication_key_id,
 			public_keys,
 		})
 	}
@@ -379,95 +351,19 @@ impl<T: Config> DidDetails<T> {
 		Ok(())
 	}
 
-	/// Update the DID assertion key, replacing the old one with the new one.
-	/// The new key is added to the set of public keys.
-	pub fn update_assertion_key(
-		&mut self,
-		new_assertion_key: DidVerificationKey,
-		block_number: BlockNumberOf<T>,
-	) -> Result<(), StorageError> {
-		let new_assertion_key_id = utils::calculate_key_id::<T>(&new_assertion_key.clone().into());
-
-		self.assertion_key = new_assertion_key_id;
-		self.public_keys
-			.try_insert(
-				new_assertion_key_id,
-				DidPublicKeyDetails { key: new_assertion_key.into(), block_number },
-			)
-			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
-		Ok(())
-	}
-
-	/// Remove the DID assertion key.
-	///
-	/// The old key is deleted from the set of public keys if it is
-	/// not used in any other part of the DID. The new key is added to the
-	/// set of public keys.
-	pub fn remove_assertion_key(&mut self, key_id: KeyIdOf<T>) -> Result<(), StorageError> {
-		ensure!(self.public_keys.contains_key(&key_id), StorageError::KeyNotPresent);
-		self.remove_key_if_unused(key_id);
-		Ok(())
-	}
-
-	/// Update the DID delegation key, replacing the old one with the new one.
-	///
-	/// The old key is deleted from the set of public keys if it is
-	/// not used in any other part of the DID. The new key is added to the
-	/// set of public keys.
-	pub fn update_delegation_key(
-		&mut self,
-		new_delegation_key: DidVerificationKey,
-		block_number: BlockNumberOf<T>,
-	) -> Result<(), StorageError> {
-		let new_delegation_key_id =
-			utils::calculate_key_id::<T>(&new_delegation_key.clone().into());
-		let old_delegation_key_id = self.delegation_key;
-		self.remove_key_if_unused(old_delegation_key_id);
-		self.delegation_key = new_delegation_key_id;
-		self.public_keys
-			.try_insert(
-				new_delegation_key_id,
-				DidPublicKeyDetails { key: new_delegation_key.into(), block_number },
-			)
-			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
-		Ok(())
-	}
-
-	/// Remove the DID delegation key.
-	///
-	/// The old key is deleted from the set of public keys if it is
-	/// not used in any other part of the DID. The new key is added to the
-	/// set of public keys.
-	pub fn remove_delegation_key(&mut self) -> Result<(), StorageError> {
-		let old_key_id = self.delegation_key;
-		self.remove_key_if_unused(old_key_id);
-		Ok(())
-	}
-
 	// Remove a key from the map of public keys if none of the other keys, i.e.,
 	// authentication, key agreement, assertion, or delegation, is referencing it.
 	pub fn remove_key_if_unused(&mut self, key_id: KeyIdOf<T>) {
-		if self.authentication_key != key_id
-			&& self.assertion_key != key_id
-			&& self.delegation_key != key_id
-			&& !self.key_agreement_keys.contains(&key_id)
-		{
+		if self.authentication_key != key_id && !self.key_agreement_keys.contains(&key_id) {
 			self.public_keys.remove(&key_id);
 		}
 	}
 
 	/// Returns a reference to a specific verification key given the type of
 	/// the key needed.
-	pub fn get_verification_key_for_key_type(
-		&self,
-		key_type: DidVerificationKeyRelationship,
-	) -> Option<&DidVerificationKey> {
-		let key_id = match key_type {
-			DidVerificationKeyRelationship::AssertionMethod => Some(self.assertion_key),
-			DidVerificationKeyRelationship::Authentication => Some(self.authentication_key),
-			DidVerificationKeyRelationship::CapabilityDelegation => Some(self.delegation_key),
-			_ => None,
-		}?;
+	pub fn get_verification_key_for_did(&self) -> Option<&DidVerificationKey> {
+		let key_id = self.authentication_key;
+
 		let key_details = self.public_keys.get(&key_id)?;
 		if let DidPublicKey::PublicVerificationKey(key) = &key_details.key {
 			Some(key)

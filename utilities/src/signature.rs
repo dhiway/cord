@@ -50,22 +50,6 @@ pub trait VerifySignature {
 		signature: &Self::Signature,
 	) -> SignatureVerificationResult;
 
-	/// Verifies that the assertion signature matches the payload generated
-	/// by the signer.
-	fn verify_assertion_signature(
-		signer: &Self::SignerId,
-		payload: &Self::Payload,
-		signature: &Self::Signature,
-	) -> SignatureVerificationResult;
-
-	/// Verifies that the delegattionsignature matches the payload generated
-	/// by the signer.
-	fn verify_delegation_signature(
-		signer: &Self::SignerId,
-		payload: &Self::Payload,
-		signature: &Self::Signature,
-	) -> SignatureVerificationResult;
-
 	/// The weight if the signature verification.
 	fn weight(payload_byte_length: usize) -> Weight;
 }
@@ -83,22 +67,6 @@ impl<Account, Payload, Signature: Default> VerifySignature
 	type Signature = Signature;
 
 	fn verify_authentication_signature(
-		_delegate: &Self::SignerId,
-		_payload: &Self::Payload,
-		_signature: &Self::Signature,
-	) -> SignatureVerificationResult {
-		SignatureVerificationResult::Ok(())
-	}
-
-	fn verify_assertion_signature(
-		_delegate: &Self::SignerId,
-		_payload: &Self::Payload,
-		_signature: &Self::Signature,
-	) -> SignatureVerificationResult {
-		SignatureVerificationResult::Ok(())
-	}
-
-	fn verify_delegation_signature(
 		_delegate: &Self::SignerId,
 		_payload: &Self::Payload,
 		_signature: &Self::Signature,
@@ -126,30 +94,6 @@ where
 	type Signature = (Account, Payload);
 
 	fn verify_authentication_signature(
-		delegate: &Self::SignerId,
-		payload: &Self::Payload,
-		signature: &Self::Signature,
-	) -> SignatureVerificationResult {
-		if (delegate, payload) == (&signature.0, &signature.1) {
-			SignatureVerificationResult::Ok(())
-		} else {
-			SignatureVerificationResult::Err(SignatureVerificationError::SignatureInvalid)
-		}
-	}
-
-	fn verify_assertion_signature(
-		delegate: &Self::SignerId,
-		payload: &Self::Payload,
-		signature: &Self::Signature,
-	) -> SignatureVerificationResult {
-		if (delegate, payload) == (&signature.0, &signature.1) {
-			SignatureVerificationResult::Ok(())
-		} else {
-			SignatureVerificationResult::Err(SignatureVerificationError::SignatureInvalid)
-		}
-	}
-
-	fn verify_delegation_signature(
 		delegate: &Self::SignerId,
 		payload: &Self::Payload,
 		signature: &Self::Signature,

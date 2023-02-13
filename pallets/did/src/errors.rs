@@ -18,7 +18,7 @@
 
 use scale_info::TypeInfo;
 
-use crate::did_details::DidVerificationKeyRelationship;
+// use crate::did_details::DidVerificationKeyRelationship;
 
 /// All the errors that can be generated when validating a DID operation.
 #[derive(Debug, Eq, PartialEq, TypeInfo)]
@@ -54,7 +54,7 @@ pub enum StorageError {
 	DidNotPresent,
 	/// The given DID does not contain the right key to verify the signature
 	/// of a DID operation.
-	DidKeyNotPresent(DidVerificationKeyRelationship),
+	DidKeyNotPresent,
 	/// At least one key referenced is not stored under the given DID.
 	KeyNotPresent,
 	/// The maximum number of public keys for this DID key identifier has
