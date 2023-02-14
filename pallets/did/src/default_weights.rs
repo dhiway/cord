@@ -47,9 +47,13 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for did.
 pub trait WeightInfo {
-	fn create_ed25519_key() -> Weight;
-	fn create_sr25519_key() -> Weight;
-	fn create_ecdsa_key() -> Weight;
+	fn create_ed25519_key(n: u32, ) -> Weight;
+	fn create_sr25519_key(n: u32, ) -> Weight;
+	fn create_ecdsa_key(n: u32,) -> Weight;
+
+	// fn create_ed25519_key() -> Weight;
+	// fn create_sr25519_key() -> Weight;
+	// fn create_ecdsa_key() -> Weight;
 	fn delete(c: u32, ) -> Weight;
 	fn reclaim_deposit(c: u32, ) -> Weight;
 	fn submit_did_call_ed25519_key() -> Weight;
@@ -75,24 +79,28 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: System Account (r:2 w:2)
 	// Storage: Did DidBlacklist (r:1 w:0)
 	// Storage: Did Did (r:1 w:1)
-	fn create_ed25519_key() -> Weight {
+	fn create_ed25519_key(n: u32) -> Weight {
 		Weight::from_ref_time(3_207_750_000 as u64)
+			.saturating_add(Weight::from_ref_time(1_263_549 as u64).saturating_mul(n as u64))
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: Did DidBlacklist (r:1 w:0)
 	// Storage: Did Did (r:1 w:1)
-	fn create_sr25519_key() -> Weight {
+	fn create_sr25519_key(n: u32) -> Weight {
 		Weight::from_ref_time(3_220_307_000 as u64)
+			.saturating_add(Weight::from_ref_time(1_239_702 as u64).saturating_mul(n as u64))
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: Did DidBlacklist (r:1 w:0)
 	// Storage: Did Did (r:1 w:1)
-	fn create_ecdsa_key() -> Weight {
+	fn create_ecdsa_key(n: u32) -> Weight {
 		Weight::from_ref_time(5_057_009_000 as u64)
+			.saturating_add(Weight::from_ref_time(1_422_221 as u64).saturating_mul(n as u64))
+
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -223,27 +231,32 @@ impl WeightInfo for () {
 	// Storage: System Account (r:2 w:2)
 	// Storage: Did DidBlacklist (r:1 w:0)
 	// Storage: Did Did (r:1 w:1)
-	fn create_ed25519_key() -> Weight {
+	fn create_ed25519_key(n: u32) -> Weight {
 		Weight::from_ref_time(3_207_750_000 as u64)
+			.saturating_add(Weight::from_ref_time(1_263_549 as u64).saturating_mul(n as u64))
 			.saturating_add(RocksDbWeight::get().reads(4 as u64))
 			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: Did DidBlacklist (r:1 w:0)
 	// Storage: Did Did (r:1 w:1)
-	fn create_sr25519_key() -> Weight {
+	fn create_sr25519_key(n: u32) -> Weight {
 		Weight::from_ref_time(3_220_307_000 as u64)
+			.saturating_add(Weight::from_ref_time(1_239_702 as u64).saturating_mul(n as u64))
 			.saturating_add(RocksDbWeight::get().reads(4 as u64))
 			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: Did DidBlacklist (r:1 w:0)
 	// Storage: Did Did (r:1 w:1)
-	fn create_ecdsa_key() -> Weight {
-Weight::from_ref_time(5_057_009_000 as u64)
+	fn create_ecdsa_key(n: u32) -> Weight {
+		Weight::from_ref_time(5_057_009_000 as u64)
+			.saturating_add(Weight::from_ref_time(1_422_221 as u64).saturating_mul(n as u64))
+
 			.saturating_add(RocksDbWeight::get().reads(4 as u64))
 			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
+
 	// Storage: Did DidEndpointsCount (r:1 w:1)
 	// Storage: Did Did (r:1 w:1)
 	// Storage: Did DidBlacklist (r:0 w:1)

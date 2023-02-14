@@ -862,7 +862,7 @@ impl pallet_did::Config for Runtime {
 	type MaxServiceUrlLength = MaxServiceUrlLength;
 	type MaxNumberOfTypesPerService = MaxNumberOfTypesPerService;
 	type MaxNumberOfUrlsPerService = MaxNumberOfUrlsPerService;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_did::WeightInfo<Runtime>;
 }
 
 // parameter_types! {

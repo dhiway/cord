@@ -25,10 +25,6 @@
 //! following types of keys: Ed25519, Sr25519, and Ecdsa for signing keys, and
 //! X25519 for encryption keys.
 //!
-//! - [`Config`]
-//! - [`Call`]
-//! - [`Origin`]
-//! - [`Pallet`]
 //!
 //! ### Terminology
 //!
@@ -44,15 +40,6 @@
 //!   interact with the DID subject to perform ECDH and encrypt information
 //!   addressed to the DID subject.
 //!
-//! - **delegation key**: used to sign and authorise the creation of
-//!   new delegation nodes on the CORD blockchain. In case no delegation key is
-//!   present, the DID subject cannot write new delegations on the CORD
-//!   blockchain.
-//!
-//! - **assertion key**: used to sign and authorise the creation of
-//!   new stream tokens (Identifiers) on the CORD blockchain. In case no
-//!   assertion key is present, the DID subject cannot write new stream tokens
-//!   (Identifiers) on the CORD blockchain.
 //!
 //! - A set of **public keys**: includes at least the previous keys in addition
 //!   to any past assertion keys that has been rotated.
@@ -62,11 +49,6 @@
 //!   Core specification.
 //!
 //!
-//! ## Assumptions
-//!
-//! - The maximum number of new key agreement keys that can be specified in a
-//!   creation or update operation is bounded by `MaxNewKeyAgreementKeys`.
-
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
@@ -90,11 +72,7 @@ mod signature;
 mod utils;
 
 pub use crate::{
-	default_weights::WeightInfo,
-	did_details::DidSignature,
-	// DidVerificationKeyRelationship},
-	// origin::{DidRawOrigin, EnsureDidOrigin},
-	pallet::*,
+	default_weights::WeightInfo, did_details::DidSignature, pallet::*,
 	signature::DidSignatureVerify,
 };
 
@@ -102,8 +80,8 @@ use codec::Encode;
 use frame_support::{
 	dispatch::DispatchResult, ensure, storage::types::StorageMap, traits::Get, Parameter,
 };
-use sp_runtime::traits::Zero;
-use sp_std::{fmt::Debug, prelude::Clone};
+use sp_runtime::{traits::Zero, SaturatedConversion};
+use sp_std::{boxed::Box, fmt::Debug, prelude::Clone};
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_system::RawOrigin;
@@ -111,6 +89,7 @@ use frame_system::RawOrigin;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	use crate::service_endpoints::utils as service_endpoints_utils;
 	use frame_support::{pallet_prelude::*, traits::StorageVersion};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::BadOrigin;
@@ -341,6 +320,9 @@ pub mod pallet {
 	impl<T> From<InputError> for Error<T> {
 		fn from(error: InputError) -> Self {
 			match error {
+				// InputError::MaxKeyAgreementKeysLimitExceeded => {
+				// 	Self::MaxKeyAgreementKeysLimitExceeded
+				// },
 				InputError::MaxIdLengthExceeded => Self::MaxServiceIdLengthExceeded,
 				InputError::MaxServicesCountExceeded => Self::MaxNumberOfServicesPerDidExceeded,
 				InputError::MaxTypeCountExceeded => Self::MaxNumberOfTypesPerServiceExceeded,
@@ -377,10 +359,11 @@ pub mod pallet {
 		/// - Writes: Did
 		/// # </weight>
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create_ed25519_key().max(<T as pallet::Config>::WeightInfo::create_sr25519_key()).max(<T as pallet::Config>::WeightInfo::create_ecdsa_key()))]
+		#[pallet::weight({ let new_services_count = details.new_service_details.len().saturated_into::<u32>();
+<T as pallet::Config>::WeightInfo::create_ed25519_key(new_services_count).max(<T as pallet::Config>::WeightInfo::create_sr25519_key(new_services_count)).max(<T as pallet::Config>::WeightInfo::create_ecdsa_key(new_services_count))})]
 		pub fn create(
 			origin: OriginFor<T>,
-			details: DidCreationDetails<T>,
+			details: Box<DidCreationDetails<T>>,
 			signature: DidSignature,
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -401,12 +384,24 @@ pub mod pallet {
 				.verify_and_recover_signature(&details.encode(), &signature)
 				.map_err(Error::<T>::from)?;
 
-			let did_entry = DidDetails::from_creation_details(account_did_auth_key)
+			// Validate all the size constraints for the service endpoints.
+			let input_service_endpoints = details.new_service_details.clone();
+			service_endpoints_utils::validate_new_service_endpoints(&input_service_endpoints)
+				.map_err(Error::<T>::from)?;
+
+			let did_entry = DidDetails::from_creation_details(*details, account_did_auth_key)
 				.map_err(Error::<T>::from)?;
 
 			log::debug!("Creating DID {:?}", &did_identifier);
 
 			Did::<T>::insert(&did_identifier, did_entry);
+			input_service_endpoints.iter().for_each(|service| {
+				ServiceEndpoints::<T>::insert(&did_identifier, &service.id, service.clone());
+			});
+			DidEndpointsCount::<T>::insert(
+				&did_identifier,
+				input_service_endpoints.len().saturated_into::<u32>(),
+			);
 
 			Self::deposit_event(Event::Created { author, identifier: did_identifier });
 
@@ -430,7 +425,6 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			did_identifier: DidIdentifierOf<T>,
 			new_key: DidVerificationKey,
-			did_nonce: CallNonceOf<T>,
 			signature: DidSignature,
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -438,7 +432,12 @@ pub mod pallet {
 			let mut did_details =
 				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
 
-			Self::verify_signature_with_did_key(&did_nonce.encode(), &signature, &did_details)
+			let verification_key = did_details
+				.get_verification_key_for_did()
+				.ok_or(Error::<T>::VerificationKeyNotPresent)?;
+
+			verification_key
+				.verify_signature(&new_key.encode(), &signature)
 				.map_err(Error::<T>::from)?;
 
 			log::debug!(
@@ -474,7 +473,6 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			did_identifier: DidIdentifierOf<T>,
 			new_key: DidEncryptionKey,
-			did_nonce: CallNonceOf<T>,
 			signature: DidSignature,
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -482,7 +480,12 @@ pub mod pallet {
 			let mut did_details =
 				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
 
-			Self::verify_signature_with_did_key(&did_nonce.encode(), &signature, &did_details)
+			let verification_key = did_details
+				.get_verification_key_for_did()
+				.ok_or(Error::<T>::VerificationKeyNotPresent)?;
+
+			verification_key
+				.verify_signature(&new_key.encode(), &signature)
 				.map_err(Error::<T>::from)?;
 
 			log::debug!(
@@ -507,7 +510,7 @@ pub mod pallet {
 		/// The dispatch origin must be a DID origin proxied via the
 		/// `submit_did_call` extrinsic.
 		///
-		/// # <weight>
+		/// # <weight>DidEncryptionKey
 		/// Weight: O(1)
 		/// - Reads: [Origin Account], Did
 		/// - Writes: Did
@@ -518,7 +521,6 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			did_identifier: DidIdentifierOf<T>,
 			key_id: KeyIdOf<T>,
-			did_nonce: CallNonceOf<T>,
 			signature: DidSignature,
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
@@ -526,7 +528,12 @@ pub mod pallet {
 			let mut did_details =
 				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
 
-			Self::verify_signature_with_did_key(&did_nonce.encode(), &signature, &did_details)
+			let verification_key = did_details
+				.get_verification_key_for_did()
+				.ok_or(Error::<T>::VerificationKeyNotPresent)?;
+
+			verification_key
+				.verify_signature(&key_id.encode(), &signature)
 				.map_err(Error::<T>::from)?;
 
 			log::debug!("Removing key agreement key for DID {:?}", &did_identifier);
@@ -552,20 +559,21 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			did_identifier: DidIdentifierOf<T>,
 			service_endpoint: DidEndpoint<T>,
-			did_nonce: CallNonceOf<T>,
 			signature: DidSignature,
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let did_details = Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
-
-			Self::verify_signature_with_did_key(&did_nonce.encode(), &signature, &did_details)
-				.map_err(Error::<T>::from)?;
-
 			service_endpoint.validate_against_constraints().map_err(Error::<T>::from)?;
 
-			// Verify that the DID is present.
-			ensure!(Did::<T>::get(&did_identifier).is_some(), Error::<T>::DidNotPresent);
+			let did_details = Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
+
+			let verification_key = did_details
+				.get_verification_key_for_did()
+				.ok_or(Error::<T>::VerificationKeyNotPresent)?;
+
+			verification_key
+				.verify_signature(&service_endpoint.encode(), &signature)
+				.map_err(Error::<T>::from)?;
 
 			let currently_stored_endpoints_count = DidEndpointsCount::<T>::get(&did_identifier);
 
@@ -607,14 +615,18 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			did_identifier: DidIdentifierOf<T>,
 			service_id: ServiceEndpointId<T>,
-			did_nonce: CallNonceOf<T>,
 			signature: DidSignature,
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let did_details = Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
 
-			Self::verify_signature_with_did_key(&did_nonce.encode(), &signature, &did_details)
+			let verification_key = did_details
+				.get_verification_key_for_did()
+				.ok_or(Error::<T>::VerificationKeyNotPresent)?;
+
+			verification_key
+				.verify_signature(&service_id.encode(), &signature)
 				.map_err(Error::<T>::from)?;
 
 			ensure!(

@@ -25,10 +25,11 @@ use frame_support::{
 use scale_info::TypeInfo;
 use sp_core::{ecdsa, ed25519, sr25519};
 use sp_runtime::{traits::Verify, MultiSignature};
-use sp_std::convert::TryInto;
+use sp_std::{convert::TryInto, vec::Vec};
 
 use crate::{
 	errors::{DidError, SignatureError, StorageError},
+	service_endpoints::DidEndpoint,
 	utils, BlockNumberOf, Config, CordAccountIdOf, DidIdentifierOf, KeyIdOf, Payload,
 };
 
@@ -286,11 +287,15 @@ impl<T: Config> DidDetails<T> {
 
 	// Creates a new DID entry from some [DidCreationDetails] and a given
 	// authentication key.
-	pub fn from_creation_details(new_auth_key: DidVerificationKey) -> Result<Self, DidError> {
+	pub fn from_creation_details(
+		details: DidCreationDetails<T>,
+		new_auth_key: DidVerificationKey,
+	) -> Result<Self, DidError> {
 		let current_block_number = frame_system::Pallet::<T>::block_number();
 
 		// Creates a new DID with the given authentication key.
-		let new_did_details = DidDetails::new(new_auth_key, current_block_number)?;
+		let mut new_did_details = DidDetails::new(new_auth_key, current_block_number)?;
+		new_did_details.add_key_agreement_key(details.new_key_agreement, current_block_number)?;
 
 		Ok(new_did_details)
 	}
@@ -322,19 +327,19 @@ impl<T: Config> DidDetails<T> {
 		Ok(())
 	}
 
-	/// Add a single new key agreement key to the DID.
+	/// Add a new key agreement key to the DID.
 	///
 	/// The new key is added to the set of public keys.
 	pub fn add_key_agreement_key(
 		&mut self,
-		new_key_agreement_key: DidEncryptionKey,
+		new_agreement_key: DidEncryptionKey,
 		block_number: BlockNumberOf<T>,
 	) -> Result<(), StorageError> {
-		let new_key_agreement_id = utils::calculate_key_id::<T>(&new_key_agreement_key.into());
+		let new_key_agreement_id = utils::calculate_key_id::<T>(&new_agreement_key.into());
 		self.public_keys
 			.try_insert(
 				new_key_agreement_id,
-				DidPublicKeyDetails { key: new_key_agreement_key.into(), block_number },
+				DidPublicKeyDetails { key: new_agreement_key.into(), block_number },
 			)
 			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
 		self.key_agreement_keys
@@ -383,21 +388,16 @@ pub(crate) type DidPublicKeyMap<T> = BoundedBTreeMap<
 >;
 
 /// The details of a new DID to create.
-#[derive(Clone, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
 
 pub struct DidCreationDetails<T: Config> {
 	/// The DID identifier. It has to be unique.
 	pub did: DidIdentifierOf<T>,
+	/// The new key agreement keys.
+	pub new_key_agreement: DidEncryptionKey,
 	/// The authorised submitter of the creation operation.
 	pub submitter: CordAccountIdOf<T>,
-}
-
-impl<T: Config> sp_std::fmt::Debug for DidCreationDetails<T> {
-	fn fmt(&self, f: &mut sp_std::fmt::Formatter<'_>) -> sp_std::fmt::Result {
-		f.debug_struct("DidCreationDetails")
-			.field("did", &self.did)
-			.field("submitter", &self.submitter)
-			.finish()
-	}
+	/// The service endpoints details.
+	pub new_service_details: Vec<DidEndpoint<T>>,
 }
