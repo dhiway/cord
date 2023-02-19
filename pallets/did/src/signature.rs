@@ -1,7 +1,9 @@
 // This file is part of CORD – https://cord.network
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+
+// Copyright (C) 2019-2023 BOTLabs GmbH, Dhiway.
+// Copyright (C) 2023 Dhiway.
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Based on DID pallet - Copyright (C) 2019-2022 BOTLabs GmbH
+// Adapted to meet the requirements of the CORD project.
 
 // CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,52 +19,54 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use cord_utilities::signature::{
-	SignatureVerificationError, SignatureVerificationResult, VerifySignature,
+    SignatureVerificationError, SignatureVerificationResult, VerifySignature,
 };
 use frame_support::dispatch;
 use sp_runtime::SaturatedConversion;
 use sp_std::{marker::PhantomData, vec::Vec};
 
 use crate::{
-	did_details::DidSignature,
-	// DidVerificationKeyRelationship},
-	errors::DidError,
-	Config,
-	Did,
-	Pallet,
-	WeightInfo,
+    did_details::{DidSignature, DidVerificationKeyRelationship},
+    errors::DidError,
+    Config, Did, Pallet, WeightInfo,
 };
 
 pub struct DidSignatureVerify<T>(PhantomData<T>);
 impl<T: Config> VerifySignature for DidSignatureVerify<T> {
-	type SignerId = <T as Config>::DidIdentifier;
-	type Payload = Vec<u8>;
-	type Signature = DidSignature;
+    type SignerId = <T as Config>::DidIdentifier;
+    type Payload = Vec<u8>;
+    type Signature = DidSignature;
 
-	fn verify_authentication_signature(
-		creator: &Self::SignerId,
-		payload: &Self::Payload,
-		signature: &Self::Signature,
-	) -> SignatureVerificationResult {
-		let creator_details = Did::<T>::get(creator)
-			.ok_or(SignatureVerificationError::SignerInformationNotPresent)?;
-		Pallet::verify_signature_with_did_key(payload, signature, &creator_details).map_err(|err| {
-			match err {
-				DidError::SignatureError(_) => SignatureVerificationError::SignatureInvalid,
-				_ => SignatureVerificationError::SignerInformationNotPresent,
-			}
-		})
-	}
+    fn verify(
+        delegate: &Self::SignerId,
+        payload: &Self::Payload,
+        signature: &Self::Signature,
+    ) -> SignatureVerificationResult {
+        let delegate_details = Did::<T>::get(delegate)
+            .ok_or(SignatureVerificationError::SignerInformationNotPresent)?;
 
-	fn weight(payload_byte_length: usize) -> dispatch::Weight {
-		<T as Config>::WeightInfo::signature_verification_sr25519(
-			payload_byte_length.saturated_into(),
-		)
-		.max(<T as Config>::WeightInfo::signature_verification_ed25519(
-			payload_byte_length.saturated_into(),
-		))
-		.max(<T as Config>::WeightInfo::signature_verification_ecdsa(
-			payload_byte_length.saturated_into(),
-		))
-	}
+        Pallet::verify_payload_signature_with_did_key_type(
+            payload,
+            signature,
+            &delegate_details,
+            DidVerificationKeyRelationship::Authentication,
+        )
+        .map_err(|err| match err {
+            // Should never happen as a DID has always a valid authentication key and UrlErrors are never thrown here.
+            DidError::SignatureError(_) => SignatureVerificationError::SignatureInvalid,
+            _ => SignatureVerificationError::SignerInformationNotPresent,
+        })
+    }
+
+    fn weight(payload_byte_length: usize) -> dispatch::Weight {
+        <T as Config>::WeightInfo::signature_verification_sr25519(
+            payload_byte_length.saturated_into(),
+        )
+        .max(<T as Config>::WeightInfo::signature_verification_ed25519(
+            payload_byte_length.saturated_into(),
+        ))
+        .max(<T as Config>::WeightInfo::signature_verification_ecdsa(
+            payload_byte_length.saturated_into(),
+        ))
+    }
 }

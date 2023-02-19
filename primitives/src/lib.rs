@@ -87,7 +87,7 @@ pub type ScoreOf = u32;
 pub type CountOf = u32;
 
 /// IDentifier type.
-pub type IdentifierOf = BoundedVec<u8, ConstU32<48>>;
+pub type IdentifierOf = BoundedVec<u8, ConstU32<49>>;
 
 /// A DID subject identifier.
 pub type DidIdentifier = AccountId;
@@ -98,7 +98,7 @@ pub type MetaDataOf = BoundedVec<u8, ConstU32<15360>>;
 /// status Information
 pub type StatusOf = bool;
 
-/// Authorship period
+/// Authorship perio
 // pub const AUTHORSHIP_PERIOD: u32 = 5256000;
 pub const AUTHORSHIP_PERIOD: u32 = 20;
 

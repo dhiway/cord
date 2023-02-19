@@ -97,8 +97,6 @@ mod weights;
 // CORD Pallets
 mod authority_manager;
 pub use pallet_extrinsic_authorship;
-pub use pallet_schema;
-pub use pallet_space;
 pub mod benchmark;
 pub use benchmark::DummySignature;
 
@@ -786,60 +784,12 @@ impl pallet_extrinsic_authorship::Config for Runtime {
 }
 
 parameter_types! {
-	pub const SchemaFee: Balance = 10 * WAY;
-	pub const MaxEncodedMetaLength: u32 = 5_000;	// 5 Kb
-	pub const MaxSignatureByteLength: u16 = 64;
-}
-
-impl pallet_schema::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type SchemaFee = SchemaFee;
-	type FeeCollector = Treasury;
-	type SchemaCreatorId = DidIdentifier;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type Signature = pallet_did::DidSignature;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type CreatorSignatureVerification = pallet_did::DidSignatureVerify<Self>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type Signature = DummySignature;
-	#[cfg(feature = "runtime-benchmarks")]
-	type DelegationSignatureVerification =
-		cord_utilities::signature::AlwaysVerify<AccountId, Vec<u8>, Self::Signature>;
-	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-	type MaxSignatureByteLength = MaxSignatureByteLength;
-	type MaxEncodedMetaLength = MaxEncodedMetaLength;
-	type WeightInfo = weights::pallet_schema::WeightInfo<Runtime>;
-}
-
-parameter_types! {
-	pub const SpaceFee: Balance = 10 * WAY;
-	pub const BaseFee: Balance = 2 * WAY;
-	pub const MaxSpaceAuthorities: u32 = 50;
-	pub const MaxRegistryEntries: u32 = 1_000;
-}
-
-impl pallet_space::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type SpaceFee = SpaceFee;
-	type BaseFee = BaseFee;
-	type FeeCollector = Treasury;
-	type Signature = Signature;
-	type Signer = <Signature as Verify>::Signer;
-	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-	type MaxSpaceAuthorities = MaxSpaceAuthorities;
-	type MaxRegistryEntries = MaxRegistryEntries;
-	type MaxEncodedMetaLength = MaxEncodedMetaLength;
-	type WeightInfo = weights::pallet_space::WeightInfo<Runtime>;
-}
-
-parameter_types! {
 	#[derive(Debug, Clone, Eq, PartialEq)]
 	pub const MaxUrlLength: u32 = 200;
-	pub const MaxPublicKeysPerDid: u32 = 100;
+	pub const MaxPublicKeysPerDid: u32 = 50;
+	pub const MaxBlocksTxValidity: BlockNumber = 2 * HOURS;
 	#[derive(Debug, Clone, Eq, PartialEq)]
-	pub const MaxKeyAgreementKeys: u32 = 50;
+	pub const MaxKeyAgreementKeys: u32 = 30;
 	#[derive(Debug, Clone, Eq, PartialEq)]
 	pub const MaxEndpointUrlsCount: u32 = 3;
 	pub const MaxNumberOfServicesPerDid: u32 = 25;
@@ -853,9 +803,21 @@ parameter_types! {
 impl pallet_did::Config for Runtime {
 	type DidIdentifier = DidIdentifier;
 	type RuntimeEvent = RuntimeEvent;
-	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type RuntimeCall = RuntimeCall;
+	type RuntimeOrigin = RuntimeOrigin;
+
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<Self::DidIdentifier, AccountId>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, Self::DidIdentifier>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type EnsureOrigin = EnsureSigned<Self::DidIdentifier>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type OriginSuccess = Self::DidIdentifier;
+
 	type MaxKeyAgreementKeys = MaxKeyAgreementKeys;
 	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
+	type MaxBlocksTxValidity = MaxBlocksTxValidity;
 	type MaxNumberOfServicesPerDid = MaxNumberOfServicesPerDid;
 	type MaxServiceIdLength = MaxServiceIdLength;
 	type MaxServiceTypeLength = MaxServiceTypeLength;
@@ -864,40 +826,6 @@ impl pallet_did::Config for Runtime {
 	type MaxNumberOfUrlsPerService = MaxNumberOfUrlsPerService;
 	type WeightInfo = weights::pallet_did::WeightInfo<Runtime>;
 }
-
-// parameter_types! {
-// 	pub const MaxParentChecks: u32 = 5;
-// 	pub const MaxRevocations: u32 = 5;
-// 	pub const MaxRemovals: u32 = 5;
-// 	#[derive(Clone)]
-// 	pub const MaxChildren: u32 = 1000;
-// }
-
-// impl pallet_trust_hierarchy::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type Currency = Balances;
-// 	type HierarchyFee = SpaceFee;
-// 	type NodeFee = BaseFee;
-// 	type FeeCollector = Treasury;
-// 	type Signature = Signature;
-// 	type Signer = <Signature as Verify>::Signer;
-// 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-// 	type MaxParentChecks = MaxParentChecks;
-// 	type MaxRevocations = MaxRevocations;
-// 	type MaxRemovals = MaxRemovals;
-// 	type MaxChildren = MaxChildren;
-// 	type WeightInfo = weights::pallet_trust_hierarchy::WeightInfo<Runtime>;
-// }
-
-// impl pallet_score::Config for Runtime {
-// 	type Event = Event;
-// 	type Signature = Signature;
-// 	type Signer = <Signature as Verify>::Signer;
-// 	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-// 	type MinScoreValue = MinScoreValue;
-// 	type MaxScoreValue = MaxScoreValue;
-// 	type WeightInfo = pallet_score::weights::SubstrateWeight<Runtime>;
-// }
 
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -951,19 +879,65 @@ construct_runtime! {
 		ExtrinsicAuthorship: pallet_extrinsic_authorship::{Pallet, Call, Storage, Event<T>, Config<T>} =102,
 
 		// DID management pallet.
-		Did: pallet_did::{Pallet, Call, Storage, Event<T>} = 103,
-
-		// Trust Hierarchy pallet.
-		// TrustHierarchy: pallet_trust_hierarchy::{Pallet, Call, Storage, Event<T>} = 104,
-
-		// Schema Manager pallet.
-		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>} = 105,
-
-		// Schema Manager pallet.
-		Space: pallet_space::{Pallet, Call, Storage, Event<T>} = 106,
+		Did: pallet_did = 103,
 
 		// Sudo.
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,
+	}
+}
+
+impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall {
+	fn derive_verification_key_relationship(
+		&self,
+	) -> pallet_did::DeriveDidCallKeyRelationshipResult {
+		fn single_key_relationship(
+			calls: &[RuntimeCall],
+		) -> pallet_did::DeriveDidCallKeyRelationshipResult {
+			let init = calls
+				.get(0)
+				.ok_or(pallet_did::RelationshipDeriveError::InvalidCallParameter)?
+				.derive_verification_key_relationship()?;
+			calls
+				.iter()
+				.skip(1)
+				.map(RuntimeCall::derive_verification_key_relationship)
+				.try_fold(init, |acc, next| {
+					if Ok(acc) == next {
+						Ok(acc)
+					} else {
+						Err(pallet_did::RelationshipDeriveError::InvalidCallParameter)
+					}
+				})
+		}
+		match self {
+			// DID creation is not allowed through the DID proxy.
+			RuntimeCall::Did(pallet_did::Call::create { .. }) => {
+				Err(pallet_did::RelationshipDeriveError::NotCallableByDid)
+			},
+			RuntimeCall::Did { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {
+				single_key_relationship(&calls[..])
+			},
+			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) => {
+				single_key_relationship(&calls[..])
+			},
+			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
+				single_key_relationship(&calls[..])
+			},
+			#[cfg(not(feature = "runtime-benchmarks"))]
+			_ => Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
+			// By default, returns the authentication key
+			#[cfg(feature = "runtime-benchmarks")]
+			_ => Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
+		}
+	}
+
+	// Always return a System::remark() extrinsic call
+	#[cfg(feature = "runtime-benchmarks")]
+	fn get_call_for_did_call_benchmark() -> Self {
+		RuntimeCall::System(frame_system::Call::remark { remark: vec![] })
 	}
 }
 
@@ -993,6 +967,9 @@ pub type SignedExtra = (
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
 	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+/// Extrinsic type that has already been checked.
+pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
+
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
 	Runtime,

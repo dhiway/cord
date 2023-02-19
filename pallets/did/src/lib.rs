@@ -1,7 +1,9 @@
 // This file is part of CORD – https://cord.network
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+
+// Copyright (C) 2019-2023 BOTLabs GmbH, Dhiway.
+// Copyright (C) 2023 Dhiway.
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Based on DID pallet - Copyright (C) 2019-2022 BOTLabs GmbH
+// Adapted to meet the requirements of the CORD project.
 
 // CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,62 +27,101 @@
 //! following types of keys: Ed25519, Sr25519, and Ecdsa for signing keys, and
 //! X25519 for encryption keys.
 //!
+//! - [`Config`]
+//! - [`Call`]
+//! - [`Origin`]
+//! - [`Pallet`]
 //!
 //! ### Terminology
 //!
 //! Each DID identifier is mapped to a set of keys, which in CORD are used for
 //! different purposes.
 //!
-//! - **authentication key**: used to sign and authorise DID-management
+//! - One **authentication key**: used to sign and authorise DID-management
 //!   operations (e.g., the update of some keys or the deletion of the whole
 //!   DID). This is required to always be present as otherwise the DID becomes
 //!   unusable since no operation signature can be verified anymore.
 //!
-//! - **key agreement keys**: used by other parties that want to
+//! - Zero or more **key agreement keys**: used by other parties that want to
 //!   interact with the DID subject to perform ECDH and encrypt information
 //!   addressed to the DID subject.
 //!
+//! - Zero or one **delegation key**: used to sign and authorise the creation of
+//!   new delegation nodes on the CORD blockchain. In case no delegation key is
+//!   present, the DID subject cannot write new delegations on the CORD
+//!   blockchain. For more info, check the [delegation pallet](../../delegation/).
+//!
+//! - Zero or one **assertion key**: used to sign and authorise the creation
+//!   of new entries [stream, score..] on the CORD blockchain. In case no
+//!   assertion key is present, the DID subject cannot write new entries on the
+//!   CORD blockchain. For more info, check the [streams pallet](../../streams/).
 //!
 //! - A set of **public keys**: includes at least the previous keys in addition
-//!   to any past assertion keys that has been rotated.
+//!   to any past assertion key that has been rotated but not entirely
+//!   revoked.
 //!
 //! - A set of **service endpoints**: pointing to the description of the
 //!   services the DID subject exposes. For more information, check the W3C DID
 //!   Core specification.
 //!
+//! - A **transaction counter**: acts as a nonce to avoid replay or signature
+//!   forgery attacks. Each time a DID-signed transaction is executed, the
+//!   counter is incremented.
 //!
+//! ## Assumptions
+//!
+//! - After it is generated and signed by a client, a DID-authorised operation
+//!   can be submitted for evaluation anytime between the time the operation is
+//!   created and [MaxBlocksTxValidity] blocks after that. After this time has
+//!   elapsed, the operation is considered invalid.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
 pub mod default_weights;
 pub mod did_details;
 pub mod errors;
-// pub mod origin;
+pub mod origin;
 pub mod service_endpoints;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// pub mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarking;
 
-// #[cfg(test)]
-// mod mock;
-// #[cfg(any(feature = "runtime-benchmarks", test))]
-// mod mock_utils;
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod mock;
+#[cfg(any(feature = "runtime-benchmarks", test))]
+mod mock_utils;
+#[cfg(test)]
+mod tests;
 
 mod signature;
 mod utils;
 
 pub use crate::{
-	default_weights::WeightInfo, did_details::DidSignature, pallet::*,
+	default_weights::WeightInfo,
+	did_details::{
+		DeriveDidCallAuthorizationVerificationKeyRelationship, DeriveDidCallKeyRelationshipResult,
+		DidAuthorizedCallOperationWithVerificationRelationship, DidSignature,
+		DidVerificationKeyRelationship, RelationshipDeriveError,
+	},
+	origin::{DidRawOrigin, EnsureDidOrigin},
+	pallet::*,
 	signature::DidSignatureVerify,
 };
 
 use codec::Encode;
 use frame_support::{
-	dispatch::DispatchResult, ensure, storage::types::StorageMap, traits::Get, Parameter,
+	dispatch::{DispatchResult, Dispatchable, GetDispatchInfo, PostDispatchInfo},
+	ensure,
+	storage::types::StorageMap,
+	traits::Get,
+	Parameter,
 };
-use sp_runtime::{traits::Zero, SaturatedConversion};
+use frame_system::ensure_signed;
+use sp_runtime::{
+	traits::{Saturating, Zero},
+	SaturatedConversion,
+};
 use sp_std::{boxed::Box, fmt::Debug, prelude::Clone};
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -90,21 +131,23 @@ use frame_system::RawOrigin;
 pub mod pallet {
 	use super::*;
 	use crate::service_endpoints::utils as service_endpoints_utils;
+	use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, traits::StorageVersion};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::BadOrigin;
 
 	use crate::{
 		did_details::{
+			DeriveDidCallAuthorizationVerificationKeyRelationship, DidAuthorizedCallOperation,
 			DidCreationDetails, DidDetails, DidEncryptionKey, DidSignature,
-			DidVerifiableIdentifier, DidVerificationKey,
+			DidVerifiableIdentifier, DidVerificationKey, RelationshipDeriveError,
 		},
 		errors::{DidError, InputError, SignatureError, StorageError},
 		service_endpoints::{DidEndpoint, ServiceEndpointId},
 	};
 
 	/// The current storage version.
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
 
 	/// Reference to a payload of data of variable size.
 	pub type Payload = [u8];
@@ -112,38 +155,76 @@ pub mod pallet {
 	/// Type for a DID key identifier.
 	pub type KeyIdOf<T> = <T as frame_system::Config>::Hash;
 
-	/// Type for a call nonce
-	pub type CallNonceOf<T> = <T as frame_system::Config>::Hash;
-
 	/// Type for a DID subject identifier.
 	pub type DidIdentifierOf<T> = <T as Config>::DidIdentifier;
 
 	/// Type for a CORD account identifier.
-	pub type CordAccountIdOf<T> = <T as frame_system::Config>::AccountId;
+	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 
+	/// Type for a runtime extrinsic callable under DID-based authorisation.
+	pub type DidCallableOf<T> = <T as Config>::RuntimeCall;
+
+	/// Type for origin that supports a DID sender.
+	#[pallet::origin]
+	pub type Origin<T> = DidRawOrigin<DidIdentifierOf<T>, AccountIdOf<T>>;
+
+	// pub type BalanceOf<T> = <CurrencyOf<T> as Currency<AccountIdOf<T>>>::Balance;
+	// pub(crate) type CurrencyOf<T> = <T as Config>::Currency;
+	// pub(crate) type NegativeImbalanceOf<T> =
+	// <<T as Config>::Currency as Currency<AccountIdOf<T>>>::NegativeImbalance;
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config + Debug {
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-		type EnsureOrigin: EnsureOrigin<
-			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = CordAccountIdOf<Self>,
-		>;
+		/// Type for a dispatchable call that can be proxied through the DID
+		/// pallet to support DID-based authorisation.
+		type RuntimeCall: Parameter
+			+ Dispatchable<
+				PostInfo = PostDispatchInfo,
+				RuntimeOrigin = <Self as Config>::RuntimeOrigin,
+			> + GetDispatchInfo
+			+ DeriveDidCallAuthorizationVerificationKeyRelationship;
+
 		/// Type for a DID subject identifier.
 		type DidIdentifier: Parameter + DidVerifiableIdentifier + MaxEncodedLen;
 
+		/// Origin type expected by the proxied dispatchable calls.
+		#[cfg(not(feature = "runtime-benchmarks"))]
+		type RuntimeOrigin: From<DidRawOrigin<DidIdentifierOf<Self>, AccountIdOf<Self>>>;
+		#[cfg(feature = "runtime-benchmarks")]
+		type RuntimeOrigin: From<RawOrigin<DidIdentifierOf<Self>>>;
+
+		/// The origin check for all DID calls inside this pallet.
+		type EnsureOrigin: EnsureOrigin<
+			<Self as frame_system::Config>::RuntimeOrigin,
+			Success = <Self as Config>::OriginSuccess,
+		>;
+
+		/// The return type when the DID origin check was successful.
+		type OriginSuccess: CallSources<AccountIdOf<Self>, DidIdentifierOf<Self>>;
+
+		/// Overarching event type.
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
 		/// Maximum number of total public keys which can be stored per DID key
 		/// identifier. This includes the ones currently used for
-		/// authentication, key agreement, attestation, and delegation
+		/// authentication, key agreement, assertion, and delegation.
 		#[pallet::constant]
 		type MaxPublicKeysPerDid: Get<u32>;
 
 		/// Maximum number of total key agreement keys that can be stored for a
-		/// DID identifier.
+		/// DID subject.
+		///
+		/// Should be greater than `MaxNewKeyAgreementKeys`.
 		#[pallet::constant]
 		type MaxKeyAgreementKeys: Get<u32> + Debug + Clone + PartialEq;
+
+		/// The maximum number of blocks a DID-authorized operation is
+		/// considered valid after its creation.
+		#[pallet::constant]
+		type MaxBlocksTxValidity: Get<BlockNumberOf<Self>>;
 
 		/// The maximum number of services that can be stored under a DID.
 		#[pallet::constant]
@@ -219,11 +300,17 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new DID has been created.
-		/// \[transaction author, DID identifier\]
-		Created { author: CordAccountIdOf<T>, identifier: DidIdentifierOf<T> },
+		/// \[transaction signer, DID identifier\]
+		Created { author: AccountIdOf<T>, identifier: DidIdentifierOf<T> },
 		/// A DID has been updated.
-		/// \[transaction author, DID identifier\]
-		Updated { author: CordAccountIdOf<T>, identifier: DidIdentifierOf<T> },
+		/// \[DID identifier\]
+		Updated { identifier: DidIdentifierOf<T> },
+		/// A DID has been deleted.
+		/// \[DID identifier\]
+		Deleted { identifier: DidIdentifierOf<T> },
+		/// A DID-authorised call has been executed.
+		/// \[DID caller, dispatch result\]
+		CallDispatched { identifier: DidIdentifierOf<T>, result: DispatchResult },
 	}
 
 	#[pallet::error]
@@ -241,18 +328,28 @@ pub mod pallet {
 		/// One or more verification keys referenced are not stored in the set
 		/// of verification keys.
 		VerificationKeyNotPresent,
-		/// The DID operation nonce is not matching the signature
+		/// The DID operation nonce is not equal to the current DID nonce + 1.
 		InvalidNonce,
-		/// The maximum number of key agreements has been reached for the DID
-		/// identifier.
-		MaxKeyAgreementKeysExceeded,
+		/// The called extrinsic does not support DID authorisation.
+		UnsupportedDidAuthorizationCall,
+		/// The call had parameters that conflicted with each other
+		/// or were invalid.
+		InvalidDidAuthorizationCall,
+		/// A number of new key agreement keys greater than the maximum allowed
+		/// has been provided.
+		MaxKeyAgreementKeysLimitExceeded,
 		/// The maximum number of public keys for this DID key identifier has
 		/// been reached.
 		MaxPublicKeysPerDidExceeded,
+		/// The maximum number of key agreements has been reached for the DID
+		/// subject.
+		MaxTotalKeyAgreementKeysExceeded,
+		/// The DID call was submitted by the wrong account
+		BadDidOrigin,
+		/// The block number provided in a DID-authorized operation is invalid.
+		TransactionExpired,
 		/// The DID has already been previously deleted.
 		DidAlreadyDeleted,
-		/// The origin is unable to reserve the deposit and pay the fee.
-		UnableToPayFees,
 		/// The maximum number of service endpoints for a DID has been exceeded.
 		MaxNumberOfServicesPerDidExceeded,
 		/// The service endpoint ID exceeded the maximum allowed length.
@@ -297,11 +394,13 @@ pub mod pallet {
 			match error {
 				StorageError::DidNotPresent => Self::DidNotPresent,
 				StorageError::DidAlreadyPresent => Self::DidAlreadyPresent,
-				StorageError::DidKeyNotPresent | StorageError::KeyNotPresent => {
+				StorageError::DidKeyNotPresent(_) | StorageError::KeyNotPresent => {
 					Self::VerificationKeyNotPresent
 				},
 				StorageError::MaxPublicKeysPerDidExceeded => Self::MaxPublicKeysPerDidExceeded,
-				StorageError::MaxKeyAgreementKeysExceeded => Self::MaxKeyAgreementKeysExceeded,
+				StorageError::MaxTotalKeyAgreementKeysExceeded => {
+					Self::MaxTotalKeyAgreementKeysExceeded
+				},
 				StorageError::DidAlreadyDeleted => Self::DidAlreadyDeleted,
 			}
 		}
@@ -313,6 +412,7 @@ pub mod pallet {
 				SignatureError::InvalidSignature => Self::InvalidSignature,
 				SignatureError::InvalidSignatureFormat => Self::InvalidSignatureFormat,
 				SignatureError::InvalidNonce => Self::InvalidNonce,
+				SignatureError::TransactionExpired => Self::TransactionExpired,
 			}
 		}
 	}
@@ -320,9 +420,9 @@ pub mod pallet {
 	impl<T> From<InputError> for Error<T> {
 		fn from(error: InputError) -> Self {
 			match error {
-				// InputError::MaxKeyAgreementKeysLimitExceeded => {
-				// 	Self::MaxKeyAgreementKeysLimitExceeded
-				// },
+				InputError::MaxKeyAgreementKeysLimitExceeded => {
+					Self::MaxKeyAgreementKeysLimitExceeded
+				},
 				InputError::MaxIdLengthExceeded => Self::MaxServiceIdLengthExceeded,
 				InputError::MaxServicesCountExceeded => Self::MaxNumberOfServicesPerDidExceeded,
 				InputError::MaxTypeCountExceeded => Self::MaxNumberOfTypesPerServiceExceeded,
@@ -330,6 +430,15 @@ pub mod pallet {
 				InputError::MaxUrlCountExceeded => Self::MaxNumberOfUrlsPerServiceExceeded,
 				InputError::MaxUrlLengthExceeded => Self::MaxServiceUrlLengthExceeded,
 				InputError::InvalidEncoding => Self::InvalidServiceEncoding,
+			}
+		}
+	}
+
+	impl<T> From<RelationshipDeriveError> for Error<T> {
+		fn from(error: RelationshipDeriveError) -> Self {
+			match error {
+				RelationshipDeriveError::InvalidCallParameter => Self::InvalidDidAuthorizationCall,
+				RelationshipDeriveError::NotCallableByDid => Self::UnsupportedDidAuthorizationCall,
 			}
 		}
 	}
@@ -349,26 +458,50 @@ pub mod pallet {
 		/// identifier along with the block number in which the operation was
 		/// executed.
 		///
-		/// The dispatch origin can be any CORD account with enough funds to
-		/// execute the extrinsic and it does not have to be tied in any way to
-		/// the CORD account identifying the DID subject.
+		/// The dispatch origin can be any CORD account authorised to execute
+		/// the extrinsic and it does not have to be tied in any way to the
+		/// CORD account identifying the DID subject.
+		///
+		/// Emits `DidCreated`.
 		///
 		/// # <weight>
-		/// Weight: O(1)
+		/// - The transaction's complexity is mainly dependent on the number of
+		///   new key agreement keys and the number of new service endpoints
+		///   included in the operation.
+		/// ---------
+		/// Weight: O(K) + O(N) where K is the number of new key agreement
+		/// keys bounded by `MaxNewKeyAgreementKeys`, while N is the number of
+		/// new service endpoints bounded by `MaxNumberOfServicesPerDid`.
 		/// - Reads: [Origin Account], Did, DidBlacklist
-		/// - Writes: Did
+		/// - Writes: Did (with K new key agreement keys), ServiceEndpoints
+		///   (with N new service endpoints), DidEndpointsCount
 		/// # </weight>
 		#[pallet::call_index(0)]
-		#[pallet::weight({ let new_services_count = details.new_service_details.len().saturated_into::<u32>();
-<T as pallet::Config>::WeightInfo::create_ed25519_key(new_services_count).max(<T as pallet::Config>::WeightInfo::create_sr25519_key(new_services_count)).max(<T as pallet::Config>::WeightInfo::create_ecdsa_key(new_services_count))})]
+		#[pallet::weight({
+
+			// We only consider the number of new endpoints.
+			let new_services_count = details.new_service_details.len().saturated_into::<u32>();
+
+			let ed25519_weight = <T as pallet::Config>::WeightInfo::create_ed25519_keys(
+				new_services_count,
+			);
+			let sr25519_weight = <T as pallet::Config>::WeightInfo::create_sr25519_keys(
+				new_services_count,
+			);
+			let ecdsa_weight = <T as pallet::Config>::WeightInfo::create_ecdsa_keys(
+				new_services_count,
+			);
+
+			ed25519_weight.max(sr25519_weight).max(ecdsa_weight)
+		})]
 		pub fn create(
 			origin: OriginFor<T>,
 			details: Box<DidCreationDetails<T>>,
 			signature: DidSignature,
 		) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let sender = ensure_signed(origin)?;
 
-			ensure!(author == details.submitter, BadOrigin);
+			ensure!(sender == details.submitter, BadOrigin);
 
 			let did_identifier = details.did.clone();
 
@@ -378,6 +511,8 @@ pub mod pallet {
 				Error::<T>::DidAlreadyDeleted
 			);
 
+			// There has to be no other DID with the same identifier already saved on chain,
+			// otherwise generate a DidAlreadyPresent error.
 			ensure!(!Did::<T>::contains_key(&did_identifier), Error::<T>::DidAlreadyPresent);
 
 			let account_did_auth_key = did_identifier
@@ -392,8 +527,9 @@ pub mod pallet {
 			let did_entry = DidDetails::from_creation_details(*details, account_did_auth_key)
 				.map_err(Error::<T>::from)?;
 
-			log::debug!("Creating DID {:?}", &did_identifier);
+			// *** No Fail beyond this call ***
 
+			log::debug!("Creating DID {:?}", &did_identifier);
 			Did::<T>::insert(&did_identifier, did_entry);
 			input_service_endpoints.iter().for_each(|service| {
 				ServiceEndpoints::<T>::insert(&did_identifier, &service.id, service.clone());
@@ -403,16 +539,21 @@ pub mod pallet {
 				input_service_endpoints.len().saturated_into::<u32>(),
 			);
 
-			Self::deposit_event(Event::Created { author, identifier: did_identifier });
+			Self::deposit_event(Event::Created { author: sender, identifier: did_identifier });
 
 			Ok(())
 		}
 
 		/// Update the DID authentication key.
 		///
-		/// If an old key existed, it is deleted from the set of public keys if
-		/// it is not used in any other part of the DID. The new key is added to
-		/// the set of public keys.
+		/// The old key is deleted from the set of public keys if it is
+		/// not used in any other part of the DID. The new key is added to the
+		/// set of public keys.
+		///
+		/// The dispatch origin must be a DID origin proxied via the
+		/// `submit_did_call` extrinsic.
+		///
+		/// Emits `DidUpdated`.
 		///
 		/// # <weight>
 		/// Weight: O(1)
@@ -420,41 +561,170 @@ pub mod pallet {
 		/// - Writes: Did
 		/// # </weight>
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_authentication_key())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_ed25519_authentication_key().max(<T as pallet::Config>::WeightInfo::set_sr25519_authentication_key()).max(<T as pallet::Config>::WeightInfo::set_ecdsa_authentication_key()))]
 		pub fn set_authentication_key(
 			origin: OriginFor<T>,
-			did_identifier: DidIdentifierOf<T>,
 			new_key: DidVerificationKey,
-			signature: DidSignature,
 		) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?.subject();
+			let mut did_details = Did::<T>::get(&did_subject).ok_or(Error::<T>::DidNotPresent)?;
 
-			let mut did_details =
-				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
-
-			let verification_key = did_details
-				.get_verification_key_for_did()
-				.ok_or(Error::<T>::VerificationKeyNotPresent)?;
-
-			verification_key
-				.verify_signature(&new_key.encode(), &signature)
-				.map_err(Error::<T>::from)?;
-
-			log::debug!(
-				"Setting new authentication key {:?} for DID {:?}",
-				&new_key,
-				&did_identifier
-			);
+			log::debug!("Setting new authentication key {:?} for DID {:?}", &new_key, &did_subject);
 
 			did_details
 				.update_authentication_key(new_key, frame_system::Pallet::<T>::block_number())
 				.map_err(Error::<T>::from)?;
 
-			Did::<T>::insert(&did_identifier, did_details);
+			// *** No Fail beyond this call ***
+
+			Did::<T>::insert(&did_subject, did_details);
 			log::debug!("Authentication key set");
 
-			Self::deposit_event(Event::Updated { author, identifier: did_identifier });
+			Self::deposit_event(Event::Updated { identifier: did_subject });
+			Ok(())
+		}
 
+		/// Set or update the DID delegation key.
+		///
+		/// If an old key existed, it is deleted from the set of public keys if
+		/// it is not used in any other part of the DID. The new key is added to
+		/// the set of public keys.
+		///
+		/// The dispatch origin must be a DID origin proxied via the
+		/// `submit_did_call` extrinsic.
+		///
+		/// Emits `DidUpdated`.
+		///
+		/// # <weight>
+		/// Weight: O(1)
+		/// - Reads: [Origin Account], Did
+		/// - Writes: Did
+		/// # </weight>
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_ed25519_delegation_key().max(<T as pallet::Config>::WeightInfo::set_sr25519_delegation_key()).max(<T as pallet::Config>::WeightInfo::set_ecdsa_delegation_key()))]
+		pub fn set_delegation_key(
+			origin: OriginFor<T>,
+			new_key: DidVerificationKey,
+		) -> DispatchResult {
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?.subject();
+			let mut did_details = Did::<T>::get(&did_subject).ok_or(Error::<T>::DidNotPresent)?;
+
+			log::debug!("Setting new delegation key {:?} for DID {:?}", &new_key, &did_subject);
+			did_details
+				.update_delegation_key(new_key, frame_system::Pallet::<T>::block_number())
+				.map_err(Error::<T>::from)?;
+
+			// *** No Fail beyond this call ***
+
+			Did::<T>::insert(&did_subject, did_details);
+			log::debug!("Delegation key set");
+
+			Self::deposit_event(Event::Updated { identifier: did_subject });
+			Ok(())
+		}
+
+		/// Remove the DID delegation key.
+		///
+		/// The old key is deleted from the set of public keys if
+		/// it is not used in any other part of the DID.
+		///
+		/// The dispatch origin must be a DID origin proxied via the
+		/// `submit_did_call` extrinsic.
+		///
+		/// Emits `DidUpdated`.
+		///
+		/// # <weight>
+		/// Weight: O(1)
+		/// - Reads: [Origin Account], Did
+		/// - Writes: Did
+		/// # </weight>
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_ed25519_delegation_key().max(<T as pallet::Config>::WeightInfo::remove_sr25519_delegation_key()).max(<T as pallet::Config>::WeightInfo::remove_ecdsa_delegation_key()))]
+		pub fn remove_delegation_key(origin: OriginFor<T>) -> DispatchResult {
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?.subject();
+			let mut did_details = Did::<T>::get(&did_subject).ok_or(Error::<T>::DidNotPresent)?;
+
+			log::debug!("Removing delegation key for DID {:?}", &did_subject);
+			did_details.remove_delegation_key().map_err(Error::<T>::from)?;
+
+			// *** No Fail beyond this call ***
+
+			Did::<T>::insert(&did_subject, did_details);
+			log::debug!("Delegation key removed");
+
+			Self::deposit_event(Event::Updated { identifier: did_subject });
+			Ok(())
+		}
+
+		/// Set or update the DID assertion key.
+		///
+		/// If an old key existed, it is deleted from the set of public keys if
+		/// it is not used in any other part of the DID. The new key is added to
+		/// the set of public keys.
+		///
+		/// The dispatch origin must be a DID origin proxied via the
+		/// `submit_did_call` extrinsic.
+		///
+		/// Emits `DidUpdated`.
+		///
+		/// # <weight>
+		/// Weight: O(1)
+		/// - Reads: [Origin Account], Did
+		/// - Writes: Did
+		/// # </weight>
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_ed25519_attestation_key().max(<T as pallet::Config>::WeightInfo::set_sr25519_attestation_key()).max(<T as pallet::Config>::WeightInfo::set_ecdsa_attestation_key()))]
+		pub fn set_assertion_key(
+			origin: OriginFor<T>,
+			new_key: DidVerificationKey,
+		) -> DispatchResult {
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?.subject();
+			let mut did_details = Did::<T>::get(&did_subject).ok_or(Error::<T>::DidNotPresent)?;
+
+			log::debug!("Setting new assertion key {:?} for DID {:?}", &new_key, &did_subject);
+			did_details
+				.update_attestation_key(new_key, frame_system::Pallet::<T>::block_number())
+				.map_err(Error::<T>::from)?;
+
+			// *** No Fail beyond this call ***
+
+			Did::<T>::insert(&did_subject, did_details);
+			log::debug!("Attestation key set");
+
+			Self::deposit_event(Event::Updated { identifier: did_subject });
+			Ok(())
+		}
+
+		/// Remove the DID attestation key.
+		///
+		/// The old key is deleted from the set of public keys if
+		/// it is not used in any other part of the DID.
+		///
+		/// The dispatch origin must be a DID origin proxied via the
+		/// `submit_did_call` extrinsic.
+		///
+		/// Emits `DidUpdated`.
+		///
+		/// # <weight>
+		/// Weight: O(1)
+		/// - Reads: [Origin Account], Did
+		/// - Writes: Did
+		/// # </weight>
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_ed25519_attestation_key().max(<T as pallet::Config>::WeightInfo::remove_sr25519_attestation_key()).max(<T as pallet::Config>::WeightInfo::remove_ecdsa_attestation_key()))]
+		pub fn remove_attestation_key(origin: OriginFor<T>) -> DispatchResult {
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?.subject();
+			let mut did_details = Did::<T>::get(&did_subject).ok_or(Error::<T>::DidNotPresent)?;
+
+			log::debug!("Removing attestation key for DID {:?}", &did_subject);
+			did_details.remove_attestation_key().map_err(Error::<T>::from)?;
+
+			// *** No Fail beyond this call ***
+
+			Did::<T>::insert(&did_subject, did_details);
+			log::debug!("Attestation key removed");
+
+			Self::deposit_event(Event::Updated { identifier: did_subject });
 			Ok(())
 		}
 
@@ -462,45 +732,36 @@ pub mod pallet {
 		///
 		/// The new key is added to the set of public keys.
 		///
+		/// The dispatch origin must be a DID origin proxied via the
+		/// `submit_did_call` extrinsic.
+		///
+		/// Emits `DidUpdated`.
+		///
 		/// # <weight>
 		/// Weight: O(1)
 		/// - Reads: [Origin Account], Did
 		/// - Writes: Did
 		/// # </weight>
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_key_agreement_key())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_ed25519_key_agreement_key().max(<T as pallet::Config>::WeightInfo::add_sr25519_key_agreement_key()).max(<T as pallet::Config>::WeightInfo::add_ecdsa_key_agreement_key()))]
 		pub fn add_key_agreement_key(
 			origin: OriginFor<T>,
-			did_identifier: DidIdentifierOf<T>,
 			new_key: DidEncryptionKey,
-			signature: DidSignature,
 		) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?.subject();
+			let mut did_details = Did::<T>::get(&did_subject).ok_or(Error::<T>::DidNotPresent)?;
 
-			let mut did_details =
-				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
-
-			let verification_key = did_details
-				.get_verification_key_for_did()
-				.ok_or(Error::<T>::VerificationKeyNotPresent)?;
-
-			verification_key
-				.verify_signature(&new_key.encode(), &signature)
-				.map_err(Error::<T>::from)?;
-
-			log::debug!(
-				"Adding new key agreement key {:?} for DID {:?}",
-				&new_key,
-				&did_identifier
-			);
+			log::debug!("Adding new key agreement key {:?} for DID {:?}", &new_key, &did_subject);
 			did_details
 				.add_key_agreement_key(new_key, frame_system::Pallet::<T>::block_number())
 				.map_err(Error::<T>::from)?;
 
-			Did::<T>::insert(&did_identifier, did_details);
+			// *** No Fail beyond this call ***
+
+			Did::<T>::insert(&did_subject, did_details);
 			log::debug!("Key agreement key set");
 
-			Self::deposit_event(Event::Updated { author, identifier: did_identifier });
+			Self::deposit_event(Event::Updated { identifier: did_subject });
 			Ok(())
 		}
 
@@ -510,43 +771,40 @@ pub mod pallet {
 		/// The dispatch origin must be a DID origin proxied via the
 		/// `submit_did_call` extrinsic.
 		///
-		/// # <weight>DidEncryptionKey
+		/// Emits `DidUpdated`.
+		///
+		/// # <weight>
 		/// Weight: O(1)
 		/// - Reads: [Origin Account], Did
 		/// - Writes: Did
 		/// # </weight>
 		#[pallet::call_index(7)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_key_agreement_key())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_ed25519_key_agreement_key().max(<T as pallet::Config>::WeightInfo::remove_sr25519_key_agreement_key()).max(<T as pallet::Config>::WeightInfo::remove_ecdsa_key_agreement_key()))]
 		pub fn remove_key_agreement_key(
 			origin: OriginFor<T>,
-			did_identifier: DidIdentifierOf<T>,
 			key_id: KeyIdOf<T>,
-			signature: DidSignature,
 		) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?.subject();
+			let mut did_details = Did::<T>::get(&did_subject).ok_or(Error::<T>::DidNotPresent)?;
 
-			let mut did_details =
-				Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
-
-			let verification_key = did_details
-				.get_verification_key_for_did()
-				.ok_or(Error::<T>::VerificationKeyNotPresent)?;
-
-			verification_key
-				.verify_signature(&key_id.encode(), &signature)
-				.map_err(Error::<T>::from)?;
-
-			log::debug!("Removing key agreement key for DID {:?}", &did_identifier);
+			log::debug!("Removing key agreement key for DID {:?}", &did_subject);
 			did_details.remove_key_agreement_key(key_id).map_err(Error::<T>::from)?;
 
-			Did::<T>::insert(&did_identifier, did_details);
+			// *** No Fail beyond this call ***
+
+			Did::<T>::insert(&did_subject, did_details);
 			log::debug!("Key agreement key removed");
 
-			Self::deposit_event(Event::Updated { author, identifier: did_identifier });
+			Self::deposit_event(Event::Updated { identifier: did_subject });
 			Ok(())
 		}
 
 		/// Add a new service endpoint under the given DID.
+		///
+		/// The dispatch origin must be a DID origin proxied via the
+		/// `submit_did_call` extrinsic.
+		///
+		/// Emits `DidUpdated`.
 		///
 		/// # <weight>
 		/// Weight: O(1)
@@ -557,25 +815,16 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_service_endpoint())]
 		pub fn add_service_endpoint(
 			origin: OriginFor<T>,
-			did_identifier: DidIdentifierOf<T>,
 			service_endpoint: DidEndpoint<T>,
-			signature: DidSignature,
 		) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			service_endpoint.validate_against_constraints().map_err(Error::<T>::from)?;
 
-			let did_details = Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
+			// Verify that the DID is present.
+			ensure!(Did::<T>::get(&did_subject).is_some(), Error::<T>::DidNotPresent);
 
-			let verification_key = did_details
-				.get_verification_key_for_did()
-				.ok_or(Error::<T>::VerificationKeyNotPresent)?;
-
-			verification_key
-				.verify_signature(&service_endpoint.encode(), &signature)
-				.map_err(Error::<T>::from)?;
-
-			let currently_stored_endpoints_count = DidEndpointsCount::<T>::get(&did_identifier);
+			let currently_stored_endpoints_count = DidEndpointsCount::<T>::get(&did_subject);
 
 			// Verify that there are less than the maximum limit of services stored.
 			ensure!(
@@ -583,8 +832,10 @@ pub mod pallet {
 				Error::<T>::MaxNumberOfServicesPerDidExceeded
 			);
 
+			// *** No Fail after the following storage write ***
+
 			ServiceEndpoints::<T>::try_mutate(
-				&did_identifier,
+				&did_subject,
 				service_endpoint.id.clone(),
 				|existing_service| -> Result<(), Error<T>> {
 					ensure!(existing_service.is_none(), Error::<T>::ServiceAlreadyPresent);
@@ -593,16 +844,20 @@ pub mod pallet {
 				},
 			)?;
 			DidEndpointsCount::<T>::insert(
-				&did_identifier,
+				&did_subject,
 				currently_stored_endpoints_count.saturating_add(1),
 			);
 
-			Self::deposit_event(Event::Updated { author, identifier: did_identifier });
-
+			Self::deposit_event(Event::Updated { identifier: did_subject });
 			Ok(())
 		}
 
 		/// Remove the service with the provided ID from the DID.
+		///
+		/// The dispatch origin must be a DID origin proxied via the
+		/// `submit_did_call` extrinsic.
+		///
+		/// Emits `DidUpdated`.
 		///
 		/// # <weight>
 		/// Weight: O(1)
@@ -613,29 +868,19 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_service_endpoint())]
 		pub fn remove_service_endpoint(
 			origin: OriginFor<T>,
-			did_identifier: DidIdentifierOf<T>,
 			service_id: ServiceEndpointId<T>,
-			signature: DidSignature,
 		) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let did_subject = T::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let did_details = Did::<T>::get(&did_identifier).ok_or(Error::<T>::DidNotPresent)?;
-
-			let verification_key = did_details
-				.get_verification_key_for_did()
-				.ok_or(Error::<T>::VerificationKeyNotPresent)?;
-
-			verification_key
-				.verify_signature(&service_id.encode(), &signature)
-				.map_err(Error::<T>::from)?;
+			// *** No Fail after the next call succeeds ***
 
 			ensure!(
-				ServiceEndpoints::<T>::take(&did_identifier, &service_id).is_some(),
+				ServiceEndpoints::<T>::take(&did_subject, &service_id).is_some(),
 				Error::<T>::ServiceNotPresent
 			);
 
 			// Decrease the endpoints counter or delete the entry if it reaches 0.
-			DidEndpointsCount::<T>::mutate_exists(&did_identifier, |existing_endpoint_count| {
+			DidEndpointsCount::<T>::mutate_exists(&did_subject, |existing_endpoint_count| {
 				let new_value = existing_endpoint_count.unwrap_or_default().saturating_sub(1);
 				if new_value.is_zero() {
 					*existing_endpoint_count = None;
@@ -644,31 +889,266 @@ pub mod pallet {
 				}
 			});
 
-			Self::deposit_event(Event::Updated { author, identifier: did_identifier });
-
+			Self::deposit_event(Event::Updated { identifier: did_subject });
 			Ok(())
+		}
+
+		/// Delete a DID from the chain and all information associated with it,
+		/// after verifying that the delete operation has been signed by the DID
+		/// subject using the authentication key currently stored on chain.
+		///
+		/// The referenced DID identifier must be present on chain before the
+		/// delete operation is evaluated.
+		///
+		/// After it is deleted, a DID with the same identifier cannot be
+		/// re-created ever again.
+		///
+		/// As the result of the deletion, all traces of the DID are removed
+		/// from the storage, which results in the invalidation of all
+		/// attestations issued by the DID subject.
+		///
+		/// The dispatch origin must be a DID origin proxied via the
+		/// `submit_did_call` extrinsic.
+		///
+		/// Emits `DidDeleted`.
+		///
+		/// # <weight>
+		/// Weight: O(1)
+		/// - Reads: [Origin Account], Did
+		/// - Kills: Did entry associated to the DID identifier
+		/// # </weight>
+		#[pallet::call_index(10)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::delete(*endpoints_to_remove))]
+		pub fn delete(origin: OriginFor<T>, endpoints_to_remove: u32) -> DispatchResult {
+			let source = T::EnsureOrigin::ensure_origin(origin)?;
+			let did_subject = source.subject();
+
+			Pallet::<T>::delete_did(did_subject, endpoints_to_remove)
+		}
+
+		/// Proxy a dispatchable call of another runtime extrinsic that
+		/// supports a DID origin.
+		///
+		/// The referenced DID identifier must be present on chain before the
+		/// operation is dispatched.
+		///
+		/// A call submitted through this extrinsic must be signed with the
+		/// right DID key, depending on the call. This information is provided
+		/// by the `DidAuthorizedCallOperation` parameter, which specifies the
+		/// DID subject acting as the origin of the call, the DID's tx counter
+		/// (nonce), the dispatchable to call in case signature verification
+		/// succeeds, the type of DID key to use to verify the operation
+		/// signature, and the block number the operation was targeting for
+		/// inclusion, when it was created and signed.
+		///
+		/// In case the signature is incorrect, the nonce is not valid, the
+		/// required key is not present for the specified DID, or the block
+		/// specified is too old the verification fails and the call is not
+		/// dispatched. Otherwise, the call is properly dispatched with a
+		/// `DidOrigin` origin indicating the DID subject.
+		///
+		/// A successful dispatch operation results in the tx counter associated
+		/// with the given DID to be incremented, to mitigate replay attacks.
+		///
+		/// The dispatch origin can be any CORD account with enough funds to
+		/// execute the extrinsic and it does not have to be tied in any way to
+		/// the CORD account identifying the DID subject.
+		///
+		/// Emits `DidCallDispatched`.
+		///
+		/// # <weight>
+		/// Weight: O(1) + weight of the dispatched call
+		/// - Reads: [Origin Account], Did
+		/// - Writes: Did
+		/// # </weight>
+		#[allow(clippy::boxed_local)]
+		#[pallet::call_index(12)]
+		#[pallet::weight({
+			let di = did_call.call.get_dispatch_info();
+			let max_sig_weight = <T as pallet::Config>::WeightInfo::submit_did_call_ed25519_key()
+			.max(<T as pallet::Config>::WeightInfo::submit_did_call_sr25519_key())
+			.max(<T as pallet::Config>::WeightInfo::submit_did_call_ecdsa_key());
+
+			(max_sig_weight.saturating_add(di.weight), di.class)
+		})]
+		pub fn submit_did_call(
+			origin: OriginFor<T>,
+			did_call: Box<DidAuthorizedCallOperation<T>>,
+			signature: DidSignature,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			ensure!(did_call.submitter == who, Error::<T>::BadDidOrigin);
+
+			let did_identifier = did_call.did.clone();
+
+			// Compute the right DID verification key to use to verify the operation
+			// signature
+			let verification_key_relationship =
+				did_call.call.derive_verification_key_relationship().map_err(Error::<T>::from)?;
+
+			// Wrap the operation in the expected structure, specifying the key retrieved
+			let wrapped_operation = DidAuthorizedCallOperationWithVerificationRelationship {
+				operation: *did_call,
+				verification_key_relationship,
+			};
+
+			Self::verify_did_operation_signature_and_increase_nonce(&wrapped_operation, &signature)
+				.map_err(Error::<T>::from)?;
+
+			log::debug!("Dispatch call from DID {:?}", did_identifier);
+
+			// Dispatch the referenced [Call] instance and return its result
+			let DidAuthorizedCallOperation { did, call, .. } = wrapped_operation.operation;
+
+			// *** No Fail beyond this point ***
+
+			#[cfg(not(feature = "runtime-benchmarks"))]
+			let result = call.dispatch(DidRawOrigin { id: did, submitter: who }.into());
+			#[cfg(feature = "runtime-benchmarks")]
+			let result = call.dispatch(RawOrigin::Signed(did).into());
+
+			let dispatch_event_payload = result.map(|_| ()).map_err(|e| e.error);
+
+			Self::deposit_event(Event::CallDispatched {
+				identifier: did_identifier,
+				result: dispatch_event_payload,
+			});
+
+			result
 		}
 	}
 
 	impl<T: Config> Pallet<T> {
+		/// Verify the validity (i.e., nonce, signature and mortality) of a
+		/// DID-authorized operation and, if valid, update the DID state with
+		/// the latest nonce.
+		///
+		/// # <weight>
+		/// Weight: O(1)
+		/// - Reads: Did
+		/// - Writes: Did
+		/// # </weight>
+		pub fn verify_did_operation_signature_and_increase_nonce(
+			operation: &DidAuthorizedCallOperationWithVerificationRelationship<T>,
+			signature: &DidSignature,
+		) -> Result<(), DidError> {
+			// Check that the tx has not expired.
+			Self::validate_block_number_value(operation.block_number)?;
+
+			let mut did_details = Did::<T>::get(&operation.did)
+				.ok_or(DidError::StorageError(StorageError::DidNotPresent))?;
+
+			Self::validate_counter_value(operation.tx_counter, &did_details)?;
+			// Increase the tx counter as soon as it is considered valid, no matter if the
+			// signature is valid or not.
+			did_details.increase_tx_counter();
+			Self::verify_payload_signature_with_did_key_type(
+				&operation.encode(),
+				signature,
+				&did_details,
+				operation.verification_key_relationship,
+			)?;
+
+			Did::<T>::insert(&operation.did, did_details);
+
+			Ok(())
+		}
+
+		/// Check if the provided block number is valid,
+		/// i.e., if the current blockchain block is in the inclusive range
+		/// [operation_block_number, operation_block_number +
+		/// MaxBlocksTxValidity].
+		fn validate_block_number_value(block_number: BlockNumberOf<T>) -> Result<(), DidError> {
+			let current_block_number = frame_system::Pallet::<T>::block_number();
+			let allowed_range =
+				block_number..=block_number.saturating_add(T::MaxBlocksTxValidity::get());
+
+			ensure!(
+				allowed_range.contains(&current_block_number),
+				DidError::SignatureError(SignatureError::TransactionExpired)
+			);
+
+			Ok(())
+		}
+
+		/// Verify the validity of a DID-authorized operation nonce.
+		/// To be valid, the nonce must be equal to the one currently stored +
+		/// 1. This is to avoid quickly "consuming" all the possible values for
+		/// the counter, as that would result in the DID being unusable, since
+		/// we do not have yet any mechanism in place to wrap the counter value
+		/// around when the limit is reached.
+		fn validate_counter_value(
+			counter: u64,
+			did_details: &DidDetails<T>,
+		) -> Result<(), DidError> {
+			// Verify that the operation counter is equal to the stored one + 1,
+			// possibly wrapping around when u64::MAX is reached.
+			let expected_nonce_value = did_details.last_tx_counter.wrapping_add(1);
+			ensure!(
+				counter == expected_nonce_value,
+				DidError::SignatureError(SignatureError::InvalidNonce)
+			);
+
+			Ok(())
+		}
+
 		/// Verify a generic payload signature using a given DID verification
 		/// key type.
-		pub fn verify_signature_with_did_key(
+		pub fn verify_payload_signature_with_did_key_type(
 			payload: &Payload,
 			signature: &DidSignature,
 			did_details: &DidDetails<T>,
+			key_type: DidVerificationKeyRelationship,
 		) -> Result<(), DidError> {
 			// Retrieve the needed verification key from the DID details, or generate an
 			// error if there is no key of the type required
 			let verification_key = did_details
-				.get_verification_key_for_did()
-				.ok_or(DidError::StorageError(StorageError::DidKeyNotPresent))?;
+				.get_verification_key_for_key_type(key_type)
+				.ok_or(DidError::StorageError(StorageError::DidKeyNotPresent(key_type)))?;
 
 			// Verify that the signature matches the expected format, otherwise generate
 			// an error
 			verification_key
 				.verify_signature(payload, signature)
 				.map_err(DidError::SignatureError)
+		}
+
+		/// Deletes DID details from storage, including its linked service
+		/// endpoints, adds the identifier to the blacklisted DIDs.
+		fn delete_did(did_subject: DidIdentifierOf<T>, endpoints_to_remove: u32) -> DispatchResult {
+			let current_endpoints_count = DidEndpointsCount::<T>::get(&did_subject);
+			ensure!(
+				current_endpoints_count <= endpoints_to_remove,
+				Error::<T>::StoredEndpointsCountTooLarge
+			);
+
+			// *** No Fail beyond this point ***
+
+			// This one can fail, albeit this should **never** be the case as we check for
+			// the preconditions above.
+			// If some items are remaining (e.g. a continuation cursor exists), it means
+			// that there were more than the counter stored in `DidEndpointsCount`, and that
+			// should never happen.
+			if ServiceEndpoints::<T>::clear_prefix(&did_subject, current_endpoints_count, None)
+				.maybe_cursor
+				.is_some()
+			{
+				return Err(Error::<T>::InternalError.into());
+			};
+
+			// `take` calls `kill` internally
+			let _did_entry = Did::<T>::take(&did_subject).ok_or(Error::<T>::DidNotPresent)?;
+
+			DidEndpointsCount::<T>::remove(&did_subject);
+			// Mark as deleted to prevent potential replay-attacks of re-adding a previously
+			// deleted DID.
+			DidBlacklist::<T>::insert(&did_subject, ());
+
+			log::debug!("Deleting DID {:?}", did_subject);
+
+			Self::deposit_event(Event::Deleted { identifier: did_subject });
+
+			Ok(())
 		}
 	}
 }
