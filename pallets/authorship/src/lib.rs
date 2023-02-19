@@ -126,6 +126,7 @@ pub mod pallet {
 		/// Add a new author proposal.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::add(authors.len().saturated_into()))]
+
 		pub fn add(origin: OriginFor<T>, authors: Vec<CordAccountOf<T>>) -> DispatchResult {
 			T::AuthorApproveOrigin::ensure_origin(origin)?;
 			ensure!(

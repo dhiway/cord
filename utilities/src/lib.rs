@@ -1,6 +1,9 @@
 // This file is part of CORD – https://cord.network
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+
+// Copyright (C) 2019-2023 BOTLabs GmbH, Dhiway.
+// Copyright (C) 2023 Dhiway.
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Adapted to meet the requirements of the CORD project.
 
 // CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,7 +20,10 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub mod signature;
+pub mod deposit;
+pub use deposit::{free_deposit, reserve_deposit};
 
 #[cfg(any(feature = "runtime-benchmarks", feature = "mock"))]
 pub mod mock;
+pub mod signature;
+pub mod traits;
