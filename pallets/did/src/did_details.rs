@@ -1,7 +1,9 @@
 // This file is part of CORD – https://cord.network
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+
+// Copyright (C) 2019-2023 BOTLabs GmbH, Dhiway.
+// Copyright (C) 2023 Dhiway.
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Based on DID pallet - Copyright (C) 2019-2022 BOTLabs GmbH
+// Adapted to meet the requirements of the CORD project.
 
 // CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,7 +18,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, Encode, MaxEncodedLen, WrapperTypeEncode};
 use frame_support::{
 	ensure,
 	storage::{bounded_btree_map::BoundedBTreeMap, bounded_btree_set::BoundedBTreeSet},
@@ -30,7 +32,7 @@ use sp_std::{convert::TryInto, vec::Vec};
 use crate::{
 	errors::{DidError, SignatureError, StorageError},
 	service_endpoints::DidEndpoint,
-	utils, BlockNumberOf, Config, CordAccountIdOf, DidIdentifierOf, KeyIdOf, Payload,
+	utils, AccountIdOf, BlockNumberOf, Config, DidCallableOf, DidIdentifierOf, KeyIdOf, Payload,
 };
 
 /// Types of verification keys a DID can control.
@@ -132,6 +134,20 @@ impl From<DidEncryptionKey> for DidPublicKey {
 	}
 }
 
+/// Verification methods a verification key can
+/// fulfil, according to the [DID specification](https://w3c.github.io/did-spec-registries/#verification-relationships).
+#[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+pub enum DidVerificationKeyRelationship {
+	/// Key used to authenticate all the DID operations.
+	Authentication,
+	/// Key used to write and revoke delegations on chain.
+	CapabilityDelegation,
+	/// Not used for now.
+	CapabilityInvocation,
+	/// Key used to write and revoke attestations on chain.
+	AssertionMethod,
+}
+
 /// Types of signatures supported by this pallet.
 #[derive(Clone, Decode, RuntimeDebug, Encode, Eq, PartialEq, TypeInfo)]
 pub enum DidSignature {
@@ -231,7 +247,7 @@ impl<I: AsRef<[u8; 32]>> DidVerifiableIdentifier for I {
 /// block number at which it was set.
 ///
 /// It is currently used to keep track of all the past and current
-/// assertion keys a DID might control.
+/// attestation keys a DID might control.
 #[derive(
 	Clone, RuntimeDebug, Decode, Encode, PartialEq, Ord, PartialOrd, Eq, TypeInfo, MaxEncodedLen,
 )]
@@ -256,15 +272,33 @@ pub struct DidDetails<T: Config> {
 	/// The set of the key agreement key IDs, which can be used to encrypt
 	/// data addressed to the DID subject.
 	pub key_agreement_keys: DidKeyAgreementKeySet<T>,
+	/// \[OPTIONAL\] The ID of the delegation key, used to verify the
+	/// signatures of the delegations created by the DID subject.
+	pub delegation_key: Option<KeyIdOf<T>>,
+	/// \[OPTIONAL\] The ID of the attestation key, used to verify the
+	/// signatures of the attestations created by the DID subject.
+	pub attestation_key: Option<KeyIdOf<T>>,
+	/// The map of public keys, with the key label as
+	/// the key map and the tuple (key, addition_block_number) as the map
+	/// value.
 	/// The map includes all the keys under the control of the DID subject,
 	/// including the ones currently used for authentication, key agreement,
-	/// assertion, and delegation.
-	/// [TODO] map the oldkeys that have been rotated,
+	/// attestation, and delegation. Other than those, the map also contains
+	/// the old attestation keys that have been rotated, i.e., they cannot
+	/// be used to create new attestations but can still be used to verify
+	/// previously issued attestations.
 	pub public_keys: DidPublicKeyMap<T>,
+	/// The counter used to avoid replay attacks, which is checked and
+	/// updated upon each DID operation involving with the subject as the
+	/// creator.
+	pub last_tx_counter: u64,
 }
 
 impl<T: Config> DidDetails<T> {
-	/// Creates a new instance of DID from a given authentication key.
+	/// Creates a new instance of DID details with the minimum information,
+	/// i.e., an authentication key and the block creation time.
+	///
+	/// The tx counter is automatically set to 0.
 	pub fn new(
 		authentication_key: DidVerificationKey,
 		block_number: BlockNumberOf<T>,
@@ -281,7 +315,10 @@ impl<T: Config> DidDetails<T> {
 		Ok(Self {
 			authentication_key: authentication_key_id,
 			key_agreement_keys: DidKeyAgreementKeySet::<T>::default(),
+			attestation_key: None,
+			delegation_key: None,
 			public_keys,
+			last_tx_counter: 0u64,
 		})
 	}
 
@@ -295,7 +332,17 @@ impl<T: Config> DidDetails<T> {
 
 		// Creates a new DID with the given authentication key.
 		let mut new_did_details = DidDetails::new(new_auth_key, current_block_number)?;
-		new_did_details.add_key_agreement_key(details.new_key_agreement, current_block_number)?;
+
+		new_did_details
+			.add_key_agreement_key(details.new_key_agreement_key, current_block_number)?;
+
+		if let Some(attesation_key) = details.new_attestation_key {
+			new_did_details.update_attestation_key(attesation_key, current_block_number)?;
+		}
+
+		if let Some(delegation_key) = details.new_delegation_key {
+			new_did_details.update_delegation_key(delegation_key, current_block_number)?;
+		}
 
 		Ok(new_did_details)
 	}
@@ -327,24 +374,24 @@ impl<T: Config> DidDetails<T> {
 		Ok(())
 	}
 
-	/// Add a new key agreement key to the DID.
+	/// Add a single new key agreement key to the DID.
 	///
 	/// The new key is added to the set of public keys.
 	pub fn add_key_agreement_key(
 		&mut self,
-		new_agreement_key: DidEncryptionKey,
+		new_key_agreement_key: DidEncryptionKey,
 		block_number: BlockNumberOf<T>,
 	) -> Result<(), StorageError> {
-		let new_key_agreement_id = utils::calculate_key_id::<T>(&new_agreement_key.into());
+		let new_key_agreement_id = utils::calculate_key_id::<T>(&new_key_agreement_key.into());
 		self.public_keys
 			.try_insert(
 				new_key_agreement_id,
-				DidPublicKeyDetails { key: new_agreement_key.into(), block_number },
+				DidPublicKeyDetails { key: new_key_agreement_key.into(), block_number },
 			)
 			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
 		self.key_agreement_keys
 			.try_insert(new_key_agreement_id)
-			.map_err(|_| StorageError::MaxKeyAgreementKeysExceeded)?;
+			.map_err(|_| StorageError::MaxTotalKeyAgreementKeysExceeded)?;
 		Ok(())
 	}
 
@@ -356,19 +403,102 @@ impl<T: Config> DidDetails<T> {
 		Ok(())
 	}
 
+	/// Update the DID attestation key, replacing the old one with the new one.
+	///
+	/// The old key is deleted from the set of public keys if it is
+	/// not used in any other part of the DID. The new key is added to the
+	/// set of public keys.
+	pub fn update_attestation_key(
+		&mut self,
+		new_attestation_key: DidVerificationKey,
+		block_number: BlockNumberOf<T>,
+	) -> Result<(), StorageError> {
+		let new_attestation_key_id =
+			utils::calculate_key_id::<T>(&new_attestation_key.clone().into());
+		if let Some(old_attestation_key_id) = self.attestation_key.take() {
+			self.remove_key_if_unused(old_attestation_key_id);
+		}
+		self.attestation_key = Some(new_attestation_key_id);
+		self.public_keys
+			.try_insert(
+				new_attestation_key_id,
+				DidPublicKeyDetails { key: new_attestation_key.into(), block_number },
+			)
+			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
+		Ok(())
+	}
+
+	/// Remove the DID attestation key.
+	///
+	/// The old key is deleted from the set of public keys if it is
+	/// not used in any other part of the DID. The new key is added to the
+	/// set of public keys.
+	pub fn remove_attestation_key(&mut self) -> Result<(), StorageError> {
+		let old_key_id = self.attestation_key.take().ok_or(StorageError::KeyNotPresent)?;
+		self.remove_key_if_unused(old_key_id);
+		Ok(())
+	}
+
+	/// Update the DID delegation key, replacing the old one with the new one.
+	///
+	/// The old key is deleted from the set of public keys if it is
+	/// not used in any other part of the DID. The new key is added to the
+	/// set of public keys.
+	pub fn update_delegation_key(
+		&mut self,
+		new_delegation_key: DidVerificationKey,
+		block_number: BlockNumberOf<T>,
+	) -> Result<(), StorageError> {
+		let new_delegation_key_id =
+			utils::calculate_key_id::<T>(&new_delegation_key.clone().into());
+		if let Some(old_delegation_key_id) = self.delegation_key.take() {
+			self.remove_key_if_unused(old_delegation_key_id);
+		}
+		self.delegation_key = Some(new_delegation_key_id);
+		self.public_keys
+			.try_insert(
+				new_delegation_key_id,
+				DidPublicKeyDetails { key: new_delegation_key.into(), block_number },
+			)
+			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
+		Ok(())
+	}
+
+	/// Remove the DID delegation key.
+	///
+	/// The old key is deleted from the set of public keys if it is
+	/// not used in any other part of the DID. The new key is added to the
+	/// set of public keys.
+	pub fn remove_delegation_key(&mut self) -> Result<(), StorageError> {
+		let old_key_id = self.delegation_key.take().ok_or(StorageError::KeyNotPresent)?;
+		self.remove_key_if_unused(old_key_id);
+		Ok(())
+	}
+
 	// Remove a key from the map of public keys if none of the other keys, i.e.,
-	// authentication, key agreement, assertion, or delegation, is referencing it.
+	// authentication, key agreement, attestation, or delegation, is referencing it.
 	pub fn remove_key_if_unused(&mut self, key_id: KeyIdOf<T>) {
-		if self.authentication_key != key_id && !self.key_agreement_keys.contains(&key_id) {
+		if self.authentication_key != key_id
+			&& self.attestation_key != Some(key_id)
+			&& self.delegation_key != Some(key_id)
+			&& !self.key_agreement_keys.contains(&key_id)
+		{
 			self.public_keys.remove(&key_id);
 		}
 	}
 
 	/// Returns a reference to a specific verification key given the type of
 	/// the key needed.
-	pub fn get_verification_key_for_did(&self) -> Option<&DidVerificationKey> {
-		let key_id = self.authentication_key;
-
+	pub fn get_verification_key_for_key_type(
+		&self,
+		key_type: DidVerificationKeyRelationship,
+	) -> Option<&DidVerificationKey> {
+		let key_id = match key_type {
+			DidVerificationKeyRelationship::AssertionMethod => self.attestation_key,
+			DidVerificationKeyRelationship::Authentication => Some(self.authentication_key),
+			DidVerificationKeyRelationship::CapabilityDelegation => self.delegation_key,
+			_ => None,
+		}?;
 		let key_details = self.public_keys.get(&key_id)?;
 		if let DidPublicKey::PublicVerificationKey(key) = &key_details.key {
 			Some(key)
@@ -377,8 +507,17 @@ impl<T: Config> DidDetails<T> {
 			None
 		}
 	}
+
+	/// Increase the tx counter of the DID.
+	pub fn increase_tx_counter(&mut self) -> u64 {
+		// Since we have transaction mortality now, we can safely wrap nonces around.
+		self.last_tx_counter = self.last_tx_counter.wrapping_add(1);
+		self.last_tx_counter
+	}
 }
 
+// pub(crate) type DidNewKeyAgreementKeySet<T> =
+// BoundedBTreeSet<DidEncryptionKey, <T as Config>::MaxNewKeyAgreementKeys>;
 pub(crate) type DidKeyAgreementKeySet<T> =
 	BoundedBTreeSet<KeyIdOf<T>, <T as Config>::MaxKeyAgreementKeys>;
 pub(crate) type DidPublicKeyMap<T> = BoundedBTreeMap<
@@ -394,10 +533,91 @@ pub(crate) type DidPublicKeyMap<T> = BoundedBTreeMap<
 pub struct DidCreationDetails<T: Config> {
 	/// The DID identifier. It has to be unique.
 	pub did: DidIdentifierOf<T>,
-	/// The new key agreement keys.
-	pub new_key_agreement: DidEncryptionKey,
 	/// The authorised submitter of the creation operation.
-	pub submitter: CordAccountIdOf<T>,
+	pub submitter: AccountIdOf<T>,
+	/// The new key agreement keys.
+	pub new_key_agreement_key: DidEncryptionKey,
+	/// \[OPTIONAL\] The new attestation key.
+	pub new_attestation_key: Option<DidVerificationKey>,
+	/// \[OPTIONAL\] The new delegation key.
+	pub new_delegation_key: Option<DidVerificationKey>,
 	/// The service endpoints details.
 	pub new_service_details: Vec<DidEndpoint<T>>,
 }
+
+/// Errors that might occur while deriving the authorization verification key
+/// relationship.
+#[derive(Clone, RuntimeDebug, Decode, Encode, Eq, PartialEq)]
+pub enum RelationshipDeriveError {
+	/// The call is not callable by a did origin.
+	NotCallableByDid,
+
+	/// The parameters of the call where invalid.
+	InvalidCallParameter,
+}
+
+pub type DeriveDidCallKeyRelationshipResult =
+	Result<DidVerificationKeyRelationship, RelationshipDeriveError>;
+
+/// Trait for extrinsic DID-based authorization.
+///
+/// The trait allows
+/// [DidAuthorizedCallOperations](DidAuthorizedCallOperation) wrapping an
+/// extrinsic to specify what DID key to use to perform signature validation
+/// over the byte-encoded operation. A result of None indicates that the
+/// extrinsic does not support DID-based authorization.
+pub trait DeriveDidCallAuthorizationVerificationKeyRelationship {
+	/// The type of the verification key to be used to validate the
+	/// wrapped extrinsic.
+	fn derive_verification_key_relationship(&self) -> DeriveDidCallKeyRelationshipResult;
+
+	// Return a call to dispatch in order to test the pallet proxy feature.
+	#[cfg(feature = "runtime-benchmarks")]
+	fn get_call_for_did_call_benchmark() -> Self;
+}
+
+/// A DID operation that wraps other extrinsic calls, allowing those
+/// extrinsic to have a DID origin and perform DID-based authorization upon
+/// their invocation.
+#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+#[scale_info(skip_type_params(T))]
+
+pub struct DidAuthorizedCallOperation<T: Config> {
+	/// The DID identifier.
+	pub did: DidIdentifierOf<T>,
+	/// The DID tx counter.
+	pub tx_counter: u64,
+	/// The extrinsic call to authorize with the DID.
+	pub call: DidCallableOf<T>,
+	/// The block number at which the operation was created.
+	pub block_number: BlockNumberOf<T>,
+	/// The account which is authorized to submit the did call.
+	pub submitter: AccountIdOf<T>,
+}
+
+/// Wrapper around a [DidAuthorizedCallOperation].
+///
+/// It contains additional information about the type of DID key to used for
+/// authorization.
+#[derive(Clone, RuntimeDebug, PartialEq, TypeInfo)]
+#[scale_info(skip_type_params(T))]
+
+pub struct DidAuthorizedCallOperationWithVerificationRelationship<T: Config> {
+	/// The wrapped [DidAuthorizedCallOperation].
+	pub operation: DidAuthorizedCallOperation<T>,
+	/// The type of DID key to use for authorization.
+	pub verification_key_relationship: DidVerificationKeyRelationship,
+}
+
+impl<T: Config> core::ops::Deref for DidAuthorizedCallOperationWithVerificationRelationship<T> {
+	type Target = DidAuthorizedCallOperation<T>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.operation
+	}
+}
+
+// Opaque implementation.
+// [DidAuthorizedCallOperationWithVerificationRelationship] encodes to
+// [DidAuthorizedCallOperation].
+impl<T: Config> WrapperTypeEncode for DidAuthorizedCallOperationWithVerificationRelationship<T> {}

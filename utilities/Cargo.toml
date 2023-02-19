@@ -2,39 +2,37 @@
 name = 'cord-utilities'
 description = "Shared traits and structs"
 version = "0.8.0"
-authors = ['Dhiway <info@dhiway.com>']
+authors = ['Dhiway <info@dhiway.com>','BOTLabs GmbH']
 edition = '2021'
 license = "GPL-3.0"
 homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
 
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
 [dependencies]
+# External dependencies
 codec = {default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.1.5"}
 scale-info = {version = "2.1.1", default-features = false, features = ["derive"]}
-serde = {version = "1.0.142", optional = true, features = ["derive"]}
 
+# Substrate dependencies
 frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
 
-[dev-dependencies]
-serde_json = "1.0.83"
-
-[package.metadata.docs.rs]
-targets = ["x86_64-unknown-linux-gnu"]
-
 [features]
 default = ["std"]
 mock = []
 runtime-benchmarks = [
-  "sp-runtime/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
 ]
 std = [
-  "serde",
   "codec/std",
   "frame-support/std",
   "frame-system/std",

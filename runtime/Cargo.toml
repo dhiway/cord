@@ -66,8 +66,6 @@ frame-system-benchmarking = { git = "https://github.com/dhiway/substrate",  defa
 frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.37" }
 
 pallet-did = {  default-features = false, path = '../pallets/did' }
-pallet-schema = {  default-features = false, path = '../pallets/schema' }
-pallet-space = {  default-features = false, path = '../pallets/space' }
 pallet-extrinsic-authorship = {  default-features = false, path = '../pallets/authorship' }
 
 [dev-dependencies]
@@ -119,9 +117,7 @@ std = [
 	"pallet-utility/std",
 	"pallet-babe/std",
 	"pallet-did/std",
-	"pallet-schema/std",
 	"pallet-extrinsic-authorship/std",
-	"pallet-space/std",
 	"sp-runtime/std",
 	"sp-staking/std",
 	"frame-system/std",
