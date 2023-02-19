@@ -66,12 +66,12 @@ pub trait WeightInfo {
 	fn remove_ed25519_delegation_key() -> Weight;
 	fn remove_sr25519_delegation_key() -> Weight;
 	fn remove_ecdsa_delegation_key() -> Weight;
-	fn set_ed25519_attestation_key() -> Weight;
-	fn set_sr25519_attestation_key() -> Weight;
-	fn set_ecdsa_attestation_key() -> Weight;
-	fn remove_ed25519_attestation_key() -> Weight;
-	fn remove_sr25519_attestation_key() -> Weight;
-	fn remove_ecdsa_attestation_key() -> Weight;
+	fn set_ed25519_assertion_key() -> Weight;
+	fn set_sr25519_assertion_key() -> Weight;
+	fn set_ecdsa_assertion_key() -> Weight;
+	fn remove_ed25519_assertion_key() -> Weight;
+	fn remove_sr25519_assertion_key() -> Weight;
+	fn remove_ecdsa_assertion_key() -> Weight;
 	fn add_ed25519_key_agreement_key() -> Weight;
 	fn add_sr25519_key_agreement_key() -> Weight;
 	fn add_ecdsa_key_agreement_key() -> Weight;
@@ -219,37 +219,37 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: Did Did (r:1 w:1)
-	fn set_ed25519_attestation_key() -> Weight {
+	fn set_ed25519_assertion_key() -> Weight {
 		Weight::from_ref_time(43_628_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: Did Did (r:1 w:1)
-	fn set_sr25519_attestation_key() -> Weight {
+	fn set_sr25519_assertion_key() -> Weight {
 		Weight::from_ref_time(43_908_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: Did Did (r:1 w:1)
-	fn set_ecdsa_attestation_key() -> Weight {
+	fn set_ecdsa_assertion_key() -> Weight {
 		Weight::from_ref_time(43_418_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: Did Did (r:1 w:1)
-	fn remove_ed25519_attestation_key() -> Weight {
+	fn remove_ed25519_assertion_key() -> Weight {
 		Weight::from_ref_time(40_519_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: Did Did (r:1 w:1)
-	fn remove_sr25519_attestation_key() -> Weight {
+	fn remove_sr25519_assertion_key() -> Weight {
 		Weight::from_ref_time(40_720_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: Did Did (r:1 w:1)
-	fn remove_ecdsa_attestation_key() -> Weight {
+	fn remove_ecdsa_assertion_key() -> Weight {
 		Weight::from_ref_time(40_956_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
@@ -464,37 +464,37 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: Did Did (r:1 w:1)
-	fn set_ed25519_attestation_key() -> Weight {
+	fn set_ed25519_assertion_key() -> Weight {
 		Weight::from_ref_time(43_628_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: Did Did (r:1 w:1)
-	fn set_sr25519_attestation_key() -> Weight {
+	fn set_sr25519_assertion_key() -> Weight {
 		Weight::from_ref_time(43_908_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: Did Did (r:1 w:1)
-	fn set_ecdsa_attestation_key() -> Weight {
+	fn set_ecdsa_assertion_key() -> Weight {
 		Weight::from_ref_time(43_418_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: Did Did (r:1 w:1)
-	fn remove_ed25519_attestation_key() -> Weight {
+	fn remove_ed25519_assertion_key() -> Weight {
 		Weight::from_ref_time(40_519_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: Did Did (r:1 w:1)
-	fn remove_sr25519_attestation_key() -> Weight {
+	fn remove_sr25519_assertion_key() -> Weight {
 		Weight::from_ref_time(40_720_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: Did Did (r:1 w:1)
-	fn remove_ecdsa_attestation_key() -> Weight {
+	fn remove_ecdsa_assertion_key() -> Weight {
 		Weight::from_ref_time(40_956_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
