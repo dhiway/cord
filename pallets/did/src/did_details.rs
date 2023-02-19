@@ -144,7 +144,7 @@ pub enum DidVerificationKeyRelationship {
 	CapabilityDelegation,
 	/// Not used for now.
 	CapabilityInvocation,
-	/// Key used to write and revoke attestations on chain.
+	/// Key used to write and revoke assertions on chain.
 	AssertionMethod,
 }
 
@@ -247,7 +247,7 @@ impl<I: AsRef<[u8; 32]>> DidVerifiableIdentifier for I {
 /// block number at which it was set.
 ///
 /// It is currently used to keep track of all the past and current
-/// attestation keys a DID might control.
+/// assertion keys a DID might control.
 #[derive(
 	Clone, RuntimeDebug, Decode, Encode, PartialEq, Ord, PartialOrd, Eq, TypeInfo, MaxEncodedLen,
 )]
@@ -275,18 +275,18 @@ pub struct DidDetails<T: Config> {
 	/// \[OPTIONAL\] The ID of the delegation key, used to verify the
 	/// signatures of the delegations created by the DID subject.
 	pub delegation_key: Option<KeyIdOf<T>>,
-	/// \[OPTIONAL\] The ID of the attestation key, used to verify the
-	/// signatures of the attestations created by the DID subject.
-	pub attestation_key: Option<KeyIdOf<T>>,
+	/// \[OPTIONAL\] The ID of the assertion key, used to verify the
+	/// signatures of the assertions created by the DID subject.
+	pub assertion_key: Option<KeyIdOf<T>>,
 	/// The map of public keys, with the key label as
 	/// the key map and the tuple (key, addition_block_number) as the map
 	/// value.
 	/// The map includes all the keys under the control of the DID subject,
 	/// including the ones currently used for authentication, key agreement,
-	/// attestation, and delegation. Other than those, the map also contains
-	/// the old attestation keys that have been rotated, i.e., they cannot
-	/// be used to create new attestations but can still be used to verify
-	/// previously issued attestations.
+	/// assertion, and delegation. Other than those, the map also contains
+	/// the old assertion keys that have been rotated, i.e., they cannot
+	/// be used to create new assertions but can still be used to verify
+	/// previously issued assertions.
 	pub public_keys: DidPublicKeyMap<T>,
 	/// The counter used to avoid replay attacks, which is checked and
 	/// updated upon each DID operation involving with the subject as the
@@ -315,7 +315,7 @@ impl<T: Config> DidDetails<T> {
 		Ok(Self {
 			authentication_key: authentication_key_id,
 			key_agreement_keys: DidKeyAgreementKeySet::<T>::default(),
-			attestation_key: None,
+			assertion_key: None,
 			delegation_key: None,
 			public_keys,
 			last_tx_counter: 0u64,
@@ -336,8 +336,8 @@ impl<T: Config> DidDetails<T> {
 		new_did_details
 			.add_key_agreement_key(details.new_key_agreement_key, current_block_number)?;
 
-		if let Some(attesation_key) = details.new_attestation_key {
-			new_did_details.update_attestation_key(attesation_key, current_block_number)?;
+		if let Some(attesation_key) = details.new_assertion_key {
+			new_did_details.update_assertion_key(attesation_key, current_block_number)?;
 		}
 
 		if let Some(delegation_key) = details.new_delegation_key {
@@ -403,38 +403,37 @@ impl<T: Config> DidDetails<T> {
 		Ok(())
 	}
 
-	/// Update the DID attestation key, replacing the old one with the new one.
+	/// Update the DID assertion key, replacing the old one with the new one.
 	///
 	/// The old key is deleted from the set of public keys if it is
 	/// not used in any other part of the DID. The new key is added to the
 	/// set of public keys.
-	pub fn update_attestation_key(
+	pub fn update_assertion_key(
 		&mut self,
-		new_attestation_key: DidVerificationKey,
+		new_assertion_key: DidVerificationKey,
 		block_number: BlockNumberOf<T>,
 	) -> Result<(), StorageError> {
-		let new_attestation_key_id =
-			utils::calculate_key_id::<T>(&new_attestation_key.clone().into());
-		if let Some(old_attestation_key_id) = self.attestation_key.take() {
-			self.remove_key_if_unused(old_attestation_key_id);
+		let new_assertion_key_id = utils::calculate_key_id::<T>(&new_assertion_key.clone().into());
+		if let Some(old_assertion_key_id) = self.assertion_key.take() {
+			self.remove_key_if_unused(old_assertion_key_id);
 		}
-		self.attestation_key = Some(new_attestation_key_id);
+		self.assertion_key = Some(new_assertion_key_id);
 		self.public_keys
 			.try_insert(
-				new_attestation_key_id,
-				DidPublicKeyDetails { key: new_attestation_key.into(), block_number },
+				new_assertion_key_id,
+				DidPublicKeyDetails { key: new_assertion_key.into(), block_number },
 			)
 			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
 		Ok(())
 	}
 
-	/// Remove the DID attestation key.
+	/// Remove the DID assertion key.
 	///
 	/// The old key is deleted from the set of public keys if it is
 	/// not used in any other part of the DID. The new key is added to the
 	/// set of public keys.
-	pub fn remove_attestation_key(&mut self) -> Result<(), StorageError> {
-		let old_key_id = self.attestation_key.take().ok_or(StorageError::KeyNotPresent)?;
+	pub fn remove_assertion_key(&mut self) -> Result<(), StorageError> {
+		let old_key_id = self.assertion_key.take().ok_or(StorageError::KeyNotPresent)?;
 		self.remove_key_if_unused(old_key_id);
 		Ok(())
 	}
@@ -476,10 +475,10 @@ impl<T: Config> DidDetails<T> {
 	}
 
 	// Remove a key from the map of public keys if none of the other keys, i.e.,
-	// authentication, key agreement, attestation, or delegation, is referencing it.
+	// authentication, key agreement, assertion, or delegation, is referencing it.
 	pub fn remove_key_if_unused(&mut self, key_id: KeyIdOf<T>) {
 		if self.authentication_key != key_id
-			&& self.attestation_key != Some(key_id)
+			&& self.assertion_key != Some(key_id)
 			&& self.delegation_key != Some(key_id)
 			&& !self.key_agreement_keys.contains(&key_id)
 		{
@@ -494,7 +493,7 @@ impl<T: Config> DidDetails<T> {
 		key_type: DidVerificationKeyRelationship,
 	) -> Option<&DidVerificationKey> {
 		let key_id = match key_type {
-			DidVerificationKeyRelationship::AssertionMethod => self.attestation_key,
+			DidVerificationKeyRelationship::AssertionMethod => self.assertion_key,
 			DidVerificationKeyRelationship::Authentication => Some(self.authentication_key),
 			DidVerificationKeyRelationship::CapabilityDelegation => self.delegation_key,
 			_ => None,
@@ -537,8 +536,8 @@ pub struct DidCreationDetails<T: Config> {
 	pub submitter: AccountIdOf<T>,
 	/// The new key agreement keys.
 	pub new_key_agreement_key: DidEncryptionKey,
-	/// \[OPTIONAL\] The new attestation key.
-	pub new_attestation_key: Option<DidVerificationKey>,
+	/// \[OPTIONAL\] The new assertion key.
+	pub new_assertion_key: Option<DidVerificationKey>,
 	/// \[OPTIONAL\] The new delegation key.
 	pub new_delegation_key: Option<DidVerificationKey>,
 	/// The service endpoints details.

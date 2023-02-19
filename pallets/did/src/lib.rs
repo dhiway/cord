@@ -673,7 +673,7 @@ pub mod pallet {
 		/// - Writes: Did
 		/// # </weight>
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_ed25519_attestation_key().max(<T as pallet::Config>::WeightInfo::set_sr25519_attestation_key()).max(<T as pallet::Config>::WeightInfo::set_ecdsa_attestation_key()))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::set_ed25519_assertion_key().max(<T as pallet::Config>::WeightInfo::set_sr25519_assertion_key()).max(<T as pallet::Config>::WeightInfo::set_ecdsa_assertion_key()))]
 		pub fn set_assertion_key(
 			origin: OriginFor<T>,
 			new_key: DidVerificationKey,
@@ -683,19 +683,19 @@ pub mod pallet {
 
 			log::debug!("Setting new assertion key {:?} for DID {:?}", &new_key, &did_subject);
 			did_details
-				.update_attestation_key(new_key, frame_system::Pallet::<T>::block_number())
+				.update_assertion_key(new_key, frame_system::Pallet::<T>::block_number())
 				.map_err(Error::<T>::from)?;
 
 			// *** No Fail beyond this call ***
 
 			Did::<T>::insert(&did_subject, did_details);
-			log::debug!("Attestation key set");
+			log::debug!("Assertion key set");
 
 			Self::deposit_event(Event::Updated { identifier: did_subject });
 			Ok(())
 		}
 
-		/// Remove the DID attestation key.
+		/// Remove the DID assertion key.
 		///
 		/// The old key is deleted from the set of public keys if
 		/// it is not used in any other part of the DID.
@@ -711,18 +711,18 @@ pub mod pallet {
 		/// - Writes: Did
 		/// # </weight>
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_ed25519_attestation_key().max(<T as pallet::Config>::WeightInfo::remove_sr25519_attestation_key()).max(<T as pallet::Config>::WeightInfo::remove_ecdsa_attestation_key()))]
-		pub fn remove_attestation_key(origin: OriginFor<T>) -> DispatchResult {
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_ed25519_assertion_key().max(<T as pallet::Config>::WeightInfo::remove_sr25519_assertion_key()).max(<T as pallet::Config>::WeightInfo::remove_ecdsa_assertion_key()))]
+		pub fn remove_assertion_key(origin: OriginFor<T>) -> DispatchResult {
 			let did_subject = T::EnsureOrigin::ensure_origin(origin)?.subject();
 			let mut did_details = Did::<T>::get(&did_subject).ok_or(Error::<T>::DidNotPresent)?;
 
-			log::debug!("Removing attestation key for DID {:?}", &did_subject);
-			did_details.remove_attestation_key().map_err(Error::<T>::from)?;
+			log::debug!("Removing assertion key for DID {:?}", &did_subject);
+			did_details.remove_assertion_key().map_err(Error::<T>::from)?;
 
 			// *** No Fail beyond this call ***
 
 			Did::<T>::insert(&did_subject, did_details);
-			log::debug!("Attestation key removed");
+			log::debug!("Assertion key removed");
 
 			Self::deposit_event(Event::Updated { identifier: did_subject });
 			Ok(())
@@ -905,7 +905,7 @@ pub mod pallet {
 		///
 		/// As the result of the deletion, all traces of the DID are removed
 		/// from the storage, which results in the invalidation of all
-		/// attestations issued by the DID subject.
+		/// assertions issued by the DID subject.
 		///
 		/// The dispatch origin must be a DID origin proxied via the
 		/// `submit_did_call` extrinsic.
