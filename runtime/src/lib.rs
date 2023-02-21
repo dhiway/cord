@@ -827,6 +827,19 @@ impl pallet_did::Config for Runtime {
 	type WeightInfo = weights::pallet_did::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const MaxStreamCommits: u32 = 200;
+}
+
+impl pallet_stream::Config for Runtime {
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<DidIdentifier, AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::pallet_stream::WeightInfo<Runtime>;
+	type MaxStreamCommits = MaxStreamCommits;
+	type CreatorId = DidIdentifier;
+}
+
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
@@ -880,7 +893,8 @@ construct_runtime! {
 
 		// DID management pallet.
 		Did: pallet_did = 103,
-
+		// Stream management pallet
+		Stream: pallet_stream = 104,
 		// Sudo.
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,
 	}
@@ -1197,6 +1211,31 @@ sp_api::impl_runtime_apis! {
 			SessionKeys::decode_into_raw_public_keys(&encoded)
 		}
 	}
+
+	impl cord_runtime_api_did::Did<
+		Block,
+		DidIdentifier,
+		Hash,
+		BlockNumber
+	> for Runtime {
+		fn query(did: DidIdentifier) -> Option<
+			cord_runtime_api_did::RawDidLinkedInfo<
+				DidIdentifier,
+				Hash,
+				BlockNumber
+			>
+		> {
+			let details = pallet_did::Did::<Runtime>::get(&did)?;
+			let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
+
+			Some(cord_runtime_api_did::RawDidLinkedInfo {
+				identifier: did,
+				service_endpoints,
+				details: details.into(),
+			})
+		}
+	}
+
 
 	#[cfg(feature = "try-runtime")]
 	impl frame_try_runtime::TryRuntime<Block> for Runtime {

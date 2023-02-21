@@ -1,9 +1,7 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 BOTLabs GmbH.
-// Copyright (C) 2023 Dhiway.
+// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Adapted to meet the requirements of the CORD project.
 
 // CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -18,12 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-#![cfg_attr(not(feature = "std"), no_std)]
+#![allow(unused_parens)]
+#![allow(unused_imports)]
 
-pub mod deposit;
-pub use deposit::{free_deposit, reserve_deposit};
+// Dummy file
+use frame_support::{traits::Get, weights::Weight};
+use sp_std::marker::PhantomData;
 
-#[cfg(any(feature = "runtime-benchmarks", feature = "mock"))]
-pub mod mock;
-pub mod signature;
-pub mod traits;
+pub struct WeightInfo<T>(PhantomData<T>);
+impl<T: frame_system::Config> pallet_stream::WeightInfo for WeightInfo<T> {
+	fn create() -> Weight {
+		Weight::from_ref_time(155_362_954 as u64)
+	}
+}
