@@ -66,7 +66,10 @@ frame-system-benchmarking = { git = "https://github.com/dhiway/substrate",  defa
 frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.37" }
 
 pallet-did = {  default-features = false, path = '../pallets/did' }
+pallet-stream = {  default-features = false, path = '../pallets/stream' }
 pallet-extrinsic-authorship = {  default-features = false, path = '../pallets/authorship' }
+# Internal runtime API (with default disabled)
+cord-runtime-api-did = {path = "./api/did", default-features = false}
 
 [dev-dependencies]
 hex-literal = "0.3.4"
@@ -117,7 +120,9 @@ std = [
 	"pallet-utility/std",
 	"pallet-babe/std",
 	"pallet-did/std",
+	"pallet-stream/std",
 	"pallet-extrinsic-authorship/std",
+	"cord-runtime-api-did/std",
 	"sp-runtime/std",
 	"sp-staking/std",
 	"frame-system/std",
