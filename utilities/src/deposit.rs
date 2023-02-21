@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 BOTLabs GmbH, Dhiway.
+// Copyright (C) 2019-2023 BOTLabs GmbH.
 // Copyright (C) 2023 Dhiway.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Adapted to meet the requirements of the CORD project.
@@ -26,24 +26,21 @@ use sp_runtime::{traits::Zero, DispatchError};
 /// An amount of balance reserved by the specified address.
 #[derive(Clone, Debug, Encode, Decode, Eq, PartialEq, Ord, PartialOrd, TypeInfo, MaxEncodedLen)]
 pub struct Deposit<Account, Balance> {
-    pub owner: Account,
-    pub amount: Balance,
+	pub owner: Account,
+	pub amount: Balance,
 }
 
 pub fn reserve_deposit<Account, Currency: ReservableCurrency<Account>>(
-    account: Account,
-    deposit_amount: Currency::Balance,
+	account: Account,
+	deposit_amount: Currency::Balance,
 ) -> Result<Deposit<Account, Currency::Balance>, DispatchError> {
-    Currency::reserve(&account, deposit_amount)?;
-    Ok(Deposit {
-        owner: account,
-        amount: deposit_amount,
-    })
+	Currency::reserve(&account, deposit_amount)?;
+	Ok(Deposit { owner: account, amount: deposit_amount })
 }
 
 pub fn free_deposit<Account, Currency: ReservableCurrency<Account>>(
-    deposit: &Deposit<Account, Currency::Balance>,
+	deposit: &Deposit<Account, Currency::Balance>,
 ) {
-    let err_amount = Currency::unreserve(&deposit.owner, deposit.amount);
-    debug_assert!(err_amount.is_zero());
+	let err_amount = Currency::unreserve(&deposit.owner, deposit.amount);
+	debug_assert!(err_amount.is_zero());
 }
