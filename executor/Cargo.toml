@@ -8,27 +8,28 @@ homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
 
 [dependencies]
+codec = { package = "parity-scale-codec", version = "3.2.2" }
 cord-runtime = { package = "cord-runtime", path = "../runtime" }
-sc-executor = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
-frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+sc-executor = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
 
 [dev-dependencies]
-criterion = "0.3.0"
-frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
-frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
-pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
-pallet-grandpa = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
-pallet-indices = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
-pallet-session = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
-pallet-timestamp = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
-pallet-transaction-payment = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
-pallet-treasury = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
-sp-application-crypto = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
-sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
-sp-externalities = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+criterion = "0.4.0"
+frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
+frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
+pallet-grandpa = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
+pallet-indices = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
+pallet-session = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
+pallet-timestamp = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
+pallet-transaction-payment = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
+pallet-treasury = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
+sp-application-crypto = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
+sp-externalities = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
 wat = "1.0"
 futures = "0.3.21"
 

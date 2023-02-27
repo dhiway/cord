@@ -12,10 +12,10 @@ repository = "https://github.com/dhiway/cord"
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.1.5", default-features = false, features = [
+codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = [
 	"derive",
 	"max-encoded-len",
 ] }
@@ -25,12 +25,12 @@ cord-utilities = { package = "cord-utilities", path = "../../utilities", default
 serde = { version = "1.0.136", optional = true }
 
 # Substrate dependencies
-frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
-frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
-sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false }
-sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false, optional = true}
-frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37", default-features = false, optional = true}
+frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38", default-features = false }
+frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38", default-features = false }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38", default-features = false }
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38", default-features = false, optional = true}
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38", default-features = false, optional = true}
 
 
 [features]

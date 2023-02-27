@@ -31,8 +31,17 @@ pub use did_details::*;
 pub use service_endpoint::*;
 
 #[derive(Encode, Decode, TypeInfo, Eq, PartialEq)]
-pub struct DidLinkedInfo<DidIdentifier, Id, Type, Url, Key: Ord, BlockNumber: MaxEncodedLen> {
+pub struct DidLinkedInfo<
+	DidIdentifier,
+	Web3Name,
+	Id,
+	Type,
+	Url,
+	Key: Ord,
+	BlockNumber: MaxEncodedLen,
+> {
 	pub identifier: DidIdentifier,
+	pub w3n: Option<Web3Name>,
 	pub service_endpoints: Vec<ServiceEndpoint<Id, Type, Url>>,
 	pub details: DidDetails<Key, BlockNumber>,
 }
@@ -42,7 +51,7 @@ pub struct DidLinkedInfo<DidIdentifier, Id, Type, Url, Key: Ord, BlockNumber: Ma
 /// This will be returned by the runtime and processed by the client side RPC
 /// implementation.
 pub type RawDidLinkedInfo<DidIdentifier, Key, BlockNumber> =
-	DidLinkedInfo<DidIdentifier, Vec<u8>, Vec<u8>, Vec<u8>, Key, BlockNumber>;
+	DidLinkedInfo<DidIdentifier, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Key, BlockNumber>;
 
 sp_api::decl_runtime_apis! {
 	pub trait Did<DidIdentifier, Key: Ord, BlockNumber> where
@@ -50,10 +59,13 @@ sp_api::decl_runtime_apis! {
 		BlockNumber: Codec + MaxEncodedLen,
 		Key: Codec,
 	{
-		/// Given a did this returns:
-		/// * the DID
-		/// * public keys stored for the did
-		/// * service endpoints
-		fn query(did: DidIdentifier) -> Option<RawDidLinkedInfo<DidIdentifier, Key, BlockNumber>>;
+	/// Given a did this returns:
+	/// * the DID
+	/// * public keys stored for the did
+	/// * service endpoints
+	fn query(did: DidIdentifier) -> Option<RawDidLinkedInfo<DidIdentifier, Key, BlockNumber>>;
+	fn query_again(did: DidIdentifier) -> Option<RawDidLinkedInfo<DidIdentifier, Key, BlockNumber>>;
+	fn query_again_agan(did: DidIdentifier) -> Option<RawDidLinkedInfo<DidIdentifier, Key, BlockNumber>>;
+
 	}
 }

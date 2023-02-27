@@ -16,19 +16,19 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use super::benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder};
 use crate::{
 	chain_spec,
 	cli::{Cli, Subcommand},
 	service as cord_service,
 };
+use cord_client::benchmarking::{benchmark_inherent_data, RemarkBuilder, TransferKeepAliveBuilder};
 
-use cord_executor::ExecutorDispatch;
 use cord_primitives::Block;
 use cord_runtime::{ExistentialDeposit, RuntimeApi};
-use cord_service::{new_partial, FullClient};
+use cord_service::IdentifyVariant;
 use frame_benchmarking_cli::*;
-use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
+use sc_cli::{ChainSpec, ExecutionStrategy, RuntimeVersion, SubstrateCli};
+use sc_service::config::BasePath;
 use sc_service::PartialComponents;
 use sp_keyring::Sr25519Keyring;
 
@@ -87,26 +87,41 @@ impl SubstrateCli for Cli {
 	}
 }
 
+/// Unwraps a [`service::Client`] into the concrete runtime client.
+#[allow(unused)]
+macro_rules! unwrap_client {
+	(
+        $client:ident,
+        $code:expr
+    ) => {
+		match $client.as_ref() {
+			cord_service::Client::Cord($client) => $code,
+			#[allow(unreachable_patterns)]
+			_ => Err("invalid chain spec".into()),
+		}
+	};
+}
+
 /// Parse command line arguments into service configuration.
 pub fn run() -> sc_cli::Result<()> {
-	let cli = Cli::from_args();
-	match &cli.subcommand {
-		None => {
-			let runner = cli.create_runner(&cli.run)?;
-			runner.run_node_until_exit(|config| async move {
-				cord_service::new_full(config, cli.no_hardware_benchmarks)
-					.map_err(sc_cli::Error::Service)
-			})
-		},
-		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
-		Some(Subcommand::Sign(cmd)) => cmd.run(),
-		Some(Subcommand::Verify(cmd)) => cmd.run(),
-		Some(Subcommand::Vanity(cmd)) => cmd.run(),
-		Some(Subcommand::Inspect(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
+	let mut cli = Cli::from_args();
 
-			runner.sync_run(|config| cmd.run::<Block, RuntimeApi, ExecutorDispatch>(config))
-		},
+	let old_base = BasePath::from_project("", "", "cord-node");
+	let new_base = BasePath::from_project("", "", &Cli::executable_name());
+	if old_base.path().exists() && !new_base.path().exists() {
+		_ = std::fs::rename(old_base.path(), new_base.path());
+	}
+
+	// Force setting `Wasm` as default execution strategy.
+	cli.run
+		.base
+		.import_params
+		.execution_strategies
+		.execution
+		.get_or_insert(ExecutionStrategy::Wasm);
+
+	match &cli.subcommand {
+		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
@@ -114,30 +129,28 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, import_queue, .. } =
-					new_partial(&config)?;
+				let (client, _, import_queue, task_manager) = cord_service::new_chain_ops(&config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		},
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, .. } = new_partial(&config)?;
+				let (client, _, _, task_manager) = cord_service::new_chain_ops(&config)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
 		},
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, .. } = new_partial(&config)?;
+				let (client, _, _, task_manager) = cord_service::new_chain_ops(&config)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
 		},
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, import_queue, .. } =
-					new_partial(&config)?;
+				let (client, _, import_queue, task_manager) = cord_service::new_chain_ops(&config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		},
@@ -148,16 +161,22 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, backend, .. } = new_partial(&config)?;
-				let aux_revert = Box::new(|client: Arc<FullClient>, backend, blocks| {
-					sc_consensus_babe::revert(client.clone(), backend, blocks)?;
-					sc_finality_grandpa::revert(client, blocks)?;
-					Ok(())
+				let (client, backend, _, task_manager) = cord_service::new_chain_ops(&config)?;
+				let aux_revert = Box::new(|client, backend, blocks| {
+					cord_service::revert_backend(client, backend, blocks, config)
+						.map_err(|err| sc_cli::Error::Application(err.into()))
 				});
 				Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
 			})
 		},
+		#[cfg(feature = "runtime-benchmarks")]
 		Some(Subcommand::Benchmark(cmd)) => {
+			use crate::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder};
+			use frame_benchmarking_cli::{
+				BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE,
+			};
+			use sp_keyring::Sr25519Keyring;
+
 			let runner = cli.create_runner(cmd)?;
 
 			runner.sync_run(|config| {
@@ -168,17 +187,22 @@ pub fn run() -> sc_cli::Result<()> {
 						if !cfg!(feature = "runtime-benchmarks") {
 							return Err(
 								"Runtime benchmarking wasn't enabled when building the node. \
-							You can enable it with `--features runtime-benchmarks`."
+                            You can enable it with `--features runtime-benchmarks`."
 									.into(),
 							);
 						}
-
-						cmd.run::<Block, ExecutorDispatch>(config)
+						match &config.chain_spec {
+							spec if spec.is_cord() => cmd
+								.run::<cord_service::cord_runtime::Block, cord_service::CordExecutorDispatch>(
+									config,
+								),
+							_ => Err("invalid chain spec".into()),
+						}
 					},
 					BenchmarkCmd::Block(cmd) => {
-						// ensure that we keep the task manager alive
-						let partial = new_partial(&config)?;
-						cmd.run(partial.client)
+						let (client, _, _, _) = cord_service::new_chain_ops(&config)?;
+
+						unwrap_client!(client, cmd.run(client.clone()))
 					},
 					#[cfg(not(feature = "runtime-benchmarks"))]
 					BenchmarkCmd::Storage(_) => Err(
@@ -187,44 +211,48 @@ pub fn run() -> sc_cli::Result<()> {
 					),
 					#[cfg(feature = "runtime-benchmarks")]
 					BenchmarkCmd::Storage(cmd) => {
-						// ensure that we keep the task manager alive
-						let partial = new_partial(&config)?;
-						let db = partial.backend.expose_db();
-						let storage = partial.backend.expose_storage();
+						let (client, backend, _, _) = cord_service::new_chain_ops(&config)?;
+						let db = backend.expose_db();
+						let storage = backend.expose_storage();
 
-						cmd.run(config, partial.client, db, storage)
+						unwrap_client!(client, cmd.run(config, client.clone(), db, storage))
 					},
 					BenchmarkCmd::Overhead(cmd) => {
-						// ensure that we keep the task manager alive
-						let partial = new_partial(&config)?;
-						let ext_builder = RemarkBuilder::new(partial.client.clone());
+						let inherent_data = inherent_benchmark_data().map_err(|e| {
+							sc_cli::Error::from(format!("generating inherent data: {e:?}"))
+						})?;
 
-						cmd.run(
-							config,
-							partial.client,
-							inherent_benchmark_data()?,
-							Vec::new(),
-							&ext_builder,
+						let (client, _, _, _) = cord_service::new_chain_ops(&config)?;
+						let ext_builder = RemarkBuilder::new(client.clone());
+
+						unwrap_client!(
+							client,
+							cmd.run(
+								config,
+								client.clone(),
+								inherent_data,
+								Vec::new(),
+								&ext_builder
+							)
 						)
 					},
 					BenchmarkCmd::Extrinsic(cmd) => {
-						// ensure that we keep the task manager alive
-						let partial = new_partial(&config)?;
+						let inherent_data = inherent_benchmark_data().map_err(|e| {
+							sc_cli::Error::from(format!("generating inherent data: {e:?}"))
+						})?;
+						let (client, _, _, _) = cord_service::new_chain_ops(&config)?;
 						// Register the *Remark* and *TKA* builders.
 						let ext_factory = ExtrinsicFactory(vec![
-							Box::new(RemarkBuilder::new(partial.client.clone())),
+							Box::new(RemarkBuilder::new(client.clone())),
 							Box::new(TransferKeepAliveBuilder::new(
-								partial.client.clone(),
+								client.clone(),
 								Sr25519Keyring::Alice.to_account_id(),
-								ExistentialDeposit::get(),
 							)),
 						]);
 
-						cmd.run(
-							partial.client,
-							inherent_benchmark_data()?,
-							Vec::new(),
-							&ext_factory,
+						unwrap_client!(
+							client,
+							cmd.run(client.clone(), inherent_data, Vec::new(), &ext_factory)
 						)
 					},
 					BenchmarkCmd::Machine(cmd) => {
@@ -233,35 +261,54 @@ pub fn run() -> sc_cli::Result<()> {
 				}
 			})
 		},
-
 		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
 			use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
 			let runner = cli.create_runner(cmd)?;
-			runner.async_run(|config| {
-				// we don't need any of the components of new_partial, just a runtime, or a task
-				// manager to do `async_run`.
-				let registry = config.prometheus_config.as_ref().map(|cfg| &cfg.registry);
-				let task_manager =
-					sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
-						.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
+			let chain_spec = &runner.config().chain_spec;
 
-				Ok((
-					cmd.run::<Block, ExtendedHostFunctions<
+			let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
+			let task_manager =
+				sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
+					.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
+
+			match chain_spec {
+				spec if spec.is_cord() => runner.async_run(|_| {
+					Ok((
+                        cmd.run::<cord_service::cord_runtime::Block, ExtendedHostFunctions<
 						sp_io::SubstrateHostFunctions,
-						<ExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
-					>>(),
-					task_manager,
-				))
-			})
+						<cord_service::COrdExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
+					>>(
+                        ),
+                        task_manager,
+                    ))
+				}),
+				_ => panic!("No runtime feature [cord] is enabled"),
+			}
 		},
 		#[cfg(not(feature = "try-runtime"))]
 		Some(Subcommand::TryRuntime) => Err("TryRuntime wasn't enabled when building the node. \
-				You can enable it with `--features try-runtime`."
+                You can enable it with `--features try-runtime`."
 			.into()),
 		Some(Subcommand::ChainInfo(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run::<Block>(&config))
 		},
+		None => {
+			let runner = if cli.run.base.validator {
+				cli.create_runner_with_logger_hook(&cli.run.base, |logger, _| {
+					logger.with_detailed_output(false);
+					// logger.with_max_level(log::LevelFilter::Info);
+				})?
+			} else {
+				cli.create_runner(&cli.run.base)?
+			};
+
+			runner.run_node_until_exit(|config| async move {
+				cord_service::new_full(config, cli.no_hardware_benchmarks)
+					.map_err(sc_cli::Error::Service)
+			})
+		},
+		_ => todo!(),
 	}
 }
