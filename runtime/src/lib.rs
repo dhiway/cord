@@ -56,6 +56,7 @@ pub use pallet_transaction_payment::{
 	CurrencyAdapter, Multiplier, OnChargeTransaction, TargetedFeeAdjustment,
 };
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
@@ -402,14 +403,8 @@ impl pallet_timestamp::Config for Runtime {
 	type WeightInfo = weights::pallet_timestamp::WeightInfo<Runtime>;
 }
 
-parameter_types! {
-	pub const UncleGenerations: u32 = 0;
-}
-
 impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
-	type UncleGenerations = UncleGenerations;
-	type FilterUncle = ();
 	type EventHandler = ImOnline;
 }
 
@@ -646,6 +641,10 @@ impl pallet_im_online::Config for Runtime {
 	type MaxPeerDataEncodingSize = MaxPeerDataEncodingSize;
 }
 
+parameter_types! {
+	pub const MaxSetIdSessionEntries: u32 = BondingDuration::get() * SessionsPerEra::get();
+}
+
 impl pallet_grandpa::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 
@@ -667,6 +666,7 @@ impl pallet_grandpa::Config for Runtime {
 
 	type WeightInfo = ();
 	type MaxAuthorities = MaxAuthorities;
+	type MaxSetIdSessionEntries = MaxSetIdSessionEntries;
 }
 
 /// Submits a transaction with the node's public and signature type. Adheres to
@@ -828,12 +828,25 @@ impl pallet_did::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MaxEncodedSchemaLength: u32 = 102_400;
+}
+
+impl pallet_schema::Config for Runtime {
+	type SchemaCreatorId = DidIdentifier;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+	type RuntimeEvent = RuntimeEvent;
+	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
+	type WeightInfo = weights::pallet_schema::WeightInfo<Runtime>;
+}
+
+parameter_types! {
 	pub const MaxStreamCommits: u32 = 200;
 }
 
 impl pallet_stream::Config for Runtime {
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-	type OriginSuccess = pallet_did::DidRawOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_stream::WeightInfo<Runtime>;
 	type MaxStreamCommits = MaxStreamCommits;
@@ -851,52 +864,34 @@ construct_runtime! {
 		NodeBlock = cord_primitives::Block,
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
-		// Basic stuff; balances is uncallable initially.
-		System: frame_system::{Pallet, Call, Storage, Config, Event<T>} = 0,
-		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 1,
-		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 10,
-
-		// Babe must be before session.
-		Babe: pallet_babe::{Pallet, Call, Storage, Config, ValidateUnsigned} = 2,
-
-		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 3,
-		Indices: pallet_indices::{Pallet, Call, Storage, Config<T>, Event<T>} = 4,
-		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 5,
-		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 32,
-
-		// Consensus support.
-		Authorship: pallet_authorship::{Pallet, Call, Storage} = 6,
-		AuthorityManager: authority_manager::{Pallet, Call, Storage, Event<T>, Config<T>} = 7,
-		Offences: pallet_offences::{Pallet, Storage, Event} = 8,
+		System: frame_system = 0,
+		Scheduler: pallet_scheduler = 1,
+		Babe: pallet_babe = 2,
+		Timestamp: pallet_timestamp = 3,
+		Indices: pallet_indices = 4,
+		Balances: pallet_balances = 5,
+		Authorship: pallet_authorship = 6,
+		AuthorityManager: authority_manager = 7,
+		Offences: pallet_offences = 8,
+		Session: pallet_session = 9,
+		Grandpa: pallet_grandpa = 10,
+		ImOnline: pallet_im_online = 11,
+		AuthorityDiscovery: pallet_authority_discovery = 12,
+		Preimage: pallet_preimage = 13,
+		Democracy: pallet_democracy = 14,
+		Council: pallet_collective::<Instance1> = 15,
+		TechnicalCommittee: pallet_collective::<Instance2> = 16,
+		TechnicalMembership: pallet_membership::<Instance1> = 17,
+		Treasury: pallet_treasury = 18,
+		Utility: pallet_utility = 31,
+		TransactionPayment: pallet_transaction_payment = 32,
 		Historical: pallet_session_historical::{Pallet} = 33,
-		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 9,
-		Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 11,
-		ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>} = 12,
-		AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 13,
-
-		// Governance stuff; uncallable initially.
-		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 15,
-		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 16,
-		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 17,
-		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 18,
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 19,
-
-		// Utility module.
-		Utility: pallet_utility::{Pallet, Call, Event} = 31,
-
-
-		// Multisig module. Late addition.
-		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 35,
-
-		// Author pallet.
-		ExtrinsicAuthorship: pallet_extrinsic_authorship::{Pallet, Call, Storage, Event<T>, Config<T>} =102,
-
-		// DID management pallet.
-		Did: pallet_did = 103,
-		// Stream management pallet
+		Multisig: pallet_multisig = 35,
+		ExtrinsicAuthorship: pallet_extrinsic_authorship =101,
+		Did: pallet_did = 102,
+		Schema: pallet_schema = 103,
 		Stream: pallet_stream = 104,
-		// Sudo.
-		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 255,
+		Sudo: pallet_sudo = 255,
 	}
 }
 
@@ -930,6 +925,9 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			},
 			RuntimeCall::Did { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::Schema { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
 			},
 			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {
 				single_key_relationship(&calls[..])
@@ -1176,6 +1174,68 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
+	impl cord_runtime_api_did::Did<
+		Block,
+		DidIdentifier,
+		Hash,
+		BlockNumber
+	> for Runtime {
+		fn query(did: DidIdentifier) -> Option<
+			cord_runtime_api_did::RawDidLinkedInfo<
+				DidIdentifier,
+				Hash,
+				BlockNumber
+			>
+		> {
+			let details = pallet_did::Did::<Runtime>::get(&did)?;
+			let w3n = None;
+			let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
+
+			Some(cord_runtime_api_did::RawDidLinkedInfo {
+				identifier: did,
+				w3n,
+				service_endpoints,
+				details: details.into(),
+			})
+		}
+		fn query_again(did: DidIdentifier) -> Option<
+			cord_runtime_api_did::RawDidLinkedInfo<
+				DidIdentifier,
+				Hash,
+				BlockNumber
+			>
+		> {
+			let details = pallet_did::Did::<Runtime>::get(&did)?;
+			let w3n = None;
+			let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
+
+			Some(cord_runtime_api_did::RawDidLinkedInfo {
+				identifier: did,
+				w3n,
+				service_endpoints,
+				details: details.into(),
+			})
+		}
+		fn query_again_agan(did: DidIdentifier) -> Option<
+			cord_runtime_api_did::RawDidLinkedInfo<
+				DidIdentifier,
+				Hash,
+				BlockNumber
+			>
+		> {
+			let details = pallet_did::Did::<Runtime>::get(&did)?;
+			let w3n = None;
+			let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
+
+			Some(cord_runtime_api_did::RawDidLinkedInfo {
+				identifier: did,
+				w3n,
+				service_endpoints,
+				details: details.into(),
+			})
+		}
+	}
+
 	impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
 		Block,
 		Balance,
@@ -1185,6 +1245,12 @@ sp_api::impl_runtime_apis! {
 		}
 		fn query_fee_details(uxt: <Block as BlockT>::Extrinsic, len: u32) -> FeeDetails<Balance> {
 			TransactionPayment::query_fee_details(uxt, len)
+		}
+		fn query_weight_to_fee(weight: Weight) -> Balance {
+			TransactionPayment::weight_to_fee(weight)
+		}
+		fn query_length_to_fee(length: u32) -> Balance {
+			TransactionPayment::length_to_fee(length)
 		}
 	}
 
@@ -1196,6 +1262,12 @@ sp_api::impl_runtime_apis! {
 		}
 		fn query_call_fee_details(call: RuntimeCall, len: u32) -> FeeDetails<Balance> {
 			TransactionPayment::query_call_fee_details(call, len)
+		}
+		fn query_weight_to_fee(weight: Weight) -> Balance {
+			TransactionPayment::weight_to_fee(weight)
+		}
+		fn query_length_to_fee(length: u32) -> Balance {
+			TransactionPayment::length_to_fee(length)
 		}
 	}
 
@@ -1212,29 +1284,7 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	impl cord_runtime_api_did::Did<
-		Block,
-		DidIdentifier,
-		Hash,
-		BlockNumber
-	> for Runtime {
-		fn query(did: DidIdentifier) -> Option<
-			cord_runtime_api_did::RawDidLinkedInfo<
-				DidIdentifier,
-				Hash,
-				BlockNumber
-			>
-		> {
-			let details = pallet_did::Did::<Runtime>::get(&did)?;
-			let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
 
-			Some(cord_runtime_api_did::RawDidLinkedInfo {
-				identifier: did,
-				service_endpoints,
-				details: details.into(),
-			})
-		}
-	}
 
 
 	#[cfg(feature = "try-runtime")]

@@ -9,10 +9,10 @@ homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.37" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.38" }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.1.5", default-features = false, features = [
+codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = [
 	"derive",
 	"max-encoded-len",
 ] }
@@ -21,12 +21,12 @@ serde = { version = "1.0.137", default-features = false, optional = true }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 
 
-sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
-sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
-sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
-frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
-frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
-sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.37"}
+sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.38"}
+sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.38"}
+sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.38"}
+frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.38"}
+frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.38"}
+sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.38"}
 
 [features]
 default = ['std']

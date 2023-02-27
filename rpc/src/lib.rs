@@ -25,8 +25,11 @@ use std::sync::Arc;
 use cord_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
 use jsonrpsee::RpcModule;
 use sc_client_api::AuxStore;
-use sc_consensus_babe::Epoch;
-use sc_finality_grandpa::FinalityProofProvider;
+use sc_consensus_babe::{BabeConfiguration, Epoch};
+use sc_consensus_epochs::SharedEpochChanges;
+use sc_finality_grandpa::{
+	FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
+};
 pub use sc_rpc::{DenyUnsafe, SubscriptionTaskExecutor};
 use sc_transaction_pool_api::TransactionPool;
 use sp_api::ProvideRuntimeApi;
@@ -36,13 +39,13 @@ use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_keystore::SyncCryptoStorePtr;
 
-/// A IO handler that uses all Full RPC extensions.
+/// A type representing all RPC extensions.
 pub type RpcExtension = RpcModule<()>;
 
 /// Extra dependencies for BABE.
 pub struct BabeDeps {
 	/// BABE protocol config.
-	pub babe_config: sc_consensus_babe::BabeConfiguration,
+	pub babe_config: BabeConfiguration,
 	/// BABE pending epoch changes.
 	pub shared_epoch_changes: sc_consensus_epochs::SharedEpochChanges<Block, Epoch>,
 	/// The keystore that manages the keys of the node.
@@ -88,6 +91,7 @@ pub fn create_full<C, P, SC, B>(
 ) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
 where
 	C: ProvideRuntimeApi<Block>
+		+ sc_client_api::BlockBackend<Block>
 		+ HeaderBackend<Block>
 		+ AuxStore
 		+ HeaderMetadata<Block, Error = BlockChainError>
@@ -107,6 +111,8 @@ where
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use sc_consensus_babe_rpc::{Babe, BabeApiServer};
 	use sc_finality_grandpa_rpc::{Grandpa, GrandpaApiServer};
+	use sc_rpc::dev::{Dev, DevApiServer};
+	use sc_rpc_spec_v2::chain_spec::{ChainSpec, ChainSpecApiServer};
 	use sc_sync_state_rpc::{SyncState, SyncStateApiServer};
 	use state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
@@ -122,7 +128,11 @@ where
 		finality_provider,
 	} = grandpa;
 
-	io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
+	let chain_name = chain_spec.name().to_string();
+	let genesis_hash = client.block_hash(0).ok().flatten().expect("Genesis block exists; qed");
+	let properties = chain_spec.properties();
+	io.merge(ChainSpec::new(chain_name, genesis_hash, properties).into_rpc())?;
+
 	io.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
 	io.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 
@@ -149,8 +159,11 @@ where
 	)?;
 
 	io.merge(
-		SyncState::new(chain_spec, client, shared_authority_set, shared_epoch_changes)?.into_rpc(),
+		SyncState::new(chain_spec, client.clone(), shared_authority_set, shared_epoch_changes)?
+			.into_rpc(),
 	)?;
+	io.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
+	io.merge(Dev::new(client, deny_unsafe).into_rpc())?;
 
 	Ok(io)
 }

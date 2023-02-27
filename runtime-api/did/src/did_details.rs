@@ -22,7 +22,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
 
-use did::{did_details::DidPublicKeyDetails, BlockNumberOf, KeyIdOf};
+use pallet_did::{did_details::DidPublicKeyDetails, BlockNumberOf, KeyIdOf};
 
 #[derive(Encode, Decode, TypeInfo, Clone, Debug, Eq, PartialEq, MaxEncodedLen)]
 pub struct DidDetails<Key: Ord, BlockNumber: MaxEncodedLen> {
@@ -34,10 +34,10 @@ pub struct DidDetails<Key: Ord, BlockNumber: MaxEncodedLen> {
 	pub last_tx_counter: u64,
 }
 
-impl<T: did::Config> From<did::did_details::DidDetails<T>>
+impl<T: pallet_did::Config> From<pallet_did::did_details::DidDetails<T>>
 	for DidDetails<KeyIdOf<T>, BlockNumberOf<T>>
 {
-	fn from(did_details: did::did_details::DidDetails<T>) -> Self {
+	fn from(did_details: pallet_did::did_details::DidDetails<T>) -> Self {
 		Self {
 			authentication_key: did_details.authentication_key,
 			key_agreement_keys: did_details.key_agreement_keys.into(),
