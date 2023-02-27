@@ -315,7 +315,7 @@ pub mod pallet {
 		pub fn create(origin: OriginFor<T>, stream_digest: StreamDigestOf<T>) -> DispatchResult {
 			let source = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let creator = source.subject();
-			let author = source.sender();
+			// let author = source.sender();
 
 			ensure!(
 				!<StreamDigests<T>>::contains_key(&stream_digest),

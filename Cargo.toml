@@ -63,11 +63,12 @@ zeroize = { opt-level = 3 }
 
 [workspace]
 members = [
-	"node",
+	"node/service",
+	"node/client",
 	"pallets/*",
 	"primitives",
 	"runtime",
-	"runtime/api/*",
+	"runtime-api/did",
 	"runtime/constants",
 	"rpc",
 	"executor",

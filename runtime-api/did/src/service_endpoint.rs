@@ -29,10 +29,10 @@ pub struct ServiceEndpoint<Id, Type, Url> {
 	pub urls: Vec<Url>,
 }
 
-impl<T: did::Config> From<did::service_endpoints::DidEndpoint<T>>
+impl<T: pallet_did::Config> From<pallet_did::service_endpoints::DidEndpoint<T>>
 	for ServiceEndpoint<Vec<u8>, Vec<u8>, Vec<u8>>
 {
-	fn from(runtime_endpoint: did::service_endpoints::DidEndpoint<T>) -> Self {
+	fn from(runtime_endpoint: pallet_did::service_endpoints::DidEndpoint<T>) -> Self {
 		ServiceEndpoint {
 			id: runtime_endpoint.id.into_inner(),
 			service_types: runtime_endpoint
