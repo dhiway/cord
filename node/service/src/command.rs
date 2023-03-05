@@ -59,9 +59,9 @@ impl SubstrateCli for Cli {
 		2019
 	}
 
-	fn executable_name() -> String {
-		"cord".into()
-	}
+	// fn executable_name() -> String {
+	// 	"cord".into()
+	// }
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		let spec = match id {
@@ -104,23 +104,36 @@ macro_rules! unwrap_client {
 
 /// Parse command line arguments into service configuration.
 pub fn run() -> sc_cli::Result<()> {
-	let mut cli = Cli::from_args();
+	let cli = Cli::from_args();
 
-	let old_base = BasePath::from_project("", "", "cord-node");
-	let new_base = BasePath::from_project("", "", &Cli::executable_name());
-	if old_base.path().exists() && !new_base.path().exists() {
-		_ = std::fs::rename(old_base.path(), new_base.path());
-	}
+	// let old_base = BasePath::from_project("", "", "cord-node");
+	// let new_base = BasePath::from_project("", "", &Cli::executable_name());
+	// if old_base.path().exists() && !new_base.path().exists() {
+	// 	_ = std::fs::rename(old_base.path(), new_base.path());
+	// }
 
-	// Force setting `Wasm` as default execution strategy.
-	cli.run
-		.base
-		.import_params
-		.execution_strategies
-		.execution
-		.get_or_insert(ExecutionStrategy::Wasm);
+	// // Force setting `Wasm` as default execution strategy.
+	// cli.run
+	// 	.base
+	// 	.import_params
+	// 	.execution_strategies
+	// 	.execution
+	// 	.get_or_insert(ExecutionStrategy::Wasm);
 
 	match &cli.subcommand {
+		None => {
+			let runner = cli.create_runner(&cli.run)?;
+			runner.run_node_until_exit(|config| async move {
+				cord_service::new_full(config, cli).map_err(sc_cli::Error::Service)
+			})
+		},
+		Some(Subcommand::Inspect(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+
+			runner.sync_run(|config| {
+				cmd.run::<Block, RuntimeApi, cord_client::CordExecutorDispatch>(config)
+			})
+		},
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
@@ -283,7 +296,7 @@ pub fn run() -> sc_cli::Result<()> {
                         task_manager,
                     ))
 				}),
-				_ => panic!("No runtime feature [cord] is enabled"),
+				_ => panic!("No runtime is enabled"),
 			}
 		},
 		#[cfg(not(feature = "try-runtime"))]
@@ -293,21 +306,6 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::ChainInfo(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run::<Block>(&config))
-		},
-		None => {
-			let runner = if cli.run.base.validator {
-				cli.create_runner_with_logger_hook(&cli.run.base, |logger, _| {
-					logger.with_detailed_output(false);
-					// logger.with_max_level(log::LevelFilter::Info);
-				})?
-			} else {
-				cli.create_runner(&cli.run.base)?
-			};
-
-			runner.run_node_until_exit(|config| async move {
-				cord_service::new_full(config, cli.no_hardware_benchmarks)
-					.map_err(sc_cli::Error::Service)
-			})
 		},
 		_ => todo!(),
 	}

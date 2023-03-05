@@ -22,7 +22,9 @@
 //! There is also the [`Client`] enum that combines all the different clients into one common structure.
 
 use cord_primitives::{AccountId, Balance, Block, BlockNumber, DidIdentifier, Hash, Header, Index};
-use sc_client_api::{AuxStore, Backend as BackendT, BlockchainEvents, KeyIterator, UsageProvider};
+use sc_client_api::{
+	AuxStore, Backend as BackendT, BlockchainEvents, KeysIter, PairsIter, UsageProvider,
+};
 use sc_executor::NativeElseWasmExecutor;
 use sp_api::{CallApiAt, Encode, NumberFor, ProvideRuntimeApi};
 use sp_blockchain::{HeaderBackend, HeaderMetadata};
@@ -42,9 +44,11 @@ pub type FullBackend = sc_service::TFullBackend<Block>;
 pub type FullClient<RuntimeApi, ExecutorDispatch> =
 	sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
 
-/// The native executor instance for Polkadot.
+/// The native executor instance for Cord.
+#[cfg(feature = "cord")]
 pub struct CordExecutorDispatch;
 
+#[cfg(feature = "cord")]
 impl sc_executor::NativeExecutionDispatch for CordExecutorDispatch {
 	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
 
@@ -168,6 +172,8 @@ macro_rules! with_client {
 		$code:expr
 	} => {
 		match $self {
+				#[cfg(feature = "cord")]
+
 			Client::Cord($client) => {
 				#[allow(unused_imports)]
 				use cord_runtime as runtime;
@@ -185,6 +191,7 @@ pub(crate) use with_client;
 /// See [`ExecuteWithClient`] for more information.
 #[derive(Clone)]
 pub enum Client {
+	#[cfg(feature = "cord")]
 	Cord(Arc<FullClient<cord_runtime::RuntimeApi, CordExecutorDispatch>>),
 }
 
@@ -327,20 +334,6 @@ impl sc_client_api::StorageProvider<Block, crate::FullBackend> for Client {
 		}
 	}
 
-	fn storage_keys(
-		&self,
-		hash: <Block as BlockT>::Hash,
-		key_prefix: &StorageKey,
-	) -> sp_blockchain::Result<Vec<StorageKey>> {
-		with_client! {
-			self,
-			client,
-			{
-				client.storage_keys(hash, key_prefix)
-			}
-		}
-	}
-
 	fn storage_hash(
 		&self,
 		hash: <Block as BlockT>::Hash,
@@ -358,30 +351,33 @@ impl sc_client_api::StorageProvider<Block, crate::FullBackend> for Client {
 	fn storage_pairs(
 		&self,
 		hash: <Block as BlockT>::Hash,
-		key_prefix: &StorageKey,
-	) -> sp_blockchain::Result<Vec<(StorageKey, StorageData)>> {
-		with_client! {
-			self,
-			client,
-			{
-				client.storage_pairs(hash, key_prefix)
-			}
-		}
-	}
-
-	fn storage_keys_iter(
-		&self,
-		hash: <Block as BlockT>::Hash,
-		prefix: Option<&StorageKey>,
+		key_prefix: Option<&StorageKey>,
 		start_key: Option<&StorageKey>,
 	) -> sp_blockchain::Result<
-		KeyIterator<<crate::FullBackend as sc_client_api::Backend<Block>>::State, Block>,
+		PairsIter<<crate::FullBackend as sc_client_api::Backend<Block>>::State, Block>,
 	> {
 		with_client! {
 			self,
 			client,
 			{
-				client.storage_keys_iter(hash, prefix, start_key)
+				client.storage_pairs(hash, key_prefix, start_key)
+			}
+		}
+	}
+
+	fn storage_keys(
+		&self,
+		hash: <Block as BlockT>::Hash,
+		prefix: Option<&StorageKey>,
+		start_key: Option<&StorageKey>,
+	) -> sp_blockchain::Result<
+		KeysIter<<crate::FullBackend as sc_client_api::Backend<Block>>::State, Block>,
+	> {
+		with_client! {
+			self,
+			client,
+			{
+				client.storage_keys(hash, prefix, start_key)
 			}
 		}
 	}
@@ -404,32 +400,17 @@ impl sc_client_api::StorageProvider<Block, crate::FullBackend> for Client {
 	fn child_storage_keys(
 		&self,
 		hash: <Block as BlockT>::Hash,
-		child_info: &ChildInfo,
-		key_prefix: &StorageKey,
-	) -> sp_blockchain::Result<Vec<StorageKey>> {
-		with_client! {
-			self,
-			client,
-			{
-				client.child_storage_keys(hash, child_info, key_prefix)
-			}
-		}
-	}
-
-	fn child_storage_keys_iter(
-		&self,
-		hash: <Block as BlockT>::Hash,
 		child_info: ChildInfo,
 		prefix: Option<&StorageKey>,
 		start_key: Option<&StorageKey>,
 	) -> sp_blockchain::Result<
-		KeyIterator<<crate::FullBackend as sc_client_api::Backend<Block>>::State, Block>,
+		KeysIter<<crate::FullBackend as sc_client_api::Backend<Block>>::State, Block>,
 	> {
 		with_client! {
 			self,
 			client,
 			{
-				client.child_storage_keys_iter(hash, child_info, prefix, start_key)
+				client.child_storage_keys(hash, child_info, prefix, start_key)
 			}
 		}
 	}
