@@ -19,13 +19,6 @@
 //! CORD CLI.
 
 #[allow(missing_docs)]
-#[derive(Debug, clap::Parser)]
-#[group(skip)]
-pub struct RunCmd {
-	#[allow(missing_docs)]
-	#[command(flatten)]
-	pub base: sc_cli::RunCmd,
-}
 
 /// An overarching CLI command definition.
 #[derive(Debug, clap::Parser)]
@@ -36,7 +29,7 @@ pub struct Cli {
 
 	#[allow(missing_docs)]
 	#[clap(flatten)]
-	pub run: RunCmd,
+	pub run: sc_cli::RunCmd,
 
 	/// Disable automatic hardware benchmarks.
 	///

@@ -13,10 +13,10 @@ base58 = "0.2.0"
 blake2-rfc = {version = "0.2.18", default-features = false}
 
 
-sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.38"}
-frame-support = { git = "https://github.com/dhiway/substrate",  default-features = false, branch = "release-v0.9.38"}
-sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.38"}
-sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.38"}
+sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.39"}
+frame-support = { git = "https://github.com/dhiway/substrate",  default-features = false, branch = "release-v0.9.39"}
+sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.39"}
+sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.39"}
 
 [features]
 default = ["std"]
