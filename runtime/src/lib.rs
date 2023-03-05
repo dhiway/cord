@@ -123,8 +123,11 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	authoring_version: 0,
 	spec_version: 8000,
 	impl_version: 0,
+	#[cfg(not(feature = "disable-runtime-api"))]
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 1,
+	#[cfg(feature = "disable-runtime-api")]
+	apis: sp_version::create_apis_vec![[]],
+	transaction_version: 2,
 	state_version: 1,
 };
 
@@ -486,6 +489,7 @@ impl pallet_democracy::Config for Runtime {
 	/// default-carries (NTB) vote.
 	type ExternalDefaultOrigin =
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>;
+	type SubmitOrigin = EnsureSigned<AccountId>;
 	/// Two thirds of the technical committee can have an
 	/// `ExternalMajority/ExternalDefault` vote be tabled immediately and with a
 	/// shorter voting/enactment period.
@@ -539,6 +543,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = weights::pallet_collective_council::WeightInfo<Runtime>;
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
 }
 
 parameter_types! {
@@ -557,6 +562,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxMembers = TechnicalMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = weights::pallet_collective_technical_committee::WeightInfo<Runtime>;
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
 }
 
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
@@ -1022,6 +1028,7 @@ mod benches {
 	);
 }
 
+#[cfg(not(feature = "disable-runtime-api"))]
 sp_api::impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {

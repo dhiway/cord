@@ -22,15 +22,15 @@
 #![warn(unused_extern_crates)]
 
 use crate::cli::Cli;
-use codec::Encode;
+// use codec::Encode;
 pub use cord_client::{
 	AbstractClient, Client, ClientHandle, CordExecutorDispatch, ExecuteWithClient, FullBackend,
 	FullClient, RuntimeApiCollection,
 };
 use cord_primitives::{AccountId, Balance, Block, BlockNumber, Index};
-use cord_runtime::RuntimeApi;
+// use cord_runtime::RuntimeApi;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
-use frame_system_rpc_runtime_api::AccountNonceApi;
+// use frame_system_rpc_runtime_api::AccountNonceApi;
 use futures::prelude::*;
 use sc_client_api::{Backend as BackendT, BlockBackend, UsageProvider};
 use sc_consensus_babe::{self, SlotProportion};
@@ -44,7 +44,7 @@ use sc_service::{
 };
 use sc_telemetry::{Telemetry, TelemetryWorker, TelemetryWorkerHandle};
 pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi, StateBackend};
-use sp_core::crypto::Pair;
+// use sp_core::crypto::Pair;
 pub use sp_runtime::{
 	generic,
 	traits::{
@@ -358,14 +358,12 @@ where
 		RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
 	ExecutorDispatch: NativeExecutionDispatch + 'static,
 {
-	let hwbench = if !disable_hardware_benchmarks {
-		config.database.path().map(|database_path| {
-			let _ = std::fs::create_dir_all(database_path);
+	let hwbench = (!disable_hardware_benchmarks)
+		.then_some(config.database.path().map(|database_path| {
+			let _ = std::fs::create_dir_all(&database_path);
 			sc_sysinfo::gather_hwbench(Some(database_path))
-		})
-	} else {
-		None
-	};
+		}))
+		.flatten();
 
 	let sc_service::PartialComponents {
 		client,
@@ -379,6 +377,7 @@ where
 	} = new_partial(&config)?;
 
 	let shared_voter_state = rpc_setup;
+	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
 	let grandpa_protocol_name = sc_finality_grandpa::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
 		&config.chain_spec,
@@ -402,7 +401,7 @@ where
 			spawn_handle: task_manager.spawn_handle(),
 			import_queue,
 			block_announce_validator_builder: None,
-			warp_sync: Some(warp_sync),
+			warp_sync_params: Some(sc_service::WarpSyncParams::WithProvider(warp_sync)),
 		})?;
 
 	if config.offchain_worker.enabled {
@@ -513,6 +512,37 @@ where
 		);
 	}
 
+	// Spawn authority discovery module.
+	if role.is_authority() {
+		let authority_discovery_role =
+			sc_authority_discovery::Role::PublishAndDiscover(keystore_container.keystore());
+		let dht_event_stream =
+			network.event_stream("authority-discovery").filter_map(|e| async move {
+				match e {
+					Event::Dht(e) => Some(e),
+					_ => None,
+				}
+			});
+		let (authority_discovery_worker, _service) =
+			sc_authority_discovery::new_worker_and_service_with_config(
+				sc_authority_discovery::WorkerConfig {
+					publish_non_global_ips: auth_disc_publish_non_global_ips,
+					..Default::default()
+				},
+				client.clone(),
+				network.clone(),
+				Box::pin(dht_event_stream),
+				authority_discovery_role,
+				prometheus_registry.clone(),
+			);
+
+		task_manager.spawn_handle().spawn(
+			"authority-discovery-worker",
+			Some("networking"),
+			authority_discovery_worker.run(),
+		);
+	}
+
 	// if the node isn't actively participating in consensus then it doesn't
 	// need a keystore, regardless of which protocol we use below.
 	let keystore =
@@ -520,7 +550,7 @@ where
 
 	let config = sc_finality_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
-		gossip_duration: std::time::Duration::from_millis(333),
+		gossip_duration: std::time::Duration::from_millis(1000),
 		justification_period: 512,
 		name: Some(name),
 		observer_enabled: false,
@@ -560,21 +590,40 @@ where
 	Ok(NewFullBase { task_manager, client, network, transaction_pool, rpc_handlers })
 }
 
-/// Build a full node for different chain "flavors".
-pub fn new_full(
-	config: Configuration,
-	disable_hardware_benchmarks: bool,
-) -> Result<TaskManager, ServiceError> {
-	match &config.chain_spec {
-		spec if spec.is_cord() => new_full_base::<cord_runtime::RuntimeApi, CordExecutorDispatch>(
-			config,
-			disable_hardware_benchmarks,
-			|_, _| (),
-		)
-		.map(|NewFullBase { task_manager, .. }| task_manager),
-		_ => Err(ServiceError::Other("Invalid chain spec".into())),
-	}
+/// Builds a new service for a full client.
+pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
+	let database_source = config.database.clone();
+	let task_manager = new_full_base::<cord_runtime::RuntimeApi, CordExecutorDispatch>(
+		config,
+		cli.no_hardware_benchmarks,
+		|_, _| (),
+	)
+	.map(|NewFullBase { task_manager, .. }| task_manager)?;
+
+	sc_storage_monitor::StorageMonitorService::try_spawn(
+		cli.storage_monitor,
+		database_source,
+		&task_manager.spawn_essential_handle(),
+	)?;
+
+	Ok(task_manager)
 }
+
+// /// Build a full node for different chain "flavors".
+// pub fn new_full(
+// 	config: Configuration,
+// 	disable_hardware_benchmarks: bool,
+// ) -> Result<TaskManager, ServiceError> {
+// 	match &config.chain_spec {
+// 		spec if spec.is_cord() => new_full_base::<cord_runtime::RuntimeApi, CordExecutorDispatch>(
+// 			config,
+// 			disable_hardware_benchmarks,
+// 			|_, _| (),
+// 		)
+// 		.map(|NewFullBase { task_manager, .. }| task_manager),
+// 		_ => Err(ServiceError::Other("Invalid chain spec".into())),
+// 	}
+// }
 
 /// Reverts the node state down to at most the last finalized block.
 ///

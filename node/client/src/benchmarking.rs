@@ -130,6 +130,7 @@ trait BenchmarkCallSigner<RuntimeCall: Encode + Clone, Signer: Pair> {
 		acc: Signer,
 	) -> OpaqueExtrinsic;
 }
+#[cfg(feature = "cord")]
 
 impl BenchmarkCallSigner<cord_runtime::RuntimeCall, sp_core::sr25519::Pair>
 	for FullClient<cord_runtime::RuntimeApi, CordExecutorDispatch>
@@ -190,7 +191,6 @@ impl BenchmarkCallSigner<cord_runtime::RuntimeCall, sp_core::sr25519::Pair>
 ///
 /// Not to be used outside of benchmarking since it returns mocked values.
 pub fn benchmark_inherent_data(
-	header: cord_primitives::Header,
 ) -> std::result::Result<sp_inherents::InherentData, sp_inherents::Error> {
 	use sp_inherents::InherentDataProvider;
 	let mut inherent_data = sp_inherents::InherentData::new();
