@@ -54,6 +54,7 @@ pub mod tests;
 
 pub mod types;
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
+use frame_support::ensure;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -173,13 +174,18 @@ pub mod pallet {
 			Ok(())
 		}
 	}
-	impl<T: Config> Pallet<T> {
-		/// The current `Timepoint`.
-		pub fn timepoint() -> Timepoint<T::BlockNumber> {
-			Timepoint {
-				height: frame_system::Pallet::<T>::block_number(),
-				index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
-			}
+}
+
+impl<T: Config> Pallet<T> {
+	/// The current `Timepoint`.
+	pub fn timepoint() -> Timepoint<T::BlockNumber> {
+		Timepoint {
+			height: frame_system::Pallet::<T>::block_number(),
+			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
 		}
+	}
+	pub fn is_valid(tx_ident: &IdentifierOf) -> Result<(), Error<T>> {
+		ensure!(<Schemas<T>>::contains_key(&tx_ident), Error::<T>::SchemaNotFound);
+		Ok(())
 	}
 }

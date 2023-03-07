@@ -21,7 +21,6 @@
 #![recursion_limit = "512"]
 // The `from_over_into` warning originates from `construct_runtime` macro.
 #![allow(clippy::from_over_into)]
-#![warn(unused_crate_dependencies)]
 
 use codec::Encode;
 use cord_primitives::{
@@ -56,7 +55,6 @@ pub use pallet_transaction_payment::{
 	CurrencyAdapter, Multiplier, OnChargeTransaction, TargetedFeeAdjustment,
 };
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
-use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
@@ -847,6 +845,22 @@ impl pallet_schema::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MaxEncodedRegistryLength: u32 = 102_400;
+	pub const MaxRegistryAuthorities: u32 = 10_000;
+
+}
+
+impl pallet_registry::Config for Runtime {
+	type ProposerId = DidIdentifier;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+	type RuntimeEvent = RuntimeEvent;
+	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
+	type MaxRegistryAuthorities = MaxRegistryAuthorities;
+	type WeightInfo = weights::pallet_registry::WeightInfo<Runtime>;
+}
+
+parameter_types! {
 	pub const MaxStreamCommits: u32 = 200;
 }
 
@@ -896,7 +910,8 @@ construct_runtime! {
 		ExtrinsicAuthorship: pallet_extrinsic_authorship =101,
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,
-		Stream: pallet_stream = 104,
+		Registry: pallet_registry = 104,
+		Stream: pallet_stream = 105,
 		Sudo: pallet_sudo = 255,
 	}
 }
@@ -933,6 +948,24 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::Schema { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::add_authorities { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::add_delegates { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::deauthorize { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::create { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::archive { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::restore { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
 			},
 			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {

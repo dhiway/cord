@@ -21,18 +21,20 @@ use crate::{
 	cli::{Cli, Subcommand},
 	service as cord_service,
 };
-use cord_client::benchmarking::{benchmark_inherent_data, RemarkBuilder, TransferKeepAliveBuilder};
 
+use cord_client::benchmarking::{benchmark_inherent_data, RemarkBuilder, TransferKeepAliveBuilder};
 use cord_primitives::Block;
 use cord_runtime::{ExistentialDeposit, RuntimeApi};
 use cord_service::IdentifyVariant;
-use frame_benchmarking_cli::*;
-use sc_cli::{ChainSpec, ExecutionStrategy, RuntimeVersion, SubstrateCli};
-use sc_service::config::BasePath;
-use sc_service::PartialComponents;
+use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
+use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 use sp_keyring::Sr25519Keyring;
 
-use std::sync::Arc;
+#[cfg(feature = "try-runtime")]
+use {
+	cord_runtime::constants::time::SLOT_DURATION,
+	try_runtime_cli::block_building_info::substrate_info,
+};
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -58,10 +60,6 @@ impl SubstrateCli for Cli {
 	fn copyright_start_year() -> i32 {
 		2019
 	}
-
-	// fn executable_name() -> String {
-	// 	"cord".into()
-	// }
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		let spec = match id {
@@ -106,20 +104,6 @@ macro_rules! unwrap_client {
 pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
 
-	// let old_base = BasePath::from_project("", "", "cord-node");
-	// let new_base = BasePath::from_project("", "", &Cli::executable_name());
-	// if old_base.path().exists() && !new_base.path().exists() {
-	// 	_ = std::fs::rename(old_base.path(), new_base.path());
-	// }
-
-	// // Force setting `Wasm` as default execution strategy.
-	// cli.run
-	// 	.base
-	// 	.import_params
-	// 	.execution_strategies
-	// 	.execution
-	// 	.get_or_insert(ExecutionStrategy::Wasm);
-
 	match &cli.subcommand {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
@@ -135,6 +119,9 @@ pub fn run() -> sc_cli::Result<()> {
 			})
 		},
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
+		Some(Subcommand::Sign(cmd)) => cmd.run(),
+		Some(Subcommand::Verify(cmd)) => cmd.run(),
+		Some(Subcommand::Vanity(cmd)) => cmd.run(),
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
@@ -182,14 +169,7 @@ pub fn run() -> sc_cli::Result<()> {
 				Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
 			})
 		},
-		#[cfg(feature = "runtime-benchmarks")]
 		Some(Subcommand::Benchmark(cmd)) => {
-			use crate::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder};
-			use frame_benchmarking_cli::{
-				BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE,
-			};
-			use sp_keyring::Sr25519Keyring;
-
 			let runner = cli.create_runner(cmd)?;
 
 			runner.sync_run(|config| {
@@ -231,7 +211,7 @@ pub fn run() -> sc_cli::Result<()> {
 						unwrap_client!(client, cmd.run(config, client.clone(), db, storage))
 					},
 					BenchmarkCmd::Overhead(cmd) => {
-						let inherent_data = inherent_benchmark_data().map_err(|e| {
+						let inherent_data = benchmark_inherent_data().map_err(|e| {
 							sc_cli::Error::from(format!("generating inherent data: {e:?}"))
 						})?;
 
@@ -250,7 +230,7 @@ pub fn run() -> sc_cli::Result<()> {
 						)
 					},
 					BenchmarkCmd::Extrinsic(cmd) => {
-						let inherent_data = inherent_benchmark_data().map_err(|e| {
+						let inherent_data = benchmark_inherent_data().map_err(|e| {
 							sc_cli::Error::from(format!("generating inherent data: {e:?}"))
 						})?;
 						let (client, _, _, _) = cord_service::new_chain_ops(&config)?;
@@ -260,6 +240,7 @@ pub fn run() -> sc_cli::Result<()> {
 							Box::new(TransferKeepAliveBuilder::new(
 								client.clone(),
 								Sr25519Keyring::Alice.to_account_id(),
+								ExistentialDeposit::get(),
 							)),
 						]);
 
@@ -285,14 +266,15 @@ pub fn run() -> sc_cli::Result<()> {
 				sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
 					.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
 
+			let info_provider = substrate_info(SLOT_DURATION);
+
 			match chain_spec {
 				spec if spec.is_cord() => runner.async_run(|_| {
 					Ok((
                         cmd.run::<cord_service::cord_runtime::Block, ExtendedHostFunctions<
 						sp_io::SubstrateHostFunctions,
-						<cord_service::COrdExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
-					>>(
-                        ),
+						<cord_service::CordExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
+					>,_>(Some(info_provider)),
                         task_manager,
                     ))
 				}),
@@ -307,6 +289,5 @@ pub fn run() -> sc_cli::Result<()> {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run::<Block>(&config))
 		},
-		_ => todo!(),
 	}
 }
