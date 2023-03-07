@@ -145,11 +145,15 @@ pub mod pallet {
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 	/// Type of a creator identifier.
-	pub type CreatorIdOf<T> = <T as Config>::CreatorId;
+	///
+	/// Registry Identifier
+	pub type RegistryIdOf = IdentifierOf;
+	/// Schema Identifier
 	pub type SchemaIdOf = IdentifierOf;
-	pub type SpaceIdOf = IdentifierOf;
-	pub type LinkStreamIdOf = IdentifierOf;
-	pub type SwarmIdOf = IdentifierOf;
+	/// Hash of the registry.
+	pub type StreamHashOf<T> = <T as frame_system::Config>::Hash;
+
+	pub type CreatorIdOf<T> = <T as Config>::CreatorId;
 
 	/// Hash of the stream.
 	pub type StreamDigestOf<T> = <T as frame_system::Config>::Hash;
@@ -159,32 +163,24 @@ pub mod pallet {
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 
-	pub type StreamEntryOf<T> = StreamEntry<
-		StreamDigestOf<T>,
-		CreatorIdOf<T>,
-		SchemaIdOf,
-		LinkStreamIdOf,
-		SwarmIdOf,
-		StatusOf,
-	>;
-	pub type StreamCommitsOf<T> = StreamCommit<StreamCommitOf, StreamDigestOf<T>, BlockNumberOf<T>>;
+	pub type StreamEntryOf<T> =
+		StreamEntry<StreamDigestOf<T>, CreatorIdOf<T>, SchemaIdOf, RegistryIdOf, StatusOf>;
+	pub type StreamCommitsOf<T> =
+		StreamCommit<StreamCommitActionOf, StreamDigestOf<T>, CreatorIdOf<T>, BlockNumberOf<T>>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
-		type CreatorId: Parameter + MaxEncodedLen;
-
+	pub trait Config: frame_system::Config + pallet_registry::Config {
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
-			Self::RuntimeOrigin,
+			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = <Self as Config>::OriginSuccess,
 		>;
-		type OriginSuccess: CallSources<Self::AccountId, CreatorIdOf<Self>>;
+		type OriginSuccess: CallSources<AccountIdOf<Self>, CreatorIdOf<Self>>;
+		type CreatorId: Parameter + MaxEncodedLen;
 
 		/// The maximum number of commits for a stream.
 		#[pallet::constant]
 		type MaxStreamCommits: Get<u32>;
-
-		/// The overarching event type.
-		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -218,7 +214,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		IdentifierOf,
 		BoundedVec<StreamCommitsOf<T>, T::MaxStreamCommits>,
-		ValueQuery,
+		OptionQuery,
 	>;
 
 	#[pallet::event]

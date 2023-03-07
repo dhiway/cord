@@ -21,6 +21,17 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::RuntimeDebug;
 use scale_info::TypeInfo;
 
+/// A global index, formed as the extrinsic index within a block, together with that block's height.
+#[derive(
+	Copy, Clone, Eq, PartialEq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen,
+)]
+pub struct Timepoint<BlockNumber> {
+	/// The height of the chain at the point in time.
+	pub height: BlockNumber,
+	/// The index of the extrinsic at the point in time.
+	pub index: u32,
+}
+
 // pub struct StreamInput<StreamDigestOf, CreatorIdOf, SchemaIdOf> {
 // 	/// Stream hash.
 // 	pub digest: HashOf<T>,
@@ -41,38 +52,33 @@ use scale_info::TypeInfo;
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
 
-pub struct StreamEntry<StreamDigestOf, CreatorIdOf, SchemaIdOf, LinkStreamIdOf, SwarmIdOf, StatusOf>
-{
+pub struct StreamEntry<StreamDigestOf, CreatorIdOf, SchemaIdOf, RegistryIdOf, StatusOf> {
 	/// Stream hash.
 	pub digest: StreamDigestOf,
 	/// Stream creator.
 	pub creator: CreatorIdOf,
-	/// \[OPTIONAL\] Schema Identifier
-	pub schema: Option<SchemaIdOf>,
-	/// \[OPTIONAL\] Stream Link
-	pub linked: Option<LinkStreamIdOf>,
-	/// \[OPTIONAL\] Swarm Node Link
-	pub swarm: Option<SwarmIdOf>,
+	/// Schema Identifier
+	pub schema: SchemaIdOf,
+	/// Registry Identifier
+	pub registry: RegistryIdOf,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
-	/// The counter updated upon each stream update.
-	pub counter: u64,
 }
 
-#[derive(
-	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
-)]
-pub struct StreamCommit<StreamCommitOf, StreamDigestOf, BlockNumber> {
+#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+pub struct StreamCommit<StreamCommitActionOf, StreamDigestOf, CreatorIdOf, BlockNumber> {
 	/// Stream commit type
-	pub commit: StreamCommitOf,
+	pub commit: StreamCommitActionOf,
 	/// Stream hash.
 	pub digest: StreamDigestOf,
+	/// Registry delegate.
+	pub committed_by: CreatorIdOf,
 	/// Stream block number
-	pub block: BlockNumber,
+	pub created_at: Timepoint<BlockNumber>,
 }
 
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub enum StreamCommitOf {
+pub enum StreamCommitActionOf {
 	Genesis,
 	Update,
 	Status,
