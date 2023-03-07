@@ -86,7 +86,6 @@ prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https:
 cord-runtime = { package = "cord-runtime", path = "../../runtime" }
 cord-primitives = { package = "cord-primitives", path="../../primitives"}
 cord-client = { package = "cord-client", path = "../client" }
-# cord-executor = { package = "cord-executor", path = "../executor" }
 cord-inspect = { package = "cord-inspect", path = "../../inspect" }
 cord-rpc = { package = "cord-rpc", path = "../../rpc" }
 cord-runtime-constants = { package = "cord-runtime-constants", path = "../../runtime/constants" }

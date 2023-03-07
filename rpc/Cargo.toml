@@ -19,7 +19,6 @@ sc-consensus-epochs = { git = "https://github.com/dhiway/substrate", branch = "r
 sc-finality-grandpa = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39" }
 sc-finality-grandpa-rpc = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39" }
 sc-rpc = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39" }
-sc-rpc-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39" }
 sc-rpc-spec-v2 = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39" }
 sc-sync-state-rpc = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39" }
 sc-transaction-pool-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39" }

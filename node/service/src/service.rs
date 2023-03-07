@@ -20,17 +20,16 @@
 //! substrate service.
 
 #![warn(unused_extern_crates)]
+#![deny(unused_results)]
 
 use crate::cli::Cli;
-// use codec::Encode;
 pub use cord_client::{
 	AbstractClient, Client, ClientHandle, CordExecutorDispatch, ExecuteWithClient, FullBackend,
 	FullClient, RuntimeApiCollection,
 };
-use cord_primitives::{AccountId, Balance, Block, BlockNumber, Index};
-// use cord_runtime::RuntimeApi;
+use cord_primitives::{Block, BlockNumber};
+pub use cord_runtime;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
-// use frame_system_rpc_runtime_api::AccountNonceApi;
 use futures::prelude::*;
 use sc_client_api::{Backend as BackendT, BlockBackend, UsageProvider};
 use sc_consensus_babe::{self, SlotProportion};
@@ -39,12 +38,11 @@ pub use sc_executor::NativeExecutionDispatch;
 use sc_network::NetworkService;
 use sc_network_common::{protocol::event::Event, service::NetworkEventStream};
 use sc_service::{
-	config::Configuration, error::Error as ServiceError, ChainSpec, KeystoreContainer,
-	PartialComponents, RpcHandlers, TaskManager,
+	config::Configuration, error::Error as ServiceError, ChainSpec, PartialComponents, RpcHandlers,
+	TaskManager,
 };
-use sc_telemetry::{Telemetry, TelemetryWorker, TelemetryWorkerHandle};
+use sc_telemetry::{Telemetry, TelemetryWorker};
 pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi, StateBackend};
-// use sp_core::crypto::Pair;
 pub use sp_runtime::{
 	generic,
 	traits::{
@@ -358,6 +356,8 @@ where
 		RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
 	ExecutorDispatch: NativeExecutionDispatch + 'static,
 {
+	use sc_network_common::sync::warp::WarpSyncParams;
+
 	let hwbench = (!disable_hardware_benchmarks)
 		.then_some(config.database.path().map(|database_path| {
 			let _ = std::fs::create_dir_all(&database_path);
@@ -401,17 +401,8 @@ where
 			spawn_handle: task_manager.spawn_handle(),
 			import_queue,
 			block_announce_validator_builder: None,
-			warp_sync_params: Some(sc_service::WarpSyncParams::WithProvider(warp_sync)),
+			warp_sync_params: Some(WarpSyncParams::WithProvider(warp_sync)),
 		})?;
-
-	if config.offchain_worker.enabled {
-		sc_service::build_offchain_workers(
-			&config,
-			task_manager.spawn_handle(),
-			client.clone(),
-			network.clone(),
-		);
-	}
 
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;
@@ -420,6 +411,26 @@ where
 	let name = config.network.node_name.clone();
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
+
+	if config.offchain_worker.enabled {
+		let offchain_workers = Arc::new(sc_offchain::OffchainWorkers::new_with_options(
+			client.clone(),
+			sc_offchain::OffchainWorkerOptions { enable_http_requests: false },
+		));
+
+		// Start the offchain workers to have
+		task_manager.spawn_handle().spawn(
+			"offchain-notifications",
+			None,
+			sc_offchain::notification_future(
+				config.role.is_authority(),
+				client.clone(),
+				offchain_workers,
+				task_manager.spawn_handle().clone(),
+				network.clone(),
+			),
+		);
+	}
 
 	let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
