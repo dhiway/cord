@@ -22,6 +22,7 @@ codec = { package = "parity-scale-codec", version = "3.2.2", default-features = 
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
+pallet-registry = {  default-features = false, path = '../registry' }
 serde = { version = "1.0.136", optional = true }
 
 # Substrate dependencies
@@ -53,4 +54,5 @@ std = [
   "cord-utilities/std",
   "sp-runtime/std",
   "sp-std/std",
+  "pallet-registry/std", 
 ]

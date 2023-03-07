@@ -62,7 +62,7 @@ pub struct Timepoint<BlockNumber> {
 /// An on-chain registry details mapped to an identifier.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 
-pub struct RegistryEntry<InputRegistryOf, RegistryHashOf, SchemaIdOf, ProposerOf, StatusOf> {
+pub struct RegistryEntry<InputRegistryOf, RegistryHashOf, SchemaIdOf, ProposerIdOf, StatusOf> {
 	// The Registry
 	pub registry: InputRegistryOf,
 	/// Registry hash.
@@ -70,7 +70,7 @@ pub struct RegistryEntry<InputRegistryOf, RegistryHashOf, SchemaIdOf, ProposerOf
 	/// Schema identifier.
 	pub schema: SchemaIdOf,
 	/// Registry creator.
-	pub creator: ProposerOf,
+	pub creator: ProposerIdOf,
 	/// The flag indicating the status of the registry.
 	pub archive: StatusOf,
 }
@@ -78,9 +78,11 @@ pub struct RegistryEntry<InputRegistryOf, RegistryHashOf, SchemaIdOf, ProposerOf
 /// An on-chain registry details mapped to an identifier.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 
-pub struct RegistryAuthorization<ProposerOf, SchemaIdOf, Permissions> {
+pub struct RegistryAuthorization<RegistryIdOf, ProposerIdOf, SchemaIdOf, Permissions> {
+	// The Registry
+	pub registry: RegistryIdOf,
 	/// Registry delegate.
-	pub delegate: ProposerOf,
+	pub delegate: ProposerIdOf,
 	/// Schema identifier.
 	pub schema: SchemaIdOf,
 	/// Registry creator.
@@ -88,11 +90,11 @@ pub struct RegistryAuthorization<ProposerOf, SchemaIdOf, Permissions> {
 }
 
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct RegistryCommit<RegistryCommitActionOf, ProposerOf, BlockNumber> {
+pub struct RegistryCommit<RegistryCommitActionOf, ProposerIdOf, BlockNumber> {
 	/// Stream commit type
 	pub commit: RegistryCommitActionOf,
 	/// Registry delegate.
-	pub delegate: ProposerOf,
+	pub committed_by: ProposerIdOf,
 	/// Stream block number
 	pub created_at: Timepoint<BlockNumber>,
 }
@@ -100,6 +102,7 @@ pub struct RegistryCommit<RegistryCommitActionOf, ProposerOf, BlockNumber> {
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub enum RegistryCommitActionOf {
 	Genesis,
+	Authority,
 	Authorization,
 	Deauthorize,
 	Archive,
