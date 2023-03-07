@@ -71,7 +71,6 @@ members = [
 	"runtime-api/did",
 	"runtime/constants",
 	"rpc",
-	"executor",
 	"inspect",
 	"utilities",
 ]
