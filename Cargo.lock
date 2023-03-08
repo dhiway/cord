@@ -1097,12 +1097,12 @@ dependencies = [
  "async-trait",
  "cord-primitives",
  "cord-runtime",
- "cord-runtime-api-did",
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "frame-system",
  "frame-system-rpc-runtime-api",
  "futures",
+ "pallet-did-runtime-api",
  "pallet-extrinsic-authorship",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -1282,7 +1282,6 @@ name = "cord-runtime"
 version = "0.8.0"
 dependencies = [
  "cord-primitives",
- "cord-runtime-api-did",
  "cord-runtime-constants",
  "frame-benchmarking",
  "frame-executive",
@@ -1300,6 +1299,8 @@ dependencies = [
  "pallet-collective",
  "pallet-democracy",
  "pallet-did",
+ "pallet-did-names",
+ "pallet-did-runtime-api",
  "pallet-extrinsic-authorship",
  "pallet-grandpa",
  "pallet-im-online",
@@ -1341,17 +1342,6 @@ dependencies = [
  "static_assertions",
  "substrate-wasm-builder",
  "tiny-keccak",
-]
-
-[[package]]
-name = "cord-runtime-api-did"
-version = "0.8.0"
-dependencies = [
- "pallet-did",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
- "sp-std",
 ]
 
 [[package]]
@@ -4957,6 +4947,34 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-did-names"
+version = "0.8.0"
+dependencies = [
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-did-runtime-api"
+version = "0.8.0"
+dependencies = [
+ "pallet-did",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-std",
 ]
 
 [[package]]
