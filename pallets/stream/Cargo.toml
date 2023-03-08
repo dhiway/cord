@@ -28,7 +28,6 @@ serde = { version = "1.0.136", optional = true }
 # Substrate dependencies
 frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false }
 frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false }
-sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false }
 sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false }
 sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false, optional = true}
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false, optional = true}
@@ -52,7 +51,6 @@ std = [
   "frame-system/std",
   "cord-primitives/std",
   "cord-utilities/std",
-  "sp-runtime/std",
   "sp-std/std",
   "pallet-registry/std", 
 ]
