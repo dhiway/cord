@@ -1,5 +1,5 @@
 [package]
-name = "cord-runtime-api-did"
+name = "pallet-did-runtime-api"
 description = "Runtime APIs for dealing with DIDs."
 version = '0.8.0'
 authors = ['Dhiway <info@dhiway.com>','BOTLabs GmbH']
@@ -14,7 +14,7 @@ codec = { package = "parity-scale-codec", version = "3.2.2", default-features = 
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 
 # Internal dependencies
-pallet-did = { package = "pallet-did", path="../../pallets/did", default-features = false }
+pallet-did = { package = "pallet-did", path="../../did", default-features = false }
 
 # Substrate 
 sp-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false }

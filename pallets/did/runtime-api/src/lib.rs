@@ -59,13 +59,17 @@ sp_api::decl_runtime_apis! {
 		BlockNumber: Codec + MaxEncodedLen,
 		Key: Codec,
 	{
+	/// Given a web3name this returns:
+	/// * the DID
+	/// * public keys stored for the did
+	/// * the web3name (optional)
+	/// * service endpoints
+	fn query_by_name(name: Vec<u8>) -> Option<RawDidLinkedInfo<DidIdentifier, Key, BlockNumber>>;
+
 	/// Given a did this returns:
 	/// * the DID
 	/// * public keys stored for the did
 	/// * service endpoints
 	fn query(did: DidIdentifier) -> Option<RawDidLinkedInfo<DidIdentifier, Key, BlockNumber>>;
-	fn query_again(did: DidIdentifier) -> Option<RawDidLinkedInfo<DidIdentifier, Key, BlockNumber>>;
-	fn query_again_agan(did: DidIdentifier) -> Option<RawDidLinkedInfo<DidIdentifier, Key, BlockNumber>>;
-
 	}
 }

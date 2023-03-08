@@ -24,6 +24,7 @@ pub mod pallet_collective_council;
 pub mod pallet_collective_technical_committee;
 pub mod pallet_democracy;
 pub mod pallet_did;
+pub mod pallet_did_names;
 pub mod pallet_extrinsic_authorship;
 pub mod pallet_im_online;
 pub mod pallet_indices;

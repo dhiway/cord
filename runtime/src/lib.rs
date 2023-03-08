@@ -832,6 +832,23 @@ impl pallet_did::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MinNameLength: u32 = 3;
+	pub const MaxNameLength: u32 = 32;
+}
+
+impl pallet_did_names::Config for Runtime {
+	type BanOrigin = EnsureRoot<AccountId>;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+	type RuntimeEvent = RuntimeEvent;
+	type MaxNameLength = MaxNameLength;
+	type MinNameLength = MinNameLength;
+	type DidName = pallet_did_names::did_name::AsciiDidName<Runtime>;
+	type DidNameOwner = DidIdentifier;
+	type WeightInfo = weights::pallet_did_names::WeightInfo<Runtime>;
+}
+
+parameter_types! {
 	pub const MaxEncodedSchemaLength: u32 = 102_400;
 }
 
@@ -913,6 +930,7 @@ construct_runtime! {
 		Schema: pallet_schema = 103,
 		Registry: pallet_registry = 104,
 		Stream: pallet_stream = 105,
+		DidNames: pallet_did_names = 106,
 		Sudo: pallet_sudo = 255,
 	}
 }
@@ -946,6 +964,9 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Err(pallet_did::RelationshipDeriveError::NotCallableByDid)
 			},
 			RuntimeCall::Did { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::DidNames { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::Schema { .. } => {
@@ -1221,14 +1242,14 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	impl cord_runtime_api_did::Did<
+	impl pallet_did_runtime_api::Did<
 		Block,
 		DidIdentifier,
 		Hash,
 		BlockNumber
 	> for Runtime {
 		fn query(did: DidIdentifier) -> Option<
-			cord_runtime_api_did::RawDidLinkedInfo<
+			pallet_did_runtime_api::RawDidLinkedInfo<
 				DidIdentifier,
 				Hash,
 				BlockNumber
@@ -1238,47 +1259,33 @@ sp_api::impl_runtime_apis! {
 			let w3n = None;
 			let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
 
-			Some(cord_runtime_api_did::RawDidLinkedInfo {
+			Some(pallet_did_runtime_api::RawDidLinkedInfo {
 				identifier: did,
 				w3n,
 				service_endpoints,
 				details: details.into(),
 			})
 		}
-		fn query_again(did: DidIdentifier) -> Option<
-			cord_runtime_api_did::RawDidLinkedInfo<
+		fn query_by_name(name: Vec<u8>) -> Option<pallet_did_runtime_api::RawDidLinkedInfo<
 				DidIdentifier,
 				Hash,
 				BlockNumber
 			>
 		> {
-			let details = pallet_did::Did::<Runtime>::get(&did)?;
-			let w3n = None;
-			let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
+			let name: pallet_did_names::did_name::AsciiDidName<Runtime> = name.try_into().ok()?;
+			pallet_did_names::Owner::<Runtime>::get(&name)
+				.and_then(|owner_info| {
+					pallet_did::Did::<Runtime>::get(&owner_info.owner).map(|details| (owner_info, details))
+				})
+				.map(|(owner_info, details)| {
+					let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&owner_info.owner).map(|e| From::from(e.1)).collect();
 
-			Some(cord_runtime_api_did::RawDidLinkedInfo {
-				identifier: did,
-				w3n,
-				service_endpoints,
-				details: details.into(),
-			})
-		}
-		fn query_again_agan(did: DidIdentifier) -> Option<
-			cord_runtime_api_did::RawDidLinkedInfo<
-				DidIdentifier,
-				Hash,
-				BlockNumber
-			>
-		> {
-			let details = pallet_did::Did::<Runtime>::get(&did)?;
-			let w3n = None;
-			let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
-
-			Some(cord_runtime_api_did::RawDidLinkedInfo {
-				identifier: did,
-				w3n,
-				service_endpoints,
-				details: details.into(),
+					pallet_did_runtime_api::RawDidLinkedInfo{
+						identifier: owner_info.owner,
+						w3n: Some(name.into()),
+						service_endpoints,
+						details: details.into(),
+					}
 			})
 		}
 	}

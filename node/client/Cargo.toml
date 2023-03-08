@@ -45,7 +45,7 @@ sc-service = { git = "https://github.com/dhiway/substrate", default-features = f
 cord-runtime = { path = "../../runtime", optional = true }
 cord-primitives = { path = "../../primitives" }
 pallet-extrinsic-authorship = { package = "pallet-extrinsic-authorship", path = "../../pallets/authorship" }
-cord-runtime-api-did = { package = "cord-runtime-api-did", path = "../../runtime-api/did" }
+pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../../pallets/did/runtime-api" }
 
 
 [features]

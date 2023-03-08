@@ -68,7 +68,6 @@ members = [
 	"pallets/*",
 	"primitives",
 	"runtime",
-	"runtime-api/did",
 	"runtime/constants",
 	"rpc",
 	"inspect",
