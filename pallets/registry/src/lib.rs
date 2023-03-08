@@ -529,23 +529,21 @@ impl<T: Config> Pallet<T> {
 	// 	Ok(())
 	// }
 
-	// pub fn is_a_delegate(
-	// 	tx_registry: &RegistryIdOf,
-	// 	tx_schema: &SchemaIdOf,
-	// 	proposer: ProposerIdOf<T>,
-	// ) -> Result<(), Error<T>> {
-	// 	let authorities = <Authorizations<T>>::get(tx_registry);
-	// 	for authority in authorities.iter() {
-	// 		if authority.delegate == proposer {
-	// 			ensure!(
-	// 				(authority.permissions & Permissions::ASSERT) == Permissions::ASSERT,
-	// 				Error::<T>::UnauthorizedOperation
-	// 			);
-	// 			ensure!(authority.schema == *tx_schema, Error::<T>::InvalidSchema);
-	// 		}
-	// 	}
-	// 	Ok(())
-	// }
+	pub fn is_authorized(
+		tx_registry: &RegistryIdOf,
+		proposer: ProposerIdOf<T>,
+	) -> Result<(), Error<T>> {
+		let authorities = <Authorizations<T>>::get(tx_registry);
+		for authority in authorities.iter() {
+			if authority.delegate == proposer {
+				ensure!(
+					(authority.permissions & Permissions::ASSERT) == Permissions::ASSERT,
+					Error::<T>::UnauthorizedOperation
+				);
+			}
+		}
+		Ok(())
+	}
 	/// The current `Timepoint`.
 	pub fn timepoint() -> Timepoint<T::BlockNumber> {
 		Timepoint {

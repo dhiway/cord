@@ -847,7 +847,7 @@ impl pallet_schema::Config for Runtime {
 parameter_types! {
 	pub const MaxEncodedRegistryLength: u32 = 102_400;
 	pub const MaxRegistryAuthorities: u32 = 10_000;
-
+	pub const MaxRegistryCommitActions: u32 = 1_000;
 }
 
 impl pallet_registry::Config for Runtime {
@@ -857,11 +857,12 @@ impl pallet_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
 	type MaxRegistryAuthorities = MaxRegistryAuthorities;
+	type MaxRegistryCommitActions = MaxRegistryCommitActions;
 	type WeightInfo = weights::pallet_registry::WeightInfo<Runtime>;
 }
 
 parameter_types! {
-	pub const MaxStreamCommits: u32 = 200;
+	pub const MaxStreamCommits: u32 = 1_000;
 }
 
 impl pallet_stream::Config for Runtime {
@@ -950,13 +951,19 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::Schema { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
 			},
+			RuntimeCall::Stream { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
 			RuntimeCall::Registry(pallet_registry::Call::add_authorities { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
-			RuntimeCall::Registry(pallet_registry::Call::add_delegates { .. }) => {
+			RuntimeCall::Registry(pallet_registry::Call::authorize { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
 			RuntimeCall::Registry(pallet_registry::Call::deauthorize { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::remove_authorities { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
 			RuntimeCall::Registry(pallet_registry::Call::create { .. }) => {

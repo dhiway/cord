@@ -5239,7 +5239,6 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-keystore",
- "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
 ]
