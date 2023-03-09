@@ -98,17 +98,18 @@
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
 
-use cord_primitives::{ss58identifier, IdentifierOf, StatusOf, STREAM_PREFIX};
+use cord_primitives::{curi::Ss58Identifier, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{prelude::Clone, str};
 
+mod authorization;
 pub mod types;
 pub mod weights;
-
 pub use crate::types::*;
 
-pub use crate::weights::WeightInfo;
-pub use pallet::*;
+// pub use crate::weights::WeightInfo;
+pub use crate::{authorization::StreamAuthorization, pallet::*, types::*, weights::WeightInfo};
+// pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -121,13 +122,14 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 	///
 	/// Registry Identifier
-	pub type RegistryIdOf = IdentifierOf;
+	pub type RegistryIdOf = Ss58Identifier;
 	/// Stream Identifier
-	pub type StreamIdOf = IdentifierOf;
+	pub type StreamIdOf = Ss58Identifier;
 	/// Schema Identifier
-	pub type SchemaIdOf = IdentifierOf;
+	pub type SchemaIdOf = Ss58Identifier;
 	/// Authorization Identifier
-	pub type AuthorizationIdOf = IdentifierOf;
+	pub type AuthorizationIdOf<T> = <T as Config>::AuthorizationId;
+	// pub type AuthorizationIdOf = Ss58Identifier;
 	/// Hash of the registry.
 	pub type StreamHashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a creator identifier.
@@ -145,7 +147,7 @@ pub mod pallet {
 		StreamCommit<StreamCommitActionOf, StreamDigestOf<T>, CreatorIdOf<T>, BlockNumberOf<T>>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_registry::Config {
+	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
@@ -153,6 +155,10 @@ pub mod pallet {
 		>;
 		type OriginSuccess: CallSources<AccountIdOf<Self>, CreatorIdOf<Self>>;
 		type CreatorId: Parameter + MaxEncodedLen;
+		type AuthorizationId: Parameter + MaxEncodedLen;
+
+		type StreamAccessControl: Parameter
+			+ StreamAuthorization<Self::CreatorId, SchemaIdOf, Self::AuthorizationId>;
 
 		/// The maximum number of commits for a stream.
 		#[pallet::constant]
@@ -176,14 +182,14 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn streams)]
 	pub type Streams<T> =
-		StorageMap<_, Blake2_128Concat, IdentifierOf, StreamEntryOf<T>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, StreamIdOf, StreamEntryOf<T>, OptionQuery>;
 
 	/// stream hashes stored on chain.
 	/// It maps from a stream hash to an identifier (resolve from hash).
 	#[pallet::storage]
 	#[pallet::getter(fn stream_digests)]
 	pub type StreamDigests<T> =
-		StorageMap<_, Blake2_128Concat, StreamDigestOf<T>, IdentifierOf, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, StreamDigestOf<T>, StreamIdOf, OptionQuery>;
 
 	/// stream commits stored on chain.
 	/// It maps from an identifier to a vector of commits.
@@ -192,7 +198,7 @@ pub mod pallet {
 	pub(super) type Commits<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		IdentifierOf,
+		StreamIdOf,
 		BoundedVec<StreamCommitsOf<T>, T::MaxStreamCommits>,
 		ValueQuery,
 	>;
@@ -202,22 +208,22 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new stream identifier has been created.
 		/// \[stream identifier, stream digest, controller\]
-		Create { identifier: IdentifierOf, digest: StreamDigestOf<T>, author: CreatorIdOf<T> },
+		Create { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: CreatorIdOf<T> },
 		/// A stream identifier has been updated.
 		/// \[stream identifier, digest, controller\]
-		Update { identifier: IdentifierOf, digest: StreamDigestOf<T>, author: CreatorIdOf<T> },
+		Update { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: CreatorIdOf<T> },
 		/// A stream identifier status has been revoked.
 		/// \[stream identifier, controller\]
-		Revoke { identifier: IdentifierOf, author: CreatorIdOf<T> },
+		Revoke { identifier: StreamIdOf, author: CreatorIdOf<T> },
 		/// A stream identifier status has been restored.
 		/// \[stream identifier, controller\]
-		Restore { identifier: IdentifierOf, author: CreatorIdOf<T> },
+		Restore { identifier: StreamIdOf, author: CreatorIdOf<T> },
 		/// A stream identifier has been removed.
 		/// \[stream identifier,  controller\]
-		Remove { identifier: IdentifierOf, author: CreatorIdOf<T> },
+		Remove { identifier: StreamIdOf, author: CreatorIdOf<T> },
 		/// A stream digest has been added.
 		/// \[stream identifier, digest, controller\]
-		Digest { identifier: IdentifierOf, digest: StreamDigestOf<T>, author: CreatorIdOf<T> },
+		Digest { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: CreatorIdOf<T> },
 	}
 
 	#[pallet::error]
@@ -277,20 +283,17 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			stream_digest: StreamDigestOf<T>,
 			schema_id: SchemaIdOf,
-			authorization_id: AuthorizationIdOf,
+			authorization_id: AuthorizationIdOf<T>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let identifier = IdentifierOf::try_from(
-				ss58identifier::generate(&(&stream_digest).encode()[..], STREAM_PREFIX)
-					.into_bytes(),
-			)
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = Ss58Identifier::to_stream_id(&(stream_digest).encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
 
-			let authorization_details = <pallet_registry::Authorizations<T>>::get(authorization_id)
-				.ok_or(Error::<T>::AuthorizationDetailsNotFound)?;
+			// let authorization_details = <pallet_registry::Authorizations<T>>::get(authorization_id)
+			// 	.ok_or(Error::<T>::AuthorizationDetailsNotFound)?;
 
 			// TODO: Check if the authorization is valid
 
@@ -301,8 +304,8 @@ pub mod pallet {
 				StreamEntryOf::<T> {
 					digest: stream_digest,
 					creator: creator.clone(),
-					schema: schema_id,
-					registry: authorization_details.registry,
+					schema: schema_id.clone(),
+					registry: schema_id,
 					revoked: false,
 				},
 			);
@@ -332,7 +335,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
 			stream_digest: StreamDigestOf<T>,
-			_authorization_id: AuthorizationIdOf,
+			_authorization_id: AuthorizationIdOf<T>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
@@ -372,7 +375,7 @@ pub mod pallet {
 		pub fn revoke(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
-			_authorization_id: AuthorizationIdOf,
+			_authorization_id: AuthorizationIdOf<T>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
@@ -406,7 +409,7 @@ pub mod pallet {
 		pub fn restore(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
-			_authorization_id: AuthorizationIdOf,
+			_authorization_id: AuthorizationIdOf<T>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
@@ -439,7 +442,7 @@ pub mod pallet {
 		pub fn remove(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
-			_authorization_id: AuthorizationIdOf,
+			_authorization_id: AuthorizationIdOf<T>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
@@ -471,7 +474,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
 			stream_digest: StreamDigestOf<T>,
-			_authorization_id: AuthorizationIdOf,
+			_authorization_id: AuthorizationIdOf<T>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 

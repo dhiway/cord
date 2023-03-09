@@ -59,7 +59,7 @@ use frame_support::ensure;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	pub use cord_primitives::{ss58identifier, IdentifierOf, SCHEMA_PREFIX};
+	pub use cord_primitives::curi::Ss58Identifier;
 	pub use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
 	use frame_system::pallet_prelude::*;
@@ -68,7 +68,7 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	/// Schema Identifier
-	pub type SchemaIdOf = IdentifierOf;
+	pub type SchemaIdOf = Ss58Identifier;
 	/// Hash of the schema.
 	pub type SchemaHashOf<T> = <T as frame_system::Config>::Hash;
 
@@ -108,14 +108,14 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn schemas)]
 	pub type Schemas<T> =
-		StorageMap<_, Blake2_128Concat, IdentifierOf, SchemaEntryOf<T>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, SchemaIdOf, SchemaEntryOf<T>, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new schema has been created.
 		/// \[schema identifier, digest, author\]
-		Created { identifier: IdentifierOf, creator: SchemaCreatorOf<T> },
+		Created { identifier: SchemaIdOf, creator: SchemaCreatorOf<T> },
 	}
 
 	#[pallet::error]
@@ -152,10 +152,8 @@ pub mod pallet {
 
 			let digest = <T as frame_system::Config>::Hashing::hash(&tx_schema[..]);
 
-			let identifier = IdentifierOf::try_from(
-				ss58identifier::generate(&(digest).encode()[..], SCHEMA_PREFIX).into_bytes(),
-			)
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = Ss58Identifier::to_schema_id(&(digest).encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 
@@ -184,7 +182,7 @@ impl<T: Config> Pallet<T> {
 			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
 		}
 	}
-	pub fn is_valid(tx_ident: &IdentifierOf) -> Result<(), Error<T>> {
+	pub fn is_valid(tx_ident: &SchemaIdOf) -> Result<(), Error<T>> {
 		ensure!(<Schemas<T>>::contains_key(&tx_ident), Error::<T>::SchemaNotFound);
 		Ok(())
 	}

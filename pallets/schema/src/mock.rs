@@ -17,8 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{
-	ss58identifier, Config, CreatorSignatureTypeOf, IdentifierOf, InputSchemaOf, SchemaHashOf,
-	SCHEMA_PREFIX,
+	curi, Config, CreatorSignatureTypeOf, IdentifierOf, InputSchemaOf, SchemaHashOf, SCHEMA_PREFIX,
 };
 use codec::Encode;
 use sp_core::H256;
@@ -51,7 +50,7 @@ where
 }
 
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> IdentifierOf {
-	let identifier: IdentifierOf = ss58identifier::generate(&(&digest).encode()[..], SCHEMA_PREFIX)
+	let identifier: IdentifierOf = curi::generate(&(&digest).encode()[..], SCHEMA_PREFIX)
 		.into_bytes()
 		.try_into()
 		.unwrap();
