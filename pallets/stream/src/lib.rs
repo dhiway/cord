@@ -283,7 +283,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			stream_digest: StreamDigestOf<T>,
 			schema_id: SchemaIdOf,
-			authorization_id: AuthorizationIdOf<T>,
+			authorization: Option<T::StreamAccessControl>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
@@ -292,10 +292,10 @@ pub mod pallet {
 
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
 
-			// let authorization_details = <pallet_registry::Authorizations<T>>::get(authorization_id)
-			// 	.ok_or(Error::<T>::AuthorizationDetailsNotFound)?;
-
-			// TODO: Check if the authorization is valid
+			let registry_id = authorization
+				.as_ref()
+				.map(|ac| ac.can_create(&creator, &schema_id))
+				.transpose()?;
 
 			<StreamDigests<T>>::insert(&stream_digest, &identifier);
 
@@ -305,7 +305,7 @@ pub mod pallet {
 					digest: stream_digest,
 					creator: creator.clone(),
 					schema: schema_id.clone(),
-					registry: schema_id,
+					registry: registry_id,
 					revoked: false,
 				},
 			);
@@ -335,15 +335,20 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
 			stream_digest: StreamDigestOf<T>,
-			_authorization_id: AuthorizationIdOf<T>,
+			authorization: Option<T::StreamAccessControl>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
 
-			// TODO: Check if the authorization is valid
-			ensure!(stream_details.creator == creator, Error::<T>::UnauthorizedOperation);
+			if stream_details.creator != creator {
+				let registry = authorization
+					.as_ref()
+					.map(|ac| ac.can_update(&creator, &stream_details.schema))
+					.transpose()?;
+				ensure!(stream_details.registry == registry, Error::<T>::UnauthorizedOperation);
+			}
 
 			<StreamDigests<T>>::insert(&stream_digest, &stream_id);
 
@@ -375,15 +380,20 @@ pub mod pallet {
 		pub fn revoke(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
-			_authorization_id: AuthorizationIdOf<T>,
+			authorization: Option<T::StreamAccessControl>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
 
-			// TODO: Check if the authorization is valid
-			ensure!(stream_details.creator == creator, Error::<T>::UnauthorizedOperation);
+			if stream_details.creator != creator {
+				let registry = authorization
+					.as_ref()
+					.map(|ac| ac.can_set_status(&creator, &stream_details.schema))
+					.transpose()?;
+				ensure!(stream_details.registry == registry, Error::<T>::UnauthorizedOperation);
+			}
 
 			<Streams<T>>::insert(
 				&stream_id,
@@ -409,15 +419,20 @@ pub mod pallet {
 		pub fn restore(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
-			_authorization_id: AuthorizationIdOf<T>,
+			authorization: Option<T::StreamAccessControl>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(stream_details.revoked, Error::<T>::StreamNotRevoked);
 
-			// TODO: Check if the authorization is valid
-			ensure!(stream_details.creator == creator, Error::<T>::UnauthorizedOperation);
+			if stream_details.creator != creator {
+				let registry = authorization
+					.as_ref()
+					.map(|ac| ac.can_set_status(&creator, &stream_details.schema))
+					.transpose()?;
+				ensure!(stream_details.registry == registry, Error::<T>::UnauthorizedOperation);
+			}
 
 			<Streams<T>>::insert(
 				&stream_id,
@@ -442,15 +457,20 @@ pub mod pallet {
 		pub fn remove(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
-			_authorization_id: AuthorizationIdOf<T>,
+			authorization: Option<T::StreamAccessControl>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(stream_details.revoked, Error::<T>::StreamNotRevoked);
 
-			// TODO: Check if the authorization is valid
-			ensure!(stream_details.creator == creator, Error::<T>::UnauthorizedOperation);
+			if stream_details.creator != creator {
+				let registry = authorization
+					.as_ref()
+					.map(|ac| ac.can_remove(&creator, &stream_details.schema))
+					.transpose()?;
+				ensure!(stream_details.registry == registry, Error::<T>::UnauthorizedOperation);
+			}
 
 			<Streams<T>>::remove(&stream_id);
 
@@ -474,15 +494,20 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
 			stream_digest: StreamDigestOf<T>,
-			_authorization_id: AuthorizationIdOf<T>,
+			authorization: Option<T::StreamAccessControl>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
 
-			// TODO: Check if the authorization is valid
-			ensure!(stream_details.creator == creator, Error::<T>::UnauthorizedOperation);
+			if stream_details.creator != creator {
+				let registry = authorization
+					.as_ref()
+					.map(|ac| ac.can_create(&creator, &stream_details.schema))
+					.transpose()?;
+				ensure!(stream_details.registry == registry, Error::<T>::UnauthorizedOperation);
+			}
 
 			<StreamDigests<T>>::insert(&stream_digest, &stream_id);
 

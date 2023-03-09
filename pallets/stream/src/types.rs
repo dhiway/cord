@@ -45,7 +45,7 @@ pub struct StreamEntry<StreamDigestOf, CreatorIdOf, SchemaIdOf, RegistryIdOf, St
 	/// Schema Identifier
 	pub schema: SchemaIdOf,
 	/// Registry Identifier
-	pub registry: RegistryIdOf,
+	pub registry: Option<RegistryIdOf>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
 }
