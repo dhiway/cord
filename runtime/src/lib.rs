@@ -19,14 +19,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "512"]
-// The `from_over_into` warning originates from `construct_runtime` macro.
-#![allow(clippy::from_over_into)]
 
 use codec::Encode;
+pub use cord_primitives::{curi::Ss58Identifier, AccountId, Signature};
 use cord_primitives::{
 	prod_or_fast, AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Index, Moment,
 };
-pub use cord_primitives::{AccountId, Signature};
 
 use frame_support::{
 	construct_runtime,
@@ -98,7 +96,9 @@ mod authority_manager;
 pub use pallet_extrinsic_authorship;
 pub mod benchmark;
 pub use benchmark::DummySignature;
-
+pub mod authorize;
+pub use authorize::{AuthorizationId, PalletAuthorize};
+use pallet_registry::AuthorityAc;
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -872,6 +872,7 @@ impl pallet_registry::Config for Runtime {
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
+	type AuthorizationId = Ss58Identifier;
 	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
 	type MaxRegistryAuthorities = MaxRegistryAuthorities;
 	type MaxRegistryCommitActions = MaxRegistryCommitActions;
@@ -889,6 +890,8 @@ impl pallet_stream::Config for Runtime {
 	type WeightInfo = weights::pallet_stream::WeightInfo<Runtime>;
 	type MaxStreamCommits = MaxStreamCommits;
 	type CreatorId = DidIdentifier;
+	type AuthorizationId = AuthorizationId<<Runtime as pallet_registry::Config>::AuthorizationId>;
+	type StreamAccessControl = PalletAuthorize<AuthorityAc<Runtime>>;
 }
 
 impl pallet_sudo::Config for Runtime {

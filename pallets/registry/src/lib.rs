@@ -21,16 +21,18 @@
 
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 
+pub mod authorization;
 pub mod types;
 pub mod weights;
 
-pub use crate::{types::*, weights::WeightInfo};
+pub use crate::{authorization::AuthorityAc, types::*, weights::WeightInfo};
 pub use pallet::*;
+use sp_std::vec::Vec;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	pub use cord_primitives::{ss58identifier, IdentifierOf, StatusOf, SPACE_PREFIX};
+	pub use cord_primitives::{curi::Ss58Identifier, StatusOf};
 	use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
 	use frame_system::pallet_prelude::*;
@@ -39,11 +41,11 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	/// Registry Identifier
-	pub type RegistryIdOf = IdentifierOf;
+	pub type RegistryIdOf = Ss58Identifier;
 	/// Schema Identifier
-	pub type SchemaIdOf = IdentifierOf;
+	pub type SchemaIdOf = Ss58Identifier;
 	/// Authorization Identifier
-	pub type AuthorizationIdOf = IdentifierOf;
+	pub type AuthorizationIdOf<T> = <T as Config>::AuthorizationId;
 	/// Hash of the registry.
 	pub type RegistryHashOf<T> = <T as frame_system::Config>::Hash;
 
@@ -72,6 +74,8 @@ pub mod pallet {
 		>;
 		type OriginSuccess: CallSources<AccountIdOf<Self>, ProposerIdOf<Self>>;
 		type ProposerId: Parameter + MaxEncodedLen;
+
+		type AuthorizationId: Parameter + MaxEncodedLen + TryFrom<Vec<u8>>;
 
 		#[pallet::constant]
 		type MaxEncodedRegistryLength: Get<u32>;
@@ -103,8 +107,13 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn authorizations)]
-	pub type Authorizations<T> =
-		StorageMap<_, Blake2_128Concat, AuthorizationIdOf, RegistryAuthorizationOf<T>, OptionQuery>;
+	pub type Authorizations<T> = StorageMap<
+		_,
+		Blake2_128Concat,
+		AuthorizationIdOf<T>,
+		RegistryAuthorizationOf<T>,
+		OptionQuery,
+	>;
 
 	/// space delegations stored on chain.
 	/// It maps from an identifier to a vector of delegates.
@@ -142,7 +151,7 @@ pub mod pallet {
 		RemoveAuthority { registry: RegistryIdOf, delegate: ProposerIdOf<T> },
 		/// A registry delegate has been removed.
 		/// \[registry identifier,  authority\]
-		RemoveAuthorization { registry: RegistryIdOf, authorization_id: AuthorizationIdOf },
+		RemoveAuthorization { registry: RegistryIdOf, authorization_id: AuthorizationIdOf<T> },
 		/// A new space has been created.
 		/// \[registry identifier, creator\]
 		Create { registry: RegistryIdOf, creator: ProposerIdOf<T> },
@@ -189,7 +198,8 @@ pub mod pallet {
 		/// Authority already added
 		AuthorityAlreadyAdded,
 		/// Authorization Id not found
-		AuthorizationNotPresent,
+		AuthorizationNotFound,
+		AccessDenied,
 	}
 
 	#[pallet::call]
@@ -218,9 +228,8 @@ pub mod pallet {
 				&[&registry.encode()[..], &authority.encode()[..]].concat()[..],
 			);
 
-			let identifier = IdentifierOf::try_from(
-				ss58identifier::generate(&(authority_digest).encode()[..], SPACE_PREFIX)
-					.into_bytes(),
+			let identifier = AuthorizationIdOf::<T>::try_from(
+				Ss58Identifier::to_authorization_id(&(authority_digest).encode()[..]).into_bytes(),
 			)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
@@ -277,9 +286,8 @@ pub mod pallet {
 				&[&registry.encode()[..], &delegate.encode()[..]].concat()[..],
 			);
 
-			let identifier = IdentifierOf::try_from(
-				ss58identifier::generate(&(delegate_digest).encode()[..], SPACE_PREFIX)
-					.into_bytes(),
+			let identifier = AuthorizationIdOf::<T>::try_from(
+				Ss58Identifier::to_authorization_id(&(delegate_digest).encode()[..]).into_bytes(),
 			)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
@@ -314,8 +322,8 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::deauthorize())]
 		pub fn deauthorize(
 			origin: OriginFor<T>,
-			registry: IdentifierOf,
-			authorization_id: AuthorizationIdOf,
+			registry: RegistryIdOf,
+			authorization_id: AuthorizationIdOf<T>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
@@ -327,7 +335,7 @@ pub mod pallet {
 
 			ensure!(
 				Authorizations::<T>::take(&authorization_id).is_some(),
-				Error::<T>::AuthorizationNotPresent
+				Error::<T>::AuthorizationNotFound
 			);
 
 			Self::update_commit(&registry, creator.clone(), RegistryCommitActionOf::Deauthorize)
@@ -346,7 +354,7 @@ pub mod pallet {
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::deauthorize())]
 		pub fn remove_authorities(
 			origin: OriginFor<T>,
-			registry: IdentifierOf,
+			registry: RegistryIdOf,
 			delegate: ProposerIdOf<T>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
@@ -387,10 +395,8 @@ pub mod pallet {
 
 			let digest = <T as frame_system::Config>::Hashing::hash(&tx_registry[..]);
 
-			let identifier = IdentifierOf::try_from(
-				ss58identifier::generate(&(digest).encode()[..], SPACE_PREFIX).into_bytes(),
-			)
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = Ss58Identifier::to_registry_id(&(&digest).encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
 				!<Registries<T>>::contains_key(&identifier),
@@ -529,21 +535,21 @@ impl<T: Config> Pallet<T> {
 	// 	Ok(())
 	// }
 
-	pub fn is_authorized(
-		tx_registry: &RegistryIdOf,
-		proposer: ProposerIdOf<T>,
-	) -> Result<(), Error<T>> {
-		let authorities = <Authorizations<T>>::get(tx_registry);
-		for authority in authorities.iter() {
-			if authority.delegate == proposer {
-				ensure!(
-					(authority.permissions & Permissions::ASSERT) == Permissions::ASSERT,
-					Error::<T>::UnauthorizedOperation
-				);
-			}
-		}
-		Ok(())
-	}
+	// pub fn is_authorized(
+	// 	tx_registry: &RegistryIdOf,
+	// 	proposer: ProposerIdOf<T>,
+	// ) -> Result<(), Error<T>> {
+	// 	let authorities = <Authorizations<T>>::get(tx_registry);
+	// 	for authority in authorities.iter() {
+	// 		if authority.delegate == proposer {
+	// 			ensure!(
+	// 				(authority.permissions & Permissions::ASSERT) == Permissions::ASSERT,
+	// 				Error::<T>::UnauthorizedOperation
+	// 			);
+	// 		}
+	// 	}
+	// 	Ok(())
+	// }
 	/// The current `Timepoint`.
 	pub fn timepoint() -> Timepoint<T::BlockNumber> {
 		Timepoint {
