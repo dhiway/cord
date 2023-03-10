@@ -31,10 +31,11 @@ use sp_std::{fmt::Debug, prelude::Clone, str, vec};
 /// CORD Identifier Prefix
 const PREFIX: &[u8] = b"CRDIDFR";
 /// CORD idents
-const IDENT_REG: u16 = 11662;
-const IDENT_AUTH: u16 = 11772;
-const IDENT_SCHEMA: u16 = 11882;
+const IDENT_REG: u16 = 7101;
+const IDENT_AUTH: u16 = 2604;
+const IDENT_SCHEMA: u16 = 8902;
 const IDENT_STREAM: u16 = 11992;
+// const IDENT_PUBLIC_STREAM: u16 = 11999;
 
 /// The minimum length of a valid identifier.
 pub const MINIMUM_IDENTIFIER_LENGTH: usize = 2;
