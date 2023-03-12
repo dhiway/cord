@@ -411,7 +411,7 @@ pub mod pallet {
 			<Registries<T>>::insert(
 				&identifier,
 				RegistryEntryOf::<T> {
-					registry: tx_registry,
+					details: tx_registry,
 					digest,
 					schema: tx_schema,
 					creator: creator.clone(),

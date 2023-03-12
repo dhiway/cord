@@ -81,7 +81,9 @@ impl<T: Config> TryFrom<Vec<u8>> for AsciiDidName<T> {
 
 /// Verify that a given slice can be used as a web3 name.
 fn is_valid_did_name(input: &[u8]) -> bool {
-	input.iter().all(|c| matches!(c, b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_'))
+	input
+		.iter()
+		.all(|c| matches!(c, b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_'| b'.'| b'@'))
 }
 
 // FIXME: did not find a way to automatically implement this.
