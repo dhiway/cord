@@ -1259,12 +1259,12 @@ sp_api::impl_runtime_apis! {
 			>
 		> {
 			let details = pallet_did::Did::<Runtime>::get(&did)?;
-			let w3n = None;
+			let name = pallet_did_names::Names::<Runtime>::get(&did).map(Into::into);
 			let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
 
 			Some(pallet_did_runtime_api::RawDidLinkedInfo {
 				identifier: did,
-				w3n,
+				name,
 				service_endpoints,
 				details: details.into(),
 			})
@@ -1275,8 +1275,8 @@ sp_api::impl_runtime_apis! {
 				BlockNumber
 			>
 		> {
-			let name: pallet_did_names::did_name::AsciiDidName<Runtime> = name.try_into().ok()?;
-			pallet_did_names::Owner::<Runtime>::get(&name)
+			let dname: pallet_did_names::did_name::AsciiDidName<Runtime> = name.try_into().ok()?;
+			pallet_did_names::Owner::<Runtime>::get(&dname)
 				.and_then(|owner_info| {
 					pallet_did::Did::<Runtime>::get(&owner_info.owner).map(|details| (owner_info, details))
 				})
@@ -1285,7 +1285,7 @@ sp_api::impl_runtime_apis! {
 
 					pallet_did_runtime_api::RawDidLinkedInfo{
 						identifier: owner_info.owner,
-						w3n: Some(name.into()),
+						name: Some(dname.into()),
 						service_endpoints,
 						details: details.into(),
 					}
