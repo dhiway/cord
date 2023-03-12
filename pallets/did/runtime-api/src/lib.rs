@@ -33,7 +33,7 @@ pub use service_endpoint::*;
 #[derive(Encode, Decode, TypeInfo, Eq, PartialEq)]
 pub struct DidLinkedInfo<
 	DidIdentifier,
-	Web3Name,
+	DidName,
 	Id,
 	Type,
 	Url,
@@ -41,7 +41,7 @@ pub struct DidLinkedInfo<
 	BlockNumber: MaxEncodedLen,
 > {
 	pub identifier: DidIdentifier,
-	pub w3n: Option<Web3Name>,
+	pub name: Option<DidName>,
 	pub service_endpoints: Vec<ServiceEndpoint<Id, Type, Url>>,
 	pub details: DidDetails<Key, BlockNumber>,
 }
@@ -59,10 +59,10 @@ sp_api::decl_runtime_apis! {
 		BlockNumber: Codec + MaxEncodedLen,
 		Key: Codec,
 	{
-	/// Given a web3name this returns:
+	/// Given a didname this returns:
 	/// * the DID
 	/// * public keys stored for the did
-	/// * the web3name (optional)
+	/// * the didName (optional)
 	/// * service endpoints
 	fn query_by_name(name: Vec<u8>) -> Option<RawDidLinkedInfo<DidIdentifier, Key, BlockNumber>>;
 

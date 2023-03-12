@@ -64,7 +64,7 @@ pub struct Timepoint<BlockNumber> {
 
 pub struct RegistryEntry<InputRegistryOf, RegistryHashOf, SchemaIdOf, ProposerIdOf, StatusOf> {
 	// The Registry
-	pub registry: InputRegistryOf,
+	pub details: InputRegistryOf,
 	/// Registry hash.
 	pub digest: RegistryHashOf,
 	/// Schema identifier.
