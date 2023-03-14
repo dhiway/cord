@@ -6,7 +6,7 @@ name: CI
 on:
   # Trigger the workflow on push event
   push:
-    branches: [ develop, aura_experiment ]
+    branches: [ dev-0.8.0 ]
 
   # Allow to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -39,10 +39,10 @@ jobs:
 
       # Push image to Registry
       - run: |
-          docker build . --no-cache --file Dockerfile --tag ${{ env.IMAGE_REPOSITORY }}:latest
+          docker build . --no-cache --file Dockerfile --tag ${{ env.IMAGE_REPOSITORY }}:dev-0.8.0
 
-          docker tag ${{ env.IMAGE_REPOSITORY }}:latest ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
-          docker tag ${{ env.IMAGE_REPOSITORY }}:latest ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${GITHUB_REF##*/}
+          docker tag ${{ env.IMAGE_REPOSITORY }}:dev-0.8.0 ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+          docker tag ${{ env.IMAGE_REPOSITORY }}:dev-0.8.0 ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${GITHUB_REF##*/}
 
           docker push ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
           docker push ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${GITHUB_REF##*/}
