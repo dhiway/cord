@@ -217,13 +217,13 @@ impl Ss58Identifier {
 		Self::get_ident(data, IDENT_STREAM)
 	}
 	pub fn is_schema_id(data: Ss58Identifier) -> Result<(), IdentifierError> {
-		Self::get_ident(data, IDENT_STREAM)
+		Self::get_ident(data, IDENT_SCHEMA)
 	}
 	pub fn is_registry_id(data: Ss58Identifier) -> Result<(), IdentifierError> {
-		Self::get_ident(data, IDENT_STREAM)
+		Self::get_ident(data, IDENT_REG)
 	}
 	pub fn is_authorization_id(data: Ss58Identifier) -> Result<(), IdentifierError> {
-		Self::get_ident(data, IDENT_STREAM)
+		Self::get_ident(data, IDENT_AUTH)
 	}
 
 	// pub fn from_known_identifier(id: &Ss58Identifier) -> IdentifierVerificationResult {
