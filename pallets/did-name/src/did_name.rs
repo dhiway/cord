@@ -80,10 +80,14 @@ impl<T: Config> TryFrom<Vec<u8>> for AsciiDidName<T> {
 
 /// Verify that a given slice can be used as a web3 name.
 fn is_valid_did_name(input: &[u8]) -> bool {
+	// Check if the input contains the "@" delimiter
 	if let Some(at_index) = input.iter().position(|&c| c == b'@') {
+		// Extracting the prefix and suffix using slicing operations
 		let prefix = &input[..at_index];
 		let suffix = &input[at_index + 1..];
+		// Check if the prefix only contains valid characters
 		if prefix.iter().all(|&c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
+		// Check if the suffix only contains alphabetic characters and its length is less than or equal to 10
 			&& suffix.len() <= 10
 			&& suffix.iter().all(|&c| c.is_ascii_alphabetic())
 		{
