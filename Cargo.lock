@@ -5061,6 +5061,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
+ "regex",
  "scale-info",
  "sp-core",
  "sp-io",

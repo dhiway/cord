@@ -17,14 +17,13 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-
-use sp_std::{fmt::Debug, marker::PhantomData, ops::Deref, vec::Vec};
-
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
 	ensure, sp_runtime::SaturatedConversion, traits::Get, BoundedVec, RuntimeDebug,
 };
+
 use scale_info::TypeInfo;
+use sp_std::{fmt::Debug, marker::PhantomData, ops::Deref, vec::Vec};
 
 use crate::{Config, Error};
 
@@ -81,9 +80,18 @@ impl<T: Config> TryFrom<Vec<u8>> for AsciiDidName<T> {
 
 /// Verify that a given slice can be used as a web3 name.
 fn is_valid_did_name(input: &[u8]) -> bool {
-	input
-		.iter()
-		.all(|c| matches!(c, b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_'| b'.'| b'@'))
+	if let Some(at_index) = input.iter().position(|&c| c == b'@') {
+		let prefix = &input[..at_index];
+		let suffix = &input[at_index + 1..];
+		if prefix.len() <= 50
+			&& prefix.iter().all(|&c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
+			&& suffix.len() <= 10
+			&& suffix.iter().all(|&c| c.is_ascii_alphabetic())
+		{
+			return true;
+		}
+	}
+	false
 }
 
 // FIXME: did not find a way to automatically implement this.

@@ -43,7 +43,7 @@ pub mod pallet {
 	use codec::FullCodec;
 	use frame_support::{
 		pallet_prelude::*, sp_runtime::SaturatedConversion, traits::StorageVersion,
-		Blake2_128Concat,
+		Blake2_128Concat, Identity,
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_std::{fmt::Debug, vec::Vec};
@@ -67,6 +67,16 @@ pub mod pallet {
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
+	
+
+	///Storage Authority mapping  ID with suffix
+	// #[pallet::storage]
+	// #[pallet::getter(fn storeauth)]
+	// pub type StorageAuthority<AuthoritySuffix> = StorageMap<
+	// 	BoundedVec<u8, T::MaxNameLength>,
+	// 	Query = Blake2_128Concat,
+	// 	Hasher = Blake2_128Concat,
+	// >;
 	/// Map of name -> ownership details.
 	#[pallet::storage]
 	#[pallet::getter(fn owner)]
@@ -112,8 +122,12 @@ pub mod pallet {
 		type DidNameOwner: Parameter + MaxEncodedLen;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+		
 	}
-
+	// pub struct AuthoritySuffix {
+	// 	authid: Identity,
+	// 	suffix: u8
+	// }
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {

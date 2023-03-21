@@ -37,6 +37,9 @@ sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.3
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false, optional = true}
 sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false, optional = true }
 
+#regex dependencies
+regex = "1.7.1"
+
 [features]
 default = ["std"]
 runtime-benchmarks = [
