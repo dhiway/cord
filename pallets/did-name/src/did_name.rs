@@ -83,8 +83,7 @@ fn is_valid_did_name(input: &[u8]) -> bool {
 	if let Some(at_index) = input.iter().position(|&c| c == b'@') {
 		let prefix = &input[..at_index];
 		let suffix = &input[at_index + 1..];
-		if prefix.len() <= 50
-			&& prefix.iter().all(|&c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
+		if prefix.iter().all(|&c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
 			&& suffix.len() <= 10
 			&& suffix.iter().all(|&c| c.is_ascii_alphabetic())
 		{
