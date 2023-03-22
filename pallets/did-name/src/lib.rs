@@ -51,7 +51,7 @@ pub mod pallet {
 	use cord_utilities::traits::CallSources;
 
 	use super::WeightInfo;
-	use crate::did_name::{DidNameOwnership, Timepoint};
+	use crate::did_name::DidNameOwnership;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
@@ -94,12 +94,7 @@ pub mod pallet {
 		type OriginSuccess: CallSources<AccountIdOf<Self>, DidNameOwnerOf<Self>>;
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-		/// The min encoded length of a name.
-		#[pallet::constant]
-		type MinNameLength: Get<u32>;
-		/// The max encoded length of a name.
-		#[pallet::constant]
-		type MaxNameLength: Get<u32>;
+
 		/// The type of a name.
 		type DidName: FullCodec
 			+ Debug
@@ -110,6 +105,15 @@ pub mod pallet {
 			+ MaxEncodedLen;
 		/// The type of a name owner.
 		type DidNameOwner: Parameter + MaxEncodedLen;
+		/// The min encoded length of a name.
+		#[pallet::constant]
+		type MinNameLength: Get<u32>;
+		/// The max encoded length of a name.
+		#[pallet::constant]
+		type MaxNameLength: Get<u32>;
+		/// The max encoded length of a prefix.
+		#[pallet::constant]
+		type MaxPrefixLength: Get<u32>;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -118,7 +122,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new name has been claimed.
-		DidNameClaimed { owner: DidNameOwnerOf<T>, name: DidNameOf<T> },
+		DidNameRegistered { owner: DidNameOwnerOf<T>, name: DidNameOf<T> },
 		/// A name has been released.
 		DidNameReleased { owner: DidNameOwnerOf<T>, name: DidNameOf<T> },
 		/// A name has been banned.
@@ -149,11 +153,19 @@ pub mod pallet {
 		/// The actor cannot performed the specified operation.
 		NotAuthorized,
 		/// A name that is too short is being claimed.
-		TooShort,
+		NameTooShort,
 		/// A name that is too long is being claimed.
-		TooLong,
+		NameExceedsMaxLength,
+		/// A prefix that is too short is being claimed.
+		NamePrefixTooShort,
+		/// A prefix that is too long is being claimed.
+		NamePrefixTooLong,
+		/// A suffix that is too short is being claimed.
+		InvalidSuffix,
+		/// A suffix that is too long is being claimed.
+		SuffixTooLong,
 		/// A name that contains not allowed characters is being claimed.
-		InvalidCharacter,
+		InvalidFormat,
 	}
 
 	#[pallet::hooks]
@@ -164,17 +176,17 @@ pub mod pallet {
 		/// Assign the specified name to the owner as specified in the
 		/// origin.
 		///
-		/// The name must not have already been claimed by someone else and the
+		/// The name must not have already been registered by someone else and the
 		/// owner must not already own another name.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::claim(name.len().saturated_into()))]
-		pub fn claim(origin: OriginFor<T>, name: DidNameInput<T>) -> DispatchResult {
+		#[pallet::weight(<T as Config>::WeightInfo::register(name.len().saturated_into()))]
+		pub fn register(origin: OriginFor<T>, name: DidNameInput<T>) -> DispatchResult {
 			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let decoded_name = Self::check_claiming_preconditions(name, &owner)?;
 
 			Self::register_name(decoded_name.clone(), owner.clone());
-			Self::deposit_event(Event::<T>::DidNameClaimed { owner, name: decoded_name });
+			Self::deposit_event(Event::<T>::DidNameRegistered { owner, name: decoded_name });
 
 			Ok(())
 		}
@@ -197,8 +209,7 @@ pub mod pallet {
 
 		/// Ban a name.
 		///
-		/// A banned name cannot be claimed by anyone. The name's deposit
-		/// is returned to the original payer.
+		/// A banned name cannot be registered by anyone.
 		///
 		/// The origin must be the ban origin.
 		#[pallet::call_index(3)]
@@ -220,7 +231,7 @@ pub mod pallet {
 
 		/// Unban a name.
 		///
-		/// Make a name claimable again.
+		/// Make a name available again.
 		///
 		/// The origin must be the ban origin.
 		#[pallet::call_index(4)]
@@ -262,10 +273,12 @@ pub mod pallet {
 		/// `check_claiming_preconditions` as it does not verify all the
 		/// preconditions again.
 		pub(crate) fn register_name(name: DidNameOf<T>, owner: DidNameOwnerOf<T>) {
+			let block_number = frame_system::Pallet::<T>::block_number();
+
 			Names::<T>::insert(&owner, name.clone());
 			Owner::<T>::insert(
 				&name,
-				DidNameOwnershipOf::<T> { owner, claimed_at: Self::timepoint() },
+				DidNameOwnershipOf::<T> { owner, registered_at: block_number },
 			);
 		}
 
@@ -339,13 +352,6 @@ pub mod pallet {
 		/// preconditions again.
 		fn unban_name(name: &DidNameOf<T>) {
 			Banned::<T>::remove(name);
-		}
-		/// The current `Timepoint`.
-		pub fn timepoint() -> Timepoint<T::BlockNumber> {
-			Timepoint {
-				height: frame_system::Pallet::<T>::block_number(),
-				index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
-			}
 		}
 	}
 }

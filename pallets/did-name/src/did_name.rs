@@ -28,15 +28,8 @@ use scale_info::TypeInfo;
 
 use crate::{Config, Error};
 
-#[derive(
-	Copy, Clone, Eq, PartialEq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen,
-)]
-pub struct Timepoint<BlockNumber> {
-	/// The height of the chain at the point in time.
-	pub height: BlockNumber,
-	/// The index of the extrinsic at the point in time.
-	pub index: u32,
-}
+const NAME_SEPARATOR: u8 = b'@';
+const NETWORK_SUFFIX: &[u8] = b"cord";
 
 /// A DID name.
 ///
@@ -71,19 +64,72 @@ impl<T: Config> TryFrom<Vec<u8>> for AsciiDidName<T> {
 	/// minimum or exceeds the maximum allowed length or contains invalid ASCII
 	/// characters.
 	fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-		ensure!(value.len() >= T::MinNameLength::get().saturated_into(), Self::Error::TooShort);
+		ensure!(value.len() >= T::MinNameLength::get().saturated_into(), Self::Error::NameTooShort);
 		let bounded_vec: BoundedVec<u8, T::MaxNameLength> =
-			BoundedVec::try_from(value).map_err(|_| Self::Error::TooLong)?;
-		ensure!(is_valid_did_name(&bounded_vec), Self::Error::InvalidCharacter);
+			BoundedVec::try_from(value).map_err(|_| Self::Error::NameExceedsMaxLength)?;
+
+		let mut split = bounded_vec.splitn(2, |c| *c == NAME_SEPARATOR);
+
+		let (prefix, suffix) = (split.next(), split.next());
+
+		if let (Some(prefix), Some(suffix)) = (prefix, suffix) {
+			ensure!(matches!(suffix, NETWORK_SUFFIX), Self::Error::InvalidSuffix);
+			ensure!(
+				prefix.len() >= T::MinNameLength::get().saturated_into(),
+				Self::Error::NameTooShort
+			);
+			ensure!(
+				prefix.len() <= T::MaxPrefixLength::get().saturated_into(),
+				Self::Error::NameExceedsMaxLength
+			);
+			ensure!(is_valid_did_name_prefix(prefix), Self::Error::InvalidFormat);
+		} else {
+			Err(Self::Error::InvalidFormat)?
+		}
+
 		Ok(Self(bounded_vec, PhantomData))
 	}
 }
 
-/// Verify that a given slice can be used as a web3 name.
-fn is_valid_did_name(input: &[u8]) -> bool {
-	input
-		.iter()
-		.all(|c| matches!(c, b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_'| b'.'| b'@'))
+/// Verify that a given slice can be used as a name prefix.
+fn is_valid_did_name_prefix(input: &[u8]) -> bool {
+	// Check prefix is empty or not
+	if input.is_empty() {
+		return false;
+	}
+
+	// Check first character
+	// - Must be a lowercase letter
+	if !(input[0].is_ascii_lowercase()) {
+		return false;
+	}
+
+	// Check characters
+	// - Only allow lowercase letters, numbers, and periods
+	// - Only allow one period in a row
+	let mut is_valid = false;
+	let mut prev_char = None;
+	for c in input.iter().skip(1) {
+		if matches!(c, b'a'..=b'z' | b'0'..=b'9') {
+			is_valid = true;
+		} else if matches!(c, b'.') {
+			if let Some(prev) = prev_char {
+				if prev == &b'.' {
+					return false;
+				}
+			}
+		} else {
+			return false; // unexpected character
+		}
+		prev_char = Some(c);
+	}
+
+	// Check last character
+	// - Do not allow a period at the end
+	if input.last() == Some(&b'.') {
+		return false;
+	}
+	is_valid
 }
 
 // FIXME: did not find a way to automatically implement this.
@@ -103,10 +149,10 @@ impl<T: Config> Clone for AsciiDidName<T> {
 /// DID name ownership details.
 #[derive(Clone, Encode, Decode, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
 pub struct DidNameOwnership<Owner, BlockNumber> {
-	/// The owner of the web3 name.
+	/// The owner of the did name.
 	pub owner: Owner,
-	/// The block number at which the web3 name was claimed.
-	pub claimed_at: Timepoint<BlockNumber>,
+	/// The block number at which the did name was registered.
+	pub registered_at: BlockNumber,
 }
 
 #[cfg(test)]
@@ -121,15 +167,11 @@ mod tests {
 	#[test]
 	fn valid_did_name_inputs() {
 		let valid_inputs = vec![
-			// Minimum length allowed
-			vec![b'a'; MIN_LENGTH.saturated_into()],
-			// Maximum length allowed
-			vec![b'a'; MAX_LENGTH.saturated_into()],
 			// All ASCII characters allowed
-			b"qwertyuiopasdfghjklzxcvbnm".to_vec(),
-			b"0123456789".to_vec(),
-			b"---".to_vec(),
-			b"___".to_vec(),
+			b"qwertyuiopasdfghjklzxcvbnm@cord".to_vec(),
+			b"a123456789@cord".to_vec(),
+			b"abc.123@cord".to_vec(),
+			b"abc.123.xyz@cord".to_vec(),
 		];
 
 		let invalid_inputs = vec![
@@ -140,9 +182,14 @@ mod tests {
 			// One more than maximum length allowed
 			vec![b'a'; MAX_LENGTH.saturated_into::<usize>() + 1usize],
 			// Invalid ASCII symbol
+			b"almostavalidweb3_name!@cord".to_vec(),
+			// Invalid ASCII symbol
 			b"almostavalidweb3_name!".to_vec(),
 			// Non-ASCII character
 			String::from("almostavalid_did_name😂").as_bytes().to_owned(),
+			b"---@cord".to_vec(),
+			b"___@cord".to_vec(),
+			b"abc..xyz@cord".to_vec(),
 		];
 
 		for valid in valid_inputs {
