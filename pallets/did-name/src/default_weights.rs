@@ -29,7 +29,7 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_web3_names.
 pub trait WeightInfo {
-	fn claim(n: u32, ) -> Weight;
+	fn register(n: u32, ) -> Weight;
 	fn release() -> Weight;
 	fn ban(n: u32, ) -> Weight;
 	fn unban(n: u32, ) -> Weight;
@@ -43,7 +43,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: DidNames Banned (r:1 w:0)
 	// Storage: System Account (r:1 w:1)
 	/// The range of component `n` is `[3, 32]`.
-	fn claim(_n: u32, ) -> Weight {
+	fn register(_n: u32, ) -> Weight {
 		Weight::from_ref_time(79_918_651 as u64)
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
@@ -82,7 +82,7 @@ impl WeightInfo for () {
 	// Storage: DidNames Banned (r:1 w:0)
 	// Storage: System Account (r:1 w:1)
 	/// The range of component `n` is `[3, 32]`.
-	fn claim(_n: u32, ) -> Weight {
+	fn register(_n: u32, ) -> Weight {
 		Weight::from_ref_time(79_918_651 as u64)
 			.saturating_add(RocksDbWeight::get().reads(4 as u64))
 			.saturating_add(RocksDbWeight::get().writes(3 as u64))
