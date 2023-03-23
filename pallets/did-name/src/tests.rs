@@ -22,59 +22,55 @@ use frame_support::{assert_noop, assert_ok, BoundedVec};
 
 use cord_utilities::mock::mock_origin;
 use frame_system::RawOrigin;
-use sp_runtime::{traits::Zero, DispatchError};
+use sp_runtime::DispatchError;
 
-use crate::{mock::*, Banned, Config, DidOwnershipOf, Error, Names, Owner, Pallet};
+use crate::{mock::*, Banned, DidNameOwnershipOf, Error, Names, Owner, Pallet};
 
 // #############################################################################
-// Name claiming
+// Registering a DID name
 
 #[test]
-fn claiming_successful() {
+fn registering_successful() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
-	let initial_balance: Balance = 100;
-	ExtBuilder::default()
-		.with_balances(vec![(ACCOUNT_00, initial_balance)])
-		.build()
-		.execute_with(|| {
-			assert!(Names::<Test>::get(&DID_00).is_none());
-			assert!(Owner::<Test>::get(&did_name_00).is_none());
+	ExtBuilder::default().build().execute_with(|| {
+		assert!(Names::<Test>::get(&DID_00).is_none());
+		assert!(Owner::<Test>::get(&did_name_00).is_none());
 
-			assert_ok!(Pallet::<Test>::claim(
-				mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
+		assert_ok!(Pallet::<Test>::register(
+			mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
+			did_name_00.clone().0,
+		));
+		let did_name = Names::<Test>::get(&DID_00).expect("Did name should be stored.");
+		let owner_details = Owner::<Test>::get(&did_name_00).expect("Owner should be stored.");
+
+		// Test that the name matches
+		assert_eq!(did_name, did_name_00);
+		// Test that the ownership details match
+		assert_eq!(owner_details, DidNameOwnershipOf::<Test> { owner: DID_00, registered_at: 0 });
+
+		// Test that the same name cannot be claimed again.
+		assert_noop!(
+			Pallet::<Test>::register(
+				mock_origin::DoubleOrigin(ACCOUNT_01, DID_01).into(),
 				did_name_00.clone().0,
-			));
-			let did_name = Names::<Test>::get(&DID_00).expect("Did name should be stored.");
-			let owner_details = Owner::<Test>::get(&did_name_00).expect("Owner should be stored.");
+			),
+			Error::<Test>::AlreadyExists
+		);
 
-			// Test that the name matches
-			assert_eq!(did_name, did_name_00);
-			// Test that the ownership details match
-			assert_eq!(owner_details, DidOwnershipOf::<Test> { owner: DID_00, claimed_at: 0 });
-
-			// Test that the same name cannot be claimed again.
-			assert_noop!(
-				Pallet::<Test>::claim(
-					mock_origin::DoubleOrigin(ACCOUNT_01, DID_01).into(),
-					did_name_00.clone().0,
-				),
-				Error::<Test>::AlreadyExists
-			);
-
-			// Test that the same owner cannot claim a new name.
-			let did_name_01 = get_did_name(DID_NAME_01_INPUT);
-			assert_noop!(
-				Pallet::<Test>::claim(
-					mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
-					did_name_01.0,
-				),
-				Error::<Test>::OwnerAlreadyExists
-			);
-		})
+		// Test that the same owner cannot claim a new name.
+		let did_name_01 = get_did_name(DID_NAME_01_INPUT);
+		assert_noop!(
+			Pallet::<Test>::register(
+				mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
+				did_name_01.0,
+			),
+			Error::<Test>::OwnerAlreadyExists
+		);
+	})
 }
 
 #[test]
-fn claiming_invalid() {
+fn registering_invalid() {
 	let too_short_did_names = vec![
 		// Empty name
 		BoundedVec::try_from(b"".to_vec()).unwrap(),
@@ -95,40 +91,40 @@ fn claiming_invalid() {
 		BoundedVec::try_from(String::from("notascii😁").as_bytes().to_owned()).unwrap(),
 	];
 	ExtBuilder::default()
-		.with_balances(vec![(ACCOUNT_00, 100)])
+		// .with_balances(vec![(ACCOUNT_00, 100)])
 		.build()
 		.execute_with(|| {
 			for too_short_input in too_short_did_names.iter() {
 				assert_noop!(
-					Pallet::<Test>::claim(
+					Pallet::<Test>::register(
 						mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
 						too_short_input.clone(),
 					),
-					Error::<Test>::TooShort,
+					Error::<Test>::NameTooShort,
 				);
 			}
 			for input in invalid_did_names.iter() {
 				assert_noop!(
-					Pallet::<Test>::claim(
+					Pallet::<Test>::register(
 						mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
 						input.clone()
 					),
-					Error::<Test>::InvalidCharacter,
+					Error::<Test>::InvalidFormat,
 				);
 			}
 		})
 }
 
 #[test]
-fn claiming_banned() {
+fn registering_banned() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
 	ExtBuilder::default()
-		.with_balances(vec![(ACCOUNT_00, 100)])
+		// .with_balances(vec![(ACCOUNT_00, 100)])
 		.with_banned_did_names(vec![did_name_00.clone()])
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Pallet::<Test>::claim(
+				Pallet::<Test>::register(
 					mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
 					did_name_00.0
 				),
@@ -141,14 +137,13 @@ fn claiming_banned() {
 // Name releasing
 
 #[test]
-fn releasing_by_owner_successful() {
+fn releasing_successful() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
-	let initial_balance: Balance = 100;
 	ExtBuilder::default()
-		.with_did_names(vec![(DID_00, did_name_00.clone(), ACCOUNT_00)])
+		.with_did_names(vec![(DID_00, did_name_00.clone())])
 		.build()
 		.execute_with(|| {
-			assert_ok!(Pallet::<Test>::release_by_owner(
+			assert_ok!(Pallet::<Test>::release(
 				mock_origin::DoubleOrigin(ACCOUNT_01, DID_00).into(),
 			));
 			assert!(Names::<Test>::get(&DID_00).is_none());
@@ -158,11 +153,10 @@ fn releasing_by_owner_successful() {
 
 #[test]
 fn releasing_not_found() {
-	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
 	ExtBuilder::default().build().execute_with(|| {
 		// Fail to claim by owner
 		assert_noop!(
-			Pallet::<Test>::release_by_owner(mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into()),
+			Pallet::<Test>::release(mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into()),
 			Error::<Test>::OwnerNotFound
 		);
 	})
@@ -176,9 +170,7 @@ fn releasing_banned() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Pallet::<Test>::release_by_owner(
-					mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into()
-				),
+				Pallet::<Test>::release(mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into()),
 				// A banned name will be removed from the map of used names, so it will be considered not
 				// existing.
 				Error::<Test>::OwnerNotFound
@@ -193,9 +185,8 @@ fn releasing_banned() {
 fn banning_successful() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
 	let did_name_01 = get_did_name(DID_NAME_01_INPUT);
-	let initial_balance = 100;
 	ExtBuilder::default()
-		.with_did_names(vec![(DID_00, did_name_00.clone(), ACCOUNT_00)])
+		.with_did_names(vec![(DID_00, did_name_00.clone())])
 		.build()
 		.execute_with(|| {
 			// Ban a claimed name
@@ -259,8 +250,8 @@ fn unbanning_successful() {
 		.execute_with(|| {
 			assert_ok!(Pallet::<Test>::unban(RawOrigin::Root.into(), did_name_00.clone().0));
 
-			// Test that claiming is possible again
-			assert_ok!(Pallet::<Test>::claim(
+			// Test that registering is possible again
+			assert_ok!(Pallet::<Test>::register(
 				mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
 				did_name_00.clone().0,
 			));

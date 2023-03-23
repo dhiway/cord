@@ -833,7 +833,8 @@ impl pallet_did::Config for Runtime {
 
 parameter_types! {
 	pub const MinNameLength: u32 = 3;
-	pub const MaxNameLength: u32 = 32;
+	pub const MaxNameLength: u32 = 64;
+	pub const MaxPrefixLength: u32 = 54;
 }
 
 impl pallet_did_names::Config for Runtime {
@@ -843,6 +844,7 @@ impl pallet_did_names::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxNameLength = MaxNameLength;
 	type MinNameLength = MinNameLength;
+	type MaxPrefixLength = MaxPrefixLength;
 	type DidName = pallet_did_names::did_name::AsciiDidName<Runtime>;
 	type DidNameOwner = DidIdentifier;
 	type WeightInfo = weights::pallet_did_names::WeightInfo<Runtime>;
