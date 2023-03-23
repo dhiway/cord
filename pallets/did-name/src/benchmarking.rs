@@ -36,7 +36,7 @@ use crate::{
 	Names, Owner, Pallet,
 };
 
-const CALLER_SEED: u32 = 0;
+const CALLER_SEED: u32 = 0; 
 const OWNER_SEED: u32 = 1;
 
 // fn make_free_for_did<T: Config>(account: &AccountIdOf<T>) {
