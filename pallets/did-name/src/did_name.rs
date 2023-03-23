@@ -190,6 +190,9 @@ mod tests {
 			b"---@cord".to_vec(),
 			b"___@cord".to_vec(),
 			b"abc..xyz@cord".to_vec(),
+			b"abc@newid".to_vec(),
+			b"abc@newid.".to_vec(),
+			b"	@cord".to_vec(),
 		];
 
 		for valid in valid_inputs {
