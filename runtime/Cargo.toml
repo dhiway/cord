@@ -70,6 +70,7 @@ pallet-did-names = {  default-features = false, path = '../pallets/did-name' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-registry = {  default-features = false, path = '../pallets/registry' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
+pallet-open-stream = {  default-features = false, path = '../pallets/open-stream' }
 pallet-extrinsic-authorship = {  default-features = false, path = '../pallets/authorship' }
 
 # Internal runtime API (with default disabled)
