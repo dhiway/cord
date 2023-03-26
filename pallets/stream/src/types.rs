@@ -33,10 +33,19 @@ pub struct Timepoint<BlockNumber> {
 }
 
 /// An on-chain stream entry mapped to an Identifier.
+/// `StreamEntry` is a struct that contains a `StreamDigestOf`, a `StreamCreatorIdOf`, a `SchemaIdOf`, a
+/// `RegistryIdOf`, and a `StatusOf`.
+///
+/// Properties:
+///
+/// * `digest`: The hash of the stream.
+/// * `creator`: The account that created the stream.
+/// * `schema`: The schema identifier.
+/// * `registry`: The registry that the stream is associated with.
+/// * `revoked`: This is a boolean flag that indicates whether the stream is revoked or not.
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-
 pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryIdOf, StatusOf> {
 	/// Stream hash.
 	pub digest: StreamDigestOf,
@@ -50,6 +59,15 @@ pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryId
 	pub revoked: StatusOf,
 }
 
+/// `StreamCommit` is a struct that contains a `StreamCommitAction`, a `StreamDigest`, a
+/// `StreamCreatorId`, and a `Timepoint`.
+///
+/// Properties:
+///
+/// * `commit`: The type of commit.
+/// * `digest`: The hash of the stream.
+/// * `committed_by`: The account that committed the stream.
+/// * `created_at`: The block number at which the stream was created.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 pub struct StreamCommit<StreamCommitActionOf, StreamDigestOf, StreamCreatorIdOf, BlockNumber> {
 	/// Stream commit type
@@ -62,6 +80,7 @@ pub struct StreamCommit<StreamCommitActionOf, StreamDigestOf, StreamCreatorIdOf,
 	pub created_at: Timepoint<BlockNumber>,
 }
 
+/// Defining the possible actions that can be taken on a stream.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub enum StreamCommitActionOf {
 	Genesis,

@@ -86,11 +86,6 @@ pub type ScoreOf = u32;
 /// Score count type.
 pub type CountOf = u32;
 
-// /// IDentifier type.
-// pub type IdentifierOf = BoundedVec<u8, ConstU32<49>>;
-// / Authorization Identifier type.
-// pub type AuthorizationId = Vec;
-
 /// A DID subject identifier.
 pub type DidIdentifier = AccountId;
 
@@ -103,20 +98,6 @@ pub type StatusOf = bool;
 /// Authorship perio
 // pub const AUTHORSHIP_PERIOD: u32 = 5256000;
 pub const AUTHORSHIP_PERIOD: u32 = 20;
-
-// /// collection identifier prefix.
-// pub const SPACE_PREFIX: u16 = 31;
-
-// /// schema identifier prefix.
-// pub const SCHEMA_PREFIX: u16 = 41;
-
-// /// stream identifier prefix.
-// pub const STREAM_PREFIX: u16 = 51;
-// /// ratings identifier prefix
-// pub const SCORE_PREFIX: u16 = 101;
-
-// /// stream identifier prefix.
-// pub const HIERARCHY_PREFIX: u16 = 1_383;
 
 /// Macro to set a value (e.g. when using the `parameter_types` macro) to either
 /// a production value or to an environment variable or testing value (in case

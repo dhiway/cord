@@ -18,82 +18,11 @@
 
 //! # Stream Pallet
 //!
-//! The Stream palllet is used to anchor identifiers representing off-chain data
-//! streams. The pallet provides means of creating, updating, revoking and
-//! removing identifier data on-chain and holder delegations.
+//! The Stream palllet is used to anchor identifiers representing off-chain documents.
+//! The pallet provides means of creating, updating, revoking and removing identifier
+//! data on-chain and delegated controls.
 //!
-//! - [`Config`]
-//! - [`Call`]
-//! - [`Pallet`]
-//!
-//! ### Terminology
-//!
-//! - **Identifier:**: A unique persistent identifier representing a stream,
-//!   and it's current status.
-//!
-// ! - **Holder:**: The holder is the person or organization to whom the
-// !   stream is issued to. The crytographic identity of the holder is
-// !   attached to the stream. The holder keeps the stream data as an off-chain
-// !   stream/verifiable credential in their digital wallet. An example of a
-// !   holder would be the citizen that received his or her driver’s license from
-// !   the DMV.
-// !
-// ! - **Issuer:**: The issuer is the person or organization that creates the
-// !   stream, anchors the identifier on-chain and assigns it to a holder
-// !   (person, organization, or thing). An example of an issuer would be a DMV
-// !   which issues driver’s licenses.
-// !
-// ! - **Verifier:**: The verifier is the person or organization that gets
-// !   information shared with them. They can authenticate the information they
-// !   receive instantaneously. An example of a verifier would be the security
-// !   agent at the airport that asks to see a person’s driver’s license to
-// !   verify their identity.
-// !
-// ! - **Schema:**: Schemas are templates used to guarantee the structure, and by
-// !   extension the semantics, of the set of claims comprising a
-// !   Stream/Verifiable Credential. A shared Schema allows all parties to
-// !   reference data in a known way. An identifier can optionally link to a
-// !   valid schema identifier.
-// !
-// ! - **Registry:**: Registries allows grouping of identifiers with control
-// !   delegations. The registry delegates can perform actions on behalf of the
-// !   identifier owner.
-// !
-// ! - **Authorization:**: An stream identifier that is not issued by the issuer
-// !   directly but via a (chain of) authority delegations which entitle the
-// !   delegated issuer.
-//!
-//! ## Interface
-//!
-//! ### Dispatchable Functions
-//!
-//! The dispatchable functions of the Stream pallet enable the steps needed for
-//! entities to anchor, update, remove link identifiers change their role,
-//! alongside some helper functions to get/set the holder delgates and digest
-//! information for the identifier.
-//!
-//! - `create` - Create a new identifier for a given stream which is based on a
-//!   Schema. The issuer can optionally provide a reference to an existing
-//!   identifier that will be saved along with the identifier.
-//! - `update` - Update an existing identifier with stream revision details. The
-//!   revision hashes get attached to the identifier to form an immutable audit
-//!   log.
-//! - `revoke` - Revoke an existing identifier. The revoker must be either the
-//!   creator of the identifier being revoked or an entity that in the
-//!   delegation tree is an ancestor of the issuer, i.e., it was either the
-//!   delegator of the issuer or an ancestor thereof.
-//! - `restore` - Restore a revokedidentifier. The revoker must be either the
-//!   creator of the identifier being restored or an entity that in the
-//!   delegation tree is an ancestor of the issuer, i.e., it was either the
-//!   delegator of the issuer or an ancestor thereof.
-//! - `remove` - Remove an existing identifier and associated on-chain data.The
-//!   remover must be either the creator of the identifier being revoked or an
-//!   entity that in the delegation tree is an ancestor of the issuer, i.e., it
-//!   was either the delegator of the issuer or an ancestor thereof.
-//! - `digest` - Create a presention digest for the identifier. This feature can
-//!   be used to support various presenation models used to represent a
-//!   stream/credential in the digtal/physical world.
-//!
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
@@ -271,8 +200,18 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a new stream identifier and associates it with its
+		/// Create a new stream and associates it with its
 		/// controller. The controller (issuer) is the owner of the identifier.
+		///
+		/// Arguments:
+		///
+		/// * `origin`: The origin of the call.
+		/// * `stream_digest`: The hash of the stream reference document.
+		/// * `authorization`: The authorization ID of the delegate that is allowed to create the stream.
+		///
+		/// Returns:
+		///
+		/// DispatchResult
 		#[pallet::call_index(0)]
 		#[pallet::weight(0)]
 		pub fn create(
@@ -320,8 +259,17 @@ pub mod pallet {
 			Ok(())
 		}
 		/// Updates the stream identifier with a new digest. The updated digest
-		/// represents the changes a stream might have undergone. This operation can
-		/// only be performed by the stream issuer or delegated authorities.
+		/// represents the changes a stream reference document might have undergone.
+		/// Arguments:
+		///
+		/// * `origin`: The origin of the call.
+		/// * `stream_id`: The identifier of the stream to be updated.
+		/// * `stream_digest`: The hash of the stream reference document.
+		/// * `authorization`: The authorization ID of the delegate who is allowed to perform this action.
+		///
+		/// Returns:
+		///
+		/// DispatchResult
 		#[pallet::call_index(1)]
 		#[pallet::weight(0)]
 		pub fn update(
@@ -372,8 +320,17 @@ pub mod pallet {
 
 			Ok(())
 		}
-		/// Revoke a stream identifier. This operation can only be performed by
-		/// the stream issuer or delegated authorities.
+		/// Revokes a stream.
+		///
+		/// Arguments:
+		///
+		/// * `origin`: The origin of the transaction.
+		/// * `stream_id`: The stream identifier.
+		/// * `authorization`: The authorization ID of the delegate who is allowed to perform this action.
+		///
+		/// Returns:
+		///
+		/// DispatchResult
 		#[pallet::call_index(2)]
 		#[pallet::weight(0)]
 		pub fn revoke(
@@ -413,8 +370,17 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Restore a revoked stream identifier. This operation can only be performed by
-		/// the stream issuer or delegated authorities.
+		/// Restore a a previously revoked stream.
+		///
+		/// Arguments:
+		///
+		/// * `origin`: The origin of the transaction.
+		/// * `stream_id`: The stream identifier.
+		/// * `authorization`: The authorization ID of the delegate who is allowed to perform this action.
+		///
+		/// Returns:
+		///
+		/// DispatchResult
 		#[pallet::call_index(3)]
 		#[pallet::weight(0)]
 		pub fn restore(
@@ -454,8 +420,67 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Adds stream digest information. This operation can only be performed by
-		/// the stream issuer or delegated authorities.
+		/// Removes a stream from the registry.
+		///
+		/// Arguments:
+		///
+		/// * `origin`: The origin of the transaction.
+		/// * `stream_id`: The stream id of the stream to be removed.
+		/// * `authorization`: The authorization ID of the delegate who is allowed to perform this action.
+		///
+		/// Returns:
+		///
+		/// DispatchResult
+		#[pallet::call_index(4)]
+		#[pallet::weight(0)]
+		pub fn remove(
+			origin: OriginFor<T>,
+			stream_id: StreamIdOf,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
+
+			if stream_details.creator != updater {
+				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
+					&authorization,
+					updater.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+
+				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
+			}
+
+			<Streams<T>>::take(&stream_id);
+
+			Self::update_commit(
+				&stream_id,
+				stream_details.digest,
+				updater.clone(),
+				StreamCommitActionOf::Remove,
+			)
+			.map_err(<Error<T>>::from)?;
+			Self::deposit_event(Event::Restore { identifier: stream_id, author: updater });
+
+			Ok(())
+		}
+
+		/// Adds stream digest information.
+		/// `digest` is a function that takes a stream identifier, a stream digest, and an authorization
+		/// identifier, and inserts the stream digest into the `StreamDigests` storage map, and then deposits an
+		/// event. This operation can only be performed bythe stream issuer or delegated authorities.
+		///
+		/// Arguments:
+		///
+		/// * `origin`: The origin of the transaction.
+		/// * `stream_id`: The stream identifier.
+		/// * `stream_digest`: StreamDigestOf<T>
+		/// * `authorization`: The authorization ID of the delegate who is allowed to perform this action.
+		///
+		/// Returns:
+		///
+		/// DispatchResult
 		#[pallet::call_index(5)]
 		#[pallet::weight(0)]
 		pub fn digest(
@@ -499,6 +524,19 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// `update_commit` takes a stream id, a digest, a proposer, and a commit action, and pushes the commit
+	/// action to the stream's commits
+	///
+	/// Arguments:
+	///
+	/// * `tx_stream`: The stream id of the stream that the commit is being made to.
+	/// * `tx_digest`: The digest of the transaction that was committed.
+	/// * `proposer`: The account that is proposing the transaction.
+	/// * `commit`: Action taken on a stream.
+	///
+	/// Returns:
+	///
+	/// The `Result` type is being returned.
 	pub fn update_commit(
 		tx_stream: &StreamIdOf,
 		tx_digest: StreamDigestOf<T>,
