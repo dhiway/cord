@@ -37,27 +37,27 @@ pub struct Timepoint<BlockNumber> {
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
 
-pub struct StreamEntry<StreamDigestOf, CreatorIdOf, SchemaIdOf, RegistryIdOf, StatusOf> {
+pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryIdOf, StatusOf> {
 	/// Stream hash.
 	pub digest: StreamDigestOf,
 	/// Stream creator.
-	pub creator: CreatorIdOf,
+	pub creator: StreamCreatorIdOf,
 	/// Schema Identifier
 	pub schema: SchemaIdOf,
 	/// Registry Identifier
-	pub registry: Option<RegistryIdOf>,
+	pub registry: RegistryIdOf,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
 }
 
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct StreamCommit<StreamCommitActionOf, StreamDigestOf, CreatorIdOf, BlockNumber> {
+pub struct StreamCommit<StreamCommitActionOf, StreamDigestOf, StreamCreatorIdOf, BlockNumber> {
 	/// Stream commit type
 	pub commit: StreamCommitActionOf,
 	/// Stream hash.
 	pub digest: StreamDigestOf,
 	/// Registry delegate.
-	pub committed_by: CreatorIdOf,
+	pub committed_by: StreamCreatorIdOf,
 	/// Stream block number
 	pub created_at: Timepoint<BlockNumber>,
 }
@@ -69,4 +69,5 @@ pub enum StreamCommitActionOf {
 	Revoke,
 	Restore,
 	Remove,
+	Digest,
 }

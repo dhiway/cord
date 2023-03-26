@@ -22,14 +22,14 @@ codec = { package = "parity-scale-codec", version = "3.2.2", default-features = 
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
-# pallet-registry = {  default-features = false, path = '../registry' }
+pallet-registry = {  default-features = false, path = '../registry' }
 serde = { version = "1.0.136", optional = true }
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false }
 frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false }
 sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false }
-sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false }
+# sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false }
 sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false, optional = true}
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.39", default-features = false, optional = true}
 
@@ -53,6 +53,6 @@ std = [
   "cord-primitives/std",
   "cord-utilities/std",
   "sp-std/std",
-  "sp-runtime/std",
-  # "pallet-registry/std", 
+  # "sp-runtime/std",
+  "pallet-registry/std", 
 ]

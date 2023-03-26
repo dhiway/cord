@@ -88,6 +88,8 @@ pub type CountOf = u32;
 
 // /// IDentifier type.
 // pub type IdentifierOf = BoundedVec<u8, ConstU32<49>>;
+// / Authorization Identifier type.
+// pub type AuthorizationId = Vec;
 
 /// A DID subject identifier.
 pub type DidIdentifier = AccountId;

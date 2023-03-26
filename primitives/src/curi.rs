@@ -169,8 +169,8 @@ impl Ss58Identifier {
 		v.extend(&r.as_bytes()[0..2]);
 		v.to_base58()
 	}
-	pub fn to_authorization_id(data: &[u8]) -> String {
-		Self::from_string_encoded(data, IDENT_AUTH)
+	pub fn to_authorization_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_AUTH)
 	}
 
 	pub fn to_registry_id(data: &[u8]) -> Result<Self, IdentifierError> {

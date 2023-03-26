@@ -12,10 +12,11 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for space.
 pub trait WeightInfo {
-	fn add_authorities() -> Weight;
-	fn add_delegates() -> Weight;
-	fn deauthorize() -> Weight;
+	fn add_admin_delegate() -> Weight;
+	fn add_delegate() -> Weight;
+	fn remove_delegate() -> Weight;
 	fn create() -> Weight;
+	fn update() -> Weight;
 	fn archive() -> Weight;
 	fn restore() -> Weight;
 	fn transfer() -> Weight;
@@ -23,22 +24,28 @@ pub trait WeightInfo {
 
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	fn add_authorities() -> Weight {
+	fn add_admin_delegate() -> Weight {
 		Weight::from_ref_time(322_000_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
-	fn add_delegates() -> Weight {
+	fn add_delegate() -> Weight {
 		Weight::from_ref_time(322_000_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
-	fn deauthorize() -> Weight {
+	fn remove_delegate() -> Weight {
 		Weight::from_ref_time(322_000_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn create() -> Weight {
+		Weight::from_ref_time(522_000_000 as u64)
+			.saturating_add(Weight::from_ref_time(2000 as u64))
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
+	fn update() -> Weight {
 		Weight::from_ref_time(522_000_000 as u64)
 			.saturating_add(Weight::from_ref_time(2000 as u64))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))

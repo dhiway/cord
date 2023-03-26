@@ -101,15 +101,11 @@
 use cord_primitives::{curi::Ss58Identifier, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{prelude::Clone, str};
-
-mod authorization;
 pub mod types;
 pub mod weights;
 pub use crate::types::*;
 
-// pub use crate::weights::WeightInfo;
-pub use crate::{authorization::StreamAuthorization, pallet::*, types::*, weights::WeightInfo};
-// pub use pallet::*;
+pub use crate::{pallet::*, types::*, weights::WeightInfo};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -128,12 +124,12 @@ pub mod pallet {
 	/// Schema Identifier
 	pub type SchemaIdOf = Ss58Identifier;
 	/// Authorization Identifier
-	pub type AuthorizationIdOf<T> = <T as Config>::AuthorizationId;
-	// pub type AuthorizationIdOf = Ss58Identifier;
+	pub type AuthorizationIdOf = Ss58Identifier;
 	/// Hash of the registry.
 	pub type StreamHashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a creator identifier.
-	pub type CreatorIdOf<T> = <T as Config>::CreatorId;
+	pub type StreamCreatorIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
+
 	/// Hash of the stream.
 	pub type StreamDigestOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of the identitiy.
@@ -142,23 +138,22 @@ pub mod pallet {
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 
 	pub type StreamEntryOf<T> =
-		StreamEntry<StreamDigestOf<T>, CreatorIdOf<T>, SchemaIdOf, RegistryIdOf, StatusOf>;
-	pub type StreamCommitsOf<T> =
-		StreamCommit<StreamCommitActionOf, StreamDigestOf<T>, CreatorIdOf<T>, BlockNumberOf<T>>;
+		StreamEntry<StreamDigestOf<T>, StreamCreatorIdOf<T>, SchemaIdOf, RegistryIdOf, StatusOf>;
+	pub type StreamCommitsOf<T> = StreamCommit<
+		StreamCommitActionOf,
+		StreamDigestOf<T>,
+		StreamCreatorIdOf<T>,
+		BlockNumberOf<T>,
+	>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_registry::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = <Self as Config>::OriginSuccess,
 		>;
-		type OriginSuccess: CallSources<AccountIdOf<Self>, CreatorIdOf<Self>>;
-		type CreatorId: Parameter + MaxEncodedLen;
-		type AuthorizationId: Parameter + MaxEncodedLen;
-
-		type StreamAccessControl: Parameter
-			+ StreamAuthorization<Self::CreatorId, SchemaIdOf, Self::AuthorizationId>;
+		type OriginSuccess: CallSources<AccountIdOf<Self>, StreamCreatorIdOf<Self>>;
 
 		/// The maximum number of commits for a stream.
 		#[pallet::constant]
@@ -208,22 +203,22 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new stream identifier has been created.
 		/// \[stream identifier, stream digest, controller\]
-		Create { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: CreatorIdOf<T> },
+		Create { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: StreamCreatorIdOf<T> },
 		/// A stream identifier has been updated.
 		/// \[stream identifier, digest, controller\]
-		Update { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: CreatorIdOf<T> },
+		Update { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: StreamCreatorIdOf<T> },
 		/// A stream identifier status has been revoked.
 		/// \[stream identifier, controller\]
-		Revoke { identifier: StreamIdOf, author: CreatorIdOf<T> },
+		Revoke { identifier: StreamIdOf, author: StreamCreatorIdOf<T> },
 		/// A stream identifier status has been restored.
 		/// \[stream identifier, controller\]
-		Restore { identifier: StreamIdOf, author: CreatorIdOf<T> },
+		Restore { identifier: StreamIdOf, author: StreamCreatorIdOf<T> },
 		/// A stream identifier has been removed.
 		/// \[stream identifier,  controller\]
-		Remove { identifier: StreamIdOf, author: CreatorIdOf<T> },
+		Remove { identifier: StreamIdOf, author: StreamCreatorIdOf<T> },
 		/// A stream digest has been added.
 		/// \[stream identifier, digest, controller\]
-		Digest { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: CreatorIdOf<T> },
+		Digest { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: StreamCreatorIdOf<T> },
 	}
 
 	#[pallet::error]
@@ -270,6 +265,7 @@ pub mod pallet {
 		TooManyDelegatesToRemove,
 		// Authorization not found
 		AuthorizationDetailsNotFound,
+		// Maximum number of commits exceeded
 		MaxStreamCommitsExceeded,
 	}
 
@@ -282,8 +278,7 @@ pub mod pallet {
 		pub fn create(
 			origin: OriginFor<T>,
 			stream_digest: StreamDigestOf<T>,
-			schema_id: SchemaIdOf,
-			authorization: Option<T::StreamAccessControl>,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
@@ -292,10 +287,8 @@ pub mod pallet {
 
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
 
-			let registry_id = authorization
-				.as_ref()
-				.map(|ac| ac.can_create(&creator, &schema_id))
-				.transpose()?;
+			let (registry_id, schema_id) =
+				pallet_registry::Pallet::<T>::is_a_delegate(&authorization, creator.clone())?;
 
 			<StreamDigests<T>>::insert(&stream_digest, &identifier);
 
@@ -335,32 +328,38 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
 			stream_digest: StreamDigestOf<T>,
-			authorization: Option<T::StreamAccessControl>,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
 
-			if stream_details.creator != creator {
-				let registry = authorization
-					.as_ref()
-					.map(|ac| ac.can_update(&creator, &stream_details.schema))
-					.transpose()?;
-				ensure!(stream_details.registry == registry, Error::<T>::UnauthorizedOperation);
+			if stream_details.creator != updater {
+				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
+					&authorization,
+					updater.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+
+				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
 			<StreamDigests<T>>::insert(&stream_digest, &stream_id);
 
 			<Streams<T>>::insert(
 				&stream_id,
-				StreamEntryOf::<T> { digest: stream_digest, ..stream_details },
+				StreamEntryOf::<T> {
+					digest: stream_digest,
+					creator: updater.clone(),
+					..stream_details
+				},
 			);
 
 			Self::update_commit(
 				&stream_id,
 				stream_digest,
-				creator.clone(),
+				updater.clone(),
 				StreamCommitActionOf::Update,
 			)
 			.map_err(<Error<T>>::from)?;
@@ -368,7 +367,7 @@ pub mod pallet {
 			Self::deposit_event(Event::Update {
 				identifier: stream_id,
 				digest: stream_digest,
-				author: creator,
+				author: updater,
 			});
 
 			Ok(())
@@ -380,34 +379,36 @@ pub mod pallet {
 		pub fn revoke(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
-			authorization: Option<T::StreamAccessControl>,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
 
-			if stream_details.creator != creator {
-				let registry = authorization
-					.as_ref()
-					.map(|ac| ac.can_set_status(&creator, &stream_details.schema))
-					.transpose()?;
-				ensure!(stream_details.registry == registry, Error::<T>::UnauthorizedOperation);
+			if stream_details.creator != updater {
+				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
+					&authorization,
+					updater.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+
+				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
 			<Streams<T>>::insert(
 				&stream_id,
-				StreamEntryOf::<T> { revoked: true, ..stream_details },
+				StreamEntryOf::<T> { creator: updater.clone(), revoked: true, ..stream_details },
 			);
 
 			Self::update_commit(
 				&stream_id,
 				stream_details.digest,
-				creator.clone(),
+				updater.clone(),
 				StreamCommitActionOf::Revoke,
 			)
 			.map_err(<Error<T>>::from)?;
-			Self::deposit_event(Event::Revoke { identifier: stream_id, author: creator });
+			Self::deposit_event(Event::Revoke { identifier: stream_id, author: updater });
 
 			Ok(())
 		}
@@ -419,69 +420,36 @@ pub mod pallet {
 		pub fn restore(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
-			authorization: Option<T::StreamAccessControl>,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
 			ensure!(stream_details.revoked, Error::<T>::StreamNotRevoked);
 
-			if stream_details.creator != creator {
-				let registry = authorization
-					.as_ref()
-					.map(|ac| ac.can_set_status(&creator, &stream_details.schema))
-					.transpose()?;
-				ensure!(stream_details.registry == registry, Error::<T>::UnauthorizedOperation);
+			if stream_details.creator != updater {
+				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
+					&authorization,
+					updater.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+
+				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
 			<Streams<T>>::insert(
 				&stream_id,
-				StreamEntryOf::<T> { revoked: false, ..stream_details },
+				StreamEntryOf::<T> { creator: updater.clone(), revoked: false, ..stream_details },
 			);
 
 			Self::update_commit(
 				&stream_id,
 				stream_details.digest,
-				creator.clone(),
+				updater.clone(),
 				StreamCommitActionOf::Restore,
 			)
 			.map_err(<Error<T>>::from)?;
-			Self::deposit_event(Event::Restore { identifier: stream_id, author: creator });
-
-			Ok(())
-		}
-		/// Remove a stream from the chain using space identities.This operation can only be performed by
-		/// the stream issuer or delegated authorities.
-		#[pallet::call_index(4)]
-		#[pallet::weight(0)]
-		pub fn remove(
-			origin: OriginFor<T>,
-			stream_id: StreamIdOf,
-			authorization: Option<T::StreamAccessControl>,
-		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-
-			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(stream_details.revoked, Error::<T>::StreamNotRevoked);
-
-			if stream_details.creator != creator {
-				let registry = authorization
-					.as_ref()
-					.map(|ac| ac.can_remove(&creator, &stream_details.schema))
-					.transpose()?;
-				ensure!(stream_details.registry == registry, Error::<T>::UnauthorizedOperation);
-			}
-
-			<Streams<T>>::remove(&stream_id);
-
-			Self::update_commit(
-				&stream_id,
-				stream_details.digest,
-				creator.clone(),
-				StreamCommitActionOf::Remove,
-			)
-			.map_err(<Error<T>>::from)?;
-			Self::deposit_event(Event::Remove { identifier: stream_id, author: creator });
+			Self::deposit_event(Event::Restore { identifier: stream_id, author: updater });
 
 			Ok(())
 		}
@@ -494,7 +462,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
 			stream_digest: StreamDigestOf<T>,
-			authorization: Option<T::StreamAccessControl>,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
@@ -502,14 +470,22 @@ pub mod pallet {
 			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
 
 			if stream_details.creator != creator {
-				let registry = authorization
-					.as_ref()
-					.map(|ac| ac.can_create(&creator, &stream_details.schema))
-					.transpose()?;
-				ensure!(stream_details.registry == registry, Error::<T>::UnauthorizedOperation);
+				let (registry_id, _) =
+					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, creator.clone())
+						.map_err(<pallet_registry::Error<T>>::from)?;
+
+				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
 			<StreamDigests<T>>::insert(&stream_digest, &stream_id);
+
+			Self::update_commit(
+				&stream_id,
+				stream_digest,
+				creator.clone(),
+				StreamCommitActionOf::Genesis,
+			)
+			.map_err(<Error<T>>::from)?;
 
 			Self::deposit_event(Event::Digest {
 				identifier: stream_id,
@@ -526,7 +502,7 @@ impl<T: Config> Pallet<T> {
 	pub fn update_commit(
 		tx_stream: &StreamIdOf,
 		tx_digest: StreamDigestOf<T>,
-		proposer: CreatorIdOf<T>,
+		proposer: StreamCreatorIdOf<T>,
 		commit: StreamCommitActionOf,
 	) -> Result<(), Error<T>> {
 		Commits::<T>::try_mutate(tx_stream, |commits| {
