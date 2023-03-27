@@ -118,14 +118,13 @@ use frame_support::{
 	Parameter,
 };
 use frame_system::ensure_signed;
+#[cfg(feature = "runtime-benchmarks")]
+use frame_system::RawOrigin;
 use sp_runtime::{
 	traits::{Saturating, Zero},
 	SaturatedConversion,
 };
 use sp_std::{boxed::Box, fmt::Debug, prelude::Clone};
-
-#[cfg(feature = "runtime-benchmarks")]
-use frame_system::RawOrigin;
 
 #[frame_support::pallet]
 pub mod pallet {

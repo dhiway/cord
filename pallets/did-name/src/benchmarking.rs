@@ -32,22 +32,19 @@ use sp_runtime::app_crypto::sr25519;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 
 use crate::{
-	mock::insert_raw_w3n, AccountIdOf, Banned, Call, Config, CurrencyOf, DidNameOf, DidNameOwnerOf,
-	Names, Owner, Pallet,
+	AccountIdOf, Banned, Call, Config, CurrencyOf, DidNameOf, DidNameOwnerOf, Names, Owner, Pallet,
 };
 
 const CALLER_SEED: u32 = 0;
 const OWNER_SEED: u32 = 1;
 
-// fn make_free_for_did<T: Config>(account: &AccountIdOf<T>) {
-// 	let balance = <CurrencyOf<T> as Currency<AccountIdOf<T>>>::minimum_balance()
-// 		+ <T as Config>::Deposit::get()
-// 		+ <T as Config>::Deposit::get();
-// 	<CurrencyOf<T> as Currency<AccountIdOf<T>>>::make_free_balance_be(account, balance);
-// }
-
 fn generate_did_name_input(length: usize) -> Vec<u8> {
-	vec![b'1'; length]
+	let max_length = length.saturating_sub("@cord".len()); // Get the maximum length for the '1' bytes
+	let ones_vec = vec![b'1'; max_length];
+	let cord_vec = "@cord".as_bytes().to_vec(); // Convert the string "@cord" to a byte vector
+	let mut name_vec = ones_vec;
+	name_vec.extend(cord_vec);
+	name_vec
 }
 
 benchmarks! {
@@ -59,7 +56,7 @@ benchmarks! {
 		T::BanOrigin: EnsureOrigin<T::RuntimeOrigin>,
 	}
 
-	claim {
+	register {
 		let n in (T::MinNameLength::get()) .. (T::MaxNameLength::get());
 		let caller: AccountIdOf<T> = account("caller", 0, CALLER_SEED);
 		let owner: DidNameOwnerOf<T> = account("owner", 0, OWNER_SEED);
@@ -75,7 +72,7 @@ benchmarks! {
 		assert!(Owner::<T>::get(&did_name).is_some());
 	}
 
-	release_by_owner {
+	release {
 		let caller: AccountIdOf<T> = account("caller", 0, CALLER_SEED);
 		let owner: DidNameOwnerOf<T> = account("owner", 0, OWNER_SEED);
 		let did_name_input: BoundedVec<u8, T::MaxNameLength> = BoundedVec::try_from(generate_did_name_input(T::MaxNameLength::get().saturated_into())).expect("BoundedVec creation should not fail.");

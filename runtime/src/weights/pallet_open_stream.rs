@@ -16,27 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! A list of the different weight modules for our runtime.
+#![allow(unused_parens)]
+#![allow(unused_imports)]
 
-pub mod frame_system;
-pub mod pallet_balances;
-pub mod pallet_collective_council;
-pub mod pallet_collective_technical_committee;
-pub mod pallet_democracy;
-pub mod pallet_did;
-pub mod pallet_did_names;
-pub mod pallet_extrinsic_authorship;
-pub mod pallet_im_online;
-pub mod pallet_indices;
-pub mod pallet_membership;
-pub mod pallet_multisig;
-pub mod pallet_open_stream;
-pub mod pallet_preimage;
-pub mod pallet_registry;
-pub mod pallet_scheduler;
-pub mod pallet_schema;
-pub mod pallet_session;
-pub mod pallet_stream;
-pub mod pallet_timestamp;
-pub mod pallet_treasury;
-pub mod pallet_utility;
+// Dummy file
+use frame_support::{traits::Get, weights::Weight};
+use sp_std::marker::PhantomData;
+
+pub struct WeightInfo<T>(PhantomData<T>);
+impl<T: frame_system::Config> pallet_open_stream::WeightInfo for WeightInfo<T> {
+	fn create() -> Weight {
+		Weight::from_ref_time(155_362_954 as u64)
+	}
+}

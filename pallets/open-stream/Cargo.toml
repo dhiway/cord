@@ -1,6 +1,6 @@
 [package]
-name = 'pallet-stream'
-description = 'Manage Stream Entries.'
+name = 'pallet-open-stream'
+description = 'Manage Public Stream Entries.'
 version = '0.8.0'
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'

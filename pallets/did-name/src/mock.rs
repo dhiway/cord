@@ -18,33 +18,6 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{
-	AccountIdOf, BalanceOf, Config, CurrencyOf, DidNameOf, DidNameOwnerOf, DidOwnershipOf, Names,
-	Owner,
-};
-
-pub(crate) type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-
-pub(crate) fn insert_raw_w3n<T: Config>(
-	payer: AccountIdOf<T>,
-	owner: DidNameOwnerOf<T>,
-	name: DidNameOf<T>,
-	block_number: BlockNumberOf<T>,
-	deposit: BalanceOf<T>,
-) {
-	CurrencyOf::<T>::reserve(&payer, deposit).expect("Payer should have enough funds for deposit");
-
-	Names::<T>::insert(&owner, name.clone());
-	Owner::<T>::insert(
-		&name,
-		DidOwnershipOf::<T> {
-			owner,
-			claimed_at: block_number,
-			deposit: Deposit { owner: payer, amount: deposit },
-		},
-	);
-}
-
 #[cfg(test)]
 pub use crate::mock::runtime::*;
 
@@ -109,7 +82,7 @@ pub(crate) mod runtime {
 		type BlockHashCount = BlockHashCount;
 		type Version = ();
 		type PalletInfo = PalletInfo;
-		type AccountData = pallet_balances::AccountData<Balance>;
+		type AccountData = ();
 		type OnNewAccount = ();
 		type OnKilledAccount = ();
 		type SystemWeightInfo = ();
@@ -134,19 +107,19 @@ pub(crate) mod runtime {
 	pub(crate) type TestBanOrigin = EnsureRoot<AccountId>;
 
 	parameter_types! {
-		pub const MaxNameLength: u32 = 32;
+		pub const MaxNameLength: u32 = 60;
 		pub const MinNameLength: u32 = 3;
+		pub const MaxPrefixLength: u32 = 50;
 	}
 
 	impl pallet_did_names::Config for Test {
 		type BanOrigin = TestBanOrigin;
-		type OwnerOrigin = TestOwnerOrigin;
+		type EnsureOrigin = TestOwnerOrigin;
 		type OriginSuccess = TestOriginSuccess;
-		type Currency = Balances;
-		type Deposit = DidNameDeposit;
 		type RuntimeEvent = RuntimeEvent;
 		type MaxNameLength = MaxNameLength;
 		type MinNameLength = MinNameLength;
+		type MaxPrefixLength = MaxPrefixLength;
 		type DidName = TestDidName;
 		type DidNameOwner = TestDidNameOwner;
 		type WeightInfo = ();
@@ -162,8 +135,8 @@ pub(crate) mod runtime {
 	pub(crate) const ACCOUNT_01: TestDidNamePayer = AccountId::new([2u8; 32]);
 	pub(crate) const DID_00: TestDidNameOwner = SubjectId(ACCOUNT_00);
 	pub(crate) const DID_01: TestDidNameOwner = SubjectId(ACCOUNT_01);
-	pub(crate) const DID_NAME_00_INPUT: &[u8; 12] = b"did_name_00";
-	pub(crate) const DID_NAME_01_INPUT: &[u8; 12] = b"did_name_01";
+	pub(crate) const DID_NAME_00_INPUT: &[u8; 16] = b"did.name.00@cord";
+	pub(crate) const DID_NAME_01_INPUT: &[u8; 16] = b"did.name.01@cord";
 
 	pub(crate) fn get_did_name(did_name_input: &[u8]) -> TestDidName {
 		AsciiDidName::try_from(did_name_input.to_vec()).expect("Invalid did name input.")
@@ -171,17 +144,14 @@ pub(crate) mod runtime {
 
 	#[derive(Clone, Default)]
 	pub struct ExtBuilder {
-		claimed_did_names: Vec<(TestDidNameOwner, TestDidName, TestDidNamePayer)>,
+		registered_did_names: Vec<(TestDidNameOwner, TestDidName)>,
 		banned_did_names: Vec<TestDidName>,
 	}
 
 	impl ExtBuilder {
 		#[must_use]
-		pub fn with_did_names(
-			mut self,
-			did_names: Vec<(TestDidNameOwner, TestDidName, TestDidNamePayer)>,
-		) -> Self {
-			self.claimed_did_names = did_names;
+		pub fn with_did_names(mut self, did_names: Vec<(TestDidNameOwner, TestDidName)>) -> Self {
+			self.registered_did_names = did_names;
 			self
 		}
 
@@ -192,12 +162,11 @@ pub(crate) mod runtime {
 		}
 
 		pub fn build(self) -> sp_io::TestExternalities {
-			let mut storage =
-				frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+			let storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 			let mut ext = sp_io::TestExternalities::new(storage);
 
 			ext.execute_with(|| {
-				for (owner, did_name, payer) in self.claimed_did_names {
+				for (owner, did_name) in self.registered_did_names {
 					pallet_did_names::Pallet::<Test>::register_name(did_name, owner);
 				}
 
