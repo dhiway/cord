@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // CORD is free software: you can redistribute it and/or modify
@@ -33,17 +33,17 @@ parameter_types! {
 	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 5_285_413, 5_582_840
-	///   Average:  5_334_883
-	///   Median:   5_320_357
-	///   Std-Dev:  54133.56
+	///   Min, Max: 5_934_436, 6_171_262
+	///   Average:  6_010_063
+	///   Median:   6_003_352
+	///   Std-Dev:  49111.71
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 5_495_378
-	///   95th: 5_453_765
-	///   75th: 5_352_587
+	///   99th: 6_158_194
+	///   95th: 6_093_234
+	///   75th: 6_031_680
 	pub const BlockExecutionWeight: Weight =
-		Weight::from_ref_time(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(5_334_883));
+		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(6_010_063), 0);
 }
 
 #[cfg(test)]

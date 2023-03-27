@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // CORD is free software: you can redistribute it and/or modify
@@ -26,8 +26,8 @@ use sp_std::marker::PhantomData;
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_schema::WeightInfo for WeightInfo<T> {
 	fn create() -> Weight {
-		Weight::from_ref_time(522_000_000 as u64)
-			.saturating_add(Weight::from_ref_time(20_000 as u64))
+		Weight::from_parts(522_000_000, 0)
+			.saturating_add(Weight::from_parts(20_000, 0))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}

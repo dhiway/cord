@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // CORD is free software: you can redistribute it and/or modify
@@ -28,33 +28,33 @@ use sp_std::marker::PhantomData;
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_space::WeightInfo for WeightInfo<T> {
 	fn delegate() -> Weight {
-		Weight::from_ref_time(322_000_000 as u64)
+		Weight::from_parts(322_000_000,0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn undelegate() -> Weight {
-		Weight::from_ref_time(322_000_000 as u64)
+		Weight::from_parts(322_000_000,0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn create(l: u32) -> Weight {
-		Weight::from_ref_time(522_000_000 as u64)
-			.saturating_add(Weight::from_ref_time(2000 as u64).saturating_mul(l as u64))
+		Weight::from_parts(522_000_000,0)
+			.saturating_add(Weight::from_parts(2000 as u64).saturating_mul(l as u64))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn archive() -> Weight {
-		Weight::from_ref_time(322_000_000 as u64)
+		Weight::from_parts(322_000_000,0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	fn restore() -> Weight {
-		Weight::from_ref_time(322_000_000 as u64)
+		Weight::from_parts(322_000_000,0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn transfer() -> Weight {
-		Weight::from_ref_time(322_000_000 as u64)
+		Weight::from_parts(322_000_000,0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
