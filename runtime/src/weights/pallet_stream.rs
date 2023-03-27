@@ -26,6 +26,6 @@ use sp_std::marker::PhantomData;
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_stream::WeightInfo for WeightInfo<T> {
 	fn create() -> Weight {
-		Weight::from_ref_time(155_362_954 as u64)
+		Weight::from_parts(155_362_954, 0)
 	}
 }

@@ -35,7 +35,7 @@ impl<T: frame_system::Config> pallet_did_names::WeightInfo for WeightInfo<T> {
 	// Storage: System Account (r:1 w:1)
 	/// The range of component `n` is `[3, 32]`.
 	fn register(_n: u32, ) -> Weight {
-		Weight::from_ref_time(79_918_651 as u64)
+		Weight::from_parts(79_918_651,0)
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -43,7 +43,7 @@ impl<T: frame_system::Config> pallet_did_names::WeightInfo for WeightInfo<T> {
 	// Storage: DidNames Owner (r:1 w:1)
 	// Storage: System Account (r:1 w:1)
 	fn release() -> Weight {
-		Weight::from_ref_time(115_743_000 as u64)
+		Weight::from_parts(115_743_000,0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
@@ -53,14 +53,14 @@ impl<T: frame_system::Config> pallet_did_names::WeightInfo for WeightInfo<T> {
 	// Storage: DidNames Names (r:0 w:1)
 	/// The range of component `n` is `[3, 32]`.
 	fn ban(_n: u32, ) -> Weight {
-		Weight::from_ref_time(65_086_706 as u64)
+		Weight::from_parts(65_086_706,0)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
 	// Storage: DidNames Banned (r:1 w:1)
 	/// The range of component `n` is `[3, 32]`.
 	fn unban(_n: u32, ) -> Weight {
-		Weight::from_ref_time(38_246_474 as u64)
+		Weight::from_parts(38_246_474,0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}

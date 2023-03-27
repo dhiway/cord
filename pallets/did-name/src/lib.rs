@@ -63,7 +63,6 @@ pub mod pallet {
 	pub type DidNameOwnershipOf<T> = DidNameOwnership<DidNameOwnerOf<T>, BlockNumberFor<T>>;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 

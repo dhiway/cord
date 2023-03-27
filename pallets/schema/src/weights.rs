@@ -13,8 +13,8 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn create() -> Weight {
-		Weight::from_ref_time(522_000_000 as u64)
-			.saturating_add(Weight::from_ref_time(20_000 as u64))
+		Weight::from_parts(522_000_000, 0)
+			.saturating_add(Weight::from_parts(20_000, 0))
 			.saturating_add(T::DbWeight::get().reads(2 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}

@@ -51,15 +51,15 @@ pub struct BabeDeps {
 /// Dependencies for GRANDPA
 pub struct GrandpaDeps<B> {
 	/// Voting round info.
-	pub shared_voter_state: sc_finality_grandpa::SharedVoterState,
+	pub shared_voter_state: sc_consensus_grandpa::SharedVoterState,
 	/// Authority set info.
-	pub shared_authority_set: sc_finality_grandpa::SharedAuthoritySet<Hash, BlockNumber>,
+	pub shared_authority_set: sc_consensus_grandpa::SharedAuthoritySet<Hash, BlockNumber>,
 	/// Receives notifications about justification events from Grandpa.
-	pub justification_stream: sc_finality_grandpa::GrandpaJustificationStream<Block>,
+	pub justification_stream: sc_consensus_grandpa::GrandpaJustificationStream<Block>,
 	/// Executor to drive the subscription manager in the Grandpa RPC handler.
 	pub subscription_executor: sc_rpc::SubscriptionTaskExecutor,
 	/// Finality proof provider.
-	pub finality_provider: Arc<sc_finality_grandpa::FinalityProofProvider<B, Block>>,
+	pub finality_provider: Arc<sc_consensus_grandpa::FinalityProofProvider<B, Block>>,
 }
 
 /// Full client dependencies
@@ -106,7 +106,7 @@ where
 	use frame_rpc_system::{System, SystemApiServer};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
 	use sc_consensus_babe_rpc::{Babe, BabeApiServer};
-	use sc_finality_grandpa_rpc::{Grandpa, GrandpaApiServer};
+	use sc_consensus_grandpa_rpc::{Grandpa, GrandpaApiServer};
 	use sc_rpc::dev::{Dev, DevApiServer};
 	use sc_rpc_spec_v2::chain_spec::{ChainSpec, ChainSpecApiServer};
 	use sc_sync_state_rpc::{SyncState, SyncStateApiServer};

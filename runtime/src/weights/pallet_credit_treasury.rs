@@ -28,7 +28,7 @@ use sp_std::marker::PhantomData;
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_credit_treasury::WeightInfo for WeightInfo<T> {
 	fn transfer() -> Weight {
-		Weight::from_ref_time(41_860_000 as u64)
+		Weight::from_parts(41_860_000, 0)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}

@@ -16,12 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{traits::Get, weights::{Weight}};
+use frame_support::{traits::Get, weights::Weight};
 use sp_std::marker::PhantomData;
 
 /// Weight functions for `pallet_utility`.
@@ -29,26 +28,51 @@ pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_utility::WeightInfo for WeightInfo<T> {
 	/// The range of component `c` is `[0, 1000]`.
 	fn batch(c: u32, ) -> Weight {
-		Weight::from_ref_time(12_812_000 as u64)
-			// Standard Error: 3_000
-			.saturating_add(Weight::from_ref_time(3_415_000 as u64).saturating_mul(c as u64))
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 7_134_000 picoseconds.
+		Weight::from_parts(22_552_692, 0)
+			.saturating_add(Weight::from_parts(0, 0))
+			// Standard Error: 3_662
+			.saturating_add(Weight::from_parts(4_648_268, 0).saturating_mul(c.into()))
 	}
 	fn as_derivative() -> Weight {
-		Weight::from_ref_time(6_175_000 as u64)
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 5_404_000 picoseconds.
+		Weight::from_parts(5_506_000, 0)
+			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `c` is `[0, 1000]`.
 	fn batch_all(c: u32, ) -> Weight {
-		Weight::from_ref_time(18_462_000 as u64)
-			// Standard Error: 2_000
-			.saturating_add(Weight::from_ref_time(3_555_000 as u64).saturating_mul(c as u64))
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 7_161_000 picoseconds.
+		Weight::from_parts(14_587_560, 0)
+			.saturating_add(Weight::from_parts(0, 0))
+			// Standard Error: 3_086
+			.saturating_add(Weight::from_parts(4_925_001, 0).saturating_mul(c.into()))
 	}
 	fn dispatch_as() -> Weight {
-		Weight::from_ref_time(13_444_000 as u64)
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 9_630_000 picoseconds.
+		Weight::from_parts(9_859_000, 0)
+			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `c` is `[0, 1000]`.
 	fn force_batch(c: u32, ) -> Weight {
-		Weight::from_ref_time(18_937_000 as u64)
-			// Standard Error: 3_000
-			.saturating_add(Weight::from_ref_time(3_433_000 as u64).saturating_mul(c as u64))
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 7_026_000 picoseconds.
+		Weight::from_parts(16_123_279, 0)
+			.saturating_add(Weight::from_parts(0, 0))
+			// Standard Error: 2_907
+			.saturating_add(Weight::from_parts(4_659_455, 0).saturating_mul(c.into()))
 	}
 }

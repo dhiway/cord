@@ -170,11 +170,6 @@ pub mod pallet {
 	#[pallet::origin]
 	pub type Origin<T> = DidRawOrigin<DidIdentifierOf<T>, AccountIdOf<T>>;
 
-	// pub type BalanceOf<T> = <CurrencyOf<T> as Currency<AccountIdOf<T>>>::Balance;
-	// pub(crate) type CurrencyOf<T> = <T as Config>::Currency;
-	// pub(crate) type NegativeImbalanceOf<T> =
-	// <<T as Config>::Currency as Currency<AccountIdOf<T>>>::NegativeImbalance;
-
 	#[pallet::config]
 	pub trait Config: frame_system::Config + Debug {
 		/// Type for a dispatchable call that can be proxied through the DID
@@ -254,7 +249,6 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 

@@ -26,15 +26,15 @@ use sp_std::marker::PhantomData;
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_extrinsic_authorship::WeightInfo for WeightInfo<T> {
 	fn add(l: u32, ) -> Weight {
-		Weight::from_ref_time(50_978_000 as u64)
+		Weight::from_parts(50_978_000,0)
 			// Standard Error: 0
-			.saturating_add(Weight::from_ref_time(5_000 as u64).saturating_mul(l as u64))
+			.saturating_add(Weight::from_parts(5_000,0).saturating_mul(l as u64))
 			.saturating_add(T::DbWeight::get().reads(l as u64))
 			.saturating_add(T::DbWeight::get().writes(l as u64))
 	}
 	fn remove(l: u32,) -> Weight {
-		Weight::from_ref_time(50_978_000 as u64)
-			.saturating_add(Weight::from_ref_time(5_000 as u64).saturating_mul(l as u64))
+		Weight::from_parts(50_978_000,0)
+			.saturating_add(Weight::from_parts(5_000,0).saturating_mul(l as u64))
 			.saturating_add(T::DbWeight::get().reads(l as u64))
 			.saturating_add(T::DbWeight::get().writes(l as u64))
 	}
