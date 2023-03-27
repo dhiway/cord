@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // CORD is free software: you can redistribute it and/or modify
@@ -97,7 +97,6 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 

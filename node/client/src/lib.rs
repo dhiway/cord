@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // CORD is free software: you can redistribute it and/or modify
@@ -66,7 +66,7 @@ pub trait RuntimeApiCollection:
 	sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
 	+ sp_api::ApiExt<Block>
 	+ sp_consensus_babe::BabeApi<Block>
-	+ sp_finality_grandpa::GrandpaApi<Block>
+	+ sp_consensus_grandpa::GrandpaApi<Block>
 	+ sp_block_builder::BlockBuilder<Block>
 	+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
 	+ pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
@@ -85,7 +85,7 @@ where
 	Api: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
 		+ sp_api::ApiExt<Block>
 		+ sp_consensus_babe::BabeApi<Block>
-		+ sp_finality_grandpa::GrandpaApi<Block>
+		+ sp_consensus_grandpa::GrandpaApi<Block>
 		+ sp_block_builder::BlockBuilder<Block>
 		+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
 		+ pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>

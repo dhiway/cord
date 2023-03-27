@@ -1,5 +1,5 @@
 // CORD Blockchain – https://dhiway.network
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // This program is free software: you can redistribute it and/or modify
@@ -56,7 +56,6 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
 	// The pallet's runtime authors.

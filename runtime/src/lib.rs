@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // CORD is free software: you can redistribute it and/or modify
@@ -43,9 +43,7 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot, EnsureSigned,
 };
-use pallet_grandpa::{
-	fg_primitives, AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList,
-};
+use sp_consensus_grandpa::AuthorityId as GrandpaId;
 
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
@@ -302,24 +300,13 @@ impl pallet_babe::Config for Runtime {
 
 	type DisabledValidators = Session;
 
-	type KeyOwnerProof = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
-		KeyTypeId,
-		pallet_babe::AuthorityId,
-	)>>::Proof;
-
-	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
-		KeyTypeId,
-		pallet_babe::AuthorityId,
-	)>>::IdentificationTuple;
-
-	type KeyOwnerProofSystem = Historical;
-
-	type HandleEquivocation =
-		pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
-
 	type WeightInfo = ();
 
 	type MaxAuthorities = MaxAuthorities;
+	type KeyOwnerProof =
+		<Historical as KeyOwnerProofSystem<(KeyTypeId, pallet_babe::AuthorityId)>>::Proof;
+	type EquivocationReportSystem =
+		pallet_babe::EquivocationReportSystem<Self, Offences, Historical, ReportLongevity>;
 }
 
 parameter_types! {
@@ -613,6 +600,25 @@ impl pallet_treasury::Config for Runtime {
 	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>;
 }
 
+parameter_types! {
+	/// Allocate at most 20% of each block for message processing.
+	///
+	/// Is set to 20% since the scheduler can already consume a maximum of 80%.
+	pub MessageQueueServiceWeight: Option<Weight> = Some(Perbill::from_percent(20) * RuntimeBlockWeights::get().max_block);
+}
+
+impl pallet_message_queue::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	/// NOTE: Always set this to `NoopMessageProcessor` for benchmarking.
+	type MessageProcessor = pallet_message_queue::mock_helpers::NoopMessageProcessor<u32>;
+	type Size = u32;
+	type QueueChangeHandler = ();
+	type HeapSize = ConstU32<{ 64 * 1024 }>;
+	type MaxStale = ConstU32<128>;
+	type ServiceWeight = MessageQueueServiceWeight;
+}
+
 impl pallet_offences::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
@@ -650,25 +656,12 @@ parameter_types! {
 impl pallet_grandpa::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 
-	type KeyOwnerProof =
-		<Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
-
-	type KeyOwnerIdentification = <Self::KeyOwnerProofSystem as KeyOwnerProofSystem<(
-		KeyTypeId,
-		GrandpaId,
-	)>>::IdentificationTuple;
-
-	type KeyOwnerProofSystem = Historical;
-
-	type HandleEquivocation = pallet_grandpa::EquivocationHandler<
-		Self::KeyOwnerIdentification,
-		Offences,
-		ReportLongevity,
-	>;
-
 	type WeightInfo = ();
 	type MaxAuthorities = MaxAuthorities;
 	type MaxSetIdSessionEntries = MaxSetIdSessionEntries;
+	type KeyOwnerProof = <Historical as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
+	type EquivocationReportSystem =
+		pallet_grandpa::EquivocationReportSystem<Self, Offences, Historical, ReportLongevity>;
 }
 
 /// Submits a transaction with the node's public and signature type. Adheres to
@@ -911,7 +904,7 @@ impl pallet_sudo::Config for Runtime {
 }
 
 construct_runtime! {
-	pub enum Runtime where
+	pub struct Runtime where
 		Block = Block,
 		NodeBlock = cord_primitives::Block,
 		UncheckedExtrinsic = UncheckedExtrinsic
@@ -939,6 +932,7 @@ construct_runtime! {
 		TransactionPayment: pallet_transaction_payment = 32,
 		Historical: pallet_session_historical::{Pallet} = 33,
 		Multisig: pallet_multisig = 35,
+		MessageQueue: pallet_message_queue = 36,
 		ExtrinsicAuthorship: pallet_extrinsic_authorship =101,
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,
@@ -1160,21 +1154,21 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	impl fg_primitives::GrandpaApi<Block> for Runtime {
-		fn grandpa_authorities() -> GrandpaAuthorityList {
+	impl sp_consensus_grandpa::GrandpaApi<Block> for Runtime {
+		fn grandpa_authorities() -> sp_consensus_grandpa::AuthorityList {
 			Grandpa::grandpa_authorities()
 		}
 
-		fn current_set_id() -> fg_primitives::SetId {
+		fn current_set_id() -> sp_consensus_grandpa::SetId {
 			Grandpa::current_set_id()
 		}
 
 		fn submit_report_equivocation_unsigned_extrinsic(
-			equivocation_proof: fg_primitives::EquivocationProof<
+			equivocation_proof: sp_consensus_grandpa::EquivocationProof<
 				<Block as BlockT>::Hash,
 				NumberFor<Block>,
 			>,
-			key_owner_proof: fg_primitives::OpaqueKeyOwnershipProof,
+			key_owner_proof: sp_consensus_grandpa::OpaqueKeyOwnershipProof,
 		) -> Option<()> {
 			let key_owner_proof = key_owner_proof.decode()?;
 
@@ -1185,14 +1179,14 @@ sp_api::impl_runtime_apis! {
 		}
 
 		fn generate_key_ownership_proof(
-			_set_id: fg_primitives::SetId,
+			_set_id: sp_consensus_grandpa::SetId,
 			authority_id: GrandpaId,
-		) -> Option<fg_primitives::OpaqueKeyOwnershipProof> {
+		) -> Option<sp_consensus_grandpa::OpaqueKeyOwnershipProof> {
 			use codec::Encode;
 
-			Historical::prove((fg_primitives::KEY_TYPE, authority_id))
+			Historical::prove((sp_consensus_grandpa::KEY_TYPE, authority_id))
 				.map(|p| p.encode())
-				.map(fg_primitives::OpaqueKeyOwnershipProof::new)
+				.map(sp_consensus_grandpa::OpaqueKeyOwnershipProof::new)
 		}
 	}
 
