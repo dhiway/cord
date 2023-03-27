@@ -10,22 +10,28 @@ use sp_std::marker::PhantomData;
 
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_registry::WeightInfo for WeightInfo<T> {
-	fn add_authorities() -> Weight {
+	fn add_admin_delegate() -> Weight {
 		Weight::from_ref_time(322_000_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
-	fn add_delegates() -> Weight {
+	fn add_delegate() -> Weight {
 		Weight::from_ref_time(322_000_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
-	fn deauthorize() -> Weight {
+	fn remove_delegate() -> Weight {
 		Weight::from_ref_time(322_000_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	fn create() -> Weight {
+		Weight::from_ref_time(522_000_000 as u64)
+			.saturating_add(Weight::from_ref_time(2000 as u64))
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
+	fn update() -> Weight {
 		Weight::from_ref_time(522_000_000 as u64)
 			.saturating_add(Weight::from_ref_time(2000 as u64))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))

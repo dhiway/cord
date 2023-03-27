@@ -48,21 +48,11 @@ impl Default for Permissions {
 	}
 }
 
-/// A global index, formed as the extrinsic index within a block, together with that block's height.
-#[derive(
-	Copy, Clone, Eq, PartialEq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen,
-)]
-pub struct Timepoint<BlockNumber> {
-	/// The height of the chain at the point in time.
-	pub height: BlockNumber,
-	/// The index of the extrinsic at the point in time.
-	pub index: u32,
-}
-
 /// An on-chain registry details mapped to an identifier.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 
-pub struct RegistryEntry<InputRegistryOf, RegistryHashOf, SchemaIdOf, ProposerIdOf, StatusOf> {
+pub struct RegistryEntry<InputRegistryOf, RegistryHashOf, SchemaIdOf, RegistryCreatorIdOf, StatusOf>
+{
 	// The Registry
 	pub details: InputRegistryOf,
 	/// Registry hash.
@@ -70,7 +60,7 @@ pub struct RegistryEntry<InputRegistryOf, RegistryHashOf, SchemaIdOf, ProposerId
 	/// Schema identifier.
 	pub schema: SchemaIdOf,
 	/// Registry creator.
-	pub creator: ProposerIdOf,
+	pub creator: RegistryCreatorIdOf,
 	/// The flag indicating the status of the registry.
 	pub archive: StatusOf,
 }
@@ -78,11 +68,11 @@ pub struct RegistryEntry<InputRegistryOf, RegistryHashOf, SchemaIdOf, ProposerId
 /// An on-chain registry details mapped to an identifier.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 
-pub struct RegistryAuthorization<RegistryIdOf, ProposerIdOf, SchemaIdOf, Permissions> {
+pub struct RegistryAuthorization<RegistryIdOf, RegistryCreatorIdOf, SchemaIdOf, Permissions> {
 	// The Registry
-	pub registry: RegistryIdOf,
+	pub registry_id: RegistryIdOf,
 	/// Registry delegate.
-	pub delegate: ProposerIdOf,
+	pub delegate: RegistryCreatorIdOf,
 	/// Schema identifier.
 	pub schema: SchemaIdOf,
 	/// Registry creator.
@@ -90,21 +80,24 @@ pub struct RegistryAuthorization<RegistryIdOf, ProposerIdOf, SchemaIdOf, Permiss
 }
 
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct RegistryCommit<RegistryCommitActionOf, ProposerIdOf, BlockNumber> {
+pub struct RegistryCommit<RegistryCommitActionOf, RegistryHashOf, RegistryCreatorIdOf, BlockNumber>
+{
 	/// Stream commit type
 	pub commit: RegistryCommitActionOf,
+	/// Registry hash.
+	pub digest: RegistryHashOf,
 	/// Registry delegate.
-	pub committed_by: ProposerIdOf,
+	pub committed_by: RegistryCreatorIdOf,
 	/// Stream block number
-	pub created_at: Timepoint<BlockNumber>,
+	pub created_at: BlockNumber,
 }
 
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub enum RegistryCommitActionOf {
 	Genesis,
-	Authority,
 	Authorization,
-	Deauthorize,
+	Deauthorization,
+	Update,
 	Archive,
 	Restore,
 }
