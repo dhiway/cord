@@ -46,11 +46,20 @@ pub struct Timepoint<BlockNumber> {
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryIdOf, StatusOf> {
+pub struct OpenStreamEntry<
+	OpenStreamOf,
+	OpenStreamDigestOf,
+	OpenStreamCreatorIdOf,
+	SchemaIdOf,
+	RegistryIdOf,
+	StatusOf,
+> {
+	/// Stream
+	pub stream: OpenStreamOf,
 	/// Stream hash.
-	pub digest: StreamDigestOf,
+	pub digest: OpenStreamDigestOf,
 	/// Stream creator.
-	pub creator: StreamCreatorIdOf,
+	pub creator: OpenStreamCreatorIdOf,
 	/// Schema Identifier
 	pub schema: SchemaIdOf,
 	/// Registry Identifier
@@ -69,20 +78,25 @@ pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryId
 /// * `committed_by`: The account that committed the stream.
 /// * `created_at`: The block number at which the stream was created.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct StreamCommit<StreamCommitActionOf, StreamDigestOf, StreamCreatorIdOf, BlockNumber> {
+pub struct OpenStreamCommit<
+	OpenStreamCommitActionOf,
+	OpenStreamDigestOf,
+	OpenStreamCreatorIdOf,
+	BlockNumber,
+> {
 	/// Stream commit type
-	pub commit: StreamCommitActionOf,
+	pub commit: OpenStreamCommitActionOf,
 	/// Stream hash.
-	pub digest: StreamDigestOf,
+	pub digest: OpenStreamDigestOf,
 	/// Registry delegate.
-	pub committed_by: StreamCreatorIdOf,
+	pub committed_by: OpenStreamCreatorIdOf,
 	/// Stream block number
 	pub created_at: Timepoint<BlockNumber>,
 }
 
 /// Defining the possible actions that can be taken on a stream.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub enum StreamCommitActionOf {
+pub enum OpenStreamCommitActionOf {
 	Genesis,
 	Update,
 	Revoke,

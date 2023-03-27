@@ -16,11 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! # Stream Pallet
+//! # Open Stream Pallet
 //!
-//! The Stream palllet is used to anchor identifiers representing off-chain documents.
-//! The pallet provides means of creating, updating, revoking and removing identifier
-//! data on-chain and delegated controls.
+//! The Stream palllet is used to anchor identifiers representing public on-chain information
+//! /information. The on-chain is an opaque blob representing the public information. The blob
+//!  Could be JSON, a Hash, or raw text. Up to the community to decide how exactly to use this.
+//! The pallet provides means of discovering, creating, updating, revoking and removing the
+//! information.
 //!
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -40,7 +42,7 @@ pub use crate::{pallet::*, types::*, weights::WeightInfo};
 pub mod pallet {
 	use super::*;
 	use cord_utilities::traits::CallSources;
-	use frame_support::pallet_prelude::*;
+	use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
 	use frame_system::pallet_prelude::*;
 
 	/// The current storage version.
@@ -49,29 +51,35 @@ pub mod pallet {
 	/// Registry Identifier
 	pub type RegistryIdOf = Ss58Identifier;
 	/// Stream Identifier
-	pub type StreamIdOf = Ss58Identifier;
+	pub type OpenStreamIdOf = Ss58Identifier;
 	/// Schema Identifier
 	pub type SchemaIdOf = Ss58Identifier;
 	/// Authorization Identifier
 	pub type AuthorizationIdOf = Ss58Identifier;
-	/// Hash of the registry.
-	pub type StreamHashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a creator identifier.
-	pub type StreamCreatorIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
+	pub type OpenStreamCreatorIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
+	/// Type of an open stream information.
+	pub type OpenStreamOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedOpenStreamLength>;
 
 	/// Hash of the stream.
-	pub type StreamDigestOf<T> = <T as frame_system::Config>::Hash;
+	pub type OpenStreamDigestOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 
-	pub type StreamEntryOf<T> =
-		StreamEntry<StreamDigestOf<T>, StreamCreatorIdOf<T>, SchemaIdOf, RegistryIdOf, StatusOf>;
-	pub type StreamCommitsOf<T> = StreamCommit<
-		StreamCommitActionOf,
-		StreamDigestOf<T>,
-		StreamCreatorIdOf<T>,
+	pub type OpenStreamEntryOf<T> = OpenStreamEntry<
+		OpenStreamOf<T>,
+		OpenStreamDigestOf<T>,
+		OpenStreamCreatorIdOf<T>,
+		SchemaIdOf,
+		RegistryIdOf,
+		StatusOf,
+	>;
+	pub type OpenStreamCommitsOf<T> = OpenStreamCommit<
+		OpenStreamCommitActionOf,
+		OpenStreamDigestOf<T>,
+		OpenStreamCreatorIdOf<T>,
 		BlockNumberOf<T>,
 	>;
 
@@ -82,11 +90,15 @@ pub mod pallet {
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = <Self as Config>::OriginSuccess,
 		>;
-		type OriginSuccess: CallSources<AccountIdOf<Self>, StreamCreatorIdOf<Self>>;
+		type OriginSuccess: CallSources<AccountIdOf<Self>, OpenStreamCreatorIdOf<Self>>;
 
 		/// The maximum number of commits for a stream.
 		#[pallet::constant]
-		type MaxStreamCommits: Get<u32>;
+		type MaxOpenStreamCommits: Get<u32>;
+
+		/// The maximum number of commits for a stream.
+		#[pallet::constant]
+		type MaxEncodedOpenStreamLength: Get<u32>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -104,16 +116,16 @@ pub mod pallet {
 	/// It maps from an identifier to its details. Chain will only store the
 	/// last updated state of the data.
 	#[pallet::storage]
-	#[pallet::getter(fn streams)]
-	pub type Streams<T> =
-		StorageMap<_, Blake2_128Concat, StreamIdOf, StreamEntryOf<T>, OptionQuery>;
+	#[pallet::getter(fn open_streams)]
+	pub type OpenStreams<T> =
+		StorageMap<_, Blake2_128Concat, OpenStreamIdOf, OpenStreamEntryOf<T>, OptionQuery>;
 
 	/// stream hashes stored on chain.
 	/// It maps from a stream hash to an identifier (resolve from hash).
 	#[pallet::storage]
-	#[pallet::getter(fn stream_digests)]
-	pub type StreamDigests<T> =
-		StorageMap<_, Blake2_128Concat, StreamDigestOf<T>, StreamIdOf, OptionQuery>;
+	#[pallet::getter(fn open_stream_digests)]
+	pub type OpenStreamDigests<T> =
+		StorageMap<_, Blake2_128Concat, OpenStreamDigestOf<T>, OpenStreamIdOf, OptionQuery>;
 
 	/// stream commits stored on chain.
 	/// It maps from an identifier to a vector of commits.
@@ -122,62 +134,66 @@ pub mod pallet {
 	pub(super) type Commits<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		StreamIdOf,
-		BoundedVec<StreamCommitsOf<T>, T::MaxStreamCommits>,
+		OpenStreamIdOf,
+		BoundedVec<OpenStreamCommitsOf<T>, T::MaxOpenStreamCommits>,
 		ValueQuery,
 	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new stream identifier has been created.
+		/// A new open stream identifier has been created.
 		/// \[stream identifier, stream digest, controller\]
-		Create { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: StreamCreatorIdOf<T> },
-		/// A stream identifier has been updated.
-		/// \[stream identifier, digest, controller\]
-		Update { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: StreamCreatorIdOf<T> },
-		/// A stream identifier status has been revoked.
-		/// \[stream identifier, controller\]
-		Revoke { identifier: StreamIdOf, author: StreamCreatorIdOf<T> },
-		/// A stream identifier status has been restored.
-		/// \[stream identifier, controller\]
-		Restore { identifier: StreamIdOf, author: StreamCreatorIdOf<T> },
-		/// A stream identifier has been removed.
-		/// \[stream identifier,  controller\]
-		Remove { identifier: StreamIdOf, author: StreamCreatorIdOf<T> },
-		/// A stream digest has been added.
-		/// \[stream identifier, digest, controller\]
-		Digest { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: StreamCreatorIdOf<T> },
+		Create {
+			identifier: OpenStreamIdOf,
+			digest: OpenStreamDigestOf<T>,
+			author: OpenStreamCreatorIdOf<T>,
+		},
+		/// An open stream identifier has been updated.
+		/// \[open stream identifier, digest, controller\]
+		Update {
+			identifier: OpenStreamIdOf,
+			digest: OpenStreamDigestOf<T>,
+			author: OpenStreamCreatorIdOf<T>,
+		},
+		/// An open stream identifier status has been revoked.
+		/// \[open stream identifier, controller\]
+		Revoke { identifier: OpenStreamIdOf, author: OpenStreamCreatorIdOf<T> },
+		/// An open stream identifier status has been restored.
+		/// \[open stream identifier, controller\]
+		Restore { identifier: OpenStreamIdOf, author: OpenStreamCreatorIdOf<T> },
+		/// An open stream identifier has been removed.
+		/// \[open stream identifier,  controller\]
+		Remove { identifier: OpenStreamIdOf, author: OpenStreamCreatorIdOf<T> },
+		/// An open stream digest has been added.
+		/// \[open stream identifier, digest, controller\]
+		Digest {
+			identifier: OpenStreamIdOf,
+			digest: OpenStreamDigestOf<T>,
+			author: OpenStreamCreatorIdOf<T>,
+		},
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Stream idenfier is not unique
-		StreamAlreadyAnchored,
+		OpenStreamAlreadyAnchored,
 		/// Stream idenfier not found
-		StreamNotFound,
+		OpenStreamNotFound,
 		/// Stream idenfier marked inactive
-		RevokedStream,
+		RevokedOpenStream,
 		/// Stream idenfier not marked inactive
-		StreamNotRevoked,
+		OpenStreamNotRevoked,
 		/// Only when the author is not the controller/delegate.
 		UnauthorizedOperation,
-		/// Stream link does not exist
-		StreamLinkNotFound,
-		/// Stream Link is revoked
-		StreamLinkRevoked,
-		// Invalid creator signature
-		InvalidSignature,
 		//Stream hash is not unique
 		HashAlreadyAnchored,
-		// Expired Tx Signature
-		ExpiredSignature,
 		// Invalid Stream Identifier
-		InvalidStreamIdentifier,
+		InvalidOpenStreamIdentifier,
 		// Invalid Schema Identifier Length
 		InvalidIdentifierLength,
 		// Stream not part of space
-		StreamSpaceMismatch,
+		OpenStreamSpaceMismatch,
 		//Stream digest is not unique
 		DigestHashAlreadyAnchored,
 		// Invalid transaction hash
@@ -195,7 +211,11 @@ pub mod pallet {
 		// Authorization not found
 		AuthorizationDetailsNotFound,
 		// Maximum number of commits exceeded
-		MaxStreamCommitsExceeded,
+		MaxOpenStreamCommitsExceeded,
+		// Maximum stream length exceeded
+		MaxEncodedOpenStreamLimitExceeded,
+		/// Empty transaction.
+		EmptyTransaction,
 	}
 
 	#[pallet::call]
@@ -216,25 +236,37 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn create(
 			origin: OriginFor<T>,
-			stream_digest: StreamDigestOf<T>,
+			tx_stream: OpenStreamOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let identifier = Ss58Identifier::to_stream_id(&(stream_digest).encode()[..])
+			ensure!(tx_stream.len() > 0, Error::<T>::EmptyTransaction);
+			ensure!(
+				tx_stream.len() <= T::MaxEncodedOpenStreamLength::get() as usize,
+				Error::<T>::MaxEncodedOpenStreamLimitExceeded
+			);
+
+			let digest = <T as frame_system::Config>::Hashing::hash(&tx_stream[..]);
+
+			let identifier = Ss58Identifier::to_open_stream_id(&(digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
-			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
+			ensure!(
+				!<OpenStreams<T>>::contains_key(&identifier),
+				Error::<T>::OpenStreamAlreadyAnchored
+			);
 
 			let (registry_id, schema_id) =
 				pallet_registry::Pallet::<T>::is_a_delegate(&authorization, creator.clone())?;
 
-			<StreamDigests<T>>::insert(&stream_digest, &identifier);
+			<OpenStreamDigests<T>>::insert(&digest, &identifier);
 
-			<Streams<T>>::insert(
+			<OpenStreams<T>>::insert(
 				&identifier,
-				StreamEntryOf::<T> {
-					digest: stream_digest,
+				OpenStreamEntryOf::<T> {
+					stream: tx_stream,
+					digest,
 					creator: creator.clone(),
 					schema: schema_id.clone(),
 					registry: registry_id,
@@ -244,21 +276,17 @@ pub mod pallet {
 
 			Self::update_commit(
 				&identifier,
-				stream_digest,
+				digest,
 				creator.clone(),
-				StreamCommitActionOf::Genesis,
+				OpenStreamCommitActionOf::Genesis,
 			)
 			.map_err(<Error<T>>::from)?;
 
-			Self::deposit_event(Event::Create {
-				identifier,
-				digest: stream_digest,
-				author: creator,
-			});
+			Self::deposit_event(Event::Create { identifier, digest, author: creator });
 
 			Ok(())
 		}
-		/// Updates the stream identifier with a new digest. The updated digest
+		/// Updates the stream identifier with a new information and digest. The updated digest
 		/// represents the changes a stream reference document might have undergone.
 		/// Arguments:
 		///
@@ -274,14 +302,21 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn update(
 			origin: OriginFor<T>,
-			stream_id: StreamIdOf,
-			stream_digest: StreamDigestOf<T>,
+			stream_id: OpenStreamIdOf,
+			tx_stream: OpenStreamOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
+			ensure!(tx_stream.len() > 0, Error::<T>::EmptyTransaction);
+			ensure!(
+				tx_stream.len() <= T::MaxEncodedOpenStreamLength::get() as usize,
+				Error::<T>::MaxEncodedOpenStreamLimitExceeded
+			);
+
+			let stream_details =
+				<OpenStreams<T>>::get(&stream_id).ok_or(Error::<T>::OpenStreamNotFound)?;
+			ensure!(!stream_details.revoked, Error::<T>::RevokedOpenStream);
 
 			if stream_details.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
@@ -293,30 +328,24 @@ pub mod pallet {
 				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
-			<StreamDigests<T>>::insert(&stream_digest, &stream_id);
+			let digest = <T as frame_system::Config>::Hashing::hash(&tx_stream[..]);
 
-			<Streams<T>>::insert(
+			<OpenStreamDigests<T>>::insert(&digest, &stream_id);
+
+			<OpenStreams<T>>::insert(
 				&stream_id,
-				StreamEntryOf::<T> {
-					digest: stream_digest,
-					creator: updater.clone(),
-					..stream_details
-				},
+				OpenStreamEntryOf::<T> { digest, creator: updater.clone(), ..stream_details },
 			);
 
 			Self::update_commit(
 				&stream_id,
-				stream_digest,
+				digest,
 				updater.clone(),
-				StreamCommitActionOf::Update,
+				OpenStreamCommitActionOf::Update,
 			)
 			.map_err(<Error<T>>::from)?;
 
-			Self::deposit_event(Event::Update {
-				identifier: stream_id,
-				digest: stream_digest,
-				author: updater,
-			});
+			Self::deposit_event(Event::Update { identifier: stream_id, digest, author: updater });
 
 			Ok(())
 		}
@@ -335,13 +364,14 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn revoke(
 			origin: OriginFor<T>,
-			stream_id: StreamIdOf,
+			stream_id: OpenStreamIdOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
+			let stream_details =
+				<OpenStreams<T>>::get(&stream_id).ok_or(Error::<T>::OpenStreamNotFound)?;
+			ensure!(!stream_details.revoked, Error::<T>::RevokedOpenStream);
 
 			if stream_details.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
@@ -353,16 +383,20 @@ pub mod pallet {
 				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
-			<Streams<T>>::insert(
+			<OpenStreams<T>>::insert(
 				&stream_id,
-				StreamEntryOf::<T> { creator: updater.clone(), revoked: true, ..stream_details },
+				OpenStreamEntryOf::<T> {
+					creator: updater.clone(),
+					revoked: true,
+					..stream_details
+				},
 			);
 
 			Self::update_commit(
 				&stream_id,
 				stream_details.digest,
 				updater.clone(),
-				StreamCommitActionOf::Revoke,
+				OpenStreamCommitActionOf::Revoke,
 			)
 			.map_err(<Error<T>>::from)?;
 			Self::deposit_event(Event::Revoke { identifier: stream_id, author: updater });
@@ -385,13 +419,14 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn restore(
 			origin: OriginFor<T>,
-			stream_id: StreamIdOf,
+			stream_id: OpenStreamIdOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(stream_details.revoked, Error::<T>::StreamNotRevoked);
+			let stream_details =
+				<OpenStreams<T>>::get(&stream_id).ok_or(Error::<T>::OpenStreamNotFound)?;
+			ensure!(stream_details.revoked, Error::<T>::OpenStreamNotRevoked);
 
 			if stream_details.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
@@ -403,16 +438,20 @@ pub mod pallet {
 				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
-			<Streams<T>>::insert(
+			<OpenStreams<T>>::insert(
 				&stream_id,
-				StreamEntryOf::<T> { creator: updater.clone(), revoked: false, ..stream_details },
+				OpenStreamEntryOf::<T> {
+					creator: updater.clone(),
+					revoked: false,
+					..stream_details
+				},
 			);
 
 			Self::update_commit(
 				&stream_id,
 				stream_details.digest,
 				updater.clone(),
-				StreamCommitActionOf::Restore,
+				OpenStreamCommitActionOf::Restore,
 			)
 			.map_err(<Error<T>>::from)?;
 			Self::deposit_event(Event::Restore { identifier: stream_id, author: updater });
@@ -435,12 +474,13 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn remove(
 			origin: OriginFor<T>,
-			stream_id: StreamIdOf,
+			stream_id: OpenStreamIdOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
+			let stream_details =
+				<OpenStreams<T>>::get(&stream_id).ok_or(Error::<T>::OpenStreamNotFound)?;
 
 			if stream_details.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
@@ -452,13 +492,13 @@ pub mod pallet {
 				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
-			<Streams<T>>::take(&stream_id);
+			<OpenStreams<T>>::take(&stream_id);
 
 			Self::update_commit(
 				&stream_id,
 				stream_details.digest,
 				updater.clone(),
-				StreamCommitActionOf::Remove,
+				OpenStreamCommitActionOf::Remove,
 			)
 			.map_err(<Error<T>>::from)?;
 			Self::deposit_event(Event::Restore { identifier: stream_id, author: updater });
@@ -485,14 +525,15 @@ pub mod pallet {
 		#[pallet::weight(0)]
 		pub fn digest(
 			origin: OriginFor<T>,
-			stream_id: StreamIdOf,
-			stream_digest: StreamDigestOf<T>,
+			stream_id: OpenStreamIdOf,
+			stream_digest: OpenStreamDigestOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
+			let stream_details =
+				<OpenStreams<T>>::get(&stream_id).ok_or(Error::<T>::OpenStreamNotFound)?;
+			ensure!(!stream_details.revoked, Error::<T>::RevokedOpenStream);
 
 			if stream_details.creator != creator {
 				let (registry_id, _) =
@@ -502,13 +543,13 @@ pub mod pallet {
 				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
-			<StreamDigests<T>>::insert(&stream_digest, &stream_id);
+			<OpenStreamDigests<T>>::insert(&stream_digest, &stream_id);
 
 			Self::update_commit(
 				&stream_id,
 				stream_digest,
 				creator.clone(),
-				StreamCommitActionOf::Genesis,
+				OpenStreamCommitActionOf::Genesis,
 			)
 			.map_err(<Error<T>>::from)?;
 
@@ -538,20 +579,20 @@ impl<T: Config> Pallet<T> {
 	///
 	/// The `Result` type is being returned.
 	pub fn update_commit(
-		tx_stream: &StreamIdOf,
-		tx_digest: StreamDigestOf<T>,
-		proposer: StreamCreatorIdOf<T>,
-		commit: StreamCommitActionOf,
+		tx_stream: &OpenStreamIdOf,
+		tx_digest: OpenStreamDigestOf<T>,
+		proposer: OpenStreamCreatorIdOf<T>,
+		commit: OpenStreamCommitActionOf,
 	) -> Result<(), Error<T>> {
 		Commits::<T>::try_mutate(tx_stream, |commits| {
 			commits
-				.try_push(StreamCommitsOf::<T> {
+				.try_push(OpenStreamCommitsOf::<T> {
 					commit,
 					digest: tx_digest,
 					committed_by: proposer,
 					created_at: Self::timepoint(),
 				})
-				.map_err(|_| Error::<T>::MaxStreamCommitsExceeded)?;
+				.map_err(|_| Error::<T>::MaxOpenStreamCommitsExceeded)?;
 
 			Ok(())
 		})

@@ -35,7 +35,7 @@ const IDENT_REG: u16 = 7101;
 const IDENT_AUTH: u16 = 2604;
 const IDENT_SCHEMA: u16 = 8902;
 const IDENT_STREAM: u16 = 11992;
-// const IDENT_PUBLIC_STREAM: u16 = 11999;
+const IDENT_OPEN_STREAM: u16 = 5802;
 
 /// The minimum length of a valid identifier.
 pub const MINIMUM_IDENTIFIER_LENGTH: usize = 2;
@@ -169,8 +169,8 @@ impl Ss58Identifier {
 		v.extend(&r.as_bytes()[0..2]);
 		v.to_base58()
 	}
-	pub fn to_authorization_id(data: &[u8]) -> String {
-		Self::from_string_encoded(data, IDENT_AUTH)
+	pub fn to_authorization_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_AUTH)
 	}
 
 	pub fn to_registry_id(data: &[u8]) -> Result<Self, IdentifierError> {
@@ -185,6 +185,9 @@ impl Ss58Identifier {
 		Self::from_encoded(data, IDENT_STREAM)
 	}
 
+	pub fn to_open_stream_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_OPEN_STREAM)
+	}
 	pub fn inner(&self) -> &[u8] {
 		&self.0
 	}
@@ -215,6 +218,9 @@ impl Ss58Identifier {
 
 	pub fn is_stream_id(data: Ss58Identifier) -> Result<(), IdentifierError> {
 		Self::get_ident(data, IDENT_STREAM)
+	}
+	pub fn is_open_stream_id(data: Ss58Identifier) -> Result<(), IdentifierError> {
+		Self::get_ident(data, IDENT_OPEN_STREAM)
 	}
 	pub fn is_schema_id(data: Ss58Identifier) -> Result<(), IdentifierError> {
 		Self::get_ident(data, IDENT_SCHEMA)

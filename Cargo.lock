@@ -1339,6 +1339,7 @@ dependencies = [
  "pallet-membership",
  "pallet-multisig",
  "pallet-offences",
+ "pallet-open-stream",
  "pallet-preimage",
  "pallet-registry",
  "pallet-scheduler",
@@ -5225,6 +5226,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-open-stream"
+version = "0.8.0"
+dependencies = [
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-registry",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-keystore",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-preimage"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.39#1837f423b494254e1d27834b1c9da34b2c0c2375"
@@ -5254,7 +5273,6 @@ dependencies = [
  "log",
  "pallet-balances",
  "pallet-schema",
- "pallet-stream",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -5356,11 +5374,11 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-registry",
  "parity-scale-codec",
  "scale-info",
  "serde",
  "sp-keystore",
- "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
 ]

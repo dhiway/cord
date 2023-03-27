@@ -96,9 +96,7 @@ mod authority_manager;
 pub use pallet_extrinsic_authorship;
 pub mod benchmark;
 pub use benchmark::DummySignature;
-pub mod authorize;
-pub use authorize::{AuthorizationId, PalletAuthorize};
-use pallet_registry::AuthorityAc;
+
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -870,11 +868,10 @@ parameter_types! {
 }
 
 impl pallet_registry::Config for Runtime {
-	type ProposerId = DidIdentifier;
+	type RegistryCreatorId = DidIdentifier;
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
-	type AuthorizationId = Ss58Identifier;
 	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
 	type MaxRegistryAuthorities = MaxRegistryAuthorities;
 	type MaxRegistryCommitActions = MaxRegistryCommitActions;
@@ -891,9 +888,21 @@ impl pallet_stream::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_stream::WeightInfo<Runtime>;
 	type MaxStreamCommits = MaxStreamCommits;
-	type CreatorId = DidIdentifier;
-	type AuthorizationId = AuthorizationId<<Runtime as pallet_registry::Config>::AuthorizationId>;
-	type StreamAccessControl = PalletAuthorize<AuthorityAc<Runtime>>;
+}
+
+parameter_types! {
+	pub const MaxOpenStreamCommits: u32 = 1_000;
+	pub const MaxEncodedOpenStreamLength: u32 = 102_400;
+
+}
+
+impl pallet_open_stream::Config for Runtime {
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::pallet_open_stream::WeightInfo<Runtime>;
+	type MaxOpenStreamCommits = MaxOpenStreamCommits;
+	type MaxEncodedOpenStreamLength = MaxEncodedOpenStreamLength;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -935,7 +944,8 @@ construct_runtime! {
 		Schema: pallet_schema = 103,
 		Registry: pallet_registry = 104,
 		Stream: pallet_stream = 105,
-		DidNames: pallet_did_names = 106,
+		OpenStream: pallet_open_stream = 106,
+		DidNames: pallet_did_names = 107,
 		Sudo: pallet_sudo = 255,
 	}
 }
@@ -980,16 +990,16 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::Stream { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
 			},
-			RuntimeCall::Registry(pallet_registry::Call::add_authorities { .. }) => {
+			RuntimeCall::OpenStream { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
-			RuntimeCall::Registry(pallet_registry::Call::authorize { .. }) => {
+			RuntimeCall::Registry(pallet_registry::Call::add_delegate { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
-			RuntimeCall::Registry(pallet_registry::Call::deauthorize { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::remove_authorities { .. }) => {
+			RuntimeCall::Registry(pallet_registry::Call::remove_delegate { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
 			RuntimeCall::Registry(pallet_registry::Call::create { .. }) => {
