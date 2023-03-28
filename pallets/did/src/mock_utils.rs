@@ -89,7 +89,7 @@ pub fn generate_base_did_creation_details<T: Config>(
 	DidCreationDetails {
 		did,
 		submitter,
-		new_key_agreement_keys: BoundedBTreeSet::new(),
+		new_key_agreement_key: BoundedBTreeSet::new(),
 		new_assertion_key: None,
 		new_delegation_key: None,
 		new_service_details: Vec::new(),

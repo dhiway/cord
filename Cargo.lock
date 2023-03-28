@@ -5303,6 +5303,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-keystore",
+ "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
 ]
@@ -5374,6 +5375,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
  "pallet-balances",
  "parity-scale-codec",
  "scale-info",
@@ -5443,6 +5445,7 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-keystore",
+ "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
 ]
