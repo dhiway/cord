@@ -32,10 +32,14 @@ use sp_std::{fmt::Debug, prelude::Clone, str, vec};
 const PREFIX: &[u8] = b"CRDIDFR";
 /// CORD idents
 const IDENT_REG: u16 = 7101;
-const IDENT_AUTH: u16 = 2604;
-const IDENT_SCHEMA: u16 = 8902;
-const IDENT_STREAM: u16 = 11992;
-const IDENT_OPEN_STREAM: u16 = 5802;
+const IDENT_AUTH: u16 = 10447;
+const IDENT_SCHEMA: u16 = 1424;
+const IDENT_STREAM: u16 = 8902;
+const IDENT_OPEN_STREAM: u16 = 3746;
+const IDENT_ENTITY: u16 = 6480;
+const IDENT_TEMPLATE: u16 = 5035;
+const IDENT_ASSET: u16 = 2604;
+const IDENT_UNIQUE: u16 = 11736;
 
 /// The minimum length of a valid identifier.
 pub const MINIMUM_IDENTIFIER_LENGTH: usize = 2;
@@ -143,50 +147,32 @@ impl Ss58Identifier {
 		))
 	}
 
-	/// Create a new cryptographic identifier.
-	pub fn from_string_encoded<I>(data: I, id_ident: u16) -> String
-	where
-		I: AsRef<[u8]> + Into<Vec<u8>>,
-	{
-		// let input = data.as_ref();
-
-		let ident: u16 = id_ident & 0b0011_1111_1111_1111;
-
-		let mut v = match ident {
-			0..=63 => vec![ident as u8],
-			64..=16_383 => {
-				// upper six bits of the lower byte(!)
-				let first = ((ident & 0b0000_0000_1111_1100) as u8) >> 2;
-				// lower two bits of the lower byte in the high pos,
-				// lower bits of the upper byte in the low pos
-				let second = ((ident >> 8) as u8) | ((ident & 0b0000_0000_0000_0011) as u8) << 6;
-				vec![first | 0b01000000, second]
-			},
-			_ => unreachable!("masked out the upper two bits; qed"),
-		};
-		v.extend(data.as_ref());
-		let r = Self::ss58hash(&v);
-		v.extend(&r.as_bytes()[0..2]);
-		v.to_base58()
-	}
 	pub fn to_authorization_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_AUTH)
 	}
-
 	pub fn to_registry_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_REG)
 	}
-
 	pub fn to_schema_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_SCHEMA)
 	}
-
 	pub fn to_stream_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_STREAM)
 	}
-
 	pub fn to_open_stream_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_OPEN_STREAM)
+	}
+	pub fn to_entity_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_ENTITY)
+	}
+	pub fn to_template_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_TEMPLATE)
+	}
+	pub fn to_asset_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_ASSET)
+	}
+	pub fn to_unique_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_UNIQUE)
 	}
 	pub fn inner(&self) -> &[u8] {
 		&self.0
@@ -215,53 +201,6 @@ impl Ss58Identifier {
 		ensure!(ident == id_ident, IdentifierError::InvalidPrefix);
 		Ok(())
 	}
-
-	pub fn is_stream_id(data: Ss58Identifier) -> Result<(), IdentifierError> {
-		Self::get_ident(data, IDENT_STREAM)
-	}
-	pub fn is_open_stream_id(data: Ss58Identifier) -> Result<(), IdentifierError> {
-		Self::get_ident(data, IDENT_OPEN_STREAM)
-	}
-	pub fn is_schema_id(data: Ss58Identifier) -> Result<(), IdentifierError> {
-		Self::get_ident(data, IDENT_SCHEMA)
-	}
-	pub fn is_registry_id(data: Ss58Identifier) -> Result<(), IdentifierError> {
-		Self::get_ident(data, IDENT_REG)
-	}
-	pub fn is_authorization_id(data: Ss58Identifier) -> Result<(), IdentifierError> {
-		Self::get_ident(data, IDENT_AUTH)
-	}
-
-	// pub fn from_known_identifier(id: &Ss58Identifier) -> IdentifierVerificationResult {
-	// 	let identifier = str::from_utf8(id.inner()).map_err(|_| IdentifierError::InvalidFormat)?;
-	// 	let data = identifier.from_base58().map_err(|_| IdentifierError::InvalidIdentifier)?;
-	// 	if data.len() < 2 {
-	// 		return Err(IdentifierError::InvalidIdentifierLength);
-	// 	}
-	// 	ensure!(
-	// 		(identifier.len() > 2 && identifier.len() < 50),
-	// 		IdentifierError::InvalidIdentifierLength
-	// 	);
-	// 	let (_prefix_len, ident) = match data[0] {
-	// 		0..=63 => (1, data[0] as u16),
-	// 		64..=127 => {
-	// 			let lower = (data[0] << 2) | (data[1] >> 6);
-	// 			let upper = data[1] & 0b00111111;
-	// 			(2, (lower as u16) | ((upper as u16) << 8))
-	// 		},
-	// 		_ => return Err(IdentifierError::InvalidPrefix),
-	// 	};
-
-	// 	let identifier_type = match ident {
-	// 		IDENT_AUTH => "authorization",
-	// 		IDENT_REG => "registry",
-	// 		IDENT_SCHEMA => "schema",
-	// 		IDENT_STREAM => "stream",
-	// 		_ => return Err(IdentifierError::InvalidPrefix),
-	// 	};
-
-	// 	Ok(identifier_type)
-	// }
 }
 
 impl AsRef<[u8]> for Ss58Identifier {

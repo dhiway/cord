@@ -61,8 +61,9 @@ pub mod pallet {
 	use super::*;
 	pub use cord_primitives::curi::Ss58Identifier;
 	pub use cord_utilities::traits::CallSources;
-	use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
+	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::traits::Hash;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -138,6 +139,16 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Create a new schema and associates with its identifier.
+		/// `create` takes a `InputSchemaOf<T>` and returns a `DispatchResult`
+		///
+		/// Arguments:
+		///
+		/// * `origin`: The origin of the transaction.
+		/// * `tx_schema`: The schema that is being anchored.
+		///
+		/// Returns:
+		///
+		/// DispatchResult
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(origin: OriginFor<T>, tx_schema: InputSchemaOf<T>) -> DispatchResult {
@@ -149,12 +160,17 @@ pub mod pallet {
 				Error::<T>::MaxEncodedSchemaLimitExceeded
 			);
 
-			let digest = <T as frame_system::Config>::Hashing::hash(&tx_schema[..]);
+			// Id Digest = concat (H(<scale_encoded_schema_input>, <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&tx_schema.encode()[..], &creator.encode()[..]].concat()[..],
+			);
 
-			let identifier = Ss58Identifier::to_schema_id(&(digest).encode()[..])
+			let identifier = Ss58Identifier::to_schema_id(&(id_digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
+
+			let digest = <T as frame_system::Config>::Hashing::hash(&tx_schema[..]);
 
 			<Schemas<T>>::insert(
 				&identifier,
@@ -174,6 +190,12 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// `timepoint()` returns a `Timepoint` struct containing the current block number and the current
+	/// extrinsic index
+	///
+	/// Returns:
+	///
+	/// A `Timepoint` struct.
 	/// The current `Timepoint`.
 	pub fn timepoint() -> Timepoint<T::BlockNumber> {
 		Timepoint {
@@ -181,6 +203,16 @@ impl<T: Config> Pallet<T> {
 			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
 		}
 	}
+	/// `ensure!` is a macro that takes a boolean expression and an error type. If the expression is false,
+	/// it returns the error
+	///
+	/// Arguments:
+	///
+	/// * `tx_ident`: The identifier of the transaction to check.
+	///
+	/// Returns:
+	///
+	/// A Result<(), Error<T>>
 	pub fn is_valid(tx_ident: &SchemaIdOf) -> Result<(), Error<T>> {
 		ensure!(<Schemas<T>>::contains_key(&tx_ident), Error::<T>::SchemaNotFound);
 		Ok(())
