@@ -42,6 +42,7 @@ pub mod pallet {
 	use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::traits::Hash;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -205,8 +206,9 @@ pub mod pallet {
 		/// Arguments:
 		///
 		/// * `origin`: The origin of the call.
-		/// * `stream_digest`: The hash of the stream reference document.
-		/// * `authorization`: The authorization ID of the delegate that is allowed to create the stream.
+		/// * `stream_digest`: The digest of the stream.
+		/// * `schema_id`: The schema id of the stream.
+		/// * `authorization`: AuthorizationIdOf
 		///
 		/// Returns:
 		///
@@ -216,17 +218,28 @@ pub mod pallet {
 		pub fn create(
 			origin: OriginFor<T>,
 			stream_digest: StreamDigestOf<T>,
+			schema_id: SchemaIdOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let identifier = Ss58Identifier::to_stream_id(&(stream_digest).encode()[..])
+			let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
+				&authorization,
+				creator.clone(),
+				Some(schema_id.clone()),
+			)
+			.map_err(<pallet_registry::Error<T>>::from)?;
+
+			// Id Digest = concat (H(<scale_encoded_stream_digest>, <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+					.concat()[..],
+			);
+
+			let identifier = Ss58Identifier::to_stream_id(&(id_digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
-
-			let (registry_id, schema_id) =
-				pallet_registry::Pallet::<T>::is_a_delegate(&authorization, creator.clone())?;
 
 			<StreamDigests<T>>::insert(&stream_digest, &identifier);
 
@@ -494,9 +507,12 @@ pub mod pallet {
 			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
 
 			if stream_details.creator != creator {
-				let (registry_id, _) =
-					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, creator.clone())
-						.map_err(<pallet_registry::Error<T>>::from)?;
+				let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
+					&authorization,
+					creator.clone(),
+					Some(stream_details.schema.clone()),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
 
 				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}

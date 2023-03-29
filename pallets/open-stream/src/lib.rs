@@ -42,8 +42,9 @@ pub use crate::{pallet::*, types::*, weights::WeightInfo};
 pub mod pallet {
 	use super::*;
 	use cord_utilities::traits::CallSources;
-	use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
+	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::traits::Hash;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -219,14 +220,15 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a new stream and associates it with its
+		/// Create a new open stream and associates it with its
 		/// controller. The controller (issuer) is the owner of the identifier.
 		///
 		/// Arguments:
 		///
-		/// * `origin`: The origin of the call.
-		/// * `stream_digest`: The hash of the stream reference document.
-		/// * `authorization`: The authorization ID of the delegate that is allowed to create the stream.
+		/// * `origin`: OriginFor<T>
+		/// * `tx_stream`: OpenStreamOf<T>
+		/// * `schema_id`: The schema id of the transaction stream.
+		/// * `authorization`: AuthorizationIdOf
 		///
 		/// Returns:
 		///
@@ -236,6 +238,7 @@ pub mod pallet {
 		pub fn create(
 			origin: OriginFor<T>,
 			tx_stream: OpenStreamOf<T>,
+			schema_id: SchemaIdOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
@@ -246,9 +249,20 @@ pub mod pallet {
 				Error::<T>::MaxEncodedOpenStreamLimitExceeded
 			);
 
-			let digest = <T as frame_system::Config>::Hashing::hash(&tx_stream[..]);
+			let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
+				&authorization,
+				creator.clone(),
+				Some(schema_id.clone()),
+			)
+			.map_err(<pallet_registry::Error<T>>::from)?;
 
-			let identifier = Ss58Identifier::to_open_stream_id(&(digest).encode()[..])
+			// Id Digest = concat (H(<scale_encoded_open_stream_input>, <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&tx_stream.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+					.concat()[..],
+			);
+
+			let identifier = Ss58Identifier::to_open_stream_id(&(id_digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
@@ -256,8 +270,7 @@ pub mod pallet {
 				Error::<T>::OpenStreamAlreadyAnchored
 			);
 
-			let (registry_id, schema_id) =
-				pallet_registry::Pallet::<T>::is_a_delegate(&authorization, creator.clone())?;
+			let digest = <T as frame_system::Config>::Hashing::hash(&tx_stream[..]);
 
 			<OpenStreamDigests<T>>::insert(&digest, &identifier);
 
@@ -267,7 +280,7 @@ pub mod pallet {
 					stream: tx_stream,
 					digest,
 					creator: creator.clone(),
-					schema: schema_id.clone(),
+					schema: schema_id,
 					registry: registry_id,
 					revoked: false,
 				},
@@ -535,9 +548,12 @@ pub mod pallet {
 			ensure!(!stream_details.revoked, Error::<T>::RevokedOpenStream);
 
 			if stream_details.creator != creator {
-				let (registry_id, _) =
-					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, creator.clone())
-						.map_err(<pallet_registry::Error<T>>::from)?;
+				let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
+					&authorization,
+					creator.clone(),
+					Some(stream_details.schema.clone()),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
 
 				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
