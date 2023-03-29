@@ -133,7 +133,6 @@ pub mod pallet {
 	use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, traits::StorageVersion};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::BadOrigin;
 
 	use crate::{
 		did_details::{
@@ -493,8 +492,6 @@ pub mod pallet {
 			signature: DidSignature,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
-
-			ensure!(sender == details.submitter, BadOrigin);
 
 			let did_identifier = details.did.clone();
 
