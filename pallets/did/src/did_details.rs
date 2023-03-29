@@ -532,8 +532,6 @@ pub(crate) type DidPublicKeyMap<T> = BoundedBTreeMap<
 pub struct DidCreationDetails<T: Config> {
 	/// The DID identifier. It has to be unique.
 	pub did: DidIdentifierOf<T>,
-	/// The authorised submitter of the creation operation.
-	pub submitter: AccountIdOf<T>,
 	/// The new key agreement keys.
 	pub new_key_agreement_key: DidEncryptionKey,
 	/// \[OPTIONAL\] The new assertion key.
