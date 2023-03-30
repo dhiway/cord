@@ -16,8 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+// use crate::{
+// 	curi, Config, CreatorSignatureTypeOf, IdentifierOf, InputSchemaOf, SchemaHashOf,
+// 	SCHEMA_PREFIX,
+// };
+
 use crate::{
-	curi, Config, CreatorSignatureTypeOf, IdentifierOf, InputSchemaOf, SchemaHashOf, SCHEMA_PREFIX,
+	Config, Event, InputSchemaOf, Pallet, SchemaCreatorOf, SchemaHashOf, SchemaIdOf, Ss58Identifier,
 };
 use codec::Encode;
 use sp_core::H256;
@@ -32,7 +37,7 @@ const ALTERNATIVE_SCHEMA_HASH_SEED: u64 = 2u64;
 pub fn generate_base_schema_creation_op<T: Config>(
 	digest: SchemaHashOf<T>,
 	creator: T::SchemaCreatorId,
-	signature: CreatorSignatureTypeOf<Test>,
+	signature: SchemaCreatorOf<Test>,
 ) -> InputSchemaOf<T> {
 	InputSchemaOf::<T> { digest, creator, signature }
 }
@@ -49,8 +54,8 @@ where
 	}
 }
 
-pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> IdentifierOf {
-	let identifier: IdentifierOf = curi::generate(&(&digest).encode()[..], SCHEMA_PREFIX)
+pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
+	let identifier = Ss58Identifier::generate(&(&digest).encode()[..])
 		.into_bytes()
 		.try_into()
 		.unwrap();
@@ -72,8 +77,8 @@ pub mod runtime {
 	};
 
 	use super::*;
-	use crate::{BalanceOf, SchemaHashes, Schemas};
-	use cord_utilities::{mock::CreatorId, signature::EqualVerify};
+	use crate::Schemas;
+	use cord_utilities::mock::SubjectId;
 
 	pub type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 	pub type Block = frame_system::mocking::MockBlock<Test>;
@@ -151,28 +156,34 @@ pub mod runtime {
 		pub const MaxEncodedMetaLength: u32 = 5_000;
 	}
 
-	impl Config for Test {
-		type Signature = (CreatorId, Vec<u8>);
-		type CreatorSignatureVerification = EqualVerify<Self::SchemaCreatorId, Vec<u8>>;
-		type SchemaCreatorId = CreatorId;
-		type EnsureOrigin = frame_system::EnsureSigned<Self::AccountId>;
-		type RuntimeEvent = ();
-		type Currency = Balances;
-		type Fee = Fee;
-		type MaxSignatureByteLength = MaxSignatureByteLength;
-		type MaxEncodedMetaLength = MaxEncodedMetaLength;
-		type FeeCollector = ();
-		type WeightInfo = ();
+	pub trait Config: frame_system::Config {
+		type Who;
+		type RuntimeEvent;
+		type OriginSuccess;
+		type SchemaCreatorId;
+		type MaxEncodedSchemaLength;
+		type WeightInfo;
+		type EnsureOrigin;
+		type Origin;
+	}
+	impl<T: frame_system::Config> Config for Test {
+		type Who = u64;
+		type RuntimeEvent = Event<T>;
+		type EnsureOrigin = frame_system::EnsureSignedBy<Self::Who, Self::AccountId>;
+		type OriginSuccess = ();
+		type SchemaCreatorId = AccountId32;
+		type MaxEncodedSchemaLength = Self::MaxEncodedSchemaLength;
+		type WeightInfo = Self::WeightInfo;
 	}
 
-	pub(crate) const DID_00: CreatorId = CreatorId(AccountId32::new([1u8; 32]));
+	pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
 	pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
 
-	pub(crate) fn ed25519_did_from_seed(seed: &[u8; 32]) -> CreatorId {
+	pub(crate) fn ed25519_did_from_seed(seed: &[u8; 32]) -> SubjectId {
 		MultiSigner::from(ed25519::Pair::from_seed(seed).public()).into_account().into()
 	}
 
-	pub(crate) fn sr25519_did_from_seed(seed: &[u8; 32]) -> CreatorId {
+	pub(crate) fn sr25519_did_from_seed(seed: &[u8; 32]) -> SubjectId {
 		MultiSigner::from(sr25519::Pair::from_seed(seed).public()).into_account().into()
 	}
 
@@ -181,19 +192,19 @@ pub mod runtime {
 	}
 
 	#[derive(Clone, Default)]
-	pub(crate) struct ExtBuilder {
-		schemas_stored: Vec<(IdentifierOf,)>,
-		schema_hashes_stored: Vec<(SchemaHashOf<Test>, IdentifierOf)>,
-		balances: Vec<(AccountId, BalanceOf<Test>)>,
+	pub(crate) struct ExtBuilder<IdentifierOf> {
+		schemas_stored: Vec<IdentifierOf>,
+		schema_hashes_stored: Vec<(SchemaHashOf<Test>, Ss58Identifier)>,
+		balances: Vec<AccountId>,
 	}
 
-	impl ExtBuilder {
-		pub(crate) fn with_schemas(mut self, schemas: Vec<(IdentifierOf, CreatorId)>) -> Self {
+	impl<IdentifierOf> ExtBuilder<IdentifierOf> {
+		pub(crate) fn with_schemas(mut self, schemas: Vec<(Ss58Identifier, SubjectId)>) -> Self {
 			self.schemas_stored = schemas;
 			self
 		}
 
-		pub(crate) fn with_balances(mut self, balances: Vec<(AccountId, BalanceOf<Test>)>) -> Self {
+		pub(crate) fn with_balances(mut self, balances: Vec<(AccountId, Balance)>) -> Self {
 			self.balances = balances;
 			self
 		}
@@ -210,9 +221,9 @@ pub mod runtime {
 				for (identifier, owner) in self.schemas_stored.iter() {
 					Schemas::<Test>::insert(identifier, owner);
 				}
-				for (schema_hash, identifier) in self.schema_hashes_stored.iter() {
-					SchemaHashes::<Test>::insert(schema_hash, identifier);
-				}
+				// for (schema_hash, identifier) in self.schema_hashes_stored.iter() {
+				// 	schema_hash::<Test>::insert(schema_hash, identifier);
+				// }
 			});
 
 			ext
