@@ -52,7 +52,7 @@ pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryId
 	/// Stream creator.
 	pub creator: StreamCreatorIdOf,
 	/// Schema Identifier
-	pub schema: SchemaIdOf,
+	pub schema: Option<SchemaIdOf>,
 	/// Registry Identifier
 	pub registry: RegistryIdOf,
 	/// The flag indicating the status of the stream.

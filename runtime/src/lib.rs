@@ -883,21 +883,6 @@ impl pallet_stream::Config for Runtime {
 	type MaxStreamCommits = MaxStreamCommits;
 }
 
-parameter_types! {
-	pub const MaxOpenStreamCommits: u32 = 1_000;
-	pub const MaxEncodedOpenStreamLength: u32 = 102_400;
-
-}
-
-impl pallet_open_stream::Config for Runtime {
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_open_stream::WeightInfo<Runtime>;
-	type MaxOpenStreamCommits = MaxOpenStreamCommits;
-	type MaxEncodedOpenStreamLength = MaxEncodedOpenStreamLength;
-}
-
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
@@ -938,8 +923,7 @@ construct_runtime! {
 		Schema: pallet_schema = 103,
 		Registry: pallet_registry = 104,
 		Stream: pallet_stream = 105,
-		OpenStream: pallet_open_stream = 106,
-		DidNames: pallet_did_names = 107,
+		DidNames: pallet_did_names = 106,
 		Sudo: pallet_sudo = 255,
 	}
 }
@@ -982,9 +966,6 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
 			},
 			RuntimeCall::Stream { .. } => {
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
-			},
-			RuntimeCall::OpenStream { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
 			},
 			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) => {
