@@ -83,13 +83,9 @@ pub mod runtime {
 	pub type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 	pub type Block = frame_system::mocking::MockBlock<Test>;
 	pub type Hash = sp_core::H256;
-	pub type Balance = u128;
 	pub type Signature = MultiSignature;
 	pub type AccountPublic = <Signature as Verify>::Signer;
 	pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
-
-	pub const UNIT: Balance = 10u128.pow(12);
-	pub const MILLI_UNIT: Balance = 10u128.pow(9);
 
 	frame_support::construct_runtime!(
 		pub enum Test where
@@ -99,7 +95,6 @@ pub mod runtime {
 		{
 			System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 			Schema: crate::{Pallet, Call, Storage, Event<T>},
-			Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
 		}
 	);
 
@@ -125,7 +120,6 @@ pub mod runtime {
 		type DbWeight = RocksDbWeight;
 		type Version = ();
 		type PalletInfo = PalletInfo;
-		type AccountData = pallet_balances::AccountData<Balance>;
 		type OnNewAccount = ();
 		type OnKilledAccount = ();
 		type SystemWeightInfo = ();
@@ -135,23 +129,6 @@ pub mod runtime {
 	}
 
 	parameter_types! {
-		pub const ExistentialDeposit: Balance = 500;
-	}
-
-	impl pallet_balances::Config for Test {
-		type Balance = Balance;
-		type DustRemoval = ();
-		type RuntimeEvent = ();
-		type ExistentialDeposit = ExistentialDeposit;
-		type AccountStore = System;
-		type WeightInfo = ();
-		type MaxLocks = ConstU32<50>;
-		type MaxReserves = ConstU32<50>;
-		type ReserveIdentifier = [u8; 8];
-	}
-
-	parameter_types! {
-		pub const Fee: Balance = 500;
 		pub const MaxSignatureByteLength: u16 = 64;
 		pub const MaxEncodedMetaLength: u32 = 5_000;
 	}
@@ -204,26 +181,14 @@ pub mod runtime {
 			self
 		}
 
-		pub(crate) fn with_balances(mut self, balances: Vec<(AccountId, Balance)>) -> Self {
-			self.balances = balances;
-			self
-		}
-
 		pub(crate) fn build(self) -> sp_io::TestExternalities {
 			let mut storage =
 				frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-			pallet_balances::GenesisConfig::<Test> { balances: self.balances.clone() }
-				.assimilate_storage(&mut storage)
-				.expect("assimilate should not fail");
 			let mut ext = sp_io::TestExternalities::new(storage);
-
 			ext.execute_with(|| {
 				for (identifier, owner) in self.schemas_stored.iter() {
 					Schemas::<Test>::insert(identifier, owner);
 				}
-				// for (schema_hash, identifier) in self.schema_hashes_stored.iter() {
-				// 	schema_hash::<Test>::insert(schema_hash, identifier);
-				// }
 			});
 
 			ext
