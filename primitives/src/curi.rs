@@ -24,7 +24,6 @@ use blake2_rfc::blake2b::{Blake2b, Blake2bResult};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::ensure;
 use frame_support::{sp_runtime::RuntimeDebug, traits::ConstU32, BoundedVec};
-use scale_info::prelude::string::String;
 use scale_info::TypeInfo;
 use sp_std::{fmt::Debug, prelude::Clone, str, vec};
 

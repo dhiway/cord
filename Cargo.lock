@@ -1346,7 +1346,6 @@ dependencies = [
  "pallet-message-queue",
  "pallet-multisig",
  "pallet-offences",
- "pallet-open-stream",
  "pallet-preimage",
  "pallet-registry",
  "pallet-scheduler",
@@ -5287,25 +5286,6 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-open-stream"
-version = "0.8.0"
-dependencies = [
- "cord-primitives",
- "cord-utilities",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-registry",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
 ]
 
 [[package]]

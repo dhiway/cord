@@ -21,7 +21,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(unused_crate_dependencies)]
 
-// use frame_support::{traits::ConstU32, BoundedVec};
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},

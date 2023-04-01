@@ -30,7 +30,6 @@ pub mod pallet_im_online;
 pub mod pallet_indices;
 pub mod pallet_membership;
 pub mod pallet_multisig;
-pub mod pallet_open_stream;
 pub mod pallet_preimage;
 pub mod pallet_registry;
 pub mod pallet_scheduler;

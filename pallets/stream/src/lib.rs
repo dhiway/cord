@@ -218,17 +218,27 @@ pub mod pallet {
 		pub fn create(
 			origin: OriginFor<T>,
 			stream_digest: StreamDigestOf<T>,
-			schema_id: SchemaIdOf,
 			authorization: AuthorizationIdOf,
+			schema_id: Option<SchemaIdOf>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
-				&authorization,
-				creator.clone(),
-				Some(schema_id.clone()),
-			)
-			.map_err(<pallet_registry::Error<T>>::from)?;
+			let registry_id: Ss58Identifier;
+			if let Some(schema_id) = schema_id.clone() {
+				registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
+					&authorization,
+					creator.clone(),
+					Some(schema_id.clone()),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+			} else {
+				registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
+					&authorization,
+					creator.clone(),
+					None,
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+			}
 
 			// Id Digest = concat (H(<scale_encoded_stream_digest>, <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
@@ -248,7 +258,7 @@ pub mod pallet {
 				StreamEntryOf::<T> {
 					digest: stream_digest,
 					creator: creator.clone(),
-					schema: schema_id.clone(),
+					schema: schema_id,
 					registry: registry_id,
 					revoked: false,
 				},
@@ -510,7 +520,7 @@ pub mod pallet {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
 					&authorization,
 					creator.clone(),
-					Some(stream_details.schema.clone()),
+					None,
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 
