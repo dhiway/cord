@@ -55,10 +55,7 @@ where
 }
 
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	let identifier = Ss58Identifier::generate(&(&digest).encode()[..])
-		.into_bytes()
-		.try_into()
-		.unwrap();
+	let identifier = Ss58Identifier::to_schema_id(digest).into_bytes().try_into().unwrap();
 	identifier
 }
 
@@ -120,6 +117,7 @@ pub mod runtime {
 		type DbWeight = RocksDbWeight;
 		type Version = ();
 		type PalletInfo = PalletInfo;
+		type AccountData = ();
 		type OnNewAccount = ();
 		type OnKilledAccount = ();
 		type SystemWeightInfo = ();
