@@ -20,12 +20,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod weights;
+mod mock;
 
 use codec::{Decode, Encode};
 use frame_support::dispatch::DispatchInfo;
 pub use pallet::*;
 
-pub use pallet::*;
 use sp_runtime::{
 	traits::{DispatchInfoOf, Dispatchable, SignedExtension},
 	transaction_validity::{
