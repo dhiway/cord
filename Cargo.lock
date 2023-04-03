@@ -5131,8 +5131,10 @@ name = "pallet-extrinsic-authorship"
 version = "0.8.0"
 dependencies = [
  "cord-primitives",
+ "cord-utilities",
  "frame-support",
  "frame-system",
+ "log",
  "parity-scale-codec",
  "scale-info",
  "serde",

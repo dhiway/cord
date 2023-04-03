@@ -11,6 +11,9 @@ repository = "https://github.com/dhiway/cord"
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40" }
 
+[dev-dependencies]
+cord-utilities = { package = "cord-utilities", path = "../../utilities", features = ["mock"] }
+
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = [
 	"derive",
@@ -27,20 +30,10 @@ sp-core = {git = "https://github.com/dhiway/substrate", default-features = false
 frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
 frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
 sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
+log = "0.4.17"
 
 [features]
 default = ['std']
-std = [
-    'codec/std',
-    "scale-info/std",
-    "cord-primitives/std",
-    'sp-std/std',
-    'sp-runtime/std',
-    'frame-support/std',
-    'sp-core/std',
-    'sp-io/std',
-    'frame-system/std',
-    'serde',
-]
+std = ['codec/std', "scale-info/std", "cord-primitives/std", 'sp-std/std', 'sp-runtime/std', 'frame-support/std', 'sp-core/std', 'sp-io/std', 'frame-system/std', 'serde']
 
 

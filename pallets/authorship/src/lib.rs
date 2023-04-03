@@ -20,7 +20,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod weights;
+#[cfg(any(test, feature = "runtime-benchmarks"))]
 mod mock;
+
+#[cfg(test)]
+mod tests;
 
 use codec::{Decode, Encode};
 use frame_support::dispatch::DispatchInfo;
@@ -37,6 +41,7 @@ use sp_runtime::{
 use sp_std::{marker::PhantomData, prelude::*};
 
 pub use weights::WeightInfo;
+
 
 #[frame_support::pallet]
 pub mod pallet {
