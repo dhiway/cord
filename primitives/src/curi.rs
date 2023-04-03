@@ -22,8 +22,7 @@ use crate::*;
 use base58::{FromBase58, ToBase58};
 use blake2_rfc::blake2b::{Blake2b, Blake2bResult};
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::ensure;
-use frame_support::{sp_runtime::RuntimeDebug, traits::ConstU32, BoundedVec};
+use frame_support::{ensure, sp_runtime::RuntimeDebug, traits::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
 use sp_std::{fmt::Debug, prelude::Clone, str, vec};
 
@@ -34,11 +33,9 @@ const IDENT_REG: u16 = 7101;
 const IDENT_AUTH: u16 = 10447;
 const IDENT_SCHEMA: u16 = 1424;
 const IDENT_STREAM: u16 = 8902;
-const IDENT_OPEN_STREAM: u16 = 3746;
 const IDENT_ENTITY: u16 = 6480;
 const IDENT_TEMPLATE: u16 = 5035;
 const IDENT_ASSET: u16 = 2604;
-const IDENT_UNIQUE: u16 = 11736;
 
 /// The minimum length of a valid identifier.
 pub const MINIMUM_IDENTIFIER_LENGTH: usize = 2;
@@ -158,9 +155,6 @@ impl Ss58Identifier {
 	pub fn to_stream_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_STREAM)
 	}
-	pub fn to_open_stream_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_OPEN_STREAM)
-	}
 	pub fn to_entity_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_ENTITY)
 	}
@@ -170,9 +164,6 @@ impl Ss58Identifier {
 	pub fn to_asset_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_ASSET)
 	}
-	pub fn to_unique_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_UNIQUE)
-	}
 	pub fn inner(&self) -> &[u8] {
 		&self.0
 	}
@@ -181,7 +172,7 @@ impl Ss58Identifier {
 		let identifier = str::from_utf8(id.inner()).map_err(|_| IdentifierError::InvalidFormat)?;
 		let data = identifier.from_base58().map_err(|_| IdentifierError::InvalidIdentifier)?;
 		if data.len() < 2 {
-			return Err(IdentifierError::InvalidIdentifierLength);
+			return Err(IdentifierError::InvalidIdentifierLength)
 		}
 		ensure!(
 			(identifier.len() > 2 && identifier.len() < 50),

@@ -22,11 +22,11 @@ if [ -z "$NODE_SEED" ]; then
 fi
 
 generate_account_id() {
-	subkey inspect -n cord ${3:-} ${4:-} "$NODE_SEED//$1//$2" | grep "Account ID" | awk '{ print $3 }'
+	./target/release/cord key inspect -n cord ${3:-} ${4:-} "$NODE_SEED//$1//$2" | grep "Account ID" | awk '{ print $3 }'
 }
 
 generate_address() {
-	subkey inspect -n cord ${3:-} ${4:-} "$NODE_SEED//$1//$2" | grep "SS58 Address" | awk '{ print $3 }'
+	./target/release/cord key inspect -n cord ${3:-} ${4:-} "$NODE_SEED//$1//$2" | grep "SS58 Address" | awk '{ print $3 }'
 }
 
 
