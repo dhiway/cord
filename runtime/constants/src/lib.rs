@@ -41,11 +41,11 @@ pub mod currency {
 /// Time and blocks.
 pub mod time {
 	use cord_primitives::{prod_or_fast, BlockNumber, Moment};
-	pub const MILLISECS_PER_BLOCK: Moment = 6000;
+	pub const MILLISECS_PER_BLOCK: Moment = 3000;
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-	pub const EPOCH_DURATION: BlockNumber = prod_or_fast!(5 * MINUTES, 4 * MINUTES);
+	pub const EPOCH_DURATION: BlockNumber = prod_or_fast!(2 * HOURS, 1 * MINUTES);
 
-	pub const MIN_BLOCK_PERIOD: u64 = SLOT_DURATION / 2;
+	pub const MINIMUM_DURATION: u64 = SLOT_DURATION / 2;
 
 	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
@@ -54,9 +54,6 @@ pub mod time {
 	pub const WEEKS: BlockNumber = DAYS * 7;
 	// Julian year as Substrate handles it
 	pub const YEAR: BlockNumber = DAYS * 36525 / 100;
-
-	pub const AUTHORSHIP_DURATION_IN_BLOCKS: BlockNumber = prod_or_fast!(YEAR, 16 * MINUTES);
-	pub const AUTHORSHIP_DELEGATION_IN_BLOCKS: BlockNumber = prod_or_fast!(HOURS, 8 * MINUTES);
 	// 1 in 4 blocks (on average, not counting collisions) will be primary babe
 	// blocks. The choice of is done in accordance to the slot duration and expected
 	// target block time, for safely resisting network delays of maximum two
@@ -112,7 +109,6 @@ mod tests {
 		fee::WeightToFee,
 	};
 	use crate::weights::ExtrinsicBaseWeight;
-	// use cord_runtime::MAXIMUM_BLOCK_WEIG HT;
 	use frame_support::weights::WeightToFee as WeightToFeeT;
 
 	pub const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND.saturating_mul(2);

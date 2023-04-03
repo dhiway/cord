@@ -154,13 +154,12 @@ type MoreThanHalfCouncil = EitherOfDiverse<
 /// We assume that an on-initialize consumes 1% of the weight on average, hence
 /// a single extrinsic will not be allowed to consume more than
 /// `AvailableBlockRatio - 1%`.
-pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
+pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
 /// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be
 /// used by  Operational  extrinsics.
 pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-/// We allow for 2 seconds of compute with a 6 second average block time.
-pub const MAXIMUM_BLOCK_WEIGHT: Weight =
-	Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2), u64::MAX);
+/// We allow for 1 second of compute with a 3 second average block time.
+pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND, u64::MAX);
 
 const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO.deconstruct());
 
@@ -234,7 +233,7 @@ pub struct OriginPrivilegeCmp;
 impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
 		if left == right {
-			return Some(Ordering::Equal);
+			return Some(Ordering::Equal)
 		}
 
 		match (left, right) {
@@ -376,9 +375,9 @@ impl pallet_transaction_payment::Config for Runtime {
 
 parameter_types! {
 		pub MinimumPeriod: u64 = prod_or_fast!(
-		MIN_BLOCK_PERIOD as u64,
+		MINIMUM_DURATION as u64,
 		500 as u64,
-		"CORD_MIN_BLOCK_DURATION"
+		"CORD_MINIMUM_DURATION"
 	);
 }
 
@@ -953,48 +952,34 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 		}
 		match self {
 			// DID creation is not allowed through the DID proxy.
-			RuntimeCall::Did(pallet_did::Call::create { .. }) => {
-				Err(pallet_did::RelationshipDeriveError::NotCallableByDid)
-			},
-			RuntimeCall::Did { .. } => {
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-			},
-			RuntimeCall::DidNames { .. } => {
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-			},
-			RuntimeCall::Schema { .. } => {
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
-			},
-			RuntimeCall::Stream { .. } => {
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::add_delegate { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::remove_delegate { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::create { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::archive { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::restore { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
-			},
-			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {
-				single_key_relationship(&calls[..])
-			},
-			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) => {
-				single_key_relationship(&calls[..])
-			},
-			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
-				single_key_relationship(&calls[..])
-			},
+			RuntimeCall::Did(pallet_did::Call::create { .. }) =>
+				Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
+			RuntimeCall::Did { .. } =>
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
+			RuntimeCall::DidNames { .. } =>
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
+			RuntimeCall::Schema { .. } =>
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			RuntimeCall::Stream { .. } =>
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
+			RuntimeCall::Registry(pallet_registry::Call::add_delegate { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
+			RuntimeCall::Registry(pallet_registry::Call::remove_delegate { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
+			RuntimeCall::Registry(pallet_registry::Call::create { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			RuntimeCall::Registry(pallet_registry::Call::archive { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			RuntimeCall::Registry(pallet_registry::Call::restore { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) =>
+				single_key_relationship(&calls[..]),
+			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) =>
+				single_key_relationship(&calls[..]),
+			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
+				single_key_relationship(&calls[..]),
 			#[cfg(not(feature = "runtime-benchmarks"))]
 			_ => Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
 			// By default, returns the authentication key

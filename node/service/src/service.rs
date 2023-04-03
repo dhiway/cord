@@ -38,12 +38,16 @@ pub use sc_executor::NativeExecutionDispatch;
 use sc_network::{event::Event, NetworkEventStream, NetworkService};
 use sc_network_sync::SyncingService;
 
+pub use sc_client_api::AuxStore;
 use sc_service::{
 	config::Configuration, error::Error as ServiceError, ChainSpec, PartialComponents, RpcHandlers,
 	TaskManager,
 };
 use sc_telemetry::{Telemetry, TelemetryWorker};
 pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi, StateBackend};
+pub use sp_authority_discovery::AuthorityDiscoveryApi;
+pub use sp_blockchain::{HeaderBackend, HeaderMetadata};
+pub use sp_consensus_babe::BabeApi;
 pub use sp_runtime::{
 	generic,
 	traits::{
@@ -53,12 +57,6 @@ pub use sp_runtime::{
 };
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
-pub use {
-	sc_client_api::AuxStore,
-	sp_authority_discovery::AuthorityDiscoveryApi,
-	sp_blockchain::{HeaderBackend, HeaderMetadata},
-	sp_consensus_babe::BabeApi,
-};
 
 pub trait IdentifyVariant {
 	/// Returns `true` if this is a configuration for Cord network.
@@ -167,7 +165,7 @@ where
 	ExecutorDispatch: NativeExecutionDispatch + 'static,
 {
 	if config.keystore_remote.is_some() {
-		return Err(ServiceError::Other("Remote Keystores are not supported.".into()));
+		return Err(ServiceError::Other("Remote Keystores are not supported.".into()))
 	}
 
 	let telemetry = config
@@ -565,7 +563,7 @@ where
 
 	let config = sc_consensus_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
-		gossip_duration: std::time::Duration::from_millis(1000),
+		gossip_duration: std::time::Duration::from_millis(2000),
 		justification_period: 512,
 		name: Some(name),
 		observer_enabled: false,
@@ -639,8 +637,8 @@ pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceE
 // 	disable_hardware_benchmarks: bool,
 // ) -> Result<TaskManager, ServiceError> {
 // 	match &config.chain_spec {
-// 		spec if spec.is_cord() => new_full_base::<cord_runtime::RuntimeApi, CordExecutorDispatch>(
-// 			config,
+// 		spec if spec.is_cord() => new_full_base::<cord_runtime::RuntimeApi,
+// CordExecutorDispatch>( 			config,
 // 			disable_hardware_benchmarks,
 // 			|_, _| (),
 // 		)
