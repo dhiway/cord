@@ -24,9 +24,8 @@ pub use crate::mock::runtime::*;
 // Mocks that are only used internally
 #[cfg(test)]
 pub(crate) mod runtime {
-	use cord_utilities::mock::{mock_origin, SubjectId};
-	use frame_support::{parameter_types, traits::GenesisBuild};
-	//use frame_system::{EnsureRoot, EnsureSignedBy};
+	use frame_support::{ord_parameter_types, parameter_types, traits::GenesisBuild};
+	use frame_system::EnsureSigned;
 	use sp_runtime::{
 		testing::Header,
 		traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
@@ -34,7 +33,7 @@ pub(crate) mod runtime {
 	};
 
 	// importing authorship as pallet_authorship
-	use crate as pallet_authorship;
+	use crate::{self as pallet_authorship};
 
 	type Index = u64;
 	type BlockNumber = u64;
@@ -55,17 +54,9 @@ pub(crate) mod runtime {
 			UncheckedExtrinsic = UncheckedExtrinsic,
 		{
 			System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-			Authorship: pallet_authorship::{Pallet, Storage, Call, Event<T>},
-			MockOrigin: mock_origin::{Pallet, Origin<T>},
+			Authorship: pallet_authorship::{Pallet, Storage, Call, Config<T>,Event<T>},
 		}
 	);
-
-
-	impl mock_origin::Config for Test {
-		type RuntimeOrigin = RuntimeOrigin;
-		type AccountId = AccountId;
-		type SubjectId = SubjectId;
-	}
 
 	parameter_types! {
 		pub const SS58Prefix: u8 = 29;
@@ -106,13 +97,12 @@ pub(crate) mod runtime {
 		pub const MaxAuthorityProposals: u32 = 5;
 	}
 
-	pub(crate) type TestDidNameOwner = SubjectId;
-	pub(crate) type TestDidNamePayer = AccountId;
-	pub(crate) type TestOwnerOrigin =
-		mock_origin::EnsureDoubleOrigin<TestDidNamePayer, TestDidNameOwner>;
-		
+	ord_parameter_types! {
+		pub const One:u64 = 1;
+	}
+
 	impl pallet_authorship::Config for Test {
-		type AuthorApproveOrigin = TestOwnerOrigin;
+		type AuthorApproveOrigin = EnsureSigned<AccountId>;
 		type RuntimeEvent = RuntimeEvent;
 		type MaxAuthorityProposals = MaxAuthorityProposals;
 		type WeightInfo = ();
@@ -120,13 +110,8 @@ pub(crate) mod runtime {
 
 	// These are test variable to be used in test cases
 	pub(crate) type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
-	pub(crate) const TEST_AUTHOR1: AccountId = AccountId::new([1u8; 32]);
-	pub(crate) const TEST_AUTHOR2: AccountId = AccountId::new([1u8; 32]);
-	pub(crate) const TEST_AUTHOR3: AccountId = AccountId::new([1u8; 32]);
-	//pub(crate) static mut TEST_MOCK_AUTHORS: Vec<CordAccountOf<Test>> = vec![TEST_AUTHOR2,TEST_AUTHOR3];
-	//pub(crate) const DID_01: TestDidNameOwner = SubjectId(TEST_AUTHOR1);
-	pub(crate) const DID_02: TestDidNameOwner = SubjectId(TEST_AUTHOR2);
-	//pub(crate) const DID_03: TestDidNameOwner = SubjectId(TEST_AUTHOR3);
+	pub(crate) const TEST_AUTHOR2: AccountId = AccountId::new([2u8; 32]);
+	pub(crate) const TEST_AUTHOR3: AccountId = AccountId::new([3u8; 32]);
 
 	#[derive(Clone, Default)]
 	pub struct ExtBuilder {
@@ -137,12 +122,12 @@ pub(crate) mod runtime {
 		pub fn build(self) -> sp_io::TestExternalities {
 			let mut storage =
 				frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-			pallet_authorship::GenesisConfig::<Test> { authors: vec![(TEST_AUTHOR1, ())] }
+			pallet_authorship::GenesisConfig::<Test> { authors: vec![(TEST_AUTHOR2, ()),(TEST_AUTHOR3, ())] }
 				.assimilate_storage(&mut storage)
 				.unwrap();
 			let mut ext = sp_io::TestExternalities::new(storage);
 
-			ext.execute_with(|| {});
+			ext.execute_with(|| System::set_block_number(1));
 			ext
 		}
 

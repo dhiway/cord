@@ -5134,7 +5134,6 @@ dependencies = [
  "cord-utilities",
  "frame-support",
  "frame-system",
- "log",
  "parity-scale-codec",
  "scale-info",
  "serde",
