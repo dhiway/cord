@@ -22,8 +22,11 @@
 // };
 
 use crate::{
-	Config, Event, InputSchemaOf, Pallet, SchemaCreatorOf, SchemaHashOf, SchemaIdOf, Ss58Identifier,
+	Config, Event, InputSchemaOf, SchemaCreatorOf, SchemaHashOf, SchemaIdOf, Ss58Identifier,
 };
+
+use crate as pallet_schema;
+
 use codec::Encode;
 use sp_core::H256;
 // use cord_utilities::signature;
@@ -55,17 +58,25 @@ where
 }
 
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	let identifier = Ss58Identifier::to_schema_id(digest).into_bytes().try_into().unwrap();
+	let identifier = Ss58Identifier::to_schema_id(&digest).into_bytes().try_into().unwrap();
 	identifier
 }
 
 #[cfg(test)]
 pub mod runtime {
+	use cord_utilities::{
+		mock::{
+			mock_origin::{self, DoubleOrigin},
+			SubjectId,
+		},
+		traits::CallSources,
+	};
 	use frame_support::{
 		parameter_types,
 		traits::{ConstU32, ConstU64},
 		weights::constants::RocksDbWeight,
 	};
+	use frame_system::Account;
 	use sp_core::{ed25519, sr25519, Pair};
 	use sp_runtime::{
 		testing::Header,
@@ -74,8 +85,7 @@ pub mod runtime {
 	};
 
 	use super::*;
-	use crate::Schemas;
-	use cord_utilities::mock::SubjectId;
+	use crate::{AccountIdOf, Schemas};
 
 	pub type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 	pub type Block = frame_system::mocking::MockBlock<Test>;
@@ -91,7 +101,8 @@ pub mod runtime {
 			UncheckedExtrinsic = UncheckedExtrinsic,
 		{
 			System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-			Schema: crate::{Pallet, Call, Storage, Event<T>},
+			Schema: pallet_schema::{Pallet, Call, Storage, Event<T>},
+			MockOrigin: mock_origin::{Pallet, Origin<T>},
 		}
 	);
 
@@ -112,7 +123,7 @@ pub mod runtime {
 		type AccountId = AccountId;
 		type Lookup = IdentityLookup<Self::AccountId>;
 		type Header = Header;
-		type RuntimeEvent = ();
+		type RuntimeEvent = RuntimeEvent;
 		type BlockHashCount = ConstU64<250>;
 		type DbWeight = RocksDbWeight;
 		type Version = ();
@@ -129,26 +140,40 @@ pub mod runtime {
 	parameter_types! {
 		pub const MaxSignatureByteLength: u16 = 64;
 		pub const MaxEncodedMetaLength: u32 = 5_000;
+		pub const MaxEncodedSchemaLength:u32 = 5_000;
+	}
+	pub(crate) type TestSchemaCreator = SubjectId;
+	pub(crate) type TestSchemaPayer = AccountId;
+	pub(crate) type TestOwnerOrigin =
+		mock_origin::EnsureDoubleOrigin<TestSchemaPayer, TestSchemaCreator>;
+	pub(crate) type TestOriginSuccess =
+		mock_origin::DoubleOrigin<TestSchemaPayer, TestSchemaCreator>;
+
+	impl<T: Config> CallSources<AccountIdOf<T>, SchemaCreatorOf<T>>
+		for DoubleOrigin<AccountIdOf<T>, SubjectId>
+	{
+		fn sender(&self) -> AccountIdOf<T> {
+			self.0.clone()	
+		}
+
+		fn subject(&self) -> SchemaCreatorOf<T> {
+			self.1.clone()
+		}
 	}
 
-	pub trait Config: frame_system::Config {
-		type Who;
-		type RuntimeEvent;
-		type OriginSuccess;
-		type SchemaCreatorId;
-		type MaxEncodedSchemaLength;
-		type WeightInfo;
-		type EnsureOrigin;
-		type Origin;
-	}
-	impl<T: frame_system::Config> Config for Test {
-		type Who = u64;
-		type RuntimeEvent = Event<T>;
-		type EnsureOrigin = frame_system::EnsureSignedBy<Self::Who, Self::AccountId>;
-		type OriginSuccess = ();
+	impl pallet_schema::Config for Test {
+		type RuntimeEvent = RuntimeEvent;
+		type EnsureOrigin = TestOwnerOrigin;
+		type OriginSuccess = TestOriginSuccess;
 		type SchemaCreatorId = AccountId32;
-		type MaxEncodedSchemaLength = Self::MaxEncodedSchemaLength;
-		type WeightInfo = Self::WeightInfo;
+		type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
+		type WeightInfo = ();
+	}
+
+	impl mock_origin::Config for Test {
+		type RuntimeOrigin = RuntimeOrigin;
+		type AccountId = AccountId;
+		type SubjectId = SubjectId;
 	}
 
 	pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
