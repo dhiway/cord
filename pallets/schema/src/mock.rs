@@ -23,37 +23,39 @@
 
 use crate::{
 	self as pallet_schema, Config, SchemaCreatorOf, SchemaEntryOf, SchemaHashOf, SchemaIdOf,
-	Ss58Identifier,
+	Ss58Identifier, Timepoint,
 };
 
 #[cfg(test)]
 pub use self::runtime::*;
 use codec::Encode;
+use cord_primitives::BlockNumber;
 use sp_core::H256;
 
 const DEFAULT_SCHEMA_HASH_SEED: u64 = 1u64;
 const ALTERNATIVE_SCHEMA_HASH_SEED: u64 = 2u64;
 
 // Generate a schema input using a many Default::default() as possible.
-pub fn generate_base_schema_creation_op<T: Config>(
-	digest: SchemaHashOf<T>,
-	creator: T::SchemaCreatorId,
-	signature: SchemaCreatorOf<Test>,
-) -> SchemaEntryOf<T> {
-	SchemaEntryOf::<T> { digest, creator, signature }
-}
+// pub fn generate_base_schema_creation_op<T: Config>(
+// 	digest: SchemaHashOf<T>,
+// 	creator: T::SchemaCreatorId,
+// 	signature: SchemaCreatorOf<Test>,
+// 	created_at: Timepoint<BlockNumber>,
+// ) -> SchemaEntryOf<T> {
+// 	SchemaEntryOf::<T> { digest, creator, signature, created_at }
+// }
 
-pub fn get_schema_hash<T>(default: bool) -> SchemaHashOf<T>
-where
-	T: Config,
-	T::Hash: From<H256>,
-{
-	if default {
-		H256::from_low_u64_be(DEFAULT_SCHEMA_HASH_SEED).into()
-	} else {
-		H256::from_low_u64_be(ALTERNATIVE_SCHEMA_HASH_SEED).into()
-	}
-}
+// pub fn get_schema_hash<T>(default: bool) -> SchemaHashOf<T>
+// where
+// 	T: Config,
+// 	T::Hash: From<H256>,
+// {
+// 	if default {
+// 		H256::from_low_u64_be(DEFAULT_SCHEMA_HASH_SEED).into()
+// 	} else {
+// 		H256::from_low_u64_be(ALTERNATIVE_SCHEMA_HASH_SEED).into()
+// 	}
+// }
 
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
 	let identifier = Ss58Identifier::to_schema_id(digest.as_ref()).into_bytes().try_into().unwrap();
@@ -174,7 +176,7 @@ pub mod runtime {
 
 	#[derive(Clone, Default)]
 	pub(crate) struct ExtBuilder {
-		schemas_stored: Vec<Ss58Identifier>,
+		schemas_stored: Vec<(Ss58Identifier, SubjectId)>,
 		schema_hashes_stored: Vec<(SchemaHashOf<Test>, Ss58Identifier)>,
 	}
 
