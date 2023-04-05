@@ -22,7 +22,7 @@
 // };
 
 use crate::{
-	self as pallet_schema, Config, InputSchemaOf, SchemaCreatorOf, SchemaHashOf, SchemaIdOf,
+	self as pallet_schema, Config, SchemaCreatorOf, SchemaEntryOf, SchemaHashOf, SchemaIdOf,
 	Ss58Identifier,
 };
 
@@ -39,8 +39,8 @@ pub fn generate_base_schema_creation_op<T: Config>(
 	digest: SchemaHashOf<T>,
 	creator: T::SchemaCreatorId,
 	signature: SchemaCreatorOf<Test>,
-) -> InputSchemaOf<T> {
-	InputSchemaOf::<T> { digest, creator, signature }
+) -> SchemaEntryOf<T> {
+	SchemaEntryOf::<T> { digest, creator, signature }
 }
 
 pub fn get_schema_hash<T>(default: bool) -> SchemaHashOf<T>
@@ -56,7 +56,7 @@ where
 }
 
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	let identifier = Ss58Identifier::to_schema_id(&digest).into_bytes().try_into().unwrap();
+	let identifier = Ss58Identifier::to_schema_id(digest.as_ref()).into_bytes().try_into().unwrap();
 	identifier
 }
 
@@ -73,7 +73,7 @@ pub mod runtime {
 	};
 
 	use super::*;
-	use crate::{AccountIdOf, Schemas};
+	use crate::{AccountIdOf, Schemas, WeightInfo};
 
 	pub type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 	pub type Block = frame_system::mocking::MockBlock<Test>;
@@ -173,13 +173,12 @@ pub mod runtime {
 	}
 
 	#[derive(Clone, Default)]
-	pub(crate) struct ExtBuilder<IdentifierOf> {
-		schemas_stored: Vec<IdentifierOf>,
+	pub(crate) struct ExtBuilder {
+		schemas_stored: Vec<Ss58Identifier>,
 		schema_hashes_stored: Vec<(SchemaHashOf<Test>, Ss58Identifier)>,
-		balances: Vec<AccountId>,
 	}
 
-	impl<IdentifierOf> ExtBuilder<IdentifierOf> {
+	impl ExtBuilder {
 		pub(crate) fn with_schemas(mut self, schemas: Vec<(Ss58Identifier, SubjectId)>) -> Self {
 			self.schemas_stored = schemas;
 			self
