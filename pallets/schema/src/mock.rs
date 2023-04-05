@@ -22,16 +22,14 @@
 // };
 
 use crate::{
-	Config, Event, InputSchemaOf, SchemaCreatorOf, SchemaHashOf, SchemaIdOf, Ss58Identifier,
+	self as pallet_schema, Config, InputSchemaOf, SchemaCreatorOf, SchemaHashOf, SchemaIdOf,
+	Ss58Identifier,
 };
 
-use crate as pallet_schema;
-
-use codec::Encode;
-use sp_core::H256;
-// use cord_utilities::signature;
 #[cfg(test)]
 pub use self::runtime::*;
+use codec::Encode;
+use sp_core::H256;
 
 const DEFAULT_SCHEMA_HASH_SEED: u64 = 1u64;
 const ALTERNATIVE_SCHEMA_HASH_SEED: u64 = 2u64;
@@ -64,19 +62,9 @@ pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
 
 #[cfg(test)]
 pub mod runtime {
-	use cord_utilities::{
-		mock::{
-			mock_origin::{self, DoubleOrigin},
-			SubjectId,
-		},
-		traits::CallSources,
-	};
-	use frame_support::{
-		parameter_types,
-		traits::{ConstU32, ConstU64},
-		weights::constants::RocksDbWeight,
-	};
-	use frame_system::Account;
+	use cord_utilities::mock::{mock_origin, SubjectId};
+	use frame_support::parameter_types;
+	use frame_system::EnsureRoot;
 	use sp_core::{ed25519, sr25519, Pair};
 	use sp_runtime::{
 		testing::Header,
@@ -94,6 +82,8 @@ pub mod runtime {
 	pub type AccountPublic = <Signature as Verify>::Signer;
 	pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 
+	type Index = u64;
+	type BlockNumber = u64;
 	frame_support::construct_runtime!(
 		pub enum Test where
 			Block = Block,
@@ -108,24 +98,25 @@ pub mod runtime {
 
 	parameter_types! {
 		pub const SS58Prefix: u8 = 29;
+		pub const BlockHashCount: u64 = 250;
 	}
 
 	impl frame_system::Config for Test {
 		type BaseCallFilter = frame_support::traits::Everything;
 		type BlockWeights = ();
 		type BlockLength = ();
+		type DbWeight = ();
 		type RuntimeOrigin = RuntimeOrigin;
 		type RuntimeCall = RuntimeCall;
-		type Index = u64;
-		type BlockNumber = u64;
+		type Index = Index;
+		type BlockNumber = BlockNumber;
 		type Hash = Hash;
 		type Hashing = BlakeTwo256;
 		type AccountId = AccountId;
 		type Lookup = IdentityLookup<Self::AccountId>;
 		type Header = Header;
 		type RuntimeEvent = RuntimeEvent;
-		type BlockHashCount = ConstU64<250>;
-		type DbWeight = RocksDbWeight;
+		type BlockHashCount = BlockHashCount;
 		type Version = ();
 		type PalletInfo = PalletInfo;
 		type AccountData = ();
@@ -134,7 +125,7 @@ pub mod runtime {
 		type SystemWeightInfo = ();
 		type SS58Prefix = SS58Prefix;
 		type OnSetCode = ();
-		type MaxConsumers = ConstU32<16>;
+		type MaxConsumers = frame_support::traits::ConstU32<16>;
 	}
 
 	parameter_types! {
@@ -149,22 +140,10 @@ pub mod runtime {
 	pub(crate) type TestOriginSuccess =
 		mock_origin::DoubleOrigin<TestSchemaPayer, TestSchemaCreator>;
 
-	impl<T: Config> CallSources<AccountIdOf<T>, SchemaCreatorOf<T>>
-		for DoubleOrigin<AccountIdOf<T>, SubjectId>
-	{
-		fn sender(&self) -> AccountIdOf<T> {
-			self.0.clone()	
-		}
-
-		fn subject(&self) -> SchemaCreatorOf<T> {
-			self.1.clone()
-		}
-	}
-
 	impl pallet_schema::Config for Test {
-		type RuntimeEvent = RuntimeEvent;
 		type EnsureOrigin = TestOwnerOrigin;
 		type OriginSuccess = TestOriginSuccess;
+		type RuntimeEvent = RuntimeEvent;
 		type SchemaCreatorId = AccountId32;
 		type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 		type WeightInfo = ();
@@ -176,14 +155,16 @@ pub mod runtime {
 		type SubjectId = SubjectId;
 	}
 
-	pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
-	pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
+	pub(crate) const ACCOUNT_00: TestSchemaPayer = AccountId::new([1u8; 32]);
+	pub(crate) const ACCOUNT_01: TestSchemaPayer = AccountId::new([2u8; 32]);
+	pub(crate) const DID_00: TestSchemaCreator = SubjectId(ACCOUNT_00);
+	pub(crate) const DID_01: TestSchemaCreator = SubjectId(ACCOUNT_01);
 
-	pub(crate) fn ed25519_did_from_seed(seed: &[u8; 32]) -> SubjectId {
+	pub(crate) fn ed25519_did_from_seed(seed: &[u8; 32]) -> TestSchemaCreator {
 		MultiSigner::from(ed25519::Pair::from_seed(seed).public()).into_account().into()
 	}
 
-	pub(crate) fn sr25519_did_from_seed(seed: &[u8; 32]) -> SubjectId {
+	pub(crate) fn sr25519_did_from_seed(seed: &[u8; 32]) -> TestSchemaCreator {
 		MultiSigner::from(sr25519::Pair::from_seed(seed).public()).into_account().into()
 	}
 
