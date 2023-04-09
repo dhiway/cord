@@ -55,7 +55,10 @@ fn check_successful_schema_creation() {
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
 	let digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&digest);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
 		// Author Transaction
@@ -65,16 +68,6 @@ fn check_successful_schema_creation() {
 		));
 
 		// Storage Checks
-		Schemas::<Test>::insert(
-			&schema_id,
-			SchemaEntryOf::<Test> {
-				schema: schema.clone(),
-				digest,
-				creator: creator.clone(),
-				created_at: 1,
-			},
-		);
-
 		let stored_schema = Schemas::<Test>::get(&schema_id)
 			.expect("Schema Identifier should be present on chain.");
 

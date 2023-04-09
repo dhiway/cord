@@ -170,7 +170,6 @@ pub(crate) mod runtime {
 
 			ext.execute_with(|| {
 				for (owner, did_name) in self.registered_did_names {
-					println!("Registered did names: {:?} {:?}", did_name.clone(), owner.clone());
 					pallet_did_names::Pallet::<Test>::register_name(did_name, owner);
 				}
 				for did_name in self.banned_did_names {
