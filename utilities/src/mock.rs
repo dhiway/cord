@@ -99,10 +99,10 @@ pub mod mock_origin {
 		}
 
 		#[cfg(feature = "runtime-benchmarks")]
-		fn successful_origin() -> OuterOrigin {
+		fn try_successful_origin() -> Result<OuterOrigin, ()> {
 			const TEST_ACC: AccountId32 = AccountId32::new([0u8; 32]);
 
-			OuterOrigin::from(DoubleOrigin(TEST_ACC.clone().into(), TEST_ACC.into()))
+			Ok(OuterOrigin::from(DoubleOrigin(TEST_ACC.clone().into(), TEST_ACC.into())))
 		}
 	}
 
@@ -120,6 +120,7 @@ pub mod mock_origin {
 	}
 }
 
+#[cfg_attr(feature = "std", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct SubjectId(pub AccountId32);
 
@@ -132,5 +133,11 @@ impl From<AccountId32> for SubjectId {
 impl From<sr25519::Public> for SubjectId {
 	fn from(acc: sr25519::Public) -> Self {
 		SubjectId(acc.into())
+	}
+}
+
+impl AsRef<[u8]> for SubjectId {
+	fn as_ref(&self) -> &[u8] {
+		self.0.as_ref()
 	}
 }

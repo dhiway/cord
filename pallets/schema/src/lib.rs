@@ -77,10 +77,16 @@ pub mod pallet {
 	pub(crate) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type of a Schema creator.
 	pub type SchemaCreatorOf<T> = <T as Config>::SchemaCreatorId;
+	/// Type for a block number.
+	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 
 	pub type InputSchemaOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedSchemaLength>;
-	pub type SchemaEntryOf<T> =
-		SchemaEntry<InputSchemaOf<T>, SchemaHashOf<T>, SchemaCreatorOf<T>, BlockNumberFor<T>>;
+	pub type SchemaEntryOf<T> = SchemaEntry<
+		InputSchemaOf<T>,
+		SchemaHashOf<T>,
+		<T as Config>::SchemaCreatorId,
+		BlockNumberOf<T>,
+	>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -107,8 +113,7 @@ pub mod pallet {
 	/// It maps from a schema identifier to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn schemas)]
-	pub type Schemas<T> =
-		StorageMap<_, Blake2_128Concat, SchemaIdOf, SchemaEntryOf<T>, OptionQuery>;
+	pub type Schemas<T> = StorageMap<_, Blake2_128Concat, SchemaIdOf, SchemaEntryOf<T>>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -160,7 +165,8 @@ pub mod pallet {
 				Error::<T>::MaxEncodedSchemaLimitExceeded
 			);
 
-			// Id Digest = concat (H(<scale_encoded_schema_input>, <scale_encoded_creator_identifier>))
+			// Id Digest = concat (H(<scale_encoded_schema_input>,
+			// <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[&tx_schema.encode()[..], &creator.encode()[..]].concat()[..],
 			);
@@ -171,6 +177,16 @@ pub mod pallet {
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 
 			let digest = <T as frame_system::Config>::Hashing::hash(&tx_schema[..]);
+			let block_number = frame_system::Pallet::<T>::block_number();
+
+			log::info!(
+				"Schema created with identifier: {:?}, schema: {:?} digest: {:?}, creator: {:?}, block_number: {:?}",
+				identifier,
+				tx_schema,
+				digest,
+				creator,
+				block_number
+			);
 
 			<Schemas<T>>::insert(
 				&identifier,
@@ -178,7 +194,7 @@ pub mod pallet {
 					schema: tx_schema,
 					digest,
 					creator: creator.clone(),
-					created_at: Self::timepoint(),
+					created_at: block_number,
 				},
 			);
 
@@ -190,21 +206,8 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// `timepoint()` returns a `Timepoint` struct containing the current block number and the current
-	/// extrinsic index
-	///
-	/// Returns:
-	///
-	/// A `Timepoint` struct.
-	/// The current `Timepoint`.
-	pub fn timepoint() -> Timepoint<T::BlockNumber> {
-		Timepoint {
-			height: frame_system::Pallet::<T>::block_number(),
-			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
-		}
-	}
-	/// `ensure!` is a macro that takes a boolean expression and an error type. If the expression is false,
-	/// it returns the error
+	/// `ensure!` is a macro that takes a boolean expression and an error type.
+	/// If the expression is false, it returns the error
 	///
 	/// Arguments:
 	///
