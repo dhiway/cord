@@ -1,5 +1,7 @@
-use crate::{mock::*,Error,ExtrinsicAuthors};
-use frame_support::{assert_ok, assert_noop};
+use crate::{mock::*,ExtrinsicAuthors,Error};
+use cord_primitives::AccountId;
+use frame_support::{assert_ok,assert_err, error::BadOrigin};
+use frame_system::RawOrigin;
 
 
 
@@ -8,7 +10,7 @@ fn add() {
 	ExtBuilder::default().build().execute_with(|| {
 		let test_mock_authors: Vec<CordAccountOf<Test>> = vec![TEST_AUTHOR2,TEST_AUTHOR3];
 		assert_ok!(Authorship::add(
-			RuntimeOrigin::signed(TEST_AUTHOR2),
+			RawOrigin::Root.into(),
 			test_mock_authors.clone()
 		));
 		
@@ -24,9 +26,34 @@ fn remove() {
 		let test_mock_authors: Vec<CordAccountOf<Test>> = vec![TEST_AUTHOR2];
 		<ExtrinsicAuthors<Test>>::insert(TEST_AUTHOR2, ());
 		assert_ok!(Authorship::remove(
-			RuntimeOrigin::signed(TEST_AUTHOR2),
+			RawOrigin::Root.into(),
 			test_mock_authors.clone()
 		));
 		assert_eq!(System::event_count(), 1);
 	})
 }
+
+#[test]
+	fn author_other_than_root(){
+		ExtBuilder::default().build().execute_with(|| {
+			let test_mock_authors: Vec<CordAccountOf<Test>> = vec![TEST_AUTHOR2];
+			<ExtrinsicAuthors<Test>>::insert(TEST_AUTHOR2, ());
+			assert_err!(Authorship::remove(
+				RuntimeOrigin::signed(TEST_AUTHOR2.clone()),
+				test_mock_authors.clone()
+			),BadOrigin);
+		})
+	}
+
+	#[test]
+	fn max_author(){
+		ExtBuilder::default().build().
+		execute_with(|| {
+			// let test_mock_authors: Vec<CordAccountOf<Test>> = vec![TEST_AUTHOR2];
+			<ExtrinsicAuthors<Test>>::insert(TEST_AUTHOR2, ());
+			assert_err!(Authorship::add(
+				RawOrigin::Root.into(),
+				vec![AccountId::new([2u8; 32]),AccountId::new([3u8; 32]),AccountId::new([4u8; 32]),AccountId::new([5u8; 32]),AccountId::new([6u8; 32]),AccountId::new([7u8; 32])],
+			),Error::<Test>::TooManyAuthorityProposals);
+		})
+	}	

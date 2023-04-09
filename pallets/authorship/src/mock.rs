@@ -25,7 +25,7 @@ pub use crate::mock::runtime::*;
 #[cfg(test)]
 pub(crate) mod runtime {
 	use frame_support::{ord_parameter_types, parameter_types, traits::GenesisBuild};
-	use frame_system::EnsureSigned;
+	use frame_system::EnsureRoot;
 	use sp_runtime::{
 		testing::Header,
 		traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
@@ -102,7 +102,7 @@ pub(crate) mod runtime {
 	}
 
 	impl pallet_authorship::Config for Test {
-		type AuthorApproveOrigin = EnsureSigned<AccountId>;
+		type AuthorApproveOrigin = EnsureRoot<AccountId>;
 		type RuntimeEvent = RuntimeEvent;
 		type MaxAuthorityProposals = MaxAuthorityProposals;
 		type WeightInfo = ();
@@ -110,13 +110,15 @@ pub(crate) mod runtime {
 
 	// These are test variable to be used in test cases
 	pub(crate) type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
-	pub(crate) const TEST_AUTHOR2: AccountId = AccountId::new([2u8; 32]);
+	pub(crate) const TEST_AUTHOR2: AccountId = AccountId::new([10u8; 32]);
 	pub(crate) const TEST_AUTHOR3: AccountId = AccountId::new([3u8; 32]);
 
 	#[derive(Clone, Default)]
 	pub struct ExtBuilder {
 		authors: Vec<AccountId>,
 	}
+
+
 
 	impl ExtBuilder {
 		pub fn build(self) -> sp_io::TestExternalities {

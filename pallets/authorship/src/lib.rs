@@ -20,15 +20,16 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod weights;
+
+use codec::{Decode, Encode};
+use frame_support::dispatch::DispatchInfo;
+pub use pallet::*;
+
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 mod mock;
 
 #[cfg(test)]
 mod tests;
-
-use codec::{Decode, Encode};
-use frame_support::dispatch::DispatchInfo;
-pub use pallet::*;
 
 use sp_runtime::{
 	traits::{DispatchInfoOf, Dispatchable, SignedExtension},
@@ -41,7 +42,6 @@ use sp_runtime::{
 use sp_std::{marker::PhantomData, prelude::*};
 
 pub use weights::WeightInfo;
-
 
 #[frame_support::pallet]
 pub mod pallet {
