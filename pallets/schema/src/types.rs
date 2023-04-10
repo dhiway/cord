@@ -19,17 +19,6 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::RuntimeDebug;
 use scale_info::TypeInfo;
 
-/// A global index, formed as the extrinsic index within a block, together with that block's height.
-#[derive(
-	Copy, Clone, Eq, PartialEq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen,
-)]
-pub struct Timepoint<BlockNumber> {
-	/// The height of the chain at the point in time.
-	pub height: BlockNumber,
-	/// The index of the extrinsic at the point in time.
-	pub index: u32,
-}
-
 /// An on-chain schema details mapped to an identifier.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 
@@ -41,5 +30,5 @@ pub struct SchemaEntry<InputSchemaOf, SchemaHashOf, SchemaCreatorOf, BlockNumber
 	/// Schema controller.
 	pub creator: SchemaCreatorOf,
 	/// The extrinsic in which schema is included
-	pub created_at: Timepoint<BlockNumber>,
+	pub created_at: BlockNumber,
 }

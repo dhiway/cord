@@ -109,9 +109,12 @@ mod tests {
 		fee::WeightToFee,
 	};
 	use crate::weights::ExtrinsicBaseWeight;
-	use frame_support::weights::WeightToFee as WeightToFeeT;
+	use frame_support::weights::{
+		constants::WEIGHT_REF_TIME_PER_SECOND, Weight, WeightToFee as WeightToFeeT,
+	};
 
-	pub const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND.saturating_mul(2);
+	pub const MAXIMUM_BLOCK_WEIGHT: Weight =
+		Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND, u64::MAX);
 
 	#[test]
 	// Test that the fee for `MAXIMUM_BLOCK_WEIGHT` of weight has sane bounds.
