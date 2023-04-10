@@ -52,19 +52,18 @@ pub mod benchmarking;
 #[cfg(test)]
 pub mod tests;
 
-
 pub mod types;
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
 use frame_support::ensure;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::*;
+	use super::WeightInfo;
+	use crate::SchemaEntry;
 	pub use cord_primitives::curi::Ss58Identifier;
 	pub use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
 	use frame_system::pallet_prelude::*;
-
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
@@ -141,7 +140,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Create a new schema and associates with its identifier.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		#[pallet::weight(<T as Config>::WeightInfo::create())]
 		pub fn create(origin: OriginFor<T>, tx_schema: InputSchemaOf<T>) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 

@@ -57,8 +57,8 @@ const ALTERNATIVE_SCHEMA_HASH_SEED: u64 = 2u64;
 // 	}
 // }
 
-pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	let identifier = Ss58Identifier::to_schema_id(digest.as_ref()).into_bytes().try_into().unwrap();
+pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> Ss58Identifier {
+	let identifier = Ss58Identifier::to_schema_id(&digest.encode()).unwrap();
 	identifier
 }
 
@@ -66,7 +66,6 @@ pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
 pub mod runtime {
 	use cord_utilities::mock::{mock_origin, SubjectId};
 	use frame_support::parameter_types;
-	use frame_system::EnsureRoot;
 	use sp_core::{ed25519, sr25519, Pair};
 	use sp_runtime::{
 		testing::Header,
@@ -76,7 +75,6 @@ pub mod runtime {
 
 	use super::*;
 	use crate::{AccountIdOf, Schemas, WeightInfo};
-
 	pub type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 	pub type Block = frame_system::mocking::MockBlock<Test>;
 	pub type Hash = sp_core::H256;
@@ -146,7 +144,7 @@ pub mod runtime {
 		type EnsureOrigin = TestOwnerOrigin;
 		type OriginSuccess = TestOriginSuccess;
 		type RuntimeEvent = RuntimeEvent;
-		type SchemaCreatorId = AccountId32;
+		type SchemaCreatorId = SubjectId;
 		type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 		type WeightInfo = ();
 	}

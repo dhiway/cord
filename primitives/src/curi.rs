@@ -179,7 +179,7 @@ impl Ss58Identifier {
 
 	pub fn to_schema_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_SCHEMA)
-	}
+	}	
 
 	pub fn to_stream_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_STREAM)
