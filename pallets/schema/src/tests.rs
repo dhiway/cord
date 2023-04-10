@@ -16,78 +16,85 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use cord_primitives::IdentifierOf;
-// use cord_utilities::mock::mock_origin::DoubleOrigin;
-use frame_support::{assert_noop, assert_ok, sp_runtime::traits::Hash};
+use crate::{mock::*, *};
+use codec::Encode;
+use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
+use frame_support::{assert_noop, assert_ok, BoundedVec};
+use sp_core::H256;
+use sp_runtime::{traits::Hash, AccountId32};
+use sp_std::prelude::*;
+const DEFAULT_SCHEMA_HASH_SEED: u64 = 1u64;
+const ALTERNATIVE_SCHEMA_HASH_SEED: u64 = 2u64;
 
-use crate::{
-	self as schema,
-	mock::{generate_schema_id, runtime::*},
-};
+pub fn get_schema_hash<T>(default: bool) -> SchemaHashOf<T>
+where
+	T: Config,
+	T::Hash: From<H256>,
+{
+	if default {
+		H256::from_low_u64_be(DEFAULT_SCHEMA_HASH_SEED).into()
+	} else {
+		H256::from_low_u64_be(ALTERNATIVE_SCHEMA_HASH_SEED).into()
+	}
+}
+
+pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
+	let identifier = Ss58Identifier::to_schema_id(&(digest).encode()[..]).unwrap();
+	identifier
+}
 
 // submit_schema_creation_operation
+pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
+pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
 
 #[test]
 fn check_successful_schema_creation() {
 	let creator = DID_00;
-	let deposit_owner = ACCOUNT_00;
-	let schema = [9u8; 256].to_vec();
-	let schema_hash = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
-	let schema_id: IdentifierOf = generate_schema_id::<Test>(&schema_hash);
-	let initial_balance = <Test as schema::Config>::Fee::get() * 2;
-	ExtBuilder::default()
-		.with_balances(vec![(deposit_owner.clone(), initial_balance)])
-		.build()
-		.execute_with(|| {
-			assert_ok!(Schema::create(
-				DoubleOrigin(deposit_owner.clone(), creator.clone()).into(),
-				schema
-			));
-			let stored_schema_creator =
-				Schema::schemas(&schema_id).expect("Schema Identifier should be present on chain.");
-			let stored_schema_identifier = Schema::schema_hashes(&schema_hash)
-				.expect("Schema Hash should be present on chain.");
-			// Verify the Schema has the right owner
-			assert_eq!(stored_schema_creator, creator);
-			// Verify the Schema hash is mapped to an identifier
-			assert_eq!(stored_schema_identifier, schema_id);
-			assert_eq!(
-				Balances::free_balance(deposit_owner),
-				initial_balance.saturating_sub(<Test as schema::Config>::Fee::get())
-			);
-		});
-}
+	let author = ACCOUNT_00;
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
 
-#[test]
-fn insufficient_funds() {
-	let creator = DID_00;
-	let deposit_owner = ACCOUNT_00;
-	let schema = [9u8; 256].to_vec();
+	new_test_ext().execute_with(|| {
+		// Author Transaction
+		assert_ok!(Schema::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			schema.clone()
+		));
 
-	ExtBuilder::default().build().execute_with(|| {
-		assert_noop!(
-			Schema::create(DoubleOrigin(deposit_owner, creator).into(), schema),
-			schema::Error::<Test>::UnableToPayFees
-		);
+		// Storage Checks
+		let stored_schema = Schemas::<Test>::get(&schema_id)
+			.expect("Schema Identifier should be present on chain.");
+
+		// Verify the Schema has the right owner
+		assert_eq!(stored_schema.creator, creator);
+		// Verify the Schema digest is mapped correctly
+		assert_eq!(stored_schema.digest, digest);
 	});
 }
 
 #[test]
 fn check_duplicate_schema_creation() {
 	let creator = DID_00;
-	let deposit_owner = ACCOUNT_00;
-	let schema = [9u8; 256].to_vec();
-	let schema_hash = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
-	let schema_id = generate_schema_id::<Test>(&schema_hash);
-
-	ExtBuilder::default()
-		.with_schemas(vec![(schema_id, creator.clone())])
-		.with_balances(vec![(deposit_owner.clone(), <Test as schema::Config>::Fee::get() * 2)])
-		.build()
-		.execute_with(|| {
-			assert_noop!(
-				Schema::create(DoubleOrigin(deposit_owner, creator).into(), schema),
-				schema::Error::<Test>::SchemaAlreadyAnchored
-			);
-		});
+	let author = ACCOUNT_00;
+	let raw_schema = [9u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	new_test_ext().execute_with(|| {
+		// Author Transaction
+		assert_ok!(Schema::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			schema.clone()
+		));
+		// Try Author the same schema again. should fail.
+		assert_noop!(
+			Schema::create(DoubleOrigin(author, creator).into(), schema),
+			Error::<Test>::SchemaAlreadyAnchored
+		);
+	});
 }

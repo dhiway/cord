@@ -110,11 +110,10 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
+	#[derive(Debug, Clone, Eq, PartialEq)]
+	pub const MaxKeyAgreementKeys: u32 = 10u32;
 	#[derive(Debug, Clone, Eq, PartialEq)]
 	pub const MaxUrlLength: u32 = 200u32;
-	#[derive(Debug, Clone, Eq, PartialEq)]
-	pub const MaxTotalKeyAgreementKeys: u32 = 10u32;
 	// IMPORTANT: Needs to be at least MaxTotalKeyAgreementKeys + 3 (auth, delegation, assertion keys) for benchmarks!
 	#[derive(Debug, Clone)]
 	pub const MaxPublicKeysPerDid: u32 = 13u32;
@@ -147,8 +146,7 @@ impl Config for Test {
 	type OriginSuccess = AccountId;
 	type RuntimeEvent = ();
 	// type Currency = Balances;
-	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
-	type MaxTotalKeyAgreementKeys = MaxTotalKeyAgreementKeys;
+	type MaxKeyAgreementKeys = MaxKeyAgreementKeys;
 	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
 	type MaxBlocksTxValidity = MaxBlocksTxValidity;
 	type WeightInfo = ();

@@ -33,7 +33,10 @@ pub(crate) mod runtime {
 		MultiSignature,
 	};
 
-	use crate::{self as pallet_did_names, did_name::AsciiDidName};
+	use crate::{
+		self as pallet_did_names,
+		did_name::{self, AsciiDidName},
+	};
 
 	type Index = u64;
 	type BlockNumber = u64;
@@ -169,7 +172,6 @@ pub(crate) mod runtime {
 				for (owner, did_name) in self.registered_did_names {
 					pallet_did_names::Pallet::<Test>::register_name(did_name, owner);
 				}
-
 				for did_name in self.banned_did_names {
 					assert!(pallet_did_names::Owner::<Test>::get(&did_name).is_none());
 					pallet_did_names::Pallet::<Test>::ban_name(&did_name);

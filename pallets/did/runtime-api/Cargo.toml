@@ -17,8 +17,8 @@ scale-info = { version = "2.1.2", default-features = false, features = ["derive"
 pallet-did = { package = "pallet-did", path="../../did", default-features = false }
 
 # Substrate 
-sp-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", default-features = false }
+sp-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
 
 [features]
 default = ["std"]
