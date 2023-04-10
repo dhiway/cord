@@ -33,7 +33,8 @@ fn check_successful_schema_creation() {
 	let creator = DID_00;
 	let deposit_owner = ACCOUNT_00;
 	let schema = [9u8; 256].to_vec();
-	let bounded_schema = BoundedVec::try_from(schema.clone()).expect("Failed to create BoundedVec");
+	let bounded_schema = BoundedVec::<u8, MaxEncodedSchemaLength>::try_from(schema.clone())
+		.expect("Failed to create BoundedVec");
 	let schema_hash = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
 	let schema_id: Ss58Identifier = generate_schema_id::<Test>(&schema_hash);
 	ExtBuilder::default().build().execute_with(|| {
@@ -44,7 +45,7 @@ fn check_successful_schema_creation() {
 		let stored_schema =
 			Schema::schemas(&schema_id).expect("Schema Identifier should be present on chain.");
 		// Verify the Schema has the right owner
-		assert_eq!(stored_schema, creator);
+		assert_eq!(stored_schema.creator, creator);
 	});
 }
 
@@ -53,6 +54,7 @@ fn check_duplicate_schema_creation() {
 	let creator = DID_00;
 	let deposit_owner = ACCOUNT_00;
 	let schema = [9u8; 256].to_vec();
+	let bounded_schema = BoundedVec::try_from(schema.clone()).expect("Failed to create BoundedVec");
 	let schema_hash = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
 	let schema_id = generate_schema_id::<Test>(&schema_hash);
 
@@ -61,7 +63,7 @@ fn check_duplicate_schema_creation() {
 		.build()
 		.execute_with(|| {
 			assert_noop!(
-				Schema::create(DoubleOrigin(deposit_owner, creator).into(), schema),
+				Schema::create(DoubleOrigin(deposit_owner, creator).into(), bounded_schema.clone()),
 				schema::Error::<Test>::SchemaAlreadyAnchored
 			);
 		});

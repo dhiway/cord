@@ -190,7 +190,7 @@ pub mod runtime {
 			let mut ext = sp_io::TestExternalities::new(storage);
 			ext.execute_with(|| {
 				for (identifier, owner) in self.schemas_stored.iter() {
-					Schemas::<Test>::insert(identifier, owner);
+					Schemas::<Test>::insert(identifier, owner.clone());
 				}
 			});
 
