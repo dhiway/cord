@@ -27,7 +27,6 @@ use sp_std::{
 
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 use crate::{cord_utilities::mock::*,tests::*, *};
-
 const SEED: u32 = 0;
 const MAX_SCHEMA_SIZE: u32 = 5 * 1024 * 1024;
 
@@ -45,10 +44,10 @@ benchmarks! {
 
 		let schema: Vec<u8> = (0u8..u8::MAX).cycle().take(l.try_into().unwrap()).collect();
 		let schema_hash = <T as frame_system::Config>::Hashing::hash(&schema[..]);
-		let id_digest = <Test as frame_system::Config>::Hashing::hash(
-			&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
+		let id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&schema.encode()[..], &did.encode()[..]].concat()[..],
 		);
-		let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
+		let schema_id: SchemaIdOf = generate_schema_id::<T>(&id_digest);
 
 		let origin = T::EnsureOrigin::generate_origin(caller, did.clone());
 
