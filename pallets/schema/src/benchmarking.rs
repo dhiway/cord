@@ -48,18 +48,17 @@ benchmarks! {
 		let id_digest = <Test as frame_system::Config>::Hashing::hash(
 			&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
 		);
-		let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_hash);
+		let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
 
 		let origin = T::EnsureOrigin::generate_origin(caller, did.clone());
 
 	}: _<T::Origin>(origin, schema)
 	verify {
 		let stored_schema_creator: T::SchemaCreatorId = Schemas::<T>::get(&schema_id).expect("Schema Identifier should be present on chain.");
-		let stored_schema_hash: SchemaHashOf<T> = stored_schema_creator.digest;
 		// Verify the Schema has the right owner
 		assert_eq!(stored_schema_creator.creator, did);
 		// Verify the Schema hash is mapped to an identifier
-		assert_eq!(stored_schema_hash, schema_hash);
+		assert_eq!(stored_schema_creator.digest, schema_hash);
 	}
 }
 
