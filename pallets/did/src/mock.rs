@@ -1,7 +1,7 @@
 // This file is part of CORD – https://cord.network
 
 // Copyright (C) 2019-2023 BOTLabs GmbH.
-// Copyright (C) 2023 Dhiway.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Adapted to meet the requirements of the CORD project.
 
@@ -110,11 +110,10 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
+	#[derive(Debug, Clone, Eq, PartialEq)]
+	pub const MaxKeyAgreementKeys: u32 = 10u32;
 	#[derive(Debug, Clone, Eq, PartialEq)]
 	pub const MaxUrlLength: u32 = 200u32;
-	#[derive(Debug, Clone, Eq, PartialEq)]
-	pub const MaxTotalKeyAgreementKeys: u32 = 10u32;
 	// IMPORTANT: Needs to be at least MaxTotalKeyAgreementKeys + 3 (auth, delegation, assertion keys) for benchmarks!
 	#[derive(Debug, Clone)]
 	pub const MaxPublicKeysPerDid: u32 = 13u32;
@@ -147,8 +146,7 @@ impl Config for Test {
 	type OriginSuccess = AccountId;
 	type RuntimeEvent = ();
 	// type Currency = Balances;
-	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
-	type MaxTotalKeyAgreementKeys = MaxTotalKeyAgreementKeys;
+	type MaxKeyAgreementKeys = MaxKeyAgreementKeys;
 	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
 	type MaxBlocksTxValidity = MaxBlocksTxValidity;
 	type WeightInfo = ();

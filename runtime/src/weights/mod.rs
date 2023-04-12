@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // CORD is free software: you can redistribute it and/or modify
@@ -30,7 +30,6 @@ pub mod pallet_im_online;
 pub mod pallet_indices;
 pub mod pallet_membership;
 pub mod pallet_multisig;
-pub mod pallet_open_stream;
 pub mod pallet_preimage;
 pub mod pallet_registry;
 pub mod pallet_scheduler;

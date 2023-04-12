@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // CORD is free software: you can redistribute it and/or modify
@@ -57,8 +57,8 @@ pub struct RegistryEntry<InputRegistryOf, RegistryHashOf, SchemaIdOf, RegistryCr
 	pub details: InputRegistryOf,
 	/// Registry hash.
 	pub digest: RegistryHashOf,
-	/// Schema identifier.
-	pub schema: SchemaIdOf,
+	///  \[OPTIONAL\] Schema identifier.
+	pub schema: Option<SchemaIdOf>,
 	/// Registry creator.
 	pub creator: RegistryCreatorIdOf,
 	/// The flag indicating the status of the registry.
@@ -73,8 +73,8 @@ pub struct RegistryAuthorization<RegistryIdOf, RegistryCreatorIdOf, SchemaIdOf, 
 	pub registry_id: RegistryIdOf,
 	/// Registry delegate.
 	pub delegate: RegistryCreatorIdOf,
-	/// Schema identifier.
-	pub schema: SchemaIdOf,
+	///  \[OPTIONAL\] Schema identifier.
+	pub schema: Option<SchemaIdOf>,
 	/// Registry creator.
 	pub permissions: Permissions,
 }

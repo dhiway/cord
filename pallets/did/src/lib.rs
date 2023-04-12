@@ -1,7 +1,7 @@
 // This file is part of CORD – https://cord.network
 
 // Copyright (C) 2019-2023 BOTLabs GmbH.
-// Copyright (C) 2023 Dhiway.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Adapted to meet the requirements of the CORD project.
 
@@ -133,7 +133,6 @@ pub mod pallet {
 	use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, traits::StorageVersion};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::BadOrigin;
 
 	use crate::{
 		did_details::{
@@ -169,11 +168,6 @@ pub mod pallet {
 	/// Type for origin that supports a DID sender.
 	#[pallet::origin]
 	pub type Origin<T> = DidRawOrigin<DidIdentifierOf<T>, AccountIdOf<T>>;
-
-	// pub type BalanceOf<T> = <CurrencyOf<T> as Currency<AccountIdOf<T>>>::Balance;
-	// pub(crate) type CurrencyOf<T> = <T as Config>::Currency;
-	// pub(crate) type NegativeImbalanceOf<T> =
-	// <<T as Config>::Currency as Currency<AccountIdOf<T>>>::NegativeImbalance;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + Debug {
@@ -254,7 +248,6 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
@@ -499,8 +492,6 @@ pub mod pallet {
 			signature: DidSignature,
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
-
-			ensure!(sender == details.submitter, BadOrigin);
 
 			let did_identifier = details.did.clone();
 

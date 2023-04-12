@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 Dhiway Networks Pvt. Ltd.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // CORD is free software: you can redistribute it and/or modify
@@ -35,14 +35,19 @@ use sc_client_api::{Backend as BackendT, BlockBackend, UsageProvider};
 use sc_consensus_babe::{self, SlotProportion};
 use sc_executor::NativeElseWasmExecutor;
 pub use sc_executor::NativeExecutionDispatch;
-use sc_network::NetworkService;
-use sc_network_common::{protocol::event::Event, service::NetworkEventStream};
+use sc_network::{event::Event, NetworkEventStream, NetworkService};
+use sc_network_sync::SyncingService;
+
+pub use sc_client_api::AuxStore;
 use sc_service::{
 	config::Configuration, error::Error as ServiceError, ChainSpec, PartialComponents, RpcHandlers,
 	TaskManager,
 };
 use sc_telemetry::{Telemetry, TelemetryWorker};
 pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi, StateBackend};
+pub use sp_authority_discovery::AuthorityDiscoveryApi;
+pub use sp_blockchain::{HeaderBackend, HeaderMetadata};
+pub use sp_consensus_babe::BabeApi;
 pub use sp_runtime::{
 	generic,
 	traits::{
@@ -52,12 +57,6 @@ pub use sp_runtime::{
 };
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
-pub use {
-	sc_client_api::AuxStore,
-	sp_authority_discovery::AuthorityDiscoveryApi,
-	sp_blockchain::{HeaderBackend, HeaderMetadata},
-	sp_consensus_babe::BabeApi,
-};
 
 pub trait IdentifyVariant {
 	/// Returns `true` if this is a configuration for Cord network.
@@ -79,7 +78,7 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 /// The full client type definition.
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport<RuntimeApi, ExecutorDispatch, ChainSelection = FullSelectChain> =
-	sc_finality_grandpa::GrandpaBlockImport<
+	sc_consensus_grandpa::GrandpaBlockImport<
 		FullBackend,
 		Block,
 		FullClient<RuntimeApi, ExecutorDispatch>,
@@ -143,14 +142,14 @@ pub fn new_partial<RuntimeApi, ExecutorDispatch>(
 					FullClient<RuntimeApi, ExecutorDispatch>,
 					FullGrandpaBlockImport<RuntimeApi, ExecutorDispatch>,
 				>,
-				sc_finality_grandpa::LinkHalf<
+				sc_consensus_grandpa::LinkHalf<
 					Block,
 					FullClient<RuntimeApi, ExecutorDispatch>,
 					FullSelectChain,
 				>,
 				sc_consensus_babe::BabeLink<Block>,
 			),
-			sc_finality_grandpa::SharedVoterState,
+			sc_consensus_grandpa::SharedVoterState,
 			Option<Telemetry>,
 		),
 	>,
@@ -166,7 +165,7 @@ where
 	ExecutorDispatch: NativeExecutionDispatch + 'static,
 {
 	if config.keystore_remote.is_some() {
-		return Err(ServiceError::Other("Remote Keystores are not supported.".into()));
+		return Err(ServiceError::Other("Remote Keystores are not supported.".into()))
 	}
 
 	let telemetry = config
@@ -210,7 +209,7 @@ where
 		client.clone(),
 	);
 
-	let (grandpa_block_import, grandpa_link) = sc_finality_grandpa::block_import(
+	let (grandpa_block_import, grandpa_link) = sc_consensus_grandpa::block_import(
 		client.clone(),
 		&(client.clone() as Arc<_>),
 		select_chain.clone(),
@@ -252,10 +251,10 @@ where
 
 		let justification_stream = grandpa_link.justification_stream();
 		let shared_authority_set = grandpa_link.shared_authority_set().clone();
-		let shared_voter_state = sc_finality_grandpa::SharedVoterState::empty();
+		let shared_voter_state = sc_consensus_grandpa::SharedVoterState::empty();
 		let shared_voter_state2 = shared_voter_state.clone();
 
-		let finality_proof_provider = sc_finality_grandpa::FinalityProofProvider::new_for_service(
+		let finality_proof_provider = sc_consensus_grandpa::FinalityProofProvider::new_for_service(
 			backend.clone(),
 			Some(shared_authority_set.clone()),
 		);
@@ -328,6 +327,8 @@ where
 	pub client: Arc<FullClient<RuntimeApi, ExecutorDispatch>>,
 	/// The networking service of the node.
 	pub network: Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+	/// The syncing service of the node.
+	pub sync: Arc<SyncingService<Block>>,
 	/// The transaction pool of the node.
 	pub transaction_pool: Arc<TransactionPool<RuntimeApi, ExecutorDispatch>>,
 	/// The rpc handlers of the node.
@@ -378,7 +379,7 @@ where
 
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
-	let grandpa_protocol_name = sc_finality_grandpa::protocol_standard_name(
+	let grandpa_protocol_name = sc_consensus_grandpa::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
 		&config.chain_spec,
 	);
@@ -386,14 +387,14 @@ where
 	config
 		.network
 		.extra_sets
-		.push(sc_finality_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
-	let warp_sync = Arc::new(sc_finality_grandpa::warp_proof::NetworkProvider::new(
+		.push(sc_consensus_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone()));
+	let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
 		backend.clone(),
 		import_setup.1.shared_authority_set().clone(),
 		Vec::default(),
 	));
 
-	let (network, system_rpc_tx, tx_handler_controller, network_starter) =
+	let (network, system_rpc_tx, tx_handler_controller, network_starter, sync_service) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
 			config: &config,
 			client: client.clone(),
@@ -443,6 +444,7 @@ where
 		task_manager: &mut task_manager,
 		system_rpc_tx,
 		tx_handler_controller,
+		sync_service: sync_service.clone(),
 		telemetry: telemetry.as_mut(),
 	})?;
 
@@ -485,8 +487,8 @@ where
 			select_chain,
 			env: proposer,
 			block_import,
-			sync_oracle: network.clone(),
-			justification_sync_link: network.clone(),
+			sync_oracle: sync_service.clone(),
+			justification_sync_link: sync_service.clone(),
 			create_inherent_data_providers: move |parent, ()| {
 				let client_clone = client_clone.clone();
 				async move {
@@ -559,9 +561,9 @@ where
 	let keystore =
 		if role.is_authority() { Some(keystore_container.sync_keystore()) } else { None };
 
-	let config = sc_finality_grandpa::Config {
+	let config = sc_consensus_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
-		gossip_duration: std::time::Duration::from_millis(1000),
+		gossip_duration: std::time::Duration::from_millis(2000),
 		justification_period: 512,
 		name: Some(name),
 		observer_enabled: false,
@@ -578,12 +580,13 @@ where
 		// and vote data availability than the observer. The observer has not
 		// been tested extensively yet and having most nodes in a network run it
 		// could lead to finality stalls.
-		let grandpa_config = sc_finality_grandpa::GrandpaParams {
+		let grandpa_config = sc_consensus_grandpa::GrandpaParams {
 			config,
 			link: grandpa_link,
 			network: network.clone(),
+			sync: Arc::new(sync_service.clone()),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
-			voting_rule: sc_finality_grandpa::VotingRulesBuilder::default().build(),
+			voting_rule: sc_consensus_grandpa::VotingRulesBuilder::default().build(),
 			prometheus_registry,
 			shared_voter_state,
 		};
@@ -593,12 +596,19 @@ where
 		task_manager.spawn_essential_handle().spawn_blocking(
 			"grandpa-voter",
 			None,
-			sc_finality_grandpa::run_grandpa_voter(grandpa_config)?,
+			sc_consensus_grandpa::run_grandpa_voter(grandpa_config)?,
 		);
 	}
 
 	network_starter.start_network();
-	Ok(NewFullBase { task_manager, client, network, transaction_pool, rpc_handlers })
+	Ok(NewFullBase {
+		task_manager,
+		client,
+		network,
+		sync: sync_service,
+		transaction_pool,
+		rpc_handlers,
+	})
 }
 
 /// Builds a new service for a full client.
@@ -615,7 +625,8 @@ pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceE
 		cli.storage_monitor,
 		database_source,
 		&task_manager.spawn_essential_handle(),
-	)?;
+	)
+	.map_err(|e| ServiceError::Application(e.into()))?;
 
 	Ok(task_manager)
 }
@@ -626,8 +637,8 @@ pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceE
 // 	disable_hardware_benchmarks: bool,
 // ) -> Result<TaskManager, ServiceError> {
 // 	match &config.chain_spec {
-// 		spec if spec.is_cord() => new_full_base::<cord_runtime::RuntimeApi, CordExecutorDispatch>(
-// 			config,
+// 		spec if spec.is_cord() => new_full_base::<cord_runtime::RuntimeApi,
+// CordExecutorDispatch>( 			config,
 // 			disable_hardware_benchmarks,
 // 			|_, _| (),
 // 		)
@@ -683,7 +694,7 @@ impl ExecuteWithClient for RevertConsensus {
 			>,
 	{
 		sc_consensus_babe::revert(client.clone(), self.backend, self.blocks)?;
-		sc_finality_grandpa::revert(client, self.blocks)?;
+		sc_consensus_grandpa::revert(client, self.blocks)?;
 		Ok(())
 	}
 }

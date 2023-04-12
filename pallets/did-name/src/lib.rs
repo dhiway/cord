@@ -1,7 +1,7 @@
 // This file is part of CORD – https://cord.network
 
 // Copyright (C) 2019-2023 BOTLabs GmbH.
-// Copyright (C) 2023 Dhiway.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Adapted to meet the requirements of the CORD project.
 
@@ -63,7 +63,6 @@ pub mod pallet {
 	pub type DidNameOwnershipOf<T> = DidNameOwnership<DidNameOwnerOf<T>, BlockNumberFor<T>>;
 
 	#[pallet::pallet]
-	#[pallet::generate_store(pub(super) trait Store)]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 

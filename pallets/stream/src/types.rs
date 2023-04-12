@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2022 Dhiway Networks Pvt. Ltd.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // CORD is free software: you can redistribute it and/or modify
@@ -52,7 +52,7 @@ pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryId
 	/// Stream creator.
 	pub creator: StreamCreatorIdOf,
 	/// Schema Identifier
-	pub schema: SchemaIdOf,
+	pub schema: Option<SchemaIdOf>,
 	/// Registry Identifier
 	pub registry: RegistryIdOf,
 	/// The flag indicating the status of the stream.

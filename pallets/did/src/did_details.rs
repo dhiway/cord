@@ -1,7 +1,7 @@
 // This file is part of CORD – https://cord.network
 
 // Copyright (C) 2019-2023 BOTLabs GmbH.
-// Copyright (C) 2023 Dhiway.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Adapted to meet the requirements of the CORD project.
 
@@ -532,8 +532,6 @@ pub(crate) type DidPublicKeyMap<T> = BoundedBTreeMap<
 pub struct DidCreationDetails<T: Config> {
 	/// The DID identifier. It has to be unique.
 	pub did: DidIdentifierOf<T>,
-	/// The authorised submitter of the creation operation.
-	pub submitter: AccountIdOf<T>,
 	/// The new key agreement keys.
 	pub new_key_agreement_key: DidEncryptionKey,
 	/// \[OPTIONAL\] The new assertion key.

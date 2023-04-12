@@ -1,7 +1,7 @@
 // This file is part of CORD – https://cord.network
 
 // Copyright (C) 2019-2023 BOTLabs GmbH.
-// Copyright (C) 2023 Dhiway.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Adapted to meet the requirements of the CORD project.
 
@@ -89,7 +89,7 @@ pub fn generate_base_did_creation_details<T: Config>(
 	DidCreationDetails {
 		did,
 		submitter,
-		new_key_agreement_keys: BoundedBTreeSet::new(),
+		new_key_agreement_key: BoundedBTreeSet::new(),
 		new_assertion_key: None,
 		new_delegation_key: None,
 		new_service_details: Vec::new(),
