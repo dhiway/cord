@@ -26,7 +26,7 @@ use sp_std::{
 };
 
 use cord_utilities::traits::GenerateBenchmarkOrigin;
-use crate::{mock::*,tests::*, *};
+use crate::{cord_utilities::mock::*,tests::*, *};
 
 const SEED: u32 = 0;
 const MAX_SCHEMA_SIZE: u32 = 5 * 1024 * 1024;
