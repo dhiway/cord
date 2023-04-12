@@ -1,5 +1,24 @@
+// This file is part of CORD – https://cord.network
+
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
+
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
-use frame_support::traits::{Get};
+use frame_support::traits::Get;
 use sp_std::{
 	convert::{TryFrom, TryInto},
 	fmt::Debug,
@@ -7,10 +26,7 @@ use sp_std::{
 };
 
 use cord_utilities::traits::GenerateBenchmarkOrigin;
-
-use crate::*;
-use crate::{mock::*, *};
-use crate::tests::*;
+use crate::{mock::*,tests::*, *};
 
 const SEED: u32 = 0;
 const MAX_SCHEMA_SIZE: u32 = 5 * 1024 * 1024;
@@ -29,7 +45,10 @@ benchmarks! {
 
 		let schema: Vec<u8> = (0u8..u8::MAX).cycle().take(l.try_into().unwrap()).collect();
 		let schema_hash = <T as frame_system::Config>::Hashing::hash(&schema[..]);
-		let schema_id: IdentifierOf = generate_schema_id::<Test>(&schema_hash);
+		let id_digest = <Test as frame_system::Config>::Hashing::hash(
+			&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
+		);
+		let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_hash);
 
 		let origin = T::EnsureOrigin::generate_origin(caller, did.clone());
 
@@ -46,6 +65,6 @@ benchmarks! {
 
 impl_benchmark_test_suite! {
 	Pallet,
-	crate::mock::runtime::ExtBuilder::default().build_with_keystore(),
-	crate::mock::runtime::Test
+	crate::mock::new_test_ext(),
+    crate::mock::Test,
 }
