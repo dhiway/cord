@@ -49,7 +49,7 @@ pub mod mock;
 pub mod benchmarking;
 
 /// Test module for Schemas
-#[cfg(test)]
+#[cfg(any(test, feature = "runtime-benchmarks"))]
 pub mod tests;
 
 pub mod types;

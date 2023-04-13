@@ -24,7 +24,7 @@ use sp_std::{
 	fmt::Debug,
 	vec::Vec,
 };
-
+use crate::tests::generate_schema_id;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 use crate::{cord_utilities::mock::*,tests::*, *};
 const SEED: u32 = 0;
