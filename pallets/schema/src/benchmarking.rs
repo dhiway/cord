@@ -24,9 +24,8 @@ use sp_std::{
 	fmt::Debug,
 	vec::Vec,
 };
-use crate::tests::generate_schema_id;
-use cord_utilities::traits::GenerateBenchmarkOrigin;
-use crate::{cord_utilities::mock::*,tests::*, *};
+use cord_utilities::{mock::*, traits::*};
+use crate::{tests::*, *};
 const SEED: u32 = 0;
 const MAX_SCHEMA_SIZE: u32 = 5 * 1024 * 1024;
 
