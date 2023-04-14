@@ -778,14 +778,11 @@ impl pallet_extrinsic_authorship::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MaxNewKeyAgreementKeys: u32 = 10;
+	pub const MaxPublicKeysPerDid: u32 = 20;
 	#[derive(Debug, Clone, Eq, PartialEq)]
-	pub const MaxUrlLength: u32 = 200;
-	pub const MaxPublicKeysPerDid: u32 = 50;
-	pub const MaxBlocksTxValidity: BlockNumber = 2 * HOURS;
-	#[derive(Debug, Clone, Eq, PartialEq)]
-	pub const MaxKeyAgreementKeys: u32 = 30;
-	#[derive(Debug, Clone, Eq, PartialEq)]
-	pub const MaxEndpointUrlsCount: u32 = 3;
+	pub const MaxTotalKeyAgreementKeys: u32 = 15;
+	pub const MaxBlocksTxValidity: BlockNumber =  2 * HOURS;
 	pub const MaxNumberOfServicesPerDid: u32 = 25;
 	pub const MaxServiceIdLength: u32 = 50;
 	pub const MaxServiceTypeLength: u32 = 50;
@@ -809,8 +806,9 @@ impl pallet_did::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type OriginSuccess = Self::DidIdentifier;
 
-	type MaxKeyAgreementKeys = MaxKeyAgreementKeys;
+	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
 	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
+	type MaxTotalKeyAgreementKeys = MaxTotalKeyAgreementKeys;
 	type MaxBlocksTxValidity = MaxBlocksTxValidity;
 	type MaxNumberOfServicesPerDid = MaxNumberOfServicesPerDid;
 	type MaxServiceIdLength = MaxServiceIdLength;
