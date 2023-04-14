@@ -5081,6 +5081,7 @@ dependencies = [
 name = "pallet-did"
 version = "0.8.0"
 dependencies = [
+ "cord-primitives",
  "cord-utilities",
  "env_logger 0.9.3",
  "frame-benchmarking",
@@ -5088,6 +5089,7 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-balances",
+ "pallet-schema",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
