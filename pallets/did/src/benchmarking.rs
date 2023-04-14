@@ -22,10 +22,7 @@ use super::*;
 
 use codec::Encode;
 use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, Zero};
-use frame_support::{
-	assert_ok,
-	traits::{Currency, ReservableCurrency},
-};
+use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use sp_core::{crypto::KeyTypeId, ecdsa, ed25519, sr25519};
 use sp_io::crypto::{
@@ -52,7 +49,7 @@ use crate::{
 const DEFAULT_ACCOUNT_ID: &str = "tx_submitter";
 const DEFAULT_ACCOUNT_SEED: u32 = 0;
 const AUTHENTICATION_KEY_ID: KeyTypeId = KeyTypeId(*b"0000");
-const ATTESTATION_KEY_ID: KeyTypeId = KeyTypeId(*b"0001");
+const ASSERTION_KEY_ID: KeyTypeId = KeyTypeId(*b"0001");
 const DELEGATION_KEY_ID: KeyTypeId = KeyTypeId(*b"0002");
 const UNUSED_KEY_ID: KeyTypeId = KeyTypeId(*b"1111");
 const MAX_PAYLOAD_BYTE_LENGTH: u32 = 5 * 1024 * 1024;
@@ -70,15 +67,15 @@ fn get_ecdsa_public_authentication_key() -> ecdsa::Public {
 }
 
 fn get_ed25519_public_assertion_key() -> ed25519::Public {
-	ed25519_generate(ATTESTATION_KEY_ID, None)
+	ed25519_generate(ASSERTION_KEY_ID, None)
 }
 
 fn get_sr25519_public_assertion_key() -> sr25519::Public {
-	sr25519_generate(ATTESTATION_KEY_ID, None)
+	sr25519_generate(ASSERTION_KEY_ID, None)
 }
 
 fn get_ecdsa_public_assertion_key() -> ecdsa::Public {
-	ecdsa_generate(ATTESTATION_KEY_ID, None)
+	ecdsa_generate(ASSERTION_KEY_ID, None)
 }
 
 fn get_ed25519_public_delegation_key() -> ed25519::Public {
@@ -136,8 +133,6 @@ benchmarks! {
 
 		let submitter: AccountIdOf<T> = account(DEFAULT_ACCOUNT_ID, 0, DEFAULT_ACCOUNT_SEED);
 
-		// make_free_for_did::<T>(&submitter);
-
 		let did_public_auth_key = get_ed25519_public_authentication_key();
 		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
 		let did_key_agreement_keys = get_key_agreement_keys::<T>(n);
@@ -152,7 +147,7 @@ benchmarks! {
 			T::MaxServiceUrlLength::get(),
 		);
 
-		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone(), submitter.clone());
+		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone());
 		did_creation_details.new_key_agreement_keys = did_key_agreement_keys;
 		did_creation_details.new_assertion_key = Some(DidVerificationKey::from(did_public_att_key));
 		did_creation_details.new_delegation_key = Some(DidVerificationKey::from(did_public_del_key));
@@ -204,7 +199,6 @@ benchmarks! {
 		let c in 1 .. T::MaxNumberOfServicesPerDid::get();
 
 		let submitter: AccountIdOf<T> = account(DEFAULT_ACCOUNT_ID, 0, DEFAULT_ACCOUNT_SEED);
-		make_free_for_did::<T>(&submitter);
 
 		let did_public_auth_key = get_sr25519_public_authentication_key();
 		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
@@ -220,7 +214,7 @@ benchmarks! {
 			T::MaxServiceUrlLength::get(),
 		);
 
-		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone(), submitter.clone());
+		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone());
 		did_creation_details.new_key_agreement_keys = did_key_agreement_keys;
 		did_creation_details.new_assertion_key = Some(DidVerificationKey::from(did_public_att_key));
 		did_creation_details.new_delegation_key = Some(DidVerificationKey::from(did_public_del_key));
@@ -270,7 +264,6 @@ benchmarks! {
 		let c in 1 .. T::MaxNumberOfServicesPerDid::get();
 
 		let submitter: AccountIdOf<T> = account(DEFAULT_ACCOUNT_ID, 0, DEFAULT_ACCOUNT_SEED);
-		make_free_for_did::<T>(&submitter);
 
 		let did_public_auth_key = get_ecdsa_public_authentication_key();
 		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
@@ -286,7 +279,7 @@ benchmarks! {
 			T::MaxServiceUrlLength::get(),
 		);
 
-		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone(), submitter.clone());
+		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone());
 		did_creation_details.new_key_agreement_keys = did_key_agreement_keys;
 		did_creation_details.new_assertion_key = Some(DidVerificationKey::from(did_public_att_key));
 		did_creation_details.new_delegation_key = Some(DidVerificationKey::from(did_public_del_key));
@@ -1055,6 +1048,6 @@ benchmarks! {
 
 impl_benchmark_test_suite! {
 	Pallet,
-	crate::mock::ExtBuilder::default().build_with_keystore(),
+	crate::mock::new_test_ext(),
 	crate::mock::Test
 }

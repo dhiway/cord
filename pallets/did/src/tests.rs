@@ -1894,7 +1894,6 @@ fn check_invalid_service_url_character_addition_error() {
 
 #[test]
 fn check_service_deletion_successful() {
-	// initialize_logger();
 	let auth_key = get_ed25519_authentication_key(true);
 	let alice_did = get_did_identifier_from_ed25519_key(auth_key.public());
 	let old_service_endpoint =
