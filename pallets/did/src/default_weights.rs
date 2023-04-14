@@ -50,9 +50,9 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for did.
 pub trait WeightInfo {
-	fn create_ed25519_keys(n: u32, ) -> Weight;
-	fn create_sr25519_keys(n: u32, ) -> Weight;
-	fn create_ecdsa_keys(n: u32, ) -> Weight;
+	fn create_ed25519_keys(n: u32, c: u32, ) -> Weight;
+	fn create_sr25519_keys(n: u32, c: u32, ) -> Weight;
+	fn create_ecdsa_keys(n: u32, c: u32, ) -> Weight;
 	fn delete(c: u32, ) -> Weight;
 	fn submit_did_call_ed25519_key() -> Weight;
 	fn submit_did_call_sr25519_key() -> Weight;
@@ -95,13 +95,15 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Did ServiceEndpoints (r:0 w:25)
 	/// The range of component `n` is `[1, 10]`.
 	/// The range of component `c` is `[1, 25]`.
-	fn create_ed25519_keys(n: u32, ) -> Weight {
+	fn create_ed25519_keys(n: u32, c: u32, ) -> Weight {
 		Weight::from_parts(155_362_954,0)
 			// Standard Error: 11_821
 			.saturating_add(Weight::from_parts(1_263_549,0).saturating_mul(n as u64))
+			// Standard Error: 11_821
+			.saturating_add(Weight::from_parts(1_263_549,0).saturating_mul(c as u64))
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(c.into())))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: Did DidBlacklist (r:1 w:0)
@@ -110,13 +112,15 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Did ServiceEndpoints (r:0 w:25)
 	/// The range of component `n` is `[1, 10]`.
 	/// The range of component `c` is `[1, 25]`.
-	fn create_sr25519_keys(n: u32, ) -> Weight {
+	fn create_sr25519_keys(n: u32, c: u32, ) -> Weight {
 		Weight::from_parts(155_463_794,0)
 			// Standard Error: 12_431
 			.saturating_add(Weight::from_parts(1_422_221,0).saturating_mul(n as u64))
+			// Standard Error: 12_431
+			.saturating_add(Weight::from_parts(1_422_221,0).saturating_mul(c as u64))
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(c.into())))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: Did DidBlacklist (r:1 w:0)
@@ -125,13 +129,15 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Did ServiceEndpoints (r:0 w:25)
 	/// The range of component `n` is `[1, 10]`.
 	/// The range of component `c` is `[1, 25]`.
-	fn create_ecdsa_keys(n: u32, ) -> Weight {
+	fn create_ecdsa_keys(n: u32, c: u32 ) -> Weight {
 		Weight::from_parts(141_772_067,0)
 			// Standard Error: 10_731
 			.saturating_add(Weight::from_parts(1_239_702,0).saturating_mul(n as u64))
+			// Standard Error: 10_731
+			.saturating_add(Weight::from_parts(1_239_702,0).saturating_mul(c as u64))
 			.saturating_add(T::DbWeight::get().reads(4 as u64))
 			.saturating_add(T::DbWeight::get().writes(4 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(c.into())))
 	}
 	// Storage: Did DidEndpointsCount (r:1 w:1)
 	// Storage: Did Did (r:1 w:1)
@@ -340,13 +346,15 @@ impl WeightInfo for () {
 	// Storage: Did ServiceEndpoints (r:0 w:25)
 	/// The range of component `n` is `[1, 10]`.
 	/// The range of component `c` is `[1, 25]`.
-	fn create_ed25519_keys(n: u32, ) -> Weight {
+	fn create_ed25519_keys(n: u32, c: u32, ) -> Weight {
 		Weight::from_parts(155_362_954,0)
 			// Standard Error: 11_821
 			.saturating_add(Weight::from_parts(1_263_549,0).saturating_mul(n as u64))
+			// Standard Error: 11_821
+			.saturating_add(Weight::from_parts(1_263_549,0).saturating_mul(c as u64))
 			.saturating_add(RocksDbWeight::get().reads(4 as u64))
 			.saturating_add(RocksDbWeight::get().writes(4 as u64))
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(c.into())))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: Did DidBlacklist (r:1 w:0)
@@ -355,13 +363,15 @@ impl WeightInfo for () {
 	// Storage: Did ServiceEndpoints (r:0 w:25)
 	/// The range of component `n` is `[1, 10]`.
 	/// The range of component `c` is `[1, 25]`.
-	fn create_sr25519_keys(n: u32, ) -> Weight {
+	fn create_sr25519_keys(n: u32, c: u32 ) -> Weight {
 		Weight::from_parts(155_463_794,0)
 			// Standard Error: 12_431
 			.saturating_add(Weight::from_parts(1_422_221,0).saturating_mul(n as u64))
+			// Standard Error: 12_431
+			.saturating_add(Weight::from_parts(1_422_221,0).saturating_mul(c as u64))
 			.saturating_add(RocksDbWeight::get().reads(4 as u64))
 			.saturating_add(RocksDbWeight::get().writes(4 as u64))
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(c.into())))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: Did DidBlacklist (r:1 w:0)
@@ -370,13 +380,15 @@ impl WeightInfo for () {
 	// Storage: Did ServiceEndpoints (r:0 w:25)
 	/// The range of component `n` is `[1, 10]`.
 	/// The range of component `c` is `[1, 25]`.
-	fn create_ecdsa_keys(n: u32, ) -> Weight {
+	fn create_ecdsa_keys(n: u32, c:u32 ) -> Weight {
 		Weight::from_parts(141_772_067,0)
 			// Standard Error: 10_731
 			.saturating_add(Weight::from_parts(1_239_702,0).saturating_mul(n as u64))
+			// Standard Error: 10_731
+			.saturating_add(Weight::from_parts(1_239_702,0).saturating_mul(c as u64))
 			.saturating_add(RocksDbWeight::get().reads(4 as u64))
 			.saturating_add(RocksDbWeight::get().writes(4 as u64))
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(c.into())))
 	}
 	// Storage: Did DidEndpointsCount (r:1 w:1)
 	// Storage: Did Did (r:1 w:1)
