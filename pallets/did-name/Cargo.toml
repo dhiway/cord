@@ -37,13 +37,10 @@ sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.
 # Benchmarking dependencies
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true}
 sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
+sp-keystore = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41", optional = true}
 
 [features]
 default = ["std"]
-mock = [
-  "sp-core",
-  "sp-io",
-  ]
 runtime-benchmarks = [
   "frame-benchmarking",
   "cord-utilities/runtime-benchmarks",
@@ -60,6 +57,7 @@ std = [
   "scale-info/std",
   "sp-runtime/std",
   "sp-core/std",
+  "sp-keystore/std",
   "sp-std/std",
 ]
 try-runtime = [
