@@ -19,28 +19,22 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 #![cfg(feature = "runtime-benchmarks")]
 
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite, vec, Vec, Zero};
+use super::*;
+use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
 use frame_support::{
-	pallet_prelude::EnsureOrigin,
-	sp_runtime::SaturatedConversion,
-	traits::{Currency, Get},
-	BoundedVec,
+	pallet_prelude::EnsureOrigin, sp_runtime::SaturatedConversion, traits::Get, BoundedVec,
 };
 use frame_system::RawOrigin;
 use sp_runtime::app_crypto::sr25519;
 
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 
-use crate::{
-	AccountIdOf, Banned, Call, Config, CurrencyOf, DidNameOf, DidNameOwnerOf, Names, Owner, Pallet,
-};
-
 const CALLER_SEED: u32 = 0;
 const OWNER_SEED: u32 = 1;
 
 fn generate_did_name_input(length: usize) -> Vec<u8> {
-	let max_length = length.saturating_sub("@cord".len()); // Get the maximum length for the '1' bytes
-	let ones_vec = vec![b'1'; max_length];
+	let max_length = length.saturating_sub(10 as usize);
+	let ones_vec = vec![b'a'; max_length];
 	let cord_vec = "@cord".as_bytes().to_vec(); // Convert the string "@cord" to a byte vector
 	let mut name_vec = ones_vec;
 	name_vec.extend(cord_vec);
@@ -52,19 +46,18 @@ benchmarks! {
 		where
 		T::AccountId: From<sr25519::Public>,
 		T::DidNameOwner: From<T::AccountId>,
-		T::OwnerOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::DidNameOwner>,
+		T::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::DidNameOwner>,
 		T::BanOrigin: EnsureOrigin<T::RuntimeOrigin>,
 	}
 
 	register {
-		let n in (T::MinNameLength::get()) .. (T::MaxNameLength::get());
+		let n in (T::MinNameLength::get().saturating_add(10)) .. (T::MaxNameLength::get());
 		let caller: AccountIdOf<T> = account("caller", 0, CALLER_SEED);
 		let owner: DidNameOwnerOf<T> = account("owner", 0, OWNER_SEED);
 		let did_name_input: BoundedVec<u8, T::MaxNameLength> = BoundedVec::try_from(generate_did_name_input(n.saturated_into())).expect("BoundedVec creation should not fail.");
 		let did_name_input_clone = did_name_input.clone();
-		let origin = T::OwnerOrigin::generate_origin(caller.clone(), owner.clone());
+		let origin = T::EnsureOrigin::generate_origin(caller.clone(), owner.clone());
 
-		make_free_for_did::<T>(&caller);
 	}: _<T::RuntimeOrigin>(origin, did_name_input_clone)
 	verify {
 		let did_name = DidNameOf::<T>::try_from(did_name_input.to_vec()).unwrap();
@@ -76,10 +69,9 @@ benchmarks! {
 		let caller: AccountIdOf<T> = account("caller", 0, CALLER_SEED);
 		let owner: DidNameOwnerOf<T> = account("owner", 0, OWNER_SEED);
 		let did_name_input: BoundedVec<u8, T::MaxNameLength> = BoundedVec::try_from(generate_did_name_input(T::MaxNameLength::get().saturated_into())).expect("BoundedVec creation should not fail.");
-		let origin = T::OwnerOrigin::generate_origin(caller.clone(), owner.clone());
+		let origin = T::EnsureOrigin::generate_origin(caller.clone(), owner.clone());
 
-		make_free_for_did::<T>(&caller);
-		Pallet::<T>::claim(origin.clone(), did_name_input.clone()).expect("Should register the claimed did name.");
+		Pallet::<T>::register(origin.clone(), did_name_input.clone()).expect("Should register the did name.");
 	}: _<T::RuntimeOrigin>(origin)
 	verify {
 		let did_name = DidNameOf::<T>::try_from(did_name_input.to_vec()).unwrap();
@@ -88,16 +80,15 @@ benchmarks! {
 	}
 
 	ban {
-		let n in (T::MinNameLength::get()) .. (T::MaxNameLength::get());
+		let n in (T::MinNameLength::get().saturating_add(10)) .. (T::MaxNameLength::get());
 		let caller: AccountIdOf<T> = account("caller", 0, CALLER_SEED);
 		let owner: DidNameOwnerOf<T> = account("owner", 0, OWNER_SEED);
 		let did_name_input: BoundedVec<u8, T::MaxNameLength> = BoundedVec::try_from(generate_did_name_input(n.saturated_into())).expect("BoundedVec creation should not fail.");
 		let did_name_input_clone = did_name_input.clone();
-		let did_origin = T::OwnerOrigin::generate_origin(caller.clone(), owner.clone());
+		let did_origin = T::EnsureOrigin::generate_origin(caller.clone(), owner.clone());
 		let ban_origin = RawOrigin::Root;
 
-		make_free_for_did::<T>(&caller);
-		Pallet::<T>::claim(did_origin, did_name_input.clone()).expect("Should register the claimed did name.");
+		Pallet::<T>::register(did_origin, did_name_input.clone()).expect("Should register the did name.");
 	}: _(ban_origin, did_name_input_clone)
 	verify {
 		let did_name = DidNameOf::<T>::try_from(did_name_input.to_vec()).unwrap();
@@ -107,14 +98,13 @@ benchmarks! {
 	}
 
 	unban {
-		let n in (T::MinNameLength::get()) .. (T::MaxNameLength::get());
+		let n in (T::MinNameLength::get().saturating_add(10)) .. (T::MaxNameLength::get());
 		let caller: AccountIdOf<T> = account("caller", 0, CALLER_SEED);
 		let owner: DidNameOwnerOf<T> = account("owner", 0, OWNER_SEED);
 		let did_name_input: BoundedVec<u8, T::MaxNameLength> = BoundedVec::try_from(generate_did_name_input(n.saturated_into())).expect("BoundedVec creation should not fail.");
 		let did_name_input_clone = did_name_input.clone();
 		let ban_origin = RawOrigin::Root;
 
-		make_free_for_did::<T>(&caller);
 		Pallet::<T>::ban(ban_origin.clone().into(), did_name_input.clone()).expect("Should ban the did name.");
 	}: _(ban_origin, did_name_input_clone)
 	verify {
@@ -127,6 +117,6 @@ benchmarks! {
 
 impl_benchmark_test_suite! {
 	Pallet,
-	crate::mock::ExtBuilder::default().build_with_keystore(),
+	crate::mock::new_test_ext(),
 	crate::mock::Test
 }
