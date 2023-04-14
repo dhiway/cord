@@ -25,25 +25,25 @@ use crate::did_details::DidVerificationKeyRelationship;
 /// All the errors that can be generated when validating a DID operation.
 #[derive(Debug, Eq, PartialEq, TypeInfo)]
 pub enum DidError {
-	/// See [StorageError].
-	StorageError(StorageError),
-	/// See [SignatureError].
-	SignatureError(SignatureError),
-	/// See [InputError].
-	InputError(InputError),
+	/// See [Storage].
+	Storage(StorageError),
+	/// See [Signature].
+	Signature(SignatureError),
+	/// See [Input].
+	Input(InputError),
 	/// An error that is not supposed to take place, yet it happened.
-	InternalError,
+	Internal,
 }
 
 impl From<StorageError> for DidError {
 	fn from(err: StorageError) -> Self {
-		DidError::StorageError(err)
+		DidError::Storage(err)
 	}
 }
 
 impl From<InputError> for DidError {
 	fn from(err: InputError) -> Self {
-		DidError::InputError(err)
+		DidError::Input(err)
 	}
 }
 
@@ -51,32 +51,66 @@ impl From<InputError> for DidError {
 #[derive(Debug, Eq, PartialEq, TypeInfo)]
 pub enum StorageError {
 	/// The DID being created is already present on chain.
-	DidAlreadyPresent,
+	AlreadyExists,
 	/// The expected DID cannot be found on chain.
-	DidNotPresent,
-	/// The given DID does not contain the right key to verify the signature
-	/// of a DID operation.
-	DidKeyNotPresent(DidVerificationKeyRelationship),
-	/// At least one key referenced is not stored under the given DID.
-	KeyNotPresent,
+	NotFound(NotFoundKind),
 	/// The maximum number of public keys for this DID key identifier has
 	/// been reached.
-	MaxPublicKeysPerDidExceeded,
+	MaxPublicKeysExceeded,
 	/// The maximum number of key agreements has been reached for the DID
 	/// subject.
 	MaxTotalKeyAgreementKeysExceeded,
 	/// The DID has already been previously deleted.
-	DidAlreadyDeleted,
+	AlreadyDeleted,
+}
+
+/// Error involving the pallet's storage.
+#[derive(Debug, Eq, PartialEq, TypeInfo)]
+pub enum NotFoundKind {
+	/// The expected DID cannot be found on chain.
+	Did,
+	/// At least one key referenced is not stored under the given DID.
+	Key(KeyType),
+}
+
+/// Enum describing the different did key types.
+#[derive(Debug, Eq, PartialEq, TypeInfo)]
+pub enum KeyType {
+	/// Authentication key type.
+	/// This key is used to authenticate the DID subject.
+	Authentication,
+	/// Key agreement key type.
+	/// This key is used to encrypt messages to the DID subject.
+	/// It can be used to derive shared secrets.
+	KeyAgreement,
+	/// Assertion method key type.
+	/// This key is used to assert statements on behalf of the DID subject.
+	/// It is generally used to attest things.
+	AssertionMethod,
+	/// Delegation key type.
+	/// This key is used to delegate the DID subject's capabilities.
+	Delegation,
+}
+
+impl From<DidVerificationKeyRelationship> for KeyType {
+	fn from(key_type: DidVerificationKeyRelationship) -> Self {
+		match key_type {
+			DidVerificationKeyRelationship::Authentication => KeyType::Authentication,
+			DidVerificationKeyRelationship::AssertionMethod => KeyType::AssertionMethod,
+			DidVerificationKeyRelationship::CapabilityDelegation |
+			DidVerificationKeyRelationship::CapabilityInvocation => KeyType::Delegation,
+		}
+	}
 }
 
 /// Error generated when validating a DID operation.
 #[derive(Debug, Eq, PartialEq, TypeInfo)]
 pub enum SignatureError {
 	/// The signature is not in the format the verification key expects.
-	InvalidSignatureFormat,
+	InvalidFormat,
 	/// The signature is invalid for the payload and the verification key
 	/// provided.
-	InvalidSignature,
+	InvalidData,
 	/// The operation nonce is not equal to the current DID nonce + 1.
 	InvalidNonce,
 	/// The provided operation block number is not valid.
