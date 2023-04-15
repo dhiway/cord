@@ -16,28 +16,24 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use assert_cmd::cargo::cargo_bin;
-use std::process::Command;
-use tempfile::tempdir;
+#![cfg_attr(rustfmt, rustfmt_skip)]
+#![allow(unused_parens)]
+#![allow(unused_imports)]
 
-pub mod common;
+use frame_support::{traits::Get, weights::Weight};
+use sp_std::marker::PhantomData;
 
-#[tokio::test]
-#[cfg(unix)]
-async fn purge_chain_works() {
-	let base_path = tempdir().expect("could not create a temp dir");
-
-	common::run_node_for_a_while(base_path.path(), &["--dev", "--no-hardware-benchmarks"]).await;
-
-	let status = Command::new(cargo_bin("cord"))
-		.args(&["purge-chain", "--dev", "-d"])
-		.arg(base_path.path())
-		.arg("-y")
-		.status()
-		.unwrap();
-	assert!(status.success());
-
-	// Make sure that the `dev` chain folder exists, but the `db` is deleted.
-	assert!(base_path.path().join("chains/cord_dev/").exists());
-	assert!(!base_path.path().join("chains/cord_dev/db/full").exists());
+/// Weights for pallet_remark using the Substrate node and recommended hardware.
+pub struct WeightInfo<T>(PhantomData<T>);
+impl<T: frame_system::Config> pallet_remark::WeightInfo for WeightInfo<T> {
+	/// The range of component `l` is `[1, 1048576]`.
+	fn store(l: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 9_301_000 picoseconds.
+		Weight::from_parts(2_516_065, 0)
+			// Standard Error: 1
+			.saturating_add(Weight::from_parts(1_089, 0).saturating_mul(l.into()))
+	}
 }

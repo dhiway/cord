@@ -114,6 +114,7 @@ impl mock_origin::Config for Test {
 	type SubjectId = SubjectId;
 }
 
+#[allow(dead_code)]
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 

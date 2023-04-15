@@ -19,14 +19,12 @@
 #![cfg(unix)]
 
 use assert_cmd::cargo::cargo_bin;
-use cord_primitives::Block;
+use cord_primitives::{Hash, Header};
 use nix::{
 	sys::signal::{kill, Signal::SIGINT},
 	unistd::Pid,
 };
-use remote_externalities::rpc_api;
 use std::{
-	convert::TryInto,
 	io::{BufRead, BufReader, Read},
 	ops::{Deref, DerefMut},
 	path::Path,
@@ -37,7 +35,8 @@ use tokio::time::timeout;
 
 /// Wait for the given `child` the given number of `secs`.
 ///
-/// Returns the `Some(exit status)` or `None` if the process did not finish in the given time.
+/// Returns the `Some(exit status)` or `None` if the process did not finish in
+/// the given time.
 pub fn wait_for(child: &mut Child, secs: u64) -> Result<ExitStatus, ()> {
 	let result = wait_timeout::ChildExt::wait_timeout(child, Duration::from_secs(5.min(secs)))
 		.map_err(|_| ())?;
@@ -49,7 +48,7 @@ pub fn wait_for(child: &mut Child, secs: u64) -> Result<ExitStatus, ()> {
 			let result = wait_timeout::ChildExt::wait_timeout(child, Duration::from_secs(secs - 5))
 				.map_err(|_| ())?;
 			if let Some(exit_status) = result {
-				return Ok(exit_status);
+				return Ok(exit_status)
 			}
 		}
 		eprintln!("Took too long to exit (> {} seconds). Killing...", secs);
@@ -70,14 +69,17 @@ pub async fn wait_n_finalized_blocks(
 
 /// Wait for at least n blocks to be finalized from a specified node
 pub async fn wait_n_finalized_blocks_from(n: usize, url: &str) {
+	use substrate_rpc_client::{ws_client, ChainApi};
+
 	let mut built_blocks = std::collections::HashSet::new();
-	let mut interval = tokio::time::interval(Duration::from_secs(1));
+	let mut interval = tokio::time::interval(Duration::from_secs(2));
+	let rpc = ws_client(url).await.unwrap();
 
 	loop {
-		if let Ok(block) = rpc_api::get_finalized_head::<Block, _>(url.to_string()).await {
+		if let Ok(block) = ChainApi::<(), Hash, Header, ()>::finalized_head(&rpc).await {
 			built_blocks.insert(block);
 			if built_blocks.len() > n {
-				break;
+				break
 			}
 		};
 		interval.tick().await;
@@ -160,8 +162,10 @@ pub fn find_ws_url_from_output(read: impl Read + Send) -> (String, String) {
 			let line =
 				line.expect("failed to obtain next line from stdout for WS address discovery");
 			data.push_str(&line);
+			data.push_str("\n");
 
-			// does the line contain our port (we expect this specific output from substrate).
+			// does the line contain our port (we expect this specific output from
+			// substrate).
 			let sock_addr = match line.split_once("Running JSON-RPC WS server: addr=") {
 				None => return None,
 				Some((_, after)) => after.split_once(",").unwrap().0,
@@ -169,7 +173,10 @@ pub fn find_ws_url_from_output(read: impl Read + Send) -> (String, String) {
 
 			Some(format!("ws://{}", sock_addr))
 		})
-		.expect("We should get a WebSocket address");
+		.unwrap_or_else(|| {
+			eprintln!("Observed node output:\n{}", data);
+			panic!("We should get a WebSocket address")
+		});
 
 	(ws_url, data)
 }

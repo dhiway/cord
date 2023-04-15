@@ -19,7 +19,7 @@ sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v
 
 [dependencies]
 # External dependencies
-codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = [
+codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = [
 	"derive",
 ] }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
@@ -42,7 +42,7 @@ sp-keystore = {git = "https://github.com/dhiway/substrate", default-features = f
 [features]
 default = ["std"]
 runtime-benchmarks = [
-  "frame-benchmarking",
+  "frame-benchmarking/runtime-benchmarks",
   "cord-utilities/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
@@ -63,4 +63,5 @@ std = [
 try-runtime = [
   "frame-support/try-runtime",
   "frame-system/try-runtime",
+  "cord-utilities/try-runtime",
 ]
