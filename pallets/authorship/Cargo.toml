@@ -12,7 +12,7 @@ repository = "https://github.com/dhiway/cord"
 substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = [
+codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = [
 	"derive",
 	"max-encoded-len",
 ] }

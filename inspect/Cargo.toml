@@ -15,7 +15,7 @@ substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch =
 
 [dependencies]
 clap = { version = "4.0.9", features = ["derive"] }
-codec = { package = "parity-scale-codec", version = "3.2.2" }
+codec = { package = "parity-scale-codec", version = "3.3.0" }
 thiserror = "1.0"
 sc-cli = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
 sc-client-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }

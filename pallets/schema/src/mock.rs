@@ -109,6 +109,7 @@ impl Config for Test {
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 }
 
+#[allow(dead_code)]
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 

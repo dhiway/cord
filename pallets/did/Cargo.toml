@@ -32,7 +32,7 @@ pallet-schema = {  optional = true, path = '../schema' }
 cord-primitives = { package = "cord-primitives", path="../../primitives", optional = true }
 
 # Substrate dependencies
-codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = ["derive","max-encoded-len"] }
+codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = ["derive","max-encoded-len"] }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
 frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
@@ -49,9 +49,7 @@ sp-keystore = {git = "https://github.com/dhiway/substrate", default-features = f
 [features]
 default = ["std"]
 runtime-benchmarks = [
-  # "pallet-schema/runtime-benchmarks", # enabling this results in an error that's impossible to link to this line.
-  "frame-benchmarking",
-  "pallet-balances/runtime-benchmarks",
+  "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "cord-utilities/runtime-benchmarks",

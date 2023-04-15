@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-#![cfg_attr(not(feature = "std"), no_std)]
+// #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 use crate::*;
 use base58::{FromBase58, ToBase58};
