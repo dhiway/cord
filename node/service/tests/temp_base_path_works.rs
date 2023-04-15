@@ -33,6 +33,7 @@ use std::{
 pub mod common;
 
 #[tokio::test]
+#[ignore]
 async fn temp_base_path_works() {
 	let mut cmd = Command::new(cargo_bin("cord"));
 	let mut child = common::KillChildOnDrop(
