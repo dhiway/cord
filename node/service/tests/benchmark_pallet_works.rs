@@ -15,6 +15,8 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
+#![cfg(feature = "runtime-benchmarks")]
+
 use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 
