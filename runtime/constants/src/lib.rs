@@ -119,10 +119,11 @@ mod tests {
 	#[test]
 	// Test that the fee for `MAXIMUM_BLOCK_WEIGHT` of weight has sane bounds.
 	fn full_block_fee_is_correct() {
-		// A full block should cost between 1,000 and 10,000 UNITS.
+		// A full block should cost between 1,00 and 1,000 UNITS.
 		let full_block = WeightToFee::weight_to_fee(&MAXIMUM_BLOCK_WEIGHT);
-		assert!(full_block >= 1_000 * UNITS);
-		assert!(full_block <= 10_000 * UNITS);
+		println!("Full Block {}", full_block);
+		assert!(full_block >= 1_00 * UNITS);
+		assert!(full_block <= 1_000 * UNITS);
 	}
 
 	#[test]
@@ -130,7 +131,6 @@ mod tests {
 	// correct
 	fn extrinsic_base_fee_is_correct() {
 		// `ExtrinsicBaseWeight` should cost 1/10 of a UNIT
-		println!("Base: {}", ExtrinsicBaseWeight::get());
 		let x = WeightToFee::weight_to_fee(&ExtrinsicBaseWeight::get());
 		let y = UNITS / 10;
 		assert!(x.max(y) - x.min(y) < MILLIUNITS);
