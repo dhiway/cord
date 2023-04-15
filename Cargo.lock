@@ -1058,18 +1058,6 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "71655c45cb9845d3270c9d6df84ebe72b4dad3c2ba3f7023ad47c144e4e473a5"
-dependencies = [
- "bitflags",
- "clap_lex 0.2.4",
- "indexmap",
- "textwrap",
-]
-
-[[package]]
-name = "clap"
 version = "4.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b802d85aaf3a1cdb02b224ba472ebdea62014fccfcb269b95a4d76443b5ee5a"
@@ -1088,17 +1076,17 @@ dependencies = [
  "anstream",
  "anstyle",
  "bitflags",
- "clap_lex 0.4.1",
+ "clap_lex",
  "strsim",
 ]
 
 [[package]]
 name = "clap_complete"
-version = "3.2.5"
+version = "4.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f7a2e0a962c45ce25afce14220bc24f9dade0a1787f185cecf96bfba7847cd8"
+checksum = "01c22dcfb410883764b29953103d9ef7bb8fe21b3fa1158bc99986c2067294bd"
 dependencies = [
- "clap 3.2.23",
+ "clap",
 ]
 
 [[package]]
@@ -1111,15 +1099,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.15",
-]
-
-[[package]]
-name = "clap_lex"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
-dependencies = [
- "os_str_bytes",
 ]
 
 [[package]]
@@ -1224,7 +1203,7 @@ dependencies = [
 name = "cord-inspect"
 version = "0.8.0"
 dependencies = [
- "clap 4.2.2",
+ "clap",
  "parity-scale-codec",
  "sc-cli",
  "sc-client-api",
@@ -1244,7 +1223,7 @@ dependencies = [
  "array-bytes",
  "assert_cmd",
  "async-std",
- "clap 4.2.2",
+ "clap",
  "clap_complete",
  "cord-client",
  "cord-inspect",
@@ -1258,7 +1237,7 @@ dependencies = [
  "futures",
  "jsonrpsee",
  "log",
- "nix",
+ "nix 0.26.2",
  "pallet-balances",
  "pallet-extrinsic-authorship",
  "pallet-im-online",
@@ -1320,9 +1299,10 @@ dependencies = [
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
  "substrate-rpc-client",
+ "substrate-test-utils",
  "tempfile",
- "thiserror",
  "tokio",
+ "tokio-util",
  "try-runtime-cli",
  "wait-timeout",
 ]
@@ -1402,11 +1382,14 @@ dependencies = [
  "pallet-message-queue",
  "pallet-multisig",
  "pallet-offences",
+ "pallet-offences-benchmarking",
  "pallet-preimage",
  "pallet-registry",
+ "pallet-remark",
  "pallet-scheduler",
  "pallet-schema",
  "pallet-session",
+ "pallet-session-benchmarking",
  "pallet-staking",
  "pallet-stream",
  "pallet-sudo",
@@ -1426,6 +1409,7 @@ dependencies = [
  "sp-consensus-grandpa",
  "sp-core",
  "sp-inherents",
+ "sp-io",
  "sp-keyring",
  "sp-offchain",
  "sp-runtime",
@@ -2491,7 +2475,7 @@ dependencies = [
  "Inflector",
  "array-bytes",
  "chrono",
- "clap 4.2.2",
+ "clap",
  "comfy-table",
  "frame-benchmarking",
  "frame-support",
@@ -4472,6 +4456,15 @@ dependencies = [
 
 [[package]]
 name = "memoffset"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5de893c32cde5f383baa4c04c5d6dbdd735cfd4a794b0debdb2bb1b421da5ff4"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
+name = "memoffset"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d61c719bcfbcf5d62b3a09efa6088de8c54bc0bfcd3ea7ae39fcc186108b8de1"
@@ -4787,6 +4780,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix"
+version = "0.26.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfdda3d196821d6af13126e40375cdf7da646a96114af134d5f417a9a1dc8e1a"
+dependencies = [
+ "bitflags",
+ "cfg-if",
+ "libc",
+ "memoffset 0.7.1",
+ "pin-utils",
+ "static_assertions",
+]
+
+[[package]]
 name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4947,12 +4954,6 @@ name = "openssl-probe"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
-
-[[package]]
-name = "os_str_bytes"
-version = "6.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ceedf44fb00f2d1984b0bc98102627ce622e083e49a5bacdb3e514fa4238e267"
 
 [[package]]
 name = "p256"
@@ -5348,6 +5349,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-offences-benchmarking"
+version = "4.0.0-dev"
+source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16791bab5d63b47c07657bb9dc198d9307b"
+dependencies = [
+ "frame-benchmarking",
+ "frame-election-provider-support",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-grandpa",
+ "pallet-im-online",
+ "pallet-offences",
+ "pallet-session",
+ "pallet-staking",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-preimage"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16791bab5d63b47c07657bb9dc198d9307b"
@@ -5386,6 +5411,23 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-remark"
+version = "4.0.0-dev"
+source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16791bab5d63b47c07657bb9dc198d9307b"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -5448,6 +5490,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-session-benchmarking"
+version = "4.0.0-dev"
+source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16791bab5d63b47c07657bb9dc198d9307b"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-session",
+ "pallet-staking",
+ "rand 0.8.5",
+ "sp-runtime",
+ "sp-session",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-staking"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16791bab5d63b47c07657bb9dc198d9307b"
@@ -5460,7 +5518,6 @@ dependencies = [
  "pallet-authorship",
  "pallet-session",
  "parity-scale-codec",
- "rand_chacha 0.2.2",
  "scale-info",
  "serde",
  "sp-application-crypto",
@@ -5483,6 +5540,8 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-core",
+ "sp-io",
  "sp-keystore",
  "sp-runtime",
  "sp-std",
@@ -6532,7 +6591,7 @@ dependencies = [
  "log",
  "netlink-packet-route",
  "netlink-proto",
- "nix",
+ "nix 0.24.3",
  "thiserror",
  "tokio",
 ]
@@ -6840,7 +6899,7 @@ source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16
 dependencies = [
  "array-bytes",
  "chrono",
- "clap 4.2.2",
+ "clap",
  "fdlimit",
  "futures",
  "libp2p",
@@ -7656,7 +7715,7 @@ name = "sc-storage-monitor"
 version = "0.1.0"
 source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16791bab5d63b47c07657bb9dc198d9307b"
 dependencies = [
- "clap 4.2.2",
+ "clap",
  "fs4",
  "futures",
  "log",
@@ -9098,7 +9157,7 @@ name = "substrate-frame-cli"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16791bab5d63b47c07657bb9dc198d9307b"
 dependencies = [
- "clap 4.2.2",
+ "clap",
  "frame-support",
  "frame-system",
  "sc-cli",
@@ -9259,6 +9318,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "substrate-test-utils"
+version = "4.0.0-dev"
+source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16791bab5d63b47c07657bb9dc198d9307b"
+dependencies = [
+ "futures",
+ "substrate-test-utils-derive",
+ "tokio",
+]
+
+[[package]]
+name = "substrate-test-utils-derive"
+version = "0.10.0-dev"
+source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16791bab5d63b47c07657bb9dc198d9307b"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "substrate-wasm-builder"
 version = "5.0.0-dev"
 source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16791bab5d63b47c07657bb9dc198d9307b"
@@ -9384,12 +9464,6 @@ name = "termtree"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
-
-[[package]]
-name = "textwrap"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "222a222a5bfe1bba4a77b45ec488a741b3cb8872e5e499451fd7d0129c9c7c3d"
 
 [[package]]
 name = "thiserror"
@@ -9823,8 +9897,9 @@ version = "0.10.0-dev"
 source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16791bab5d63b47c07657bb9dc198d9307b"
 dependencies = [
  "async-trait",
- "clap 4.2.2",
+ "clap",
  "frame-remote-externalities",
+ "frame-try-runtime",
  "hex",
  "log",
  "parity-scale-codec",
@@ -10705,7 +10780,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
- "nix",
+ "nix 0.24.3",
  "rand 0.8.5",
  "thiserror",
  "tokio",

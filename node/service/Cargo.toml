@@ -23,13 +23,12 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 clap = { version = "4.0.9", features = ["derive"], optional = true }
-codec = { package = "parity-scale-codec", version = "3.2.2" }
+codec = { package = "parity-scale-codec", version = "3.3.0" }
 serde = { version = "1.0.136", features = ["derive"] }
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 futures = "0.3.21"
 array-bytes = "4.1"
 log = "0.4.17"
-thiserror = "1.0.31"
 
 # Substrate Primitives
 sp-authority-discovery = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
@@ -109,7 +108,7 @@ sc-block-builder ={ git = "https://github.com/dhiway/substrate", branch = "relea
 sp-tracing = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
 sp-blockchain ={ git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
 assert_cmd = "2.0.4"
-nix = "0.24.1"
+nix = { version = "0.26.1", features = ["signal"] }
 async-std = { version = "1.10.0", features = ["attributes"] }
 futures = "0.3.21"
 tempfile = "3.1.0"
@@ -117,13 +116,15 @@ serde_json = "1.0"
 regex = "1.5.5"
 soketto = "0.7.1"
 tokio = { version = "1.17.0", features = ["macros", "time", "parking_lot"] }
+tokio-util = { version = "0.7.4", features = ["compat"] }
 wait-timeout = "0.2"
 substrate-rpc-client = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
 pallet-timestamp = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
+substrate-test-utils = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
 
 [build-dependencies]
 clap = { version = "4.0.9", optional = true }
-clap_complete = { version = "3.0", optional = true }
+clap_complete = { version = "4.0.2", optional = true }
 cord-inspect = { package = "cord-inspect", optional = true, path = "../../inspect" }
 frame-benchmarking-cli = { git = "https://github.com/dhiway/substrate", optional = true, branch = "release-v0.9.41" }
 substrate-build-script-utils = { git = "https://github.com/dhiway/substrate",optional = true, branch = "release-v0.9.41"}
@@ -146,12 +147,12 @@ cli = [
 	"substrate-build-script-utils",
 	"try-runtime-cli",
 ]
-
 fast-runtime = [
 	"cord-runtime/fast-runtime",
 ]
-
 runtime-benchmarks = [
   "cord-runtime/runtime-benchmarks",
   "frame-benchmarking-cli/runtime-benchmarks"
 ]
+# Enable features that allow the runtime to be tried and debugged. 
+try-runtime = ["cord-runtime/try-runtime", "try-runtime-cli/try-runtime"]

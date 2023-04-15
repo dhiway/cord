@@ -32,6 +32,7 @@ pub mod pallet_membership;
 pub mod pallet_multisig;
 pub mod pallet_preimage;
 pub mod pallet_registry;
+pub mod pallet_remark;
 pub mod pallet_scheduler;
 pub mod pallet_schema;
 pub mod pallet_session;
