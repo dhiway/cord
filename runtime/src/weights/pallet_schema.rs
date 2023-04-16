@@ -28,7 +28,7 @@ impl<T: frame_system::Config> pallet_schema::WeightInfo for WeightInfo<T> {
 	fn create() -> Weight {
 		Weight::from_parts(522_000_000, 0)
 			.saturating_add(Weight::from_parts(20_000, 0))
-			.saturating_add(T::DbWeight::get().reads(2 as u64))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
 }

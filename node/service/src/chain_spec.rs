@@ -478,6 +478,6 @@ fn cord_development_genesis(
 		treasury: Default::default(),
 		transaction_payment: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
-		sudo: SudoConfig { key: Some(root_key.clone()) },
+		sudo: SudoConfig { key: Some(root_key) },
 	}
 }
