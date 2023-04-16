@@ -380,8 +380,8 @@ impl pallet_transaction_payment::Config for Runtime {
 
 parameter_types! {
 		pub MinimumPeriod: u64 = prod_or_fast!(
-		MINIMUM_DURATION as u64,
-		500 as u64,
+		MINIMUM_DURATION,
+		500_u64,
 		"CORD_MINIMUM_DURATION"
 	);
 }
@@ -1172,7 +1172,7 @@ sp_api::impl_runtime_apis! {
 			let epoch_config = Babe::epoch_config().unwrap_or(BABE_GENESIS_EPOCH_CONFIG);
 			sp_consensus_babe::BabeConfiguration {
 				slot_duration: Babe::slot_duration(),
-				epoch_length: EpochDuration::get().into(),
+				epoch_length: EpochDuration::get(),
 				c: epoch_config.c,
 				authorities: Babe::authorities().to_vec(),
 				randomness: Babe::randomness(),
