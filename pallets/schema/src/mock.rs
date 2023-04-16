@@ -114,10 +114,15 @@ impl Config for Test {
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 }
 
+#[allow(dead_code)]
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
+	#[cfg(feature = "runtime-benchmarks")]
+	let keystore = sp_keystore::testing::KeyStore::new();
+	#[cfg(feature = "runtime-benchmarks")]
+	ext.register_extension(sp_keystore::KeystoreExt(sp_std::sync::Arc::new(keystore)));
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }

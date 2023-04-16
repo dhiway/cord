@@ -16,52 +16,53 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+#![cfg(feature = "runtime-benchmarks")]
 
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
-use frame_support::traits::Get;
+use super::*;
+use codec::Encode;
+use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
+use frame_support::{sp_runtime::traits::Hash, BoundedVec};
 use sp_std::{
 	convert::{TryFrom, TryInto},
-	fmt::Debug,
 	vec::Vec,
 };
-use cord_utilities::{mock::*, traits::*};
-use crate::{tests::*, *};
+
+use cord_utilities::traits::GenerateBenchmarkOrigin;
+
 const SEED: u32 = 0;
-const MAX_SCHEMA_SIZE: u32 = 5 * 1024 * 1024;
+const MAX_SCHEMA_SIZE: u32 = 10 * 1024;
 
 benchmarks! {
 	where_clause {
 		where
-		T::EnsureOrigin: GenerateBenchmarkOrigin<T::Origin, T::AccountId, T::SchemaCreatorId>,
+		T::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::SchemaCreatorId>,
 	}
-
 	create {
 		let l in 1 .. MAX_SCHEMA_SIZE;
 
 		let caller = account("caller", 0, SEED);
 		let did: T::SchemaCreatorId = account("did", 0, SEED);
 
-		let schema: Vec<u8> = (0u8..u8::MAX).cycle().take(l.try_into().unwrap()).collect();
-		let schema_hash = <T as frame_system::Config>::Hashing::hash(&schema[..]);
+		let raw_schema: Vec<u8> = (0u8..u8::MAX).cycle().take(l.try_into().unwrap()).collect();
+		let schema = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+		let digest = <T as frame_system::Config>::Hashing::hash(&schema[..]);
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&schema.encode()[..], &did.encode()[..]].concat()[..],
 		);
-		let schema_id: SchemaIdOf = generate_schema_id::<T>(&id_digest);
+		let schema_id = Ss58Identifier::to_schema_id(&(id_digest).encode()[..]).unwrap();
 
 		let origin = T::EnsureOrigin::generate_origin(caller, did.clone());
-
-	}: _<T::Origin>(origin, schema)
+	}: _<T::RuntimeOrigin>(origin, schema)
 	verify {
-		let stored_schema_creator: T::SchemaCreatorId = Schemas::<T>::get(&schema_id).expect("Schema Identifier should be present on chain.");
+		let stored_schema = Schemas::<T>::get(&schema_id).expect("Schema Identifier should be present on chain.");
 		// Verify the Schema has the right owner
-		assert_eq!(stored_schema_creator.creator, did);
-		// Verify the Schema hash is mapped to an identifier
-		assert_eq!(stored_schema_creator.digest, schema_hash);
+		assert_eq!(stored_schema.creator, did);
 	}
 }
 
 impl_benchmark_test_suite! {
 	Pallet,
 	crate::mock::new_test_ext(),
-    crate::mock::Test,
+	crate::mock::Test
 }

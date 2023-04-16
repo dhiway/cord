@@ -16,11 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use async_std::net::{TcpListener, TcpStream};
 use core::pin::Pin;
 use futures::prelude::*;
 use soketto::handshake::{server::Response, Server};
 use std::{io, net::SocketAddr};
+use tokio::net::{TcpListener, TcpStream};
+use tokio_util::compat::{Compat, TokioAsyncReadCompatExt};
 
 /// Configuration for a [`WsServer`].
 pub struct Config {
@@ -29,13 +30,13 @@ pub struct Config {
 
 	/// Maximum size, in bytes, of a frame sent by the remote.
 	///
-	/// Since the messages are entirely buffered before being returned, a maximum value is
-	/// necessary in order to prevent malicious clients from sending huge frames that would
-	/// occupy a lot of memory.
+	/// Since the messages are entirely buffered before being returned, a
+	/// maximum value is necessary in order to prevent malicious clients from
+	/// sending huge frames that would occupy a lot of memory.
 	pub max_frame_size: usize,
 
-	/// Number of pending messages to buffer up for sending before the socket is considered
-	/// unresponsive.
+	/// Number of pending messages to buffer up for sending before the socket is
+	/// considered unresponsive.
 	pub send_buffer_len: usize,
 
 	/// Pre-allocated capacity for the list of connections.
@@ -62,17 +63,23 @@ pub struct WsServer {
 	/// Endpoint for incoming TCP sockets.
 	listener: TcpListener,
 
-	/// Pending incoming connection to accept. Accepted by calling [`WsServer::accept`].
+	/// Pending incoming connection to accept. Accepted by calling
+	/// [`WsServer::accept`].
 	pending_incoming: Option<TcpStream>,
 
-	/// List of TCP connections that are currently negotiating the WebSocket handshake.
+	/// List of TCP connections that are currently negotiating the WebSocket
+	/// handshake.
 	///
 	/// The output can be an error if the handshake fails.
 	negotiating: stream::FuturesUnordered<
 		Pin<
 			Box<
-				dyn Future<Output = Result<Server<'static, TcpStream>, Box<dyn std::error::Error>>>
-					+ Send,
+				dyn Future<
+						Output = Result<
+							Server<'static, Compat<TcpStream>>,
+							Box<dyn std::error::Error>,
+						>,
+					> + Send,
 			>,
 		>,
 	>,
@@ -103,15 +110,16 @@ impl WsServer {
 		})
 	}
 
-	/// Address of the local TCP listening socket, as provided by the operating system.
+	/// Address of the local TCP listening socket, as provided by the operating
+	/// system.
 	pub fn local_addr(&self) -> Result<SocketAddr, io::Error> {
 		self.listener.local_addr()
 	}
 
 	/// Accepts the pending connection.
 	///
-	/// Either [`WsServer::accept`] or [`WsServer::reject`] must be called after a
-	/// [`Event::ConnectionOpen`] event is returned.
+	/// Either [`WsServer::accept`] or [`WsServer::reject`] must be called after
+	/// a [`Event::ConnectionOpen`] event is returned.
 	///
 	/// # Panic
 	///
@@ -120,7 +128,7 @@ impl WsServer {
 		let pending_incoming = self.pending_incoming.take().expect("no pending socket");
 
 		self.negotiating.push(Box::pin(async move {
-			let mut server = Server::new(pending_incoming);
+			let mut server = Server::new(pending_incoming.compat());
 
 			let websocket_key = match server.receive_request().await {
 				Ok(req) => req.key(),
@@ -138,10 +146,11 @@ impl WsServer {
 			Ok(server)
 		}));
 	}
+
 	/// Reject the pending connection.
 	///
-	/// Either [`WsServer::accept`] or [`WsServer::reject`] must be called after a
-	/// [`Event::ConnectionOpen`] event is returned.
+	/// Either [`WsServer::accept`] or [`WsServer::reject`] must be called after
+	/// a [`Event::ConnectionOpen`] event is returned.
 	///
 	/// # Panic
 	///
@@ -244,30 +253,32 @@ impl WsServer {
 pub enum Event {
 	/// A new TCP connection has arrived on the listening socket.
 	///
-	/// The connection *must* be accepted or rejected using [`WsServer::accept`] or
-	/// [`WsServer::reject`].
-	/// No other [`Event::ConnectionOpen`] event will be generated until the current pending
-	/// connection has been either accepted or rejected.
+	/// The connection *must* be accepted or rejected using [`WsServer::accept`]
+	/// or [`WsServer::reject`].
+	/// No other [`Event::ConnectionOpen`] event will be generated until the
+	/// current pending connection has been either accepted or rejected.
 	ConnectionOpen {
 		/// Address of the remote, as provided by the operating system.
 		address: SocketAddr,
 	},
 
-	/// An error has happened on a connection. The connection is now closed and its
-	/// [`ConnectionId`] is now invalid.
+	/// An error has happened on a connection. The connection is now closed and
+	/// its [`ConnectionId`] is now invalid.
 	ConnectionError { error: Box<dyn std::error::Error> },
 
 	/// A text frame has been received on a connection.
 	TextFrame {
-		/// Message sent by the remote. Its content is entirely decided by the client, and
-		/// nothing must be assumed about the validity of this message.
+		/// Message sent by the remote. Its content is entirely decided by the
+		/// client, and nothing must be assumed about the validity of this
+		/// message.
 		message: String,
 	},
 
 	/// A text frame has been received on a connection.
 	BinaryFrame {
-		/// Message sent by the remote. Its content is entirely decided by the client, and
-		/// nothing must be assumed about the validity of this message.
+		/// Message sent by the remote. Its content is entirely decided by the
+		/// client, and nothing must be assumed about the validity of this
+		/// message.
 		message: Vec<u8>,
 	},
 }

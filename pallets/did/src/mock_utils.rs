@@ -19,7 +19,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use frame_support::storage::bounded_btree_set::BoundedBTreeSet;
-use sp_runtime::{traits::Zero, AccountId32, SaturatedConversion};
+use sp_runtime::{AccountId32, SaturatedConversion};
 use sp_std::{
 	collections::btree_set::BTreeSet,
 	convert::{TryFrom, TryInto},
@@ -32,7 +32,7 @@ use crate::{
 		DidVerificationKey,
 	},
 	service_endpoints::DidEndpoint,
-	AccountIdOf, BlockNumberOf, Config, DidIdentifierOf,
+	BlockNumberOf, Config, DidIdentifierOf,
 };
 
 pub fn get_key_agreement_keys<T: Config>(n_keys: u32) -> DidNewKeyAgreementKeySet<T> {
@@ -84,12 +84,10 @@ pub fn get_service_endpoints<T: Config>(
 
 pub fn generate_base_did_creation_details<T: Config>(
 	did: DidIdentifierOf<T>,
-	submitter: AccountIdOf<T>,
 ) -> DidCreationDetails<T> {
 	DidCreationDetails {
 		did,
-		submitter,
-		new_key_agreement_key: BoundedBTreeSet::new(),
+		new_key_agreement_keys: BoundedBTreeSet::new(),
 		new_assertion_key: None,
 		new_delegation_key: None,
 		new_service_details: Vec::new(),

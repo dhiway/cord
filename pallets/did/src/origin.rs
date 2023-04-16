@@ -52,15 +52,15 @@ where
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn successful_origin() -> OuterOrigin {
+	fn try_successful_origin() -> Result<OuterOrigin, ()> {
 		let zero_account_id =
 			AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
 				.expect("infinite length input; no invalid inputs for type; qed");
 
-		OuterOrigin::from(DidRawOrigin {
+		Ok(OuterOrigin::from(DidRawOrigin {
 			id: zero_account_id.clone().into(),
 			submitter: zero_account_id,
-		})
+		}))
 	}
 }
 
@@ -99,7 +99,8 @@ mod tests {
 		use frame_support::{assert_ok, traits::EnsureOrigin};
 
 		let origin: <Test as frame_system::Config>::RuntimeOrigin =
-			EnsureDidOrigin::successful_origin();
+			EnsureDidOrigin::try_successful_origin()
+				.expect("Successful origin creation should not fail.");
 		assert_ok!(EnsureDidOrigin::try_origin(origin));
 	}
 }

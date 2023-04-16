@@ -20,28 +20,28 @@ use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 use tempfile::tempdir;
 
-/// Tests that the `benchmark overhead` command works for the cord dev
-/// runtime.
+/// Tests that the `benchmark extrinsic` command works for
+/// remark and transfer_keep_alive within the substrate dev runtime.
 #[test]
-fn benchmark_overhead_works() {
-	let tmp_dir = tempdir().expect("could not create a temp dir");
-	let base_path = tmp_dir.path();
+fn benchmark_extrinsic_works() {
+	benchmark_extrinsic("system", "remark");
+	benchmark_extrinsic("balances", "transfer_keep_alive");
+}
 
-	// Only put 10 extrinsics into the block otherwise it takes forever to build it
-	// especially for a non-release build.
+/// Checks that the `benchmark extrinsic` command works for the given pallet and
+/// extrinsic.
+fn benchmark_extrinsic(pallet: &str, extrinsic: &str) {
+	let base_dir = tempdir().expect("could not create a temp dir");
+
 	let status = Command::new(cargo_bin("cord"))
-		.args(&["benchmark", "overhead", "--dev", "-d"])
-		.arg(base_path)
-		.arg("--weight-path")
-		.arg(base_path)
-		.args(["--warmup", "10", "--repeat", "10"])
-		.args(["--add", "100", "--mul", "1.2", "--metric", "p75"])
-		.args(["--max-ext-per-block", "10"])
+		.args(&["benchmark", "extrinsic", "--dev"])
+		.arg("-d")
+		.arg(base_dir.path())
+		.args(&["--pallet", pallet, "--extrinsic", extrinsic])
+		// Run with low repeats for faster execution.
+		.args(["--warmup=10", "--repeat=10", "--max-ext-per-block=10"])
 		.status()
 		.unwrap();
-	assert!(status.success());
 
-	// Weight files have been created.
-	assert!(base_path.join("block_weights.rs").exists());
-	assert!(base_path.join("extrinsic_weights.rs").exists());
+	assert!(status.success());
 }
