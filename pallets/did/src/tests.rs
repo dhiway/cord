@@ -2453,7 +2453,7 @@ fn check_call_assertion_key_error() {
 			schema_id,
 			pallet_schema::SchemaEntryOf::<Test> {
 				schema: schema.clone(),
-				digest: digest,
+				digest,
 				creator: did.clone(),
 				created_at: System::block_number(),
 			},
@@ -2529,7 +2529,7 @@ fn check_call_delegation_key_error() {
 			schema_id,
 			pallet_schema::SchemaEntryOf::<Test> {
 				schema: schema.clone(),
-				digest: digest,
+				digest,
 				creator: did.clone(),
 				created_at: System::block_number(),
 			},
@@ -2599,7 +2599,7 @@ fn check_call_authentication_key_error() {
 			schema_id,
 			pallet_schema::SchemaEntryOf::<Test> {
 				schema: schema.clone(),
-				digest: digest,
+				digest,
 				creator: did.clone(),
 				created_at: System::block_number(),
 			},
