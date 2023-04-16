@@ -217,7 +217,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// A Result<(), Error<T>>
 	pub fn is_valid(tx_ident: &SchemaIdOf) -> Result<(), Error<T>> {
-		ensure!(<Schemas<T>>::contains_key(&tx_ident), Error::<T>::SchemaNotFound);
+		ensure!(<Schemas<T>>::contains_key(tx_ident), Error::<T>::SchemaNotFound);
 		Ok(())
 	}
 }

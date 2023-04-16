@@ -39,7 +39,7 @@ async fn running_the_node_works_and_can_be_interrupted() {
 			Command::new(cargo_bin("cord"))
 				.stdout(process::Stdio::piped())
 				.stderr(process::Stdio::piped())
-				.args(&["--dev", "-d"])
+				.args(["--dev", "-d"])
 				.arg(base_path.path())
 				.arg("--db=paritydb")
 				.arg("--no-hardware-benchmarks")
@@ -86,7 +86,7 @@ async fn running_two_nodes_with_the_same_ws_port_should_work() {
 		Command::new(cargo_bin("cord"))
 			.stdout(process::Stdio::piped())
 			.stderr(process::Stdio::piped())
-			.args(&["--dev", "--tmp", "--ws-port=45789", "--no-hardware-benchmarks"])
+			.args(["--dev", "--tmp", "--ws-port=45789", "--no-hardware-benchmarks"])
 			.spawn()
 			.unwrap()
 	}

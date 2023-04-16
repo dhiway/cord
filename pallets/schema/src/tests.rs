@@ -40,8 +40,8 @@ where
 }
 
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	let identifier = Ss58Identifier::to_schema_id(&(digest).encode()[..]).unwrap();
-	identifier
+	
+	Ss58Identifier::to_schema_id(&(digest).encode()[..]).unwrap()
 }
 
 // submit_schema_creation_operation
