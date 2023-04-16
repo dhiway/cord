@@ -26,6 +26,7 @@ pub mod pallet_democracy;
 pub mod pallet_did;
 pub mod pallet_did_names;
 pub mod pallet_extrinsic_authorship;
+pub mod pallet_identity;
 pub mod pallet_im_online;
 pub mod pallet_indices;
 pub mod pallet_membership;
