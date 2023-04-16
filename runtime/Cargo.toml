@@ -45,6 +45,7 @@ pallet-collective = {git = "https://github.com/dhiway/substrate", default-featur
 pallet-democracy = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
 frame-executive = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
 pallet-grandpa = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-identity = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
 pallet-im-online = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
 pallet-indices = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
 pallet-membership = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
@@ -95,11 +96,11 @@ substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", optional
 default = ['std']
 std = [
 	"sp-authority-discovery/std",
-    "cord-primitives/std",
+  "cord-primitives/std",
 	"pallet-offences-benchmarking?/std",
 	"frame-system-benchmarking?/std",
 	"pallet-session-benchmarking?/std",
-    'codec/std',
+  'codec/std',
 	"scale-info/std",
 	"sp-inherents/std",
 	"sp-core/std",
@@ -118,6 +119,7 @@ std = [
 	"pallet-collective/std",
 	"pallet-democracy/std",
 	"pallet-grandpa/std",
+	"pallet-identity/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
 	"pallet-membership/std",
@@ -163,6 +165,7 @@ runtime-benchmarks = [
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
+	"pallet-identity/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
@@ -178,7 +181,7 @@ runtime-benchmarks = [
 	"frame-system-benchmarking/runtime-benchmarks",
 	"pallet-did/runtime-benchmarks",
   	# "pallet-did-names/runtime-benchmarks",
-  	"pallet-schema/runtime-benchmarks",
+  "pallet-schema/runtime-benchmarks",
 	"hex-literal",
 ]
 
@@ -193,6 +196,7 @@ try-runtime = [
 	"pallet-collective/try-runtime",
 	"pallet-democracy/try-runtime",
 	"pallet-grandpa/try-runtime",
+	"pallet-identity/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-membership/try-runtime",
@@ -206,6 +210,8 @@ try-runtime = [
 	"pallet-treasury/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-babe/try-runtime",
+  "pallet-schema/try-runtime",
+  "pallet-did/try-runtime",
 ]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
