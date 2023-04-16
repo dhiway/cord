@@ -17,9 +17,9 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
+use self::did_name::AsciiDidName;
 use super::*;
 use crate as pallet_did_names;
-use crate::did_name::AsciiDidName;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -115,7 +115,7 @@ impl mock_origin::Config for Test {
 }
 
 #[allow(dead_code)]
-pub fn new_test_ext() -> sp_io::TestExternalities {
+pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);

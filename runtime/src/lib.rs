@@ -1071,7 +1071,7 @@ mod benches {
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
 		[pallet_did, Did]
-		// [pallet_did_names, DidNames]
+		[pallet_did_names, DidNames]
 	);
 }
 
