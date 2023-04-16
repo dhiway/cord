@@ -446,6 +446,31 @@ parameter_types! {
 }
 
 parameter_types! {
+	// Minimum 4 CENTS/byte
+	pub const BasicDeposit: Balance = deposit(1, 258);
+	pub const FieldDeposit: Balance = deposit(0, 66);
+	pub const SubAccountDeposit: Balance = deposit(1, 53);
+	pub const MaxSubAccounts: u32 = 100;
+	pub const MaxAdditionalFields: u32 = 100;
+	pub const MaxRegistrars: u32 = 20;
+}
+
+impl pallet_identity::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type BasicDeposit = BasicDeposit;
+	type FieldDeposit = FieldDeposit;
+	type SubAccountDeposit = SubAccountDeposit;
+	type MaxSubAccounts = MaxSubAccounts;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxRegistrars = MaxRegistrars;
+	type Slashed = Treasury;
+	type ForceOrigin = MoreThanHalfCouncil;
+	type RegistrarOrigin = MoreThanHalfCouncil;
+	type WeightInfo = weights::pallet_identity::WeightInfo<Runtime>;
+}
+
+parameter_types! {
 	pub LaunchPeriod: BlockNumber = prod_or_fast!(7 * DAYS, 1, "CORD_LAUNCH_PERIOD");
 	pub VotingPeriod: BlockNumber = prod_or_fast!(7 * DAYS, 2 * MINUTES, "CORD_VOTING_PERIOD");
 	pub FastTrackVotingPeriod: BlockNumber = prod_or_fast!(3 * HOURS, 2 * MINUTES, "CORD_FAST_TRACK_VOTING_PERIOD");
@@ -926,6 +951,7 @@ construct_runtime! {
 		Multisig: pallet_multisig = 35,
 		MessageQueue: pallet_message_queue = 36,
 		Remark: pallet_remark = 37,
+		Identity: pallet_identity =38,
 		ExtrinsicAuthorship: pallet_extrinsic_authorship =101,
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,
