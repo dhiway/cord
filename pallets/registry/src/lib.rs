@@ -241,7 +241,7 @@ pub mod pallet {
 					.concat()[..],
 			);
 
-			let authorization_id = Ss58Identifier::to_authorization_id(&(&id_digest).encode()[..])
+			let authorization_id = Ss58Identifier::to_authorization_id(&id_digest.encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
@@ -260,7 +260,7 @@ pub mod pallet {
 				RegistryAuthorizationOf::<T> {
 					registry_id: registry_id.clone(),
 					delegate: delegate.clone(),
-					schema: registry_details.schema.clone(),
+					schema: registry_details.schema,
 					permissions: Permissions::all(),
 				},
 			);
@@ -268,7 +268,7 @@ pub mod pallet {
 			Self::update_commit(
 				&registry_id,
 				id_digest,
-				creator.clone(),
+				creator,
 				RegistryCommitActionOf::Authorization,
 			)
 			.map_err(Error::<T>::from)?;
@@ -317,7 +317,7 @@ pub mod pallet {
 					.concat()[..],
 			);
 
-			let authorization_id = Ss58Identifier::to_authorization_id(&(&id_digest).encode()[..])
+			let authorization_id = Ss58Identifier::to_authorization_id(&id_digest.encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
@@ -330,7 +330,7 @@ pub mod pallet {
 				RegistryAuthorizationOf::<T> {
 					registry_id: registry_id.clone(),
 					delegate: delegate.clone(),
-					schema: registry_details.schema.clone(),
+					schema: registry_details.schema,
 					permissions: Permissions::default(),
 				},
 			);
@@ -338,7 +338,7 @@ pub mod pallet {
 			Self::update_commit(
 				&registry_id,
 				id_digest,
-				creator.clone(),
+				creator,
 				RegistryCommitActionOf::Authorization,
 			)
 			.map_err(Error::<T>::from)?;
@@ -391,7 +391,7 @@ pub mod pallet {
 			Self::update_commit(
 				&registry_id,
 				tx_digest,
-				creator.clone(),
+				creator,
 				RegistryCommitActionOf::Deauthorization,
 			)
 			.map_err(Error::<T>::from)?;
@@ -436,7 +436,7 @@ pub mod pallet {
 				&[&tx_registry.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let identifier = Ss58Identifier::to_registry_id(&(&id_digest).encode()[..])
+			let identifier = Ss58Identifier::to_registry_id(&id_digest.encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
@@ -448,7 +448,7 @@ pub mod pallet {
 
 			if let Some(ref schema) = tx_schema {
 				ensure!(
-					<pallet_schema::Schemas<T>>::contains_key(&schema),
+					<pallet_schema::Schemas<T>>::contains_key(schema),
 					Error::<T>::SchemaNotFound
 				);
 			}

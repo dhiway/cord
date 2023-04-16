@@ -228,7 +228,7 @@ pub mod pallet {
 				registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
 					&authorization,
 					creator.clone(),
-					Some(schema_id.clone()),
+					Some(schema_id),
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 			} else {
@@ -251,7 +251,7 @@ pub mod pallet {
 
 			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
 
-			<StreamDigests<T>>::insert(&stream_digest, &identifier);
+			<StreamDigests<T>>::insert(stream_digest, &identifier);
 
 			<Streams<T>>::insert(
 				&identifier,
@@ -315,7 +315,7 @@ pub mod pallet {
 				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
-			<StreamDigests<T>>::insert(&stream_digest, &stream_id);
+			<StreamDigests<T>>::insert(stream_digest, &stream_id);
 
 			<Streams<T>>::insert(
 				&stream_id,
@@ -527,7 +527,7 @@ pub mod pallet {
 				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
-			<StreamDigests<T>>::insert(&stream_digest, &stream_id);
+			<StreamDigests<T>>::insert(stream_digest, &stream_id);
 
 			Self::update_commit(
 				&stream_id,
