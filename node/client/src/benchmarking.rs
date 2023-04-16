@@ -98,7 +98,7 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
 
 				let call = RuntimeCall::Balances(BalancesCall::transfer_keep_alive {
 					dest: self.dest.clone().into(),
-					value: self.value.into(),
+					value: self.value,
 				});
 				let signer = Sr25519Keyring::Bob.pair();
 
@@ -180,7 +180,7 @@ impl BenchmarkCallSigner<cord_runtime::RuntimeCall, sp_core::sr25519::Pair>
 		cord_runtime::UncheckedExtrinsic::new_signed(
 			call,
 			sp_runtime::AccountId32::from(acc.public()).into(),
-			cord_runtime::Signature::Sr25519(signature.clone()),
+			cord_runtime::Signature::Sr25519(signature),
 			extra,
 		)
 		.into()
