@@ -15,15 +15,16 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-
-use super::*;
-use crate::mock::*;
+#[cfg(any(feature = "mock", test))]
+use crate::mock as crate_mock;
+use crate::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 use sp_core::H256;
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
+use cord_primitives::AccountId;
 const DEFAULT_SCHEMA_HASH_SEED: u64 = 1u64;
 const ALTERNATIVE_SCHEMA_HASH_SEED: u64 = 2u64;
 
@@ -53,23 +54,23 @@ fn check_successful_schema_creation() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let raw_schema = [2u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+	let schema: InputSchemaOf<crate_mock::Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+	let digest: SchemaHashOf<crate_mock::Test> = <crate_mock::Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let id_digest = <crate_mock::Test as frame_system::Config>::Hashing::hash(
 		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
+	let schema_id: SchemaIdOf = generate_schema_id::<crate_mock::Test>(&id_digest);
 
-	new_test_ext().execute_with(|| {
+	crate_mock::new_test_ext().execute_with(|| {
 		// Author Transaction
-		assert_ok!(Schema::create(
+		assert_ok!(crate_mock::Schema::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone()
 		));
 
 		// Storage Checks
-		let stored_schema = Schemas::<Test>::get(&schema_id)
+		let stored_schema = Schemas::<crate_mock::Test>::get(&schema_id)
 			.expect("Schema Identifier should be present on chain.");
 
 		// Verify the Schema has the right owner
@@ -84,18 +85,18 @@ fn check_duplicate_schema_creation() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let raw_schema = [9u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+	let schema: InputSchemaOf<crate_mock::Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	new_test_ext().execute_with(|| {
+	crate_mock::new_test_ext().execute_with(|| {
 		// Author Transaction
-		assert_ok!(Schema::create(
+		assert_ok!(crate_mock::Schema::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone()
 		));
 		// Try Author the same schema again. should fail.
 		assert_noop!(
-			Schema::create(DoubleOrigin(author, creator).into(), schema),
-			Error::<Test>::SchemaAlreadyAnchored
+			crate_mock::Schema::create(DoubleOrigin(author, creator).into(), schema),
+			Error::<crate_mock::Test>::SchemaAlreadyAnchored
 		);
 	});
 }
