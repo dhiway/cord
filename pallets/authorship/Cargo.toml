@@ -2,45 +2,58 @@
 name = "pallet-extrinsic-authorship"
 description = 'Manage network transaction authorship.'
 version = "0.8.0"
-authors = ["Dhiway <info@dhiway.com>"]
+authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'
 license = "GPL-3.0"
 homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
 
+
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
 
+[dev-dependencies]
+cord-utilities = { package = "cord-utilities", path = "../../utilities", features = ["mock"] }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
+env_logger = "0.9.0"
+
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = [
-	"derive",
-	"max-encoded-len",
-] }
+codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 serde = { version = "1.0.137", default-features = false, optional = true }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
+cord-utilities = { package = "cord-utilities", path="../../utilities", default-features = false }
+log = { version = "0.4.17", default-features = false  }
 
-
+# Substrate dependencies
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
 sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
 sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
 sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
 frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
 frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
 sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false,optional = true }
 
 [features]
 default = ['std']
 std = [
-    'codec/std',
-    "scale-info/std",
-    "cord-primitives/std",
-    'sp-std/std',
-    'sp-runtime/std',
-    'frame-support/std',
-    'sp-core/std',
-    'sp-io/std',
-    'frame-system/std',
-    'serde',
+ 'codec/std',
+ "scale-info/std", 
+ 'frame-support/std', 
+ 'frame-system/std',
+ 'pallet-balances/std',
+ "cord-primitives/std", 
+ "cord-utilities/std",
+ "sp-runtime/std",  
+ "sp-core/std", 
+ "sp-io/std",
+ "sp-std/std", 
+ "serde",
+ "log/std",
 ]
+
 
 

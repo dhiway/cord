@@ -5213,13 +5213,18 @@ name = "pallet-extrinsic-authorship"
 version = "0.8.0"
 dependencies = [
  "cord-primitives",
+ "cord-utilities",
+ "env_logger 0.9.3",
  "frame-support",
  "frame-system",
+ "log",
+ "pallet-balances",
  "parity-scale-codec",
  "scale-info",
  "serde",
  "sp-core",
  "sp-io",
+ "sp-keystore",
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",
