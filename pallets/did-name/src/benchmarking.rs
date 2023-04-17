@@ -20,7 +20,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite, vec, Vec};
 use frame_support::{
 	pallet_prelude::EnsureOrigin, sp_runtime::SaturatedConversion, traits::Get, BoundedVec,
 };
