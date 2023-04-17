@@ -235,13 +235,14 @@ pub mod pallet {
 				Self::is_an_authority(&registry_id, creator.clone()).map_err(Error::<T>::from)?;
 			}
 
-			// Id Digest = concat (H(<scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>, <scale_encoded_delegate_identifier>))
+			// Id Digest = concat (H(<scale_encoded_registry_identifier>,
+			// <scale_encoded_creator_identifier>, <scale_encoded_delegate_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]]
 					.concat()[..],
 			);
 
-			let authorization_id = Ss58Identifier::to_authorization_id(&(&id_digest).encode()[..])
+			let authorization_id = Ss58Identifier::to_authorization_id(&id_digest.encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
@@ -260,7 +261,7 @@ pub mod pallet {
 				RegistryAuthorizationOf::<T> {
 					registry_id: registry_id.clone(),
 					delegate: delegate.clone(),
-					schema: registry_details.schema.clone(),
+					schema: registry_details.schema,
 					permissions: Permissions::all(),
 				},
 			);
@@ -268,7 +269,7 @@ pub mod pallet {
 			Self::update_commit(
 				&registry_id,
 				id_digest,
-				creator.clone(),
+				creator,
 				RegistryCommitActionOf::Authorization,
 			)
 			.map_err(Error::<T>::from)?;
@@ -311,13 +312,14 @@ pub mod pallet {
 				Self::is_an_authority(&registry_id, creator.clone()).map_err(Error::<T>::from)?;
 			}
 
-			// Id Digest = concat (H(<scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>, <scale_encoded_delegate_identifier>))
+			// Id Digest = concat (H(<scale_encoded_registry_identifier>,
+			// <scale_encoded_creator_identifier>, <scale_encoded_delegate_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]]
 					.concat()[..],
 			);
 
-			let authorization_id = Ss58Identifier::to_authorization_id(&(&id_digest).encode()[..])
+			let authorization_id = Ss58Identifier::to_authorization_id(&id_digest.encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
@@ -330,7 +332,7 @@ pub mod pallet {
 				RegistryAuthorizationOf::<T> {
 					registry_id: registry_id.clone(),
 					delegate: delegate.clone(),
-					schema: registry_details.schema.clone(),
+					schema: registry_details.schema,
 					permissions: Permissions::default(),
 				},
 			);
@@ -338,7 +340,7 @@ pub mod pallet {
 			Self::update_commit(
 				&registry_id,
 				id_digest,
-				creator.clone(),
+				creator,
 				RegistryCommitActionOf::Authorization,
 			)
 			.map_err(Error::<T>::from)?;
@@ -357,7 +359,8 @@ pub mod pallet {
 		/// Arguments:
 		///
 		/// * `origin`: The origin of the call.
-		/// * `registry_id`: The registry_id of the registry you want to remove the delegate from.
+		/// * `registry_id`: The registry_id of the registry you want to remove
+		///   the delegate from.
 		/// * `authorization_id`: The transaction authorization id .
 		///
 		/// Returns:
@@ -391,7 +394,7 @@ pub mod pallet {
 			Self::update_commit(
 				&registry_id,
 				tx_digest,
-				creator.clone(),
+				creator,
 				RegistryCommitActionOf::Deauthorization,
 			)
 			.map_err(Error::<T>::from)?;
@@ -410,8 +413,9 @@ pub mod pallet {
 		///
 		/// * `origin`: OriginFor<T>
 		/// * `tx_registry`: The new registry detail
-		/// * `tx_schema`: Optional schema identifier. Schema Identifier is used to restrict the registry
-		/// *  content to a specific schema type.
+		/// * `tx_schema`: Optional schema identifier. Schema Identifier is used
+		///   to restrict the registry
+		/// * content to a specific schema type.
 		///
 		/// Returns:
 		///
@@ -431,12 +435,13 @@ pub mod pallet {
 				Error::<T>::MaxEncodedRegistryLimitExceeded
 			);
 
-			// Id Digest = concat (H(<scale_encoded_registry_input>, <scale_encoded_creator_identifier>))
+			// Id Digest = concat (H(<scale_encoded_registry_input>,
+			// <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[&tx_registry.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let identifier = Ss58Identifier::to_registry_id(&(&id_digest).encode()[..])
+			let identifier = Ss58Identifier::to_registry_id(&id_digest.encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
@@ -448,7 +453,7 @@ pub mod pallet {
 
 			if let Some(ref schema) = tx_schema {
 				ensure!(
-					<pallet_schema::Schemas<T>>::contains_key(&schema),
+					<pallet_schema::Schemas<T>>::contains_key(schema),
 					Error::<T>::SchemaNotFound
 				);
 			}
@@ -475,7 +480,8 @@ pub mod pallet {
 
 			Ok(())
 		}
-		/// Allows the creator or an admin delegate of a registry to update the registry's details
+		/// Allows the creator or an admin delegate of a registry to update the
+		/// registry's details
 		///
 		/// Arguments:
 		///
@@ -622,8 +628,10 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Arguments:
 	///
-	/// * `tx_registry`: The registry that the transaction is being performed on.
-	/// * `authority`: The DID identifier that is trying to perform the operation.
+	/// * `tx_registry`: The registry that the transaction is being performed
+	///   on.
+	/// * `authority`: The DID identifier that is trying to perform the
+	///   operation.
 	///
 	/// Returns:
 	///
@@ -645,7 +653,8 @@ impl<T: Config> Pallet<T> {
 	///
 	/// Arguments:
 	///
-	/// * `tx_registry`: The registry that the transaction is being committed to.
+	/// * `tx_registry`: The registry that the transaction is being committed
+	///   to.
 	/// * `tx_digest`: The hash of the transaction that was committed.
 	/// * `proposer`: The account that is proposing the transaction.
 	/// * `commit`: The action that was committed.
@@ -674,8 +683,8 @@ impl<T: Config> Pallet<T> {
 		})
 	}
 
-	/// Checks if the given `authorization_id` is a valid authorization for the given
-	/// `delegate` and `schema` (if provided)
+	/// Checks if the given `authorization_id` is a valid authorization for the
+	/// given `delegate` and `schema` (if provided)
 	///
 	/// Arguments:
 	///
@@ -692,8 +701,7 @@ impl<T: Config> Pallet<T> {
 		schema: Option<SchemaIdOf>,
 	) -> Result<RegistryIdOf, Error<T>> {
 		let delegate_details = <Authorizations<T>>::get(authorization_id);
-		if delegate_details.is_some() {
-			let d = delegate_details.unwrap();
+		if let Some(d) = delegate_details {
 			ensure!(d.delegate == delegate, Error::<T>::UnauthorizedOperation);
 			ensure!(
 				(d.permissions & Permissions::ASSERT) == Permissions::ASSERT,
@@ -712,7 +720,8 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// Checks if the given `authorization_id` is an admin of the given `registry_id`
+	/// Checks if the given `authorization_id` is an admin of the given
+	/// `registry_id`
 	///
 	/// Arguments:
 	///
@@ -727,8 +736,7 @@ impl<T: Config> Pallet<T> {
 		delegate: RegistryCreatorIdOf<T>,
 	) -> Result<RegistryIdOf, Error<T>> {
 		let delegate_details = <Authorizations<T>>::get(authorization_id);
-		if delegate_details.is_some() {
-			let d = delegate_details.unwrap();
+		if let Some(d) = delegate_details {
 			ensure!(d.delegate == delegate, Error::<T>::UnauthorizedOperation);
 			ensure!(
 				(d.permissions & Permissions::ADMIN) == Permissions::ADMIN,

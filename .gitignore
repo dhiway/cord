@@ -6,6 +6,10 @@
 runtime/wasm/target/
 **/._*
 **/*.rs.bk
+nohup.out
+rls*.log
+*.orig
+*.rej
 
 # IntelliJ project files
 *.iml
@@ -16,4 +20,3 @@ runtime/wasm/target/
 
 .DS_Store
 !.rpm/*
-.cargo

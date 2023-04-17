@@ -215,7 +215,7 @@ fn check_duplicate_did_creation() {
 	let alice_did = get_did_identifier_from_sr25519_key(auth_key.public());
 	// let auth_did_key = DidVerificationKey::from(auth_key.public());
 	// let mock_did = generate_base_did_details::<Test>(auth_did_key);
-	let details = generate_base_did_creation_details::<Test>(alice_did.clone());
+	let details = generate_base_did_creation_details::<Test>(alice_did);
 
 	let signature = auth_key.sign(details.encode().as_ref());
 
@@ -1984,7 +1984,7 @@ fn check_successful_deletion_with_endpoints() {
 	let alice_did = get_did_identifier_from_ed25519_key(auth_key.public());
 	let service_endpoint =
 		DidEndpoint::new(b"id".to_vec(), vec![b"type".to_vec()], vec![b"url".to_vec()]);
-	let service_endpoints = vec![service_endpoint.clone()];
+	let service_endpoints = vec![service_endpoint];
 	let did_details =
 		generate_base_did_details::<Test>(DidVerificationKey::from(auth_key.public()));
 
@@ -2040,7 +2040,7 @@ fn check_service_count_too_small_deletion_error() {
 	let alice_did = get_did_identifier_from_ed25519_key(auth_key.public());
 	let service_endpoint =
 		DidEndpoint::new(b"id".to_vec(), vec![b"type".to_vec()], vec![b"url".to_vec()]);
-	let service_endpoints = vec![service_endpoint.clone()];
+	let service_endpoints = vec![service_endpoint];
 	let did_details =
 		generate_base_did_details::<Test>(DidVerificationKey::from(auth_key.public()));
 
@@ -2453,7 +2453,7 @@ fn check_call_assertion_key_error() {
 			schema_id,
 			pallet_schema::SchemaEntryOf::<Test> {
 				schema: schema.clone(),
-				digest: digest.clone(),
+				digest,
 				creator: did.clone(),
 				created_at: System::block_number(),
 			},
@@ -2529,7 +2529,7 @@ fn check_call_delegation_key_error() {
 			schema_id,
 			pallet_schema::SchemaEntryOf::<Test> {
 				schema: schema.clone(),
-				digest: digest.clone(),
+				digest,
 				creator: did.clone(),
 				created_at: System::block_number(),
 			},
@@ -2599,7 +2599,7 @@ fn check_call_authentication_key_error() {
 			schema_id,
 			pallet_schema::SchemaEntryOf::<Test> {
 				schema: schema.clone(),
-				digest: digest.clone(),
+				digest,
 				creator: did.clone(),
 				created_at: System::block_number(),
 			},

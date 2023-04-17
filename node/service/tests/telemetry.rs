@@ -69,7 +69,7 @@ async fn telemetry_works() {
 	let mut substrate = process::Command::new(cargo_bin("cord"));
 
 	let mut substrate = substrate
-		.args(&["--dev", "--tmp", "--telemetry-url"])
+		.args(["--dev", "--tmp", "--telemetry-url"])
 		.arg(format!("ws://{} 10", addr))
 		.stdout(process::Stdio::piped())
 		.stderr(process::Stdio::piped())
