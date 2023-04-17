@@ -22,15 +22,16 @@ use codec::{Decode, Encode, MaxEncodedLen, WrapperTypeEncode};
 use frame_support::{
 	ensure,
 	storage::{bounded_btree_map::BoundedBTreeMap, bounded_btree_set::BoundedBTreeSet},
+	traits::Get,
 	RuntimeDebug,
 };
 use scale_info::TypeInfo;
 use sp_core::{ecdsa, ed25519, sr25519};
-use sp_runtime::{traits::Verify, MultiSignature};
+use sp_runtime::{traits::Verify, MultiSignature, SaturatedConversion};
 use sp_std::{convert::TryInto, vec::Vec};
 
 use crate::{
-	errors::{DidError, SignatureError, StorageError},
+	errors::{self, DidError, SignatureError, StorageError},
 	service_endpoints::DidEndpoint,
 	utils, AccountIdOf, BlockNumberOf, Config, DidCallableOf, DidIdentifierOf, KeyIdOf, Payload,
 };
@@ -57,19 +58,19 @@ impl DidVerificationKey {
 	) -> Result<(), SignatureError> {
 		match (self, signature) {
 			(DidVerificationKey::Ed25519(public_key), DidSignature::Ed25519(sig)) => {
-				ensure!(sig.verify(payload, public_key), SignatureError::InvalidSignature);
+				ensure!(sig.verify(payload, public_key), SignatureError::InvalidData);
 				Ok(())
 			},
 			// Follows same process as above, but using a Sr25519 instead
 			(DidVerificationKey::Sr25519(public_key), DidSignature::Sr25519(sig)) => {
-				ensure!(sig.verify(payload, public_key), SignatureError::InvalidSignature);
+				ensure!(sig.verify(payload, public_key), SignatureError::InvalidData);
 				Ok(())
 			},
 			(DidVerificationKey::Ecdsa(public_key), DidSignature::Ecdsa(sig)) => {
-				ensure!(sig.verify(payload, public_key), SignatureError::InvalidSignature);
+				ensure!(sig.verify(payload, public_key), SignatureError::InvalidData);
 				Ok(())
 			},
-			_ => Err(SignatureError::InvalidSignatureFormat),
+			_ => Err(SignatureError::InvalidFormat),
 		}
 	}
 }
@@ -222,7 +223,7 @@ impl<I: AsRef<[u8; 32]>> DidVerifiableIdentifier for I {
 			},
 			DidSignature::Ecdsa(ref signature) => {
 				let ecdsa_signature: [u8; 65] =
-					signature.encode().try_into().map_err(|_| SignatureError::InvalidSignature)?;
+					signature.encode().try_into().map_err(|_| SignatureError::InvalidData)?;
 				// ECDSA uses blake2-256 hashing algorithm for signatures, so we hash the given
 				// message to recover the public key.
 				let hashed_message = sp_io::hashing::blake2_256(payload);
@@ -230,11 +231,11 @@ impl<I: AsRef<[u8; 32]>> DidVerifiableIdentifier for I {
 					&ecdsa_signature,
 					&hashed_message,
 				)
-				.map_err(|_| SignatureError::InvalidSignature)?;
+				.map_err(|_| SignatureError::InvalidData)?;
 				let hashed_recovered_pk = sp_io::hashing::blake2_256(&recovered_pk);
 				// The hashed recovered public key must be equal to the AccountId32 value, which
 				// is the hashed key.
-				ensure!(&hashed_recovered_pk == raw_public_key, SignatureError::InvalidSignature);
+				ensure!(&hashed_recovered_pk == raw_public_key, SignatureError::InvalidData);
 				// Safe to reconstruct the public key using the recovered value from
 				// secp256k1_ecdsa_recover_compressed
 				Ok(DidVerificationKey::from(ecdsa::Public(recovered_pk)))
@@ -311,7 +312,7 @@ impl<T: Config> DidDetails<T> {
 				authentication_key_id,
 				DidPublicKeyDetails { key: authentication_key.into(), block_number },
 			)
-			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
+			.map_err(|_| StorageError::MaxPublicKeysExceeded)?;
 		Ok(Self {
 			authentication_key: authentication_key_id,
 			key_agreement_keys: DidKeyAgreementKeySet::<T>::default(),
@@ -328,13 +329,18 @@ impl<T: Config> DidDetails<T> {
 		details: DidCreationDetails<T>,
 		new_auth_key: DidVerificationKey,
 	) -> Result<Self, DidError> {
+		ensure!(
+			details.new_key_agreement_keys.len() <=
+				<<T as Config>::MaxNewKeyAgreementKeys>::get().saturated_into::<usize>(),
+			errors::InputError::MaxKeyAgreementKeysLimitExceeded
+		);
 		let current_block_number = frame_system::Pallet::<T>::block_number();
 
 		// Creates a new DID with the given authentication key.
 		let mut new_did_details = DidDetails::new(new_auth_key, current_block_number)?;
 
 		new_did_details
-			.add_key_agreement_key(details.new_key_agreement_key, current_block_number)?;
+			.add_key_agreement_keys(details.new_key_agreement_keys, current_block_number)?;
 
 		if let Some(attesation_key) = details.new_assertion_key {
 			new_did_details.update_assertion_key(attesation_key, current_block_number)?;
@@ -370,7 +376,21 @@ impl<T: Config> DidDetails<T> {
 				new_authentication_key_id,
 				DidPublicKeyDetails { key: new_authentication_key.into(), block_number },
 			)
-			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
+			.map_err(|_| StorageError::MaxPublicKeysExceeded)?;
+		Ok(())
+	}
+
+	/// Add new key agreement keys to the DID.
+	///
+	/// The new keys are added to the set of public keys.
+	pub fn add_key_agreement_keys(
+		&mut self,
+		new_key_agreement_keys: DidNewKeyAgreementKeySet<T>,
+		block_number: BlockNumberOf<T>,
+	) -> Result<(), errors::StorageError> {
+		for new_key_agreement_key in new_key_agreement_keys {
+			self.add_key_agreement_key(new_key_agreement_key, block_number)?;
+		}
 		Ok(())
 	}
 
@@ -388,7 +408,7 @@ impl<T: Config> DidDetails<T> {
 				new_key_agreement_id,
 				DidPublicKeyDetails { key: new_key_agreement_key.into(), block_number },
 			)
-			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
+			.map_err(|_| StorageError::MaxPublicKeysExceeded)?;
 		self.key_agreement_keys
 			.try_insert(new_key_agreement_id)
 			.map_err(|_| StorageError::MaxTotalKeyAgreementKeysExceeded)?;
@@ -398,7 +418,10 @@ impl<T: Config> DidDetails<T> {
 	/// Remove a key agreement key from both the set of key agreement keys and
 	/// the one of public keys.
 	pub fn remove_key_agreement_key(&mut self, key_id: KeyIdOf<T>) -> Result<(), StorageError> {
-		ensure!(self.key_agreement_keys.remove(&key_id), StorageError::KeyNotPresent);
+		ensure!(
+			self.key_agreement_keys.remove(&key_id),
+			StorageError::NotFound(errors::NotFoundKind::Key(errors::KeyType::KeyAgreement))
+		);
 		self.remove_key_if_unused(key_id);
 		Ok(())
 	}
@@ -423,7 +446,7 @@ impl<T: Config> DidDetails<T> {
 				new_assertion_key_id,
 				DidPublicKeyDetails { key: new_assertion_key.into(), block_number },
 			)
-			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
+			.map_err(|_| StorageError::MaxPublicKeysExceeded)?;
 		Ok(())
 	}
 
@@ -433,7 +456,9 @@ impl<T: Config> DidDetails<T> {
 	/// not used in any other part of the DID. The new key is added to the
 	/// set of public keys.
 	pub fn remove_assertion_key(&mut self) -> Result<(), StorageError> {
-		let old_key_id = self.assertion_key.take().ok_or(StorageError::KeyNotPresent)?;
+		let old_key_id = self.assertion_key.take().ok_or(errors::StorageError::NotFound(
+			errors::NotFoundKind::Key(errors::KeyType::AssertionMethod),
+		))?;
 		self.remove_key_if_unused(old_key_id);
 		Ok(())
 	}
@@ -459,7 +484,7 @@ impl<T: Config> DidDetails<T> {
 				new_delegation_key_id,
 				DidPublicKeyDetails { key: new_delegation_key.into(), block_number },
 			)
-			.map_err(|_| StorageError::MaxPublicKeysPerDidExceeded)?;
+			.map_err(|_| StorageError::MaxPublicKeysExceeded)?;
 		Ok(())
 	}
 
@@ -469,7 +494,9 @@ impl<T: Config> DidDetails<T> {
 	/// not used in any other part of the DID. The new key is added to the
 	/// set of public keys.
 	pub fn remove_delegation_key(&mut self) -> Result<(), StorageError> {
-		let old_key_id = self.delegation_key.take().ok_or(StorageError::KeyNotPresent)?;
+		let old_key_id = self.delegation_key.take().ok_or(errors::StorageError::NotFound(
+			errors::NotFoundKind::Key(errors::KeyType::AssertionMethod),
+		))?;
 		self.remove_key_if_unused(old_key_id);
 		Ok(())
 	}
@@ -477,10 +504,10 @@ impl<T: Config> DidDetails<T> {
 	// Remove a key from the map of public keys if none of the other keys, i.e.,
 	// authentication, key agreement, assertion, or delegation, is referencing it.
 	pub fn remove_key_if_unused(&mut self, key_id: KeyIdOf<T>) {
-		if self.authentication_key != key_id
-			&& self.assertion_key != Some(key_id)
-			&& self.delegation_key != Some(key_id)
-			&& !self.key_agreement_keys.contains(&key_id)
+		if self.authentication_key != key_id &&
+			self.assertion_key != Some(key_id) &&
+			self.delegation_key != Some(key_id) &&
+			!self.key_agreement_keys.contains(&key_id)
 		{
 			self.public_keys.remove(&key_id);
 		}
@@ -515,10 +542,10 @@ impl<T: Config> DidDetails<T> {
 	}
 }
 
-// pub(crate) type DidNewKeyAgreementKeySet<T> =
-// BoundedBTreeSet<DidEncryptionKey, <T as Config>::MaxNewKeyAgreementKeys>;
+pub(crate) type DidNewKeyAgreementKeySet<T> =
+	BoundedBTreeSet<DidEncryptionKey, <T as Config>::MaxNewKeyAgreementKeys>;
 pub(crate) type DidKeyAgreementKeySet<T> =
-	BoundedBTreeSet<KeyIdOf<T>, <T as Config>::MaxKeyAgreementKeys>;
+	BoundedBTreeSet<KeyIdOf<T>, <T as Config>::MaxTotalKeyAgreementKeys>;
 pub(crate) type DidPublicKeyMap<T> = BoundedBTreeMap<
 	KeyIdOf<T>,
 	DidPublicKeyDetails<BlockNumberOf<T>>,
@@ -532,10 +559,8 @@ pub(crate) type DidPublicKeyMap<T> = BoundedBTreeMap<
 pub struct DidCreationDetails<T: Config> {
 	/// The DID identifier. It has to be unique.
 	pub did: DidIdentifierOf<T>,
-	/// The authorised submitter of the creation operation.
-	pub submitter: AccountIdOf<T>,
 	/// The new key agreement keys.
-	pub new_key_agreement_key: DidEncryptionKey,
+	pub new_key_agreement_keys: DidNewKeyAgreementKeySet<T>,
 	/// \[OPTIONAL\] The new assertion key.
 	pub new_assertion_key: Option<DidVerificationKey>,
 	/// \[OPTIONAL\] The new delegation key.

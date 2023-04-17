@@ -12,41 +12,36 @@ repository = "https://github.com/dhiway/cord"
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", features = ["std"]}
-sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", features = ["std"]}
-pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", features = ["std"]}
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
 cord-utilities = { package = "cord-utilities", path="../../utilities", features = ["mock"] }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = ["derive"] }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 cord-utilities = { package = "cord-utilities", path="../../utilities", default-features = false }
+log = { version = "0.4.17", default-features = false  }
 
 # Substrate dependencies
-frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", default-features = false, optional = true }
-frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", default-features = false }
-frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", default-features = false }
-sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", default-features = false }
-sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", default-features = false, optional = true }
-sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", default-features = false, optional = true }
-sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", default-features = false,optional = true }
-pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40", default-features = false, optional = true }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
+frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
+frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
+sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false,optional = true }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
 
 [features]
 default = [ 'std' ]
-mock = [
-  "pallet-balances",
-  "sp-core",
-  "sp-io",
-  "sp-keystore",
-  ]
 runtime-benchmarks = [
-  "frame-benchmarking",
+  "frame-benchmarking/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
@@ -65,6 +60,7 @@ std = [
   "sp-core/std",
   "sp-io/std",
   "sp-std/std",
+  "log/std",
 ] 
 try-runtime = [
   "frame-support/try-runtime",

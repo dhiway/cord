@@ -18,8 +18,9 @@
 
 //! Cord Client
 //!
-//! Provides the [`AbstractClient`] trait that is a super trait that combines all the traits the client implements.
-//! There is also the [`Client`] enum that combines all the different clients into one common structure.
+//! Provides the [`AbstractClient`] trait that is a super trait that combines
+//! all the traits the client implements. There is also the [`Client`] enum that
+//! combines all the different clients into one common structure.
 
 use cord_primitives::{AccountId, Balance, Block, BlockNumber, DidIdentifier, Hash, Header, Index};
 use sc_client_api::{
@@ -172,7 +173,7 @@ macro_rules! with_client {
 		$code:expr
 	} => {
 		match $self {
-				#[cfg(feature = "cord")]
+			#[cfg(feature = "cord")]
 
 			Client::Cord($client) => {
 				#[allow(unused_imports)]

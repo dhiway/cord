@@ -18,13 +18,25 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+use super::*;
+use crate::{did_name::AsciiDidName, mock::*};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
-
-use cord_utilities::mock::mock_origin;
+// use crate::{did_name::AsciiDidName, Banned, DidNameOwnershipOf, Error, Names,
+// Owner, Pallet};
+use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_system::RawOrigin;
-use sp_runtime::DispatchError;
+use sp_runtime::{AccountId32, DispatchError};
 
-use crate::{mock::*, Banned, DidNameOwnershipOf, Error, Names, Owner, Pallet};
+pub(crate) const ACCOUNT_00: TestDidNamePayer = AccountId32::new([1u8; 32]);
+pub(crate) const ACCOUNT_01: TestDidNamePayer = AccountId32::new([2u8; 32]);
+pub(crate) const DID_00: TestDidNameOwner = SubjectId(ACCOUNT_00);
+pub(crate) const DID_01: TestDidNameOwner = SubjectId(ACCOUNT_01);
+pub(crate) const DID_NAME_00_INPUT: &[u8; 16] = b"did.name.00@cord";
+pub(crate) const DID_NAME_01_INPUT: &[u8; 16] = b"did.name.01@cord";
+
+pub(crate) fn get_did_name(did_name_input: &[u8]) -> TestDidName {
+	AsciiDidName::try_from(did_name_input.to_vec()).expect("Invalid did name input.")
+}
 
 // #############################################################################
 // Registering a DID name
@@ -32,12 +44,12 @@ use crate::{mock::*, Banned, DidNameOwnershipOf, Error, Names, Owner, Pallet};
 #[test]
 fn registering_successful() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
-	ExtBuilder::default().build().execute_with(|| {
+	new_test_ext().execute_with(|| {
 		assert!(Names::<Test>::get(&DID_00).is_none());
 		assert!(Owner::<Test>::get(&did_name_00).is_none());
 
 		assert_ok!(Pallet::<Test>::register(
-			mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
+			DoubleOrigin(ACCOUNT_00, DID_00).into(),
 			did_name_00.clone().0,
 		));
 		let did_name = Names::<Test>::get(&DID_00).expect("Did name should be stored.");
@@ -46,12 +58,12 @@ fn registering_successful() {
 		// Test that the name matches
 		assert_eq!(did_name, did_name_00);
 		// Test that the ownership details match
-		assert_eq!(owner_details, DidNameOwnershipOf::<Test> { owner: DID_00, registered_at: 0 });
+		assert_eq!(owner_details, DidNameOwnershipOf::<Test> { owner: DID_00, registered_at: 1 });
 
 		// Test that the same name cannot be claimed again.
 		assert_noop!(
 			Pallet::<Test>::register(
-				mock_origin::DoubleOrigin(ACCOUNT_01, DID_01).into(),
+				DoubleOrigin(ACCOUNT_01, DID_01).into(),
 				did_name_00.clone().0,
 			),
 			Error::<Test>::AlreadyExists
@@ -60,10 +72,7 @@ fn registering_successful() {
 		// Test that the same owner cannot claim a new name.
 		let did_name_01 = get_did_name(DID_NAME_01_INPUT);
 		assert_noop!(
-			Pallet::<Test>::register(
-				mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
-				did_name_01.0,
-			),
+			Pallet::<Test>::register(DoubleOrigin(ACCOUNT_00, DID_00).into(), did_name_01.0,),
 			Error::<Test>::OwnerAlreadyExists
 		);
 	})
@@ -75,9 +84,9 @@ fn registering_invalid() {
 		// Empty name
 		BoundedVec::try_from(b"".to_vec()).unwrap(),
 		// Single-char name
-		BoundedVec::try_from(b"1".to_vec()).unwrap(),
+		BoundedVec::try_from(b"a".to_vec()).unwrap(),
 		// Two-letter name
-		BoundedVec::try_from(b"10".to_vec()).unwrap(),
+		BoundedVec::try_from(b"ab".to_vec()).unwrap(),
 	];
 
 	let invalid_did_names = vec![
@@ -90,47 +99,35 @@ fn registering_invalid() {
 		// Non-ASCII character name
 		BoundedVec::try_from(String::from("notascii😁").as_bytes().to_owned()).unwrap(),
 	];
-	ExtBuilder::default()
-		// .with_balances(vec![(ACCOUNT_00, 100)])
-		.build()
-		.execute_with(|| {
-			for too_short_input in too_short_did_names.iter() {
-				assert_noop!(
-					Pallet::<Test>::register(
-						mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
-						too_short_input.clone(),
-					),
-					Error::<Test>::NameTooShort,
-				);
-			}
-			for input in invalid_did_names.iter() {
-				assert_noop!(
-					Pallet::<Test>::register(
-						mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
-						input.clone()
-					),
-					Error::<Test>::InvalidFormat,
-				);
-			}
-		})
+	new_test_ext().execute_with(|| {
+		for too_short_input in too_short_did_names.iter() {
+			assert_noop!(
+				Pallet::<Test>::register(
+					DoubleOrigin(ACCOUNT_00, DID_00).into(),
+					too_short_input.clone(),
+				),
+				Error::<Test>::NameTooShort,
+			);
+		}
+		for input in invalid_did_names.iter() {
+			assert_noop!(
+				Pallet::<Test>::register(DoubleOrigin(ACCOUNT_00, DID_00).into(), input.clone()),
+				Error::<Test>::InvalidFormat,
+			);
+		}
+	})
 }
 
 #[test]
 fn registering_banned() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
-	ExtBuilder::default()
-		// .with_balances(vec![(ACCOUNT_00, 100)])
-		.with_banned_did_names(vec![did_name_00.clone()])
-		.build()
-		.execute_with(|| {
-			assert_noop!(
-				Pallet::<Test>::register(
-					mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
-					did_name_00.0
-				),
-				Error::<Test>::Banned
-			);
-		})
+	new_test_ext().execute_with(|| {
+		assert_ok!(Pallet::<Test>::ban(RawOrigin::Root.into(), did_name_00.clone().0));
+		assert_noop!(
+			Pallet::<Test>::register(DoubleOrigin(ACCOUNT_00, DID_00).into(), did_name_00.0),
+			Error::<Test>::Banned
+		);
+	})
 }
 
 // #############################################################################
@@ -139,24 +136,23 @@ fn registering_banned() {
 #[test]
 fn releasing_successful() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
-	ExtBuilder::default()
-		.with_did_names(vec![(DID_00, did_name_00.clone())])
-		.build()
-		.execute_with(|| {
-			assert_ok!(Pallet::<Test>::release(
-				mock_origin::DoubleOrigin(ACCOUNT_01, DID_00).into(),
-			));
-			assert!(Names::<Test>::get(&DID_00).is_none());
-			assert!(Owner::<Test>::get(&did_name_00).is_none());
-		})
+	new_test_ext().execute_with(|| {
+		assert_ok!(Pallet::<Test>::register(
+			DoubleOrigin(ACCOUNT_01, DID_00).into(),
+			did_name_00.clone().0
+		));
+		assert_ok!(Pallet::<Test>::release(DoubleOrigin(ACCOUNT_01, DID_00).into(),));
+		assert!(Names::<Test>::get(&DID_00).is_none());
+		assert!(Owner::<Test>::get(&did_name_00).is_none());
+	})
 }
 
 #[test]
 fn releasing_not_found() {
-	ExtBuilder::default().build().execute_with(|| {
+	new_test_ext().execute_with(|| {
 		// Fail to claim by owner
 		assert_noop!(
-			Pallet::<Test>::release(mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into()),
+			Pallet::<Test>::release(DoubleOrigin(ACCOUNT_00, DID_00).into()),
 			Error::<Test>::OwnerNotFound
 		);
 	})
@@ -165,17 +161,15 @@ fn releasing_not_found() {
 #[test]
 fn releasing_banned() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
-	ExtBuilder::default()
-		.with_banned_did_names(vec![(did_name_00)])
-		.build()
-		.execute_with(|| {
-			assert_noop!(
-				Pallet::<Test>::release(mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into()),
-				// A banned name will be removed from the map of used names, so it will be considered not
-				// existing.
-				Error::<Test>::OwnerNotFound
-			);
-		})
+	new_test_ext().execute_with(|| {
+		assert_ok!(Pallet::<Test>::ban(RawOrigin::Root.into(), did_name_00.clone().0));
+		assert_noop!(
+			Pallet::<Test>::release(DoubleOrigin(ACCOUNT_00, DID_00).into()),
+			// A banned name will be removed from the map of used names, so it will be
+			// considered not existing.
+			Error::<Test>::OwnerNotFound
+		);
+	})
 }
 
 // #############################################################################
@@ -185,43 +179,38 @@ fn releasing_banned() {
 fn banning_successful() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
 	let did_name_01 = get_did_name(DID_NAME_01_INPUT);
-	ExtBuilder::default()
-		.with_did_names(vec![(DID_00, did_name_00.clone())])
-		.build()
-		.execute_with(|| {
-			// Ban a claimed name
-			assert_ok!(Pallet::<Test>::ban(RawOrigin::Root.into(), did_name_00.clone().0));
+	new_test_ext().execute_with(|| {
+		// Ban a claimed name
+		assert_ok!(Pallet::<Test>::ban(RawOrigin::Root.into(), did_name_00.clone().0));
 
-			assert!(Names::<Test>::get(&DID_00).is_none());
-			assert!(Owner::<Test>::get(&did_name_00).is_none());
-			assert!(Banned::<Test>::get(&did_name_00).is_some());
+		assert!(Names::<Test>::get(&DID_00).is_none());
+		assert!(Owner::<Test>::get(&did_name_00).is_none());
+		assert!(Banned::<Test>::get(&did_name_00).is_some());
 
-			// Ban an unclaimed name
-			assert_ok!(Pallet::<Test>::ban(RawOrigin::Root.into(), did_name_01.clone().0));
+		// Ban an unclaimed name
+		assert_ok!(Pallet::<Test>::ban(RawOrigin::Root.into(), did_name_01.clone().0));
 
-			assert!(Owner::<Test>::get(&did_name_01).is_none());
-			assert!(Banned::<Test>::get(&did_name_01).is_some());
-		})
+		assert!(Owner::<Test>::get(&did_name_01).is_none());
+		assert!(Banned::<Test>::get(&did_name_01).is_some());
+	})
 }
 
 #[test]
 fn banning_already_banned() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
-	ExtBuilder::default()
-		.with_banned_did_names(vec![did_name_00.clone()])
-		.build()
-		.execute_with(|| {
-			assert_noop!(
-				Pallet::<Test>::ban(RawOrigin::Root.into(), did_name_00.clone().0),
-				Error::<Test>::AlreadyBanned
-			);
-		})
+	new_test_ext().execute_with(|| {
+		assert_ok!(Pallet::<Test>::ban(RawOrigin::Root.into(), did_name_00.clone().0));
+		assert_noop!(
+			Pallet::<Test>::ban(RawOrigin::Root.into(), did_name_00.clone().0),
+			Error::<Test>::AlreadyBanned
+		);
+	})
 }
 
 #[test]
 fn banning_unauthorized_origin() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
-	ExtBuilder::default().build().execute_with(|| {
+	new_test_ext().execute_with(|| {
 		// Signer origin
 		assert_noop!(
 			Pallet::<Test>::ban(RawOrigin::Signed(ACCOUNT_00).into(), did_name_00.clone().0),
@@ -229,10 +218,7 @@ fn banning_unauthorized_origin() {
 		);
 		// Owner origin
 		assert_noop!(
-			Pallet::<Test>::ban(
-				mock_origin::DoubleOrigin(ACCOUNT_00, DID_01).into(),
-				did_name_00.clone().0
-			),
+			Pallet::<Test>::ban(DoubleOrigin(ACCOUNT_00, DID_01).into(), did_name_00.clone().0),
 			DispatchError::BadOrigin
 		);
 	})
@@ -244,24 +230,22 @@ fn banning_unauthorized_origin() {
 #[test]
 fn unbanning_successful() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
-	ExtBuilder::default()
-		.with_banned_did_names(vec![did_name_00.clone()])
-		.build()
-		.execute_with(|| {
-			assert_ok!(Pallet::<Test>::unban(RawOrigin::Root.into(), did_name_00.clone().0));
+	new_test_ext().execute_with(|| {
+		assert_ok!(Pallet::<Test>::ban(RawOrigin::Root.into(), did_name_00.clone().0));
+		assert_ok!(Pallet::<Test>::unban(RawOrigin::Root.into(), did_name_00.clone().0));
 
-			// Test that registering is possible again
-			assert_ok!(Pallet::<Test>::register(
-				mock_origin::DoubleOrigin(ACCOUNT_00, DID_00).into(),
-				did_name_00.clone().0,
-			));
-		})
+		// Test that registering is possible again
+		assert_ok!(Pallet::<Test>::register(
+			DoubleOrigin(ACCOUNT_00, DID_00).into(),
+			did_name_00.clone().0,
+		));
+	})
 }
 
 #[test]
 fn unbanning_not_banned() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
-	ExtBuilder::default().build().execute_with(|| {
+	new_test_ext().execute_with(|| {
 		assert_noop!(
 			Pallet::<Test>::unban(RawOrigin::Root.into(), did_name_00.clone().0),
 			Error::<Test>::NotBanned
@@ -272,22 +256,16 @@ fn unbanning_not_banned() {
 #[test]
 fn unbanning_unauthorized_origin() {
 	let did_name_00 = get_did_name(DID_NAME_00_INPUT);
-	ExtBuilder::default()
-		.with_banned_did_names(vec![did_name_00.clone()])
-		.build()
-		.execute_with(|| {
-			// Signer origin
-			assert_noop!(
-				Pallet::<Test>::unban(RawOrigin::Signed(ACCOUNT_00).into(), did_name_00.clone().0),
-				DispatchError::BadOrigin
-			);
-			// Owner origin
-			assert_noop!(
-				Pallet::<Test>::ban(
-					mock_origin::DoubleOrigin(ACCOUNT_00, DID_01).into(),
-					did_name_00.clone().0
-				),
-				DispatchError::BadOrigin
-			);
-		})
+	new_test_ext().execute_with(|| {
+		// Signer origin
+		assert_noop!(
+			Pallet::<Test>::unban(RawOrigin::Signed(ACCOUNT_00).into(), did_name_00.clone().0),
+			DispatchError::BadOrigin
+		);
+		// Owner origin
+		assert_noop!(
+			Pallet::<Test>::ban(DoubleOrigin(ACCOUNT_00, DID_01).into(), did_name_00.clone().0),
+			DispatchError::BadOrigin
+		);
+	})
 }

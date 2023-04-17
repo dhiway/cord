@@ -99,6 +99,11 @@ pub use benchmark::DummySignature;
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+/// Max size for serialized extrinsic params for this testing runtime.
+/// This is a quite arbitrary but empirically battle tested value.
+#[cfg(test)]
+pub const CALL_PARAMS_MAX_SIZE: usize = 208;
+
 /// Wasm binary unwrapped. If built with `SKIP_WASM_BUILD`, the function panics.
 #[cfg(feature = "std")]
 pub fn wasm_binary_unwrap() -> &'static [u8] {
@@ -154,13 +159,12 @@ type MoreThanHalfCouncil = EitherOfDiverse<
 /// We assume that an on-initialize consumes 1% of the weight on average, hence
 /// a single extrinsic will not be allowed to consume more than
 /// `AvailableBlockRatio - 1%`.
-pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
+pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
 /// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be
 /// used by  Operational  extrinsics.
 pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-/// We allow for 2 seconds of compute with a 6 second average block time.
-pub const MAXIMUM_BLOCK_WEIGHT: Weight =
-	Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2), u64::MAX);
+/// We allow for 1 second of compute with a 3 second average block time.
+pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND, u64::MAX);
 
 const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO.deconstruct());
 
@@ -234,7 +238,7 @@ pub struct OriginPrivilegeCmp;
 impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
 		if left == right {
-			return Some(Ordering::Equal);
+			return Some(Ordering::Equal)
 		}
 
 		match (left, right) {
@@ -376,9 +380,9 @@ impl pallet_transaction_payment::Config for Runtime {
 
 parameter_types! {
 		pub MinimumPeriod: u64 = prod_or_fast!(
-		MIN_BLOCK_PERIOD as u64,
-		500 as u64,
-		"CORD_MIN_BLOCK_DURATION"
+		MINIMUM_DURATION,
+		500_u64,
+		"CORD_MINIMUM_DURATION"
 	);
 }
 
@@ -439,6 +443,31 @@ impl pallet_session::historical::Config for Runtime {
 parameter_types! {
 	pub const SessionsPerEra: SessionIndex = 6;
 	pub const BondingDuration: sp_staking::EraIndex = 28;
+}
+
+parameter_types! {
+	// Minimum 4 CENTS/byte
+	pub const BasicDeposit: Balance = deposit(1, 258);
+	pub const FieldDeposit: Balance = deposit(0, 66);
+	pub const SubAccountDeposit: Balance = deposit(1, 53);
+	pub const MaxSubAccounts: u32 = 100;
+	pub const MaxAdditionalFields: u32 = 100;
+	pub const MaxRegistrars: u32 = 20;
+}
+
+impl pallet_identity::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type BasicDeposit = BasicDeposit;
+	type FieldDeposit = FieldDeposit;
+	type SubAccountDeposit = SubAccountDeposit;
+	type MaxSubAccounts = MaxSubAccounts;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxRegistrars = MaxRegistrars;
+	type Slashed = Treasury;
+	type ForceOrigin = MoreThanHalfCouncil;
+	type RegistrarOrigin = MoreThanHalfCouncil;
+	type WeightInfo = weights::pallet_identity::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -779,14 +808,11 @@ impl pallet_extrinsic_authorship::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MaxNewKeyAgreementKeys: u32 = 10;
+	pub const MaxPublicKeysPerDid: u32 = 20;
 	#[derive(Debug, Clone, Eq, PartialEq)]
-	pub const MaxUrlLength: u32 = 200;
-	pub const MaxPublicKeysPerDid: u32 = 50;
-	pub const MaxBlocksTxValidity: BlockNumber = 2 * HOURS;
-	#[derive(Debug, Clone, Eq, PartialEq)]
-	pub const MaxKeyAgreementKeys: u32 = 30;
-	#[derive(Debug, Clone, Eq, PartialEq)]
-	pub const MaxEndpointUrlsCount: u32 = 3;
+	pub const MaxTotalKeyAgreementKeys: u32 = 15;
+	pub const MaxBlocksTxValidity: BlockNumber =  2 * HOURS;
 	pub const MaxNumberOfServicesPerDid: u32 = 25;
 	pub const MaxServiceIdLength: u32 = 50;
 	pub const MaxServiceTypeLength: u32 = 50;
@@ -810,8 +836,9 @@ impl pallet_did::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type OriginSuccess = Self::DidIdentifier;
 
-	type MaxKeyAgreementKeys = MaxKeyAgreementKeys;
+	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
 	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
+	type MaxTotalKeyAgreementKeys = MaxTotalKeyAgreementKeys;
 	type MaxBlocksTxValidity = MaxBlocksTxValidity;
 	type MaxNumberOfServicesPerDid = MaxNumberOfServicesPerDid;
 	type MaxServiceIdLength = MaxServiceIdLength;
@@ -883,19 +910,9 @@ impl pallet_stream::Config for Runtime {
 	type MaxStreamCommits = MaxStreamCommits;
 }
 
-parameter_types! {
-	pub const MaxOpenStreamCommits: u32 = 1_000;
-	pub const MaxEncodedOpenStreamLength: u32 = 102_400;
-
-}
-
-impl pallet_open_stream::Config for Runtime {
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+impl pallet_remark::Config for Runtime {
+	type WeightInfo = weights::pallet_remark::WeightInfo<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_open_stream::WeightInfo<Runtime>;
-	type MaxOpenStreamCommits = MaxOpenStreamCommits;
-	type MaxEncodedOpenStreamLength = MaxEncodedOpenStreamLength;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -933,13 +950,14 @@ construct_runtime! {
 		Historical: pallet_session_historical::{Pallet} = 33,
 		Multisig: pallet_multisig = 35,
 		MessageQueue: pallet_message_queue = 36,
+		Remark: pallet_remark = 37,
+		Identity: pallet_identity =38,
 		ExtrinsicAuthorship: pallet_extrinsic_authorship =101,
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,
 		Registry: pallet_registry = 104,
 		Stream: pallet_stream = 105,
-		OpenStream: pallet_open_stream = 106,
-		DidNames: pallet_did_names = 107,
+		DidNames: pallet_did_names = 106,
 		Sudo: pallet_sudo = 255,
 	}
 }
@@ -969,51 +987,34 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 		}
 		match self {
 			// DID creation is not allowed through the DID proxy.
-			RuntimeCall::Did(pallet_did::Call::create { .. }) => {
-				Err(pallet_did::RelationshipDeriveError::NotCallableByDid)
-			},
-			RuntimeCall::Did { .. } => {
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-			},
-			RuntimeCall::DidNames { .. } => {
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-			},
-			RuntimeCall::Schema { .. } => {
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
-			},
-			RuntimeCall::Stream { .. } => {
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
-			},
-			RuntimeCall::OpenStream { .. } => {
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::add_delegate { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::remove_delegate { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::create { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::archive { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
-			},
-			RuntimeCall::Registry(pallet_registry::Call::restore { .. }) => {
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
-			},
-			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {
-				single_key_relationship(&calls[..])
-			},
-			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) => {
-				single_key_relationship(&calls[..])
-			},
-			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
-				single_key_relationship(&calls[..])
-			},
+			RuntimeCall::Did(pallet_did::Call::create { .. }) =>
+				Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
+			RuntimeCall::Did { .. } =>
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
+			RuntimeCall::DidNames { .. } =>
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
+			RuntimeCall::Schema { .. } =>
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			RuntimeCall::Stream { .. } =>
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
+			RuntimeCall::Registry(pallet_registry::Call::add_delegate { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
+			RuntimeCall::Registry(pallet_registry::Call::remove_delegate { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
+			RuntimeCall::Registry(pallet_registry::Call::create { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			RuntimeCall::Registry(pallet_registry::Call::archive { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			RuntimeCall::Registry(pallet_registry::Call::restore { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) =>
+				single_key_relationship(&calls[..]),
+			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) =>
+				single_key_relationship(&calls[..]),
+			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
+				single_key_relationship(&calls[..]),
 			#[cfg(not(feature = "runtime-benchmarks"))]
 			_ => Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
 			// By default, returns the authentication key
@@ -1085,16 +1086,18 @@ mod benches {
 		[pallet_im_online, ImOnline]
 		[pallet_indices, Indices]
 		[pallet_membership, TechnicalMembership]
+		[pallet_message_queue, MessageQueue]
 		[pallet_multisig, Multisig]
-		[pallet_offences, OffencesBench::<Runtime>]
 		[pallet_preimage, Preimage]
-		[pallet_proxy, Proxy]
+		[pallet_remark, Remark]
 		[pallet_scheduler, Scheduler]
-		[pallet_session, SessionBench::<Runtime>]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
 		[pallet_treasury, Treasury]
 		[pallet_utility, Utility]
+		[pallet_schema, Schema]
+		[pallet_did, Did]
+		[pallet_did_names, DidNames]
 	);
 }
 
@@ -1195,7 +1198,7 @@ sp_api::impl_runtime_apis! {
 			let epoch_config = Babe::epoch_config().unwrap_or(BABE_GENESIS_EPOCH_CONFIG);
 			sp_consensus_babe::BabeConfiguration {
 				slot_duration: Babe::slot_duration(),
-				epoch_length: EpochDuration::get().into(),
+				epoch_length: EpochDuration::get(),
 				c: epoch_config.c,
 				authorities: Babe::authorities().to_vec(),
 				randomness: Babe::randomness(),
@@ -1366,7 +1369,7 @@ sp_api::impl_runtime_apis! {
 			select: frame_try_runtime::TryStateSelect
 		) -> Weight {
 			log::info!(
-				target: "node-runtime",
+				target: "cord-runtime",
 				"try-runtime: executing block {:?} / root checks: {:?} / try-state-select: {:?}",
 				block.header.hash(),
 				state_root_check,
@@ -1384,11 +1387,11 @@ sp_api::impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{Benchmarking, BenchmarkList};
+			use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 
 			use frame_system_benchmarking::Pallet as SystemBench;
-			use frame_benchmarking::baseline::Pallet as Baseline;
+			use baseline::Pallet as BaselineBench;
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
@@ -1403,30 +1406,22 @@ sp_api::impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkBatch>,
 			sp_runtime::RuntimeString,
 		> {
-			use frame_benchmarking::{Benchmarking, BenchmarkBatch, TrackedStorageKey};
+			use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch, TrackedStorageKey};
 			use frame_system_benchmarking::Pallet as SystemBench;
-			use frame_benchmarking::baseline::Pallet as Baseline;
+			use baseline::Pallet as BaselineBench;
 
 			impl frame_system_benchmarking::Config for Runtime {}
-			impl frame_benchmarking::baseline::Config for Runtime {}
+			impl baseline::Config for Runtime {}
 
-			let whitelist: Vec<TrackedStorageKey> = vec![
-				// Block Number
-				hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac").to_vec().into(),
-				// Total Issuance
-				hex_literal::hex!("c2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80").to_vec().into(),
-				// Execution Phase
-				hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef7ff553b5a9862a516939d82b3d3d8661a").to_vec().into(),
-				// Event Count
-				hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef70a98fdbe9ce6c55837576c60c7af3850").to_vec().into(),
-				// System Events
-				hex_literal::hex!("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7").to_vec().into(),
-			];
+			use frame_support::traits::WhitelistedStorageKeys;
+			let mut whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
+
+			let treasury_key = frame_system::Account::<Runtime>::hashed_key_for(Treasury::account_id());
+			whitelist.push(treasury_key.to_vec().into());
 
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
 			add_benchmarks!(params, batches);
-
 			Ok(batches)
 		}
 	}
@@ -1441,10 +1436,21 @@ mod tests {
 	fn validate_transaction_submitter_bounds() {
 		fn is_submit_signed_transaction<T>()
 		where
-			T: CreateSignedTransaction<Call>,
+			T: CreateSignedTransaction<RuntimeCall>,
 		{
 		}
 
 		is_submit_signed_transaction::<Runtime>();
+	}
+	#[test]
+	fn call_size() {
+		let size = core::mem::size_of::<RuntimeCall>();
+		assert!(
+			size <= CALL_PARAMS_MAX_SIZE,
+			"size of RuntimeCall {} is more than {CALL_PARAMS_MAX_SIZE} bytes.
+			 Some calls have too big arguments, use Box to reduce the size of RuntimeCall.
+			 If the limit is too strong, maybe consider increase the limit.",
+			size,
+		);
 	}
 }

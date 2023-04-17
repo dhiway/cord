@@ -18,101 +18,87 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+use super::*;
+use crate as did;
 use frame_support::{
 	parameter_types,
-	traits::{Currency, OnUnbalanced, ReservableCurrency},
-	weights::constants::RocksDbWeight,
+	traits::{ConstU32, ConstU64},
+	BoundedVec,
 };
 use frame_system::EnsureSigned;
-use pallet_balances::NegativeImbalance;
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{
 	testing::{Header, H256},
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	MultiSignature, MultiSigner, SaturatedConversion,
+	MultiSignature, MultiSigner,
 };
 use sp_std::vec::Vec;
 
 use crate::{
-	self as did,
 	did_details::{
 		DeriveDidCallAuthorizationVerificationKeyRelationship, DeriveDidCallKeyRelationshipResult,
 		DidAuthorizedCallOperation, DidAuthorizedCallOperationWithVerificationRelationship,
 		DidDetails, DidEncryptionKey, DidPublicKey, DidPublicKeyDetails, DidVerificationKey,
 		DidVerificationKeyRelationship, RelationshipDeriveError,
 	},
-	service_endpoints::DidEndpoint,
-	utils as crate_utils, AccountIdOf, Config, DidBlacklist, DidEndpointsCount, KeyIdOf,
-	ServiceEndpoints,
+	utils as crate_utils, Config, KeyIdOf,
 };
 #[cfg(not(feature = "runtime-benchmarks"))]
 use crate::{DidRawOrigin, EnsureDidOrigin};
 
-pub(crate) type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
-pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 pub(crate) type Hash = sp_core::H256;
-pub(crate) type Balance = u128;
 pub(crate) type Signature = MultiSignature;
 pub(crate) type AccountPublic = <Signature as Verify>::Signer;
 pub(crate) type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
-pub(crate) type Index = u64;
 pub(crate) type BlockNumber = u64;
-
 pub(crate) type DidIdentifier = AccountId;
-pub(crate) type CtypeHash = Hash;
-
-const MILLIUNITS: Balance = 10u128.pow(9);
 
 frame_support::construct_runtime!(
 	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
+		Block = frame_system::mocking::MockBlock<Test>,
+		NodeBlock = frame_system::mocking::MockBlock<Test>,
+		UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
 	{
 		Did: did::{Pallet, Call, Storage, Event<T>, Origin<T>},
-		// Ctype: ctype::{Pallet, Call, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
+		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>},
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 	}
 );
 
 parameter_types! {
-	pub const SS58Prefix: u8 = 38;
+	pub const SS58Prefix: u8 = 29;
 	pub const BlockHashCount: u64 = 250;
 }
 
 impl frame_system::Config for Test {
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
-	type Index = Index;
-	type BlockNumber = BlockNumber;
-	type Hash = Hash;
-	type Hashing = BlakeTwo256;
-	type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
-	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
-	type RuntimeEvent = ();
-	type BlockHashCount = BlockHashCount;
-	type DbWeight = RocksDbWeight;
-	type Version = ();
-
-	type PalletInfo = PalletInfo;
-	type AccountData = pallet_balances::AccountData<Balance>;
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
 	type BaseCallFilter = frame_support::traits::Everything;
-	type SystemWeightInfo = ();
 	type BlockWeights = ();
 	type BlockLength = ();
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
+	type Index = u64;
+	type BlockNumber = u64;
+	type Hash = Hash;
+	type Hashing = BlakeTwo256;
+	type AccountId = AccountId;
+	type Lookup = IdentityLookup<Self::AccountId>;
+	type Header = Header;
+	type RuntimeEvent = RuntimeEvent;
+	type BlockHashCount = ConstU64<250>;
+	type DbWeight = ();
+	type Version = ();
+	type PalletInfo = PalletInfo;
+	type AccountData = pallet_balances::AccountData<u128>;
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type SystemWeightInfo = ();
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MaxConsumers = ConstU32<2>;
 }
 
 parameter_types! {
 	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
-	#[derive(Debug, Clone, Eq, PartialEq)]
-	pub const MaxUrlLength: u32 = 200u32;
 	#[derive(Debug, Clone, Eq, PartialEq)]
 	pub const MaxTotalKeyAgreementKeys: u32 = 10u32;
 	// IMPORTANT: Needs to be at least MaxTotalKeyAgreementKeys + 3 (auth, delegation, assertion keys) for benchmarks!
@@ -127,26 +113,13 @@ parameter_types! {
 	pub const MaxNumberOfUrlsPerService: u32 = 1u32;
 }
 
-pub struct ToAccount<R>(sp_std::marker::PhantomData<R>);
-
-impl<R> OnUnbalanced<NegativeImbalance<R>> for ToAccount<R>
-where
-	R: pallet_balances::Config,
-	<R as frame_system::Config>::AccountId: From<AccountId>,
-{
-	fn on_nonzero_unbalanced(amount: NegativeImbalance<R>) {
-		pallet_balances::Pallet::<R>::resolve_creating(&ACCOUNT_FEE.into(), amount);
-	}
-}
-
 impl Config for Test {
 	type DidIdentifier = DidIdentifier;
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	type EnsureOrigin = EnsureSigned<DidIdentifier>;
 	type OriginSuccess = AccountId;
-	type RuntimeEvent = ();
-	// type Currency = Balances;
+	type RuntimeEvent = RuntimeEvent;
 	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
 	type MaxTotalKeyAgreementKeys = MaxTotalKeyAgreementKeys;
 	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
@@ -161,50 +134,28 @@ impl Config for Test {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 500;
-	pub const MaxLocks: u32 = 50;
-	pub const MaxReserves: u32 = 50;
+	pub const MaxEncodedSchemaLength: u32 = 102_400;
 }
 
-impl pallet_balances::Config for Test {
-	type Balance = Balance;
-	type DustRemoval = ();
-	type RuntimeEvent = ();
-	type ExistentialDeposit = ExistentialDeposit;
-	type AccountStore = System;
+impl pallet_schema::Config for Test {
+	#[cfg(feature = "runtime-benchmarks")]
+	type EnsureOrigin = EnsureSigned<DidIdentifier>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type OriginSuccess = AccountId;
+
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type EnsureOrigin = EnsureDidOrigin<DidIdentifier, AccountId>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type OriginSuccess = DidRawOrigin<AccountId, DidIdentifier>;
+
+	type SchemaCreatorId = DidIdentifier;
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
-	type MaxLocks = MaxLocks;
-	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = [u8; 8];
+	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 }
-
-parameter_types! {
-	pub const Fee: Balance = 0;
-}
-
-// impl ctype::Config for Test {
-//     #[cfg(feature = "runtime-benchmarks")]
-//     type EnsureOrigin = EnsureSigned<DidIdentifier>;
-//     #[cfg(feature = "runtime-benchmarks")]
-//     type OriginSuccess = AccountId;
-
-//     #[cfg(not(feature = "runtime-benchmarks"))]
-//     type EnsureOrigin = EnsureDidOrigin<DidIdentifier, AccountId>;
-//     #[cfg(not(feature = "runtime-benchmarks"))]
-//     type OriginSuccess = DidRawOrigin<AccountId, DidIdentifier>;
-
-//     type CtypeCreatorId = DidIdentifier;
-//     type OverarchingOrigin = EnsureSigned<AccountId>;
-//     type RuntimeEvent = ();
-//     type WeightInfo = ();
-//     type Currency = Balances;
-//     type Fee = Fee;
-//     type FeeCollector = ();
-// }
 
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
 pub(crate) const ACCOUNT_01: AccountId = AccountId::new([2u8; 32]);
-pub(crate) const ACCOUNT_FEE: AccountId = AccountId::new([u8::MAX; 32]);
 
 const DEFAULT_AUTH_SEED: [u8; 32] = [4u8; 32];
 const ALTERNATIVE_AUTH_SEED: [u8; 32] = [40u8; 32];
@@ -336,27 +287,34 @@ pub(crate) fn get_assertion_key_test_input() -> Vec<u8> {
 	[0u8; 32].to_vec()
 }
 pub(crate) fn get_assertion_key_call() -> RuntimeCall {
-	RuntimeCall::Ctype(ctype::Call::add { ctype: get_assertion_key_test_input() })
+	RuntimeCall::Schema(pallet_schema::Call::create {
+		tx_schema: BoundedVec::try_from(get_assertion_key_test_input()).unwrap(),
+	})
 }
 pub(crate) fn get_authentication_key_test_input() -> Vec<u8> {
 	[1u8; 32].to_vec()
 }
 pub(crate) fn get_authentication_key_call() -> RuntimeCall {
-	RuntimeCall::Ctype(ctype::Call::add { ctype: get_authentication_key_test_input() })
+	RuntimeCall::Schema(pallet_schema::Call::create {
+		tx_schema: BoundedVec::try_from(get_authentication_key_test_input()).unwrap(),
+	})
 }
 pub(crate) fn get_delegation_key_test_input() -> Vec<u8> {
 	[2u8; 32].to_vec()
 }
 pub(crate) fn get_delegation_key_call() -> RuntimeCall {
-	RuntimeCall::Ctype(ctype::Call::add { ctype: get_delegation_key_test_input() })
+	RuntimeCall::Schema(pallet_schema::Call::create {
+		tx_schema: BoundedVec::try_from(get_delegation_key_test_input()).unwrap(),
+	})
 }
 pub(crate) fn get_none_key_test_input() -> Vec<u8> {
 	[3u8; 32].to_vec()
 }
 pub(crate) fn get_none_key_call() -> RuntimeCall {
-	RuntimeCall::Ctype(ctype::Call::add { ctype: get_none_key_test_input() })
+	RuntimeCall::Schema(pallet_schema::Call::create {
+		tx_schema: BoundedVec::try_from(get_none_key_test_input()).unwrap(),
+	})
 }
-
 impl DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall {
 	fn derive_verification_key_relationship(&self) -> DeriveDidCallKeyRelationshipResult {
 		if *self == get_assertion_key_call() {
@@ -369,7 +327,7 @@ impl DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall {
 			#[cfg(feature = "runtime-benchmarks")]
 			if *self == Self::get_call_for_did_call_benchmark() {
 				// Always require an authentication key to dispatch calls during benchmarking
-				return Ok(DidVerificationKeyRelationship::Authentication);
+				return Ok(DidVerificationKeyRelationship::Authentication)
 			}
 			Err(RelationshipDeriveError::NotCallableByDid)
 		}
@@ -404,102 +362,14 @@ pub fn generate_test_did_call(
 		verification_key_relationship: verification_key_required,
 	}
 }
-#[cfg(test)]
-#[allow(unused_must_use)]
-pub(crate) fn initialize_logger() {
-	env_logger::builder().is_test(true).try_init();
-}
+pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
+	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-#[derive(Clone, Default)]
-pub(crate) struct ExtBuilder {
-	dids_stored: Vec<(DidIdentifier, DidDetails<Test>)>,
-	service_endpoints: Vec<(DidIdentifier, Vec<DidEndpoint<Test>>)>,
-	deleted_dids: Vec<DidIdentifier>,
-	ctypes_stored: Vec<(CtypeHash, DidIdentifier)>,
-	balances: Vec<(AccountIdOf<Test>, Balance)>,
-}
-
-impl ExtBuilder {
-	#[must_use]
-	pub fn with_dids(mut self, dids: Vec<(DidIdentifier, DidDetails<Test>)>) -> Self {
-		self.dids_stored = dids;
-		self
-	}
-
-	#[must_use]
-	pub fn with_endpoints(
-		mut self,
-		endpoints: Vec<(DidIdentifier, Vec<DidEndpoint<Test>>)>,
-	) -> Self {
-		self.service_endpoints = endpoints;
-		self
-	}
-
-	#[must_use]
-	pub(crate) fn with_balances(mut self, balances: Vec<(AccountIdOf<Test>, Balance)>) -> Self {
-		self.balances = balances;
-		self
-	}
-
-	#[must_use]
-	pub fn with_ctypes(mut self, ctypes: Vec<(CtypeHash, DidIdentifier)>) -> Self {
-		self.ctypes_stored = ctypes;
-		self
-	}
-
-	#[must_use]
-	pub fn with_deleted_dids(mut self, dids: Vec<DidIdentifier>) -> Self {
-		self.deleted_dids = dids;
-		self
-	}
-
-	pub fn build(self, ext: Option<sp_io::TestExternalities>) -> sp_io::TestExternalities {
-		let mut ext = if let Some(ext) = ext {
-			ext
-		} else {
-			let mut storage =
-				frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-			pallet_balances::GenesisConfig::<Test> { balances: self.balances.clone() }
-				.assimilate_storage(&mut storage)
-				.expect("assimilate should not fail");
-			sp_io::TestExternalities::new(storage)
-		};
-
-		ext.execute_with(|| {
-			for (ctype_hash, owner) in self.ctypes_stored.iter() {
-				ctype::Ctypes::<Test>::insert(
-					ctype_hash,
-					ctype::CtypeEntryOf::<Test> {
-						creator: owner.to_owned(),
-						created_at: System::block_number(),
-					},
-				);
-			}
-
-			for did in self.dids_stored.iter() {
-				did::Did::<Test>::insert(&did.0, did.1.clone());
-			}
-			for did in self.deleted_dids.iter() {
-				DidBlacklist::<Test>::insert(did, ());
-			}
-			for (did, endpoints) in self.service_endpoints.iter() {
-				for endpoint in endpoints.iter() {
-					ServiceEndpoints::<Test>::insert(did, &endpoint.id, endpoint)
-				}
-				DidEndpointsCount::<Test>::insert(did, endpoints.len().saturated_into::<u32>());
-			}
-		});
-
-		ext
-	}
-
+	let mut ext = sp_io::TestExternalities::new(t);
 	#[cfg(feature = "runtime-benchmarks")]
-	pub fn build_with_keystore(self) -> sp_io::TestExternalities {
-		let mut ext = self.build(None);
-
-		let keystore = sp_keystore::testing::KeyStore::new();
-		ext.register_extension(sp_keystore::KeystoreExt(sp_std::sync::Arc::new(keystore)));
-
-		ext
-	}
+	let keystore = sp_keystore::testing::KeyStore::new();
+	#[cfg(feature = "runtime-benchmarks")]
+	ext.register_extension(sp_keystore::KeystoreExt(sp_std::sync::Arc::new(keystore)));
+	ext.execute_with(|| System::set_block_number(1));
+	ext
 }

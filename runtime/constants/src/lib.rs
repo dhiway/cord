@@ -26,7 +26,7 @@ pub mod currency {
 	use cord_primitives::Balance;
 
 	/// The existential deposit.
-	pub const EXISTENTIAL_DEPOSIT: Balance = 1 * WAY;
+	pub const EXISTENTIAL_DEPOSIT: Balance = WAY;
 
 	pub const WAY: Balance = 1_000_000_000_000;
 	pub const UNITS: Balance = WAY / 100;
@@ -41,11 +41,11 @@ pub mod currency {
 /// Time and blocks.
 pub mod time {
 	use cord_primitives::{prod_or_fast, BlockNumber, Moment};
-	pub const MILLISECS_PER_BLOCK: Moment = 6000;
+	pub const MILLISECS_PER_BLOCK: Moment = 3000;
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-	pub const EPOCH_DURATION: BlockNumber = prod_or_fast!(5 * MINUTES, 4 * MINUTES);
+	pub const EPOCH_DURATION: BlockNumber = prod_or_fast!(2 * HOURS, MINUTES);
 
-	pub const MIN_BLOCK_PERIOD: u64 = SLOT_DURATION / 2;
+	pub const MINIMUM_DURATION: u64 = SLOT_DURATION / 2;
 
 	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
@@ -54,9 +54,6 @@ pub mod time {
 	pub const WEEKS: BlockNumber = DAYS * 7;
 	// Julian year as Substrate handles it
 	pub const YEAR: BlockNumber = DAYS * 36525 / 100;
-
-	pub const AUTHORSHIP_DURATION_IN_BLOCKS: BlockNumber = prod_or_fast!(YEAR, 16 * MINUTES);
-	pub const AUTHORSHIP_DELEGATION_IN_BLOCKS: BlockNumber = prod_or_fast!(HOURS, 8 * MINUTES);
 	// 1 in 4 blocks (on average, not counting collisions) will be primary babe
 	// blocks. The choice of is done in accordance to the slot duration and expected
 	// target block time, for safely resisting network delays of maximum two
@@ -112,18 +109,21 @@ mod tests {
 		fee::WeightToFee,
 	};
 	use crate::weights::ExtrinsicBaseWeight;
-	// use cord_runtime::MAXIMUM_BLOCK_WEIG HT;
-	use frame_support::weights::WeightToFee as WeightToFeeT;
+	use frame_support::weights::{
+		constants::WEIGHT_REF_TIME_PER_SECOND, Weight, WeightToFee as WeightToFeeT,
+	};
 
-	pub const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND.saturating_mul(2);
+	pub const MAXIMUM_BLOCK_WEIGHT: Weight =
+		Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND, u64::MAX);
 
 	#[test]
 	// Test that the fee for `MAXIMUM_BLOCK_WEIGHT` of weight has sane bounds.
 	fn full_block_fee_is_correct() {
-		// A full block should cost between 1,000 and 10,000 UNITS.
+		// A full block should cost between 1,00 and 1,000 UNITS.
 		let full_block = WeightToFee::weight_to_fee(&MAXIMUM_BLOCK_WEIGHT);
-		assert!(full_block >= 1_000 * UNITS);
-		assert!(full_block <= 10_000 * UNITS);
+		println!("Full Block {}", full_block);
+		assert!(full_block >= 1_00 * UNITS);
+		assert!(full_block <= 1_000 * UNITS);
 	}
 
 	#[test]
@@ -131,7 +131,6 @@ mod tests {
 	// correct
 	fn extrinsic_base_fee_is_correct() {
 		// `ExtrinsicBaseWeight` should cost 1/10 of a UNIT
-		println!("Base: {}", ExtrinsicBaseWeight::get());
 		let x = WeightToFee::weight_to_fee(&ExtrinsicBaseWeight::get());
 		let y = UNITS / 10;
 		assert!(x.max(y) - x.min(y) < MILLIUNITS);

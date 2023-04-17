@@ -25,16 +25,16 @@
 
 pub mod did_name;
 
-mod default_weights;
+pub mod default_weights;
 
-#[cfg(any(test, feature = "runtime-benchmarks"))]
-mod mock;
+#[cfg(any(feature = "mock", test))]
+pub mod mock;
 
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
+pub mod benchmarking;
 
 pub use crate::{default_weights::WeightInfo, pallet::*};
 
@@ -175,8 +175,8 @@ pub mod pallet {
 		/// Assign the specified name to the owner as specified in the
 		/// origin.
 		///
-		/// The name must not have already been registered by someone else and the
-		/// owner must not already own another name.
+		/// The name must not have already been registered by someone else and
+		/// the owner must not already own another name.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::register(name.len().saturated_into()))]
 		pub fn register(origin: OriginFor<T>, name: DidNameInput<T>) -> DispatchResult {

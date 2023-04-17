@@ -15,25 +15,37 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
+#![cfg(feature = "runtime-benchmarks")]
 
 use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
-use tempfile::tempdir;
 
+pub mod common;
+
+/// `benchmark pallet` works for the different combinations of `steps` and
+/// `repeat`.
 #[test]
-fn build_spec_works() {
-	let base_path = tempdir().expect("could not create a temp dir");
+fn benchmark_pallet_works() {
+	// Some invalid combinations:
+	benchmark_pallet(0, 10, false);
+	benchmark_pallet(1, 10, false);
+	// ... and some valid:
+	benchmark_pallet(2, 1, true);
+	benchmark_pallet(50, 20, true);
+	benchmark_pallet(20, 50, true);
+}
 
+fn benchmark_pallet(steps: u32, repeat: u32, should_work: bool) {
 	let output = Command::new(cargo_bin("cord"))
-		.args(["build-spec", "--dev", "-d"])
-		.arg(base_path.path())
+		.args(["benchmark", "pallet", "--dev"])
+		// Use the `addition` benchmark since is the fastest.
+		.args(["--pallet", "frame-benchmarking", "--extrinsic", "addition"])
+		.args(["--steps", &format!("{}", steps), "--repeat", &format!("{}", repeat)])
 		.output()
 		.unwrap();
-	assert!(output.status.success());
 
-	// Make sure that the `dev` chain folder exists, but the `db` doesn't
-	assert!(base_path.path().join("chains/cord_dev/").exists());
-	assert!(!base_path.path().join("chains/cord_dev/db").exists());
-
-	let _value: serde_json::Value = serde_json::from_slice(output.stdout.as_slice()).unwrap();
+	if output.status.success() != should_work {
+		let log = String::from_utf8_lossy(&output.stderr).to_string();
+		panic!("Test failed:\n{}", log);
+	}
 }

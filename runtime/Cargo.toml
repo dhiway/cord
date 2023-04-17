@@ -10,7 +10,7 @@ repository = "https://github.com/dhiway/cord"
 
 [dependencies]
 # third-party dependencies
-codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = ["derive","max-encoded-len"] }
+codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = ["derive","max-encoded-len"] }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
 log = { version = "0.4.17", default-features = false  }
 static_assertions = "1.1.0"
@@ -18,61 +18,66 @@ static_assertions = "1.1.0"
 # primitives
 cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
 cord-runtime-constants = { package = "cord-runtime-constants", path = "./constants", default-features = false }
+cord-utilities = { package = "cord-utilities", path = "../utilities", default-features = false }
 
-sp-authority-discovery = {  git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
-sp-consensus-babe = {  git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
-sp-consensus-grandpa = {  git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
-sp-api = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-sp-inherents = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
-sp-offchain = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
-sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-sp-staking = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
-sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-# sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-sp-session = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-sp-version = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-sp-transaction-pool = {  git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
-sp-block-builder = {  git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
+sp-authority-discovery = {  git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+sp-consensus-babe = {  git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+sp-consensus-grandpa = {  git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+sp-api = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+sp-inherents = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+sp-offchain = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+sp-staking = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+sp-session = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+sp-version = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+sp-transaction-pool = {  git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+sp-block-builder = {  git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
 
-pallet-authority-discovery = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-authorship = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-babe = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
-pallet-balances = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-transaction-payment = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
-pallet-collective = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-democracy = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-frame-executive = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-grandpa = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-im-online = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-indices = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-membership = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-message-queue = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-multisig = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-offences = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-preimage = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-scheduler = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-session = {git = "https://github.com/dhiway/substrate", features = ["historical"], default-features = false, branch = "release-v0.9.40"}
-pallet-sudo = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-staking = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
-frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-frame-system-rpc-runtime-api = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-timestamp = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-pallet-treasury = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
-pallet-utility = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40" }
+pallet-authority-discovery = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-authorship = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-babe = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+pallet-balances = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-transaction-payment = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+pallet-collective = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-democracy = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+frame-executive = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-grandpa = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-identity = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-im-online = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-indices = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-membership = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-message-queue = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-multisig = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-offences = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-preimage = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-scheduler = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-session = {git = "https://github.com/dhiway/substrate", features = ["historical"], default-features = false, branch = "release-v0.9.41"}
+pallet-sudo = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-staking = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+frame-system-rpc-runtime-api = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-timestamp = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+pallet-treasury = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+pallet-utility = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+pallet-remark = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41" }
+hex-literal = { version = "0.3.4", optional = true }
 
-frame-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false,  branch = "release-v0.9.40" }
-frame-system-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, optional = true, branch = "release-v0.9.40" }
-frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.40" }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, optional = true, branch = "release-v0.9.41" }
+frame-system-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, optional = true, branch = "release-v0.9.41" }
+pallet-session-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, optional = true, branch = "release-v0.9.41" }
+pallet-offences-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, optional = true, branch = "release-v0.9.41" }
+frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.41" }
 
 pallet-did = {  default-features = false, path = '../pallets/did' }
 pallet-did-names = {  default-features = false, path = '../pallets/did-name' }
 pallet-schema = {  default-features = false, path = '../pallets/schema' }
 pallet-registry = {  default-features = false, path = '../pallets/registry' }
 pallet-stream = {  default-features = false, path = '../pallets/stream' }
-pallet-open-stream = {  default-features = false, path = '../pallets/open-stream' }
 pallet-extrinsic-authorship = {  default-features = false, path = '../pallets/authorship' }
 
 # Internal runtime API (with default disabled)
@@ -81,19 +86,23 @@ pallet-did-runtime-api  = {package = "pallet-did-runtime-api", path = "../pallet
 [dev-dependencies]
 hex-literal = "0.3.4"
 tiny-keccak = { version = "2.0.2", features = ["keccak"] }
-keyring = { package = "sp-keyring", git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40" }
+keyring = { package = "sp-keyring", git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
 separator = "0.4.1"
 serde_json = "1.0.81"
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", optional = true, branch = "release-v0.9.40" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", optional = true, branch = "release-v0.9.41" }
 
 [features]
 default = ['std']
 std = [
 	"sp-authority-discovery/std",
-    "cord-primitives/std",
-    'codec/std',
+  "cord-primitives/std",
+	"pallet-offences-benchmarking?/std",
+	"frame-system-benchmarking?/std",
+  "cord-utilities/std",
+	"pallet-session-benchmarking?/std",
+  "codec/std",
 	"scale-info/std",
 	"sp-inherents/std",
 	"sp-core/std",
@@ -112,6 +121,7 @@ std = [
 	"pallet-collective/std",
 	"pallet-democracy/std",
 	"pallet-grandpa/std",
+	"pallet-identity/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
 	"pallet-membership/std",
@@ -127,6 +137,7 @@ std = [
 	"pallet-treasury/std",
 	"pallet-utility/std",
 	"pallet-babe/std",
+	"pallet-remark/std",
 	"pallet-did/std",
 	"pallet-did-names/std",
 	"pallet-schema/std",
@@ -146,34 +157,40 @@ std = [
 	"cord-runtime-constants/std",
 	"substrate-wasm-builder",
 ]
-
 runtime-benchmarks = [
-	"frame-system/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
+	"frame-system-benchmarking/runtime-benchmarks",
+  "cord-utilities/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-democracy/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
+	"pallet-identity/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
-	"pallet-message-queue/runtime-benchmarks",
+	"pallet-message-queue/runtime-benchmarks",	
 	"pallet-multisig/runtime-benchmarks",
+	"pallet-offences/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
-	"pallet-staking/runtime-benchmarks",
+	"pallet-remark/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
-	"frame-system-benchmarking/runtime-benchmarks",
+	"pallet-did/runtime-benchmarks",
+  "pallet-did-names/runtime-benchmarks",
+  "pallet-schema/runtime-benchmarks",
+	"hex-literal",
 ]
 
 try-runtime = [
 	"frame-executive/try-runtime",
+	"frame-try-runtime",
 	"frame-system/try-runtime",
 	"pallet-authority-discovery/try-runtime",
 	"pallet-authorship/try-runtime",
@@ -182,21 +199,22 @@ try-runtime = [
 	"pallet-collective/try-runtime",
 	"pallet-democracy/try-runtime",
 	"pallet-grandpa/try-runtime",
+	"pallet-identity/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-membership/try-runtime",
 	"pallet-message-queue/try-runtime",
 	"pallet-multisig/try-runtime",
-	"pallet-offences/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
-	"pallet-staking/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-treasury/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-babe/try-runtime",
+  "pallet-schema/try-runtime",
+  "pallet-did/try-runtime",
 ]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.

@@ -68,7 +68,8 @@ impl<'a> ExportImportRevertExecutor<'a> {
 		Self { base_path, exported_blocks_file, db_path, num_exported_blocks: None }
 	}
 
-	/// Helper method to run a command. Returns a string corresponding to what has been logged.
+	/// Helper method to run a command. Returns a string corresponding to what
+	/// has been logged.
 	fn run_block_command(
 		&self,
 		sub_command: SubCommand,
@@ -88,7 +89,7 @@ impl<'a> ExportImportRevertExecutor<'a> {
 		// Setting base_path to be a temporary folder if we are importing blocks.
 		// This allows us to make sure we are importing from scratch.
 		let base_path = match sub_command {
-			SubCommand::ExportBlocks => &self.base_path.path(),
+			SubCommand::ExportBlocks => self.base_path.path(),
 			SubCommand::ImportBlocks => {
 				tmp = tempdir().unwrap();
 				tmp.path()
@@ -98,8 +99,8 @@ impl<'a> ExportImportRevertExecutor<'a> {
 		// Running the command and capturing the output.
 		let output = Command::new(cargo_bin("cord"))
 			.args(&arguments)
-			.arg(&base_path)
-			.arg(&self.exported_blocks_file)
+			.arg(base_path)
+			.arg(self.exported_blocks_file)
 			.output()
 			.unwrap();
 
@@ -128,10 +129,10 @@ impl<'a> ExportImportRevertExecutor<'a> {
 		// Saving the number of blocks we've exported for further use.
 		self.num_exported_blocks = Some(caps["exported_blocks"].parse::<u64>().unwrap());
 
-		let metadata = fs::metadata(&self.exported_blocks_file).unwrap();
+		let metadata = fs::metadata(self.exported_blocks_file).unwrap();
 		assert!(metadata.len() > 0, "file exported_blocks should not be empty");
 
-		let _ = fs::remove_dir_all(&self.db_path);
+		let _ = fs::remove_dir_all(self.db_path);
 	}
 
 	/// Runs the `import-blocks` command, asserting that an error was found or
@@ -161,8 +162,8 @@ impl<'a> ExportImportRevertExecutor<'a> {
 	/// Runs the `revert` command.
 	fn run_revert(&self) {
 		let output = Command::new(cargo_bin("cord"))
-			.args(&["revert", "--dev", "-d"])
-			.arg(&self.base_path.path())
+			.args(["revert", "--dev", "-d"])
+			.arg(self.base_path.path())
 			.output()
 			.unwrap();
 
@@ -174,7 +175,8 @@ impl<'a> ExportImportRevertExecutor<'a> {
 		assert!(output.status.success());
 	}
 
-	/// Helper function that runs the whole export / import / revert flow and checks for errors.
+	/// Helper function that runs the whole export / import / revert flow and
+	/// checks for errors.
 	fn run(&mut self, export_fmt: FormatOpt, import_fmt: FormatOpt, expected_to_fail: bool) {
 		self.run_export(export_fmt);
 		self.run_import(import_fmt, expected_to_fail);
@@ -188,7 +190,7 @@ async fn export_import_revert() {
 	let exported_blocks_file = base_path.path().join("exported_blocks");
 	let db_path = base_path.path().join("db");
 
-	common::run_node_for_a_while(base_path.path(), &["--dev"]).await;
+	common::run_node_for_a_while(base_path.path(), &["--dev", "--no-hardware-benchmarks"]).await;
 
 	let mut executor = ExportImportRevertExecutor::new(&base_path, &exported_blocks_file, &db_path);
 

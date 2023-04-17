@@ -13,14 +13,13 @@ repository = "https://github.com/dhiway/cord"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.40" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
 
 [dev-dependencies]
 env_logger = {version = "0.9.0"}
-# pallet-schema = { path = '../schema', features = ["mock"] }
-pallet-balances = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.40"}
-frame-benchmarking = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.40"}
-sp-keystore = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.40"}
+pallet-balances = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.41"}
+frame-benchmarking = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.41"}
+sp-keystore = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.41"}
 
 
 [dependencies]
@@ -29,34 +28,28 @@ log = "0.4.17"
 
 # Internal dependencies
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
-# pallet-schema = {  optional = true, path = '../schema' }
+pallet-schema = {  optional = true, path = '../schema' }
+cord-primitives = { package = "cord-primitives", path="../../primitives", optional = true }
 
 # Substrate dependencies
-codec = { package = "parity-scale-codec", version = "3.2.2", default-features = false, features = ["derive","max-encoded-len"] }
+codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = ["derive","max-encoded-len"] }
 scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
-frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
-sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40"}
+frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
 
 # Benchmarking dependencies
-frame-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, branch = "release-v0.9.40", optional = true }
-pallet-balances = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40", optional = true}
-sp-keystore = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.40", optional = true}
+frame-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, branch = "release-v0.9.41", optional = true }
+pallet-balances = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41", optional = true}
+sp-keystore = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41", optional = true}
 
 [features]
 default = ["std"]
-# mock = [
-#   "ctype",
-#   "pallet-balances",
-#   "sp-keystore",
-# ]
 runtime-benchmarks = [
-  # "ctype/runtime-benchmarks", # enabling this results in an error that's impossible to link to this line.
-  "frame-benchmarking",
-  "pallet-balances/runtime-benchmarks",
+  "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "cord-utilities/runtime-benchmarks",
@@ -64,10 +57,11 @@ runtime-benchmarks = [
 ]
 std = [
   "codec/std",
-  # "ctype/std",
+  "pallet-schema/std",
   "frame-support/std",
   "frame-system/std",
   "cord-utilities/std",
+  "cord-primitives/std",
   "log/std",
   "pallet-balances/std",
   "scale-info/std",

@@ -68,7 +68,6 @@ pub mod pallet {
 	pub(super) type ExtrinsicAuthors<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, ()>;
 
 	#[pallet::event]
-	// #[pallet::metadata(T::AccountId = "AccountId")]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		// When a new author is added.

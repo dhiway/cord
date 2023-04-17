@@ -1,5 +1,3 @@
-// This file is part of CORD – https://cord.network
-
 // Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -15,20 +13,23 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
+use tempfile::tempdir;
 
-#![allow(unused_parens)]
-#![allow(unused_imports)]
+pub mod common;
 
-// Dummy file
-use frame_support::{traits::Get, weights::Weight};
-use sp_std::marker::PhantomData;
+#[tokio::test]
+#[cfg(unix)]
+async fn remember_state_pruning_works() {
+	let base_path = tempdir().expect("could not create a temp dir");
 
-pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_schema::WeightInfo for WeightInfo<T> {
-	fn create() -> Weight {
-		Weight::from_parts(522_000_000, 0)
-			.saturating_add(Weight::from_parts(20_000, 0))
-			.saturating_add(T::DbWeight::get().reads(2_u64))
-			.saturating_add(T::DbWeight::get().writes(2_u64))
-	}
+	// First run with `--state-pruning=archive`.
+	common::run_node_for_a_while(
+		base_path.path(),
+		&["--dev", "--state-pruning=archive", "--no-hardware-benchmarks"],
+	)
+	.await;
+
+	// Then run again without specifying the state pruning.
+	// This should load state pruning settings from the db.
+	common::run_node_for_a_while(base_path.path(), &["--dev", "--no-hardware-benchmarks"]).await;
 }

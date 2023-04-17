@@ -16,32 +16,40 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+#![cfg(feature = "runtime-benchmarks")]
+
 use assert_cmd::cargo::cargo_bin;
-use std::process::Command;
+use std::{
+	path::Path,
+	process::{Command, ExitStatus},
+};
 use tempfile::tempdir;
 
-/// Tests that the `benchmark overhead` command works for the cord dev
-/// runtime.
+/// Tests that the `benchmark storage` command works for the dev runtime.
 #[test]
-fn benchmark_overhead_works() {
+fn benchmark_storage_works() {
 	let tmp_dir = tempdir().expect("could not create a temp dir");
 	let base_path = tmp_dir.path();
 
-	// Only put 10 extrinsics into the block otherwise it takes forever to build it
-	// especially for a non-release build.
-	let status = Command::new(cargo_bin("cord"))
-		.args(["benchmark", "overhead", "--dev", "-d"])
-		.arg(base_path)
+	// Benchmarking the storage works and creates the correct weight file.
+	assert!(benchmark_storage("rocksdb", base_path).success());
+	assert!(base_path.join("rocksdb_weights.rs").exists());
+
+	assert!(benchmark_storage("paritydb", base_path).success());
+	assert!(base_path.join("paritydb_weights.rs").exists());
+}
+
+fn benchmark_storage(db: &str, base_path: &Path) -> ExitStatus {
+	Command::new(cargo_bin("cord"))
+		.args(&["benchmark", "storage", "--dev"])
+		.arg("--db")
+		.arg(db)
 		.arg("--weight-path")
 		.arg(base_path)
-		.args(["--warmup", "10", "--repeat", "10"])
+		.args(["--state-version", "1"])
+		.args(["--warmups", "0"])
 		.args(["--add", "100", "--mul", "1.2", "--metric", "p75"])
-		.args(["--max-ext-per-block", "10"])
+		.arg("--include-child-trees")
 		.status()
-		.unwrap();
-	assert!(status.success());
-
-	// Weight files have been created.
-	assert!(base_path.join("block_weights.rs").exists());
-	assert!(base_path.join("extrinsic_weights.rs").exists());
+		.unwrap()
 }
