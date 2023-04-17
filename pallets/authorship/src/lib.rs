@@ -26,7 +26,7 @@ use frame_support::dispatch::DispatchInfo;
 pub use pallet::*;
 
 #[cfg(any(test, feature = "runtime-benchmarks"))]
-mod mock1;
+mod mock;
 
 #[cfg(test)]
 mod tests;
@@ -139,10 +139,14 @@ pub mod pallet {
 			let mut authors_added: Vec<CordAccountOf<T>> = Vec::new();
 
 			for author in authors {
-				if !<ExtrinsicAuthors<T>>::contains_key(&author) {
-					<ExtrinsicAuthors<T>>::insert(&author, ());
-					authors_added.push(author);
-				}
+				// Check if account already exist it should throw error
+				// 'AuthorAccountAlreadyExist'
+				ensure!(
+					!<ExtrinsicAuthors<T>>::contains_key(&author),
+					Error::<T>::AuthorAccountAlreadyExists
+				);
+				<ExtrinsicAuthors<T>>::insert(&author, ());
+				authors_added.push(author);
 			}
 
 			Self::deposit_event(Event::AuthorsAdded { authors_added });
@@ -159,10 +163,15 @@ pub mod pallet {
 			let mut authors_removed: Vec<CordAccountOf<T>> = Vec::new();
 
 			for author in authors {
-				if <ExtrinsicAuthors<T>>::contains_key(&author) {
-					<ExtrinsicAuthors<T>>::remove(&author);
-					authors_removed.push(author);
-				}
+				// Check if the author is present in the storage if not it should throw error
+				// 'AuthorAccountNotFound'
+				ensure!(
+					<ExtrinsicAuthors<T>>::contains_key(&author),
+					Error::<T>::AuthorAccountNotFound
+				);
+
+				<ExtrinsicAuthors<T>>::remove(&author);
+				authors_removed.push(author);
 			}
 
 			Self::deposit_event(Event::AuthorsRemoved { authors_removed });
