@@ -26,7 +26,7 @@ use frame_support::dispatch::DispatchInfo;
 pub use pallet::*;
 
 #[cfg(any(test, feature = "runtime-benchmarks"))]
-mod mock;
+mod mock1;
 
 #[cfg(test)]
 mod tests;
