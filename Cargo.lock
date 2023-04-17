@@ -1356,6 +1356,7 @@ version = "0.8.0"
 dependencies = [
  "cord-primitives",
  "cord-runtime-constants",
+ "cord-utilities",
  "frame-benchmarking",
  "frame-executive",
  "frame-support",
@@ -5186,6 +5187,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-balances",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

@@ -13,9 +13,10 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dev-dependencies]
 cord-utilities = { package = "cord-utilities", path = "../../utilities", features = ["mock"] }
-sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"] }
-sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
-sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
+pallet-balances = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.41"}
+sp-core = { git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.41" }
+sp-io = { git = "https://github.com/dhiway/substrate", features =["std"], branch = "release-v0.9.41" }
+sp-keystore = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.41"}
 
 [dependencies]
 # External dependencies
@@ -32,36 +33,32 @@ frame-support = { git = "https://github.com/dhiway/substrate", branch = "release
 frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
 sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
 sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
-sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional=true }
 
 # Benchmarking dependencies
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true}
 sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
-sp-keystore = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41", optional = true}
 
 [features]
 default = ["std"]
 runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
-  "cord-utilities/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
-  "sp-io",
-  "sp-runtime/runtime-benchmarks",
+  "cord-utilities/runtime-benchmarks",
 ]
 std = [
   "codec/std",
-  "frame-benchmarking?/std",
+  "scale-info/std",
   "frame-support/std",
   "frame-system/std",
-  "scale-info/std",
+  "frame-benchmarking?/std",
   "sp-runtime/std",
   "sp-core/std",
-  "sp-keystore/std",
   "sp-std/std",
 ]
 try-runtime = [
   "frame-support/try-runtime",
   "frame-system/try-runtime",
-  "cord-utilities/try-runtime",
 ]
