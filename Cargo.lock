@@ -5215,6 +5215,7 @@ dependencies = [
  "cord-primitives",
  "cord-utilities",
  "env_logger 0.9.3",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
