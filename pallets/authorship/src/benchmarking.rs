@@ -20,7 +20,7 @@
 
 use super::*;
 use codec::Encode;
-use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite, whitelisted_caller};
+use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
 use sp_std::{
 	convert::{TryFrom, TryInto},
 	vec::Vec,
@@ -40,8 +40,8 @@ benchmarks! {
 			authors.push(user);
 		}
 
-		let caller: T::AccountId = account("caller", 0, SEED);;
-	}: _(RawOrigin::Signed(caller), authors.clone())
+		let caller: T::AccountId = account("caller", 0, SEED);
+	}: _(RawOrigin::Root, authors.clone())
 	verify {
 		for author in authors {
 			assert!(ExtrinsicAuthors::<T>::contains_key(author));
@@ -58,7 +58,7 @@ benchmarks! {
 		}
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-	}: _(RawOrigin::Signed(caller), authors.clone())
+	}: _(RawOrigin::Root, authors.clone())
 	verify {
 		for author in authors {
 			assert!(!ExtrinsicAuthors::<T>::contains_key(author));
