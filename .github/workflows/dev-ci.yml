@@ -21,6 +21,12 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3.0.2
     
+    - name: Install necessary packages
+      run: sudo apt-get install protobuf-compiler libssl-dev
+    
+    - name: Show active toolchain
+      run: rustup show active-toolchain
+
     - name: Check
       run: cargo check
 
