@@ -28,7 +28,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	MultiSignature,
 };
-
 type Hash = sp_core::H256;
 type Balance = u128;
 type Signature = MultiSignature;
