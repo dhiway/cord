@@ -40,7 +40,7 @@ jobs:
         restore-keys: ${{ runner.os }}-cargo-
 
     - name: Check
-      run: cargo check
+      run: cargo check --verbose --all-targets --color always
 
     - name: Test
-      run: cargo test
+      run: cargo test --verbose --all-targets --color always
