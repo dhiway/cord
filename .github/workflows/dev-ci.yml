@@ -1,0 +1,46 @@
+name: dev-pr-check
+
+on:
+  pull_request:
+    branches:
+      - dev-0.8.0
+      - develop
+    paths-ignore:
+      - 'doc/**'
+      - '**.md'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  pr-check:
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
+  
+    - name: Show active toolchain
+      run: rustup show active-toolchain
+
+    - name: Setup Cargo cache
+      uses: actions/cache@v3
+      continue-on-error: false
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-
+
+    - name: Check
+      run: cargo check --verbose --all-targets --color always
+
+    - name: Test
+      run: cargo test --verbose --all-targets --color always
