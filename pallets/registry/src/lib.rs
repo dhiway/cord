@@ -252,12 +252,6 @@ pub mod pallet {
 			let authorization_id = Ss58Identifier::to_authorization_id(&id_digest.encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
-			// log::info!(
-			// 	"key {:?}",
-			// 	identifier,
-			// );
-
-
 			ensure!(
 				!<Authorizations<T>>::contains_key(&authorization_id),
 				Error::<T>::DelegateAlreadyAdded

@@ -203,7 +203,6 @@ fn add_admin_delegate_should_fail_if_delegate_is_already_added() {
 			DID_00,
 		));
 
-
 		//When Trying to add same delegate again it says delegate already added
 		assert_err!(
 			Registry::add_admin_delegate(
@@ -212,6 +211,84 @@ fn add_admin_delegate_should_fail_if_delegate_is_already_added() {
 				DID_00,
 			),
 			Error::<Test>::DelegateAlreadyAdded
+		);
+	});
+}
+
+#[test]
+
+fn add_admin_delegate_should_update_commit() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let raw_registry = [2u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+	new_test_ext().execute_with(|| {
+		//creating regisrty
+		assert_ok!(Registry::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			None
+		));
+
+		assert_ok!(Registry::update_commit(
+			&registry_id,
+			id_digest,
+			creator.clone(),
+			RegistryCommitActionOf::Authorization
+		));
+
+		//Check wheter that event has been emitted
+		assert_eq!(
+			registry_events_since_last_call(),
+			vec![Event::Create { registry: registry_id, creator }]
+		);
+	});
+}
+
+#[test]
+fn add_admin_delegate_should_max_authorities() {
+	// env_logger::init();
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let raw_registry = [2u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+	new_test_ext().execute_with(|| {
+		//Creating a registry
+		assert_ok!(Registry::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			None
+		));
+
+		// assert_ok!(Registry::add_admin_delegate(
+		// 	DoubleOrigin(author.clone(), creator.clone()).into(),
+		// 	registry_id.clone(),
+		// 	DID_00,
+		// ));
+
+		let mut authorities = <Authorities<Test>>::get(registry_id.clone());
+
+		authorities.try_push(creator.clone()).unwrap();
+		authorities.try_push(creator.clone()).unwrap();
+		authorities.try_push(creator.clone()).unwrap();
+
+		debug!("{:?}",authorities);
+
+		// //Admin should be able to add the delegate
+		assert_ok!(
+			Registry::add_admin_delegate(
+				DoubleOrigin(author.clone(), DID_00.clone()).into(),
+				registry_id.clone(),
+				DID_01,
+			)
 		);
 	});
 }

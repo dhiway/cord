@@ -117,9 +117,9 @@ parameter_types! {
     pub const Fee: Balance = 500;
     #[derive(Debug, Clone)]
     pub const MaxEncodedRegistryLength: u32 = 1024u32;
-    pub const MaxRegistryAuthorities: u32 = 10u32;
+    pub const MaxRegistryAuthorities: u32 = 3u32;
     #[derive(Debug, Clone)]
-    pub const MaxRegistryCommitActions: u32 = 100u32;
+    pub const MaxRegistryCommitActions: u32 = 5u32;
 }
 
 impl Config for Test {
