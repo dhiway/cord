@@ -3,6 +3,8 @@ use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_err, assert_noop, assert_ok, BoundedVec};
+use log::debug;
+use pallet_schema::{InputSchemaOf, SchemaHashOf};
 use sp_core::H256;
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
@@ -146,6 +148,70 @@ fn add_admin_delegate_should_fail_if_creator_is_not_a_authority() {
 		assert_err!(
 			Registry::is_an_authority(&registry_id, DID_01),
 			Error::<Test>::UnauthorizedOperation
+		);
+	});
+}
+
+#[test]
+fn add_admin_delegate_should_fail_if_delegate_is_already_added() {
+	env_logger::init();
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let raw_registry = [2u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+	// let authorization_id: Ss58Identifier =
+	// 	Ss58Identifier::to_authorization_id(&id_digest.encode()[..]).unwrap();
+
+	//Schema creation from schema pallet
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	// let schema_digest: SchemaHashOf<Test> =
+	// 	<Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_of: Ss58Identifier =
+		Ss58Identifier::to_schema_id(&schema_id_digest.encode()[..]).unwrap();
+
+	let new_block_number: BlockNumber = 1;
+
+	new_test_ext().execute_with(|| {
+		//adding schema
+		System::set_block_number(new_block_number);
+		//creating regisrty
+		assert_ok!(Schema::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			schema.clone()
+		));
+
+		//creating regisrty
+		assert_ok!(Registry::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			Some(schema_id_of)
+		));
+
+		//Admin should be able to add the delegate
+		assert_ok!(Registry::add_admin_delegate(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id.clone(),
+			DID_00,
+		));
+
+
+		//When Trying to add same delegate again it says delegate already added
+		assert_err!(
+			Registry::add_admin_delegate(
+				DoubleOrigin(author.clone(), DID_00.clone()).into(),
+				registry_id.clone(),
+				DID_00,
+			),
+			Error::<Test>::DelegateAlreadyAdded
 		);
 	});
 }
