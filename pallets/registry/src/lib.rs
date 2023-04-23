@@ -19,6 +19,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
+#[cfg(any(test, feature = "runtime-benchmarks"))]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 
 pub mod types;
@@ -165,6 +171,7 @@ pub mod pallet {
 	}
 
 	#[pallet::error]
+	#[derive(PartialEq)]
 	pub enum Error<T> {
 		/// Registry identifier is not unique
 		RegistryAlreadyAnchored,
@@ -172,7 +179,7 @@ pub mod pallet {
 		RegistryNotFound,
 		/// Only when the author is not the controller or delegate.
 		UnauthorizedOperation,
-		// Invalid Identifier
+		/// Invalid Identifier
 		InvalidIdentifier,
 		// Invalid Identifier Length
 		InvalidIdentifierLength,

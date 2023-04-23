@@ -19,6 +19,7 @@ pallet-balances = {git = "https://github.com/dhiway/substrate", branch = "releas
 serde = "1.0.142"
 sp-core = {git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41"}
 sp-keystore = {git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41"}
+cord-utilities = { package = "cord-utilities", path="../../utilities", features = ["mock"] }
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = ["derive"] }
@@ -29,6 +30,7 @@ serde = { version = "1.0.136", optional = true }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
 pallet-schema = {  default-features = false, path = '../schema' }
+env_logger = "0.9.0"
 
 # Substrate dependencies
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
