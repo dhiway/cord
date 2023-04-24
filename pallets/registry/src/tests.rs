@@ -268,27 +268,26 @@ fn add_admin_delegate_should_max_authorities() {
 			None
 		));
 
-		// assert_ok!(Registry::add_admin_delegate(
-		// 	DoubleOrigin(author.clone(), creator.clone()).into(),
-		// 	registry_id.clone(),
-		// 	DID_00,
-		// ));
+		//Adding the delegate limit that is 3 Max Authorities 
+		for a in 5..8u8 {
+			assert_ok!(
+				Registry::add_admin_delegate(
+				DoubleOrigin(author.clone(), DID_00.clone()).into(),
+				registry_id.clone(),
+				SubjectId(AccountId32::new([a; 32])),
+			)
+		);
+		}
+		let did_08 = SubjectId(AccountId32::new([8u8; 32]));
 
-		let mut authorities = <Authorities<Test>>::get(registry_id.clone());
-
-		authorities.try_push(creator.clone()).unwrap();
-		authorities.try_push(creator.clone()).unwrap();
-		authorities.try_push(creator.clone()).unwrap();
-
-		debug!("{:?}",authorities);
-
-		// //Admin should be able to add the delegate
-		assert_ok!(
+		//Should throw Error When Max authorities reached
+		assert_err!(
 			Registry::add_admin_delegate(
 				DoubleOrigin(author.clone(), DID_00.clone()).into(),
 				registry_id.clone(),
-				DID_01,
-			)
+				did_08,
+			),
+			Error::<Test>::RegistryAuthoritiesLimitExceeded
 		);
 	});
 }
