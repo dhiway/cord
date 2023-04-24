@@ -37,10 +37,8 @@ benchmarks! {
 
 		for i in 0..authors_count {
 			let user: T::AccountId = account("user", i, SEED);
-            let auth: T::AccountId = account("auth", i, SEED);
-
 			authors.push(user.clone());
-            ExtrinsicAuthors::<T>::insert(auth, ());
+            ExtrinsicAuthors::<T>::insert(user.clone(), ());
 		}
         let caller: T::AccountId = account("caller", 0, SEED);
 	}: _(RawOrigin::Root, authors.clone())
