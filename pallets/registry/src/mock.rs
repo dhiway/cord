@@ -16,200 +16,162 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{ss58identifier, Config, SpaceHashOf, SpaceIdentifierOf, SPACE_PREFIX};
-use codec::Encode;
-use sp_core::H256;
+use super::*;
+use crate as pallet_registry;
+use cord_utilities::mock::{mock_origin, SubjectId};
+use frame_support::{
+    construct_runtime,parameter_types,
+    traits::{ConstU128, ConstU32, ConstU64},
+};
 
-const DEFAULT_SPACE_HASH_SEED: u64 = 1u64;
-const ALTERNATIVE_SPACE_HASH_SEED: u64 = 2u64;
+//use sp_core::{ecdsa, ed25519, sr25519, Pair};
+use sp_runtime::{
+    testing::Header,
+    traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+    MultiSignature,
+};
 
-pub fn get_space_hash<T>(default: bool) -> SpaceHashOf<T>
-where
-	T: Config,
-	T::Hash: From<H256>,
-{
-	if default {
-		H256::from_low_u64_be(DEFAULT_SPACE_HASH_SEED).into()
-	} else {
-		H256::from_low_u64_be(ALTERNATIVE_SPACE_HASH_SEED).into()
-	}
+//use sp_std::vec::Vec;
+
+type Hash = sp_core::H256;
+type Balance = u128;
+type Signature = MultiSignature;
+type AccountPublic = <Signature as Verify>::Signer;
+pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
+
+pub(crate) type BlockNumber = u64;
+type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
+type Block = frame_system::mocking::MockBlock<Test>;
+
+construct_runtime!(
+    pub enum Test where
+    Block = Block,
+    NodeBlock = Block,
+    UncheckedExtrinsic = UncheckedExtrinsic,
+    {
+        System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+        Schema:pallet_schema::{Pallet, Call, Storage, Event<T>},
+        Registry: pallet_registry::{Pallet, Storage, Call,Event<T>},
+        Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
+        MockOrigin: mock_origin::{Pallet, Origin<T>},
+
+    }
+);
+
+parameter_types! {
+    pub const SS58Prefix: u8 = 29;
+    pub const BlockHashCount: u64 = 250;
+}
+impl frame_system::Config for Test {
+    type BaseCallFilter = frame_support::traits::Everything;
+    type BlockWeights = ();
+    type BlockLength = ();
+    type RuntimeOrigin = RuntimeOrigin;
+    type RuntimeCall = RuntimeCall;
+    type Index = u64;
+    type BlockNumber = u64;
+    type Hash = Hash;
+    type Hashing = BlakeTwo256;
+    type AccountId = AccountId;
+    type Lookup = IdentityLookup<Self::AccountId>;
+    type Header = Header;
+    type RuntimeEvent = RuntimeEvent;
+    type BlockHashCount = ConstU64<250>;
+    type DbWeight = ();
+    type Version = ();
+    type PalletInfo = PalletInfo;
+    type AccountData = pallet_balances::AccountData<u128>;
+    type OnNewAccount = ();
+    type OnKilledAccount = ();
+    type SystemWeightInfo = ();
+    type SS58Prefix = SS58Prefix;
+    type OnSetCode = ();
+    type MaxConsumers = ConstU32<2>;
 }
 
-pub fn generate_space_id<T: Config>(digest: &SpaceHashOf<T>) -> SpaceIdentifierOf {
-	let identifier: SpaceIdentifierOf =
-		ss58identifier::generate(&(&digest).encode()[..], SPACE_PREFIX)
-			.into_bytes()
-			.try_into()
-			.unwrap();
-	identifier
+parameter_types! {
+    pub const ExistentialDeposit: Balance = 500;
+    pub const MaxLocks: u32 = 50;
+    pub const MaxReserves: u32 = 50;
 }
 
-#[cfg(test)]
-pub mod runtime {
-	use cord_utilities::mock::{mock_origin, ControllerId};
-	use frame_support::{parameter_types, weights::constants::RocksDbWeight};
-	use sp_runtime::{
-		testing::Header,
-		traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-		AccountId32, MultiSignature,
-	};
+impl pallet_balances::Config for Test {
+    type Balance = Balance;
+    type DustRemoval = ();
+    type RuntimeEvent = RuntimeEvent;
+    type ExistentialDeposit = ConstU128<1>;
+    type AccountStore = System;
+    type WeightInfo = ();
+    type MaxLocks = ();
+    type MaxReserves = ();
+    type ReserveIdentifier = [u8; 8];
+}
 
-	use crate::{BalanceOf, SchemaHashes, Schemas};
+impl mock_origin::Config for Test {
+    type RuntimeOrigin = RuntimeOrigin;
+    type AccountId = AccountId;
+    type SubjectId = SubjectId;
+}
 
-	use super::*;
+parameter_types! {
+    pub const Fee: Balance = 500;
+    #[derive(Debug, Clone)]
+    pub const MaxEncodedRegistryLength: u32 = 1024u32;
+    pub const MaxRegistryAuthorities: u32 = 3u32;
+    #[derive(Debug, Clone)]
+    pub const MaxRegistryCommitActions: u32 = 5u32;
+}
 
-	pub type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
-	pub type Block = frame_system::mocking::MockBlock<Test>;
-	pub type Hash = sp_core::H256;
-	pub type Balance = u128;
-	pub type Signature = MultiSignature;
-	pub type AccountPublic = <Signature as Verify>::Signer;
-	pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
+impl Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+    type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId,SubjectId>;
+    type OriginSuccess = mock_origin::DoubleOrigin<AccountId,SubjectId>;
+    type RegistryCreatorId = SubjectId;
+    type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
+    type MaxRegistryAuthorities = MaxRegistryAuthorities;
+    type MaxRegistryCommitActions = MaxRegistryCommitActions;
+    type WeightInfo  = weights::SubstrateWeight<Test>;
+}
 
-	pub const UNIT: Balance = 10u128.pow(12);
-	pub const MILLI_UNIT: Balance = 10u128.pow(9);
 
-	frame_support::construct_runtime!(
-		pub enum Test where
-			Block = Block,
-			NodeBlock = Block,
-			UncheckedExtrinsic = UncheckedExtrinsic,
-		{
-			System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-			Space: crate::{Pallet, Call, Storage, Event<T>},
-			Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
-			MockOrigin: mock_origin::{Pallet, Origin<T>},
-		}
-	);
+parameter_types! {
+	pub const MaxEncodedSchemaLength: u32 = 102_400;
+}
 
-	parameter_types! {
-		pub const SS58Prefix: u8 = 29;
-		pub const BlockHashCount: u64 = 250;
-	}
+impl pallet_schema::Config for Test {
+    type SchemaCreatorId = SubjectId;
+    type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId,SubjectId>;
+    type OriginSuccess = mock_origin::DoubleOrigin<AccountId,SubjectId>;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
+}
 
-	impl frame_system::Config for Test {
-		type Origin = Origin;
-		type Call = Call;
-		type Index = u64;
-		type BlockNumber = u64;
-		type Hash = Hash;
-		type Hashing = BlakeTwo256;
-		type AccountId = AccountId;
-		type Lookup = IdentityLookup<Self::AccountId>;
-		type Header = Header;
-		type Event = ();
-		type BlockHashCount = BlockHashCount;
-		type DbWeight = RocksDbWeight;
-		type Version = ();
+parameter_types! {
+	storage RegistryEvents: u32 = 0;
+}
 
-		type PalletInfo = PalletInfo;
-		type AccountData = pallet_balances::AccountData<Balance>;
-		type OnNewAccount = ();
-		type OnKilledAccount = ();
-		type BaseCallFilter = frame_support::traits::Everything;
-		type SystemWeightInfo = ();
-		type BlockWeights = ();
-		type BlockLength = ();
-		type SS58Prefix = SS58Prefix;
-		type OnSetCode = ();
-		type MaxConsumers = frame_support::traits::ConstU32<16>;
-	}
+/// All events of this pallet.
+pub fn registry_events_since_last_call() -> Vec<super::Event<Test>> {
+	let events = System::events()
+		.into_iter()
+		.map(|r| r.event)
+		.filter_map(|e| if let RuntimeEvent::Registry(inner) = e { Some(inner) } else { None })
+		.collect::<Vec<_>>();
+	let already_seen = RegistryEvents::get();
+	RegistryEvents::set(&(events.len() as u32));
+	events.into_iter().skip(already_seen as usize).collect()
+}
 
-	parameter_types! {
-		pub const ExistentialDeposit: Balance = 500;
-		pub const MaxLocks: u32 = 50;
-		pub const MaxReserves: u32 = 50;
-	}
+#[allow(dead_code)]
+pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
+	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-	impl pallet_balances::Config for Test {
-		type Balance = Balance;
-		type DustRemoval = ();
-		type Event = ();
-		type ExistentialDeposit = ExistentialDeposit;
-		type AccountStore = System;
-		type WeightInfo = ();
-		type MaxLocks = MaxLocks;
-		type MaxReserves = MaxReserves;
-		type ReserveIdentifier = [u8; 8];
-	}
-
-	impl mock_origin::Config for Test {
-		type Origin = Origin;
-		type AccountId = AccountId;
-		type ControllerId = ControllerId;
-	}
-
-	parameter_types! {
-		pub const Fee: Balance = 500;
-	}
-
-	impl Config for Test {
-		type SpaceCreatorId = ControllerId;
-		type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, ControllerId>;
-		type OriginSuccess = mock_origin::DoubleOrigin<AccountId, ControllerId>;
-		type Event = ();
-		type WeightInfo = ();
-
-		type Currency = Balances;
-		type Fee = Fee;
-		type FeeCollector = ();
-	}
-
-	pub(crate) const DID_00: ControllerId = ControllerId(AccountId32::new([1u8; 32]));
-	pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
-
-	#[derive(Clone, Default)]
-	pub(crate) struct ExtBuilder {
-		schemas_stored: Vec<(SpaceIdentifierOf, ControllerId)>,
-		schema_hashes_stored: Vec<(SpaceHashOf<Test>, SpaceIdentifierOf)>,
-		balances: Vec<(AccountId, BalanceOf<Test>)>,
-	}
-
-	impl ExtBuilder {
-		pub(crate) fn with_schemas(
-			mut self,
-			schemas: Vec<(SpaceIdentifierOf, ControllerId)>,
-		) -> Self {
-			self.schemas_stored = schemas;
-			self
-		}
-
-		pub(crate) fn with_balances(mut self, balances: Vec<(AccountId, BalanceOf<Test>)>) -> Self {
-			self.balances = balances;
-			self
-		}
-
-		pub(crate) fn build(self) -> sp_io::TestExternalities {
-			let mut storage =
-				frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
-			pallet_balances::GenesisConfig::<Test> { balances: self.balances.clone() }
-				.assimilate_storage(&mut storage)
-				.expect("assimilate should not fail");
-			let mut ext = sp_io::TestExternalities::new(storage);
-
-			ext.execute_with(|| {
-				for (identifier, owner) in self.schemas_stored.iter() {
-					Schemas::<Test>::insert(identifier, owner);
-				}
-				for (schema_hash, identifier) in self.schema_hashes_stored.iter() {
-					SchemaHashes::<Test>::insert(schema_hash, identifier);
-				}
-			});
-
-			ext
-		}
-
-		#[cfg(feature = "runtime-benchmarks")]
-		pub(crate) fn build_with_keystore(self) -> sp_io::TestExternalities {
-			use sp_keystore::{testing::KeyStore, KeystoreExt};
-			use sp_std::sync::Arc;
-
-			let mut ext = self.build();
-
-			let keystore = KeyStore::new();
-			ext.register_extension(KeystoreExt(Arc::new(keystore)));
-
-			ext
-		}
-	}
+	let mut ext = sp_io::TestExternalities::new(t);
+	#[cfg(feature = "runtime-benchmarks")]
+	let keystore = sp_keystore::testing::KeyStore::new();
+	#[cfg(feature = "runtime-benchmarks")]
+	ext.register_extension(sp_keystore::KeystoreExt(sp_std::sync::Arc::new(keystore)));
+	ext.execute_with(|| System::set_block_number(1));
+	ext
 }
