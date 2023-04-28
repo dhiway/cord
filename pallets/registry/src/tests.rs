@@ -235,15 +235,13 @@ fn add_admin_delegate_should_max_authorities() {
 			None
 		));
 
-		//Adding the delegate limit that is 3 Max Authorities 
+		//Adding the delegate limit that is 3 Max Authorities
 		for a in 5..8u8 {
-			assert_ok!(
-				Registry::add_admin_delegate(
+			assert_ok!(Registry::add_admin_delegate(
 				DoubleOrigin(author.clone(), DID_00.clone()).into(),
 				registry_id.clone(),
 				SubjectId(AccountId32::new([a; 32])),
-			)
-		);
+			));
 		}
 		let did_08 = SubjectId(AccountId32::new([8u8; 32]));
 
@@ -258,7 +256,6 @@ fn add_admin_delegate_should_max_authorities() {
 		);
 	});
 }
-
 
 #[test]
 
@@ -294,7 +291,6 @@ fn add_admin_delegate_should_update_commit() {
 	});
 }
 
-
 //TEST FUNCTIONS FOR ADD_DELEGATE
 #[test]
 fn add_delegate_should_succeed() {
@@ -322,7 +318,6 @@ fn add_delegate_should_succeed() {
 		));
 	});
 }
-
 
 #[test]
 fn add_delegate_should_fail_if_registry_is_not_created() {
@@ -478,7 +473,6 @@ fn add_delegate_should_fail_if_delegate_is_already_added() {
 	});
 }
 
-
 #[test]
 
 fn add_delegate_should_update_commit() {
@@ -512,3 +506,167 @@ fn add_delegate_should_update_commit() {
 		);
 	});
 }
+
+//TEST CASES FOR REMOVE DELEGATE FUNCTION
+
+#[test]
+fn remove_delegate_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let delegate = DID_01;
+	let raw_registry = [2u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier =
+		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		//creating regisrty
+		assert_ok!(Registry::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			None
+		));
+
+		//Admin should be able to add the delegate
+		assert_ok!(Registry::add_delegate(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id.clone(),
+			DID_01,
+		));
+
+		//removing the registry should succedd
+		assert_ok!(Registry::remove_delegate(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id.clone(),
+			authorization_id,
+		));
+	});
+}
+
+#[test]
+fn create_registry_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let raw_registry = [2u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	//let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registry::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			None
+		));
+	});
+}
+
+#[test]
+fn restore_registry_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let raw_registry = [2u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+	new_test_ext().execute_with(|| {
+
+		//Creating a registry
+		assert_ok!(Registry::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			None
+		));
+
+		//Updating a regisrty
+		assert_ok!(Registry::restore(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id
+		));
+	});
+}
+
+#[test]
+fn archive_registry_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let raw_registry = [2u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+	new_test_ext().execute_with(|| {
+
+		//Creating a registry
+		assert_ok!(Registry::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			None
+		));
+
+		//restoring a regisrty
+		assert_ok!(Registry::restore(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id.clone()
+		));
+
+		assert_ok!(Registry::archive(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id
+		));
+	});
+}
+
+
+#[test]
+fn update_registry_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let raw_registry = [2u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+	new_test_ext().execute_with(|| {
+
+		//Creating a registry
+		assert_ok!(Registry::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			None
+		));
+
+		//restoring a regisrty
+		assert_ok!(Registry::restore(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id.clone()
+		));
+
+		assert_ok!(Registry::archive(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id.clone()
+		));
+
+		assert_ok!(Registry::update(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			registry_id
+		));
+	});
+}
+

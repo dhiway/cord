@@ -310,6 +310,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
+			// log::info!("{:?}", creator);
+
 			let registry_details =
 				<Registries<T>>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
 
