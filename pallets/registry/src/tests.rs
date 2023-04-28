@@ -3,7 +3,6 @@ use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_err, assert_noop, assert_ok, BoundedVec};
-use log::debug;
 use pallet_schema::{InputSchemaOf, SchemaHashOf};
 use sp_core::H256;
 use sp_runtime::{traits::Hash, AccountId32};
@@ -155,7 +154,7 @@ fn add_admin_delegate_should_fail_if_creator_is_not_a_authority() {
 
 #[test]
 fn add_admin_delegate_should_fail_if_delegate_is_already_added() {
-	env_logger::init();
+	// env_logger::init();
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let raw_registry = [2u8; 256].to_vec();
