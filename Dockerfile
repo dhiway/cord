@@ -13,13 +13,20 @@ RUN cargo build --locked --profile ${PROFILE}
 # RUN cargo test --release --all
 
 # This is the 2nd stage: a very small image where we copy the Polkadot binary."
-FROM docker.io/library/ubuntu:20.04
+FROM gcr.io/distroless/cc
 LABEL maintainer="engineering@dhiway.com"
 
 ARG PROFILE=production
 
+# Install bash and dash shells
+RUN apt-get update && \
+    apt-get install -y bash dash && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy the built binary from the builder stage
 COPY --from=builder /build/target/${PROFILE}/cord /usr/local/bin
 
+# Add a new user
 RUN useradd -m -u 1000 -U -s /bin/sh -d /cord cord && \
 	mkdir -p /data /cord/.local/share && \
 	chown -R cord:cord /data && \
@@ -35,3 +42,4 @@ EXPOSE 30333 9933 9944 9615
 VOLUME ["/data"]
 
 ENTRYPOINT ["/usr/local/bin/cord"]
+
