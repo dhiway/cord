@@ -13,7 +13,7 @@ RUN cargo build --locked --profile ${PROFILE}
 # RUN cargo test --release --all
 
 # This is the 2nd stage: a very small image where we copy the Polkadot binary."
-FROM docker.io/library/ubuntu:20.04
+FROM gcr.io/distroless/cc
 LABEL maintainer="engineering@dhiway.com"
 
 ARG PROFILE=production
