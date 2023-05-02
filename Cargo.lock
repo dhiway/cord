@@ -1358,6 +1358,7 @@ dependencies = [
  "cord-runtime-constants",
  "cord-utilities",
  "frame-benchmarking",
+ "frame-benchmarking-pallet-pov",
  "frame-executive",
  "frame-support",
  "frame-system",
@@ -2534,6 +2535,21 @@ dependencies = [
  "sp-trie",
  "thiserror",
  "thousands",
+]
+
+[[package]]
+name = "frame-benchmarking-pallet-pov"
+version = "4.0.0-dev"
+source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.41#980eb16791bab5d63b47c07657bb9dc198d9307b"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

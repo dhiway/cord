@@ -16,13 +16,26 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION
-//! 4.0.0-dev DATE: 2022-05-25 (Y/M/D)
+//! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 4.0.0-dev
+//! DATE: 2023-04-30 (Y/M/D)
+//! HOSTNAME: `ip-172-31-3-249`, CPU: `Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz`
 //!
-//! SHORT-NAME: `extrinsic`, LONG-NAME: `ExtrinsicBase`, RUNTIME: `Development`
+//! SHORT-NAME: `extrinsic`, LONG-NAME: `ExtrinsicBase`, RUNTIME: `Dev. Node`
 //! WARMUPS: `10`, REPEAT: `100`
-//! WEIGHT-PATH: `runtime/rococo/constants/src/weights/`
-//! WEIGHT-METRIC: `Average`, WEIGHT-MUL: `1`, WEIGHT-ADD: `0`
+//! WEIGHT-PATH: `runtime/constants/src/weights/`
+//! WEIGHT-METRIC: `Average`, WEIGHT-MUL: `1.0`, WEIGHT-ADD: `0`
+
+// Executed Command:
+//   ./target/production/cord
+//   benchmark
+//   overhead
+//   --chain=dev
+//   --execution=wasm
+//   --wasm-execution=compiled
+//   --weight-path=runtime/constants/src/weights/
+//   --warmup=10
+//   --repeat=100
+//   --header=./HEADER-GPL3
 
 use sp_core::parameter_types;
 use sp_weights::{constants::WEIGHT_REF_TIME_PER_NANOS, Weight};
@@ -32,17 +45,17 @@ parameter_types! {
 	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 103_764, 105_485
-	///   Average:  104_371
-	///   Median:   104_324
-	///   Std-Dev:  336.27
+	///   Min, Max: 122_601, 124_342
+	///   Average:  123_519
+	///   Median:   123_542
+	///   Std-Dev:  316.82
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 105_475
-	///   95th: 105_028
-	///   75th: 104_509
+	///   99th: 124_212
+	///   95th: 124_078
+	///   75th: 123_649
 	pub const ExtrinsicBaseWeight: Weight =
-		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(104_371), 0);
+		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(123_519), 0);
 }
 
 #[cfg(test)]

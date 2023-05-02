@@ -8,11 +8,11 @@ use frame_support::{
 use sp_std::marker::PhantomData;
 /// Weight functions needed for schema.
 pub trait WeightInfo {
-	fn create() -> Weight;
+	fn create(l: u32) -> Weight;
 }
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	fn create() -> Weight {
+	fn create(_l: u32) -> Weight {
 		Weight::from_parts(522_000_000, 0)
 			.saturating_add(Weight::from_parts(20_000, 0))
 			.saturating_add(T::DbWeight::get().reads(2_u64))
@@ -22,7 +22,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	fn create() -> Weight {
+	fn create(_l: u32) -> Weight {
 		Weight::from_parts(522_000_000, 0)
 			.saturating_add(Weight::from_parts(20_000, 0))
 			.saturating_add(RocksDbWeight::get().reads(2_u64))

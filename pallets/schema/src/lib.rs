@@ -63,7 +63,7 @@ pub mod pallet {
 	pub use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::Hash;
+	use sp_runtime::{traits::Hash, SaturatedConversion};
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -155,7 +155,7 @@ pub mod pallet {
 		///
 		/// DispatchResult
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create(tx_schema.len().saturated_into()))]
 		pub fn create(origin: OriginFor<T>, tx_schema: InputSchemaOf<T>) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 

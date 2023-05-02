@@ -71,7 +71,7 @@ fn author_other_than_root() {
 
 #[test]
 fn max_authority_proposal() {
-	
+
 	//Check for max authority proposal by defalt in test is set to 5 if we try to add more than 5 we should get errro
 	//Too many authority proposals
 	new_test_ext().execute_with(|| {
