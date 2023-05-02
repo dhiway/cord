@@ -25,7 +25,7 @@
 
 pub mod did_name;
 
-pub mod default_weights;
+pub mod weights;
 
 #[cfg(any(feature = "mock", test))]
 pub mod mock;
@@ -36,7 +36,7 @@ pub mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
-pub use crate::{default_weights::WeightInfo, pallet::*};
+pub use crate::{pallet::*, weights::WeightInfo};
 
 #[frame_support::pallet]
 pub mod pallet {

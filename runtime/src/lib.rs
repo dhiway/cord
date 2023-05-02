@@ -869,7 +869,7 @@ impl pallet_did_names::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxEncodedSchemaLength: u32 = 102_400;
+	pub const MaxEncodedSchemaLength: u32 = 15_360;
 }
 
 impl pallet_schema::Config for Runtime {
@@ -882,7 +882,7 @@ impl pallet_schema::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxEncodedRegistryLength: u32 = 102_400;
+	pub const MaxEncodedRegistryLength: u32 = 15_360;
 	pub const MaxRegistryAuthorities: u32 = 10_000;
 	pub const MaxRegistryCommitActions: u32 = 1_000;
 }
