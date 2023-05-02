@@ -99,14 +99,14 @@ impl Config for Test {
 	type WeightInfo = ();
 }
 
-
 #[allow(dead_code)]
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	let mut storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-	let config: pallet_extrinsic_authorship::GenesisConfig<Test> = pallet_extrinsic_authorship::GenesisConfig::<Test> {
-		authors: vec![(AccountId::new([10u8; 32]), ()), (AccountId::new([3u8; 32]), ())],
-	};
+	let config: pallet_extrinsic_authorship::GenesisConfig<Test> =
+		pallet_extrinsic_authorship::GenesisConfig::<Test> {
+			authors: vec![(AccountId::new([10u8; 32]), ()), (AccountId::new([3u8; 32]), ())],
+		};
 
 	config.assimilate_storage(&mut storage).unwrap();
 

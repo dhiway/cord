@@ -20,10 +20,8 @@
 
 use super::*;
 use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
-use sp_std::{
-	vec::Vec,
-};
 use frame_system::RawOrigin;
+use sp_std::vec::Vec;
 const SEED: u32 = 0;
 const AUTHORITY_PROPOSALS: u32 = 5;
 
@@ -64,8 +62,4 @@ benchmarks! {
 	}
 }
 
-impl_benchmark_test_suite!(
-	Pallet,
-	crate::mock::new_test_ext(),
-	crate::mock::Test,
-);
+impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test,);
