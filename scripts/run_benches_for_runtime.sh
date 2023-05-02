@@ -3,14 +3,35 @@
 # Runs all benchmarks for all pallets, for a given runtime, provided by $1
 # Should be run on a reference machine to gain accurate benchmarks
 
-runtime="$1"
+while getopts 'bfp:v' flag; do
+  case "${flag}" in
+  b)
+    # Skip build.
+    skip_build='true'
+    ;;
+  v)
+    # Echo all executed commands.
+    set -x
+    ;;
+  *)
+    # Exit early.
+    echo "Bad options. Check Script."
+    exit 1
+    ;;
+  esac
+done
 
-echo "[+] Compiling benchmarks..."
-#cargo build --profile production --locked --features=runtime-benchmarks
+if [ "$skip_build" != true ]; then
+  echo "[+] Compiling benchmarks..."
+  cargo build --profile=production --locked --features=runtime-benchmarks --bin cord
+fi
+
+# The executable to use.
+CORD=./target/production/cord
 
 # Load all pallet names in an array.
 PALLETS=($(
-  ./target/production/cord benchmark pallet --list --chain="dev" |
+  $CORD benchmark pallet --list --chain="dev" |
     tail -n+2 |
     cut -d',' -f1 |
     sort |
@@ -35,14 +56,15 @@ for PALLET in "${PALLETS[@]}"; do
   fi
 
   OUTPUT=$(
-    ./target/production/cord benchmark pallet \
-      --chain="dev" \
+    $CORD benchmark pallet \
+      --chain=dev \
       --steps=50 \
       --repeat=20 \
       --pallet="$PALLET" \
       --extrinsic="*" \
       --execution=wasm \
       --wasm-execution=compiled \
+      --heap-pages=4096 \
       --header=./HEADER-GPL3 \
       --output="./runtime/src/weights/${output_file}" 2>&1
   )
@@ -55,7 +77,7 @@ done
 # Update the block and extrinsic overhead weights.
 echo "[+] Benchmarking block and extrinsic overheads..."
 OUTPUT=$(
-  ./target/production/cord benchmark overhead \
+  $CORD benchmark overhead \
     --chain="dev" \
     --execution=wasm \
     --wasm-execution=compiled \
@@ -67,6 +89,15 @@ OUTPUT=$(
 if [ $? -ne 0 ]; then
   echo "$OUTPUT" >>"$ERR_FILE"
   echo "[-] Failed to benchmark the block and extrinsic overheads. Error written to $ERR_FILE; continuing..."
+fi
+
+echo "[+] Benchmarking the machine..."
+OUTPUT=$(
+  $CORD benchmark machine --chain=dev 2>&1
+)
+if [ $? -ne 0 ]; then
+  # Do not write the error to the error file since it is not a benchmarking error.
+  echo "[-] Failed the machine benchmark:\n$OUTPUT"
 fi
 
 # Check if the error file exists.

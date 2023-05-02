@@ -57,16 +57,16 @@ pub trait WeightInfo {
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: Schema Schemas (r:1 w:1)
-	/// Proof: Schema Schemas (max_values: None, max_size: Some(102538), added: 105013, mode: MaxEncodedLen)
-	/// The range of component `l` is `[1, 10240]`.
+	/// Proof: Schema Schemas (max_values: None, max_size: Some(15496), added: 17971, mode: MaxEncodedLen)
+	/// The range of component `l` is `[1, 15360]`.
 	fn create(l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3`
-		//  Estimated: `106003`
+		//  Estimated: `18961`
 		// Minimum execution time: 16_000_000 picoseconds.
-		Weight::from_parts(15_295_338, 106003)
-			// Standard Error: 114
-			.saturating_add(Weight::from_parts(83_170, 0).saturating_mul(l.into()))
+		Weight::from_parts(21_521_124, 18961)
+			// Standard Error: 127
+			.saturating_add(Weight::from_parts(80_139, 0).saturating_mul(l.into()))
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
@@ -75,16 +75,16 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	/// Storage: Schema Schemas (r:1 w:1)
-	/// Proof: Schema Schemas (max_values: None, max_size: Some(102538), added: 105013, mode: MaxEncodedLen)
-	/// The range of component `l` is `[1, 10240]`.
+	/// Proof: Schema Schemas (max_values: None, max_size: Some(15496), added: 17971, mode: MaxEncodedLen)
+	/// The range of component `l` is `[1, 15360]`.
 	fn create(l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3`
-		//  Estimated: `106003`
+		//  Estimated: `18961`
 		// Minimum execution time: 16_000_000 picoseconds.
-		Weight::from_parts(15_295_338, 106003)
-			// Standard Error: 114
-			.saturating_add(Weight::from_parts(83_170, 0).saturating_mul(l.into()))
+		Weight::from_parts(21_521_124, 18961)
+			// Standard Error: 127
+			.saturating_add(Weight::from_parts(80_139, 0).saturating_mul(l.into()))
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}

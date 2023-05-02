@@ -179,14 +179,14 @@ pub mod pallet {
 			let digest = <T as frame_system::Config>::Hashing::hash(&tx_schema[..]);
 			let block_number = frame_system::Pallet::<T>::block_number();
 
-			// log::info!(
-			// 	"Schema created with identifier: {:?}, schema: {:?} digest: {:?}, creator: {:?}, block_number: {:?}",
-			// 	identifier,
-			// 	tx_schema,
-			// 	digest,
-			// 	creator,
-			// 	block_number
-			// );
+			log::info!(
+				"Schema created with identifier: {:?}, schema: {:?} digest: {:?}, creator: {:?}, block_number: {:?}",
+				identifier,
+				tx_schema,
+				digest,
+				creator,
+				block_number
+			);
 
 			<Schemas<T>>::insert(
 				&identifier,
