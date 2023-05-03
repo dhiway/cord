@@ -12,8 +12,8 @@ RUN cargo build --locked --profile ${PROFILE}
 # test
 # RUN cargo test --release --all
 
-# This is the 2nd stage: a very small image where we copy the Polkadot binary."
-FROM gcr.io/distroless/cc-debian11@sha256:c2e1b5b0c64e3a44638e79246130d480ff09645d543d27e82ffd46a6e78a3ce3
+# This is the 2nd stage: a very small image where we copy the CORD binary."
+FROM gcr.io/distroless/cc-debian11@sha256:3516ad5504f54aeaea0444dfd5044cc5969653e49b594cecb47dc400ea6f6820
 LABEL maintainer="engineering@dhiway.com"
 
 ARG PROFILE=production
