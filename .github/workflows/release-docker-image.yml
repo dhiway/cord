@@ -1,0 +1,35 @@
+name: release-docker-image
+on:
+  push:
+    branches: [ develop ]
+    paths-ignore:
+      - 'doc/**'
+      - '**.md'
+defaults:
+  run:
+    shell: bash
+jobs:
+  release-docker-image:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_REPOSITORY: ${{ github.event.repository.name }}
+      IMAGE_TAG: ${{ github.sha }}
+      DOCKER_SERVER: docker.io
+      DOCKER_USER: dhiway
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Login to DockerHub
+      run: |
+        docker login ${{ env.DOCKER_SERVER }} -u ${{ env.DOCKER_USER }} -p "${{ secrets.DOCKER_PASSWORD }}"
+    - name: Push Image to Registry
+      run: |
+        DOCKER_BRANCH=${{ github.ref }}
+        DOCKER_BRANCH=${DOCKER_BRANCH#refs/heads}
+        docker build . --no-cache --file Dockerfile --tag ${{ env.IMAGE_REPOSITORY }}:${DOCKER_BRANCH}
+
+        docker tag ${{ env.IMAGE_REPOSITORY }}:${DOCKER_BRANCH} ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+        docker tag ${{ env.IMAGE_REPOSITORY }}:${DOCKER_BRANCH} ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${DOCKER_BRANCH}
+
+        docker push ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_TAG }} && \
+        docker push ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${DOCKER_BRANCH}
