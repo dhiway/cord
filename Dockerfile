@@ -13,25 +13,17 @@ RUN cargo build --locked --profile ${PROFILE}
 # RUN cargo test --release --all
 
 # This is the 2nd stage: a very small image where we copy the Polkadot binary."
-FROM docker.io/library/ubuntu:20.04
+FROM gcr.io/distroless/cc-debian11@sha256:c2e1b5b0c64e3a44638e79246130d480ff09645d543d27e82ffd46a6e78a3ce3
 LABEL maintainer="engineering@dhiway.com"
 
 ARG PROFILE=production
 
-COPY --from=builder /build/target/${PROFILE}/cord /usr/local/bin
+COPY --from=builder /build/target/${PROFILE}/cord /cord
 
-RUN useradd -m -u 1000 -U -s /bin/sh -d /cord cord && \
-	mkdir -p /data /cord/.local/share && \
-	chown -R cord:cord /data && \
-	ln -s /data /cord/.local/share/cord && \
-	# unclutter and minimize the attack surface
-	rm -rf /usr/bin /usr/sbin && \
-	# check if executable works in this container
-	/usr/local/bin/cord --version
+RUN ["/cord","--version"]
 
-USER cord
-
-EXPOSE 30333 9933 9944 9615 
+USER 1000:1000
+EXPOSE 30333 9933 9944 9615
 VOLUME ["/data"]
 
-ENTRYPOINT ["/usr/local/bin/cord"]
+ENTRYPOINT ["/cord","-d","/data"]
