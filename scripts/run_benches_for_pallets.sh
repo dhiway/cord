@@ -60,7 +60,7 @@ CORD=./target/production/cord
 # Manually exclude some pallets.
 PALLETS=(
   "pallet_schema"
-  # "pallet_registry"
+  "pallet_registry"
   "pallet_did"
   "pallet_did_names"
   "pallet_extrinsic_authorship"
