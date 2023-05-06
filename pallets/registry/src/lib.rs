@@ -503,7 +503,7 @@ pub mod pallet {
 		///
 		/// DispatchResult
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::update())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update(tx_registry.len().saturated_into()))]
 		pub fn update(
 			origin: OriginFor<T>,
 			tx_registry: InputRegistryOf<T>,

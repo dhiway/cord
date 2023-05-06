@@ -52,6 +52,12 @@ use core::marker::PhantomData;
 pub trait WeightInfo {
 	fn create(l: u32, ) -> Weight;
 	fn update(l: u32, ) -> Weight;
+	fn add_admin_delegate() -> Weight;
+	fn add_delegate() -> Weight;
+	fn remove_delegate() -> Weight;
+	fn archive() -> Weight;
+	fn restore() -> Weight;
+	fn transfer() -> Weight;
 }
 
 /// Weights for pallet_registry using the CORD node and recommended hardware.
@@ -87,6 +93,37 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
+	// Dummy weights
+	fn add_admin_delegate() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
+	fn add_delegate() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
+	fn remove_delegate() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
+	fn archive() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
+	fn restore() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
+	fn transfer() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
 }
 
 // For backwards compatibility and tests
@@ -121,4 +158,36 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
+	// Dummy weights
+	fn add_admin_delegate() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
+	}
+	fn add_delegate() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
+	}
+	fn remove_delegate() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
+	}
+	fn archive() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+	}
+	fn restore() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
+	}
+	fn transfer() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+	}
+
 }
