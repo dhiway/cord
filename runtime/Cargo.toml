@@ -68,6 +68,7 @@ pallet-remark = { git = "https://github.com/dhiway/substrate", default-features 
 hex-literal = { version = "0.3.4", optional = true }
 
 frame-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, optional = true, branch = "release-v0.9.41" }
+frame-benchmarking-pallet-pov = { git = "https://github.com/dhiway/substrate",  default-features = false, optional = true, branch = "release-v0.9.41" }
 frame-system-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, optional = true, branch = "release-v0.9.41" }
 pallet-session-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, optional = true, branch = "release-v0.9.41" }
 pallet-offences-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, optional = true, branch = "release-v0.9.41" }
@@ -112,6 +113,8 @@ std = [
 	"sp-offchain/std",
 	"sp-std/std",
 	"frame-support/std",
+	"frame-benchmarking/std",
+	"frame-benchmarking-pallet-pov/std",
 	"frame-executive/std",
 	"pallet-authority-discovery/std",
 	"pallet-authorship/std",
@@ -161,8 +164,6 @@ runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"frame-system-benchmarking/runtime-benchmarks",
-  "cord-utilities/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
@@ -182,10 +183,13 @@ runtime-benchmarks = [
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
+  "cord-utilities/runtime-benchmarks",
 	"pallet-did/runtime-benchmarks",
   "pallet-did-names/runtime-benchmarks",
   "pallet-schema/runtime-benchmarks",
+  "pallet-extrinsic-authorship/runtime-benchmarks",
 	"hex-literal",
+	"frame-system-benchmarking/runtime-benchmarks",
 ]
 
 try-runtime = [

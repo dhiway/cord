@@ -16,14 +16,26 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION
-//! 4.0.0-dev DATE: 2022-08-19 (Y/M/D)
-//! HOSTNAME: `bm6`, CPU: `Intel(R) Core(TM) i7-7700K CPU @ 4.20GHz`
+//! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 4.0.0-dev
+//! DATE: 2023-04-30 (Y/M/D)
+//! HOSTNAME: `ip-172-31-3-249`, CPU: `Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz`
 //!
-//! SHORT-NAME: `block`, LONG-NAME: `BlockExecution`, RUNTIME: `Development`
+//! SHORT-NAME: `block`, LONG-NAME: `BlockExecution`, RUNTIME: `Dev. Node`
 //! WARMUPS: `10`, REPEAT: `100`
-//! WEIGHT-PATH: `runtime/rococo/constants/src/weights/`
-//! WEIGHT-METRIC: `Average`, WEIGHT-MUL: `1`, WEIGHT-ADD: `0`
+//! WEIGHT-PATH: `runtime/constants/src/weights/`
+//! WEIGHT-METRIC: `Average`, WEIGHT-MUL: `1.0`, WEIGHT-ADD: `0`
+
+// Executed Command:
+//   ./target/production/cord
+//   benchmark
+//   overhead
+//   --chain=dev
+//   --execution=wasm
+//   --wasm-execution=compiled
+//   --weight-path=runtime/constants/src/weights/
+//   --warmup=10
+//   --repeat=100
+//   --header=./HEADER-GPL3
 
 use sp_core::parameter_types;
 use sp_weights::{constants::WEIGHT_REF_TIME_PER_NANOS, Weight};
@@ -33,17 +45,17 @@ parameter_types! {
 	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 5_934_436, 6_171_262
-	///   Average:  6_010_063
-	///   Median:   6_003_352
-	///   Std-Dev:  49111.71
+	///   Min, Max: 261_659, 295_761
+	///   Average:  265_868
+	///   Median:   263_460
+	///   Std-Dev:  7053.71
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 6_158_194
-	///   95th: 6_093_234
-	///   75th: 6_031_680
+	///   99th: 295_539
+	///   95th: 279_561
+	///   75th: 264_420
 	pub const BlockExecutionWeight: Weight =
-		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(6_010_063), 0);
+		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(265_868), 0);
 }
 
 #[cfg(test)]

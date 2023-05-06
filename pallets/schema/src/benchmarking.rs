@@ -30,7 +30,7 @@ use sp_std::{
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 
 const SEED: u32 = 0;
-const MAX_SCHEMA_SIZE: u32 = 10 * 1024;
+const MAX_SCHEMA_SIZE: u32 = 15 * 1024;
 
 benchmarks! {
 	where_clause {

@@ -63,7 +63,7 @@ pub mod pallet {
 	pub use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::Hash;
+	use sp_runtime::{traits::Hash, SaturatedConversion};
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -155,7 +155,7 @@ pub mod pallet {
 		///
 		/// DispatchResult
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create(tx_schema.len().saturated_into()))]
 		pub fn create(origin: OriginFor<T>, tx_schema: InputSchemaOf<T>) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
@@ -179,14 +179,14 @@ pub mod pallet {
 			let digest = <T as frame_system::Config>::Hashing::hash(&tx_schema[..]);
 			let block_number = frame_system::Pallet::<T>::block_number();
 
-			// log::info!(
-			// 	"Schema created with identifier: {:?}, schema: {:?} digest: {:?}, creator: {:?}, block_number: {:?}",
-			// 	identifier,
-			// 	tx_schema,
-			// 	digest,
-			// 	creator,
-			// 	block_number
-			// );
+			log::info!(
+				"Schema created with identifier: {:?}, schema: {:?} digest: {:?}, creator: {:?}, block_number: {:?}",
+				identifier,
+				tx_schema,
+				digest,
+				creator,
+				block_number
+			);
 
 			<Schemas<T>>::insert(
 				&identifier,

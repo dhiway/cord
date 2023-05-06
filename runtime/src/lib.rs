@@ -554,7 +554,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxProposals = CouncilMaxProposals;
 	type MaxMembers = CouncilMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::pallet_collective_council::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
 	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
 }
 
@@ -573,7 +573,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxProposals = TechnicalMaxProposals;
 	type MaxMembers = TechnicalMaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::pallet_collective_technical_committee::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
 	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
 }
 
@@ -869,7 +869,7 @@ impl pallet_did_names::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxEncodedSchemaLength: u32 = 102_400;
+	pub const MaxEncodedSchemaLength: u32 = 15_360;
 }
 
 impl pallet_schema::Config for Runtime {
@@ -882,7 +882,7 @@ impl pallet_schema::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxEncodedRegistryLength: u32 = 102_400;
+	pub const MaxEncodedRegistryLength: u32 = 15_360;
 	pub const MaxRegistryAuthorities: u32 = 10_000;
 	pub const MaxRegistryCommitActions: u32 = 1_000;
 }
@@ -1083,6 +1083,7 @@ mod benches {
 		[pallet_collective, Council]
 		[pallet_democracy, Democracy]
 		[pallet_grandpa, Grandpa]
+		[pallet_identity, Identity]
 		[pallet_im_online, ImOnline]
 		[pallet_indices, Indices]
 		[pallet_membership, TechnicalMembership]
@@ -1098,6 +1099,7 @@ mod benches {
 		[pallet_schema, Schema]
 		[pallet_did, Did]
 		[pallet_did_names, DidNames]
+		[pallet_extrinsic_authorship, ExtrinsicAuthorship]
 	);
 }
 

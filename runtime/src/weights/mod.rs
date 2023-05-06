@@ -20,8 +20,7 @@
 
 pub mod frame_system;
 pub mod pallet_balances;
-pub mod pallet_collective_council;
-pub mod pallet_collective_technical_committee;
+pub mod pallet_collective;
 pub mod pallet_democracy;
 pub mod pallet_did;
 pub mod pallet_did_names;
