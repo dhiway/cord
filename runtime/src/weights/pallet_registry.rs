@@ -81,4 +81,35 @@ impl<T: frame_system::Config> pallet_registry::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
+    // Dummy weights
+	fn add_admin_delegate() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
+	fn add_delegate() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
+	fn remove_delegate() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
+	fn archive() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
+	fn restore() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+	}
+	fn transfer() -> Weight {
+		Weight::from_parts(322_000_000,0)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+	}
 }
