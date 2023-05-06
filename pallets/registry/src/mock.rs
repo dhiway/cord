@@ -114,9 +114,9 @@ parameter_types! {
 	pub const Fee: Balance = 500;
 	#[derive(Debug, Clone)]
 	pub const MaxEncodedRegistryLength: u32 = 15_360;
-	pub const MaxRegistryAuthorities: u32 = 10_000;
+	pub const MaxRegistryAuthorities: u32 = 3u32;
 	#[derive(Debug, Clone)]
-	pub const MaxRegistryCommitActions: u32 = 1_000;
+	pub const MaxRegistryCommitActions: u32 = 5u32;
 }
 
 impl Config for Test {
@@ -171,4 +171,3 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }
-

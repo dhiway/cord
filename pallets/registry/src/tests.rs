@@ -579,24 +579,16 @@ fn update_registry_should_succeed() {
 		//Creating a registry
 		assert_ok!(Registry::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
+			registry,
 			None
 		));
 
-		//restoring a regisrty
-		assert_ok!(Registry::restore(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone()
-		));
-
-		assert_ok!(Registry::archive(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone()
-		));
+		let update_registry = [5u8; 256].to_vec();
+		let utx_registry: InputRegistryOf<Test> = BoundedVec::try_from(update_registry).unwrap();
 
 		assert_ok!(Registry::update(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
+			utx_registry,
 			registry_id
 		));
 	});
@@ -623,14 +615,9 @@ fn archive_registry_should_succeed() {
 		));
 
 		//restoring a regisrty
-		assert_ok!(Registry::restore(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone()
-		));
-
 		assert_ok!(Registry::archive(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id
+			registry_id.clone()
 		));
 	});
 }
@@ -655,6 +642,11 @@ fn restore_registry_should_succeed() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			registry.clone(),
 			None
+		));
+
+		assert_ok!(Registry::archive(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id.clone()
 		));
 
 		//Updating a regisrty
