@@ -187,6 +187,7 @@ runtime-benchmarks = [
 	"pallet-did/runtime-benchmarks",
   "pallet-did-names/runtime-benchmarks",
   "pallet-schema/runtime-benchmarks",
+  "pallet-registry/runtime-benchmarks",
   "pallet-extrinsic-authorship/runtime-benchmarks",
 	"hex-literal",
 	"frame-system-benchmarking/runtime-benchmarks",

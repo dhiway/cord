@@ -1097,6 +1097,7 @@ mod benches {
 		[pallet_treasury, Treasury]
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
+		[pallet_registry, Registry]
 		[pallet_did, Did]
 		[pallet_did_names, DidNames]
 		[pallet_extrinsic_authorship, ExtrinsicAuthorship]

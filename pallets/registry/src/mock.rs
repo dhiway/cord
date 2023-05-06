@@ -40,21 +40,18 @@ type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 
 pub(crate) type BlockNumber = u64;
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
-type Block = frame_system::mocking::MockBlock<Test>;
 
 construct_runtime!(
 	pub enum Test where
-	Block = Block,
-	NodeBlock = Block,
-	UncheckedExtrinsic = UncheckedExtrinsic,
+		Block = frame_system::mocking::MockBlock<Test>,
+		NodeBlock = frame_system::mocking::MockBlock<Test>,
+		UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Schema:pallet_schema::{Pallet, Call, Storage, Event<T>},
 		Registry: pallet_registry::{Pallet, Storage, Call,Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
 		MockOrigin: mock_origin::{Pallet, Origin<T>},
-
 	}
 );
 
@@ -174,3 +171,4 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }
+

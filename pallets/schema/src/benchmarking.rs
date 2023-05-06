@@ -45,7 +45,7 @@ benchmarks! {
 
 		let raw_schema: Vec<u8> = (0u8..u8::MAX).cycle().take(l.try_into().unwrap()).collect();
 		let schema = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+		.expect("Test Schema should fit into the expected input length of the test runtime.");
 		let digest = <T as frame_system::Config>::Hashing::hash(&schema[..]);
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&schema.encode()[..], &did.encode()[..]].concat()[..],
