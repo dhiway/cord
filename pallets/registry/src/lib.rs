@@ -19,20 +19,20 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-#[cfg(any(test, feature = "runtime-benchmarks"))]
-mod mock;
+pub mod weights;
+
+#[cfg(any(feature = "mock", test))]
+pub mod mock;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarking;
 
 #[cfg(test)]
 mod tests;
 
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
-
 pub mod types;
-pub mod weights;
-
-pub use crate::{types::*, weights::WeightInfo};
-
-pub use pallet::*;
+pub use crate::{pallet::*, types::*, weights::WeightInfo};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -41,6 +41,7 @@ pub mod pallet {
 	use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::SaturatedConversion;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -430,7 +431,7 @@ pub mod pallet {
 		///
 		/// DispatchResult
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create(tx_registry.len().saturated_into()))]
 		pub fn create(
 			origin: OriginFor<T>,
 			tx_registry: InputRegistryOf<T>,

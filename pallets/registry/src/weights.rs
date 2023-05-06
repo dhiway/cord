@@ -15,7 +15,7 @@ pub trait WeightInfo {
 	fn add_admin_delegate() -> Weight;
 	fn add_delegate() -> Weight;
 	fn remove_delegate() -> Weight;
-	fn create() -> Weight;
+	fn create(l: u32,) -> Weight;
 	fn update() -> Weight;
 	fn archive() -> Weight;
 	fn restore() -> Weight;
@@ -39,9 +39,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
-	fn create() -> Weight {
+	fn create(l: u32,) -> Weight {
 		Weight::from_parts(522_000_000,0)
-			.saturating_add(Weight::from_parts(2000,0))
+			.saturating_add(Weight::from_parts(2000,0).saturating_mul(l.into()))
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}

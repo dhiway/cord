@@ -2,26 +2,26 @@ use super::*;
 use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
-use frame_support::{assert_err, assert_noop, assert_ok, BoundedVec};
-use pallet_schema::{InputSchemaOf, SchemaHashOf};
-use sp_core::H256;
+use frame_support::{assert_err, assert_ok, BoundedVec};
+use pallet_schema::InputSchemaOf;
+// use sp_core::H256;
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
 
-const DEFAULT_REGISTRY_HASH_SEED: u64 = 1u64;
-const ALTERNATIVE_REGISTRY_HASH_SEED: u64 = 2u64;
-
-pub fn get_registry_hash<T>(default: bool) -> RegistryHashOf<T>
-where
-	T: Config,
-	T::Hash: From<H256>,
-{
-	if default {
-		H256::from_low_u64_be(DEFAULT_REGISTRY_HASH_SEED).into()
-	} else {
-		H256::from_low_u64_be(ALTERNATIVE_REGISTRY_HASH_SEED).into()
-	}
-}
+// const DEFAULT_REGISTRY_HASH_SEED: u64 = 1u64;
+// const ALTERNATIVE_REGISTRY_HASH_SEED: u64 = 2u64;
+//
+// pub fn get_registry_hash<T>(default: bool) -> RegistryHashOf<T>
+// where
+// 	T: Config,
+// 	T::Hash: From<H256>,
+// {
+// 	if default {
+// 		H256::from_low_u64_be(DEFAULT_REGISTRY_HASH_SEED).into()
+// 	} else {
+// 		H256::from_low_u64_be(ALTERNATIVE_REGISTRY_HASH_SEED).into()
+// 	}
+// }
 
 pub fn generate_registry_id<T: Config>(digest: &RegistryHashOf<T>) -> RegistryIdOf {
 	Ss58Identifier::to_registry_id(&(digest).encode()[..]).unwrap()
@@ -30,7 +30,7 @@ pub fn generate_registry_id<T: Config>(digest: &RegistryHashOf<T>) -> RegistryId
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
 pub(crate) const DID_01: SubjectId = SubjectId(AccountId32::new([2u8; 32]));
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
-pub(crate) const ACCOUNT_01: AccountId = AccountId::new([2u8; 32]);
+// pub(crate) const ACCOUNT_01: AccountId = AccountId::new([2u8; 32]);
 
 //TEST FUNCTION FOR ADD ADMIN DELEGATE
 
@@ -86,7 +86,7 @@ fn add_admin_delegate_should_fail_if_registry_is_not_created() {
 }
 
 #[test]
-fn add_admin_delegate_should_fail_is_regisrty_an_archive_registry() {
+fn add_admin_delegate_should_fail_if_the_regisrty_is_archived() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let raw_registry = [2u8; 256].to_vec();
@@ -163,8 +163,6 @@ fn add_admin_delegate_should_fail_if_delegate_is_already_added() {
 		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	// let authorization_id: Ss58Identifier =
-	// 	Ss58Identifier::to_authorization_id(&id_digest.encode()[..]).unwrap();
 
 	//Schema creation from schema pallet
 	let raw_schema = [2u8; 256].to_vec();
@@ -173,8 +171,6 @@ fn add_admin_delegate_should_fail_if_delegate_is_already_added() {
 	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	// let schema_digest: SchemaHashOf<Test> =
-	// 	<Test as frame_system::Config>::Hashing::hash(&schema[..]);
 	let schema_id_of: Ss58Identifier =
 		Ss58Identifier::to_schema_id(&schema_id_digest.encode()[..]).unwrap();
 
@@ -217,7 +213,6 @@ fn add_admin_delegate_should_fail_if_delegate_is_already_added() {
 
 #[test]
 fn add_admin_delegate_should_max_authorities() {
-	// env_logger::init();
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let raw_registry = [2u8; 256].to_vec();
@@ -343,7 +338,7 @@ fn add_delegate_should_fail_if_registry_is_not_created() {
 }
 
 #[test]
-fn add_delegate_should_fail_is_regisrty_an_archive_registry() {
+fn add_delegate_should_fail_if_the_regisrty_is_archived() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let raw_registry = [2u8; 256].to_vec();
@@ -411,7 +406,6 @@ fn add_delegate_should_fail_if_creator_is_not_a_authority() {
 
 #[test]
 fn add_delegate_should_fail_if_delegate_is_already_added() {
-	//env_logger::init();
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let raw_registry = [2u8; 256].to_vec();
@@ -420,8 +414,6 @@ fn add_delegate_should_fail_if_delegate_is_already_added() {
 		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	// let authorization_id: Ss58Identifier =
-	// 	Ss58Identifier::to_authorization_id(&id_digest.encode()[..]).unwrap();
 
 	//Schema creation from schema pallet
 	let raw_schema = [2u8; 256].to_vec();
@@ -430,8 +422,6 @@ fn add_delegate_should_fail_if_delegate_is_already_added() {
 	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	// let schema_digest: SchemaHashOf<Test> =
-	// 	<Test as frame_system::Config>::Hashing::hash(&schema[..]);
 	let schema_id_of: Ss58Identifier =
 		Ss58Identifier::to_schema_id(&schema_id_digest.encode()[..]).unwrap();
 
@@ -551,6 +541,7 @@ fn remove_delegate_should_succeed() {
 		));
 	});
 }
+// TODO - remove delegate should fail if it is not perfomed by an authority
 
 #[test]
 fn create_registry_should_succeed() {
@@ -558,9 +549,9 @@ fn create_registry_should_succeed() {
 	let author = ACCOUNT_00;
 	let raw_registry = [2u8; 256].to_vec();
 	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	// let id_digest = <Test as frame_system::Config>::Hashing::hash(
+	// &[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	//);
 	//let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registry::create(
@@ -571,65 +562,8 @@ fn create_registry_should_succeed() {
 	});
 }
 
-#[test]
-fn restore_registry_should_succeed() {
-	let creator = DID_00;
-	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	new_test_ext().execute_with(|| {
-
-		//Creating a registry
-		assert_ok!(Registry::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
-		));
-
-		//Updating a regisrty
-		assert_ok!(Registry::restore(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id
-		));
-	});
-}
-
-#[test]
-fn archive_registry_should_succeed() {
-	let creator = DID_00;
-	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	new_test_ext().execute_with(|| {
-
-		//Creating a registry
-		assert_ok!(Registry::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
-		));
-
-		//restoring a regisrty
-		assert_ok!(Registry::restore(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone()
-		));
-
-		assert_ok!(Registry::archive(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id
-		));
-	});
-}
-
+// TODO registry create with non-existent schema id
+// TODO registry create failure - wrong input
 
 #[test]
 fn update_registry_should_succeed() {
@@ -642,7 +576,6 @@ fn update_registry_should_succeed() {
 	);
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 	new_test_ext().execute_with(|| {
-
 		//Creating a registry
 		assert_ok!(Registry::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -669,3 +602,66 @@ fn update_registry_should_succeed() {
 	});
 }
 
+// TODO update failure test case
+
+#[test]
+fn archive_registry_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let raw_registry = [2u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+	new_test_ext().execute_with(|| {
+		//Creating a registry
+		assert_ok!(Registry::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			None
+		));
+
+		//restoring a regisrty
+		assert_ok!(Registry::restore(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id.clone()
+		));
+
+		assert_ok!(Registry::archive(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id
+		));
+	});
+}
+
+// TODO archive a non-existent registry - should fail
+// TODO archive a registry by an admin who is not the creator - should succeed
+// TODO archive registry by a delegate - should fail
+
+#[test]
+fn restore_registry_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let raw_registry = [2u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+	new_test_ext().execute_with(|| {
+		//Creating a registry
+		assert_ok!(Registry::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			None
+		));
+
+		//Updating a regisrty
+		assert_ok!(Registry::restore(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id
+		));
+	});
+}
+//TODO add test cases to check error conditions

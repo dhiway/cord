@@ -185,7 +185,8 @@ runtime-benchmarks = [
 	"pallet-did/runtime-benchmarks",
   "pallet-did-names/runtime-benchmarks",
   "pallet-schema/runtime-benchmarks",
-	"hex-literal",
+  "pallet-registry/runtime-benchmarks",
+  "hex-literal",
 ]
 
 try-runtime = [
