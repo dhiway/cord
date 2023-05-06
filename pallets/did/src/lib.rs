@@ -78,11 +78,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-pub mod default_weights;
 pub mod did_details;
 pub mod errors;
 pub mod origin;
 pub mod service_endpoints;
+pub mod weights;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
@@ -98,7 +98,6 @@ mod signature;
 mod utils;
 
 pub use crate::{
-	default_weights::WeightInfo,
 	did_details::{
 		DeriveDidCallAuthorizationVerificationKeyRelationship, DeriveDidCallKeyRelationshipResult,
 		DidAuthorizedCallOperationWithVerificationRelationship, DidSignature,
@@ -107,6 +106,7 @@ pub use crate::{
 	origin::{DidRawOrigin, EnsureDidOrigin},
 	pallet::*,
 	signature::DidSignatureVerify,
+	weights::WeightInfo,
 };
 
 use codec::Encode;

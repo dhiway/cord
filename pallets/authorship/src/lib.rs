@@ -25,14 +25,14 @@ use codec::{Decode, Encode};
 use frame_support::dispatch::DispatchInfo;
 pub use pallet::*;
 
-#[cfg(any(test, feature = "runtime-benchmarks"))]
-mod mock;
+#[cfg(any(feature = "mock", test))]
+pub mod mock;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 use sp_runtime::{
 	traits::{DispatchInfoOf, Dispatchable, SignedExtension},

@@ -17,10 +17,10 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
-use crate as pallet_authorship;
+use crate as pallet_extrinsic_authorship;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU128,ConstU32, ConstU64, GenesisBuild},
+	traits::{ConstU128, ConstU32, ConstU64, GenesisBuild},
 };
 use frame_system::EnsureRoot;
 use sp_runtime::{
@@ -34,19 +34,15 @@ type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
-type Block = frame_system::mocking::MockBlock<Test>;
-
 construct_runtime!(
 	pub enum Test where
-	Block = Block,
-	NodeBlock = Block,
-	UncheckedExtrinsic = UncheckedExtrinsic,
+	Block = frame_system::mocking::MockBlock<Test>,
+	NodeBlock = frame_system::mocking::MockBlock<Test>,
+	UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Authorship: pallet_authorship::{Pallet, Storage, Call,Event<T>},
+		Authorship: pallet_extrinsic_authorship::{Pallet, Storage, Call,Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
-		
 	}
 );
 
@@ -92,7 +88,6 @@ impl pallet_balances::Config for Test {
 	type ReserveIdentifier = [u8; 8];
 }
 
-
 parameter_types! {
 	pub const MaxAuthorityProposals: u32 = 5;
 }
@@ -104,14 +99,14 @@ impl Config for Test {
 	type WeightInfo = ();
 }
 
-
 #[allow(dead_code)]
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	let mut storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 
-	let config: pallet_authorship::GenesisConfig<Test> = pallet_authorship::GenesisConfig::<Test> {
-		authors: vec![(AccountId::new([10u8; 32]), ()), (AccountId::new([3u8; 32]), ())],
-	};
+	let config: pallet_extrinsic_authorship::GenesisConfig<Test> =
+		pallet_extrinsic_authorship::GenesisConfig::<Test> {
+			authors: vec![(AccountId::new([10u8; 32]), ()), (AccountId::new([3u8; 32]), ())],
+		};
 
 	config.assimilate_storage(&mut storage).unwrap();
 

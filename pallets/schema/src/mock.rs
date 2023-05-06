@@ -97,7 +97,7 @@ impl mock_origin::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxEncodedSchemaLength: u32 = 102_400;
+	pub const MaxEncodedSchemaLength: u32 = 15_360;
 }
 
 impl Config for Test {
