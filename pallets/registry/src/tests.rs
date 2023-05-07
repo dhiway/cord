@@ -4,24 +4,8 @@ use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_err, assert_ok, BoundedVec};
 use pallet_schema::InputSchemaOf;
-// use sp_core::H256;
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
-
-// const DEFAULT_REGISTRY_HASH_SEED: u64 = 1u64;
-// const ALTERNATIVE_REGISTRY_HASH_SEED: u64 = 2u64;
-//
-// pub fn get_registry_hash<T>(default: bool) -> RegistryHashOf<T>
-// where
-// 	T: Config,
-// 	T::Hash: From<H256>,
-// {
-// 	if default {
-// 		H256::from_low_u64_be(DEFAULT_REGISTRY_HASH_SEED).into()
-// 	} else {
-// 		H256::from_low_u64_be(ALTERNATIVE_REGISTRY_HASH_SEED).into()
-// 	}
-// }
 
 pub fn generate_registry_id<T: Config>(digest: &RegistryHashOf<T>) -> RegistryIdOf {
 	Ss58Identifier::to_registry_id(&(digest).encode()[..]).unwrap()
@@ -30,7 +14,6 @@ pub fn generate_registry_id<T: Config>(digest: &RegistryHashOf<T>) -> RegistryId
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
 pub(crate) const DID_01: SubjectId = SubjectId(AccountId32::new([2u8; 32]));
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
-// pub(crate) const ACCOUNT_01: AccountId = AccountId::new([2u8; 32]);
 
 //TEST FUNCTION FOR ADD ADMIN DELEGATE
 
@@ -579,24 +562,16 @@ fn update_registry_should_succeed() {
 		//Creating a registry
 		assert_ok!(Registry::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
+			registry,
 			None
 		));
 
-		//restoring a regisrty
-		assert_ok!(Registry::restore(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone()
-		));
-
-		assert_ok!(Registry::archive(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone()
-		));
+		let update_registry = [5u8; 256].to_vec();
+		let utx_registry: InputRegistryOf<Test> = BoundedVec::try_from(update_registry).unwrap();
 
 		assert_ok!(Registry::update(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
+			utx_registry,
 			registry_id
 		));
 	});
@@ -623,14 +598,9 @@ fn archive_registry_should_succeed() {
 		));
 
 		//restoring a regisrty
-		assert_ok!(Registry::restore(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone()
-		));
-
 		assert_ok!(Registry::archive(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id
+			registry_id.clone()
 		));
 	});
 }
@@ -655,6 +625,11 @@ fn restore_registry_should_succeed() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			registry.clone(),
 			None
+		));
+
+		assert_ok!(Registry::archive(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id.clone()
 		));
 
 		//Updating a regisrty

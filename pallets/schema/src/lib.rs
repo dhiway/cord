@@ -180,7 +180,8 @@ pub mod pallet {
 			let block_number = frame_system::Pallet::<T>::block_number();
 
 			log::info!(
-				"Schema created with identifier: {:?}, schema: {:?} digest: {:?}, creator: {:?}, block_number: {:?}",
+				"Schema created with identifier: {:?}, schema: {:?} digest: {:?}, creator:
+			{:?}, block_number: {:?}",
 				identifier,
 				tx_schema,
 				digest,

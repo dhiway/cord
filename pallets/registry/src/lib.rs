@@ -503,7 +503,7 @@ pub mod pallet {
 		///
 		/// DispatchResult
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::update())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update(tx_registry.len().saturated_into()))]
 		pub fn update(
 			origin: OriginFor<T>,
 			tx_registry: InputRegistryOf<T>,
@@ -519,7 +519,7 @@ pub mod pallet {
 
 			let registry_details =
 				<Registries<T>>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
-			ensure!(registry_details.archive, Error::<T>::ArchivedRegistry);
+			ensure!(!registry_details.archive, Error::<T>::ArchivedRegistry);
 
 			if registry_details.creator != updater {
 				Self::is_an_authority(&registry_id, updater.clone()).map_err(Error::<T>::from)?;
@@ -566,7 +566,7 @@ pub mod pallet {
 
 			let registry_details =
 				<Registries<T>>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
-			ensure!(registry_details.archive, Error::<T>::ArchivedRegistry);
+			ensure!(!registry_details.archive, Error::<T>::ArchivedRegistry);
 
 			if registry_details.creator != creator {
 				Self::is_an_authority(&registry_id, creator.clone()).map_err(Error::<T>::from)?;
@@ -607,7 +607,7 @@ pub mod pallet {
 
 			let registry_details =
 				<Registries<T>>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
-			ensure!(!registry_details.archive, Error::<T>::RegistryNotArchived);
+			ensure!(registry_details.archive, Error::<T>::RegistryNotArchived);
 
 			if registry_details.creator != creator {
 				Self::is_an_authority(&registry_id, creator.clone()).map_err(Error::<T>::from)?;
