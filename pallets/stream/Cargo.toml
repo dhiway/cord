@@ -19,8 +19,10 @@ sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.
 sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
 pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
 cord-utilities = { package = "cord-utilities", path="../../utilities", features = ["mock"] }
+env_logger = {version = "0.9.0"}
 
 [dependencies]
+log = "0.4.17"
 codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = [
 	"derive",
 	"max-encoded-len",
@@ -67,4 +69,5 @@ std = [
   "pallet-balances/std",
   "sp-core/std",
   "sp-io/std",
+    "log/std",
 ]
