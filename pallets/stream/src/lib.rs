@@ -36,6 +36,12 @@ pub use crate::types::*;
 
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
 
+#[cfg(any(test, feature = "runtime-benchmarks"))]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;

@@ -14,6 +14,12 @@ targets = ['x86_64-unknown-linux-gnu']
 [build-dependencies]
 substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
 
+[dev-dependencies]
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
+cord-utilities = { package = "cord-utilities", path="../../utilities", features = ["mock"] }
+
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = [
 	"derive",
@@ -23,6 +29,7 @@ scale-info = { version = "2.1.2", default-features = false, features = ["derive"
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
 pallet-registry = {  default-features = false, path = '../registry' }
+pallet-schema = {  default-features = false, path = '../schema' }
 serde = { version = "1.0.136", optional = true }
 
 # Substrate dependencies
@@ -34,6 +41,7 @@ sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.
 sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
 sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true}
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true}
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
 
 
 [features]
@@ -55,4 +63,8 @@ std = [
   "sp-std/std",
   "sp-runtime/std",
   "pallet-registry/std", 
+   "pallet-schema/std", 
+  "pallet-balances/std",
+  "sp-core/std",
+  "sp-io/std",
 ]
