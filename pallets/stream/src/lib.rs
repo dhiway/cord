@@ -27,6 +27,12 @@
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
 
+#[cfg(any(feature = "mock", test))]
+pub mod mock;
+
+#[cfg(test)]
+pub mod tests;
+
 use cord_primitives::{curi::Ss58Identifier, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{prelude::Clone, str};
