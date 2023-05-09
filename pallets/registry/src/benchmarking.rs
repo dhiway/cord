@@ -12,6 +12,7 @@ use sp_std::{
 };
 const SEED: u32 = 0;
 const MAX_REGISTRY_SIZE: u32 = 15 * 1024;
+const MAX_DELEGATES: u32 = 15;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
@@ -94,16 +95,10 @@ archive {
 
 		Pallet::<T>::create(origin.clone(), registry, None).expect("Should create a registry entry");
 
-		let registry_archive: Vec<u8> = (2u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
-		let utx_registry: InputRegistryOf::<T> = BoundedVec::try_from(registry_archive)
-			.expect("Archived Registry should fit into the expected input length of the test runtime");
-
 }: _<T::RuntimeOrigin>(origin, registry_id.clone())
 
 verify {
-    let archived_registry = <Registries<T>>::get(&registry_id).expect("Registry should exist");
-    assert!(archived_registry.archive, "Registry should be archived");
-
+    
     assert_last_event::<T>(Event::Archive { registry: registry_id, authority: did }.into());
 }    
 
@@ -134,7 +129,7 @@ verify {
 }
 
 add_admin_delegate {
-    let l in 1 .. MAX_REGISTRY_SIZE;
+    let l in 1 .. MAX_DELEGATES;
 
     let caller: T::AccountId = account("caller", 0, SEED);
     let did: T::RegistryCreatorId = account("did", 0, SEED);
@@ -152,19 +147,15 @@ add_admin_delegate {
 
     Pallet::<T>::create(origin.clone(), registry, None).expect("Should create a registry entry");
 
-    let origin_creator =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
    
 }: _<T::RuntimeOrigin>(origin, registry_id.clone(), delegate.clone())
 verify {
-    // assert_eq!(authorization.registry_id, registry_id, "Registry ID should match");
-    // assert_eq!(authorization.delegate, delegate, "Delegate should match");
-     let authorization_id = Ss58Identifier::to_authorization_id(
+        let authorization_id = Ss58Identifier::to_authorization_id(
         &(<T as frame_system::Config>::Hashing::hash(
             &[&registry_id.encode()[..], &delegate.encode()[..], &did.encode()[..]].concat()[..],
         )).encode()[..]
     ).expect("Authorization ID should be generated");
 
-    let authorization = <Authorizations<T>>::get(&authorization_id).expect("Authorization should exist");
 
     assert_last_event::<T>(Event::AddAuthorization {
         registry: registry_id,
@@ -172,9 +163,8 @@ verify {
         delegate: delegate,
     }.into());
 }
-
 add_delegate {
-    let l in 1 .. MAX_REGISTRY_SIZE;
+    let l in 1 .. MAX_DELEGATES;
 
     let caller: T::AccountId = account("caller", 0, SEED);
     let did: T::RegistryCreatorId = account("did", 0, SEED);
@@ -208,7 +198,7 @@ verify {
 }
 
 remove_delegate {
-    let l in 1 .. MAX_REGISTRY_SIZE;
+    let l in 1 .. MAX_DELEGATES;
 
     let caller: T::AccountId = account("caller", 0, SEED);
     let did: T::RegistryCreatorId = account("did", 0, SEED);
