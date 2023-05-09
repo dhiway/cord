@@ -120,7 +120,8 @@ tokio-util = { version = "0.7.4", features = ["compat"] }
 wait-timeout = "0.2"
 substrate-rpc-client = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
 pallet-timestamp = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
-substrate-cli-test-utils = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
+substrate-test-utils = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
+cord-cli-test-utils = { package = "cord-cli-test-utils", path = "../../test-utils" }
 
 [build-dependencies]
 clap = { version = "4.0.9", optional = true }

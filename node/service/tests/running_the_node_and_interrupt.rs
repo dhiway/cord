@@ -26,7 +26,7 @@ use std::{
 
 use tempfile::tempdir;
 
-use substrate_cli_test_utils as common;
+use cord_cli_test_utils as common;
 
 #[tokio::test]
 async fn running_the_node_works_and_can_be_interrupted() {
@@ -60,7 +60,7 @@ async fn running_the_node_works_and_can_be_interrupted() {
 			// properly.
 			//
 			// parity-db only writes the stats file on clean shutdown.
-			let stats_file = base_path.path().join("chains/dev/paritydb/full/stats.txt");
+			let stats_file = base_path.path().join("chains/cord_dev/paritydb/full/stats.txt");
 			assert!(std::path::Path::exists(&stats_file));
 		}
 

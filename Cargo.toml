@@ -72,6 +72,7 @@ members = [
 	"rpc",
 	"inspect",
 	"utilities",
+  "test-utils",
 ]
 resolver = "2"
 

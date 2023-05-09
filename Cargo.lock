@@ -1188,6 +1188,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13418e745008f7349ec7e449155f419a61b92b58a99cc3616942b926825ec76b"
 
 [[package]]
+name = "cord-cli-test-utils"
+version = "0.1.0"
+dependencies = [
+ "assert_cmd",
+ "cord-primitives",
+ "futures",
+ "nix 0.26.2",
+ "regex",
+ "substrate-rpc-client",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "cord-client"
 version = "0.8.0"
 dependencies = [
@@ -1233,7 +1247,6 @@ dependencies = [
  "parity-scale-codec",
  "sc-cli",
  "sc-client-api",
- "sc-executor",
  "sc-service",
  "sp-blockchain",
  "sp-core",
@@ -1251,6 +1264,7 @@ dependencies = [
  "async-std",
  "clap",
  "clap_complete",
+ "cord-cli-test-utils",
  "cord-client",
  "cord-inspect",
  "cord-primitives",
@@ -1321,11 +1335,11 @@ dependencies = [
  "sp-transaction-storage-proof",
  "sp-trie",
  "substrate-build-script-utils",
- "substrate-cli-test-utils",
  "substrate-frame-cli",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
  "substrate-rpc-client",
+ "substrate-test-utils",
  "tempfile",
  "tokio",
  "tokio-util",
@@ -4956,19 +4970,6 @@ dependencies = [
  "memoffset 0.7.1",
  "pin-utils",
  "static_assertions",
-]
-
-[[package]]
-name = "node-primitives"
-version = "2.0.0"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.42#bca8a29dbde0009e80c4c4737be47abff6b3e2c2"
-dependencies = [
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-application-crypto",
- "sp-core",
- "sp-runtime",
 ]
 
 [[package]]
@@ -9431,21 +9432,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "substrate-cli-test-utils"
-version = "0.1.0"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.42#bca8a29dbde0009e80c4c4737be47abff6b3e2c2"
-dependencies = [
- "assert_cmd",
- "futures",
- "nix 0.26.2",
- "node-primitives",
- "regex",
- "substrate-rpc-client",
- "tempfile",
- "tokio",
-]
-
-[[package]]
 name = "substrate-frame-cli"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.42#bca8a29dbde0009e80c4c4737be47abff6b3e2c2"
@@ -9608,6 +9594,27 @@ dependencies = [
  "sp-runtime",
  "substrate-test-client",
  "substrate-test-runtime",
+]
+
+[[package]]
+name = "substrate-test-utils"
+version = "4.0.0-dev"
+source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.42#bca8a29dbde0009e80c4c4737be47abff6b3e2c2"
+dependencies = [
+ "futures",
+ "substrate-test-utils-derive",
+ "tokio",
+]
+
+[[package]]
+name = "substrate-test-utils-derive"
+version = "0.10.0-dev"
+source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.42#bca8a29dbde0009e80c4c4737be47abff6b3e2c2"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.15",
 ]
 
 [[package]]

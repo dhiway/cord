@@ -24,7 +24,7 @@ use std::{
 	time::Duration,
 };
 
-use substrate_cli_test_utils as common;
+use cord_cli_test_utils as common;
 
 // #[allow(dead_code)]
 // Apparently `#[ignore]` doesn't actually work to disable this one.

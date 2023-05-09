@@ -19,7 +19,7 @@ sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.
 sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", features = ["std"]}
 pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", features = ["std"]}
 cord-utilities = { package = "cord-utilities", path="../../utilities", features = ["mock"] }
-sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false, optional = false }
+# sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false, optional = false }
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = [
@@ -34,15 +34,15 @@ pallet-schema = {  default-features = false, path = '../schema' }
 
 
 # Substrate dependencies
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false, optional = true}
 frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false }
 frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false }
 sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false }
 sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false }
 sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false, optional = true }
-
+sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false, optional = true }
 sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false, optional = true}
-frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false, optional = true}
-
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false, optional = true }
 
 [features]
 default = [ 'std' ]
@@ -50,8 +50,8 @@ runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
-  "sp-core",
-  "sp-runtime/runtime-benchmarks"
+  "sp-runtime/runtime-benchmarks",
+  "cord-utilities/runtime-benchmarks",
 ]
 std = [
   "codec/std",
@@ -61,12 +61,12 @@ std = [
   "frame-benchmarking?/std",
   "cord-primitives/std",
   "cord-utilities/std",
-  "sp-std/std",
   "sp-runtime/std",
-  "pallet-registry/std", 
-  "pallet-schema/std", 
-  "sp-core/std",
+  # "sp-core/std",
+  "sp-io/std",
+  "sp-std/std",
   "sp-keystore/std",
+  "pallet-registry/std", 
 ]
 
 try-runtime = [

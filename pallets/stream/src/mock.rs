@@ -24,14 +24,11 @@ use frame_support::{
 	traits::{ConstU128, ConstU32, ConstU64},
 };
 
-//use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	MultiSignature,
 };
-
-//use sp_std::vec::Vec;
 
 type Hash = sp_core::H256;
 type Balance = u128;
@@ -40,14 +37,12 @@ type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 
 pub(crate) type BlockNumber = u64;
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
-type Block = frame_system::mocking::MockBlock<Test>;
 
 construct_runtime!(
 	pub enum Test where
-	Block = Block,
-	NodeBlock = Block,
-	UncheckedExtrinsic = UncheckedExtrinsic,
+	Block = frame_system::mocking::MockBlock<Test>,
+	NodeBlock = frame_system::mocking::MockBlock<Test>,
+	UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Schema:pallet_schema::{Pallet, Call, Storage, Event<T>},
@@ -169,7 +164,7 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	let mut ext = sp_io::TestExternalities::new(t);
 	#[cfg(feature = "runtime-benchmarks")]
-	let keystore = sp_keystore::testing::KeyStore::new();
+	let keystore = sp_keystore::testing::MemoryKeystore::new();
 	#[cfg(feature = "runtime-benchmarks")]
 	ext.register_extension(sp_keystore::KeystoreExt(sp_std::sync::Arc::new(keystore)));
 	ext.execute_with(|| System::set_block_number(1));

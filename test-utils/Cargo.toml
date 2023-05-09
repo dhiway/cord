@@ -1,0 +1,23 @@
+[package]
+name = "cord-cli-test-utils"
+description = "CLI testing utilities"
+version = "0.1.0"
+authors = ['Dhiway Networks <info@dhiway.com>']
+edition = '2021'
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
+publish = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+substrate-rpc-client = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
+assert_cmd = "2.0.10"
+nix = "0.26.2"
+regex = "1.7.3"
+tempfile = "3.5.0"
+tokio = { version = "1.22.0", features = ["full"] }
+cord-primitives = { package = "cord-primitives", path="../primitives"}
+futures = "0.3.28"

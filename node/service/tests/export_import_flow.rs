@@ -19,9 +19,9 @@
 #![cfg(unix)]
 
 use assert_cmd::cargo::cargo_bin;
+use cord_cli_test_utils as common;
 use regex::Regex;
 use std::{fs, path::PathBuf, process::Command};
-use substrate_cli_test_utils as common;
 use tempfile::{tempdir, TempDir};
 
 fn contains_error(logged_output: &str) -> bool {
