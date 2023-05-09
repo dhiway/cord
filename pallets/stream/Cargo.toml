@@ -19,10 +19,10 @@ sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.
 sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
 pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
 cord-utilities = { package = "cord-utilities", path="../../utilities", features = ["mock"] }
-env_logger = {version = "0.9.0"}
+sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = false }
 
 [dependencies]
-log = "0.4.17"
+
 codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = [
 	"derive",
 	"max-encoded-len",
@@ -32,7 +32,7 @@ cord-primitives = { package = "cord-primitives", path="../../primitives", defaul
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
 pallet-registry = {  default-features = false, path = '../registry' }
 pallet-schema = {  default-features = false, path = '../schema' }
-serde = { version = "1.0.136", optional = true }
+
 
 # Substrate dependencies
 frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
@@ -40,10 +40,9 @@ frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-
 sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
 sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
 sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
-sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
+
 sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true}
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true}
-pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
 
 
 [features]
@@ -60,14 +59,19 @@ std = [
   "scale-info/std",
   "frame-support/std",
   "frame-system/std",
+  "frame-benchmarking?/std",
   "cord-primitives/std",
   "cord-utilities/std",
   "sp-std/std",
   "sp-runtime/std",
   "pallet-registry/std", 
-   "pallet-schema/std", 
-  "pallet-balances/std",
+  "pallet-schema/std", 
   "sp-core/std",
-  "sp-io/std",
-    "log/std",
+  "sp-keystore/std",
+]
+
+try-runtime = [
+  "frame-support/try-runtime",
+  "frame-system/try-runtime",
+  "cord-utilities/try-runtime",
 ]
