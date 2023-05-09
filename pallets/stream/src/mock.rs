@@ -160,22 +160,6 @@ impl pallet_schema::Config for Test {
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 }
 
-// parameter_types! {
-// 	storage StreamEvents: u32 = 0;
-// }
-
-/// All events of this pallet.
-// pub fn stream_events_since_last_call() -> Vec<super::Event<Test>> {
-// 	let events = System::events()
-// 		.into_iter()
-// 		.map(|r| r.event)
-// 		.filter_map(|e| if let RuntimeEvent::Registry(inner) = e { Some(inner) } else { None })
-// 		.collect::<Vec<_>>();
-// 	let already_seen = StreamEvents::get();
-// 	StreamEvents::set(&(events.len() as u32));
-// 	events.into_iter().skip(already_seen as usize).collect()
-// }
-
 #[allow(dead_code)]
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
