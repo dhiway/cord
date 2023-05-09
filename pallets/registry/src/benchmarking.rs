@@ -125,11 +125,7 @@ restore {
     let registry_id = Ss58Identifier::to_registry_id(&(id_digest).encode()[..]).unwrap();
 
     Pallet::<T>::create(origin.clone(), registry, None).expect("Should create a registry entry");
-
-    let registry_restore: Vec<u8> = (2u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
-    let utx_registry: InputRegistryOf::<T> = BoundedVec::try_from(registry_restore)
-        .expect("Restore Registry should fit into the expected input length of the test runtime");
-
+    Pallet::<T>::archive(origin.clone(), registry_id.clone()).expect("Should archive the registry");
 
 }: _<T::RuntimeOrigin>(origin, registry_id.clone())
 
