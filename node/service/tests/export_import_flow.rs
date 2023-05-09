@@ -21,9 +21,8 @@
 use assert_cmd::cargo::cargo_bin;
 use regex::Regex;
 use std::{fs, path::PathBuf, process::Command};
+use substrate_cli_test_utils as common;
 use tempfile::{tempdir, TempDir};
-
-pub mod common;
 
 fn contains_error(logged_output: &str) -> bool {
 	logged_output.contains("Error")

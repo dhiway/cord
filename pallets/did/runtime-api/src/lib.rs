@@ -54,7 +54,7 @@ pub type RawDidLinkedInfo<DidIdentifier, Key, BlockNumber> =
 	DidLinkedInfo<DidIdentifier, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Key, BlockNumber>;
 
 sp_api::decl_runtime_apis! {
-	pub trait Did<DidIdentifier, Key: Ord, BlockNumber> where
+	pub trait Did<DidIdentifier, Key: Ord, BlockNumber: MaxEncodedLen> where
 		DidIdentifier: Codec,
 		BlockNumber: Codec + MaxEncodedLen,
 		Key: Codec,

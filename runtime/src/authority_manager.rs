@@ -67,7 +67,7 @@ pub mod pallet {
 		/// Add new authorities to the set.
 		/// The new authorities will be active from current session + 2.
 		#[pallet::call_index(0)]
-		#[pallet::weight(100_000)]
+		#[pallet::weight({0})]
 		pub fn register(origin: OriginFor<T>, authorities: Vec<T::ValidatorId>) -> DispatchResult {
 			T::AuthorityOrigin::ensure_origin(origin)?;
 
@@ -81,7 +81,7 @@ pub mod pallet {
 		/// The removed authorities will be deactivated from current session +
 		/// 2.
 		#[pallet::call_index(1)]
-		#[pallet::weight(100_000)]
+		#[pallet::weight({0})]
 		pub fn deregister(
 			origin: OriginFor<T>,
 			authorities: Vec<T::ValidatorId>,
@@ -121,7 +121,7 @@ pub mod pallet {
 impl<T: Config> pallet_session::SessionManager<T::ValidatorId> for Pallet<T> {
 	fn new_session(new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> {
 		if new_index <= 1 {
-			return None;
+			return None
 		}
 
 		let mut authorities = Session::<T>::validators();
