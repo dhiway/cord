@@ -21,7 +21,7 @@
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 4.0.0-dev
 //! DATE: 2023-05-10, STEPS: `50`, REPEAT: `20`, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! WORST CASE MAP SIZE: `1000000`
-//! HOSTNAME: `ip-172-31-3-249`, CPU: `Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz`
+//! HOSTNAME: `Vijayendras-MacBook-Pro.local`, CPU: `<UNKNOWN>`
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("dev"), DB CACHE: 1024
 
 // Executed Command:
@@ -52,6 +52,11 @@ use core::marker::PhantomData;
 pub trait WeightInfo {
 	fn create(l: u32, ) -> Weight;
 	fn update(l: u32, ) -> Weight;
+	fn archive() -> Weight;
+	fn restore() -> Weight;
+	fn add_admin_delegate() -> Weight;
+	fn add_delegate() -> Weight;
+	fn remove_delegate() -> Weight;
 }
 
 /// Weights for pallet_registry using the CORD node and recommended hardware.
@@ -62,12 +67,14 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 15360]`.
-	fn create(_l: u32, ) -> Weight {
+	fn create(l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `42`
-		//  Estimated: `72533`
-		// Minimum execution time: 73_137_000 picoseconds.
-		Weight::from_parts(74_896_583, 72533)
+		//  Estimated: `91542`
+		// Minimum execution time: 57_000_000 picoseconds.
+		Weight::from_parts(59_063_270, 91542)
+			// Standard Error: 16
+			.saturating_add(Weight::from_parts(66, 0).saturating_mul(l.into()))
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
@@ -76,15 +83,86 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 15360]`.
-	fn update(l: u32, ) -> Weight {
+	fn update(_l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `15726`
-		//  Estimated: `72533`
-		// Minimum execution time: 59_812_000 picoseconds.
-		Weight::from_parts(62_644_376, 72533)
-			// Standard Error: 3
-			.saturating_add(Weight::from_parts(23, 0).saturating_mul(l.into()))
+		//  Estimated: `91542`
+		// Minimum execution time: 45_000_000 picoseconds.
+		Weight::from_parts(49_230_427, 91542)
 			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:1)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn archive() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `15726`
+		//  Estimated: `91542`
+		// Minimum execution time: 27_000_000 picoseconds.
+		Weight::from_parts(28_000_000, 91542)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:1)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn restore() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `15795`
+		//  Estimated: `91542`
+		// Minimum execution time: 27_000_000 picoseconds.
+		Weight::from_parts(29_000_000, 91542)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Authorities (r:1 w:1)
+	/// Proof: Registry Authorities (max_values: None, max_size: Some(320068), added: 322543, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn add_admin_delegate() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `15726`
+		//  Estimated: `418743`
+		// Minimum execution time: 31_000_000 picoseconds.
+		Weight::from_parts(33_000_000, 418743)
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn add_delegate() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `15726`
+		//  Estimated: `95210`
+		// Minimum execution time: 30_000_000 picoseconds.
+		Weight::from_parts(31_000_000, 95210)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn remove_delegate() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `95210`
+		// Minimum execution time: 27_000_000 picoseconds.
+		Weight::from_parts(29_000_000, 95210)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
 }
@@ -96,12 +174,14 @@ impl WeightInfo for () {
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 15360]`.
-	fn create(_l: u32, ) -> Weight {
+	fn create(l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `42`
-		//  Estimated: `72533`
-		// Minimum execution time: 73_137_000 picoseconds.
-		Weight::from_parts(74_896_583, 72533)
+		//  Estimated: `91542`
+		// Minimum execution time: 57_000_000 picoseconds.
+		Weight::from_parts(59_063_270, 91542)
+			// Standard Error: 16
+			.saturating_add(Weight::from_parts(66, 0).saturating_mul(l.into()))
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
@@ -110,15 +190,86 @@ impl WeightInfo for () {
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 15360]`.
-	fn update(l: u32, ) -> Weight {
+	fn update(_l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `15726`
-		//  Estimated: `72533`
-		// Minimum execution time: 59_812_000 picoseconds.
-		Weight::from_parts(62_644_376, 72533)
-			// Standard Error: 3
-			.saturating_add(Weight::from_parts(23, 0).saturating_mul(l.into()))
+		//  Estimated: `91542`
+		// Minimum execution time: 45_000_000 picoseconds.
+		Weight::from_parts(49_230_427, 91542)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:1)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn archive() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `15726`
+		//  Estimated: `91542`
+		// Minimum execution time: 27_000_000 picoseconds.
+		Weight::from_parts(28_000_000, 91542)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:1)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn restore() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `15795`
+		//  Estimated: `91542`
+		// Minimum execution time: 27_000_000 picoseconds.
+		Weight::from_parts(29_000_000, 91542)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Authorities (r:1 w:1)
+	/// Proof: Registry Authorities (max_values: None, max_size: Some(320068), added: 322543, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn add_admin_delegate() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `15726`
+		//  Estimated: `418743`
+		// Minimum execution time: 31_000_000 picoseconds.
+		Weight::from_parts(33_000_000, 418743)
+			.saturating_add(RocksDbWeight::get().reads(4_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn add_delegate() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `15726`
+		//  Estimated: `95210`
+		// Minimum execution time: 30_000_000 picoseconds.
+		Weight::from_parts(31_000_000, 95210)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn remove_delegate() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `95210`
+		// Minimum execution time: 27_000_000 picoseconds.
+		Weight::from_parts(29_000_000, 95210)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
 }
