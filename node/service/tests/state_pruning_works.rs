@@ -15,7 +15,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 use tempfile::tempdir;
 
-pub mod common;
+use cord_cli_test_utils as common;
 
 #[tokio::test]
 #[cfg(unix)]

@@ -24,14 +24,11 @@ use frame_support::{
 	traits::{ConstU128, ConstU32, ConstU64},
 };
 
-//use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	MultiSignature,
 };
-
-//use sp_std::vec::Vec;
 
 type Hash = sp_core::H256;
 type Balance = u128;
@@ -102,6 +99,10 @@ impl pallet_balances::Config for Test {
 	type MaxLocks = ();
 	type MaxReserves = ();
 	type ReserveIdentifier = [u8; 8];
+	type FreezeIdentifier = ();
+	type MaxFreezes = ();
+	type HoldIdentifier = ();
+	type MaxHolds = ();
 }
 
 impl mock_origin::Config for Test {
@@ -165,7 +166,7 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	#[cfg(feature = "runtime-benchmarks")]
-	let keystore = sp_keystore::testing::KeyStore::new();
+	let keystore = sp_keystore::testing::MemoryKeystore::new();
 	#[cfg(feature = "runtime-benchmarks")]
 	ext.register_extension(sp_keystore::KeystoreExt(sp_std::sync::Arc::new(keystore)));
 	ext.execute_with(|| System::set_block_number(1));

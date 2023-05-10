@@ -18,10 +18,9 @@
 
 //! # Stream Pallet
 //!
-//! The Stream palllet is used to anchor identifiers representing off-chain documents.
-//! The pallet provides means of creating, updating, revoking and removing identifier
-//! data on-chain and delegated controls.
-//!
+//! The Stream palllet is used to anchor identifiers representing off-chain
+//! documents. The pallet provides means of creating, updating, revoking and
+//! removing identifier data on-chain and delegated controls.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -220,7 +219,7 @@ pub mod pallet {
 		///
 		/// DispatchResult
 		#[pallet::call_index(0)]
-		#[pallet::weight(0)]
+		#[pallet::weight({0})]
 		pub fn create(
 			origin: OriginFor<T>,
 			stream_digest: StreamDigestOf<T>,
@@ -246,7 +245,8 @@ pub mod pallet {
 				.map_err(<pallet_registry::Error<T>>::from)?;
 			}
 
-			// Id Digest = concat (H(<scale_encoded_stream_digest>, <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
+			// Id Digest = concat (H(<scale_encoded_stream_digest>,
+			// <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
 					.concat()[..],
@@ -287,19 +287,20 @@ pub mod pallet {
 			Ok(())
 		}
 		/// Updates the stream identifier with a new digest. The updated digest
-		/// represents the changes a stream reference document might have undergone.
-		/// Arguments:
+		/// represents the changes a stream reference document might have
+		/// undergone. Arguments:
 		///
 		/// * `origin`: The origin of the call.
 		/// * `stream_id`: The identifier of the stream to be updated.
 		/// * `stream_digest`: The hash of the stream reference document.
-		/// * `authorization`: The authorization ID of the delegate who is allowed to perform this action.
+		/// * `authorization`: The authorization ID of the delegate who is
+		///   allowed to perform this action.
 		///
 		/// Returns:
 		///
 		/// DispatchResult
 		#[pallet::call_index(1)]
-		#[pallet::weight(0)]
+		#[pallet::weight({0})]
 		pub fn update(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
@@ -361,13 +362,14 @@ pub mod pallet {
 		///
 		/// * `origin`: The origin of the transaction.
 		/// * `stream_id`: The stream identifier.
-		/// * `authorization`: The authorization ID of the delegate who is allowed to perform this action.
+		/// * `authorization`: The authorization ID of the delegate who is
+		///   allowed to perform this action.
 		///
 		/// Returns:
 		///
 		/// DispatchResult
 		#[pallet::call_index(2)]
-		#[pallet::weight(0)]
+		#[pallet::weight({0})]
 		pub fn revoke(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
@@ -411,13 +413,14 @@ pub mod pallet {
 		///
 		/// * `origin`: The origin of the transaction.
 		/// * `stream_id`: The stream identifier.
-		/// * `authorization`: The authorization ID of the delegate who is allowed to perform this action.
+		/// * `authorization`: The authorization ID of the delegate who is
+		///   allowed to perform this action.
 		///
 		/// Returns:
 		///
 		/// DispatchResult
 		#[pallet::call_index(3)]
-		#[pallet::weight(0)]
+		#[pallet::weight({0})]
 		pub fn restore(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
@@ -461,13 +464,14 @@ pub mod pallet {
 		///
 		/// * `origin`: The origin of the transaction.
 		/// * `stream_id`: The stream id of the stream to be removed.
-		/// * `authorization`: The authorization ID of the delegate who is allowed to perform this action.
+		/// * `authorization`: The authorization ID of the delegate who is
+		///   allowed to perform this action.
 		///
 		/// Returns:
 		///
 		/// DispatchResult
 		#[pallet::call_index(4)]
-		#[pallet::weight(0)]
+		#[pallet::weight({0})]
 		pub fn remove(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
@@ -502,22 +506,25 @@ pub mod pallet {
 		}
 
 		/// Adds stream digest information.
-		/// `digest` is a function that takes a stream identifier, a stream digest, and an authorization
-		/// identifier, and inserts the stream digest into the `StreamDigests` storage map, and then deposits an
-		/// event. This operation can only be performed bythe stream issuer or delegated authorities.
+		/// `digest` is a function that takes a stream identifier, a stream
+		/// digest, and an authorization identifier, and inserts the stream
+		/// digest into the `StreamDigests` storage map, and then deposits an
+		/// event. This operation can only be performed bythe stream issuer or
+		/// delegated authorities.
 		///
 		/// Arguments:
 		///
 		/// * `origin`: The origin of the transaction.
 		/// * `stream_id`: The stream identifier.
 		/// * `stream_digest`: StreamDigestOf<T>
-		/// * `authorization`: The authorization ID of the delegate who is allowed to perform this action.
+		/// * `authorization`: The authorization ID of the delegate who is
+		///   allowed to perform this action.
 		///
 		/// Returns:
 		///
 		/// DispatchResult
 		#[pallet::call_index(5)]
-		#[pallet::weight(0)]
+		#[pallet::weight({0})]
 		pub fn digest(
 			origin: OriginFor<T>,
 			stream_id: StreamIdOf,
@@ -562,12 +569,13 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// `update_commit` takes a stream id, a digest, a proposer, and a commit action, and pushes the commit
-	/// action to the stream's commits
+	/// `update_commit` takes a stream id, a digest, a proposer, and a commit
+	/// action, and pushes the commit action to the stream's commits
 	///
 	/// Arguments:
 	///
-	/// * `tx_stream`: The stream id of the stream that the commit is being made to.
+	/// * `tx_stream`: The stream id of the stream that the commit is being made
+	///   to.
 	/// * `tx_digest`: The digest of the transaction that was committed.
 	/// * `proposer`: The account that is proposing the transaction.
 	/// * `commit`: Action taken on a stream.

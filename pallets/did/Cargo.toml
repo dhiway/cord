@@ -13,13 +13,13 @@ repository = "https://github.com/dhiway/cord"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
 
 [dev-dependencies]
 env_logger = {version = "0.9.0"}
-pallet-balances = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.41"}
-frame-benchmarking = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.41"}
-sp-keystore = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.41"}
+pallet-balances = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.42"}
+frame-benchmarking = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.42"}
+sp-keystore = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.42"}
 
 
 [dependencies]
@@ -32,19 +32,19 @@ pallet-schema = {  optional = true, path = '../schema' }
 cord-primitives = { package = "cord-primitives", path="../../primitives", optional = true }
 
 # Substrate dependencies
-codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = ["derive","max-encoded-len"] }
-scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
-frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
-frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
-sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
-sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
-sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
-sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
+codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive","max-encoded-len"] }
+scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
+frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.42"}
+frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.42"}
+sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.42"}
+sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.42"}
+sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.42"}
+sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.42"}
 
 # Benchmarking dependencies
-frame-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, branch = "release-v0.9.41", optional = true }
-pallet-balances = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41", optional = true}
-sp-keystore = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41", optional = true}
+frame-benchmarking = { git = "https://github.com/dhiway/substrate",  default-features = false, branch = "release-v0.9.42", optional = true }
+pallet-balances = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.42", optional = true}
+sp-keystore = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.42", optional = true}
 
 [features]
 default = ["std"]

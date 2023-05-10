@@ -10,15 +10,15 @@ repository = "https://github.com/dhiway/cord"
 
 [dependencies]
 # External dependencies
-codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = ["derive"] }
-scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
+scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
 
 # Internal dependencies
 pallet-did = { package = "pallet-did", path="../../did", default-features = false }
 
 # Substrate 
-sp-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false }
+sp-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false }
 
 [features]
 default = ["std"]

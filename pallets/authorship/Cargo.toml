@@ -10,19 +10,19 @@ repository = "https://github.com/dhiway/cord"
 
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
 
 [dev-dependencies]
 cord-utilities = { package = "cord-utilities", path = "../../utilities", features = ["mock"] }
-pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
-sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
-sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", features = ["std"]}
-frame-benchmarking = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.41"}
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", features = ["std"]}
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", features = ["std"]}
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", features = ["std"]}
+frame-benchmarking = {git = "https://github.com/dhiway/substrate", features = ["std"], branch = "release-v0.9.42"}
 env_logger = "0.9.0"
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.3.0", default-features = false, features = ["derive"] }
-scale-info = { version = "2.1.2", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
+scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
 serde = { version = "1.0.137", default-features = false, optional = true }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 cord-utilities = { package = "cord-utilities", path="../../utilities", default-features = false }
@@ -30,16 +30,16 @@ log = { version = "0.4.17", default-features = false  }
 
 
 # Substrate dependencies
-frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
-frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
-sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
-sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.41"}
-sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, optional=true, branch = "release-v0.9.41"}
-sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, optional=true, branch = "release-v0.9.41"}
+frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.42"}
+frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.42"}
+sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.42"}
+sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.42"}
+sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, optional=true, branch = "release-v0.9.42"}
+sp-io = {git = "https://github.com/dhiway/substrate", default-features = false, optional=true, branch = "release-v0.9.42"}
 
-frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
-pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
-sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.41", default-features = false, optional = true }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false, optional = true }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false, optional = true }
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false, optional = true }
 
 [features]
 default = ['std']
