@@ -12,7 +12,7 @@ use sp_std::{
 };
 const SEED: u32 = 0;
 const MAX_REGISTRY_SIZE: u32 = 15 * 1024;
-const MAX_DELEGATES: u32 = 15;
+//const MAX_DELEGATES: u32 = 15;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
@@ -77,7 +77,7 @@ benchmarks! {
 	}
  
 archive {
-        let l in 1 .. MAX_REGISTRY_SIZE;
+       // let l in 1 .. MAX_REGISTRY_SIZE;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::RegistryCreatorId = account("did", 0, SEED);
@@ -103,7 +103,7 @@ verify {
 }    
 
 restore {
-    let l in 1 .. MAX_REGISTRY_SIZE;
+   // let l in 1 .. MAX_REGISTRY_SIZE;
 
     let caller: T::AccountId = account("caller", 0, SEED);
     let did: T::RegistryCreatorId = account("did", 0, SEED);
@@ -129,7 +129,7 @@ verify {
 }
 
 add_admin_delegate {
-    let l in 1 .. MAX_DELEGATES;
+  //  let l in 1 .. MAX_DELEGATES;
 
     let caller: T::AccountId = account("caller", 0, SEED);
     let did: T::RegistryCreatorId = account("did", 0, SEED);
@@ -164,7 +164,7 @@ verify {
     }.into());
 }
 add_delegate {
-    let l in 1 .. MAX_DELEGATES;
+  //  let l in 1 .. MAX_DELEGATES;
 
     let caller: T::AccountId = account("caller", 0, SEED);
     let did: T::RegistryCreatorId = account("did", 0, SEED);
@@ -198,7 +198,7 @@ verify {
 }
 
 remove_delegate {
-    let l in 1 .. MAX_DELEGATES;
+   // let l in 1 .. MAX_DELEGATES;
 
     let caller: T::AccountId = account("caller", 0, SEED);
     let did: T::RegistryCreatorId = account("did", 0, SEED);
