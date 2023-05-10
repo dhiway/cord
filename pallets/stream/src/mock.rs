@@ -129,7 +129,7 @@ impl Config for Test {
 
 parameter_types! {
 	#[derive(Debug, Clone)]
-	pub const MaxEncodedRegistryLength: u32 = 1024u32;
+	pub const MaxEncodedRegistryLength: u32 = 15_360;
 	pub const MaxRegistryAuthorities: u32 = 3u32;
 	#[derive(Debug, Clone)]
 	pub const MaxRegistryCommitActions: u32 = 5u32;
@@ -147,7 +147,7 @@ impl pallet_registry::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxEncodedSchemaLength: u32 = 102_400;
+	pub const MaxEncodedSchemaLength: u32 = 15_360;
 }
 
 impl pallet_schema::Config for Test {

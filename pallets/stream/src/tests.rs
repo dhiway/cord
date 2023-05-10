@@ -7,7 +7,6 @@ use pallet_registry::{InputRegistryOf, RegistryHashOf};
 use pallet_schema::{InputSchemaOf, SchemaHashOf};
 use sp_runtime::{traits::Hash, AccountId32};
 
-
 pub fn generate_stream_id<T: Config>(digest: &StreamHashOf<T>) -> StreamIdOf {
 	Ss58Identifier::to_stream_id(&(digest).encode()[..]).unwrap()
 }
@@ -23,7 +22,6 @@ pub fn generate_registry_id<T: Config>(digest: &RegistryHashOf<T>) -> RegistryId
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
 pub(crate) const DID_01: SubjectId = SubjectId(AccountId32::new([5u8; 32]));
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
-
 
 #[test]
 fn create_stream_should_succeed() {
@@ -96,7 +94,7 @@ fn create_stream_should_fail_if_stream_is_anchored() {
 
 	let stream = vec![77u8; 32];
 	let stream_digest = <Test as frame_system::Config>::Hashing::hash(&stream[..]);
-	
+
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
@@ -148,7 +146,6 @@ fn create_stream_should_fail_if_stream_is_anchored() {
 	});
 }
 
-
 #[test]
 fn update_stream_should_succed() {
 	let creator = DID_00;
@@ -167,7 +164,7 @@ fn update_stream_should_succed() {
 	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-    let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
 
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
@@ -177,7 +174,7 @@ fn update_stream_should_succed() {
 		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
-	
+
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
 	);
@@ -185,7 +182,6 @@ fn update_stream_should_succed() {
 		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
 	new_test_ext().execute_with(|| {
-
 		assert_ok!(Schema::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone()
@@ -203,28 +199,26 @@ fn update_stream_should_succed() {
 			delegate.clone(),
 		));
 
-        <Streams<Test>>::insert(
-            &stream_id,
-            StreamEntryOf::<Test> {
-                digest: stream_digest.clone(),
-                creator: creator.clone(),
-                schema: Some(schema_id.clone()),
-                registry: registry_id.clone(),
-                revoked: false,
-            },
-        );
-
-        let stream_update = vec![12u8; 32];
-	    let update_digest = <Test as frame_system::Config>::Hashing::hash(&stream_update[..]);
-
-		assert_ok!(
-			Stream::update(
-				DoubleOrigin(author.clone(), delegate.clone()).into(),
-                stream_id,
-				update_digest,
-				authorization_id,
-			)
+		<Streams<Test>>::insert(
+			&stream_id,
+			StreamEntryOf::<Test> {
+				digest: stream_digest.clone(),
+				creator: creator.clone(),
+				schema: Some(schema_id.clone()),
+				registry: registry_id.clone(),
+				revoked: false,
+			},
 		);
+
+		let stream_update = vec![12u8; 32];
+		let update_digest = <Test as frame_system::Config>::Hashing::hash(&stream_update[..]);
+
+		assert_ok!(Stream::update(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
+			stream_id,
+			update_digest,
+			authorization_id,
+		));
 	});
 }
 
@@ -246,7 +240,7 @@ fn update_should_fail_if_digest_is_same() {
 	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-    let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
 
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
@@ -256,7 +250,7 @@ fn update_should_fail_if_digest_is_same() {
 		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
-	
+
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
 	);
@@ -264,7 +258,6 @@ fn update_should_fail_if_digest_is_same() {
 		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
 	new_test_ext().execute_with(|| {
-
 		assert_ok!(Schema::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone()
@@ -282,20 +275,20 @@ fn update_should_fail_if_digest_is_same() {
 			delegate.clone(),
 		));
 
-        <Streams<Test>>::insert(
-            &stream_id,
-            StreamEntryOf::<Test> {
-                digest: stream_digest.clone(),
-                creator: creator.clone(),
-                schema: Some(schema_id.clone()),
-                registry: registry_id.clone(),
-                revoked: false,
-            },
-        );
+		<Streams<Test>>::insert(
+			&stream_id,
+			StreamEntryOf::<Test> {
+				digest: stream_digest.clone(),
+				creator: creator.clone(),
+				schema: Some(schema_id.clone()),
+				registry: registry_id.clone(),
+				revoked: false,
+			},
+		);
 		assert_err!(
 			Stream::update(
 				DoubleOrigin(author.clone(), delegate.clone()).into(),
-                stream_id,
+				stream_id,
 				stream_digest,
 				authorization_id,
 			),
@@ -303,9 +296,6 @@ fn update_should_fail_if_digest_is_same() {
 		);
 	});
 }
-
-
-
 
 #[test]
 fn update_stream_should_fail_if_stream_does_not_found() {
@@ -323,7 +313,7 @@ fn update_stream_should_fail_if_stream_does_not_found() {
 	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-    let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
@@ -353,17 +343,17 @@ fn update_stream_should_fail_if_stream_does_not_found() {
 			registry_id.clone(),
 			delegate.clone(),
 		));
-        let stream_update = vec![12u8; 32];
-	    let update_digest = <Test as frame_system::Config>::Hashing::hash(&stream_update[..]);
+		let stream_update = vec![12u8; 32];
+		let update_digest = <Test as frame_system::Config>::Hashing::hash(&stream_update[..]);
 
 		assert_err!(
 			Stream::update(
 				DoubleOrigin(author.clone(), delegate.clone()).into(),
-                stream_id,
+				stream_id,
 				update_digest,
 				authorization_id,
 			),
-            Error::<Test>::StreamNotFound
+			Error::<Test>::StreamNotFound
 		);
 	});
 }
@@ -384,7 +374,7 @@ fn update_should_fail_if_stream_is_revoked() {
 	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-    let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
@@ -414,28 +404,28 @@ fn update_should_fail_if_stream_is_revoked() {
 			delegate.clone(),
 		));
 
-        <Streams<Test>>::insert(
-            &stream_id,
-            StreamEntryOf::<Test> {
-                digest: stream_digest.clone(),
-                creator: creator.clone(),
-                schema: Some(schema_id.clone()),
-                registry: registry_id.clone(),
-                revoked: true,
-            },
-        );
+		<Streams<Test>>::insert(
+			&stream_id,
+			StreamEntryOf::<Test> {
+				digest: stream_digest.clone(),
+				creator: creator.clone(),
+				schema: Some(schema_id.clone()),
+				registry: registry_id.clone(),
+				revoked: true,
+			},
+		);
 
-        let stream_update = vec![12u8; 32];
-	    let update_digest = <Test as frame_system::Config>::Hashing::hash(&stream_update[..]);
+		let stream_update = vec![12u8; 32];
+		let update_digest = <Test as frame_system::Config>::Hashing::hash(&stream_update[..]);
 
 		assert_err!(
 			Stream::update(
 				DoubleOrigin(author.clone(), delegate.clone()).into(),
-                stream_id,
+				stream_id,
 				update_digest,
 				authorization_id,
 			),
-            Error::<Test>::RevokedStream
+			Error::<Test>::RevokedStream
 		);
 	});
 }
@@ -456,7 +446,7 @@ fn revoke_stream_should_succed() {
 	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-    let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
@@ -486,23 +476,21 @@ fn revoke_stream_should_succed() {
 			delegate.clone(),
 		));
 
-        <Streams<Test>>::insert(
-            &stream_id,
-            StreamEntryOf::<Test> {
-                digest: stream_digest.clone(),
-                creator: creator.clone(),
-                schema: Some(schema_id.clone()),
-                registry: registry_id.clone(),
-                revoked: false,
-            },
-        );
-		assert_ok!(
-			Stream::revoke(
-				DoubleOrigin(author.clone(), delegate.clone()).into(),
-                stream_id,
-				authorization_id,
-			)
+		<Streams<Test>>::insert(
+			&stream_id,
+			StreamEntryOf::<Test> {
+				digest: stream_digest.clone(),
+				creator: creator.clone(),
+				schema: Some(schema_id.clone()),
+				registry: registry_id.clone(),
+				revoked: false,
+			},
 		);
+		assert_ok!(Stream::revoke(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
+			stream_id,
+			authorization_id,
+		));
 	});
 }
 
@@ -522,7 +510,7 @@ fn remove_stream_should_succed() {
 	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-    let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
@@ -552,23 +540,21 @@ fn remove_stream_should_succed() {
 			delegate.clone(),
 		));
 
-        <Streams<Test>>::insert(
-            &stream_id,
-            StreamEntryOf::<Test> {
-                digest: stream_digest.clone(),
-                creator: creator.clone(),
-                schema: Some(schema_id.clone()),
-                registry: registry_id.clone(),
-                revoked: false,
-            },
-        );
-		assert_ok!(
-			Stream::remove(
-				DoubleOrigin(author.clone(), delegate.clone()).into(),
-                stream_id,
-				authorization_id,
-			)
+		<Streams<Test>>::insert(
+			&stream_id,
+			StreamEntryOf::<Test> {
+				digest: stream_digest.clone(),
+				creator: creator.clone(),
+				schema: Some(schema_id.clone()),
+				registry: registry_id.clone(),
+				revoked: false,
+			},
 		);
+		assert_ok!(Stream::remove(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
+			stream_id,
+			authorization_id,
+		));
 	});
 }
 
@@ -588,7 +574,7 @@ fn digest_stream_should_succed() {
 	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-    let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
@@ -618,25 +604,21 @@ fn digest_stream_should_succed() {
 			delegate.clone(),
 		));
 
-        <Streams<Test>>::insert(
-            &stream_id,
-            StreamEntryOf::<Test> {
-                digest: stream_digest.clone(),
-                creator: creator.clone(),
-                schema: Some(schema_id.clone()),
-                registry: registry_id.clone(),
-                revoked: false,
-            },
-        );
-		assert_ok!(
-			Stream::digest(
-				DoubleOrigin(author.clone(), creator.clone()).into(),
-                stream_id,
-                stream_digest,
-				authorization_id,
-			)
+		<Streams<Test>>::insert(
+			&stream_id,
+			StreamEntryOf::<Test> {
+				digest: stream_digest.clone(),
+				creator: creator.clone(),
+				schema: Some(schema_id.clone()),
+				registry: registry_id.clone(),
+				revoked: false,
+			},
 		);
+		assert_ok!(Stream::digest(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			stream_id,
+			stream_digest,
+			authorization_id,
+		));
 	});
 }
-
-
