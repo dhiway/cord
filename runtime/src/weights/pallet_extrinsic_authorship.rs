@@ -57,11 +57,11 @@ impl<T: frame_system::Config> pallet_extrinsic_authorship::WeightInfo for Weight
 		// Proof Size summary in bytes:
 		//  Measured:  `167`
 		//  Estimated: `990 + a * (2523 ±0)`
-		// Minimum execution time: 14_685_000 picoseconds.
-		Weight::from_parts(12_474_138, 0)
+		// Minimum execution time: 14_823_000 picoseconds.
+		Weight::from_parts(12_396_921, 0)
 			.saturating_add(Weight::from_parts(0, 990))
-			// Standard Error: 9_066
-			.saturating_add(Weight::from_parts(2_971_052, 0).saturating_mul(a.into()))
+			// Standard Error: 8_884
+			.saturating_add(Weight::from_parts(3_065_077, 0).saturating_mul(a.into()))
 			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(a.into())))
 			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(a.into())))
 			.saturating_add(Weight::from_parts(0, 2523).saturating_mul(a.into()))
@@ -73,11 +73,11 @@ impl<T: frame_system::Config> pallet_extrinsic_authorship::WeightInfo for Weight
 		// Proof Size summary in bytes:
 		//  Measured:  `167 + a * (53 ±0)`
 		//  Estimated: `990 + a * (2523 ±0)`
-		// Minimum execution time: 15_518_000 picoseconds.
-		Weight::from_parts(12_003_887, 0)
+		// Minimum execution time: 15_546_000 picoseconds.
+		Weight::from_parts(11_779_511, 0)
 			.saturating_add(Weight::from_parts(0, 990))
-			// Standard Error: 8_670
-			.saturating_add(Weight::from_parts(4_234_586, 0).saturating_mul(a.into()))
+			// Standard Error: 9_318
+			.saturating_add(Weight::from_parts(4_430_558, 0).saturating_mul(a.into()))
 			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(a.into())))
 			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(a.into())))
 			.saturating_add(Weight::from_parts(0, 2523).saturating_mul(a.into()))

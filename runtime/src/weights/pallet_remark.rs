@@ -55,8 +55,8 @@ impl<T: frame_system::Config> pallet_remark::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 8_489_000 picoseconds.
-		Weight::from_parts(8_711_000, 0)
+		// Minimum execution time: 8_893_000 picoseconds.
+		Weight::from_parts(9_160_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 			// Standard Error: 0
 			.saturating_add(Weight::from_parts(1_405, 0).saturating_mul(l.into()))

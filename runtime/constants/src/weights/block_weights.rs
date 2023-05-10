@@ -45,17 +45,17 @@ parameter_types! {
 	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 215_348, 234_116
-	///   Average:  220_008
-	///   Median:   218_384
-	///   Std-Dev:  4361.95
+	///   Min, Max: 213_676, 233_859
+	///   Average:  218_083
+	///   Median:   216_251
+	///   Std-Dev:  4909.07
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 233_400
-	///   95th: 231_733
-	///   75th: 220_038
+	///   99th: 233_406
+	///   95th: 231_481
+	///   75th: 218_012
 	pub const BlockExecutionWeight: Weight =
-		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(220_008), 0);
+		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(218_083), 0);
 }
 
 #[cfg(test)]
