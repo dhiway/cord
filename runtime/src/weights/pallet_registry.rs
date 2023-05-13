@@ -55,15 +55,13 @@ impl<T: frame_system::Config> pallet_registry::WeightInfo for WeightInfo<T> {
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 15360]`.
-	fn create(l: u32, ) -> Weight {
+	fn create(_l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `42`
 		//  Estimated: `72533`
-		// Minimum execution time: 73_568_000 picoseconds.
-		Weight::from_parts(74_725_529, 0)
+		// Minimum execution time: 73_322_000 picoseconds.
+		Weight::from_parts(75_600_476, 0)
 			.saturating_add(Weight::from_parts(0, 72533))
-			// Standard Error: 2
-			.saturating_add(Weight::from_parts(1, 0).saturating_mul(l.into()))
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
@@ -76,41 +74,88 @@ impl<T: frame_system::Config> pallet_registry::WeightInfo for WeightInfo<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `15726`
 		//  Estimated: `72533`
-		// Minimum execution time: 59_598_000 picoseconds.
-		Weight::from_parts(62_692_690, 0)
+		// Minimum execution time: 60_568_000 picoseconds.
+		Weight::from_parts(63_282_735, 0)
 			.saturating_add(Weight::from_parts(0, 72533))
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
-    // Dummy weights
-	fn add_admin_delegate() -> Weight {
-		Weight::from_parts(322_000_000,0)
-			.saturating_add(T::DbWeight::get().reads(3 as u64))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-	}
-	fn add_delegate() -> Weight {
-		Weight::from_parts(322_000_000,0)
-			.saturating_add(T::DbWeight::get().reads(3 as u64))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-	}
-	fn remove_delegate() -> Weight {
-		Weight::from_parts(322_000_000,0)
-			.saturating_add(T::DbWeight::get().reads(3 as u64))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
-	}
+	/// Storage: Registry Registries (r:1 w:1)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
 	fn archive() -> Weight {
-		Weight::from_parts(322_000_000,0)
-			.saturating_add(T::DbWeight::get().reads(3 as u64))
-			.saturating_add(T::DbWeight::get().writes(1 as u64))
+		// Proof Size summary in bytes:
+		//  Measured:  `15726`
+		//  Estimated: `72533`
+		// Minimum execution time: 40_999_000 picoseconds.
+		Weight::from_parts(42_241_000, 0)
+			.saturating_add(Weight::from_parts(0, 72533))
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
+	/// Storage: Registry Registries (r:1 w:1)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
 	fn restore() -> Weight {
-		Weight::from_parts(322_000_000,0)
-			.saturating_add(T::DbWeight::get().reads(3 as u64))
-			.saturating_add(T::DbWeight::get().writes(2 as u64))
+		// Proof Size summary in bytes:
+		//  Measured:  `15795`
+		//  Estimated: `72533`
+		// Minimum execution time: 41_074_000 picoseconds.
+		Weight::from_parts(41_735_000, 0)
+			.saturating_add(Weight::from_parts(0, 72533))
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(2))
 	}
-	// fn transfer() -> Weight {
-	// 	Weight::from_parts(322_000_000,0)
-	// 		.saturating_add(T::DbWeight::get().reads(3 as u64))
-	// 		.saturating_add(T::DbWeight::get().writes(1 as u64))
-	// }
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Authorities (r:1 w:1)
+	/// Proof: Registry Authorities (max_values: None, max_size: Some(320068), added: 322543, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn add_admin_delegate() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `15726`
+		//  Estimated: `323533`
+		// Minimum execution time: 44_373_000 picoseconds.
+		Weight::from_parts(45_091_000, 0)
+			.saturating_add(Weight::from_parts(0, 323533))
+			.saturating_add(T::DbWeight::get().reads(4))
+			.saturating_add(T::DbWeight::get().writes(3))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn add_delegate() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `15726`
+		//  Estimated: `72533`
+		// Minimum execution time: 39_513_000 picoseconds.
+		Weight::from_parts(40_400_000, 0)
+			.saturating_add(Weight::from_parts(0, 72533))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn remove_delegate() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `72533`
+		// Minimum execution time: 37_176_000 picoseconds.
+		Weight::from_parts(38_184_000, 0)
+			.saturating_add(Weight::from_parts(0, 72533))
+			.saturating_add(T::DbWeight::get().reads(3))
+			.saturating_add(T::DbWeight::get().writes(2))
+	}
 }

@@ -12,7 +12,6 @@ use sp_std::{
 };
 const SEED: u32 = 0;
 const MAX_REGISTRY_SIZE: u32 = 15 * 1024;
-//const MAX_DELEGATES: u32 = 15;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
@@ -63,7 +62,6 @@ benchmarks! {
 		);
 		let registry_id = Ss58Identifier::to_registry_id(&(id_digest).encode()[..]).unwrap();
 
-		//Pallet::<T>::create(origin.clone(), registry, None).expect("Should create a registry entry");
         Pallet::<T>::create(origin.clone(), registry, Option::None).expect("Should create a registry entry");
 
 		let registry_update: Vec<u8> = (2u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
@@ -75,9 +73,8 @@ benchmarks! {
 	verify {
 		assert_last_event::<T>(Event::Update { registry: registry_id, authority: did }.into());
 	}
- 
+
 archive {
-       // let l in 1 .. MAX_REGISTRY_SIZE;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::RegistryCreatorId = account("did", 0, SEED);
@@ -98,12 +95,11 @@ archive {
 }: _<T::RuntimeOrigin>(origin, registry_id.clone())
 
 verify {
-    
+
     assert_last_event::<T>(Event::Archive { registry: registry_id, authority: did }.into());
-}    
+}
 
 restore {
-   // let l in 1 .. MAX_REGISTRY_SIZE;
 
     let caller: T::AccountId = account("caller", 0, SEED);
     let did: T::RegistryCreatorId = account("did", 0, SEED);
@@ -147,7 +143,7 @@ add_admin_delegate {
 
     Pallet::<T>::create(origin.clone(), registry, None).expect("Should create a registry entry");
 
-   
+
 }: _<T::RuntimeOrigin>(origin, registry_id.clone(), delegate.clone())
 verify {
         let authorization_id = Ss58Identifier::to_authorization_id(
@@ -164,7 +160,6 @@ verify {
     }.into());
 }
 add_delegate {
-  //  let l in 1 .. MAX_DELEGATES;
 
     let caller: T::AccountId = account("caller", 0, SEED);
     let did: T::RegistryCreatorId = account("did", 0, SEED);
@@ -198,7 +193,6 @@ verify {
 }
 
 remove_delegate {
-   // let l in 1 .. MAX_DELEGATES;
 
     let caller: T::AccountId = account("caller", 0, SEED);
     let did: T::RegistryCreatorId = account("did", 0, SEED);
@@ -234,7 +228,7 @@ verify {
 
 
 impl_benchmark_test_suite!(
-    Pallet, 
+    Pallet,
     crate::mock::new_test_ext(),
     crate::mock::Test
 );
