@@ -19,7 +19,6 @@ sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.
 sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", features = ["std"]}
 pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", features = ["std"]}
 cord-utilities = { package = "cord-utilities", path="../../utilities", features = ["mock"] }
-# sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false, optional = false }
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = [
