@@ -351,7 +351,9 @@ fn cord_staging_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfi
 		},
 		grandpa: Default::default(),
 		im_online: Default::default(),
-		extrinsic_authorship: ExtrinsicAuthorshipConfig { authors: author_accounts() },
+		extrinsic_authorship: ExtrinsicAuthorshipConfig {
+			authors: endowed_accounts.iter().map(|x| (x.clone(), ())).collect::<Vec<_>>(),
+		},
 		democracy: DemocracyConfig::default(),
 		council: CouncilConfig {
 			members: endowed_accounts
