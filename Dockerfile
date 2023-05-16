@@ -24,6 +24,5 @@ RUN ["/cord","--version"]
 
 USER 1000:1000
 EXPOSE 30333 9933 9944 9615
-VOLUME ["/data"]
 
-ENTRYPOINT ["/cord","-d","/data"]
+ENTRYPOINT ["/cord"]
