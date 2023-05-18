@@ -65,15 +65,17 @@ pub enum Subcommand {
 	#[cfg(feature = "try-runtime")]
 	TryRuntime(try_runtime_cli::TryRuntimeCmd),
 
-	/// Try some command against runtime state. Note: `try-runtime` feature must be enabled.
+	/// Try some command against runtime state. Note: `try-runtime` feature must
+	/// be enabled.
 	#[cfg(not(feature = "try-runtime"))]
 	TryRuntime,
 
 	/// Key management cli utilities
 	#[command(subcommand)]
-	Key(sc_cli::KeySubcommand),
+	Key(crate::command::key::KeySubcommand),
 
-	/// Verify a signature for a message, provided on STDIN, with a given (public or secret) key.
+	/// Verify a signature for a message, provided on STDIN, with a given
+	/// (public or secret) key.
 	Verify(sc_cli::VerifyCmd),
 
 	/// Generate a seed that provides a vanity address.
