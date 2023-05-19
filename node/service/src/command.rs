@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+pub mod key;
+
 use crate::{
 	chain_spec,
 	cli::{Cli, Subcommand},
@@ -63,19 +65,19 @@ impl SubstrateCli for Cli {
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		let spec = match id {
-			"" => {
+			"cord" | "" => {
 				return Err(
-					"Please specify which chain you want to run, e.g. --dev or --chain=local"
+					"Please specify which chain you want to run, e.g. --dev or --chain=<local/staging/builder> "
 						.into(),
 				)
+				// Box::new(chain_spec::cord_config())
 			},
-			// "cord" => Box::new(chain_spec::cord_config()),
-			"cord-dev" | "dev" => Box::new(chain_spec::cord_development_config()?),
-			"cord-local" | "local" => Box::new(chain_spec::cord_local_testnet_config()?),
+			"cord-dev" | "dev" => Box::new(chain_spec::cord_dev_config()?),
+			"cord-local" | "local" => Box::new(chain_spec::cord_local_config()?),
 			"cord-staging" | "staging" => Box::new(chain_spec::cord_staging_config()?),
-			path => {
-				Box::new(chain_spec::CordChainSpec::from_json_file(std::path::PathBuf::from(path))?)
-			},
+			"cord-builder" | "builder" => Box::new(chain_spec::cord_builder_config()?),
+			path =>
+				Box::new(chain_spec::CordChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		};
 		Ok(spec)
 	}
@@ -182,7 +184,7 @@ pub fn run() -> sc_cli::Result<()> {
 								"Runtime benchmarking wasn't enabled when building the node. \
                             You can enable it with `--features runtime-benchmarks`."
 									.into(),
-							);
+							)
 						}
 						match &config.chain_spec {
 							spec if spec.is_cord() => cmd
@@ -249,9 +251,8 @@ pub fn run() -> sc_cli::Result<()> {
 							cmd.run(client.clone(), inherent_data, Vec::new(), &ext_factory)
 						)
 					},
-					BenchmarkCmd::Machine(cmd) => {
-						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())
-					},
+					BenchmarkCmd::Machine(cmd) =>
+						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()),
 				}
 			})
 		},
