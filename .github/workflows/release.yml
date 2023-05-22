@@ -6,7 +6,7 @@ on:
 
 jobs:
   release-docker-image:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04-4-cores
 
     env:
       IMAGE_REPOSITORY: ${{ github.event.repository.name }}
