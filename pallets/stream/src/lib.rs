@@ -54,7 +54,7 @@ pub mod pallet {
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
-	///
+
 	/// Registry Identifier
 	pub type RegistryIdOf = Ss58Identifier;
 	/// Stream Identifier
@@ -74,9 +74,10 @@ pub mod pallet {
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-
+	/// Type for the stream entity
 	pub type StreamEntryOf<T> =
 		StreamEntry<StreamDigestOf<T>, StreamCreatorIdOf<T>, SchemaIdOf, RegistryIdOf, StatusOf>;
+	/// Type for the stream commits
 	pub type StreamCommitsOf<T> = StreamCommit<
 		StreamCommitActionOf,
 		StreamDigestOf<T>,
@@ -411,7 +412,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Restore a a previously revoked stream.
+		/// Restore a previously revoked stream.
 		///
 		/// Arguments:
 		///
@@ -614,6 +615,19 @@ impl<T: Config> Pallet<T> {
 			Ok(())
 		})
 	}
+
+	/// Returns a `Timepoint` struct representing the current point in time.
+	///
+	/// The `Timepoint` consists of the height (block number) and index
+	/// (extrinsic index), providing a snapshot of the current state in the
+	/// blockchain.
+	///
+	/// # Returns
+	///
+	/// A `Timepoint` struct representing the current point in time, with the
+	/// following fields:
+	/// - `height`: The height of the blockchain at the current point in time.
+	/// - `index`: The index of the extrinsic within the current block.
 	pub fn timepoint() -> Timepoint<T::BlockNumber> {
 		Timepoint {
 			height: frame_system::Pallet::<T>::block_number(),
