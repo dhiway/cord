@@ -156,7 +156,7 @@ pub fn cord_dev_config() -> Result<CordChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
 	let properties = get_properties("WAY", 12, 29);
 	Ok(CordChainSpec::from_genesis(
-		"Dev. Node",
+		"Cord Ignite",
 		"cord_dev",
 		ChainType::Development,
 		move || cord_dev_config_genesis(wasm_binary),
@@ -173,7 +173,7 @@ pub fn cord_local_config() -> Result<CordChainSpec, String> {
 	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
 	let properties = get_properties("WAY", 12, 29);
 	Ok(CordChainSpec::from_genesis(
-		"Local",
+		"Cord Spin",
 		"cord_local",
 		ChainType::Local,
 		move || cord_local_config_genesis(wasm_binary),

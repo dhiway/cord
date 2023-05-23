@@ -67,15 +67,15 @@ impl SubstrateCli for Cli {
 		let spec = match id {
 			"cord" | "" => {
 				return Err(
-					"Please specify which chain you want to run, e.g. --dev or --chain=<local/staging/builder> "
+					"Please specify which chain you want to run, e.g. --dev or --chain=<ignite/local/spin/staging/sprint/builder/spark> "
 						.into(),
 				)
 				// Box::new(chain_spec::cord_config())
 			},
-			"cord-dev" | "dev" => Box::new(chain_spec::cord_dev_config()?),
-			"cord-local" | "local" => Box::new(chain_spec::cord_local_config()?),
-			"cord-staging" | "staging" => Box::new(chain_spec::cord_staging_config()?),
-			"cord-builder" | "builder" => Box::new(chain_spec::cord_builder_config()?),
+			"cord-dev" | "dev" | "ignite" => Box::new(chain_spec::cord_dev_config()?),
+			"cord-local" | "local" | "spin" => Box::new(chain_spec::cord_local_config()?),
+			"cord-staging" | "staging" | "sprint" => Box::new(chain_spec::cord_staging_config()?),
+			"cord-builder" | "builder" | "spark" => Box::new(chain_spec::cord_builder_config()?),
 			path =>
 				Box::new(chain_spec::CordChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		};
