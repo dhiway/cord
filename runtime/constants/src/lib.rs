@@ -26,7 +26,7 @@ pub mod currency {
 	use cord_primitives::Balance;
 
 	/// The existential deposit.
-	pub const EXISTENTIAL_DEPOSIT: Balance = WAY;
+	pub const EXISTENTIAL_DEPOSIT: Balance = 100 * UNITS;
 
 	pub const WAY: Balance = 1_000_000_000_000;
 	pub const UNITS: Balance = WAY / 100;
@@ -43,7 +43,7 @@ pub mod time {
 	use cord_primitives::{prod_or_fast, BlockNumber, Moment};
 	pub const MILLISECS_PER_BLOCK: Moment = 3000;
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-	pub const EPOCH_DURATION: BlockNumber = prod_or_fast!(4 * HOURS, MINUTES);
+	pub const EPOCH_DURATION: BlockNumber = prod_or_fast!(4 * HOURS, 2 * MINUTES);
 
 	pub const MINIMUM_DURATION: u64 = SLOT_DURATION / 2;
 
