@@ -289,7 +289,7 @@ impl pallet_preimage::Config for Runtime {
 parameter_types! {
 	pub EpochDuration: u64 = prod_or_fast!(
 		EPOCH_DURATION as u64,
-		4 * MINUTES as u64,
+		2 * MINUTES as u64,
 		"CORD_EPOCH_DURATION"
 	);
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
@@ -317,7 +317,7 @@ impl pallet_babe::Config for Runtime {
 }
 
 parameter_types! {
-	pub const IndexDeposit: Balance =  100 * UNITS;
+	pub const IndexDeposit: Balance =  EXISTENTIAL_DEPOSIT;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -329,7 +329,7 @@ impl pallet_indices::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 100 * UNITS ;
+	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
@@ -351,14 +351,14 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 5 * MILLIUNITS;
+	pub const TransactionByteFee: Balance = 10 * NANOUNITS;
 	pub const OperationalFeeMultiplier: u8 = 5;
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.
-	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(75);
+	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(25);
 	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
 	/// change the fees more rapidly.
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(25, 1_000_000);
+	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(75, 1_000_000);
 	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
 	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 	/// See `multiplier_can_grow_from_zero`.
@@ -386,11 +386,7 @@ impl pallet_transaction_payment::Config for Runtime {
 }
 
 parameter_types! {
-		pub MinimumPeriod: u64 = prod_or_fast!(
-		MINIMUM_DURATION,
-		500_u64,
-		"CORD_MINIMUM_DURATION"
-	);
+		pub MinimumPeriod: u64 = MINIMUM_DURATION;
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -603,7 +599,7 @@ parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
 	pub const ProposalBondMinimum: Balance = 100 * UNITS;
 	pub const ProposalBondMaximum: Balance = 500 * UNITS;
-	pub const SpendPeriod: BlockNumber = 7 * DAYS;
+	pub const SpendPeriod: BlockNumber = 2 * DAYS;
 	pub const Burn: Permill = Permill::from_perthousand(2);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const MaxApprovals: u32 = 100;
