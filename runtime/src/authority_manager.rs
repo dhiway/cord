@@ -24,6 +24,7 @@ use sp_std::vec::Vec;
 use frame_support::{dispatch::DispatchResult, ensure, pallet_prelude::*, traits::EnsureOrigin};
 pub use pallet::*;
 use sp_runtime::traits::Convert;
+use sp_staking::offence::{Offence, OffenceError, ReportOffence};
 
 type Session<T> = pallet_session::Pallet<T>;
 
@@ -209,6 +210,10 @@ impl<T: Config> Pallet<T> {
 		}
 		Ok(())
 	}
+	// Adds offline authoritities to a local cache for removal at new session.
+	fn mark_for_removal(authority: T::ValidatorId) {
+		<AuthoritiesToRetire<T>>::mutate(|v| v.push(authority));
+	}
 }
 
 impl<T: Config> pallet_session::SessionManager<T::ValidatorId> for Pallet<T> {
@@ -254,4 +259,25 @@ impl<T: Config> pallet_session::historical::SessionManager<T::ValidatorId, ()> f
 	}
 }
 
-// TODO Offence reporting and unresponsiveness management.
+// TODO Imporve Offence reporting and unresponsiveness management.
+impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
+	ReportOffence<T::AccountId, (T::AccountId, T::AccountId), O> for Pallet<T>
+{
+	fn report_offence(_reporters: Vec<T::AccountId>, offence: O) -> Result<(), OffenceError> {
+		let offenders = offence.offenders();
+
+		for (a, _) in offenders.into_iter() {
+			let v = T::ValidatorIdOf::convert(a).ok_or(OffenceError::DuplicateReport)?;
+			Self::mark_for_removal(v);
+		}
+
+		Ok(())
+	}
+
+	fn is_known_offence(
+		_offenders: &[(T::AccountId, T::AccountId)],
+		_time_slot: &O::TimeSlot,
+	) -> bool {
+		false
+	}
+}
