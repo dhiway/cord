@@ -7,14 +7,62 @@ use pallet_registry::{InputRegistryOf, RegistryHashOf};
 use pallet_schema::{InputSchemaOf, SchemaHashOf};
 use sp_runtime::{traits::Hash, AccountId32};
 
+/// Generates a stream ID from a stream digest.
+///
+/// This function takes a stream digest and converts it into a stream ID using
+/// the SS58 encoding scheme. The resulting stream ID is returned.
+///
+/// # Arguments
+///
+/// * `digest` - A reference to the stream digest.
+///
+/// # Returns
+///
+/// A `StreamIdOf` representing the generated stream ID.
+///
+/// # Panics
+///
+/// This function will panic if the conversion from digest to stream ID fails.
 pub fn generate_stream_id<T: Config>(digest: &StreamHashOf<T>) -> StreamIdOf {
 	Ss58Identifier::to_stream_id(&(digest).encode()[..]).unwrap()
 }
 
+/// Generates a schema ID from a schema digest.
+///
+/// This function takes a schema digest and converts it into a schema ID using
+/// the SS58 encoding scheme. The resulting schema ID is returned.
+///
+/// # Arguments
+///
+/// * `digest` - A reference to the schema digest.
+///
+/// # Returns
+///
+/// A `SchemaIdOf` representing the generated schema ID.
+///
+/// # Panics
+///
+/// This function will panic if the conversion from digest to schema ID fails.
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
 	Ss58Identifier::to_schema_id(&(digest).encode()[..]).unwrap()
 }
 
+/// Generates a registry ID from a registry digest.
+///
+/// This function takes a registry digest and converts it into a registry ID
+/// using the SS58 encoding scheme. The resulting registry ID is returned.
+///
+/// # Arguments
+///
+/// * `digest` - A reference to the registry digest.
+///
+/// # Returns
+///
+/// A `RegistryIdOf` representing the generated registry ID.
+///
+/// # Panics
+///
+/// This function will panic if the conversion from digest to registry ID fails.
 pub fn generate_registry_id<T: Config>(digest: &RegistryHashOf<T>) -> RegistryIdOf {
 	Ss58Identifier::to_registry_id(&(digest).encode()[..]).unwrap()
 }
