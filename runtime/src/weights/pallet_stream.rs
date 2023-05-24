@@ -25,7 +25,22 @@ use sp_std::marker::PhantomData;
 
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_stream::WeightInfo for WeightInfo<T> {
-	fn create() -> Weight {
+	fn create(_l:u32) -> Weight {
+		Weight::from_parts(155_362_954, 0)
+	}
+	fn update(_l:u32) -> Weight {
+		Weight::from_parts(155_362_954, 0)
+	}
+	fn revoke(_l:u32) -> Weight {
+		Weight::from_parts(155_362_954, 0)
+	}
+	fn restore(_l:u32) -> Weight {
+		Weight::from_parts(155_362_954, 0)
+	}
+	fn remove(_l:u32) -> Weight {
+		Weight::from_parts(155_362_954, 0)
+	}
+	fn digest(_l:u32) -> Weight {
 		Weight::from_parts(155_362_954, 0)
 	}
 }
