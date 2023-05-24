@@ -21,9 +21,8 @@ use scale_info::TypeInfo;
 
 /// An on-chain schema details mapped to an identifier.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-
 pub struct SchemaEntry<InputSchemaOf, SchemaHashOf, SchemaCreatorOf, BlockNumber> {
-	// The Schema
+	/// The Schema
 	pub schema: InputSchemaOf,
 	/// Schema hash.
 	pub digest: SchemaHashOf,
