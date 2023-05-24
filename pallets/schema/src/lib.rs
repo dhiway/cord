@@ -52,7 +52,9 @@ pub mod benchmarking;
 #[cfg(test)]
 pub mod tests;
 
+/// Extra Types for Schema
 pub mod types;
+
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
 use frame_support::ensure;
 
@@ -79,8 +81,9 @@ pub mod pallet {
 	pub type SchemaCreatorOf<T> = <T as Config>::SchemaCreatorId;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-
+	/// Type for an input schema
 	pub type InputSchemaOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedSchemaLength>;
+	/// Type for a schema entry
 	pub type SchemaEntryOf<T> = SchemaEntry<
 		InputSchemaOf<T>,
 		SchemaHashOf<T>,
