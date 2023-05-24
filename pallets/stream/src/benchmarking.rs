@@ -12,6 +12,7 @@ use pallet_registry::{
 use pallet_schema::SchemaHashOf;
 use sp_std::{
 	convert::TryFrom,
+	vec::Vec,
 };
 
 const SEED: u32 = 0;
@@ -45,7 +46,7 @@ benchmarks! {
 		let did: T::RegistryCreatorId = account("did", 0, SEED);
 		let did1: T::RegistryCreatorId = account("did1", 0, SEED);
 
-		let stream = vec![77u8; 32];
+		let stream = [77u8; 32].to_vec();
 
 		let stream_digest = <T as frame_system::Config>::Hashing::hash(&stream[..]);
 
@@ -108,7 +109,7 @@ benchmarks! {
 
 		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
 
-		let stream = vec![77u8; 32];
+		let stream = [77u8; 32].to_vec();
 
 		let stream_digest = <T as frame_system::Config>::Hashing::hash(&stream[..]);
 
@@ -153,7 +154,7 @@ benchmarks! {
 			},
 		);
 
-		let stream_update = vec![12u8; 32];
+		let stream_update = [12u8; 32].to_vec();
 		let update_digest = <T as frame_system::Config>::Hashing::hash(&stream_update[..]);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
@@ -182,7 +183,7 @@ benchmarks! {
 
 		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
 
-		let stream = vec![77u8; 32];
+		let stream = [77u8; 32].to_vec();
 
 		let stream_digest = <T as frame_system::Config>::Hashing::hash(&stream[..]);
 
@@ -254,7 +255,7 @@ benchmarks! {
 
 		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
 
-		let stream = vec![77u8; 32];
+		let stream = [77u8; 32].to_vec();
 
 		let stream_digest = <T as frame_system::Config>::Hashing::hash(&stream[..]);
 
@@ -299,7 +300,7 @@ benchmarks! {
 			},
 		);
 
-		let stream_update = vec![12u8; 32];
+		let stream_update = [12u8; 32].to_vec();
 		let update_digest = <T as frame_system::Config>::Hashing::hash(&stream_update[..]);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
@@ -329,7 +330,7 @@ benchmarks! {
 
 		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
 
-		let stream = vec![77u8; 32];
+		let stream = [77u8; 32].to_vec();
 
 		let stream_digest = <T as frame_system::Config>::Hashing::hash(&stream[..]);
 
@@ -399,7 +400,7 @@ benchmarks! {
 
 		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
 
-		let stream = vec![77u8; 32];
+		let stream = [77u8; 32].to_vec();
 
 		let stream_digest = <T as frame_system::Config>::Hashing::hash(&stream[..]);
 

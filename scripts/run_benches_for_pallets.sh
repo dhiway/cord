@@ -59,12 +59,12 @@ CORD=./target/production/cord
 
 # Manually exclude some pallets.
 PALLETS=(
-  "pallet_schema"
-  "pallet_registry"
-  "pallet_did"
-  "pallet_did_names"
-  "pallet_extrinsic_authorship"
-  # "pallet_stream"
+ "pallet_schema"
+ "pallet_registry"
+ "pallet_did"
+ "pallet_did_names"
+ "pallet_extrinsic_authorship"
+ "pallet_stream"
 )
 
 echo "[+] Benchmarking ${#PALLETS[@]} pallets."
