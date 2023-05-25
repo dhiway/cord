@@ -72,10 +72,10 @@ impl SubstrateCli for Cli {
 				)
 				// Box::new(chain_spec::cord_config())
 			},
-			"cord-dev" | "dev" | "ignite" => Box::new(chain_spec::cord_dev_config()?),
-			"cord-local" | "local" | "spin" => Box::new(chain_spec::cord_local_config()?),
-			"cord-staging" | "staging" | "sprint" => Box::new(chain_spec::cord_staging_config()?),
-			"cord-builder" | "builder" | "spark" => Box::new(chain_spec::cord_builder_config()?),
+			"dev" | "ignite" => Box::new(chain_spec::cord_dev_config()?),
+			"local" | "spin" => Box::new(chain_spec::cord_local_config()?),
+			"staging" | "sprint" => Box::new(chain_spec::cord_staging_config()?),
+			"builder" | "spark" => Box::new(chain_spec::cord_builder_config()?),
 			path =>
 				Box::new(chain_spec::CordChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		};
@@ -182,7 +182,7 @@ pub fn run() -> sc_cli::Result<()> {
 						if !cfg!(feature = "runtime-benchmarks") {
 							return Err(
 								"Runtime benchmarking wasn't enabled when building the node. \
-                            You can enable it with `--features runtime-benchmarks`."
+                            	 You can enable it with `--features runtime-benchmarks`."
 									.into(),
 							)
 						}
