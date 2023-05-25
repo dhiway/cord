@@ -36,7 +36,6 @@ type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 
-
 construct_runtime!(
 	pub enum Test where
 	Block = frame_system::mocking::MockBlock<Test>,
