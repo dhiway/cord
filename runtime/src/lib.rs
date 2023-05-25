@@ -386,7 +386,11 @@ impl pallet_transaction_payment::Config for Runtime {
 }
 
 parameter_types! {
-		pub MinimumPeriod: u64 = MINIMUM_DURATION;
+		pub MinimumPeriod: u64 = prod_or_fast!(
+		MINIMUM_DURATION,
+		500_u64,
+		"CORD_MINIMUM_DURATION"
+	);
 }
 
 impl pallet_timestamp::Config for Runtime {

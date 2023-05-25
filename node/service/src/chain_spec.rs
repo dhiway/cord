@@ -157,7 +157,7 @@ pub fn cord_dev_config() -> Result<CordChainSpec, String> {
 	let properties = get_properties("WAY", 12, 29);
 	Ok(CordChainSpec::from_genesis(
 		"Cord Ignite",
-		"cord_dev",
+		"dev",
 		ChainType::Development,
 		move || cord_dev_config_genesis(wasm_binary),
 		vec![],
@@ -174,7 +174,7 @@ pub fn cord_local_config() -> Result<CordChainSpec, String> {
 	let properties = get_properties("WAY", 12, 29);
 	Ok(CordChainSpec::from_genesis(
 		"Cord Spin",
-		"cord_local",
+		"local",
 		ChainType::Local,
 		move || cord_local_config_genesis(wasm_binary),
 		vec![],
@@ -191,11 +191,11 @@ pub fn cord_local_config() -> Result<CordChainSpec, String> {
 // ]) }
 
 pub fn cord_staging_config() -> Result<CordChainSpec, String> {
-	CordChainSpec::from_json_bytes(&include_bytes!("../../chain-specs/staging.json")[..])
+	CordChainSpec::from_json_bytes(&include_bytes!("../../chain-specs/sprint.json")[..])
 }
 
 pub fn cord_builder_config() -> Result<CordChainSpec, String> {
-	CordChainSpec::from_json_bytes(&include_bytes!("../../chain-specs/builder.json")[..])
+	CordChainSpec::from_json_bytes(&include_bytes!("../../chain-specs/spark.json")[..])
 }
 
 fn cord_local_genesis(
