@@ -65,14 +65,8 @@ impl SubstrateCli for Cli {
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		let spec = match id {
-			"cord" | "" => {
-				return Err(
-					"Please specify which chain you want to run, e.g. --dev or --chain=<ignite/local/spin/staging/sprint/builder/spark> "
-						.into(),
-				)
-				// Box::new(chain_spec::cord_config())
-			},
-			"dev" | "ignite" => Box::new(chain_spec::cord_dev_config()?),
+			"cord" | "" => Box::new(chain_spec::cord_staging_config()?),
+			"cord_dev" | "dev" | "ignite" => Box::new(chain_spec::cord_dev_config()?),
 			"local" | "spin" => Box::new(chain_spec::cord_local_config()?),
 			"staging" | "sprint" => Box::new(chain_spec::cord_staging_config()?),
 			"builder" | "spark" => Box::new(chain_spec::cord_builder_config()?),
