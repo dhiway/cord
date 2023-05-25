@@ -61,7 +61,6 @@ std = [
   "cord-primitives/std",
   "cord-utilities/std",
   "sp-runtime/std",
-  # "sp-core/std",
   "sp-io/std",
   "sp-std/std",
   "sp-keystore/std",

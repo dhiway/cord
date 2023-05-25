@@ -24,7 +24,6 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
-#![warn(unused_crate_dependencies)]
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
@@ -315,13 +314,8 @@ pub mod pallet {
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
 
-			//New change 09-05-2023--rohit@dhiway.com.If it is same digest then it should
-			// throw stream anchored error
-
+			// If it is same digest then it should throw stream anchored error
 			ensure!(stream_details.digest != stream_digest, Error::<T>::StreamAlreadyAnchored);
-
-			//End of change
-
 			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
 
 			if stream_details.creator != updater {
@@ -506,14 +500,7 @@ pub mod pallet {
 			)
 			.map_err(<Error<T>>::from)?;
 
-			// New change 17-05-2023--rohit@dhiway.com.
-			// Currently in below line we are depositing Event::Restore in remove function
-			// ideally, it should be  Event::Remove so changing it to Remove
-			// Self::deposit_event(Event::Restore { identifier: stream_id, author: updater });
-
 			Self::deposit_event(Event::Remove { identifier: stream_id, author: updater });
-
-			// End of Change
 
 			Ok(())
 		}
