@@ -157,7 +157,7 @@ pub fn cord_dev_config() -> Result<CordChainSpec, String> {
 	let properties = get_properties("WAY", 12, 29);
 	Ok(CordChainSpec::from_genesis(
 		"Cord Ignite",
-		"dev",
+		"cord_dev",
 		ChainType::Development,
 		move || cord_dev_config_genesis(wasm_binary),
 		vec![],
