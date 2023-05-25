@@ -17,10 +17,10 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 4.0.0-dev
-//! DATE: 2023-05-10 (Y/M/D)
+//! DATE: 2023-05-25 (Y/M/D)
 //! HOSTNAME: `ip-172-31-3-249`, CPU: `Intel(R) Xeon(R) Platinum 8375C CPU @ 2.90GHz`
 //!
-//! SHORT-NAME: `block`, LONG-NAME: `BlockExecution`, RUNTIME: `Dev. Node`
+//! SHORT-NAME: `block`, LONG-NAME: `BlockExecution`, RUNTIME: `Cord Ignite`
 //! WARMUPS: `10`, REPEAT: `100`
 //! WEIGHT-PATH: `runtime/constants/src/weights/`
 //! WEIGHT-METRIC: `Average`, WEIGHT-MUL: `1.0`, WEIGHT-ADD: `0`
@@ -45,17 +45,17 @@ parameter_types! {
 	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 213_676, 233_859
-	///   Average:  218_083
-	///   Median:   216_251
-	///   Std-Dev:  4909.07
+	///   Min, Max: 218_200, 244_112
+	///   Average:  223_580
+	///   Median:   221_485
+	///   Std-Dev:  5572.62
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 233_406
-	///   95th: 231_481
-	///   75th: 218_012
+	///   99th: 240_098
+	///   95th: 236_504
+	///   75th: 223_531
 	pub const BlockExecutionWeight: Weight =
-		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(218_083), 0);
+		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(223_580), 0);
 }
 
 #[cfg(test)]
