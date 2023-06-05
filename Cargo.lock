@@ -1441,6 +1441,7 @@ dependencies = [
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
+ "pallet-unique",
  "pallet-utility",
  "parity-scale-codec",
  "scale-info",
@@ -5828,6 +5829,28 @@ dependencies = [
  "serde",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-unique"
+version = "0.8.0"
+dependencies = [
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-registry",
+ "pallet-schema",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]

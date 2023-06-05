@@ -147,7 +147,7 @@ std = [
 	"pallet-schema/std",
 	"pallet-registry/std",
 	"pallet-stream/std",
-	"pallet-unique/std"
+	"pallet-unique/std",
 	"pallet-extrinsic-authorship/std",
 	"pallet-did-runtime-api/std",
 	"sp-runtime/std",
