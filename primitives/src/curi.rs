@@ -33,6 +33,8 @@ const IDENT_REG: u16 = 7101;
 const IDENT_AUTH: u16 = 10447;
 const IDENT_SCHEMA: u16 = 1424;
 const IDENT_STREAM: u16 = 8902;
+//TODO : What should be the value of below `IDENT_UNIQUE` CONSTANT
+const IDENT_UNIQUE: u16 = 8902;
 const IDENT_ENTITY: u16 = 6480;
 const IDENT_TEMPLATE: u16 = 5035;
 const IDENT_ASSET: u16 = 2604;
@@ -75,6 +77,8 @@ pub enum IdentifierType {
 	Authorization,
 	Schema,
 	Stream,
+	//TODO : added unique in identifire type
+	Unique,
 }
 
 impl TryFrom<Vec<u8>> for Ss58Identifier {
@@ -154,6 +158,10 @@ impl Ss58Identifier {
 	}
 	pub fn to_stream_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_STREAM)
+	}
+	//TODO : Is creating a `to_unique_id` is required ?
+	pub fn to_unique_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_UNIQUE)
 	}
 	pub fn to_entity_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_ENTITY)
