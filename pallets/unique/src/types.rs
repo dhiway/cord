@@ -33,7 +33,7 @@ pub struct Timepoint<BlockNumber> {
 }
 
 /// An on-chain stream entry mapped to an Identifier.
-/// `StreamEntry` is a struct that contains a `StreamDigestOf`, a `StreamCreatorIdOf`, a `SchemaIdOf`, a
+/// `UniqueEntry` is a struct that contains a `StreamDigestOf`, a `StreamCreatorIdOf`, a `SchemaIdOf`, a
 /// `RegistryIdOf`, and a `StatusOf`.
 ///
 /// Properties:
@@ -46,15 +46,13 @@ pub struct Timepoint<BlockNumber> {
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryIdOf, StatusOf> {
-	/// Stream hash.
-	pub digest: StreamDigestOf,
-	/// Stream creator.
-	pub creator: StreamCreatorIdOf,
-	/// Schema Identifier
-	pub schema: Option<SchemaIdOf>,
+pub struct UniqueEntry<UniqueDigestOf, UniqueCreatorIdOf, RegistryIdOf, StatusOf> {
+	/// Unique hash.
+	pub digest: UniqueDigestOf,
+	/// Unique creator.
+	pub creator: UniqueCreatorIdOf,
 	/// Registry Identifier
-	pub registry: RegistryIdOf,
+	pub registry: Option<RegistryIdOf>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
 }
@@ -69,20 +67,20 @@ pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryId
 /// * `committed_by`: The account that committed the stream.
 /// * `created_at`: The block number at which the stream was created.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct StreamCommit<StreamCommitActionOf, StreamDigestOf, StreamCreatorIdOf, BlockNumber> {
-	/// Stream commit type
-	pub commit: StreamCommitActionOf,
-	/// Stream hash.
-	pub digest: StreamDigestOf,
+pub struct UniqueCommit<UniqueCommitActionOf, UniqueDigestOf, UniqueCreatorIdOf, BlockNumber> {
+	/// Unique commit type
+	pub commit: UniqueCommitActionOf,
+	/// Unique hash.
+	pub digest: UniqueDigestOf,
 	/// Registry delegate.
-	pub committed_by: StreamCreatorIdOf,
+	pub committed_by: UniqueCreatorIdOf,
 	/// Stream block number
 	pub created_at: Timepoint<BlockNumber>,
 }
 
 /// Defining the possible actions that can be taken on a stream.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub enum StreamCommitActionOf {
+pub enum UniqueCommitActionOf {
 	Genesis,
 	Update,
 	Revoke,
