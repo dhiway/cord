@@ -71,8 +71,14 @@ jobs:
       - name: Build binary (x86_64)
         run: cargo build --release --target x86_64-unknown-linux-gnu
 
+      - name: Find compiled binary
+        run: |
+          find ${{ github.workspace }} -type f -executable -name "cord" | head -n 1 > binary_path.txt
+          BINARY_PATH=$(cat binary_path.txt)
+          echo "Binary path: $BINARY_PATH"
+      
       - name: Rename Binary
-        run: mv target/release/cord cord-${GITHUB_REF#refs/heads/}-$(uname -m)-ubuntu-22.04
+        run: mv "$BINARY_PATH" "cord-${GITHUB_REF#refs/heads/}-$(uname -m)-ubuntu-22.04"
       
       - name: Create Release
         id: create_release
