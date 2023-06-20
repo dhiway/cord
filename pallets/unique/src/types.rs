@@ -48,7 +48,7 @@ pub struct Timepoint<BlockNumber> {
 )]
 pub struct UniqueEntry<UniqueDigestOf, UniqueCreatorIdOf, RegistryIdOf, StatusOf> {
 	/// Unique hash.
-	pub digest: UniqueDigestOf,
+	pub digest: UniqueDigestOf, // incoming one
 	/// Unique creator.
 	pub creator: UniqueCreatorIdOf,
 	/// Registry Identifier
@@ -77,6 +77,8 @@ pub struct UniqueCommit<UniqueCommitActionOf, UniqueDigestOf, UniqueCreatorIdOf,
 	/// Stream block number
 	pub created_at: Timepoint<BlockNumber>,
 }
+
+//Question to adsk use of identifier ?
 
 /// Defining the possible actions that can be taken on a stream.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]

@@ -109,20 +109,12 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	/// unique identifiers stored on chain.
-	/// It maps from an identifier to its details. Chain will only store the
-	/// last updated state of the data.
-	#[pallet::storage]
-	#[pallet::getter(fn uniques)]
-	pub type Uniques<T> =
-		StorageMap<_, Blake2_128Concat, UniqueIdOf, UniqueEntryOf<T>, OptionQuery>;
-
 	/// unique hashes stored on chain.
 	/// It maps from a unique hash to an identifier (resolve from hash).
 	#[pallet::storage]
-	#[pallet::getter(fn unique_digests)]
-	pub type UniqueDigests<T> =
-		StorageMap<_, Blake2_128Concat, UniqueDigestOf<T>, UniqueIdOf, OptionQuery>;
+	#[pallet::getter(fn unique_digest_entries)]
+	pub type UniqueDigestEntries<T> =
+		StorageMap<_, Blake2_128Concat, UniqueDigestOf<T>, UniqueEntryOf<T>, OptionQuery>;
 
 	/// unique commits stored on chain.
 	/// It maps from an identifier to a vector of commits.
@@ -142,21 +134,9 @@ pub mod pallet {
 		/// A new unique identifier has been created.
 		/// \[unique identifier, unique digest, controller\]
 		Create { identifier: UniqueIdOf, digest: UniqueDigestOf<T>, author: UniqueCreatorIdOf<T> },
-		/// A unique identifier has been updated.
-		/// \[unique identifier, digest, controller\]
-		Update { identifier: UniqueIdOf, digest: UniqueDigestOf<T>, author: UniqueCreatorIdOf<T> },
 		/// A unique identifier status has been revoked.
 		/// \[unique identifier, controller\]
-		Revoke { identifier: UniqueIdOf, author: UniqueDigestOf<T> },
-		/// A unique identifier status has been restored.
-		/// \[unique identifier, controller\]
-		Restore { identifier: UniqueIdOf, author: UniqueDigestOf<T> },
-		/// A unique identifier has been removed.
-		/// \[unique identifier,  controller\]
-		Remove { identifier: UniqueIdOf, author: UniqueDigestOf<T> },
-		/// A unique digest has been added.
-		/// \[unique identifier, digest, controller\]
-		Digest { identifier: UniqueIdOf, digest: UniqueDigestOf<T>, author: UniqueCreatorIdOf<T> },
+		Revoke { identifier: UniqueIdOf, author: UniqueCreatorIdOf<T> },
 	}
 
 	#[pallet::error]
@@ -226,45 +206,47 @@ pub mod pallet {
 		/// DispatchResult
 		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
+		//On the create arguments make authorizatio optional so we dont need regostry
+		// id ,with authorization we can get registry details
 		pub fn create(
 			origin: OriginFor<T>,
 			unique_digest: UniqueDigestOf<T>,
-			authorization: AuthorizationIdOf,
-			registry_id: Option<RegistryIdOf>,
+			authorization: Option<AuthorizationIdOf>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			if let Some(registry_id) = registry_id.clone() {
-				// check for authorization
-				pallet_registry::Pallet::<T>::is_an_authority(&registry_id, creator.clone())?;
+			let registry_id: Ss58Identifier;
 
-				let redistry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
+			let mut u_reqistryid: Option<RegistryIdOf> = None;
+
+			if let Some(authorization) = authorization.clone() {
+				registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
 					&authorization,
 					creator.clone(),
-				)?;
-
-				ensure!(registry_id == redistry_id, Error::<T>::RegistryIdMismatch)
-				// Todo: Check for is_a_delegate ?
+					None,
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+				u_reqistryid = Some(registry_id);
 			}
 
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[&unique_digest.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			//TODO : Have created `to_unique_id` in primitives::curi. Is this Required ?
 			let identifier = Ss58Identifier::to_unique_id(&(id_digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
-			ensure!(!<Uniques<T>>::contains_key(&identifier), Error::<T>::UniqueAlreadyAnchored);
+			ensure!(
+				!<UniqueDigestEntries<T>>::contains_key(&id_digest),
+				Error::<T>::UniqueAlreadyAnchored
+			);
 
-			<UniqueDigests<T>>::insert(unique_digest, &identifier);
-
-			<Uniques<T>>::insert(
-				&identifier,
+			<UniqueDigestEntries<T>>::insert(
+				&id_digest,
 				UniqueEntryOf::<T> {
 					digest: unique_digest,
 					creator: creator.clone(),
-					registry: Some(registry_id),
+					registry: Some(u_reqistryid),
 					revoked: false,
 				},
 			);
@@ -285,6 +267,64 @@ pub mod pallet {
 
 			Ok(())
 		}
+		/// Revokes a unique.
+		///
+		/// Arguments:
+		///
+		/// * `origin`: The origin of the transaction.
+		/// * `unique_digest`: The unique identifier.
+		/// * `authorization`: The authorization ID of the delegate who is
+		///   allowed to perform this action.
+		///
+		/// Returns:
+		///
+		/// DispatchResult
+		#[pallet::call_index(2)]
+		#[pallet::weight({0})]
+		pub fn revoke(
+			origin: OriginFor<T>,
+			unique_digest: UniqueDigestOf<T>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&unique_digest.encode()[..], &updater.encode()[..]].concat()[..],
+			);
+
+			let unique_details = <UniqueDigestEntries<T>>::get(&id_digest).ok_or(Error::<T>::UniqueNotFound)?;
+			ensure!(!unique_details.revoked, Error::<T>::RevokedUnique);
+
+			if unique_details.creator != updater {
+				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
+					&authorization,
+					updater.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+
+			ensure!(unique_details.registry == Some(Some(registry_id)), Error::<T>::UnauthorizedOperation);
+			}
+
+			<UniqueDigestEntries<T>>::insert(
+				&id_digest,
+				UniqueEntryOf::<T> { creator: updater.clone(), revoked: true, ..unique_details },
+			);
+
+			let identifier = Ss58Identifier::to_unique_id(&(id_digest).encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+			Self::update_commit(
+				&identifier,
+				unique_details.digest,
+				updater.clone(),
+				UniqueCommitActionOf::Revoke,
+			)
+			.map_err(<Error<T>>::from)?;
+			Self::deposit_event(Event::Revoke { identifier, author: updater });
+
+			Ok(())
+		}
+		
 	}
 }
 

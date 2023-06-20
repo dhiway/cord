@@ -34,7 +34,7 @@ const IDENT_AUTH: u16 = 10447;
 const IDENT_SCHEMA: u16 = 1424;
 const IDENT_STREAM: u16 = 8902;
 //TODO : What should be the value of below `IDENT_UNIQUE` CONSTANT
-const IDENT_UNIQUE: u16 = 8902;
+const IDENT_UNIQUE: u16 = 11560;
 const IDENT_ENTITY: u16 = 6480;
 const IDENT_TEMPLATE: u16 = 5035;
 const IDENT_ASSET: u16 = 2604;
