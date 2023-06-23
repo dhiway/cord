@@ -1,6 +1,6 @@
 [package]
 name = 'cord-inspect'
-version = "0.8.0"
+version = "0.8.1"
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'
 license = "GPL-3.0"
@@ -11,15 +11,15 @@ repository = "https://github.com/dhiway/cord"
 targets = ["x86_64-unknown-linux-gnu"]
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 
 [dependencies]
 clap = { version = "4.0.9", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "3.4.0" }
 thiserror = "1.0"
-sc-cli = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
-sc-client-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
-sc-service = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false }
-sp-blockchain = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
-sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
-sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42" }
+sc-cli = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+sc-client-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+sc-service = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+sp-blockchain = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
