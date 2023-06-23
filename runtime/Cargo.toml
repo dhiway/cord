@@ -193,6 +193,7 @@ runtime-benchmarks = [
   "pallet-registry/runtime-benchmarks",
   "pallet-extrinsic-authorship/runtime-benchmarks",
 	"hex-literal",
+  "pallet-sudo/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
 ]
 
