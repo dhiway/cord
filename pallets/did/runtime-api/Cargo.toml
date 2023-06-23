@@ -1,7 +1,7 @@
 [package]
 name = "pallet-did-runtime-api"
 description = "Runtime APIs for dealing with DIDs."
-version = '0.8.0'
+version = "0.8.1"
 authors = ['Dhiway <info@dhiway.com>','BOTLabs GmbH']
 edition = '2021'
 license = "GPL-3.0"
@@ -17,8 +17,8 @@ scale-info = { version = "2.5.0", default-features = false, features = ["derive"
 pallet-did = { package = "pallet-did", path="../../did", default-features = false }
 
 # Substrate 
-sp-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.42", default-features = false }
+sp-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
 
 [features]
 default = ["std"]
