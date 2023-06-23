@@ -33,14 +33,13 @@ pub struct Timepoint<BlockNumber> {
 }
 
 /// An on-chain stream entry mapped to an Identifier.
-/// `UniqueEntry` is a struct that contains a `StreamDigestOf`, a `StreamCreatorIdOf`, a `SchemaIdOf`, a
+/// `UniqueEntry` is a struct that contains a `UniqueDigestOf`, a `UniqueCreatorIdOf`, a `UniqueIdOf`, a
 /// `RegistryIdOf`, and a `StatusOf`.
 ///
 /// Properties:
 ///
 /// * `digest`: The hash of the stream.
 /// * `creator`: The account that created the stream.
-/// * `schema`: The schema identifier.
 /// * `registry`: The registry that the stream is associated with.
 /// * `revoked`: This is a boolean flag that indicates whether the stream is revoked or not.
 #[derive(
