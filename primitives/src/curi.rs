@@ -77,7 +77,6 @@ pub enum IdentifierType {
 	Authorization,
 	Schema,
 	Stream,
-	//TODO : added unique in identifire type
 	Unique,
 }
 
