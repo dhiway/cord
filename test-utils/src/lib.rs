@@ -21,11 +21,11 @@
 #![cfg(unix)]
 
 use assert_cmd::cargo::cargo_bin;
+use cord_primitives::{Hash, Header};
 use nix::{
 	sys::signal::{kill, Signal, Signal::SIGINT},
 	unistd::Pid,
 };
-use cord_primitives::{Hash, Header};
 use regex::Regex;
 use std::{
 	env,
@@ -41,7 +41,7 @@ use tokio::io::{AsyncBufReadExt, AsyncRead};
 ///
 /// This function creates a new CORD node using the `cord` binary.
 /// It configures the node to run in development mode (`--dev`) with a temporary chain (`--tmp`),
-/// sets the WebSocket port to 45789 (`--ws-port=45789`).
+/// sets the WebSocket port to 45789 (`--rpc-port=45789`).
 ///
 /// # Returns
 ///
@@ -66,7 +66,7 @@ pub fn start_node() -> Child {
 	Command::new(cargo_bin("cord"))
 		.stdout(process::Stdio::piped())
 		.stderr(process::Stdio::piped())
-		.args(&["--dev", "--tmp", "--ws-port=45789", "--no-hardware-benchmarks"])
+		.args(&["--dev", "--tmp", "--rpc-port=45789", "--no-hardware-benchmarks"])
 		.spawn()
 		.unwrap()
 }
@@ -179,14 +179,14 @@ pub async fn wait_n_finalized_blocks(n: usize, url: &str) {
 	use substrate_rpc_client::{ws_client, ChainApi};
 
 	let mut built_blocks = std::collections::HashSet::new();
-	let mut interval = tokio::time::interval(Duration::from_secs(3));
+	let mut interval = tokio::time::interval(Duration::from_secs(2));
 	let rpc = ws_client(url).await.unwrap();
 
 	loop {
 		if let Ok(block) = ChainApi::<(), Hash, Header, ()>::finalized_head(&rpc).await {
 			built_blocks.insert(block);
 			if built_blocks.len() > n {
-				break
+				break;
 			}
 		};
 		interval.tick().await;
@@ -284,7 +284,7 @@ pub fn extract_info_from_output(read: impl Read + Send) -> (NodeInfo, String) {
 			data.push_str("\n");
 
 			// does the line contain our port (we expect this specific output from substrate).
-			let sock_addr = match line.split_once("Running JSON-RPC WS server: addr=") {
+			let sock_addr = match line.split_once("Running JSON-RPC server: addr=") {
 				None => return None,
 				Some((_, after)) => after.split_once(",").unwrap().0,
 			};
@@ -302,5 +302,3 @@ pub fn extract_info_from_output(read: impl Read + Send) -> (NodeInfo, String) {
 
 	(NodeInfo { ws_url, db_path }, data)
 }
-
-
