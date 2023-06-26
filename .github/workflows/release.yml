@@ -2,7 +2,9 @@ name: release
 
 on:
   push:
-    branches: [develop]
+    branches: 
+      - develop
+      - 'release*'
 
 jobs:
   release-docker-image:
@@ -69,16 +71,20 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
     
       - name: Build binary (x86_64)
-        run: cargo build --release --target x86_64-unknown-linux-gnu
-
-      - name: Find compiled binary
-        run: |
-          find ${{ github.workspace }} -type f -executable -name "cord" | head -n 1 > binary_path.txt
-          BINARY_PATH=$(cat binary_path.txt)
-          echo "Binary path: $BINARY_PATH"
+        run: cargo build --locked --profile production --target x86_64-unknown-linux-gnu
       
-      - name: Rename Binary
-        run: mv "$BINARY_PATH" "cord-${GITHUB_REF#refs/heads/}-$(uname -m)-ubuntu-22.04"
+      - name: Find and move binary
+        run: |
+          BINARY_PATH=$(find ${{ github.workspace }} -type f -executable -name "cord" | head -n 1)
+          echo "Binary path: $BINARY_PATH"
+
+          if [ -n "$BINARY_PATH" ]; then
+            NEW_PATH="cord-${{ github.ref#refs/heads/ }}-$(uname -m)-ubuntu-22.04"
+            mv "$BINARY_PATH" "$NEW_PATH"
+            echo "Moved binary to: $NEW_PATH"
+            else
+              echo "No binary found."
+            fi
       
       - name: Create Release
         id: create_release
@@ -91,12 +97,12 @@ jobs:
           draft: false
           prerelease: false
       
-      - name: Upload binary as Rlease Asset
+      - name: Upload binary as Release Asset
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: cord-${GITHUB_REF#refs/heads/}-$(uname -m)-ubuntu-22.04
-          asset_name: cord-${GITHUB_REF#refs/heads/}-$(uname -m)-ubuntu-22.04
+          asset_path: cord-${{ github.ref#refs/heads/ }}-$(uname -m)-ubuntu-22.04
+          asset_name: cord-${{ github.ref#refs/heads/ }}-$(uname -m)-ubuntu-22.04
           asset_content_type: application/octet-stream
 
       - name: Get Download URL
