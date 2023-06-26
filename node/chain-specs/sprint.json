@@ -5,7 +5,7 @@
   "bootNodes": [],
   "telemetryEndpoints": [
     [
-      "/dns/telemetry.dway.io/tcp/443/x-parity-wss/%2Fsubmit",
+      "/dns/telemetry.cord.network/tcp/443/x-parity-wss/%2Fsubmit",
       0
     ]
   ],
