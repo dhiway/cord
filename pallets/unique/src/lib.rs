@@ -70,17 +70,22 @@ pub mod pallet {
 
 	/// Hash of the unique.
 	pub type UniqueDigestOf<T> = <T as frame_system::Config>::Hash;
+
+	/// Type for an input schema
+	pub type InputUniqueOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedLength>;
+
+
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// Type for the unique entity
 	pub type UniqueEntryOf<T> =
-		UniqueEntry<UniqueDigestOf<T>, UniqueCreatorIdOf<T>, Option<RegistryIdOf>, StatusOf>;
+		UniqueEntry<InputUniqueOf<T>, UniqueCreatorIdOf<T>, Option<RegistryIdOf>, StatusOf>;
 	/// Type for the unique commits
 	pub type UniqueCommitsOf<T> = UniqueCommit<
 		UniqueCommitActionOf,
-		UniqueDigestOf<T>,
+		InputUniqueOf<T>,
 		UniqueCreatorIdOf<T>,
 		BlockNumberOf<T>,
 	>;
@@ -100,6 +105,9 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
+
+		/// The maximum Hash Encoded length for a given unique.
+		type MaxEncodedLength: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -109,12 +117,19 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
+	/// unique Transaction stored on chain.
+	/// It maps from a unique transaction to an identifier (resolve from hash).
+	#[pallet::storage]
+	#[pallet::getter(fn unique_identifiers)]
+	pub type UniqueIdentifiers<T> =
+		StorageMap<_, Blake2_128Concat, InputUniqueOf<T>, UniqueIdOf, OptionQuery>;
+
 	/// unique hashes stored on chain.
-	/// It maps from a unique hash to an identifier (resolve from hash).
+	/// It maps from a unique hash to an metadata (resolve from hash).
 	#[pallet::storage]
 	#[pallet::getter(fn unique_digest_entries)]
 	pub type UniqueDigestEntries<T> =
-		StorageMap<_, Blake2_128Concat, UniqueDigestOf<T>, UniqueEntryOf<T>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, UniqueIdOf, UniqueEntryOf<T>, OptionQuery>;
 
 	/// unique commits stored on chain.
 	/// It maps from an identifier to a vector of commits.
@@ -133,7 +148,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new unique identifier has been created.
 		/// \[unique identifier, unique digest, controller\]
-		Create { identifier: UniqueIdOf, digest: UniqueDigestOf<T>, author: UniqueCreatorIdOf<T> },
+		Create { identifier: UniqueIdOf, digest: InputUniqueOf<T>, author: UniqueCreatorIdOf<T> },
 		/// A unique identifier status has been revoked.
 		/// \[unique identifier, controller\]
 		Revoke { identifier: UniqueIdOf, author: UniqueCreatorIdOf<T> },
@@ -187,6 +202,10 @@ pub mod pallet {
 		InvalidIdentifierLength,
 		//Registy Id mismatch
 		RegistryIdMismatch,
+		//Max length of unique exceded
+		MaxEncodedLimitExceeded,
+		//Empty Transaction
+		EmptyTransaction,
 	}
 
 	#[pallet::call]
@@ -210,10 +229,17 @@ pub mod pallet {
 		// id ,with authorization we can get registry details
 		pub fn create(
 			origin: OriginFor<T>,
-			unique_digest: UniqueDigestOf<T>,
+			unique_txn: InputUniqueOf<T>,
 			authorization: Option<AuthorizationIdOf>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			ensure!(unique_txn.len() > 0, Error::<T>::EmptyTransaction);
+
+			ensure!(
+				unique_txn.len() <= T::MaxEncodedLength::get() as usize,
+				Error::<T>::MaxEncodedLimitExceeded
+			);
 
 			let registry_id: Ss58Identifier;
 
@@ -229,22 +255,33 @@ pub mod pallet {
 				u_reqistryid = Some(registry_id);
 			}
 
+
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&unique_digest.encode()[..], &creator.encode()[..]].concat()[..],
+				&[&unique_txn.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
 			let identifier = Ss58Identifier::to_unique_id(&(id_digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
+			//Mapping unique_txn => Identifier
+
 			ensure!(
-				!<UniqueDigestEntries<T>>::contains_key(&id_digest),
+				!<UniqueIdentifiers<T>>::contains_key(&unique_txn) || !<UniqueDigestEntries<T>>::contains_key(&identifier),
 				Error::<T>::UniqueAlreadyAnchored
 			);
+			
+			<UniqueIdentifiers<T>>::insert(
+				&unique_txn,
+				&identifier
+			);
+
+
+			//Mapping Identifier => Metadata	
 
 			<UniqueDigestEntries<T>>::insert(
-				&id_digest,
+				&identifier,
 				UniqueEntryOf::<T> {
-					digest: unique_digest,
+					digest: unique_txn.to_owned(),
 					creator: creator.clone(),
 					registry: Some(u_reqistryid),
 					revoked: false,
@@ -253,7 +290,7 @@ pub mod pallet {
 
 			Self::update_commit(
 				&identifier,
-				unique_digest,
+				unique_txn.to_owned(),
 				creator.clone(),
 				UniqueCommitActionOf::Genesis,
 			)
@@ -261,7 +298,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::Create {
 				identifier,
-				digest: unique_digest,
+				digest: unique_txn,
 				author: creator,
 			});
 
@@ -283,39 +320,50 @@ pub mod pallet {
 		#[pallet::weight({0})]
 		pub fn revoke(
 			origin: OriginFor<T>,
-			unique_digest: UniqueDigestOf<T>,
+			unique_txn: InputUniqueOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&unique_digest.encode()[..], &updater.encode()[..]].concat()[..],
-			);
+			ensure!(<UniqueIdentifiers<T>>::contains_key(&unique_txn),Error::<T>::UniqueNotFound);
 
-			let unique_details = <UniqueDigestEntries<T>>::get(&id_digest).ok_or(Error::<T>::UniqueNotFound)?;
+			//Todo error handling required
+			let identifier = <UniqueIdentifiers<T>>::get(&unique_txn).unwrap();
+
+			// let id_digest = <T as frame_system::Config>::Hashing::hash(
+			// 	&[&unique_txn.encode()[..], &updater.encode()[..]].concat()[..],
+			// );
+
+
+			//Todo error handling required
+			let unique_details = <UniqueDigestEntries<T>>::get(&identifier).unwrap();
+
+			//let unique_details = <UniqueDigestEntries<T>>::get(&id_digest).ok_or(Error::<T>::UniqueNotFound)?;
 			ensure!(!unique_details.revoked, Error::<T>::RevokedUnique);
 
+
+			//Currently checking for admin should i check for delegate ?
 			if unique_details.creator != updater {
-				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
+				let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
 					&authorization,
 					updater.clone(),
+					None
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 
 			ensure!(unique_details.registry == Some(Some(registry_id)), Error::<T>::UnauthorizedOperation);
 			}
 
+
 			<UniqueDigestEntries<T>>::insert(
-				&id_digest,
+				&identifier,
 				UniqueEntryOf::<T> { creator: updater.clone(), revoked: true, ..unique_details },
 			);
 
-			let identifier = Ss58Identifier::to_unique_id(&(id_digest).encode()[..])
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
-
+			
 			Self::update_commit(
 				&identifier,
-				unique_details.digest,
+				unique_txn.to_owned(),
 				updater.clone(),
 				UniqueCommitActionOf::Revoke,
 			)
@@ -345,7 +393,7 @@ impl<T: Config> Pallet<T> {
 	/// The `Result` type is being returned.
 	pub fn update_commit(
 		tx_stream: &UniqueIdOf,
-		tx_digest: UniqueDigestOf<T>,
+		tx_digest: InputUniqueOf<T>,
 		proposer: UniqueCreatorIdOf<T>,
 		commit: UniqueCommitActionOf,
 	) -> Result<(), Error<T>> {
