@@ -2,9 +2,9 @@ name: release
 
 on:
   push:
-    branches: 
+    branches:
       - develop
-      - 'release*'
+      - "release*"
 
 jobs:
   release-docker-image:
@@ -56,7 +56,7 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
-    
+
       - name: Install dependencies
         run: sudo apt-get update -y && sudo apt-get install -y protobuf-compiler libssl-dev
 
@@ -69,23 +69,27 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-    
+
       - name: Build binary (x86_64)
         run: cargo build --locked --profile production --target x86_64-unknown-linux-gnu
-      
+
       - name: Find and move binary
         run: |
           BINARY_PATH=$(find ${{ github.workspace }} -type f -executable -name "cord" | head -n 1)
           echo "Binary path: $BINARY_PATH"
 
           if [ -n "$BINARY_PATH" ]; then
-            NEW_PATH="cord-${{ github.ref#refs/heads/ }}-$(uname -m)-ubuntu-22.04"
+            BRANCH_NAME=${{ github.ref }}
+            BRANCH_NAME=${BRANCH_NAME/refs\/heads\//}
+
+            NEW_PATH="cord-${BRANCH_NAME}-$(uname -m)-ubuntu-22.04"
+
             mv "$BINARY_PATH" "$NEW_PATH"
             echo "Moved binary to: $NEW_PATH"
             else
               echo "No binary found."
             fi
-      
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -96,7 +100,7 @@ jobs:
             Release ${{ github.ref }}
           draft: false
           prerelease: false
-      
+
       - name: Upload binary as Release Asset
         uses: actions/upload-release-asset@v1
         with:
@@ -108,7 +112,10 @@ jobs:
       - name: Get Download URL
         id: get_download_url
         run: |
-          echo "::set-output name=download_url::$(curl -s -X GET -H 'Accept: application/vnd.github.v3+json' -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.assets[] | select(.name == "cord-${GITHUB_REF#refs/heads/}-$(uname -m)-ubuntu-22.04") | .browser_download_url')"
+          BRANCH_NAME=${{ github.ref }}
+          BRANCH_NAME=${BRANCH_NAME/refs\/heads\//}
+
+          echo "::set-output name=download_url::$(curl -s -X GET -H 'Accept: application/vnd.github.v3+json' -H 'Authorization: token ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r --arg branch_name "${BRANCH_NAME}" '.assets[] | select(.name == "cord-\($branch_name)-$(uname -m)-ubuntu-22.04") | .browser_download_url')"
 
       - name: Print Download URL
         run: |
