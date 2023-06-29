@@ -8,7 +8,7 @@ on:
 
 jobs:
   release-docker-image:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     env:
       IMAGE_REPOSITORY: ${{ github.event.repository.name }}
@@ -71,52 +71,72 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Build binary (x86_64)
-        run: cargo build --locked --profile production --target x86_64-unknown-linux-gnu
+        run: |
+          cargo build --locked --profile production --target x86_64-unknown-linux-gnu
+          BUILD_EXIT_CODE=$?
+          if [ $BUILD_EXIT_CODE -ne 0 ]; then
+            echo "Build failed with exit code $BUILD_EXIT_CODE"
+            exit $BUILD_EXIT_CODE
+          fi
 
       - name: Find and move binary
         run: |
           BINARY_PATH=$(find ${{ github.workspace }} -type f -executable -name "cord" | head -n 1)
           echo "Binary path: $BINARY_PATH"
-
           if [ -n "$BINARY_PATH" ]; then
-            BRANCH_NAME=${{ github.ref }}
-            BRANCH_NAME=${BRANCH_NAME/refs\/heads\//}
-
-            NEW_PATH="cord-${BRANCH_NAME}-$(uname -m)-ubuntu-22.04"
-
-            mv "$BINARY_PATH" "$NEW_PATH"
-            echo "Moved binary to: $NEW_PATH"
-            else
-              echo "No binary found."
-            fi
+            BRANCH_NAME=$(echo "${{ github.ref }}" | sed 's/refs\/heads\///')
+            ARCHITECTURE=$(uname -m)
+            BINARY_NAME="cord-${BRANCH_NAME}-${ARCHITECTURE}-ubuntu-22.04"
+            mv "$BINARY_PATH" "$BINARY_NAME"
+            echo "Moved binary to: $BINARY_NAME"
+            echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
+          else
+            echo "No binary found."
+          fi
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
-            Release ${{ github.ref }}
-          draft: false
-          prerelease: false
+        run: |
+          TOKEN=${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME=$(echo "${{ github.ref }}" | sed 's/refs\/heads\///')
+          TAG_NAME=$(git rev-parse --short "${{ github.sha }}")
+          RESPONSE=$(curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: Bearer $TOKEN" \
+            https://api.github.com/repos/${{ github.repository }}/releases \
+            -d "{
+              \"tag_name\": \"$TAG_NAME\",
+              \"name\": \"Release $BRANCH_NAME\",
+              \"body\": \"Release $BRANCH_NAME\",
+              \"draft\": false,
+              \"prerelease\": false
+            }")
+          echo "Create Release response: $RESPONSE"
+          RELEASE_ID=$(echo "$RESPONSE" | jq -r .id)
+          echo "RELEASE_ID=$RELEASE_ID" >> $GITHUB_ENV
 
       - name: Upload binary as Release Asset
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: cord-${{ github.ref#refs/heads/ }}-$(uname -m)-ubuntu-22.04
-          asset_name: cord-${{ github.ref#refs/heads/ }}-$(uname -m)-ubuntu-22.04
-          asset_content_type: application/octet-stream
+        if: env.RELEASE_ID != ''
+        run: |
+          RELEASE_ID=$RELEASE_ID
+          BINARY_NAME=$BINARY_NAME
+          if [ -n "$BINARY_NAME" ]; then
+            curl -X POST \
+              -H "Accept: application/vnd.github.v3+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary "@$BINARY_NAME" \
+              "https://uploads.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets?name=$(basename $BINARY_NAME)"
+          fi
 
       - name: Get Download URL
-        id: get_download_url
+        id: get_url
         run: |
-          BRANCH_NAME=${{ github.ref }}
-          BRANCH_NAME=${BRANCH_NAME/refs\/heads\//}
-
-          echo "::set-output name=download_url::$(curl -s -X GET -H 'Accept: application/vnd.github.v3+json' -H 'Authorization: token ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r --arg branch_name "${BRANCH_NAME}" '.assets[] | select(.name == "cord-\($branch_name)-$(uname -m)-ubuntu-22.04") | .browser_download_url')"
-
-      - name: Print Download URL
-        run: |
-          echo "Download URL: ${{ steps.get_download_url.outputs.download_url }}"
+          REPO_NAME=$(echo "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          ASSET_NAME=$BINARY_NAME
+          LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO_NAME/releases/latest")
+          DOWNLOAD_URL=$(echo "$LATEST_RELEASE" | grep "browser_download_url.*$ASSET_NAME" | cut -d : -f 2,3 | tr -d \")
+          echo "Download URL: $DOWNLOAD_URL"
+          echo "DOWNLOAD_URL=$DOWNLOAD_URL" >> $GITHUB_ENV
+        env:
+          BINARY_NAME: ${{ steps.find_move_binary.outputs.BINARY_NAME }}
