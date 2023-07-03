@@ -24,8 +24,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-#[cfg(feature = "runtime-benchmarks")]
-pub mod benchmarking;
+// #[cfg(feature = "runtime-benchmarks")]
+// pub mod benchmarking;
 
 // #[cfg(any(feature = "mock", test))]
 // pub mod mock;
