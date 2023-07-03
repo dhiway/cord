@@ -74,7 +74,6 @@ pub mod pallet {
 	/// Type for an input schema
 	pub type InputUniqueOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedLength>;
 
-
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type for a block number.
@@ -144,7 +143,7 @@ pub mod pallet {
 	>;
 
 	////Swap the storage names keyidenfier value adas details
-	/// 
+	///
 	/// unique digest incoming hash as key and identifier as value
 
 	#[pallet::event]
@@ -259,7 +258,6 @@ pub mod pallet {
 				u_reqistryid = Some(registry_id);
 			}
 
-
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[&unique_txn.encode()[..], &creator.encode()[..]].concat()[..],
 			);
@@ -267,21 +265,17 @@ pub mod pallet {
 			let identifier = Ss58Identifier::to_unique_id(&(id_digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
-			//Mapping unique_txn => Identifier
-
+			// Check if the unique_txn or identifier already exist and return an error if
+			// they do
 			ensure!(
-				!<UniqueIdentifiers<T>>::contains_key(&unique_txn) || !<UniqueDigestEntries<T>>::contains_key(&identifier),
+				!<UniqueIdentifiers<T>>::contains_key(&unique_txn) ||
+					!<UniqueDigestEntries<T>>::contains_key(&identifier),
 				Error::<T>::UniqueAlreadyAnchored
 			);
-			
-			<UniqueIdentifiers<T>>::insert(
-				&unique_txn,
-				&identifier
-			);
 
+			<UniqueIdentifiers<T>>::insert(&unique_txn, &identifier);
 
-			//Mapping Identifier => Metadata	
-
+			// Update the UniqueDigestEntries storage
 			<UniqueDigestEntries<T>>::insert(
 				&identifier,
 				UniqueEntryOf::<T> {
@@ -292,6 +286,7 @@ pub mod pallet {
 				},
 			);
 
+			// Perform additional operations and handle committing the changes
 			Self::update_commit(
 				&identifier,
 				unique_txn.clone(),
@@ -300,11 +295,8 @@ pub mod pallet {
 			)
 			.map_err(<Error<T>>::from)?;
 
-			Self::deposit_event(Event::Create {
-				identifier,
-				digest: unique_txn,
-				author: creator,
-			});
+			// Emit a Create event
+			Self::deposit_event(Event::Create { identifier, digest: unique_txn, author: creator });
 
 			Ok(())
 		}
@@ -329,42 +321,42 @@ pub mod pallet {
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			ensure!(<UniqueIdentifiers<T>>::contains_key(&unique_txn),Error::<T>::UniqueNotFound);
+			// Check if unique_txn exists and return an error if it doesn't
+			ensure!(<UniqueIdentifiers<T>>::contains_key(&unique_txn), Error::<T>::UniqueNotFound);
 
-			//Todo error handling required
-			let identifier = <UniqueIdentifiers<T>>::get(&unique_txn).unwrap();
+			// Retriving identifier from storage or return an error if it doesn't exist
+			let identifier =
+				<UniqueIdentifiers<T>>::get(&unique_txn).ok_or(Error::<T>::UniqueNotFound)?;
 
-			// let id_digest = <T as frame_system::Config>::Hashing::hash(
-			// 	&[&unique_txn.encode()[..], &updater.encode()[..]].concat()[..],
-			// );
+			// Retrieve unique_details from storage or return an error if it doesn't exist
+			let unique_details =
+				<UniqueDigestEntries<T>>::get(&identifier).ok_or(Error::<T>::UniqueNotFound)?;
 
-
-			//Todo error handling required
-			let unique_details = <UniqueDigestEntries<T>>::get(&identifier).unwrap();
-
-			//let unique_details = <UniqueDigestEntries<T>>::get(&id_digest).ok_or(Error::<T>::UniqueNotFound)?;
+			// Return an error if the unique is already revoked
 			ensure!(!unique_details.revoked, Error::<T>::RevokedUnique);
 
-
-			//Currently checking for admin should i check for delegate ?
+			// Check if the updater is authorized as a delegate
 			if unique_details.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
 					&authorization,
 					updater.clone(),
-					None
+					None,
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 
-			ensure!(unique_details.registry == Some(Some(registry_id)), Error::<T>::UnauthorizedOperation);
+				// Return an error if the updater is not authorized as a delegate
+				ensure!(
+					unique_details.registry == Some(Some(registry_id)),
+					Error::<T>::UnauthorizedOperation
+				);
 			}
-
 
 			<UniqueDigestEntries<T>>::insert(
 				&identifier,
 				UniqueEntryOf::<T> { creator: updater.clone(), revoked: true, ..unique_details },
 			);
 
-			
+			// Perform additional operations and handle committing the changes
 			Self::update_commit(
 				&identifier,
 				unique_txn.clone(),
@@ -372,11 +364,12 @@ pub mod pallet {
 				UniqueCommitActionOf::Revoke,
 			)
 			.map_err(<Error<T>>::from)?;
+
+			// Emit a Revoke event
 			Self::deposit_event(Event::Revoke { identifier, author: updater });
 
 			Ok(())
 		}
-		
 	}
 }
 
