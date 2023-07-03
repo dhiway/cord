@@ -143,6 +143,10 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
+	////Swap the storage names keyidenfier value adas details
+	/// 
+	/// unique digest incoming hash as key and identifier as value
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -281,7 +285,7 @@ pub mod pallet {
 			<UniqueDigestEntries<T>>::insert(
 				&identifier,
 				UniqueEntryOf::<T> {
-					digest: unique_txn.to_owned(),
+					digest: unique_txn.clone(),
 					creator: creator.clone(),
 					registry: Some(u_reqistryid),
 					revoked: false,
@@ -290,7 +294,7 @@ pub mod pallet {
 
 			Self::update_commit(
 				&identifier,
-				unique_txn.to_owned(),
+				unique_txn.clone(),
 				creator.clone(),
 				UniqueCommitActionOf::Genesis,
 			)
@@ -363,7 +367,7 @@ pub mod pallet {
 			
 			Self::update_commit(
 				&identifier,
-				unique_txn.to_owned(),
+				unique_txn.clone(),
 				updater.clone(),
 				UniqueCommitActionOf::Revoke,
 			)
