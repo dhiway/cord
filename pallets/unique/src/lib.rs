@@ -120,14 +120,14 @@ pub mod pallet {
 	/// It maps from a unique transaction to an identifier (resolve from hash).
 	#[pallet::storage]
 	#[pallet::getter(fn unique_identifiers)]
-	pub type UniqueIdentifiers<T> =
+	pub type UniqueDigestEntries<T> =
 		StorageMap<_, Blake2_128Concat, InputUniqueOf<T>, UniqueIdOf, OptionQuery>;
 
 	/// unique hashes stored on chain.
 	/// It maps from a unique hash to an metadata (resolve from hash).
 	#[pallet::storage]
 	#[pallet::getter(fn unique_digest_entries)]
-	pub type UniqueDigestEntries<T> =
+	pub type UniqueIdentifiers<T> =
 		StorageMap<_, Blake2_128Concat, UniqueIdOf, UniqueEntryOf<T>, OptionQuery>;
 
 	/// unique commits stored on chain.
@@ -230,6 +230,10 @@ pub mod pallet {
 		#[pallet::weight({0})]
 		//On the create arguments make authorizatio optional so we dont need regostry
 		// id ,with authorization we can get registry details
+
+		//TODO : Check for optional steam Id from stream pallet 
+		//TODO : Identifirer check  prefix check
+		//TODO : IF Stream Identifier is given we will not create another identifieer
 		pub fn create(
 			origin: OriginFor<T>,
 			unique_txn: InputUniqueOf<T>,
@@ -268,15 +272,15 @@ pub mod pallet {
 			// Check if the unique_txn or identifier already exist and return an error if
 			// they do
 			ensure!(
-				!<UniqueIdentifiers<T>>::contains_key(&unique_txn) ||
-					!<UniqueDigestEntries<T>>::contains_key(&identifier),
+				!<UniqueDigestEntries<T>>::contains_key(&unique_txn) ||
+					!<UniqueIdentifiers<T>>::contains_key(&identifier),
 				Error::<T>::UniqueAlreadyAnchored
 			);
 
-			<UniqueIdentifiers<T>>::insert(&unique_txn, &identifier);
+			<UniqueDigestEntries<T>>::insert(&unique_txn, &identifier);
 
 			// Update the UniqueDigestEntries storage
-			<UniqueDigestEntries<T>>::insert(
+			<UniqueIdentifiers<T>>::insert(
 				&identifier,
 				UniqueEntryOf::<T> {
 					digest: unique_txn.clone(),
@@ -322,15 +326,15 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			// Check if unique_txn exists and return an error if it doesn't
-			ensure!(<UniqueIdentifiers<T>>::contains_key(&unique_txn), Error::<T>::UniqueNotFound);
+			ensure!(<UniqueDigestEntries<T>>::contains_key(&unique_txn), Error::<T>::UniqueNotFound);
 
 			// Retriving identifier from storage or return an error if it doesn't exist
 			let identifier =
-				<UniqueIdentifiers<T>>::get(&unique_txn).ok_or(Error::<T>::UniqueNotFound)?;
+				<UniqueDigestEntries<T>>::get(&unique_txn).ok_or(Error::<T>::UniqueNotFound)?;
 
 			// Retrieve unique_details from storage or return an error if it doesn't exist
 			let unique_details =
-				<UniqueDigestEntries<T>>::get(&identifier).ok_or(Error::<T>::UniqueNotFound)?;
+				<UniqueIdentifiers<T>>::get(&identifier).ok_or(Error::<T>::UniqueNotFound)?;
 
 			// Return an error if the unique is already revoked
 			ensure!(!unique_details.revoked, Error::<T>::RevokedUnique);
@@ -351,7 +355,7 @@ pub mod pallet {
 				);
 			}
 
-			<UniqueDigestEntries<T>>::insert(
+			<UniqueIdentifiers<T>>::insert(
 				&identifier,
 				UniqueEntryOf::<T> { creator: updater.clone(), revoked: true, ..unique_details },
 			);
