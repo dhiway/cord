@@ -19,7 +19,7 @@
 //! # Unique Pallet
 //!
 //!The digest anchoring functionality is implemented within the
-//! stream pallet, which does not support revoke/restore.
+//! unique pallet, which does not support revoke/restore.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -155,6 +155,9 @@ pub mod pallet {
 		/// A unique identifier status has been revoked.
 		/// \[unique identifier, controller\]
 		Revoke { identifier: UniqueIdOf, author: UniqueCreatorIdOf<T> },
+		/// A unique identifier status has been updated.
+		/// \[unique identifier, unique digest, controller\]
+		Update { identifier: UniqueIdOf, digest: InputUniqueOf<T>, author: UniqueCreatorIdOf<T> },
 	}
 
 	#[pallet::error]
@@ -175,7 +178,7 @@ pub mod pallet {
 		UniqueLinkRevoked,
 		// Invalid creator signature
 		InvalidSignature,
-		//Stream hash is not unique
+		//Unique hash is not unique
 		HashAlreadyAnchored,
 		// Expired Tx Signature
 		ExpiredSignature,
@@ -231,7 +234,7 @@ pub mod pallet {
 		//On the create arguments make authorizatio optional so we dont need regostry
 		// id ,with authorization we can get registry details
 
-		//TODO : Check for optional steam Id from stream pallet 
+		//TODO : Check for optional steam Id from stream pallet
 		//TODO : Identifirer check  prefix check
 		//TODO : IF Stream Identifier is given we will not create another identifieer
 		pub fn create(
@@ -272,8 +275,8 @@ pub mod pallet {
 			// Check if the unique_txn or identifier already exist and return an error if
 			// they do
 			ensure!(
-				!<UniqueDigestEntries<T>>::contains_key(&unique_txn) ||
-					!<UniqueIdentifiers<T>>::contains_key(&identifier),
+				!<UniqueDigestEntries<T>>::contains_key(&unique_txn)
+					|| !<UniqueIdentifiers<T>>::contains_key(&identifier),
 				Error::<T>::UniqueAlreadyAnchored
 			);
 
@@ -304,6 +307,78 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Updates the unique identifier with a new digest. The updated digest
+		/// represents the changes a unique reference document might have
+		/// undergone. Arguments:
+		///
+		/// * `origin`: The origin of the call.
+		/// * `unique_id`: The identifier of the unique to be updated.
+		/// * `unique_digest`: The hash of the unique reference document.
+		/// * `authorization`: The authorization ID of the delegate who is
+		///   allowed to perform this action.
+		///
+		/// Returns:
+		///
+		/// DispatchResult
+		#[pallet::call_index(1)]
+		#[pallet::weight({0})]
+		pub fn update(
+			origin: OriginFor<T>,
+			unique_id: UniqueIdOf,
+			unique_txn: InputUniqueOf<T>,
+			authorization: Option<AuthorizationIdOf>,
+		) -> DispatchResult {
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let unique_details =
+				<UniqueIdentifiers<T>>::get(&unique_id).ok_or(Error::<T>::UniqueNotFound)?;
+
+			// If it is same digest then it should throw unique anchored error
+			ensure!(unique_details.digest != unique_txn, Error::<T>::UniqueAlreadyAnchored);
+			ensure!(!unique_details.revoked, Error::<T>::RevokedUnique);
+
+			if unique_details.creator != updater {
+				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
+					&authorization.unwrap(),
+					updater.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+
+				ensure!(
+					unique_details.registry.clone().unwrap_or(None) == Some(registry_id),
+					Error::<T>::UnauthorizedOperation
+				);
+			}
+
+			//Update entries and Identifiers mapping storage mapping
+
+			<UniqueDigestEntries<T>>::insert(&unique_txn, &unique_id);
+
+			<UniqueIdentifiers<T>>::insert(
+				&unique_id,
+				UniqueEntryOf::<T> {
+					digest: unique_txn.clone(),
+					creator: updater.clone(),
+					..unique_details
+				},
+			);
+			Self::update_commit(
+				&unique_id,
+				unique_txn.clone(),
+				updater.clone(),
+				UniqueCommitActionOf::Update,
+			)
+			.map_err(<Error<T>>::from)?;
+
+			Self::deposit_event(Event::Update {
+				identifier: unique_id,
+				digest: unique_txn,
+				author: updater,
+			});
+
+			Ok(())
+		}
 		/// Revokes a unique.
 		///
 		/// Arguments:
@@ -326,7 +401,10 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			// Check if unique_txn exists and return an error if it doesn't
-			ensure!(<UniqueDigestEntries<T>>::contains_key(&unique_txn), Error::<T>::UniqueNotFound);
+			ensure!(
+				<UniqueDigestEntries<T>>::contains_key(&unique_txn),
+				Error::<T>::UniqueNotFound
+			);
 
 			// Retriving identifier from storage or return an error if it doesn't exist
 			let identifier =
@@ -378,16 +456,16 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// `update_commit` takes a stream id, a digest, a proposer, and a commit
-	/// action, and pushes the commit action to the stream's commits
+	/// `update_commit` takes a unique id, a digest, a proposer, and a commit
+	/// action, and pushes the commit action to the unique's commits
 	///
 	/// Arguments:
 	///
-	/// * `tx_stream`: The stream id of the stream that the commit is being made
+	/// * `tx_unique`: The unique id of the unique that the commit is being made
 	///   to.
 	/// * `tx_digest`: The digest of the transaction that was committed.
 	/// * `proposer`: The account that is proposing the transaction.
-	/// * `commit`: Action taken on a stream.
+	/// * `commit`: Action taken on a unique.
 	///
 	/// Returns:
 	///
