@@ -158,6 +158,9 @@ pub mod pallet {
 		/// A unique identifier status has been updated.
 		/// \[unique identifier, unique digest, controller\]
 		Update { identifier: UniqueIdOf, digest: InputUniqueOf<T>, author: UniqueCreatorIdOf<T> },
+		/// A unique identifier has been removed.
+		/// \[unique identifier,  controller\]
+		Remove { identifier: UniqueIdOf, author: UniqueCreatorIdOf<T> },
 	}
 
 	#[pallet::error]
@@ -449,6 +452,57 @@ pub mod pallet {
 
 			// Emit a Revoke event
 			Self::deposit_event(Event::Revoke { identifier, author: updater });
+
+			Ok(())
+		}
+		/// Removes a unique from the registry.
+		///
+		/// Arguments:
+		///
+		/// * `origin`: The origin of the transaction.
+		/// * `unique_id`: The unique id of the unique to be removed.
+		/// * `authorization`: The authorization ID of the delegate who is
+		///   allowed to perform this action.
+		///
+		/// Returns:
+		///
+		/// DispatchResult
+		#[pallet::call_index(4)]
+		#[pallet::weight({0})]
+		pub fn remove(
+			origin: OriginFor<T>,
+			unique_id: UniqueIdOf,
+			authorization: Option<AuthorizationIdOf>,
+		) -> DispatchResult {
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let unique_details =
+				<UniqueIdentifiers<T>>::get(&unique_id).ok_or(Error::<T>::UniqueNotFound)?;
+
+			if unique_details.creator != updater {
+				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
+					&authorization.unwrap(),
+					updater.clone(),
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
+
+				ensure!(
+					unique_details.registry.clone().unwrap_or(None) == Some(registry_id),
+					Error::<T>::UnauthorizedOperation
+				);
+			}
+
+			<UniqueIdentifiers<T>>::take(&unique_id);
+
+			Self::update_commit(
+				&unique_id,
+				unique_details.digest,
+				updater.clone(),
+				UniqueCommitActionOf::Remove,
+			)
+			.map_err(<Error<T>>::from)?;
+
+			Self::deposit_event(Event::Remove { identifier: unique_id, author: updater });
 
 			Ok(())
 		}
