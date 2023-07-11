@@ -1,0 +1,55 @@
+name: docker
+
+on:
+  push:
+    branches:
+      - develop
+      - "release*"
+
+jobs:
+  release-image:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        architecture: [arm64, x86_64]
+
+    env:
+      IMAGE_REPOSITORY: ${{ github.event.repository.name }}
+      IMAGE_TAG: ${{ github.sha }}
+      DOCKER_SERVER: docker.io
+      DOCKER_USER: dhiway
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Authenticate with DockerHub
+        run: |
+          # Authenticate with Dockerhub using a Docker password secret
+          docker login \
+            ${{ env.DOCKER_SERVER }} \
+            -u ${{ env.DOCKER_USER }} \
+            -p "${{ secrets.DOCKER_PASSWORD }}"
+
+      - name: Build and push Docker Image
+        run: |
+          # Get the branch name
+          DOCKER_BRANCH=${{ github.ref }}
+          DOCKER_BRANCH=${DOCKER_BRANCH/refs\/heads\//}
+
+          # Build the Docker image
+          docker build \
+            --no-cache \
+            --file Dockerfile \
+            --tag ${{ env.IMAGE_REPOSITORY }}-${{ matrix.architecture }}:${DOCKER_BRANCH} \
+            .
+
+          # Tag the Docker image with the repository name, architecture, and the commit hash
+          docker tag \
+            ${{ env.IMAGE_REPOSITORY }}-${{ matrix.architecture }}:${DOCKER_BRANCH} \
+            ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}-${{ matrix.architecture }}:${{ env.IMAGE_TAG }} \
+            && docker tag \
+            ${{ env.IMAGE_REPOSITORY }}-${{ matrix.architecture }}:${DOCKER_BRANCH} \
+            ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}-${{ matrix.architecture }}:${DOCKER_BRANCH}
+
+          # Push the Docker image to the registry
+          docker push ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}-${{ matrix.architecture }}:${DOCKER_BRANCH}
