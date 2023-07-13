@@ -79,7 +79,7 @@ pub struct UniqueCommit<UniqueCommitActionOf, UniqueDigestOf, UniqueCreatorIdOf,
 
 //Question to adsk use of identifier ?
 
-/// Defining the possible actions that can be taken on a stream.
+/// Defining the possible actions that can be taken on a unique.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub enum UniqueCommitActionOf {
 	Genesis,
@@ -87,5 +87,4 @@ pub enum UniqueCommitActionOf {
 	Revoke,
 	Restore,
 	Remove,
-	Digest,
 }
