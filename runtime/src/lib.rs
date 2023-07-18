@@ -912,6 +912,24 @@ impl pallet_stream::Config for Runtime {
 	type MaxStreamCommits = MaxStreamCommits;
 }
 
+//start of new changes for unique in rutime/src.rs 18-07-20223
+parameter_types! {
+	pub const MaxUniqueCommits: u32 = 1_000;
+	pub const MaxEncodedLength: u32 = 15_360;
+}
+
+impl pallet_unique::Config for Runtime {
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::pallet_unique::WeightInfo<Runtime>;
+	type MaxUniqueCommits = MaxUniqueCommits;
+	type MaxEncodedLength = MaxEncodedLength;
+}
+
+//End of new changes for unique in rutime/src.rs 18-07-20223
+
+
 impl pallet_remark::Config for Runtime {
 	type WeightInfo = weights::pallet_remark::WeightInfo<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
@@ -961,6 +979,7 @@ construct_runtime! {
 		Registry: pallet_registry = 104,
 		Stream: pallet_stream = 105,
 		DidNames: pallet_did_names = 106,
+		Unique: pallet_unique = 107,
 		Sudo: pallet_sudo = 255,
 	}
 }
@@ -1003,6 +1022,9 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
 			},
 			RuntimeCall::Stream { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
+			RuntimeCall::Unique { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
 			},
 			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) => {
@@ -1115,6 +1137,7 @@ mod benches {
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
 		[pallet_stream, Stream]
+		[pallet_unique, Unique]
 		[pallet_registry, Registry]
 		[pallet_did, Did]
 		[pallet_did_names, DidNames]

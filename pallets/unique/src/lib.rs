@@ -247,19 +247,17 @@ pub mod pallet {
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			ensure!(unique_txn.len() > 0, Error::<T>::EmptyTransaction);
+			ensure!(!unique_txn.is_empty() , Error::<T>::EmptyTransaction);
 
 			ensure!(
 				unique_txn.len() <= T::MaxEncodedLength::get() as usize,
 				Error::<T>::MaxEncodedLimitExceeded
 			);
 
-			let registry_id: Ss58Identifier;
-
 			let mut u_reqistryid: Option<RegistryIdOf> = None;
 
 			if let Some(authorization) = authorization.clone() {
-				registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
+				let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
 					&authorization,
 					creator.clone(),
 					None,
