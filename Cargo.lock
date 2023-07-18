@@ -5848,7 +5848,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-unique"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "cord-primitives",
  "cord-utilities",
