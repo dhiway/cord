@@ -39,7 +39,7 @@ jobs:
       - name: Build and Push
         run: |
           # Get the branch name
-          DOCKER_BRANCH=${{ github.head_ref }}
+          DOCKER_BRANCH=${{ github.ref }}
           DOCKER_BRANCH=${DOCKER_BRANCH/refs\/heads\//}
 
           docker buildx build \
