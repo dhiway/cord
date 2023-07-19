@@ -1,5 +1,5 @@
 # This is the build stage for CORD. Here we create the binary in a temporary image.
-FROM docker.io/paritytech/ci-linux:production as builder
+FROM docker.io/paritytech/ci-unified:latest as builder
 
 LABEL maintainer="engineering@dhiway.com"
 ARG PROFILE=production
