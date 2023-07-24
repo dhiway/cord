@@ -1,8 +1,7 @@
-# Supported Platforms:
+# Buildx Platforms:
 #
 # `linux/amd64` - x86-64 Linux OS
-# `linux/arm64` - 64-bit ARM architecture running a Linux OS.
-# `linux/arm64/v8` - M1 MacOS
+# `linux/arm64` - 64-bit ARM architecture.
 #
 
 name: docker
@@ -56,6 +55,6 @@ jobs:
             --file Dockerfile \
             --tag ${{ env.IMAGE_REPOSITORY }}:${DOCKER_BRANCH} \
             --tag ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${DOCKER_BRANCH} \
-            --tag ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${DOCKER_TAG} \
-            --platform linux/amd64,linux/arm64,linux/arm64/v8 \
+            --tag ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${IMAGE_TAG} \
+            --platform linux/amd64,linux/arm64 \
             .
