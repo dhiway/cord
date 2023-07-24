@@ -1,0 +1,68 @@
+[package]
+name = "pallet-score"
+description = 'Manage ONDC Network Scores.'
+version = "0.8.1"
+edition = "2021"
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
+
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
+
+[build-dependencies]
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+
+[dev-dependencies]
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = ["std"]}
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = ["std"]}
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = ["std"]}
+cord-utilities = { package = "cord-utilities", path="../../utilities", features = ["mock"] }
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
+scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
+cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
+cord-utilities = { package = "cord-utilities", path="../../utilities", default-features = false }
+log = { version = "0.4.17", default-features = false  }
+
+# Substrate dependencies
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
+frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
+sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false,optional = true }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
+
+
+[features]
+default = [ 'std' ]
+runtime-benchmarks = [
+  "frame-benchmarking/runtime-benchmarks",
+  "sp-runtime/runtime-benchmarks",
+  "frame-support/runtime-benchmarks",
+  "frame-system/runtime-benchmarks",
+  "cord-utilities/runtime-benchmarks",
+]
+std = [
+  "codec/std",
+  "scale-info/std",
+  "frame-support/std",
+  "frame-system/std",
+  "frame-benchmarking?/std",
+  "pallet-balances/std",
+  "cord-primitives/std",
+  "cord-utilities/std",
+  "sp-runtime/std",
+  "sp-core/std",
+  "sp-io/std",
+  "sp-std/std",
+  "log/std",
+] 
+try-runtime = [
+  "frame-support/try-runtime",
+  "frame-system/try-runtime",
+]
