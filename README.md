@@ -61,9 +61,10 @@ Open the Terminal application and execute the following commands:
 # Install Homebrew if necessary https://brew.sh/
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
 
-# Make sure Homebrew is up-to-date, install openssl
+# Make sure Homebrew is up-to-date, install openssl and protobuf
 brew update
 brew install openssl
+brew install protobuf
 ```
 
 ## 2. Rust developer environment
