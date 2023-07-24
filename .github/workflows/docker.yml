@@ -1,3 +1,10 @@
+# Supported Platforms:
+#
+# `linux/amd64` - x86-64 Linux OS
+# `linux/arm64` - 64-bit ARM architecture running a Linux OS.
+# `linux/arm64/v8` - M1 MacOS
+#
+
 name: docker
 
 on:
@@ -36,15 +43,19 @@ jobs:
           username: ${{ env.DOCKER_USER }}
           password: "${{ secrets.DOCKER_PASSWORD }}"
 
-      - name: Build and Push
+      - name: Build and Push Docker Image
         run: |
           # Get the branch name
           DOCKER_BRANCH=${{ github.ref }}
           DOCKER_BRANCH=${DOCKER_BRANCH/refs\/heads\//}
 
+          # Build the Docker image with Buildx
           docker buildx build \
             --push \
+            --no-cache \
             --file Dockerfile \
             --tag ${{ env.IMAGE_REPOSITORY }}:${DOCKER_BRANCH} \
+            --tag ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${DOCKER_BRANCH} \
+            --tag ${{ env.DOCKER_SERVER }}/${{ env.DOCKER_USER }}/${{ env.IMAGE_REPOSITORY }}:${DOCKER_TAG} \
             --platform linux/amd64,linux/arm64,linux/arm64/v8 \
             .
