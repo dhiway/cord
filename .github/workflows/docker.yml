@@ -26,6 +26,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Runner info
+        run: |
+          echo "Runner Storage:"
+          df -h
+          echo "Runner Memory:"
+          cat /proc/meminfo
+
         # Setup hardware emulator using QEMU
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2

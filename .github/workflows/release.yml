@@ -25,6 +25,13 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
+      - name: Runner info
+        run: |
+          echo "Runner Storage:"
+          df -h
+          echo "Runner Memory:"
+          cat /proc/meminfo
+
       - name: Build binary (x86_64)
         run: |
           cargo build --locked --profile production --target x86_64-unknown-linux-gnu
