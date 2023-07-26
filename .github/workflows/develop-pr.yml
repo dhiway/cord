@@ -1,7 +1,7 @@
 name: pr-submit
 on:
   pull_request:
-    branches: [ develop]
+    branches: [develop]
     paths-ignore:
       - "doc/**"
       - "**.md"
@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-        
+
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
 
@@ -31,6 +31,13 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Runner info
+        run: |
+          echo "Runner Storage:"
+          df -h
+          echo "Runner Memory:"
+          cat /proc/meminfo
 
       - name: Check code syntax
         run: cargo check --release --all --all-targets --locked --verbose --color always
