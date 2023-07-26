@@ -45,10 +45,10 @@ Rust
 @amarts 
 
 ## Complexity
-Medium
+Pick one of [High]/[Medium]/[Low]
 
 ## Category
-Feature
+Pick one or more of [CI/CD], [Integrations], [Performance Improvement], [Security], [UI/UX/Design], [Bug], [Feature], [Documentation], [Deployment], [Test], [PoC]
 
 ## Sub Category
-Technical Debt
+Pick one or more of [API], [Database], [Analytics], [Refactoring], [Data Science], [Machine Learning], [Accessibility], [Internationalization], [Localization], [Frontend], [Backend], [Mobile], [SEO], [Configuration], [Deprecation], [Breaking Change], [Maintenance], [Support], [Question], [Technical Debt], [Beginner friendly], [Research], [Reproducible], [Needs Reproduction]
