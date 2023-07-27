@@ -5671,6 +5671,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-scoring"
+version = "0.8.1"
+dependencies = [
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-session"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
