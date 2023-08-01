@@ -52,6 +52,7 @@ pub mod types;
 
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
 use frame_support::ensure;
+use sp_runtime::Saturating;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -70,13 +71,13 @@ pub mod pallet {
 	pub(crate) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
 	///Type represents the signature used for entity authentication.
-	pub type EntitySignatureOf<T> = <T as Config>::Signature;
+	pub type EntitySignatureOf<T> = <T as Config>::EntitySignatureId;
 
 	/// Type for an Identifier
-	pub type IdentifierOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedIdentifierLength>;
+	pub type IdentifierOf = Ss58Identifier;
 
 	/// Type for an Identifier
-	pub type ScoreIdentifierOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedScoreIdentifierLength>;
+	pub type ScoreIdentifierOf = Ss58Identifier;
 
 	/// Type for a block number.
 	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
@@ -93,14 +94,14 @@ pub mod pallet {
 	/// Hash of the Entry.
 	pub type EntryHashOf<T> = <T as frame_system::Config>::Hash;
 
-	pub type JournalIdentifierOf<T> = IdentifierOf<T>;
-	pub type RequestIdentifierOf<T> = ScoreIdentifierOf<T>;
-	pub type TransactionIdentifierOf<T> = ScoreIdentifierOf<T>;
+	pub type JournalIdentifierOf = IdentifierOf;
+	pub type RequestIdentifierOf = ScoreIdentifierOf;
+	pub type TransactionIdentifierOf = ScoreIdentifierOf;
 
 	pub type JournalDetailsOf<T> = JournalDetails<
 		EntityIdentifierOf<T>,
-		RequestIdentifierOf<T>,
-		TransactionIdentifierOf<T>,
+		RequestIdentifierOf,
+		TransactionIdentifierOf,
 		CollectorIdentifierOf<T>,
 		RequestorIdentifierOf<T>,
 		ScoreTypeOf,
@@ -124,21 +125,12 @@ pub mod pallet {
 		>;
 		type OriginSuccess: CallSources<AccountIdOf<Self>, EntitySignatureOf<Self>>;
 
-		type Signature: Verify<Signer = <Self as pallet::Config>::Signer>
-			+ Parameter
-			+ MaxEncodedLen
-			+ TypeInfo;
-
-		type Signer: IdentifyAccount<AccountId = AccountIdOf<Self>> + Parameter;
+		type EntitySignatureId: Parameter + MaxEncodedLen;
 
 		#[pallet::constant]
 		type MinScoreValue: Get<u32>;
 		#[pallet::constant]
 		type MaxScoreValue: Get<u32>;
-		#[pallet::constant]
-		type MaxEncodedIdentifierLength: Get<u32>;
-		#[pallet::constant]
-		type MaxEncodedScoreIdentifierLength: Get<u32>;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -156,7 +148,7 @@ pub mod pallet {
 	pub type Journal<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
-		JournalIdentifierOf<T>,
+		JournalIdentifierOf,
 		Blake2_128Concat,
 		ScoreTypeOf,
 		JournalEntryOf<T>,
@@ -185,7 +177,7 @@ pub mod pallet {
 	pub type TidEntries<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
-		TransactionIdentifierOf<T>,
+		TransactionIdentifierOf,
 		Blake2_128Concat,
 		ScoreTypeOf,
 		EntityIdentifierOf<T>,
@@ -197,9 +189,9 @@ pub mod pallet {
 		/// A new journal entry has been added.
 		/// \[entry identifier, entity, author\]
 		JournalEntry {
-			identifier: JournalIdentifierOf<T>,
+			identifier: JournalIdentifierOf,
 			entity: EntityIdentifierOf<T>,
-			author: RequestorIdentifierOf<T>,
+			author: EntitySignatureOf<T>,
 		},
 		/// Aggregate scores has been updated.
 		/// \[entity identifier\]
@@ -240,7 +232,7 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::entries())]
 		pub fn entries(origin: OriginFor<T>, journal: JournalInputOf<T>) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			ensure!(
 				(journal.entry.score >= T::MinScoreValue::get()
@@ -252,13 +244,8 @@ pub mod pallet {
 				Error::<T>::DigestAlreadyAnchored
 			);
 
-			ensure!(
-				journal.signature.verify(&(&journal.digest).encode()[..], &journal.entry.entity),
-				Error::<T>::InvalidEntitySignature
-			);
-
 			let identifier = Ss58Identifier::to_scoring_id(&(&journal.digest).encode()[..])
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
 				!<TidEntries<T>>::contains_key(&journal.entry.tid, &journal.entry.score_type),
