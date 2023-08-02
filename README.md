@@ -8,15 +8,119 @@ It is designed to simplify the management of information, making it easier for o
 
 CORD builds on the modular approach of the Substrate framework. It defines a rich set of primitives to help design exceptional levels of innovations for existing and emerging industries. Such innovative approaches cover conducting transactions and maintaining records across several sectors such as finance, trade, health, energy, water resources, agriculture and many more.
 
-### Getting Started
+## Quick Start Guide
 
-This section will guide you through the **following steps** needed to prepare a computer for **CORD** development. Since CORD is built with [the Rust programming language](https://www.rust-lang.org/), the first thing you will need to do is prepare the computer for Rust development - these steps will vary based on the computer's operating system.
+### Prerequisites
 
-Once Rust is configured, you will use its toolchains to interact with Rust projects; the commands for Rust's toolchains will be the same for all supported, Unix-based operating systems.
+Before you begin, ensure you have the following prerequisites installed on your system:
 
-Also, join and discover the various [discord] channels where you can engage, participate and keep up with the latest developments.
+- [Rust](http://rustup.rs/)
+- `Make`
+- [Build packages](#install-dependencies)
 
-## 1. Install dependencies
+### Build CORD in production mode
+
+To build the production version of the project, optimized for performance, execute the following command:
+
+```bash
+make
+
+# or
+
+make build
+```
+
+This will create the production binary in the `target/production` directory.
+
+
+### Build the CORD in debug mode:
+
+To build the project in the `debug` profile, run the following command:
+
+```bash
+make build-debug
+```
+
+This will compile the project without optimization and generate the executable in the `target/debug` directory.
+
+### Checking the CORD
+
+To perform a static analysis of the entire project, use the following command:
+
+```bash
+make check
+```
+
+This will check the code and dependencies for errors without producing an executable.
+
+### Running Tests
+
+To run all tests in the project, including runtime benchmarks and without fail-fast, run the following command:
+
+```bash
+make test
+```
+
+### Run Single Node Local CORD Network
+
+To run the production binary locally with the `--dev` flag, use the following command:
+
+```bash
+make run-local
+```
+
+### Displaying Help Message
+
+To see the help message of the production binary, run the following command:
+
+```bash
+make help
+```
+
+### Clean Build Artifacts
+
+To remove all build artifacts, use the following command:
+
+```bash
+make clean
+```
+
+This will clean up any compiled files and reset the project to a clean state.
+
+## Specific Pallet Checks and Tests
+
+The `Makefile` also provides specific rules to `check` and `test` individual `pallets`. 
+You can use these commands to `check` and `test` specific parts of the project.
+
+### Pallet Checks
+
+To check specific pallets, use the following commands:
+
+```bash
+make check-did
+make check-authorship
+make check-did-name
+make check-registry
+make check-schema
+make check-stream
+```
+
+### Pallet Tests
+
+To run tests for specific pallets, use the following commands:
+
+```bash
+make test-did
+make test-authorship
+make test-did-name
+make test-registry
+make test-schema
+make test-stream
+```
+
+---
+
+## Install Dependencies
 
 ### Ubuntu/Debian
 
@@ -66,8 +170,22 @@ brew update
 brew install openssl
 brew install protobuf
 ```
+---
 
-## 2. Rust developer environment
+## Getting Started
+
+This section will guide you through the **following steps** needed to prepare a computer for **CORD** development. Since CORD is built with [the Rust programming language](https://www.rust-lang.org/), the first thing you will need to do is prepare the computer for Rust development - these steps will vary based on the computer's operating system.
+
+Once Rust is configured, you will use its toolchains to interact with Rust projects; the commands for Rust's toolchains will be the same for all supported, Unix-based operating systems.
+
+Also, join and discover the various [discord] channels where you can engage, participate and keep up with the latest developments.
+
+<details>
+   <summary>
+      <b>
+         1. Rust developer environment
+      </b>
+   </summary>
 
 This guide uses <https://rustup.rs> installer and the `rustup` tool to manage the Rust toolchain.
 First, install and configure `rustup`:
@@ -87,95 +205,116 @@ rustup update
 rustup update nightly
 rustup target add wasm32-unknown-unknown --toolchain nightly
 ```
+</details>
 
-## 3. Build the node
+<details>
+   <summary>
+      <b>
+         2. Build the node
+      </b>
+   </summary>
 
 You can use rustup to install a specific version of rust, including its custom compilation targets. Using rustup, it should set a proper toolchain automatically while you call rustup show within project's root directory. Naturally, we can try to use different versions of these dependencies, i.e. delivered by system's default package manager. To compile the CORD node:
 
 1. Clone this repository by running the following command:
 
-   ```bash
-   git clone https://github.com/dhiway/cord
-   ```
+```bash
+git clone https://github.com/dhiway/cord
+```
 
-1. Change to the root of the node template directory by running the following command:
+2. Change to the root of the node template directory by running the following command:
 
-   ```bash
-   cd cord
-   git checkout develop
-   ```
+```bash
+cd cord
+git checkout develop
+```
 
-1. Compile by running the following command:
+3. Compile by running the following command:
 
-   ```bash
-   cargo build --release
-   ```
+```bash
+make
+```
 
-   You should always use the `--release` flag to build optimized artifacts.
+</details>
 
-## 4. Run the node
+<details>
+   <summary>
+      <b>
+         3. Run the node
+      </b>
+   </summary>
 
 1. Start the single-node development chain, by running:
 
-   ```
-   ./target/release/cord --dev
-   ```
+```bash
+make run-local
+```
 
-1. Detailed logs may be shown by running the chain with the following environment variables set:
+2. Detailed logs may be shown by running the chain with the following environment variables set:
 
-   ```bash
-   RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/cord --dev
-   ```
+```bash
+RUST_LOG=debug RUST_BACKTRACE=1 make run-local
+```
 
-1. Additional CLI usage options
+3. Additional CLI usage options
 
-   ```
-   ./target/release/cord --help
-   ```
+```bash
+make help
+```
 
-## 5. Using Docker
+</details>
 
-The easiest/faster option to run CORD in Docker is to use the latest release images. These are small images that use the latest official release of the CORD binary, pulled from our package repository.
+<details>
+   <summary>
+      <b>
+         4. Using Docker
+      </b>
+   </summary>
+
+The easiest/faster option to run CORD in Docker is to use the latest release images. 
+These are small images that use the latest official release of the CORD binary, pulled from our package repository.
 
 1. Let's first check the version we have. The first time you run this command, the CORD docker image will be downloaded. This takes a bit of time and bandwidth, be patient:
 
-   ```bash
-    docker run --rm -it dhiway/cord:develop --version
-   ```
+```bash
+docker run --rm -it dhiway/cord:develop --version
+```
 
-   You can also pass any argument/flag that CORD supports:
+You can also pass any argument/flag that CORD supports:
 
-   ```bash
-    docker run --rm -it dhiway/cord:develop --dev --name "CordDocker"
-   ```
+```bash
+docker run --rm -it dhiway/cord:develop --dev --name "CordDocker"
+```
 
-   Once you are done experimenting and picking the best node name :) you can start CORD as daemon, exposes the CORD ports and mount a volume that will keep your blockchain data locally. Make sure that you set the ownership of your local directory to the CORD user that is used by the container. Set user id 1000 and group id 1000, by running `chown 1000.1000 /my/local/folder -R` if you use a bind mount.
+Once you are done experimenting and picking the best node name :) you can start CORD as daemon, exposes the CORD ports and mount a volume that will keep your blockchain data locally. 
+Make sure that you set the ownership of your local directory to the CORD user that is used by the container. Set user id 1000 and group id 1000, by running `chown 1000.1000 /my/local/folder -R` if you use a bind mount.
 
-1. To start a CORD node on default rpc port 9933 and default p2p port 30333 use the following command. If you want to connect to rpc port 9933, then must add CORD startup parameter: `--rpc-external`.
+2. To start a CORD node on default rpc port 9933 and default p2p port 30333 use the following command. If you want to connect to rpc port 9933, then must add CORD startup parameter: `--rpc-external`.
 
-   ```bash
-   docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord dhiway/cord:develop --dev --rpc-external --rpc-cors all
-   ```
+```bash
+docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord dhiway/cord:develop --dev --rpc-external --rpc-cors all
+```
 
-1. Additionally if you want to have custom node name you can add the `--name "YourName"` at the end
+3. Additionally if you want to have custom node name you can add the `--name "YourName"` at the end
 
-   ```bash
-   docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord dhiway/cord:develop --dev --rpc-external --rpc-cors all --name "CordDocker"
-   ```
+```bash
+docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord dhiway/cord:develop --dev --rpc-external --rpc-cors all --name "CordDocker"
+```
 
-1. If you also want to expose the webservice port 9944 use the following command:
+4. If you also want to expose the webservice port 9944 use the following command:
 
-   ```bash
-   docker run -d -p 30333:30333 -p 9933:9933 -p 9944:9944 -v /my/local/folder:/cord dhiway/cord:develop --dev --ws-external --rpc-external --rpc-cors all --name "CordDocker"
-   ```
+```bash
+docker run -d -p 30333:30333 -p 9933:9933 -p 9944:9944 -v /my/local/folder:/cord dhiway/cord:develop --dev --ws-external --rpc-external --rpc-cors all --name "CordDocker"
+```
 
-1. To get up and running with the smallest footprint on your system, you may use the CORD Docker image.
-   You can build it yourself (it takes a while...).
+5. To get up and running with the smallest footprint on your system, you may use the CORD Docker image.
+You can build it yourself (it takes a while...).
 
-   ```
-    docker build -t local/cord:develop .
-   ```
+```bash
+docker build -t local/cord:develop .
+```
 
+</details>
 
 ## Other projects of interest
 

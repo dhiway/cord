@@ -1,7 +1,7 @@
 # Makefile for CORD Project
 
 # Flags for common Cargo commands
-CARGO_FLAGS := --locked --all-targets --color always
+CARGO_FLAGS := --locked --all-targets --features=runtime-benchmarks --color always
 
 # Define the binary name
 BINARY := cord
@@ -66,7 +66,7 @@ check-stream:
 
 # Rule to run tests with runtime benchmarks and without fail-fast
 test:
-	cargo test --all --features=runtime-benchmarks --no-fail-fast $(CARGO_FLAGS)
+	cargo test --all --no-fail-fast $(CARGO_FLAGS)
 
 # Rule to test the DID pallet with all targets
 test-did:
