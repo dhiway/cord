@@ -12,11 +12,8 @@ CORD builds on the modular approach of the Substrate framework. It defines a ric
 
 ### Prerequisites
 
-Before you begin, ensure you have the following prerequisites installed on your system:
+Before you begin, ensure you have the [necessary packages](/docs/installation.md) to locally run CORD.
 
-- [Rust](http://rustup.rs/)
-- `Make`
-- [Build packages](#install-dependencies)
 
 ### Build CORD in production mode
 
@@ -24,10 +21,6 @@ To build the production version of the project, optimized for performance, execu
 
 ```bash
 make
-
-# or
-
-make build
 ```
 
 This will create the production binary in the `target/production` directory.
@@ -69,6 +62,12 @@ To run the production binary locally with the `--dev` flag, use the following co
 make run-local
 ```
 
+Detailed logs may be shown by running the chain with the following environment variables set:
+
+```bash
+RUST_LOG=debug RUST_BACKTRACE=1 make run-local
+```
+
 ### Displaying Help Message
 
 To see the help message of the production binary, run the following command:
@@ -92,7 +91,7 @@ This will clean up any compiled files and reset the project to a clean state.
 The `Makefile` also provides specific rules to `check` and `test` individual `pallets`. 
 You can use these commands to `check` and `test` specific parts of the project.
 
-### Pallet Checks
+### Check Pallets
 
 To check specific pallets, use the following commands:
 
@@ -105,7 +104,7 @@ make check-schema
 make check-stream
 ```
 
-### Pallet Tests
+### Test Pallets
 
 To run tests for specific pallets, use the following commands:
 
@@ -120,159 +119,7 @@ make test-stream
 
 ---
 
-## Install Dependencies
-
-### Ubuntu/Debian
-
-Use a terminal shell to execute the following commands:
-
-```bash
-sudo apt update
-# May prompt for location information
-sudo apt install -y git clang curl libssl-dev llvm libudev-dev pkg-config
-```
-
-### Arch Linux
-
-Run these commands from a terminal:
-
-```bash
-pacman -Syu --needed --noconfirm curl git clang
-```
-
-### Fedora
-
-Run these commands from a terminal:
-
-```bash
-sudo dnf update
-sudo dnf install clang curl git openssl-devel
-```
-
-### OpenSUSE
-
-Run these commands from a terminal:
-
-```bash
-sudo zypper install clang curl git openssl-devel llvm-devel libudev-devel
-```
-
-### macOS
-
-Open the Terminal application and execute the following commands:
-
-```bash
-# Install Homebrew if necessary https://brew.sh/
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
-
-# Make sure Homebrew is up-to-date, install openssl and protobuf
-brew update
-brew install openssl
-brew install protobuf
-```
----
-
-## Getting Started
-
-This section will guide you through the **following steps** needed to prepare a computer for **CORD** development. Since CORD is built with [the Rust programming language](https://www.rust-lang.org/), the first thing you will need to do is prepare the computer for Rust development - these steps will vary based on the computer's operating system.
-
-Once Rust is configured, you will use its toolchains to interact with Rust projects; the commands for Rust's toolchains will be the same for all supported, Unix-based operating systems.
-
-Also, join and discover the various [discord] channels where you can engage, participate and keep up with the latest developments.
-
-<details>
-   <summary>
-      <b>
-         1. Rust developer environment
-      </b>
-   </summary>
-
-This guide uses <https://rustup.rs> installer and the `rustup` tool to manage the Rust toolchain.
-First, install and configure `rustup`:
-
-```bash
-# Install
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-# Configure
-source ~/.cargo/env
-```
-
-Configure the Rust toolchain to default to the latest stable version, add nightly and the nightly wasm target:
-
-```bash
-rustup default stable
-rustup update
-rustup update nightly
-rustup target add wasm32-unknown-unknown --toolchain nightly
-```
-</details>
-
-<details>
-   <summary>
-      <b>
-         2. Build the node
-      </b>
-   </summary>
-
-You can use rustup to install a specific version of rust, including its custom compilation targets. Using rustup, it should set a proper toolchain automatically while you call rustup show within project's root directory. Naturally, we can try to use different versions of these dependencies, i.e. delivered by system's default package manager. To compile the CORD node:
-
-1. Clone this repository by running the following command:
-
-```bash
-git clone https://github.com/dhiway/cord
-```
-
-2. Change to the root of the node template directory by running the following command:
-
-```bash
-cd cord
-git checkout develop
-```
-
-3. Compile by running the following command:
-
-```bash
-make
-```
-
-</details>
-
-<details>
-   <summary>
-      <b>
-         3. Run the node
-      </b>
-   </summary>
-
-1. Start the single-node development chain, by running:
-
-```bash
-make run-local
-```
-
-2. Detailed logs may be shown by running the chain with the following environment variables set:
-
-```bash
-RUST_LOG=debug RUST_BACKTRACE=1 make run-local
-```
-
-3. Additional CLI usage options
-
-```bash
-make help
-```
-
-</details>
-
-<details>
-   <summary>
-      <b>
-         4. Using Docker
-      </b>
-   </summary>
-
-The easiest/faster option to run CORD in Docker is to use the latest release images. 
-These are small images that use the latest official release of the CORD binary, pulled from our package repository.
+### Using Docker
 
 1. Let's first check the version we have. The first time you run this command, the CORD docker image will be downloaded. This takes a bit of time and bandwidth, be patient:
 
@@ -313,8 +160,6 @@ You can build it yourself (it takes a while...).
 ```bash
 docker build -t local/cord:develop .
 ```
-
-</details>
 
 ## Other projects of interest
 
