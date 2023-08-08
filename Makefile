@@ -27,14 +27,14 @@ TEST_CHECK_PALLETS := check \
 
 # Rule to build the production version of the project
 build:
-	cargo build $(CARGO_FLAGS) --profile production
+	cargo build --locked --profile production
 
 # Default rule, runs the production build
 all: build
 
 # Rule to build the project (debug profile)
 build-debug:
-	cargo build $(CARGO_FLAGS)
+	cargo build --locked
 
 # Rule to check the project with all targets
 check:
