@@ -25,16 +25,33 @@ make
 
 This will create the production binary in the `target/production` directory.
 
+### Quickly start a 4 Node CORD Network
 
-### Build the CORD in debug mode:
+#### Start the network
 
-To build the project in the `debug` profile, run the following command:
-
-```bash
-make build-debug
+```sh
+make spinup
 ```
 
-This will compile the project without optimization and generate the executable in the `target/debug` directory.
+#### Stop the network
+
+```sh
+make spindown
+```
+
+### Run Single Node Local CORD Network
+
+To run the production binary locally with the `--dev` flag, use the following command:
+
+```bash
+make run-local
+```
+
+Detailed logs may be shown by running the chain with the following environment variables set:
+
+```bash
+RUST_LOG=debug RUST_BACKTRACE=1 make run-local
+```
 
 ### Checking the CORD
 
@@ -54,19 +71,15 @@ To run all tests in the project, including runtime benchmarks and without fail-f
 make test
 ```
 
-### Run Single Node Local CORD Network
+### Build the CORD in debug mode:
 
-To run the production binary locally with the `--dev` flag, use the following command:
-
-```bash
-make run-local
-```
-
-Detailed logs may be shown by running the chain with the following environment variables set:
+To build the project in the `debug` profile, run the following command:
 
 ```bash
-RUST_LOG=debug RUST_BACKTRACE=1 make run-local
+make build-debug
 ```
+
+This will compile the project without optimization and generate the executable in the `target/debug` directory.
 
 ### Displaying Help Message
 
