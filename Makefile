@@ -109,14 +109,13 @@ clean:
 # Start a 4 node CORD network using local chain spec
 .PHONY: spinup spindown
 
-NODE_1_CMD := ./target/production/cord --base-path /tmp/cord-data/alice --validator --chain local --alice --port 30333 --rpc-port 9933 --prometheus-port 9615 --node-key abe47f4e1065d4aa6fb0c1dd69a9a6b63c4551da63aad5f688976f77bd21622f --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0"
+NODE_1_CMD := ./target/production/cord --base-path /tmp/cord-data/alice --validator --chain local --alice --port 30333 --rpc-port 9933 --prometheus-port 9615 --node-key 0000000000000000000000000000000000000000000000000000000000000001 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0"
 
-NODE_2_CMD := ./target/production/cord --base-path /tmp/cord-data/bob --validator --chain local --bob --port 30334 --rpc-port 9934 --node-key 7609333b3e2e2e0c1b4064f074a7396b53d213e08d356d1be2d48fab3a6cd25a --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWSNT7EqipGHpsAYptQfPNrMXdJcgjMd25hnQWwyvHxYnz
+NODE_2_CMD := ./target/production/cord --base-path /tmp/cord-data/bob --validator --chain local --bob --port 30334 --rpc-port 9934 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
 
-NODE_3_CMD := ./target/production/cord --base-path /tmp/cord-data/charlie --validator --chain local --charlie --port 30335 --rpc-port 9935 --node-key e18d2c105ad8188830979b7bf4e7779361beb9010b6574e1b35a0a354ce02e96 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWSNT7EqipGHpsAYptQfPNrMXdJcgjMd25hnQWwyvHxYnz
+NODE_3_CMD := ./target/production/cord --base-path /tmp/cord-data/charlie --validator --chain local --charlie --port 30335 --rpc-port 9935 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
 
-NODE_4_CMD := ./target/production/cord --base-path /tmp/cord-data/dave --chain local --dave --port 30336 --rpc-port 9936 --node-key f21d3114273b5d6184f9e595dba1850eb64b1e4965cfd2c6130354c67f632f5d --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWSNT7EqipGHpsAYptQfPNrMXdJcgjMd25hnQWwyvHxYnz
-
+NODE_4_CMD := ./target/production/cord --base-path /tmp/cord-data/dave --chain local --dave --port 30336 --rpc-port 9936 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
 
 spinup: build
 	@echo "Starting nodes in the background..."
