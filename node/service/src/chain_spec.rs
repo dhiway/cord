@@ -146,7 +146,11 @@ fn cord_dev_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
 fn cord_local_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
 	cord_local_genesis(
 		wasm_binary,
-		vec![get_authority_keys_from_seed("Alice"), get_authority_keys_from_seed("Bob")],
+		vec![
+			get_authority_keys_from_seed("Alice"),
+			get_authority_keys_from_seed("Bob"),
+			get_authority_keys_from_seed("Charlie"),
+		],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		None,
 	)
