@@ -109,23 +109,48 @@ clean:
 # Start a 4 node CORD network using local chain spec
 .PHONY: spinup spindown
 
-NODE_1_CMD := ./target/production/cord --base-path /tmp/cord-data/alice --validator --chain local --alice --port 30333 --rpc-port 9933 --prometheus-port 9615 --node-key 0000000000000000000000000000000000000000000000000000000000000001 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0"
+ALICE_NODE_CMD := ./target/production/cord --base-path /tmp/cord-data/alice --validator --chain local --alice --port 30333 --rpc-port 9933 --prometheus-port 9615 --node-key 0000000000000000000000000000000000000000000000000000000000000001 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0"
 
-NODE_2_CMD := ./target/production/cord --base-path /tmp/cord-data/bob --validator --chain local --bob --port 30334 --rpc-port 9934 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
+BOB_NODE_CMD := ./target/production/cord --base-path /tmp/cord-data/bob --validator --chain local --bob --port 30334 --rpc-port 9934 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
 
-NODE_3_CMD := ./target/production/cord --base-path /tmp/cord-data/charlie --validator --chain local --charlie --port 30335 --rpc-port 9935 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
+CHARLIE_NODE_CMD := ./target/production/cord --base-path /tmp/cord-data/charlie --validator --chain local --charlie --port 30335 --rpc-port 9935 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
 
-NODE_4_CMD := ./target/production/cord --base-path /tmp/cord-data/dave --chain local --dave --port 30336 --rpc-port 9936 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
+DAVE_NODE_CMD := ./target/production/cord --base-path /tmp/cord-data/dave --chain local --dave --port 30336 --rpc-port 9936 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
 
-spinup: build
-	@echo "Starting nodes in the background..."
-	@$(NODE_1_CMD) &
-	@$(NODE_2_CMD) &
-	@$(NODE_3_CMD) &
-	@$(NODE_4_CMD) &
+# Logs
+LOG_DIR := /tmp/cord-logs
+ALICE_LOG := $(LOG_DIR)/alice.log
+BOB_LOG := $(LOG_DIR)/bob.log
+CHARLIE_LOG := $(LOG_DIR)/charlie.log
+DAVE_LOG := $(LOG_DIR)/dave.log
+
+spinup:
+	@echo "Compiling CORD binary..."
+	@cargo build --locked --profile production > /dev/null 2>&1
+	@echo "Creating log directory in \033[0;34m$(LOG_DIR)\033[0m"
+	@mkdir -p $(LOG_DIR)
+	@touch $(ALICE_LOG)
+	@touch $(BOB_LOG)
+	@touch $(CHARLIE_LOG)
+	@touch $(DAVE_LOG)
+	@chmod 666 $(ALICE_LOG) $(BOB_LOG) $(CHARLIE_LOG) $(DAVE_LOG)
+	@echo "Starting all nodes in the background..."
+	@$(ALICE_NODE_CMD) > $(ALICE_LOG) 2>&1 &
+	@$(BOB_NODE_CMD) > $(BOB_LOG) 2>&1 &
+	@$(CHARLIE_NODE_CMD) > $(CHARLIE_LOG) 2>&1 &
+	@$(DAVE_NODE_CMD) > $(DAVE_LOG) 2>&1 &
 	@echo "Four CORD nodes (Alice, Bob, Charlie, Dave) have been successfully started."
 	@echo "See them in \033[0;34mhttps://telemetry.cord.network\033[0m under Cord Spin tab."
 	@echo "You can also watch this network details in \033[0;34mhttps://apps.cord.network/?rpc=ws://localhost:9933\033[0m "
+	@echo ""
+	@echo "To view the logs, you can use the following commands:"
+	@echo "Alice: tail -f $(ALICE_LOG)"
+	@echo "Bob: tail -f $(BOB_LOG)"
+	@echo "Charlie: tail -f $(CHARLIE_LOG)"
+	@echo "Dave: tail -f $(DAVE_LOG)"
+	@echo ""
+	@echo "To stop all running nodes run: \033[0;34mmake spindown\033[0m"
+
 
 spindown:
 	@echo "Stopping all nodes..."
