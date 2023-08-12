@@ -2,53 +2,47 @@
 # Build Stage
 # ------------------------------------------------------------------------------
 
-# When building for a foreign arch, use cross-compilation
-# https://www.docker.com/blog/faster-multi-platform-builds-dockerfile-cross-compilation-guide/
-FROM --platform=$BUILDPLATFORM rust:1-bullseye as build
+FROM rust:1-bullseye as build
 
 LABEL maintainer="engineering@dhiway.com"
 
-ARG BUILDPLATFORM
 ARG TARGETPLATFORM
-
-# We need the target arch triplet in both Debian and rust flavor
-RUN echo "DEBIAN_ARCH_TRIPLET='$(dpkg-architecture -A${TARGETPLATFORM#linux/} -qDEB_TARGET_MULTIARCH)'" >>/builder/dynenv
-RUN . /builder/dynenv && \
-  echo "RUST_ARCH_TRIPLET='$(echo "$DEBIAN_ARCH_TRIPLET" | sed -E 's/-linux-/-unknown&/')'" >>/builder/dynenv
 
 WORKDIR /builder
 
-# Copy source tree
-COPY . .
+# Conditional installation of cross-compilation tools and setting compiler flags
+RUN if [ "$TARGETPLATFORM" = "linux/arm64" ] || [ "$TARGETPLATFORM" = "linux/arm64/v8" ]; then \
+  apt-get update && \
+  apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu g++-aarch64-linux-gnu && \
+  echo "export CC=aarch64-linux-gnu-gcc" >> /builder/dynenv && \
+  echo "export CXX=aarch64-linux-gnu-g++" >> /builder/dynenv; \
+  elif [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+  apt-get update && \
+  apt-get install -y build-essential; \
+  fi
 
+# Copy source tree
+COPY . /builder
+
+# Update package lists and install required dependencies
 RUN apt-get update && \
-  DEBIAN_FRONTEND=noninteractive apt-get install -y clang cmake protobuf-compiler
+  DEBIAN_FRONTEND=noninteractive apt-get install -y clang cmake protobuf-compiler git curl libssl-dev 
 
 # build cord
 ARG debug=0
 RUN if [ "$debug" = 0 ]; then \
-  echo "CARGO_OPTIONS=--production" >>/builder/dynenv && \
+  echo "CARGO_OPTIONS=production" >>/builder/dynenv && \
   echo "TARGET_FOLDER=production" >>/builder/dynenv; \
   else \
   echo "TARGET_FOLDER=debug" >>/builder/dynenv; \
   fi
 
-# Configure cross-build environment if need be
+# Configure build environment and build
 RUN set -x && \
-  if [ "$TARGETPLATFORM" != "$BUILDPLATFORM" ]; then \
   . /builder/dynenv && \
-  apt install -y gcc-$DEBIAN_ARCH_TRIPLET binutils-$DEBIAN_ARCH_TRIPLET && \
-  rustup target add "$RUST_ARCH_TRIPLET" && \
-  echo "RUSTFLAGS='-C linker=$DEBIAN_ARCH_TRIPLET-gcc'; export RUSTFLAGS" >>/builder/dynenv; \
-  fi
-
-# Build
-RUN set -x && \
-  cat /builder/dynenv && \
-  . /builder/dynenv && \
-  cargo build --locked $CARGO_OPTIONS --target "$RUST_ARCH_TRIPLET" && \
+  cargo build --locked --profile $CARGO_OPTIONS && \
   mkdir -p build && \
-  mv target/$RUST_ARCH_TRIPLET/$TARGET_FOLDER/cord build/
+  mv target/$TARGETPLATFORM/$TARGET_FOLDER/cord build/
 
 # ------------------------------------------------------------------------------
 # Final Stage
@@ -58,7 +52,7 @@ FROM gcr.io/distroless/cc-debian11@sha256:9b8e0854865dcaf49470b4ec305df45957020f
 LABEL maintainer="engineering@dhiway.com"
 LABEL description="CORD Blockchain Node"
 
-COPY --from=builder /builder/build/cord /cord
+COPY --from=build /builder/build/cord /cord
 
 RUN ["/cord","--version"]
 
