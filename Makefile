@@ -109,24 +109,48 @@ clean:
 # Start a 4 node CORD network using local chain spec
 .PHONY: spinup spindown
 
-NODE_1_CMD := ./target/production/cord --base-path /tmp/cord-data/alice --validator --chain local --alice --port 30333 --rpc-port 9933 --prometheus-port 9615 --node-key abe47f4e1065d4aa6fb0c1dd69a9a6b63c4551da63aad5f688976f77bd21622f --rpc-methods=Safe --rpc-cors all --no-hardware-benchmarks --state-pruning 100 --blocks-pruning 100 --offchain-worker never --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0"
+ALICE_NODE_CMD := ./target/production/cord --base-path /tmp/cord-data/alice --validator --chain local --alice --port 30333 --rpc-port 9933 --prometheus-port 9615 --node-key 0000000000000000000000000000000000000000000000000000000000000001 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0"
 
-NODE_2_CMD := ./target/production/cord --base-path /tmp/cord-data/bob --validator --chain local --bob --port 30334 --rpc-port 9934 --node-key 7609333b3e2e2e0c1b4064f074a7396b53d213e08d356d1be2d48fab3a6cd25a --rpc-methods=Safe --rpc-cors all --no-hardware-benchmarks --state-pruning 100 --blocks-pruning 100 --offchain-worker never --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWSNT7EqipGHpsAYptQfPNrMXdJcgjMd25hnQWwyvHxYnz
+BOB_NODE_CMD := ./target/production/cord --base-path /tmp/cord-data/bob --validator --chain local --bob --port 30334 --rpc-port 9934 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
 
-NODE_3_CMD := ./target/production/cord --base-path /tmp/cord-data/charlie --validator --chain local --charlie --port 30335 --rpc-port 9935 --node-key e18d2c105ad8188830979b7bf4e7779361beb9010b6574e1b35a0a354ce02e96 --rpc-methods=Safe --rpc-cors all --no-hardware-benchmarks --state-pruning 100 --blocks-pruning 100 --offchain-worker never --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWSNT7EqipGHpsAYptQfPNrMXdJcgjMd25hnQWwyvHxYnz
+CHARLIE_NODE_CMD := ./target/production/cord --base-path /tmp/cord-data/charlie --validator --chain local --charlie --port 30335 --rpc-port 9935 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
 
-NODE_4_CMD := ./target/production/cord --base-path /tmp/cord-data/dave --chain local --dave --port 30336 --rpc-port 9936 --node-key f21d3114273b5d6184f9e595dba1850eb64b1e4965cfd2c6130354c67f632f5d --rpc-methods=Safe --rpc-cors all --no-hardware-benchmarks --state-pruning 100 --blocks-pruning 100 --offchain-worker never --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWSNT7EqipGHpsAYptQfPNrMXdJcgjMd25hnQWwyvHxYnz
+DAVE_NODE_CMD := ./target/production/cord --base-path /tmp/cord-data/dave --chain local --dave --port 30336 --rpc-port 9936 --rpc-methods=Safe --rpc-cors all --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp
 
+# Logs
+LOG_DIR := /tmp/cord-logs
+ALICE_LOG := $(LOG_DIR)/alice.log
+BOB_LOG := $(LOG_DIR)/bob.log
+CHARLIE_LOG := $(LOG_DIR)/charlie.log
+DAVE_LOG := $(LOG_DIR)/dave.log
 
-spinup: build
-	@echo "Starting nodes in the background..."
-	@$(NODE_1_CMD) &
-	@$(NODE_2_CMD) &
-	@$(NODE_3_CMD) &
-	@$(NODE_4_CMD) &
+spinup:
+	@echo "Compiling CORD binary..."
+	@cargo build --locked --profile production > /dev/null 2>&1
+	@echo "Creating log directory in \033[0;34m$(LOG_DIR)\033[0m"
+	@mkdir -p $(LOG_DIR)
+	@touch $(ALICE_LOG)
+	@touch $(BOB_LOG)
+	@touch $(CHARLIE_LOG)
+	@touch $(DAVE_LOG)
+	@chmod 666 $(ALICE_LOG) $(BOB_LOG) $(CHARLIE_LOG) $(DAVE_LOG)
+	@echo "Starting all nodes in the background..."
+	@$(ALICE_NODE_CMD) > $(ALICE_LOG) 2>&1 &
+	@$(BOB_NODE_CMD) > $(BOB_LOG) 2>&1 &
+	@$(CHARLIE_NODE_CMD) > $(CHARLIE_LOG) 2>&1 &
+	@$(DAVE_NODE_CMD) > $(DAVE_LOG) 2>&1 &
 	@echo "Four CORD nodes (Alice, Bob, Charlie, Dave) have been successfully started."
 	@echo "See them in \033[0;34mhttps://telemetry.cord.network\033[0m under Cord Spin tab."
 	@echo "You can also watch this network details in \033[0;34mhttps://apps.cord.network/?rpc=ws://localhost:9933\033[0m "
+	@echo ""
+	@echo "To view the logs, you can use the following commands:"
+	@echo "Alice: tail -f $(ALICE_LOG)"
+	@echo "Bob: tail -f $(BOB_LOG)"
+	@echo "Charlie: tail -f $(CHARLIE_LOG)"
+	@echo "Dave: tail -f $(DAVE_LOG)"
+	@echo ""
+	@echo "To stop all running nodes run: \033[0;34mmake spindown\033[0m"
+
 
 spindown:
 	@echo "Stopping all nodes..."
@@ -136,5 +160,5 @@ spindown:
 	@rm -rf /tmp/cord-data/
 	@echo "/tmp/cord-data/ directory deleted."
 	@echo ""
-	@echo "Commercial Support Services on CORD are offered by Dhiway (sales@dhiway.com)"
-	@echo "CORD team recommends having a separate chain in production, because 'local' chain uses the default keys, which are common."
+	@echo "Commercial Support Services on CORD are offered by Dhiway \033[0;34m(sales@dhiway.com)\033[0m "
+	@echo "CORD team recommends having a separate chain in production, because \033[0;34mlocal\033[0m chain uses the default keys, which are common."
