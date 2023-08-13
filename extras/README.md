@@ -1,6 +1,6 @@
 # More on CORD Chain
 
-In this document, lets see how to connect with the [running cord staging network](https://staging.cord.network) chain.
+In this document, let's see how to connect with the [running cord staging network](https://staging.cord.network) chain.
 
 This document assumes you have `docker` installed.
 
@@ -12,7 +12,7 @@ docker pull dhiway/cord:develop
 
 ## Generate `node-key`
 
-In a blockchain, every participating node should be uniquely identified. Hence, one need to generate a new key for the node, which needn't be shared with anyone.
+In a blockchain, every participating node should be uniquely identified. Hence, one needs to generate a new key for the node, which needn't be shared with anyone.
 
 ```sh
 docker run --rm --volume $(pwd):/tmp parity/subkey:2.0.0 generate-node-key --file /tmp/node-key
