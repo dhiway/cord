@@ -22,10 +22,10 @@ These abstractions are:
 - Accounts
   - Stash Key: The Stash account is meant to hold large amounts of funds. This account is like a "savings account" in that you should not make frequent transactions from it. Therefore, its private key should be treated with the utmost security.
   - Controller Key: The Controller keys are the public/private key pair that defines a Controller account. The Controller account signals one's intent to validate or nominate. These accounts should only hold a minimal amount of funds to pay transaction fees. Its private key should be secure as it can affect validator settings, and is used regularly for validator maintenance.
-- Session Keys: Session keys are "hot keys" that are used by validators to sign consensus-related messages. They are not meant to be used as account keys that control funds and should only be used for their intended purpose. They should be changed regulary.
+- Session Keys: Session keys are "hot keys" that are used by validators to sign consensus-related messages. They are not meant to be used as account keys that control funds and should only be used for their intended purpose. They should be changed regularly.
 
 ## Session Keys
 
-Session keys are used by validators to sign consensus-related messages. CORD node uses an unique session key for BABE, GRANDPA, "I'm Online" and Authority Discovery operations. To prevent the wrong key being used for the wrong operation, strong Rust types wrap these keys, keeping them incompatible with one another and ensuring they are only used for their intended purpose.
+Session keys are used by validators to sign consensus-related messages. CORD node uses a unique session key for BABE, GRANDPA, "I'm Online" and Authority Discovery operations. To prevent the wrong key being used for the wrong operation, strong Rust types wrap these keys, keeping them incompatible with one another and ensuring they are only used for their intended purpose.
 
 If a Session key is compromised, attackers could commit slashable behavior. Session keys should be changed regularly (e.g. every session) via the [rotate_keys](https://paritytech.github.io/substrate/master/sc_rpc/author/trait.AuthorApiClient.html#method.rotate_keys) RPC for increased security.
