@@ -40,7 +40,7 @@ Above two tasks are one time for the life time. You can continue to use the same
    git fetch upstream
    git rebase upstream/develop
 ```
-   - It is recommended you keep pushing to your repo every day, so you don't loose any work.
+   - It is recommended you keep pushing to your repo every day, so you don't lose any work.
 
 2. Commit Message / PR description:
    - The name of the branch on your personal fork can start with issueNNNN, followed by anything of your choice.
