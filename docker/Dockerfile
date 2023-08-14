@@ -2,14 +2,14 @@
 # Build Stage
 # ------------------------------------------------------------------------------
 
-FROM rust:1-bullseye as build
+FROM rust:1-bullseye as builder
 
 LABEL maintainer="engineering@dhiway.com"
 
 ARG target
 ARG profile=release
 
-WORKDIR /builder
+WORKDIR /build
 
 # Install common dependencies
 RUN apt-get update && \
@@ -18,19 +18,19 @@ RUN apt-get update && \
 # Conditional installation of cross-compilation tools
 RUN if [ "$target" = "linux/arm64" ] || [ "$target" = "linux/arm64/v8" ]; then \
   apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu g++-aarch64-linux-gnu && \
-  echo "export CC=aarch64-linux-gnu-gcc" >> /builder/dynenv && \
-  echo "export CXX=aarch64-linux-gnu-g++" >> /builder/dynenv; \
+  echo "export CC=aarch64-linux-gnu-gcc" >> /build/dynenv && \
+  echo "export CXX=aarch64-linux-gnu-g++" >> /build/dynenv; \
   fi
 
 # Copy source tree
-COPY . /builder
+COPY . /build
 
 # Configure build environment and build
 RUN set -x && \
-  if [ -f /builder/dynenv ]; then . /builder/dynenv; fi && \
+  if [ -f /build/dynenv ]; then . /build/dynenv; fi && \
   cargo build --locked --profile $profile && \
-  mkdir -p build && \
-  mv target/$target/$profile/cord build/
+  mkdir -p bin && \
+  mv target/$target/$profile/cord bin/
 
 # ------------------------------------------------------------------------------
 # Final Stage
@@ -40,11 +40,14 @@ FROM debian:bullseye-slim
 LABEL maintainer="engineering@dhiway.com"
 LABEL description="CORD Blockchain Node"
 
-COPY --from=build /builder/build/cord /cord
+COPY --from=builder /build/bin/cord /usr/local/bin
 
-RUN ["/cord","--version"]
+# unclutter and minimize the attack surface
+# check if executable works in this container
+RUN rm -rf /usr/bin /usr/sbin && \
+  /usr/local/bin/cord --version
 
 USER 1000:1000
 EXPOSE 30333 9933 9944 9615
 
-ENTRYPOINT ["/cord"]
+ENTRYPOINT ["/usr/local/bin/cord"]
