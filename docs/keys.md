@@ -9,12 +9,12 @@ CORD is configured to work with default keys in `--dev` mode. When you are conne
 ### User Accounts
 
 ## Session Keys
-The keys are generated using the [prep_node_keys](scripts/prep_node_keys.sh) srcipt with the help of a secret. 
+The keys are generated using the [prep_node_keys](scripts/prep_node_keys.sh) script with the help of a secret. 
 
 ### Babe and Grandpa Keys - Dev Node
 
 ### Chain Spec Entries - Dev Node
-The babe and grandpa keys needs to be inserted to each nodes through the polka UI (Developer- RPC calls) or via `curl`. Choose "author" and "insertKey". The fields can be filled like this:
+The babe and grandpa keys need to be inserted to each nodes through the polka UI (Developer- RPC calls) or via `curl`. Choose "author" and "insertKey". The fields can be filled like this:
 
 #### BABE Session Key
 
