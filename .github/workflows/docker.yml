@@ -35,7 +35,7 @@ jobs:
 
           export DOCKER_BUILDKIT=1
 
-          docker build --no-cache --file Dockerfile --tag ${{ env.IMAGE_NAME}}:$DOCKER_BRANCH .
+          docker build --no-cache --file docker/Dockerfile --tag ${{ env.IMAGE_NAME}}:$DOCKER_BRANCH .
 
           docker tag \
           ${{ env.IMAGE_NAME}}:$DOCKER_BRANCH \
