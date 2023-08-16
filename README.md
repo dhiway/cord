@@ -141,6 +141,11 @@ make test-stream
 
 ### Using Docker
 
+> #### Install Docker
+>
+>  Docker maybe not be installed on your system, so to check if docker is installed, run: `which docker`. To install docker on your system follow the [official installtion documentation](https://docs.docker.com/engine/install/) of docker.
+
+
 1. Let's first check the version we have. The first time you run this command, the CORD docker image will be downloaded. This takes a bit of time and bandwidth, be patient:
 
 ```bash
