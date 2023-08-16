@@ -14,6 +14,13 @@ CORD builds on the modular approach of the Substrate framework. It defines a ric
 
 Before you begin, ensure you have the [necessary packages](/docs/installation.md) to locally run CORD.
 
+### Clone the repository at your desired location
+
+```sh
+git clone https://github.com/dhiway/cord.git
+
+cd cord
+```
 
 ### Build CORD in production mode
 
@@ -133,6 +140,11 @@ make test-stream
 ---
 
 ### Using Docker
+
+> #### Install Docker
+>
+>  Docker maybe not be installed on your system, so to check if docker is installed, run: `which docker`. To install docker on your system follow the [official installtion documentation](https://docs.docker.com/engine/install/) of docker.
+
 
 1. Let's first check the version we have. The first time you run this command, the CORD docker image will be downloaded. This takes a bit of time and bandwidth, be patient:
 
