@@ -14,6 +14,13 @@ CORD builds on the modular approach of the Substrate framework. It defines a ric
 
 Before you begin, ensure you have the [necessary packages](/docs/installation.md) to locally run CORD.
 
+### Clone the repository at your desired location
+
+```sh
+git clone https://github.com/dhiway/cord.git
+
+cd cord
+```
 
 ### Build CORD in production mode
 
