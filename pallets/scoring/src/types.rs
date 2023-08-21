@@ -57,13 +57,13 @@ pub enum ScoreTypeOf {
 #[derive(
 	Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct JournalInput<JournalEntry, EntryHashOf, Signature> {
+pub struct JournalInput<JournalEntry, EntryHashOf, EntitySignatureOf> {
 	/// journal entry
 	pub entry: JournalEntry,
 	/// tx digest
 	pub digest: EntryHashOf,
 	/// entity signature
-	pub signature: Signature,
+	pub signature: EntitySignatureOf,
 }
 
 #[derive(

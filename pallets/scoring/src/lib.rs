@@ -39,14 +39,14 @@
 
 pub mod weights;
 
-// #[cfg(any(feature = "mock", test))]
-// pub mod mock;
+#[cfg(any(feature = "mock", test))]
+pub mod mock;
 
 // #[cfg(feature = "runtime-benchmarks")]
 // pub mod benchmarking;
 
-// #[cfg(test)]
-// pub mod tests;
+#[cfg(test)]
+pub mod tests;
 
 pub mod types;
 
