@@ -18,7 +18,7 @@
 
 //! # Stream Pallet
 //!
-//! The Stream palllet is used to anchor identifiers representing off-chain
+//! The Stream pallet is used to anchor identifiers representing off-chain
 //! documents. The pallet provides means of creating, updating, revoking and
 //! removing identifier data on-chain and delegated controls.
 
@@ -215,8 +215,8 @@ pub mod pallet {
 		///
 		/// * `origin`: The origin of the call.
 		/// * `stream_digest`: The digest of the stream.
+		/// * `authorization`: AuthorizationIdOf.
 		/// * `schema_id`: The schema id of the stream.
-		/// * `authorization`: AuthorizationIdOf
 		///
 		/// Returns:
 		///
