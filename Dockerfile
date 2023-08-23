@@ -1,28 +1,53 @@
-# This is the build stage for CORD. Here we create the binary in a temporary image.
-FROM docker.io/paritytech/ci-linux:production as builder
+# ------------------------------------------------------------------------------
+# Build Stage
+# ------------------------------------------------------------------------------
+
+FROM rust:1-bullseye as builder
 
 LABEL maintainer="engineering@dhiway.com"
-ARG PROFILE=production
+
+ARG target
+ARG profile=release
 
 WORKDIR /build
+
+# Install common dependencies
+RUN apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y clang cmake protobuf-compiler git curl libssl-dev build-essential
+
+# Conditional installation of cross-compilation tools
+RUN if [ "$target" = "linux/arm64" ] || [ "$target" = "linux/arm64/v8" ]; then \
+  apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu g++-aarch64-linux-gnu && \
+  echo "export CC=aarch64-linux-gnu-gcc" >> /build/dynenv && \
+  echo "export CXX=aarch64-linux-gnu-g++" >> /build/dynenv; \
+  fi
+
+# Copy source tree
 COPY . /build
 
-RUN cargo build --locked --profile ${PROFILE}
+# Configure build environment and build
+RUN set -x && \
+  if [ -f /build/dynenv ]; then . /build/dynenv; fi && \
+  cargo build --locked --profile $profile && \
+  mkdir -p bin && \
+  mv target/$target/$profile/cord bin/
 
-# test
-# RUN cargo test --release --all
+# ------------------------------------------------------------------------------
+# Final Stage
+# ------------------------------------------------------------------------------
 
-# This is the 2nd stage: a very small image where we copy the CORD binary."
-FROM gcr.io/distroless/cc-debian11@sha256:9b8e0854865dcaf49470b4ec305df45957020fbcf17b71eeb50ffd3bc5bf885d
+FROM debian:bullseye-slim
 LABEL maintainer="engineering@dhiway.com"
+LABEL description="CORD Blockchain Node"
 
-ARG PROFILE=production
+COPY --from=builder /build/bin/cord /usr/local/bin
 
-COPY --from=builder /build/target/${PROFILE}/cord /cord
-
-RUN ["/cord","--version"]
+# unclutter and minimize the attack surface
+# check if executable works in this container
+RUN rm -rf /usr/bin /usr/sbin && \
+  /usr/local/bin/cord --version
 
 USER 1000:1000
 EXPOSE 30333 9933 9944 9615
 
-ENTRYPOINT ["/cord"]
+ENTRYPOINT ["/usr/local/bin/cord"]
