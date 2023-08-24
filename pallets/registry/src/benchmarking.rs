@@ -11,7 +11,6 @@ use sp_std::{
 	vec::Vec,
 };
 const SEED: u32 = 0;
-const MAX_REGISTRY_SIZE: u32 = 15 * 1024;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
@@ -23,7 +22,7 @@ benchmarks! {
 		<T as Config>::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::RegistryCreatorId>,
 		}
 	create {
-		let l in 1 .. MAX_REGISTRY_SIZE;
+		let l in 1 .. T::MaxEncodedRegistryLength::get();
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::RegistryCreatorId = account("did", 0, SEED);
@@ -46,7 +45,7 @@ benchmarks! {
 	}
 
 	update {
-		let l in 1 .. MAX_REGISTRY_SIZE;
+		let l in 1 .. T::MaxEncodedRegistryLength::get();
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::RegistryCreatorId = account("did", 0, SEED);

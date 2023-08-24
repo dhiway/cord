@@ -10,7 +10,7 @@ use pallet_registry::{
 	Authorizations, InputRegistryOf, Permissions, RegistryAuthorizationOf, RegistryHashOf,
 };
 use pallet_schema::SchemaHashOf;
-use sp_std::{convert::TryFrom, vec::Vec};
+use sp_std::convert::TryFrom;
 
 const SEED: u32 = 0;
 const MAX_PAYLOAD_BYTE_LENGTH: u32 = 5 * 1024;
