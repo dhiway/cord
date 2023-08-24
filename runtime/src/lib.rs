@@ -883,6 +883,23 @@ impl pallet_schema::Config for Runtime {
 	type WeightInfo = weights::pallet_schema::WeightInfo<Runtime>;
 }
 
+//scoring changes
+parameter_types! {
+	pub const MinScoreValue :u32 = 1;
+    pub const MaxScoreValue :u32 = 50;
+}
+
+impl pallet_scoring::Config for Runtime {
+	type EntitySignatureId = DidIdentifier;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+	type RuntimeEvent = RuntimeEvent;
+	type MinScoreValue = MinScoreValue;
+    type MaxScoreValue = MaxScoreValue;
+	type WeightInfo = weights::pallet_scoring::WeightInfo<Runtime>;
+}
+//scoring changes
+
 parameter_types! {
 	pub const MaxEncodedRegistryLength: u32 = 15_360;
 	pub const MaxRegistryAuthorities: u32 = 10_000;
@@ -958,6 +975,7 @@ construct_runtime! {
 		ExtrinsicAuthorship: pallet_extrinsic_authorship =101,
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,
+		Scoring: pallet_scoring = 123,
 		Registry: pallet_registry = 104,
 		Stream: pallet_stream = 105,
 		DidNames: pallet_did_names = 106,
@@ -1000,6 +1018,9 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::Schema { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
+			RuntimeCall::Scoring { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
 			},
 			RuntimeCall::Stream { .. } => {
@@ -1114,6 +1135,7 @@ mod benches {
 		[pallet_treasury, Treasury]
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
+		[pallet_scoring, Scoring]
 		[pallet_stream, Stream]
 		[pallet_registry, Registry]
 		[pallet_did, Did]

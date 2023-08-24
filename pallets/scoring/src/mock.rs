@@ -42,6 +42,8 @@ construct_runtime!(
 		UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		Schema:pallet_schema::{Pallet, Call, Storage, Event<T>},
+		Registry: pallet_registry::{Pallet, Storage, Call,Event<T>},
 		Scoring: pallet_scoring::{Pallet, Call, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
 		MockOrigin: mock_origin::{Pallet, Origin<T>},
@@ -106,13 +108,46 @@ parameter_types! {
 }
 
 impl Config for Test {
-	type EntitySignatureId = SubjectId;
+	type RatingCreatorIdOf = SubjectId;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::SubstrateWeight<Test>;
 	type MinScoreValue = MinScoreValue;
     type MaxScoreValue = MaxScoreValue;
+}
+
+
+parameter_types! {
+	#[derive(Debug, Clone)]
+	pub const MaxEncodedRegistryLength: u32 = 15_360;
+	pub const MaxRegistryAuthorities: u32 = 3u32;
+	#[derive(Debug, Clone)]
+	pub const MaxRegistryCommitActions: u32 = 5u32;
+}
+
+impl pallet_registry::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
+	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
+	type RegistryCreatorId = SubjectId;
+	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
+	type MaxRegistryAuthorities = MaxRegistryAuthorities;
+	type MaxRegistryCommitActions = MaxRegistryCommitActions;
+	type WeightInfo = pallet_registry::weights::SubstrateWeight<Test>;
+}
+
+parameter_types! {
+	pub const MaxEncodedSchemaLength: u32 = 15_360;
+}
+
+impl pallet_schema::Config for Test {
+	type SchemaCreatorId = SubjectId;
+	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
+	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 }
 
 #[allow(dead_code)]
