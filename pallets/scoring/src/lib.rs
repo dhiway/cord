@@ -95,7 +95,7 @@ pub mod pallet {
 	pub type IdentifierOf = Ss58Identifier;
 
 	/// Type for an Identifier
-	pub type ScoreIdentifierOf = Ss58Identifier;
+	pub type ScoreIdentifierOf = BoundedVec<u8, ConstU32<72>>;
 
 	/// Type for a Entity(Buisness) Identifier
 	pub type EntityIdentifierOf<T> = <T as frame_system::Config>::AccountId;
