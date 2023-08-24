@@ -25,6 +25,8 @@ codec = { package = "parity-scale-codec", version = "3.4.0", default-features = 
 scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
 cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
 cord-utilities = { package = "cord-utilities", path="../../utilities", default-features = false }
+pallet-registry = {  default-features = false, path = '../registry' }
+pallet-schema = {  default-features = false, path = '../schema' }
 
 # Substrate dependencies
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
@@ -59,6 +61,7 @@ std = [
   "sp-core/std",
   "sp-io/std",
   "sp-std/std",
+  "pallet-registry/std", 
 ] 
 try-runtime = [
   "frame-support/try-runtime",

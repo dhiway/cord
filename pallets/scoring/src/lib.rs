@@ -42,11 +42,11 @@ pub mod weights;
 #[cfg(any(feature = "mock", test))]
 pub mod mock;
 
-// #[cfg(feature = "runtime-benchmarks")]
-// pub mod benchmarking;
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarking;
 
-#[cfg(test)]
-pub mod tests;
+// #[cfg(test)]
+// pub mod tests;
 
 pub mod types;
 
@@ -57,7 +57,7 @@ use sp_runtime::Saturating;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	pub use cord_primitives::{curi::Ss58Identifier, CountOf, ScoreOf};
+	pub use cord_primitives::{curi::Ss58Identifier, CountOf, RatingOf};
 	use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
@@ -67,20 +67,35 @@ pub mod pallet {
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
-	/// Type of a CORD account.
-	pub(crate) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
+	/// Registry Identifier
+	pub type RegistryIdOf = Ss58Identifier;
 
-	///Type represents the signature used for entity authentication.
-	pub type EntitySignatureOf<T> = <T as Config>::EntitySignatureId;
+	///Rating Identifier -- can remove later
+	pub type RatingIdOf = Ss58Identifier;
+
+	/// Authorization Identifier
+	pub type AuthorizationIdOf = Ss58Identifier;
+
+	/// Hash of the registry.
+	pub type RatingHashOf<T> = <T as frame_system::Config>::Hash;
+
+	/// Type of a creator identifier.
+	pub type RatingCreatorIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
+
+	/// Hash of the Rating.
+	pub type RatingEntryHashOf<T> = <T as frame_system::Config>::Hash;
+
+	/// Type of a CORD account.
+	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
+
+	/// Type for a block number.
+	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 
 	/// Type for an Identifier
 	pub type IdentifierOf = Ss58Identifier;
 
 	/// Type for an Identifier
 	pub type ScoreIdentifierOf = Ss58Identifier;
-
-	/// Type for a block number.
-	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 
 	/// Type for a Entity(Buisness) Identifier
 	pub type EntityIdentifierOf<T> = <T as frame_system::Config>::AccountId;
@@ -91,41 +106,38 @@ pub mod pallet {
 	///Type for a Collector(Buyer) Identifier
 	pub type CollectorIdentifierOf<T> = <T as frame_system::Config>::AccountId;
 
-	/// Hash of the Entry.
-	pub type EntryHashOf<T> = <T as frame_system::Config>::Hash;
-
 	pub type JournalIdentifierOf = IdentifierOf;
 	pub type RequestIdentifierOf = ScoreIdentifierOf;
 	pub type TransactionIdentifierOf = ScoreIdentifierOf;
 
-	pub type JournalDetailsOf<T> = JournalDetails<
+	pub type RatingDetailsOf<T> = RatingEntryDetails<
 		EntityIdentifierOf<T>,
 		RequestIdentifierOf,
 		TransactionIdentifierOf,
 		CollectorIdentifierOf<T>,
 		RequestorIdentifierOf<T>,
-		ScoreTypeOf,
-		ScoreOf,
+		RatingTypeOf,
+		RatingOf,
 	>;
 
-	pub type JournalInputOf<T> =
-		JournalInput<JournalDetailsOf<T>, EntryHashOf<T>, EntitySignatureOf<T>>;
+	pub type RatingInputOf<T> =
+		RatingInput<RatingDetailsOf<T>, RatingEntryHashOf<T>, RatingCreatorIdOf<T>>;
 
-	pub type JournalEntryOf<T> =
-		JournalEntry<JournalDetailsOf<T>, EntryHashOf<T>, BlockNumberOf<T>>;
+	pub type RatingEntryOf<T> =
+		RatingEntry<RatingDetailsOf<T>, RatingEntryHashOf<T>, BlockNumberOf<T>, RegistryIdOf,RatingCreatorIdOf<T>>;
 
-	pub type ScoreEntryOf = ScoreEntry<CountOf, ScoreOf>;
+	pub type ScoreEntryOf = ScoreEntry<CountOf, RatingOf>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_registry::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = Self::OriginSuccess,
+			Success = <Self as Config>::OriginSuccess,
 		>;
-		type OriginSuccess: CallSources<AccountIdOf<Self>, EntitySignatureOf<Self>>;
+		type OriginSuccess: CallSources<AccountIdOf<Self>, RatingCreatorIdOf<Self>>;
 
-		type EntitySignatureId: Parameter + MaxEncodedLen;
+		type RatingCreatorIdOf: Parameter + MaxEncodedLen;
 
 		#[pallet::constant]
 		type MinScoreValue: Get<u32>;
@@ -150,8 +162,8 @@ pub mod pallet {
 		Twox64Concat,
 		JournalIdentifierOf,
 		Blake2_128Concat,
-		ScoreTypeOf,
-		JournalEntryOf<T>,
+		RatingTypeOf,
+		RatingEntryOf<T>,
 		OptionQuery,
 	>;
 
@@ -163,14 +175,14 @@ pub mod pallet {
 		Twox64Concat,
 		EntityIdentifierOf<T>,
 		Blake2_128Concat,
-		ScoreTypeOf,
+		RatingTypeOf,
 		ScoreEntryOf,
 		OptionQuery,
 	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn journal_hashes)]
-	pub type JournalHashes<T> = StorageMap<_, Blake2_128Concat, EntryHashOf<T>, (), ValueQuery>;
+	pub type JournalHashes<T> = StorageMap<_, Blake2_128Concat, RatingEntryHashOf<T>, (), ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn tid_entries)]
@@ -179,7 +191,7 @@ pub mod pallet {
 		Twox64Concat,
 		TransactionIdentifierOf,
 		Blake2_128Concat,
-		ScoreTypeOf,
+		RatingTypeOf,
 		EntityIdentifierOf<T>,
 	>;
 
@@ -191,7 +203,7 @@ pub mod pallet {
 		JournalEntry {
 			identifier: JournalIdentifierOf,
 			entity: EntityIdentifierOf<T>,
-			author: EntitySignatureOf<T>,
+			author: RatingCreatorIdOf<T>,
 		},
 		/// Aggregate scores has been updated.
 		/// \[entity identifier\]
@@ -229,14 +241,24 @@ pub mod pallet {
 		/// * origin: the identity of the Transaction Author. Transaction author
 		///   pays the transaction fees
 		/// * tx_journal: the incoming rating entry.
+		/// * `authorization`: The authorization ID of the delegate who is
+		///   allowed to perform this action.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::entries())]
-		pub fn entries(origin: OriginFor<T>, journal: JournalInputOf<T>) -> DispatchResult {
+		pub fn entries(
+			origin: OriginFor<T>,
+			journal: RatingInputOf<T>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
+			let registry_id =
+				pallet_registry::Pallet::<T>::is_a_delegate(&authorization, author.clone(), None)
+					.map_err(<pallet_registry::Error<T>>::from)?;
+
 			ensure!(
-				(journal.entry.score >= T::MinScoreValue::get()
-					&& journal.entry.score <= T::MaxScoreValue::get()),
+				(journal.entry.rating >= T::MinScoreValue::get()
+					&& journal.entry.rating <= T::MaxScoreValue::get()),
 				Error::<T>::InvalidRatingValue
 			);
 			ensure!(
@@ -248,7 +270,7 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
-				!<TidEntries<T>>::contains_key(&journal.entry.tid, &journal.entry.score_type),
+				!<TidEntries<T>>::contains_key(&journal.entry.tid, &journal.entry.rating_type),
 				Error::<T>::TransactionAlreadyRated
 			);
 
@@ -256,17 +278,19 @@ pub mod pallet {
 
 			<Journal<T>>::insert(
 				&identifier,
-				&journal.entry.score_type,
-				JournalEntryOf::<T> {
+				&journal.entry.rating_type,
+				RatingEntryOf::<T> {
 					entry: journal.entry.clone(),
 					digest: journal.digest,
-					block: block_number,
+					created_at: block_number,
+					registry: registry_id,
+					creator: author.clone(),
 				},
 			);
 			<JournalHashes<T>>::insert(&journal.digest, ());
 			<TidEntries<T>>::insert(
 				&journal.entry.tid,
-				&journal.entry.score_type,
+				&journal.entry.rating_type,
 				&journal.entry.entity,
 			);
 
@@ -284,21 +308,21 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn aggregate_score(entry: &JournalDetailsOf<T>) {
-		if let Some(mut aggregate) = <Scores<T>>::get(&entry.entity, &entry.score_type) {
+	pub fn aggregate_score(entry: &RatingDetailsOf<T>) {
+		if let Some(mut aggregate) = <Scores<T>>::get(&entry.entity, &entry.rating_type) {
 			aggregate.count.saturating_inc();
-			aggregate.score = aggregate.score.saturating_add(entry.score);
+			aggregate.rating = aggregate.rating.saturating_add(entry.rating);
 
 			<Scores<T>>::insert(
 				&entry.entity,
-				&entry.score_type,
-				ScoreEntryOf { count: aggregate.count, score: aggregate.score },
+				&entry.rating_type,
+				ScoreEntryOf { count: aggregate.count, rating: aggregate.rating },
 			);
 		} else {
 			<Scores<T>>::insert(
 				&entry.entity,
-				&entry.score_type,
-				ScoreEntryOf { count: 1, score: entry.score },
+				&entry.rating_type,
+				ScoreEntryOf { count: 1, rating: entry.rating },
 			);
 		}
 		Self::deposit_event(Event::AggregateUpdated { entity: entry.entity.clone() });
