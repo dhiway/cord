@@ -40,8 +40,8 @@ use tokio::io::{AsyncBufReadExt, AsyncRead};
 /// Starts a new CORD node in development mode with a temporary chain.
 ///
 /// This function creates a new CORD node using the `cord` binary.
-/// It configures the node to run in development mode (`--dev`) with a temporary chain (`--tmp`),
-/// sets the WebSocket port to 45789 (`--rpc-port=45789`).
+/// It configures the node to run in development mode (`--dev`) with a temporary
+/// chain (`--tmp`), sets the WebSocket port to 45789 (`--rpc-port=45789`).
 ///
 /// # Returns
 ///
@@ -49,7 +49,8 @@ use tokio::io::{AsyncBufReadExt, AsyncRead};
 ///
 /// # Panics
 ///
-/// This function will panic if the `cord` binary is not found or if the node fails to start.
+/// This function will panic if the `cord` binary is not found or if the node
+/// fails to start.
 ///
 /// # Examples
 ///
@@ -73,17 +74,17 @@ pub fn start_node() -> Child {
 
 /// Builds the Cord project using the provided arguments.
 ///
-/// This function reads the CARGO_MANIFEST_DIR environment variable to find the root workspace
-/// directory. It then runs the `cargo b` command in the root directory with the specified
-/// arguments.
+/// This function reads the CARGO_MANIFEST_DIR environment variable to find the
+/// root workspace directory. It then runs the `cargo b` command in the root
+/// directory with the specified arguments.
 ///
-/// This can be useful for building the `cord` binary with a desired set of features prior
-/// to using the binary in a CLI test.
+/// This can be useful for building the `cord` binary with a desired set of
+/// features prior to using the binary in a CLI test.
 ///
 /// # Arguments
 ///
-/// * `args: &[&str]` - A slice of string references representing the arguments to pass to the
-///   `cargo b` command.
+/// * `args: &[&str]` - A slice of string references representing the arguments
+///   to pass to the `cargo b` command.
 ///
 /// # Panics
 ///
@@ -100,7 +101,8 @@ pub fn start_node() -> Child {
 /// build_cord(&["--features=try-runtime"]);
 /// ```
 pub fn build_cord(args: &[&str]) {
-	// Get the root workspace directory from the CARGO_MANIFEST_DIR environment variable
+	// Get the root workspace directory from the CARGO_MANIFEST_DIR environment
+	// variable
 	let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
 	let root_dir = std::path::Path::new(&manifest_dir)
 		.parent()
@@ -121,15 +123,16 @@ pub fn build_cord(args: &[&str]) {
 	}
 }
 
-/// Takes a readable tokio stream (e.g. from a child process `ChildStderr` or `ChildStdout`) and
-/// a `Regex` pattern, and checks each line against the given pattern as it is produced.
-/// The function returns OK(()) as soon as a line matching the pattern is found, or an Err if
-/// the stream ends without any lines matching the pattern.
+/// Takes a readable tokio stream (e.g. from a child process `ChildStderr` or
+/// `ChildStdout`) and a `Regex` pattern, and checks each line against the given
+/// pattern as it is produced. The function returns OK(()) as soon as a line
+/// matching the pattern is found, or an Err if the stream ends without any
+/// lines matching the pattern.
 ///
 /// # Arguments
 ///
-/// * `child_stream` - An async tokio stream, e.g. from a child process `ChildStderr` or
-///   `ChildStdout`.
+/// * `child_stream` - An async tokio stream, e.g. from a child process
+///   `ChildStderr` or `ChildStdout`.
 /// * `re` - A `Regex` pattern to search for in the stream.
 ///
 /// # Returns
@@ -186,7 +189,7 @@ pub async fn wait_n_finalized_blocks(n: usize, url: &str) {
 		if let Ok(block) = ChainApi::<(), Hash, Header, ()>::finalized_head(&rpc).await {
 			built_blocks.insert(block);
 			if built_blocks.len() > n {
-				break;
+				break
 			}
 		};
 		interval.tick().await;
@@ -232,7 +235,8 @@ impl KillChildOnDrop {
 		self.stop_with_signal(SIGINT);
 	}
 
-	/// Same as [`Self::stop`] but takes the `signal` that is sent to stop the child.
+	/// Same as [`Self::stop`] but takes the `signal` that is sent to stop the
+	/// child.
 	pub fn stop_with_signal(&mut self, signal: Signal) {
 		kill(Pid::from_raw(self.id().try_into().unwrap()), signal).unwrap();
 		assert!(self.wait().unwrap().success());
@@ -283,7 +287,8 @@ pub fn extract_info_from_output(read: impl Read + Send) -> (NodeInfo, String) {
 			data.push_str(&line);
 			data.push_str("\n");
 
-			// does the line contain our port (we expect this specific output from substrate).
+			// does the line contain our port (we expect this specific output from
+			// substrate).
 			let sock_addr = match line.split_once("Running JSON-RPC server: addr=") {
 				None => return None,
 				Some((_, after)) => after.split_once(",").unwrap().0,
