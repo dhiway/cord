@@ -248,7 +248,7 @@ pub mod pallet {
 		/// * `authorization`: The authorization ID of the delegate who is
 		///   allowed to perform this action.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::entries())]
+		#[pallet::weight({0})]
 		pub fn entries(
 			origin: OriginFor<T>,
 			journal: RatingInputOf<T>,
