@@ -21,7 +21,8 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::RuntimeDebug;
 use scale_info::TypeInfo;
 
-/// A global index, formed as the extrinsic index within a block, together with that block's height.
+/// A global index, formed as the extrinsic index within a block, together with
+/// that block's height.
 #[derive(
 	Copy, Clone, Eq, PartialEq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen,
 )]
@@ -33,8 +34,8 @@ pub struct Timepoint<BlockNumber> {
 }
 
 /// An on-chain stream entry mapped to an Identifier.
-/// `StreamEntry` is a struct that contains a `StreamDigestOf`, a `StreamCreatorIdOf`, a `SchemaIdOf`, a
-/// `RegistryIdOf`, and a `StatusOf`.
+/// `StreamEntry` is a struct that contains a `StreamDigestOf`, a
+/// `StreamCreatorIdOf`, a `SchemaIdOf`, a `RegistryIdOf`, and a `StatusOf`.
 ///
 /// Properties:
 ///
@@ -42,7 +43,8 @@ pub struct Timepoint<BlockNumber> {
 /// * `creator`: The account that created the stream.
 /// * `schema`: The schema identifier.
 /// * `registry`: The registry that the stream is associated with.
-/// * `revoked`: This is a boolean flag that indicates whether the stream is revoked or not.
+/// * `revoked`: This is a boolean flag that indicates whether the stream is
+///   revoked or not.
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
@@ -59,8 +61,8 @@ pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryId
 	pub revoked: StatusOf,
 }
 
-/// `StreamCommit` is a struct that contains a `StreamCommitAction`, a `StreamDigest`, a
-/// `StreamCreatorId`, and a `Timepoint`.
+/// `StreamCommit` is a struct that contains a `StreamCommitAction`, a
+/// `StreamDigest`, a `StreamCreatorId`, and a `Timepoint`.
 ///
 /// Properties:
 ///

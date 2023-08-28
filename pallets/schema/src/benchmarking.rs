@@ -21,7 +21,7 @@
 use super::*;
 use codec::Encode;
 use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
-use frame_support::{sp_runtime::traits::Hash, BoundedVec};
+use frame_support::{sp_runtime::traits::Hash, traits::Get, BoundedVec};
 use sp_std::{
 	convert::{TryFrom, TryInto},
 	vec::Vec,
@@ -30,7 +30,6 @@ use sp_std::{
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 
 const SEED: u32 = 0;
-const MAX_SCHEMA_SIZE: u32 = 15 * 1024;
 
 benchmarks! {
 	where_clause {
@@ -38,7 +37,7 @@ benchmarks! {
 		T::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::SchemaCreatorId>,
 	}
 	create {
-		let l in 1 .. MAX_SCHEMA_SIZE;
+		let l in 1 .. T::MaxEncodedSchemaLength::get();
 
 		let caller = account("caller", 0, SEED);
 		let did: T::SchemaCreatorId = account("did", 0, SEED);
