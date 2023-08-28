@@ -20,81 +20,118 @@ use super::*;
 use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
-use frame_support::{assert_noop, assert_ok};
-use sp_core::H256;
+use frame_support::{assert_err, assert_ok, BoundedVec};
+use pallet_registry::{InputRegistryOf, RegistryHashOf};
+use pallet_schema::{InputSchemaOf, SchemaHashOf};
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
 
-
-
-pub fn generate_scoring_id<T: Config>(digest: &EntryHashOf<T>) -> ScoreIdentifierOf {
+pub fn generate_rating_id<T: Config>(digest: &RatingEntryHashOf<T>) -> RatingIdOf {
 	Ss58Identifier::to_scoring_id(&(digest).encode()[..]).unwrap()
 }
 
+pub fn generate_registry_id<T: Config>(digest: &RegistryHashOf<T>) -> RegistryIdOf {
+	Ss58Identifier::to_registry_id(&(digest).encode()[..]).unwrap()
+}
+
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
+pub(crate) const DID_01: SubjectId = SubjectId(AccountId32::new([5u8; 32]));
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
 
-
 #[test]
-fn check_successful_schema_creation() {
+fn check_successful_rating_creation() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
+	let delegate = DID_01;
 
-	let scoring: Vec<u8> = [2u8;256].to_vec(); 
-	let scoring_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&scoring.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	// let rating: Vec<u8> = [2u8; 256].to_vec();
+	// let rating_digest = <Test as frame_system::Config>::Hashing::hash(&rating[..]);
 	//EntityIdentifierOf
-	let e_id:EntityIdentifierOf<Test>  = ACCOUNT_00;
+	let e_id: EntityIdentifierOf<Test> = ACCOUNT_00;
 	//RequestIdentifierOf
-	let request_id:RequestIdentifierOf = generate_scoring_id::<Test>(&scoring_digest);
+	let raw_request_id = [11u8; 72].to_vec();
+	let request_id: RequestIdentifierOf<Test> = BoundedVec::try_from(raw_request_id).unwrap();
 	//TransactionIdentfierOf
-	let t_id:TransactionIdentifierOf = generate_scoring_id::<Test>(&scoring_digest);
+	let raw_transaction_id = [12u8; 72].to_vec();
+	let t_id: TransactionIdentifierOf<Test> = BoundedVec::try_from(raw_transaction_id).unwrap();
 	//CollectorIdentifierOf
-	let c_id:CollectorIdentifierOf<Test>= ACCOUNT_00;
+	let c_id: CollectorIdentifierOf<Test> = ACCOUNT_00;
 	//RequestorIdentifierOf
-	let requestor_id:RequestorIdentifierOf<Test> = ACCOUNT_00;
+	let requestor_id: RequestorIdentifierOf<Test> = ACCOUNT_00;
 	//ScoreTypeOf
-	let score_type:ScoreTypeOf = ScoreTypeOf::Overall; 
+	let rating_type: RatingTypeOf = RatingTypeOf::Overall;
 	//Entity Rating
-	let score : ScoreOf = 12;
+	let rating: RatingOf = 12;
 
-	let journal_details = JournalDetails {
-		entity : e_id,
-		uid : request_id,
-		tid : t_id,
-		collector : c_id,
-		requestor : requestor_id,
-		score_type,
-		score,
+	let journal_details = RatingEntryDetails {
+		entity: e_id,
+		uid: request_id,
+		tid: t_id,
+		collector: c_id,
+		requestor: requestor_id,
+		rating_type,
+		rating,
 	};
 
-	let journal_details_digest =  <Test as frame_system::Config>::Hashing::hash(
-		&[&journal_details.encode()[..]].concat()[..]);
+	let journal_details_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&journal_details.encode()[..]].concat()[..],
+	);
 
-	let journal_entry = JournalEntry {
+	let raw_registry = [56u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let journal_entry = RatingEntry {
 		entry: journal_details.clone(),
-		digest : journal_details_digest,
-		block : 1
+		digest: journal_details_digest,
+		created_at: 1,
+		registry: registry_id.clone(),
+		creator: creator.clone(),
 	};
 
-	let journal_entry_digest =  <Test as frame_system::Config>::Hashing::hash(
-		&[&journal_entry.encode()[..]].concat()[..]);
+	let journal_entry_digest =
+		<Test as frame_system::Config>::Hashing::hash(&[&journal_entry.encode()[..]].concat()[..]);
 
-
-	let journal_input = JournalInput {
+	let journal_input = RatingInput {
 		entry: journal_details.clone(),
-		digest : journal_entry_digest,
-		signature : creator.clone()
+		digest: journal_entry_digest,
+    	creator: creator.clone(),
 	};
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &delegate.encode()[..], &author.encode()[..]].concat()[..],
+	);
+	let authorization_id: AuthorizationIdOf = 
+		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
 	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
 		// Author Transaction
-		assert_ok!(Scoring::entries(
+
+		assert_ok!(Registry::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			None
+		));
+
+		
+		assert_ok!(Registry::add_admin_delegate(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id.clone(),
+			delegate.clone(),
+		));
+
+		// assert_eq!(<pallet_registry::Registries<Test>>::get(&registry_id).unwrap().creator, DID_00);
+
+		
+
+		assert_ok!(Scoring::entries(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			journal_input.clone(),
+			authorization_id
 		));
 	});
 }
-
-

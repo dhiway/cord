@@ -1449,6 +1449,7 @@ dependencies = [
  "pallet-remark",
  "pallet-scheduler",
  "pallet-schema",
+ "pallet-scoring",
  "pallet-session",
  "pallet-session-benchmarking",
  "pallet-staking",

@@ -45,8 +45,8 @@ pub mod mock;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
-// #[cfg(test)]
-// pub mod tests;
+#[cfg(test)]
+pub mod tests;
 
 pub mod types;
 
@@ -95,7 +95,7 @@ pub mod pallet {
 	pub type IdentifierOf = Ss58Identifier;
 
 	/// Type for an Identifier
-	pub type ScoreIdentifierOf = BoundedVec<u8, ConstU32<72>>;
+	pub type ScoreIdentifierOf<T> = BoundedVec<u8, <T as Config>::ValueLimit>;
 
 	/// Type for a Entity(Buisness) Identifier
 	pub type EntityIdentifierOf<T> = <T as frame_system::Config>::AccountId;
@@ -107,13 +107,13 @@ pub mod pallet {
 	pub type CollectorIdentifierOf<T> = <T as frame_system::Config>::AccountId;
 
 	pub type JournalIdentifierOf = IdentifierOf;
-	pub type RequestIdentifierOf = ScoreIdentifierOf;
-	pub type TransactionIdentifierOf = ScoreIdentifierOf;
+	pub type RequestIdentifierOf<T> = ScoreIdentifierOf<T>;
+	pub type TransactionIdentifierOf<T> = ScoreIdentifierOf<T>;
 
 	pub type RatingDetailsOf<T> = RatingEntryDetails<
 		EntityIdentifierOf<T>,
-		RequestIdentifierOf,
-		TransactionIdentifierOf,
+		RequestIdentifierOf<T>,
+		TransactionIdentifierOf<T>,
 		CollectorIdentifierOf<T>,
 		RequestorIdentifierOf<T>,
 		RatingTypeOf,
@@ -139,6 +139,8 @@ pub mod pallet {
 
 		type RatingCreatorIdOf: Parameter + MaxEncodedLen;
 
+		#[pallet::constant]
+		type ValueLimit: Get<u32>;
 		#[pallet::constant]
 		type MinScoreValue: Get<u32>;
 		#[pallet::constant]
@@ -189,7 +191,7 @@ pub mod pallet {
 	pub type TidEntries<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
-		TransactionIdentifierOf,
+		TransactionIdentifierOf<T>,
 		Blake2_128Concat,
 		RatingTypeOf,
 		EntityIdentifierOf<T>,

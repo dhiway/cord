@@ -115,6 +115,7 @@ impl Config for Test {
 	type WeightInfo = weights::SubstrateWeight<Test>;
 	type MinScoreValue = MinScoreValue;
     type MaxScoreValue = MaxScoreValue;
+	type ValueLimit = ConstU32<72>;
 }
 
 
