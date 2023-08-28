@@ -43,9 +43,6 @@ fn check_successful_rating_creation() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
-
-	// let rating: Vec<u8> = [2u8; 256].to_vec();
-	// let rating_digest = <Test as frame_system::Config>::Hashing::hash(&rating[..]);
 	//EntityIdentifierOf
 	let e_id: EntityIdentifierOf<Test> = ACCOUNT_00;
 	//RequestIdentifierOf
@@ -123,10 +120,6 @@ fn check_successful_rating_creation() {
 			registry_id.clone(),
 			delegate.clone(),
 		));
-
-		// assert_eq!(<pallet_registry::Registries<Test>>::get(&registry_id).unwrap().creator, DID_00);
-
-		
 
 		assert_ok!(Scoring::entries(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
