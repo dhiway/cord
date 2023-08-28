@@ -37,13 +37,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-
 #[cfg(any(feature = "mock", test))]
 pub mod mock;
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
-
 
 #[cfg(test)]
 pub mod tests;
@@ -63,7 +61,6 @@ pub mod pallet {
 	use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::{IdentifyAccount, Saturating, Verify};
 	use sp_std::{prelude::Clone, str};
 
 	/// The current storage version.
@@ -125,8 +122,13 @@ pub mod pallet {
 	pub type RatingInputOf<T> =
 		RatingInput<RatingDetailsOf<T>, RatingEntryHashOf<T>, RatingCreatorIdOf<T>>;
 
-	pub type RatingEntryOf<T> =
-		RatingEntry<RatingDetailsOf<T>, RatingEntryHashOf<T>, BlockNumberOf<T>, RegistryIdOf,RatingCreatorIdOf<T>>;
+	pub type RatingEntryOf<T> = RatingEntry<
+		RatingDetailsOf<T>,
+		RatingEntryHashOf<T>,
+		BlockNumberOf<T>,
+		RegistryIdOf,
+		RatingCreatorIdOf<T>,
+	>;
 
 	pub type ScoreEntryOf = ScoreEntry<CountOf, RatingOf>;
 
@@ -186,7 +188,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn journal_hashes)]
-	pub type JournalHashes<T> = StorageMap<_, Blake2_128Concat, RatingEntryHashOf<T>, (), ValueQuery>;
+	pub type JournalHashes<T> =
+		StorageMap<_, Blake2_128Concat, RatingEntryHashOf<T>, (), ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn tid_entries)]
@@ -261,8 +264,8 @@ pub mod pallet {
 					.map_err(<pallet_registry::Error<T>>::from)?;
 
 			ensure!(
-				(journal.entry.rating >= T::MinScoreValue::get()
-					&& journal.entry.rating <= T::MaxScoreValue::get()),
+				(journal.entry.rating >= T::MinScoreValue::get() &&
+					journal.entry.rating <= T::MaxScoreValue::get()),
 				Error::<T>::InvalidRatingValue
 			);
 			ensure!(

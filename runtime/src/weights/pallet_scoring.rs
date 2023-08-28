@@ -53,7 +53,7 @@ impl<T: frame_system::Config> pallet_scoring::WeightInfo for WeightInfo<T> {
 	/// Storage: Schema Schemas (r:1 w:1)
 	/// Proof: Schema Schemas (max_values: None, max_size: Some(15496), added: 17971, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 15360]`.
-	fn entries() -> Weight {
+	fn entries(_l: u32) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `3`
 		//  Estimated: `18961`

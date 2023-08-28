@@ -20,9 +20,8 @@ use super::*;
 use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
-use frame_support::{assert_err, assert_ok, BoundedVec};
+use frame_support::{assert_ok, BoundedVec};
 use pallet_registry::{InputRegistryOf, RegistryHashOf};
-use pallet_schema::{InputSchemaOf, SchemaHashOf};
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
 
@@ -96,13 +95,13 @@ fn check_successful_rating_creation() {
 	let journal_input = RatingInput {
 		entry: journal_details.clone(),
 		digest: journal_entry_digest,
-    	creator: creator.clone(),
+		creator: creator.clone(),
 	};
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&registry_id.encode()[..], &delegate.encode()[..], &author.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf = 
+	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
 	new_test_ext().execute_with(|| {
@@ -115,7 +114,6 @@ fn check_successful_rating_creation() {
 			None
 		));
 
-		
 		assert_ok!(Registry::add_admin_delegate(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			registry_id.clone(),
