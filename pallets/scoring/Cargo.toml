@@ -1,6 +1,6 @@
 [package]
 name = "pallet-scoring"
-description = "Manage ONDC Netwrok Scores."
+description = "Manage network scores"
 version = "0.8.1"
 authors = ["Dhiway Networks <info@dhiway.com>"]
 edition = "2021"
@@ -15,18 +15,30 @@ targets = ['x86_64-unknown-linux-gnu']
 substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = ["std"]}
-sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = ["std"]}
-pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = ["std"]}
-cord-utilities = { package = "cord-utilities", path="../../utilities", features = ["mock"] }
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = [
+  "std",
+] }
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = [
+  "std",
+] }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = [
+  "std",
+] }
+cord-utilities = { package = "cord-utilities", path = "../../utilities", features = [
+  "mock",
+] }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
-scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
-cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
-cord-utilities = { package = "cord-utilities", path="../../utilities", default-features = false }
-pallet-registry = {  default-features = false, path = '../registry' }
-pallet-schema = {  default-features = false, path = '../schema' }
+codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = [
+  "derive",
+] }
+scale-info = { version = "2.5.0", default-features = false, features = [
+  "derive",
+] }
+cord-primitives = { package = "cord-primitives", path = "../../primitives", default-features = false }
+cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
+pallet-registry = { default-features = false, path = '../registry' }
+pallet-schema = { default-features = false, path = '../schema' }
 
 # Substrate dependencies
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
@@ -36,11 +48,11 @@ sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0
 sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
 sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
 sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
-sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false,optional = true }
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
 pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
 
 [features]
-default = [ 'std' ]
+default = ['std']
 runtime-benchmarks = [
   "frame-benchmarking/runtime-benchmarks",
   "sp-runtime/runtime-benchmarks",
@@ -61,8 +73,8 @@ std = [
   "sp-core/std",
   "sp-io/std",
   "sp-std/std",
-  "pallet-registry/std", 
-] 
+  "pallet-registry/std",
+]
 try-runtime = [
   "frame-support/try-runtime",
   "frame-system/try-runtime",
