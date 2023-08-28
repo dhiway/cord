@@ -81,12 +81,13 @@ pallet-session-benchmarking = { git = "https://github.com/dhiway/substrate", def
 pallet-offences-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
 frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
 
-pallet-did = { default-features = false, path = '../pallets/did' }
-pallet-did-names = { default-features = false, path = '../pallets/did-name' }
-pallet-schema = { default-features = false, path = '../pallets/schema' }
-pallet-registry = { default-features = false, path = '../pallets/registry' }
-pallet-stream = { default-features = false, path = '../pallets/stream' }
-pallet-extrinsic-authorship = { default-features = false, path = '../pallets/authorship' }
+pallet-did = {  default-features = false, path = '../pallets/did' }
+pallet-did-names = {  default-features = false, path = '../pallets/did-name' }
+pallet-schema = {  default-features = false, path = '../pallets/schema' }
+pallet-registry = {  default-features = false, path = '../pallets/registry' }
+pallet-stream = {  default-features = false, path = '../pallets/stream' }
+pallet-scoring = {  default-features = false, path = '../pallets/scoring' }
+pallet-extrinsic-authorship = {  default-features = false, path = '../pallets/authorship' }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../pallets/did/runtime-api", default-features = false }
@@ -154,6 +155,7 @@ std = [
 	"pallet-schema/std",
 	"pallet-registry/std",
 	"pallet-stream/std",
+	"pallet-scoring/std",
 	"pallet-extrinsic-authorship/std",
 	"pallet-did-runtime-api/std",
 	"sp-runtime/std",
@@ -193,11 +195,12 @@ runtime-benchmarks = [
 	"pallet-utility/runtime-benchmarks",
 	"cord-utilities/runtime-benchmarks",
 	"pallet-did/runtime-benchmarks",
-	"pallet-did-names/runtime-benchmarks",
-	"pallet-schema/runtime-benchmarks",
-	"pallet-stream/runtime-benchmarks",
-	"pallet-registry/runtime-benchmarks",
-	"pallet-extrinsic-authorship/runtime-benchmarks",
+  "pallet-did-names/runtime-benchmarks",
+  "pallet-schema/runtime-benchmarks",
+  "pallet-stream/runtime-benchmarks",
+  "pallet-scoring/runtime-benchmarks",
+  "pallet-registry/runtime-benchmarks",
+  "pallet-extrinsic-authorship/runtime-benchmarks",
 	"hex-literal",
 	"pallet-sudo/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
@@ -228,9 +231,10 @@ try-runtime = [
 	"pallet-treasury/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-babe/try-runtime",
-	"pallet-schema/try-runtime",
-	"pallet-stream/try-runtime",
-	"pallet-did/try-runtime",
+  "pallet-schema/try-runtime",
+  "pallet-stream/try-runtime",
+  "pallet-scoring/try-runtime",
+  "pallet-did/try-runtime",
 ]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
