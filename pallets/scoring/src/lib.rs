@@ -37,7 +37,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-pub mod weights;
 
 #[cfg(any(feature = "mock", test))]
 pub mod mock;
@@ -45,8 +44,11 @@ pub mod mock;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
+
 #[cfg(test)]
 pub mod tests;
+
+pub mod weights;
 
 pub mod types;
 

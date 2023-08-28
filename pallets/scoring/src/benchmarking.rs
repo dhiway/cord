@@ -20,44 +20,127 @@
 
 use super::*;
 use codec::Encode;
+use cord_primitives::curi::Ss58Identifier;
+use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
 use frame_support::{sp_runtime::traits::Hash, BoundedVec};
+use pallet_registry::{
+	Authorizations, InputRegistryOf, Permissions, RegistryAuthorizationOf, RegistryHashOf,
+};
 use sp_std::{
 	convert::{TryFrom, TryInto},
 	vec::Vec,
 };
 
-use cord_utilities::traits::GenerateBenchmarkOrigin;
-
 const SEED: u32 = 0;
-const MAX_SCHEMA_SIZE: u32 = 15 * 1024;
+const MAX_PAYLOAD_BYTE_LENGTH: u32 = 15 * 1024;
+
+pub fn generate_registry_id<T: Config>(other_digest: &RegistryHashOf<T>) -> RegistryIdOf {
+	Ss58Identifier::to_registry_id(&(other_digest).encode()[..]).unwrap()
+}
+
+pub fn generate_rating_id<T: Config>(other_digest: &RatingEntryHashOf<T>) -> RatingIdOf {
+	Ss58Identifier::to_scoring_id(&(other_digest).encode()[..]).unwrap()
+}
+fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
+	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
+}
+
+
 
 benchmarks! {
 	where_clause {
 		where
-		T::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::SchemaCreatorId>,
+		<T as pallet::Config>::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::RegistryCreatorId>,
 	}
-	create {
-		let l in 1 .. MAX_SCHEMA_SIZE;
+	entries {
+		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
-		let caller = account("caller", 0, SEED);
-		let did: T::SchemaCreatorId = account("did", 0, SEED);
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let did: T::RegistryCreatorId = account("did", 0, SEED);
+		let did1: T::RegistryCreatorId = account("did1", 0, SEED);
 
-		let raw_schema: Vec<u8> = (0u8..u8::MAX).cycle().take(l.try_into().unwrap()).collect();
-		let schema = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of the test runtime.");
-		let digest = <T as frame_system::Config>::Hashing::hash(&schema[..]);
-		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&schema.encode()[..], &did.encode()[..]].concat()[..],
+
+	let rating: Vec<u8> = [2u8; 256].to_vec();
+	let rating_digest = <T as frame_system::Config>::Hashing::hash(&rating[..]);
+
+		//EntityIdentifierOf
+		let e_id: EntityIdentifierOf<T> = caller.clone();
+		//RequestIdentifierOf
+		let raw_request_id = [11u8; 72].to_vec();
+		let request_id: RequestIdentifierOf<T> = BoundedVec::try_from(raw_request_id).unwrap();
+		//TransactionIdentfierOf
+		let raw_transaction_id = [12u8; 72].to_vec();
+		let t_id: TransactionIdentifierOf<T> = BoundedVec::try_from(raw_transaction_id).unwrap();
+		//CollectorIdentifierOf
+		let c_id: CollectorIdentifierOf<T> = caller.clone();
+		//RequestorIdentifierOf
+		let requestor_id: RequestorIdentifierOf<T> = caller.clone();
+		//ScoreTypeOf
+		let rating_type: RatingTypeOf = RatingTypeOf::Overall;
+		//Entity Rating
+		let rating: RatingOf = 12;
+
+		let journal_details = RatingEntryDetails {
+		entity: e_id,
+		uid: request_id,
+		tid: t_id,
+		collector: c_id,
+		requestor: requestor_id,
+		rating_type,
+		rating,
+		};
+
+	let journal_details_digest = <T as frame_system::Config>::Hashing::hash(
+		&[&journal_details.encode()[..]].concat()[..],
+	);
+
+	let raw_registry = [56u8; 256].to_vec();
+	let registry: InputRegistryOf<T> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <T as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
+
+	let journal_entry = RatingEntry {
+		entry: journal_details.clone(),
+		digest: journal_details_digest,
+		created_at: 1,
+		registry: registry_id.clone(),
+		creator: did.clone(),
+	};
+
+	let journal_entry_digest =
+		<T as frame_system::Config>::Hashing::hash(&[&journal_entry.encode()[..]].concat()[..]);
+
+		let identifier = Ss58Identifier::to_scoring_id(&(&journal_entry_digest.clone()).encode()[..]).unwrap();
+
+	let journal_input = RatingInput {
+		entry: journal_details.clone(),
+		digest: journal_entry_digest,
+    	creator: did.clone(),
+	};
+
+	let auth_digest = <T as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &did1.encode()[..], &caller.encode()[..]].concat()[..],
+	);
+	let authorization_id: AuthorizationIdOf = 
+		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+
+		<Authorizations<T>>::insert(
+			&authorization_id,
+			RegistryAuthorizationOf::<T> {
+				registry_id: registry_id.clone(),
+				delegate: did1.clone(),
+				schema: None,
+				permissions: Permissions::all(),
+			},
 		);
-		let schema_id = Ss58Identifier::to_schema_id(&(id_digest).encode()[..]).unwrap();
 
-		let origin = T::EnsureOrigin::generate_origin(caller, did.clone());
-	}: _<T::RuntimeOrigin>(origin, schema)
+		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did1.clone());
+	}: _<T::RuntimeOrigin>(origin, journal_input ,authorization_id)
 	verify {
-		let stored_schema = Schemas::<T>::get(&schema_id).expect("Schema Identifier should be present on chain.");
-		// Verify the Schema has the right owner
-		assert_eq!(stored_schema.creator, did);
+		assert_last_event::<T>(Event::AggregateUpdated { entity: journal_entry.entry.entity.clone()}.into());
 	}
 }
 

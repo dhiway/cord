@@ -65,6 +65,7 @@ PALLETS=(
  "pallet_did_names"
  "pallet_extrinsic_authorship"
  "pallet_stream"
+ "pallet_scoring"
 )
 
 echo "[+] Benchmarking ${#PALLETS[@]} pallets."
@@ -102,6 +103,9 @@ for PALLET in "${PALLETS[@]}"; do
     ;;
   pallet_stream)
     FOLDER="stream"
+    ;;
+  pallet_scoring)
+    FOLDER="scoring"
     ;;
   *)
     # Exit early.

@@ -926,6 +926,7 @@ impl pallet_scoring::Config for Runtime {
 	type MinScoreValue = MinScoreValue;
     type MaxScoreValue = MaxScoreValue;
 	type WeightInfo = weights::pallet_scoring::WeightInfo<Runtime>;
+	type ValueLimit = ConstU32<72>;
 }
 //End  config for runtime
 
