@@ -75,7 +75,8 @@ pub struct TransferKeepAliveBuilder {
 }
 
 impl TransferKeepAliveBuilder {
-	/// Creates a new [`Self`] from the given client and the arguments for the extrinsics.
+	/// Creates a new [`Self`] from the given client and the arguments for the
+	/// extrinsics.
 
 	pub fn new(client: Arc<Client>, dest: AccountId, value: Balance) -> Self {
 		Self { client, dest, value }
@@ -116,7 +117,8 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
 /// Should only be used for benchmarking since it makes strong assumptions
 /// about the chain state that these calls will be valid for.
 trait BenchmarkCallSigner<RuntimeCall: Encode + Clone, Signer: Pair> {
-	/// Signs a call together with the signed extensions of the specific runtime.
+	/// Signs a call together with the signed extensions of the specific
+	/// runtime.
 	///
 	/// Only works if the current block is the genesis block since the
 	/// `CheckMortality` check is mocked by using the genesis block.

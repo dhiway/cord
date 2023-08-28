@@ -1,0 +1,67 @@
+version: '3.8'
+services:
+  bootnode:
+    image: dhiway/cord
+    container_name: alice
+    networks:
+      - cord_network
+    ports:
+      - "127.0.0.1:30333:30333"
+      - "127.0.0.1:9933:9933"
+      - "127.0.0.1:9944:9944"
+      - "127.0.0.1:9615:9615"
+    volumes:
+      - /tmp/cord-data:/data
+    command: --base-path /data/alice --validator --chain local --alice --port 30333 --rpc-port 9944 --prometheus-port 9615 --node-key abe47f4e1065d4aa6fb0c1dd69a9a6b63c4551da63aad5f688976f77bd21622f --rpc-methods=Safe --rpc-cors all --no-hardware-benchmarks --state-pruning 100 --blocks-pruning 100 --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0"
+    restart: unless-stopped
+
+  node2:
+    image: dhiway/cord
+    container_name: bob
+    networks:
+      - cord_network
+    ports:
+      - "30334:30334"
+      - "9934:9934"
+      - "9945:9944"
+    volumes:
+      - /tmp/cord-data:/data
+    command: --base-path /data/bob --validator --chain local --bob --port 30334 --rpc-port 9934 --node-key 7609333b3e2e2e0c1b4064f074a7396b53d213e08d356d1be2d48fab3a6cd25a --rpc-methods=Safe --rpc-cors all --no-hardware-benchmarks --state-pruning 100 --blocks-pruning 100 --prometheus-external --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /dns4/bootnode/tcp/30333/p2p/12D3KooWSNT7EqipGHpsAYptQfPNrMXdJcgjMd25hnQWwyvHxYnz
+    restart: unless-stopped
+
+  node3:
+    image: dhiway/cord
+    container_name: charlie
+    networks:
+      - cord_network
+    ports:
+      - "30335:30335"
+      - "9935:9935"
+      - "9946:9944"
+    volumes:
+      - /tmp/cord-data:/data
+    command: --base-path /data/charlie --validator --chain local --charlie --port 30335 --rpc-port 9935 --node-key e18d2c105ad8188830979b7bf4e7779361beb9010b6574e1b35a0a354ce02e96 --rpc-methods=Safe --rpc-cors all --no-hardware-benchmarks --state-pruning 100 --blocks-pruning 100 --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /dns4/bootnode/tcp/30333/p2p/12D3KooWSNT7EqipGHpsAYptQfPNrMXdJcgjMd25hnQWwyvHxYnz
+    restart: unless-stopped
+
+  node4:
+    image: dhiway/cord
+    container_name: dave
+    networks:
+      - cord_network
+    ports:
+      - "30336:30336"
+      - "9936:9936"
+      - "9947:9944"
+    volumes:
+      - /tmp/cord-data:/data
+    command: --base-path /data/dave --chain local --dave --port 30336 --rpc-port 9936 --node-key f21d3114273b5d6184f9e595dba1850eb64b1e4965cfd2c6130354c67f632f5d --rpc-methods=Safe --rpc-cors all --no-hardware-benchmarks --state-pruning 100 --blocks-pruning 100 --telemetry-url "wss://telemetry.cord.network/submit/ 0" --bootnodes /dns4/bootnode/tcp/30333/p2p/12D3KooWSNT7EqipGHpsAYptQfPNrMXdJcgjMd25hnQWwyvHxYnz
+    restart: unless-stopped
+
+networks:
+  cord_network:
+    driver: bridge
+
+x-lifecycle-hooks:
+  before-up:
+    - mkdir /tmp/cord-data && chmod 777 /tmp/cord-data && chown $USER /tmp/cord-data 
+

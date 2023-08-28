@@ -238,7 +238,7 @@ pub struct OriginPrivilegeCmp;
 impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
 		if left == right {
-			return Some(Ordering::Equal);
+			return Some(Ordering::Equal)
 		}
 
 		match (left, right) {
@@ -924,7 +924,7 @@ impl pallet_scoring::Config for Runtime {
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
 	type MinScoreValue = MinScoreValue;
-    type MaxScoreValue = MaxScoreValue;
+  type MaxScoreValue = MaxScoreValue;
 	type WeightInfo = weights::pallet_scoring::WeightInfo<Runtime>;
 	type ValueLimit = ConstU32<72>;
 }
@@ -1054,6 +1054,7 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
 				single_key_relationship(&calls[..])
 			},
+
 			#[cfg(not(feature = "runtime-benchmarks"))]
 			_ => Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
 			// By default, returns the authentication key

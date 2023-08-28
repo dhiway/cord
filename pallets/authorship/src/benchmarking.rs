@@ -20,10 +20,10 @@
 
 use super::*;
 use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
+use frame_support::traits::Get;
 use frame_system::RawOrigin;
 use sp_std::vec::Vec;
 const SEED: u32 = 0;
-const AUTHORITY_PROPOSALS: u32 = 5;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
@@ -32,7 +32,7 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 benchmarks! {
 	where_clause { where <T::RuntimeOrigin as frame_support::traits::OriginTrait>::PalletsOrigin: Clone }
 	add {
-		let a in 1..AUTHORITY_PROPOSALS;
+		let a in 1..T::MaxAuthorityProposals::get();
 
 		let mut authorities = Vec::new();
 
@@ -45,7 +45,7 @@ benchmarks! {
 		assert_last_event::<T>(Event::AuthorsAdded { authors_added: authorities }.into());
 	}
 	remove {
-		let a in 1..AUTHORITY_PROPOSALS;
+		let a in 1..T::MaxAuthorityProposals::get();
 
 		let mut authorities = Vec::new();
 
