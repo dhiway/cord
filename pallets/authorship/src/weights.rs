@@ -57,32 +57,32 @@ pub trait WeightInfo {
 /// Weights for pallet_extrinsic_authorship using the CORD node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:5 w:5)
+	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:50 w:50)
 	/// Proof: ExtrinsicAuthorship ExtrinsicAuthors (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
-	/// The range of component `a` is `[1, 5]`.
+	/// The range of component `a` is `[1, 50]`.
 	fn add(a: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `167`
+		//  Measured:  `163 + a * (1 ±0)`
 		//  Estimated: `990 + a * (2523 ±0)`
-		// Minimum execution time: 10_000_000 picoseconds.
-		Weight::from_parts(8_760_806, 990)
-			// Standard Error: 10_921
-			.saturating_add(Weight::from_parts(2_144_918, 0).saturating_mul(a.into()))
+		// Minimum execution time: 11_000_000 picoseconds.
+		Weight::from_parts(9_269_469, 990)
+			// Standard Error: 1_942
+			.saturating_add(Weight::from_parts(2_263_236, 0).saturating_mul(a.into()))
 			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(a.into())))
 			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(a.into())))
 			.saturating_add(Weight::from_parts(0, 2523).saturating_mul(a.into()))
 	}
-	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:5 w:5)
+	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:50 w:50)
 	/// Proof: ExtrinsicAuthorship ExtrinsicAuthors (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
-	/// The range of component `a` is `[1, 5]`.
+	/// The range of component `a` is `[1, 50]`.
 	fn remove(a: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `167 + a * (53 ±0)`
+		//  Measured:  `161 + a * (54 ±0)`
 		//  Estimated: `990 + a * (2523 ±0)`
-		// Minimum execution time: 11_000_000 picoseconds.
-		Weight::from_parts(8_643_866, 990)
-			// Standard Error: 12_573
-			.saturating_add(Weight::from_parts(3_219_100, 0).saturating_mul(a.into()))
+		// Minimum execution time: 12_000_000 picoseconds.
+		Weight::from_parts(7_104_979, 990)
+			// Standard Error: 4_184
+			.saturating_add(Weight::from_parts(3_641_608, 0).saturating_mul(a.into()))
 			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(a.into())))
 			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(a.into())))
 			.saturating_add(Weight::from_parts(0, 2523).saturating_mul(a.into()))
@@ -91,32 +91,32 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:5 w:5)
+	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:50 w:50)
 	/// Proof: ExtrinsicAuthorship ExtrinsicAuthors (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
-	/// The range of component `a` is `[1, 5]`.
+	/// The range of component `a` is `[1, 50]`.
 	fn add(a: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `167`
+		//  Measured:  `163 + a * (1 ±0)`
 		//  Estimated: `990 + a * (2523 ±0)`
-		// Minimum execution time: 10_000_000 picoseconds.
-		Weight::from_parts(8_760_806, 990)
-			// Standard Error: 10_921
-			.saturating_add(Weight::from_parts(2_144_918, 0).saturating_mul(a.into()))
+		// Minimum execution time: 11_000_000 picoseconds.
+		Weight::from_parts(9_269_469, 990)
+			// Standard Error: 1_942
+			.saturating_add(Weight::from_parts(2_263_236, 0).saturating_mul(a.into()))
 			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(a.into())))
 			.saturating_add(RocksDbWeight::get().writes((1_u64).saturating_mul(a.into())))
 			.saturating_add(Weight::from_parts(0, 2523).saturating_mul(a.into()))
 	}
-	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:5 w:5)
+	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:50 w:50)
 	/// Proof: ExtrinsicAuthorship ExtrinsicAuthors (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
-	/// The range of component `a` is `[1, 5]`.
+	/// The range of component `a` is `[1, 50]`.
 	fn remove(a: u32, ) -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `167 + a * (53 ±0)`
+		//  Measured:  `161 + a * (54 ±0)`
 		//  Estimated: `990 + a * (2523 ±0)`
-		// Minimum execution time: 11_000_000 picoseconds.
-		Weight::from_parts(8_643_866, 990)
-			// Standard Error: 12_573
-			.saturating_add(Weight::from_parts(3_219_100, 0).saturating_mul(a.into()))
+		// Minimum execution time: 12_000_000 picoseconds.
+		Weight::from_parts(7_104_979, 990)
+			// Standard Error: 4_184
+			.saturating_add(Weight::from_parts(3_641_608, 0).saturating_mul(a.into()))
 			.saturating_add(RocksDbWeight::get().reads((1_u64).saturating_mul(a.into())))
 			.saturating_add(RocksDbWeight::get().writes((1_u64).saturating_mul(a.into())))
 			.saturating_add(Weight::from_parts(0, 2523).saturating_mul(a.into()))

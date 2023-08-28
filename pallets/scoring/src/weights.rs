@@ -71,8 +71,8 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `228`
 		//  Estimated: `3668`
-		// Minimum execution time: 28_000_000 picoseconds.
-		Weight::from_parts(30_298_136, 3668)
+		// Minimum execution time: 30_000_000 picoseconds.
+		Weight::from_parts(32_102_843, 3668)
 			.saturating_add(T::DbWeight::get().reads(4_u64))
 			.saturating_add(T::DbWeight::get().writes(4_u64))
 	}
@@ -95,8 +95,8 @@ impl WeightInfo for () {
 		// Proof Size summary in bytes:
 		//  Measured:  `228`
 		//  Estimated: `3668`
-		// Minimum execution time: 28_000_000 picoseconds.
-		Weight::from_parts(30_298_136, 3668)
+		// Minimum execution time: 30_000_000 picoseconds.
+		Weight::from_parts(32_102_843, 3668)
 			.saturating_add(RocksDbWeight::get().reads(4_u64))
 			.saturating_add(RocksDbWeight::get().writes(4_u64))
 	}
