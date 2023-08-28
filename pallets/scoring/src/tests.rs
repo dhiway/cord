@@ -43,6 +43,7 @@ fn check_successful_rating_creation() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
+
 	//EntityIdentifierOf
 	let e_id: EntityIdentifierOf<Test> = ACCOUNT_00;
 	//RequestIdentifierOf
