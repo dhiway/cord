@@ -27,10 +27,7 @@ use frame_support::{sp_runtime::traits::Hash, BoundedVec};
 use pallet_registry::{
 	Authorizations, InputRegistryOf, Permissions, RegistryAuthorizationOf, RegistryHashOf,
 };
-use sp_std::{
-	convert::{TryFrom, TryInto},
-	vec::Vec,
-};
+use sp_std::{convert::TryFrom, vec::Vec};
 
 const SEED: u32 = 0;
 const MAX_PAYLOAD_BYTE_LENGTH: u32 = 15 * 1024;
@@ -45,8 +42,6 @@ pub fn generate_rating_id<T: Config>(other_digest: &RatingEntryHashOf<T>) -> Rat
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
-
-
 
 benchmarks! {
 	where_clause {
@@ -118,13 +113,13 @@ benchmarks! {
 	let journal_input = RatingInput {
 		entry: journal_details.clone(),
 		digest: journal_entry_digest,
-    	creator: did.clone(),
+		creator: did.clone(),
 	};
 
 	let auth_digest = <T as frame_system::Config>::Hashing::hash(
 		&[&registry_id.encode()[..], &did1.encode()[..], &caller.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf = 
+	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
 		<Authorizations<T>>::insert(
