@@ -76,10 +76,23 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_USER=cord
-      - GF_SECURITY_ADMIN_PASSWORD=cord
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - prometheus
+  
+  node_exporter:
+    image: quay.io/prometheus/node-exporter:latest
+    container_name: node_exporter
+    command:
+      - '--path.rootfs=/host'
+    networks:
+      - cord_network
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    volumes:
+      - /tmp/cord-data:/host:ro,rslave
 
 networks:
   cord_network:
