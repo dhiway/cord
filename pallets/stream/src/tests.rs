@@ -177,7 +177,7 @@ fn create_stream_should_fail_if_stream_is_anchored() {
 
 		assert_ok!(Stream::create(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
-			stream_digest.clone(),
+			stream_digest,
 			authorization_id.clone(),
 			Some(schema_id.clone())
 		));
@@ -250,7 +250,7 @@ fn update_stream_should_succed() {
 		<Streams<Test>>::insert(
 			&stream_id,
 			StreamEntryOf::<Test> {
-				digest: stream_digest.clone(),
+				digest: stream_digest,
 				creator: creator.clone(),
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
@@ -326,7 +326,7 @@ fn update_should_fail_if_digest_is_same() {
 		<Streams<Test>>::insert(
 			&stream_id,
 			StreamEntryOf::<Test> {
-				digest: stream_digest.clone(),
+				digest: stream_digest,
 				creator: creator.clone(),
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
@@ -455,7 +455,7 @@ fn update_should_fail_if_stream_is_revoked() {
 		<Streams<Test>>::insert(
 			&stream_id,
 			StreamEntryOf::<Test> {
-				digest: stream_digest.clone(),
+				digest: stream_digest,
 				creator: creator.clone(),
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
@@ -527,7 +527,7 @@ fn revoke_stream_should_succed() {
 		<Streams<Test>>::insert(
 			&stream_id,
 			StreamEntryOf::<Test> {
-				digest: stream_digest.clone(),
+				digest: stream_digest,
 				creator: creator.clone(),
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
@@ -591,7 +591,7 @@ fn remove_stream_should_succed() {
 		<Streams<Test>>::insert(
 			&stream_id,
 			StreamEntryOf::<Test> {
-				digest: stream_digest.clone(),
+				digest: stream_digest,
 				creator: creator.clone(),
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
@@ -655,7 +655,7 @@ fn digest_stream_should_succed() {
 		<Streams<Test>>::insert(
 			&stream_id,
 			StreamEntryOf::<Test> {
-				digest: stream_digest.clone(),
+				digest: stream_digest,
 				creator: creator.clone(),
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),

@@ -33,7 +33,7 @@ const CALLER_SEED: u32 = 0;
 const OWNER_SEED: u32 = 1;
 
 fn generate_did_name_input(length: usize) -> Vec<u8> {
-	let max_length = length.saturating_sub(10 as usize);
+	let max_length = length.saturating_sub(10_usize);
 	let ones_vec = vec![b'a'; max_length];
 	let cord_vec = "@cord".as_bytes().to_vec(); // Convert the string "@cord" to a byte vector
 	let mut name_vec = ones_vec;
@@ -56,7 +56,7 @@ benchmarks! {
 		let owner: DidNameOwnerOf<T> = account("owner", 0, OWNER_SEED);
 		let did_name_input: BoundedVec<u8, T::MaxNameLength> = BoundedVec::try_from(generate_did_name_input(n.saturated_into())).expect("BoundedVec creation should not fail.");
 		let did_name_input_clone = did_name_input.clone();
-		let origin = T::EnsureOrigin::generate_origin(caller.clone(), owner.clone());
+		let origin = T::EnsureOrigin::generate_origin(caller, owner.clone());
 
 	}: _<T::RuntimeOrigin>(origin, did_name_input_clone)
 	verify {
@@ -69,7 +69,7 @@ benchmarks! {
 		let caller: AccountIdOf<T> = account("caller", 0, CALLER_SEED);
 		let owner: DidNameOwnerOf<T> = account("owner", 0, OWNER_SEED);
 		let did_name_input: BoundedVec<u8, T::MaxNameLength> = BoundedVec::try_from(generate_did_name_input(T::MaxNameLength::get().saturated_into())).expect("BoundedVec creation should not fail.");
-		let origin = T::EnsureOrigin::generate_origin(caller.clone(), owner.clone());
+		let origin = T::EnsureOrigin::generate_origin(caller, owner.clone());
 
 		Pallet::<T>::register(origin.clone(), did_name_input.clone()).expect("Should register the did name.");
 	}: _<T::RuntimeOrigin>(origin)
@@ -85,7 +85,7 @@ benchmarks! {
 		let owner: DidNameOwnerOf<T> = account("owner", 0, OWNER_SEED);
 		let did_name_input: BoundedVec<u8, T::MaxNameLength> = BoundedVec::try_from(generate_did_name_input(n.saturated_into())).expect("BoundedVec creation should not fail.");
 		let did_name_input_clone = did_name_input.clone();
-		let did_origin = T::EnsureOrigin::generate_origin(caller.clone(), owner.clone());
+		let did_origin = T::EnsureOrigin::generate_origin(caller, owner.clone());
 		let ban_origin = RawOrigin::Root;
 
 		Pallet::<T>::register(did_origin, did_name_input.clone()).expect("Should register the did name.");

@@ -213,7 +213,7 @@ where
 		task_manager.spawn_essential_handle(),
 		client.clone(),
 	);
-
+	#[allow(clippy::redundant_clone)]
 	let (grandpa_block_import, grandpa_link) = sc_consensus_grandpa::block_import(
 		client.clone(),
 		&(client.clone() as Arc<_>),
@@ -224,7 +224,7 @@ where
 
 	let babe_config = sc_consensus_babe::configuration(&*client)?;
 	let (block_import, babe_link) =
-		sc_consensus_babe::block_import(babe_config.clone(), grandpa_block_import, client.clone())?;
+		sc_consensus_babe::block_import(babe_config, grandpa_block_import, client.clone())?;
 
 	let slot_duration = babe_link.config().slot_duration();
 	let (import_queue, babe_worker_handle) = sc_consensus_babe::import_queue(
@@ -362,7 +362,7 @@ where
 
 	let hwbench = (!disable_hardware_benchmarks)
 		.then_some(config.database.path().map(|database_path| {
-			let _ = std::fs::create_dir_all(&database_path);
+			let _ = std::fs::create_dir_all(database_path);
 			sc_sysinfo::gather_hwbench(Some(database_path))
 		}))
 		.flatten();
@@ -428,7 +428,7 @@ where
 				config.role.is_authority(),
 				client.clone(),
 				offchain_workers,
-				task_manager.spawn_handle().clone(),
+				task_manager.spawn_handle(),
 				network.clone(),
 			),
 		);
@@ -587,7 +587,7 @@ where
 			sync: Arc::new(sync_service.clone()),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 			voting_rule: sc_consensus_grandpa::VotingRulesBuilder::default().build(),
-			prometheus_registry: prometheus_registry.clone(),
+			prometheus_registry,
 			shared_voter_state,
 		};
 

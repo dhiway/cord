@@ -56,6 +56,7 @@ pub enum Message {
 }
 
 /// WebSockets listening socket and list of open connections.
+#[allow(clippy::type_complexity)]
 pub struct WsServer {
 	/// Value passed through [`Config::max_frame_size`].
 	max_frame_size: usize,

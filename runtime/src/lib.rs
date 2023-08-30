@@ -436,6 +436,7 @@ impl pallet_session::Config for Runtime {
 }
 
 pub struct FullIdentificationOf;
+#[allow(clippy::unit_arg)]
 impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf {
 	fn convert(_: AccountId) -> Option<()> {
 		Some(Default::default())
@@ -1413,7 +1414,7 @@ sp_api::impl_runtime_apis! {
 			list_benchmarks!(list, extra);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
-			return (list, storage_info)
+			(list, storage_info)
 		}
 
 		fn dispatch_benchmark(

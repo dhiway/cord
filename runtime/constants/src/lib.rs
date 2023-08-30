@@ -43,6 +43,7 @@ pub mod time {
 	use cord_primitives::{prod_or_fast, BlockNumber, Moment};
 	pub const MILLISECS_PER_BLOCK: Moment = 3000;
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
+	#[allow(clippy::identity_op)]
 	pub const EPOCH_DURATION: BlockNumber = prod_or_fast!(1 * HOURS, 2 * MINUTES);
 
 	pub const MINIMUM_DURATION: u64 = SLOT_DURATION / 2;

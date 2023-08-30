@@ -36,7 +36,7 @@ benchmarks! {
 		);
 		let registry_id = Ss58Identifier::to_registry_id(&(id_digest).encode()[..]).unwrap();
 
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 	}: _<T::RuntimeOrigin>(origin, registry, None)
 	verify {
@@ -50,7 +50,7 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::RegistryCreatorId = account("did", 0, SEED);
 
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 		let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
 		let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)
@@ -78,7 +78,7 @@ archive {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::RegistryCreatorId = account("did", 0, SEED);
 
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 		let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
 		let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)
@@ -103,7 +103,7 @@ restore {
 	let caller: T::AccountId = account("caller", 0, SEED);
 	let did: T::RegistryCreatorId = account("did", 0, SEED);
 
-	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 	let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
 	let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)
@@ -130,7 +130,7 @@ add_admin_delegate {
 	let did: T::RegistryCreatorId = account("did", 0, SEED);
 	let delegate: T::RegistryCreatorId = account("delegate", 0, SEED);
 
-	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 	let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
 	let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)
@@ -155,7 +155,7 @@ verify {
 	assert_last_event::<T>(Event::AddAuthorization {
 		registry: registry_id,
 		authorization: authorization_id,
-		delegate: delegate,
+		delegate,
 	}.into());
 }
 add_delegate {
@@ -164,7 +164,7 @@ add_delegate {
 	let did: T::RegistryCreatorId = account("did", 0, SEED);
 	let delegate: T::RegistryCreatorId = account("delegate", 0, SEED);
 
-	let origin = <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+	let origin = <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 	let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
 	let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)
@@ -197,7 +197,7 @@ remove_delegate {
 	let did: T::RegistryCreatorId = account("did", 0, SEED);
 	let delegate: T::RegistryCreatorId = account("delegate", 0, SEED);
 
-	let origin = <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+	let origin = <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 	let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
 	let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)

@@ -34,7 +34,7 @@ async fn temp_base_path_works() {
 	common::run_with_timeout(Duration::from_secs(60 * 10), async move {
 		let mut cmd = Command::new(cargo_bin("cord"));
 		let mut child = common::KillChildOnDrop(
-			cmd.args(&["--dev", "--tmp", "--no-hardware-benchmarks"])
+			cmd.args(["--dev", "--tmp", "--no-hardware-benchmarks"])
 				.stdout(Stdio::piped())
 				.stderr(Stdio::piped())
 				.spawn()
