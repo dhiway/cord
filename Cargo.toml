@@ -61,9 +61,6 @@ x25519-dalek = { opt-level = 3 }
 yamux = { opt-level = 3 }
 zeroize = { opt-level = 3 }
 
-[dev-dependencies]
-rusty-hook = "^0.11.2"
-
 [workspace]
 members = [
 	"node/service",
