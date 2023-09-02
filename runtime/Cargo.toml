@@ -87,6 +87,8 @@ pallet-schema = { default-features = false, path = '../pallets/schema' }
 pallet-registry = { default-features = false, path = '../pallets/registry' }
 pallet-stream = { default-features = false, path = '../pallets/stream' }
 pallet-extrinsic-authorship = { default-features = false, path = '../pallets/authorship' }
+pallet-runtime-upgrade = { default-features = false, path = '../pallets/runtime-upgrade' }
+
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../pallets/did/runtime-api", default-features = false }
@@ -155,6 +157,7 @@ std = [
 	"pallet-registry/std",
 	"pallet-stream/std",
 	"pallet-extrinsic-authorship/std",
+	"pallet-runtime-upgrade/std",
 	"pallet-did-runtime-api/std",
 	"sp-runtime/std",
 	"sp-staking/std",

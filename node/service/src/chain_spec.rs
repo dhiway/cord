@@ -22,8 +22,8 @@ pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	AuthorityDiscoveryConfig, AuthorityManagerConfig, BabeConfig, BalancesConfig, Block,
-	CouncilConfig, DemocracyConfig, ExtrinsicAuthorshipConfig, IndicesConfig, SessionConfig,
-	SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	CouncilMembershipConfig, ExtrinsicAuthorshipConfig, IndicesConfig, SessionConfig, SessionKeys,
+	SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
@@ -248,24 +248,28 @@ fn cord_local_genesis(
 		grandpa: Default::default(),
 		im_online: Default::default(),
 		extrinsic_authorship: ExtrinsicAuthorshipConfig { authors: author_accounts() },
-		democracy: DemocracyConfig::default(),
-		council: CouncilConfig {
+		council: Default::default(),
+		council_membership: CouncilMembershipConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.collect(),
+				.collect::<Vec<_>>()
+				.try_into()
+				.unwrap_or_else(|e| panic!("Failed to add council memebers: {:?}", e)),
 			phantom: Default::default(),
 		},
-		technical_committee: TechnicalCommitteeConfig {
+		technical_committee: Default::default(),
+		technical_membership: TechnicalMembershipConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.collect(),
+				.collect::<Vec<_>>()
+				.try_into()
+				.unwrap_or_else(|e| panic!("Failed to add committee members: {:?}", e)),
 			phantom: Default::default(),
 		},
-		technical_membership: Default::default(),
 		treasury: Default::default(),
 		transaction_payment: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },

@@ -1456,6 +1456,7 @@ dependencies = [
  "pallet-preimage",
  "pallet-registry",
  "pallet-remark",
+ "pallet-runtime-upgrade",
  "pallet-scheduler",
  "pallet-schema",
  "pallet-session",
@@ -5671,6 +5672,19 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-runtime-upgrade"
+version = "0.8.1"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-io",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
