@@ -1239,7 +1239,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "futures",
  "pallet-did-runtime-api",
- "pallet-extrinsic-authorship",
+ "pallet-network-membership",
  "sc-client-api",
  "sc-executor",
  "sc-service",
@@ -1301,8 +1301,8 @@ dependencies = [
  "log",
  "nix 0.26.2",
  "pallet-balances",
- "pallet-extrinsic-authorship",
  "pallet-im-online",
+ "pallet-network-membership",
  "pallet-timestamp",
  "parity-scale-codec",
  "regex",
@@ -1425,6 +1425,7 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal",
  "log",
+ "network-membership",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -1433,13 +1434,13 @@ dependencies = [
  "pallet-did",
  "pallet-did-names",
  "pallet-did-runtime-api",
- "pallet-extrinsic-authorship",
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
  "pallet-indices",
  "pallet-membership",
  "pallet-multisig",
+ "pallet-network-membership",
  "pallet-offences",
  "pallet-offences-benchmarking",
  "pallet-preimage",
@@ -4942,6 +4943,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "network-membership"
+version = "0.8.1"
+dependencies = [
+ "frame-support",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "nias"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5346,29 +5360,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-extrinsic-authorship"
-version = "0.8.1"
-dependencies = [
- "cord-primitives",
- "cord-utilities",
- "env_logger 0.9.3",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
 name = "pallet-grandpa"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
@@ -5492,6 +5483,30 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-network-membership"
+version = "0.8.1"
+dependencies = [
+ "cord-primitives",
+ "cord-utilities",
+ "env_logger 0.9.3",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "network-membership",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]

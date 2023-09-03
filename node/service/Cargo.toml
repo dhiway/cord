@@ -83,12 +83,12 @@ prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https:
 
 # cord-specific dependencies
 cord-runtime = { package = "cord-runtime", path = "../../runtime" }
-cord-primitives = { package = "cord-primitives", path = "../../primitives" }
+cord-primitives = { package = "cord-primitives", path = "../../primitives/cord" }
 cord-client = { package = "cord-client", path = "../client" }
 cord-inspect = { package = "cord-inspect", path = "../../inspect" }
 cord-rpc = { package = "cord-rpc", path = "../../rpc" }
 cord-runtime-constants = { package = "cord-runtime-constants", path = "../../runtime/constants" }
-pallet-extrinsic-authorship = { package = "pallet-extrinsic-authorship", path = "../../pallets/authorship" }
+pallet-extrinsic-authorship = { package = "pallet-network-membership", path = "../../pallets/network-membership" }
 
 
 # CLI-specific dependencies

@@ -21,7 +21,8 @@ log = { version = "0.4.17", default-features = false }
 static_assertions = "1.1.0"
 
 # primitives
-cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
+cord-primitives = { package = "cord-primitives", path = "../primitives/cord", default-features = false }
+network-membership = { package = "network-membership", path = "../primitives/network-membership", default-features = false }
 cord-runtime-constants = { package = "cord-runtime-constants", path = "./constants", default-features = false }
 cord-utilities = { package = "cord-utilities", path = "../utilities", default-features = false }
 
@@ -80,7 +81,7 @@ pallet-did-names = { default-features = false, path = '../pallets/did-name' }
 pallet-schema = { default-features = false, path = '../pallets/schema' }
 pallet-registry = { default-features = false, path = '../pallets/registry' }
 pallet-stream = { default-features = false, path = '../pallets/stream' }
-pallet-extrinsic-authorship = { default-features = false, path = '../pallets/authorship' }
+pallet-extrinsic-authorship = { package = "pallet-network-membership", default-features = false, path = '../pallets/network-membership' }
 pallet-runtime-upgrade = { default-features = false, path = '../pallets/runtime-upgrade' }
 
 
@@ -103,6 +104,7 @@ default = ['std']
 std = [
 	"sp-authority-discovery/std",
 	"cord-primitives/std",
+	"network-membership/std",
 	"pallet-offences-benchmarking?/std",
 	"frame-system-benchmarking?/std",
 	"cord-utilities/std",

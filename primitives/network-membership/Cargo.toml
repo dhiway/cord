@@ -1,0 +1,41 @@
+[package]
+name = 'network-membership'
+version = "0.8.1"
+authors = ['Dhiway Networks <info@dhiway.com>']
+edition = '2021'
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
+
+[[package.metadata.docs.rs]]
+targets = ['x86_64-unknown-linux-gnu']
+
+[build-dependencies]
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = [
+	"derive",
+	"max-encoded-len",
+] }
+scale-info = { version = "2.5.0", default-features = false, features = [
+	"derive",
+] }
+serde = { version = "1.0.136", features = ["derive"], optional = true }
+frame-support = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-std = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	"scale-info/std",
+	"frame-support/std",
+	"serde",
+	"sp-runtime/std",
+	"sp-std/std",
+]
+
+
+try-runtime = ['frame-support/try-runtime']
