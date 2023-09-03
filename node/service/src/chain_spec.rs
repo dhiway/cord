@@ -270,8 +270,6 @@ fn cord_local_genesis(
 				.unwrap_or_else(|e| panic!("Failed to add committee members: {:?}", e)),
 			phantom: Default::default(),
 		},
-		treasury: Default::default(),
-		transaction_payment: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(root_key) },
 	}

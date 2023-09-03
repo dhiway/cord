@@ -159,7 +159,6 @@ impl BenchmarkCallSigner<cord_runtime::RuntimeCall, sp_core::sr25519::Pair>
 			frame_system::CheckNonce::<runtime::Runtime>::from(nonce),
 			frame_system::CheckWeight::<runtime::Runtime>::new(),
 			pallet_extrinsic_authorship::CheckExtrinsicAuthor::<cord_runtime::Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<runtime::Runtime>::from(0),
 		);
 
 		let payload = runtime::SignedPayload::from_raw(
@@ -171,7 +170,6 @@ impl BenchmarkCallSigner<cord_runtime::RuntimeCall, sp_core::sr25519::Pair>
 				runtime::VERSION.transaction_version,
 				genesis,
 				genesis,
-				(),
 				(),
 				(),
 				(),
