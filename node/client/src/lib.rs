@@ -22,7 +22,7 @@
 //! all the traits the client implements. There is also the [`Client`] enum that
 //! combines all the different clients into one common structure.
 
-use cord_primitives::{AccountId, Balance, Block, BlockNumber, DidIdentifier, Hash, Header, Index};
+use cord_primitives::{AccountId, Block, BlockNumber, DidIdentifier, Hash, Header, Index};
 use sc_client_api::{
 	AuxStore, Backend as BackendT, BlockchainEvents, KeysIter, PairsIter, UsageProvider,
 };

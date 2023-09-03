@@ -1231,7 +1231,6 @@ dependencies = [
 name = "cord-client"
 version = "0.8.1"
 dependencies = [
- "async-trait",
  "cord-primitives",
  "cord-runtime",
  "frame-benchmarking",
@@ -1241,10 +1240,7 @@ dependencies = [
  "futures",
  "pallet-did-runtime-api",
  "pallet-extrinsic-authorship",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
  "sc-client-api",
- "sc-consensus",
  "sc-executor",
  "sc-service",
  "sp-api",
@@ -1285,7 +1281,6 @@ dependencies = [
 name = "cord-node"
 version = "0.8.1"
 dependencies = [
- "array-bytes 4.2.0",
  "assert_cmd",
  "async-std",
  "clap",
@@ -1309,8 +1304,6 @@ dependencies = [
  "pallet-extrinsic-authorship",
  "pallet-im-online",
  "pallet-timestamp",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc",
  "parity-scale-codec",
  "regex",
  "sc-authority-discovery",
@@ -1395,7 +1388,6 @@ version = "0.8.1"
 dependencies = [
  "cord-primitives",
  "jsonrpsee",
- "pallet-transaction-payment-rpc",
  "sc-chain-spec",
  "sc-client-api",
  "sc-consensus-babe",
@@ -1425,7 +1417,6 @@ dependencies = [
  "cord-runtime-constants",
  "cord-utilities",
  "frame-benchmarking",
- "frame-benchmarking-pallet-pov",
  "frame-executive",
  "frame-support",
  "frame-system",
@@ -1439,7 +1430,6 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-collective",
- "pallet-democracy",
  "pallet-did",
  "pallet-did-names",
  "pallet-did-runtime-api",
@@ -1449,7 +1439,6 @@ dependencies = [
  "pallet-im-online",
  "pallet-indices",
  "pallet-membership",
- "pallet-message-queue",
  "pallet-multisig",
  "pallet-offences",
  "pallet-offences-benchmarking",
@@ -1465,9 +1454,6 @@ dependencies = [
  "pallet-stream",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-treasury",
  "pallet-utility",
  "parity-scale-codec",
  "rusty-hook",
@@ -2664,21 +2650,6 @@ dependencies = [
  "sp-trie",
  "thiserror",
  "thousands",
-]
-
-[[package]]
-name = "frame-benchmarking-pallet-pov"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -5323,24 +5294,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-democracy"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-did"
 version = "0.8.1"
 dependencies = [
@@ -5506,25 +5459,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-message-queue"
-version = "7.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
- "sp-weights",
 ]
 
 [[package]]
@@ -5837,67 +5771,6 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
-]
-
-[[package]]
-name = "pallet-transaction-payment"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-transaction-payment-rpc"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
-dependencies = [
- "jsonrpsee",
- "pallet-transaction-payment-rpc-runtime-api",
- "parity-scale-codec",
- "sp-api",
- "sp-blockchain",
- "sp-core",
- "sp-rpc",
- "sp-runtime",
- "sp-weights",
-]
-
-[[package]]
-name = "pallet-transaction-payment-rpc-runtime-api"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
-dependencies = [
- "pallet-transaction-payment",
- "parity-scale-codec",
- "sp-api",
- "sp-runtime",
- "sp-weights",
-]
-
-[[package]]
-name = "pallet-treasury"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]

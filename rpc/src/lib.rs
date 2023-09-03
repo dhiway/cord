@@ -18,11 +18,9 @@
 
 //! A collection of CORD specific RPC methods.
 
-#![warn(unused_crate_dependencies)]
-
 use std::sync::Arc;
 
-use cord_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Index};
+use cord_primitives::{AccountId, Block, BlockNumber, Hash, Index};
 use jsonrpsee::RpcModule;
 use sc_client_api::AuxStore;
 use sc_consensus_babe::BabeWorkerHandle;

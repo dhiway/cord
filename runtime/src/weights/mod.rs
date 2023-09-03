@@ -21,7 +21,6 @@
 pub mod frame_system;
 pub mod pallet_balances;
 pub mod pallet_collective;
-pub mod pallet_democracy;
 pub mod pallet_did;
 pub mod pallet_did_names;
 pub mod pallet_extrinsic_authorship;
@@ -39,5 +38,4 @@ pub mod pallet_session;
 pub mod pallet_stream;
 pub mod pallet_sudo;
 pub mod pallet_timestamp;
-pub mod pallet_treasury;
 pub mod pallet_utility;

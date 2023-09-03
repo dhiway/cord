@@ -35,9 +35,8 @@ use frame_support::{
 		constants::{
 			BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
 		},
-		ConstantMultiplier, Weight,
+		Weight,
 	},
-	PalletId,
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
@@ -47,21 +46,17 @@ use sp_consensus_grandpa::AuthorityId as GrandpaId;
 
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
-pub use pallet_transaction_payment::{
-	CurrencyAdapter, Multiplier, OnChargeTransaction, TargetedFeeAdjustment,
-};
-use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdLookup, BlakeTwo256, Block as BlockT, Bounded, Extrinsic as ExtrinsicT, NumberFor,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, NumberFor,
 		OpaqueKeys, SaturatedConversion, Verify,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, Perbill, Permill, Perquintill,
+	ApplyExtrinsicResult, Perbill,
 };
 use sp_staking::SessionIndex;
 use sp_std::{cmp::Ordering, prelude::*};
@@ -80,7 +75,7 @@ pub use pallet_timestamp::Call as TimestampCall;
 pub use sp_runtime::BuildStorage;
 
 /// Constant values used within the runtime.
-use cord_runtime_constants::{currency::*, fee::WeightToFee, time::*};
+use cord_runtime_constants::{currency::*, time::*};
 
 // Weights used in the runtime.
 mod weights;
@@ -1224,7 +1219,7 @@ sp_api::impl_runtime_apis! {
 			impl baseline::Config for Runtime {}
 
 			use frame_support::traits::WhitelistedStorageKeys;
-			let mut whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
+			let whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
 
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
