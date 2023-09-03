@@ -49,37 +49,51 @@ use core::marker::PhantomData;
 
 /// Weight functions for `pallet_extrinsic_authorship`.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_extrinsic_authorship::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> pallet_network_membership::WeightInfo for WeightInfo<T> {
 	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:5 w:5)
 	/// Proof: ExtrinsicAuthorship ExtrinsicAuthors (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
 	/// The range of component `a` is `[1, 5]`.
-	fn add(a: u32, ) -> Weight {
+	fn add() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `167`
 		//  Estimated: `990 + a * (2523 ±0)`
-		// Minimum execution time: 14_429_000 picoseconds.
-		Weight::from_parts(11_989_361, 0)
-			.saturating_add(Weight::from_parts(0, 990))
-			// Standard Error: 9_123
-			.saturating_add(Weight::from_parts(3_173_385, 0).saturating_mul(a.into()))
-			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(a.into())))
-			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(a.into())))
-			.saturating_add(Weight::from_parts(0, 2523).saturating_mul(a.into()))
+		// Minimum execution time: 14_850_000 picoseconds.
+		Weight::from_parts(12_418_218, 990)
+			// Standard Error: 8_265
+			.saturating_add(Weight::from_parts(3_114_580, 0))
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+			.saturating_add(Weight::from_parts(0, 2523))
 	}
 	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:5 w:5)
 	/// Proof: ExtrinsicAuthorship ExtrinsicAuthors (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
 	/// The range of component `a` is `[1, 5]`.
-	fn remove(a: u32, ) -> Weight {
+	fn renew() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `167 + a * (53 ±0)`
 		//  Estimated: `990 + a * (2523 ±0)`
-		// Minimum execution time: 15_375_000 picoseconds.
-		Weight::from_parts(11_823_137, 0)
-			.saturating_add(Weight::from_parts(0, 990))
-			// Standard Error: 7_907
-			.saturating_add(Weight::from_parts(4_358_450, 0).saturating_mul(a.into()))
-			.saturating_add(T::DbWeight::get().reads((1_u64).saturating_mul(a.into())))
-			.saturating_add(T::DbWeight::get().writes((1_u64).saturating_mul(a.into())))
-			.saturating_add(Weight::from_parts(0, 2523).saturating_mul(a.into()))
+		// Minimum execution time: 15_563_000 picoseconds.
+		Weight::from_parts(11_823_279, 990)
+			// Standard Error: 8_176
+			.saturating_add(Weight::from_parts(4_439_413, 0))
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+			.saturating_add(Weight::from_parts(0, 2523))
+	}
+
+	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:5 w:5)
+	/// Proof: ExtrinsicAuthorship ExtrinsicAuthors (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
+	/// The range of component `a` is `[1, 5]`.
+	fn revoke() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `167 + a * (53 ±0)`
+		//  Estimated: `990 + a * (2523 ±0)`
+		// Minimum execution time: 15_563_000 picoseconds.
+		Weight::from_parts(11_823_279, 990)
+			// Standard Error: 8_176
+			.saturating_add(Weight::from_parts(4_439_413, 0))
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+			.saturating_add(Weight::from_parts(0, 2523))
 	}
 }

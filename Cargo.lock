@@ -1299,6 +1299,7 @@ dependencies = [
  "hex",
  "jsonrpsee",
  "log",
+ "network-membership",
  "nix 0.26.2",
  "pallet-balances",
  "pallet-im-online",
@@ -5438,12 +5439,13 @@ dependencies = [
 [[package]]
 name = "pallet-membership"
 version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
+ "network-membership",
+ "pallet-network-membership",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -5489,7 +5491,6 @@ dependencies = [
 name = "pallet-network-membership"
 version = "0.8.1"
 dependencies = [
- "cord-primitives",
  "cord-utilities",
  "env_logger 0.9.3",
  "frame-benchmarking",
@@ -5502,7 +5503,6 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-core",
- "sp-io",
  "sp-keystore",
  "sp-runtime",
  "sp-std",

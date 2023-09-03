@@ -81,7 +81,7 @@ use cord_runtime_constants::{currency::*, time::*};
 mod weights;
 // CORD Pallets
 mod authority_manager;
-pub use pallet_extrinsic_authorship;
+pub use pallet_network_membership;
 pub mod benchmark;
 pub use benchmark::DummySignature;
 
@@ -558,6 +558,7 @@ where
 			// so the actual block number is `n`.
 			.saturating_sub(1);
 		let extra: SignedExtra = (
+			pallet_network_membership::CheckNetworkMembership::<Runtime>::new(),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
@@ -568,7 +569,6 @@ where
 			)),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_extrinsic_authorship::CheckExtrinsicAuthor::<Runtime>::new(),
 		);
 		let raw_payload = SignedPayload::new(call, extra)
 			.map_err(|e| {
@@ -630,14 +630,16 @@ impl authority_manager::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxAuthorityProposals: u32 = 50;
+	pub const MembershipPeriod: BlockNumber = YEAR;
+	pub const MaxMembersPerBlock: u32 = 1_000;
 }
 
-impl pallet_extrinsic_authorship::Config for Runtime {
+impl pallet_network_membership::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AuthorApproveOrigin = MoreThanHalfCouncil;
-	type MaxAuthorityProposals = MaxAuthorityProposals;
-	type WeightInfo = weights::pallet_extrinsic_authorship::WeightInfo<Runtime>;
+	type NetworkMembershipOrigin = MoreThanHalfCouncil;
+	type MembershipPeriod = MembershipPeriod;
+	type MaxMembersPerBlock = MaxMembersPerBlock;
+	type WeightInfo = weights::pallet_network_membership::WeightInfo<Runtime>;
 }
 
 impl pallet_runtime_upgrade::Config for Runtime {
@@ -788,7 +790,7 @@ construct_runtime! {
 		Multisig: pallet_multisig = 35,
 		Remark: pallet_remark = 37,
 		Identity: pallet_identity =38,
-		ExtrinsicAuthorship: pallet_extrinsic_authorship =101,
+		NetworkMembership: pallet_network_membership =101,
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,
 		Registry: pallet_registry = 104,
@@ -878,6 +880,7 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The `SignedExtension` to the basic transaction logic.
 pub type SignedExtra = (
+	pallet_network_membership::CheckNetworkMembership<Runtime>,
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
@@ -885,7 +888,6 @@ pub type SignedExtra = (
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_extrinsic_authorship::CheckExtrinsicAuthor<Runtime>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.

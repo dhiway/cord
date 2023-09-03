@@ -149,6 +149,7 @@ impl BenchmarkCallSigner<cord_runtime::RuntimeCall, sp_core::sr25519::Pair>
 		use cord_runtime as runtime;
 
 		let extra: runtime::SignedExtra = (
+			pallet_network_membership::CheckNetworkMembership::<cord_runtime::Runtime>::new(),
 			frame_system::CheckNonZeroSender::<runtime::Runtime>::new(),
 			frame_system::CheckSpecVersion::<runtime::Runtime>::new(),
 			frame_system::CheckTxVersion::<runtime::Runtime>::new(),
@@ -158,7 +159,6 @@ impl BenchmarkCallSigner<cord_runtime::RuntimeCall, sp_core::sr25519::Pair>
 			),
 			frame_system::CheckNonce::<runtime::Runtime>::from(nonce),
 			frame_system::CheckWeight::<runtime::Runtime>::new(),
-			pallet_extrinsic_authorship::CheckExtrinsicAuthor::<cord_runtime::Runtime>::new(),
 		);
 
 		let payload = runtime::SignedPayload::from_raw(
@@ -166,11 +166,11 @@ impl BenchmarkCallSigner<cord_runtime::RuntimeCall, sp_core::sr25519::Pair>
 			extra.clone(),
 			(
 				(),
+				(),
 				runtime::VERSION.spec_version,
 				runtime::VERSION.transaction_version,
 				genesis,
 				genesis,
-				(),
 				(),
 				(),
 			),

@@ -1,0 +1,60 @@
+[package]
+name = "pallet-membership"
+version = "4.0.0-dev"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2021"
+license = "Apache-2.0"
+homepage = "https://substrate.io"
+repository = "https://github.com/paritytech/substrate/"
+description = "FRAME membership management pallet - modified to support CORD governance"
+readme = "README.md"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+# [build-dependencies]
+# substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false }
+scale-info = { version = "2.5.0", default-features = false, features = [
+	"derive",
+] }
+# cord-primitives = { package = "cord-primitives", path = "../../primitives/cord", default-features = false }
+network-membership = { package = "network-membership", path = "../../primitives/network-membership", default-features = false }
+pallet-network-membership = { package = "pallet-network-membership", path = "../../pallets/network-membership", default-features = false }
+log = { version = "0.4.17", default-features = false }
+
+# Substrate dependencies
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
+frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	# "cord-primitives/std",
+	"network-membership/std",
+	"frame-benchmarking?/std",
+	"frame-support/std",
+	"frame-system/std",
+	"log/std",
+	"scale-info/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"pallet-network-membership/std",
+]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]

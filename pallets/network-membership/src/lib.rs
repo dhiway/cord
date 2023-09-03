@@ -16,7 +16,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 //! # Network Membership Manager
-
+#![warn(unused_extern_crates)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod weights;
@@ -71,7 +71,7 @@ pub mod pallet {
 		/// blocks)
 		type MembershipPeriod: Get<Self::BlockNumber>;
 		#[pallet::constant]
-		type MaxEntriesPerBlock: Get<u32>;
+		type MaxMembersPerBlock: Get<u32>;
 		type WeightInfo: WeightInfo;
 	}
 
@@ -95,7 +95,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		BlockNumberOf<T>,
-		BoundedVec<CordAccountOf<T>, T::MaxEntriesPerBlock>,
+		BoundedVec<CordAccountOf<T>, T::MaxMembersPerBlock>,
 		ValueQuery,
 	>;
 

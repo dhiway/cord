@@ -45,8 +45,8 @@ check-did:
 	cargo check --package pallet-did $(CARGO_FLAGS)
 
 # Rule to check the Athorship pallet with all targets
-check-authorship:
-	cargo check --package pallet-extrinsic-authorship $(CARGO_FLAGS)
+check-network-membership:
+	cargo check --package pallet-network-membership $(CARGO_FLAGS)
 
 # Rule to check the DID NAME pallet with all targets
 check-did-name:
@@ -70,11 +70,11 @@ test:
 
 # Rule to test the DID pallet with all targets
 test-did:
-	cargo test --package pallet-did $(CARGO_FLAGS) 
+	cargo test --package pallet-did $(CARGO_FLAGS)
 
 # Rule to test the Athorship pallet with all targets
-test-authorship:
-	cargo test --package pallet-extrinsic-authorship $(CARGO_FLAGS)
+test-network-membership:
+	cargo test --package pallet-network-membership $(CARGO_FLAGS)
 
 # Rule to test the DID NAME pallet with all targets
 test-did-name:

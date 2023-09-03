@@ -52,7 +52,6 @@ pallet-grandpa = { git = "https://github.com/dhiway/substrate", default-features
 pallet-identity = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-im-online = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-indices = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-membership = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-multisig = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-offences = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-preimage = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
@@ -76,14 +75,14 @@ pallet-session-benchmarking = { git = "https://github.com/dhiway/substrate", def
 pallet-offences-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
 frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
 
+pallet-membership = { default-features = false, path = '../pallets/membership/' }
 pallet-did = { default-features = false, path = '../pallets/did' }
 pallet-did-names = { default-features = false, path = '../pallets/did-name' }
 pallet-schema = { default-features = false, path = '../pallets/schema' }
 pallet-registry = { default-features = false, path = '../pallets/registry' }
 pallet-stream = { default-features = false, path = '../pallets/stream' }
-pallet-extrinsic-authorship = { package = "pallet-network-membership", default-features = false, path = '../pallets/network-membership' }
+pallet-network-membership = { default-features = false, path = '../pallets/network-membership' }
 pallet-runtime-upgrade = { default-features = false, path = '../pallets/runtime-upgrade' }
-
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../pallets/did/runtime-api", default-features = false }
@@ -146,7 +145,7 @@ std = [
 	"pallet-schema/std",
 	"pallet-registry/std",
 	"pallet-stream/std",
-	"pallet-extrinsic-authorship/std",
+	"pallet-network-membership/std",
 	"pallet-runtime-upgrade/std",
 	"pallet-did-runtime-api/std",
 	"sp-runtime/std",
@@ -187,7 +186,7 @@ runtime-benchmarks = [
 	"pallet-schema/runtime-benchmarks",
 	"pallet-stream/runtime-benchmarks",
 	"pallet-registry/runtime-benchmarks",
-	"pallet-extrinsic-authorship/runtime-benchmarks",
+	"pallet-network-membership/runtime-benchmarks",
 	"hex-literal",
 	"pallet-sudo/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
