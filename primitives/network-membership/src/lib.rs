@@ -47,5 +47,5 @@ pub enum Event<AccountId = ()> {
 	Encode, Decode, Default, Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen,
 )]
 pub struct MemberData<BlockNumber: Decode + Encode + TypeInfo> {
-	pub expires_on: BlockNumber,
+	pub expire_on: BlockNumber,
 }

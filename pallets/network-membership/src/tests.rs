@@ -7,10 +7,7 @@ use frame_system::RawOrigin;
 fn add_author() {
 	new_test_ext().execute_with(|| {
 		// Adding Author if author doesnot exist in the account
-		assert_ok!(Authorship::add(
-			RawOrigin::Root.into(),
-			vec![AccountId::new([11u8; 32]), AccountId::new([12u8; 32])]
-		));
+		assert_ok!(Authorship::add(RawOrigin::Root.into(), AccountId::new([11u8; 32]), true));
 
 		// This ensures that the account was successfully added to the ExtrinsicAuthors
 		assert_eq!(ExtrinsicAuthors::<Test>::get(AccountId::new([11u8; 32])), Some(()));
@@ -22,10 +19,7 @@ fn add_author() {
 		// if author already exist in account it should throw error
 		// 'AuthorAccountAlreadyExists'
 		assert_err!(
-			Authorship::add(
-				RawOrigin::Root.into(),
-				vec![AccountId::new([10u8; 32]), AccountId::new([3u8; 32]),],
-			),
+			Authorship::add(RawOrigin::Root.into(), AccountId::new([11u8; 32]), true),
 			Error::<Test>::AuthorAccountAlreadyExists
 		);
 	});

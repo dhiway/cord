@@ -195,8 +195,8 @@ pub mod pallet {
 			if expires {
 				Self::insert_membership_and_schedule_expiry(member.clone())
 			} else {
-				let expires_on = T::BlockNumber::zero();
-				Members::<T>::insert(&member, MemberData { expires_on });
+				let expire_on = T::BlockNumber::zero();
+				Members::<T>::insert(&member, MemberData { expire_on });
 			}
 
 			Self::deposit_event(Event::MembershipAcquired { member });
@@ -240,7 +240,7 @@ pub mod pallet {
 			<Members<T>>::remove(&member);
 
 			// Remove the member from the BoundedVec stored in MembershipsExpiresOn.
-			MembershipsExpiresOn::<T>::try_mutate(member_details.expires_on, |members| {
+			MembershipsExpiresOn::<T>::try_mutate(member_details.expire_on, |members| {
 				members
 					.iter()
 					.position(|x| x == &member)
@@ -257,17 +257,17 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	fn insert_membership_and_schedule_expiry(member: CordAccountOf<T>) {
 		let block_number = frame_system::pallet::Pallet::<T>::block_number();
-		let expires_on = block_number + T::MembershipPeriod::get();
-		Members::<T>::insert(&member, MemberData { expires_on });
+		let expire_on = block_number + T::MembershipPeriod::get();
+		Members::<T>::insert(&member, MemberData { expire_on });
 
-		let _ = MembershipsExpiresOn::<T>::try_mutate(expires_on, |members| {
+		let _ = MembershipsExpiresOn::<T>::try_mutate(expire_on, |members| {
 			members.try_push(member).map_err(|_| Error::<T>::MaxMembersExceededForTheBlock)
 		});
 	}
 
 	fn renew_membership_and_schedule_expiry(member: CordAccountOf<T>, expire_on: BlockNumberOf<T>) {
 		let schedule_expiry = expire_on + T::MembershipPeriod::get();
-		Members::<T>::insert(&member, MemberData { expires_on: schedule_expiry });
+		Members::<T>::insert(&member, MemberData { expire_on: schedule_expiry });
 		let _ = MembershipsExpiresOn::<T>::try_mutate(schedule_expiry, |members| {
 			members.try_push(member).map_err(|_| Error::<T>::MaxMembersExceededForTheBlock)
 		});

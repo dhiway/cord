@@ -218,7 +218,7 @@ fn cord_local_genesis(
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 	// let member_candidates = member_accounts()
 	// .into_iter()
-	// .map(|account_id| (account_id, MemberData { expires_on: 0 }))
+	// .map(|account_id| (account_id, MemberData { expire_on: 0 }))
 	// .collect::<BTreeMap<AccountId, MemberData<BlockNumber>>>();
 
 	// let members = member_accounts()
@@ -241,7 +241,7 @@ fn cord_local_genesis(
 		network_membership: NetworkMembershipConfig {
 			members: member_accounts()
 				.into_iter()
-				.map(|member| (member, MemberData { expires_on: 0 }))
+				.map(|member| (member, MemberData { expire_on: 0 }))
 				.collect(),
 		},
 		authority_manager: AuthorityManagerConfig {
