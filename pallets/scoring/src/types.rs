@@ -93,3 +93,10 @@ pub struct ScoreEntry<CountOf, RatingOf> {
 	/// aggregrated Score
 	pub rating: RatingOf,
 }
+
+
+#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+pub enum RatingEntryType {
+	Credit,
+	Debit,
+}
