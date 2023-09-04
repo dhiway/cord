@@ -979,7 +979,7 @@ construct_runtime! {
 		Schema: pallet_schema = 103,
 		Registry: pallet_registry = 104,
 		Stream: pallet_stream = 105,
-		Scoring: pallet_scoring = 106,
+		Scoring: pallet_scoring = 107,
 		DidNames: pallet_did_names = 106,
 		Sudo: pallet_sudo = 255,
 	}
