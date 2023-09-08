@@ -69,6 +69,7 @@ members = [
 	"primitives/*",
 	"runtime",
 	"runtime/constants",
+	"runtime/authorities",
 	"rpc",
 	"inspect",
 	"utilities",

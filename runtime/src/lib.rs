@@ -80,7 +80,8 @@ use cord_runtime_constants::{currency::*, time::*};
 // Weights used in the runtime.
 mod weights;
 // CORD Pallets
-mod authority_manager;
+// mod authority_manager;
+pub use authority_membership;
 pub use pallet_network_membership;
 pub mod benchmark;
 pub use benchmark::DummySignature;
@@ -380,7 +381,7 @@ impl pallet_session::Config for Runtime {
 	type ValidatorIdOf = ValidatorIdOf;
 	type ShouldEndSession = Babe;
 	type NextSessionRotation = Babe;
-	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, AuthorityManager>;
+	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, AuthorityMembership>;
 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
 	type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
@@ -623,10 +624,9 @@ impl pallet_multisig::Config for Runtime {
 parameter_types! {
 	pub const MaxProposalLength: u16 = 5;
 }
-impl authority_manager::Config for Runtime {
+impl authority_membership::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AuthorityOrigin = MoreThanHalfCouncil;
-	type MaxProposalLength = MaxProposalLength;
+	type AuthorityMembershipOrigin = MoreThanHalfCouncil;
 }
 
 parameter_types! {
@@ -773,7 +773,7 @@ construct_runtime! {
 		Indices: pallet_indices = 4,
 		Balances: pallet_balances = 5,
 		Authorship: pallet_authorship = 6,
-		AuthorityManager: authority_manager = 7,
+		AuthorityMembership: authority_membership = 7,
 		Offences: pallet_offences = 8,
 		Session: pallet_session = 9,
 		Grandpa: pallet_grandpa = 10,

@@ -20,7 +20,7 @@ scale-info = { version = "2.5.0", default-features = false, features = [
 log = { version = "0.4.17", default-features = false }
 static_assertions = "1.1.0"
 
-# primitives
+authority-membership = { package = "cord-authority-membership", path = "./authorities", default-features = false }
 cord-primitives = { package = "cord-primitives", path = "../primitives/cord", default-features = false }
 network-membership = { package = "network-membership", path = "../primitives/network-membership", default-features = false }
 cord-runtime-constants = { package = "cord-runtime-constants", path = "./constants", default-features = false }
@@ -42,6 +42,7 @@ sp-version = { git = "https://github.com/dhiway/substrate", default-features = f
 sp-transaction-pool = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 sp-block-builder = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 
+pallet-staking = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-authority-discovery = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-authorship = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-babe = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
@@ -61,7 +62,6 @@ pallet-session = { git = "https://github.com/dhiway/substrate", features = [
 ], default-features = false, branch = "release-v0.9.43" }
 pallet-sudo = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 frame-support = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-staking = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 frame-system = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 frame-system-rpc-runtime-api = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-timestamp = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
@@ -104,6 +104,7 @@ std = [
 	"sp-authority-discovery/std",
 	"cord-primitives/std",
 	"network-membership/std",
+	"authority-membership/std",
 	"pallet-offences-benchmarking?/std",
 	"frame-system-benchmarking?/std",
 	"cord-utilities/std",

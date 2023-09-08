@@ -21,7 +21,7 @@
 pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	AuthorityDiscoveryConfig, AuthorityManagerConfig, BabeConfig, BalancesConfig, Block,
+	AuthorityDiscoveryConfig, AuthorityMembershipConfig, BabeConfig, BalancesConfig, Block,
 	CouncilMembershipConfig, IndicesConfig, NetworkMembershipConfig, SessionConfig, SessionKeys,
 	SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
@@ -244,8 +244,11 @@ fn cord_local_genesis(
 				.map(|member| (member, MemberData { expire_on: 0 }))
 				.collect(),
 		},
-		authority_manager: AuthorityManagerConfig {
-			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+		authority_membership: AuthorityMembershipConfig {
+			initial_authorities: initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
 		},
 		session: SessionConfig {
 			keys: initial_authorities

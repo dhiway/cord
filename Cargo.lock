@@ -1214,6 +1214,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21a53c0a4d288377e7415b53dcfc3c04da5cdc2cc95c8d5ac178b58f0b861ad6"
 
 [[package]]
+name = "cord-authority-membership"
+version = "0.8.1"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "network-membership",
+ "pallet-network-membership",
+ "pallet-session",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-runtime",
+ "sp-staking",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "cord-cli-test-utils"
 version = "0.1.0"
 dependencies = [
@@ -1414,6 +1435,7 @@ dependencies = [
 name = "cord-runtime"
 version = "0.8.1"
 dependencies = [
+ "cord-authority-membership",
  "cord-primitives",
  "cord-runtime-constants",
  "cord-utilities",
@@ -1431,7 +1453,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-babe",
  "pallet-balances",
- "pallet-collective",
+ "pallet-collective 4.0.0-dev",
  "pallet-did",
  "pallet-did-names",
  "pallet-did-runtime-api",
@@ -5293,6 +5315,22 @@ dependencies = [
 
 [[package]]
 name = "pallet-collective"
+version = "0.8.1"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-collective"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
 dependencies = [
@@ -5438,7 +5476,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-membership"
-version = "4.0.0-dev"
+version = "0.8.1"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
