@@ -1,19 +1,22 @@
-// This file is part of Substrate.
+// This file is part of CORD – https://cord.network
 
 // Copyright (C) Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Adapted to meet the requirements of the CORD project.
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! Collective system: Members of a set of account IDs can make their collective
 //! feelings known through dispatched calls from one of two specialized origins.
@@ -695,11 +698,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	) -> Result<(u32, DispatchResultWithPostInfo), DispatchError> {
 		let proposal_len = proposal.encoded_size();
 		ensure!(proposal_len <= length_bound as usize, Error::<T, I>::WrongProposalLength);
-		let proposal_weight = proposal.get_dispatch_info().weight;
-		ensure!(
-			proposal_weight.all_lte(T::MaxProposalWeight::get()),
-			Error::<T, I>::WrongProposalWeight
-		);
 
 		let proposal_hash = T::Hashing::hash_of(&proposal);
 		ensure!(!<ProposalOf<T, I>>::contains_key(proposal_hash), Error::<T, I>::DuplicateProposal);
@@ -722,11 +720,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	) -> Result<(u32, u32), DispatchError> {
 		let proposal_len = proposal.encoded_size();
 		ensure!(proposal_len <= length_bound as usize, Error::<T, I>::WrongProposalLength);
-		let proposal_weight = proposal.get_dispatch_info().weight;
-		ensure!(
-			proposal_weight.all_lte(T::MaxProposalWeight::get()),
-			Error::<T, I>::WrongProposalWeight
-		);
 
 		let proposal_hash = T::Hashing::hash_of(&proposal);
 		ensure!(!<ProposalOf<T, I>>::contains_key(proposal_hash), Error::<T, I>::DuplicateProposal);
@@ -838,7 +831,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 					T::WeightInfo::close_early_approved(len as u32, seats, proposal_count)
 						.saturating_add(proposal_weight),
 				),
-				Pays::Yes,
+				Pays::No,
 			)
 				.into())
 		} else if disapproved {
@@ -880,7 +873,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 					T::WeightInfo::close_approved(len as u32, seats, proposal_count)
 						.saturating_add(proposal_weight),
 				),
-				Pays::Yes,
+				Pays::No,
 			)
 				.into())
 		} else {
@@ -898,7 +891,7 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 	fn validate_and_get_proposal(
 		hash: &T::Hash,
 		length_bound: u32,
-		weight_bound: Weight,
+		_weight_bound: Weight,
 	) -> Result<(<T as Config<I>>::Proposal, usize), DispatchError> {
 		let key = ProposalOf::<T, I>::hashed_key_for(hash);
 		// read the length of the proposal storage entry directly
@@ -906,8 +899,6 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			storage::read(&key, &mut [0; 0], 0).ok_or(Error::<T, I>::ProposalMissing)?;
 		ensure!(proposal_len <= length_bound, Error::<T, I>::WrongProposalLength);
 		let proposal = ProposalOf::<T, I>::get(hash).ok_or(Error::<T, I>::ProposalMissing)?;
-		let proposal_weight = proposal.get_dispatch_info().weight;
-		ensure!(proposal_weight.all_lte(weight_bound), Error::<T, I>::WrongProposalWeight);
 		Ok((proposal, proposal_len as usize))
 	}
 

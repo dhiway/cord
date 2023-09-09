@@ -20,12 +20,27 @@ scale-info = { version = "2.5.0", default-features = false, features = [
 log = { version = "0.4.17", default-features = false }
 static_assertions = "1.1.0"
 
+# Local
 authority-membership = { package = "cord-authority-membership", path = "./authorities", default-features = false }
 cord-primitives = { package = "cord-primitives", path = "../primitives/cord", default-features = false }
 network-membership = { package = "network-membership", path = "../primitives/network-membership", default-features = false }
 cord-runtime-constants = { package = "cord-runtime-constants", path = "./constants", default-features = false }
 cord-utilities = { package = "cord-utilities", path = "../utilities", default-features = false }
 
+pallet-membership = { default-features = false, path = '../pallets/membership/' }
+pallet-did = { default-features = false, path = '../pallets/did' }
+pallet-did-names = { default-features = false, path = '../pallets/did-name' }
+pallet-schema = { default-features = false, path = '../pallets/schema' }
+pallet-registry = { default-features = false, path = '../pallets/registry' }
+pallet-stream = { default-features = false, path = '../pallets/stream' }
+pallet-network-membership = { default-features = false, path = '../pallets/network-membership' }
+pallet-runtime-upgrade = { default-features = false, path = '../pallets/runtime-upgrade' }
+pallet-collective = { default-features = false, path = '../pallets/collective' }
+
+# Internal runtime API (with default disabled)
+pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../pallets/did/runtime-api", default-features = false }
+
+# Substrate
 sp-authority-discovery = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 sp-consensus-babe = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 sp-consensus-grandpa = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
@@ -47,7 +62,6 @@ pallet-authority-discovery = { git = "https://github.com/dhiway/substrate", defa
 pallet-authorship = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-babe = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-balances = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-collective = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 frame-executive = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-grandpa = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-identity = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
@@ -74,18 +88,6 @@ frame-system-benchmarking = { git = "https://github.com/dhiway/substrate", defau
 pallet-session-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
 pallet-offences-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
 frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
-
-pallet-membership = { default-features = false, path = '../pallets/membership/' }
-pallet-did = { default-features = false, path = '../pallets/did' }
-pallet-did-names = { default-features = false, path = '../pallets/did-name' }
-pallet-schema = { default-features = false, path = '../pallets/schema' }
-pallet-registry = { default-features = false, path = '../pallets/registry' }
-pallet-stream = { default-features = false, path = '../pallets/stream' }
-pallet-network-membership = { default-features = false, path = '../pallets/network-membership' }
-pallet-runtime-upgrade = { default-features = false, path = '../pallets/runtime-upgrade' }
-
-# Internal runtime API (with default disabled)
-pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../pallets/did/runtime-api", default-features = false }
 
 [dev-dependencies]
 hex-literal = "0.4.1"
