@@ -118,7 +118,7 @@ pub mod pallet {
 		RatingTypeOf,
 		RatingOf,
 		RatingEntryType,
-		CountOf
+		CountOf,
 	>;
 
 	pub type RatingInputOf<T> =
@@ -239,6 +239,8 @@ pub mod pallet {
 		InvalidEntitySignature,
 		//Stream digest is not unique
 		DigestAlreadyAnchored,
+		//Count entry Greater than storage count
+		CountGreaterThanStorage,
 	}
 
 	#[pallet::call]
@@ -317,23 +319,41 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn aggregate_score(entry: &RatingDetailsOf<T>) {
-		if let Some(mut aggregate) = <Scores<T>>::get(&entry.entity, &entry.rating_type) {
-			aggregate.count.saturating_inc();
-			aggregate.rating = aggregate.rating.saturating_add(entry.rating);
+	pub fn aggregate_score(entry: &RatingDetailsOf<T>) -> Result<(), pallet::Error<T>> {
+		if let Some(aggregate) = <Scores<T>>::get(&entry.entity, &entry.rating_type) {
+			let total_count = aggregate.count + entry.count;
+
+			let sum = match entry.entry_type {
+				RatingEntryType::Credit =>
+					Self::sum_average(aggregate.rating + entry.rating, total_count),
+				RatingEntryType::Debit => {
+					ensure!(aggregate.count > entry.count, Error::<T>::CountGreaterThanStorage);
+					Self::sum_average(aggregate.rating - entry.rating, total_count)
+				},
+			};
+			//Add current count value to the existing count -- get the count
+			// aggregate.count += entry.count;
+			// aggregate.count.saturating_inc();
+			// aggregate.rating = aggregate.rating.saturating_add(entry.rating);
 
 			<Scores<T>>::insert(
 				&entry.entity,
 				&entry.rating_type,
-				ScoreEntryOf { count: aggregate.count, rating: aggregate.rating },
+				ScoreEntryOf { count: total_count, rating: sum },
 			);
 		} else {
 			<Scores<T>>::insert(
 				&entry.entity,
 				&entry.rating_type,
-				ScoreEntryOf { count: 1, rating: entry.rating },
+				ScoreEntryOf { count:entry.count, rating: entry.rating },
 			);
 		}
 		Self::deposit_event(Event::AggregateUpdated { entity: entry.entity.clone() });
+
+		Ok(())
+	}
+
+	fn sum_average(sum: RatingOf, count: CountOf) -> RatingOf {
+		sum / count
 	}
 }
