@@ -24,11 +24,11 @@ use scale_info::TypeInfo;
 	Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
 pub struct RatingEntryDetails<
-	EntityIdentifierOf, //jain medicals - geting rated
-	RequestIdentifierOf, // still wip 0000 --can be removed in future
-	TransactionIdentfierOf,//unique id per call for chain - audit
-	CollectorIdentifierOf,// paytm, meesho - seller app
-	RequestorIdentifierOf,//identification of collector --can be removed in future
+	EntityIdentifierOf,     //jain medicals - geting rated
+	RequestIdentifierOf,    // still wip 0000 --can be removed in future
+	TransactionIdentfierOf, //unique id per call for chain - audit
+	CollectorIdentifierOf,  // paytm, meesho - seller app
+	RequestorIdentifierOf,  //identification of collector --can be removed in future
 	RatingTypeOf,
 	RatingOf,
 	RatingEntryType,
@@ -45,13 +45,13 @@ pub struct RatingEntryDetails<
 	///score requestor identifier
 	pub requestor: RequestorIdentifierOf,
 	/// score type
-	pub rating_type: RatingTypeOf,//overall, delivery
+	pub rating_type: RatingTypeOf, //overall, delivery
 	///entity rating
 	pub rating: RatingOf, //u32 15,16
 	///Rating Entry Type
-	pub entry_type : RatingEntryType, // credit, debit
+	pub entry_type: RatingEntryType, // credit, debit
 	//total  Count
-	pub count : CountOf
+	pub count: CountOf,
 }
 
 #[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
@@ -75,7 +75,13 @@ pub struct RatingInput<RatingEntryDetails, RatingEntryHashOf, RatingCreatorIdOf>
 #[derive(
 	Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct RatingEntry<RatingEntryDetails, RatingEntryHashOf, BlockNumber,RegistryIdOf,RatingCreatorIdOf> {
+pub struct RatingEntry<
+	RatingEntryDetails,
+	RatingEntryHashOf,
+	BlockNumber,
+	RegistryIdOf,
+	RatingCreatorIdOf,
+> {
 	///journal entry
 	pub entry: RatingEntryDetails,
 	/// tx digest
@@ -86,7 +92,6 @@ pub struct RatingEntry<RatingEntryDetails, RatingEntryHashOf, BlockNumber,Regist
 	pub registry: RegistryIdOf,
 	/// Rating creator.
 	pub creator: RatingCreatorIdOf,
-
 }
 
 #[derive(
@@ -98,7 +103,6 @@ pub struct ScoreEntry<CountOf, RatingOf> {
 	/// aggregrated Score
 	pub rating: RatingOf,
 }
-
 
 #[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 pub enum RatingEntryType {

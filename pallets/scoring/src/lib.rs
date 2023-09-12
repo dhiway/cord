@@ -345,7 +345,7 @@ impl<T: Config> Pallet<T> {
 			<Scores<T>>::insert(
 				&entry.entity,
 				&entry.rating_type,
-				ScoreEntryOf { count:entry.count, rating: entry.rating },
+				ScoreEntryOf { count: entry.count, rating: entry.rating },
 			);
 		}
 		Self::deposit_event(Event::AggregateUpdated { entity: entry.entity.clone() });
