@@ -37,6 +37,7 @@ pub mod pallet_scheduler;
 pub mod pallet_schema;
 pub mod pallet_session;
 pub mod pallet_stream;
+pub mod pallet_scoring;
 pub mod pallet_sudo;
 pub mod pallet_timestamp;
 pub mod pallet_treasury;

@@ -102,7 +102,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 /// Max size for serialized extrinsic params for this testing runtime.
 /// This is a quite arbitrary but empirically battle tested value.
 #[cfg(test)]
-pub const CALL_PARAMS_MAX_SIZE: usize = 208;
+pub const CALL_PARAMS_MAX_SIZE: usize = 250;
 
 /// Wasm binary unwrapped. If built with `SKIP_WASM_BUILD`, the function panics.
 #[cfg(feature = "std")]
@@ -913,6 +913,24 @@ impl pallet_stream::Config for Runtime {
 	type MaxStreamCommits = MaxStreamCommits;
 }
 
+//scoring config for runtime
+parameter_types! {
+	pub const MinScoreValue: u32 = 1;
+    pub const MaxScoreValue: u32 = 50;
+}
+
+impl pallet_scoring::Config for Runtime {
+	type RatingCreatorIdOf = DidIdentifier;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+	type RuntimeEvent = RuntimeEvent;
+	type MinScoreValue = MinScoreValue;
+  type MaxScoreValue = MaxScoreValue;
+	type WeightInfo = weights::pallet_scoring::WeightInfo<Runtime>;
+	type ValueLimit = ConstU32<72>;
+}
+//End  config for runtime
+
 impl pallet_remark::Config for Runtime {
 	type WeightInfo = weights::pallet_remark::WeightInfo<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
@@ -961,6 +979,7 @@ construct_runtime! {
 		Schema: pallet_schema = 103,
 		Registry: pallet_registry = 104,
 		Stream: pallet_stream = 105,
+		Scoring: pallet_scoring = 107,
 		DidNames: pallet_did_names = 106,
 		Sudo: pallet_sudo = 255,
 	}
@@ -991,34 +1010,52 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 		}
 		match self {
 			// DID creation is not allowed through the DID proxy.
-			RuntimeCall::Did(pallet_did::Call::create { .. }) =>
-				Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
-			RuntimeCall::Did { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::DidNames { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::Schema { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Stream { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::Registry(pallet_registry::Call::add_delegate { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::Registry(pallet_registry::Call::remove_delegate { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::Registry(pallet_registry::Call::create { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Registry(pallet_registry::Call::archive { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Registry(pallet_registry::Call::restore { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) =>
-				single_key_relationship(&calls[..]),
-			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) =>
-				single_key_relationship(&calls[..]),
-			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
-				single_key_relationship(&calls[..]),
+			RuntimeCall::Did(pallet_did::Call::create { .. }) => {
+				Err(pallet_did::RelationshipDeriveError::NotCallableByDid)
+			},
+			RuntimeCall::Did { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::DidNames { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::Schema { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
+			RuntimeCall::Stream { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
+			RuntimeCall::Scoring { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::add_delegate { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::remove_delegate { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::create { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::archive { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
+			RuntimeCall::Registry(pallet_registry::Call::restore { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod)
+			},
+			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {
+				single_key_relationship(&calls[..])
+			},
+			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) => {
+				single_key_relationship(&calls[..])
+			},
+			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
+				single_key_relationship(&calls[..])
+			},
+
 			#[cfg(not(feature = "runtime-benchmarks"))]
 			_ => Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
 			// By default, returns the authentication key
@@ -1102,6 +1139,7 @@ mod benches {
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
 		[pallet_stream, Stream]
+		[pallet_scoring, Scoring]
 		[pallet_registry, Registry]
 		[pallet_did, Did]
 		[pallet_did_names, DidNames]
