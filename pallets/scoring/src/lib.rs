@@ -117,6 +117,8 @@ pub mod pallet {
 		RequestorIdentifierOf<T>,
 		RatingTypeOf,
 		RatingOf,
+		RatingEntryType,
+		CountOf
 	>;
 
 	pub type RatingInputOf<T> =
@@ -283,6 +285,8 @@ pub mod pallet {
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
+			Self::aggregate_score(&journal.entry);
+
 			<Journal<T>>::insert(
 				&identifier,
 				&journal.entry.rating_type,
@@ -306,8 +310,6 @@ pub mod pallet {
 				entity: journal.entry.entity.clone(),
 				author: author.clone(),
 			});
-
-			Self::aggregate_score(&journal.entry);
 
 			Ok(())
 		}

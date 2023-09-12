@@ -24,13 +24,15 @@ use scale_info::TypeInfo;
 	Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
 pub struct RatingEntryDetails<
-	EntityIdentifierOf,
-	RequestIdentifierOf,
-	TransactionIdentfierOf,
-	CollectorIdentifierOf,
-	RequestorIdentifierOf,
+	EntityIdentifierOf, //jain medicals - geting rated
+	RequestIdentifierOf, // still wip 0000 --can be removed in future
+	TransactionIdentfierOf,//unique id per call for chain - audit
+	CollectorIdentifierOf,// paytm, meesho - seller app
+	RequestorIdentifierOf,//identification of collector --can be removed in future
 	RatingTypeOf,
 	RatingOf,
+	RatingEntryType,
+	CountOf,
 > {
 	///entity Identifier
 	pub entity: EntityIdentifierOf,
@@ -43,10 +45,13 @@ pub struct RatingEntryDetails<
 	///score requestor identifier
 	pub requestor: RequestorIdentifierOf,
 	/// score type
-	pub rating_type: RatingTypeOf,
+	pub rating_type: RatingTypeOf,//overall, delivery
 	///entity rating
-	pub rating: RatingOf,
-	
+	pub rating: RatingOf, //u32 15,16
+	///Rating Entry Type
+	pub entry_type : RatingEntryType, // credit, debit
+	//total  Count
+	pub count : CountOf
 }
 
 #[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
