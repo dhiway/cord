@@ -13,7 +13,7 @@ codegen-units = 1
 inherits = "release"
 
 [profile.dev]
-debug = 1 # debug symbols are useful for profilers
+debug = 1               # debug symbols are useful for profilers
 debug-assertions = true
 overflow-checks = true
 
@@ -72,7 +72,6 @@ members = [
 	"rpc",
 	"inspect",
 	"utilities",
-  "test-utils",
+	"test-utils",
 ]
 resolver = "2"
-

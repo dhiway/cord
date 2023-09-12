@@ -74,14 +74,14 @@ benchmarks! {
 		<Authorizations<T>>::insert(
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
-				registry_id: registry_id.clone(),
+				registry_id,
 				delegate: did.clone(),
 				schema: None,
 				permissions: Permissions::all(),
 			},
 		);
 
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 	}: _<T::RuntimeOrigin>(origin, stream_digest, authorization_id, None)
 	verify {
@@ -134,7 +134,7 @@ benchmarks! {
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
 				registry_id: registry_id.clone(),
-				delegate: did1.clone(),
+				delegate: did1,
 				schema: None,
 				permissions: Permissions::all(),
 			},
@@ -143,10 +143,10 @@ benchmarks! {
 		<Streams<T>>::insert(
 			&stream_id,
 			StreamEntryOf::<T> {
-				digest: stream_digest.clone(),
+				digest: stream_digest,
 				creator: did.clone(),
 				schema: None,
-				registry: registry_id.clone(),
+				registry: registry_id,
 				revoked: false,
 			},
 		);
@@ -154,7 +154,7 @@ benchmarks! {
 		let stream_update = [12u8; 32].to_vec();
 		let update_digest = <T as frame_system::Config>::Hashing::hash(&stream_update[..]);
 
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 
 	}: _<T::RuntimeOrigin>(origin, stream_id, update_digest, authorization_id)
@@ -208,7 +208,7 @@ benchmarks! {
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
 				registry_id: registry_id.clone(),
-				delegate: did1.clone(),
+				delegate: did1,
 				schema: None,
 				permissions: Permissions::all(),
 			},
@@ -217,16 +217,16 @@ benchmarks! {
 		<Streams<T>>::insert(
 			&stream_id,
 			StreamEntryOf::<T> {
-				digest: stream_digest.clone(),
+				digest: stream_digest,
 				creator: did.clone(),
 				schema: None,
-				registry: registry_id.clone(),
+				registry: registry_id,
 				revoked: false,
 			},
 		);
 
 
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 
 	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), authorization_id)
@@ -280,7 +280,7 @@ benchmarks! {
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
 				registry_id: registry_id.clone(),
-				delegate: did1.clone(),
+				delegate: did1,
 				schema: None,
 				permissions: Permissions::all(),
 			},
@@ -289,10 +289,10 @@ benchmarks! {
 		<Streams<T>>::insert(
 			&stream_id,
 			StreamEntryOf::<T> {
-				digest: stream_digest.clone(),
+				digest: stream_digest,
 				creator: did.clone(),
 				schema: None,
-				registry: registry_id.clone(),
+				registry: registry_id,
 				revoked: true,
 			},
 		);
@@ -300,7 +300,7 @@ benchmarks! {
 		let stream_update = [12u8; 32].to_vec();
 		let update_digest = <T as frame_system::Config>::Hashing::hash(&stream_update[..]);
 
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 
 	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), authorization_id)
@@ -355,7 +355,7 @@ benchmarks! {
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
 				registry_id: registry_id.clone(),
-				delegate: did1.clone(),
+				delegate: did1,
 				schema: None,
 				permissions: Permissions::all(),
 			},
@@ -364,14 +364,14 @@ benchmarks! {
 		<Streams<T>>::insert(
 			&stream_id,
 			StreamEntryOf::<T> {
-				digest: stream_digest.clone(),
+				digest: stream_digest,
 				creator: did.clone(),
 				schema: None,
-				registry: registry_id.clone(),
+				registry: registry_id,
 				revoked: false,
 			},
 		);
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 
 	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), authorization_id)
@@ -420,13 +420,13 @@ benchmarks! {
 
 		let authorization_id: Ss58Identifier =
 		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 		<Authorizations<T>>::insert(
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
 				registry_id: registry_id.clone(),
-				delegate: did1.clone(),
+				delegate: did1,
 				schema: None,
 				permissions: Permissions::all(),
 			},
@@ -435,15 +435,15 @@ benchmarks! {
 		<Streams<T>>::insert(
 			&stream_id,
 			StreamEntryOf::<T> {
-				digest: stream_digest.clone(),
+				digest: stream_digest,
 				creator: did.clone(),
 				schema: None,
-				registry: registry_id.clone(),
+				registry: registry_id,
 				revoked: false,
 			},
 		);
 
-	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), stream_digest.clone(), authorization_id)
+	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), stream_digest, authorization_id)
 	verify {
 		assert_last_event::<T>(Event::Digest { identifier:stream_id,digest: stream_digest, author: did}.into());
 	}
