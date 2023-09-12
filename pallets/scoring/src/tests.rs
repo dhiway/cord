@@ -59,6 +59,10 @@ fn check_successful_rating_creation() {
 	let rating_type: RatingTypeOf = RatingTypeOf::Overall;
 	//Entity Rating
 	let rating: RatingOf = 12;
+	//Count
+	let count:CountOf = 4;
+	//Entry type
+	let entry_type : RatingEntryType = RatingEntryType::Credit;
 
 	let journal_details = RatingEntryDetails {
 		entity: e_id,
@@ -68,6 +72,8 @@ fn check_successful_rating_creation() {
 		requestor: requestor_id,
 		rating_type,
 		rating,
+		count,
+		entry_type
 	};
 
 	let journal_details_digest = <Test as frame_system::Config>::Hashing::hash(
