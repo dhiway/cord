@@ -30,8 +30,8 @@ pub mod benchmarking;
 #[cfg(any(feature = "mock", test))]
 pub mod mock;
 
-// #[cfg(test)]
-// pub mod tests;
+#[cfg(test)]
+pub mod tests;
 
 use cord_primitives::{curi::Ss58Identifier, StatusOf};
 use frame_support::{ensure, storage::types::StorageMap};
@@ -142,8 +142,6 @@ pub mod pallet {
 		ValueQuery,
 	>;
 
-	////Swap the storage names keyidenfier value adas details
-	///
 	/// unique digest incoming hash as key and identifier as value
 
 	#[pallet::event]
@@ -234,10 +232,10 @@ pub mod pallet {
 		/// DispatchResult
 		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
-		//On the create arguments make authorizatio optional so we dont need regostry
+		//On the create arguments make authorization optional so we dont need regostry
 		// id ,with authorization we can get registry details
 
-		//TODO : Check for optional steam Id from stream pallet
+		//TODO : Check for optional stream Id from stream pallet
 		//TODO : Identifirer check  prefix check
 		//TODO : IF Stream Identifier is given we will not create another identifieer
 		pub fn create(
@@ -247,7 +245,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			ensure!(!unique_txn.is_empty() , Error::<T>::EmptyTransaction);
+			ensure!(!unique_txn.is_empty(), Error::<T>::EmptyTransaction);
 
 			ensure!(
 				unique_txn.len() <= T::MaxEncodedLength::get() as usize,

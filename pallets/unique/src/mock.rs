@@ -36,8 +36,6 @@ type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 
-
-
 construct_runtime!(
 	pub enum Test where
 		Block = frame_system::mocking::MockBlock<Test>,
@@ -45,9 +43,9 @@ construct_runtime!(
 		UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Unique: pallet_unique::{Pallet, Storage, Call,Event<T>},
-        Registry: pallet_registry::{Pallet, Storage, Call,Event<T>},
-        Schema: pallet_schema::{Pallet, Call, Storage, Event<T>},
+		Unique: pallet_unique::{Pallet, Storage, Call,Event<T>},
+		Registry: pallet_registry::{Pallet, Storage, Call,Event<T>},
+		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>},
 		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
 		MockOrigin: mock_origin::{Pallet, Origin<T>},
 	}
@@ -56,6 +54,7 @@ construct_runtime!(
 parameter_types! {
 	pub const SS58Prefix: u8 = 29;
 }
+
 impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
@@ -107,7 +106,7 @@ impl mock_origin::Config for Test {
 
 parameter_types! {
 	pub const  MaxEncodedLength: u32 = 15_360;
-    pub const MaxUniqueCommits: u32 = 15_360;
+	pub const MaxUniqueCommits: u32 = 15_360;
 }
 
 impl Config for Test {
@@ -115,8 +114,8 @@ impl Config for Test {
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
-	type MaxEncodedLength =  MaxEncodedLength;
-    type MaxUniqueCommits = MaxUniqueCommits;
+	type MaxEncodedLength = MaxEncodedLength;
+	type MaxUniqueCommits = MaxUniqueCommits;
 }
 
 parameter_types! {
