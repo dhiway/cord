@@ -74,7 +74,11 @@ benchmarks! {
 		//ScoreTypeOf
 		let rating_type: RatingTypeOf = RatingTypeOf::Overall;
 		//Entity Rating
-		let rating: RatingOf = 12;
+		let rating: RatingOf = 4;
+		//count
+		let count : CountOf = 4;
+		//entry type
+		let entry_type: RatingEntryType = RatingEntryType::Credit;
 
 		let journal_details = RatingEntryDetails {
 		entity: e_id,
@@ -82,8 +86,10 @@ benchmarks! {
 		tid: t_id,
 		collector: c_id,
 		requestor: requestor_id,
-		rating_type,
-		rating,
+		rating_type:rating_type,
+		rating:rating,
+		entry_type:entry_type,
+		count : count,
 		};
 
 	let journal_details_digest = <T as frame_system::Config>::Hashing::hash(
