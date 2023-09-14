@@ -323,8 +323,8 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	pub fn aggregate_score(entry: &RatingDetailsOf<T>) -> Result<(), pallet::Error<T>> {
-		ensure!(entry.count == 0, Error::<T>::CountCannotBeZero);
-		ensure!(entry.rating == 0, Error::<T>::RatingCannotBeZero);
+		ensure!(entry.count > 0, Error::<T>::CountCannotBeZero);
+		ensure!(entry.rating > 0, Error::<T>::RatingCannotBeZero);
 
 		if let Some(mut aggregate) = <Scores<T>>::get(&entry.entity, &entry.rating_type) {
 			match entry.entry_type {

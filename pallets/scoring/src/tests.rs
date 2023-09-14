@@ -58,9 +58,9 @@ fn check_successful_rating_creation() {
 	//ScoreTypeOf
 	let rating_type: RatingTypeOf = RatingTypeOf::Overall;
 	//Entity Rating
-	let rating: RatingOf = 4;
+	let rating: RatingOf = 40;
 	//Count
-	let count: CountOf = 4;
+	let count: CountOf = 1;
 	//Entry type
 	let entry_type: RatingEntryType = RatingEntryType::Credit;
 
