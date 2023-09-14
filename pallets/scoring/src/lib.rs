@@ -276,11 +276,11 @@ pub mod pallet {
 				Error::<T>::InvalidRatingValue
 			);
 			ensure!(
-				!<JournalHashes<T>>::contains_key(&journal.digest),
+				!<JournalHashes<T>>::contains_key(journal.digest),
 				Error::<T>::DigestAlreadyAnchored
 			);
 
-			let identifier = Ss58Identifier::to_scoring_id(&(&journal.digest).encode()[..])
+			let identifier = Ss58Identifier::to_scoring_id(&(journal.digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
@@ -303,7 +303,7 @@ pub mod pallet {
 					creator: author.clone(),
 				},
 			);
-			<JournalHashes<T>>::insert(&journal.digest, ());
+			<JournalHashes<T>>::insert(journal.digest, ());
 			<TidEntries<T>>::insert(
 				&journal.entry.tid,
 				&journal.entry.rating_type,
@@ -313,7 +313,7 @@ pub mod pallet {
 			Self::deposit_event(Event::JournalEntry {
 				identifier,
 				entity: journal.entry.entity.clone(),
-				author: author.clone(),
+				author,
 			});
 
 			Ok(())
@@ -344,7 +344,7 @@ impl<T: Config> Pallet<T> {
 			);
 		} else {
 			let new_score_entry = ScoreEntryOf { count: entry.count, rating: entry.rating };
-			<Scores<T>>::insert(&entry.entity, &entry.rating_type, new_score_entry.clone());
+			<Scores<T>>::insert(&entry.entity, &entry.rating_type, new_score_entry);
 		}
 		Self::deposit_event(Event::AggregateUpdated { entity: entry.entity.clone() });
 		Ok(())

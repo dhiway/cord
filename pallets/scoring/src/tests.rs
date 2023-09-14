@@ -99,7 +99,7 @@ fn check_successful_rating_creation() {
 		<Test as frame_system::Config>::Hashing::hash(&[&journal_entry.encode()[..]].concat()[..]);
 
 	let journal_input = RatingInput {
-		entry: journal_details.clone(),
+		entry: journal_details,
 		digest: journal_entry_digest,
 		creator: creator.clone(),
 	};

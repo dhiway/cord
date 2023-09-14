@@ -114,12 +114,12 @@ benchmarks! {
 	let journal_entry_digest =
 		<T as frame_system::Config>::Hashing::hash(&[&journal_entry.encode()[..]].concat()[..]);
 
-		let identifier = Ss58Identifier::to_scoring_id(&(&journal_entry_digest.clone()).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_scoring_id(&(journal_entry_digest.clone()).encode()[..]).unwrap();
 
 	let journal_input = RatingInput {
-		entry: journal_details.clone(),
+		entry: journal_details,
 		digest: journal_entry_digest,
-		creator: did.clone(),
+		creator: did,
 	};
 
 	let auth_digest = <T as frame_system::Config>::Hashing::hash(
@@ -131,7 +131,7 @@ benchmarks! {
 		<Authorizations<T>>::insert(
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
-				registry_id: registry_id.clone(),
+				registry_id,
 				delegate: did1.clone(),
 				schema: None,
 				permissions: Permissions::all(),
@@ -141,7 +141,7 @@ benchmarks! {
 		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did1.clone());
 	}: _<T::RuntimeOrigin>(origin, journal_input ,authorization_id)
 	verify {
-		assert_last_event::<T>(Event::JournalEntry { identifier,entity: journal_entry.entry.entity.clone(),author: did1.clone()}.into());
+		assert_last_event::<T>(Event::JournalEntry { identifier,entity: journal_entry.entry.entity.clone(),author: did1}.into());
 	}
 }
 
