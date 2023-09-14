@@ -52,7 +52,6 @@ pub mod types;
 
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
 use frame_support::ensure;
-use sp_runtime::Saturating;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -241,6 +240,10 @@ pub mod pallet {
 		DigestAlreadyAnchored,
 		//Count entry Greater than storage count
 		CountGreaterThanStorage,
+		//If Rating and count value Zero
+		CountCannotBeZero,
+		//If Rating and count value Zero
+		RatingCannotBeZero,
 	}
 
 	#[pallet::call]
@@ -287,7 +290,7 @@ pub mod pallet {
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
-			Self::aggregate_score(&journal.entry);
+			Self::aggregate_score(&journal.entry)?;
 
 			<Journal<T>>::insert(
 				&identifier,
@@ -320,40 +323,30 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	pub fn aggregate_score(entry: &RatingDetailsOf<T>) -> Result<(), pallet::Error<T>> {
-		if let Some(aggregate) = <Scores<T>>::get(&entry.entity, &entry.rating_type) {
-			let total_count = aggregate.count + entry.count;
+		ensure!(entry.count == 0, Error::<T>::CountCannotBeZero);
+		ensure!(entry.rating == 0, Error::<T>::RatingCannotBeZero);
 
-			let sum = match entry.entry_type {
-				RatingEntryType::Credit =>
-					Self::sum_average(aggregate.rating + entry.rating, total_count),
+		if let Some(mut aggregate) = <Scores<T>>::get(&entry.entity, &entry.rating_type) {
+			match entry.entry_type {
+				RatingEntryType::Credit => {
+					aggregate.count = aggregate.count.saturating_add(entry.count);
+					aggregate.rating = aggregate.rating.saturating_add(entry.rating);
+				},
 				RatingEntryType::Debit => {
-					ensure!(aggregate.count > entry.count, Error::<T>::CountGreaterThanStorage);
-					Self::sum_average(aggregate.rating - entry.rating, total_count)
+					aggregate.count = aggregate.count.saturating_sub(entry.count);
+					aggregate.rating = aggregate.rating.saturating_sub(entry.rating);
 				},
 			};
-			//Add current count value to the existing count -- get the count
-			// aggregate.count += entry.count;
-			// aggregate.count.saturating_inc();
-			// aggregate.rating = aggregate.rating.saturating_add(entry.rating);
-
 			<Scores<T>>::insert(
 				&entry.entity,
 				&entry.rating_type,
-				ScoreEntryOf { count: total_count, rating: sum },
+				ScoreEntryOf { count: aggregate.count, rating: aggregate.rating },
 			);
 		} else {
-			<Scores<T>>::insert(
-				&entry.entity,
-				&entry.rating_type,
-				ScoreEntryOf { count: entry.count, rating: entry.rating },
-			);
+			let new_score_entry = ScoreEntryOf { count: entry.count, rating: entry.rating };
+			<Scores<T>>::insert(&entry.entity, &entry.rating_type, new_score_entry.clone());
 		}
 		Self::deposit_event(Event::AggregateUpdated { entity: entry.entity.clone() });
-
 		Ok(())
-	}
-
-	fn sum_average(sum: RatingOf, count: CountOf) -> RatingOf {
-		sum / count
 	}
 }

@@ -86,10 +86,10 @@ benchmarks! {
 		tid: t_id,
 		collector: c_id,
 		requestor: requestor_id,
-		rating_type:rating_type,
-		rating:rating,
-		entry_type:entry_type,
-		count : count,
+		rating_type,
+		rating,
+		entry_type,
+		count,
 		};
 
 	let journal_details_digest = <T as frame_system::Config>::Hashing::hash(
