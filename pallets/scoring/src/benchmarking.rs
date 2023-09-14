@@ -141,7 +141,7 @@ benchmarks! {
 		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did1.clone());
 	}: _<T::RuntimeOrigin>(origin, journal_input ,authorization_id)
 	verify {
-		assert_last_event::<T>(Event::AggregateUpdated { entity: journal_entry.entry.entity.clone()}.into());
+		assert_last_event::<T>(Event::JournalEntry { identifier,entity: journal_entry.entry.entity.clone(),author: did1.clone()}.into());
 	}
 }
 
