@@ -56,64 +56,39 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A member will be added to the authority membership.
-		/// [member_id]
 		MemberAdded(T::AccountId),
-		/// List of members who will enter the set of authorities at the next
-		/// session. [Vec<member_id>]
-		IncomingAuthorities(Vec<T::ValidatorId>),
-		/// List of members who will leave the set of authorities at the next
-		/// session. [Vec<member_id>]
-		OutgoingAuthorities(Vec<T::ValidatorId>),
 		/// A member will leave the set of authorities in 2 sessions.
-		/// [member_id]
 		MemberGoOffline(T::AccountId),
 		/// A member will enter the set of authorities in 2 sessions.
-		/// [member_id]
 		MemberGoOnline(T::AccountId),
-		/// A member has lost the right to be part of the authorities,
 		/// this member will be removed from the authority set in 2 sessions.
-		/// [member_id]
 		MemberRemoved(T::AccountId),
 		/// A member has been removed from the blacklist.
-		/// [member_id]
-		MemberRemovedFromBlackList(T::AccountId),
-		/// New Authorities were added to the set.
-		RegistrationInitiated(Vec<T::ValidatorId>),
-		/// Authorities were removed from the set.
-		RemovalInitiated(Vec<T::ValidatorId>),
-		/// An authority is marked offline.
-		GoingOnlineInitiated(T::ValidatorId),
-		/// An authority is marked online.
-		GoingOfflineInitiated(T::ValidatorId),
+		MemberWhiteList(T::AccountId),
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Already incoming
-		AlreadyIncoming,
-		/// Already online
-		AlreadyOnline,
+		MemberAlreadyIncoming,
+		/// The authority entry already exists.
+		MemberAlreadyExists,
 		/// Already outgoing
-		AlreadyOutgoing,
+		MemberAlreadyOutgoing,
 		/// Not found owner key
 		/// There is no authority with the given ID.
-		AuthorityNotFound,
-		/// The authority entry already exists.
-		AuthorityAlreadyExists,
-		/// No validator associated with the identity.
-		NoAssociatedValidatorId,
+		MemberNotFound,
 		/// Not an authority owner.
 		BadOrigin,
 		/// Max authorities included in a proposal exceeds the limit.
 		MaxProposalLimitExceeded,
 		/// Member is blacklisted
 		MemberBlackListed,
-		MemberExists,
 		/// Session keys not provided
-		SessionKeysNotProvided,
-		/// Not found owner key
-		MemberNotFound,
+		SessionKeysNotAdded,
+		/// Member not blacklisted
 		MemberNotBlackListed,
+		/// Not a network member
 		NetworkMembershipNotFound,
 	}
 
@@ -173,17 +148,24 @@ pub mod pallet {
 				return Err(Error::<T>::NetworkMembershipNotFound.into())
 			}
 
-			// ensure!(T::IsMember::is_member(&candidate),
-			// Error::<T>::NetworkMembershipNotFound);
-
 			let member = T::ValidatorIdOf::convert(candidate.clone())
 				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
-
 			if !pallet_session::Pallet::<T>::is_registered(&member) {
-				return Err(Error::<T>::SessionKeysNotProvided.into())
+				return Err(Error::<T>::SessionKeysNotAdded.into())
 			}
 
-			Self::add_authority_member(member)?;
+			if Self::is_blacklisted(&member) {
+				return Err(Error::<T>::MemberBlackListed.into())
+			}
+
+			if Self::is_incoming(&member) {
+				return Err(Error::<T>::MemberAlreadyIncoming.into())
+			}
+			if Self::is_outgoing(&member) {
+				return Err(Error::<T>::MemberAlreadyOutgoing.into())
+			}
+
+			Self::add_authority_member(&member)?;
 
 			Self::deposit_event(Event::MemberAdded(candidate));
 			Ok(())
@@ -199,7 +181,18 @@ pub mod pallet {
 			let member = T::ValidatorIdOf::convert(candidate.clone())
 				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
 
-			Self::remove_authority_member(member)?;
+			Self::remove_authority_member(&member)?;
+
+			// Purge session keys
+			if let Err(e) = pallet_session::Pallet::<T>::purge_keys(
+				frame_system::Origin::<T>::Signed(candidate.clone()).into(),
+			) {
+				log::error!(
+					target: "runtime::authorities",
+					"Logic error: fail to purge session keys : {:?}",
+					e
+				);
+			}
 
 			Self::deposit_event(Event::MemberRemoved(candidate));
 			Ok(())
@@ -219,9 +212,9 @@ pub mod pallet {
 
 			ensure!(!<BlackList<T>>::get().contains(&member), Error::<T>::MemberNotBlackListed);
 
-			Self::remove_from_blacklist(member)?;
+			Self::remove_from_blacklist(&member)?;
 
-			Self::deposit_event(Event::MemberRemovedFromBlackList(candidate));
+			Self::deposit_event(Event::MemberWhiteList(candidate));
 			Ok(())
 		}
 
@@ -252,7 +245,7 @@ pub mod pallet {
 
 			ensure!(<Members<T>>::get().contains(&member), Error::<T>::MemberNotFound);
 
-			IncomingAuthorities::<T>::mutate(|v| v.push(member.clone()));
+			Self::mark_for_addition(member);
 
 			Self::deposit_event(Event::MemberGoOnline(who));
 			Ok(())
@@ -261,23 +254,23 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn add_authority_member(authority: T::ValidatorId) -> DispatchResult {
-		ensure!(!<Members<T>>::get().contains(&authority), Error::<T>::MemberExists);
+	fn add_authority_member(authority: &T::ValidatorId) -> DispatchResult {
+		ensure!(!<Members<T>>::get().contains(authority), Error::<T>::MemberAlreadyExists);
 		Members::<T>::mutate(|v| v.push(authority.clone()));
-		Self::mark_for_addition(authority);
+		Self::mark_for_addition(authority.clone());
 		Ok(())
 	}
-	fn remove_from_blacklist(authority: T::ValidatorId) -> DispatchResult {
-		ensure!(!<Members<T>>::get().contains(&authority), Error::<T>::MemberExists);
-		BlackList::<T>::mutate(|vs| vs.retain(|v| *v != authority));
+	fn remove_authority_member(authority: &T::ValidatorId) -> DispatchResult {
+		ensure!(<Members<T>>::get().contains(authority), Error::<T>::MemberNotFound);
+		Members::<T>::mutate(|vs| vs.retain(|v| *v != *authority));
+		Self::mark_for_removal(authority.clone());
 		Ok(())
 	}
-	fn remove_authority_member(authority: T::ValidatorId) -> DispatchResult {
-		ensure!(<Members<T>>::get().contains(&authority), Error::<T>::MemberNotFound);
-		Members::<T>::mutate(|vs| vs.retain(|v| *v != authority));
-		Self::mark_for_removal(authority);
+	fn remove_from_blacklist(authority: &T::ValidatorId) -> DispatchResult {
+		BlackList::<T>::mutate(|vs| vs.retain(|v| *v != *authority));
 		Ok(())
 	}
+
 	// Adds offline authorities to a local cache for removal.
 	fn mark_for_removal(authority: T::ValidatorId) {
 		OutgoingAuthorities::<T>::mutate(|v| v.push(authority));
@@ -290,6 +283,18 @@ impl<T: Config> Pallet<T> {
 	fn mark_for_blacklist_removal(authority: T::ValidatorId) {
 		BlackList::<T>::mutate(|v| v.push(authority.clone()));
 		OutgoingAuthorities::<T>::mutate(|v| v.push(authority));
+	}
+	/// check if authority is incoming
+	fn is_incoming(authority: &T::ValidatorId) -> bool {
+		IncomingAuthorities::<T>::get().contains(authority)
+	}
+	/// check if authority is outgoing
+	fn is_outgoing(authority: &T::ValidatorId) -> bool {
+		OutgoingAuthorities::<T>::get().contains(authority)
+	}
+	/// check if authority is blacklisted
+	fn is_blacklisted(authority: &T::ValidatorId) -> bool {
+		BlackList::<T>::get().contains(authority)
 	}
 }
 
