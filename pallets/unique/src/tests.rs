@@ -69,73 +69,6 @@ pub(crate) fn generate_registry_id<T: Config>(digest: &RegistryHashOf<T>) -> Reg
 	Ss58Identifier::to_registry_id(&(digest).encode()[..]).unwrap()
 }
 
-// did, acount,
-// origin: subject (did) + creator(accountid) == author
-
-// unq txn Boundedvec
-// acl = access control list
-
-// Option<AuthorizationIdOf> = check in registry pallet.
-//
-
-/*
-Input parameters:
-1. create:
-```
-origin: OriginFor<T>,
-unique_txn: InputUniqueOf<T>,
-authorization: Option<AuthorizationIdOf>,
-```
-
-2. update:
-```
-origin: OriginFor<T>,
-unique_id: UniqueIdOf,
-unique_txn: InputUniqueOf<T>,
-authorization: Option<AuthorizationIdOf>,
-```
-
-3. revoke:
-```
-origin: OriginFor<T>,
-unique_txn: InputUniqueOf<T>,
-authorization: AuthorizationIdOf,
-```
-
-4. remove:
-```
-origin: OriginFor<T>,
-unique_id: UniqueIdOf,
-authorization: Option<AuthorizationIdOf>,
-```
-
----
-
-OriginFor<T> == DoubleOrigin(author.clone(), delegate.clone()).into()
-
-InputUniqueOf<T> ==
-let raw_unique = vec![77u8; 32];
-let unique: InputUniqueOf<Test> = BoundedVec::try_from(raw_unique).expect("Test Unique should fit into the expected input length of for the test runtime.");
-
-UniqueIdOf ==
-let unique_digest = <Test as frame_system::Config>::Hashing::hash(&unique[..]);
-let unique_id: UniqueIdOf = generate_unique_id::<Test>(&unique_digest);
-
-AuthorizationIdOf == Not clear
-```
-/// Authorization Identifier
-pub type AuthorizationIdOf = Ss58Identifier;
-```
-
-Maybe this, but not working. Getting registry mismatch error:
-```
-let auth_digest = <Test as frame_system::Config>::Hashing::hash(&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],);
-
-let authorization_id: Ss58Identifier =
-Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
-```
-*/
-
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
 pub(crate) const DID_01: SubjectId = SubjectId(AccountId32::new([5u8; 32]));
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
@@ -200,7 +133,6 @@ fn create_unique_without_authorization() {
 	})
 }
 
-// TODO
 #[test]
 fn create_unique_with_authorization() {
 	let creator = DID_00;
@@ -244,37 +176,14 @@ fn create_unique_with_authorization() {
 		assert_ok!(Registry::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			registry.clone(),
-			Some(schema_id.clone())
+			None
 		));
-
-		// 		<Registries<T>>::insert(
-		// 	&identifier,
-		// 	RegistryEntryOf::<T> {
-		// 		details: tx_registry,
-		// 		digest,
-		// 		schema: tx_schema,
-		// 		creator: creator.clone(),
-		// 		archive: true,
-		// 	},
-		// );
 
 		assert_ok!(Registry::add_admin_delegate(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			registry_id,
 			delegate.clone(),
 		));
-
-		System::set_block_number(1);
-
-		// <Authorizations<T>>::insert(
-		// 	&authorization_id,
-		// 	RegistryAuthorizationOf::<T> {
-		// 		registry_id: registry_id.clone(),
-		// 		delegate: delegate.clone(),
-		// 		schema: registry_details.schema,
-		// 		permissions: Permissions::all(),
-		// 	},
-		// );
 
 		assert_ok!(Unique::create(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
@@ -285,7 +194,7 @@ fn create_unique_with_authorization() {
 }
 
 #[test]
-fn update_unique_without_authorization() {
+fn update_unique_with_authorization() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
@@ -358,7 +267,7 @@ fn update_unique_without_authorization() {
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			unique_id,
 			new_unique,
-			None
+			Some(authorization_id)
 		));
 	})
 }
