@@ -32,7 +32,6 @@ use sp_runtime::{
 use maplit::btreemap;
 use network_membership::MemberData;
 type Hash = sp_core::H256;
-type Balance = u128;
 type BlockNumber = u64;
 type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;

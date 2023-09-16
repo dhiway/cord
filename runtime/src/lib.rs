@@ -932,7 +932,6 @@ mod benches {
 		[pallet_preimage, Preimage]
 		[pallet_remark, Remark]
 		[pallet_scheduler, Scheduler]
-		[pallet_session, SessionBench::<Runtime>]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
 		[pallet_utility, Utility]
@@ -1195,8 +1194,6 @@ sp_api::impl_runtime_apis! {
 			use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 
-			use pallet_session_benchmarking::Pallet as SessionBench;
-			use pallet_offences_benchmarking::Pallet as OffencesBench;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use baseline::Pallet as BaselineBench;
 
@@ -1214,19 +1211,13 @@ sp_api::impl_runtime_apis! {
 			sp_runtime::RuntimeString,
 		> {
 			use frame_support::traits::WhitelistedStorageKeys;
-			use sp_storage::TrackedStorageKey;
 			use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch, TrackedStorageKey};
-			use pallet_session_benchmarking::Pallet as SessionBench;
-			use pallet_offences_benchmarking::Pallet as OffencesBench;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use baseline::Pallet as BaselineBench;
 
-			impl pallet_session_benchmarking::Config for Runtime {}
-			impl pallet_offences_benchmarking::Config for Runtime {}
 			impl frame_system_benchmarking::Config for Runtime {}
 			impl baseline::Config for Runtime {}
 
-			use frame_support::traits::WhitelistedStorageKeys;
 			let whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
 
 			let mut batches = Vec::<BenchmarkBatch>::new();

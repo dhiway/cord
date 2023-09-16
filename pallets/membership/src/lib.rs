@@ -409,6 +409,7 @@ mod benchmark {
 			set_members::<T, I>(members, None);
 			let new_member = account::<T::AccountId>("add", m, SEED);
 			let new_member_lookup = T::Lookup::unlookup(new_member.clone());
+			let _ = pallet_network_membership::Pallet::<T>::nominate(RawOrigin::Root.into(), new_member.clone(), true);
 		}: {
 			assert_ok!(<Membership<T, I>>::add_member(
 				T::AddOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?,
@@ -451,6 +452,7 @@ mod benchmark {
 			let add_lookup = T::Lookup::unlookup(add.clone());
 			let remove = members.first().cloned().unwrap();
 			let remove_lookup = T::Lookup::unlookup(remove.clone());
+			let _ = pallet_network_membership::Pallet::<T>::nominate(RawOrigin::Root.into(), add.clone(), true);
 		}: {
 			assert_ok!(<Membership<T, I>>::swap_member(
 				T::SwapOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?,
@@ -495,6 +497,7 @@ mod benchmark {
 
 			let add = account::<T::AccountId>("member", m, SEED);
 			let add_lookup = T::Lookup::unlookup(add.clone());
+			let _ = pallet_network_membership::Pallet::<T>::nominate(RawOrigin::Root.into(), add.clone(), true);
 			whitelist!(prime);
 		}: {
 			assert_ok!(<Membership<T, I>>::change_key(RawOrigin::Signed(prime.clone()).into(), add_lookup));
@@ -557,10 +560,10 @@ mod tests {
 		assert_noop, assert_ok, bounded_vec, ord_parameter_types, parameter_types,
 		traits::{ConstU32, ConstU64, GenesisBuild, StorageVersion},
 	};
-	use frame_system::EnsureSignedBy;
-
+	use frame_system::{EnsureRoot, EnsureSignedBy};
 	type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 	type Block = frame_system::mocking::MockBlock<Test>;
+	type BlockNumber = u64;
 
 	frame_support::construct_runtime!(
 		pub enum Test where
@@ -570,6 +573,7 @@ mod tests {
 		{
 			System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 			Membership: pallet_membership::{Pallet, Call, Storage, Config<T>, Event<T>},
+			NetworkMembership: pallet_network_membership::{Pallet, Call, Storage, Event<T>, Config<T>},
 		}
 	);
 
@@ -639,6 +643,18 @@ mod tests {
 			MEMBERS.with(|m| *m.borrow_mut() = members.to_vec());
 		}
 	}
+	parameter_types! {
+		pub const MembershipPeriod: BlockNumber = 5;
+		pub const MaxMembersPerBlock: u32 = 5;
+	}
+
+	impl pallet_network_membership::Config for Test {
+		type NetworkMembershipOrigin = EnsureRoot<u64>;
+		type RuntimeEvent = RuntimeEvent;
+		type MembershipPeriod = MembershipPeriod;
+		type MaxMembersPerBlock = MaxMembersPerBlock;
+		type WeightInfo = ();
+	}
 
 	impl Config for Test {
 		type RuntimeEvent = RuntimeEvent;
@@ -705,6 +721,8 @@ mod tests {
 	#[test]
 	fn add_member_works() {
 		new_test_ext().execute_with(|| {
+			assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 10, true));
+			assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 15, true));
 			assert_noop!(Membership::add_member(RuntimeOrigin::signed(5), 15), BadOrigin);
 			assert_noop!(
 				Membership::add_member(RuntimeOrigin::signed(1), 10),
@@ -736,6 +754,9 @@ mod tests {
 	#[test]
 	fn swap_member_works() {
 		new_test_ext().execute_with(|| {
+			assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 20, true));
+			assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 25, true));
+			assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 30, true));
 			assert_noop!(Membership::swap_member(RuntimeOrigin::signed(5), 10, 25), BadOrigin);
 			assert_noop!(
 				Membership::swap_member(RuntimeOrigin::signed(3), 15, 25),
@@ -764,6 +785,7 @@ mod tests {
 	#[test]
 	fn swap_member_works_that_does_not_change_order() {
 		new_test_ext().execute_with(|| {
+			assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 5, true));
 			assert_ok!(Membership::swap_member(RuntimeOrigin::signed(3), 10, 5));
 			assert_eq!(Membership::members(), vec![5, 20, 30]);
 			assert_eq!(MEMBERS.with(|m| m.borrow().clone()), Membership::members().to_vec());
@@ -773,6 +795,9 @@ mod tests {
 	#[test]
 	fn change_key_works() {
 		new_test_ext().execute_with(|| {
+			assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 20, true));
+			assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 25, true));
+			assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 40, true));
 			assert_ok!(Membership::set_prime(RuntimeOrigin::signed(5), 10));
 			assert_noop!(
 				Membership::change_key(RuntimeOrigin::signed(3), 25),
@@ -793,6 +818,7 @@ mod tests {
 	#[test]
 	fn change_key_works_that_does_not_change_order() {
 		new_test_ext().execute_with(|| {
+			assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 5, true));
 			assert_ok!(Membership::change_key(RuntimeOrigin::signed(10), 5));
 			assert_eq!(Membership::members(), vec![5, 20, 30]);
 			assert_eq!(MEMBERS.with(|m| m.borrow().clone()), Membership::members().to_vec());
