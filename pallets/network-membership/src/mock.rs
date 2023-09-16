@@ -16,20 +16,24 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use super::*;
-use crate as pallet_extrinsic_authorship;
+// use super::*;
+use crate::{self as pallet_network_membership};
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU128, ConstU32, ConstU64, GenesisBuild},
+	traits::{ConstU32, ConstU64, OnFinalize, OnInitialize},
 };
 use frame_system::EnsureRoot;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	MultiSignature,
+	BuildStorage, MultiSignature,
 };
+
+use maplit::btreemap;
+use network_membership::MemberData;
 type Hash = sp_core::H256;
 type Balance = u128;
+type BlockNumber = u64;
 type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
@@ -41,8 +45,7 @@ construct_runtime!(
 	UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Authorship: pallet_extrinsic_authorship::{Pallet, Storage, Call,Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
+		NetworkMembership: pallet_network_membership::{Pallet, Call, Storage, Event<T>, Config<T>},
 	}
 );
 
@@ -67,7 +70,7 @@ impl frame_system::Config for Test {
 	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = pallet_balances::AccountData<u128>;
+	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
@@ -76,49 +79,46 @@ impl frame_system::Config for Test {
 	type MaxConsumers = ConstU32<2>;
 }
 
-impl pallet_balances::Config for Test {
-	type Balance = Balance;
-	type DustRemoval = ();
-	type RuntimeEvent = RuntimeEvent;
-	type ExistentialDeposit = ConstU128<1>;
-	type AccountStore = System;
-	type WeightInfo = ();
-	type MaxLocks = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
-	type FreezeIdentifier = ();
-	type MaxFreezes = ();
-	type HoldIdentifier = ();
-	type MaxHolds = ();
-}
-
 parameter_types! {
-	pub const MaxAuthorityProposals: u32 = 5;
+	pub const MembershipPeriod: BlockNumber = 5;
+	pub const MaxMembersPerBlock: u32 = 5;
 }
 
-impl Config for Test {
-	type AuthorApproveOrigin = EnsureRoot<AccountId>;
+impl pallet_network_membership::Config for Test {
+	type NetworkMembershipOrigin = EnsureRoot<AccountId>;
 	type RuntimeEvent = RuntimeEvent;
-	type MaxAuthorityProposals = MaxAuthorityProposals;
+	type MembershipPeriod = MembershipPeriod;
+	type MaxMembersPerBlock = MaxMembersPerBlock;
 	type WeightInfo = ();
 }
 
-#[allow(dead_code)]
-pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-	let mut storage = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+// Build genesis storage according to the mock runtime.
+pub fn new_test_ext(
+	gen_conf: pallet_network_membership::GenesisConfig<Test>,
+) -> sp_io::TestExternalities {
+	GenesisConfig { system: SystemConfig::default(), network_membership: gen_conf }
+		.build_storage()
+		.unwrap()
+		.into()
+}
 
-	let config: pallet_extrinsic_authorship::GenesisConfig<Test> =
-		pallet_extrinsic_authorship::GenesisConfig::<Test> {
-			authors: vec![(AccountId::new([10u8; 32]), ()), (AccountId::new([3u8; 32]), ())],
-		};
+pub fn run_to_block(n: u64) {
+	while System::block_number() < n {
+		NetworkMembership::on_finalize(System::block_number());
+		System::on_finalize(System::block_number());
+		System::reset_events();
+		System::set_block_number(System::block_number() + 1);
+		System::on_initialize(System::block_number());
+		NetworkMembership::on_initialize(System::block_number());
+	}
+}
 
-	config.assimilate_storage(&mut storage).unwrap();
-
-	let mut ext = sp_io::TestExternalities::new(storage);
-	#[cfg(feature = "runtime-benchmarks")]
-	let keystore = sp_keystore::testing::MemoryKeystore::new();
-	#[cfg(feature = "runtime-benchmarks")]
-	ext.register_extension(sp_keystore::KeystoreExt(sp_std::sync::Arc::new(keystore)));
-	ext.execute_with(|| System::set_block_number(1));
-	ext
+pub(crate) fn default_gen_conf() -> NetworkMembershipConfig {
+	NetworkMembershipConfig {
+		members: btreemap![
+			 AccountId::new([11u8; 32]) => MemberData {
+				expire_on: 3,
+			}
+		],
+	}
 }

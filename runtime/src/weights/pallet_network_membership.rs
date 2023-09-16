@@ -25,19 +25,19 @@
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("dev"), DB CACHE: 1024
 
 // Executed Command:
-// ./target/production/cord
+// ./target/release/cord
 // benchmark
 // pallet
 // --chain=dev
-// --steps=50
-// --repeat=20
-// --pallet=pallet_extrinsic_authorship
+// --steps=3
+// --repeat=2
+// --pallet=pallet-network-membership
 // --extrinsic=*
-// --execution=wasm
+// --execution=Wasm
 // --wasm-execution=compiled
 // --heap-pages=4096
-// --header=./HEADER-GPL3
-// --output=./runtime/src/weights/
+// --output=./pallets/network-membership/src/weights.rs
+// --template=./.maintain/frame-weight-template.hbs
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
@@ -47,53 +47,49 @@
 use frame_support::{traits::Get, weights::Weight};
 use core::marker::PhantomData;
 
-/// Weight functions for `pallet_extrinsic_authorship`.
+/// Weight functions needed for pallet_network_membership.
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_network_membership::WeightInfo for WeightInfo<T> {
-	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:5 w:5)
-	/// Proof: ExtrinsicAuthorship ExtrinsicAuthors (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
-	/// The range of component `a` is `[1, 5]`.
-	fn add() -> Weight {
+	/// Storage: NetworkMembership Members (r:1 w:1)
+	/// Proof: NetworkMembership Members (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	/// Storage: NetworkMembership CounterForMembers (r:1 w:1)
+	/// Proof: NetworkMembership CounterForMembers (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
+	/// Storage: NetworkMembership MembershipsExpiresOn (r:1 w:1)
+	/// Proof: NetworkMembership MembershipsExpiresOn (max_values: None, max_size: Some(32022), added: 34497, mode: MaxEncodedLen)
+	fn nominate() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `167`
-		//  Estimated: `990 + a * (2523 ±0)`
-		// Minimum execution time: 14_850_000 picoseconds.
-		Weight::from_parts(12_418_218, 990)
-			// Standard Error: 8_265
-			.saturating_add(Weight::from_parts(3_114_580, 0))
-			.saturating_add(T::DbWeight::get().reads(1_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-			.saturating_add(Weight::from_parts(0, 2523))
+		//  Measured:  `190`
+		//  Estimated: `35487`
+		// Minimum execution time: 20_000_000 picoseconds.
+		Weight::from_parts(21_000_000, 35487)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
-	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:5 w:5)
-	/// Proof: ExtrinsicAuthorship ExtrinsicAuthors (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
-	/// The range of component `a` is `[1, 5]`.
+	/// Storage: NetworkMembership MembershipsRenewsOn (r:1 w:1)
+	/// Proof: NetworkMembership MembershipsRenewsOn (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
 	fn renew() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `167 + a * (53 ±0)`
-		//  Estimated: `990 + a * (2523 ±0)`
-		// Minimum execution time: 15_563_000 picoseconds.
-		Weight::from_parts(11_823_279, 990)
-			// Standard Error: 8_176
-			.saturating_add(Weight::from_parts(4_439_413, 0))
+		//  Measured:  `115`
+		//  Estimated: `3513`
+		// Minimum execution time: 11_000_000 picoseconds.
+		Weight::from_parts(12_000_000, 3513)
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
-			.saturating_add(Weight::from_parts(0, 2523))
 	}
-
-	/// Storage: ExtrinsicAuthorship ExtrinsicAuthors (r:5 w:5)
-	/// Proof: ExtrinsicAuthorship ExtrinsicAuthors (max_values: None, max_size: Some(48), added: 2523, mode: MaxEncodedLen)
-	/// The range of component `a` is `[1, 5]`.
+	/// Storage: NetworkMembership Members (r:1 w:1)
+	/// Proof: NetworkMembership Members (max_values: None, max_size: Some(52), added: 2527, mode: MaxEncodedLen)
+	/// Storage: NetworkMembership CounterForMembers (r:1 w:1)
+	/// Proof: NetworkMembership CounterForMembers (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
+	/// Storage: NetworkMembership MembershipsExpiresOn (r:1 w:1)
+	/// Proof: NetworkMembership MembershipsExpiresOn (max_values: None, max_size: Some(32022), added: 34497, mode: MaxEncodedLen)
 	fn revoke() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `167 + a * (53 ±0)`
-		//  Estimated: `990 + a * (2523 ±0)`
-		// Minimum execution time: 15_563_000 picoseconds.
-		Weight::from_parts(11_823_279, 990)
-			// Standard Error: 8_176
-			.saturating_add(Weight::from_parts(4_439_413, 0))
-			.saturating_add(T::DbWeight::get().reads(1_u64))
-			.saturating_add(T::DbWeight::get().writes(1_u64))
-			.saturating_add(Weight::from_parts(0, 2523))
+		//  Measured:  `326`
+		//  Estimated: `35487`
+		// Minimum execution time: 21_000_000 picoseconds.
+		Weight::from_parts(22_000_000, 35487)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
+
 }

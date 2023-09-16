@@ -78,10 +78,6 @@ pub mod pallet {
 		/// Not found owner key
 		/// There is no authority with the given ID.
 		MemberNotFound,
-		/// Not an authority owner.
-		BadOrigin,
-		/// Max authorities included in a proposal exceeds the limit.
-		MaxProposalLimitExceeded,
 		/// Member is blacklisted
 		MemberBlackListed,
 		/// Session keys not provided

@@ -5512,19 +5512,18 @@ dependencies = [
 name = "pallet-network-membership"
 version = "0.8.1"
 dependencies = [
- "cord-utilities",
  "env_logger 0.9.3",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
+ "maplit",
  "network-membership",
- "pallet-balances",
  "parity-scale-codec",
  "scale-info",
  "serde",
  "sp-core",
- "sp-keystore",
+ "sp-io",
  "sp-runtime",
  "sp-std",
  "substrate-wasm-builder",

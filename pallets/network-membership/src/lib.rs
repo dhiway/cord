@@ -81,6 +81,7 @@ pub mod pallet {
 
 	// maps author identity with expire block
 	#[pallet::storage]
+	#[pallet::getter(fn members)]
 	pub(super) type Members<T: Config> = CountedStorageMap<
 		_,
 		Blake2_128Concat,
@@ -179,9 +180,9 @@ pub mod pallet {
 		/// Add an author. Only root or council origin can perform this
 		/// action.
 		#[pallet::call_index(0)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::add())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::nominate())]
 
-		pub fn add(
+		pub fn nominate(
 			origin: OriginFor<T>,
 			member: CordAccountOf<T>,
 			expires: bool,
@@ -207,7 +208,7 @@ pub mod pallet {
 		/// Renew authorship. Only root or council orgin can perform this
 		/// action.
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::add())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::renew())]
 
 		pub fn renew(origin: OriginFor<T>, member: CordAccountOf<T>) -> DispatchResult {
 			T::NetworkMembershipOrigin::ensure_origin(origin)?;
@@ -282,13 +283,13 @@ impl<T: Config> Pallet<T> {
 
 		if MembershipsRenewsOn::<T>::take(&member).is_some() {
 			Self::renew_membership_and_schedule_expiry(member.clone(), expire_on);
+			Self::deposit_event(Event::MembershipRenewed { member });
 			call_weight += T::WeightInfo::renew();
 		} else {
 			Members::<T>::remove(&member);
+			Self::deposit_event(Event::MembershipExpired { member });
 			call_weight += T::WeightInfo::revoke();
 		}
-
-		Self::deposit_event(Event::MembershipExpired { member });
 
 		call_weight
 	}
@@ -310,6 +311,12 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> network_membership::traits::IsMember<T::AccountId> for Pallet<T> {
+	fn is_member(member: &CordAccountOf<T>) -> bool {
+		Self::is_member_inner(member)
+	}
+}
+
+impl<T: Config> sp_runtime::traits::IsMember<T::AccountId> for Pallet<T> {
 	fn is_member(member: &CordAccountOf<T>) -> bool {
 		Self::is_member_inner(member)
 	}

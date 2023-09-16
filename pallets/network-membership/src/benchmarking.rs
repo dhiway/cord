@@ -19,10 +19,10 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
+use crate::Pallet;
 use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
-use frame_support::traits::Get;
 use frame_system::RawOrigin;
-use sp_std::vec::Vec;
+
 const SEED: u32 = 0;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
@@ -31,35 +31,39 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 
 benchmarks! {
 	where_clause { where <T::RuntimeOrigin as frame_support::traits::OriginTrait>::PalletsOrigin: Clone }
-	add {
-		let a in 1..T::MaxAuthorityProposals::get();
+	nominate {
 
-		let mut authorities = Vec::new();
+	   let authority: T::AccountId = account("authority", 0, SEED);
 
-		for i in 0..a {
-			let authority = account("authority", i, SEED);
-			authorities.push(authority);
-		}
-	}: _(RawOrigin::Root, authorities.clone())
+	}: _(RawOrigin::Root, authority.clone(), true)
 	verify {
-		assert_last_event::<T>(Event::AuthorsAdded { authors_added: authorities }.into());
+		assert_last_event::<T>(Event::MembershipAcquired { member:  authority }.into());
 	}
-	remove {
-		let a in 1..T::MaxAuthorityProposals::get();
 
-		let mut authorities = Vec::new();
-
-		for i in 0..a {
-			let authority = account("authority", i, SEED);
-			authorities.push(authority);
-		}
+	renew {
+	   let authority: T::AccountId = account("authority", 1, SEED);
 
 		let auth_origin = RawOrigin::Root;
-		Pallet::<T>::add(auth_origin.clone().into(), authorities.clone()).expect("Should add Authorities");
-	}: _(auth_origin, authorities.clone())
+		Pallet::<T>::nominate(auth_origin.clone().into(), authority.clone(), true ).expect("Should add authority");
+	}: _(auth_origin, authority.clone())
 	verify {
-		assert_last_event::<T>(Event::AuthorsRemoved { authors_removed: authorities }.into());
+		assert_last_event::<T>(Event::MembershipRenewalRequested { member: authority }.into());
 	}
+
+	revoke {
+	   let authority: T::AccountId = account("authority", 1, SEED);
+
+		let auth_origin = RawOrigin::Root;
+		Pallet::<T>::nominate(auth_origin.clone().into(), authority.clone(), true ).expect("Should add authority");
+	}: _(auth_origin, authority.clone())
+	verify {
+		assert_last_event::<T>(Event::MembershipRevoked { member: authority }.into());
+	}
+
 }
 
-impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test,);
+impl_benchmark_test_suite! {
+	Pallet,
+	crate::mock::new_test_ext(crate::mock::default_gen_conf()),
+	crate::mock::Test
+}
