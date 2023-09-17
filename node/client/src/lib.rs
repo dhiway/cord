@@ -71,6 +71,7 @@ pub trait RuntimeApiCollection:
 	+ sp_block_builder::BlockBuilder<Block>
 	+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
 	+ pallet_did_runtime_api::Did<Block, DidIdentifier, Hash, BlockNumber>
+	+ pallet_transaction_weight_runtime_api::TransactionWeightApi<Block>
 	+ sp_api::Metadata<Block>
 	+ sp_offchain::OffchainWorkerApi<Block>
 	+ sp_session::SessionKeys<Block>
@@ -89,6 +90,7 @@ where
 		+ sp_block_builder::BlockBuilder<Block>
 		+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
 		+ pallet_did_runtime_api::Did<Block, DidIdentifier, Hash, BlockNumber>
+		+ pallet_transaction_weight_runtime_api::TransactionWeightApi<Block>
 		+ sp_api::Metadata<Block>
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>

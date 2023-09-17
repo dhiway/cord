@@ -41,7 +41,7 @@ pallet-collective = { default-features = false, path = '../pallets/collective' }
 pallet-offences = { default-features = false, path = '../pallets/offences' }
 
 # Internal runtime API (with default disabled)
-pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../pallets/did/runtime-api", default-features = false }
+pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../runtime-api/did", default-features = false }
 pallet-transaction-weight-runtime-api = { package = "pallet-transaction-weight-runtime-api", path = "../runtime-api/weight", default-features = false }
 
 # Substrate

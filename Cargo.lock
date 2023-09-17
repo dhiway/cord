@@ -1262,6 +1262,7 @@ dependencies = [
  "futures",
  "pallet-did-runtime-api",
  "pallet-network-membership",
+ "pallet-transaction-weight-runtime-api",
  "sc-client-api",
  "sc-executor",
  "sc-service",
