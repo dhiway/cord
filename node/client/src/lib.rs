@@ -70,7 +70,7 @@ pub trait RuntimeApiCollection:
 	+ sp_consensus_grandpa::GrandpaApi<Block>
 	+ sp_block_builder::BlockBuilder<Block>
 	+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
-	+ pallet_did_runtime_api::Did<Block, DidIdentifier, Hash, BlockNumber>
+	+ pallet_did_runtime_api::DidApi<Block, DidIdentifier, Hash, BlockNumber>
 	+ pallet_transaction_weight_runtime_api::TransactionWeightApi<Block>
 	+ sp_api::Metadata<Block>
 	+ sp_offchain::OffchainWorkerApi<Block>
@@ -89,7 +89,7 @@ where
 		+ sp_consensus_grandpa::GrandpaApi<Block>
 		+ sp_block_builder::BlockBuilder<Block>
 		+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
-		+ pallet_did_runtime_api::Did<Block, DidIdentifier, Hash, BlockNumber>
+		+ pallet_did_runtime_api::DidApi<Block, DidIdentifier, Hash, BlockNumber>
 		+ pallet_transaction_weight_runtime_api::TransactionWeightApi<Block>
 		+ sp_api::Metadata<Block>
 		+ sp_offchain::OffchainWorkerApi<Block>

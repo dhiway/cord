@@ -1111,7 +1111,7 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_did_runtime_api::Did<
+	impl pallet_did_runtime_api::DidApi<
 		Block,
 		DidIdentifier,
 		Hash,
