@@ -20,7 +20,6 @@
 use super::*;
 use crate::{self as cord_authority_membership};
 use frame_support::{
-	pallet_prelude::*,
 	parameter_types,
 	traits::{Everything, GenesisBuild},
 	BasicExternalities,
@@ -28,13 +27,13 @@ use frame_support::{
 use std::collections::BTreeMap;
 
 use frame_system::EnsureRoot;
-// use pallet_offences::{traits::OnOffenceHandler, SlashStrategy};
+use pallet_offences::{traits::OnOffenceHandler, SlashStrategy};
 use pallet_session::ShouldEndSession;
 use sp_core::{crypto::key_types::DUMMY, H256};
 use sp_runtime::{
 	impl_opaque_keys,
 	testing::{Header, UintAuthorityId},
-	traits::{BlakeTwo256, ConvertInto, IdentityLookup, IsMember, OpaqueKeys},
+	traits::{BlakeTwo256, ConvertInto, IdentityLookup, OpaqueKeys},
 	KeyTypeId,
 };
 use sp_staking::offence::OffenceDetails;
@@ -223,12 +222,12 @@ pub fn run_to_block(n: u64) {
 	}
 }
 
-// pub(crate) fn on_offence(
-// 	offenders: &[OffenceDetails<
-// 		AccountId,
-// 		pallet_session::historical::IdentificationTuple<Test>,
-// 	>],
-// 	slash_strategy: SlashStrategy,
-// ) {
-// 	AuthorityMembership::on_offence(offenders, slash_strategy, 0);
-// }
+pub(crate) fn on_offence(
+	offenders: &[OffenceDetails<
+		AccountId,
+		pallet_session::historical::IdentificationTuple<Test>,
+	>],
+	slash_strategy: SlashStrategy,
+) {
+	AuthorityMembership::on_offence(offenders, slash_strategy, 0);
+}

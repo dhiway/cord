@@ -23,6 +23,7 @@ scale-info = { version = "2.5.0", default-features = false, features = [
 serde = { version = "1.0.137", default-features = false, optional = true }
 network-membership = { package = "network-membership", path = "../../primitives/network-membership", default-features = false }
 pallet-network-membership = { package = "pallet-network-membership", path = "../../pallets/network-membership", default-features = false }
+pallet-offences = { package = "pallet-offences", path = "../../pallets/offences", default-features = false }
 log = { version = "0.4.17", default-features = false }
 
 # Substrate dependencies
@@ -31,7 +32,6 @@ frame-system = { git = "https://github.com/dhiway/substrate", default-features =
 frame-support = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 sp-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 sp-std = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-# sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
 sp-core = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 sp-staking = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-session = { git = "https://github.com/dhiway/substrate", features = [
@@ -57,10 +57,10 @@ std = [
 	'frame-support/std',
 	'sp-runtime/std',
 	'sp-std/std',
-	# 'sp-io/std',
 	'sp-core/std',
 	'sp-staking/std',
 	'pallet-session/std',
+	'pallet-offences/std',
 	'log/std',
 ]
 try-runtime = ['frame-support/try-runtime']

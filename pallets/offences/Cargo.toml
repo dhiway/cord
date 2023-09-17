@@ -1,0 +1,57 @@
+[package]
+name = 'pallet-offences'
+authors = [
+	"Parity Technologies <admin@parity.io>",
+	'Dhiway Networks <info@dhiway.com>',
+]
+version = "0.8.1"
+edition = '2021'
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
+description = 'pallet to handle offences.'
+readme = "README.md"
+
+[package.metadata.docs.rs]
+version = "0.8.1"
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.4.0", features = [
+	"derive",
+], default-features = false }
+log = { version = "0.4.17", default-features = false }
+scale-info = { version = "2.5.0", default-features = false, features = [
+	"derive",
+] }
+serde = { version = "1.0.137", default-features = false, optional = true }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
+frame-system = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+frame-support = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-std = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-core = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-staking = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+pallet-balances = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+
+
+[dev-dependencies]
+sp-core = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-io = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	"frame-support/std",
+	"frame-system/std",
+	"log/std",
+	"pallet-balances/std",
+	"scale-info/std",
+	"serde",
+	"sp-runtime/std",
+	"sp-staking/std",
+	"sp-std/std",
+]
+runtime-benchmarks = []
+try-runtime = ["frame-support/try-runtime"]

@@ -18,7 +18,7 @@
 //
 
 use super::*;
-use crate::mock::{authorities, new_test_ext, Session, *};
+use crate::mock::{new_test_ext, Session, *};
 
 use frame_support::{assert_err, assert_noop, assert_ok};
 use frame_system::RawOrigin;
@@ -238,6 +238,135 @@ fn test_go_online_with_a_removed_authority_member() {
 		assert_err!(
 			AuthorityMembership::go_online(RuntimeOrigin::signed(10)),
 			Error::<Test>::MemberNotFound
+		);
+	});
+}
+
+// test offence handling with disconnect strategy
+// they should be able to go_online after
+#[test]
+fn test_offence_disconnect() {
+	new_test_ext().execute_with(|| {
+		run_to_block(1);
+
+		on_offence(
+			&[OffenceDetails { offender: (2, ()), reporters: vec![] }],
+			pallet_offences::SlashStrategy::Disconnect,
+		);
+		on_offence(
+			&[OffenceDetails { offender: (3, ()), reporters: vec![] }],
+			pallet_offences::SlashStrategy::Disconnect,
+		);
+
+		// Verify state
+		assert_eq!(AuthorityMembership::incoming(), EMPTY);
+		assert_eq!(AuthorityMembership::outgoing(), vec![2, 3]);
+		assert_eq!(AuthorityMembership::blacklist(), EMPTY);
+
+		// Member 2 and 3 should be outgoing at the next session
+		run_to_block(5);
+		assert_eq!(Session::current_index(), 1);
+		assert_eq!(Session::validators(), vec![1, 2, 3]);
+		assert_eq!(Session::queued_keys().len(), 1);
+		assert_eq!(Session::queued_keys()[0].0, 1);
+
+		// Member 2 and 3 should be out at session 2
+		run_to_block(10);
+		assert_eq!(Session::current_index(), 2);
+		assert_eq!(Session::validators(), vec![1]);
+
+		// Member 2 and 3 should be allowed to set session keys and go online
+		run_to_block(25);
+		assert_ok!(Session::set_keys(RuntimeOrigin::signed(2), UintAuthorityId(2).into(), vec![]));
+		assert_ok!(Session::set_keys(RuntimeOrigin::signed(3), UintAuthorityId(3).into(), vec![]));
+
+		assert_ok!(AuthorityMembership::go_online(RuntimeOrigin::signed(2)),);
+		assert_ok!(AuthorityMembership::go_online(RuntimeOrigin::signed(3)),);
+
+		// Report an offence again
+		run_to_block(35);
+		on_offence(
+			&[OffenceDetails { offender: (3, ()), reporters: vec![] }],
+			pallet_offences::SlashStrategy::Disconnect,
+		);
+
+		assert_eq!(AuthorityMembership::incoming(), EMPTY);
+		assert_eq!(AuthorityMembership::outgoing(), vec![3]);
+		assert_eq!(AuthorityMembership::blacklist(), EMPTY);
+	});
+}
+
+/// test offence handling with blacklist strategy
+// member 3 is offender, should be blacklisted
+#[test]
+fn test_offence_black_list() {
+	new_test_ext().execute_with(|| {
+		// at block 0 begins session 0
+		run_to_block(1);
+
+		on_offence(
+			&[OffenceDetails { offender: (3, ()), reporters: vec![] }],
+			pallet_offences::SlashStrategy::BlackList,
+		);
+
+		// Verify state
+		assert_eq!(AuthorityMembership::outgoing(), vec![3]);
+		assert_eq!(AuthorityMembership::blacklist(), vec![3]);
+
+		// Member 3 should be outgoing at the next session
+		run_to_block(5);
+		assert_eq!(Session::current_index(), 1);
+		assert_eq!(Session::validators(), vec![1, 2, 3]);
+		assert_eq!(AuthorityMembership::blacklist(), vec![3]); // still in blacklist
+
+		// Member 3 should be out at session 2
+		run_to_block(10);
+		assert_eq!(Session::current_index(), 2);
+		assert_eq!(Session::validators(), vec![1, 2]);
+		assert_eq!(AuthorityMembership::blacklist(), vec![3]); // still in blacklist
+	});
+}
+/// tests that blacklisting prevents 3 from going online
+#[test]
+fn test_offence_black_list_prevent_from_going_online() {
+	new_test_ext().execute_with(|| {
+		run_to_block(1);
+
+		on_offence(
+			&[OffenceDetails { offender: (3, ()), reporters: vec![] }],
+			pallet_offences::SlashStrategy::BlackList,
+		);
+
+		// Verify state
+		assert_eq!(AuthorityMembership::incoming(), EMPTY);
+		assert_eq!(AuthorityMembership::outgoing(), vec![3]);
+		assert_eq!(AuthorityMembership::blacklist(), vec![3]);
+		assert_eq!(AuthorityMembership::member(), vec![1u64, 2u64, 3u64]);
+
+		// Member 3 should not be allowed to go online
+		run_to_block(25);
+		assert_ok!(Session::set_keys(RuntimeOrigin::signed(3), UintAuthorityId(3).into(), vec![]));
+		assert_err!(
+			AuthorityMembership::go_online(RuntimeOrigin::signed(3)),
+			Error::<Test>::MemberBlackListed
+		);
+
+		// Should not be able to auto remove from blacklist
+		assert_err!(
+			AuthorityMembership::remove_member_from_blacklist(RuntimeOrigin::signed(3), 3),
+			BadOrigin
+		);
+		assert_eq!(AuthorityMembership::blacklist(), vec![3]);
+
+		// Authorized origin should be able to remove from blacklist
+		assert_ok!(AuthorityMembership::remove_member_from_blacklist(RawOrigin::Root.into(), 3));
+		assert_eq!(AuthorityMembership::blacklist(), EMPTY);
+		System::assert_last_event(Event::MemberWhiteList(3).into());
+
+		// Authorized should not be able to remove a non-existing member from blacklist
+		assert_err!(
+			AuthorityMembership::remove_member_from_blacklist(RawOrigin::Root.into(), 3),
+			Error::<Test>::MemberNotBlackListed
 		);
 	});
 }

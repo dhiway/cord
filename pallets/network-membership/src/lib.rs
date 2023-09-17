@@ -201,7 +201,7 @@ pub mod pallet {
 			}
 
 			// the member has just been created, increment its provider
-			frame_system::Pallet::<T>::inc_providers(&member);
+			let _ = frame_system::Pallet::<T>::inc_providers(&member);
 
 			Self::deposit_event(Event::MembershipAcquired { member });
 
@@ -253,7 +253,7 @@ pub mod pallet {
 			})?;
 
 			// the membership was existing but is not anymore, decrement the provider
-			frame_system::Pallet::<T>::dec_providers(&member);
+			let _ = frame_system::Pallet::<T>::dec_providers(&member);
 
 			Self::deposit_event(Event::MembershipRevoked { member });
 			Ok(())

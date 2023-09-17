@@ -84,7 +84,9 @@ use cord_runtime_constants::{currency::*, time::*};
 mod weights;
 // CORD Pallets
 // mod authority_manager;
+mod entities;
 pub use authority_membership;
+pub use entities::ValidatorFullIdentification;
 pub use pallet_network_membership;
 pub mod benchmark;
 pub use benchmark::DummySignature;
@@ -390,17 +392,18 @@ impl pallet_session::Config for Runtime {
 	type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
 }
 
-pub struct FullIdentificationOf;
-#[allow(clippy::unit_arg)]
-impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf {
-	fn convert(_: AccountId) -> Option<()> {
-		Some(Default::default())
+pub struct FullIdentificationOfImpl;
+impl sp_runtime::traits::Convert<AccountId, Option<entities::ValidatorFullIdentification>>
+	for FullIdentificationOfImpl
+{
+	fn convert(_: AccountId) -> Option<entities::ValidatorFullIdentification> {
+		Some(entities::ValidatorFullIdentification)
 	}
 }
 
 impl pallet_session::historical::Config for Runtime {
-	type FullIdentification = ();
-	type FullIdentificationOf = FullIdentificationOf;
+	type FullIdentification = ValidatorFullIdentification;
+	type FullIdentificationOf = FullIdentificationOfImpl;
 }
 
 parameter_types! {
@@ -497,7 +500,7 @@ impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
 impl pallet_offences::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
-	type OnOffenceHandler = ();
+	type OnOffenceHandler = AuthorityMembership;
 }
 
 impl pallet_authority_discovery::Config for Runtime {

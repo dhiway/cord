@@ -1223,6 +1223,7 @@ dependencies = [
  "log",
  "network-membership",
  "pallet-network-membership",
+ "pallet-offences",
  "pallet-session",
  "parity-scale-codec",
  "scale-info",
@@ -1466,7 +1467,6 @@ dependencies = [
  "pallet-multisig",
  "pallet-network-membership",
  "pallet-offences",
- "pallet-offences-benchmarking",
  "pallet-preimage",
  "pallet-registry",
  "pallet-remark",
@@ -1474,7 +1474,6 @@ dependencies = [
  "pallet-scheduler",
  "pallet-schema",
  "pallet-session",
- "pallet-session-benchmarking",
  "pallet-staking",
  "pallet-stream",
  "pallet-sudo",
@@ -1484,6 +1483,7 @@ dependencies = [
  "rusty-hook",
  "scale-info",
  "separator",
+ "serde",
  "serde_json",
  "sp-api",
  "sp-authority-discovery",
@@ -5532,9 +5532,9 @@ dependencies = [
 
 [[package]]
 name = "pallet-offences"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
+version = "0.8.1"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
@@ -5542,30 +5542,8 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sp-runtime",
- "sp-staking",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-offences-benchmarking"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
-dependencies = [
- "frame-benchmarking",
- "frame-election-provider-support",
- "frame-support",
- "frame-system",
- "log",
- "pallet-babe",
- "pallet-balances",
- "pallet-grandpa",
- "pallet-im-online",
- "pallet-offences",
- "pallet-session",
- "pallet-staking",
- "parity-scale-codec",
- "scale-info",
+ "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-staking",
  "sp-std",
@@ -5714,22 +5692,6 @@ dependencies = [
  "sp-staking",
  "sp-std",
  "sp-trie",
-]
-
-[[package]]
-name = "pallet-session-benchmarking"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-session",
- "pallet-staking",
- "rand 0.8.5",
- "sp-runtime",
- "sp-session",
- "sp-std",
 ]
 
 [[package]]

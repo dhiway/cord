@@ -19,6 +19,8 @@ scale-info = { version = "2.5.0", default-features = false, features = [
 ] }
 log = { version = "0.4.17", default-features = false }
 static_assertions = "1.1.0"
+serde = { version = "1.0.137", default-features = false }
+
 
 # Local
 authority-membership = { package = "cord-authority-membership", path = "./authorities", default-features = false }
@@ -36,6 +38,7 @@ pallet-stream = { default-features = false, path = '../pallets/stream' }
 pallet-network-membership = { default-features = false, path = '../pallets/network-membership' }
 pallet-runtime-upgrade = { default-features = false, path = '../pallets/runtime-upgrade' }
 pallet-collective = { default-features = false, path = '../pallets/collective' }
+pallet-offences = { default-features = false, path = '../pallets/offences' }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../pallets/did/runtime-api", default-features = false }
@@ -68,7 +71,6 @@ pallet-identity = { git = "https://github.com/dhiway/substrate", default-feature
 pallet-im-online = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-indices = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-multisig = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-offences = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-preimage = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-scheduler = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-session = { git = "https://github.com/dhiway/substrate", features = [
@@ -85,8 +87,8 @@ hex-literal = { version = "0.4.1", optional = true }
 
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
 frame-system-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
-pallet-session-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
-pallet-offences-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
+# pallet-session-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
+# pallet-offences-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
 frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
 
 [dev-dependencies]
@@ -107,12 +109,13 @@ std = [
 	"cord-primitives/std",
 	"network-membership/std",
 	"authority-membership/std",
-	"pallet-offences-benchmarking?/std",
+	# "pallet-offences-benchmarking?/std",
 	"frame-system-benchmarking?/std",
 	"cord-utilities/std",
-	"pallet-session-benchmarking?/std",
+	# "pallet-session-benchmarking?/std",
 	"codec/std",
 	"scale-info/std",
+	"serde/std",
 	"sp-inherents/std",
 	"sp-core/std",
 	"sp-api/std",

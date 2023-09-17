@@ -20,12 +20,10 @@
 #![warn(unused_extern_crates)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use frame_support::{
-	dispatch::DispatchResult,
-	ensure,
-	pallet_prelude::*,
-	traits::{EnsureOrigin, UnfilteredDispatchable},
-};
+pub mod impls;
+
+use frame_support::{dispatch::DispatchResult, ensure, pallet_prelude::*, traits::EnsureOrigin};
+pub use impls::*;
 pub use pallet::*;
 use sp_runtime::traits::Convert;
 use sp_staking::{
@@ -228,7 +226,7 @@ pub mod pallet {
 			let member = T::ValidatorIdOf::convert(candidate.clone())
 				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
 
-			ensure!(!<BlackList<T>>::get().contains(&member), Error::<T>::MemberNotBlackListed);
+			ensure!(<BlackList<T>>::get().contains(&member), Error::<T>::MemberNotBlackListed);
 
 			Self::remove_from_blacklist(&member)?;
 
@@ -260,6 +258,10 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			let member = T::ValidatorIdOf::convert(who.clone())
 				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
+
+			if Self::is_blacklisted(&member) {
+				return Err(Error::<T>::MemberBlackListed.into())
+			}
 
 			ensure!(<Members<T>>::get().contains(&member), Error::<T>::MemberNotFound);
 
@@ -298,7 +300,7 @@ impl<T: Config> Pallet<T> {
 		IncomingAuthorities::<T>::mutate(|v| v.push(authority));
 	}
 	// Adds offline authorities to a local cache for removal and blacklist.
-	fn mark_for_blacklist_removal(authority: T::ValidatorId) {
+	fn mark_for_blacklist_and_removal(authority: T::ValidatorId) {
 		BlackList::<T>::mutate(|v| v.push(authority.clone()));
 		OutgoingAuthorities::<T>::mutate(|v| v.push(authority));
 	}
@@ -332,10 +334,6 @@ impl<T: Config> pallet_session::SessionManager<T::ValidatorId> for Pallet<T> {
 			Self::deposit_event(Event::IncomingAuthorities(members_to_add.clone()));
 		}
 
-		// if new_index <= 1 {
-		// 	return None
-		// }
-
 		let mut authorities = Session::<T>::validators();
 
 		members_to_del.iter().for_each(|v| {
@@ -360,9 +358,7 @@ impl<T: Config> pallet_session::SessionManager<T::ValidatorId> for Pallet<T> {
 
 	fn end_session(_: SessionIndex) {}
 
-	fn start_session(_start_index: SessionIndex) {
-		// T::OnNewSession::on_new_session(start_index);
-	}
+	fn start_session(_start_index: SessionIndex) {}
 }
 
 // see substrate FullIdentification
@@ -412,7 +408,7 @@ impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
 
 		for (a, _) in offenders.into_iter() {
 			let v = T::ValidatorIdOf::convert(a).ok_or(OffenceError::DuplicateReport)?;
-			Self::mark_for_blacklist_removal(v);
+			Self::mark_for_blacklist_and_removal(v);
 		}
 
 		Ok(())
