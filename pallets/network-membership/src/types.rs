@@ -17,16 +17,28 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
-use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::RuntimeDebug;
+use codec::{Decode, Encode};
+use frame_support::dispatch::DispatchClass;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-#[cfg_attr(feature = "std", derive(Deserialize, Serialize))]
-#[derive(
-	Encode, Decode, Default, Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen,
-)]
-pub struct MemberData<BlockNumber: Decode + Encode + TypeInfo> {
-	pub expire_on: BlockNumber,
+// #[cfg_attr(feature = "std", derive(Deserialize, Serialize))]
+// #[derive(
+// 	Encode, Decode, Default, Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo,
+// MaxEncodedLen, )]
+// pub struct MemberData<BlockNumber: Decode + Encode + TypeInfo> {
+// 	pub expire_on: BlockNumber,
+// }
+
+/// Information related to a dispatchable's class and weight that can be
+/// queried from the runtime.
+#[derive(Eq, PartialEq, Encode, Decode, Default, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+pub struct RuntimeDispatchInfo<Weight = frame_support::weights::Weight> {
+	/// Weight of this dispatch.
+	pub weight: Weight,
+	/// Class of this dispatch.
+	pub class: DispatchClass,
 }

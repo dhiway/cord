@@ -27,7 +27,6 @@ pallet-offences = { package = "pallet-offences", path = "../../pallets/offences"
 log = { version = "0.4.17", default-features = false }
 
 # Substrate dependencies
-frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
 frame-system = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 frame-support = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 sp-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
@@ -45,14 +44,12 @@ sp-io = { git = "https://github.com/dhiway/substrate", default-features = false,
 
 [features]
 default = ['std']
-# runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
 std = [
 	'codec/std',
 	'scale-info/std',
 	'serde',
 	'network-membership/std',
 	'pallet-network-membership/std',
-	'frame-benchmarking?/std',
 	'frame-system/std',
 	'frame-support/std',
 	'sp-runtime/std',

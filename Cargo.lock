@@ -1217,7 +1217,6 @@ checksum = "21a53c0a4d288377e7415b53dcfc3c04da5cdc2cc95c8d5ac178b58f0b861ad6"
 name = "cord-authority-membership"
 version = "0.8.1"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
@@ -1478,6 +1477,7 @@ dependencies = [
  "pallet-stream",
  "pallet-sudo",
  "pallet-timestamp",
+ "pallet-transaction-weight-runtime-api",
  "pallet-utility",
  "parity-scale-codec",
  "rusty-hook",
@@ -5769,6 +5769,21 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-timestamp",
+]
+
+[[package]]
+name = "pallet-transaction-weight-runtime-api"
+version = "0.8.1"
+dependencies = [
+ "frame-support",
+ "pallet-network-membership",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-api",
+ "sp-runtime",
+ "sp-std",
+ "sp-weights",
 ]
 
 [[package]]

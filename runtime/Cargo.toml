@@ -42,6 +42,7 @@ pallet-offences = { default-features = false, path = '../pallets/offences' }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../pallets/did/runtime-api", default-features = false }
+pallet-transaction-weight-runtime-api = { package = "pallet-transaction-weight-runtime-api", path = "../runtime-api/weight", default-features = false }
 
 # Substrate
 sp-authority-discovery = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
@@ -154,6 +155,7 @@ std = [
 	"pallet-network-membership/std",
 	"pallet-runtime-upgrade/std",
 	"pallet-did-runtime-api/std",
+	"pallet-transaction-weight-runtime-api/std",
 	"sp-runtime/std",
 	"sp-staking/std",
 	"frame-system/std",

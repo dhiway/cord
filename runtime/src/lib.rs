@@ -90,6 +90,7 @@ pub use entities::ValidatorFullIdentification;
 pub use pallet_network_membership;
 pub mod benchmark;
 pub use benchmark::DummySignature;
+use pallet_network_membership::RuntimeDispatchInfo;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -1155,6 +1156,12 @@ sp_api::impl_runtime_apis! {
 						details: details.into(),
 					}
 			})
+		}
+	}
+
+	impl pallet_transaction_weight_runtime_api::TransactionWeightApi<Block> for Runtime {
+		fn query_weight_info(uxt: <Block as BlockT>::Extrinsic) -> RuntimeDispatchInfo {
+			NetworkMembership::query_weight_info(uxt)
 		}
 	}
 

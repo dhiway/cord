@@ -34,7 +34,10 @@ pub mod benchmarking;
 #[cfg(test)]
 pub mod tests;
 
-use frame_support::{dispatch::Weight, traits::Get};
+use frame_support::{
+	dispatch::{GetDispatchInfo, Weight},
+	traits::Get,
+};
 use network_membership::MemberData;
 use sp_runtime::{
 	traits::{DispatchInfoOf, Dispatchable, SignedExtension, Zero},
@@ -46,8 +49,8 @@ use sp_runtime::{
 use sp_std::{collections::btree_map::BTreeMap, marker::PhantomData, prelude::*};
 
 pub use weights::WeightInfo;
-// pub mod types;
-// pub use crate::types::*;
+pub mod types;
+pub use crate::types::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -313,6 +316,20 @@ impl<T: Config> Pallet<T> {
 	/// check if identity is member
 	pub fn is_member_inner(member: &CordAccountOf<T>) -> bool {
 		Members::<T>::contains_key(member)
+	}
+	// Query the data that we know about the weight of a given `call`.
+	///
+	/// All dispatchables must be annotated with weight. This function always
+	/// returns.
+	pub fn query_weight_info<Extrinsic: sp_runtime::traits::Extrinsic + GetDispatchInfo>(
+		unchecked_extrinsic: Extrinsic,
+	) -> RuntimeDispatchInfo
+	where
+		T::RuntimeCall: Dispatchable<Info = DispatchInfo>,
+	{
+		let dispatch_info = <Extrinsic as GetDispatchInfo>::get_dispatch_info(&unchecked_extrinsic);
+		let DispatchInfo { weight, class, .. } = dispatch_info;
+		RuntimeDispatchInfo { weight, class }
 	}
 }
 

@@ -70,6 +70,7 @@ members = [
 	"runtime",
 	"runtime/constants",
 	"runtime/authorities",
+	"runtime-api/*",
 	"rpc",
 	"inspect",
 	"utilities",
