@@ -20,13 +20,25 @@
 #![warn(unused_extern_crates)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use sp_staking::SessionIndex;
-use sp_std::vec::Vec;
-
-use frame_support::{dispatch::DispatchResult, ensure, pallet_prelude::*, traits::EnsureOrigin};
+use frame_support::{
+	dispatch::DispatchResult,
+	ensure,
+	pallet_prelude::*,
+	traits::{EnsureOrigin, UnfilteredDispatchable},
+};
 pub use pallet::*;
 use sp_runtime::traits::Convert;
-use sp_staking::offence::{Offence, OffenceError, ReportOffence};
+use sp_staking::{
+	offence::{Offence, OffenceError, ReportOffence},
+	SessionIndex,
+};
+use sp_std::{vec, vec::Vec};
+
+#[cfg(any(feature = "mock", test))]
+pub mod mock;
+
+#[cfg(test)]
+pub mod tests;
 
 type Session<T> = pallet_session::Pallet<T>;
 
@@ -44,7 +56,10 @@ pub mod pallet {
 	/// Configuration.
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_session::Config + pallet_network_membership::Config
+		frame_system::Config
+		+ pallet_session::Config
+		+ pallet_network_membership::Config
+		+ pallet_session::historical::Config
 	{
 		/// The overreaching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -55,6 +70,13 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// List of members who will enter the set of authorities at the next
+		/// session. [Vec<member_id>]
+		IncomingAuthorities(Vec<T::ValidatorId>),
+		/// List of members who will leave the set of authorities at the next
+		/// session. [Vec<member_id>]
+		OutgoingAuthorities(Vec<T::ValidatorId>),
+
 		/// A member will be added to the authority membership.
 		MemberAdded(T::AccountId),
 		/// A member will leave the set of authorities in 2 sessions.
@@ -295,20 +317,34 @@ impl<T: Config> Pallet<T> {
 }
 
 impl<T: Config> pallet_session::SessionManager<T::ValidatorId> for Pallet<T> {
-	fn new_session(new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> {
-		if new_index <= 1 {
-			return None
+	fn new_session(_new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> {
+		let members_to_add = IncomingAuthorities::<T>::take();
+		let members_to_del = OutgoingAuthorities::<T>::take();
+
+		if members_to_add.is_empty() {
+			if members_to_del.is_empty() {
+				// when no change to the set of autorities, return None
+				return None
+			} else {
+				Self::deposit_event(Event::OutgoingAuthorities(members_to_del.clone()));
+			}
+		} else {
+			Self::deposit_event(Event::IncomingAuthorities(members_to_add.clone()));
 		}
+
+		// if new_index <= 1 {
+		// 	return None
+		// }
 
 		let mut authorities = Session::<T>::validators();
 
-		OutgoingAuthorities::<T>::take().iter().for_each(|v| {
+		members_to_del.iter().for_each(|v| {
 			if let Some(pos) = authorities.iter().position(|r| r == v) {
 				authorities.swap_remove(pos);
 			}
 		});
 
-		IncomingAuthorities::<T>::take().into_iter().for_each(|v| {
+		members_to_add.into_iter().for_each(|v| {
 			if !authorities.contains(&v) {
 				authorities.push(v);
 			}
@@ -317,15 +353,46 @@ impl<T: Config> pallet_session::SessionManager<T::ValidatorId> for Pallet<T> {
 		Some(authorities)
 	}
 
+	/// Same as `new_session`, but it this should only be called at genesis.
+	fn new_session_genesis(_new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> {
+		Some(Members::<T>::get().into_iter().collect())
+	}
+
 	fn end_session(_: SessionIndex) {}
 
-	fn start_session(_start_index: SessionIndex) {}
+	fn start_session(_start_index: SessionIndex) {
+		// T::OnNewSession::on_new_session(start_index);
+	}
 }
 
-impl<T: Config> pallet_session::historical::SessionManager<T::ValidatorId, ()> for Pallet<T> {
-	fn new_session(new_index: SessionIndex) -> Option<Vec<(T::ValidatorId, ())>> {
-		<Self as pallet_session::SessionManager<_>>::new_session(new_index)
-			.map(|r| r.into_iter().map(|v| (v, Default::default())).collect())
+// see substrate FullIdentification
+fn add_full_identification<T: Config>(
+	validator_id: T::ValidatorId,
+) -> Option<(T::ValidatorId, T::FullIdentification)> {
+	use sp_runtime::traits::Convert as _;
+	T::FullIdentificationOf::convert(validator_id.clone())
+		.map(|full_ident| (validator_id, full_ident))
+}
+
+impl<T: Config> pallet_session::historical::SessionManager<T::ValidatorId, T::FullIdentification>
+	for Pallet<T>
+{
+	fn new_session(
+		new_index: SessionIndex,
+	) -> Option<Vec<(T::ValidatorId, T::FullIdentification)>> {
+		<Self as pallet_session::SessionManager<_>>::new_session(new_index).map(|validators_ids| {
+			validators_ids.into_iter().filter_map(add_full_identification::<T>).collect()
+		})
+		// .map(|r| r.into_iter().map(|v| (v, Default::default())).collect())
+	}
+	fn new_session_genesis(
+		new_index: SessionIndex,
+	) -> Option<sp_std::vec::Vec<(T::ValidatorId, T::FullIdentification)>> {
+		<Self as pallet_session::SessionManager<_>>::new_session_genesis(new_index).map(
+			|validators_ids| {
+				validators_ids.into_iter().filter_map(add_full_identification::<T>).collect()
+			},
+		)
 	}
 
 	fn start_session(start_index: SessionIndex) {
@@ -358,3 +425,13 @@ impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
 		false
 	}
 }
+
+// pub trait OnNewSession {
+// 	fn on_new_session(index: SessionIndex) -> Weight;
+// }
+//
+// impl OnNewSession for () {
+// 	fn on_new_session(_: SessionIndex) -> Weight {
+// 		Weight::zero()
+// 	}
+// }

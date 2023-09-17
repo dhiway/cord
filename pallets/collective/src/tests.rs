@@ -239,36 +239,6 @@ fn initialize_members_sorts_members() {
 		});
 }
 
-// #[test]
-// fn proposal_weight_limit_works() {
-// 	ExtBuilder::default().build_and_execute(|| {
-// 		let proposal = make_proposal(42);
-// 		let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
-//
-// 		assert_ok!(Collective::propose(
-// 			RuntimeOrigin::signed(1),
-// 			2,
-// 			Box::new(proposal.clone()),
-// 			proposal_len
-// 		));
-//
-// 		// set a small limit for max proposal weight.
-// 		MaxProposalWeight::set(Weight::from_parts(1, 1));
-// 		assert_noop!(
-// 			Collective::propose(
-// 				RuntimeOrigin::signed(1),
-// 				2,
-// 				Box::new(proposal.clone()),
-// 				proposal_len
-// 			),
-// 			Error::<Test, Instance1>::WrongProposalWeight
-// 		);
-//
-// 		// reset the max weight to default.
-// 		MaxProposalWeight::set(default_max_proposal_weight());
-// 	});
-// }
-
 #[test]
 fn close_works() {
 	ExtBuilder::default().build_and_execute(|| {
@@ -337,48 +307,6 @@ fn close_works() {
 	});
 }
 
-// #[test]
-// fn proposal_weight_limit_works_on_approve() {
-// 	ExtBuilder::default().build_and_execute(|| {
-// 		let proposal = RuntimeCall::Collective(crate::Call::set_members {
-// 			new_members: vec![1, 2, 3],
-// 			prime: None,
-// 			old_count: MaxMembers::get(),
-// 		});
-// 		let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
-// 		let proposal_weight = proposal.get_dispatch_info().weight;
-// 		let hash = BlakeTwo256::hash_of(&proposal);
-// 		// Set 1 as prime voter
-// 		Prime::<Test, Instance1>::set(Some(1));
-// 		assert_ok!(Collective::propose(
-// 			RuntimeOrigin::signed(1),
-// 			3,
-// 			Box::new(proposal.clone()),
-// 			proposal_len
-// 		));
-// 		assert_ok!(Collective::vote(RuntimeOrigin::signed(1), hash, 0, true));
-// 		// With 1's prime vote, this should pass
-// 		System::set_block_number(4);
-// 		assert_noop!(
-// 			Collective::close(
-// 				RuntimeOrigin::signed(4),
-// 				hash,
-// 				0,
-// 				proposal_weight - Weight::from_parts(100, 0),
-// 				proposal_len
-// 			),
-// 			Error::<Test, Instance1>::WrongProposalWeight
-// 		);
-// 		assert_ok!(Collective::close(
-// 			RuntimeOrigin::signed(4),
-// 			hash,
-// 			0,
-// 			proposal_weight,
-// 			proposal_len
-// 		));
-// 	})
-// }
-//
 #[test]
 fn proposal_weight_limit_ignored_on_disapprove() {
 	ExtBuilder::default().build_and_execute(|| {
@@ -394,7 +322,7 @@ fn proposal_weight_limit_ignored_on_disapprove() {
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			3,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		// No votes, this proposal wont pass
@@ -426,7 +354,7 @@ fn close_with_prime_works() {
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			3,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		assert_ok!(Collective::vote(RuntimeOrigin::signed(1), hash, 0, true));
@@ -494,7 +422,7 @@ fn close_with_voting_prime_works() {
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			3,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		assert_ok!(Collective::vote(RuntimeOrigin::signed(1), hash, 0, true));
@@ -564,7 +492,7 @@ fn close_with_no_prime_but_majority_works() {
 		assert_ok!(CollectiveMajority::propose(
 			RuntimeOrigin::signed(1),
 			5,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		assert_ok!(CollectiveMajority::vote(RuntimeOrigin::signed(1), hash, 0, true));
@@ -637,7 +565,7 @@ fn removal_of_old_voters_votes_works() {
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			3,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		assert_ok!(Collective::vote(RuntimeOrigin::signed(1), hash, 0, true));
@@ -658,7 +586,7 @@ fn removal_of_old_voters_votes_works() {
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(2),
 			2,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		assert_ok!(Collective::vote(RuntimeOrigin::signed(2), hash, 1, true));
@@ -781,12 +709,7 @@ fn limit_active_proposals() {
 		let proposal = make_proposal(MaxProposals::get() as u64 + 1);
 		let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
 		assert_noop!(
-			Collective::propose(
-				RuntimeOrigin::signed(1),
-				3,
-				Box::new(proposal.clone()),
-				proposal_len
-			),
+			Collective::propose(RuntimeOrigin::signed(1), 3, Box::new(proposal), proposal_len),
 			Error::<Test, Instance1>::TooManyProposals
 		);
 	})
@@ -836,12 +759,7 @@ fn motions_ignoring_non_collective_proposals_works() {
 		let proposal = make_proposal(42);
 		let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
 		assert_noop!(
-			Collective::propose(
-				RuntimeOrigin::signed(42),
-				3,
-				Box::new(proposal.clone()),
-				proposal_len
-			),
+			Collective::propose(RuntimeOrigin::signed(42), 3, Box::new(proposal), proposal_len),
 			Error::<Test, Instance1>::NotMember
 		);
 	});
@@ -856,7 +774,7 @@ fn motions_ignoring_non_collective_votes_works() {
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			3,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		assert_noop!(
@@ -876,7 +794,7 @@ fn motions_ignoring_bad_index_collective_vote_works() {
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			3,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		assert_noop!(
@@ -896,7 +814,7 @@ fn motions_vote_after_works() {
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			2,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		// Initially there a no votes when the motion is proposed.
@@ -1038,7 +956,7 @@ fn motions_reproposing_disapproved_works() {
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			2,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		assert_eq!(*Collective::proposals(), vec![hash]);
@@ -1114,7 +1032,7 @@ fn motions_approval_with_enough_votes_and_lower_voting_threshold_works() {
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			2,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		assert_ok!(Collective::vote(RuntimeOrigin::signed(1), hash, 1, true));
@@ -1305,7 +1223,7 @@ fn motion_with_no_votes_closes_with_disapproval() {
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			3,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		assert_eq!(
@@ -1393,7 +1311,7 @@ fn disapprove_proposal_works() {
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			2,
-			Box::new(proposal.clone()),
+			Box::new(proposal),
 			proposal_len
 		));
 		// Proposal would normally succeed

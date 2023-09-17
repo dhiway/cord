@@ -628,6 +628,8 @@ parameter_types! {
 	pub const MaxProposalLength: u16 = 5;
 }
 impl authority_membership::Config for Runtime {
+	// type KeysWrapper = opaque::SessionKeysWrapper;
+	// type OnNewSession = OnNewSessionHandler<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityMembershipOrigin = MoreThanHalfCouncil;
 }

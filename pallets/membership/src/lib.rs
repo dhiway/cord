@@ -513,7 +513,7 @@ mod benchmark {
 			let m in 1 .. T::MaxMembers::get();
 			let members = (0..m).map(|i| account("member", i, SEED)).collect::<Vec<T::AccountId>>();
 			let prime = members.last().cloned().unwrap();
-			let prime_lookup = T::Lookup::unlookup(prime.clone());
+			let prime_lookup = T::Lookup::unlookup(prime);
 			set_members::<T, I>(members, None);
 		}: {
 			assert_ok!(<Membership<T, I>>::set_prime(

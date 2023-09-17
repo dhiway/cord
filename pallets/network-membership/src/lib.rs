@@ -200,6 +200,9 @@ pub mod pallet {
 				Members::<T>::insert(&member, MemberData { expire_on });
 			}
 
+			// the member has just been created, increment its provider
+			frame_system::Pallet::<T>::inc_providers(&member);
+
 			Self::deposit_event(Event::MembershipAcquired { member });
 
 			Ok(())
@@ -248,6 +251,9 @@ pub mod pallet {
 					.map(|index| members.swap_remove(index))
 					.ok_or(Error::<T>::MembershipNotFound)
 			})?;
+
+			// the membership was existing but is not anymore, decrement the provider
+			frame_system::Pallet::<T>::dec_providers(&member);
 
 			Self::deposit_event(Event::MembershipRevoked { member });
 			Ok(())

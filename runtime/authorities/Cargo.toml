@@ -41,7 +41,7 @@ pallet-session = { git = "https://github.com/dhiway/substrate", features = [
 
 [dev-dependencies]
 serde = { version = "1.0.137", default-features = false }
-# sp-io = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-io = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 
 [features]
 default = ['std']
