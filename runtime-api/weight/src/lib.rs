@@ -19,11 +19,11 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use pallet_network_membership::RuntimeDispatchInfo;
+pub use pallet_network_membership::RuntimeDispatchWeightInfo;
 
 sp_api::decl_runtime_apis! {
-	#[api_version(4)]
+	#[api_version(1)]
 	pub trait TransactionWeightApi {
-		fn query_weight_info(uxt: Block::Extrinsic ) -> RuntimeDispatchInfo;
+		fn query_weight_info(uxt: Block::Extrinsic ) -> RuntimeDispatchWeightInfo;
 	}
 }

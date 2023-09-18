@@ -36,7 +36,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Eq, PartialEq, Encode, Decode, Default, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
-pub struct RuntimeDispatchInfo<Weight = frame_support::weights::Weight> {
+pub struct RuntimeDispatchWeightInfo<Weight = frame_support::weights::Weight> {
 	/// Weight of this dispatch.
 	pub weight: Weight,
 	/// Class of this dispatch.

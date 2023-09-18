@@ -323,13 +323,13 @@ impl<T: Config> Pallet<T> {
 	/// returns.
 	pub fn query_weight_info<Extrinsic: sp_runtime::traits::Extrinsic + GetDispatchInfo>(
 		unchecked_extrinsic: Extrinsic,
-	) -> RuntimeDispatchInfo
+	) -> RuntimeDispatchWeightInfo
 	where
 		T::RuntimeCall: Dispatchable<Info = DispatchInfo>,
 	{
 		let dispatch_info = <Extrinsic as GetDispatchInfo>::get_dispatch_info(&unchecked_extrinsic);
 		let DispatchInfo { weight, class, .. } = dispatch_info;
-		RuntimeDispatchInfo { weight, class }
+		RuntimeDispatchWeightInfo { weight, class }
 	}
 }
 
