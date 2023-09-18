@@ -159,9 +159,9 @@ type EnsureRootOrCommitteeApproval = EitherOfDiverse<
 /// a single extrinsic will not be allowed to consume more than
 /// `AvailableBlockRatio - 1%`.
 pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
-/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be
+/// We allow `Normal` extrinsics to fill up the block up to 80%, the rest can be
 /// used by  Operational  extrinsics.
-pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
+pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(80);
 /// We allow for 2 seconds of compute with a 6 second average block time.
 /// The storage proof size is not limited so far.
 pub const MAXIMUM_BLOCK_WEIGHT: Weight =

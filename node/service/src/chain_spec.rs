@@ -216,21 +216,8 @@ fn cord_local_genesis(
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> GenesisConfig {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
-	// let member_candidates = member_accounts()
-	// .into_iter()
-	// .map(|account_id| (account_id, MemberData { expire_on: 0 }))
-	// .collect::<BTreeMap<AccountId, MemberData<BlockNumber>>>();
-
-	// let members = member_accounts()
-	// 	.into_iter()
-	// 	.map(|account_id| {
-	// 		let member_data = ;
-	// 		(account_id, member_data)
-	// 	})
-	// .collect::<BTreeMap<AccountId, MemberData<BlockNumber>>>();
-
 	let num_endowed_accounts = endowed_accounts.len();
-	const ENDOWMENT: u128 = 50_000 * WAY;
+	const ENDOWMENT: u128 = 10_000 * WAY;
 
 	GenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec() },
