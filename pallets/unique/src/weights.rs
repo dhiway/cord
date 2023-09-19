@@ -50,138 +50,62 @@ use core::marker::PhantomData;
 
 /// Weight functions needed for pallet_stream.
 pub trait WeightInfo {
-	fn create(l: u32, ) -> Weight;
-	fn update(l: u32, ) -> Weight;
-	fn revoke(l: u32, ) -> Weight;
-	fn remove(l: u32, ) -> Weight;
+	fn create() -> Weight;
+	fn update() -> Weight;
+	fn revoke() -> Weight;
+	fn remove() -> Weight;
 }
 
 /// Weights for pallet_stream using the CORD node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	/// Storage: Registry Authorizations (r:1 w:0)
-	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
-	/// Storage: Stream Streams (r:1 w:1)
-	/// Proof: Stream Streams (max_values: None, max_size: Some(232), added: 2707, mode: MaxEncodedLen)
-	/// Storage: Stream Commits (r:1 w:1)
-	/// Proof: Stream Commits (max_values: None, max_size: Some(73068), added: 75543, mode: MaxEncodedLen)
-	/// Storage: Stream StreamDigests (r:0 w:1)
-	/// Proof: Stream StreamDigests (max_values: None, max_size: Some(98), added: 2573, mode: MaxEncodedLen)
-	/// The range of component `l` is `[1, 5120]`.
-	fn create(_l: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `300`
-		//  Estimated: `76533`
-		// Minimum execution time: 31_519_000 picoseconds.
+	fn create() -> Weight {
 		Weight::from_parts(33_085_955, 76533)
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
-	/// Storage: Stream Streams (r:1 w:1)
-	/// Proof: Stream Streams (max_values: None, max_size: Some(232), added: 2707, mode: MaxEncodedLen)
-	/// Storage: Stream Commits (r:1 w:1)
-	/// Proof: Stream Commits (max_values: None, max_size: Some(73068), added: 75543, mode: MaxEncodedLen)
-	/// Storage: Stream StreamDigests (r:0 w:1)
-	/// Proof: Stream StreamDigests (max_values: None, max_size: Some(98), added: 2573, mode: MaxEncodedLen)
-	/// The range of component `l` is `[1, 5120]`.
-	fn update(_l: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `287`
-		//  Estimated: `76533`
-		// Minimum execution time: 23_778_000 picoseconds.
+
+	fn update() -> Weight {
 		Weight::from_parts(25_082_559, 76533)
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(3_u64))
 	}
-	/// Storage: Stream Streams (r:1 w:1)
-	/// Proof: Stream Streams (max_values: None, max_size: Some(232), added: 2707, mode: MaxEncodedLen)
-	/// Storage: Stream Commits (r:1 w:1)
-	/// Proof: Stream Commits (max_values: None, max_size: Some(73068), added: 75543, mode: MaxEncodedLen)
-	/// The range of component `l` is `[1, 5120]`.
-	fn revoke(l: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `287`
-		//  Estimated: `76533`
-		// Minimum execution time: 21_687_000 picoseconds.
+
+	fn revoke() -> Weight {
+
 		Weight::from_parts(22_799_814, 76533)
-			// Standard Error: 8
-			.saturating_add(Weight::from_parts(10, 0).saturating_mul(l.into()))
+			.saturating_add(Weight::from_parts(10, 0))
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
-	fn remove(_l: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `287`
-		//  Estimated: `76533`
-		// Minimum execution time: 21_777_000 picoseconds.
+	fn remove() -> Weight {
 		Weight::from_parts(23_046_073, 76533)
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
 }
 
-// For backwards compatibility and tests
 impl WeightInfo for () {
-	/// Storage: Registry Authorizations (r:1 w:0)
-	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
-	/// Storage: Stream Streams (r:1 w:1)
-	/// Proof: Stream Streams (max_values: None, max_size: Some(232), added: 2707, mode: MaxEncodedLen)
-	/// Storage: Stream Commits (r:1 w:1)
-	/// Proof: Stream Commits (max_values: None, max_size: Some(73068), added: 75543, mode: MaxEncodedLen)
-	/// Storage: Stream StreamDigests (r:0 w:1)
-	/// Proof: Stream StreamDigests (max_values: None, max_size: Some(98), added: 2573, mode: MaxEncodedLen)
-	/// The range of component `l` is `[1, 5120]`.
-	fn create(_l: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `300`
-		//  Estimated: `76533`
-		// Minimum execution time: 31_519_000 picoseconds.
+	fn create() -> Weight {
 		Weight::from_parts(33_085_955, 76533)
 			.saturating_add(RocksDbWeight::get().reads(3_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
-	/// Storage: Stream Streams (r:1 w:1)
-	/// Proof: Stream Streams (max_values: None, max_size: Some(232), added: 2707, mode: MaxEncodedLen)
-	/// Storage: Stream Commits (r:1 w:1)
-	/// Proof: Stream Commits (max_values: None, max_size: Some(73068), added: 75543, mode: MaxEncodedLen)
-	/// Storage: Stream StreamDigests (r:0 w:1)
-	/// Proof: Stream StreamDigests (max_values: None, max_size: Some(98), added: 2573, mode: MaxEncodedLen)
-	/// The range of component `l` is `[1, 5120]`.
-	fn update(_l: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `287`
-		//  Estimated: `76533`
-		// Minimum execution time: 23_778_000 picoseconds.
+
+	fn update() -> Weight {
 		Weight::from_parts(25_082_559, 76533)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
-	/// Storage: Stream Streams (r:1 w:1)
-	/// Proof: Stream Streams (max_values: None, max_size: Some(232), added: 2707, mode: MaxEncodedLen)
-	/// Storage: Stream Commits (r:1 w:1)
-	/// Proof: Stream Commits (max_values: None, max_size: Some(73068), added: 75543, mode: MaxEncodedLen)
-	/// The range of component `l` is `[1, 5120]`.
-	fn revoke(l: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `287`
-		//  Estimated: `76533`
-		// Minimum execution time: 21_687_000 picoseconds.
+
+	fn revoke() -> Weight {
 		Weight::from_parts(22_799_814, 76533)
-			// Standard Error: 8
-			.saturating_add(Weight::from_parts(10, 0).saturating_mul(l.into()))
+			.saturating_add(Weight::from_parts(10, 0))
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
-	/// Storage: Stream Streams (r:1 w:1)
-	/// Proof: Stream Streams (max_values: None, max_size: Some(232), added: 2707, mode: MaxEncodedLen)
-	/// Storage: Stream Commits (r:1 w:1)
-	/// Proof: Stream Commits (max_values: None, max_size: Some(73068), added: 75543, mode: MaxEncodedLen)
-	/// The range of component `l` is `[1, 5120]`.
-	fn remove(_l: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `287`
-		//  Estimated: `76533`
-		// Minimum execution time: 21_777_000 picoseconds.
+
+	fn remove() -> Weight {
 		Weight::from_parts(23_046_073, 76533)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
