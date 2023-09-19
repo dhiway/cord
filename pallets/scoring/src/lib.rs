@@ -148,8 +148,6 @@ pub mod pallet {
 		type ValueLimit: Get<u32>;
 		#[pallet::constant]
 		type MinScoreValue: Get<u32>;
-		#[pallet::constant]
-		type MaxScoreValue: Get<u32>;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -271,8 +269,7 @@ pub mod pallet {
 					.map_err(<pallet_registry::Error<T>>::from)?;
 
 			ensure!(
-				(journal.entry.rating >= T::MinScoreValue::get() &&
-					journal.entry.rating <= T::MaxScoreValue::get()),
+				journal.entry.rating >= T::MinScoreValue::get(),
 				Error::<T>::InvalidRatingValue
 			);
 			ensure!(

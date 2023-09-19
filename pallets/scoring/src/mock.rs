@@ -104,7 +104,6 @@ impl mock_origin::Config for Test {
 
 parameter_types! {
 	pub const MinScoreValue: u32 = 1;
-	pub const MaxScoreValue: u32 = 50;
 }
 
 impl Config for Test {
@@ -114,7 +113,6 @@ impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::SubstrateWeight<Test>;
 	type MinScoreValue = MinScoreValue;
-	type MaxScoreValue = MaxScoreValue;
 	type ValueLimit = ConstU32<72>;
 }
 
