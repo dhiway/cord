@@ -59,12 +59,14 @@ CORD=./target/production/cord
 
 # Manually exclude some pallets.
 PALLETS=(
- "pallet_schema"
- "pallet_registry"
- "pallet_did"
- "pallet_did_names"
- "pallet_extrinsic_authorship"
- "pallet_stream"
+  "pallet_schema"
+  "pallet_registry"
+  "pallet_did"
+  "pallet_did_names"
+  "pallet_network_membership"
+  "pallet_stream"
+  "pallet_membership"
+  "pallet_collective"
 )
 
 echo "[+] Benchmarking ${#PALLETS[@]} pallets."
@@ -97,12 +99,19 @@ for PALLET in "${PALLETS[@]}"; do
   pallet_registry)
     FOLDER="registry"
     ;;
-  pallet_extrinsic_authorship)
-    FOLDER="authorship"
+  pallet_network_membership)
+    FOLDER="network-membership"
     ;;
   pallet_stream)
     FOLDER="stream"
     ;;
+  pallet_membership)
+    FOLDER="membership"
+    ;;
+  pallet_collective)
+    FOLDER="collective"
+    ;;
+
   *)
     # Exit early.
     echo "Bad pallet option. Check Script."

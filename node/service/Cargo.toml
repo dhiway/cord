@@ -27,7 +27,6 @@ codec = { package = "parity-scale-codec", version = "3.4.0" }
 serde = { version = "1.0.136", features = ["derive"] }
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 futures = "0.3.21"
-array-bytes = "4.1"
 log = "0.4.17"
 hex = { version = "0.4.3", default-features = false }
 
@@ -79,20 +78,18 @@ sc-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v
 frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 frame-system-rpc-runtime-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 frame-rpc-system = { package = "substrate-frame-rpc-system", git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-pallet-transaction-payment = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-pallet-transaction-payment-rpc = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 pallet-im-online = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 
 # cord-specific dependencies
 cord-runtime = { package = "cord-runtime", path = "../../runtime" }
-cord-primitives = { package = "cord-primitives", path="../../primitives"}
+cord-primitives = { package = "cord-primitives", path = "../../primitives/cord" }
+network-membership = { package = "network-membership", path = "../../primitives/network-membership" }
 cord-client = { package = "cord-client", path = "../client" }
 cord-inspect = { package = "cord-inspect", path = "../../inspect" }
 cord-rpc = { package = "cord-rpc", path = "../../rpc" }
 cord-runtime-constants = { package = "cord-runtime-constants", path = "../../runtime/constants" }
-pallet-extrinsic-authorship = { package = "pallet-extrinsic-authorship", path = "../../pallets/authorship" }
-
+pallet-network-membership = { package = "pallet-network-membership", path = "../../pallets/network-membership" }
 
 # CLI-specific dependencies
 sc-cli = { git = "https://github.com/dhiway/substrate", optional = true, branch = "release-v0.9.43" }
@@ -107,9 +104,9 @@ sc-consensus = { git = "https://github.com/dhiway/substrate", branch = "release-
 sc-consensus-babe = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 sc-consensus-epochs = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 sc-service-test = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sc-block-builder ={ git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+sc-block-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 sp-tracing = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-blockchain ={ git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+sp-blockchain = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 assert_cmd = "2.0.4"
 nix = { version = "0.26.1", features = ["signal"] }
 async-std = { version = "1.10.0", features = ["attributes"] }
@@ -131,15 +128,15 @@ clap = { version = "4.0.9", optional = true }
 clap_complete = { version = "4.0.2", optional = true }
 cord-inspect = { package = "cord-inspect", optional = true, path = "../../inspect" }
 frame-benchmarking-cli = { git = "https://github.com/dhiway/substrate", optional = true, branch = "release-v0.9.43" }
-substrate-build-script-utils = { git = "https://github.com/dhiway/substrate",optional = true, branch = "release-v0.9.43"}
-substrate-frame-cli = { git = "https://github.com/dhiway/substrate", optional = true, branch = "release-v0.9.43"}
-try-runtime-cli = { git = "https://github.com/dhiway/substrate",optional = true, branch = "release-v0.9.43"}
-sc-cli = { git = "https://github.com/dhiway/substrate",optional = true, branch = "release-v0.9.43"}
-pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43"}
+substrate-build-script-utils = { git = "https://github.com/dhiway/substrate", optional = true, branch = "release-v0.9.43" }
+substrate-frame-cli = { git = "https://github.com/dhiway/substrate", optional = true, branch = "release-v0.9.43" }
+try-runtime-cli = { git = "https://github.com/dhiway/substrate", optional = true, branch = "release-v0.9.43" }
+sc-cli = { git = "https://github.com/dhiway/substrate", optional = true, branch = "release-v0.9.43" }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 sc-storage-monitor = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 
 [features]
-default = [ "cli" ]
+default = ["cli"]
 cli = [
 	"cord-inspect",
 	"sc-cli",
@@ -151,12 +148,10 @@ cli = [
 	"substrate-build-script-utils",
 	"try-runtime-cli",
 ]
-fast-runtime = [
-	"cord-runtime/fast-runtime",
-]
+fast-runtime = ["cord-runtime/fast-runtime"]
 runtime-benchmarks = [
-  "cord-runtime/runtime-benchmarks",
-  "frame-benchmarking-cli/runtime-benchmarks"
+	"cord-runtime/runtime-benchmarks",
+	"frame-benchmarking-cli/runtime-benchmarks",
 ]
-# Enable features that allow the runtime to be tried and debugged. 
+# Enable features that allow the runtime to be tried and debugged.
 try-runtime = ["cord-runtime/try-runtime", "try-runtime-cli/try-runtime"]

@@ -2,19 +2,16 @@
 name = "cord-client"
 description = "Cord Client."
 version = "0.8.1"
-authors = ['Dhiway <info@dhiway.com>',]
+authors = ['Dhiway <info@dhiway.com>']
 edition = '2021'
 license = "GPL-3.0"
 homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
 
 [dependencies]
-async-trait = "0.1.57"
 futures = "0.3.21"
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 frame-benchmarking-cli = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-pallet-transaction-payment = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 frame-system-rpc-runtime-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 
@@ -34,8 +31,6 @@ sp-consensus-babe = { git = "https://github.com/dhiway/substrate", branch = "rel
 sp-transaction-pool = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 sp-offchain = { package = "sp-offchain", git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 sp-block-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-
-sc-consensus = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 sc-executor = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 sc-client-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 sc-service = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
@@ -43,12 +38,11 @@ sc-service = { git = "https://github.com/dhiway/substrate", default-features = f
 
 # Cord dependencies
 cord-runtime = { path = "../../runtime", optional = true }
-cord-primitives = { path = "../../primitives" }
-pallet-extrinsic-authorship = { package = "pallet-extrinsic-authorship", path = "../../pallets/authorship" }
-pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../../pallets/did/runtime-api" }
-
+cord-primitives = { path = "../../primitives/cord" }
+pallet-network-membership = { package = "pallet-network-membership", path = "../../pallets/network-membership" }
+pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../../runtime-api/did" }
+pallet-transaction-weight-runtime-api = { package = "pallet-transaction-weight-runtime-api", path = "../../runtime-api/weight", default-features = false }
 
 [features]
 default = ["cord"]
 cord = ["cord-runtime"]
-

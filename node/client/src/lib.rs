@@ -22,7 +22,7 @@
 //! all the traits the client implements. There is also the [`Client`] enum that
 //! combines all the different clients into one common structure.
 
-use cord_primitives::{AccountId, Balance, Block, BlockNumber, DidIdentifier, Hash, Header, Index};
+use cord_primitives::{AccountId, Block, BlockNumber, DidIdentifier, Hash, Header, Index};
 use sc_client_api::{
 	AuxStore, Backend as BackendT, BlockchainEvents, KeysIter, PairsIter, UsageProvider,
 };
@@ -70,8 +70,8 @@ pub trait RuntimeApiCollection:
 	+ sp_consensus_grandpa::GrandpaApi<Block>
 	+ sp_block_builder::BlockBuilder<Block>
 	+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
-	+ pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
-	+ pallet_did_runtime_api::Did<Block, DidIdentifier, Hash, BlockNumber>
+	+ pallet_did_runtime_api::DidApi<Block, DidIdentifier, Hash, BlockNumber>
+	+ pallet_transaction_weight_runtime_api::TransactionWeightApi<Block>
 	+ sp_api::Metadata<Block>
 	+ sp_offchain::OffchainWorkerApi<Block>
 	+ sp_session::SessionKeys<Block>
@@ -89,8 +89,8 @@ where
 		+ sp_consensus_grandpa::GrandpaApi<Block>
 		+ sp_block_builder::BlockBuilder<Block>
 		+ frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index>
-		+ pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<Block, Balance>
-		+ pallet_did_runtime_api::Did<Block, DidIdentifier, Hash, BlockNumber>
+		+ pallet_did_runtime_api::DidApi<Block, DidIdentifier, Hash, BlockNumber>
+		+ pallet_transaction_weight_runtime_api::TransactionWeightApi<Block>
 		+ sp_api::Metadata<Block>
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_session::SessionKeys<Block>

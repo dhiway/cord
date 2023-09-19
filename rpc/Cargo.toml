@@ -9,8 +9,7 @@ repository = "https://github.com/dhiway/cord"
 
 [dependencies]
 jsonrpsee = { version = "0.16.2", features = ["server"] }
-cord-primitives = { package = "cord-primitives", path="../primitives"}
-pallet-transaction-payment-rpc = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+cord-primitives = { package = "cord-primitives", path = "../primitives/cord" }
 sc-chain-spec = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 sc-client-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 sc-consensus-babe = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }

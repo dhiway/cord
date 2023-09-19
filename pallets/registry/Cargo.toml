@@ -16,22 +16,34 @@ substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch =
 
 [dev-dependencies]
 # env_logger = {version = "0.9.0"}
-sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = ["std"]}
-sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = ["std"]}
-pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = ["std"]}
-cord-utilities = { package = "cord-utilities", path="../../utilities", features = ["mock"] }
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = [
+	"std",
+] }
+sp-keystore = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = [
+	"std",
+] }
+pallet-balances = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", features = [
+	"std",
+] }
+cord-utilities = { package = "cord-utilities", path = "../../utilities", features = [
+	"mock",
+] }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = ["derive"] }
-scale-info = { version = "2.5.0", default-features = false, features = ["derive"] }
-bitflags = {version = "1.3.2", default-features = false}
+codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = [
+	"derive",
+] }
+scale-info = { version = "2.5.0", default-features = false, features = [
+	"derive",
+] }
+bitflags = { version = "1.3.2", default-features = false }
 serde = { version = "1.0.136", optional = true }
-log = { version = "0.4.17", default-features = false  }
+log = { version = "0.4.17", default-features = false }
 
 # Internal dependencies
-cord-primitives = { package = "cord-primitives", path="../../primitives", default-features = false }
+cord-primitives = { package = "cord-primitives", path = "../../primitives/cord", default-features = false }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
-pallet-schema = {  default-features = false, path = '../schema' }
+pallet-schema = { default-features = false, path = '../schema' }
 
 # Substrate dependencies
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
@@ -46,32 +58,29 @@ sp-std = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.4
 
 
 [features]
-default = [ 'std' ]
+default = ['std']
 runtime-benchmarks = [
-  "frame-benchmarking/runtime-benchmarks",
-  "sp-runtime/runtime-benchmarks",
-  "frame-support/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
-  "cord-utilities/runtime-benchmarks",
+	"frame-benchmarking/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"cord-utilities/runtime-benchmarks",
 ]
 std = [
-  "codec/std",
-  "frame-benchmarking/std",
-  "frame-support/std",
-  "frame-system/std",
-  "cord-primitives/std",
-  "cord-utilities/std",
-  "log/std",
-  "pallet-balances/std",
-  "scale-info/std",
-  "sp-core/std",
-  "sp-io/std",
-  "sp-keystore/std",
-  "sp-runtime/std",
-  "sp-std/std",
-  "pallet-schema/std", 
+	"codec/std",
+	"frame-benchmarking/std",
+	"frame-support/std",
+	"frame-system/std",
+	"cord-primitives/std",
+	"cord-utilities/std",
+	"log/std",
+	"pallet-balances/std",
+	"scale-info/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-keystore/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"pallet-schema/std",
 ]
-try-runtime = [
-  "frame-support/try-runtime",
-  "frame-system/try-runtime",
-]
+try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime"]

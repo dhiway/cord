@@ -19,12 +19,32 @@ scale-info = { version = "2.5.0", default-features = false, features = [
 ] }
 log = { version = "0.4.17", default-features = false }
 static_assertions = "1.1.0"
+serde = { version = "1.0.137", default-features = false }
 
-# primitives
-cord-primitives = { package = "cord-primitives", path = "../primitives", default-features = false }
+
+# Local
+authority-membership = { package = "cord-authority-membership", path = "./authorities", default-features = false }
+cord-primitives = { package = "cord-primitives", path = "../primitives/cord", default-features = false }
+network-membership = { package = "network-membership", path = "../primitives/network-membership", default-features = false }
 cord-runtime-constants = { package = "cord-runtime-constants", path = "./constants", default-features = false }
 cord-utilities = { package = "cord-utilities", path = "../utilities", default-features = false }
 
+pallet-membership = { default-features = false, path = '../pallets/membership/' }
+pallet-did = { default-features = false, path = '../pallets/did' }
+pallet-did-names = { default-features = false, path = '../pallets/did-name' }
+pallet-schema = { default-features = false, path = '../pallets/schema' }
+pallet-registry = { default-features = false, path = '../pallets/registry' }
+pallet-stream = { default-features = false, path = '../pallets/stream' }
+pallet-network-membership = { default-features = false, path = '../pallets/network-membership' }
+pallet-runtime-upgrade = { default-features = false, path = '../pallets/runtime-upgrade' }
+pallet-collective = { default-features = false, path = '../pallets/collective' }
+pallet-offences = { default-features = false, path = '../pallets/offences' }
+
+# Internal runtime API (with default disabled)
+pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../runtime-api/did", default-features = false }
+pallet-transaction-weight-runtime-api = { package = "pallet-transaction-weight-runtime-api", path = "../runtime-api/weight", default-features = false }
+
+# Substrate
 sp-authority-discovery = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 sp-consensus-babe = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 sp-consensus-grandpa = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
@@ -41,23 +61,17 @@ sp-version = { git = "https://github.com/dhiway/substrate", default-features = f
 sp-transaction-pool = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 sp-block-builder = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 
+pallet-staking = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-authority-discovery = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-authorship = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-babe = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-balances = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-transaction-payment = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-collective = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-democracy = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 frame-executive = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-grandpa = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-identity = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-im-online = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-indices = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-membership = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-message-queue = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-multisig = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-offences = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-preimage = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-scheduler = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-session = { git = "https://github.com/dhiway/substrate", features = [
@@ -65,31 +79,18 @@ pallet-session = { git = "https://github.com/dhiway/substrate", features = [
 ], default-features = false, branch = "release-v0.9.43" }
 pallet-sudo = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 frame-support = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-staking = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 frame-system = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 frame-system-rpc-runtime-api = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-timestamp = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-treasury = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-utility = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-remark = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 hex-literal = { version = "0.4.1", optional = true }
 
 frame-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
-frame-benchmarking-pallet-pov = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
 frame-system-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
-pallet-session-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
-pallet-offences-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
+# pallet-session-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
+# pallet-offences-benchmarking = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
 frame-try-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
-
-pallet-did = { default-features = false, path = '../pallets/did' }
-pallet-did-names = { default-features = false, path = '../pallets/did-name' }
-pallet-schema = { default-features = false, path = '../pallets/schema' }
-pallet-registry = { default-features = false, path = '../pallets/registry' }
-pallet-stream = { default-features = false, path = '../pallets/stream' }
-pallet-extrinsic-authorship = { default-features = false, path = '../pallets/authorship' }
-
-# Internal runtime API (with default disabled)
-pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../pallets/did/runtime-api", default-features = false }
 
 [dev-dependencies]
 hex-literal = "0.4.1"
@@ -107,12 +108,15 @@ default = ['std']
 std = [
 	"sp-authority-discovery/std",
 	"cord-primitives/std",
-	"pallet-offences-benchmarking?/std",
+	"network-membership/std",
+	"authority-membership/std",
+	# "pallet-offences-benchmarking?/std",
 	"frame-system-benchmarking?/std",
 	"cord-utilities/std",
-	"pallet-session-benchmarking?/std",
+	# "pallet-session-benchmarking?/std",
 	"codec/std",
 	"scale-info/std",
+	"serde/std",
 	"sp-inherents/std",
 	"sp-core/std",
 	"sp-api/std",
@@ -122,21 +126,16 @@ std = [
 	"sp-std/std",
 	"frame-support/std",
 	"frame-benchmarking/std",
-	"frame-benchmarking-pallet-pov/std",
 	"frame-executive/std",
 	"pallet-authority-discovery/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
-	"pallet-transaction-payment/std",
-	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-collective/std",
-	"pallet-democracy/std",
 	"pallet-grandpa/std",
 	"pallet-identity/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
 	"pallet-membership/std",
-	"pallet-message-queue/std",
 	"pallet-multisig/std",
 	"pallet-offences/std",
 	"pallet-preimage/std",
@@ -145,7 +144,6 @@ std = [
 	"pallet-sudo/std",
 	"pallet-staking/std",
 	"pallet-timestamp/std",
-	"pallet-treasury/std",
 	"pallet-utility/std",
 	"pallet-babe/std",
 	"pallet-remark/std",
@@ -154,8 +152,10 @@ std = [
 	"pallet-schema/std",
 	"pallet-registry/std",
 	"pallet-stream/std",
-	"pallet-extrinsic-authorship/std",
+	"pallet-network-membership/std",
+	"pallet-runtime-upgrade/std",
 	"pallet-did-runtime-api/std",
+	"pallet-transaction-weight-runtime-api/std",
 	"sp-runtime/std",
 	"sp-staking/std",
 	"frame-system/std",
@@ -176,20 +176,17 @@ runtime-benchmarks = [
 	"pallet-babe/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
-	"pallet-democracy/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
 	"pallet-identity/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
-	"pallet-message-queue/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-offences/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-remark/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
-	"pallet-treasury/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
 	"cord-utilities/runtime-benchmarks",
 	"pallet-did/runtime-benchmarks",
@@ -197,7 +194,7 @@ runtime-benchmarks = [
 	"pallet-schema/runtime-benchmarks",
 	"pallet-stream/runtime-benchmarks",
 	"pallet-registry/runtime-benchmarks",
-	"pallet-extrinsic-authorship/runtime-benchmarks",
+	"pallet-network-membership/runtime-benchmarks",
 	"hex-literal",
 	"pallet-sudo/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
@@ -210,22 +207,18 @@ try-runtime = [
 	"pallet-authority-discovery/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
-	"pallet-transaction-payment/try-runtime",
 	"pallet-collective/try-runtime",
-	"pallet-democracy/try-runtime",
 	"pallet-grandpa/try-runtime",
 	"pallet-identity/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-membership/try-runtime",
-	"pallet-message-queue/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
-	"pallet-treasury/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-babe/try-runtime",
 	"pallet-schema/try-runtime",

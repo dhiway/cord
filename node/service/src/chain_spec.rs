@@ -21,10 +21,11 @@
 pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	AuthorityDiscoveryConfig, AuthorityManagerConfig, BabeConfig, BalancesConfig, Block,
-	CouncilConfig, DemocracyConfig, ExtrinsicAuthorshipConfig, IndicesConfig, SessionConfig,
-	SessionKeys, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
+	AuthorityDiscoveryConfig, AuthorityMembershipConfig, BabeConfig, BalancesConfig, Block,
+	CouncilMembershipConfig, IndicesConfig, NetworkMembershipConfig, SessionConfig, SessionKeys,
+	SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
+use network_membership::MemberData;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
 use sc_consensus_grandpa::AuthorityId as GrandpaId;
@@ -34,7 +35,6 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
-
 type AccountPublic = <Signature as Verify>::Signer;
 
 pub use cord_runtime_constants::{currency::*, time::*};
@@ -125,11 +125,11 @@ fn testnet_accounts() -> Vec<AccountId> {
 	]
 }
 
-fn author_accounts() -> Vec<(AccountId, ())> {
+fn member_accounts() -> Vec<AccountId> {
 	vec![
-		(get_account_id_from_seed::<sr25519::Public>("Alice"), ()),
-		(get_account_id_from_seed::<sr25519::Public>("Bob"), ()),
-		(get_account_id_from_seed::<sr25519::Public>("Charlie"), ()),
+		(get_account_id_from_seed::<sr25519::Public>("Alice")),
+		(get_account_id_from_seed::<sr25519::Public>("Bob")),
+		(get_account_id_from_seed::<sr25519::Public>("Charlie")),
 	]
 }
 
@@ -216,9 +216,8 @@ fn cord_local_genesis(
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> GenesisConfig {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
-
 	let num_endowed_accounts = endowed_accounts.len();
-	const ENDOWMENT: u128 = 50_000 * WAY;
+	const ENDOWMENT: u128 = 10_000 * WAY;
 
 	GenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec() },
@@ -226,8 +225,17 @@ fn cord_local_genesis(
 			balances: endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect(),
 		},
 		indices: IndicesConfig { indices: vec![] },
-		authority_manager: AuthorityManagerConfig {
-			authorities: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+		network_membership: NetworkMembershipConfig {
+			members: member_accounts()
+				.into_iter()
+				.map(|member| (member, MemberData { expire_on: 0 }))
+				.collect(),
+		},
+		authority_membership: AuthorityMembershipConfig {
+			initial_authorities: initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
 		},
 		session: SessionConfig {
 			keys: initial_authorities
@@ -247,27 +255,28 @@ fn cord_local_genesis(
 		},
 		grandpa: Default::default(),
 		im_online: Default::default(),
-		extrinsic_authorship: ExtrinsicAuthorshipConfig { authors: author_accounts() },
-		democracy: DemocracyConfig::default(),
-		council: CouncilConfig {
+		council: Default::default(),
+		council_membership: CouncilMembershipConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.collect(),
+				.collect::<Vec<_>>()
+				.try_into()
+				.unwrap_or_else(|e| panic!("Failed to add council memebers: {:?}", e)),
 			phantom: Default::default(),
 		},
-		technical_committee: TechnicalCommitteeConfig {
+		technical_committee: Default::default(),
+		technical_membership: TechnicalMembershipConfig {
 			members: endowed_accounts
 				.iter()
 				.take((num_endowed_accounts + 1) / 2)
 				.cloned()
-				.collect(),
+				.collect::<Vec<_>>()
+				.try_into()
+				.unwrap_or_else(|e| panic!("Failed to add committee members: {:?}", e)),
 			phantom: Default::default(),
 		},
-		technical_membership: Default::default(),
-		treasury: Default::default(),
-		transaction_payment: Default::default(),
 		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
 		sudo: SudoConfig { key: Some(root_key) },
 	}

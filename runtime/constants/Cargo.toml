@@ -8,7 +8,7 @@ edition = "2021"
 smallvec = "1.8.0"
 
 frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
-cord-primitives = { path = "../../primitives", default-features = false }
+cord-primitives = { path = "../../primitives/cord", default-features = false }
 sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
 sp-weights = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
 sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
@@ -20,5 +20,5 @@ std = [
 	"cord-primitives/std",
 	"sp-core/std",
 	"sp-runtime/std",
-	"sp-weights/std"
-	]
+	"sp-weights/std",
+]
