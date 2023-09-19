@@ -98,7 +98,6 @@ pub mod pallet {
 	/// Type for a Entity(Buisness) Identifier
 	pub type EntityIdentifierOf<T> = <T as frame_system::Config>::AccountId;
 
-
 	///Type for a Collector(Buyer) Identifier
 	pub type CollectorIdentifierOf<T> = <T as frame_system::Config>::AccountId;
 
