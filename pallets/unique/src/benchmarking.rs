@@ -20,17 +20,12 @@
 
 use super::*;
 use codec::Encode;
-use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
-use frame_support::{sp_runtime::traits::Hash, BoundedVec};
-use pallet_registry::{
-	Authorizations, InputRegistryOf, Permissions, RegistryAuthorizationOf, RegistryHashOf,
-};
-use sp_std::{
-	convert::{TryFrom, TryInto},
-	vec::Vec,
-};
-
 use cord_utilities::traits::GenerateBenchmarkOrigin;
+use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::Vec;
+use frame_support::{sp_runtime::traits::Hash, BoundedVec};
+use pallet_registry::{InputRegistryOf, RegistryHashOf};
+use sp_std::convert::{TryFrom, TryInto};
 
 const SEED: u32 = 0;
 const MAX_PAYLOAD_BYTE_LENGTH: u32 = 5 * 1024;
@@ -58,7 +53,7 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::RegistryCreatorId = account("did", 0, SEED);
 
-		let authorization_id :std::option::Option<T> = None;
+		let authorization_id: Option<T> = None;
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
 
@@ -73,11 +68,12 @@ benchmarks! {
 	verify {
 		assert_last_event::<T>(Event::Create { identifier, digest: unique_txn, author: did }.into());
 	}
+
 	revoke {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let raw_unique: Vec<u8> = (0u8..u8::MAX).cycle().take(l.try_into().unwrap()).collect();
-		let unique_txn : InputUniqueOf::<T> = BoundedVec::try_from(raw_unique)
+		let unique_txn: InputUniqueOf::<T> = BoundedVec::try_from(raw_unique)
 		.expect("Test Unique should fit into the expected input length of the test runtime.");
 
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -97,8 +93,8 @@ benchmarks! {
 		&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-	let authorization_id: Ss58Identifier =
-	Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		let authorization_id: Ss58Identifier =
+		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
 
@@ -106,17 +102,30 @@ benchmarks! {
 			&[&unique_txn.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_unique_id(&(id_digest).encode()[..]).expect("Invalid");
+		let unique_id = Ss58Identifier::to_unique_id(&(id_digest).encode()[..]).expect("Invalid");
+
+		<UniqueDigestEntries<T>>::insert(&unique_txn, &unique_id);
+
+		<UniqueIdentifiers<T>>::insert(
+			&unique_id,
+			UniqueEntryOf::<T> {
+				digest: unique_txn.clone(),
+				creator: did.clone(),
+				registry: Some(Some(registry_id)),
+				revoked: false,
+			},
+		);
+
 	}: _<T::RuntimeOrigin>(origin, unique_txn.clone(), authorization_id)
 	verify {
-		assert_last_event::<T>(Event::Revoke { identifier, author: did }.into());
+		assert_last_event::<T>(Event::Revoke { identifier: unique_id, author: did }.into());
 	}
+
 	update {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
-
 		let raw_unique: Vec<u8> = (0u8..u8::MAX).cycle().take(l.try_into().unwrap()).collect();
-		let unique_txn : InputUniqueOf::<T> = BoundedVec::try_from(raw_unique)
+		let unique_txn: InputUniqueOf::<T> = BoundedVec::try_from(raw_unique)
 		.expect("Test Unique should fit into the expected input length of the test runtime.");
 
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -140,34 +149,57 @@ benchmarks! {
 
 		let unique_id = Ss58Identifier::to_unique_id(&(id_digest).encode()[..]).expect("Invalid");
 
-			<UniqueDigestEntries<T>>::insert(&unique_txn, &unique_id);
+		let auth_digest = <T as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+		);
 
-			<UniqueIdentifiers<T>>::insert(
-				&unique_id,
-				UniqueEntryOf::<T> {
-					digest: unique_txn.clone(),
-					creator: did.clone(),
-					registry: Some(Some(registry_id)),
-					revoked: true,
-				},
-			);
+		let authorization_id: Ss58Identifier =
+		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
-	}: _<T::RuntimeOrigin>(origin, unique_id.clone(),unique_txn.clone(), None)
+		<UniqueDigestEntries<T>>::insert(&unique_txn, &unique_id);
+
+		<UniqueIdentifiers<T>>::insert(
+			&unique_id,
+			UniqueEntryOf::<T> {
+				digest: unique_txn,
+				creator: did.clone(),
+				registry: Some(Some(registry_id)),
+				revoked: false,
+			},
+		);
+
+		let new_raw_unique: Vec<u8> = (12u8..u8::MAX).cycle().take(l.try_into().unwrap()).collect();
+		let new_unique_txn: InputUniqueOf::<T> = BoundedVec::try_from(new_raw_unique)
+		.expect("Unique should fit into the expected input length of the test runtime.");
+		let updated_unique_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&new_unique_txn.encode()[..], &did.encode()[..]].concat()[..],
+		);
+
+	}: _<T::RuntimeOrigin>(origin, unique_id.clone(), new_unique_txn.clone(), Some(authorization_id))
 	verify {
 		assert_last_event::<T>(Event::Update { identifier: unique_id,
-			digest: unique_txn,
-			author: did, }.into());
+			digest: new_unique_txn,
+			author: did }.into());
 	}
+
 	remove {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
-
 		let raw_unique: Vec<u8> = (0u8..u8::MAX).cycle().take(l.try_into().unwrap()).collect();
-		let unique_txn : InputUniqueOf::<T>  = BoundedVec::try_from(raw_unique)
+		let unique_txn: InputUniqueOf::<T>  = BoundedVec::try_from(raw_unique)
 		.expect("Test Unique should fit into the expected input length of the test runtime.");
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::RegistryCreatorId = account("did", 0, SEED);
+
+		let raw_registry = [56u8; 256].to_vec();
+		let registry: InputRegistryOf<T> = BoundedVec::try_from(raw_registry).unwrap();
+
+		let id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&registry.encode()[..], &did.encode()[..]].concat()[..],
+			);
+
+		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
 
 		let authorization_id: Option<AuthorizationIdOf> = None;
 
@@ -179,10 +211,22 @@ benchmarks! {
 
 		let unique_id = Ss58Identifier::to_unique_id(&(id_digest).encode()[..]).expect("Invalid");
 
+		<UniqueDigestEntries<T>>::insert(&unique_txn, &unique_id);
+
+		<UniqueIdentifiers<T>>::insert(
+			&unique_id,
+			UniqueEntryOf::<T> {
+				digest: unique_txn.clone(),
+				creator: did.clone(),
+				registry: Some(Some(registry_id)),
+				revoked: false,
+			},
+		);
+
 	}: _<T::RuntimeOrigin>(origin, unique_id.clone(), None)
 	verify {
 		assert_last_event::<T>(Event::Remove { identifier: unique_id, author: did }.into());
-}
+	}
 }
 
 impl_benchmark_test_suite! {

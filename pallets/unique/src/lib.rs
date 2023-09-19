@@ -39,8 +39,8 @@ use sp_std::{prelude::Clone, str};
 pub mod types;
 pub mod weights;
 pub use crate::types::*;
-
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
+use sp_runtime::SaturatedConversion;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -217,6 +217,9 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		//TODO : Check for optional stream Id from stream pallet
+		//TODO : Identifirer check  prefix check
+		//TODO : IF Stream Identifier is given we will not create another identifieer
 		/// Create a new unique and associates it with its
 		/// controller. The controller (issuer) is the owner of the identifier.
 		///
@@ -230,14 +233,9 @@ pub mod pallet {
 		/// Returns:
 		///
 		/// DispatchResult
+		///
 		#[pallet::call_index(0)]
-		#[pallet::weight({0})]
-		//On the create arguments make authorization optional so we dont need regostry
-		// id ,with authorization we can get registry details
-
-		//TODO : Check for optional stream Id from stream pallet
-		//TODO : Identifirer check  prefix check
-		//TODO : IF Stream Identifier is given we will not create another identifieer
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create(unique_txn.len().saturated_into()))]
 		pub fn create(
 			origin: OriginFor<T>,
 			unique_txn: InputUniqueOf<T>,
@@ -320,8 +318,9 @@ pub mod pallet {
 		/// Returns:
 		///
 		/// DispatchResult
+		///
 		#[pallet::call_index(1)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update(unique_txn.len().saturated_into()))]
 		pub fn update(
 			origin: OriginFor<T>,
 			unique_id: UniqueIdOf,
@@ -391,8 +390,9 @@ pub mod pallet {
 		/// Returns:
 		///
 		/// DispatchResult
+		///
 		#[pallet::call_index(2)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::revoke(unique_txn.len().saturated_into()))]
 		pub fn revoke(
 			origin: OriginFor<T>,
 			unique_txn: InputUniqueOf<T>,
@@ -465,8 +465,9 @@ pub mod pallet {
 		/// Returns:
 		///
 		/// DispatchResult
-		#[pallet::call_index(4)]
-		#[pallet::weight({0})]
+		///
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove(0))]
 		pub fn remove(
 			origin: OriginFor<T>,
 			unique_id: UniqueIdOf,
