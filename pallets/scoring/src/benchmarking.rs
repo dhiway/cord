@@ -61,16 +61,11 @@ benchmarks! {
 
 		//EntityIdentifierOf
 		let e_id: EntityIdentifierOf<T> = caller.clone();
-		//RequestIdentifierOf
-		let raw_request_id = [11u8; 72].to_vec();
-		let request_id: RequestIdentifierOf<T> = BoundedVec::try_from(raw_request_id).unwrap();
 		//TransactionIdentfierOf
 		let raw_transaction_id = [12u8; 72].to_vec();
 		let t_id: TransactionIdentifierOf<T> = BoundedVec::try_from(raw_transaction_id).unwrap();
 		//CollectorIdentifierOf
 		let c_id: CollectorIdentifierOf<T> = caller.clone();
-		//RequestorIdentifierOf
-		let requestor_id: RequestorIdentifierOf<T> = caller.clone();
 		//ScoreTypeOf
 		let rating_type: RatingTypeOf = RatingTypeOf::Overall;
 		//Entity Rating
@@ -82,10 +77,8 @@ benchmarks! {
 
 		let journal_details = RatingEntryDetails {
 		entity: e_id,
-		uid: request_id,
 		tid: t_id,
 		collector: c_id,
-		requestor: requestor_id,
 		rating_type,
 		rating,
 		entry_type,

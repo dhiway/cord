@@ -45,16 +45,11 @@ fn check_successful_rating_creation() {
 
 	//EntityIdentifierOf
 	let e_id: EntityIdentifierOf<Test> = ACCOUNT_00;
-	//RequestIdentifierOf
-	let raw_request_id = [11u8; 72].to_vec();
-	let request_id: RequestIdentifierOf<Test> = BoundedVec::try_from(raw_request_id).unwrap();
 	//TransactionIdentfierOf
 	let raw_transaction_id = [12u8; 72].to_vec();
 	let t_id: TransactionIdentifierOf<Test> = BoundedVec::try_from(raw_transaction_id).unwrap();
 	//CollectorIdentifierOf
 	let c_id: CollectorIdentifierOf<Test> = ACCOUNT_00;
-	//RequestorIdentifierOf
-	let requestor_id: RequestorIdentifierOf<Test> = ACCOUNT_00;
 	//ScoreTypeOf
 	let rating_type: RatingTypeOf = RatingTypeOf::Overall;
 	//Entity Rating
@@ -66,10 +61,8 @@ fn check_successful_rating_creation() {
 
 	let journal_details = RatingEntryDetails {
 		entity: e_id,
-		uid: request_id,
 		tid: t_id,
 		collector: c_id,
-		requestor: requestor_id,
 		rating_type,
 		rating,
 		count,

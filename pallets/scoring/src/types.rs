@@ -25,10 +25,8 @@ use scale_info::TypeInfo;
 )]
 pub struct RatingEntryDetails<
 	EntityIdentifierOf,     //jain medicals - geting rated
-	RequestIdentifierOf,    // still wip 0000 --can be removed in future
 	TransactionIdentfierOf, //unique id per call for chain - audit
 	CollectorIdentifierOf,  // paytm, meesho - seller app
-	RequestorIdentifierOf,  //identification of collector --can be removed in future
 	RatingTypeOf,
 	RatingOf,
 	RatingEntryType,
@@ -36,14 +34,10 @@ pub struct RatingEntryDetails<
 > {
 	///entity Identifier
 	pub entity: EntityIdentifierOf,
-	/// unique request identifier for which the score is provided
-	pub uid: RequestIdentifierOf,
 	/// transaction identifier for which the score is requested
 	pub tid: TransactionIdentfierOf,
 	///score collector identifier
 	pub collector: CollectorIdentifierOf,
-	///score requestor identifier
-	pub requestor: RequestorIdentifierOf,
 	/// score type
 	pub rating_type: RatingTypeOf, //overall, delivery
 	///entity rating

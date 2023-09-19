@@ -98,22 +98,17 @@ pub mod pallet {
 	/// Type for a Entity(Buisness) Identifier
 	pub type EntityIdentifierOf<T> = <T as frame_system::Config>::AccountId;
 
-	/// Type for a Requestor(Seller) Identifier
-	pub type RequestorIdentifierOf<T> = <T as frame_system::Config>::AccountId;
 
 	///Type for a Collector(Buyer) Identifier
 	pub type CollectorIdentifierOf<T> = <T as frame_system::Config>::AccountId;
 
 	pub type JournalIdentifierOf = IdentifierOf;
-	pub type RequestIdentifierOf<T> = ScoreIdentifierOf<T>;
 	pub type TransactionIdentifierOf<T> = ScoreIdentifierOf<T>;
 
 	pub type RatingDetailsOf<T> = RatingEntryDetails<
 		EntityIdentifierOf<T>,
-		RequestIdentifierOf<T>,
 		TransactionIdentifierOf<T>,
 		CollectorIdentifierOf<T>,
-		RequestorIdentifierOf<T>,
 		RatingTypeOf,
 		RatingOf,
 		RatingEntryType,

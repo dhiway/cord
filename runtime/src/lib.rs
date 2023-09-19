@@ -916,7 +916,6 @@ impl pallet_stream::Config for Runtime {
 //scoring config for runtime
 parameter_types! {
 	pub const MinScoreValue: u32 = 1;
-	pub const MaxScoreValue: u32 = 50;
 }
 
 impl pallet_scoring::Config for Runtime {
@@ -925,7 +924,6 @@ impl pallet_scoring::Config for Runtime {
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
 	type MinScoreValue = MinScoreValue;
-	type MaxScoreValue = MaxScoreValue;
 	type WeightInfo = weights::pallet_scoring::WeightInfo<Runtime>;
 	type ValueLimit = ConstU32<72>;
 }
