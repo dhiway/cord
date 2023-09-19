@@ -271,8 +271,8 @@ pub mod pallet {
 			let identifier = Ss58Identifier::to_unique_id(&(id_digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
-			// Check if the unique_txn or identifier already exist and return an error if
-			// they do
+			// Check if the unique_txn or identifier already exist
+			// and return an error if they do
 			ensure!(
 				!<UniqueDigestEntries<T>>::contains_key(&unique_txn)
 					|| !<UniqueIdentifiers<T>>::contains_key(&identifier),
@@ -378,6 +378,7 @@ pub mod pallet {
 
 			Ok(())
 		}
+
 		/// Revokes a unique.
 		///
 		/// Arguments:
@@ -451,14 +452,15 @@ pub mod pallet {
 
 			Ok(())
 		}
+
 		/// Removes a unique from the registry.
 		///
 		/// Arguments:
 		///
 		/// * `origin`: The origin of the transaction.
 		/// * `unique_id`: The unique id of the unique to be removed.
-		/// * `authorization`: The authorization ID of the delegate who is
-		///   allowed to perform this action.
+		/// * `authorization`: The authorization ID of the delegate
+		/// who is allowed to perform this action.
 		///
 		/// Returns:
 		///
