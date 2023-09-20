@@ -35,6 +35,12 @@ pub struct DidRawOrigin<DidIdentifier, AccountId> {
 	pub submitter: AccountId,
 }
 
+impl<DidIdentifier, AccountId> DidRawOrigin<DidIdentifier, AccountId> {
+	pub fn new(id: DidIdentifier, submitter: AccountId) -> Self {
+		Self { id, submitter }
+	}
+}
+
 pub struct EnsureDidOrigin<DidIdentifier, AccountId>(PhantomData<(DidIdentifier, AccountId)>);
 
 impl<OuterOrigin, DidIdentifier, AccountId> EnsureOrigin<OuterOrigin>

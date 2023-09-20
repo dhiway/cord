@@ -32,10 +32,13 @@ use crate::{
 		DidVerificationKey,
 	},
 	service_endpoints::DidEndpoint,
-	BlockNumberOf, Config, DidIdentifierOf,
+	AccountIdOf, BlockNumberOf, Config, DidCreationDetailsOf, DidIdentifierOf,
 };
 
-pub fn get_key_agreement_keys<T: Config>(n_keys: u32) -> DidNewKeyAgreementKeySet<T> {
+pub(crate) type DidNewKeyAgreementKeySetOf<T> =
+	DidNewKeyAgreementKeySet<<T as Config>::MaxNewKeyAgreementKeys>;
+
+pub fn get_key_agreement_keys<T: Config>(n_keys: u32) -> DidNewKeyAgreementKeySetOf<T> {
 	BoundedBTreeSet::try_from(
 		(1..=n_keys)
 			.map(|i| {
@@ -64,7 +67,6 @@ pub fn get_service_endpoints<T: Config>(
 			// Create a string of characters of all 'a', 'b', 'c', and so on depending on
 			// the current iteration value, given by `i`.
 			let endpoint_id = vec![b'a' + i as u8; endpoint_id_length.saturated_into()];
-			// endpoint_id.resize(endpoint_id_length.saturated_into(), 0u8);
 			let endpoint_types = (0..endpoint_type_count)
 				.map(|t| {
 					let mut endpoint_type = t.to_be_bytes().to_vec();
@@ -86,9 +88,11 @@ pub fn get_service_endpoints<T: Config>(
 
 pub fn generate_base_did_creation_details<T: Config>(
 	did: DidIdentifierOf<T>,
-) -> DidCreationDetails<T> {
+	submitter: AccountIdOf<T>,
+) -> DidCreationDetailsOf<T> {
 	DidCreationDetails {
 		did,
+		submitter,
 		new_key_agreement_keys: BoundedBTreeSet::new(),
 		new_assertion_key: None,
 		new_delegation_key: None,
@@ -96,7 +100,10 @@ pub fn generate_base_did_creation_details<T: Config>(
 	}
 }
 
-pub fn generate_base_did_details<T>(authentication_key: DidVerificationKey) -> DidDetails<T>
+pub fn generate_base_did_details<T>(
+	authentication_key: DidVerificationKey<AccountIdOf<T>>,
+	// deposit_owner: Option<AccountIdOf<T>>,
+) -> DidDetails<T>
 where
 	T: Config,
 	<T as frame_system::Config>::AccountId: From<AccountId32>,

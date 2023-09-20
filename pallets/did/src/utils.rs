@@ -24,11 +24,11 @@ use scale_info::prelude::format;
 use sp_runtime::traits::Hash;
 use sp_std::vec::Vec;
 
-use crate::{did_details::DidPublicKey, Config, KeyIdOf};
+use crate::{did_details::DidPublicKey, AccountIdOf, Config, KeyIdOf};
 // URI base used to test validity of provided service IDs (URI fragments).
 const TEST_URI_BASE: &str = "did:cord:test-did";
 
-pub fn calculate_key_id<T: Config>(key: &DidPublicKey) -> KeyIdOf<T> {
+pub fn calculate_key_id<T: Config>(key: &DidPublicKey<AccountIdOf<T>>) -> KeyIdOf<T> {
 	let hashed_values: Vec<u8> = key.encode();
 	T::Hashing::hash(&hashed_values)
 }

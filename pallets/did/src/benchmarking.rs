@@ -44,6 +44,7 @@ use crate::{
 	},
 	service_endpoints::DidEndpoint,
 	signature::DidSignatureVerify,
+	AccountIdOf, DidAuthorizedCallOperationOf, DidIdentifierOf,
 };
 
 const DEFAULT_ACCOUNT_ID: &str = "tx_submitter";
@@ -94,7 +95,7 @@ fn get_ecdsa_public_delegation_key() -> ecdsa::Public {
 fn generate_base_did_call_operation<T: Config>(
 	did: DidIdentifierOf<T>,
 	submitter: AccountIdOf<T>,
-) -> DidAuthorizedCallOperation<T> {
+) -> DidAuthorizedCallOperationOf<T> {
 	let test_call = <T as Config>::RuntimeCall::get_call_for_did_call_benchmark();
 
 	DidAuthorizedCallOperation {
@@ -147,7 +148,7 @@ benchmarks! {
 			T::MaxServiceUrlLength::get(),
 		);
 
-		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone());
+		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone(), submitter.clone());
 		did_creation_details.new_key_agreement_keys = did_key_agreement_keys;
 		did_creation_details.new_assertion_key = Some(DidVerificationKey::from(did_public_att_key));
 		did_creation_details.new_delegation_key = Some(DidVerificationKey::from(did_public_del_key));
@@ -214,7 +215,7 @@ benchmarks! {
 			T::MaxServiceUrlLength::get(),
 		);
 
-		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone());
+		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone(),submitter.clone());
 		did_creation_details.new_key_agreement_keys = did_key_agreement_keys;
 		did_creation_details.new_assertion_key = Some(DidVerificationKey::from(did_public_att_key));
 		did_creation_details.new_delegation_key = Some(DidVerificationKey::from(did_public_del_key));
@@ -279,7 +280,7 @@ benchmarks! {
 			T::MaxServiceUrlLength::get(),
 		);
 
-		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone());
+		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone(),submitter.clone());
 		did_creation_details.new_key_agreement_keys = did_key_agreement_keys;
 		did_creation_details.new_assertion_key = Some(DidVerificationKey::from(did_public_att_key));
 		did_creation_details.new_delegation_key = Some(DidVerificationKey::from(did_public_del_key));
