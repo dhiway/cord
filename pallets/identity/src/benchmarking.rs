@@ -55,7 +55,7 @@ fn add_registrars<T: Config>(r: u32) -> Result<(), &'static str> {
 // This creates an `IdentityInfo` object with `num_fields` extra fields.
 // All data is pre-populated with some arbitrary bytes.
 fn create_identity_info<T: Config>(num_fields: u32) -> IdentityInfo<T::MaxAdditionalFields> {
-	let data = Data::Raw(vec![0; 64].try_into().unwrap());
+	let data = Data::Raw(vec![0; 32].try_into().unwrap());
 
 	IdentityInfo {
 		additional: vec![(data.clone(), data.clone()); num_fields as usize].try_into().unwrap(),
