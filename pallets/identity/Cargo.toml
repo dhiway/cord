@@ -1,0 +1,54 @@
+[package]
+name = "pallet-identity"
+version = "0.8.1"
+authors = [
+	"Parity Technologies <admin@parity.io>",
+	"Dhiway Networks <info@dhiway.com>",
+]
+description = "FRAME membership management pallet - modified to support CORD governance"
+edition = "2021"
+license = "GPL-3.0"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = [
+	"derive",
+	"max-encoded-len",
+] }
+scale-info = { version = "2.5.0", default-features = false, features = [
+	"derive",
+] }
+enumflags2 = { version = "0.7.7" }
+frame-system = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+frame-support = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-std = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-io = { git = "https://github.com/dhiway/substrate", default-features = false, optional = true, branch = "release-v0.9.43" }
+
+frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false, optional = true }
+
+[dev-dependencies]
+sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+
+[features]
+default = ["std"]
+std = [
+	"codec/std",
+	"frame-benchmarking?/std",
+	"frame-support/std",
+	"frame-system/std",
+	"scale-info/std",
+	"sp-io/std",
+	"sp-runtime/std",
+	"sp-std/std",
+]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+]
+try-runtime = ["frame-support/try-runtime"]
