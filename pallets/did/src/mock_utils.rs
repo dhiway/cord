@@ -61,8 +61,10 @@ pub fn get_service_endpoints<T: Config>(
 ) -> Vec<DidEndpoint<T>> {
 	(0..count)
 		.map(|i| {
-			let mut endpoint_id = i.to_be_bytes().to_vec();
-			endpoint_id.resize(endpoint_id_length.saturated_into(), 0u8);
+			// Create a string of characters of all 'a', 'b', 'c', and so on depending on
+			// the current iteration value, given by `i`.
+			let endpoint_id = vec![b'a' + i as u8; endpoint_id_length.saturated_into()];
+			// endpoint_id.resize(endpoint_id_length.saturated_into(), 0u8);
 			let endpoint_types = (0..endpoint_type_count)
 				.map(|t| {
 					let mut endpoint_type = t.to_be_bytes().to_vec();
@@ -72,9 +74,9 @@ pub fn get_service_endpoints<T: Config>(
 				.collect();
 			let endpoint_urls = (0..endpoint_url_count)
 				.map(|u| {
-					let mut endpoint_url = u.to_be_bytes().to_vec();
-					endpoint_url.resize(endpoint_url_length.saturated_into(), 0u8);
-					endpoint_url
+					// Create a string of characters of all 'a', 'b', 'c', and so on depending on
+					// the  iteration value, given by `u`.current
+					vec![b'a' + u as u8; endpoint_url_length.saturated_into()]
 				})
 				.collect();
 			DidEndpoint::new(endpoint_id, endpoint_types, endpoint_urls)

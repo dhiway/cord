@@ -31,6 +31,7 @@ sp-keystore = { git = "https://github.com/dhiway/substrate", features = [
 [dependencies]
 # External dependencies
 log = "0.4.17"
+fluent-uri = { version = "0.1.4", default-features = false }
 
 # Internal dependencies
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
