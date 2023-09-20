@@ -58,7 +58,7 @@ pub mod pallet {
 	use super::*;
 	pub use cord_primitives::{curi::Ss58Identifier, CountOf, RatingOf};
 	use cord_utilities::traits::CallSources;
-	use frame_support::pallet_prelude::*;
+	use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
 	use frame_system::pallet_prelude::*;
 	use sp_std::{prelude::Clone, str};
 
@@ -271,7 +271,18 @@ pub mod pallet {
 				Error::<T>::DigestAlreadyAnchored
 			);
 
-			let identifier = Ss58Identifier::to_scoring_id(&(journal.digest).encode()[..])
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[
+					&journal.digest.encode()[..],
+					&journal.entry.tid.encode()[..],
+					&journal.entry.entry_type.encode()[..],
+					&journal.entry.rating_type.encode()[..],
+					&journal.entry.entity.encode()[..],
+				]
+				.concat()[..],
+			);
+
+			let identifier = Ss58Identifier::to_scoring_id(&id_digest.encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
