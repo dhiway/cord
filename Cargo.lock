@@ -1460,7 +1460,7 @@ dependencies = [
  "pallet-did-names",
  "pallet-did-runtime-api",
  "pallet-grandpa",
- "pallet-identity",
+ "pallet-identity 4.0.0-dev",
  "pallet-im-online",
  "pallet-indices",
  "pallet-membership",
@@ -5403,6 +5403,22 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-identity"
+version = "0.8.1"
+dependencies = [
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
  "sp-std",
 ]
 
