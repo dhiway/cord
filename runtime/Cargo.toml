@@ -1,6 +1,6 @@
 [package]
 name = 'cord-runtime'
-version = "0.8.1"
+version = "0.9.0"
 authors = ['Dhiway Networks <info@dhiway.com>']
 build = 'build.rs'
 edition = '2021'
@@ -38,7 +38,9 @@ pallet-stream = { default-features = false, path = '../pallets/stream' }
 pallet-network-membership = { default-features = false, path = '../pallets/network-membership' }
 pallet-runtime-upgrade = { default-features = false, path = '../pallets/runtime-upgrade' }
 pallet-collective = { default-features = false, path = '../pallets/collective' }
+pallet-identity = { default-features = false, path = '../pallets/identity' }
 pallet-offences = { default-features = false, path = '../pallets/offences' }
+pallet-unique = { default-features = false, path = "../pallets/unique" }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../runtime-api/did", default-features = false }
@@ -68,7 +70,6 @@ pallet-babe = { git = "https://github.com/dhiway/substrate", default-features = 
 pallet-balances = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 frame-executive = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-grandpa = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
-pallet-identity = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-im-online = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-indices = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 pallet-multisig = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
@@ -152,6 +153,7 @@ std = [
 	"pallet-schema/std",
 	"pallet-registry/std",
 	"pallet-stream/std",
+	"pallet-unique/std",
 	"pallet-network-membership/std",
 	"pallet-runtime-upgrade/std",
 	"pallet-did-runtime-api/std",
@@ -193,6 +195,7 @@ runtime-benchmarks = [
 	"pallet-did-names/runtime-benchmarks",
 	"pallet-schema/runtime-benchmarks",
 	"pallet-stream/runtime-benchmarks",
+	"pallet-unique/runtime-benchmarks",
 	"pallet-registry/runtime-benchmarks",
 	"pallet-network-membership/runtime-benchmarks",
 	"hex-literal",
@@ -224,6 +227,7 @@ try-runtime = [
 	"pallet-schema/try-runtime",
 	"pallet-stream/try-runtime",
 	"pallet-did/try-runtime",
+	"pallet-unique/try-runtime",
 ]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.

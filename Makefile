@@ -64,6 +64,10 @@ check-schema:
 check-stream:
 	cargo check --package pallet-stream $(CARGO_FLAGS)
 
+# Rule to check the UNIQUE pallet with all targets
+check-unique:
+	cargo check --package pallet-unique $(CARGO_FLAGS)
+
 # Rule to run tests with runtime benchmarks and without fail-fast
 test:
 	cargo test --all --no-fail-fast $(CARGO_FLAGS)
@@ -91,6 +95,10 @@ test-schema:
 # Rule to test the STREAM pallet with all targets
 test-stream:
 	cargo test --package pallet-stream $(CARGO_FLAGS)
+
+# Rule to test the STREAM pallet with all targets
+test-unique:
+	cargo test --package pallet-unique $(CARGO_FLAGS)
 
 # Rule to run the production binary with --dev flag
 run-local: build

@@ -149,41 +149,49 @@ make test-stream
 1. Let's first check the version we have. The first time you run this command, the CORD docker image will be downloaded. This takes a bit of time and bandwidth, be patient:
 
 ```bash
-docker run --rm -it dhiway/cord:develop --version
+docker run --rm dhiway/cord --version
 ```
 
 You can also pass any argument/flag that CORD supports:
 
 ```bash
-docker run --rm -it dhiway/cord:develop --dev --name "CordDocker"
+docker run --rm dhiway/cord --dev --name "CordDocker"
 ```
 
-Once you are done experimenting and picking the best node name :) you can start CORD as daemon, exposes the CORD ports and mount a volume that will keep your blockchain data locally. 
-Make sure that you set the ownership of your local directory to the CORD user that is used by the container. Set user id 1000 and group id 1000, by running `chown 1000.1000 /my/local/folder -R` if you use a bind mount.
+Once you are done experimenting and picking the best node name :) you can start CORD as daemon, exposes the CORD ports and mount a volume that will keep your blockchain data locally.
 
-2. To start a CORD node on default rpc port 9933 and default p2p port 30333 use the following command. If you want to connect to rpc port 9933, then must add CORD startup parameter: `--rpc-external`.
+Make sure that you create a docker volume to mount on.
+
+```sh
+docker volume create cord
+```
+
+2. To start a CORD node on default rpc port 9933 and default p2p port 30333 & default prometheus port is 9615 use the following command:
+(If you want to connect to rpc port 9933, then must add CORD startup parameter: `--rpc-external`)
 
 ```bash
-docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord dhiway/cord:develop --dev --rpc-external --rpc-cors all
+docker run -d -p 30333:30333 -p 9933:9933 -p 9615:9615 --mount source=cord,target=/data dhiway/cord:develop --dev --rpc-external --rpc-cors all
 ```
 
 3. Additionally if you want to have custom node name you can add the `--name "YourName"` at the end
 
 ```bash
-docker run -d -p 30333:30333 -p 9933:9933 -v /my/local/folder:/cord dhiway/cord:develop --dev --rpc-external --rpc-cors all --name "CordDocker"
+docker run -d -p 30333:30333 -p 9933:9933 -p 9615:9615 --mount source=cord,target=/data dhiway/cord --dev --rpc-external --rpc-cors all --name "CordDocker"
 ```
 
 4. If you also want to expose the webservice port 9944 use the following command:
 
 ```bash
-docker run -d -p 30333:30333 -p 9933:9933 -p 9944:9944 -v /my/local/folder:/cord dhiway/cord:develop --dev --ws-external --rpc-external --rpc-cors all --name "CordDocker"
+docker run -d -p 30333:30333 -p 9933:9933 -p 9944:9944 -p 9615:9615 --mount source=cord,target=/data dhiway/cord --dev --rpc-external --rpc-cors all --ws-external --name "CordDocker"
 ```
 
 5. To get up and running with the smallest footprint on your system, you may use the CORD Docker image.
 You can build it yourself (it takes a while...).
 
-```bash
-docker build -t local/cord:develop .
+```sh
+docker buildx create --use
+
+docker buildx build --file docker/Dockerfile --tag local/cord:latest --platform linux/amd64,linux/arm64 --build-arg profile=production --load .
 ```
 
 ## Other projects of interest
@@ -202,7 +210,7 @@ This repository contains the complete code of the CORD Network Blockchain. To in
 
   - [Apps UI](https://apps.cord.network) - This project is managed through [apps](https://github.com/dhiway/apps) repository.
 
-  - [GraphQL Interface](/) - This project is still in beta. Development work is happening at [cord-subql](https://github.com/dhiway/cord-subql) repository.
+  - [GraphQL Interface](https://query-sparknet.cord.network/) - This project is still in beta. Development work is happening at [cord-subql](https://github.com/dhiway/cord-subql) repository.
 
 3. Demostratable scripts and services, so one can take and build upon
 

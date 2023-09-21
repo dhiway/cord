@@ -36,6 +36,8 @@ const IDENT_STREAM: u16 = 8902;
 const IDENT_ENTITY: u16 = 6480;
 const IDENT_TEMPLATE: u16 = 5035;
 const IDENT_ASSET: u16 = 2604;
+//TODO : What should be the value of `IDENT_UNIQUE` CONSTANT
+const IDENT_UNIQUE: u16 = 8903;
 
 /// The minimum length of a valid identifier.
 pub const MINIMUM_IDENTIFIER_LENGTH: usize = 2;
@@ -163,6 +165,9 @@ impl Ss58Identifier {
 	}
 	pub fn to_asset_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_ASSET)
+	}
+	pub fn to_unique_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_UNIQUE)
 	}
 	pub fn inner(&self) -> &[u8] {
 		&self.0

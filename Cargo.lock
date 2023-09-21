@@ -1215,7 +1215,7 @@ checksum = "21a53c0a4d288377e7415b53dcfc3c04da5cdc2cc95c8d5ac178b58f0b861ad6"
 
 [[package]]
 name = "cord-authority-membership"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -1237,7 +1237,7 @@ dependencies = [
 
 [[package]]
 name = "cord-cli-test-utils"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "assert_cmd",
  "cord-primitives",
@@ -1251,7 +1251,7 @@ dependencies = [
 
 [[package]]
 name = "cord-client"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "cord-primitives",
  "cord-runtime",
@@ -1286,7 +1286,7 @@ dependencies = [
 
 [[package]]
 name = "cord-inspect"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "clap",
  "parity-scale-codec",
@@ -1302,7 +1302,7 @@ dependencies = [
 
 [[package]]
 name = "cord-node"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "assert_cmd",
  "async-std",
@@ -1394,7 +1394,7 @@ dependencies = [
 
 [[package]]
 name = "cord-primitives"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "base58",
  "blake2-rfc",
@@ -1408,7 +1408,7 @@ dependencies = [
 
 [[package]]
 name = "cord-rpc"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "cord-primitives",
  "jsonrpsee",
@@ -1435,7 +1435,7 @@ dependencies = [
 
 [[package]]
 name = "cord-runtime"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "cord-authority-membership",
  "cord-primitives",
@@ -1479,6 +1479,7 @@ dependencies = [
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-weight-runtime-api",
+ "pallet-unique",
  "pallet-utility",
  "parity-scale-codec",
  "rusty-hook",
@@ -1509,7 +1510,7 @@ dependencies = [
 
 [[package]]
 name = "cord-runtime-constants"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "cord-primitives",
  "frame-support",
@@ -1521,7 +1522,7 @@ dependencies = [
 
 [[package]]
 name = "cord-utilities"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4984,7 +4985,7 @@ dependencies = [
 
 [[package]]
 name = "network-membership"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -5332,7 +5333,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-collective"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5348,7 +5349,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-did"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "cord-primitives",
  "cord-utilities",
@@ -5373,7 +5374,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-did-names"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "cord-utilities",
  "frame-benchmarking",
@@ -5391,7 +5392,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-did-runtime-api"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "pallet-did",
  "parity-scale-codec",
@@ -5425,8 +5426,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-identity"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate?branch=release-v0.9.43#5e49f6e44820affccaf517fd22af564f4b495d40"
+version = "0.9.0"
 dependencies = [
  "enumflags2",
  "frame-benchmarking",
@@ -5434,6 +5434,7 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "scale-info",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -5478,7 +5479,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-membership"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5529,7 +5530,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-network-membership"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "env_logger 0.9.3",
  "frame-benchmarking",
@@ -5550,7 +5551,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-offences"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5586,7 +5587,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-registry"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "bitflags 1.3.2",
  "cord-primitives",
@@ -5642,7 +5643,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-runtime-upgrade"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5672,7 +5673,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-schema"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "cord-primitives",
  "cord-utilities",
@@ -5736,7 +5737,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-stream"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "cord-primitives",
  "cord-utilities",
@@ -5791,7 +5792,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-weight-runtime-api"
-version = "0.8.1"
+version = "0.9.0"
 dependencies = [
  "frame-support",
  "pallet-network-membership",
@@ -5802,6 +5803,28 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "sp-weights",
+]
+
+[[package]]
+name = "pallet-unique"
+version = "0.9.0"
+dependencies = [
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-registry",
+ "pallet-schema",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
