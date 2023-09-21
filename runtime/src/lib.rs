@@ -1142,7 +1142,8 @@ sp_api::impl_runtime_apis! {
 			let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
 
 			Some(pallet_did_runtime_api::RawDidLinkedInfo {
-				identifier: did,
+				identifier: did.clone(),
+				account: did,
 				name,
 				service_endpoints,
 				details: details.into(),
@@ -1164,7 +1165,8 @@ sp_api::impl_runtime_apis! {
 					let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&owner_info.owner).map(|e| From::from(e.1)).collect();
 
 					pallet_did_runtime_api::RawDidLinkedInfo{
-						identifier: owner_info.owner,
+						identifier: owner_info.owner.clone(),
+						account: owner_info.owner,
 						name: Some(dname.into()),
 						service_endpoints,
 						details: details.into(),

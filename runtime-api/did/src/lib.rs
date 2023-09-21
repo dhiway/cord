@@ -42,6 +42,7 @@ pub struct DidLinkedInfo<
 	BlockNumber: MaxEncodedLen,
 > {
 	pub identifier: DidIdentifier,
+	pub account: AccountId,
 	pub name: Option<DidName>,
 	pub service_endpoints: Vec<ServiceEndpoint<Id, Type, Url>>,
 	pub details: DidDetails<Key, BlockNumber, AccountId>,
