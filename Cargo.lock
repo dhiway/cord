@@ -1473,6 +1473,7 @@ dependencies = [
  "pallet-runtime-upgrade",
  "pallet-scheduler",
  "pallet-schema",
+ "pallet-scoring",
  "pallet-session",
  "pallet-staking",
  "pallet-stream",
@@ -5665,6 +5666,28 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
+name = "pallet-scoring"
+version = "0.8.1"
+dependencies = [
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-registry",
+ "pallet-schema",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

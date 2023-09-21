@@ -68,6 +68,7 @@ PALLETS=(
   "pallet_membership"
   "pallet_collective"
   "pallet_unique"
+  "pallet_scoring"
 )
 
 echo "[+] Benchmarking ${#PALLETS[@]} pallets."
@@ -114,6 +115,9 @@ for PALLET in "${PALLETS[@]}"; do
     ;;
   pallet_unique)
     FOLDER="unique"
+    ;;
+  pallet_scoring)
+    FOLDER="scoring"
     ;;
 
   *)
