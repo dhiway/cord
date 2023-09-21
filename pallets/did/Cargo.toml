@@ -1,13 +1,12 @@
 [package]
 name = 'pallet-did'
 description = "Enables adding and removing decentralized identifiers (DIDs)."
-version = "0.8.1"
+version = "0.9.0"
 authors = ['Dhiway <info@dhiway.com>', 'BOTLabs GmbH']
 edition = "2021"
 license = "GPL-3.0"
 homepage = "https://cord.network"
 repository = "https://github.com/dhiway/cord"
-
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]

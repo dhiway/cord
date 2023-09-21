@@ -1,7 +1,7 @@
 [package]
 name = "cord-client"
 description = "Cord Client."
-version = "0.8.1"
+version = "0.9.0"
 authors = ['Dhiway <info@dhiway.com>']
 edition = '2021'
 license = "GPL-3.0"
