@@ -1,7 +1,4 @@
-# ------------------------------------------------------------------------------
 # Build Stage
-# ------------------------------------------------------------------------------
-
 FROM rust:1-bullseye as builder
 
 LABEL maintainer="engineering@dhiway.com"
@@ -32,13 +29,14 @@ RUN set -x && \
   mkdir -p bin && \
   mv target/$target/$profile/cord bin/
 
-# ------------------------------------------------------------------------------
+#
 # Final Stage
-# ------------------------------------------------------------------------------
-
+#
 FROM debian:bullseye-slim
 LABEL maintainer="engineering@dhiway.com"
 LABEL description="CORD Blockchain Node"
+
+VOLUME ["/data"]
 
 COPY --from=builder /build/bin/cord /usr/local/bin
 
