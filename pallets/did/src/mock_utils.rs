@@ -102,7 +102,6 @@ pub fn generate_base_did_creation_details<T: Config>(
 
 pub fn generate_base_did_details<T>(
 	authentication_key: DidVerificationKey<AccountIdOf<T>>,
-	// deposit_owner: Option<AccountIdOf<T>>,
 ) -> DidDetails<T>
 where
 	T: Config,

@@ -20,7 +20,9 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-use codec::Encode;
+use codec::{Decode, Encode};
+use scale_info::TypeInfo;
+
 pub use cord_primitives::{curi::Ss58Identifier, AccountId, Signature};
 use cord_primitives::{
 	prod_or_fast, AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Index, Moment,
@@ -656,10 +658,12 @@ impl pallet_runtime_upgrade::Config for Runtime {
 }
 
 parameter_types! {
+	#[derive(Debug, Clone, Eq, PartialEq, TypeInfo, Decode, Encode)]
 	pub const MaxNewKeyAgreementKeys: u32 = 10;
+	#[derive(Clone)]
 	pub const MaxPublicKeysPerDid: u32 = 20;
 	#[derive(Debug, Clone, Eq, PartialEq)]
-	pub const MaxTotalKeyAgreementKeys: u32 = 15;
+	pub const MaxTotalKeyAgreementKeys: u32 = 19;
 	pub const MaxBlocksTxValidity: BlockNumber =  2 * HOURS;
 	pub const MaxNumberOfServicesPerDid: u32 = 25;
 	pub const MaxServiceIdLength: u32 = 50;
@@ -1114,12 +1118,14 @@ sp_api::impl_runtime_apis! {
 	impl pallet_did_runtime_api::DidApi<
 		Block,
 		DidIdentifier,
+		AccountId,
 		Hash,
 		BlockNumber
 	> for Runtime {
 		fn query(did: DidIdentifier) -> Option<
 			pallet_did_runtime_api::RawDidLinkedInfo<
 				DidIdentifier,
+				AccountId,
 				Hash,
 				BlockNumber
 			>
@@ -1137,6 +1143,7 @@ sp_api::impl_runtime_apis! {
 		}
 		fn query_by_name(name: Vec<u8>) -> Option<pallet_did_runtime_api::RawDidLinkedInfo<
 				DidIdentifier,
+				AccountId,
 				Hash,
 				BlockNumber
 			>

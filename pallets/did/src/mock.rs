@@ -43,9 +43,7 @@ use crate::{
 		DidDetails, DidEncryptionKey, DidPublicKey, DidPublicKeyDetails, DidVerificationKey,
 		DidVerificationKeyRelationship, RelationshipDeriveError,
 	},
-	service_endpoints::DidEndpoint,
-	utils as crate_utils, AccountIdOf, Config, DidBlacklist, DidEndpointsCount, KeyIdOf,
-	ServiceEndpoints,
+	utils as crate_utils, Config, KeyIdOf,
 };
 #[cfg(not(feature = "runtime-benchmarks"))]
 use crate::{DidRawOrigin, EnsureDidOrigin};
@@ -169,7 +167,6 @@ impl pallet_schema::Config for Test {
 
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
 pub(crate) const ACCOUNT_01: AccountId = AccountId::new([2u8; 32]);
-pub(crate) const ACCOUNT_02: AccountId = AccountId::new([3u8; 32]);
 
 pub(crate) const AUTH_SEED_0: [u8; 32] = [4u8; 32];
 pub(crate) const AUTH_SEED_1: [u8; 32] = [40u8; 32];

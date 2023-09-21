@@ -33,6 +33,7 @@ pub use service_endpoint::*;
 #[derive(Encode, Decode, TypeInfo, Eq, PartialEq)]
 pub struct DidLinkedInfo<
 	DidIdentifier,
+	AccountId,
 	DidName,
 	Id,
 	Type,
@@ -43,20 +44,21 @@ pub struct DidLinkedInfo<
 	pub identifier: DidIdentifier,
 	pub name: Option<DidName>,
 	pub service_endpoints: Vec<ServiceEndpoint<Id, Type, Url>>,
-	pub details: DidDetails<Key, BlockNumber>,
+	pub details: DidDetails<Key, BlockNumber, AccountId>,
 }
 
 /// The DidLinkedInfo represented as a byte array.
 ///
 /// This will be returned by the runtime and processed by the client side RPC
 /// implementation.
-pub type RawDidLinkedInfo<DidIdentifier, Key, BlockNumber> =
-	DidLinkedInfo<DidIdentifier, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Key, BlockNumber>;
+pub type RawDidLinkedInfo<DidIdentifier, AccountId, Key, BlockNumber> =
+	DidLinkedInfo<DidIdentifier, AccountId, Vec<u8>, Vec<u8>, Vec<u8>, Vec<u8>, Key, BlockNumber>;
 
 sp_api::decl_runtime_apis! {
 	#[api_version(1)]
-	pub trait DidApi<DidIdentifier, Key: Ord, BlockNumber: MaxEncodedLen> where
+	pub trait DidApi<DidIdentifier, AccountId, Key: Ord, BlockNumber: MaxEncodedLen> where
 		DidIdentifier: Codec,
+		AccountId: Codec,
 		BlockNumber: Codec + MaxEncodedLen,
 		Key: Codec,
 	{
@@ -65,12 +67,12 @@ sp_api::decl_runtime_apis! {
 	/// * public keys stored for the did
 	/// * the didName (optional)
 	/// * service endpoints
-	fn query_by_name(name: Vec<u8>) -> Option<RawDidLinkedInfo<DidIdentifier, Key, BlockNumber>>;
+	fn query_by_name(name: Vec<u8>) -> Option<RawDidLinkedInfo<DidIdentifier, AccountId, Key, BlockNumber>>;
 
 	/// Given a did this returns:
 	/// * the DID
 	/// * public keys stored for the did
 	/// * service endpoints
-	fn query(did: DidIdentifier) -> Option<RawDidLinkedInfo<DidIdentifier, Key, BlockNumber>>;
+	fn query(did: DidIdentifier) -> Option<RawDidLinkedInfo<DidIdentifier, AccountId, Key, BlockNumber>>;
 	}
 }

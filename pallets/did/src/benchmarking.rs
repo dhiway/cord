@@ -123,6 +123,8 @@ benchmarks! {
 		T::DidIdentifier: From<AccountId32>,
 		<T as frame_system::Config>::RuntimeOrigin: From<RawOrigin<T::DidIdentifier>>,
 		<T as frame_system::Config>::AccountId: From<AccountId32>,
+		T::AccountId: AsRef<[u8; 32]> + From<[u8; 32]>,
+
 	}
 
 	/* create extrinsic */
@@ -990,7 +992,7 @@ benchmarks! {
 	}: {
 		DidSignatureVerify::<T>::verify(&did_subject, &payload, &did_signature).expect("should verify");
 	}
-	verify {}
+	// verify {}
 	signature_verification_ed25519 {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
@@ -1017,7 +1019,7 @@ benchmarks! {
 	}: {
 		DidSignatureVerify::<T>::verify(&did_subject, &payload, &did_signature).expect("should verify");
 	}
-	verify {}
+	// verify {}
 	signature_verification_ecdsa {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
@@ -1044,10 +1046,37 @@ benchmarks! {
 	}: {
 		DidSignatureVerify::<T>::verify(&did_subject, &payload, &did_signature).expect("should verify");
 	}
-	verify {}
+	// verify {}
+	dispatch_as {
+		// ecdsa keys are the most expensive since they require an additional hashing step
+		let did_public_auth_key = get_ecdsa_public_authentication_key();
+		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
+		let did_account: AccountIdOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
+
+		let did_details = generate_base_did_details::<T>(DidVerificationKey::from(did_public_auth_key));
+
+		Did::<T>::insert(&did_subject, did_details.clone());
+
+		let test_call = <T as Config>::RuntimeCall::get_call_for_did_call_benchmark();
+		let origin = RawOrigin::Signed(did_subject.clone());
+	}: _(origin, did_subject, Box::new(test_call))
+
+	create_from_account {
+		// ecdsa keys are the most expensive since they require an additional hashing step
+		let did_public_auth_key = get_ecdsa_public_authentication_key();
+		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
+		let did_account: AccountIdOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
+
+		let authentication_key = DidVerificationKey::from(did_public_auth_key);
+		let origin = RawOrigin::Signed(did_subject.clone());
+	}: _(origin, authentication_key)
+	verify {
+			Did::<T>::get(&did_subject).expect("DID entry should be created");
+	}
 }
 
 impl_benchmark_test_suite! {
+
 	Pallet,
 	crate::mock::new_test_ext(),
 	crate::mock::Test

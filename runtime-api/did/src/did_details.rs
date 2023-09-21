@@ -22,20 +22,20 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
 
-use pallet_did::{did_details::DidPublicKeyDetails, BlockNumberOf, KeyIdOf};
+use pallet_did::{did_details::DidPublicKeyDetails, AccountIdOf, BlockNumberOf, KeyIdOf};
 
 #[derive(Encode, Decode, TypeInfo, Clone, Debug, Eq, PartialEq, MaxEncodedLen)]
-pub struct DidDetails<Key: Ord, BlockNumber: MaxEncodedLen> {
+pub struct DidDetails<Key: Ord, BlockNumber: MaxEncodedLen, AccountId> {
 	pub authentication_key: Key,
 	pub key_agreement_keys: BTreeSet<Key>,
 	pub delegation_key: Option<Key>,
 	pub assertion_key: Option<Key>,
-	pub public_keys: BTreeMap<Key, DidPublicKeyDetails<BlockNumber>>,
+	pub public_keys: BTreeMap<Key, DidPublicKeyDetails<BlockNumber, AccountId>>,
 	pub last_tx_counter: u64,
 }
 
 impl<T: pallet_did::Config> From<pallet_did::did_details::DidDetails<T>>
-	for DidDetails<KeyIdOf<T>, BlockNumberOf<T>>
+	for DidDetails<KeyIdOf<T>, BlockNumberOf<T>, AccountIdOf<T>>
 {
 	fn from(did_details: pallet_did::did_details::DidDetails<T>) -> Self {
 		Self {

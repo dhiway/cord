@@ -33,10 +33,7 @@ use sp_std::{
 
 use crate::{
 	self as did,
-	did_details::{
-		DidEncryptionKey, DidNewKeyAgreementKeySet, DidVerificationKey,
-		DidVerificationKeyRelationship,
-	},
+	did_details::{DidEncryptionKey, DidVerificationKey, DidVerificationKeyRelationship},
 	mock::*,
 	mock_utils::*,
 	service_endpoints::DidEndpoint,
@@ -242,7 +239,7 @@ fn check_unauthorised_submitter_did_creation_error() {
 	let auth_key = get_sr25519_authentication_key(&AUTH_SEED_0);
 	let alice_did = get_did_identifier_from_sr25519_key(auth_key.public());
 	let auth_did_key = DidVerificationKey::from(auth_key.public());
-	let mock_did = generate_base_did_details::<Test>(auth_did_key);
+	let _mock_did = generate_base_did_details::<Test>(auth_did_key);
 	// Use ACCOUNT_01 to generate the DID creation operation
 	let details = generate_base_did_creation_details::<Test>(alice_did.clone(), ACCOUNT_01);
 
