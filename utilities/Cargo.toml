@@ -1,8 +1,8 @@
 [package]
 name = 'cord-utilities'
 description = "Shared traits and structs"
-version = "0.8.1"
-authors = ['Dhiway <info@dhiway.com>','BOTLabs GmbH']
+version = "0.9.0"
+authors = ['Dhiway <info@dhiway.com>', 'BOTLabs GmbH']
 edition = '2021'
 license = "GPL-3.0"
 homepage = "https://cord.network"
@@ -14,16 +14,20 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # External dependencies
-codec = {default-features = false, features = ["derive"], package = "parity-scale-codec", version = "3.4.0"}
-scale-info = {version = "2.1.1", default-features = false, features = ["derive"]}
+codec = { default-features = false, features = [
+  "derive",
+], package = "parity-scale-codec", version = "3.4.0" }
+scale-info = { version = "2.1.1", default-features = false, features = [
+  "derive",
+] }
 serde = { version = "1.0.136", features = ["derive"], optional = true }
 
 # Substrate dependencies
-frame-support = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43"}
-frame-system = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43"}
-sp-core = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43"}
-sp-runtime = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43"}
-sp-std = {git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43"}
+frame-support = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+frame-system = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-core = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-std = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 
 [features]
 default = ["std"]
@@ -43,6 +47,4 @@ std = [
   "sp-runtime/std",
   "sp-std/std",
 ]
-try-runtime = [
-  "frame-support/try-runtime",
-]
+try-runtime = ["frame-support/try-runtime"]
