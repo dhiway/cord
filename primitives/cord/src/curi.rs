@@ -36,6 +36,7 @@ const IDENT_STREAM: u16 = 8902;
 const IDENT_ENTITY: u16 = 6480;
 const IDENT_TEMPLATE: u16 = 5035;
 const IDENT_ASSET: u16 = 2604;
+const IDENT_SCORING: u16 = 11034;
 
 /// The minimum length of a valid identifier.
 pub const MINIMUM_IDENTIFIER_LENGTH: usize = 2;
@@ -154,6 +155,9 @@ impl Ss58Identifier {
 	}
 	pub fn to_stream_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_STREAM)
+	}
+	pub fn to_scoring_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_SCORING)
 	}
 	pub fn to_entity_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_ENTITY)

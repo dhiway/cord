@@ -35,6 +35,7 @@ pallet-did-names = { default-features = false, path = '../pallets/did-name' }
 pallet-schema = { default-features = false, path = '../pallets/schema' }
 pallet-registry = { default-features = false, path = '../pallets/registry' }
 pallet-stream = { default-features = false, path = '../pallets/stream' }
+pallet-scoring = {  default-features = false, path = '../pallets/scoring' }
 pallet-network-membership = { default-features = false, path = '../pallets/network-membership' }
 pallet-runtime-upgrade = { default-features = false, path = '../pallets/runtime-upgrade' }
 pallet-collective = { default-features = false, path = '../pallets/collective' }
@@ -152,6 +153,7 @@ std = [
 	"pallet-schema/std",
 	"pallet-registry/std",
 	"pallet-stream/std",
+	"pallet-scoring/std",
 	"pallet-network-membership/std",
 	"pallet-runtime-upgrade/std",
 	"pallet-did-runtime-api/std",
@@ -193,6 +195,7 @@ runtime-benchmarks = [
 	"pallet-did-names/runtime-benchmarks",
 	"pallet-schema/runtime-benchmarks",
 	"pallet-stream/runtime-benchmarks",
+	"pallet-scoring/runtime-benchmarks",
 	"pallet-registry/runtime-benchmarks",
 	"pallet-network-membership/runtime-benchmarks",
 	"hex-literal",
@@ -223,6 +226,7 @@ try-runtime = [
 	"pallet-babe/try-runtime",
 	"pallet-schema/try-runtime",
 	"pallet-stream/try-runtime",
+	 "pallet-scoring/try-runtime",
 	"pallet-did/try-runtime",
 ]
 
