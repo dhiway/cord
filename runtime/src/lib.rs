@@ -758,6 +758,20 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
 }
 
+impl pallet_unique::Config for Runtime {
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::pallet_unique::WeightInfo<Runtime>;
+	type MaxUniqueCommits = MaxUniqueCommits;
+	type MaxEncodedLength = MaxEncodedLength;
+}
+
+parameter_types! {
+	pub const MaxUniqueCommits: u32 = 1_000;
+	pub const MaxEncodedLength: u32 = 15_360;
+}
+
 construct_runtime! {
 	pub struct Runtime where
 		Block = Block,
@@ -794,6 +808,7 @@ construct_runtime! {
 		Registry: pallet_registry = 104,
 		Stream: pallet_stream = 105,
 		DidNames: pallet_did_names = 106,
+		Unique: pallet_unique = 107,
 		Sudo: pallet_sudo = 255,
 	}
 }
@@ -832,6 +847,8 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::Schema { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Stream { .. } =>
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			RuntimeCall::Unique { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
@@ -932,6 +949,7 @@ mod benches {
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
 		[pallet_stream, Stream]
+		[pallet_unique, Unique]
 		[pallet_registry, Registry]
 		[pallet_did, Did]
 		[pallet_did_names, DidNames]
