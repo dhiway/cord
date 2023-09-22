@@ -275,7 +275,7 @@ pub mod pallet {
 			// 	&[&(journal.digest).encode()[..]].concat()[..],
 			// );
 
-			let identifier = Ss58Identifier::to_scoring_id(&(&journal.digest).encode()[..])
+			let identifier = Ss58Identifier::to_scoring_id(&journal.digest.encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
