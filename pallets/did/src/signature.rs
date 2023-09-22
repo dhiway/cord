@@ -17,7 +17,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-
 use cord_utilities::signature::{
 	SignatureVerificationError, SignatureVerificationResult, VerifySignature,
 };
@@ -32,7 +31,10 @@ use crate::{
 };
 
 pub struct DidSignatureVerify<T>(PhantomData<T>);
-impl<T: Config> VerifySignature for DidSignatureVerify<T> {
+impl<T: Config> VerifySignature for DidSignatureVerify<T>
+where
+	T::AccountId: AsRef<[u8; 32]> + From<[u8; 32]>,
+{
 	type SignerId = <T as Config>::DidIdentifier;
 	type Payload = Vec<u8>;
 	type Signature = DidSignature;

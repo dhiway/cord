@@ -44,6 +44,7 @@ use crate::{
 	},
 	service_endpoints::DidEndpoint,
 	signature::DidSignatureVerify,
+	AccountIdOf, DidAuthorizedCallOperationOf, DidIdentifierOf,
 };
 
 const DEFAULT_ACCOUNT_ID: &str = "tx_submitter";
@@ -94,7 +95,7 @@ fn get_ecdsa_public_delegation_key() -> ecdsa::Public {
 fn generate_base_did_call_operation<T: Config>(
 	did: DidIdentifierOf<T>,
 	submitter: AccountIdOf<T>,
-) -> DidAuthorizedCallOperation<T> {
+) -> DidAuthorizedCallOperationOf<T> {
 	let test_call = <T as Config>::RuntimeCall::get_call_for_did_call_benchmark();
 
 	DidAuthorizedCallOperation {
@@ -122,6 +123,8 @@ benchmarks! {
 		T::DidIdentifier: From<AccountId32>,
 		<T as frame_system::Config>::RuntimeOrigin: From<RawOrigin<T::DidIdentifier>>,
 		<T as frame_system::Config>::AccountId: From<AccountId32>,
+		T::AccountId: AsRef<[u8; 32]> + From<[u8; 32]>,
+
 	}
 
 	/* create extrinsic */
@@ -147,7 +150,7 @@ benchmarks! {
 			T::MaxServiceUrlLength::get(),
 		);
 
-		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone());
+		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone(), submitter.clone());
 		did_creation_details.new_key_agreement_keys = did_key_agreement_keys;
 		did_creation_details.new_assertion_key = Some(DidVerificationKey::from(did_public_att_key));
 		did_creation_details.new_delegation_key = Some(DidVerificationKey::from(did_public_del_key));
@@ -214,7 +217,7 @@ benchmarks! {
 			T::MaxServiceUrlLength::get(),
 		);
 
-		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone());
+		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone(),submitter.clone());
 		did_creation_details.new_key_agreement_keys = did_key_agreement_keys;
 		did_creation_details.new_assertion_key = Some(DidVerificationKey::from(did_public_att_key));
 		did_creation_details.new_delegation_key = Some(DidVerificationKey::from(did_public_del_key));
@@ -279,7 +282,7 @@ benchmarks! {
 			T::MaxServiceUrlLength::get(),
 		);
 
-		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone());
+		let mut did_creation_details = generate_base_did_creation_details::<T>(did_subject.clone(),submitter.clone());
 		did_creation_details.new_key_agreement_keys = did_key_agreement_keys;
 		did_creation_details.new_assertion_key = Some(DidVerificationKey::from(did_public_att_key));
 		did_creation_details.new_delegation_key = Some(DidVerificationKey::from(did_public_del_key));
@@ -989,7 +992,7 @@ benchmarks! {
 	}: {
 		DidSignatureVerify::<T>::verify(&did_subject, &payload, &did_signature).expect("should verify");
 	}
-	verify {}
+	// verify {}
 	signature_verification_ed25519 {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
@@ -1016,7 +1019,7 @@ benchmarks! {
 	}: {
 		DidSignatureVerify::<T>::verify(&did_subject, &payload, &did_signature).expect("should verify");
 	}
-	verify {}
+	// verify {}
 	signature_verification_ecdsa {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
@@ -1043,10 +1046,37 @@ benchmarks! {
 	}: {
 		DidSignatureVerify::<T>::verify(&did_subject, &payload, &did_signature).expect("should verify");
 	}
-	verify {}
+	// verify {}
+	dispatch_as {
+		// ecdsa keys are the most expensive since they require an additional hashing step
+		let did_public_auth_key = get_ecdsa_public_authentication_key();
+		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
+		let did_account: AccountIdOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
+
+		let did_details = generate_base_did_details::<T>(DidVerificationKey::from(did_public_auth_key));
+
+		Did::<T>::insert(&did_subject, did_details);
+
+		let test_call = <T as Config>::RuntimeCall::get_call_for_did_call_benchmark();
+		let origin = RawOrigin::Signed(did_subject.clone());
+	}: _(origin, did_subject, Box::new(test_call))
+
+	create_from_account {
+		// ecdsa keys are the most expensive since they require an additional hashing step
+		let did_public_auth_key = get_ecdsa_public_authentication_key();
+		let did_subject: DidIdentifierOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
+		let did_account: AccountIdOf<T> = MultiSigner::from(did_public_auth_key).into_account().into();
+
+		let authentication_key = DidVerificationKey::from(did_public_auth_key);
+		let origin = RawOrigin::Signed(did_subject.clone());
+	}: _(origin, authentication_key)
+	verify {
+			Did::<T>::get(&did_subject).expect("DID entry should be created");
+	}
 }
 
 impl_benchmark_test_suite! {
+
 	Pallet,
 	crate::mock::new_test_ext(),
 	crate::mock::Test

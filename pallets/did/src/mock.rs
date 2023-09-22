@@ -20,12 +20,14 @@
 
 use super::*;
 use crate as did;
+use codec::{Decode, Encode};
 use frame_support::{
 	parameter_types,
 	traits::{ConstU32, ConstU64},
 	BoundedVec,
 };
 use frame_system::EnsureSigned;
+use scale_info::TypeInfo;
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{
 	testing::{Header, H256},
@@ -98,6 +100,7 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
+	#[derive(Clone, TypeInfo, Debug, PartialEq, Eq, Encode, Decode)]
 	pub const MaxNewKeyAgreementKeys: u32 = 10u32;
 	#[derive(Debug, Clone, Eq, PartialEq)]
 	pub const MaxTotalKeyAgreementKeys: u32 = 10u32;
@@ -114,11 +117,19 @@ parameter_types! {
 }
 
 impl Config for Test {
+	#[cfg(feature = "runtime-benchmarks")]
+	type EnsureOrigin = EnsureSigned<DidIdentifier>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type OriginSuccess = AccountId;
+
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type EnsureOrigin = EnsureDidOrigin<DidIdentifier, AccountId>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type OriginSuccess = DidRawOrigin<AccountId, DidIdentifier>;
+
 	type DidIdentifier = DidIdentifier;
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type EnsureOrigin = EnsureSigned<DidIdentifier>;
-	type OriginSuccess = AccountId;
 	type RuntimeEvent = RuntimeEvent;
 	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
 	type MaxTotalKeyAgreementKeys = MaxTotalKeyAgreementKeys;
@@ -157,14 +168,14 @@ impl pallet_schema::Config for Test {
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
 pub(crate) const ACCOUNT_01: AccountId = AccountId::new([2u8; 32]);
 
-const DEFAULT_AUTH_SEED: [u8; 32] = [4u8; 32];
-const ALTERNATIVE_AUTH_SEED: [u8; 32] = [40u8; 32];
-const DEFAULT_ENC_SEED: [u8; 32] = [254u8; 32];
-const ALTERNATIVE_ENC_SEED: [u8; 32] = [255u8; 32];
-const DEFAULT_ATT_SEED: [u8; 32] = [6u8; 32];
-const ALTERNATIVE_ATT_SEED: [u8; 32] = [60u8; 32];
-const DEFAULT_DEL_SEED: [u8; 32] = [7u8; 32];
-const ALTERNATIVE_DEL_SEED: [u8; 32] = [70u8; 32];
+pub(crate) const AUTH_SEED_0: [u8; 32] = [4u8; 32];
+pub(crate) const AUTH_SEED_1: [u8; 32] = [40u8; 32];
+pub(crate) const ENC_SEED_0: [u8; 32] = [254u8; 32];
+pub(crate) const ENC_SEED_1: [u8; 32] = [255u8; 32];
+pub(crate) const ATT_SEED_0: [u8; 32] = [6u8; 32];
+pub(crate) const ATT_SEED_1: [u8; 32] = [60u8; 32];
+pub(crate) const DEL_SEED_0: [u8; 32] = [7u8; 32];
+pub(crate) const DEL_SEED_1: [u8; 32] = [70u8; 32];
 
 /// Solely used to fill public keys in unit tests to check for correct error
 /// throws. Thus, it does not matter whether the correct key types get added
@@ -199,87 +210,47 @@ pub fn get_did_identifier_from_ecdsa_key(public_key: ecdsa::Public) -> DidIdenti
 	MultiSigner::from(public_key).into_account()
 }
 
-pub fn get_ed25519_authentication_key(default: bool) -> ed25519::Pair {
-	if default {
-		ed25519::Pair::from_seed(&DEFAULT_AUTH_SEED)
-	} else {
-		ed25519::Pair::from_seed(&ALTERNATIVE_AUTH_SEED)
-	}
+pub fn get_ed25519_authentication_key(seed: &[u8; 32]) -> ed25519::Pair {
+	ed25519::Pair::from_seed(seed)
 }
 
-pub fn get_sr25519_authentication_key(default: bool) -> sr25519::Pair {
-	if default {
-		sr25519::Pair::from_seed(&DEFAULT_AUTH_SEED)
-	} else {
-		sr25519::Pair::from_seed(&ALTERNATIVE_AUTH_SEED)
-	}
+pub fn get_sr25519_authentication_key(seed: &[u8; 32]) -> sr25519::Pair {
+	sr25519::Pair::from_seed(seed)
 }
 
-pub fn get_ecdsa_authentication_key(default: bool) -> ecdsa::Pair {
-	if default {
-		ecdsa::Pair::from_seed(&DEFAULT_AUTH_SEED)
-	} else {
-		ecdsa::Pair::from_seed(&ALTERNATIVE_AUTH_SEED)
-	}
+pub fn get_ecdsa_authentication_key(seed: &[u8; 32]) -> ecdsa::Pair {
+	ecdsa::Pair::from_seed(seed)
 }
 
-pub fn get_x25519_encryption_key(default: bool) -> DidEncryptionKey {
-	if default {
-		DidEncryptionKey::X25519(DEFAULT_ENC_SEED)
-	} else {
-		DidEncryptionKey::X25519(ALTERNATIVE_ENC_SEED)
-	}
+pub fn get_x25519_encryption_key(seed: &[u8; 32]) -> DidEncryptionKey {
+	DidEncryptionKey::X25519(*seed)
 }
 
-pub fn get_ed25519_assertion_key(default: bool) -> ed25519::Pair {
-	if default {
-		ed25519::Pair::from_seed(&DEFAULT_ATT_SEED)
-	} else {
-		ed25519::Pair::from_seed(&ALTERNATIVE_ATT_SEED)
-	}
+pub fn get_ed25519_assertion_key(seed: &[u8; 32]) -> ed25519::Pair {
+	ed25519::Pair::from_seed(seed)
 }
 
-pub fn get_sr25519_assertion_key(default: bool) -> sr25519::Pair {
-	if default {
-		sr25519::Pair::from_seed(&DEFAULT_ATT_SEED)
-	} else {
-		sr25519::Pair::from_seed(&ALTERNATIVE_ATT_SEED)
-	}
+pub fn get_sr25519_assertion_key(seed: &[u8; 32]) -> sr25519::Pair {
+	sr25519::Pair::from_seed(seed)
 }
 
-pub fn get_ecdsa_assertion_key(default: bool) -> ecdsa::Pair {
-	if default {
-		ecdsa::Pair::from_seed(&DEFAULT_ATT_SEED)
-	} else {
-		ecdsa::Pair::from_seed(&ALTERNATIVE_ATT_SEED)
-	}
+pub fn get_ecdsa_assertion_key(seed: &[u8; 32]) -> ecdsa::Pair {
+	ecdsa::Pair::from_seed(seed)
 }
 
-pub fn get_ed25519_delegation_key(default: bool) -> ed25519::Pair {
-	if default {
-		ed25519::Pair::from_seed(&DEFAULT_DEL_SEED)
-	} else {
-		ed25519::Pair::from_seed(&ALTERNATIVE_DEL_SEED)
-	}
+pub fn get_ed25519_delegation_key(seed: &[u8; 32]) -> ed25519::Pair {
+	ed25519::Pair::from_seed(seed)
 }
 
-pub fn get_sr25519_delegation_key(default: bool) -> sr25519::Pair {
-	if default {
-		sr25519::Pair::from_seed(&DEFAULT_DEL_SEED)
-	} else {
-		sr25519::Pair::from_seed(&ALTERNATIVE_DEL_SEED)
-	}
+pub fn get_sr25519_delegation_key(seed: &[u8; 32]) -> sr25519::Pair {
+	sr25519::Pair::from_seed(seed)
 }
 
-pub fn get_ecdsa_delegation_key(default: bool) -> ecdsa::Pair {
-	if default {
-		ecdsa::Pair::from_seed(&DEFAULT_DEL_SEED)
-	} else {
-		ecdsa::Pair::from_seed(&ALTERNATIVE_DEL_SEED)
-	}
+pub fn get_ecdsa_delegation_key(seed: &[u8; 32]) -> ecdsa::Pair {
+	ecdsa::Pair::from_seed(seed)
 }
 
-pub fn generate_key_id(key: &DidPublicKey) -> KeyIdOf<Test> {
+pub fn generate_key_id(key: &DidPublicKey<AccountId>) -> KeyIdOf<Test> {
 	crate_utils::calculate_key_id::<Test>(key)
 }
 
@@ -314,6 +285,16 @@ pub(crate) fn get_none_key_call() -> RuntimeCall {
 	RuntimeCall::Schema(pallet_schema::Call::create {
 		tx_schema: BoundedVec::try_from(get_none_key_test_input()).unwrap(),
 	})
+}
+
+#[cfg(not(feature = "runtime-benchmarks"))]
+pub(crate) fn build_test_origin(account: AccountId, did: DidIdentifier) -> RuntimeOrigin {
+	crate::DidRawOrigin::new(account, did).into()
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+pub(crate) fn build_test_origin(account: AccountId, _did: DidIdentifier) -> RuntimeOrigin {
+	RuntimeOrigin::signed(account)
 }
 impl DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall {
 	fn derive_verification_key_relationship(&self) -> DeriveDidCallKeyRelationshipResult {

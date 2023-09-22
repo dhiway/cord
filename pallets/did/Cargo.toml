@@ -15,7 +15,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 substrate-wasm-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
 
 [dev-dependencies]
-env_logger = { version = "0.9.0" }
+env_logger = { version = "0.10.0" }
 pallet-balances = { git = "https://github.com/dhiway/substrate", features = [
 	"std",
 ], branch = "release-v0.9.43" }
@@ -30,6 +30,8 @@ sp-keystore = { git = "https://github.com/dhiway/substrate", features = [
 [dependencies]
 # External dependencies
 log = "0.4.17"
+fluent-uri = { version = "0.1.4", default-features = false }
+hex-literal = "0.3.4"
 
 # Internal dependencies
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }

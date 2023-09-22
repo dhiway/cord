@@ -79,7 +79,7 @@ impl<T: Config> DidEndpoint<T> {
 			InputError::MaxIdLengthExceeded
 		);
 		let str_id = str::from_utf8(&self.id).map_err(|_| InputError::InvalidEncoding)?;
-		ensure!(crate_utils::is_valid_ascii_string(str_id), InputError::InvalidEncoding);
+		ensure!(crate_utils::is_valid_uri_fragment(str_id), InputError::InvalidEncoding);
 		// Check that all types are the maximum allowed length and only contain ASCII
 		// characters.
 		self.service_types.iter().try_for_each(|s_type| {
@@ -99,7 +99,7 @@ impl<T: Config> DidEndpoint<T> {
 				InputError::MaxUrlLengthExceeded
 			);
 			let str_url = str::from_utf8(s_url).map_err(|_| InputError::InvalidEncoding)?;
-			ensure!(crate_utils::is_valid_ascii_string(str_url), InputError::InvalidEncoding);
+			ensure!(crate_utils::is_valid_uri(str_url), InputError::InvalidEncoding);
 		}
 		Ok(())
 	}
