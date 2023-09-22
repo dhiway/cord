@@ -241,7 +241,7 @@ fn check_unauthorised_submitter_did_creation_error() {
 	let auth_did_key = DidVerificationKey::from(auth_key.public());
 	let _mock_did = generate_base_did_details::<Test>(auth_did_key);
 	// Use ACCOUNT_01 to generate the DID creation operation
-	let details = generate_base_did_creation_details::<Test>(alice_did.clone(), ACCOUNT_01);
+	let details = generate_base_did_creation_details::<Test>(alice_did, ACCOUNT_01);
 
 	let signature = auth_key.sign(details.encode().as_ref());
 
@@ -1581,7 +1581,7 @@ fn check_did_not_present_services_addition_error() {
 	let alice_did = get_did_identifier_from_ed25519_key(auth_key.public());
 	let new_service_endpoint =
 		DidEndpoint::new(b"id".to_vec(), vec![b"type".to_vec()], vec![b"url".to_vec()]);
-	let origin = build_test_origin(alice_did.clone(), alice_did.clone());
+	let origin = build_test_origin(alice_did.clone(), alice_did);
 
 	new_test_ext().execute_with(|| {
 		assert_noop!(

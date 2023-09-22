@@ -1055,7 +1055,7 @@ benchmarks! {
 
 		let did_details = generate_base_did_details::<T>(DidVerificationKey::from(did_public_auth_key));
 
-		Did::<T>::insert(&did_subject, did_details.clone());
+		Did::<T>::insert(&did_subject, did_details);
 
 		let test_call = <T as Config>::RuntimeCall::get_call_for_did_call_benchmark();
 		let origin = RawOrigin::Signed(did_subject.clone());
