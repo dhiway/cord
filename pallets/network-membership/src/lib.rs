@@ -173,6 +173,7 @@ pub mod pallet {
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
 			for (member, member_data) in &self.members {
+				frame_system::Pallet::<T>::inc_providers(member);
 				Members::<T>::insert(member, member_data);
 			}
 		}
