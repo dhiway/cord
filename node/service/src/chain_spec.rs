@@ -231,9 +231,7 @@ fn cord_local_genesis(
 		council: Default::default(),
 		council_membership: CouncilMembershipConfig {
 			members: member_accounts()
-				.iter()
-				.map(|member| member.clone())
-				.collect::<Vec<_>>()
+				.to_vec()
 				.try_into()
 				.unwrap_or_else(|e| panic!("Failed to add council memebers: {:?}", e)),
 			phantom: Default::default(),
@@ -241,9 +239,7 @@ fn cord_local_genesis(
 		technical_committee: Default::default(),
 		technical_membership: TechnicalMembershipConfig {
 			members: member_accounts()
-				.iter()
-				.map(|member| member.clone())
-				.collect::<Vec<_>>()
+				.to_vec()
 				.try_into()
 				.unwrap_or_else(|e| panic!("Failed to add committee members: {:?}", e)),
 			phantom: Default::default(),
