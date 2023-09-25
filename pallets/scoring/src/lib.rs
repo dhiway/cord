@@ -250,7 +250,6 @@ pub mod pallet {
 				pallet_registry::Pallet::<T>::is_a_delegate(&authorization, author.clone(), None)
 					.map_err(<pallet_registry::Error<T>>::from)?;
 
-			//Both rating and count value should be greater than zero
 			ensure!(
 				(journal.entry.rating > 0 && journal.entry.count > 0),
 				Error::<T>::InvalidRatingValue
@@ -259,10 +258,6 @@ pub mod pallet {
 				!<JournalHashes<T>>::contains_key(journal.digest),
 				Error::<T>::DigestAlreadyAnchored
 			);
-
-			// let id_digest = <T as frame_system::Config>::Hashing::hash(
-			// 	&[&(journal.digest).encode()[..]].concat()[..],
-			// );
 
 			let identifier = Ss58Identifier::to_scoring_id(&(journal.digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
