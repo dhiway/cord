@@ -21,7 +21,7 @@
 pub use cord_primitives::{AccountId, Balance, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
-	AuthorityDiscoveryConfig, AuthorityMembershipConfig, BabeConfig, BalancesConfig, Block,
+	AuthorityDiscoveryConfig, AuthorityMembershipConfig, BabeConfig, Block,
 	CouncilMembershipConfig, IndicesConfig, NetworkMembershipConfig, SessionConfig, SessionKeys,
 	SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
@@ -93,36 +93,25 @@ where
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-/// Helper function to generate stash, controller and session key from seed
+/// Helper function to generate controller and session key from seed
 pub fn get_authority_keys_from_seed(
 	seed: &str,
-) -> (AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
+) -> (AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
 	let keys = get_authority_keys(seed);
-	(keys.0, keys.1, keys.2, keys.3, keys.4, keys.5)
+	(keys.0, keys.1, keys.2, keys.3, keys.4)
 }
 
-/// Helper function to generate stash, controller and session key from seed
+/// Helper function to generate  controller and session key from seed
 pub fn get_authority_keys(
 	seed: &str,
-) -> (AccountId, AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
+) -> (AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
 	(
-		get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
 		get_account_id_from_seed::<sr25519::Public>(seed),
 		get_from_seed::<BabeId>(seed),
 		get_from_seed::<GrandpaId>(seed),
 		get_from_seed::<ImOnlineId>(seed),
 		get_from_seed::<AuthorityDiscoveryId>(seed),
 	)
-}
-
-fn testnet_accounts() -> Vec<AccountId> {
-	vec![
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-		get_account_id_from_seed::<sr25519::Public>("Bob"),
-		get_account_id_from_seed::<sr25519::Public>("Charlie"),
-		get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-		get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-	]
 }
 
 fn member_accounts() -> Vec<AccountId> {
@@ -139,7 +128,6 @@ fn cord_dev_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
 		wasm_binary,
 		vec![get_authority_keys_from_seed("Alice")],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
-		None,
 	)
 }
 
@@ -152,7 +140,6 @@ fn cord_local_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig 
 			get_authority_keys_from_seed("Charlie"),
 		],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
-		None,
 	)
 }
 
@@ -204,26 +191,12 @@ pub fn cord_builder_config() -> Result<CordChainSpec, String> {
 
 fn cord_local_genesis(
 	wasm_binary: &[u8],
-	initial_authorities: Vec<(
-		AccountId,
-		AccountId,
-		BabeId,
-		GrandpaId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-	)>,
+	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
 	root_key: AccountId,
-	endowed_accounts: Option<Vec<AccountId>>,
 ) -> GenesisConfig {
-	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
-	let num_endowed_accounts = endowed_accounts.len();
-	const ENDOWMENT: u128 = 10_000 * WAY;
-
 	GenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec() },
-		balances: BalancesConfig {
-			balances: endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect(),
-		},
+		balances: Default::default(),
 		indices: IndicesConfig { indices: vec![] },
 		network_membership: NetworkMembershipConfig {
 			members: member_accounts()
@@ -244,7 +217,7 @@ fn cord_local_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						session_keys(x.2.clone(), x.3.clone(), x.4.clone(), x.5.clone()),
+						session_keys(x.1.clone(), x.2.clone(), x.3.clone(), x.4.clone()),
 					)
 				})
 				.collect::<Vec<_>>(),
@@ -257,22 +230,16 @@ fn cord_local_genesis(
 		im_online: Default::default(),
 		council: Default::default(),
 		council_membership: CouncilMembershipConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect::<Vec<_>>()
+			members: member_accounts()
+				.to_vec()
 				.try_into()
 				.unwrap_or_else(|e| panic!("Failed to add council memebers: {:?}", e)),
 			phantom: Default::default(),
 		},
 		technical_committee: Default::default(),
 		technical_membership: TechnicalMembershipConfig {
-			members: endowed_accounts
-				.iter()
-				.take((num_endowed_accounts + 1) / 2)
-				.cloned()
-				.collect::<Vec<_>>()
+			members: member_accounts()
+				.to_vec()
 				.try_into()
 				.unwrap_or_else(|e| panic!("Failed to add committee members: {:?}", e)),
 			phantom: Default::default(),
