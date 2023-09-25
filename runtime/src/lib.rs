@@ -777,13 +777,8 @@ impl pallet_scoring::Config for Runtime {
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
-	type MinScoreValue = MinScoreValue;
 	type WeightInfo = weights::pallet_scoring::WeightInfo<Runtime>;
 	type ValueLimit = ConstU32<72>;
-}
-
-parameter_types! {
-	pub const MinScoreValue: u32 = 1;
 }
 
 construct_runtime! {
@@ -971,8 +966,8 @@ mod benches {
 		[pallet_did, Did]
 		[pallet_did_names, DidNames]
 		[pallet_network_membership, NetworkMembership]
-		[pallet_sudo, Sudo]
 		[pallet_scoring, Scoring]
+		[pallet_sudo, Sudo]
 	);
 }
 

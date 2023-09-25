@@ -119,7 +119,7 @@ fn check_successful_rating_creation() {
 			delegate.clone(),
 		));
 
-		assert_ok!(Scoring::entries(
+		assert_ok!(Scoring::add_rating(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			journal_input.clone(),
 			authorization_id

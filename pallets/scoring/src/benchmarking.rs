@@ -48,7 +48,7 @@ benchmarks! {
 		where
 		<T as pallet::Config>::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::RegistryCreatorId>,
 	}
-	entries {
+	add_rating {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);

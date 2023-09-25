@@ -62,9 +62,6 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use sp_std::{prelude::Clone, str};
 
-	/// The current storage version.
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
-
 	/// Registry Identifier
 	pub type RegistryIdOf = Ss58Identifier;
 
@@ -92,9 +89,6 @@ pub mod pallet {
 	/// Type for an Identifier
 	pub type IdentifierOf = Ss58Identifier;
 
-	/// Type for an Identifier
-	pub type ScoreIdentifierOf<T> = BoundedVec<u8, <T as Config>::ValueLimit>;
-
 	/// Type for a Entity(Buisness) Identifier
 	pub type EntityIdentifierOf<T> = <T as frame_system::Config>::AccountId;
 
@@ -102,7 +96,7 @@ pub mod pallet {
 	pub type CollectorIdentifierOf<T> = <T as frame_system::Config>::AccountId;
 
 	pub type JournalIdentifierOf = IdentifierOf;
-	pub type TransactionIdentifierOf<T> = ScoreIdentifierOf<T>;
+	pub type TransactionIdentifierOf<T> = BoundedVec<u8, <T as Config>::ValueLimit>;
 
 	pub type RatingDetailsOf<T> = RatingEntryDetails<
 		EntityIdentifierOf<T>,
@@ -140,14 +134,11 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type ValueLimit: Get<u32>;
-		#[pallet::constant]
-		type MinScoreValue: Get<u32>;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
-	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	#[pallet::hooks]
@@ -186,7 +177,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn tid_entries)]
-	pub type TidEntries<T> = StorageDoubleMap<
+	pub type TransactionIdentifiers<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
 		TransactionIdentifierOf<T>,
@@ -230,8 +221,6 @@ pub mod pallet {
 		InvalidEntitySignature,
 		//Stream digest is not unique
 		DigestAlreadyAnchored,
-		//Count entry Greater than storage count
-		CountGreaterThanStorage,
 		//If Rating and count value Zero
 		CountCannotBeZero,
 		//If Rating and count value Zero
@@ -244,14 +233,13 @@ pub mod pallet {
 		/// Create a new rating identifier and associates it with its
 		/// controller. The controller (issuer) is the owner of the identifier.
 		///
-		/// * origin: the identity of the Transaction Author. Transaction author
-		///   pays the transaction fees
+		/// * origin: the identity of the Transaction Author.
 		/// * tx_journal: the incoming rating entry.
 		/// * `authorization`: The authorization ID of the delegate who is
 		///   allowed to perform this action.
 		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
-		pub fn entries(
+		pub fn add_rating(
 			origin: OriginFor<T>,
 			journal: RatingInputOf<T>,
 			authorization: AuthorizationIdOf,
@@ -262,8 +250,9 @@ pub mod pallet {
 				pallet_registry::Pallet::<T>::is_a_delegate(&authorization, author.clone(), None)
 					.map_err(<pallet_registry::Error<T>>::from)?;
 
+			//Both rating and count value should be greater than zero
 			ensure!(
-				journal.entry.rating >= T::MinScoreValue::get(),
+				(journal.entry.rating > 0 && journal.entry.count > 0),
 				Error::<T>::InvalidRatingValue
 			);
 			ensure!(
@@ -275,11 +264,14 @@ pub mod pallet {
 			// 	&[&(journal.digest).encode()[..]].concat()[..],
 			// );
 
-			let identifier = Ss58Identifier::to_scoring_id(&journal.digest.encode()[..])
+			let identifier = Ss58Identifier::to_scoring_id(&(&journal.digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
-				!<TidEntries<T>>::contains_key(&journal.entry.tid, &journal.entry.rating_type),
+				!<TransactionIdentifiers<T>>::contains_key(
+					&journal.entry.tid,
+					&journal.entry.rating_type
+				),
 				Error::<T>::TransactionAlreadyRated
 			);
 
@@ -299,7 +291,7 @@ pub mod pallet {
 				},
 			);
 			<JournalHashes<T>>::insert(journal.digest, ());
-			<TidEntries<T>>::insert(
+			<TransactionIdentifiers<T>>::insert(
 				&journal.entry.tid,
 				&journal.entry.rating_type,
 				&journal.entry.entity,

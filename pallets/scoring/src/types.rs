@@ -24,9 +24,9 @@ use scale_info::TypeInfo;
 	Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
 pub struct RatingEntryDetails<
-	EntityIdentifierOf,     //jain medicals - geting rated
-	TransactionIdentfierOf, //unique id per call for chain - audit
-	CollectorIdentifierOf,  // paytm, meesho - seller app
+	EntityIdentifierOf,
+	TransactionIdentfierOf,
+	CollectorIdentifierOf,
 	RatingTypeOf,
 	RatingOf,
 	RatingEntryType,
@@ -39,11 +39,11 @@ pub struct RatingEntryDetails<
 	///score collector identifier
 	pub collector: CollectorIdentifierOf,
 	/// score type
-	pub rating_type: RatingTypeOf, //overall, delivery
+	pub rating_type: RatingTypeOf,
 	///entity rating
-	pub rating: RatingOf, //u32 15,16
+	pub rating: RatingOf,
 	///Rating Entry Type
-	pub entry_type: RatingEntryType, // credit, debit
+	pub entry_type: RatingEntryType,
 	//total  Count
 	pub count: CountOf,
 }

@@ -21,7 +21,7 @@ use crate as pallet_scoring;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU128, ConstU32, ConstU64},
+	traits::{ConstU32, ConstU64},
 };
 use sp_runtime::{
 	testing::Header,
@@ -30,7 +30,6 @@ use sp_runtime::{
 };
 
 type Hash = sp_core::H256;
-type Balance = u128;
 type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
@@ -45,7 +44,6 @@ construct_runtime!(
 		Schema:pallet_schema::{Pallet, Call, Storage, Event<T>},
 		Registry: pallet_registry::{Pallet, Storage, Call,Event<T>},
 		Scoring: pallet_scoring::{Pallet, Call, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
 		MockOrigin: mock_origin::{Pallet, Origin<T>},
 	}
 );
@@ -80,30 +78,10 @@ impl frame_system::Config for Test {
 	type MaxConsumers = ConstU32<2>;
 }
 
-impl pallet_balances::Config for Test {
-	type Balance = Balance;
-	type DustRemoval = ();
-	type RuntimeEvent = RuntimeEvent;
-	type ExistentialDeposit = ConstU128<1>;
-	type AccountStore = System;
-	type WeightInfo = ();
-	type MaxLocks = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
-	type FreezeIdentifier = ();
-	type MaxFreezes = ();
-	type HoldIdentifier = ();
-	type MaxHolds = ();
-}
-
 impl mock_origin::Config for Test {
 	type RuntimeOrigin = RuntimeOrigin;
 	type AccountId = AccountId;
 	type SubjectId = SubjectId;
-}
-
-parameter_types! {
-	pub const MinScoreValue: u32 = 1;
 }
 
 impl Config for Test {
@@ -112,7 +90,6 @@ impl Config for Test {
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::SubstrateWeight<Test>;
-	type MinScoreValue = MinScoreValue;
 	type ValueLimit = ConstU32<72>;
 }
 

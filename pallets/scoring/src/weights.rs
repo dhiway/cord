@@ -50,7 +50,7 @@ use core::marker::PhantomData;
 
 /// Weight functions needed for pallet_scoring.
 pub trait WeightInfo {
-	fn entries(l: u32, ) -> Weight;
+	fn add_rating(l: u32, ) -> Weight;
 }
 
 /// Weights for pallet_scoring using the CORD node and recommended hardware.
@@ -67,7 +67,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: Scoring Journal (r:0 w:1)
 	/// Proof: Scoring Journal (max_values: None, max_size: Some(442), added: 2917, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 15360]`.
-	fn entries(_l: u32, ) -> Weight {
+	fn add_rating(_l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `228`
 		//  Estimated: `3668`
@@ -91,7 +91,7 @@ impl WeightInfo for () {
 	/// Storage: Scoring Journal (r:0 w:1)
 	/// Proof: Scoring Journal (max_values: None, max_size: Some(442), added: 2917, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 15360]`.
-	fn entries(_l: u32, ) -> Weight {
+	fn add_rating(_l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `228`
 		//  Estimated: `3668`
