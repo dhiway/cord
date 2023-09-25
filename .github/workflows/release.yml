@@ -1,22 +1,37 @@
+# A binary will be released when we push into any `release` branch
+# and/or we release it manually when we need.
+#
 name: release
 
 on:
   push:
     branches:
       - "release*"
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
 
 jobs:
   x86_64:
-    runs-on: ubuntu-22.04
+    # Downgrading runner os, so the binary runs on any older devices.
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3.5.3
+        uses: actions/checkout@v3
 
       - name: Install dependencies
         run: sudo apt-get update -y && sudo apt-get install -y protobuf-compiler libssl-dev
 
       - name: Setup Cargo cache
-        uses: actions/cache@v3.3.1
+        uses: actions/cache@v3
         continue-on-error: false
         with:
           path: |
@@ -48,7 +63,7 @@ jobs:
           if [ -n "$BINARY_PATH" ]; then
             BRANCH_NAME=$(echo "${{ github.ref }}" | sed 's/refs\/heads\///')
             ARCHITECTURE=$(uname -m)
-            BINARY_NAME="cord-${BRANCH_NAME}-${ARCHITECTURE}-ubuntu-22.04"
+            BINARY_NAME="cord-${BRANCH_NAME}-${ARCHITECTURE}"
             mv "$BINARY_PATH" "$BINARY_NAME"
             echo "Moved binary to: $BINARY_NAME"
             echo "BINARY_NAME=$BINARY_NAME" >> $GITHUB_ENV
