@@ -776,6 +776,15 @@ parameter_types! {
 	pub const MaxEncodedLength: u32 = 15_360;
 }
 
+impl pallet_scoring::Config for Runtime {
+	type RatingCreatorIdOf = DidIdentifier;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::pallet_scoring::WeightInfo<Runtime>;
+	type ValueLimit = ConstU32<72>;
+}
+
 construct_runtime! {
 	pub struct Runtime where
 		Block = Block,
@@ -813,6 +822,7 @@ construct_runtime! {
 		Stream: pallet_stream = 105,
 		DidNames: pallet_did_names = 106,
 		Unique: pallet_unique = 107,
+		Scoring: pallet_scoring = 108,
 		Sudo: pallet_sudo = 255,
 	}
 }
@@ -853,6 +863,8 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::Stream { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Unique { .. } =>
+				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+			RuntimeCall::Scoring { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
@@ -958,6 +970,7 @@ mod benches {
 		[pallet_did, Did]
 		[pallet_did_names, DidNames]
 		[pallet_network_membership, NetworkMembership]
+		[pallet_scoring, Scoring]
 		[pallet_sudo, Sudo]
 	);
 }

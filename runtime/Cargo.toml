@@ -41,6 +41,7 @@ pallet-collective = { default-features = false, path = '../pallets/collective' }
 pallet-identity = { default-features = false, path = '../pallets/identity' }
 pallet-offences = { default-features = false, path = '../pallets/offences' }
 pallet-unique = { default-features = false, path = "../pallets/unique" }
+pallet-scoring = { default-features = false, path = '../pallets/scoring' }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../runtime-api/did", default-features = false }
@@ -154,6 +155,7 @@ std = [
 	"pallet-registry/std",
 	"pallet-stream/std",
 	"pallet-unique/std",
+	"pallet-scoring/std",
 	"pallet-network-membership/std",
 	"pallet-runtime-upgrade/std",
 	"pallet-did-runtime-api/std",
@@ -201,6 +203,7 @@ runtime-benchmarks = [
 	"hex-literal",
 	"pallet-sudo/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
+	"pallet-scoring/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -228,6 +231,7 @@ try-runtime = [
 	"pallet-stream/try-runtime",
 	"pallet-did/try-runtime",
 	"pallet-unique/try-runtime",
+	"pallet-scoring/try-runtime",
 ]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.

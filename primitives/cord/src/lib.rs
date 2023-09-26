@@ -80,7 +80,7 @@ pub type CidOf = Vec<u8>;
 pub type VersionOf = Vec<u8>;
 
 /// Score type.
-pub type ScoreOf = u32;
+pub type RatingOf = u32;
 
 /// Score count type.
 pub type CountOf = u32;
