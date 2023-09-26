@@ -171,11 +171,6 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn journal_hashes)]
-	pub type JournalHashes<T> =
-		StorageMap<_, Blake2_128Concat, RatingEntryHashOf<T>, (), ValueQuery>;
-
-	#[pallet::storage]
 	#[pallet::getter(fn tid_entries)]
 	pub type TransactionIdentifiers<T> = StorageDoubleMap<
 		_,
@@ -254,10 +249,6 @@ pub mod pallet {
 				(journal.entry.rating > 0 && journal.entry.count > 0),
 				Error::<T>::InvalidRatingValue
 			);
-			ensure!(
-				!<JournalHashes<T>>::contains_key(journal.digest),
-				Error::<T>::DigestAlreadyAnchored
-			);
 
 			let identifier = Ss58Identifier::to_scoring_id(&(journal.digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
@@ -285,7 +276,6 @@ pub mod pallet {
 					creator: author.clone(),
 				},
 			);
-			<JournalHashes<T>>::insert(journal.digest, ());
 			<TransactionIdentifiers<T>>::insert(
 				&journal.entry.tid,
 				&journal.entry.rating_type,
