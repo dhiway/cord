@@ -47,7 +47,10 @@ pub use crate::{pallet::*, types::*, weights::WeightInfo};
 pub mod pallet {
 	use super::*;
 	use cord_utilities::traits::CallSources;
-	use frame_support::pallet_prelude::*;
+	use frame_support::{
+		pallet_prelude::{StorageDoubleMap, *},
+		Blake2_128Concat, Twox64Concat,
+	};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::Hash;
 
@@ -115,6 +118,18 @@ pub mod pallet {
 	#[pallet::getter(fn streams)]
 	pub type Streams<T> =
 		StorageMap<_, Blake2_128Concat, StreamIdOf, StreamEntryOf<T>, OptionQuery>;
+
+	/// Unique Proof are stored on chain.
+	#[pallet::storage]
+	#[pallet::getter(fn unique_proofs)]
+	pub type UniqueProofs<T> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		StreamIdOf,
+		Blake2_128Concat,
+		StreamDigestOf<T>,
+		StreamEntryOf<T>,
+	>;
 
 	/// stream hashes stored on chain.
 	/// It maps from a stream hash to an identifier (resolve from hash).
@@ -267,6 +282,18 @@ pub mod pallet {
 				StreamEntryOf::<T> {
 					digest: stream_digest,
 					creator: creator.clone(),
+					schema: schema_id.clone(),
+					registry: registry_id.clone(),
+					revoked: false,
+				},
+			);
+
+			<UniqueProofs<T>>::insert(
+				&identifier,
+				stream_digest,
+				StreamEntryOf::<T> {
+					digest: stream_digest,
+					creator: creator.clone(),
 					schema: schema_id,
 					registry: registry_id,
 					revoked: false,
@@ -289,6 +316,7 @@ pub mod pallet {
 
 			Ok(())
 		}
+
 		/// Updates the stream identifier with a new digest. The updated digest
 		/// represents the changes a stream reference document might have
 		/// undergone. Arguments:
@@ -335,6 +363,35 @@ pub mod pallet {
 				StreamEntryOf::<T> {
 					digest: stream_digest,
 					creator: updater.clone(),
+					..stream_details.clone()
+				},
+			);
+
+			let existing_proof_details = <UniqueProofs<T>>::get(&stream_id, stream_details.digest)
+				.ok_or(Error::<T>::StreamNotFound)?;
+
+			// Revoke the existing(old) proof before inserting a new proof
+			<UniqueProofs<T>>::insert(
+				&stream_id,
+				stream_details.digest,
+				StreamEntryOf::<T> {
+					creator: updater.clone(),
+					revoked: true,
+					..existing_proof_details
+				},
+			);
+
+			ensure!(
+				!<UniqueProofs<T>>::contains_key(&stream_id, stream_digest),
+				Error::<T>::StreamAlreadyAnchored
+			);
+
+			<UniqueProofs<T>>::insert(
+				&stream_id,
+				stream_digest,
+				StreamEntryOf::<T> {
+					digest: stream_digest,
+					creator: updater.clone(),
 					..stream_details
 				},
 			);
@@ -355,6 +412,7 @@ pub mod pallet {
 
 			Ok(())
 		}
+
 		/// Revokes a stream.
 		///
 		/// Arguments:
@@ -391,7 +449,22 @@ pub mod pallet {
 
 			<Streams<T>>::insert(
 				&stream_id,
-				StreamEntryOf::<T> { creator: updater.clone(), revoked: true, ..stream_details },
+				StreamEntryOf::<T> {
+					creator: updater.clone(),
+					revoked: true,
+					..stream_details.clone()
+				},
+			);
+
+			<UniqueProofs<T>>::insert(
+				&stream_id,
+				stream_details.digest,
+				StreamEntryOf::<T> {
+					digest: stream_details.digest,
+					creator: updater.clone(),
+					revoked: true,
+					..stream_details
+				},
 			);
 
 			Self::update_commit(
@@ -442,6 +515,16 @@ pub mod pallet {
 
 			<Streams<T>>::insert(
 				&stream_id,
+				StreamEntryOf::<T> {
+					creator: updater.clone(),
+					revoked: false,
+					..stream_details.clone()
+				},
+			);
+
+			<UniqueProofs<T>>::insert(
+				&stream_id,
+				stream_details.digest,
 				StreamEntryOf::<T> { creator: updater.clone(), revoked: false, ..stream_details },
 			);
 
@@ -489,6 +572,10 @@ pub mod pallet {
 
 				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
+
+			<Commits<T>>::get(&stream_id)
+				.iter()
+				.for_each(|commit| <UniqueProofs<T>>::remove(&stream_id, commit.digest));
 
 			<Streams<T>>::take(&stream_id);
 

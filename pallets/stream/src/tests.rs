@@ -258,6 +258,18 @@ fn update_stream_should_succed() {
 			},
 		);
 
+		<UniqueProofs<Test>>::insert(
+			&stream_id,
+			stream_digest,
+			StreamEntryOf::<Test> {
+				digest: stream_digest,
+				creator: creator.clone(),
+				schema: Some(schema_id.clone()),
+				registry: registry_id.clone(),
+				revoked: false,
+			},
+		);
+
 		let stream_update = vec![12u8; 32];
 		let update_digest = <Test as frame_system::Config>::Hashing::hash(&stream_update[..]);
 
@@ -598,6 +610,19 @@ fn remove_stream_should_succed() {
 				revoked: false,
 			},
 		);
+
+		<UniqueProofs<Test>>::insert(
+			&stream_id,
+			stream_digest,
+			StreamEntryOf::<Test> {
+				digest: stream_digest,
+				creator: creator.clone(),
+				schema: Some(schema_id.clone()),
+				registry: registry_id.clone(),
+				revoked: false,
+			},
+		);
+
 		assert_ok!(Stream::remove(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			stream_id,

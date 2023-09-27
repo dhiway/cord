@@ -146,6 +146,17 @@ benchmarks! {
 				digest: stream_digest,
 				creator: did.clone(),
 				schema: None,
+				registry: registry_id.clone(),
+				revoked: false,
+			},
+		);
+
+		<UniqueProofs<T>>::insert(
+			&stream_id,stream_digest,
+			StreamEntryOf::<T> {
+				digest: stream_digest,
+				creator: did.clone(),
+				schema: None,
 				registry: registry_id,
 				revoked: false,
 			},
