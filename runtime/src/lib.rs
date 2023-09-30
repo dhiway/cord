@@ -623,10 +623,25 @@ parameter_types! {
 	pub const MaxProposalLength: u16 = 5;
 }
 impl authority_membership::Config for Runtime {
-	// type KeysWrapper = opaque::SessionKeysWrapper;
-	// type OnNewSession = OnNewSessionHandler<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
 	type AuthorityMembershipOrigin = MoreThanHalfCouncil;
+}
+
+parameter_types! {
+	pub const MaxWellKnownNodes: u32 = 1_000;
+	pub const MaxPeerIdLength: u32 = 128;
+	pub const MaxNodeIdLength: u32 = 53;
+	pub const MaxConnectionRequests: u32 = 10;
+}
+
+impl pallet_node_authorization::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxWellKnownNodes = MaxWellKnownNodes;
+	type MaxPeerIdLength = MaxPeerIdLength;
+	type MaxNodeIdLength = MaxNodeIdLength;
+	type MaxConnectionRequests = MaxConnectionRequests;
+	type NodeAuthorizationOrigin = MoreThanHalfCouncil;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -800,6 +815,7 @@ construct_runtime! {
 		CouncilMembership: pallet_membership::<Instance1> = 15,
 		TechnicalCommittee: pallet_collective::<Instance2> = 16,
 		TechnicalMembership: pallet_membership::<Instance2> = 17,
+		NodeAuthorization: pallet_node_authorization = 18,
 		RuntimeUpgrade: pallet_runtime_upgrade = 19,
 		Utility: pallet_utility = 31,
 		Historical: pallet_session_historical::{Pallet} = 33,

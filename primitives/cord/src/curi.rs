@@ -203,3 +203,79 @@ impl AsRef<[u8]> for Ss58Identifier {
 		&self.0[..]
 	}
 }
+
+// #[derive(
+// 	Serialize, Deserialize, Debug, PartialEq, Clone, Eq, Ord, PartialOrd, Encode,
+// Decode, TypeInfo, )]
+// pub struct NodeId(pub String);
+//
+// impl NodeId {
+// 	// Create a new CustomNodeId from a base58 encoded string
+// 	pub fn new(encoded: &str) -> Result<Self, &'static str> {
+// 		if encoded.len() != 53 {
+// 			return Err("Invalid length for CustomNodeId")
+// 		}
+// 		Ok(NodeId(encoded.to_string()))
+// 	}
+// 	// Method to get the length of the internal String
+// 	pub fn len(&self) -> usize {
+// 		self.0.len()
+// 	}
+//
+// 	// Method to check if the internal String is empty
+// 	pub fn is_empty(&self) -> bool {
+// 		self.0.is_empty()
+// 	}
+// }
+//
+// impl MaxEncodedLen for NodeId {
+// 	fn max_encoded_len() -> usize {
+// 		53
+// 	}
+// }
+//
+// impl AsRef<[u8]> for NodeId {
+// 	fn as_ref(&self) -> &[u8] {
+// 		self.0.as_bytes()
+// 	}
+// }
+
+// #[derive(
+// 	Serialize, Deserialize, Debug, PartialEq, Clone, Eq, Ord, PartialOrd, Encode,
+// Decode, TypeInfo, )]
+// pub struct NodeId(pub [u8; 53]);
+//
+// impl NodeId {
+// 	// Create a new CustomNodeId from a base58 encoded string
+// 	pub fn new(encoded: &str) -> Result<Self, &'static str> {
+// 		if encoded.len() != 53 {
+// 			return Err("Invalid length for CustomNodeId")
+// 		}
+// 		let bytes = encoded.as_bytes();
+// 		let mut array = [0u8; 53];
+// 		array.copy_from_slice(bytes);
+// 		Ok(NodeId(array))
+// 	}
+//
+// 	// Method to get the length of the internal array
+// 	pub fn len(&self) -> usize {
+// 		53 // Fixed length
+// 	}
+//
+// 	// Method to check if the internal array is empty (it never is)
+// 	pub fn is_empty(&self) -> bool {
+// 		false // Fixed length, never empty
+// 	}
+// }
+//
+// impl MaxEncodedLen for NodeId {
+// 	fn max_encoded_len() -> usize {
+// 		53
+// 	}
+// }
+//
+// impl AsRef<[u8]> for NodeId {
+// 	fn as_ref(&self) -> &[u8] {
+// 		&self.0
+// 	}
+// }

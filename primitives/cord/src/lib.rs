@@ -28,6 +28,7 @@ use sp_runtime::{
 };
 use sp_std::vec::Vec;
 pub mod curi;
+// pub mod nid;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -93,6 +94,9 @@ pub type DidIdentifier = AccountId;
 
 /// status Information
 pub type StatusOf = bool;
+
+/// node identifier
+pub type NodeId = Vec<u8>;
 
 /// Authorship perio
 // pub const AUTHORSHIP_PERIOD: u32 = 5256000;
