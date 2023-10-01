@@ -29,6 +29,7 @@ use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
+	BoundedVec,
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -83,24 +84,32 @@ ord_parameter_types! {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type MaxWellKnownNodes = ConstU32<4>;
-	type MaxNodeIdLength = ConstU32<2>;
-	type MaxPeerIdLength = ConstU32<2>;
-	type AddOrigin = EnsureSignedBy<One, u64>;
-	type RemoveOrigin = EnsureSignedBy<Two, u64>;
-	type SwapOrigin = EnsureSignedBy<Three, u64>;
-	type ResetOrigin = EnsureSignedBy<Four, u64>;
+	type MaxWellKnownNodes = ConstU32<5>;
+	type MaxNodeIdLength = ConstU32<3>;
+	type MaxPeerIdLength = ConstU32<3>;
+	type NodeAuthorizationOrigin = EnsureSignedBy<One, u64>;
 	type WeightInfo = ();
 }
 
-pub fn test_node(id: u8) -> PeerId {
+pub fn test_node(input: &str) -> Vec<u8> {
+	let base58_encoded = bs58::encode(input).into_string();
+
+	base58_encoded.as_bytes().to_vec()
+}
+
+pub fn genesis_node(id: u8) -> PeerId {
 	PeerId(vec![id])
+}
+
+pub fn test_node_id(id: u8) -> BoundedVec<u8, ConstU32<3>> {
+	BoundedVec::try_from(vec![id]).unwrap()
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	pallet_node_authorization::GenesisConfig::<Test> {
-		nodes: vec![(test_node(10), 10), (test_node(20), 20), (test_node(30), 30)],
+		nodes: vec![(genesis_node(10), 10), (genesis_node(20), 20), (genesis_node(30), 30)],
+		// nodes: vec![(PeerId(bs58::decode("10").into_vec().unwrap()), 10)],
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();

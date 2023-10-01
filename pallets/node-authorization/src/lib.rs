@@ -44,15 +44,15 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod types;
 pub mod weights;
 
+pub use crate::{pallet::*, types::*, weights::WeightInfo};
 use base58::FromBase58;
 use cord_primitives::NodeId;
-pub use pallet::*;
 use sp_core::OpaquePeerId as PeerId;
 use sp_runtime::traits::StaticLookup;
 use sp_std::{collections::btree_set::BTreeSet, iter::FromIterator, prelude::*};
-pub use weights::WeightInfo;
 
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
@@ -66,10 +66,8 @@ pub mod pallet {
 
 	pub type NodeIdOf<T> = BoundedVec<u8, <T as Config>::MaxNodeIdLength>;
 
-	pub struct NodeInfo<T: Config> {
-		pub id: NodeIdOf<T>,
-		pub owner: AccountIdOf<T>,
-	}
+	/// Type for a schema entry
+	pub type NodeInfoOf<T> = NodeInfo<NodeIdOf<T>, AccountIdOf<T>>;
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
@@ -93,10 +91,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxNodeIdLength: Get<u32>;
 
-		/// The maximum connection request in an extrinsic.
-		#[pallet::constant]
-		type MaxConnectionRequests: Get<u32>;
-
 		/// The origin which can add a well known node.
 		type NodeAuthorizationOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
@@ -112,7 +106,7 @@ pub mod pallet {
 	/// A map that maintains the ownership of each node.
 	#[pallet::storage]
 	#[pallet::getter(fn owners)]
-	pub type Owners<T: Config> = StorageMap<_, Blake2_128Concat, PeerId, NodeIdOf<T>>;
+	pub type Owners<T: Config> = StorageMap<_, Blake2_128Concat, PeerId, NodeInfoOf<T>>;
 
 	/// The additional adapative connections of each node.
 	#[pallet::storage]
@@ -233,10 +227,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			T::NodeAuthorizationOrigin::ensure_origin(origin)?;
 			let owner = T::Lookup::lookup(owner)?;
-			let node_str = bs58::encode(&node_id).into_string();
-			let node_info: BoundedVec<u8, T::MaxNodeIdLength> =
-				BoundedVec::try_from(node_str.into_bytes())
-					.map_err(|_| Error::<T>::NodeIdTooLong)?;
+			let node_id_bytes: BoundedVec<u8, T::MaxNodeIdLength> =
+				BoundedVec::try_from(node_id.clone()).map_err(|_| Error::<T>::NodeIdTooLong)?;
 
 			let node = Self::generate_peer_id(&node_id)?;
 			ensure!(node.0.len() < T::MaxPeerIdLength::get() as usize, Error::<T>::PeerIdTooLong);
@@ -249,7 +241,7 @@ pub mod pallet {
 			nodes.insert(node.clone());
 
 			WellKnownNodes::<T>::put(&nodes);
-			<Owners<T>>::insert(&node, NodeInfo { id: &node_info, owner: &owner });
+			<Owners<T>>::insert(&node, NodeInfoOf::<T> { id: node_id_bytes, owner: owner.clone() });
 
 			Self::deposit_event(Event::NodeAdded { node_id, who: owner });
 			Ok(())
@@ -310,8 +302,8 @@ pub mod pallet {
 			let remove = Self::generate_peer_id(&remove_id)?;
 			ensure!(remove.0.len() < T::MaxPeerIdLength::get() as usize, Error::<T>::PeerIdTooLong);
 
-			let owner = Owners::<T>::get(&remove).ok_or(Error::<T>::NotExist)?;
-			ensure!(owner.1 == sender, Error::<T>::NotOwner);
+			let node_info = Owners::<T>::get(&remove).ok_or(Error::<T>::NotExist)?;
+			ensure!(node_info.owner == sender, Error::<T>::NotOwner);
 
 			let add = Self::generate_peer_id(&add_id)?;
 			ensure!(add.0.len() < T::MaxPeerIdLength::get() as usize, Error::<T>::PeerIdTooLong);
@@ -345,21 +337,16 @@ pub mod pallet {
 			let sender = ensure_signed(origin)?;
 			let owner = T::Lookup::lookup(owner)?;
 
-			// ensure!(node_id.len() < T::MaxNodeIdLength::get() as usize,
-			// Error::<T>::NodeIdTooLong);
-
 			let node = Self::generate_peer_id(&node_id)?;
 
 			ensure!(node.0.len() < T::MaxPeerIdLength::get() as usize, Error::<T>::PeerIdTooLong);
-			let pre_owner = Owners::<T>::get(&node).ok_or(Error::<T>::NotClaimed)?;
-			ensure!(pre_owner.1 == sender, Error::<T>::NotOwner);
+			let node_info = Owners::<T>::get(&node).ok_or(Error::<T>::NotClaimed)?;
+			ensure!(node_info.owner == sender, Error::<T>::NotOwner);
 
-			let node_str = bs58::encode(&node_id).into_string();
-			let node_info: BoundedVec<u8, T::MaxNodeIdLength> =
-				BoundedVec::try_from(node_str.into_bytes())
-					.map_err(|_| Error::<T>::NodeIdTooLong)?;
+			let node_id_bytes: BoundedVec<u8, T::MaxNodeIdLength> =
+				BoundedVec::try_from(node_id.clone()).map_err(|_| Error::<T>::NodeIdTooLong)?;
 
-			Owners::<T>::insert(&node, (&node_info, &owner));
+			<Owners<T>>::insert(&node, NodeInfoOf::<T> { id: node_id_bytes, owner: owner.clone() });
 
 			Self::deposit_event(Event::NodeTransferred { node_id, target: owner });
 			Ok(())
@@ -382,8 +369,8 @@ pub mod pallet {
 			let node = Self::generate_peer_id(&node_id)?;
 			ensure!(node.0.len() < T::MaxPeerIdLength::get() as usize, Error::<T>::PeerIdTooLong);
 
-			let owner = Owners::<T>::get(&node).ok_or(Error::<T>::NotClaimed)?;
-			ensure!(owner.1 == sender, Error::<T>::NotOwner);
+			let node_info = Owners::<T>::get(&node).ok_or(Error::<T>::NotClaimed)?;
+			ensure!(node_info.owner == sender, Error::<T>::NotOwner);
 
 			let connection = Self::generate_peer_id(&connection_id)?;
 			ensure!(
@@ -418,8 +405,8 @@ pub mod pallet {
 
 			let node = Self::generate_peer_id(&node_id)?;
 			ensure!(node.0.len() < T::MaxPeerIdLength::get() as usize, Error::<T>::PeerIdTooLong);
-			let owner = Owners::<T>::get(&node).ok_or(Error::<T>::NotClaimed)?;
-			ensure!(owner.1 == sender, Error::<T>::NotOwner);
+			let node_info = Owners::<T>::get(&node).ok_or(Error::<T>::NotClaimed)?;
+			ensure!(node_info.owner == sender, Error::<T>::NotOwner);
 
 			let connection = Self::generate_peer_id(&connection_id)?;
 			ensure!(
@@ -446,17 +433,16 @@ impl<T: Config> Pallet<T> {
 		WellKnownNodes::<T>::put(&peer_ids);
 
 		for (node, who) in nodes.iter() {
-			let base58_str = bs58::encode(&node.0).into_string();
-			if let Ok(node_info) = frame_support::BoundedVec::try_from(base58_str.into_bytes()) {
-				Owners::<T>::insert(node, (node_info, who));
+			let base58_str = bs58::encode(node.0.clone()).into_string();
+			if let Ok(node_id_bytes) = frame_support::BoundedVec::try_from(base58_str.into_bytes())
+			{
+				<Owners<T>>::insert(
+					node,
+					NodeInfoOf::<T> { id: node_id_bytes, owner: who.clone() },
+				);
 			} else {
 				log::error!("Node ownership update failed!")
 			}
-
-			// let node_info: frame_support::BoundedVec<u8, T::MaxNodeIdLength>
-			// = 	frame_support::BoundedVec::try_from(base58_str.into_bytes())
-			// 		.map_err(|_| Error::<T>::NodeIdTooLong)?;
-			// Owners::<T>::insert(node, (node_info, who));
 		}
 	}
 
@@ -474,23 +460,14 @@ impl<T: Config> Pallet<T> {
 
 	fn generate_peer_id(node_identity: &NodeId) -> Result<PeerId, Error<T>> {
 		log::info!("Incoming Vec: {:?}", node_identity);
-		let node_identity_str =
-			sp_std::str::from_utf8(node_identity).map_err(|_| Error::<T>::InvalidUtf8)?;
-		log::info!("Node Identity String : {:?}", node_identity_str);
-		let decoded_vec = node_identity_str.from_base58().map_err(|_| {
-			// Log the error for debugging; remove this in production code
-			Error::<T>::InvalidNodeIdentifier
-		})?;
+		let encoded = sp_std::str::from_utf8(node_identity).map_err(|_| Error::<T>::InvalidUtf8)?;
+		log::info!("Incoming Vec String: {:?}", encoded);
+		let decoded = bs58::decode(encoded)
+			.into_vec()
+			.map_err(|_| Error::<T>::InvalidNodeIdentifier)?;
 
-		log::info!("Decoded Vec : {:?}", decoded_vec);
-		// let decoded_vec = bs58::decode(node_identity_str).into_vec().map_err(|_| {
-		// 	// 	// Log the error for debugging; remove this in production code
-		// 	Error::<T>::InvalidNodeIdentifier
-		// })?;
-		// .map_err(|_| Error::<T>::InvalidNodeIdentifier)?;
-		let node = PeerId(decoded_vec);
+		let node = PeerId(decoded);
 
-		log::info!("Node Identity : {:?}", node);
 		Ok(node)
 	}
 }

@@ -631,7 +631,6 @@ parameter_types! {
 	pub const MaxWellKnownNodes: u32 = 1_000;
 	pub const MaxPeerIdLength: u32 = 128;
 	pub const MaxNodeIdLength: u32 = 53;
-	pub const MaxConnectionRequests: u32 = 10;
 }
 
 impl pallet_node_authorization::Config for Runtime {
@@ -639,7 +638,6 @@ impl pallet_node_authorization::Config for Runtime {
 	type MaxWellKnownNodes = MaxWellKnownNodes;
 	type MaxPeerIdLength = MaxPeerIdLength;
 	type MaxNodeIdLength = MaxNodeIdLength;
-	type MaxConnectionRequests = MaxConnectionRequests;
 	type NodeAuthorizationOrigin = MoreThanHalfCouncil;
 	type WeightInfo = ();
 }
