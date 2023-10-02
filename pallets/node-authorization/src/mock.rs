@@ -1,19 +1,22 @@
-// This file is part of Substrate.
+// This file is part of CORD – https://cord.network
 
 // Copyright (C) Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Adapted to meet the requirements of the CORD project.
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! Test environment for node-authorization pallet.
 
@@ -84,32 +87,48 @@ ord_parameter_types! {
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type MaxWellKnownNodes = ConstU32<5>;
-	type MaxNodeIdLength = ConstU32<3>;
-	type MaxPeerIdLength = ConstU32<3>;
+	type MaxWellKnownNodes = ConstU32<4>;
+	type MaxNodeIdLength = ConstU32<54>;
+	type MaxPeerIdLength = ConstU32<128>;
 	type NodeAuthorizationOrigin = EnsureSignedBy<One, u64>;
 	type WeightInfo = ();
 }
 
-pub fn test_node(input: &str) -> Vec<u8> {
-	let base58_encoded = bs58::encode(input).into_string();
+// Constants for test parameters
+pub const TEST_NODE_1: &str = "12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2";
+pub const TEST_NODE_2: &str = "12D3KooWQYV9dGMFoRzNStwpXztXaBUjtPqi6aU76ZgUriHhKust";
+pub const TEST_NODE_3: &str = "12D3KooWJvyP3VJYymTqG7eH4PM5rN4T2agk5cdNCfNymAqwqcvZ";
+pub const TEST_NODE_4: &str = "12D3KooWFMNXNsQtDX5CS9Fw25WcH8JRwQALmKm1XJ5dKEZgencc";
+pub const TEST_NODE_5: &str = "12D3KooWCzvmH8ehWaPttWVzj1ERB1FvMqVcqfDRvwLqzJDAqBih";
+pub const TEST_NODE_6: &str = "12D3KooW9tw9VUZkysjCwBpJo8ArH9TsgUWZhFqqUtii6VfTCvL6";
+pub const TEST_NODE_LEN: &str = "12D3KooWCzvmH8ehWaPttWVzj1ERB1FvMqVcqfDRvwLqzJDAqBih8123w";
 
-	base58_encoded.as_bytes().to_vec()
+pub fn test_node(input: &str) -> NodeId {
+	input.as_bytes().to_vec()
+}
+
+pub fn generate_peer(input: &str) -> PeerId {
+	let node_id = test_node(input);
+	Pallet::<Test>::generate_peer_id(&node_id).unwrap()
 }
 
 pub fn genesis_node(id: u8) -> PeerId {
 	PeerId(vec![id])
 }
 
-pub fn test_node_id(id: u8) -> BoundedVec<u8, ConstU32<3>> {
-	BoundedVec::try_from(vec![id]).unwrap()
+pub fn test_node_id(id: &str) -> BoundedVec<u8, ConstU32<54>> {
+	let node_id = id.as_bytes().to_vec();
+	BoundedVec::try_from(node_id).unwrap()
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	pallet_node_authorization::GenesisConfig::<Test> {
-		nodes: vec![(genesis_node(10), 10), (genesis_node(20), 20), (genesis_node(30), 30)],
-		// nodes: vec![(PeerId(bs58::decode("10").into_vec().unwrap()), 10)],
+		nodes: vec![
+			(test_node(TEST_NODE_1), 10),
+			(test_node(TEST_NODE_2), 20),
+			(test_node(TEST_NODE_3), 30),
+		],
 	}
 	.assimilate_storage(&mut t)
 	.unwrap();

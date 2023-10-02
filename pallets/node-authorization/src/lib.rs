@@ -1,19 +1,22 @@
-// This file is part of Substrate.
+// This file is part of CORD – https://cord.network
 
 // Copyright (C) Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Adapted to meet the requirements of the CORD project.
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! # Node authorization pallet
 //!
@@ -23,9 +26,7 @@
 //!
 //! - a set of well known nodes across different organizations in which the
 //! connections are allowed.
-//! - users can claim the ownership for each node, then manage the connections
-//!   of
-//! the node.
+//! - users can manage the connections of the node.
 //!
 //! A node must have an owner. The owner can additionally change the connections
 //! for the node. Only one user is allowed to claim a specific node. To
@@ -38,17 +39,18 @@
 
 // Ensure we're `no_std` when compiling for Wasm.
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::unused_unit)]
+
+#[cfg(any(feature = "mock", test))]
+pub mod mock;
 
 #[cfg(test)]
-mod mock;
-#[cfg(test)]
-mod tests;
+pub mod tests;
 
 pub mod types;
 pub mod weights;
 
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
-use base58::FromBase58;
 use cord_primitives::NodeId;
 use sp_core::OpaquePeerId as PeerId;
 use sp_runtime::traits::StaticLookup;
@@ -66,7 +68,6 @@ pub mod pallet {
 
 	pub type NodeIdOf<T> = BoundedVec<u8, <T as Config>::MaxNodeIdLength>;
 
-	/// Type for a schema entry
 	pub type NodeInfoOf<T> = NodeInfo<NodeIdOf<T>, AccountIdOf<T>>;
 
 	#[pallet::pallet]
@@ -117,7 +118,7 @@ pub mod pallet {
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
-		pub nodes: Vec<(PeerId, T::AccountId)>,
+		pub nodes: Vec<(NodeId, T::AccountId)>,
 	}
 
 	#[pallet::genesis_build]
@@ -165,8 +166,6 @@ pub mod pallet {
 		NotExist,
 		/// The node is already claimed by a user.
 		AlreadyClaimed,
-		/// The node hasn't been claimed yet.
-		NotClaimed,
 		/// You are not the owner of the node.
 		NotOwner,
 		/// No permisson to perform specific operation.
@@ -234,10 +233,9 @@ pub mod pallet {
 			ensure!(node.0.len() < T::MaxPeerIdLength::get() as usize, Error::<T>::PeerIdTooLong);
 
 			let mut nodes = WellKnownNodes::<T>::get();
-			ensure!(nodes.len() < T::MaxWellKnownNodes::get() as usize, Error::<T>::TooManyNodes);
 			ensure!(!nodes.contains(&node), Error::<T>::AlreadyJoined);
 			ensure!(!Owners::<T>::contains_key(&node), Error::<T>::AlreadyClaimed);
-
+			ensure!(nodes.len() < T::MaxWellKnownNodes::get() as usize, Error::<T>::TooManyNodes);
 			nodes.insert(node.clone());
 
 			WellKnownNodes::<T>::put(&nodes);
@@ -314,9 +312,17 @@ pub mod pallet {
 
 			nodes.remove(&remove);
 			nodes.insert(add.clone());
-
 			WellKnownNodes::<T>::put(&nodes);
-			Owners::<T>::swap(&remove, &add);
+
+			let node_id_bytes: BoundedVec<u8, T::MaxNodeIdLength> =
+				BoundedVec::try_from(add_id.clone()).map_err(|_| Error::<T>::NodeIdTooLong)?;
+
+			Owners::<T>::remove(&remove);
+			Owners::<T>::insert(
+				&add,
+				NodeInfoOf::<T> { id: node_id_bytes, owner: node_info.owner },
+			);
+
 			AdditionalConnections::<T>::swap(&remove, &add);
 
 			Self::deposit_event(Event::NodeSwapped { removed: remove_id, added: add_id });
@@ -337,10 +343,11 @@ pub mod pallet {
 			let sender = ensure_signed(origin)?;
 			let owner = T::Lookup::lookup(owner)?;
 
+			ensure!(node_id.len() < T::MaxNodeIdLength::get() as usize, Error::<T>::NodeIdTooLong);
 			let node = Self::generate_peer_id(&node_id)?;
 
 			ensure!(node.0.len() < T::MaxPeerIdLength::get() as usize, Error::<T>::PeerIdTooLong);
-			let node_info = Owners::<T>::get(&node).ok_or(Error::<T>::NotClaimed)?;
+			let node_info = Owners::<T>::get(&node).ok_or(Error::<T>::NotExist)?;
 			ensure!(node_info.owner == sender, Error::<T>::NotOwner);
 
 			let node_id_bytes: BoundedVec<u8, T::MaxNodeIdLength> =
@@ -366,10 +373,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 
+			ensure!(node_id.len() < T::MaxNodeIdLength::get() as usize, Error::<T>::NodeIdTooLong);
 			let node = Self::generate_peer_id(&node_id)?;
 			ensure!(node.0.len() < T::MaxPeerIdLength::get() as usize, Error::<T>::PeerIdTooLong);
 
-			let node_info = Owners::<T>::get(&node).ok_or(Error::<T>::NotClaimed)?;
+			let node_info = Owners::<T>::get(&node).ok_or(Error::<T>::NotExist)?;
 			ensure!(node_info.owner == sender, Error::<T>::NotOwner);
 
 			let connection = Self::generate_peer_id(&connection_id)?;
@@ -403,9 +411,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 
+			ensure!(node_id.len() < T::MaxNodeIdLength::get() as usize, Error::<T>::NodeIdTooLong);
 			let node = Self::generate_peer_id(&node_id)?;
 			ensure!(node.0.len() < T::MaxPeerIdLength::get() as usize, Error::<T>::PeerIdTooLong);
-			let node_info = Owners::<T>::get(&node).ok_or(Error::<T>::NotClaimed)?;
+
+			let node_info = Owners::<T>::get(&node).ok_or(Error::<T>::NotExist)?;
 			ensure!(node_info.owner == sender, Error::<T>::NotOwner);
 
 			let connection = Self::generate_peer_id(&connection_id)?;
@@ -427,23 +437,38 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn initialize_nodes(nodes: &[(PeerId, T::AccountId)]) {
-		let peer_ids = nodes.iter().map(|item| item.0.clone()).collect::<BTreeSet<PeerId>>();
+	fn initialize_nodes(nodes: &[(NodeId, T::AccountId)]) {
+		let peer_ids: BTreeSet<PeerId> = nodes
+			.iter()
+			.filter_map(|(node_id, _)| match Self::generate_peer_id(node_id) {
+				Ok(peer_id) => Some(peer_id),
+				Err(e) => {
+					log::error!("Failed to generate PeerId from NodeId: {:?}", e);
+					None
+				},
+			})
+			.collect();
 
-		WellKnownNodes::<T>::put(&peer_ids);
+		WellKnownNodes::<T>::put(peer_ids);
 
-		for (node, who) in nodes.iter() {
-			let base58_str = bs58::encode(node.0.clone()).into_string();
-			if let Ok(node_id_bytes) = frame_support::BoundedVec::try_from(base58_str.into_bytes())
-			{
-				<Owners<T>>::insert(
-					node,
-					NodeInfoOf::<T> { id: node_id_bytes, owner: who.clone() },
-				);
+		nodes.iter().for_each(|(node_id, who)| {
+			if let Ok(encoded) = sp_std::str::from_utf8(node_id) {
+				if let Ok(node_id_bytes) =
+					frame_support::BoundedVec::try_from(encoded.as_bytes().to_vec())
+				{
+					if let Ok(peer_id) = Self::generate_peer_id(node_id) {
+						<Owners<T>>::insert(
+							peer_id,
+							NodeInfoOf::<T> { id: node_id_bytes, owner: who.clone() },
+						);
+					}
+				} else {
+					log::error!("Node ownership update failed!");
+				}
 			} else {
-				log::error!("Node ownership update failed!")
+				log::error!("Invalid UTF-8 in NodeId");
 			}
-		}
+		});
 	}
 
 	fn get_authorized_nodes(node: &PeerId) -> Vec<PeerId> {
@@ -459,9 +484,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn generate_peer_id(node_identity: &NodeId) -> Result<PeerId, Error<T>> {
-		log::info!("Incoming Vec: {:?}", node_identity);
 		let encoded = sp_std::str::from_utf8(node_identity).map_err(|_| Error::<T>::InvalidUtf8)?;
-		log::info!("Incoming Vec String: {:?}", encoded);
 		let decoded = bs58::decode(encoded)
 			.into_vec()
 			.map_err(|_| Error::<T>::InvalidNodeIdentifier)?;

@@ -1,19 +1,22 @@
-// This file is part of Substrate.
+// This file is part of CORD – https://cord.network
 
 // Copyright (C) Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Adapted to meet the requirements of the CORD project.
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! Tests for node-authorization pallet.
 
@@ -25,35 +28,19 @@ use sp_runtime::traits::BadOrigin;
 #[test]
 fn check_genesis_well_known_nodes() {
 	new_test_ext().execute_with(|| {
-		assert_eq!(
-			WellKnownNodes::<Test>::get(),
-			BTreeSet::from_iter(vec![genesis_node(10), genesis_node(20), genesis_node(30)])
-		);
+		let expected_nodes = vec![
+			generate_peer(TEST_NODE_1),
+			generate_peer(TEST_NODE_2),
+			generate_peer(TEST_NODE_3),
+		];
+		let expected_set: BTreeSet<PeerId> = expected_nodes.into_iter().collect();
 
-		let owner_info = Owners::<Test>::get(genesis_node(10));
-		println!("Genesis Node: {:?}", owner_info);
+		assert_eq!(WellKnownNodes::<Test>::get(), expected_set);
 
 		assert_eq!(
-			Owners::<Test>::get(genesis_node(10)),
-			Some(NodeInfo { id: test_node_id("10"), owner: 10 })
+			Owners::<Test>::get(generate_peer(TEST_NODE_1)),
+			Some(NodeInfo { id: test_node_id(TEST_NODE_1), owner: 10 })
 		);
-		// assert_eq!(
-		// 	Owners::<Test>::get(test_node(20)),
-		// 	Some(NodeInfo { id: test_node_id(20), owner: 20 })
-		// );
-		// assert_eq!(
-		// 	Owners::<Test>::get(test_node(30)),
-		// 	Some(NodeInfo { id: test_node_id(30), owner: 30 })
-		// );
-		// assert_eq!(
-		// 	Owners::<Test>::get(test_node(15)),
-		// 	Some(NodeInfo { id: test_node_id(15), owner: 15 })
-		// );
-		//
-		// assert_noop!(
-		// 	NodeAuthorization::add_well_known_node(RuntimeOrigin::signed(1),
-		// vec![25], 25), 	Error::<Test>::TooManyNodes
-		// );
 	});
 }
 
@@ -61,376 +48,347 @@ fn check_genesis_well_known_nodes() {
 fn add_well_known_node_works() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			NodeAuthorization::add_well_known_node(RuntimeOrigin::signed(2), vec![15], 15),
+			NodeAuthorization::add_well_known_node(
+				RuntimeOrigin::signed(2),
+				test_node(TEST_NODE_4),
+				15
+			),
 			BadOrigin
 		);
 		assert_noop!(
-			NodeAuthorization::add_well_known_node(RuntimeOrigin::signed(1), vec![1, 2, 3, 4], 15),
+			NodeAuthorization::add_well_known_node(
+				RuntimeOrigin::signed(1),
+				test_node(TEST_NODE_LEN),
+				15
+			),
 			Error::<Test>::NodeIdTooLong
 		);
 		assert_ok!(NodeAuthorization::add_well_known_node(
 			RuntimeOrigin::signed(1),
-			test_node("20"),
+			test_node(TEST_NODE_4),
 			20
 		));
 		assert_noop!(
-			NodeAuthorization::add_well_known_node(RuntimeOrigin::signed(1), test_node("20"), 20),
+			NodeAuthorization::add_well_known_node(
+				RuntimeOrigin::signed(1),
+				test_node(TEST_NODE_4),
+				20
+			),
 			Error::<Test>::AlreadyJoined
 		);
 
-		// assert_eq!(
-		// 	WellKnownNodes::<Test>::get(),
-		// 	BTreeSet::from_iter(vec![test_node(10), test_node(15), test_node(20),
-		// test_node(30)]) );
-		//
-		// assert_eq!(
-		// 	Owners::<Test>::get(test_node(10)),
-		// 	Some(NodeInfo { id: test_node_id(10), owner: 10 })
-		// );
-		// assert_eq!(
-		// 	Owners::<Test>::get(test_node(20)),
-		// 	Some(NodeInfo { id: test_node_id(20), owner: 20 })
-		// );
-		// assert_eq!(
-		// 	Owners::<Test>::get(test_node(30)),
-		// 	Some(NodeInfo { id: test_node_id(30), owner: 30 })
-		// );
-		// assert_eq!(
-		// 	Owners::<Test>::get(test_node(15)),
-		// 	Some(NodeInfo { id: test_node_id(15), owner: 15 })
-		// );
-		//
-		// assert_noop!(
-		// 	NodeAuthorization::add_well_known_node(RuntimeOrigin::signed(1),
-		// vec![25], 25), 	Error::<Test>::TooManyNodes
-		// );
+		assert_eq!(
+			Owners::<Test>::get(generate_peer(TEST_NODE_4)),
+			Some(NodeInfo { id: test_node_id(TEST_NODE_4), owner: 20 })
+		);
+
+		assert_noop!(
+			NodeAuthorization::add_well_known_node(
+				RuntimeOrigin::signed(1),
+				test_node(TEST_NODE_5),
+				25
+			),
+			Error::<Test>::TooManyNodes
+		);
 	});
 }
 
-// #[test]
-// fn remove_well_known_node_works() {
-// 	new_test_ext().execute_with(|| {
-// 		assert_noop!(
-// 			NodeAuthorization::remove_well_known_node(RuntimeOrigin::signed(3),
-// test_node(20)), 			BadOrigin
-// 		);
-// 		assert_noop!(
-// 			NodeAuthorization::remove_well_known_node(
-// 				RuntimeOrigin::signed(2),
-// 				PeerId(vec![1, 2, 3])
-// 			),
-// 			Error::<Test>::PeerIdTooLong
-// 		);
-// 		assert_noop!(
-// 			NodeAuthorization::remove_well_known_node(RuntimeOrigin::signed(2),
-// test_node(40)), 			Error::<Test>::NotExist
-// 		);
-//
-// 		AdditionalConnections::<Test>::insert(
-// 			test_node(20),
-// 			BTreeSet::from_iter(vec![test_node(40)]),
-// 		);
-// 		assert!(AdditionalConnections::<Test>::contains_key(test_node(20)));
-//
-// 		assert_ok!(NodeAuthorization::remove_well_known_node(
-// 			RuntimeOrigin::signed(2),
-// 			test_node(20)
-// 		));
-// 		assert_eq!(
-// 			WellKnownNodes::<Test>::get(),
-// 			BTreeSet::from_iter(vec![test_node(10), test_node(30)])
-// 		);
-// 		assert!(!Owners::<Test>::contains_key(test_node(20)));
-// 		assert!(!AdditionalConnections::<Test>::contains_key(test_node(20)));
-// 	});
-// }
-//
-// #[test]
-// fn swap_well_known_node_works() {
-// 	new_test_ext().execute_with(|| {
-// 		assert_noop!(
-// 			NodeAuthorization::swap_well_known_node(
-// 				RuntimeOrigin::signed(4),
-// 				test_node(20),
-// 				test_node(5)
-// 			),
-// 			BadOrigin
-// 		);
-// 		assert_noop!(
-// 			NodeAuthorization::swap_well_known_node(
-// 				RuntimeOrigin::signed(3),
-// 				PeerId(vec![1, 2, 3]),
-// 				test_node(20)
-// 			),
-// 			Error::<Test>::PeerIdTooLong
-// 		);
-// 		assert_noop!(
-// 			NodeAuthorization::swap_well_known_node(
-// 				RuntimeOrigin::signed(3),
-// 				test_node(20),
-// 				PeerId(vec![1, 2, 3])
-// 			),
-// 			Error::<Test>::PeerIdTooLong
-// 		);
-//
-// 		assert_ok!(NodeAuthorization::swap_well_known_node(
-// 			RuntimeOrigin::signed(3),
-// 			test_node(20),
-// 			test_node(20)
-// 		));
-// 		assert_eq!(
-// 			WellKnownNodes::<Test>::get(),
-// 			BTreeSet::from_iter(vec![test_node(10), test_node(20), test_node(30)])
-// 		);
-//
-// 		assert_noop!(
-// 			NodeAuthorization::swap_well_known_node(
-// 				RuntimeOrigin::signed(3),
-// 				test_node(15),
-// 				test_node(5)
-// 			),
-// 			Error::<Test>::NotExist
-// 		);
-// 		assert_noop!(
-// 			NodeAuthorization::swap_well_known_node(
-// 				RuntimeOrigin::signed(3),
-// 				test_node(20),
-// 				test_node(30)
-// 			),
-// 			Error::<Test>::AlreadyJoined
-// 		);
-//
-// 		AdditionalConnections::<Test>::insert(
-// 			test_node(20),
-// 			BTreeSet::from_iter(vec![test_node(15)]),
-// 		);
-// 		assert_ok!(NodeAuthorization::swap_well_known_node(
-// 			RuntimeOrigin::signed(3),
-// 			test_node(20),
-// 			test_node(5)
-// 		));
-// 		assert_eq!(
-// 			WellKnownNodes::<Test>::get(),
-// 			BTreeSet::from_iter(vec![test_node(5), test_node(10), test_node(30)])
-// 		);
-// 		assert!(!Owners::<Test>::contains_key(test_node(20)));
-// 		assert_eq!(Owners::<Test>::get(test_node(5)), Some(20));
-// 		assert!(!AdditionalConnections::<Test>::contains_key(test_node(20)));
-// 		assert_eq!(
-// 			AdditionalConnections::<Test>::get(test_node(5)),
-// 			BTreeSet::from_iter(vec![test_node(15)])
-// 		);
-// 	});
-// }
-//
-// #[test]
-// fn reset_well_known_nodes_works() {
-// 	new_test_ext().execute_with(|| {
-// 		assert_noop!(
-// 			NodeAuthorization::reset_well_known_nodes(
-// 				RuntimeOrigin::signed(3),
-// 				vec![(test_node(15), 15), (test_node(5), 5), (test_node(20), 20)]
-// 			),
-// 			BadOrigin
-// 		);
-// 		assert_noop!(
-// 			NodeAuthorization::reset_well_known_nodes(
-// 				RuntimeOrigin::signed(4),
-// 				vec![
-// 					(test_node(15), 15),
-// 					(test_node(5), 5),
-// 					(test_node(20), 20),
-// 					(test_node(25), 25),
-// 				]
-// 			),
-// 			Error::<Test>::TooManyNodes
-// 		);
-//
-// 		assert_ok!(NodeAuthorization::reset_well_known_nodes(
-// 			RuntimeOrigin::signed(4),
-// 			vec![(test_node(15), 15), (test_node(5), 5), (test_node(20), 20)]
-// 		));
-// 		assert_eq!(
-// 			WellKnownNodes::<Test>::get(),
-// 			BTreeSet::from_iter(vec![test_node(5), test_node(15), test_node(20)])
-// 		);
-// 		assert_eq!(Owners::<Test>::get(test_node(5)), Some(5));
-// 		assert_eq!(Owners::<Test>::get(test_node(15)), Some(15));
-// 		assert_eq!(Owners::<Test>::get(test_node(20)), Some(20));
-// 	});
-// }
-//
-// #[test]
-// fn claim_node_works() {
-// 	new_test_ext().execute_with(|| {
-// 		assert_noop!(
-// 			NodeAuthorization::claim_node(RuntimeOrigin::signed(1), PeerId(vec![1, 2,
-// 3])), 			Error::<Test>::PeerIdTooLong
-// 		);
-// 		assert_noop!(
-// 			NodeAuthorization::claim_node(RuntimeOrigin::signed(1), test_node(20)),
-// 			Error::<Test>::AlreadyClaimed
-// 		);
-//
-// 		assert_ok!(NodeAuthorization::claim_node(RuntimeOrigin::signed(15),
-// test_node(15))); 		assert_eq!(Owners::<Test>::get(test_node(15)), Some(15));
-// 	});
-// }
-//
-// #[test]
-// fn remove_claim_works() {
-// 	new_test_ext().execute_with(|| {
-// 		assert_noop!(
-// 			NodeAuthorization::remove_claim(RuntimeOrigin::signed(15), PeerId(vec![1, 2,
-// 3])), 			Error::<Test>::PeerIdTooLong
-// 		);
-// 		assert_noop!(
-// 			NodeAuthorization::remove_claim(RuntimeOrigin::signed(15), test_node(15)),
-// 			Error::<Test>::NotClaimed
-// 		);
-//
-// 		assert_noop!(
-// 			NodeAuthorization::remove_claim(RuntimeOrigin::signed(15), test_node(20)),
-// 			Error::<Test>::NotOwner
-// 		);
-//
-// 		assert_noop!(
-// 			NodeAuthorization::remove_claim(RuntimeOrigin::signed(20), test_node(20)),
-// 			Error::<Test>::PermissionDenied
-// 		);
-//
-// 		Owners::<Test>::insert(test_node(15), 15);
-// 		AdditionalConnections::<Test>::insert(
-// 			test_node(15),
-// 			BTreeSet::from_iter(vec![test_node(20)]),
-// 		);
-// 		assert_ok!(NodeAuthorization::remove_claim(RuntimeOrigin::signed(15),
-// test_node(15))); 		assert!(!Owners::<Test>::contains_key(test_node(15)));
-// 		assert!(!AdditionalConnections::<Test>::contains_key(test_node(15)));
-// 	});
-// }
-//
-// #[test]
-// fn transfer_node_works() {
-// 	new_test_ext().execute_with(|| {
-// 		assert_noop!(
-// 			NodeAuthorization::transfer_node(RuntimeOrigin::signed(15), PeerId(vec![1, 2,
-// 3]), 10), 			Error::<Test>::PeerIdTooLong
-// 		);
-// 		assert_noop!(
-// 			NodeAuthorization::transfer_node(RuntimeOrigin::signed(15), test_node(15),
-// 10), 			Error::<Test>::NotClaimed
-// 		);
-//
-// 		assert_noop!(
-// 			NodeAuthorization::transfer_node(RuntimeOrigin::signed(15), test_node(20),
-// 10), 			Error::<Test>::NotOwner
-// 		);
-//
-// 		assert_ok!(NodeAuthorization::transfer_node(RuntimeOrigin::signed(20),
-// test_node(20), 15)); 		assert_eq!(Owners::<Test>::get(test_node(20)),
-// Some(15)); 	});
-// }
-//
-// #[test]
-// fn add_connections_works() {
-// 	new_test_ext().execute_with(|| {
-// 		assert_noop!(
-// 			NodeAuthorization::add_connections(
-// 				RuntimeOrigin::signed(15),
-// 				PeerId(vec![1, 2, 3]),
-// 				vec![test_node(5)]
-// 			),
-// 			Error::<Test>::PeerIdTooLong
-// 		);
-// 		assert_noop!(
-// 			NodeAuthorization::add_connections(
-// 				RuntimeOrigin::signed(15),
-// 				test_node(15),
-// 				vec![test_node(5)]
-// 			),
-// 			Error::<Test>::NotClaimed
-// 		);
-//
-// 		assert_noop!(
-// 			NodeAuthorization::add_connections(
-// 				RuntimeOrigin::signed(15),
-// 				test_node(20),
-// 				vec![test_node(5)]
-// 			),
-// 			Error::<Test>::NotOwner
-// 		);
-//
-// 		assert_ok!(NodeAuthorization::add_connections(
-// 			RuntimeOrigin::signed(20),
-// 			test_node(20),
-// 			vec![test_node(15), test_node(5), test_node(25), test_node(20)]
-// 		));
-// 		assert_eq!(
-// 			AdditionalConnections::<Test>::get(test_node(20)),
-// 			BTreeSet::from_iter(vec![test_node(5), test_node(15), test_node(25)])
-// 		);
-// 	});
-// }
-//
-// #[test]
-// fn remove_connections_works() {
-// 	new_test_ext().execute_with(|| {
-// 		assert_noop!(
-// 			NodeAuthorization::remove_connections(
-// 				RuntimeOrigin::signed(15),
-// 				PeerId(vec![1, 2, 3]),
-// 				vec![test_node(5)]
-// 			),
-// 			Error::<Test>::PeerIdTooLong
-// 		);
-// 		assert_noop!(
-// 			NodeAuthorization::remove_connections(
-// 				RuntimeOrigin::signed(15),
-// 				test_node(15),
-// 				vec![test_node(5)]
-// 			),
-// 			Error::<Test>::NotClaimed
-// 		);
-//
-// 		assert_noop!(
-// 			NodeAuthorization::remove_connections(
-// 				RuntimeOrigin::signed(15),
-// 				test_node(20),
-// 				vec![test_node(5)]
-// 			),
-// 			Error::<Test>::NotOwner
-// 		);
-//
-// 		AdditionalConnections::<Test>::insert(
-// 			test_node(20),
-// 			BTreeSet::from_iter(vec![test_node(5), test_node(15), test_node(25)]),
-// 		);
-// 		assert_ok!(NodeAuthorization::remove_connections(
-// 			RuntimeOrigin::signed(20),
-// 			test_node(20),
-// 			vec![test_node(15), test_node(5)]
-// 		));
-// 		assert_eq!(
-// 			AdditionalConnections::<Test>::get(test_node(20)),
-// 			BTreeSet::from_iter(vec![test_node(25)])
-// 		);
-// 	});
-// }
-//
-// #[test]
-// fn get_authorized_nodes_works() {
-// 	new_test_ext().execute_with(|| {
-// 		AdditionalConnections::<Test>::insert(
-// 			test_node(20),
-// 			BTreeSet::from_iter(vec![test_node(5), test_node(15), test_node(25)]),
-// 		);
-//
-// 		let mut authorized_nodes =
-// Pallet::<Test>::get_authorized_nodes(&test_node(20)); 		authorized_nodes.
-// sort(); 		assert_eq!(
-// 			authorized_nodes,
-// 			vec![test_node(5), test_node(10), test_node(15), test_node(25),
-// test_node(30)] 		);
-// 	});
-// }
+#[test]
+fn remove_well_known_node_works() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			NodeAuthorization::remove_well_known_node(
+				RuntimeOrigin::signed(3),
+				test_node(TEST_NODE_1)
+			),
+			BadOrigin
+		);
+		assert_noop!(
+			NodeAuthorization::remove_well_known_node(
+				RuntimeOrigin::signed(1),
+				test_node(TEST_NODE_LEN)
+			),
+			Error::<Test>::NodeIdTooLong
+		);
+		assert_noop!(
+			NodeAuthorization::remove_well_known_node(
+				RuntimeOrigin::signed(1),
+				test_node(TEST_NODE_5)
+			),
+			Error::<Test>::NotExist
+		);
+
+		AdditionalConnections::<Test>::insert(
+			generate_peer(TEST_NODE_1),
+			BTreeSet::from_iter(vec![generate_peer(TEST_NODE_4)]),
+		);
+		assert!(AdditionalConnections::<Test>::contains_key(generate_peer(TEST_NODE_1)));
+
+		assert_ok!(NodeAuthorization::remove_well_known_node(
+			RuntimeOrigin::signed(1),
+			test_node(TEST_NODE_2)
+		));
+
+		let expected_nodes = vec![generate_peer(TEST_NODE_1), generate_peer(TEST_NODE_3)];
+		let expected_set: BTreeSet<PeerId> = expected_nodes.into_iter().collect();
+
+		assert_eq!(WellKnownNodes::<Test>::get(), expected_set);
+
+		assert!(!Owners::<Test>::contains_key(generate_peer(TEST_NODE_2)));
+		assert!(!AdditionalConnections::<Test>::contains_key(generate_peer(TEST_NODE_2)));
+	});
+}
+
+#[test]
+fn swap_well_known_node_works() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			NodeAuthorization::swap_well_known_node(
+				RuntimeOrigin::signed(1),
+				test_node(TEST_NODE_1),
+				test_node(TEST_NODE_5)
+			),
+			Error::<Test>::NotOwner
+		);
+		assert_noop!(
+			NodeAuthorization::swap_well_known_node(
+				RuntimeOrigin::signed(1),
+				test_node(TEST_NODE_LEN),
+				test_node(TEST_NODE_5)
+			),
+			Error::<Test>::NodeIdTooLong
+		);
+		assert_noop!(
+			NodeAuthorization::swap_well_known_node(
+				RuntimeOrigin::signed(3),
+				test_node(TEST_NODE_1),
+				test_node(TEST_NODE_LEN)
+			),
+			Error::<Test>::NodeIdTooLong
+		);
+
+		assert_ok!(NodeAuthorization::swap_well_known_node(
+			RuntimeOrigin::signed(10),
+			test_node(TEST_NODE_1),
+			test_node(TEST_NODE_4)
+		));
+
+		let expected_nodes = vec![
+			generate_peer(TEST_NODE_4),
+			generate_peer(TEST_NODE_2),
+			generate_peer(TEST_NODE_3),
+		];
+		let expected_set: BTreeSet<PeerId> = expected_nodes.into_iter().collect();
+
+		assert_eq!(WellKnownNodes::<Test>::get(), expected_set);
+
+		assert_noop!(
+			NodeAuthorization::swap_well_known_node(
+				RuntimeOrigin::signed(3),
+				test_node(TEST_NODE_5),
+				test_node(TEST_NODE_1)
+			),
+			Error::<Test>::NotExist
+		);
+		assert_noop!(
+			NodeAuthorization::swap_well_known_node(
+				RuntimeOrigin::signed(20),
+				test_node(TEST_NODE_2),
+				test_node(TEST_NODE_3)
+			),
+			Error::<Test>::AlreadyJoined
+		);
+
+		AdditionalConnections::<Test>::insert(
+			generate_peer(TEST_NODE_2),
+			BTreeSet::from_iter(vec![generate_peer(TEST_NODE_4)]),
+		);
+
+		assert_ok!(NodeAuthorization::swap_well_known_node(
+			RuntimeOrigin::signed(20),
+			test_node(TEST_NODE_2),
+			test_node(TEST_NODE_5)
+		));
+
+		let expected_nodes = vec![
+			generate_peer(TEST_NODE_4),
+			generate_peer(TEST_NODE_5),
+			generate_peer(TEST_NODE_3),
+		];
+		let expected_set: BTreeSet<PeerId> = expected_nodes.into_iter().collect();
+
+		assert_eq!(WellKnownNodes::<Test>::get(), expected_set);
+
+		assert!(!Owners::<Test>::contains_key(generate_peer(TEST_NODE_2)));
+		assert!(!AdditionalConnections::<Test>::contains_key(generate_peer(TEST_NODE_2)));
+
+		assert_eq!(
+			Owners::<Test>::get(generate_peer(TEST_NODE_5)),
+			Some(NodeInfo { id: test_node_id(TEST_NODE_5), owner: 20 })
+		);
+
+		assert!(Owners::<Test>::contains_key(generate_peer(TEST_NODE_5)));
+		assert!(AdditionalConnections::<Test>::contains_key(generate_peer(TEST_NODE_5)));
+
+		AdditionalConnections::<Test>::insert(
+			generate_peer(TEST_NODE_5),
+			BTreeSet::from_iter(vec![generate_peer(TEST_NODE_4)]),
+		);
+	});
+}
+
+#[test]
+fn transfer_node_works() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			NodeAuthorization::transfer_node(
+				RuntimeOrigin::signed(15),
+				test_node(TEST_NODE_LEN),
+				10
+			),
+			Error::<Test>::NodeIdTooLong
+		);
+
+		assert_noop!(
+			NodeAuthorization::transfer_node(RuntimeOrigin::signed(15), test_node(TEST_NODE_2), 10),
+			Error::<Test>::NotOwner
+		);
+
+		assert_ok!(NodeAuthorization::transfer_node(
+			RuntimeOrigin::signed(20),
+			test_node(TEST_NODE_2),
+			15
+		));
+		assert_eq!(
+			Owners::<Test>::get(generate_peer(TEST_NODE_2)),
+			Some(NodeInfo { id: test_node_id(TEST_NODE_2), owner: 15 })
+		);
+	});
+}
+
+#[test]
+fn add_connections_works() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			NodeAuthorization::add_connection(
+				RuntimeOrigin::signed(15),
+				test_node(TEST_NODE_LEN),
+				test_node(TEST_NODE_5)
+			),
+			Error::<Test>::NodeIdTooLong
+		);
+		assert_noop!(
+			NodeAuthorization::add_connection(
+				RuntimeOrigin::signed(15),
+				test_node(TEST_NODE_1),
+				test_node(TEST_NODE_5)
+			),
+			Error::<Test>::NotOwner
+		);
+
+		assert_ok!(NodeAuthorization::add_connection(
+			RuntimeOrigin::signed(10),
+			test_node(TEST_NODE_1),
+			test_node(TEST_NODE_4)
+		));
+		assert_ok!(NodeAuthorization::add_connection(
+			RuntimeOrigin::signed(10),
+			test_node(TEST_NODE_1),
+			test_node(TEST_NODE_5)
+		));
+		assert_ok!(NodeAuthorization::add_connection(
+			RuntimeOrigin::signed(10),
+			test_node(TEST_NODE_1),
+			test_node(TEST_NODE_6)
+		));
+		assert_eq!(
+			AdditionalConnections::<Test>::get(generate_peer(TEST_NODE_1)),
+			BTreeSet::from_iter(vec![
+				generate_peer(TEST_NODE_4),
+				generate_peer(TEST_NODE_5),
+				generate_peer(TEST_NODE_6)
+			])
+		);
+	});
+}
+
+#[test]
+fn remove_connections_works() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			NodeAuthorization::remove_connection(
+				RuntimeOrigin::signed(15),
+				test_node(TEST_NODE_LEN),
+				test_node(TEST_NODE_5)
+			),
+			Error::<Test>::NodeIdTooLong
+		);
+
+		assert_noop!(
+			NodeAuthorization::remove_connection(
+				RuntimeOrigin::signed(15),
+				test_node(TEST_NODE_1),
+				test_node(TEST_NODE_5)
+			),
+			Error::<Test>::NotOwner
+		);
+		assert_ok!(NodeAuthorization::add_connection(
+			RuntimeOrigin::signed(10),
+			test_node(TEST_NODE_1),
+			test_node(TEST_NODE_4)
+		));
+		assert_ok!(NodeAuthorization::add_connection(
+			RuntimeOrigin::signed(10),
+			test_node(TEST_NODE_1),
+			test_node(TEST_NODE_5)
+		));
+		assert_ok!(NodeAuthorization::add_connection(
+			RuntimeOrigin::signed(10),
+			test_node(TEST_NODE_1),
+			test_node(TEST_NODE_6)
+		));
+
+		assert_ok!(NodeAuthorization::remove_connection(
+			RuntimeOrigin::signed(10),
+			test_node(TEST_NODE_1),
+			test_node(TEST_NODE_5)
+		));
+		assert_eq!(
+			AdditionalConnections::<Test>::get(generate_peer(TEST_NODE_1)),
+			BTreeSet::from_iter(vec![generate_peer(TEST_NODE_4), generate_peer(TEST_NODE_6)])
+		);
+	});
+}
+
+#[test]
+fn get_authorized_nodes_works() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(NodeAuthorization::add_connection(
+			RuntimeOrigin::signed(10),
+			test_node(TEST_NODE_1),
+			test_node(TEST_NODE_4)
+		));
+		assert_ok!(NodeAuthorization::add_connection(
+			RuntimeOrigin::signed(10),
+			test_node(TEST_NODE_1),
+			test_node(TEST_NODE_5)
+		));
+		assert_ok!(NodeAuthorization::add_connection(
+			RuntimeOrigin::signed(10),
+			test_node(TEST_NODE_1),
+			test_node(TEST_NODE_6)
+		));
+
+		let authorized_nodes = Pallet::<Test>::get_authorized_nodes(&generate_peer(TEST_NODE_1));
+		assert_eq!(
+			authorized_nodes,
+			vec![
+				generate_peer(TEST_NODE_6),
+				generate_peer(TEST_NODE_5),
+				generate_peer(TEST_NODE_4),
+				generate_peer(TEST_NODE_3),
+				generate_peer(TEST_NODE_2),
+			]
+		);
+	});
+}
