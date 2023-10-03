@@ -18,12 +18,12 @@
 
 //! CORD chain configurations.
 
-pub use cord_primitives::{AccountId, Balance, Signature};
+pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 pub use cord_runtime::GenesisConfig;
 use cord_runtime::{
 	AuthorityDiscoveryConfig, AuthorityMembershipConfig, BabeConfig, Block,
-	CouncilMembershipConfig, IndicesConfig, NetworkMembershipConfig, SessionConfig, SessionKeys,
-	SudoConfig, SystemConfig, TechnicalMembershipConfig,
+	CouncilMembershipConfig, IndicesConfig, NetworkMembershipConfig, NodeAuthorizationConfig,
+	SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalMembershipConfig,
 };
 use network_membership::MemberData;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -35,6 +35,7 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
+
 type AccountPublic = <Signature as Verify>::Signer;
 
 pub use cord_runtime_constants::{currency::*, time::*};
@@ -127,6 +128,10 @@ fn cord_dev_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
 	cord_local_genesis(
 		wasm_binary,
 		vec![get_authority_keys_from_seed("Alice")],
+		vec![(
+			b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
+			get_account_id_from_seed::<sr25519::Public>("Alice"),
+		)],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 	)
 }
@@ -138,6 +143,24 @@ fn cord_local_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig 
 			get_authority_keys_from_seed("Alice"),
 			get_authority_keys_from_seed("Bob"),
 			get_authority_keys_from_seed("Charlie"),
+		],
+		vec![
+			(
+				b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+			),
+			(
+				b"12D3KooWQYV9dGMFoRzNStwpXztXaBUjtPqi6aU76ZgUriHhKust".to_vec(),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+			),
+			(
+				b"12D3KooWJvyP3VJYymTqG7eH4PM5rN4T2agk5cdNCfNymAqwqcvZ".to_vec(),
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+			),
+			(
+				b"12D3KooWPHWFrfaJzxPnqnAYAoRUyAHHKqACmEycGTVmeVhQYuZN".to_vec(),
+				get_account_id_from_seed::<sr25519::Public>("Dave"),
+			),
 		],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 	)
@@ -161,7 +184,10 @@ pub fn cord_dev_config() -> Result<CordChainSpec, String> {
 }
 
 pub fn cord_local_config() -> Result<CordChainSpec, String> {
-	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
+	let wasm_binary = cord_runtime::WASM_BINARY.ok_or(
+		"CORD development wasm not
+available",
+	)?;
 	let properties = get_properties("WAY", 12, 29);
 	Ok(CordChainSpec::from_genesis(
 		"Cord Spin",
@@ -192,12 +218,16 @@ pub fn cord_builder_config() -> Result<CordChainSpec, String> {
 fn cord_local_genesis(
 	wasm_binary: &[u8],
 	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
+	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
 ) -> GenesisConfig {
 	GenesisConfig {
 		system: SystemConfig { code: wasm_binary.to_vec() },
 		balances: Default::default(),
 		indices: IndicesConfig { indices: vec![] },
+		node_authorization: NodeAuthorizationConfig {
+			nodes: initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect(),
+		},
 		network_membership: NetworkMembershipConfig {
 			members: member_accounts()
 				.into_iter()

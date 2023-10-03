@@ -9,16 +9,14 @@ repository = "https://github.com/dhiway/cord"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.4.0", default-features = false, features = [
-  "derive",
-  "max-encoded-len",
+	"derive",
+	"max-encoded-len",
 ] }
 scale-info = { version = "2.5.0", default-features = false, features = [
-  "derive",
+	"derive",
 ] }
 base58 = "0.2.0"
 blake2-rfc = { version = "0.2.18", default-features = false }
-
-
 sp-core = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 frame-support = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
 sp-runtime = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
@@ -27,10 +25,10 @@ sp-std = { git = "https://github.com/dhiway/substrate", default-features = false
 [features]
 default = ["std"]
 std = [
-  "codec/std",
-  "scale-info/std",
-  "frame-support/std",
-  "sp-core/std",
-  "sp-runtime/std",
-  "sp-std/std",
+	"codec/std",
+	"scale-info/std",
+	"frame-support/std",
+	"sp-core/std",
+	"sp-runtime/std",
+	"sp-std/std",
 ]
