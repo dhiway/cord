@@ -80,7 +80,7 @@ pub mod pallet {
 		StreamCommitActionOf,
 		StreamDigestOf<T>,
 		StreamCreatorIdOf<T>,
-		BlockNumberOf<T>,
+		BlockNumberFor<T>,
 	>;
 
 	#[pallet::config]
