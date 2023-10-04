@@ -18,12 +18,9 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use codec::MaxEncodedLen;
+use codec::{Decode, Encode, MaxEncodedLen};
 use cord_utilities::traits::CallSources;
-use frame_support::{
-	codec::{Decode, Encode},
-	traits::EnsureOrigin,
-};
+use frame_support::traits::EnsureOrigin;
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 use sp_std::marker::PhantomData;

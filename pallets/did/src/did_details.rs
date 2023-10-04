@@ -23,8 +23,9 @@ use frame_support::{
 	ensure,
 	storage::{bounded_btree_map::BoundedBTreeMap, bounded_btree_set::BoundedBTreeSet},
 	traits::Get,
-	RuntimeDebug,
 };
+use sp_runtime::RuntimeDebug;
+
 use scale_info::TypeInfo;
 use sp_core::{ecdsa, ed25519, sr25519};
 use sp_runtime::{
@@ -38,6 +39,7 @@ use crate::{
 	utils, AccountIdOf, BlockNumberOf, Config, DidAuthorizedCallOperationOf, DidCreationDetailsOf,
 	KeyIdOf, Payload,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
 
 /// Public verification key that a DID can control.
 #[derive(

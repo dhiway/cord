@@ -163,9 +163,6 @@ pub mod pallet {
 	/// Type for a CORD account identifier.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
-	/// Type for a block number.
-	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-
 	/// Type for a runtime extrinsic callable under DID-based authorisation.
 	pub type DidCallableOf<T> = <T as Config>::RuntimeCall;
 
@@ -183,7 +180,7 @@ pub mod pallet {
 	pub(crate) type DidAuthorizedCallOperationOf<T> = DidAuthorizedCallOperation<
 		DidIdentifierOf<T>,
 		DidCallableOf<T>,
-		BlockNumberOf<T>,
+		BlockNumberFor<T>,
 		AccountIdOf<T>,
 		u64,
 	>;
@@ -244,7 +241,7 @@ pub mod pallet {
 		/// The maximum number of blocks a DID-authorized operation is
 		/// considered valid after its creation.
 		#[pallet::constant]
-		type MaxBlocksTxValidity: Get<BlockNumberOf<Self>>;
+		type MaxBlocksTxValidity: Get<BlockNumberFor<Self>>;
 
 		/// The maximum number of services that can be stored under a DID.
 		#[pallet::constant]
@@ -1240,7 +1237,7 @@ pub mod pallet {
 		/// i.e., if the current blockchain block is in the inclusive range
 		/// [operation_block_number, operation_block_number +
 		/// MaxBlocksTxValidity].
-		fn validate_block_number_value(block_number: BlockNumberOf<T>) -> Result<(), DidError> {
+		fn validate_block_number_value(block_number: BlockNumberFor<T>) -> Result<(), DidError> {
 			let current_block_number = frame_system::Pallet::<T>::block_number();
 			let allowed_range =
 				block_number..=block_number.saturating_add(T::MaxBlocksTxValidity::get());
