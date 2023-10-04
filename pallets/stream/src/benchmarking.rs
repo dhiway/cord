@@ -398,7 +398,7 @@ benchmarks! {
 			},
 		);
 
-		<Attestations<T>>::clear_prefix(&stream_id, 0, None);
+		let _ = <Attestations<T>>::clear_prefix(&stream_id, 0, None);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), authorization_id)
