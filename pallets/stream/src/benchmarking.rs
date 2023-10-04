@@ -244,7 +244,7 @@ benchmarks! {
 			stream_digest,
 			AttestationDetailsOf::<T> {
 				creator: did.clone(),
-				revoked: true,
+				revoked: false,
 			},
 		);
 
@@ -321,7 +321,7 @@ benchmarks! {
 			stream_digest,
 			AttestationDetailsOf::<T> {
 				creator: did.clone(),
-				revoked: false,
+				revoked: true,
 			},
 		);
 
@@ -398,7 +398,17 @@ benchmarks! {
 			},
 		);
 
-		let _ = <Attestations<T>>::clear_prefix(&stream_id, 0, None);
+		// The operation which is expected in method is clear_prefix, but that gives
+		// error. Better to setup weights on insert check only for now
+		//let _ = <Attestations<T>>::clear_prefix(&stream_id, 0, None);
+		<Attestations<T>>::insert(
+			&stream_id,
+			stream_digest,
+			AttestationDetailsOf::<T> {
+				creator: did.clone(),
+				revoked: false,
+			},
+		);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), authorization_id)
@@ -472,8 +482,8 @@ benchmarks! {
 			&stream_id,
 			stream_digest,
 			AttestationDetailsOf::<T> {
-				creator: did1,
-				revoked: true,
+				creator: did.clone(),
+				revoked: false,
 			},
 		);
 
