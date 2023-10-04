@@ -42,10 +42,11 @@ pub enum Event<AccountId = ()> {
 	MembershipRenewRequest(AccountId),
 }
 
-#[cfg_attr(feature = "std", derive(Deserialize, Serialize))]
 #[derive(
 	Encode, Decode, Default, Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen,
 )]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct MemberData<BlockNumber: Decode + Encode + TypeInfo> {
 	pub expire_on: BlockNumber,
 }

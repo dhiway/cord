@@ -27,5 +27,6 @@ sp-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "rele
 sp-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-statement-store = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 frame-rpc-system = { package = "substrate-frame-rpc-system", git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 state-trie-migration-rpc = { package = "substrate-state-trie-migration-rpc", git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }

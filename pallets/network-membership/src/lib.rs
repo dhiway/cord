@@ -35,7 +35,7 @@ pub mod benchmarking;
 pub mod tests;
 
 use frame_support::{dispatch::GetDispatchInfo, traits::Get};
-use network_membership::MemberData;
+// use network_membership::MemberData;
 use sp_runtime::{
 	traits::{DispatchInfoOf, Dispatchable, SignedExtension, Zero},
 	transaction_validity::{
@@ -47,7 +47,7 @@ use sp_std::{collections::btree_map::BTreeMap, marker::PhantomData, prelude::*};
 
 pub use weights::WeightInfo;
 pub mod types;
-pub use crate::types::*;
+pub use crate::types::{MemberData, *};
 use frame_support::pallet_prelude::Weight;
 use frame_system::pallet_prelude::BlockNumberFor;
 
@@ -155,16 +155,17 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_config]
+	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
 		pub members: BTreeMap<T::AccountId, MemberData<BlockNumberFor<T>>>,
 	}
 
-	#[cfg(feature = "std")]
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			Self { members: Default::default() }
-		}
-	}
+	// #[cfg(feature = "std")]
+	// impl<T: Config> Default for GenesisConfig<T> {
+	// 	fn default() -> Self {
+	// 		Self { members: Default::default() }
+	// 	}
+	// }
 
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {

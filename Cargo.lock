@@ -1460,6 +1460,7 @@ dependencies = [
  "sp-consensus-babe",
  "sp-keystore",
  "sp-runtime",
+ "sp-statement-store",
  "substrate-frame-rpc-system",
  "substrate-state-trie-migration-rpc",
 ]
@@ -1515,10 +1516,12 @@ dependencies = [
  "pallet-unique",
  "pallet-utility",
  "parity-scale-codec",
+ "primitive-types",
  "rusty-hook",
  "scale-info",
  "separator",
  "serde",
+ "serde_derive",
  "serde_json",
  "sp-api",
  "sp-authority-discovery",
@@ -3655,6 +3658,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba6a270039626615617f3f36d15fc827041df3b78c439da2cadfa47455a77f2f"
 dependencies = [
  "parity-scale-codec",
+]
+
+[[package]]
+name = "impl-num-traits"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "951641f13f873bff03d4bf19ae8bec531935ac0ac2cc775f84d7edfdcfed3f17"
+dependencies = [
+ "integer-sqrt",
+ "num-traits",
+ "uint",
 ]
 
 [[package]]
@@ -6396,6 +6410,7 @@ checksum = "9f3486ccba82358b11a77516035647c34ba167dfa53312630de83b12bd4f3d66"
 dependencies = [
  "fixed-hash",
  "impl-codec",
+ "impl-num-traits",
  "impl-serde",
  "scale-info",
  "uint",
