@@ -48,7 +48,7 @@ pub use crate::{pallet::*, types::*, weights::WeightInfo};
 pub mod pallet {
 	use super::*;
 	use cord_utilities::traits::CallSources;
-	use frame_support::pallet_prelude::*;
+	use frame_support::pallet_prelude::{OptionQuery, *};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::traits::Hash;
 
@@ -67,6 +67,8 @@ pub mod pallet {
 	pub type StreamHashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a creator identifier.
 	pub type StreamCreatorIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
+	/// Type of a creator identifier.
+	pub type StreamRevokedByIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
 
 	/// Hash of the stream.
 	pub type StreamDigestOf<T> = <T as frame_system::Config>::Hash;
@@ -74,7 +76,10 @@ pub mod pallet {
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type for the stream entity
 	pub type StreamEntryOf<T> =
-		StreamEntry<StreamDigestOf<T>, StreamCreatorIdOf<T>, SchemaIdOf, RegistryIdOf, StatusOf>;
+		StreamEntry<StreamDigestOf<T>, StreamCreatorIdOf<T>, SchemaIdOf, RegistryIdOf>;
+	/// Type for the stream digest entity
+	pub type StreamAttestationEntryOf<T> =
+		StreamAttestationEntry<StreamCreatorIdOf<T>, StreamRevokedByIdOf<T>, StatusOf>;
 	/// Type for the stream commits
 	pub type StreamCommitsOf<T> = StreamCommit<
 		StreamCommitActionOf,
@@ -132,6 +137,20 @@ pub mod pallet {
 		StreamIdOf,
 		BoundedVec<StreamCommitsOf<T>, T::MaxStreamCommits>,
 		ValueQuery,
+	>;
+
+	/// stream uniques stored on chain.
+	/// It maps from a stream identifier and hash to its details.
+	#[pallet::storage]
+	#[pallet::getter(fn attestations)]
+	pub type Attestations<T> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		StreamIdOf,
+		Blake2_128Concat,
+		StreamDigestOf<T>,
+		StreamAttestationEntryOf<T>,
+		OptionQuery,
 	>;
 
 	#[pallet::event]
@@ -203,6 +222,8 @@ pub mod pallet {
 		AuthorizationDetailsNotFound,
 		// Maximum number of commits exceeded
 		MaxStreamCommitsExceeded,
+		// Attestation is not found
+		AttestationNotFound,
 	}
 
 	#[pallet::call]
@@ -266,8 +287,17 @@ pub mod pallet {
 				StreamEntryOf::<T> {
 					digest: stream_digest,
 					creator: creator.clone(),
-					schema: schema_id,
+					schema: schema_id.clone(),
 					registry: registry_id,
+				},
+			);
+
+			<Attestations<T>>::insert(
+				&identifier,
+				stream_digest,
+				StreamAttestationEntryOf::<T> {
+					creator: creator.clone(),
+					revoked_by: None,
 					revoked: false,
 				},
 			);
@@ -312,10 +342,11 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-
+			let stream_attestations = <Attestations<T>>::get(&stream_id, stream_details.digest)
+				.ok_or(Error::<T>::AttestationNotFound)?;
 			// If it is same digest then it should throw stream anchored error
 			ensure!(stream_details.digest != stream_digest, Error::<T>::StreamAlreadyAnchored);
-			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
+			ensure!(!stream_attestations.revoked, Error::<T>::RevokedStream);
 
 			if stream_details.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
@@ -335,6 +366,28 @@ pub mod pallet {
 					digest: stream_digest,
 					creator: updater.clone(),
 					..stream_details
+				},
+			);
+
+			// Update the old info saying that got revoked
+			<Attestations<T>>::insert(
+				&stream_id,
+				stream_details.digest,
+				StreamAttestationEntryOf::<T> {
+					creator: stream_attestations.creator.clone(),
+					revoked_by: Some(updater.clone()),
+					revoked: true,
+				},
+			);
+
+			// Update the new entry with hash to say this is active
+			<Attestations<T>>::insert(
+				&stream_id,
+				stream_digest,
+				StreamAttestationEntryOf::<T> {
+					creator: stream_attestations.creator,
+					revoked_by: None,
+					revoked: false,
 				},
 			);
 
@@ -376,7 +429,10 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
+			let stream_attestations = <Attestations<T>>::get(&stream_id, stream_details.digest)
+				.ok_or(Error::<T>::AttestationNotFound)?;
+			// If it is same digest then it should throw stream anchored error
+			ensure!(!stream_attestations.revoked, Error::<T>::RevokedStream);
 
 			if stream_details.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
@@ -390,7 +446,18 @@ pub mod pallet {
 
 			<Streams<T>>::insert(
 				&stream_id,
-				StreamEntryOf::<T> { creator: updater.clone(), revoked: true, ..stream_details },
+				StreamEntryOf::<T> { creator: updater.clone(), ..stream_details },
+			);
+
+			// Update the info saying it got revoked
+			<Attestations<T>>::insert(
+				&stream_id,
+				stream_details.digest,
+				StreamAttestationEntryOf::<T> {
+					creator: stream_attestations.creator,
+					revoked_by: Some(updater.clone()),
+					revoked: true,
+				},
 			);
 
 			Self::update_commit(
@@ -427,7 +494,9 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(stream_details.revoked, Error::<T>::StreamNotRevoked);
+			let stream_attestations = <Attestations<T>>::get(&stream_id, stream_details.digest)
+				.ok_or(Error::<T>::AttestationNotFound)?;
+			ensure!(stream_attestations.revoked, Error::<T>::StreamNotRevoked);
 
 			if stream_details.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
@@ -441,7 +510,18 @@ pub mod pallet {
 
 			<Streams<T>>::insert(
 				&stream_id,
-				StreamEntryOf::<T> { creator: updater.clone(), revoked: false, ..stream_details },
+				StreamEntryOf::<T> { creator: updater.clone(), ..stream_details },
+			);
+
+			// Update the existing info saying it got activated again (ie, revoked: false)
+			<Attestations<T>>::insert(
+				&stream_id,
+				stream_details.digest,
+				StreamAttestationEntryOf::<T> {
+					creator: updater.clone(),
+					revoked_by: None,
+					revoked: false,
+				},
 			);
 
 			Self::update_commit(
@@ -491,6 +571,10 @@ pub mod pallet {
 
 			<Streams<T>>::take(&stream_id);
 
+			// Remove all entries with this identifier in the doublemap. Not planning to use
+			// the result
+			let _ = <Attestations<T>>::clear_prefix(&stream_id, 0, None);
+
 			Self::update_commit(
 				&stream_id,
 				stream_details.digest,
@@ -533,7 +617,9 @@ pub mod pallet {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			ensure!(!stream_details.revoked, Error::<T>::RevokedStream);
+			let stream_attestations = <Attestations<T>>::get(&stream_id, stream_details.digest)
+				.ok_or(Error::<T>::AttestationNotFound)?;
+			ensure!(!stream_attestations.revoked, Error::<T>::RevokedStream);
 
 			if stream_details.creator != creator {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
@@ -547,6 +633,17 @@ pub mod pallet {
 			}
 
 			<StreamDigests<T>>::insert(stream_digest, &stream_id);
+
+			// Treat this as a new entry
+			<Attestations<T>>::insert(
+				&stream_id,
+				stream_details.digest,
+				StreamAttestationEntryOf::<T> {
+					creator: creator.clone(),
+					revoked_by: None,
+					revoked: false,
+				},
+			);
 
 			Self::update_commit(
 				&stream_id,
