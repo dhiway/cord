@@ -24,7 +24,7 @@ use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::Pays,
 	parameter_types,
-	traits::{ConstU32, ConstU64, GenesisBuild, StorageVersion},
+	traits::{ConstU32, ConstU64, StorageVersion},
 	Hashable,
 };
 use frame_system::{EnsureRoot, EventRecord, Phase};
@@ -39,10 +39,7 @@ pub type Block = sp_runtime::generic::Block<Header, UncheckedExtrinsic>;
 pub type UncheckedExtrinsic = sp_runtime::generic::UncheckedExtrinsic<u32, u64, RuntimeCall, ()>;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic
+	pub enum Test
 	{
 		System: frame_system::{Pallet, Call, Event<T>},
 		Collective: pallet_collective::<Instance1>::{Pallet, Call, Event<T>, Origin<T>, Config<T>},
@@ -180,7 +177,7 @@ impl ExtBuilder {
 	}
 
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut ext: sp_io::TestExternalities = GenesisConfig {
+		let mut ext: sp_io::TestExternalities = RuntimeGenesisConfig {
 			collective: pallet_collective::GenesisConfig {
 				members: self.collective_members,
 				phantom: Default::default(),
@@ -198,7 +195,7 @@ impl ExtBuilder {
 		ext
 	}
 
-	pub fn build_and_execute(self, test: impl FnOnce()) {
+	pub fn build_and_execute(self, test: impl FnOnce() -> ()) {
 		self.build().execute_with(|| {
 			test();
 			Collective::do_try_state().unwrap();

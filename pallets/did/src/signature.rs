@@ -20,7 +20,7 @@
 use cord_utilities::signature::{
 	SignatureVerificationError, SignatureVerificationResult, VerifySignature,
 };
-use frame_support::dispatch;
+use frame_support::weights::Weight;
 use sp_runtime::SaturatedConversion;
 use sp_std::{marker::PhantomData, vec::Vec};
 
@@ -61,7 +61,7 @@ where
 		})
 	}
 
-	fn weight(payload_byte_length: usize) -> dispatch::Weight {
+	fn weight(payload_byte_length: usize) -> Weight {
 		<T as Config>::WeightInfo::signature_verification_sr25519(
 			payload_byte_length.saturated_into(),
 		)

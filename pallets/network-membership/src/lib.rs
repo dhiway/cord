@@ -34,10 +34,7 @@ pub mod benchmarking;
 #[cfg(test)]
 pub mod tests;
 
-use frame_support::{
-	dispatch::{GetDispatchInfo, Weight},
-	traits::Get,
-};
+use frame_support::{dispatch::GetDispatchInfo, traits::Get};
 use network_membership::MemberData;
 use sp_runtime::{
 	traits::{DispatchInfoOf, Dispatchable, SignedExtension, Zero},
@@ -51,6 +48,8 @@ use sp_std::{collections::btree_map::BTreeMap, marker::PhantomData, prelude::*};
 pub use weights::WeightInfo;
 pub mod types;
 pub use crate::types::*;
+use frame_support::pallet_prelude::Weight;
+use frame_system::pallet_prelude::BlockNumberFor;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -62,8 +61,6 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	pub(crate) type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
-	/// Type for a block number.
-	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -72,7 +69,7 @@ pub mod pallet {
 		#[pallet::constant]
 		/// Maximum life span of a non-renewable membership (in number of
 		/// blocks)
-		type MembershipPeriod: Get<Self::BlockNumber>;
+		type MembershipPeriod: Get<BlockNumberFor<Self>>;
 		#[pallet::constant]
 		type MaxMembersPerBlock: Get<u32>;
 		type WeightInfo: WeightInfo;
@@ -89,7 +86,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		CordAccountOf<T>,
-		MemberData<BlockNumberOf<T>>,
+		MemberData<BlockNumberFor<T>>,
 		OptionQuery,
 	>;
 
@@ -98,7 +95,7 @@ pub mod pallet {
 	pub type MembershipsExpiresOn<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		BlockNumberOf<T>,
+		BlockNumberFor<T>,
 		BoundedVec<CordAccountOf<T>, T::MaxMembersPerBlock>,
 		ValueQuery,
 	>;
@@ -148,8 +145,8 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(n: T::BlockNumber) -> Weight {
-			if n > T::BlockNumber::zero() {
+		fn on_initialize(n: BlockNumberFor<T>) -> Weight {
+			if n > BlockNumberFor::<T>::zero() {
 				Self::renew_or_expire_memberships(n)
 			} else {
 				Weight::zero()
@@ -159,7 +156,7 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub members: BTreeMap<T::AccountId, MemberData<T::BlockNumber>>,
+		pub members: BTreeMap<T::AccountId, MemberData<BlockNumberFor<T>>>,
 	}
 
 	#[cfg(feature = "std")]
@@ -170,7 +167,7 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			for (member, member_data) in &self.members {
 				frame_system::Pallet::<T>::inc_providers(member);
@@ -200,7 +197,7 @@ pub mod pallet {
 			if expires {
 				Self::insert_membership_and_schedule_expiry(member.clone())
 			} else {
-				let expire_on = T::BlockNumber::zero();
+				let expire_on = BlockNumberFor::<T>::zero();
 				Members::<T>::insert(&member, MemberData { expire_on });
 			}
 
@@ -276,7 +273,10 @@ impl<T: Config> Pallet<T> {
 		});
 	}
 
-	fn renew_membership_and_schedule_expiry(member: CordAccountOf<T>, expire_on: BlockNumberOf<T>) {
+	fn renew_membership_and_schedule_expiry(
+		member: CordAccountOf<T>,
+		expire_on: BlockNumberFor<T>,
+	) {
 		let schedule_expiry = expire_on + T::MembershipPeriod::get();
 		Members::<T>::insert(&member, MemberData { expire_on: schedule_expiry });
 		let _ = MembershipsExpiresOn::<T>::try_mutate(schedule_expiry, |members| {
@@ -287,7 +287,7 @@ impl<T: Config> Pallet<T> {
 	/// perform membership renewal or expiration
 	fn do_expire_or_renew_membership(
 		member: CordAccountOf<T>,
-		expire_on: BlockNumberOf<T>,
+		expire_on: BlockNumberFor<T>,
 	) -> Weight {
 		let mut call_weight: Weight = Weight::zero();
 
@@ -305,7 +305,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// perform the membership expiry or renewal scheduled at given block
-	fn renew_or_expire_memberships(block_number: BlockNumberOf<T>) -> Weight {
+	fn renew_or_expire_memberships(block_number: BlockNumberFor<T>) -> Weight {
 		let mut total_weight: Weight = Weight::zero();
 
 		for member in MembershipsExpiresOn::<T>::take(block_number) {

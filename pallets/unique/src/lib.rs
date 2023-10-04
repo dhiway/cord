@@ -39,6 +39,7 @@ use sp_std::{prelude::Clone, str};
 pub mod types;
 pub mod weights;
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
+use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::SaturatedConversion;
 
 #[frame_support::pallet]
@@ -75,8 +76,7 @@ pub mod pallet {
 
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-	/// Type for a block number.
-	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
+
 	/// Type for the unique entity
 	pub type UniqueEntryOf<T> =
 		UniqueEntry<InputUniqueOf<T>, UniqueCreatorIdOf<T>, Option<RegistryIdOf>, StatusOf>;
@@ -85,7 +85,7 @@ pub mod pallet {
 		UniqueCommitActionOf,
 		InputUniqueOf<T>,
 		UniqueCreatorIdOf<T>,
-		BlockNumberOf<T>,
+		BlockNumberFor<T>,
 	>;
 
 	#[pallet::config]
@@ -550,7 +550,7 @@ impl<T: Config> Pallet<T> {
 	/// following fields:
 	/// - `height`: The height of the blockchain at the current point in time.
 	/// - `index`: The index of the extrinsic within the current block.
-	pub fn timepoint() -> Timepoint<T::BlockNumber> {
+	pub fn timepoint() -> Timepoint<BlockNumberFor<T>> {
 		Timepoint {
 			height: frame_system::Pallet::<T>::block_number(),
 			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),

@@ -19,8 +19,8 @@
 // use crate::*;
 use bitflags::bitflags;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::RuntimeDebug;
 use scale_info::TypeInfo;
+use sp_runtime::RuntimeDebug;
 
 bitflags! {
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]

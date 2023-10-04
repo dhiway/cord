@@ -83,9 +83,6 @@ pub mod pallet {
 	/// Type of a CORD account.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
-	/// Type for a block number.
-	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
-
 	/// Type for an Identifier
 	pub type IdentifierOf = Ss58Identifier;
 
@@ -114,7 +111,7 @@ pub mod pallet {
 	pub type RatingEntryOf<T> = RatingEntry<
 		RatingDetailsOf<T>,
 		RatingEntryHashOf<T>,
-		BlockNumberOf<T>,
+		BlockNumberFor<T>,
 		RegistryIdOf,
 		RatingCreatorIdOf<T>,
 	>;

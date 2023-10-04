@@ -112,7 +112,7 @@ pub use crate::{
 use codec::Encode;
 use errors::{DidError, InputError, SignatureError, StorageError};
 use frame_support::{
-	dispatch::{DispatchResult, Dispatchable, GetDispatchInfo, PostDispatchInfo},
+	dispatch::{DispatchResult, GetDispatchInfo, PostDispatchInfo},
 	ensure,
 	storage::types::StorageMap,
 	traits::Get,
@@ -121,7 +121,7 @@ use frame_support::{
 use frame_system::ensure_signed;
 
 use sp_runtime::{
-	traits::{Saturating, Zero},
+	traits::{Dispatchable, Saturating, Zero},
 	SaturatedConversion,
 };
 use sp_std::{boxed::Box, fmt::Debug, prelude::Clone};
