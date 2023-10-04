@@ -35,7 +35,7 @@ pub struct Timepoint<BlockNumber> {
 
 /// An on-chain stream entry mapped to an Identifier.
 /// `StreamEntry` is a struct that contains a `StreamDigestOf`, a
-/// `StreamCreatorIdOf`, a `SchemaIdOf`, a `RegistryIdOf`, and a `StatusOf`.
+/// `StreamCreatorIdOf`, a `SchemaIdOf`, and a `RegistryIdOf`.
 ///
 /// Properties:
 ///
@@ -43,12 +43,10 @@ pub struct Timepoint<BlockNumber> {
 /// * `creator`: The account that created the stream.
 /// * `schema`: The schema identifier.
 /// * `registry`: The registry that the stream is associated with.
-/// * `revoked`: This is a boolean flag that indicates whether the stream is
-///   revoked or not.
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryIdOf, StatusOf> {
+pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryIdOf> {
 	/// Stream hash.
 	pub digest: StreamDigestOf,
 	/// Stream creator.
@@ -57,6 +55,26 @@ pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryId
 	pub schema: Option<SchemaIdOf>,
 	/// Registry Identifier
 	pub registry: RegistryIdOf,
+}
+
+/// An on-chain stream:digest entry mapped to an Identifier:Hash.
+/// `StreamAttestationEntry` is a struct that contains a `StreamCreatorIdOf`,
+/// a `StreamCreatorIdOf` (which is used for revoke) and a `StatusOf`.
+///
+/// Properties:
+///
+/// * `creator`: The account that created the stream.
+/// * `revoked_by`: The account which revoked the stream.
+/// * `revoked`: This is a boolean flag that indicates whether the stream is
+///   revoked or not.
+#[derive(
+	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
+)]
+pub struct StreamAttestationEntry<StreamCreatorIdOf, StreamRevokedByIdOf, StatusOf> {
+	/// Stream creator.
+	pub creator: StreamCreatorIdOf,
+	/// Stream revoked by.
+	pub revoked_by: Option<StreamRevokedByIdOf>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
 }
