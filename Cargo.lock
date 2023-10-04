@@ -5494,6 +5494,7 @@ dependencies = [
 name = "pallet-did-runtime-api"
 version = "0.9.0"
 dependencies = [
+ "frame-system",
  "pallet-did",
  "parity-scale-codec",
  "scale-info",
