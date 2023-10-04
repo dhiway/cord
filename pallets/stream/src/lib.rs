@@ -78,8 +78,8 @@ pub mod pallet {
 	pub type StreamEntryOf<T> =
 		StreamEntry<StreamDigestOf<T>, StreamCreatorIdOf<T>, SchemaIdOf, RegistryIdOf>;
 	/// Type for the stream digest entity
-	pub type StreamAttestationEntryOf<T> =
-		StreamAttestationEntry<StreamCreatorIdOf<T>, StreamRevokedByIdOf<T>, StatusOf>;
+	pub type AttestationDetailsOf<T> =
+		AttestationDetails<StreamCreatorIdOf<T>, StreamRevokedByIdOf<T>, StatusOf>;
 	/// Type for the stream commits
 	pub type StreamCommitsOf<T> = StreamCommit<
 		StreamCommitActionOf,
@@ -149,7 +149,7 @@ pub mod pallet {
 		StreamIdOf,
 		Blake2_128Concat,
 		StreamDigestOf<T>,
-		StreamAttestationEntryOf<T>,
+		AttestationDetailsOf<T>,
 		OptionQuery,
 	>;
 
@@ -295,7 +295,7 @@ pub mod pallet {
 			<Attestations<T>>::insert(
 				&identifier,
 				stream_digest,
-				StreamAttestationEntryOf::<T> {
+				AttestationDetailsOf::<T> {
 					creator: creator.clone(),
 					revoked_by: None,
 					revoked: false,
@@ -373,7 +373,7 @@ pub mod pallet {
 			<Attestations<T>>::insert(
 				&stream_id,
 				stream_details.digest,
-				StreamAttestationEntryOf::<T> {
+				AttestationDetailsOf::<T> {
 					creator: stream_attestations.creator.clone(),
 					revoked_by: Some(updater.clone()),
 					revoked: true,
@@ -384,7 +384,7 @@ pub mod pallet {
 			<Attestations<T>>::insert(
 				&stream_id,
 				stream_digest,
-				StreamAttestationEntryOf::<T> {
+				AttestationDetailsOf::<T> {
 					creator: stream_attestations.creator,
 					revoked_by: None,
 					revoked: false,
@@ -453,7 +453,7 @@ pub mod pallet {
 			<Attestations<T>>::insert(
 				&stream_id,
 				stream_details.digest,
-				StreamAttestationEntryOf::<T> {
+				AttestationDetailsOf::<T> {
 					creator: stream_attestations.creator,
 					revoked_by: Some(updater.clone()),
 					revoked: true,
@@ -517,7 +517,7 @@ pub mod pallet {
 			<Attestations<T>>::insert(
 				&stream_id,
 				stream_details.digest,
-				StreamAttestationEntryOf::<T> {
+				AttestationDetailsOf::<T> {
 					creator: updater.clone(),
 					revoked_by: None,
 					revoked: false,
@@ -638,7 +638,7 @@ pub mod pallet {
 			<Attestations<T>>::insert(
 				&stream_id,
 				stream_details.digest,
-				StreamAttestationEntryOf::<T> {
+				AttestationDetailsOf::<T> {
 					creator: creator.clone(),
 					revoked_by: None,
 					revoked: false,
