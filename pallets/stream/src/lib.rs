@@ -67,19 +67,15 @@ pub mod pallet {
 	pub type StreamHashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a creator identifier.
 	pub type StreamCreatorIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
-	/// Type of a creator identifier.
-	pub type StreamRevokedByIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
 
 	/// Hash of the stream.
 	pub type StreamDigestOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type for the stream entity
-	pub type StreamEntryOf<T> =
-		StreamEntry<StreamDigestOf<T>, StreamCreatorIdOf<T>, SchemaIdOf, RegistryIdOf>;
+	pub type StreamEntryOf<T> = StreamEntry<StreamDigestOf<T>, SchemaIdOf, RegistryIdOf>;
 	/// Type for the stream digest entity
-	pub type AttestationDetailsOf<T> =
-		AttestationDetails<StreamCreatorIdOf<T>, StreamRevokedByIdOf<T>, StatusOf>;
+	pub type AttestationDetailsOf<T> = AttestationDetails<StreamCreatorIdOf<T>, StatusOf>;
 	/// Type for the stream commits
 	pub type StreamCommitsOf<T> = StreamCommit<
 		StreamCommitActionOf,
@@ -286,7 +282,6 @@ pub mod pallet {
 				&identifier,
 				StreamEntryOf::<T> {
 					digest: stream_digest,
-					creator: creator.clone(),
 					schema: schema_id.clone(),
 					registry: registry_id,
 				},
@@ -295,11 +290,7 @@ pub mod pallet {
 			<Attestations<T>>::insert(
 				&identifier,
 				stream_digest,
-				AttestationDetailsOf::<T> {
-					creator: creator.clone(),
-					revoked_by: None,
-					revoked: false,
-				},
+				AttestationDetailsOf::<T> { creator: creator.clone(), revoked: false },
 			);
 
 			Self::update_commit(
@@ -348,7 +339,7 @@ pub mod pallet {
 			ensure!(stream_details.digest != stream_digest, Error::<T>::StreamAlreadyAnchored);
 			ensure!(!stream_attestations.revoked, Error::<T>::RevokedStream);
 
-			if stream_details.creator != updater {
+			if stream_attestations.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
 					&authorization,
 					updater.clone(),
@@ -362,33 +353,21 @@ pub mod pallet {
 
 			<Streams<T>>::insert(
 				&stream_id,
-				StreamEntryOf::<T> {
-					digest: stream_digest,
-					creator: updater.clone(),
-					..stream_details
-				},
+				StreamEntryOf::<T> { digest: stream_digest, ..stream_details },
 			);
 
 			// Update the old info saying that got revoked
 			<Attestations<T>>::insert(
 				&stream_id,
 				stream_details.digest,
-				AttestationDetailsOf::<T> {
-					creator: stream_attestations.creator.clone(),
-					revoked_by: Some(updater.clone()),
-					revoked: true,
-				},
+				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: true },
 			);
 
 			// Update the new entry with hash to say this is active
 			<Attestations<T>>::insert(
 				&stream_id,
 				stream_digest,
-				AttestationDetailsOf::<T> {
-					creator: stream_attestations.creator,
-					revoked_by: None,
-					revoked: false,
-				},
+				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: false },
 			);
 
 			Self::update_commit(
@@ -434,7 +413,7 @@ pub mod pallet {
 			// If it is same digest then it should throw stream anchored error
 			ensure!(!stream_attestations.revoked, Error::<T>::RevokedStream);
 
-			if stream_details.creator != updater {
+			if stream_attestations.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
 					&authorization,
 					updater.clone(),
@@ -444,20 +423,11 @@ pub mod pallet {
 				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
-			<Streams<T>>::insert(
-				&stream_id,
-				StreamEntryOf::<T> { creator: updater.clone(), ..stream_details },
-			);
-
 			// Update the info saying it got revoked
 			<Attestations<T>>::insert(
 				&stream_id,
 				stream_details.digest,
-				AttestationDetailsOf::<T> {
-					creator: stream_attestations.creator,
-					revoked_by: Some(updater.clone()),
-					revoked: true,
-				},
+				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: true },
 			);
 
 			Self::update_commit(
@@ -498,7 +468,7 @@ pub mod pallet {
 				.ok_or(Error::<T>::AttestationNotFound)?;
 			ensure!(stream_attestations.revoked, Error::<T>::StreamNotRevoked);
 
-			if stream_details.creator != updater {
+			if stream_attestations.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
 					&authorization,
 					updater.clone(),
@@ -508,20 +478,11 @@ pub mod pallet {
 				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
 			}
 
-			<Streams<T>>::insert(
-				&stream_id,
-				StreamEntryOf::<T> { creator: updater.clone(), ..stream_details },
-			);
-
 			// Update the existing info saying it got activated again (ie, revoked: false)
 			<Attestations<T>>::insert(
 				&stream_id,
 				stream_details.digest,
-				AttestationDetailsOf::<T> {
-					creator: updater.clone(),
-					revoked_by: None,
-					revoked: false,
-				},
+				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: false },
 			);
 
 			Self::update_commit(
@@ -558,8 +519,10 @@ pub mod pallet {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
+			let stream_attestations = <Attestations<T>>::get(&stream_id, stream_details.digest)
+				.ok_or(Error::<T>::AttestationNotFound)?;
 
-			if stream_details.creator != updater {
+			if stream_attestations.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
 					&authorization,
 					updater.clone(),
@@ -621,7 +584,7 @@ pub mod pallet {
 				.ok_or(Error::<T>::AttestationNotFound)?;
 			ensure!(!stream_attestations.revoked, Error::<T>::RevokedStream);
 
-			if stream_details.creator != creator {
+			if stream_attestations.creator != creator {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
 					&authorization,
 					creator.clone(),
@@ -638,11 +601,7 @@ pub mod pallet {
 			<Attestations<T>>::insert(
 				&stream_id,
 				stream_details.digest,
-				AttestationDetailsOf::<T> {
-					creator: creator.clone(),
-					revoked_by: None,
-					revoked: false,
-				},
+				AttestationDetailsOf::<T> { creator: creator.clone(), revoked: false },
 			);
 
 			Self::update_commit(

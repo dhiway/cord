@@ -83,6 +83,15 @@ benchmarks! {
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
+		<Attestations<T>>::insert(
+			&identifier,
+			stream_digest,
+			AttestationDetailsOf::<T> {
+				creator: did.clone(),
+				revoked: false,
+			},
+		);
+
 	}: _<T::RuntimeOrigin>(origin, stream_digest, authorization_id, None)
 	verify {
 		assert_last_event::<T>(Event::Create { identifier,digest: stream_digest, author: did}.into());
@@ -144,9 +153,17 @@ benchmarks! {
 			&stream_id,
 			StreamEntryOf::<T> {
 				digest: stream_digest,
-				creator: did.clone(),
 				schema: None,
 				registry: registry_id,
+			},
+		);
+
+		<Attestations<T>>::insert(
+			&stream_id,
+			stream_digest,
+			AttestationDetailsOf::<T> {
+				creator: did.clone(),
+				revoked: false,
 			},
 		);
 
@@ -217,9 +234,17 @@ benchmarks! {
 			&stream_id,
 			StreamEntryOf::<T> {
 				digest: stream_digest,
-				creator: did.clone(),
 				schema: None,
 				registry: registry_id,
+			},
+		);
+
+		<Attestations<T>>::insert(
+			&stream_id,
+			stream_digest,
+			AttestationDetailsOf::<T> {
+				creator: did.clone(),
+				revoked: true,
 			},
 		);
 
@@ -286,9 +311,17 @@ benchmarks! {
 			&stream_id,
 			StreamEntryOf::<T> {
 				digest: stream_digest,
-				creator: did.clone(),
 				schema: None,
 				registry: registry_id,
+			},
+		);
+
+		<Attestations<T>>::insert(
+			&stream_id,
+			stream_digest,
+			AttestationDetailsOf::<T> {
+				creator: did.clone(),
+				revoked: false,
 			},
 		);
 
@@ -365,9 +398,10 @@ benchmarks! {
 				registry: registry_id,
 			},
 		);
+
+		<Attestations<T>>::clear_prefix(&stream_id, 0, None);
+
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
-
-
 	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), authorization_id)
 	verify {
 		assert_last_event::<T>(Event::Remove { identifier:stream_id, author: did}.into());
@@ -420,7 +454,7 @@ benchmarks! {
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
 				registry_id: registry_id.clone(),
-				delegate: did1,
+				delegate: did1.clone(),
 				schema: None,
 				permissions: Permissions::all(),
 			},
@@ -430,9 +464,17 @@ benchmarks! {
 			&stream_id,
 			StreamEntryOf::<T> {
 				digest: stream_digest,
-				creator: did.clone(),
 				schema: None,
 				registry: registry_id,
+			},
+		);
+
+		<Attestations<T>>::insert(
+			&stream_id,
+			stream_digest,
+			AttestationDetailsOf::<T> {
+				creator: did1,
+				revoked: true,
 			},
 		);
 
