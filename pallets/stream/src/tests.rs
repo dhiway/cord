@@ -251,11 +251,15 @@ fn update_stream_should_succed() {
 			&stream_id,
 			StreamEntryOf::<Test> {
 				digest: stream_digest,
-				creator: creator.clone(),
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
-				revoked: false,
 			},
+		);
+
+		<Attestations<Test>>::insert(
+			&stream_id,
+			stream_digest,
+			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
 		);
 
 		let stream_update = vec![12u8; 32];
@@ -327,12 +331,16 @@ fn update_should_fail_if_digest_is_same() {
 			&stream_id,
 			StreamEntryOf::<Test> {
 				digest: stream_digest,
-				creator: creator.clone(),
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
-				revoked: false,
 			},
 		);
+		<Attestations<Test>>::insert(
+			&stream_id,
+			stream_digest,
+			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
+		);
+
 		assert_err!(
 			Stream::update(
 				DoubleOrigin(author.clone(), delegate.clone()).into(),
@@ -456,11 +464,14 @@ fn update_should_fail_if_stream_is_revoked() {
 			&stream_id,
 			StreamEntryOf::<Test> {
 				digest: stream_digest,
-				creator: creator.clone(),
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
-				revoked: true,
 			},
+		);
+		<Attestations<Test>>::insert(
+			&stream_id,
+			stream_digest,
+			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: true },
 		);
 
 		let stream_update = vec![12u8; 32];
@@ -528,12 +539,16 @@ fn revoke_stream_should_succed() {
 			&stream_id,
 			StreamEntryOf::<Test> {
 				digest: stream_digest,
-				creator: creator.clone(),
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
-				revoked: false,
 			},
 		);
+		<Attestations<Test>>::insert(
+			&stream_id,
+			stream_digest,
+			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
+		);
+
 		assert_ok!(Stream::revoke(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			stream_id,
@@ -592,12 +607,16 @@ fn remove_stream_should_succed() {
 			&stream_id,
 			StreamEntryOf::<Test> {
 				digest: stream_digest,
-				creator: creator.clone(),
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
-				revoked: false,
 			},
 		);
+		<Attestations<Test>>::insert(
+			&stream_id,
+			stream_digest,
+			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
+		);
+
 		assert_ok!(Stream::remove(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			stream_id,
@@ -656,12 +675,16 @@ fn digest_stream_should_succed() {
 			&stream_id,
 			StreamEntryOf::<Test> {
 				digest: stream_digest,
-				creator: creator.clone(),
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
-				revoked: false,
 			},
 		);
+		<Attestations<Test>>::insert(
+			&stream_id,
+			stream_digest,
+			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
+		);
+
 		assert_ok!(Stream::digest(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			stream_id,
