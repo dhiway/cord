@@ -46,11 +46,9 @@ pub struct Timepoint<BlockNumber> {
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryIdOf> {
+pub struct StreamEntry<StreamDigestOf, SchemaIdOf, RegistryIdOf> {
 	/// Stream hash.
 	pub digest: StreamDigestOf,
-	/// Stream creator.
-	pub creator: StreamCreatorIdOf,
 	/// Schema Identifier
 	pub schema: Option<SchemaIdOf>,
 	/// Registry Identifier
@@ -63,18 +61,16 @@ pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryId
 ///
 /// Properties:
 ///
-/// * `creator`: The account that created the stream.
-/// * `revoked_by`: The account which revoked the stream.
+/// * `creator`: The account that has done the latest operation (creator on
+///   create and update, and account revoking for revoke)
 /// * `revoked`: This is a boolean flag that indicates whether the stream is
 ///   revoked or not.
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct AttestationDetails<StreamCreatorIdOf, StreamRevokedByIdOf, StatusOf> {
+pub struct AttestationDetails<StreamCreatorIdOf, StatusOf> {
 	/// Stream creator.
 	pub creator: StreamCreatorIdOf,
-	/// Stream revoked by.
-	pub revoked_by: Option<StreamRevokedByIdOf>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
 }
