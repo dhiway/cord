@@ -393,7 +393,6 @@ benchmarks! {
 			&stream_id,
 			StreamEntryOf::<T> {
 				digest: stream_digest,
-				creator: did.clone(),
 				schema: None,
 				registry: registry_id,
 			},

@@ -35,12 +35,11 @@ pub struct Timepoint<BlockNumber> {
 
 /// An on-chain stream entry mapped to an Identifier.
 /// `StreamEntry` is a struct that contains a `StreamDigestOf`, a
-/// `StreamCreatorIdOf`, a `SchemaIdOf`, and a `RegistryIdOf`.
+/// `SchemaIdOf`, and a `RegistryIdOf`.
 ///
 /// Properties:
 ///
 /// * `digest`: The hash of the stream.
-/// * `creator`: The account that created the stream.
 /// * `schema`: The schema identifier.
 /// * `registry`: The registry that the stream is associated with.
 #[derive(
@@ -57,7 +56,7 @@ pub struct StreamEntry<StreamDigestOf, SchemaIdOf, RegistryIdOf> {
 
 /// An on-chain stream:digest entry mapped to an Identifier:Hash.
 /// `AttestationDetails` is a struct that contains a `StreamCreatorIdOf`,
-/// a `StreamCreatorIdOf` (which is used for revoke) and a `StatusOf`.
+/// and a `StatusOf`.
 ///
 /// Properties:
 ///
@@ -69,7 +68,7 @@ pub struct StreamEntry<StreamDigestOf, SchemaIdOf, RegistryIdOf> {
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
 pub struct AttestationDetails<StreamCreatorIdOf, StatusOf> {
-	/// Stream creator.
+	/// Attestation creator.
 	pub creator: StreamCreatorIdOf,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
