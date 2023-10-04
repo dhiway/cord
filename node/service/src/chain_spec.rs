@@ -19,7 +19,7 @@
 //! CORD chain configurations.
 
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
-pub use cord_runtime::GenesisConfig;
+pub use cord_runtime::RuntimeGenesisConfig;
 use cord_runtime::{
 	AuthorityDiscoveryConfig, AuthorityMembershipConfig, BabeConfig, Block,
 	CouncilMembershipConfig, IndicesConfig, NetworkMembershipConfig, NodeAuthorizationConfig,
@@ -58,7 +58,7 @@ pub struct Extensions {
 }
 
 /// Specialized `ChainSpec`.
-pub type CordChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+pub type CordChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
 
 fn session_keys(
 	babe: BabeId,
@@ -124,7 +124,7 @@ fn member_accounts() -> Vec<AccountId> {
 }
 
 /// Development config.
-fn cord_dev_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
+fn cord_dev_config_genesis(wasm_binary: &[u8]) -> cord_runtime::RuntimeGenesisConfig {
 	cord_local_genesis(
 		wasm_binary,
 		vec![get_authority_keys_from_seed("Alice")],
@@ -136,7 +136,7 @@ fn cord_dev_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
 	)
 }
 
-fn cord_local_config_genesis(wasm_binary: &[u8]) -> cord_runtime::GenesisConfig {
+fn cord_local_config_genesis(wasm_binary: &[u8]) -> cord_runtime::RuntimeGenesisConfig {
 	cord_local_genesis(
 		wasm_binary,
 		vec![
@@ -220,9 +220,9 @@ fn cord_local_genesis(
 	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
-) -> GenesisConfig {
-	GenesisConfig {
-		system: SystemConfig { code: wasm_binary.to_vec() },
+) -> RuntimeGenesisConfig {
+	RuntimeGenesisConfig {
+		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
 		balances: Default::default(),
 		indices: IndicesConfig { indices: vec![] },
 		node_authorization: NodeAuthorizationConfig {
@@ -274,7 +274,7 @@ fn cord_local_genesis(
 				.unwrap_or_else(|e| panic!("Failed to add committee members: {:?}", e)),
 			phantom: Default::default(),
 		},
-		authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
+		authority_discovery: Default::default(),
 		sudo: SudoConfig { key: Some(root_key) },
 	}
 }

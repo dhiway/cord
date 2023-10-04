@@ -10,30 +10,30 @@ repository = "https://github.com/dhiway/cord"
 
 [dependencies]
 futures = "0.3.21"
-frame-benchmarking = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-frame-benchmarking-cli = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-frame-system = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-frame-system-rpc-runtime-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+frame-benchmarking-cli = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+frame-system-rpc-runtime-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 
-sp-consensus = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-storage = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-blockchain = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-keyring = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-inherents = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-timestamp = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-session = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-authority-discovery = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-consensus-grandpa = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-consensus-babe = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-transaction-pool = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-offchain = { package = "sp-offchain", git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sp-block-builder = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sc-executor = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sc-client-api = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43" }
-sc-service = { git = "https://github.com/dhiway/substrate", default-features = false, branch = "release-v0.9.43" }
+sp-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-storage = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-keyring = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-inherents = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-timestamp = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-session = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-authority-discovery = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-consensus-grandpa = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-transaction-pool = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-offchain = { package = "sp-offchain", git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sc-executor = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sc-client-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sc-service = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.1.0" }
 
 
 # Cord dependencies

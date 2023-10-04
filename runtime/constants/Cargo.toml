@@ -7,11 +7,11 @@ edition = "2021"
 [dependencies]
 smallvec = "1.8.0"
 
-frame-support = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
 cord-primitives = { path = "../../primitives/cord", default-features = false }
-sp-runtime = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
-sp-weights = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
-sp-core = { git = "https://github.com/dhiway/substrate", branch = "release-v0.9.43", default-features = false }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
+sp-weights = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
 
 [features]
 default = ["std"]

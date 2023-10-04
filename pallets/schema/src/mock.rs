@@ -24,9 +24,8 @@ use frame_support::{
 	traits::{ConstU128, ConstU32, ConstU64},
 };
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	MultiSignature,
+	BuildStorage, MultiSignature,
 };
 
 type Hash = sp_core::H256;
@@ -37,14 +36,10 @@ pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 
 construct_runtime!(
 	pub enum Test where
-		Block = frame_system::mocking::MockBlock<Test>,
-		NodeBlock = frame_system::mocking::MockBlock<Test>,
-		UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		System: frame_system,
 		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
-		MockOrigin: mock_origin::{Pallet, Origin<T>},
+		MockOrigin: mock_origin,
 	}
 );
 
@@ -57,13 +52,13 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nince = u64;
+	// type BlockNumber = u64;
 	type Hash = Hash;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
+	type Block = Block;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -76,22 +71,6 @@ impl frame_system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
 	type MaxConsumers = ConstU32<2>;
-}
-
-impl pallet_balances::Config for Test {
-	type Balance = Balance;
-	type DustRemoval = ();
-	type RuntimeEvent = RuntimeEvent;
-	type ExistentialDeposit = ConstU128<1>;
-	type AccountStore = System;
-	type WeightInfo = ();
-	type MaxLocks = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
-	type FreezeIdentifier = ();
-	type MaxFreezes = ();
-	type HoldIdentifier = ();
-	type MaxHolds = ();
 }
 
 impl mock_origin::Config for Test {
@@ -115,7 +94,7 @@ impl Config for Test {
 
 #[allow(dead_code)]
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	#[cfg(feature = "runtime-benchmarks")]
