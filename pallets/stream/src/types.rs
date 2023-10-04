@@ -58,7 +58,7 @@ pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryId
 }
 
 /// An on-chain stream:digest entry mapped to an Identifier:Hash.
-/// `StreamAttestationEntry` is a struct that contains a `StreamCreatorIdOf`,
+/// `AttestationDetails` is a struct that contains a `StreamCreatorIdOf`,
 /// a `StreamCreatorIdOf` (which is used for revoke) and a `StatusOf`.
 ///
 /// Properties:
@@ -70,7 +70,7 @@ pub struct StreamEntry<StreamDigestOf, StreamCreatorIdOf, SchemaIdOf, RegistryId
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct StreamAttestationEntry<StreamCreatorIdOf, StreamRevokedByIdOf, StatusOf> {
+pub struct AttestationDetails<StreamCreatorIdOf, StreamRevokedByIdOf, StatusOf> {
 	/// Stream creator.
 	pub creator: StreamCreatorIdOf,
 	/// Stream revoked by.
