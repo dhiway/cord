@@ -147,7 +147,6 @@ benchmarks! {
 				creator: did.clone(),
 				schema: None,
 				registry: registry_id,
-				revoked: false,
 			},
 		);
 
@@ -221,13 +220,10 @@ benchmarks! {
 				creator: did.clone(),
 				schema: None,
 				registry: registry_id,
-				revoked: false,
 			},
 		);
 
-
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
-
 
 	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), authorization_id)
 	verify {
@@ -293,7 +289,6 @@ benchmarks! {
 				creator: did.clone(),
 				schema: None,
 				registry: registry_id,
-				revoked: true,
 			},
 		);
 
@@ -368,7 +363,6 @@ benchmarks! {
 				creator: did.clone(),
 				schema: None,
 				registry: registry_id,
-				revoked: false,
 			},
 		);
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
@@ -439,7 +433,6 @@ benchmarks! {
 				creator: did.clone(),
 				schema: None,
 				registry: registry_id,
-				revoked: false,
 			},
 		);
 
