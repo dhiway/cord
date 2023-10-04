@@ -40,6 +40,7 @@ use sp_std::{prelude::Clone, str};
 pub mod types;
 pub mod weights;
 pub use crate::types::*;
+use frame_system::pallet_prelude::BlockNumberFor;
 
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
 
@@ -71,8 +72,6 @@ pub mod pallet {
 	pub type StreamDigestOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-	/// Type for a block number.
-	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// Type for the stream entity
 	pub type StreamEntryOf<T> =
 		StreamEntry<StreamDigestOf<T>, StreamCreatorIdOf<T>, SchemaIdOf, RegistryIdOf, StatusOf>;
@@ -615,7 +614,7 @@ impl<T: Config> Pallet<T> {
 	/// following fields:
 	/// - `height`: The height of the blockchain at the current point in time.
 	/// - `index`: The index of the extrinsic within the current block.
-	pub fn timepoint() -> Timepoint<T::BlockNumber> {
+	pub fn timepoint() -> Timepoint<BlockNumberFor<T>> {
 		Timepoint {
 			height: frame_system::Pallet::<T>::block_number(),
 			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),

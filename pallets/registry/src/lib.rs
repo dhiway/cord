@@ -59,7 +59,6 @@ pub mod pallet {
 	pub(crate) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type of a registry creator.
 	pub type RegistryCreatorIdOf<T> = <T as Config>::RegistryCreatorId;
-	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	pub type InputRegistryOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedRegistryLength>;
 
 	pub type RegistryEntryOf<T> = RegistryEntry<

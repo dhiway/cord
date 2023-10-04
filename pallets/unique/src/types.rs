@@ -18,8 +18,8 @@
 
 use crate::*;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::RuntimeDebug;
 use scale_info::TypeInfo;
+use sp_runtime::RuntimeDebug;
 
 /// A global index, formed as the extrinsic index within a block, together with
 /// that block's height.

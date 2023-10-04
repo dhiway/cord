@@ -19,10 +19,10 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use frame_system::pallet_prelude::BlockNumberFor;
+use pallet_did::{did_details::DidPublicKeyDetails, AccountIdOf, KeyIdOf};
 use scale_info::TypeInfo;
 use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
-
-use pallet_did::{did_details::DidPublicKeyDetails, AccountIdOf, BlockNumberOf, KeyIdOf};
 
 #[derive(Encode, Decode, TypeInfo, Clone, Debug, Eq, PartialEq, MaxEncodedLen)]
 pub struct DidDetails<Key: Ord, BlockNumber: MaxEncodedLen, AccountId> {
@@ -35,7 +35,7 @@ pub struct DidDetails<Key: Ord, BlockNumber: MaxEncodedLen, AccountId> {
 }
 
 impl<T: pallet_did::Config> From<pallet_did::did_details::DidDetails<T>>
-	for DidDetails<KeyIdOf<T>, BlockNumberOf<T>, AccountIdOf<T>>
+	for DidDetails<KeyIdOf<T>, BlockNumberFor<T>, AccountIdOf<T>>
 {
 	fn from(did_details: pallet_did::did_details::DidDetails<T>) -> Self {
 		Self {

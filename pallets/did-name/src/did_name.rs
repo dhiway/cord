@@ -20,13 +20,11 @@
 
 use sp_std::{fmt::Debug, marker::PhantomData, ops::Deref, vec::Vec};
 
-use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{
-	ensure, sp_runtime::SaturatedConversion, traits::Get, BoundedVec, RuntimeDebug,
-};
-use scale_info::TypeInfo;
-
 use crate::{Config, Error};
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::{ensure, sp_runtime::SaturatedConversion, traits::Get, BoundedVec};
+use scale_info::TypeInfo;
+use sp_runtime::RuntimeDebug;
 
 const NAME_SEPARATOR: u8 = b'@';
 const NETWORK_SUFFIX: &[u8] = b"cord";

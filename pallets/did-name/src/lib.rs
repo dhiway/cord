@@ -56,7 +56,6 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-	pub type BlockNumberFor<T> = <T as frame_system::Config>::BlockNumber;
 	pub type DidNameOwnerOf<T> = <T as Config>::DidNameOwner;
 	pub type DidNameInput<T> = BoundedVec<u8, <T as Config>::MaxNameLength>;
 	pub type DidNameOf<T> = <T as Config>::DidName;
