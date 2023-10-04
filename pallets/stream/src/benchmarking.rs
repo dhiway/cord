@@ -463,7 +463,7 @@ benchmarks! {
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
 				registry_id: registry_id.clone(),
-				delegate: did1.clone(),
+				delegate: did1,
 				schema: None,
 				permissions: Permissions::all(),
 			},
