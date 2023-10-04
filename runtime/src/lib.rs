@@ -21,7 +21,7 @@
 #![recursion_limit = "1024"]
 
 use codec::{Decode, Encode};
-// use scale_info::TypeInfo;
+use scale_info::TypeInfo;
 
 pub use cord_primitives::{curi::Ss58Identifier, AccountId, Signature};
 use cord_primitives::{
@@ -304,6 +304,8 @@ impl pallet_babe::Config for Runtime {
 	type WeightInfo = ();
 
 	type MaxAuthorities = MaxAuthorities;
+	type MaxNominators = ();
+
 	type KeyOwnerProof =
 		<Historical as KeyOwnerProofSystem<(KeyTypeId, pallet_babe::AuthorityId)>>::Proof;
 	type EquivocationReportSystem =
@@ -515,7 +517,6 @@ impl pallet_im_online::Config for Runtime {
 	type WeightInfo = weights::pallet_im_online::WeightInfo<Runtime>;
 	type MaxKeys = MaxKeys;
 	type MaxPeerInHeartbeats = MaxPeerInHeartbeats;
-	type MaxPeerDataEncodingSize = MaxPeerDataEncodingSize;
 }
 
 parameter_types! {
@@ -527,6 +528,7 @@ impl pallet_grandpa::Config for Runtime {
 
 	type WeightInfo = ();
 	type MaxAuthorities = MaxAuthorities;
+	type MaxNominators = ();
 	type MaxSetIdSessionEntries = MaxSetIdSessionEntries;
 	type KeyOwnerProof = <Historical as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
 	type EquivocationReportSystem =

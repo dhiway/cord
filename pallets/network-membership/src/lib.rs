@@ -157,7 +157,7 @@ pub mod pallet {
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
-		pub members: BTreeMap<T::AccountId, MemberData<BlockNumberFor<T>>>,
+		pub members: BTreeMap<T::AccountId, bool>,
 	}
 
 	// #[cfg(feature = "std")]
@@ -170,9 +170,8 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			for (member, member_data) in &self.members {
-				frame_system::Pallet::<T>::inc_providers(member);
-				Members::<T>::insert(member, member_data);
+			for (member, expires) in &self.members {
+				Pallet::<T>::add_member_and_schedule_expiry(member, expires.clone())
 			}
 		}
 	}
@@ -195,15 +194,7 @@ pub mod pallet {
 			// 'MembershipAlreadyAcquired'
 			ensure!(!<Members<T>>::contains_key(&member), Error::<T>::MembershipAlreadyAcquired);
 
-			if expires {
-				Self::insert_membership_and_schedule_expiry(member.clone())
-			} else {
-				let expire_on = BlockNumberFor::<T>::zero();
-				Members::<T>::insert(&member, MemberData { expire_on });
-			}
-
-			// the member has just been created, increment its provider
-			let _ = frame_system::Pallet::<T>::inc_providers(&member);
+			Self::add_member_and_schedule_expiry(&member, expires);
 
 			Self::deposit_event(Event::MembershipAcquired { member });
 
@@ -264,14 +255,26 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn insert_membership_and_schedule_expiry(member: CordAccountOf<T>) {
-		let block_number = frame_system::pallet::Pallet::<T>::block_number();
-		let expire_on = block_number + T::MembershipPeriod::get();
-		Members::<T>::insert(&member, MemberData { expire_on });
+	fn add_member_and_schedule_expiry(member: &CordAccountOf<T>, expires: bool) {
+		if expires {
+			let block_number = frame_system::pallet::Pallet::<T>::block_number();
+			let expire_on = block_number + T::MembershipPeriod::get();
+			Members::<T>::insert(member, MemberData { expire_on });
 
-		let _ = MembershipsExpiresOn::<T>::try_mutate(expire_on, |members| {
-			members.try_push(member).map_err(|_| Error::<T>::MaxMembersExceededForTheBlock)
-		});
+			// the member has just been created, increment its provider
+			let _ = frame_system::Pallet::<T>::inc_providers(member);
+
+			let _ = MembershipsExpiresOn::<T>::try_mutate(expire_on, |members| {
+				members
+					.try_push(member.clone())
+					.map_err(|_| Error::<T>::MaxMembersExceededForTheBlock)
+			});
+		} else {
+			let expire_on = BlockNumberFor::<T>::zero();
+			Members::<T>::insert(member, MemberData { expire_on });
+			// the member has just been created, increment its provider
+			let _ = frame_system::Pallet::<T>::inc_providers(member);
+		}
 	}
 
 	fn renew_membership_and_schedule_expiry(

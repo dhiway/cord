@@ -20,7 +20,6 @@
 //! The offences are executed here based. The offenders are disconnected and
 //! can be added to a blacklist to avoid futur connection.
 
-#![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::type_complexity)]
 
 use super::pallet::*;
