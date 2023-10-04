@@ -17,15 +17,15 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-// `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
-#![recursion_limit = "256"]
+// `construct_runtime!` does a lot of recursion and requires us to increase the limits.
+#![recursion_limit = "1024"]
 
 use codec::{Decode, Encode};
-use scale_info::TypeInfo;
+// use scale_info::TypeInfo;
 
 pub use cord_primitives::{curi::Ss58Identifier, AccountId, Signature};
 use cord_primitives::{
-	prod_or_fast, AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Index, Moment,
+	prod_or_fast, AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Moment, Nonce,
 };
 
 use frame_support::{
@@ -204,13 +204,13 @@ impl frame_system::Config for Runtime {
 	type DbWeight = RocksDbWeight;
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = Index;
+	type Nonce = Nonce;
 	type BlockNumber = BlockNumber;
 	type Hash = Hash;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = AccountIdLookup<AccountId, ()>;
-	type Header = generic::Header<BlockNumber, BlakeTwo256>;
+	type Block = Block;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type Version = Version;
@@ -544,7 +544,7 @@ where
 		call: RuntimeCall,
 		public: <Signature as Verify>::Signer,
 		account: AccountId,
-		nonce: <Runtime as frame_system::Config>::Index,
+		nonce: Nonce,
 	) -> Option<(RuntimeCall, <UncheckedExtrinsic as ExtrinsicT>::SignaturePayload)> {
 		use sp_runtime::traits::StaticLookup;
 		// take the biggest period possible.
@@ -798,11 +798,8 @@ impl pallet_scoring::Config for Runtime {
 	type ValueLimit = ConstU32<72>;
 }
 
-construct_runtime! {
-	pub struct Runtime where
-		Block = Block,
-		NodeBlock = cord_primitives::Block,
-		UncheckedExtrinsic = UncheckedExtrinsic
+construct_runtime! (
+	pub struct Runtime
 	{
 		System: frame_system = 0,
 		Scheduler: pallet_scheduler = 1,
@@ -839,7 +836,7 @@ construct_runtime! {
 		Scoring: pallet_scoring = 108,
 		Sudo: pallet_sudo = 255,
 	}
-}
+);
 
 impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall {
 	fn derive_verification_key_relationship(
@@ -1143,8 +1140,8 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Index> for Runtime {
-		fn account_nonce(account: AccountId) -> Index {
+	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Nonce> for Runtime {
+		fn account_nonce(account: AccountId) -> Nonce {
 			System::account_nonce(account)
 		}
 	}

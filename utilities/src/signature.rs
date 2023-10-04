@@ -18,8 +18,9 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use frame_support::dispatch::Weight;
+// use frame_support::dispatch::Weight;
 use scale_info::TypeInfo;
+use sp_weights::Weight;
 
 #[cfg(any(test, feature = "mock", feature = "runtime-benchmarks"))]
 use sp_std::marker::PhantomData;

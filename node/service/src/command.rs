@@ -75,10 +75,6 @@ impl SubstrateCli for Cli {
 		};
 		Ok(spec)
 	}
-
-	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&cord_runtime::VERSION
-	}
 }
 
 /// Unwraps a [`service::Client`] into the concrete runtime client.
@@ -181,8 +177,8 @@ pub fn run() -> sc_cli::Result<()> {
 							)
 						}
 						match &config.chain_spec {
-							spec if spec.is_cord() => cmd
-								.run::<cord_service::cord_runtime::Block, cord_service::CordExecutorDispatch>(
+							spec if spec.is_cord() =>
+								cmd.run::<Block, sp_statement_store::runtime_api::HostFunctions>(
 									config,
 								),
 							_ => Err("invalid chain spec".into()),

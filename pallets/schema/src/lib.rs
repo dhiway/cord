@@ -79,8 +79,6 @@ pub mod pallet {
 	pub(crate) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type of a Schema creator.
 	pub type SchemaCreatorOf<T> = <T as Config>::SchemaCreatorId;
-	/// Type for a block number.
-	pub type BlockNumberOf<T> = <T as frame_system::Config>::BlockNumber;
 	/// Type for an input schema
 	pub type InputSchemaOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedSchemaLength>;
 	/// Type for a schema entry
@@ -88,7 +86,7 @@ pub mod pallet {
 		InputSchemaOf<T>,
 		SchemaHashOf<T>,
 		<T as Config>::SchemaCreatorId,
-		BlockNumberOf<T>,
+		BlockNumberFor<T>,
 	>;
 
 	#[pallet::config]
