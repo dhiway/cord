@@ -20,9 +20,9 @@
 
 use crate::{errors::InputError, Config};
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::{ensure, traits::Get, BoundedVec, RuntimeDebug};
+use frame_support::{ensure, traits::Get, BoundedVec};
 use scale_info::TypeInfo;
-use sp_runtime::traits::SaturatedConversion;
+use sp_runtime::{traits::SaturatedConversion, RuntimeDebug};
 use sp_std::str;
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 use sp_std::{convert::TryInto, vec::Vec};
