@@ -223,6 +223,19 @@ This repository contains the complete code of the CORD Network Blockchain. To in
 
 If you would like to contribute, please fork the repository, follow the [contributions] guidelines, introduce your changes and submit a pull request. All pull requests are warmly welcome.
 
+### Before submitting the PR
+
+There are 3 tests which run as part of PR validation.
+
+* Build - `cargo build --release`
+
+* Clippy - `cargo clippy --all --no-deps --all-targets --features=runtime-benchmarks -- -D warnings`
+
+* Test - `cargo test --release  --locked --features=runtime-benchmarks --no-fail-fast --verbose --color always --all --all-targets`
+
+Note that each of these would take significant time to run, and hence, if you are working on a specific pallet, you can use `-p <pallet-name> --lib` instead of `--all`. That should be faster than normal full test locally.
+
+
 ## License
 
 The code in this repository is licensed under the terms of the [GPL 3.0 licensed](LICENSE-GPL3).
