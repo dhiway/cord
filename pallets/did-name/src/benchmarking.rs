@@ -20,12 +20,13 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite, vec, Vec};
+use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_support::{
 	pallet_prelude::EnsureOrigin, sp_runtime::SaturatedConversion, traits::Get, BoundedVec,
 };
 use frame_system::RawOrigin;
 use sp_runtime::app_crypto::sr25519;
+use sp_std::vec::Vec;
 
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 

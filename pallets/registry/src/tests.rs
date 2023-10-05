@@ -3,6 +3,7 @@ use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_err, assert_ok, BoundedVec};
+use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_schema::InputSchemaOf;
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
@@ -157,7 +158,7 @@ fn add_admin_delegate_should_fail_if_delegate_is_already_added() {
 	let schema_id_of: Ss58Identifier =
 		Ss58Identifier::to_schema_id(&schema_id_digest.encode()[..]).unwrap();
 
-	let new_block_number: BlockNumber = 1;
+	let new_block_number: BlockNumberFor<Test> = 1;
 
 	new_test_ext().execute_with(|| {
 		//adding schema
@@ -260,11 +261,11 @@ fn add_admin_delegate_should_update_commit() {
 			RegistryCommitActionOf::Authorization
 		));
 
-		// //Check wheter that event has been emitted
-		// assert_eq!(
-		// 	registry_events_since_last_call(),
-		// 	vec![Event::Create { registry: registry_id, creator }]
-		// );
+		//Check wheter that event has been emitted
+		assert_eq!(
+			registry_events_since_last_call(),
+			vec![Event::Create { registry: registry_id, creator }]
+		);
 	});
 }
 
@@ -408,7 +409,7 @@ fn add_delegate_should_fail_if_delegate_is_already_added() {
 	let schema_id_of: Ss58Identifier =
 		Ss58Identifier::to_schema_id(&schema_id_digest.encode()[..]).unwrap();
 
-	let new_block_number: BlockNumber = 1;
+	let new_block_number: BlockNumberFor<Test> = 1;
 
 	new_test_ext().execute_with(|| {
 		//adding schema
@@ -471,11 +472,11 @@ fn add_delegate_should_update_commit() {
 			RegistryCommitActionOf::Authorization
 		));
 
-		// //Check wheter that event has been emitted
-		// assert_eq!(
-		// 	registry_events_since_last_call(),
-		// 	vec![Event::Create { registry: registry_id, creator }]
-		// );
+		//Check wheter that event has been emitted
+		assert_eq!(
+			registry_events_since_last_call(),
+			vec![Event::Create { registry: registry_id, creator }]
+		);
 	});
 }
 
@@ -532,10 +533,7 @@ fn create_registry_should_succeed() {
 	let author = ACCOUNT_00;
 	let raw_registry = [2u8; 256].to_vec();
 	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	// let id_digest = <Test as frame_system::Config>::Hashing::hash(
-	// &[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	//);
-	//let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registry::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),

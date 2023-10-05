@@ -24,6 +24,8 @@ use frame_support::{
 	traits::{ConstU32, ConstU64},
 	BoundedVec,
 };
+#[cfg(feature = "runtime-benchmarks")]
+use frame_system::EnsureSigned;
 use scale_info::TypeInfo;
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{

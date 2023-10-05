@@ -18,7 +18,10 @@
 
 use crate as pallet_registry;
 use cord_utilities::mock::{mock_origin, SubjectId};
-use frame_support::{construct_runtime, parameter_types, traits::ConstU64};
+use frame_support::{
+	construct_runtime, parameter_types,
+	traits::{ConstU32, ConstU64},
+};
 
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
@@ -26,13 +29,10 @@ use sp_runtime::{
 };
 
 type Hash = sp_core::H256;
-type Balance = u128;
 type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
-
-pub(crate) type BlockNumber = u64;
 
 construct_runtime!(
 	pub enum Test {
@@ -48,15 +48,18 @@ parameter_types! {
 }
 
 impl frame_system::Config for Test {
+	type BaseCallFilter = frame_support::traits::Everything;
+	type BlockWeights = ();
+	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
+	type Nonce = u64;
 	type Block = Block;
-	type Nonce = u32;
 	type Hash = Hash;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type RuntimeEvent = ();
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
 	type Version = ();
@@ -64,13 +67,10 @@ impl frame_system::Config for Test {
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
-	type BaseCallFilter = frame_support::traits::Everything;
 	type SystemWeightInfo = ();
-	type BlockWeights = ();
-	type BlockLength = ();
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MaxConsumers = ConstU32<2>;
 }
 
 impl mock_origin::Config for Test {
@@ -80,7 +80,6 @@ impl mock_origin::Config for Test {
 }
 
 parameter_types! {
-	pub const Fee: Balance = 500;
 	#[derive(Debug, Clone)]
 	pub const MaxEncodedRegistryLength: u32 = 15_360;
 	pub const MaxRegistryAuthorities: u32 = 3u32;
@@ -89,7 +88,7 @@ parameter_types! {
 }
 
 impl pallet_registry::Config for Test {
-	type RuntimeEvent = ();
+	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
 	type RegistryCreatorId = SubjectId;
@@ -107,7 +106,7 @@ impl pallet_schema::Config for Test {
 	type SchemaCreatorId = SubjectId;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type RuntimeEvent = ();
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 }
@@ -116,17 +115,17 @@ parameter_types! {
 	storage RegistryEvents: u32 = 0;
 }
 
-// /// All events of this pallet.
-// pub fn registry_events_since_last_call() -> Vec<super::Event<Test>> {
-// 	let events = System::events()
-// 		.into_iter()
-// 		.map(|r| r.event)
-// 		.filter_map(|e| if let RuntimeEvent::Registry(inner) = e { Some(inner) } else
-// { None }) 		.collect::<Vec<_>>();
-// 	let already_seen = RegistryEvents::get();
-// 	RegistryEvents::set(&(events.len() as u32));
-// 	events.into_iter().skip(already_seen as usize).collect()
-// }
+/// All events of this pallet.
+pub fn registry_events_since_last_call() -> Vec<super::Event<Test>> {
+	let events = System::events()
+		.into_iter()
+		.map(|r| r.event)
+		.filter_map(|e| if let RuntimeEvent::Registry(inner) = e { Some(inner) } else { None })
+		.collect::<Vec<_>>();
+	let already_seen = RegistryEvents::get();
+	RegistryEvents::set(&(events.len() as u32));
+	events.into_iter().skip(already_seen as usize).collect()
+}
 
 #[allow(dead_code)]
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {

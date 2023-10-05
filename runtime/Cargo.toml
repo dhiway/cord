@@ -38,7 +38,7 @@ cord-utilities = { package = "cord-utilities", path = "../utilities", default-fe
 
 pallet-membership = { default-features = false, path = '../pallets/membership/' }
 pallet-did = { default-features = false, path = '../pallets/did' }
-pallet-did-names = { default-features = false, path = '../pallets/did-name' }
+pallet-did-name = { default-features = false, path = '../pallets/did-name' }
 pallet-schema = { default-features = false, path = '../pallets/schema' }
 pallet-registry = { default-features = false, path = '../pallets/registry' }
 pallet-stream = { default-features = false, path = '../pallets/stream' }
@@ -49,7 +49,7 @@ pallet-identity = { default-features = false, path = '../pallets/identity' }
 pallet-offences = { default-features = false, path = '../pallets/offences' }
 pallet-unique = { default-features = false, path = "../pallets/unique" }
 pallet-node-authorization = { default-features = false, path = "../pallets/node-authorization" }
-pallet-scoring = { default-features = false, path = '../pallets/scoring' }
+pallet-score = { default-features = false, path = '../pallets/score' }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../runtime-api/did", default-features = false }
@@ -157,12 +157,12 @@ std = [
 	"pallet-babe/std",
 	"pallet-remark/std",
 	"pallet-did/std",
-	"pallet-did-names/std",
+	"pallet-did-name/std",
 	"pallet-schema/std",
 	"pallet-registry/std",
 	"pallet-stream/std",
 	"pallet-unique/std",
-	"pallet-scoring/std",
+	"pallet-score/std",
 	"pallet-network-membership/std",
 	"pallet-runtime-upgrade/std",
 	"pallet-did-runtime-api/std",
@@ -202,7 +202,7 @@ runtime-benchmarks = [
 	"pallet-utility/runtime-benchmarks",
 	"cord-utilities/runtime-benchmarks",
 	"pallet-did/runtime-benchmarks",
-	"pallet-did-names/runtime-benchmarks",
+	"pallet-did-name/runtime-benchmarks",
 	"pallet-schema/runtime-benchmarks",
 	"pallet-stream/runtime-benchmarks",
 	"pallet-unique/runtime-benchmarks",
@@ -211,7 +211,7 @@ runtime-benchmarks = [
 	"hex-literal",
 	"pallet-sudo/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
-	"pallet-scoring/runtime-benchmarks",
+	"pallet-score/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -239,7 +239,7 @@ try-runtime = [
 	"pallet-stream/try-runtime",
 	"pallet-did/try-runtime",
 	"pallet-unique/try-runtime",
-	"pallet-scoring/try-runtime",
+	"pallet-score/try-runtime",
 ]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.

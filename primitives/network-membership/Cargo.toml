@@ -21,7 +21,7 @@ codec = { package = "parity-scale-codec", version = "3.6.1", default-features = 
 scale-info = { version = "2.5.0", default-features = false, features = [
 	"derive",
 ] }
-serde = { version = "1.0.163", features = ["derive"], optional = true }
+serde = { version = "1.0.188", features = ["derive"], optional = true }
 frame-support = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.1.0" }
 sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.1.0" }
 sp-std = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.1.0" }
@@ -32,7 +32,7 @@ std = [
 	"codec/std",
 	# "scale-info/std",
 	"frame-support/std",
-	"serde",
+	"serde/std",
 	"sp-runtime/std",
 	"sp-std/std",
 ]
