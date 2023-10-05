@@ -26,13 +26,12 @@ use frame_support::{
 	traits::{ConstU32, ConstU64},
 	BoundedVec,
 };
-use frame_system::EnsureSigned;
 use scale_info::TypeInfo;
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{
-	testing::{Header, H256},
+	testing::H256,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	MultiSignature, MultiSigner,
+	BuildStorage, MultiSignature, MultiSigner,
 };
 use sp_std::vec::Vec;
 
@@ -48,22 +47,19 @@ use crate::{
 #[cfg(not(feature = "runtime-benchmarks"))]
 use crate::{DidRawOrigin, EnsureDidOrigin};
 
+pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 pub(crate) type Hash = sp_core::H256;
 pub(crate) type Signature = MultiSignature;
 pub(crate) type AccountPublic = <Signature as Verify>::Signer;
 pub(crate) type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
-pub(crate) type BlockNumber = u64;
 pub(crate) type DidIdentifier = AccountId;
 
 frame_support::construct_runtime!(
-	pub enum Test where
-		Block = frame_system::mocking::MockBlock<Test>,
-		NodeBlock = frame_system::mocking::MockBlock<Test>,
-		UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
+	pub enum Test
 	{
-		Did: did::{Pallet, Call, Storage, Event<T>, Origin<T>},
-		Schema: pallet_schema::{Pallet, Call, Storage, Event<T>},
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		Did: did,
+		Schema: pallet_schema,
+		System: frame_system,
 	}
 );
 
@@ -78,13 +74,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Block = Block;
+	type Nonce = u64;
 	type Hash = Hash;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -344,7 +339,7 @@ pub fn generate_test_did_call(
 	}
 }
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	#[cfg(feature = "runtime-benchmarks")]

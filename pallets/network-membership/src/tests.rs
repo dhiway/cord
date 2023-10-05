@@ -15,21 +15,21 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{mock::*, Error, Event};
+use crate::{mock::*, Error, Event, MemberData};
 
 use frame_support::{assert_err, assert_ok, error::BadOrigin};
 use frame_system::RawOrigin;
-use network_membership::{traits::*, MemberData};
+use network_membership::traits::*;
 use sp_runtime::traits::IsMember;
 
 #[test]
 fn test_genesis_build() {
-	new_test_ext(default_gen_conf()).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		run_to_block(1);
 		// Verify state
 		assert_eq!(
 			NetworkMembership::members(AccountId::new([11u8; 32])),
-			Some(MemberData { expire_on: 3 })
+			Some(MemberData { expire_on: 5 })
 		);
 		assert_eq!(NetworkMembership::members_count(), 1);
 	});
@@ -37,7 +37,7 @@ fn test_genesis_build() {
 
 #[test]
 fn test_add_member_request() {
-	new_test_ext(default_gen_conf()).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		run_to_block(1);
 
 		assert_ok!(NetworkMembership::nominate(
@@ -62,7 +62,7 @@ fn test_add_member_request() {
 
 #[test]
 fn test_add_member_request_non_authority() {
-	new_test_ext(default_gen_conf()).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		run_to_block(1);
 
 		assert_err!(
@@ -80,7 +80,7 @@ fn test_add_member_request_non_authority() {
 
 #[test]
 fn test_duplicate_member_request() {
-	new_test_ext(default_gen_conf()).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		run_to_block(1);
 
 		assert_err!(
@@ -92,7 +92,7 @@ fn test_duplicate_member_request() {
 
 #[test]
 fn test_renew_membership() {
-	new_test_ext(default_gen_conf()).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		run_to_block(1);
 
 		assert!(NetworkMembership::is_member(&AccountId::new([11u8; 32])));
@@ -129,13 +129,13 @@ fn test_renew_membership() {
 			Some(MemberData { expire_on: 6 + MembershipPeriod::get() })
 		);
 
-		assert_eq!(NetworkMembership::members_count(), 2);
+		assert_eq!(NetworkMembership::members_count(), 1);
 	});
 }
 
 #[test]
 fn test_renew_membership_non_authority() {
-	new_test_ext(default_gen_conf()).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		run_to_block(1);
 
 		assert_err!(
@@ -152,8 +152,8 @@ fn test_renew_membership_non_authority() {
 
 #[test]
 fn test_auto_expire_membership() {
-	new_test_ext(default_gen_conf()).execute_with(|| {
-		run_to_block(1);
+	new_test_ext().execute_with(|| {
+		run_to_block(3);
 
 		assert!(NetworkMembership::is_member(&AccountId::new([11u8; 32])));
 
@@ -169,22 +169,20 @@ fn test_auto_expire_membership() {
 
 		run_to_block(5);
 		assert!(NetworkMembership::is_member(&AccountId::new([13u8; 32])));
-
-		run_to_block(6);
 		System::assert_has_event(RuntimeEvent::NetworkMembership(Event::MembershipExpired {
-			member: AccountId::new([13u8; 32]),
+			member: AccountId::new([11u8; 32]),
 		}));
 
-		run_to_block(7);
+		run_to_block(10);
 		assert!(!NetworkMembership::is_member(&AccountId::new([13u8; 32])));
 
-		assert_eq!(NetworkMembership::members_count(), 1);
+		assert_eq!(NetworkMembership::members_count(), 0);
 	});
 }
 
 #[test]
 fn test_revoke_membership() {
-	new_test_ext(default_gen_conf()).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		run_to_block(1);
 
 		assert!(NetworkMembership::is_member(&AccountId::new([11u8; 32])));
@@ -217,7 +215,7 @@ fn test_revoke_membership() {
 
 #[test]
 fn test_revoke_membership_non_authority() {
-	new_test_ext(default_gen_conf()).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		run_to_block(1);
 
 		assert_err!(

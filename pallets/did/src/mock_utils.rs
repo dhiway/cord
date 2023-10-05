@@ -19,6 +19,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use frame_support::storage::bounded_btree_set::BoundedBTreeSet;
+use frame_system::pallet_prelude::BlockNumberFor;
 use sp_runtime::{AccountId32, SaturatedConversion};
 use sp_std::{
 	collections::btree_set::BTreeSet,
@@ -33,7 +34,7 @@ use crate::{
 		DidVerificationKey,
 	},
 	service_endpoints::DidEndpoint,
-	AccountIdOf, BlockNumberOf, Config, DidCreationDetailsOf, DidIdentifierOf,
+	AccountIdOf, Config, DidCreationDetailsOf, DidIdentifierOf,
 };
 
 pub(crate) type DidNewKeyAgreementKeySetOf<T> =
@@ -108,6 +109,6 @@ where
 	T: Config,
 	<T as frame_system::Config>::AccountId: From<AccountId32>,
 {
-	DidDetails::new(authentication_key, BlockNumberOf::<T>::default())
+	DidDetails::new(authentication_key, BlockNumberFor::<T>::default())
 		.expect("Failed to generate new DidDetails from auth_key due to BoundedBTreeSet bound")
 }

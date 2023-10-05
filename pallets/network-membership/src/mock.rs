@@ -22,28 +22,23 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64, OnFinalize, OnInitialize},
 };
-use frame_system::EnsureRoot;
+use frame_system::{pallet_prelude::BlockNumberFor, EnsureRoot};
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	BuildStorage, MultiSignature,
 };
 
 use maplit::btreemap;
-use network_membership::MemberData;
 type Hash = sp_core::H256;
-type BlockNumber = u64;
 type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
+pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 
 construct_runtime!(
-	pub enum Test where
-	Block = frame_system::mocking::MockBlock<Test>,
-	NodeBlock = frame_system::mocking::MockBlock<Test>,
-	UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
+	pub enum Test
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		System: frame_system,
 		NetworkMembership: pallet_network_membership::{Pallet, Call, Storage, Event<T>, Config<T>},
 	}
 );
@@ -57,13 +52,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = Hash;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -79,7 +73,7 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
-	pub const MembershipPeriod: BlockNumber = 5;
+	pub const MembershipPeriod: BlockNumberFor<Test> = 5;
 	pub const MaxMembersPerBlock: u32 = 5;
 }
 
@@ -91,14 +85,17 @@ impl pallet_network_membership::Config for Test {
 	type WeightInfo = ();
 }
 
-// Build genesis storage according to the mock runtime.
-pub fn new_test_ext(
-	gen_conf: pallet_network_membership::GenesisConfig<Test>,
-) -> sp_io::TestExternalities {
-	GenesisConfig { system: SystemConfig::default(), network_membership: gen_conf }
-		.build_storage()
-		.unwrap()
-		.into()
+pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
+	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
+	// We use default for brevity, but you can configure as desired if needed.
+	pallet_network_membership::GenesisConfig::<Test> {
+		members: btreemap![
+			 AccountId::new([11u8; 32]) => true,
+		],
+	}
+	.assimilate_storage(&mut t)
+	.unwrap();
+	t.into()
 }
 
 pub fn run_to_block(n: u64) {
@@ -109,15 +106,5 @@ pub fn run_to_block(n: u64) {
 		System::set_block_number(System::block_number() + 1);
 		System::on_initialize(System::block_number());
 		NetworkMembership::on_initialize(System::block_number());
-	}
-}
-
-pub(crate) fn default_gen_conf() -> NetworkMembershipConfig {
-	NetworkMembershipConfig {
-		members: btreemap![
-			 AccountId::new([11u8; 32]) => MemberData {
-				expire_on: 3,
-			}
-		],
 	}
 }
