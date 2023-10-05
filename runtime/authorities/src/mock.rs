@@ -16,32 +16,29 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 //
-
 use super::*;
 use crate::{self as cord_authority_membership};
 use frame_support::{
 	parameter_types,
-	traits::{Everything, GenesisBuild},
-	BasicExternalities,
+	traits::{ConstU32, ConstU64},
 };
+use sp_state_machine::BasicExternalities;
 use std::collections::BTreeMap;
 
-use frame_system::EnsureRoot;
+use frame_system::{pallet_prelude::BlockNumberFor, EnsureRoot};
 use pallet_offences::{traits::OnOffenceHandler, SlashStrategy};
 use pallet_session::ShouldEndSession;
 use sp_core::{crypto::key_types::DUMMY, H256};
 use sp_runtime::{
 	impl_opaque_keys,
-	testing::{Header, UintAuthorityId},
+	testing::UintAuthorityId,
 	traits::{BlakeTwo256, ConvertInto, IdentityLookup, OpaqueKeys},
-	KeyTypeId,
+	BuildStorage, KeyTypeId,
 };
 use sp_staking::offence::OffenceDetails;
 
 type AccountId = u64;
-type BlockNumber = u64;
 type Block = frame_system::mocking::MockBlock<Test>;
-type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 
 impl_opaque_keys! {
 	pub struct MockSessionKeys {
@@ -57,48 +54,38 @@ impl From<UintAuthorityId> for MockSessionKeys {
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
-	pub enum Test where
-		Block = Block,
-		NodeBlock = Block,
-		UncheckedExtrinsic = UncheckedExtrinsic,
-	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+	pub enum Test {
+		System: frame_system,
 		Session: pallet_session::{Pallet, Call, Storage, Config<T>, Event},
 		NetworkMembership: pallet_network_membership::{Pallet, Call, Storage, Event<T>, Config<T>},
 		AuthorityMembership: cord_authority_membership::{Pallet, Call, Storage, Config<T>, Event<T>},
 	}
 );
 
-parameter_types! {
-	pub const BlockHashCount: u64 = 250;
-	pub const SS58Prefix: u8 = 29;
-}
-
 impl frame_system::Config for Test {
-	type BaseCallFilter = Everything;
+	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
 	type BlockLength = ();
-	type DbWeight = ();
 	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
 	type Hash = H256;
+	type RuntimeCall = RuntimeCall;
 	type Hashing = BlakeTwo256;
-	type AccountId = AccountId;
+	type AccountId = u64;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
+	type Block = Block;
 	type RuntimeEvent = RuntimeEvent;
-	type BlockHashCount = BlockHashCount;
+	type BlockHashCount = ConstU64<250>;
+	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
-	type SS58Prefix = SS58Prefix;
+	type SS58Prefix = ();
 	type OnSetCode = ();
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MaxConsumers = ConstU32<16>;
 }
 
 pub struct TestSessionHandler;
@@ -138,7 +125,7 @@ impl pallet_session::Config for Test {
 }
 
 parameter_types! {
-	pub const MembershipPeriod: BlockNumber = 5;
+	pub const MembershipPeriod: BlockNumberFor<Test> = 5;
 	pub const MaxMembersPerBlock: u32 = 5;
 }
 
@@ -182,7 +169,7 @@ pub fn authorities() -> Vec<UintAuthorityId> {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	let keys: Vec<_> = NextValidators::get()
 		.iter()
 		.cloned()

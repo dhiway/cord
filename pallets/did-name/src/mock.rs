@@ -20,15 +20,15 @@
 use self::did_name::AsciiDidName;
 use super::*;
 use crate as pallet_did_names;
+use crate::Config;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	MultiSignature,
+	BuildStorage, MultiSignature,
 };
 
 use frame_system::EnsureRoot;
@@ -37,16 +37,13 @@ type Hash = sp_core::H256;
 type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;
 type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
+pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 
 construct_runtime!(
-	pub enum Test where
-		Block = frame_system::mocking::MockBlock<Test>,
-		NodeBlock = frame_system::mocking::MockBlock<Test>,
-		UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
-	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		DidNames: pallet_did_names::{Pallet, Storage, Call, Event<T>},
-		MockOrigin: mock_origin::{Pallet, Origin<T>},
+	pub enum Test{
+		System: frame_system,
+		DidNames: pallet_did_names,
+		MockOrigin: mock_origin,
 	}
 );
 
@@ -60,13 +57,12 @@ impl frame_system::Config for Test {
 	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Nonce = u64;
+	type Block = Block;
 	type Hash = Hash;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
@@ -116,7 +112,7 @@ impl mock_origin::Config for Test {
 
 #[allow(dead_code)]
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	#[cfg(feature = "runtime-benchmarks")]

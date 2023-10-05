@@ -21,6 +21,8 @@
 use codec::Encode;
 use cord_primitives::curi::Ss58Identifier;
 use frame_support::{assert_err, assert_noop, assert_ok, BoundedVec};
+use frame_system::pallet_prelude::BlockNumberFor;
+
 use sp_core::{ed25519, Pair};
 use sp_runtime::{
 	traits::{BadOrigin, Hash},

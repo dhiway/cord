@@ -46,6 +46,7 @@ construct_runtime!(
 parameter_types! {
 	pub const SS58Prefix: u8 = 29;
 }
+
 impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();

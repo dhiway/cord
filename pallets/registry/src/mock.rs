@@ -16,18 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use super::*;
 use crate as pallet_registry;
 use cord_utilities::mock::{mock_origin, SubjectId};
-use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{ConstU128, ConstU32, ConstU64},
-};
+use frame_support::{construct_runtime, parameter_types, traits::ConstU64};
 
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	MultiSignature,
+	BuildStorage, MultiSignature,
 };
 
 type Hash = sp_core::H256;
@@ -35,74 +30,47 @@ type Balance = u128;
 type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
+pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 
 pub(crate) type BlockNumber = u64;
 
 construct_runtime!(
-	pub enum Test where
-		Block = frame_system::mocking::MockBlock<Test>,
-		NodeBlock = frame_system::mocking::MockBlock<Test>,
-		UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
-	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Schema:pallet_schema::{Pallet, Call, Storage, Event<T>},
-		Registry: pallet_registry::{Pallet, Storage, Call,Event<T>},
-		Balances: pallet_balances::{Pallet, Call, Storage, Event<T>},
-		MockOrigin: mock_origin::{Pallet, Origin<T>},
+	pub enum Test {
+		System: frame_system,
+		Schema:pallet_schema,
+		Registry: pallet_registry,
+		MockOrigin: mock_origin,
 	}
 );
 
 parameter_types! {
 	pub const SS58Prefix: u8 = 29;
-	pub const BlockHashCount: u64 = 250;
 }
+
 impl frame_system::Config for Test {
-	type BaseCallFilter = frame_support::traits::Everything;
-	type BlockWeights = ();
-	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Block = Block;
+	type Nonce = u32;
 	type Hash = Hash;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
-	type RuntimeEvent = RuntimeEvent;
+	type RuntimeEvent = ();
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = pallet_balances::AccountData<u128>;
+	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
+	type BaseCallFilter = frame_support::traits::Everything;
 	type SystemWeightInfo = ();
+	type BlockWeights = ();
+	type BlockLength = ();
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
-	type MaxConsumers = ConstU32<2>;
-}
-
-parameter_types! {
-	pub const ExistentialDeposit: Balance = 500;
-	pub const MaxLocks: u32 = 50;
-	pub const MaxReserves: u32 = 50;
-}
-
-impl pallet_balances::Config for Test {
-	type Balance = Balance;
-	type DustRemoval = ();
-	type RuntimeEvent = RuntimeEvent;
-	type ExistentialDeposit = ConstU128<1>;
-	type AccountStore = System;
-	type WeightInfo = ();
-	type MaxLocks = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
-	type FreezeIdentifier = ();
-	type MaxFreezes = ();
-	type HoldIdentifier = ();
-	type MaxHolds = ();
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 impl mock_origin::Config for Test {
@@ -120,15 +88,15 @@ parameter_types! {
 	pub const MaxRegistryCommitActions: u32 = 5u32;
 }
 
-impl Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+impl pallet_registry::Config for Test {
+	type RuntimeEvent = ();
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
 	type RegistryCreatorId = SubjectId;
 	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
 	type MaxRegistryAuthorities = MaxRegistryAuthorities;
 	type MaxRegistryCommitActions = MaxRegistryCommitActions;
-	type WeightInfo = weights::SubstrateWeight<Test>;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -139,7 +107,7 @@ impl pallet_schema::Config for Test {
 	type SchemaCreatorId = SubjectId;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type RuntimeEvent = RuntimeEvent;
+	type RuntimeEvent = ();
 	type WeightInfo = ();
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 }
@@ -148,21 +116,22 @@ parameter_types! {
 	storage RegistryEvents: u32 = 0;
 }
 
-/// All events of this pallet.
-pub fn registry_events_since_last_call() -> Vec<super::Event<Test>> {
-	let events = System::events()
-		.into_iter()
-		.map(|r| r.event)
-		.filter_map(|e| if let RuntimeEvent::Registry(inner) = e { Some(inner) } else { None })
-		.collect::<Vec<_>>();
-	let already_seen = RegistryEvents::get();
-	RegistryEvents::set(&(events.len() as u32));
-	events.into_iter().skip(already_seen as usize).collect()
-}
+// /// All events of this pallet.
+// pub fn registry_events_since_last_call() -> Vec<super::Event<Test>> {
+// 	let events = System::events()
+// 		.into_iter()
+// 		.map(|r| r.event)
+// 		.filter_map(|e| if let RuntimeEvent::Registry(inner) = e { Some(inner) } else
+// { None }) 		.collect::<Vec<_>>();
+// 	let already_seen = RegistryEvents::get();
+// 	RegistryEvents::set(&(events.len() as u32));
+// 	events.into_iter().skip(already_seen as usize).collect()
+// }
 
 #[allow(dead_code)]
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let t: sp_runtime::Storage =
+		frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	#[cfg(feature = "runtime-benchmarks")]

@@ -36,6 +36,7 @@ sp-staking = { git = "https://github.com/dhiway/substrate-sdk", default-features
 pallet-session = { git = "https://github.com/dhiway/substrate-sdk", features = [
 	"historical",
 ], default-features = false, branch = "release-v1.1.0" }
+sp-state-machine = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.1.0" }
 
 
 [dev-dependencies]
@@ -56,6 +57,7 @@ std = [
 	'sp-std/std',
 	'sp-core/std',
 	'sp-staking/std',
+	"sp-state-machine/std",
 	'pallet-session/std',
 	'pallet-offences/std',
 	'log/std',

@@ -24,27 +24,24 @@ use frame_support::{
 	traits::{ConstU32, ConstU64},
 };
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
-	MultiSignature,
+	BuildStorage, MultiSignature,
 };
 
 type Hash = sp_core::H256;
 type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
+pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 
 construct_runtime!(
-	pub enum Test where
-		Block = frame_system::mocking::MockBlock<Test>,
-		NodeBlock = frame_system::mocking::MockBlock<Test>,
-		UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>,
+	pub enum Test
 	{
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-		Schema:pallet_schema::{Pallet, Call, Storage, Event<T>},
-		Registry: pallet_registry::{Pallet, Storage, Call,Event<T>},
+		System: frame_system,
+		Schema: pallet_schema,
+		Registry: pallet_registry,
 		Scoring: pallet_scoring::{Pallet, Call, Storage, Event<T>},
-		MockOrigin: mock_origin::{Pallet, Origin<T>},
+		MockOrigin: mock_origin,
 	}
 );
 
@@ -52,30 +49,29 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 29;
 }
 impl frame_system::Config for Test {
-	type BaseCallFilter = frame_support::traits::Everything;
-	type BlockWeights = ();
-	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
-	type Index = u64;
-	type BlockNumber = u64;
+	type Block = Block;
+	type Nonce = u32;
 	type Hash = Hash;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type Header = Header;
-	type RuntimeEvent = RuntimeEvent;
+	type RuntimeEvent = ();
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = pallet_balances::AccountData<u128>;
+	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
+	type BaseCallFilter = frame_support::traits::Everything;
 	type SystemWeightInfo = ();
+	type BlockWeights = ();
+	type BlockLength = ();
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
-	type MaxConsumers = ConstU32<2>;
+	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
 impl mock_origin::Config for Test {
@@ -88,7 +84,7 @@ impl Config for Test {
 	type RatingCreatorIdOf = SubjectId;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type RuntimeEvent = RuntimeEvent;
+	type RuntimeEvent = ();
 	type WeightInfo = weights::SubstrateWeight<Test>;
 	type ValueLimit = ConstU32<72>;
 }
@@ -102,7 +98,7 @@ parameter_types! {
 }
 
 impl pallet_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+	type RuntimeEvent = ();
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
 	type RegistryCreatorId = SubjectId;
@@ -120,14 +116,15 @@ impl pallet_schema::Config for Test {
 	type SchemaCreatorId = SubjectId;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type RuntimeEvent = RuntimeEvent;
+	type RuntimeEvent = ();
 	type WeightInfo = ();
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 }
 
 #[allow(dead_code)]
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-	let t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let t: sp_runtime::Storage =
+		frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	#[cfg(feature = "runtime-benchmarks")]

@@ -24,7 +24,7 @@ use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::Pays,
 	parameter_types,
-	traits::{ConstU32, ConstU64, StorageVersion},
+	traits::{ConstU32, ConstU64},
 	Hashable,
 };
 use frame_system::{EnsureRoot, EventRecord, Phase};
@@ -1368,47 +1368,4 @@ fn genesis_build_panics_with_duplicate_members() {
 	}
 	.build_storage()
 	.unwrap();
-}
-
-#[test]
-fn migration_v4() {
-	ExtBuilder::default().build_and_execute(|| {
-		use frame_support::traits::PalletInfoAccess;
-
-		let old_pallet = "OldCollective";
-		let new_pallet = <Collective as PalletInfoAccess>::name();
-		frame_support::storage::migration::move_pallet(
-			new_pallet.as_bytes(),
-			old_pallet.as_bytes(),
-		);
-		StorageVersion::new(0).put::<Collective>();
-
-		crate::migrations::v4::pre_migrate::<Collective, _>(old_pallet);
-		crate::migrations::v4::migrate::<Test, Collective, _>(old_pallet);
-		crate::migrations::v4::post_migrate::<Collective, _>(old_pallet);
-
-		let old_pallet = "OldCollectiveMajority";
-		let new_pallet = <CollectiveMajority as PalletInfoAccess>::name();
-		frame_support::storage::migration::move_pallet(
-			new_pallet.as_bytes(),
-			old_pallet.as_bytes(),
-		);
-		StorageVersion::new(0).put::<CollectiveMajority>();
-
-		crate::migrations::v4::pre_migrate::<CollectiveMajority, _>(old_pallet);
-		crate::migrations::v4::migrate::<Test, CollectiveMajority, _>(old_pallet);
-		crate::migrations::v4::post_migrate::<CollectiveMajority, _>(old_pallet);
-
-		let old_pallet = "OldDefaultCollective";
-		let new_pallet = <DefaultCollective as PalletInfoAccess>::name();
-		frame_support::storage::migration::move_pallet(
-			new_pallet.as_bytes(),
-			old_pallet.as_bytes(),
-		);
-		StorageVersion::new(0).put::<DefaultCollective>();
-
-		crate::migrations::v4::pre_migrate::<DefaultCollective, _>(old_pallet);
-		crate::migrations::v4::migrate::<Test, DefaultCollective, _>(old_pallet);
-		crate::migrations::v4::post_migrate::<DefaultCollective, _>(old_pallet);
-	});
 }
