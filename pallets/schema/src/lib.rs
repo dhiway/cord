@@ -41,6 +41,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod weights;
+pub use pallet::*;
 
 #[cfg(any(feature = "mock", test))]
 pub mod mock;

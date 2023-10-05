@@ -21,9 +21,6 @@ sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v
 sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", features = [
 	"std",
 ] }
-pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", features = [
-	"std",
-] }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", features = [
 	"mock",
 ] }
@@ -48,10 +45,10 @@ sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1
 sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false, optional = true }
 sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false, optional = true }
 sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false, optional = true }
-pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false, optional = true }
 
 [features]
 default = ['std']
+mock = ["sp-core", "sp-io", "sp-keystore"]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
@@ -65,7 +62,6 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"frame-benchmarking?/std",
-	"pallet-balances/std",
 	"cord-primitives/std",
 	"cord-utilities/std",
 	"sp-runtime/std",

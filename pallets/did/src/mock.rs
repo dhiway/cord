@@ -18,8 +18,6 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use super::*;
-use crate as did;
 use codec::{Decode, Encode};
 use frame_support::{
 	parameter_types,
@@ -36,6 +34,7 @@ use sp_runtime::{
 use sp_std::vec::Vec;
 
 use crate::{
+	self as did,
 	did_details::{
 		DeriveDidCallAuthorizationVerificationKeyRelationship, DeriveDidCallKeyRelationshipResult,
 		DidAuthorizedCallOperation, DidAuthorizedCallOperationWithVerificationRelationship,

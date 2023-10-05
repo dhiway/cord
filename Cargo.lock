@@ -1173,6 +1173,7 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
+ "sp-state-machine",
  "sp-std",
  "substrate-wasm-builder",
 ]
@@ -5663,7 +5664,6 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-balances",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
