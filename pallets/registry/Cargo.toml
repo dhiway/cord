@@ -37,7 +37,6 @@ scale-info = { version = "2.5.0", default-features = false, features = [
 	"derive",
 ] }
 bitflags = { version = "1.3.2", default-features = false }
-serde = { version = "1.0.188", optional = true }
 log = { version = "0.4.17", default-features = false }
 
 # Internal dependencies
@@ -49,7 +48,6 @@ pallet-schema = { default-features = false, path = '../schema' }
 frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false, optional = true }
 frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
 frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
-pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false, optional = true }
 sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false, optional = true }
 sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false, optional = true }
 sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false, optional = true }
@@ -74,7 +72,6 @@ std = [
 	"cord-primitives/std",
 	"cord-utilities/std",
 	"log/std",
-	"pallet-balances/std",
 	"scale-info/std",
 	"sp-core/std",
 	"sp-io/std",

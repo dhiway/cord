@@ -47,7 +47,7 @@ std = [
 	"log/std",
 	"pallet-balances/std",
 	"scale-info/std",
-	"serde/std",
+	"serde",
 	"sp-runtime/std",
 	"sp-staking/std",
 	"sp-std/std",
