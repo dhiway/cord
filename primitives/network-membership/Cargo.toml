@@ -30,9 +30,9 @@ sp-std = { git = "https://github.com/dhiway/substrate-sdk", default-features = f
 default = ["std"]
 std = [
 	"codec/std",
-	# "scale-info/std",
+	"scale-info/std",
 	"frame-support/std",
-	"serde/std",
+	"serde",
 	"sp-runtime/std",
 	"sp-std/std",
 ]

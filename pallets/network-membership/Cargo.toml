@@ -56,6 +56,6 @@ std = [
 	"sp-runtime/std",
 	"sp-core/std",
 	"sp-std/std",
-	"serde/std",
+	"serde",
 	"log/std",
 ]

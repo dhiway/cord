@@ -40,7 +40,7 @@ sp-state-machine = { git = "https://github.com/dhiway/substrate-sdk", default-fe
 
 
 [dev-dependencies]
-serde = { version = "1.0.188", default-features = false }
+# serde = { version = "1.0.188", default-features = false }
 sp-io = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.1.0" }
 
 [features]

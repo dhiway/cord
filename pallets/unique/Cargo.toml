@@ -16,31 +16,30 @@ substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", bran
 
 [dev-dependencies]
 sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", features = [
-    "std",
+	"std",
 ] }
 sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", features = [
-    "std",
+	"std",
 ] }
 pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", features = [
-    "std",
+	"std",
 ] }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", features = [
-    "mock",
+	"mock",
 ] }
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
-    "derive",
-    "max-encoded-len",
+	"derive",
+	"max-encoded-len",
 ] }
 scale-info = { version = "2.5.0", default-features = false, features = [
-    "derive",
+	"derive",
 ] }
 cord-primitives = { package = "cord-primitives", path = "../../primitives/cord", default-features = false }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
 pallet-registry = { default-features = false, path = '../registry' }
 pallet-schema = { default-features = false, path = '../schema' }
-
 
 # Substrate dependencies
 frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false, optional = true }
@@ -56,30 +55,30 @@ pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "r
 [features]
 default = ['std']
 runtime-benchmarks = [
-    "frame-benchmarking/runtime-benchmarks",
-    "frame-support/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
-    "sp-runtime/runtime-benchmarks",
-    "cord-utilities/runtime-benchmarks",
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"cord-utilities/runtime-benchmarks",
 ]
 std = [
-    "codec/std",
-    "scale-info/std",
-    "frame-support/std",
-    "frame-system/std",
-    "frame-benchmarking?/std",
-    "cord-primitives/std",
-    "cord-utilities/std",
-    "sp-runtime/std",
-    "sp-io/std",
-    "sp-std/std",
-    "sp-keystore/std",
-    "pallet-registry/std",
-    "pallet-schema/std",
+	"codec/std",
+	"scale-info/std",
+	"frame-support/std",
+	"frame-system/std",
+	"frame-benchmarking?/std",
+	"cord-primitives/std",
+	"cord-utilities/std",
+	"sp-runtime/std",
+	"sp-io/std",
+	"sp-std/std",
+	"sp-keystore/std",
+	"pallet-registry/std",
+	"pallet-schema/std",
 ]
 
 try-runtime = [
-    "frame-support/try-runtime",
-    "frame-system/try-runtime",
-    "cord-utilities/try-runtime",
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"cord-utilities/try-runtime",
 ]
