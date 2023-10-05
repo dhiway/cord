@@ -33,13 +33,10 @@ use frame_support::{
 use sp_runtime::traits::StaticLookup;
 use sp_std::prelude::*;
 
-pub mod migrations;
 pub mod weights;
 
 pub use pallet::*;
 pub use weights::WeightInfo;
-
-const LOG_TARGET: &str = "runtime::membership";
 
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
@@ -550,28 +547,24 @@ mod tests {
 	use super::*;
 	use crate as pallet_membership;
 
+	use frame_support::{
+		assert_noop, assert_ok, ord_parameter_types, parameter_types,
+		traits::{ConstU32, ConstU64},
+	};
+	use frame_system::{pallet_prelude::BlockNumberFor, EnsureRoot, EnsureSignedBy};
 	use sp_core::H256;
 	use sp_runtime::{
-		testing::Header,
+		bounded_vec,
 		traits::{BadOrigin, BlakeTwo256, IdentityLookup},
+		BuildStorage,
 	};
 
-	use frame_support::{
-		assert_noop, assert_ok, bounded_vec, ord_parameter_types, parameter_types,
-		traits::{ConstU32, ConstU64, GenesisBuild, StorageVersion},
-	};
-	use frame_system::{EnsureRoot, EnsureSignedBy};
-	type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 	type Block = frame_system::mocking::MockBlock<Test>;
-	type BlockNumber = u64;
 
 	frame_support::construct_runtime!(
-		pub enum Test where
-			Block = Block,
-			NodeBlock = Block,
-			UncheckedExtrinsic = UncheckedExtrinsic,
+		pub enum Test
 		{
-			System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+			System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>},
 			Membership: pallet_membership::{Pallet, Call, Storage, Config<T>, Event<T>},
 			NetworkMembership: pallet_network_membership::{Pallet, Call, Storage, Event<T>, Config<T>},
 		}
@@ -588,14 +581,13 @@ mod tests {
 		type BlockLength = ();
 		type DbWeight = ();
 		type RuntimeOrigin = RuntimeOrigin;
-		type Index = u64;
-		type BlockNumber = u64;
+		type Nonce = u64;
 		type Hash = H256;
 		type RuntimeCall = RuntimeCall;
 		type Hashing = BlakeTwo256;
 		type AccountId = u64;
 		type Lookup = IdentityLookup<Self::AccountId>;
-		type Header = Header;
+		type Block = Block;
 		type RuntimeEvent = RuntimeEvent;
 		type BlockHashCount = ConstU64<250>;
 		type Version = ();
@@ -644,7 +636,7 @@ mod tests {
 		}
 	}
 	parameter_types! {
-		pub const MembershipPeriod: BlockNumber = 5;
+		pub const MembershipPeriod: BlockNumberFor<Test> = 5;
 		pub const MaxMembersPerBlock: u32 = 5;
 	}
 
@@ -670,7 +662,7 @@ mod tests {
 	}
 
 	pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default().build_storage::<Test>().unwrap();
+		let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 		// We use default for brevity, but you can configure as desired if needed.
 		pallet_membership::GenesisConfig::<Test> {
 			members: bounded_vec![10, 20, 30],
@@ -683,7 +675,7 @@ mod tests {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	pub(crate) fn new_bench_ext() -> sp_io::TestExternalities {
-		frame_system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+		frame_system::GenesisConfig::<Test>::default().build_storage().unwrap().into()
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -857,26 +849,5 @@ mod tests {
 		}
 		.build_storage()
 		.unwrap();
-	}
-
-	#[test]
-	fn migration_v4() {
-		new_test_ext().execute_with(|| {
-			use frame_support::traits::PalletInfo;
-			let old_pallet_name = "OldMembership";
-			let new_pallet_name =
-				<Test as frame_system::Config>::PalletInfo::name::<Membership>().unwrap();
-
-			frame_support::storage::migration::move_pallet(
-				new_pallet_name.as_bytes(),
-				old_pallet_name.as_bytes(),
-			);
-
-			StorageVersion::new(0).put::<Membership>();
-
-			crate::migrations::v4::pre_migrate::<Membership, _>(old_pallet_name, new_pallet_name);
-			crate::migrations::v4::migrate::<Test, Membership, _>(old_pallet_name, new_pallet_name);
-			crate::migrations::v4::post_migrate::<Membership, _>(old_pallet_name, new_pallet_name);
-		});
 	}
 }

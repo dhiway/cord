@@ -160,13 +160,6 @@ pub mod pallet {
 		pub members: BTreeMap<T::AccountId, bool>,
 	}
 
-	// #[cfg(feature = "std")]
-	// impl<T: Config> Default for GenesisConfig<T> {
-	// 	fn default() -> Self {
-	// 		Self { members: Default::default() }
-	// 	}
-	// }
-
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
