@@ -1489,7 +1489,7 @@ dependencies = [
  "pallet-balances",
  "pallet-collective",
  "pallet-did",
- "pallet-did-names",
+ "pallet-did-name",
  "pallet-did-runtime-api",
  "pallet-grandpa",
  "pallet-identity",
@@ -1506,7 +1506,7 @@ dependencies = [
  "pallet-runtime-upgrade",
  "pallet-scheduler",
  "pallet-schema",
- "pallet-scoring",
+ "pallet-score",
  "pallet-session",
  "pallet-staking",
  "pallet-stream",
@@ -5474,7 +5474,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-did-names"
+name = "pallet-did-name"
 version = "0.9.0"
 dependencies = [
  "cord-utilities",
@@ -5781,7 +5781,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-scoring"
+name = "pallet-score"
 version = "0.9.0"
 dependencies = [
  "cord-primitives",

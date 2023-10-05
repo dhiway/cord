@@ -20,7 +20,7 @@
 
 use super::*;
 use crate::Pallet;
-use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_system::RawOrigin;
 
 const SEED: u32 = 0;

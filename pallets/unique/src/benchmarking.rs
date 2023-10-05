@@ -21,13 +21,13 @@
 use super::*;
 use codec::Encode;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
-use frame_benchmarking::{
-	v1::{account, benchmarks, impl_benchmark_test_suite},
-	Vec,
-};
+use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_support::{sp_runtime::traits::Hash, BoundedVec};
 use pallet_registry::{InputRegistryOf, RegistryHashOf};
-use sp_std::convert::{TryFrom, TryInto};
+use sp_std::{
+	convert::{TryFrom, TryInto},
+	vec::Vec,
+};
 
 const SEED: u32 = 0;
 const MAX_PAYLOAD_BYTE_LENGTH: u32 = 5 * 1024;

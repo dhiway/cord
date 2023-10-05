@@ -710,7 +710,7 @@ parameter_types! {
 	pub const MaxPrefixLength: u32 = 54;
 }
 
-impl pallet_did_names::Config for Runtime {
+impl pallet_did_name::Config for Runtime {
 	type BanOrigin = EnsureRoot<AccountId>;
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
@@ -718,9 +718,9 @@ impl pallet_did_names::Config for Runtime {
 	type MaxNameLength = MaxNameLength;
 	type MinNameLength = MinNameLength;
 	type MaxPrefixLength = MaxPrefixLength;
-	type DidName = pallet_did_names::did_name::AsciiDidName<Runtime>;
+	type DidName = pallet_did_name::did_name::AsciiDidName<Runtime>;
 	type DidNameOwner = DidIdentifier;
-	type WeightInfo = weights::pallet_did_names::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_did_name::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -790,12 +790,12 @@ parameter_types! {
 	pub const MaxEncodedLength: u32 = 15_360;
 }
 
-impl pallet_scoring::Config for Runtime {
+impl pallet_score::Config for Runtime {
 	type RatingCreatorIdOf = DidIdentifier;
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_scoring::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_score::WeightInfo<Runtime>;
 	type ValueLimit = ConstU32<72>;
 }
 
@@ -832,9 +832,9 @@ construct_runtime! (
 		Schema: pallet_schema = 103,
 		Registry: pallet_registry = 104,
 		Stream: pallet_stream = 105,
-		DidNames: pallet_did_names = 106,
+		DidName: pallet_did_name = 106,
 		Unique: pallet_unique = 107,
-		Scoring: pallet_scoring = 108,
+		Score: pallet_score = 108,
 		Sudo: pallet_sudo = 255,
 	}
 );
@@ -868,7 +868,7 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
 			RuntimeCall::Did { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::DidNames { .. } =>
+			RuntimeCall::DidName { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
 			RuntimeCall::Schema { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
@@ -876,7 +876,7 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Unique { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Scoring { .. } =>
+			RuntimeCall::Score { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
@@ -980,9 +980,9 @@ mod benches {
 		[pallet_unique, Unique]
 		[pallet_registry, Registry]
 		[pallet_did, Did]
-		[pallet_did_names, DidNames]
+		[pallet_did_name, DidName]
 		[pallet_network_membership, NetworkMembership]
-		[pallet_scoring, Scoring]
+		[pallet_score, Score]
 		[pallet_sudo, Sudo]
 	);
 }
@@ -1163,7 +1163,7 @@ sp_api::impl_runtime_apis! {
 			>
 		> {
 			let details = pallet_did::Did::<Runtime>::get(&did)?;
-			let name = pallet_did_names::Names::<Runtime>::get(&did).map(Into::into);
+			let name = pallet_did_name::Names::<Runtime>::get(&did).map(Into::into);
 			let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
 
 			Some(pallet_did_runtime_api::RawDidLinkedInfo {
@@ -1181,8 +1181,8 @@ sp_api::impl_runtime_apis! {
 				BlockNumber
 			>
 		> {
-			let dname: pallet_did_names::did_name::AsciiDidName<Runtime> = name.try_into().ok()?;
-			pallet_did_names::Owner::<Runtime>::get(&dname)
+			let dname: pallet_did_name::did_name::AsciiDidName<Runtime> = name.try_into().ok()?;
+			pallet_did_name::Owner::<Runtime>::get(&dname)
 				.and_then(|owner_info| {
 					pallet_did::Did::<Runtime>::get(&owner_info.owner).map(|details| (owner_info, details))
 				})

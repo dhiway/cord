@@ -16,9 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! # Scoring Pallet
+//! # Score Pallet
 //!
-//! Scoring Pallet maintains aggregated scores for different entities,
+//! Score Pallet maintains aggregated scores for different entities,
 //! updating them whenever a new journal entry is added,
 //! associate it with their account id.
 //!
@@ -28,11 +28,11 @@
 //!
 //! ### Terminology
 //!
-//! - **Scoring:**:
+//! - **Score:**:
 //!
 //! ## Assumptions
 //!
-//! - The Scoring hash was created using CORD SDK.
+//! - The Score hash was created using CORD SDK.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]

@@ -19,7 +19,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 use self::did_name::AsciiDidName;
 use super::*;
-use crate as pallet_did_names;
+use crate as pallet_did_name;
 use crate::Config;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{
@@ -42,7 +42,7 @@ pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 construct_runtime!(
 	pub enum Test{
 		System: frame_system,
-		DidNames: pallet_did_names,
+		DidName: pallet_did_name,
 		MockOrigin: mock_origin,
 	}
 );

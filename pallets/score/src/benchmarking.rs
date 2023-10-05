@@ -22,7 +22,7 @@ use super::*;
 use codec::Encode;
 use cord_primitives::curi::Ss58Identifier;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
-use frame_benchmarking::v1::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
 use frame_support::{sp_runtime::traits::Hash, BoundedVec};
 use pallet_registry::{
 	Authorizations, InputRegistryOf, Permissions, RegistryAuthorizationOf, RegistryHashOf,

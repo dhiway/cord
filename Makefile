@@ -50,7 +50,7 @@ check-network-membership:
 
 # Rule to check the DID NAME pallet with all targets
 check-did-name:
-	cargo check --package pallet-did-names $(CARGO_FLAGS)
+	cargo check --package pallet-did-name $(CARGO_FLAGS)
 
 # Rule to check the REGISTRY pallet with all targets
 check-registry:
@@ -82,7 +82,7 @@ test-network-membership:
 
 # Rule to test the DID NAME pallet with all targets
 test-did-name:
-	cargo test --package pallet-did-names $(CARGO_FLAGS)
+	cargo test --package pallet-did-name $(CARGO_FLAGS)
 
 # Rule to test the REGISTRY pallet with all targets
 test-registry:

@@ -25,7 +25,7 @@ crate-type = ["cdylib", "rlib"]
 array-bytes = "6.1"
 clap = { version = "4.0.9", features = ["derive"], optional = true }
 codec = { package = "parity-scale-codec", version = "3.6.1" }
-serde = { version = "1.0.163", features = ["derive"] }
+serde = { version = "1.0.188", features = ["derive"] }
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 futures = "0.3.21"
 hex-literal = "0.4.1"

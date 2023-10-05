@@ -1,5 +1,5 @@
 [package]
-name = 'pallet-did-names'
+name = 'pallet-did-name'
 description = "Unique name alias for CORD DIDs."
 version = "0.9.0"
 authors = ['Dhiway Networks <info@dhiway.com>']
@@ -13,28 +13,28 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dev-dependencies]
 cord-utilities = { package = "cord-utilities", path = "../../utilities", features = [
-  "mock",
+	"mock",
 ] }
 pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", features = [
-  "std",
+	"std",
 ], branch = "release-v1.1.0" }
 sp-core = { git = "https://github.com/dhiway/substrate-sdk", features = [
-  "std",
+	"std",
 ], branch = "release-v1.1.0" }
 sp-io = { git = "https://github.com/dhiway/substrate-sdk", features = [
-  "std",
+	"std",
 ], branch = "release-v1.1.0" }
 sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", features = [
-  "std",
+	"std",
 ], branch = "release-v1.1.0" }
 
 [dependencies]
 # External dependencies
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
-  "derive",
+	"derive",
 ] }
 scale-info = { version = "2.5.0", default-features = false, features = [
-  "derive",
+	"derive",
 ] }
 
 # Internal dependencies
@@ -54,20 +54,20 @@ sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.
 [features]
 default = ["std"]
 runtime-benchmarks = [
-  "frame-benchmarking/runtime-benchmarks",
-  "sp-runtime/runtime-benchmarks",
-  "frame-support/runtime-benchmarks",
-  "frame-system/runtime-benchmarks",
-  "cord-utilities/runtime-benchmarks",
+	"frame-benchmarking/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"cord-utilities/runtime-benchmarks",
 ]
 std = [
-  "codec/std",
-  "scale-info/std",
-  "frame-support/std",
-  "frame-system/std",
-  "frame-benchmarking?/std",
-  "sp-runtime/std",
-  "sp-core/std",
-  "sp-std/std",
+	"codec/std",
+	"scale-info/std",
+	"frame-support/std",
+	"frame-system/std",
+	"frame-benchmarking?/std",
+	"sp-runtime/std",
+	"sp-core/std",
+	"sp-std/std",
 ]
 try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime"]

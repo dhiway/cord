@@ -17,7 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
-use crate as pallet_scoring;
+use crate as pallet_score;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -40,7 +40,7 @@ construct_runtime!(
 		System: frame_system,
 		Schema: pallet_schema,
 		Registry: pallet_registry,
-		Scoring: pallet_scoring::{Pallet, Call, Storage, Event<T>},
+		Score: pallet_score::{Pallet, Call, Storage, Event<T>},
 		MockOrigin: mock_origin,
 	}
 );
@@ -57,7 +57,7 @@ impl frame_system::Config for Test {
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type RuntimeEvent = ();
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = ConstU64<250>;
 	type DbWeight = ();
 	type Version = ();
@@ -84,7 +84,7 @@ impl Config for Test {
 	type RatingCreatorIdOf = SubjectId;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type RuntimeEvent = ();
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::SubstrateWeight<Test>;
 	type ValueLimit = ConstU32<72>;
 }
@@ -98,7 +98,7 @@ parameter_types! {
 }
 
 impl pallet_registry::Config for Test {
-	type RuntimeEvent = ();
+	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
 	type RegistryCreatorId = SubjectId;
@@ -116,7 +116,7 @@ impl pallet_schema::Config for Test {
 	type SchemaCreatorId = SubjectId;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type RuntimeEvent = ();
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 }

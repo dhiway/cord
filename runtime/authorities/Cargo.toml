@@ -20,7 +20,7 @@ codec = { package = "parity-scale-codec", version = "3.6.1", default-features = 
 scale-info = { version = "2.5.0", default-features = false, features = [
 	"derive",
 ] }
-serde = { version = "1.0.163", default-features = false, optional = true }
+serde = { version = "1.0.188", default-features = false, optional = true }
 network-membership = { package = "network-membership", path = "../../primitives/network-membership", default-features = false }
 pallet-network-membership = { package = "pallet-network-membership", path = "../../pallets/network-membership", default-features = false }
 pallet-offences = { package = "pallet-offences", path = "../../pallets/offences", default-features = false }
@@ -40,7 +40,7 @@ sp-state-machine = { git = "https://github.com/dhiway/substrate-sdk", default-fe
 
 
 [dev-dependencies]
-serde = { version = "1.0.163", default-features = false }
+serde = { version = "1.0.188", default-features = false }
 sp-io = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.1.0" }
 
 [features]
