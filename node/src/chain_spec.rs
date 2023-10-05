@@ -21,11 +21,10 @@
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 pub use cord_runtime::RuntimeGenesisConfig;
 use cord_runtime::{
-	AuthorityDiscoveryConfig, AuthorityMembershipConfig, BabeConfig, Block,
-	CouncilMembershipConfig, IndicesConfig, NetworkMembershipConfig, NodeAuthorizationConfig,
-	SessionConfig, SessionKeys, SudoConfig, SystemConfig, TechnicalMembershipConfig,
+	AuthorityMembershipConfig, BabeConfig, Block, CouncilMembershipConfig, IndicesConfig,
+	NetworkMembershipConfig, NodeAuthorizationConfig, SessionConfig, SessionKeys, SudoConfig,
+	SystemConfig, TechnicalMembershipConfig,
 };
-use network_membership::MemberData;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
 use sc_consensus_grandpa::AuthorityId as GrandpaId;
@@ -208,11 +207,11 @@ available",
 // ]) }
 
 pub fn cord_staging_config() -> Result<CordChainSpec, String> {
-	CordChainSpec::from_json_bytes(&include_bytes!("../../chain-specs/sprint.json")[..])
+	CordChainSpec::from_json_bytes(&include_bytes!("../chain-specs/sprint.json")[..])
 }
 
 pub fn cord_builder_config() -> Result<CordChainSpec, String> {
-	CordChainSpec::from_json_bytes(&include_bytes!("../../chain-specs/spark.json")[..])
+	CordChainSpec::from_json_bytes(&include_bytes!("../chain-specs/spark.json")[..])
 }
 
 fn cord_local_genesis(
@@ -229,10 +228,7 @@ fn cord_local_genesis(
 			nodes: initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect(),
 		},
 		network_membership: NetworkMembershipConfig {
-			members: member_accounts()
-				.into_iter()
-				.map(|member| (member, MemberData { expire_on: 0 }))
-				.collect(),
+			members: member_accounts().into_iter().map(|member| (member, false)).collect(),
 		},
 		authority_membership: AuthorityMembershipConfig {
 			initial_authorities: initial_authorities
@@ -253,8 +249,8 @@ fn cord_local_genesis(
 				.collect::<Vec<_>>(),
 		},
 		babe: BabeConfig {
-			authorities: Default::default(),
 			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
+			..Default::default()
 		},
 		grandpa: Default::default(),
 		im_online: Default::default(),

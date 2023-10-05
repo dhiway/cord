@@ -19,47 +19,72 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over
 //! substrate service.
 
-#![warn(unused_extern_crates)]
 #![deny(unused_results)]
 
 use crate::cli::Cli;
-pub use cord_client::{
-	AbstractClient, Client, ClientHandle, CordExecutorDispatch, ExecuteWithClient, FullBackend,
-	FullClient, RuntimeApiCollection,
-};
-use cord_primitives::{Block, BlockNumber};
-pub use cord_runtime;
+use codec::Encode;
+use cord_primitives::Block;
+pub use cord_runtime::RuntimeApi;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
+use frame_system_rpc_runtime_api::AccountNonceApi;
 use futures::prelude::*;
-use sc_client_api::{Backend as BackendT, BlockBackend, UsageProvider};
-use sc_consensus_babe::{self, SlotProportion};
-pub use sc_executor::NativeExecutionDispatch;
-use sc_executor::{
-	HeapAllocStrategy, NativeElseWasmExecutor, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY,
-};
-use sc_network::{event::Event, NetworkEventStream, NetworkService};
-use sc_network_sync::SyncingService;
-
 pub use sc_client_api::AuxStore;
-use sc_service::{
-	config::Configuration, error::Error as ServiceError, ChainSpec, PartialComponents, RpcHandlers,
-	TaskManager,
+use sc_client_api::{Backend as BackendT, BlockBackend};
+use sc_consensus_babe::{self, SlotProportion};
+use sc_executor::NativeElseWasmExecutor;
+use sc_network::{event::Event, NetworkEventStream, NetworkService};
+use sc_network_sync::{warp::WarpSyncParams, SyncingService};
+use sc_service::RpcHandlers;
+pub use sc_service::{
+	config::{DatabaseSource, PrometheusConfig},
+	ChainSpec, Configuration, Error as ServiceError, PruningMode, Role, RuntimeGenesis,
+	TFullBackend, TFullCallExecutor, TFullClient, TaskManager, TransactionPoolOptions,
 };
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi, StateBackend};
 pub use sp_authority_discovery::AuthorityDiscoveryApi;
 pub use sp_blockchain::{HeaderBackend, HeaderMetadata};
+pub use sp_consensus::{Proposal, SelectChain};
 pub use sp_consensus_babe::BabeApi;
+use sp_core::crypto::Pair;
 pub use sp_runtime::{
 	generic,
-	traits::{
-		self as runtime_traits, BlakeTwo256, Block as BlockT, HashFor, Header as HeaderT, NumberFor,
-	},
-	OpaqueExtrinsic,
+	traits::{self as runtime_traits, BlakeTwo256, Block as BlockT, Header as HeaderT, NumberFor},
+	OpaqueExtrinsic, SaturatedConversion,
 };
-use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
+
+// use sc_consensus_grandpa::{self, FinalityProofProvider as
+// GrandpaFinalityProofProvider};
+
+// Declare an instance of the native executor named `ExecutorDispatch`. Include
+// the wasm binary as the equivalent wasm code.
+pub struct ExecutorDispatch;
+
+impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
+	type ExtendHostFunctions = (
+		frame_benchmarking::benchmarking::HostFunctions,
+		sp_statement_store::runtime_api::HostFunctions,
+	);
+
+	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+		cord_runtime::api::dispatch(method, data)
+	}
+
+	fn native_version() -> sc_executor::NativeVersion {
+		cord_runtime::native_version()
+	}
+}
+
+/// Identifies the variant of the chain.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Chain {
+	/// Cord.
+	Cord,
+	/// Unknown chain?
+	Unknown,
+}
 
 pub trait IdentifyVariant {
 	/// Returns `true` if this is a configuration for Cord network.
@@ -67,6 +92,9 @@ pub trait IdentifyVariant {
 
 	/// Returns true if this configuration is for a development network.
 	fn is_dev(&self) -> bool;
+
+	/// Identifies the variant of the chain.
+	fn identify_chain(&self) -> Chain;
 }
 
 impl IdentifyVariant for Box<dyn ChainSpec> {
@@ -76,80 +104,189 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 	fn is_dev(&self) -> bool {
 		self.id().ends_with("dev")
 	}
+	fn identify_chain(&self) -> Chain {
+		if self.is_cord() {
+			Chain::Cord
+		} else {
+			Chain::Unknown
+		}
+	}
 }
 
 /// The full client type definition.
+pub type FullClient =
+	sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
+type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
-type FullGrandpaBlockImport<RuntimeApi, ExecutorDispatch, ChainSelection = FullSelectChain> =
-	sc_consensus_grandpa::GrandpaBlockImport<
-		FullBackend,
-		Block,
-		FullClient<RuntimeApi, ExecutorDispatch>,
-		ChainSelection,
-	>;
+type FullGrandpaBlockImport =
+	sc_consensus_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
 
 /// The transaction pool type defintion.
-type TransactionPool<RuntimeApi, ExecutorDispatch> =
-	sc_transaction_pool::FullPool<Block, FullClient<RuntimeApi, ExecutorDispatch>>;
+type TransactionPool = sc_transaction_pool::FullPool<Block, FullClient>;
 
-macro_rules! chain_ops {
-	($config:expr, $scope:ident, $executor:ident, $variant:ident) => {{
-		let PartialComponents { client, backend, import_queue, task_manager, .. } =
-			new_partial::<$scope::RuntimeApi, $executor>($config)?;
+/// The minimum period of blocks on which justifications will be
+/// imported and generated.
+const GRANDPA_JUSTIFICATION_PERIOD: u32 = 512;
 
-		Ok((Arc::new(Client::$variant(client)), backend, import_queue, task_manager))
-	}};
+/// Provides the header and block number for a hash.
+///
+/// Decouples `sc_client_api::Backend` and `sp_blockchain::HeaderBackend`.
+pub trait HeaderProvider<Block, Error = sp_blockchain::Error>: Send + Sync + 'static
+where
+	Block: BlockT,
+	Error: std::fmt::Debug + Send + Sync + 'static,
+{
+	/// Obtain the header for a hash.
+	fn header(
+		&self,
+		hash: <Block as BlockT>::Hash,
+	) -> Result<Option<<Block as BlockT>::Header>, Error>;
+	/// Obtain the block number for a hash.
+	fn number(
+		&self,
+		hash: <Block as BlockT>::Hash,
+	) -> Result<Option<<<Block as BlockT>::Header as HeaderT>::Number>, Error>;
 }
 
-/// Builds a new object suitable for chain operations.
-#[allow(clippy::type_complexity)]
-pub fn new_chain_ops(
-	config: &Configuration,
-) -> Result<
-	(
-		Arc<Client>,
-		Arc<FullBackend>,
-		sc_consensus::BasicQueue<Block, PrefixedMemoryDB<BlakeTwo256>>,
-		TaskManager,
-	),
-	ServiceError,
-> {
-	match &config.chain_spec {
-		spec if spec.is_cord() => {
-			chain_ops!(config, cord_runtime, CordExecutorDispatch, Cord)
-		},
-		_ => Err("invalid chain spec".into()),
+impl<Block, T> HeaderProvider<Block> for T
+where
+	Block: BlockT,
+	T: sp_blockchain::HeaderBackend<Block> + 'static,
+{
+	fn header(
+		&self,
+		hash: Block::Hash,
+	) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
+		<Self as sp_blockchain::HeaderBackend<Block>>::header(self, hash)
 	}
+	fn number(
+		&self,
+		hash: Block::Hash,
+	) -> sp_blockchain::Result<Option<<<Block as BlockT>::Header as HeaderT>::Number>> {
+		<Self as sp_blockchain::HeaderBackend<Block>>::number(self, hash)
+	}
+}
+
+/// Decoupling the provider.
+///
+/// Mandated since `trait HeaderProvider` can only be
+/// implemented once for a generic `T`.
+pub trait HeaderProviderProvider<Block>: Send + Sync + 'static
+where
+	Block: BlockT,
+{
+	type Provider: HeaderProvider<Block> + 'static;
+
+	fn header_provider(&self) -> &Self::Provider;
+}
+
+impl<Block, T> HeaderProviderProvider<Block> for T
+where
+	Block: BlockT,
+	T: sc_client_api::Backend<Block> + 'static,
+{
+	type Provider = <T as sc_client_api::Backend<Block>>::Blockchain;
+
+	fn header_provider(&self) -> &Self::Provider {
+		self.blockchain()
+	}
+}
+
+/// Fetch the nonce of the given `account` from the chain state.
+///
+/// Note: Should only be used for tests.
+pub fn fetch_nonce(client: &FullClient, account: sp_core::sr25519::Pair) -> u32 {
+	let best_hash = client.chain_info().best_hash;
+	client
+		.runtime_api()
+		.account_nonce(best_hash, account.public().into())
+		.expect("Fetching account nonce works; qed")
+}
+
+/// Create a transaction using the given `call`.
+///
+/// The transaction will be signed by `sender`. If `nonce` is `None` it will be
+/// fetched from the state of the best block.
+///
+/// Note: Should only be used for tests.
+pub fn create_extrinsic(
+	client: &FullClient,
+	sender: sp_core::sr25519::Pair,
+	function: impl Into<cord_runtime::RuntimeCall>,
+	nonce: Option<u32>,
+) -> cord_runtime::UncheckedExtrinsic {
+	let function = function.into();
+	let genesis_hash = client.block_hash(0).ok().flatten().expect(
+		"Genesis block
+exists; qed",
+	);
+	let best_hash = client.chain_info().best_hash;
+	let best_block = client.chain_info().best_number;
+	let nonce = nonce.unwrap_or_else(|| fetch_nonce(client, sender.clone()));
+
+	let period = cord_runtime::BlockHashCount::get()
+		.checked_next_power_of_two()
+		.map(|c| c / 2)
+		.unwrap_or(2) as u64;
+	let _tip = 0;
+	let extra: cord_runtime::SignedExtra = (
+		pallet_network_membership::CheckNetworkMembership::<cord_runtime::Runtime>::new(),
+		frame_system::CheckNonZeroSender::<cord_runtime::Runtime>::new(),
+		frame_system::CheckSpecVersion::<cord_runtime::Runtime>::new(),
+		frame_system::CheckTxVersion::<cord_runtime::Runtime>::new(),
+		frame_system::CheckGenesis::<cord_runtime::Runtime>::new(),
+		frame_system::CheckMortality::<cord_runtime::Runtime>::from(generic::Era::mortal(
+			period,
+			best_block.saturated_into(),
+		)),
+		frame_system::CheckNonce::<cord_runtime::Runtime>::from(nonce),
+		frame_system::CheckWeight::<cord_runtime::Runtime>::new(),
+	);
+
+	let raw_payload = cord_runtime::SignedPayload::from_raw(
+		function.clone(),
+		extra.clone(),
+		(
+			(),
+			(),
+			cord_runtime::VERSION.spec_version,
+			cord_runtime::VERSION.transaction_version,
+			genesis_hash,
+			best_hash,
+			(),
+			(),
+		),
+	);
+	let signature = raw_payload.using_encoded(|e| sender.sign(e));
+
+	cord_runtime::UncheckedExtrinsic::new_signed(
+		function,
+		sp_runtime::AccountId32::from(sender.public()).into(),
+		cord_runtime::Signature::Sr25519(signature),
+		extra,
+	)
 }
 
 /// Creates PartialComponents for a node.
 /// Enables chain operations for cases when full node is unnecessary.
 #[allow(clippy::type_complexity)]
-pub fn new_partial<RuntimeApi, ExecutorDispatch>(
+pub fn new_partial(
 	config: &Configuration,
 ) -> Result<
 	sc_service::PartialComponents<
-		FullClient<RuntimeApi, ExecutorDispatch>,
+		FullClient,
 		FullBackend,
 		FullSelectChain,
-		sc_consensus::DefaultImportQueue<Block, FullClient<RuntimeApi, ExecutorDispatch>>,
-		sc_transaction_pool::FullPool<Block, FullClient<RuntimeApi, ExecutorDispatch>>,
+		sc_consensus::DefaultImportQueue<Block>,
+		sc_transaction_pool::FullPool<Block, FullClient>,
 		(
 			impl Fn(
 				cord_rpc::DenyUnsafe,
 				sc_rpc::SubscriptionTaskExecutor,
 			) -> Result<jsonrpsee::RpcModule<()>, sc_service::Error>,
 			(
-				sc_consensus_babe::BabeBlockImport<
-					Block,
-					FullClient<RuntimeApi, ExecutorDispatch>,
-					FullGrandpaBlockImport<RuntimeApi, ExecutorDispatch>,
-				>,
-				sc_consensus_grandpa::LinkHalf<
-					Block,
-					FullClient<RuntimeApi, ExecutorDispatch>,
-					FullSelectChain,
-				>,
+				sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
+				sc_consensus_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
 				sc_consensus_babe::BabeLink<Block>,
 			),
 			sc_consensus_grandpa::SharedVoterState,
@@ -157,16 +294,7 @@ pub fn new_partial<RuntimeApi, ExecutorDispatch>(
 		),
 	>,
 	ServiceError,
->
-where
-	RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi, ExecutorDispatch>>
-		+ Send
-		+ Sync
-		+ 'static,
-	RuntimeApi::RuntimeApi:
-		RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
-	ExecutorDispatch: NativeExecutionDispatch + 'static,
-{
+> {
 	let telemetry = config
 		.telemetry_endpoints
 		.clone()
@@ -178,19 +306,23 @@ where
 		})
 		.transpose()?;
 
-	let heap_pages = config
-		.default_heap_pages
-		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static { extra_pages: h as _ });
-
-	let wasm = WasmExecutor::builder()
-		.with_execution_method(config.wasm_method)
-		.with_onchain_heap_alloc_strategy(heap_pages)
-		.with_offchain_heap_alloc_strategy(heap_pages)
-		.with_max_runtime_instances(config.max_runtime_instances)
-		.with_runtime_cache_size(config.runtime_cache_size)
-		.build();
-
-	let executor = NativeElseWasmExecutor::<ExecutorDispatch>::new_with_wasm_executor(wasm);
+	// let heap_pages = config
+	// 	.default_heap_pages
+	// 	.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static {
+	// extra_pages: h as _ });
+	//
+	// let wasm = WasmExecutor::builder()
+	// 	.with_execution_method(config.wasm_method)
+	// 	.with_onchain_heap_alloc_strategy(heap_pages)
+	// 	.with_offchain_heap_alloc_strategy(heap_pages)
+	// 	.with_max_runtime_instances(config.max_runtime_instances)
+	// 	.with_runtime_cache_size(config.runtime_cache_size)
+	// 	.build();
+	//
+	// let executor =
+	// NativeElseWasmExecutor::<ExecutorDispatch>::new_with_wasm_executor(wasm);
+	//
+	let executor = sc_service::new_native_or_wasm_executor(&config);
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
@@ -214,9 +346,10 @@ where
 		task_manager.spawn_essential_handle(),
 		client.clone(),
 	);
-	#[allow(clippy::redundant_clone)]
+
 	let (grandpa_block_import, grandpa_link) = sc_consensus_grandpa::block_import(
 		client.clone(),
+		GRANDPA_JUSTIFICATION_PERIOD,
 		&(client.clone() as Arc<_>),
 		select_chain.clone(),
 		telemetry.as_ref().map(|x| x.handle()),
@@ -259,10 +392,10 @@ where
 
 		let justification_stream = grandpa_link.justification_stream();
 		let shared_authority_set = grandpa_link.shared_authority_set().clone();
-		let shared_voter_state = grandpa::SharedVoterState::empty();
+		let shared_voter_state = sc_consensus_grandpa::SharedVoterState::empty();
 		let shared_voter_state2 = shared_voter_state.clone();
 
-		let finality_proof_provider = grandpa::FinalityProofProvider::new_for_service(
+		let finality_proof_provider = sc_consensus_grandpa::FinalityProofProvider::new_for_service(
 			backend.clone(),
 			Some(shared_authority_set.clone()),
 		);
@@ -274,26 +407,24 @@ where
 		let chain_spec = config.chain_spec.cloned_box();
 
 		let rpc_backend = backend.clone();
-		let rpc_statement_store = statement_store.clone();
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
-			let deps = node_rpc::FullDeps {
+			let deps = cord_rpc::FullDeps {
 				client: client.clone(),
 				pool: pool.clone(),
 				select_chain: select_chain.clone(),
 				chain_spec: chain_spec.cloned_box(),
 				deny_unsafe,
-				babe: node_rpc::BabeDeps {
+				babe: cord_rpc::BabeDeps {
 					keystore: keystore.clone(),
 					babe_worker_handle: babe_worker_handle.clone(),
 				},
-				grandpa: node_rpc::GrandpaDeps {
+				grandpa: cord_rpc::GrandpaDeps {
 					shared_voter_state: shared_voter_state.clone(),
 					shared_authority_set: shared_authority_set.clone(),
 					justification_stream: justification_stream.clone(),
 					subscription_executor,
 					finality_provider: finality_proof_provider.clone(),
 				},
-				statement_store: rpc_statement_store.clone(),
 				backend: rpc_backend.clone(),
 			};
 
@@ -303,7 +434,7 @@ where
 		(rpc_extensions_builder, shared_voter_state2)
 	};
 
-	let partial = PartialComponents {
+	Ok(sc_service::PartialComponents {
 		client,
 		backend,
 		task_manager,
@@ -311,64 +442,38 @@ where
 		select_chain,
 		import_queue,
 		transaction_pool,
-		other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry, statement_store),
-	};
-
-	Ok(partial)
+		other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry),
+	})
 }
 
 /// Result of [`new_full_base`].
-pub struct NewFullBase<RuntimeApi, ExecutorDispatch>
-where
-	RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi, ExecutorDispatch>>
-		+ Send
-		+ Sync
-		+ 'static,
-	RuntimeApi::RuntimeApi:
-		RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
-	ExecutorDispatch: NativeExecutionDispatch + 'static,
-{
+pub struct NewFullBase {
 	/// The task manager of the node.
 	pub task_manager: TaskManager,
 	/// The client instance of the node.
-	pub client: Arc<FullClient<RuntimeApi, ExecutorDispatch>>,
+	pub client: Arc<FullClient>,
 	/// The networking service of the node.
 	pub network: Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
 	/// The syncing service of the node.
 	pub sync: Arc<SyncingService<Block>>,
 	/// The transaction pool of the node.
-	pub transaction_pool: Arc<TransactionPool<RuntimeApi, ExecutorDispatch>>,
+	pub transaction_pool: Arc<TransactionPool>,
 	/// The rpc handlers of the node.
 	pub rpc_handlers: RpcHandlers,
 }
 
 /// Creates a full service from the configuration.
-pub fn new_full_base<RuntimeApi, ExecutorDispatch>(
+pub fn new_full_base(
 	config: Configuration,
 	disable_hardware_benchmarks: bool,
 	with_startup_data: impl FnOnce(
-		&sc_consensus_babe::BabeBlockImport<
-			Block,
-			FullClient<RuntimeApi, ExecutorDispatch>,
-			FullGrandpaBlockImport<RuntimeApi, ExecutorDispatch>,
-		>,
+		&sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
 		&sc_consensus_babe::BabeLink<Block>,
 	),
-) -> Result<NewFullBase<RuntimeApi, ExecutorDispatch>, ServiceError>
-where
-	RuntimeApi: ConstructRuntimeApi<Block, FullClient<RuntimeApi, ExecutorDispatch>>
-		+ Send
-		+ Sync
-		+ 'static,
-	RuntimeApi::RuntimeApi:
-		RuntimeApiCollection<StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>,
-	ExecutorDispatch: NativeExecutionDispatch + 'static,
-{
-	use sc_network_common::sync::warp::WarpSyncParams;
-
+) -> Result<NewFullBase, ServiceError> {
 	let hwbench = (!disable_hardware_benchmarks)
 		.then_some(config.database.path().map(|database_path| {
-			let _ = std::fs::create_dir_all(database_path);
+			let _ = std::fs::create_dir_all(&database_path);
 			sc_sysinfo::gather_hwbench(Some(database_path))
 		}))
 		.flatten();
@@ -381,12 +486,13 @@ where
 		keystore_container,
 		select_chain,
 		transaction_pool,
-		other: (rpc_builder, import_setup, rpc_setup, mut telemetry, statement_store),
+		other: (rpc_builder, import_setup, rpc_setup, mut telemetry),
 	} = new_partial(&config)?;
 
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
 	let mut net_config = sc_network::config::FullNetworkConfiguration::new(&config.network);
+
 	let grandpa_protocol_name = sc_consensus_grandpa::protocol_standard_name(
 		&client.block_hash(0).ok().flatten().expect("Genesis block exists; qed"),
 		&config.chain_spec,
@@ -394,16 +500,6 @@ where
 	net_config.add_notification_protocol(sc_consensus_grandpa::grandpa_peers_set_config(
 		grandpa_protocol_name.clone(),
 	));
-
-	let statement_handler_proto = sc_network_statement::StatementHandlerPrototype::new(
-		client
-			.block_hash(0u32.into())
-			.ok()
-			.flatten()
-			.expect("Genesis block exists; qed"),
-		config.chain_spec.fork_id(),
-	);
-	net_config.add_notification_protocol(statement_handler_proto.set_config());
 
 	let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
 		backend.clone(),
@@ -559,14 +655,14 @@ where
 	// need a keystore, regardless of which protocol we use below.
 	let keystore = if role.is_authority() { Some(keystore_container.keystore()) } else { None };
 
-	let config = sc_consensus_grandpa::Config {
+	let grandpa_config = sc_consensus_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
 		gossip_duration: std::time::Duration::from_millis(1000),
-		justification_period: 512,
+		justification_generation_period: GRANDPA_JUSTIFICATION_PERIOD,
 		name: Some(name),
 		observer_enabled: false,
 		keystore,
-		local_role: role,
+		local_role: role.clone(),
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
 		protocol_name: grandpa_protocol_name,
 	};
@@ -579,13 +675,13 @@ where
 		// been tested extensively yet and having most nodes in a network run it
 		// could lead to finality stalls.
 		let grandpa_config = sc_consensus_grandpa::GrandpaParams {
-			config,
+			config: grandpa_config,
 			link: grandpa_link,
 			network: network.clone(),
 			sync: Arc::new(sync_service.clone()),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 			voting_rule: sc_consensus_grandpa::VotingRulesBuilder::default().build(),
-			prometheus_registry,
+			prometheus_registry: prometheus_registry.clone(),
 			shared_voter_state,
 			offchain_tx_pool_factory: OffchainTransactionPoolFactory::new(transaction_pool.clone()),
 		};
@@ -595,29 +691,9 @@ where
 		task_manager.spawn_essential_handle().spawn_blocking(
 			"grandpa-voter",
 			None,
-			grandpa::run_grandpa_voter(grandpa_config)?,
+			sc_consensus_grandpa::run_grandpa_voter(grandpa_config)?,
 		);
 	}
-
-	// Spawn statement protocol worker
-	let statement_protocol_executor = {
-		let spawn_handle = task_manager.spawn_handle();
-		Box::new(move |fut| {
-			spawn_handle.spawn("network-statement-validator", Some("networking"), fut);
-		})
-	};
-	let statement_handler = statement_handler_proto.build(
-		network.clone(),
-		sync_service.clone(),
-		statement_store.clone(),
-		prometheus_registry.as_ref(),
-		statement_protocol_executor,
-	)?;
-	task_manager.spawn_handle().spawn(
-		"network-statement-handler",
-		Some("networking"),
-		statement_handler.run(),
-	);
 
 	if enable_offchain_worker {
 		task_manager.spawn_handle().spawn(
@@ -633,9 +709,7 @@ where
 				network_provider: network.clone(),
 				is_validator: role.is_authority(),
 				enable_http_requests: true,
-				custom_extensions: move |_| {
-					vec![Box::new(statement_store.clone().as_statement_store_ext()) as Box<_>]
-				},
+				custom_extensions: move |_| vec![],
 			})
 			.run(client.clone(), task_manager.spawn_handle())
 			.boxed(),
@@ -667,56 +741,4 @@ pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceE
 	.map_err(|e| ServiceError::Application(e.into()))?;
 
 	Ok(task_manager)
-}
-
-/// Reverts the node state down to at most the last finalized block.
-///
-/// In particular this reverts:
-/// - Low level Babe and Grandpa consensus data.
-pub fn revert_backend(
-	client: Arc<Client>,
-	backend: Arc<FullBackend>,
-	blocks: BlockNumber,
-	_config: Configuration,
-) -> Result<(), ServiceError> {
-	client.execute_with(RevertConsensus { blocks, backend })?;
-
-	Ok(())
-}
-
-struct RevertConsensus {
-	blocks: BlockNumber,
-	backend: Arc<FullBackend>,
-}
-
-impl ExecuteWithClient for RevertConsensus {
-	type Output = sp_blockchain::Result<()>;
-
-	fn execute_with_client<Client, Api, Backend>(self, client: Arc<Client>) -> Self::Output
-	where
-		<Api as sp_api::ApiExt<Block>>::StateBackend: sp_api::StateBackend<BlakeTwo256>,
-		Backend: BackendT<Block> + 'static,
-		Backend::State: sp_api::StateBackend<BlakeTwo256>,
-		Api: RuntimeApiCollection<StateBackend = Backend::State>,
-		Client: AbstractClient<Block, Backend, Api = Api>
-			+ 'static
-			+ HeaderMetadata<
-				sp_runtime::generic::Block<
-					sp_runtime::generic::Header<u32, BlakeTwo256>,
-					OpaqueExtrinsic,
-				>,
-				Error = sp_blockchain::Error,
-			>
-			+ AuxStore
-			+ UsageProvider<
-				sp_runtime::generic::Block<
-					sp_runtime::generic::Header<u32, BlakeTwo256>,
-					OpaqueExtrinsic,
-				>,
-			>,
-	{
-		sc_consensus_babe::revert(client.clone(), self.backend, self.blocks)?;
-		sc_consensus_grandpa::revert(client, self.blocks)?;
-		Ok(())
-	}
 }

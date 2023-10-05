@@ -17,17 +17,21 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 pub mod chain_spec;
-#[macro_use]
-mod service;
 
-// #[cfg(feature = "cli")]
-// mod benchmarking;
+#[macro_use]
+pub mod service;
+
+#[cfg(feature = "cli")]
+mod benchmarking;
+
 #[cfg(feature = "cli")]
 mod cli;
+
 #[cfg(feature = "cli")]
 mod command;
 
 #[cfg(feature = "cli")]
 pub use cli::*;
+
 #[cfg(feature = "cli")]
 pub use command::*;

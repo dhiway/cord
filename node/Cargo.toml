@@ -28,10 +28,18 @@ codec = { package = "parity-scale-codec", version = "3.6.1" }
 serde = { version = "1.0.163", features = ["derive"] }
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 futures = "0.3.21"
+hex-literal = "0.4.1"
+thiserror = "1.0.48"
+kvdb = "0.13.0"
+kvdb-rocksdb = { version = "0.19.0", optional = true }
+parity-db = { version = "0.4.8", optional = true }
+async-trait = "0.1.57"
+schnellru = "0.2.1"
+is_executable = "1.0.1"
 log = "0.4.17"
-# hex = { version = "0.4.3", default-features = false }
+hex = { version = "0.4.3", default-features = false }
 
-# Substrate Primitives
+# Substrate primitives
 sp-authority-discovery = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sp-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 grandpa-primitives = { package = "sp-consensus-grandpa", git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
@@ -48,8 +56,10 @@ sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.
 sp-statement-store = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sp-transaction-pool = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sp-session = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-storage = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sp-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sp-state-machine = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sp-offchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sp-trie = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sp-weights = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
@@ -58,6 +68,7 @@ sp-version = { git = "https://github.com/dhiway/substrate-sdk", branch = "releas
 
 # Substrate Client dependencies
 sc-client-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sc-client-db = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sc-chain-spec = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sc-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sc-transaction-pool = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
@@ -66,9 +77,10 @@ sc-statement-store = { git = "https://github.com/dhiway/substrate-sdk", branch =
 sc-network = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sc-network-common = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sc-network-sync = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sc-network-statement = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sc-consensus-slots = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sc-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-grandpa = { package = "sc-consensus-grandpa", git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+sc-consensus-grandpa = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sc-rpc = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sc-basic-authorship = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 sc-service = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
@@ -93,14 +105,14 @@ frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch =
 
 
 # cord-specific dependencies
-cord-runtime = { package = "cord-runtime", path = "../../runtime" }
-cord-primitives = { package = "cord-primitives", path = "../../primitives/cord" }
-network-membership = { package = "network-membership", path = "../../primitives/network-membership" }
-cord-client = { package = "cord-client", path = "../client" }
-cord-inspect = { package = "cord-inspect", path = "../../inspect" }
-cord-rpc = { package = "cord-rpc", path = "../../rpc" }
-cord-runtime-constants = { package = "cord-runtime-constants", path = "../../runtime/constants" }
-pallet-network-membership = { package = "pallet-network-membership", path = "../../pallets/network-membership" }
+cord-runtime = { package = "cord-runtime", path = "../runtime" }
+cord-primitives = { package = "cord-primitives", path = "../primitives/cord" }
+network-membership = { package = "network-membership", path = "../primitives/network-membership" }
+# cord-client = { package = "cord-client", path = "../client" }
+cord-inspect = { package = "cord-inspect", path = "../inspect" }
+cord-rpc = { package = "cord-rpc", path = "../rpc" }
+cord-runtime-constants = { package = "cord-runtime-constants", path = "../runtime/constants" }
+pallet-network-membership = { package = "pallet-network-membership", path = "../pallets/network-membership" }
 
 # CLI-specific dependencies
 sc-cli = { git = "https://github.com/dhiway/substrate-sdk", optional = true, branch = "release-v1.1.0" }
@@ -108,35 +120,40 @@ try-runtime-cli = { git = "https://github.com/dhiway/substrate-sdk", optional = 
 serde_json = "1.0.85"
 
 [dev-dependencies]
-sc-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-sc-client-db = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-sc-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-sc-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-sc-consensus-epochs = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-sc-service-test = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-sc-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-sp-tracing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-assert_cmd = "2.0.4"
-nix = { version = "0.26.1", features = ["signal"] }
-async-std = { version = "1.10.0", features = ["attributes"] }
-futures = "0.3.21"
-tempfile = "3.1.0"
-serde_json = "1.0"
-regex = "1.5.5"
-soketto = "0.7.1"
-tokio = { version = "1.17.0", features = ["macros", "time", "parking_lot"] }
-tokio-util = { version = "0.7.4", features = ["compat"] }
-wait-timeout = "0.2"
-substrate-rpc-client = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-pallet-timestamp = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+
+# sc-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+# sc-client-db = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+# sc-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+# sc-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+# sc-consensus-epochs = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+# sc-service-test = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+# sc-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+# sp-tracing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+# sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+# assert_cmd = "2.0.4"
+# nix = { version = "0.26.1", features = ["signal"] }
+# async-std = { version = "1.10.0", features = ["attributes"] }
+# futures = "0.3.21"
+# tempfile = "3.1.0"
+# serde_json = "1.0"
+# regex = "1.5.5"
+# soketto = "0.7.1"
+# tokio = { version = "1.17.0", features = ["macros", "time", "parking_lot"] }
+# tokio-util = { version = "0.7.4", features = ["compat"] }
+# wait-timeout = "0.2"
+# substrate-rpc-client = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+# pallet-timestamp = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
+env_logger = "0.9.0"
+assert_matches = "1.5.0"
+serial_test = "2.0.0"
+tempfile = "3.2"
 substrate-test-utils = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-cord-cli-test-utils = { package = "cord-cli-test-utils", path = "../../test-utils" }
+cord-cli-test-utils = { package = "cord-cli-test-utils", path = "../test-utils" }
 
 [build-dependencies]
 clap = { version = "4.0.9", optional = true }
 clap_complete = { version = "4.0.2", optional = true }
-cord-inspect = { package = "cord-inspect", optional = true, path = "../../inspect" }
+cord-inspect = { package = "cord-inspect", optional = true, path = "../inspect" }
 frame-benchmarking-cli = { git = "https://github.com/dhiway/substrate-sdk", optional = true, branch = "release-v1.1.0" }
 substrate-build-script-utils = { git = "https://github.com/dhiway/substrate-sdk", optional = true, branch = "release-v1.1.0" }
 substrate-frame-cli = { git = "https://github.com/dhiway/substrate-sdk", optional = true, branch = "release-v1.1.0" }
