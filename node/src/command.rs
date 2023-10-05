@@ -17,26 +17,23 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 pub mod key;
+use super::benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder};
 
 use crate::{
+	// benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder},
 	chain_spec,
 	cli::{Cli, Subcommand},
 	service as cord_service,
 };
 
-use cord_client::benchmarking::{benchmark_inherent_data, RemarkBuilder, TransferKeepAliveBuilder};
 use cord_primitives::Block;
 use cord_runtime::{ExistentialDeposit, RuntimeApi};
-use cord_service::IdentifyVariant;
+use cord_service::{new_partial, ExecutorDispatch, FullClient};
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
-use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
+use sc_cli::{Result, SubstrateCli};
+use sc_service::PartialComponents;
 use sp_keyring::Sr25519Keyring;
-
-#[cfg(feature = "try-runtime")]
-use {
-	cord_runtime::constants::time::SLOT_DURATION,
-	try_runtime_cli::block_building_info::substrate_info,
-};
+use std::sync::Arc;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -77,24 +74,9 @@ impl SubstrateCli for Cli {
 	}
 }
 
-/// Unwraps a [`service::Client`] into the concrete runtime client.
-#[allow(unused)]
-macro_rules! unwrap_client {
-	(
-        $client:ident,
-        $code:expr
-    ) => {
-		match $client.as_ref() {
-			cord_service::Client::Cord($client) => $code,
-			#[allow(unreachable_patterns)]
-			_ => Err("invalid chain spec".into()),
-		}
-	};
-}
-
 /// Parse command line arguments into service configuration.
-pub fn run() -> sc_cli::Result<()> {
-	let cli = Cli::from_args();
+pub fn run() -> Result<()> {
+	let cli: Cli = Cli::from_args();
 
 	match &cli.subcommand {
 		None => {
@@ -106,9 +88,7 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::Inspect(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 
-			runner.sync_run(|config| {
-				cmd.run::<Block, RuntimeApi, cord_client::CordExecutorDispatch>(config)
-			})
+			runner.sync_run(|config| cmd.run::<Block, RuntimeApi, ExecutorDispatch>(config))
 		},
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
 		Some(Subcommand::Sign(cmd)) => cmd.run(),
@@ -121,28 +101,30 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, _, import_queue, task_manager) = cord_service::new_chain_ops(&config)?;
+				let PartialComponents { client, task_manager, import_queue, .. } =
+					new_partial(&config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		},
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, _, _, task_manager) = cord_service::new_chain_ops(&config)?;
+				let PartialComponents { client, task_manager, .. } = new_partial(&config)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
 		},
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, _, _, task_manager) = cord_service::new_chain_ops(&config)?;
+				let PartialComponents { client, task_manager, .. } = new_partial(&config)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
 		},
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, _, import_queue, task_manager) = cord_service::new_chain_ops(&config)?;
+				let PartialComponents { client, task_manager, import_queue, .. } =
+					new_partial(&config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		},
@@ -153,10 +135,11 @@ pub fn run() -> sc_cli::Result<()> {
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let (client, backend, _, task_manager) = cord_service::new_chain_ops(&config)?;
-				let aux_revert = Box::new(|client, backend, blocks| {
-					cord_service::revert_backend(client, backend, blocks, config)
-						.map_err(|err| sc_cli::Error::Application(err.into()))
+				let PartialComponents { client, task_manager, backend, .. } = new_partial(&config)?;
+				let aux_revert = Box::new(|client: Arc<FullClient>, backend, blocks| {
+					sc_consensus_babe::revert(client.clone(), backend, blocks)?;
+					sc_consensus_grandpa::revert(client, blocks)?;
+					Ok(())
 				});
 				Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
 			})
@@ -172,22 +155,17 @@ pub fn run() -> sc_cli::Result<()> {
 						if !cfg!(feature = "runtime-benchmarks") {
 							return Err(
 								"Runtime benchmarking wasn't enabled when building the node. \
-                            	 You can enable it with `--features runtime-benchmarks`."
+							You can enable it with `--features runtime-benchmarks`."
 									.into(),
 							)
 						}
-						match &config.chain_spec {
-							spec if spec.is_cord() =>
-								cmd.run::<Block, sp_statement_store::runtime_api::HostFunctions>(
-									config,
-								),
-							_ => Err("invalid chain spec".into()),
-						}
+
+						cmd.run::<Block, sp_statement_store::runtime_api::HostFunctions>(config)
 					},
 					BenchmarkCmd::Block(cmd) => {
-						let (client, _, _, _) = cord_service::new_chain_ops(&config)?;
-
-						unwrap_client!(client, cmd.run(client.clone()))
+						// ensure that we keep the task manager alive
+						let partial = new_partial(&config)?;
+						cmd.run(partial.client)
 					},
 					#[cfg(not(feature = "runtime-benchmarks"))]
 					BenchmarkCmd::Storage(_) => Err(
@@ -196,49 +174,44 @@ pub fn run() -> sc_cli::Result<()> {
 					),
 					#[cfg(feature = "runtime-benchmarks")]
 					BenchmarkCmd::Storage(cmd) => {
-						let (client, backend, _, _) = cord_service::new_chain_ops(&config)?;
-						let db = backend.expose_db();
-						let storage = backend.expose_storage();
+						// ensure that we keep the task manager alive
+						let partial = new_partial(&config)?;
+						let db = partial.backend.expose_db();
+						let storage = partial.backend.expose_storage();
 
-						unwrap_client!(client, cmd.run(config, client.clone(), db, storage))
+						cmd.run(config, partial.client, db, storage)
 					},
 					BenchmarkCmd::Overhead(cmd) => {
-						let inherent_data = benchmark_inherent_data().map_err(|e| {
-							sc_cli::Error::from(format!("generating inherent data: {e:?}"))
-						})?;
+						// ensure that we keep the task manager alive
+						let partial = new_partial(&config)?;
+						let ext_builder = RemarkBuilder::new(partial.client.clone());
 
-						let (client, _, _, _) = cord_service::new_chain_ops(&config)?;
-						let ext_builder = RemarkBuilder::new(client.clone());
-
-						unwrap_client!(
-							client,
-							cmd.run(
-								config,
-								client.clone(),
-								inherent_data,
-								Vec::new(),
-								&ext_builder
-							)
+						cmd.run(
+							config,
+							partial.client,
+							inherent_benchmark_data()?,
+							Vec::new(),
+							&ext_builder,
 						)
 					},
 					BenchmarkCmd::Extrinsic(cmd) => {
-						let inherent_data = benchmark_inherent_data().map_err(|e| {
-							sc_cli::Error::from(format!("generating inherent data: {e:?}"))
-						})?;
-						let (client, _, _, _) = cord_service::new_chain_ops(&config)?;
+						// ensure that we keep the task manager alive
+						let partial = cord_service::new_partial(&config)?;
 						// Register the *Remark* and *TKA* builders.
 						let ext_factory = ExtrinsicFactory(vec![
-							Box::new(RemarkBuilder::new(client.clone())),
+							Box::new(RemarkBuilder::new(partial.client.clone())),
 							Box::new(TransferKeepAliveBuilder::new(
-								client.clone(),
+								partial.client.clone(),
 								Sr25519Keyring::Alice.to_account_id(),
 								ExistentialDeposit::get(),
 							)),
 						]);
 
-						unwrap_client!(
-							client,
-							cmd.run(client.clone(), inherent_data, Vec::new(), &ext_factory)
+						cmd.run(
+							partial.client,
+							inherent_benchmark_data()?,
+							Vec::new(),
+							&ext_factory,
 						)
 					},
 					BenchmarkCmd::Machine(cmd) =>
@@ -247,31 +220,7 @@ pub fn run() -> sc_cli::Result<()> {
 			})
 		},
 		#[cfg(feature = "try-runtime")]
-		Some(Subcommand::TryRuntime(cmd)) => {
-			use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
-			let runner = cli.create_runner(cmd)?;
-			let chain_spec = &runner.config().chain_spec;
-
-			let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
-			let task_manager =
-				sc_service::TaskManager::new(runner.config().tokio_handle.clone(), *registry)
-					.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
-
-			let info_provider = substrate_info(SLOT_DURATION);
-
-			match chain_spec {
-				spec if spec.is_cord() => runner.async_run(|_| {
-					Ok((
-                        cmd.run::<cord_service::cord_runtime::Block, ExtendedHostFunctions<
-						sp_io::SubstrateHostFunctions,
-						<cord_service::CordExecutorDispatch as NativeExecutionDispatch>::ExtendHostFunctions,
-					>,_>(Some(info_provider)),
-                        task_manager,
-                    ))
-				}),
-				_ => panic!("No runtime is enabled"),
-			}
-		},
+		Some(Subcommand::TryRuntime) => Err(try_runtime_cli::DEPRECATION_NOTICE.into()),
 		#[cfg(not(feature = "try-runtime"))]
 		Some(Subcommand::TryRuntime) => Err("TryRuntime wasn't enabled when building the node. \
                 You can enable it with `--features try-runtime`."
