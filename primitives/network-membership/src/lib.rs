@@ -26,7 +26,7 @@ pub mod traits;
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
-// use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
 
 pub enum Event<AccountId = ()> {
@@ -45,8 +45,8 @@ pub enum Event<AccountId = ()> {
 #[derive(
 	Encode, Decode, Default, Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen,
 )]
-// #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-// #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct MemberData<BlockNumber: Decode + Encode + TypeInfo> {
 	pub expire_on: BlockNumber,
 }

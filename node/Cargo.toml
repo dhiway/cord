@@ -130,17 +130,16 @@ serde_json = "1.0.85"
 # sc-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 # sp-tracing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 # sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-# assert_cmd = "2.0.4"
-# nix = { version = "0.26.1", features = ["signal"] }
-# async-std = { version = "1.10.0", features = ["attributes"] }
-# futures = "0.3.21"
-# tempfile = "3.1.0"
-# serde_json = "1.0"
-# regex = "1.5.5"
-# soketto = "0.7.1"
-# tokio = { version = "1.17.0", features = ["macros", "time", "parking_lot"] }
-# tokio-util = { version = "0.7.4", features = ["compat"] }
-# wait-timeout = "0.2"
+assert_cmd = "2.0.4"
+nix = { version = "0.26.1", features = ["signal"] }
+async-std = { version = "1.10.0", features = ["attributes"] }
+futures = "0.3.21"
+serde_json = "1.0"
+regex = "1.5.5"
+soketto = "0.7.1"
+tokio = { version = "1.17.0", features = ["macros", "time", "parking_lot"] }
+tokio-util = { version = "0.7.4", features = ["compat"] }
+wait-timeout = "0.2"
 # substrate-rpc-client = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 # pallet-timestamp = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 env_logger = "0.9.0"
