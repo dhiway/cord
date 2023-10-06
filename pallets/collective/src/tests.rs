@@ -194,7 +194,7 @@ impl ExtBuilder {
 		ext
 	}
 
-	pub fn build_and_execute(self, test: impl FnOnce() -> ()) {
+	pub fn build_and_execute(self, test: impl FnOnce()) {
 		self.build().execute_with(|| {
 			test();
 			Collective::do_try_state().unwrap();

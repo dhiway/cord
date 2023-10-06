@@ -164,7 +164,7 @@ pub mod pallet {
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			for (member, expires) in &self.members {
-				Pallet::<T>::add_member_and_schedule_expiry(member, expires.clone())
+				Pallet::<T>::add_member_and_schedule_expiry(member, *expires)
 			}
 		}
 	}
