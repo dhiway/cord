@@ -27,7 +27,6 @@ primitive-types = { version = "0.12.0", default-features = false, features = [
 	"scale-info",
 	"num-traits",
 ] }
-# serde_derive = { version = "1.0.117", optional = true }
 
 # Local
 authority-membership = { package = "cord-authority-membership", path = "./authorities", default-features = false }

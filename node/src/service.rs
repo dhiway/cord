@@ -55,9 +55,6 @@ pub use sp_runtime::{
 };
 use std::sync::Arc;
 
-// use sc_consensus_grandpa::{self, FinalityProofProvider as
-// GrandpaFinalityProofProvider};
-
 // Declare an instance of the native executor named `ExecutorDispatch`. Include
 // the wasm binary as the equivalent wasm code.
 pub struct ExecutorDispatch;
@@ -306,22 +303,6 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
-	// let heap_pages = config
-	// 	.default_heap_pages
-	// 	.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static {
-	// extra_pages: h as _ });
-	//
-	// let wasm = WasmExecutor::builder()
-	// 	.with_execution_method(config.wasm_method)
-	// 	.with_onchain_heap_alloc_strategy(heap_pages)
-	// 	.with_offchain_heap_alloc_strategy(heap_pages)
-	// 	.with_max_runtime_instances(config.max_runtime_instances)
-	// 	.with_runtime_cache_size(config.runtime_cache_size)
-	// 	.build();
-	//
-	// let executor =
-	// NativeElseWasmExecutor::<ExecutorDispatch>::new_with_wasm_executor(wasm);
-	//
 	let executor = sc_service::new_native_or_wasm_executor(&config);
 
 	let (client, backend, keystore_container, task_manager) =
