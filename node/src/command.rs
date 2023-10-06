@@ -17,10 +17,9 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 pub mod key;
-use super::benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder};
 
 use crate::{
-	// benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder},
+	benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder},
 	chain_spec,
 	cli::{Cli, Subcommand},
 	service as cord_service,

@@ -108,7 +108,6 @@ frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch =
 cord-runtime = { package = "cord-runtime", path = "../runtime" }
 cord-primitives = { package = "cord-primitives", path = "../primitives/cord" }
 network-membership = { package = "network-membership", path = "../primitives/network-membership" }
-# cord-client = { package = "cord-client", path = "../client" }
 cord-inspect = { package = "cord-inspect", path = "../inspect" }
 cord-rpc = { package = "cord-rpc", path = "../rpc" }
 cord-runtime-constants = { package = "cord-runtime-constants", path = "../runtime/constants" }
@@ -120,16 +119,6 @@ try-runtime-cli = { git = "https://github.com/dhiway/substrate-sdk", optional = 
 serde_json = "1.0.85"
 
 [dev-dependencies]
-
-# sc-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-# sc-client-db = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-# sc-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-# sc-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-# sc-consensus-epochs = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-# sc-service-test = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-# sc-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-# sp-tracing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-# sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 assert_cmd = "2.0.4"
 nix = { version = "0.26.1", features = ["signal"] }
 async-std = { version = "1.10.0", features = ["attributes"] }
@@ -140,8 +129,6 @@ soketto = "0.7.1"
 tokio = { version = "1.17.0", features = ["macros", "time", "parking_lot"] }
 tokio-util = { version = "0.7.4", features = ["compat"] }
 wait-timeout = "0.2"
-# substrate-rpc-client = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
-# pallet-timestamp = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
 env_logger = "0.9.0"
 assert_matches = "1.5.0"
 serial_test = "2.0.0"

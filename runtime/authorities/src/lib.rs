@@ -46,7 +46,6 @@ pub mod pallet {
 	use frame_support::traits::ValidatorRegistration;
 	use frame_system::pallet_prelude::*;
 	use network_membership::traits::IsMember;
-	// use sp_runtime::traits::{Convert, IsMember};
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
@@ -133,13 +132,6 @@ pub mod pallet {
 	pub struct GenesisConfig<T: Config> {
 		pub initial_authorities: Vec<T::ValidatorId>,
 	}
-
-	// #[cfg(feature = "std")]
-	// impl<T: Config> Default for GenesisConfig<T> {
-	// 	fn default() -> Self {
-	// 		Self { initial_authorities: Default::default() }
-	// 	}
-	// }
 
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
@@ -422,13 +414,3 @@ impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
 		false
 	}
 }
-
-// pub trait OnNewSession {
-// 	fn on_new_session(index: SessionIndex) -> Weight;
-// }
-//
-// impl OnNewSession for () {
-// 	fn on_new_session(_: SessionIndex) -> Weight {
-// 		Weight::zero()
-// 	}
-// }
