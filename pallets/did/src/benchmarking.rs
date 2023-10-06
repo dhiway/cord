@@ -20,7 +20,7 @@
 
 use super::*;
 use codec::Encode;
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::{account, benchmarks};
 use frame_support::assert_ok;
 use frame_system::{pallet_prelude::BlockNumberFor, RawOrigin};
 use sp_core::{crypto::KeyTypeId, ecdsa, ed25519, sr25519};
@@ -991,7 +991,6 @@ benchmarks! {
 	}: {
 		DidSignatureVerify::<T>::verify(&did_subject, &payload, &did_signature).expect("should verify");
 	}
-	// verify {}
 	signature_verification_ed25519 {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
@@ -1018,7 +1017,6 @@ benchmarks! {
 	}: {
 		DidSignatureVerify::<T>::verify(&did_subject, &payload, &did_signature).expect("should verify");
 	}
-	// verify {}
 	signature_verification_ecdsa {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
@@ -1045,7 +1043,6 @@ benchmarks! {
 	}: {
 		DidSignatureVerify::<T>::verify(&did_subject, &payload, &did_signature).expect("should verify");
 	}
-	// verify {}
 	dispatch_as {
 		// ecdsa keys are the most expensive since they require an additional hashing step
 		let did_public_auth_key = get_ecdsa_public_authentication_key();
@@ -1072,11 +1069,9 @@ benchmarks! {
 	verify {
 			Did::<T>::get(&did_subject).expect("DID entry should be created");
 	}
-}
-
-impl_benchmark_test_suite! {
-
-	Pallet,
-	crate::mock::new_test_ext(),
-	crate::mock::Test
+	impl_benchmark_test_suite! (
+		Pallet,
+		crate::mock::new_test_ext(),
+		crate::mock::Test
+	)
 }

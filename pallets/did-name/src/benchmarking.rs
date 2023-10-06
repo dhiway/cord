@@ -20,7 +20,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::{account, benchmarks};
 use frame_support::{
 	pallet_prelude::EnsureOrigin, sp_runtime::SaturatedConversion, traits::Get, BoundedVec,
 };
@@ -114,10 +114,10 @@ benchmarks! {
 		assert!(Owner::<T>::get(&did_name).is_none());
 		assert!(Banned::<T>::get(&did_name).is_none());
 	}
-}
 
-impl_benchmark_test_suite! {
-	Pallet,
-	crate::mock::new_test_ext(),
-	crate::mock::Test
+	impl_benchmark_test_suite! (
+		Pallet,
+		crate::mock::new_test_ext(),
+		crate::mock::Test
+	)
 }
