@@ -77,6 +77,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+#![recursion_limit = "256"]
 
 pub mod did_details;
 pub mod errors;

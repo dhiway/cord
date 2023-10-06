@@ -20,7 +20,7 @@
 
 use super::*;
 use crate::Pallet;
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 
 const SEED: u32 = 0;
@@ -60,10 +60,9 @@ benchmarks! {
 		assert_last_event::<T>(Event::MembershipRevoked { member: authority }.into());
 	}
 
-}
-
-impl_benchmark_test_suite! {
-	Pallet,
-	crate::mock::new_test_ext(),
-	crate::mock::Test
+	impl_benchmark_test_suite! (
+		Pallet,
+		crate::mock::new_test_ext(),
+		crate::mock::Test
+	)
 }

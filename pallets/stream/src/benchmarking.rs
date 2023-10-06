@@ -4,7 +4,7 @@ use super::*;
 use codec::Encode;
 use cord_primitives::curi::Ss58Identifier;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::{account, benchmarks};
 use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
 use pallet_registry::{
 	Authorizations, InputRegistryOf, Permissions, RegistryAuthorizationOf, RegistryHashOf,
@@ -447,6 +447,7 @@ benchmarks! {
 	verify {
 		assert_last_event::<T>(Event::Digest { identifier:stream_id,digest: stream_digest, author: did}.into());
 	}
-}
 
-impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
+	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
+
+}

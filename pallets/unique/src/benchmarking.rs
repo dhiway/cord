@@ -21,7 +21,7 @@
 use super::*;
 use codec::Encode;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
-use frame_benchmarking::{account, benchmarks, impl_benchmark_test_suite};
+use frame_benchmarking::{account, benchmarks};
 use frame_support::{sp_runtime::traits::Hash, BoundedVec};
 use pallet_registry::{InputRegistryOf, RegistryHashOf};
 use sp_std::{
@@ -229,10 +229,11 @@ benchmarks! {
 	verify {
 		assert_last_event::<T>(Event::Remove { identifier: unique_id, author: did }.into());
 	}
-}
 
-impl_benchmark_test_suite! {
-	Pallet,
-	crate::mock::new_test_ext(),
-	crate::mock::Test
+	impl_benchmark_test_suite! (
+		Pallet,
+		crate::mock::new_test_ext(),
+		crate::mock::Test
+	)
+
 }
