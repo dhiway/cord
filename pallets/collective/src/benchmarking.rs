@@ -52,7 +52,7 @@ benchmarks_instance_pallet! {
 		// We compute the difference of old and new members, so it should influence timing.
 		let mut old_members = vec![];
 		for i in 0 .. m {
-			let old_member = account::<T::AccountId>("old member", i, SEED);
+			let old_member = account::<T::AccountId>("member", i, SEED);
 			old_members.push(old_member);
 		}
 		let old_members_count = old_members.len() as u32;
@@ -74,7 +74,7 @@ benchmarks_instance_pallet! {
 				// Proposals should be different so that different proposal hashes are generated
 				let proposal: T::Proposal = SystemCall::<T>::remark { remark: id_to_remark_data(i, length) }.into();
 				Collective::<T, I>::propose(
-					SystemOrigin::Signed(old_members.get(1).unwrap().clone()).into(),
+					SystemOrigin::Signed(old_members.last().unwrap().clone()).into(),
 					threshold,
 					Box::new(proposal.clone()),
 					MAX_BYTES,
@@ -83,17 +83,16 @@ benchmarks_instance_pallet! {
 				// Vote on the proposal to increase state relevant for `set_members`.
 				// Not voting for last old member because they proposed and not voting for the first member
 				// to keep the proposal from passing.
-				// for j in 2 .. 3 {
-				// 	let voter = &old_members[j as usize];
-				// 	println!("{:?}", voter);
-				// 	let approve = true;
-				// 	Collective::<T, I>::vote(
-				// 		SystemOrigin::Signed(voter.clone()).into(),
-				// 		hash,
-				// 		i,
-				// 		approve,
-				// 	)?;
-				// }
+				for j in 2 .. m - 1 {
+					let voter = &old_members[j as usize];
+					let approve = true;
+					Collective::<T, I>::vote(
+						SystemOrigin::Signed(voter.clone()).into(),
+						hash,
+						i,
+						approve,
+					)?;
+				}
 			}
 		}
 
@@ -224,13 +223,13 @@ benchmarks_instance_pallet! {
 
 		// Construct `members`.
 		let mut members = vec![];
-		let proposer: T::AccountId = account::<T::AccountId>("proposer", 0, SEED);
+		let proposer: T::AccountId = account::<T::AccountId>("member", 0, SEED);
 		members.push(proposer.clone());
 		for i in 1 .. m - 1 {
 			let member = account::<T::AccountId>("member", i, SEED);
 			members.push(member);
 		}
-		let voter: T::AccountId = account::<T::AccountId>("voter", 0, SEED);
+		let voter: T::AccountId = account::<T::AccountId>("member", 98, SEED);
 		members.push(voter.clone());
 		Collective::<T, I>::set_members(SystemOrigin::Root.into(), members.clone(), None, T::MaxMembers::get())?;
 
@@ -299,13 +298,13 @@ benchmarks_instance_pallet! {
 
 		// Construct `members`.
 		let mut members = vec![];
-		let proposer = account::<T::AccountId>("proposer", 0, SEED);
+		let proposer = account::<T::AccountId>("member", 0, SEED);
 		members.push(proposer.clone());
 		for i in 1 .. m - 1 {
 			let member = account::<T::AccountId>("member", i, SEED);
 			members.push(member);
 		}
-		let voter = account::<T::AccountId>("voter", 0, SEED);
+		let voter = account::<T::AccountId>("member", 99, SEED);
 		members.push(voter.clone());
 		Collective::<T, I>::set_members(SystemOrigin::Root.into(), members.clone(), None, T::MaxMembers::get())?;
 
@@ -616,7 +615,7 @@ benchmarks_instance_pallet! {
 			let member = account::<T::AccountId>("member", i, SEED);
 			members.push(member);
 		}
-		let caller = account::<T::AccountId>("caller", 0, SEED);
+		let caller = account::<T::AccountId>("member", 10, SEED);
 		members.push(caller.clone());
 		Collective::<T, I>::set_members(
 			SystemOrigin::Root.into(),

@@ -33,6 +33,7 @@ sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "releas
 sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
 
 [dev-dependencies]
+frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
 rand = "0.8"
 
 [features]
