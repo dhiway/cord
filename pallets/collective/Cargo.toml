@@ -22,6 +22,8 @@ scale-info = { version = "2.5.0", default-features = false, features = [
 ] }
 log = { version = "0.4.17", default-features = false }
 
+network-membership = { package = "network-membership", path = "../../primitives/network-membership", default-features = false }
+pallet-network-membership = { package = "pallet-network-membership", path = "../../pallets/network-membership", default-features = false }
 frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false, optional = true }
 frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
 frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
@@ -30,10 +32,14 @@ sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.
 sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
 sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0", default-features = false }
 
+[dev-dependencies]
+rand = "0.8"
+
 [features]
 default = ["std"]
 std = [
 	"codec/std",
+	"network-membership/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
@@ -43,6 +49,7 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"pallet-network-membership/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

@@ -157,6 +157,12 @@ type EnsureRootOrCommitteeApproval = EitherOfDiverse<
 	pallet_collective::EnsureProportionMoreThan<AccountId, TechnicalCollective, 3, 5>,
 >;
 
+// // Technical Committee Council
+// pub type EnsureRootOrAllTechnicalCommittee = EitherOfDiverse<
+// 	EnsureRoot<AccountId>,
+// 	pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1,
+// 1>, >;
+
 /// We assume that an on-initialize consumes 1% of the weight on average, hence
 /// a single extrinsic will not be allowed to consume more than
 /// `AvailableBlockRatio - 1%`.
@@ -446,7 +452,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = MaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
-	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type NetworkMembershipOrigin = EnsureRoot<Self::AccountId>;
 	type MaxProposalWeight = MaxProposalWeight;
 }
 
@@ -473,7 +479,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxMembers = MaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
-	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type NetworkMembershipOrigin = EnsureRoot<Self::AccountId>;
 	type MaxProposalWeight = MaxProposalWeight;
 }
 

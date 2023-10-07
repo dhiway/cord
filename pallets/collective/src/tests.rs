@@ -21,22 +21,19 @@
 use super::{Event as CollectiveEvent, *};
 use crate as pallet_collective;
 use frame_support::{
-	assert_noop, assert_ok,
-	dispatch::Pays,
-	parameter_types,
-	traits::{ConstU32, ConstU64},
+	assert_noop, assert_ok, parameter_types,
+	traits::{ConstU32, ConstU64, OnFinalize, OnInitialize},
 	Hashable,
 };
-use frame_system::{EnsureRoot, EventRecord, Phase};
+use frame_system::{pallet_prelude::BlockNumberFor, EnsureRoot, EventRecord, Phase};
+use rand::{seq::SliceRandom, thread_rng};
 use sp_core::H256;
 use sp_runtime::{
-	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 	BuildStorage,
 };
 
-pub type Block = sp_runtime::generic::Block<Header, UncheckedExtrinsic>;
-pub type UncheckedExtrinsic = sp_runtime::generic::UncheckedExtrinsic<u32, u64, RuntimeCall, ()>;
+pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime!(
 	pub enum Test
@@ -45,6 +42,7 @@ frame_support::construct_runtime!(
 		Collective: pallet_collective::<Instance1>::{Pallet, Call, Event<T>, Origin<T>, Config<T>},
 		CollectiveMajority: pallet_collective::<Instance2>::{Pallet, Call, Event<T>, Origin<T>, Config<T>},
 		DefaultCollective: pallet_collective::{Pallet, Call, Event<T>, Origin<T>, Config<T>},
+		NetworkMembership: pallet_network_membership::{Pallet, Call, Storage, Event<T>, Config<T>},
 		Democracy: mock_democracy::{Pallet, Call, Event<T>},
 	}
 );
@@ -127,7 +125,7 @@ impl Config<Instance1> for Test {
 	type MaxMembers = MaxMembers;
 	type DefaultVote = PrimeDefaultVote;
 	type WeightInfo = ();
-	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type NetworkMembershipOrigin = EnsureRoot<Self::AccountId>;
 	type MaxProposalWeight = MaxProposalWeight;
 }
 impl Config<Instance2> for Test {
@@ -139,7 +137,7 @@ impl Config<Instance2> for Test {
 	type MaxMembers = MaxMembers;
 	type DefaultVote = MoreThanMajorityThenPrimeDefaultVote;
 	type WeightInfo = ();
-	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type NetworkMembershipOrigin = EnsureRoot<Self::AccountId>;
 	type MaxProposalWeight = MaxProposalWeight;
 }
 impl mock_democracy::Config for Test {
@@ -155,17 +153,31 @@ impl Config for Test {
 	type MaxMembers = MaxMembers;
 	type DefaultVote = PrimeDefaultVote;
 	type WeightInfo = ();
-	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type NetworkMembershipOrigin = EnsureRoot<Self::AccountId>;
 	type MaxProposalWeight = MaxProposalWeight;
+}
+
+parameter_types! {
+	pub const MembershipPeriod: BlockNumberFor<Test> = 5;
+	pub const MaxMembersPerBlock: u32 = 5;
+}
+
+impl pallet_network_membership::Config for Test {
+	type NetworkMembershipOrigin = EnsureRoot<AccountId>;
+	type RuntimeEvent = RuntimeEvent;
+	type MembershipPeriod = MembershipPeriod;
+	type MaxMembersPerBlock = MaxMembersPerBlock;
+	type WeightInfo = ();
 }
 
 pub struct ExtBuilder {
 	collective_members: Vec<AccountId>,
+	network_members: Vec<AccountId>,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { collective_members: vec![1, 2, 3] }
+		Self { collective_members: (1..=100).collect(), network_members: (1..=100).collect() }
 	}
 }
 
@@ -174,22 +186,25 @@ impl ExtBuilder {
 		self.collective_members = collective_members;
 		self
 	}
-
 	pub fn build(self) -> sp_io::TestExternalities {
 		let mut ext: sp_io::TestExternalities = RuntimeGenesisConfig {
 			collective: pallet_collective::GenesisConfig {
-				members: self.collective_members,
+				members: self.collective_members.clone(),
 				phantom: Default::default(),
 			},
 			collective_majority: pallet_collective::GenesisConfig {
-				members: vec![1, 2, 3, 4, 5],
+				members: (1..100).collect(),
 				phantom: Default::default(),
+			},
+			network_membership: pallet_network_membership::GenesisConfig {
+				members: self.network_members.into_iter().map(|member| (member, false)).collect(),
 			},
 			default_collective: Default::default(),
 		}
 		.build_storage()
 		.unwrap()
 		.into();
+
 		ext.execute_with(|| System::set_block_number(1));
 		ext
 	}
@@ -215,19 +230,34 @@ fn record(event: RuntimeEvent) -> EventRecord<RuntimeEvent, H256> {
 fn default_max_proposal_weight() -> Weight {
 	sp_runtime::Perbill::from_percent(80) * BlockWeights::get().max_block
 }
+pub fn run_to_block(n: u64) {
+	while System::block_number() < n {
+		Collective::on_finalize(System::block_number());
+		System::on_finalize(System::block_number());
+		System::reset_events();
+		System::set_block_number(System::block_number() + 1);
+		System::on_initialize(System::block_number());
+		Collective::on_initialize(System::block_number());
+	}
+}
 
 #[test]
 fn motions_basic_environment_works() {
 	ExtBuilder::default().build_and_execute(|| {
-		assert_eq!(Collective::members(), vec![1, 2, 3]);
+		assert_eq!(Collective::members(), (1..=100).collect::<Vec<_>>());
 		assert_eq!(*Collective::proposals(), Vec::<H256>::new());
 	});
 }
 
 #[test]
 fn initialize_members_sorts_members() {
-	let unsorted_members = vec![3, 2, 4, 1];
-	let expected_members = vec![1, 2, 3, 4];
+	let mut rng = thread_rng();
+	let mut unsorted_members: Vec<u64> = (1..=100).map(|x| x as u64).collect();
+	unsorted_members.shuffle(&mut rng); // Shuffle the vector
+
+	let mut expected_members: Vec<u64> = unsorted_members.clone();
+	expected_members.sort(); // Sort the vector
+
 	ExtBuilder::default()
 		.set_collective_members(unsorted_members)
 		.build_and_execute(|| {
@@ -254,13 +284,18 @@ fn close_works() {
 
 		System::set_block_number(3);
 		assert_noop!(
-			Collective::close(RuntimeOrigin::signed(4), hash, 0, proposal_weight, proposal_len),
+			Collective::close(RuntimeOrigin::signed(2), hash, 0, proposal_weight, proposal_len),
 			Error::<Test, Instance1>::TooEarly
+		);
+
+		assert_noop!(
+			Collective::close(RuntimeOrigin::signed(101), hash, 0, proposal_weight, proposal_len),
+			Error::<Test, Instance1>::NotMember
 		);
 
 		System::set_block_number(4);
 		assert_ok!(Collective::close(
-			RuntimeOrigin::signed(4),
+			RuntimeOrigin::signed(1),
 			hash,
 			0,
 			proposal_weight,
@@ -293,7 +328,7 @@ fn close_works() {
 				record(RuntimeEvent::Collective(CollectiveEvent::Closed {
 					proposal_hash: hash,
 					yes: 2,
-					no: 1
+					no: 98
 				})),
 				record(RuntimeEvent::Collective(CollectiveEvent::Disapproved {
 					proposal_hash: hash
@@ -324,7 +359,7 @@ fn proposal_weight_limit_ignored_on_disapprove() {
 		// No votes, this proposal wont pass
 		System::set_block_number(4);
 		assert_ok!(Collective::close(
-			RuntimeOrigin::signed(4),
+			RuntimeOrigin::signed(3),
 			hash,
 			0,
 			proposal_weight - Weight::from_parts(100, 0),
@@ -358,7 +393,7 @@ fn close_with_prime_works() {
 
 		System::set_block_number(4);
 		assert_ok!(Collective::close(
-			RuntimeOrigin::signed(4),
+			RuntimeOrigin::signed(3),
 			hash,
 			0,
 			proposal_weight,
@@ -426,7 +461,7 @@ fn close_with_voting_prime_works() {
 
 		System::set_block_number(4);
 		assert_ok!(Collective::close(
-			RuntimeOrigin::signed(4),
+			RuntimeOrigin::signed(3),
 			hash,
 			0,
 			proposal_weight,
@@ -755,7 +790,7 @@ fn motions_ignoring_non_collective_proposals_works() {
 		let proposal = make_proposal(42);
 		let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
 		assert_noop!(
-			Collective::propose(RuntimeOrigin::signed(42), 3, Box::new(proposal), proposal_len),
+			Collective::propose(RuntimeOrigin::signed(102), 3, Box::new(proposal), proposal_len),
 			Error::<Test, Instance1>::NotMember
 		);
 	});
@@ -774,7 +809,7 @@ fn motions_ignoring_non_collective_votes_works() {
 			proposal_len
 		));
 		assert_noop!(
-			Collective::vote(RuntimeOrigin::signed(42), hash, 0, true),
+			Collective::vote(RuntimeOrigin::signed(142), hash, 0, true),
 			Error::<Test, Instance1>::NotMember,
 		);
 	});
@@ -870,70 +905,13 @@ fn motions_vote_after_works() {
 }
 
 #[test]
-fn motions_all_first_vote_free_works() {
-	ExtBuilder::default().build_and_execute(|| {
-		let proposal = make_proposal(42);
-		let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
-		let hash: H256 = proposal.blake2_256().into();
-		let end = 4;
-		assert_ok!(Collective::propose(
-			RuntimeOrigin::signed(1),
-			2,
-			Box::new(proposal.clone()),
-			proposal_len,
-		));
-		assert_eq!(
-			Collective::voting(hash),
-			Some(Votes { index: 0, threshold: 2, ayes: vec![], nays: vec![], end })
-		);
-
-		// For the motion, acc 2's first vote, expecting Ok with Pays::No.
-		let vote_rval: DispatchResultWithPostInfo =
-			Collective::vote(RuntimeOrigin::signed(2), hash, 0, true);
-		assert_eq!(vote_rval.unwrap().pays_fee, Pays::No);
-
-		// Duplicate vote, expecting error with Pays::Yes.
-		let vote_rval: DispatchResultWithPostInfo =
-			Collective::vote(RuntimeOrigin::signed(2), hash, 0, true);
-		assert_eq!(vote_rval.unwrap_err().post_info.pays_fee, Pays::Yes);
-
-		// Modifying vote, expecting ok with Pays::Yes.
-		let vote_rval: DispatchResultWithPostInfo =
-			Collective::vote(RuntimeOrigin::signed(2), hash, 0, false);
-		assert_eq!(vote_rval.unwrap().pays_fee, Pays::Yes);
-
-		// For the motion, acc 3's first vote, expecting Ok with Pays::No.
-		let vote_rval: DispatchResultWithPostInfo =
-			Collective::vote(RuntimeOrigin::signed(3), hash, 0, true);
-		assert_eq!(vote_rval.unwrap().pays_fee, Pays::No);
-
-		// acc 3 modify the vote, expecting Ok with Pays::Yes.
-		let vote_rval: DispatchResultWithPostInfo =
-			Collective::vote(RuntimeOrigin::signed(3), hash, 0, false);
-		assert_eq!(vote_rval.unwrap().pays_fee, Pays::Yes);
-
-		// Test close() Extrincis | Check DispatchResultWithPostInfo with Pay Info
-
-		let proposal_weight = proposal.get_dispatch_info().weight;
-		let close_rval: DispatchResultWithPostInfo =
-			Collective::close(RuntimeOrigin::signed(2), hash, 0, proposal_weight, proposal_len);
-		assert_eq!(close_rval.unwrap().pays_fee, Pays::No);
-
-		// trying to close the proposal, which is already closed.
-		// Expecting error "ProposalMissing" with Pays::Yes
-		let close_rval: DispatchResultWithPostInfo =
-			Collective::close(RuntimeOrigin::signed(2), hash, 0, proposal_weight, proposal_len);
-		assert_eq!(close_rval.unwrap_err().post_info.pays_fee, Pays::Yes);
-	});
-}
-
-#[test]
 fn motions_reproposing_disapproved_works() {
 	ExtBuilder::default().build_and_execute(|| {
 		let proposal = make_proposal(42);
 		let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
 		let proposal_weight = proposal.get_dispatch_info().weight;
 		let hash: H256 = proposal.blake2_256().into();
+		run_to_block(1);
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			3,
@@ -941,6 +919,7 @@ fn motions_reproposing_disapproved_works() {
 			proposal_len
 		));
 		assert_ok!(Collective::vote(RuntimeOrigin::signed(2), hash, 0, false));
+		run_to_block(5);
 		assert_ok!(Collective::close(
 			RuntimeOrigin::signed(2),
 			hash,
@@ -949,6 +928,7 @@ fn motions_reproposing_disapproved_works() {
 			proposal_len
 		));
 		assert_eq!(*Collective::proposals(), vec![]);
+		run_to_block(7);
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			2,
@@ -1031,9 +1011,9 @@ fn motions_approval_with_enough_votes_and_lower_voting_threshold_works() {
 			Box::new(proposal),
 			proposal_len
 		));
-		assert_ok!(Collective::vote(RuntimeOrigin::signed(1), hash, 1, true));
-		assert_ok!(Collective::vote(RuntimeOrigin::signed(2), hash, 1, true));
-		assert_ok!(Collective::vote(RuntimeOrigin::signed(3), hash, 1, true));
+		for i in 1..=80 {
+			assert_ok!(Collective::vote(RuntimeOrigin::signed(i), hash, 1, true));
+		}
 		assert_ok!(Collective::close(
 			RuntimeOrigin::signed(2),
 			hash,
@@ -1041,51 +1021,41 @@ fn motions_approval_with_enough_votes_and_lower_voting_threshold_works() {
 			proposal_weight,
 			proposal_len
 		));
-		assert_eq!(
-			System::events(),
-			vec![
-				record(RuntimeEvent::Collective(CollectiveEvent::Proposed {
-					account: 1,
-					proposal_index: 1,
-					proposal_hash: hash,
-					threshold: 2
-				})),
-				record(RuntimeEvent::Collective(CollectiveEvent::Voted {
-					account: 1,
-					proposal_hash: hash,
-					voted: true,
-					yes: 1,
-					no: 0
-				})),
-				record(RuntimeEvent::Collective(CollectiveEvent::Voted {
-					account: 2,
-					proposal_hash: hash,
-					voted: true,
-					yes: 2,
-					no: 0
-				})),
-				record(RuntimeEvent::Collective(CollectiveEvent::Voted {
-					account: 3,
-					proposal_hash: hash,
-					voted: true,
-					yes: 3,
-					no: 0
-				})),
-				record(RuntimeEvent::Collective(CollectiveEvent::Closed {
-					proposal_hash: hash,
-					yes: 3,
-					no: 0
-				})),
-				record(RuntimeEvent::Collective(CollectiveEvent::Approved { proposal_hash: hash })),
-				record(RuntimeEvent::Democracy(
-					mock_democracy::pallet::Event::<Test>::ExternalProposed
-				)),
-				record(RuntimeEvent::Collective(CollectiveEvent::Executed {
-					proposal_hash: hash,
-					result: Ok(())
-				})),
-			]
-		);
+
+		let mut expected_events =
+			vec![record(RuntimeEvent::Collective(CollectiveEvent::Proposed {
+				account: 1,
+				proposal_index: 1,
+				proposal_hash: hash,
+				threshold: 2,
+			}))];
+
+		for i in 1..=80 {
+			expected_events.push(record(RuntimeEvent::Collective(CollectiveEvent::Voted {
+				account: i,
+				proposal_hash: hash,
+				voted: true,
+				yes: i as u32,
+				no: 0,
+			})));
+		}
+
+		expected_events.extend(vec![
+			record(RuntimeEvent::Collective(CollectiveEvent::Closed {
+				proposal_hash: hash,
+				yes: 80,
+				no: 0,
+			})),
+			record(RuntimeEvent::Collective(CollectiveEvent::Approved { proposal_hash: hash })),
+			record(RuntimeEvent::Democracy(
+				mock_democracy::pallet::Event::<Test>::ExternalProposed,
+			)),
+			record(RuntimeEvent::Collective(CollectiveEvent::Executed {
+				proposal_hash: hash,
+				result: Ok(()),
+			})),
+		]);
+		assert_eq!(System::events(), expected_events);
 	});
 }
 
@@ -1096,12 +1066,14 @@ fn motions_disapproval_works() {
 		let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
 		let proposal_weight = proposal.get_dispatch_info().weight;
 		let hash: H256 = proposal.blake2_256().into();
+		run_to_block(1);
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			3,
 			Box::new(proposal),
 			proposal_len
 		));
+		run_to_block(4);
 		assert_ok!(Collective::vote(RuntimeOrigin::signed(1), hash, 0, true));
 		assert_ok!(Collective::vote(RuntimeOrigin::signed(2), hash, 0, false));
 		assert_ok!(Collective::close(
@@ -1115,12 +1087,6 @@ fn motions_disapproval_works() {
 		assert_eq!(
 			System::events(),
 			vec![
-				record(RuntimeEvent::Collective(CollectiveEvent::Proposed {
-					account: 1,
-					proposal_index: 0,
-					proposal_hash: hash,
-					threshold: 3
-				})),
 				record(RuntimeEvent::Collective(CollectiveEvent::Voted {
 					account: 1,
 					proposal_hash: hash,
@@ -1138,7 +1104,7 @@ fn motions_disapproval_works() {
 				record(RuntimeEvent::Collective(CollectiveEvent::Closed {
 					proposal_hash: hash,
 					yes: 1,
-					no: 1
+					no: 99
 				})),
 				record(RuntimeEvent::Collective(CollectiveEvent::Disapproved {
 					proposal_hash: hash
@@ -1257,7 +1223,7 @@ fn motion_with_no_votes_closes_with_disapproval() {
 			record(RuntimeEvent::Collective(CollectiveEvent::Closed {
 				proposal_hash: hash,
 				yes: 0,
-				no: 3
+				no: 100
 			}))
 		);
 		assert_eq!(
@@ -1276,6 +1242,7 @@ fn close_disapprove_does_not_care_about_weight_or_len() {
 		let proposal = make_proposal(42);
 		let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
 		let hash: H256 = proposal.blake2_256().into();
+		run_to_block(1);
 		assert_ok!(Collective::propose(
 			RuntimeOrigin::signed(1),
 			2,
@@ -1286,6 +1253,7 @@ fn close_disapprove_does_not_care_about_weight_or_len() {
 		assert_ok!(Collective::vote(RuntimeOrigin::signed(1), hash, 0, true));
 		assert_ok!(Collective::vote(RuntimeOrigin::signed(2), hash, 0, true));
 		// It will not close with bad weight/len information
+		run_to_block(3);
 		assert_noop!(
 			Collective::close(RuntimeOrigin::signed(2), hash, 0, Weight::zero(), 0),
 			Error::<Test, Instance1>::WrongProposalLength,
@@ -1294,6 +1262,7 @@ fn close_disapprove_does_not_care_about_weight_or_len() {
 		assert_ok!(Collective::vote(RuntimeOrigin::signed(1), hash, 0, false));
 		assert_ok!(Collective::vote(RuntimeOrigin::signed(2), hash, 0, false));
 		// It can close even if the weight/len information is bad
+		run_to_block(5);
 		assert_ok!(Collective::close(RuntimeOrigin::signed(2), hash, 0, Weight::zero(), 0));
 	})
 }
