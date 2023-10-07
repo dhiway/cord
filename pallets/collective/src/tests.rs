@@ -20,6 +20,7 @@
 
 use super::{Event as CollectiveEvent, *};
 use crate as pallet_collective;
+use frame_benchmarking::{account, whitelisted_caller};
 use frame_support::{
 	assert_noop, assert_ok, parameter_types,
 	traits::{ConstU32, ConstU64, OnFinalize, OnInitialize},
@@ -177,7 +178,7 @@ pub struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> Self {
-		Self { collective_members: (1..=100).collect(), network_members: (1..=100).collect() }
+		Self { collective_members: (1..=100).collect(), network_members: (1..=120).collect() }
 	}
 }
 
@@ -187,9 +188,21 @@ impl ExtBuilder {
 		self
 	}
 	pub fn build(self) -> sp_io::TestExternalities {
+		let mut old_members = Vec::new();
+		const SEED: u32 = 0;
+		let caller: AccountId = whitelisted_caller();
+		for i in 0..100 {
+			let old_member = account::<AccountId>("member", i, SEED);
+			old_members.push(old_member);
+		}
+		old_members.push(caller);
+
+		let mut network_membership = self.network_members.clone();
+		network_membership.extend(old_members);
+
 		let mut ext: sp_io::TestExternalities = RuntimeGenesisConfig {
 			collective: pallet_collective::GenesisConfig {
-				members: self.collective_members.clone(),
+				members: self.collective_members,
 				phantom: Default::default(),
 			},
 			collective_majority: pallet_collective::GenesisConfig {
@@ -197,7 +210,7 @@ impl ExtBuilder {
 				phantom: Default::default(),
 			},
 			network_membership: pallet_network_membership::GenesisConfig {
-				members: self.network_members.into_iter().map(|member| (member, false)).collect(),
+				members: network_membership.into_iter().map(|member| (member, false)).collect(),
 			},
 			default_collective: Default::default(),
 		}
@@ -790,7 +803,7 @@ fn motions_ignoring_non_collective_proposals_works() {
 		let proposal = make_proposal(42);
 		let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
 		assert_noop!(
-			Collective::propose(RuntimeOrigin::signed(102), 3, Box::new(proposal), proposal_len),
+			Collective::propose(RuntimeOrigin::signed(150), 3, Box::new(proposal), proposal_len),
 			Error::<Test, Instance1>::NotMember
 		);
 	});
