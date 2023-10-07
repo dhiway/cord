@@ -185,6 +185,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	use network_membership::traits::IsMember;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
@@ -195,7 +196,9 @@ pub mod pallet {
 	pub struct Pallet<T, I = ()>(PhantomData<(T, I)>);
 
 	#[pallet::config]
-	pub trait Config<I: 'static = ()>: frame_system::Config {
+	pub trait Config<I: 'static = ()>:
+		frame_system::Config + pallet_network_membership::Config
+	{
 		/// The runtime origin type.
 		type RuntimeOrigin: From<RawOrigin<Self::AccountId, I>>;
 
@@ -233,7 +236,7 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 
 		/// Origin allowed to set collective members
-		type SetMembersOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
+		type NetworkMembershipOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 
 		/// The maximum weight of a dispatch call that can be proposed and
 		/// executed.
@@ -409,7 +412,7 @@ pub mod pallet {
 		///   - `P` proposals-count (code-bounded)
 		#[pallet::call_index(0)]
 		#[pallet::weight((
-			T::WeightInfo::set_members(
+			<T as pallet::Config<I>>::WeightInfo::set_members(
 				*old_count, // M
 				new_members.len() as u32, // N
 				T::MaxProposals::get() // P
@@ -422,7 +425,7 @@ pub mod pallet {
 			prime: Option<T::AccountId>,
 			old_count: MemberCount,
 		) -> DispatchResultWithPostInfo {
-			T::SetMembersOrigin::ensure_origin(origin)?;
+			<T as pallet::Config<I>>::NetworkMembershipOrigin::ensure_origin(origin)?;
 			if new_members.len() > T::MaxMembers::get() as usize {
 				log::error!(
 					target: LOG_TARGET,
@@ -449,7 +452,7 @@ pub mod pallet {
 			<Self as ChangeMembers<T::AccountId>>::set_members_sorted(&new_members, &old);
 			Prime::<T, I>::set(prime);
 
-			Ok(Some(T::WeightInfo::set_members(
+			Ok(Some(<T as pallet::Config<I>>::WeightInfo::set_members(
 				old.len() as u32,         // M
 				new_members.len() as u32, // N
 				T::MaxProposals::get(),   // P
@@ -468,7 +471,7 @@ pub mod pallet {
 		/// - `P` complexity of dispatching `proposal`
 		#[pallet::call_index(1)]
 		#[pallet::weight((
-			T::WeightInfo::execute(
+			<T as pallet::Config<I>>::WeightInfo::execute(
 				*length_bound, // B
 				T::MaxMembers::get(), // M
 			).saturating_add(proposal.get_dispatch_info().weight), // P
@@ -494,7 +497,7 @@ pub mod pallet {
 
 			Ok(get_result_weight(result)
 				.map(|w| {
-					T::WeightInfo::execute(
+					<T as pallet::Config<I>>::WeightInfo::execute(
 						proposal_len as u32,  // B
 						members.len() as u32, // M
 					)
@@ -520,12 +523,12 @@ pub mod pallet {
 		#[pallet::call_index(2)]
 		#[pallet::weight((
 			if *threshold < 2 {
-				T::WeightInfo::propose_execute(
+				<T as pallet::Config<I>>::WeightInfo::propose_execute(
 					*length_bound, // B
 					T::MaxMembers::get(), // M
 				).saturating_add(proposal.get_dispatch_info().weight) // P1
 			} else {
-				T::WeightInfo::propose_proposed(
+				<T as pallet::Config<I>>::WeightInfo::propose_proposed(
 					*length_bound, // B
 					T::MaxMembers::get(), // M
 					T::MaxProposals::get(), // P2
@@ -540,15 +543,19 @@ pub mod pallet {
 			#[pallet::compact] length_bound: u32,
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
+			ensure!(
+				pallet_network_membership::Pallet::<T>::is_member(&who),
+				Error::<T, I>::NotMember
+			);
+
 			let members = Self::members();
-			ensure!(members.contains(&who), Error::<T, I>::NotMember);
 
 			if threshold < 2 {
 				let (proposal_len, result) = Self::do_propose_execute(proposal, length_bound)?;
 
 				Ok(get_result_weight(result)
 					.map(|w| {
-						T::WeightInfo::propose_execute(
+						<T as pallet::Config<I>>::WeightInfo::propose_execute(
 							proposal_len,         // B
 							members.len() as u32, // M
 						)
@@ -559,7 +566,7 @@ pub mod pallet {
 				let (proposal_len, active_proposals) =
 					Self::do_propose_proposed(who, threshold, proposal, length_bound)?;
 
-				Ok(Some(T::WeightInfo::propose_proposed(
+				Ok(Some(<T as pallet::Config<I>>::WeightInfo::propose_proposed(
 					proposal_len,         // B
 					members.len() as u32, // M
 					active_proposals,     // P2
@@ -578,7 +585,7 @@ pub mod pallet {
 		/// ## Complexity
 		/// - `O(M)` where `M` is members-count (code- and governance-bounded)
 		#[pallet::call_index(3)]
-		#[pallet::weight((T::WeightInfo::vote(T::MaxMembers::get()), DispatchClass::Operational))]
+		#[pallet::weight((<T as pallet::Config<I>>::WeightInfo::vote(T::MaxMembers::get()), DispatchClass::Operational))]
 		pub fn vote(
 			origin: OriginFor<T>,
 			proposal: T::Hash,
@@ -590,16 +597,13 @@ pub mod pallet {
 			ensure!(members.contains(&who), Error::<T, I>::NotMember);
 
 			// Detects first vote of the member in the motion
-			let is_account_voting_first_time = Self::do_vote(who, proposal, index, approve)?;
+			// let is_account_voting_first_time = Self::do_vote(who, proposal, index,
+			// approve)?;
+			let _ = Self::do_vote(who, proposal, index, approve)?;
 
-			if is_account_voting_first_time {
-				Ok((Some(T::WeightInfo::vote(members.len() as u32)), Pays::No).into())
-			} else {
-				Ok((Some(T::WeightInfo::vote(members.len() as u32)), Pays::Yes).into())
-			}
+			Ok((Some(<T as pallet::Config<I>>::WeightInfo::vote(members.len() as u32)), Pays::No)
+				.into())
 		}
-
-		// Index 4 was `close_old_weight`; it was removed due to weights v1 deprecation.
 
 		/// Disapprove a proposal, close, and remove it from the system,
 		/// regardless of its current state.
@@ -613,14 +617,15 @@ pub mod pallet {
 		/// ## Complexity
 		/// O(P) where P is the number of max proposals
 		#[pallet::call_index(5)]
-		#[pallet::weight(T::WeightInfo::disapprove_proposal(T::MaxProposals::get()))]
+		#[pallet::weight(<T as pallet::Config<I>>::WeightInfo::disapprove_proposal(T::MaxProposals::get()))]
 		pub fn disapprove_proposal(
 			origin: OriginFor<T>,
 			proposal_hash: T::Hash,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			let proposal_count = Self::do_disapprove_proposal(proposal_hash);
-			Ok(Some(T::WeightInfo::disapprove_proposal(proposal_count)).into())
+			Ok(Some(<T as pallet::Config<I>>::WeightInfo::disapprove_proposal(proposal_count))
+				.into())
 		}
 
 		/// Close a vote that is either approved, disapproved or whose voting
@@ -659,10 +664,10 @@ pub mod pallet {
 				let m = T::MaxMembers::get();
 				let p1 = *proposal_weight_bound;
 				let p2 = T::MaxProposals::get();
-				T::WeightInfo::close_early_approved(b, m, p2)
-					.max(T::WeightInfo::close_early_disapproved(m, p2))
-					.max(T::WeightInfo::close_approved(b, m, p2))
-					.max(T::WeightInfo::close_disapproved(m, p2))
+				<T as pallet::Config<I>>::WeightInfo::close_early_approved(b, m, p2)
+					.max(<T as pallet::Config<I>>::WeightInfo::close_early_disapproved(m, p2))
+					.max(<T as pallet::Config<I>>::WeightInfo::close_approved(b, m, p2))
+					.max(<T as pallet::Config<I>>::WeightInfo::close_disapproved(m, p2))
 					.saturating_add(p1)
 			},
 			DispatchClass::Operational
@@ -674,7 +679,9 @@ pub mod pallet {
 			proposal_weight_bound: Weight,
 			#[pallet::compact] length_bound: u32,
 		) -> DispatchResultWithPostInfo {
-			let _ = ensure_signed(origin)?;
+			let who = ensure_signed(origin)?;
+			let members = Self::members();
+			ensure!(members.contains(&who), Error::<T, I>::NotMember);
 
 			Self::do_close(proposal_hash, index, proposal_weight_bound, length_bound)
 		}
@@ -836,8 +843,12 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				Self::do_approve_proposal(seats, yes_votes, proposal_hash, proposal);
 			return Ok((
 				Some(
-					T::WeightInfo::close_early_approved(len as u32, seats, proposal_count)
-						.saturating_add(proposal_weight),
+					<T as pallet::Config<I>>::WeightInfo::close_early_approved(
+						len as u32,
+						seats,
+						proposal_count,
+					)
+					.saturating_add(proposal_weight),
 				),
 				Pays::No,
 			)
@@ -846,7 +857,10 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 			Self::deposit_event(Event::Closed { proposal_hash, yes: yes_votes, no: no_votes });
 			let proposal_count = Self::do_disapprove_proposal(proposal_hash);
 			return Ok((
-				Some(T::WeightInfo::close_early_disapproved(seats, proposal_count)),
+				Some(<T as pallet::Config<I>>::WeightInfo::close_early_disapproved(
+					seats,
+					proposal_count,
+				)),
 				Pays::No,
 			)
 				.into())
@@ -878,8 +892,12 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 				Self::do_approve_proposal(seats, yes_votes, proposal_hash, proposal);
 			Ok((
 				Some(
-					T::WeightInfo::close_approved(len as u32, seats, proposal_count)
-						.saturating_add(proposal_weight),
+					<T as pallet::Config<I>>::WeightInfo::close_approved(
+						len as u32,
+						seats,
+						proposal_count,
+					)
+					.saturating_add(proposal_weight),
 				),
 				Pays::No,
 			)
@@ -887,7 +905,14 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		} else {
 			Self::deposit_event(Event::Closed { proposal_hash, yes: yes_votes, no: no_votes });
 			let proposal_count = Self::do_disapprove_proposal(proposal_hash);
-			Ok((Some(T::WeightInfo::close_disapproved(seats, proposal_count)), Pays::No).into())
+			Ok((
+				Some(<T as pallet::Config<I>>::WeightInfo::close_disapproved(
+					seats,
+					proposal_count,
+				)),
+				Pays::No,
+			)
+				.into())
 		}
 	}
 

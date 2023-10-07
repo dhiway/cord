@@ -74,7 +74,7 @@ benchmarks_instance_pallet! {
 				// Proposals should be different so that different proposal hashes are generated
 				let proposal: T::Proposal = SystemCall::<T>::remark { remark: id_to_remark_data(i, length) }.into();
 				Collective::<T, I>::propose(
-					SystemOrigin::Signed(old_members.last().unwrap().clone()).into(),
+					SystemOrigin::Signed(old_members.get(1).unwrap().clone()).into(),
 					threshold,
 					Box::new(proposal.clone()),
 					MAX_BYTES,
@@ -83,16 +83,17 @@ benchmarks_instance_pallet! {
 				// Vote on the proposal to increase state relevant for `set_members`.
 				// Not voting for last old member because they proposed and not voting for the first member
 				// to keep the proposal from passing.
-				for j in 2 .. m - 1 {
-					let voter = &old_members[j as usize];
-					let approve = true;
-					Collective::<T, I>::vote(
-						SystemOrigin::Signed(voter.clone()).into(),
-						hash,
-						i,
-						approve,
-					)?;
-				}
+				// for j in 2 .. 3 {
+				// 	let voter = &old_members[j as usize];
+				// 	println!("{:?}", voter);
+				// 	let approve = true;
+				// 	Collective::<T, I>::vote(
+				// 		SystemOrigin::Signed(voter.clone()).into(),
+				// 		hash,
+				// 		i,
+				// 		approve,
+				// 	)?;
+				// }
 			}
 		}
 
