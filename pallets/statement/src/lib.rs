@@ -126,8 +126,15 @@ pub mod pallet {
 	/// It maps from a statement hash to an identifier (resolve from hash).
 	#[pallet::storage]
 	#[pallet::getter(fn statement_digests)]
-	pub type StatementDigests<T> =
-		StorageMap<_, Blake2_128Concat, StatementDigestOf<T>, StatementIdOf, OptionQuery>;
+	pub type StatementDigests<T> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		StatementDigestOf<T>,
+		Twox64Concat,
+		RegistryIdOf,
+		StatementIdOf,
+		OptionQuery,
+	>;
 
 	/// statement activities stored on chain.
 	/// It maps from an identifier to a vector of activities.
@@ -304,7 +311,7 @@ pub mod pallet {
 					event_array.push(statement_digest);
 					continue
 				}
-				<StatementDigests<T>>::insert(statement_digest, &identifier);
+				<StatementDigests<T>>::insert(statement_digest, registry_id.clone(), &identifier);
 
 				<Statements<T>>::insert(
 					&identifier,
@@ -376,12 +383,16 @@ pub mod pallet {
 				.map_err(<pallet_registry::Error<T>>::from)?;
 
 				ensure!(
-					statement_details.registry == registry_id,
+					statement_details.registry.clone() == registry_id.clone(),
 					Error::<T>::UnauthorizedOperation
 				);
 			}
 
-			<StatementDigests<T>>::insert(statement_digest, &statement_id);
+			<StatementDigests<T>>::insert(
+				statement_digest,
+				statement_details.registry.clone(),
+				&statement_id,
+			);
 
 			<Statements<T>>::insert(
 				&statement_id,
@@ -640,14 +651,17 @@ pub mod pallet {
 					None,
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
-
 				ensure!(
-					statement_details.registry == registry_id,
+					statement_details.registry.clone() == registry_id.clone(),
 					Error::<T>::UnauthorizedOperation
 				);
 			}
 
-			<StatementDigests<T>>::insert(statement_digest, &statement_id);
+			<StatementDigests<T>>::insert(
+				statement_digest,
+				statement_details.registry.clone(),
+				&statement_id,
+			);
 
 			// Treat this as a new entry
 			<Attestations<T>>::insert(
