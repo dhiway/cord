@@ -77,7 +77,7 @@ pub mod pallet {
 	/// Type for the statement digest entity
 	pub type AttestationDetailsOf<T> = AttestationDetails<StatementCreatorIdOf<T>, StatusOf>;
 	/// Type for the statement commits
-	pub type StatementCommitsOf<T> = StatementCommit<
+	pub type StatementActivityOf<T> = StatementCommit<
 		StatementCommitActionOf,
 		StatementDigestOf<T>,
 		StatementCreatorIdOf<T>,
@@ -93,9 +93,9 @@ pub mod pallet {
 		>;
 		type OriginSuccess: CallSources<AccountIdOf<Self>, StatementCreatorIdOf<Self>>;
 
-		/// The maximum number of commits for a statement.
+		/// The maximum number of activity for a statement.
 		#[pallet::constant]
-		type MaxStatementCommits: Get<u32>;
+		type MaxStatementActivities: Get<u32>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -123,15 +123,15 @@ pub mod pallet {
 	pub type StatementDigests<T> =
 		StorageMap<_, Blake2_128Concat, StatementDigestOf<T>, StatementIdOf, OptionQuery>;
 
-	/// statement commits stored on chain.
-	/// It maps from an identifier to a vector of commits.
+	/// statement activities stored on chain.
+	/// It maps from an identifier to a vector of activities.
 	#[pallet::storage]
-	#[pallet::getter(fn commits)]
-	pub(super) type Commits<T: Config> = StorageMap<
+	#[pallet::getter(fn activities)]
+	pub(super) type Activities<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		StatementIdOf,
-		BoundedVec<StatementCommitsOf<T>, T::MaxStatementCommits>,
+		BoundedVec<StatementActivityOf<T>, T::MaxStatementActivities>,
 		ValueQuery,
 	>;
 
@@ -228,8 +228,8 @@ pub mod pallet {
 		TooManyDelegatesToRemove,
 		// Authorization not found
 		AuthorizationDetailsNotFound,
-		// Maximum number of commits exceeded
-		MaxStatementCommitsExceeded,
+		// Maximum number of activities exceeded
+		MaxStatementActivitiesExceeded,
 		// Attestation is not found
 		AttestationNotFound,
 	}
@@ -308,7 +308,7 @@ pub mod pallet {
 				AttestationDetailsOf::<T> { creator: creator.clone(), revoked: false },
 			);
 
-			Self::update_commit(
+			Self::update_activity(
 				&identifier,
 				statement_digest,
 				creator.clone(),
@@ -393,7 +393,7 @@ pub mod pallet {
 				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: false },
 			);
 
-			Self::update_commit(
+			Self::update_activity(
 				&statement_id,
 				statement_digest,
 				updater.clone(),
@@ -458,7 +458,7 @@ pub mod pallet {
 				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: true },
 			);
 
-			Self::update_commit(
+			Self::update_activity(
 				&statement_id,
 				statement_details.digest,
 				updater.clone(),
@@ -518,7 +518,7 @@ pub mod pallet {
 				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: false },
 			);
 
-			Self::update_commit(
+			Self::update_activity(
 				&statement_id,
 				statement_details.digest,
 				updater.clone(),
@@ -576,7 +576,7 @@ pub mod pallet {
 			// the result
 			let _ = <Attestations<T>>::clear_prefix(&statement_id, 0, None);
 
-			Self::update_commit(
+			Self::update_activity(
 				&statement_id,
 				statement_details.digest,
 				updater.clone(),
@@ -647,7 +647,7 @@ pub mod pallet {
 				AttestationDetailsOf::<T> { creator: creator.clone(), revoked: false },
 			);
 
-			Self::update_commit(
+			Self::update_activity(
 				&statement_id,
 				statement_digest,
 				creator.clone(),
@@ -667,8 +667,9 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// `update_commit` takes a statement id, a digest, a proposer, and a commit
-	/// action, and pushes the commit action to the statement's commits
+	/// `update_activity` takes a statement id, a digest, a proposer, and a
+	/// commit action, and pushes the commit action to the statement's
+	/// activities
 	///
 	/// Arguments:
 	///
@@ -681,21 +682,21 @@ impl<T: Config> Pallet<T> {
 	/// Returns:
 	///
 	/// The `Result` type is being returned.
-	pub fn update_commit(
+	pub fn update_activity(
 		tx_statement: &StatementIdOf,
 		tx_digest: StatementDigestOf<T>,
 		proposer: StatementCreatorIdOf<T>,
 		commit: StatementCommitActionOf,
 	) -> Result<(), Error<T>> {
-		Commits::<T>::try_mutate(tx_statement, |commits| {
-			commits
-				.try_push(StatementCommitsOf::<T> {
+		Activities::<T>::try_mutate(tx_statement, |activities| {
+			activities
+				.try_push(StatementActivityOf::<T> {
 					commit,
 					digest: tx_digest,
 					committed_by: proposer,
 					created_at: Self::timepoint(),
 				})
-				.map_err(|_| Error::<T>::MaxStatementCommitsExceeded)?;
+				.map_err(|_| Error::<T>::MaxStatementActivitiesExceeded)?;
 
 			Ok(())
 		})

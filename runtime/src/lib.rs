@@ -760,7 +760,7 @@ impl pallet_registry::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxStatementCommits: u32 = 1_000;
+	pub const MaxStatementActivities: u32 = 1_000;
 }
 
 impl pallet_statement::Config for Runtime {
@@ -768,7 +768,7 @@ impl pallet_statement::Config for Runtime {
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_statement::WeightInfo<Runtime>;
-	type MaxStatementCommits = MaxStatementCommits;
+	type MaxStatementActivities = MaxStatementActivities;
 }
 
 impl pallet_remark::Config for Runtime {
