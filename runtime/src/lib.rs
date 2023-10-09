@@ -761,6 +761,7 @@ impl pallet_registry::Config for Runtime {
 
 parameter_types! {
 	pub const MaxStatementActivities: u32 = 1_000;
+	pub const MaxDigestLength: u32 = 1_000;
 }
 
 impl pallet_statement::Config for Runtime {
@@ -769,6 +770,7 @@ impl pallet_statement::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_statement::WeightInfo<Runtime>;
 	type MaxStatementActivities = MaxStatementActivities;
+	type MaxDigestLength = MaxDigestLength;
 }
 
 impl pallet_remark::Config for Runtime {

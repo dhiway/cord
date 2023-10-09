@@ -43,6 +43,7 @@ pub use crate::types::*;
 use frame_system::pallet_prelude::BlockNumberFor;
 
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
+use sp_std::{vec, vec::Vec};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -54,6 +55,9 @@ pub mod pallet {
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
+	/// The current storage version.
+	const MAX_DIGEST_LENGTH: usize = 1_000;
 
 	/// Registry Identifier
 	pub type RegistryIdOf = Ss58Identifier;
@@ -96,6 +100,8 @@ pub mod pallet {
 		/// The maximum number of activity for a statement.
 		#[pallet::constant]
 		type MaxStatementActivities: Get<u32>;
+
+		type MaxDigestLength: Get<u32>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -154,11 +160,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new statement identifier has been created.
 		/// \[statement identifier, statement digest, controller\]
-		Create {
-			identifier: StatementIdOf,
-			digest: StatementDigestOf<T>,
-			author: StatementCreatorIdOf<T>,
-		},
+		Create { failed_digests: Vec<StatementDigestOf<T>>, author: StatementCreatorIdOf<T> },
 		/// A statement identifier has been updated.
 		/// \[statement identifier, digest, controller\]
 		Update {
@@ -232,6 +234,8 @@ pub mod pallet {
 		MaxStatementActivitiesExceeded,
 		// Attestation is not found
 		AttestationNotFound,
+		// Max Digests in a call
+		MaxDigestLengthExceeded,
 	}
 
 	#[pallet::call]
@@ -242,7 +246,7 @@ pub mod pallet {
 		/// Arguments:
 		///
 		/// * `origin`: The origin of the call.
-		/// * `statement_digest`: The digest of the statement.
+		/// * `statement_digests`: Array of the digest of the statements.
 		/// * `authorization`: AuthorizationIdOf.
 		/// * `schema_id`: The schema id of the statement.
 		///
@@ -253,7 +257,7 @@ pub mod pallet {
 		#[pallet::weight({0})]
 		pub fn create(
 			origin: OriginFor<T>,
-			statement_digest: StatementDigestOf<T>,
+			statement_digests: Vec<StatementDigestOf<T>>,
 			authorization: AuthorizationIdOf,
 			schema_id: Option<SchemaIdOf>,
 		) -> DispatchResult {
@@ -276,51 +280,56 @@ pub mod pallet {
 				.map_err(<pallet_registry::Error<T>>::from)?;
 			}
 
-			// Id Digest = concat (H(<scale_encoded_statement_digest>,
-			// <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
-			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+			// now check the digests array
+			let digests_len = statement_digests.len();
+			ensure!(digests_len <= MAX_DIGEST_LENGTH as usize, Error::<T>::MaxDigestLengthExceeded);
+
+			let mut event_array: Vec<StatementDigestOf<T>> = vec![];
+			for (_, statement_digest) in statement_digests.into_iter().enumerate() {
+				// Id Digest = concat (H(<scale_encoded_statement_digest>,
+				// <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
+				let id_digest = <T as frame_system::Config>::Hashing::hash(
+					&[
+						&statement_digest.encode()[..],
+						&registry_id.clone().encode()[..],
+						&creator.clone().encode()[..],
+					]
 					.concat()[..],
-			);
+				);
 
-			let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..])
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+				let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..])
+					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
-			ensure!(
-				!<Statements<T>>::contains_key(&identifier),
-				Error::<T>::StatementAlreadyAnchored
-			);
+				if <Statements<T>>::contains_key(&identifier) {
+					event_array.push(statement_digest);
+					continue
+				}
+				<StatementDigests<T>>::insert(statement_digest, &identifier);
 
-			<StatementDigests<T>>::insert(statement_digest, &identifier);
+				<Statements<T>>::insert(
+					&identifier,
+					StatementEntryOf::<T> {
+						digest: statement_digest,
+						schema: schema_id.clone(),
+						registry: registry_id.clone(),
+					},
+				);
 
-			<Statements<T>>::insert(
-				&identifier,
-				StatementEntryOf::<T> {
-					digest: statement_digest,
-					schema: schema_id.clone(),
-					registry: registry_id,
-				},
-			);
+				<Attestations<T>>::insert(
+					&identifier,
+					statement_digest,
+					AttestationDetailsOf::<T> { creator: creator.clone(), revoked: false },
+				);
 
-			<Attestations<T>>::insert(
-				&identifier,
-				statement_digest,
-				AttestationDetailsOf::<T> { creator: creator.clone(), revoked: false },
-			);
-
-			Self::update_activity(
-				&identifier,
-				statement_digest,
-				creator.clone(),
-				StatementCommitActionOf::Genesis,
-			)
-			.map_err(<Error<T>>::from)?;
-
-			Self::deposit_event(Event::Create {
-				identifier,
-				digest: statement_digest,
-				author: creator,
-			});
+				Self::update_activity(
+					&identifier,
+					statement_digest,
+					creator.clone(),
+					StatementCommitActionOf::Genesis,
+				)
+				.map_err(<Error<T>>::from)?;
+			}
+			Self::deposit_event(Event::Create { failed_digests: event_array, author: creator });
 
 			Ok(())
 		}
