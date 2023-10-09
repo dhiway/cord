@@ -56,9 +56,6 @@ pub mod pallet {
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
-	/// The current storage version.
-	const MAX_DIGEST_LENGTH: usize = 1_000;
-
 	/// Registry Identifier
 	pub type RegistryIdOf = Ss58Identifier;
 	/// Statement Identifier
@@ -101,7 +98,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxStatementActivities: Get<u32>;
 
-		type MaxDigestLength: Get<u32>;
+		type MaxDigestLength: Get<usize>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -289,7 +286,7 @@ pub mod pallet {
 
 			// now check the digests array
 			let digests_len = statement_digests.len();
-			ensure!(digests_len <= MAX_DIGEST_LENGTH as usize, Error::<T>::MaxDigestLengthExceeded);
+			ensure!(digests_len <= T::MaxDigestLength::get(), Error::<T>::MaxDigestLengthExceeded);
 
 			let mut event_array: Vec<StatementDigestOf<T>> = vec![];
 			for (_, statement_digest) in statement_digests.into_iter().enumerate() {
@@ -336,6 +333,11 @@ pub mod pallet {
 				)
 				.map_err(<Error<T>>::from)?;
 			}
+
+			// FIXME: Sometime in future, we need to fix this failures better.
+			// Fail the create() if no new identifiers are created.
+			ensure!(event_array.len() != digests_len, Error::<T>::StatementAlreadyAnchored);
+
 			Self::deposit_event(Event::Create { failed_digests: event_array, author: creator });
 
 			Ok(())
@@ -383,7 +385,7 @@ pub mod pallet {
 				.map_err(<pallet_registry::Error<T>>::from)?;
 
 				ensure!(
-					statement_details.registry.clone() == registry_id.clone(),
+					statement_details.registry == registry_id,
 					Error::<T>::UnauthorizedOperation
 				);
 			}
@@ -652,7 +654,7 @@ pub mod pallet {
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 				ensure!(
-					statement_details.registry.clone() == registry_id.clone(),
+					statement_details.registry == registry_id,
 					Error::<T>::UnauthorizedOperation
 				);
 			}

@@ -122,7 +122,7 @@ fn create_statement_should_succeed() {
 
 		assert_ok!(Statement::create(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
-			statement_digest,
+			vec![statement_digest],
 			authorization_id,
 			Some(schema_id)
 		));
@@ -178,7 +178,7 @@ fn create_statement_should_fail_if_statement_is_anchored() {
 
 		assert_ok!(Statement::create(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
-			statement_digest,
+			vec![statement_digest],
 			authorization_id.clone(),
 			Some(schema_id.clone())
 		));
@@ -186,7 +186,7 @@ fn create_statement_should_fail_if_statement_is_anchored() {
 		assert_err!(
 			Statement::create(
 				DoubleOrigin(author.clone(), delegate.clone()).into(),
-				statement_digest,
+				vec![statement_digest],
 				authorization_id,
 				Some(schema_id)
 			),

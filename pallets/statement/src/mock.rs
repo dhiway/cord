@@ -39,7 +39,6 @@ construct_runtime!(
 		Registry: pallet_registry,
 		Statement: pallet_statement,
 		MockOrigin: mock_origin,
-
 	}
 );
 
@@ -81,15 +80,17 @@ impl mock_origin::Config for Test {
 
 parameter_types! {
 	#[derive(Debug, Clone)]
-	pub const MaxStatementCommits: u32 = 5u32;
+	pub const MaxStatementActivities: u32 = 5u32;
+	pub const MaxDigestLength: usize = 5usize;
 }
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type MaxStatementCommits = MaxStatementCommits;
+	type MaxStatementActivities = MaxStatementActivities;
 	type WeightInfo = weights::SubstrateWeight<Test>;
+	type MaxDigestLength = MaxDigestLength;
 }
 
 parameter_types! {

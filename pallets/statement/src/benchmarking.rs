@@ -84,7 +84,7 @@ benchmarks! {
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 		<Attestations<T>>::insert(
-			&identifier,
+			identifier,
 			statement_digest,
 			AttestationDetailsOf::<T> {
 				creator: did.clone(),
@@ -92,9 +92,9 @@ benchmarks! {
 			},
 		);
 
-	}: _<T::RuntimeOrigin>(origin, statement_digest, authorization_id, None)
+	}: _<T::RuntimeOrigin>(origin, vec![statement_digest], authorization_id, None)
 	verify {
-		assert_last_event::<T>(Event::Create { identifier,digest: statement_digest, author: did}.into());
+		assert_last_event::<T>(Event::Create { failed_digests: vec![], author: did}.into());
 	}
 
 	update {
