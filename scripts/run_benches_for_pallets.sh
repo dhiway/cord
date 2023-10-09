@@ -64,7 +64,7 @@ PALLETS=(
   "pallet_did"
   "pallet_did_name"
   "pallet_network_membership"
-  "pallet_stream"
+  "pallet_statement"
   "pallet_membership"
   "pallet_collective"
   "pallet_unique"
@@ -104,8 +104,8 @@ for PALLET in "${PALLETS[@]}"; do
   pallet_network_membership)
     FOLDER="network-membership"
     ;;
-  pallet_stream)
-    FOLDER="stream"
+  pallet_statement)
+    FOLDER="statement"
     ;;
   pallet_membership)
     FOLDER="membership"

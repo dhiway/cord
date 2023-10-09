@@ -17,7 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
-use crate as pallet_stream;
+use crate as pallet_statement;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{construct_runtime, parameter_types, traits::ConstU64};
 
@@ -37,7 +37,7 @@ construct_runtime!(
 		System: frame_system,
 		Schema:pallet_schema,
 		Registry: pallet_registry,
-		Stream: pallet_stream,
+		Statement: pallet_statement,
 		MockOrigin: mock_origin,
 
 	}
@@ -81,14 +81,14 @@ impl mock_origin::Config for Test {
 
 parameter_types! {
 	#[derive(Debug, Clone)]
-	pub const MaxStreamCommits: u32 = 5u32;
+	pub const MaxStatementCommits: u32 = 5u32;
 }
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type MaxStreamCommits = MaxStreamCommits;
+	type MaxStatementCommits = MaxStatementCommits;
 	type WeightInfo = weights::SubstrateWeight<Test>;
 }
 

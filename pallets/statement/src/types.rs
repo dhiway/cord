@@ -33,71 +33,76 @@ pub struct Timepoint<BlockNumber> {
 	pub index: u32,
 }
 
-/// An on-chain stream entry mapped to an Identifier.
-/// `StreamEntry` is a struct that contains a `StreamDigestOf`, a
+/// An on-chain statement entry mapped to an Identifier.
+/// `StatementEntry` is a struct that contains a `StatementDigestOf`, a
 /// `SchemaIdOf`, and a `RegistryIdOf`.
 ///
 /// Properties:
 ///
-/// * `digest`: The hash of the stream.
+/// * `digest`: The hash of the statement.
 /// * `schema`: The schema identifier.
-/// * `registry`: The registry that the stream is associated with.
+/// * `registry`: The registry that the statement is associated with.
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct StreamEntry<StreamDigestOf, SchemaIdOf, RegistryIdOf> {
-	/// Stream hash.
-	pub digest: StreamDigestOf,
+pub struct StatementEntry<StatementDigestOf, SchemaIdOf, RegistryIdOf> {
+	/// Statement hash.
+	pub digest: StatementDigestOf,
 	/// Schema Identifier
 	pub schema: Option<SchemaIdOf>,
 	/// Registry Identifier
 	pub registry: RegistryIdOf,
 }
 
-/// An on-chain stream:digest entry mapped to an Identifier:Hash.
-/// `AttestationDetails` is a struct that contains a `StreamCreatorIdOf`,
+/// An on-chain statement:digest entry mapped to an Identifier:Hash.
+/// `AttestationDetails` is a struct that contains a `StatementCreatorIdOf`,
 /// and a `StatusOf`.
 ///
 /// Properties:
 ///
 /// * `creator`: The account that has done the latest operation (creator on
 ///   create and update, and account revoking for revoke)
-/// * `revoked`: This is a boolean flag that indicates whether the stream is
+/// * `revoked`: This is a boolean flag that indicates whether the statement is
 ///   revoked or not.
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct AttestationDetails<StreamCreatorIdOf, StatusOf> {
+pub struct AttestationDetails<StatementCreatorIdOf, StatusOf> {
 	/// Attestation creator.
-	pub creator: StreamCreatorIdOf,
-	/// The flag indicating the status of the stream.
+	pub creator: StatementCreatorIdOf,
+	/// The flag indicating the status of the statement.
 	pub revoked: StatusOf,
 }
 
-/// `StreamCommit` is a struct that contains a `StreamCommitAction`, a
-/// `StreamDigest`, a `StreamCreatorId`, and a `Timepoint`.
+/// `StatementCommit` is a struct that contains a `StatementCommitAction`, a
+/// `StatementDigest`, a `StatementCreatorId`, and a `Timepoint`.
 ///
 /// Properties:
 ///
 /// * `commit`: The type of commit.
-/// * `digest`: The hash of the stream.
-/// * `committed_by`: The account that committed the stream.
-/// * `created_at`: The block number at which the stream was created.
+/// * `digest`: The hash of the statement.
+/// * `committed_by`: The account that committed the statement.
+/// * `created_at`: The block number at which the statement was created.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct StreamCommit<StreamCommitActionOf, StreamDigestOf, StreamCreatorIdOf, BlockNumber> {
-	/// Stream commit type
-	pub commit: StreamCommitActionOf,
-	/// Stream hash.
-	pub digest: StreamDigestOf,
+pub struct StatementCommit<
+	StatementCommitActionOf,
+	StatementDigestOf,
+	StatementCreatorIdOf,
+	BlockNumber,
+> {
+	/// Statement commit type
+	pub commit: StatementCommitActionOf,
+	/// Statement hash.
+	pub digest: StatementDigestOf,
 	/// Registry delegate.
-	pub committed_by: StreamCreatorIdOf,
-	/// Stream block number
+	pub committed_by: StatementCreatorIdOf,
+	/// Statement block number
 	pub created_at: Timepoint<BlockNumber>,
 }
 
-/// Defining the possible actions that can be taken on a stream.
+/// Defining the possible actions that can be taken on a statement.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub enum StreamCommitActionOf {
+pub enum StatementCommitActionOf {
 	Genesis,
 	Update,
 	Revoke,

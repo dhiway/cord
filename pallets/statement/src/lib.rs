@@ -16,9 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! # Stream Pallet
+//! # Statement Pallet
 //!
-//! The Stream pallet is used to anchor identifiers representing off-chain
+//! The Statement pallet is used to anchor identifiers representing off-chain
 //! documents. The pallet provides means of creating, updating, revoking and
 //! removing identifier data on-chain and delegated controls.
 
@@ -57,30 +57,30 @@ pub mod pallet {
 
 	/// Registry Identifier
 	pub type RegistryIdOf = Ss58Identifier;
-	/// Stream Identifier
-	pub type StreamIdOf = Ss58Identifier;
+	/// Statement Identifier
+	pub type StatementIdOf = Ss58Identifier;
 	/// Schema Identifier
 	pub type SchemaIdOf = Ss58Identifier;
 	/// Authorization Identifier
 	pub type AuthorizationIdOf = Ss58Identifier;
 	/// Hash of the registry.
-	pub type StreamHashOf<T> = <T as frame_system::Config>::Hash;
+	pub type StatementHashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a creator identifier.
-	pub type StreamCreatorIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
+	pub type StatementCreatorIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
 
-	/// Hash of the stream.
-	pub type StreamDigestOf<T> = <T as frame_system::Config>::Hash;
+	/// Hash of the statement.
+	pub type StatementDigestOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-	/// Type for the stream entity
-	pub type StreamEntryOf<T> = StreamEntry<StreamDigestOf<T>, SchemaIdOf, RegistryIdOf>;
-	/// Type for the stream digest entity
-	pub type AttestationDetailsOf<T> = AttestationDetails<StreamCreatorIdOf<T>, StatusOf>;
-	/// Type for the stream commits
-	pub type StreamCommitsOf<T> = StreamCommit<
-		StreamCommitActionOf,
-		StreamDigestOf<T>,
-		StreamCreatorIdOf<T>,
+	/// Type for the statement entity
+	pub type StatementEntryOf<T> = StatementEntry<StatementDigestOf<T>, SchemaIdOf, RegistryIdOf>;
+	/// Type for the statement digest entity
+	pub type AttestationDetailsOf<T> = AttestationDetails<StatementCreatorIdOf<T>, StatusOf>;
+	/// Type for the statement commits
+	pub type StatementCommitsOf<T> = StatementCommit<
+		StatementCommitActionOf,
+		StatementDigestOf<T>,
+		StatementCreatorIdOf<T>,
 		BlockNumberFor<T>,
 	>;
 
@@ -91,11 +91,11 @@ pub mod pallet {
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = <Self as Config>::OriginSuccess,
 		>;
-		type OriginSuccess: CallSources<AccountIdOf<Self>, StreamCreatorIdOf<Self>>;
+		type OriginSuccess: CallSources<AccountIdOf<Self>, StatementCreatorIdOf<Self>>;
 
-		/// The maximum number of commits for a stream.
+		/// The maximum number of commits for a statement.
 		#[pallet::constant]
-		type MaxStreamCommits: Get<u32>;
+		type MaxStatementCommits: Get<u32>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -108,43 +108,43 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	/// stream identifiers stored on chain.
+	/// statement identifiers stored on chain.
 	/// It maps from an identifier to its details. Chain will only store the
 	/// last updated state of the data.
 	#[pallet::storage]
-	#[pallet::getter(fn streams)]
-	pub type Streams<T> =
-		StorageMap<_, Blake2_128Concat, StreamIdOf, StreamEntryOf<T>, OptionQuery>;
+	#[pallet::getter(fn statements)]
+	pub type Statements<T> =
+		StorageMap<_, Blake2_128Concat, StatementIdOf, StatementEntryOf<T>, OptionQuery>;
 
-	/// stream hashes stored on chain.
-	/// It maps from a stream hash to an identifier (resolve from hash).
+	/// statement hashes stored on chain.
+	/// It maps from a statement hash to an identifier (resolve from hash).
 	#[pallet::storage]
-	#[pallet::getter(fn stream_digests)]
-	pub type StreamDigests<T> =
-		StorageMap<_, Blake2_128Concat, StreamDigestOf<T>, StreamIdOf, OptionQuery>;
+	#[pallet::getter(fn statement_digests)]
+	pub type StatementDigests<T> =
+		StorageMap<_, Blake2_128Concat, StatementDigestOf<T>, StatementIdOf, OptionQuery>;
 
-	/// stream commits stored on chain.
+	/// statement commits stored on chain.
 	/// It maps from an identifier to a vector of commits.
 	#[pallet::storage]
 	#[pallet::getter(fn commits)]
 	pub(super) type Commits<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		StreamIdOf,
-		BoundedVec<StreamCommitsOf<T>, T::MaxStreamCommits>,
+		StatementIdOf,
+		BoundedVec<StatementCommitsOf<T>, T::MaxStatementCommits>,
 		ValueQuery,
 	>;
 
-	/// stream uniques stored on chain.
-	/// It maps from a stream identifier and hash to its details.
+	/// statement uniques stored on chain.
+	/// It maps from a statement identifier and hash to its details.
 	#[pallet::storage]
 	#[pallet::getter(fn attestations)]
 	pub type Attestations<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
-		StreamIdOf,
+		StatementIdOf,
 		Blake2_128Concat,
-		StreamDigestOf<T>,
+		StatementDigestOf<T>,
 		AttestationDetailsOf<T>,
 		OptionQuery,
 	>;
@@ -152,55 +152,67 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new stream identifier has been created.
-		/// \[stream identifier, stream digest, controller\]
-		Create { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: StreamCreatorIdOf<T> },
-		/// A stream identifier has been updated.
-		/// \[stream identifier, digest, controller\]
-		Update { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: StreamCreatorIdOf<T> },
-		/// A stream identifier status has been revoked.
-		/// \[stream identifier, controller\]
-		Revoke { identifier: StreamIdOf, author: StreamCreatorIdOf<T> },
-		/// A stream identifier status has been restored.
-		/// \[stream identifier, controller\]
-		Restore { identifier: StreamIdOf, author: StreamCreatorIdOf<T> },
-		/// A stream identifier has been removed.
-		/// \[stream identifier,  controller\]
-		Remove { identifier: StreamIdOf, author: StreamCreatorIdOf<T> },
-		/// A stream digest has been added.
-		/// \[stream identifier, digest, controller\]
-		Digest { identifier: StreamIdOf, digest: StreamDigestOf<T>, author: StreamCreatorIdOf<T> },
+		/// A new statement identifier has been created.
+		/// \[statement identifier, statement digest, controller\]
+		Create {
+			identifier: StatementIdOf,
+			digest: StatementDigestOf<T>,
+			author: StatementCreatorIdOf<T>,
+		},
+		/// A statement identifier has been updated.
+		/// \[statement identifier, digest, controller\]
+		Update {
+			identifier: StatementIdOf,
+			digest: StatementDigestOf<T>,
+			author: StatementCreatorIdOf<T>,
+		},
+		/// A statement identifier status has been revoked.
+		/// \[statement identifier, controller\]
+		Revoke { identifier: StatementIdOf, author: StatementCreatorIdOf<T> },
+		/// A statement identifier status has been restored.
+		/// \[statement identifier, controller\]
+		Restore { identifier: StatementIdOf, author: StatementCreatorIdOf<T> },
+		/// A statement identifier has been removed.
+		/// \[statement identifier,  controller\]
+		Remove { identifier: StatementIdOf, author: StatementCreatorIdOf<T> },
+		/// A statement digest has been added.
+		/// \[statement identifier, digest, controller\]
+		Digest {
+			identifier: StatementIdOf,
+			digest: StatementDigestOf<T>,
+			author: StatementCreatorIdOf<T>,
+		},
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Stream idenfier is not unique
-		StreamAlreadyAnchored,
-		/// Stream idenfier not found
-		StreamNotFound,
-		/// Stream idenfier marked inactive
-		RevokedStream,
-		/// Stream idenfier not marked inactive
-		StreamNotRevoked,
+		/// Statement idenfier is not unique
+		StatementAlreadyAnchored,
+		/// Statement idenfier not found
+		StatementNotFound,
+		/// Statement idenfier marked inactive
+		RevokedStatement,
+		/// Statement idenfier not marked inactive
+		StatementNotRevoked,
 		/// Only when the author is not the controller/delegate.
 		UnauthorizedOperation,
-		/// Stream link does not exist
-		StreamLinkNotFound,
-		/// Stream Link is revoked
-		StreamLinkRevoked,
+		/// Statement link does not exist
+		StatementLinkNotFound,
+		/// Statement Link is revoked
+		StatementLinkRevoked,
 		// Invalid creator signature
 		InvalidSignature,
-		//Stream hash is not unique
+		//Statement hash is not unique
 		HashAlreadyAnchored,
 		// Expired Tx Signature
 		ExpiredSignature,
-		// Invalid Stream Identifier
-		InvalidStreamIdentifier,
+		// Invalid Statement Identifier
+		InvalidStatementIdentifier,
 		// Invalid Schema Identifier Length
 		InvalidIdentifierLength,
-		// Stream not part of space
-		StreamSpaceMismatch,
-		//Stream digest is not unique
+		// Statement not part of space
+		StatementSpaceMismatch,
+		//Statement digest is not unique
 		DigestHashAlreadyAnchored,
 		// Invalid transaction hash
 		InvalidTransactionHash,
@@ -217,22 +229,22 @@ pub mod pallet {
 		// Authorization not found
 		AuthorizationDetailsNotFound,
 		// Maximum number of commits exceeded
-		MaxStreamCommitsExceeded,
+		MaxStatementCommitsExceeded,
 		// Attestation is not found
 		AttestationNotFound,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a new stream and associates it with its
+		/// Create a new statement and associates it with its
 		/// controller. The controller (issuer) is the owner of the identifier.
 		///
 		/// Arguments:
 		///
 		/// * `origin`: The origin of the call.
-		/// * `stream_digest`: The digest of the stream.
+		/// * `statement_digest`: The digest of the statement.
 		/// * `authorization`: AuthorizationIdOf.
-		/// * `schema_id`: The schema id of the stream.
+		/// * `schema_id`: The schema id of the statement.
 		///
 		/// Returns:
 		///
@@ -241,7 +253,7 @@ pub mod pallet {
 		#[pallet::weight({0})]
 		pub fn create(
 			origin: OriginFor<T>,
-			stream_digest: StreamDigestOf<T>,
+			statement_digest: StatementDigestOf<T>,
 			authorization: AuthorizationIdOf,
 			schema_id: Option<SchemaIdOf>,
 		) -> DispatchResult {
@@ -264,24 +276,27 @@ pub mod pallet {
 				.map_err(<pallet_registry::Error<T>>::from)?;
 			}
 
-			// Id Digest = concat (H(<scale_encoded_stream_digest>,
+			// Id Digest = concat (H(<scale_encoded_statement_digest>,
 			// <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+				&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
 					.concat()[..],
 			);
 
-			let identifier = Ss58Identifier::to_stream_id(&(id_digest).encode()[..])
+			let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
-			ensure!(!<Streams<T>>::contains_key(&identifier), Error::<T>::StreamAlreadyAnchored);
+			ensure!(
+				!<Statements<T>>::contains_key(&identifier),
+				Error::<T>::StatementAlreadyAnchored
+			);
 
-			<StreamDigests<T>>::insert(stream_digest, &identifier);
+			<StatementDigests<T>>::insert(statement_digest, &identifier);
 
-			<Streams<T>>::insert(
+			<Statements<T>>::insert(
 				&identifier,
-				StreamEntryOf::<T> {
-					digest: stream_digest,
+				StatementEntryOf::<T> {
+					digest: statement_digest,
 					schema: schema_id.clone(),
 					registry: registry_id,
 				},
@@ -289,33 +304,33 @@ pub mod pallet {
 
 			<Attestations<T>>::insert(
 				&identifier,
-				stream_digest,
+				statement_digest,
 				AttestationDetailsOf::<T> { creator: creator.clone(), revoked: false },
 			);
 
 			Self::update_commit(
 				&identifier,
-				stream_digest,
+				statement_digest,
 				creator.clone(),
-				StreamCommitActionOf::Genesis,
+				StatementCommitActionOf::Genesis,
 			)
 			.map_err(<Error<T>>::from)?;
 
 			Self::deposit_event(Event::Create {
 				identifier,
-				digest: stream_digest,
+				digest: statement_digest,
 				author: creator,
 			});
 
 			Ok(())
 		}
-		/// Updates the stream identifier with a new digest. The updated digest
-		/// represents the changes a stream reference document might have
-		/// undergone. Arguments:
+		/// Updates the statement identifier with a new digest. The updated
+		/// digest represents the changes a statement reference document might
+		/// have undergone. Arguments:
 		///
 		/// * `origin`: The origin of the call.
-		/// * `stream_id`: The identifier of the stream to be updated.
-		/// * `stream_digest`: The hash of the stream reference document.
+		/// * `statement_id`: The identifier of the statement to be updated.
+		/// * `statement_digest`: The hash of the statement reference document.
 		/// * `authorization`: The authorization ID of the delegate who is
 		///   allowed to perform this action.
 		///
@@ -326,72 +341,80 @@ pub mod pallet {
 		#[pallet::weight({0})]
 		pub fn update(
 			origin: OriginFor<T>,
-			stream_id: StreamIdOf,
-			stream_digest: StreamDigestOf<T>,
+			statement_id: StatementIdOf,
+			statement_digest: StatementDigestOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			let stream_attestations = <Attestations<T>>::get(&stream_id, stream_details.digest)
-				.ok_or(Error::<T>::AttestationNotFound)?;
-			// If it is same digest then it should throw stream anchored error
-			ensure!(stream_details.digest != stream_digest, Error::<T>::StreamAlreadyAnchored);
-			ensure!(!stream_attestations.revoked, Error::<T>::RevokedStream);
+			let statement_details =
+				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
+			let statement_attestations =
+				<Attestations<T>>::get(&statement_id, statement_details.digest)
+					.ok_or(Error::<T>::AttestationNotFound)?;
+			// If it is same digest then it should throw statement anchored error
+			ensure!(
+				statement_details.digest != statement_digest,
+				Error::<T>::StatementAlreadyAnchored
+			);
+			ensure!(!statement_attestations.revoked, Error::<T>::RevokedStatement);
 
-			if stream_attestations.creator != updater {
+			if statement_attestations.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
 					&authorization,
 					updater.clone(),
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 
-				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
+				ensure!(
+					statement_details.registry == registry_id,
+					Error::<T>::UnauthorizedOperation
+				);
 			}
 
-			<StreamDigests<T>>::insert(stream_digest, &stream_id);
+			<StatementDigests<T>>::insert(statement_digest, &statement_id);
 
-			<Streams<T>>::insert(
-				&stream_id,
-				StreamEntryOf::<T> { digest: stream_digest, ..stream_details },
+			<Statements<T>>::insert(
+				&statement_id,
+				StatementEntryOf::<T> { digest: statement_digest, ..statement_details },
 			);
 
 			// Update the old info saying that got revoked
 			<Attestations<T>>::insert(
-				&stream_id,
-				stream_details.digest,
+				&statement_id,
+				statement_details.digest,
 				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: true },
 			);
 
 			// Update the new entry with hash to say this is active
 			<Attestations<T>>::insert(
-				&stream_id,
-				stream_digest,
+				&statement_id,
+				statement_digest,
 				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: false },
 			);
 
 			Self::update_commit(
-				&stream_id,
-				stream_digest,
+				&statement_id,
+				statement_digest,
 				updater.clone(),
-				StreamCommitActionOf::Update,
+				StatementCommitActionOf::Update,
 			)
 			.map_err(<Error<T>>::from)?;
 
 			Self::deposit_event(Event::Update {
-				identifier: stream_id,
-				digest: stream_digest,
+				identifier: statement_id,
+				digest: statement_digest,
 				author: updater,
 			});
 
 			Ok(())
 		}
-		/// Revokes a stream.
+		/// Revokes a statement.
 		///
 		/// Arguments:
 		///
 		/// * `origin`: The origin of the transaction.
-		/// * `stream_id`: The stream identifier.
+		/// * `statement_id`: The statement identifier.
 		/// * `authorization`: The authorization ID of the delegate who is
 		///   allowed to perform this action.
 		///
@@ -402,52 +425,57 @@ pub mod pallet {
 		#[pallet::weight({0})]
 		pub fn revoke(
 			origin: OriginFor<T>,
-			stream_id: StreamIdOf,
+			statement_id: StatementIdOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			let stream_attestations = <Attestations<T>>::get(&stream_id, stream_details.digest)
-				.ok_or(Error::<T>::AttestationNotFound)?;
-			// If it is same digest then it should throw stream anchored error
-			ensure!(!stream_attestations.revoked, Error::<T>::RevokedStream);
+			let statement_details =
+				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
+			let statement_attestations =
+				<Attestations<T>>::get(&statement_id, statement_details.digest)
+					.ok_or(Error::<T>::AttestationNotFound)?;
+			// If it is same digest then it should throw statement anchored error
+			ensure!(!statement_attestations.revoked, Error::<T>::RevokedStatement);
 
-			if stream_attestations.creator != updater {
+			if statement_attestations.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
 					&authorization,
 					updater.clone(),
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 
-				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
+				ensure!(
+					statement_details.registry == registry_id,
+					Error::<T>::UnauthorizedOperation
+				);
 			}
 
 			// Update the info saying it got revoked
 			<Attestations<T>>::insert(
-				&stream_id,
-				stream_details.digest,
+				&statement_id,
+				statement_details.digest,
 				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: true },
 			);
 
 			Self::update_commit(
-				&stream_id,
-				stream_details.digest,
+				&statement_id,
+				statement_details.digest,
 				updater.clone(),
-				StreamCommitActionOf::Revoke,
+				StatementCommitActionOf::Revoke,
 			)
 			.map_err(<Error<T>>::from)?;
-			Self::deposit_event(Event::Revoke { identifier: stream_id, author: updater });
+			Self::deposit_event(Event::Revoke { identifier: statement_id, author: updater });
 
 			Ok(())
 		}
 
-		/// Restore a previously revoked stream.
+		/// Restore a previously revoked statement.
 		///
 		/// Arguments:
 		///
 		/// * `origin`: The origin of the transaction.
-		/// * `stream_id`: The stream identifier.
+		/// * `statement_id`: The statement identifier.
 		/// * `authorization`: The authorization ID of the delegate who is
 		///   allowed to perform this action.
 		///
@@ -458,51 +486,56 @@ pub mod pallet {
 		#[pallet::weight({0})]
 		pub fn restore(
 			origin: OriginFor<T>,
-			stream_id: StreamIdOf,
+			statement_id: StatementIdOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			let stream_attestations = <Attestations<T>>::get(&stream_id, stream_details.digest)
-				.ok_or(Error::<T>::AttestationNotFound)?;
-			ensure!(stream_attestations.revoked, Error::<T>::StreamNotRevoked);
+			let statement_details =
+				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
+			let statement_attestations =
+				<Attestations<T>>::get(&statement_id, statement_details.digest)
+					.ok_or(Error::<T>::AttestationNotFound)?;
+			ensure!(statement_attestations.revoked, Error::<T>::StatementNotRevoked);
 
-			if stream_attestations.creator != updater {
+			if statement_attestations.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
 					&authorization,
 					updater.clone(),
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 
-				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
+				ensure!(
+					statement_details.registry == registry_id,
+					Error::<T>::UnauthorizedOperation
+				);
 			}
 
 			// Update the existing info saying it got activated again (ie, revoked: false)
 			<Attestations<T>>::insert(
-				&stream_id,
-				stream_details.digest,
+				&statement_id,
+				statement_details.digest,
 				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: false },
 			);
 
 			Self::update_commit(
-				&stream_id,
-				stream_details.digest,
+				&statement_id,
+				statement_details.digest,
 				updater.clone(),
-				StreamCommitActionOf::Restore,
+				StatementCommitActionOf::Restore,
 			)
 			.map_err(<Error<T>>::from)?;
-			Self::deposit_event(Event::Restore { identifier: stream_id, author: updater });
+			Self::deposit_event(Event::Restore { identifier: statement_id, author: updater });
 
 			Ok(())
 		}
 
-		/// Removes a stream from the registry.
+		/// Removes a statement from the registry.
 		///
 		/// Arguments:
 		///
 		/// * `origin`: The origin of the transaction.
-		/// * `stream_id`: The stream id of the stream to be removed.
+		/// * `statement_id`: The statement id of the statement to be removed.
 		/// * `authorization`: The authorization ID of the delegate who is
 		///   allowed to perform this action.
 		///
@@ -513,56 +546,61 @@ pub mod pallet {
 		#[pallet::weight({0})]
 		pub fn remove(
 			origin: OriginFor<T>,
-			stream_id: StreamIdOf,
+			statement_id: StatementIdOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			let stream_attestations = <Attestations<T>>::get(&stream_id, stream_details.digest)
-				.ok_or(Error::<T>::AttestationNotFound)?;
+			let statement_details =
+				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
+			let statement_attestations =
+				<Attestations<T>>::get(&statement_id, statement_details.digest)
+					.ok_or(Error::<T>::AttestationNotFound)?;
 
-			if stream_attestations.creator != updater {
+			if statement_attestations.creator != updater {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
 					&authorization,
 					updater.clone(),
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 
-				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
+				ensure!(
+					statement_details.registry == registry_id,
+					Error::<T>::UnauthorizedOperation
+				);
 			}
 
-			<Streams<T>>::take(&stream_id);
+			<Statements<T>>::take(&statement_id);
 
 			// Remove all entries with this identifier in the doublemap. Not planning to use
 			// the result
-			let _ = <Attestations<T>>::clear_prefix(&stream_id, 0, None);
+			let _ = <Attestations<T>>::clear_prefix(&statement_id, 0, None);
 
 			Self::update_commit(
-				&stream_id,
-				stream_details.digest,
+				&statement_id,
+				statement_details.digest,
 				updater.clone(),
-				StreamCommitActionOf::Remove,
+				StatementCommitActionOf::Remove,
 			)
 			.map_err(<Error<T>>::from)?;
 
-			Self::deposit_event(Event::Remove { identifier: stream_id, author: updater });
+			Self::deposit_event(Event::Remove { identifier: statement_id, author: updater });
 
 			Ok(())
 		}
 
-		/// Adds stream digest information.
-		/// `digest` is a function that takes a stream identifier, a stream
-		/// digest, and an authorization identifier, and inserts the stream
-		/// digest into the `StreamDigests` storage map, and then deposits an
-		/// event. This operation can only be performed bythe stream issuer or
-		/// delegated authorities.
+		/// Adds statement digest information.
+		/// `digest` is a function that takes a statement identifier, a
+		/// statement digest, and an authorization identifier, and inserts the
+		/// statement digest into the `StatementDigests` storage map, and then
+		/// deposits an event. This operation can only be performed bythe
+		/// statement issuer or delegated authorities.
 		///
 		/// Arguments:
 		///
 		/// * `origin`: The origin of the transaction.
-		/// * `stream_id`: The stream identifier.
-		/// * `stream_digest`: StreamDigestOf<T>
+		/// * `statement_id`: The statement identifier.
+		/// * `statement_digest`: StatementDigestOf<T>
 		/// * `authorization`: The authorization ID of the delegate who is
 		///   allowed to perform this action.
 		///
@@ -573,18 +611,20 @@ pub mod pallet {
 		#[pallet::weight({0})]
 		pub fn digest(
 			origin: OriginFor<T>,
-			stream_id: StreamIdOf,
-			stream_digest: StreamDigestOf<T>,
+			statement_id: StatementIdOf,
+			statement_digest: StatementDigestOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let stream_details = <Streams<T>>::get(&stream_id).ok_or(Error::<T>::StreamNotFound)?;
-			let stream_attestations = <Attestations<T>>::get(&stream_id, stream_details.digest)
-				.ok_or(Error::<T>::AttestationNotFound)?;
-			ensure!(!stream_attestations.revoked, Error::<T>::RevokedStream);
+			let statement_details =
+				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
+			let statement_attestations =
+				<Attestations<T>>::get(&statement_id, statement_details.digest)
+					.ok_or(Error::<T>::AttestationNotFound)?;
+			ensure!(!statement_attestations.revoked, Error::<T>::RevokedStatement);
 
-			if stream_attestations.creator != creator {
+			if statement_attestations.creator != creator {
 				let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
 					&authorization,
 					creator.clone(),
@@ -592,29 +632,32 @@ pub mod pallet {
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 
-				ensure!(stream_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
+				ensure!(
+					statement_details.registry == registry_id,
+					Error::<T>::UnauthorizedOperation
+				);
 			}
 
-			<StreamDigests<T>>::insert(stream_digest, &stream_id);
+			<StatementDigests<T>>::insert(statement_digest, &statement_id);
 
 			// Treat this as a new entry
 			<Attestations<T>>::insert(
-				&stream_id,
-				stream_details.digest,
+				&statement_id,
+				statement_details.digest,
 				AttestationDetailsOf::<T> { creator: creator.clone(), revoked: false },
 			);
 
 			Self::update_commit(
-				&stream_id,
-				stream_digest,
+				&statement_id,
+				statement_digest,
 				creator.clone(),
-				StreamCommitActionOf::Genesis,
+				StatementCommitActionOf::Genesis,
 			)
 			.map_err(<Error<T>>::from)?;
 
 			Self::deposit_event(Event::Digest {
-				identifier: stream_id,
-				digest: stream_digest,
+				identifier: statement_id,
+				digest: statement_digest,
 				author: creator,
 			});
 
@@ -624,35 +667,35 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// `update_commit` takes a stream id, a digest, a proposer, and a commit
-	/// action, and pushes the commit action to the stream's commits
+	/// `update_commit` takes a statement id, a digest, a proposer, and a commit
+	/// action, and pushes the commit action to the statement's commits
 	///
 	/// Arguments:
 	///
-	/// * `tx_stream`: The stream id of the stream that the commit is being made
-	///   to.
+	/// * `tx_statement`: The statement id of the statement that the commit is
+	///   being made to.
 	/// * `tx_digest`: The digest of the transaction that was committed.
 	/// * `proposer`: The account that is proposing the transaction.
-	/// * `commit`: Action taken on a stream.
+	/// * `commit`: Action taken on a statement.
 	///
 	/// Returns:
 	///
 	/// The `Result` type is being returned.
 	pub fn update_commit(
-		tx_stream: &StreamIdOf,
-		tx_digest: StreamDigestOf<T>,
-		proposer: StreamCreatorIdOf<T>,
-		commit: StreamCommitActionOf,
+		tx_statement: &StatementIdOf,
+		tx_digest: StatementDigestOf<T>,
+		proposer: StatementCreatorIdOf<T>,
+		commit: StatementCommitActionOf,
 	) -> Result<(), Error<T>> {
-		Commits::<T>::try_mutate(tx_stream, |commits| {
+		Commits::<T>::try_mutate(tx_statement, |commits| {
 			commits
-				.try_push(StreamCommitsOf::<T> {
+				.try_push(StatementCommitsOf::<T> {
 					commit,
 					digest: tx_digest,
 					committed_by: proposer,
 					created_at: Self::timepoint(),
 				})
-				.map_err(|_| Error::<T>::MaxStreamCommitsExceeded)?;
+				.map_err(|_| Error::<T>::MaxStatementCommitsExceeded)?;
 
 			Ok(())
 		})
