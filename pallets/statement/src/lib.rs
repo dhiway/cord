@@ -289,7 +289,7 @@ pub mod pallet {
 			ensure!(digests_len <= T::MaxDigestLength::get(), Error::<T>::MaxDigestLengthExceeded);
 
 			let mut event_array: Vec<StatementDigestOf<T>> = vec![];
-			for (_, statement_digest) in statement_digests.into_iter().enumerate() {
+			for statement_digest in statement_digests {
 				// Id Digest = concat (H(<scale_encoded_statement_digest>,
 				// <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
 				let id_digest = <T as frame_system::Config>::Hashing::hash(
