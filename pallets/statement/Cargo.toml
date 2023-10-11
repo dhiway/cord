@@ -1,6 +1,6 @@
 [package]
-name = 'pallet-stream'
-description = 'Manage Stream Entries.'
+name = 'pallet-statement'
+description = 'Manage Statement Entries.'
 version = "0.9.0"
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'

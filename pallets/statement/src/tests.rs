@@ -7,24 +7,25 @@ use pallet_registry::{InputRegistryOf, RegistryHashOf};
 use pallet_schema::{InputSchemaOf, SchemaHashOf};
 use sp_runtime::{traits::Hash, AccountId32};
 
-/// Generates a stream ID from a stream digest.
+/// Generates a statement ID from a statement digest.
 ///
-/// This function takes a stream digest and converts it into a stream ID using
-/// the SS58 encoding scheme. The resulting stream ID is returned.
+/// This function takes a statement digest and converts it into a statement ID
+/// using the SS58 encoding scheme. The resulting statement ID is returned.
 ///
 /// # Arguments
 ///
-/// * `digest` - A reference to the stream digest.
+/// * `digest` - A reference to the statement digest.
 ///
 /// # Returns
 ///
-/// A `StreamIdOf` representing the generated stream ID.
+/// A `StatementIdOf` representing the generated statement ID.
 ///
 /// # Panics
 ///
-/// This function will panic if the conversion from digest to stream ID fails.
-pub fn generate_stream_id<T: Config>(digest: &StreamHashOf<T>) -> StreamIdOf {
-	Ss58Identifier::to_stream_id(&(digest).encode()[..]).unwrap()
+/// This function will panic if the conversion from digest to statement ID
+/// fails.
+pub fn generate_statement_id<T: Config>(digest: &StatementHashOf<T>) -> StatementIdOf {
+	Ss58Identifier::to_statement_id(&(digest).encode()[..]).unwrap()
 }
 
 /// Generates a schema ID from a schema digest.
@@ -72,13 +73,13 @@ pub(crate) const DID_01: SubjectId = SubjectId(AccountId32::new([5u8; 32]));
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
 
 #[test]
-fn create_stream_should_succeed() {
+fn create_statement_should_succeed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
 
-	let stream = vec![77u8; 32];
-	let stream_digest = <Test as frame_system::Config>::Hashing::hash(&stream[..]);
+	let statement = vec![77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
@@ -119,9 +120,9 @@ fn create_stream_should_succeed() {
 			delegate.clone(),
 		));
 
-		assert_ok!(Stream::create(
+		assert_ok!(Statement::create(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
-			stream_digest,
+			vec![statement_digest],
 			authorization_id,
 			Some(schema_id)
 		));
@@ -129,7 +130,7 @@ fn create_stream_should_succeed() {
 }
 
 #[test]
-fn create_stream_should_fail_if_stream_is_anchored() {
+fn create_statement_should_fail_if_statement_is_anchored() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
@@ -140,8 +141,8 @@ fn create_stream_should_fail_if_stream_is_anchored() {
 	);
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
-	let stream = vec![77u8; 32];
-	let stream_digest = <Test as frame_system::Config>::Hashing::hash(&stream[..]);
+	let statement = vec![77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
@@ -175,27 +176,27 @@ fn create_stream_should_fail_if_stream_is_anchored() {
 			delegate.clone(),
 		));
 
-		assert_ok!(Stream::create(
+		assert_ok!(Statement::create(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
-			stream_digest,
+			vec![statement_digest],
 			authorization_id.clone(),
 			Some(schema_id.clone())
 		));
 
 		assert_err!(
-			Stream::create(
+			Statement::create(
 				DoubleOrigin(author.clone(), delegate.clone()).into(),
-				stream_digest,
+				vec![statement_digest],
 				authorization_id,
 				Some(schema_id)
 			),
-			Error::<Test>::StreamAlreadyAnchored
+			Error::<Test>::StatementAlreadyAnchored
 		);
 	});
 }
 
 #[test]
-fn update_stream_should_succed() {
+fn update_statement_should_succed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
@@ -207,12 +208,13 @@ fn update_stream_should_succed() {
 	);
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
-	let stream = vec![77u8; 32];
-	let stream_digest = <Test as frame_system::Config>::Hashing::hash(&stream[..]);
-	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
+	let statement = vec![77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+			.concat()[..],
 	);
-	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
 
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
@@ -247,27 +249,27 @@ fn update_stream_should_succed() {
 			delegate.clone(),
 		));
 
-		<Streams<Test>>::insert(
-			&stream_id,
-			StreamEntryOf::<Test> {
-				digest: stream_digest,
+		<Statements<Test>>::insert(
+			&statement_id,
+			StatementEntryOf::<Test> {
+				digest: statement_digest,
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
 			},
 		);
 
 		<Attestations<Test>>::insert(
-			&stream_id,
-			stream_digest,
+			&statement_id,
+			statement_digest,
 			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
 		);
 
-		let stream_update = vec![12u8; 32];
-		let update_digest = <Test as frame_system::Config>::Hashing::hash(&stream_update[..]);
+		let statement_update = vec![12u8; 32];
+		let update_digest = <Test as frame_system::Config>::Hashing::hash(&statement_update[..]);
 
-		assert_ok!(Stream::update(
+		assert_ok!(Statement::update(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
-			stream_id,
+			statement_id,
 			update_digest,
 			authorization_id,
 		));
@@ -287,12 +289,13 @@ fn update_should_fail_if_digest_is_same() {
 	);
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
-	let stream = vec![77u8; 32];
-	let stream_digest = <Test as frame_system::Config>::Hashing::hash(&stream[..]);
-	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
+	let statement = vec![77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+			.concat()[..],
 	);
-	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
 
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
@@ -327,34 +330,34 @@ fn update_should_fail_if_digest_is_same() {
 			delegate.clone(),
 		));
 
-		<Streams<Test>>::insert(
-			&stream_id,
-			StreamEntryOf::<Test> {
-				digest: stream_digest,
+		<Statements<Test>>::insert(
+			&statement_id,
+			StatementEntryOf::<Test> {
+				digest: statement_digest,
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
 			},
 		);
 		<Attestations<Test>>::insert(
-			&stream_id,
-			stream_digest,
+			&statement_id,
+			statement_digest,
 			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
 		);
 
 		assert_err!(
-			Stream::update(
+			Statement::update(
 				DoubleOrigin(author.clone(), delegate.clone()).into(),
-				stream_id,
-				stream_digest,
+				statement_id,
+				statement_digest,
 				authorization_id,
 			),
-			Error::<Test>::StreamAlreadyAnchored
+			Error::<Test>::StatementAlreadyAnchored
 		);
 	});
 }
 
 #[test]
-fn update_stream_should_fail_if_stream_does_not_found() {
+fn update_statement_should_fail_if_statement_does_not_found() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
@@ -364,12 +367,13 @@ fn update_stream_should_fail_if_stream_does_not_found() {
 		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	let stream = vec![77u8; 32];
-	let stream_digest = <Test as frame_system::Config>::Hashing::hash(&stream[..]);
-	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
+	let statement = vec![77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+			.concat()[..],
 	);
-	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
@@ -399,23 +403,23 @@ fn update_stream_should_fail_if_stream_does_not_found() {
 			registry_id.clone(),
 			delegate.clone(),
 		));
-		let stream_update = vec![12u8; 32];
-		let update_digest = <Test as frame_system::Config>::Hashing::hash(&stream_update[..]);
+		let statement_update = vec![12u8; 32];
+		let update_digest = <Test as frame_system::Config>::Hashing::hash(&statement_update[..]);
 
 		assert_err!(
-			Stream::update(
+			Statement::update(
 				DoubleOrigin(author.clone(), delegate.clone()).into(),
-				stream_id,
+				statement_id,
 				update_digest,
 				authorization_id,
 			),
-			Error::<Test>::StreamNotFound
+			Error::<Test>::StatementNotFound
 		);
 	});
 }
 
 #[test]
-fn update_should_fail_if_stream_is_revoked() {
+fn update_should_fail_if_statement_is_revoked() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
@@ -425,12 +429,13 @@ fn update_should_fail_if_stream_is_revoked() {
 		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	let stream = vec![77u8; 32];
-	let stream_digest = <Test as frame_system::Config>::Hashing::hash(&stream[..]);
-	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
+	let statement = vec![77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+			.concat()[..],
 	);
-	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
@@ -460,37 +465,37 @@ fn update_should_fail_if_stream_is_revoked() {
 			delegate.clone(),
 		));
 
-		<Streams<Test>>::insert(
-			&stream_id,
-			StreamEntryOf::<Test> {
-				digest: stream_digest,
+		<Statements<Test>>::insert(
+			&statement_id,
+			StatementEntryOf::<Test> {
+				digest: statement_digest,
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
 			},
 		);
 		<Attestations<Test>>::insert(
-			&stream_id,
-			stream_digest,
+			&statement_id,
+			statement_digest,
 			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: true },
 		);
 
-		let stream_update = vec![12u8; 32];
-		let update_digest = <Test as frame_system::Config>::Hashing::hash(&stream_update[..]);
+		let statement_update = vec![12u8; 32];
+		let update_digest = <Test as frame_system::Config>::Hashing::hash(&statement_update[..]);
 
 		assert_err!(
-			Stream::update(
+			Statement::update(
 				DoubleOrigin(author.clone(), delegate.clone()).into(),
-				stream_id,
+				statement_id,
 				update_digest,
 				authorization_id,
 			),
-			Error::<Test>::RevokedStream
+			Error::<Test>::RevokedStatement
 		);
 	});
 }
 
 #[test]
-fn revoke_stream_should_succed() {
+fn revoke_statement_should_succed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
@@ -500,12 +505,13 @@ fn revoke_stream_should_succed() {
 		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	let stream = vec![77u8; 32];
-	let stream_digest = <Test as frame_system::Config>::Hashing::hash(&stream[..]);
-	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
+	let statement = vec![77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+			.concat()[..],
 	);
-	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
@@ -535,30 +541,30 @@ fn revoke_stream_should_succed() {
 			delegate.clone(),
 		));
 
-		<Streams<Test>>::insert(
-			&stream_id,
-			StreamEntryOf::<Test> {
-				digest: stream_digest,
+		<Statements<Test>>::insert(
+			&statement_id,
+			StatementEntryOf::<Test> {
+				digest: statement_digest,
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
 			},
 		);
 		<Attestations<Test>>::insert(
-			&stream_id,
-			stream_digest,
+			&statement_id,
+			statement_digest,
 			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
 		);
 
-		assert_ok!(Stream::revoke(
+		assert_ok!(Statement::revoke(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
-			stream_id,
+			statement_id,
 			authorization_id,
 		));
 	});
 }
 
 #[test]
-fn remove_stream_should_succed() {
+fn remove_statement_should_succed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
@@ -568,12 +574,13 @@ fn remove_stream_should_succed() {
 		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	let stream = vec![77u8; 32];
-	let stream_digest = <Test as frame_system::Config>::Hashing::hash(&stream[..]);
-	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
+	let statement = vec![77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+			.concat()[..],
 	);
-	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
@@ -603,30 +610,30 @@ fn remove_stream_should_succed() {
 			delegate.clone(),
 		));
 
-		<Streams<Test>>::insert(
-			&stream_id,
-			StreamEntryOf::<Test> {
-				digest: stream_digest,
+		<Statements<Test>>::insert(
+			&statement_id,
+			StatementEntryOf::<Test> {
+				digest: statement_digest,
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
 			},
 		);
 		<Attestations<Test>>::insert(
-			&stream_id,
-			stream_digest,
+			&statement_id,
+			statement_digest,
 			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
 		);
 
-		assert_ok!(Stream::remove(
+		assert_ok!(Statement::remove(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
-			stream_id,
+			statement_id,
 			authorization_id,
 		));
 	});
 }
 
 #[test]
-fn digest_stream_should_succed() {
+fn digest_statement_should_succed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
@@ -636,12 +643,13 @@ fn digest_stream_should_succed() {
 		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	let stream = vec![77u8; 32];
-	let stream_digest = <Test as frame_system::Config>::Hashing::hash(&stream[..]);
-	let stream_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&stream_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()[..],
+	let statement = vec![77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+			.concat()[..],
 	);
-	let stream_id = generate_stream_id::<Test>(&stream_id_digest);
+	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
 	let raw_schema = [11u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
@@ -671,24 +679,24 @@ fn digest_stream_should_succed() {
 			delegate.clone(),
 		));
 
-		<Streams<Test>>::insert(
-			&stream_id,
-			StreamEntryOf::<Test> {
-				digest: stream_digest,
+		<Statements<Test>>::insert(
+			&statement_id,
+			StatementEntryOf::<Test> {
+				digest: statement_digest,
 				schema: Some(schema_id.clone()),
 				registry: registry_id.clone(),
 			},
 		);
 		<Attestations<Test>>::insert(
-			&stream_id,
-			stream_digest,
+			&statement_id,
+			statement_digest,
 			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
 		);
 
-		assert_ok!(Stream::digest(
+		assert_ok!(Statement::digest(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			stream_id,
-			stream_digest,
+			statement_id,
+			statement_digest,
 			authorization_id,
 		));
 	});

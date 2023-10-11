@@ -60,9 +60,9 @@ check-registry:
 check-schema:
 	cargo check --package pallet-schema $(CARGO_FLAGS)
 
-# Rule to check the STREAM pallet with all targets
-check-stream:
-	cargo check --package pallet-stream $(CARGO_FLAGS)
+# Rule to check the STATEMENT pallet with all targets
+check-statement:
+	cargo check --package pallet-statement $(CARGO_FLAGS)
 
 # Rule to check the UNIQUE pallet with all targets
 check-unique:
@@ -92,11 +92,11 @@ test-registry:
 test-schema:
 	cargo test --package pallet-schema $(CARGO_FLAGS)
 
-# Rule to test the STREAM pallet with all targets
-test-stream:
-	cargo test --package pallet-stream $(CARGO_FLAGS)
+# Rule to test the STATEMENT pallet with all targets
+test-statement:
+	cargo test --package pallet-statement $(CARGO_FLAGS)
 
-# Rule to test the STREAM pallet with all targets
+# Rule to test the UNIQUE pallet with all targets
 test-unique:
 	cargo test --package pallet-unique $(CARGO_FLAGS)
 

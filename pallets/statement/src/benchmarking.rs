@@ -15,8 +15,8 @@ use sp_std::convert::TryFrom;
 const SEED: u32 = 0;
 const MAX_PAYLOAD_BYTE_LENGTH: u32 = 5 * 1024;
 
-pub fn generate_stream_id<T: Config>(other_digest: &StreamHashOf<T>) -> StreamIdOf {
-	Ss58Identifier::to_stream_id(&(other_digest).encode()[..]).unwrap()
+pub fn generate_statement_id<T: Config>(other_digest: &StatementHashOf<T>) -> StatementIdOf {
+	Ss58Identifier::to_statement_id(&(other_digest).encode()[..]).unwrap()
 }
 
 pub fn generate_schema_id<T: Config>(other_digest: &SchemaHashOf<T>) -> SchemaIdOf {
@@ -43,9 +43,9 @@ benchmarks! {
 		let did: T::RegistryCreatorId = account("did", 0, SEED);
 		let did1: T::RegistryCreatorId = account("did1", 0, SEED);
 
-		let stream = [77u8; 32].to_vec();
+		let statement = [77u8; 32].to_vec();
 
-		let stream_digest = <T as frame_system::Config>::Hashing::hash(&stream[..]);
+		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
 		let raw_registry = [56u8; 256].to_vec();
 
@@ -58,11 +58,11 @@ benchmarks! {
 		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&stream_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_stream_id(&(id_digest).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
@@ -84,17 +84,17 @@ benchmarks! {
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 		<Attestations<T>>::insert(
-			&identifier,
-			stream_digest,
+			identifier,
+			statement_digest,
 			AttestationDetailsOf::<T> {
 				creator: did.clone(),
 				revoked: false,
 			},
 		);
 
-	}: _<T::RuntimeOrigin>(origin, stream_digest, authorization_id, None)
+	}: _<T::RuntimeOrigin>(origin, vec![statement_digest], authorization_id, None)
 	verify {
-		assert_last_event::<T>(Event::Create { identifier,digest: stream_digest, author: did}.into());
+		assert_last_event::<T>(Event::Create { failed_digests: vec![], author: did}.into());
 	}
 
 	update {
@@ -115,22 +115,22 @@ benchmarks! {
 
 		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
 
-		let stream = [77u8; 32].to_vec();
+		let statement = [77u8; 32].to_vec();
 
-		let stream_digest = <T as frame_system::Config>::Hashing::hash(&stream[..]);
+		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
-		let stream_id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&stream_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
+		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let stream_id = generate_stream_id::<T>(&stream_id_digest);
+		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&stream_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_stream_id(&(id_digest).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
@@ -149,31 +149,31 @@ benchmarks! {
 			},
 		);
 
-		<Streams<T>>::insert(
-			&stream_id,
-			StreamEntryOf::<T> {
-				digest: stream_digest,
+		<Statements<T>>::insert(
+			&statement_id,
+			StatementEntryOf::<T> {
+				digest: statement_digest,
 				schema: None,
 				registry: registry_id,
 			},
 		);
 
 		<Attestations<T>>::insert(
-			&stream_id,
-			stream_digest,
+			&statement_id,
+			statement_digest,
 			AttestationDetailsOf::<T> {
 				creator: did.clone(),
 				revoked: false,
 			},
 		);
 
-		let stream_update = [12u8; 32].to_vec();
-		let update_digest = <T as frame_system::Config>::Hashing::hash(&stream_update[..]);
+		let statement_update = [12u8; 32].to_vec();
+		let update_digest = <T as frame_system::Config>::Hashing::hash(&statement_update[..]);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 
-	}: _<T::RuntimeOrigin>(origin, stream_id, update_digest, authorization_id)
+	}: _<T::RuntimeOrigin>(origin, statement_id, update_digest, authorization_id)
 	verify {
 		assert_last_event::<T>(Event::Update { identifier,digest: update_digest, author: did}.into());
 	}
@@ -196,22 +196,22 @@ benchmarks! {
 
 		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
 
-		let stream = [77u8; 32].to_vec();
+		let statement = [77u8; 32].to_vec();
 
-		let stream_digest = <T as frame_system::Config>::Hashing::hash(&stream[..]);
+		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
-		let stream_id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&stream_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
+		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let stream_id = generate_stream_id::<T>(&stream_id_digest);
+		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&stream_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_stream_id(&(id_digest).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
@@ -230,18 +230,18 @@ benchmarks! {
 			},
 		);
 
-		<Streams<T>>::insert(
-			&stream_id,
-			StreamEntryOf::<T> {
-				digest: stream_digest,
+		<Statements<T>>::insert(
+			&statement_id,
+			StatementEntryOf::<T> {
+				digest: statement_digest,
 				schema: None,
 				registry: registry_id,
 			},
 		);
 
 		<Attestations<T>>::insert(
-			&stream_id,
-			stream_digest,
+			&statement_id,
+			statement_digest,
 			AttestationDetailsOf::<T> {
 				creator: did.clone(),
 				revoked: false,
@@ -250,9 +250,9 @@ benchmarks! {
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
-	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), authorization_id)
+	}: _<T::RuntimeOrigin>(origin, statement_id.clone(), authorization_id)
 	verify {
-		assert_last_event::<T>(Event::Revoke { identifier:stream_id,author: did}.into());
+		assert_last_event::<T>(Event::Revoke { identifier:statement_id,author: did}.into());
 	}
 
 	restore {
@@ -273,22 +273,22 @@ benchmarks! {
 
 		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
 
-		let stream = [77u8; 32].to_vec();
+		let statement = [77u8; 32].to_vec();
 
-		let stream_digest = <T as frame_system::Config>::Hashing::hash(&stream[..]);
+		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
-		let stream_id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&stream_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
+		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let stream_id = generate_stream_id::<T>(&stream_id_digest);
+		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&stream_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_stream_id(&(id_digest).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
@@ -307,33 +307,33 @@ benchmarks! {
 			},
 		);
 
-		<Streams<T>>::insert(
-			&stream_id,
-			StreamEntryOf::<T> {
-				digest: stream_digest,
+		<Statements<T>>::insert(
+			&statement_id,
+			StatementEntryOf::<T> {
+				digest: statement_digest,
 				schema: None,
 				registry: registry_id,
 			},
 		);
 
 		<Attestations<T>>::insert(
-			&stream_id,
-			stream_digest,
+			&statement_id,
+			statement_digest,
 			AttestationDetailsOf::<T> {
 				creator: did.clone(),
 				revoked: true,
 			},
 		);
 
-		let stream_update = [12u8; 32].to_vec();
-		let update_digest = <T as frame_system::Config>::Hashing::hash(&stream_update[..]);
+		let statement_update = [12u8; 32].to_vec();
+		let update_digest = <T as frame_system::Config>::Hashing::hash(&statement_update[..]);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 
-	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), authorization_id)
+	}: _<T::RuntimeOrigin>(origin, statement_id.clone(), authorization_id)
 	verify {
-		assert_last_event::<T>(Event::Restore {identifier:stream_id, author: did}.into());
+		assert_last_event::<T>(Event::Restore {identifier:statement_id, author: did}.into());
 	}
 
 
@@ -355,22 +355,22 @@ benchmarks! {
 
 		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
 
-		let stream = [77u8; 32].to_vec();
+		let statement = [77u8; 32].to_vec();
 
-		let stream_digest = <T as frame_system::Config>::Hashing::hash(&stream[..]);
+		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
-		let stream_id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&stream_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
+		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let stream_id = generate_stream_id::<T>(&stream_id_digest);
+		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&stream_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_stream_id(&(id_digest).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
@@ -389,10 +389,10 @@ benchmarks! {
 			},
 		);
 
-		<Streams<T>>::insert(
-			&stream_id,
-			StreamEntryOf::<T> {
-				digest: stream_digest,
+		<Statements<T>>::insert(
+			&statement_id,
+			StatementEntryOf::<T> {
+				digest: statement_digest,
 				schema: None,
 				registry: registry_id,
 			},
@@ -400,10 +400,10 @@ benchmarks! {
 
 		// The operation which is expected in method is clear_prefix, but that gives
 		// error. Better to setup weights on insert check only for now
-		//let _ = <Attestations<T>>::clear_prefix(&stream_id, 0, None);
+		//let _ = <Attestations<T>>::clear_prefix(&statement_id, 0, None);
 		<Attestations<T>>::insert(
-			&stream_id,
-			stream_digest,
+			&statement_id,
+			statement_digest,
 			AttestationDetailsOf::<T> {
 				creator: did.clone(),
 				revoked: false,
@@ -411,9 +411,9 @@ benchmarks! {
 		);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
-	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), authorization_id)
+	}: _<T::RuntimeOrigin>(origin, statement_id.clone(), authorization_id)
 	verify {
-		assert_last_event::<T>(Event::Remove { identifier:stream_id, author: did}.into());
+		assert_last_event::<T>(Event::Remove { identifier:statement_id, author: did}.into());
 	}
 
 	digest{
@@ -434,22 +434,22 @@ benchmarks! {
 
 		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
 
-		let stream = [77u8; 32].to_vec();
+		let statement = [77u8; 32].to_vec();
 
-		let stream_digest = <T as frame_system::Config>::Hashing::hash(&stream[..]);
+		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
-		let stream_id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&stream_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
+		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let stream_id = generate_stream_id::<T>(&stream_id_digest);
+		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&stream_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_stream_id(&(id_digest).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
@@ -469,27 +469,27 @@ benchmarks! {
 			},
 		);
 
-		<Streams<T>>::insert(
-			&stream_id,
-			StreamEntryOf::<T> {
-				digest: stream_digest,
+		<Statements<T>>::insert(
+			&statement_id,
+			StatementEntryOf::<T> {
+				digest: statement_digest,
 				schema: None,
 				registry: registry_id,
 			},
 		);
 
 		<Attestations<T>>::insert(
-			&stream_id,
-			stream_digest,
+			&statement_id,
+			statement_digest,
 			AttestationDetailsOf::<T> {
 				creator: did.clone(),
 				revoked: false,
 			},
 		);
 
-	}: _<T::RuntimeOrigin>(origin, stream_id.clone(), stream_digest, authorization_id)
+	}: _<T::RuntimeOrigin>(origin, statement_id.clone(), statement_digest, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::Digest { identifier:stream_id,digest: stream_digest, author: did}.into());
+		assert_last_event::<T>(Event::Digest { identifier:statement_id,digest: statement_digest, author: did}.into());
 	}
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
