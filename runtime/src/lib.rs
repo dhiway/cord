@@ -760,15 +760,17 @@ impl pallet_registry::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxStreamCommits: u32 = 1_000;
+	pub const MaxStatementActivities: u32 = 1_000;
+	pub const MaxDigestLength: usize = 1_000_usize;
 }
 
-impl pallet_stream::Config for Runtime {
+impl pallet_statement::Config for Runtime {
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_stream::WeightInfo<Runtime>;
-	type MaxStreamCommits = MaxStreamCommits;
+	type WeightInfo = weights::pallet_statement::WeightInfo<Runtime>;
+	type MaxStatementActivities = MaxStatementActivities;
+	type MaxDigestLength = MaxDigestLength;
 }
 
 impl pallet_remark::Config for Runtime {
@@ -837,7 +839,7 @@ construct_runtime! (
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,
 		Registry: pallet_registry = 104,
-		Stream: pallet_stream = 105,
+		Statement: pallet_statement = 105,
 		DidName: pallet_did_name = 106,
 		Unique: pallet_unique = 107,
 		Score: pallet_score = 108,
@@ -878,7 +880,7 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
 			RuntimeCall::Schema { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Stream { .. } =>
+			RuntimeCall::Statement { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Unique { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
@@ -982,7 +984,7 @@ mod benches {
 		[pallet_timestamp, Timestamp]
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
-		[pallet_stream, Stream]
+		[pallet_statement, Statement]
 		[pallet_unique, Unique]
 		[pallet_registry, Registry]
 		[pallet_did, Did]

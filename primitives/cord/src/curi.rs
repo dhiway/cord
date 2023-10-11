@@ -32,7 +32,7 @@ const PREFIX: &[u8] = b"CRDIDFR";
 const IDENT_REG: u16 = 7101;
 const IDENT_AUTH: u16 = 10447;
 const IDENT_SCHEMA: u16 = 1424;
-const IDENT_STREAM: u16 = 8902;
+const IDENT_STATEMENT: u16 = 8902;
 const IDENT_ENTITY: u16 = 6480;
 const IDENT_TEMPLATE: u16 = 5035;
 const IDENT_ASSET: u16 = 2604;
@@ -76,7 +76,7 @@ pub enum IdentifierType {
 	Registry,
 	Authorization,
 	Schema,
-	Stream,
+	Statement,
 }
 
 impl TryFrom<Vec<u8>> for Ss58Identifier {
@@ -154,8 +154,8 @@ impl Ss58Identifier {
 	pub fn to_schema_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_SCHEMA)
 	}
-	pub fn to_stream_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_STREAM)
+	pub fn to_statement_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_STATEMENT)
 	}
 	pub fn to_entity_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_ENTITY)
