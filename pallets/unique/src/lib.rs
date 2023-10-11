@@ -80,8 +80,8 @@ pub mod pallet {
 	/// Type for the unique entity
 	pub type UniqueEntryOf<T> =
 		UniqueEntry<InputUniqueOf<T>, UniqueCreatorIdOf<T>, Option<RegistryIdOf>, StatusOf>;
-	/// Type for the unique commits
-	pub type UniqueCommitsOf<T> = UniqueCommit<
+	/// Type for the unique activities
+	pub type UniqueActivitiesOf<T> = UniqueActivity<
 		UniqueCommitActionOf,
 		InputUniqueOf<T>,
 		UniqueCreatorIdOf<T>,
@@ -97,9 +97,9 @@ pub mod pallet {
 		>;
 		type OriginSuccess: CallSources<AccountIdOf<Self>, UniqueCreatorIdOf<Self>>;
 
-		/// The maximum number of commits for a unique.
+		/// The maximum number of activities for a unique.
 		#[pallet::constant]
-		type MaxUniqueCommits: Get<u32>;
+		type MaxUniqueActivities: Get<u32>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -129,15 +129,15 @@ pub mod pallet {
 	pub type UniqueIdentifiers<T> =
 		StorageMap<_, Blake2_128Concat, UniqueIdOf, UniqueEntryOf<T>, OptionQuery>;
 
-	/// unique commits stored on chain.
-	/// It maps from an identifier to a vector of commits.
+	/// unique activities stored on chain.
+	/// It maps from an identifier to a vector of activities.
 	#[pallet::storage]
-	#[pallet::getter(fn commits)]
-	pub(super) type Commits<T: Config> = StorageMap<
+	#[pallet::getter(fn activities)]
+	pub(super) type Activities<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		UniqueIdOf,
-		BoundedVec<UniqueCommitsOf<T>, T::MaxUniqueCommits>,
+		BoundedVec<UniqueActivitiesOf<T>, T::MaxUniqueActivities>,
 		ValueQuery,
 	>;
 
@@ -202,8 +202,8 @@ pub mod pallet {
 		TooManyDelegatesToRemove,
 		// Authorization not found
 		AuthorizationDetailsNotFound,
-		// Maximum number of commits exceeded
-		MaxUniqueCommitsExceeded,
+		// Maximum number of activities exceeded
+		MaxUniqueActivitiesExceeded,
 		// Invalid Schema Identifier Length
 		InvalidIdentifierLength,
 		//Registy Id mismatch
@@ -524,15 +524,15 @@ impl<T: Config> Pallet<T> {
 		proposer: UniqueCreatorIdOf<T>,
 		commit: UniqueCommitActionOf,
 	) -> Result<(), Error<T>> {
-		Commits::<T>::try_mutate(tx_stream, |commits| {
-			commits
-				.try_push(UniqueCommitsOf::<T> {
+		Activities::<T>::try_mutate(tx_stream, |activities| {
+			activities
+				.try_push(UniqueActivitiesOf::<T> {
 					commit,
 					digest: tx_digest,
 					committed_by: proposer,
 					created_at: Self::timepoint(),
 				})
-				.map_err(|_| Error::<T>::MaxUniqueCommitsExceeded)?;
+				.map_err(|_| Error::<T>::MaxUniqueActivitiesExceeded)?;
 
 			Ok(())
 		})

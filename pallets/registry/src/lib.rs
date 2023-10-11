@@ -72,7 +72,7 @@ pub mod pallet {
 	pub type RegistryAuthorizationOf<T> =
 		RegistryAuthorization<RegistryIdOf, RegistryCreatorIdOf<T>, SchemaIdOf, Permissions>;
 
-	pub type RegistryCommitOf<T> = RegistryCommit<
+	pub type RegistryActivityOf<T> = RegistryActivity<
 		RegistryCommitActionOf,
 		RegistryHashOf<T>,
 		RegistryCreatorIdOf<T>,
@@ -134,12 +134,12 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn commits)]
-	pub type Commits<T: Config> = StorageMap<
+	#[pallet::getter(fn activities)]
+	pub type Activities<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		RegistryIdOf,
-		BoundedVec<RegistryCommitOf<T>, T::MaxRegistryCommitActions>,
+		BoundedVec<RegistryActivityOf<T>, T::MaxRegistryCommitActions>,
 		ValueQuery,
 	>;
 
@@ -196,7 +196,7 @@ pub mod pallet {
 		/// Registry entries exceeded for an identifier
 		RegistryAuthoritiesLimitExceeded,
 		/// Registry commit entries exceeded
-		MaxRegistryCommitsExceeded,
+		MaxRegistryActivitiesExceeded,
 		/// Empty transaction.
 		EmptyTransaction,
 		/// Invalid Schema.
@@ -658,12 +658,11 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Updates the Identifier commit history.
+	/// Updates the Identifier activity history.
 	///
 	/// Arguments:
 	///
-	/// * `tx_registry`: The registry that the transaction is being committed
-	///   to.
+	/// * `tx_registry`: The registry that the transaction is being done.
 	/// * `tx_digest`: The hash of the transaction that was committed.
 	/// * `proposer`: The account that is proposing the transaction.
 	/// * `commit`: The action that was committed.
@@ -678,15 +677,15 @@ impl<T: Config> Pallet<T> {
 		commit: RegistryCommitActionOf,
 	) -> Result<(), Error<T>> {
 		let block_number = frame_system::Pallet::<T>::block_number();
-		Commits::<T>::try_mutate(tx_registry, |commits| {
-			commits
-				.try_push(RegistryCommitOf::<T> {
+		Activities::<T>::try_mutate(tx_registry, |activities| {
+			activities
+				.try_push(RegistryActivityOf::<T> {
 					commit,
 					digest: tx_digest,
 					committed_by: proposer,
 					created_at: block_number,
 				})
-				.map_err(|_| Error::<T>::MaxRegistryCommitsExceeded)?;
+				.map_err(|_| Error::<T>::MaxRegistryActivitiesExceeded)?;
 
 			Ok(())
 		})

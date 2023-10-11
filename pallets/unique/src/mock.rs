@@ -79,7 +79,7 @@ impl mock_origin::Config for Test {
 
 parameter_types! {
 	pub const  MaxEncodedLength: u32 = 15_360;
-	pub const MaxUniqueCommits: u32 = 15_360;
+	pub const MaxUniqueActivities: u32 = 15_360;
 }
 
 impl pallet_unique::Config for Test {
@@ -88,7 +88,7 @@ impl pallet_unique::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type MaxEncodedLength = MaxEncodedLength;
-	type MaxUniqueCommits = MaxUniqueCommits;
+	type MaxUniqueActivities = MaxUniqueActivities;
 }
 
 parameter_types! {

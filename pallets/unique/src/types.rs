@@ -58,7 +58,7 @@ pub struct UniqueEntry<UniqueDigestOf, UniqueCreatorIdOf, RegistryIdOf, StatusOf
 	pub revoked: StatusOf,
 }
 
-/// `StreamCommit` is a struct that contains a `StreamCommitAction`, a
+/// `Unique` is a struct that contains a `StreamCommitAction`, a
 /// `StreamDigest`, a `StreamCreatorId`, and a `Timepoint`.
 ///
 /// Properties:
@@ -68,7 +68,7 @@ pub struct UniqueEntry<UniqueDigestOf, UniqueCreatorIdOf, RegistryIdOf, StatusOf
 /// * `committed_by`: The account that committed the stream.
 /// * `created_at`: The block number at which the stream was created.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct UniqueCommit<UniqueCommitActionOf, UniqueDigestOf, UniqueCreatorIdOf, BlockNumber> {
+pub struct UniqueActivity<UniqueCommitActionOf, UniqueDigestOf, UniqueCreatorIdOf, BlockNumber> {
 	/// Unique commit type
 	pub commit: UniqueCommitActionOf,
 	/// Unique hash.

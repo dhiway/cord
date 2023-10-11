@@ -80,8 +80,12 @@ pub struct RegistryAuthorization<RegistryIdOf, RegistryCreatorIdOf, SchemaIdOf, 
 }
 
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct RegistryCommit<RegistryCommitActionOf, RegistryHashOf, RegistryCreatorIdOf, BlockNumber>
-{
+pub struct RegistryActivity<
+	RegistryCommitActionOf,
+	RegistryHashOf,
+	RegistryCreatorIdOf,
+	BlockNumber,
+> {
 	/// Stream commit type
 	pub commit: RegistryCommitActionOf,
 	/// Registry hash.
