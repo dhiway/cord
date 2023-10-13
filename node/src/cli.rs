@@ -19,7 +19,7 @@
 //! CORD CLI.
 
 #[allow(missing_docs)]
-
+use crate::command::chain::BootstrapChainCmd;
 /// An overarching CLI command definition.
 #[derive(Debug, clap::Parser)]
 pub struct Cli {
@@ -70,6 +70,9 @@ pub enum Subcommand {
 	/// be enabled.
 	#[cfg(not(feature = "try-runtime"))]
 	TryRuntime,
+
+	/// Bootstrap a custom configuration
+	BootstrapChain(BootstrapChainCmd),
 
 	/// Key management cli utilities
 	#[command(subcommand)]

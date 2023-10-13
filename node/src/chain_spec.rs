@@ -18,6 +18,8 @@
 
 //! CORD chain configurations.
 
+pub mod bootstrap;
+
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 pub use cord_runtime::RuntimeGenesisConfig;
 use cord_runtime::{
@@ -28,7 +30,8 @@ use cord_runtime::{
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
 use sc_consensus_grandpa::AuthorityId as GrandpaId;
-use sc_service::{ChainType, Properties};
+pub use sc_service::{ChainType, Properties};
+use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
@@ -39,6 +42,7 @@ type AccountPublic = <Signature as Verify>::Signer;
 
 pub use cord_runtime_constants::{currency::*, time::*};
 
+const CORD_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
 const DEFAULT_PROTOCOL_ID: &str = "cord";
 
 /// Node `ChainSpec` extensions.
@@ -174,7 +178,10 @@ pub fn cord_dev_config() -> Result<CordChainSpec, String> {
 		ChainType::Development,
 		move || cord_dev_config_genesis(wasm_binary),
 		vec![],
-		None,
+		Some(
+			TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
+				.expect("CORD Staging telemetry url is valid; qed"),
+		),
 		Some(DEFAULT_PROTOCOL_ID),
 		None,
 		Some(properties),
@@ -194,7 +201,10 @@ available",
 		ChainType::Local,
 		move || cord_local_config_genesis(wasm_binary),
 		vec![],
-		None,
+		Some(
+			TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
+				.expect("CORD Staging telemetry url is valid; qed"),
+		),
 		Some(DEFAULT_PROTOCOL_ID),
 		None,
 		Some(properties),
