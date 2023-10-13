@@ -1399,6 +1399,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
+ "toml 0.7.8",
  "try-runtime-cli",
  "wait-timeout",
 ]

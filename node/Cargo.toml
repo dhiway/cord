@@ -38,6 +38,7 @@ schnellru = "0.2.1"
 is_executable = "1.0.1"
 log = "0.4.17"
 hex = { version = "0.4.3", default-features = false }
+toml = "0.7.3"
 
 # Substrate primitives
 sp-authority-discovery = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.1.0" }
