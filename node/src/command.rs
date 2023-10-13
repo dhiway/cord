@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+pub mod chain;
 pub mod key;
 
 use crate::{
@@ -90,6 +91,7 @@ pub fn run() -> Result<()> {
 			runner.sync_run(|config| cmd.run::<Block, RuntimeApi, ExecutorDispatch>(config))
 		},
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
+		Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
 		Some(Subcommand::Sign(cmd)) => cmd.run(),
 		Some(Subcommand::Verify(cmd)) => cmd.run(),
 		Some(Subcommand::Vanity(cmd)) => cmd.run(),
