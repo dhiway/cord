@@ -78,14 +78,14 @@ impl BootstrapChainCmd {
 
 		let initial_council_members: Vec<String> =
 			if let Some(council_members) = &config.council_members {
-				council_members.iter().map(|mem| mem.clone()).collect()
+				council_members.to_vec()
 			} else {
 				config.authorities.iter().map(|auth| auth[1].clone()).collect()
 			};
 
 		let initial_tech_committee_members: Vec<String> =
-			if let Some(committe_members) = &config.tech_committee_members {
-				committe_members.iter().map(|mem| mem.clone()).collect()
+			if let Some(committee_members) = &config.tech_committee_members {
+				committee_members.to_vec()
 			} else {
 				config.authorities.iter().map(|auth| auth[1].clone()).collect()
 			};

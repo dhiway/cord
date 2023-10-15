@@ -18,7 +18,7 @@
 
 //! CORD CLI.
 
-#[allow(missing_docs)]
+#![allow(missing_docs)]
 use crate::command::chain::BootstrapChainCmd;
 /// An overarching CLI command definition.
 #[derive(Debug, clap::Parser)]
