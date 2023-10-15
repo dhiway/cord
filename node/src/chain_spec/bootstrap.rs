@@ -77,11 +77,8 @@ fn cord_custom_config_genesis(
 	wasm_binary: &[u8],
 	config: ChainParams,
 ) -> cord_runtime::RuntimeGenesisConfig {
-	let initial_network_members: Vec<AccountId> = config
-		.network_members
-		.iter()
-		.map(|auth| array_bytes::hex_n_into_unchecked(auth))
-		.collect();
+	let initial_network_members: Vec<AccountId> =
+		config.network_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
 
 	let initial_well_known_nodes: Vec<(NodeId, AccountId)> = config
 		.well_known_nodes
@@ -108,16 +105,13 @@ fn cord_custom_config_genesis(
 			})
 			.collect();
 
-	let initial_council_members: Vec<AccountId> = config
-		.council_members
-		.iter()
-		.map(|mem| array_bytes::hex_n_into_unchecked(mem))
-		.collect();
+	let initial_council_members: Vec<AccountId> =
+		config.council_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
 
 	let initial_tech_committee_members: Vec<AccountId> = config
 		.tech_committee_members
 		.iter()
-		.map(|mem| array_bytes::hex_n_into_unchecked(mem))
+		.map(array_bytes::hex_n_into_unchecked)
 		.collect();
 
 	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
