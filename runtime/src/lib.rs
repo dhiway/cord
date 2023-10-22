@@ -789,12 +789,12 @@ impl pallet_unique::Config for Runtime {
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_unique::WeightInfo<Runtime>;
-	type MaxUniqueCommits = MaxUniqueCommits;
+	type MaxUniqueActivities = MaxUniqueActivities;
 	type MaxEncodedLength = MaxEncodedLength;
 }
 
 parameter_types! {
-	pub const MaxUniqueCommits: u32 = 1_000;
+	pub const MaxUniqueActivities: u32 = 1_000;
 	pub const MaxEncodedLength: u32 = 15_360;
 }
 
