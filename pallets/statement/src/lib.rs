@@ -39,10 +39,9 @@ use frame_support::{ensure, storage::types::StorageMap};
 use sp_std::{prelude::Clone, str};
 pub mod types;
 pub mod weights;
-pub use crate::types::*;
-use frame_system::pallet_prelude::BlockNumberFor;
-
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
+use frame_system::pallet_prelude::BlockNumberFor;
+use identifier::types::{CallTypeOf, IdentifierTypeOf};
 use sp_std::{vec, vec::Vec};
 
 #[frame_support::pallet]
