@@ -652,6 +652,7 @@ impl pallet_node_authorization::Config for Runtime {
 parameter_types! {
 	pub const MembershipPeriod: BlockNumber = YEAR;
 	pub const MaxMembersPerBlock: u32 = 1_000;
+	pub const MaxEventsHistory: u32 = 1_001;
 }
 
 impl pallet_network_membership::Config for Runtime {
@@ -660,6 +661,10 @@ impl pallet_network_membership::Config for Runtime {
 	type MembershipPeriod = MembershipPeriod;
 	type MaxMembersPerBlock = MaxMembersPerBlock;
 	type WeightInfo = weights::pallet_network_membership::WeightInfo<Runtime>;
+}
+
+impl identifier::Config for Runtime {
+	type MaxEventsHistory = MaxEventsHistory;
 }
 
 impl pallet_runtime_upgrade::Config for Runtime {
@@ -834,7 +839,8 @@ construct_runtime! (
 		Historical: pallet_session_historical::{Pallet} = 33,
 		Multisig: pallet_multisig = 35,
 		Remark: pallet_remark = 37,
-		Identity: pallet_identity =38,
+		Identity: pallet_identity = 38,
+		Identifier: identifier = 39,
 		NetworkMembership: pallet_network_membership =101,
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,

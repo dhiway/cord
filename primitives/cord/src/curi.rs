@@ -199,6 +199,28 @@ impl Ss58Identifier {
 		ensure!(ident == id_ident, IdentifierError::InvalidPrefix);
 		Ok(())
 	}
+
+	pub fn default_error() -> Self {
+		// Define a default error value, for example, a single zero byte Base58 encoded.
+		let error_value_base58 = vec![0].to_base58();
+
+		// Convert the Base58 encoded string to a byte vector.
+		let error_value_bytes = error_value_base58.into_bytes();
+
+		// Attempt to convert the byte vector into a BoundedVec.
+		let bounded_error_value = BoundedVec::try_from(error_value_bytes)
+			.expect("Should not fail as the length is within bounds");
+
+		Ss58Identifier(bounded_error_value)
+	}
+	// /// Returns a default `Ss58Identifi
+	// /// er` with an error state.
+	// pub fn default_error() -> Self {
+	// 	let error_state = vec![0; 49];
+	// 	let bounded_error_state = BoundedVec::try_from(error_state)
+	// 		.expect("Should not fail as the length is within bounds");
+	// 	Ss58Identifier(bounded_error_state)
+	// }
 }
 
 impl AsRef<[u8]> for Ss58Identifier {

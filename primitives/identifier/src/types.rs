@@ -26,22 +26,20 @@ use sp_runtime::RuntimeDebug;
 #[derive(
 	Copy, Clone, Eq, PartialEq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen,
 )]
-pub struct Timepoint<BlockNumber> {
+pub struct Timepoint {
 	/// The height of the chain at the point in time.
-	pub height: BlockNumber,
+	pub height: u32,
 	/// The index of the extrinsic at the point in time.
 	pub index: u32,
 }
 
 /// Identifier Event Entries
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct EventEntry<CallTypeOf, EntryDigestOf, BlockNumber> {
+pub struct EventEntry<CallTypeOf> {
 	/// Identifier Type.
 	pub action: CallTypeOf,
-	/// Genesis Digest
-	pub digest: EntryDigestOf,
 	/// Location of the transaction within the ledger,
-	pub location: Timepoint<BlockNumber>,
+	pub location: Timepoint,
 }
 
 /// Defining the possible actions that can be performed on a identifier.

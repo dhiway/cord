@@ -21,17 +21,17 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
-/// A global index, formed as the extrinsic index within a block, together with
-/// that block's height.
-#[derive(
-	Copy, Clone, Eq, PartialEq, Encode, Decode, Default, RuntimeDebug, TypeInfo, MaxEncodedLen,
-)]
-pub struct Timepoint<BlockNumber> {
-	/// The height of the chain at the point in time.
-	pub height: BlockNumber,
-	/// The index of the extrinsic at the point in time.
-	pub index: u32,
-}
+// /// A global index, formed as the extrinsic index within a block, together
+// with /// that block's height.
+// #[derive(
+// 	Copy, Clone, Eq, PartialEq, Encode, Decode, Default, RuntimeDebug, TypeInfo,
+// MaxEncodedLen, )]
+// pub struct Timepoint<BlockNumber> {
+// 	/// The height of the chain at the point in time.
+// 	pub height: BlockNumber,
+// 	/// The index of the extrinsic at the point in time.
+// 	pub index: u32,
+// }
 
 /// An on-chain statement entry mapped to an Identifier.
 /// `StatementEntry` is a struct that contains a `StatementDigestOf`, a
@@ -48,10 +48,12 @@ pub struct Timepoint<BlockNumber> {
 pub struct StatementEntry<StatementDigestOf, SchemaIdOf, RegistryIdOf> {
 	/// Statement hash.
 	pub digest: StatementDigestOf,
-	/// Schema Identifier
-	pub schema: Option<SchemaIdOf>,
 	/// Registry Identifier
 	pub registry: RegistryIdOf,
+	/// Schema Identifier
+	pub schema: Option<SchemaIdOf>,
+	/// The flag indicating the  current status of the statement identifier.
+	pub revoked: StatusOf,
 }
 
 /// An on-chain statement:digest entry mapped to an Identifier:Hash.
@@ -72,32 +74,6 @@ pub struct AttestationDetails<StatementCreatorIdOf, StatusOf> {
 	pub creator: StatementCreatorIdOf,
 	/// The flag indicating the status of the statement.
 	pub revoked: StatusOf,
-}
-
-/// `StatementCommit` is a struct that contains a `StatementCommitAction`, a
-/// `StatementDigest`, a `StatementCreatorId`, and a `Timepoint`.
-///
-/// Properties:
-///
-/// * `commit`: The type of commit.
-/// * `digest`: The hash of the statement.
-/// * `committed_by`: The account that committed the statement.
-/// * `created_at`: The block number at which the statement was created.
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct StatementCommit<
-	StatementCommitActionOf,
-	StatementDigestOf,
-	StatementCreatorIdOf,
-	BlockNumber,
-> {
-	/// Statement commit type
-	pub commit: StatementCommitActionOf,
-	/// Statement hash.
-	pub digest: StatementDigestOf,
-	/// Registry delegate.
-	pub committed_by: StatementCreatorIdOf,
-	/// Statement block number
-	pub created_at: Timepoint<BlockNumber>,
 }
 
 /// Defining the possible actions that can be taken on a statement.

@@ -50,7 +50,7 @@ pub mod pallet {
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Timeline Events.
-	pub type EventEntryOf<T> = EventEntry<CallTypeOf, EntryDigestOf<T>, BlockNumberFor<T>>;
+	pub type EventEntryOf = EventEntry<CallTypeOf>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -63,6 +63,9 @@ pub mod pallet {
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+
 	#[pallet::storage]
 	#[pallet::getter(fn identifiers)]
 	pub type Identifiers<T: Config> = StorageDoubleMap<
@@ -71,7 +74,7 @@ pub mod pallet {
 		IdentifierOf,
 		Twox64Concat,
 		IdentifierTypeOf,
-		BoundedVec<EventEntryOf<T>, T::MaxEventsHistory>,
+		BoundedVec<EventEntryOf, T::MaxEventsHistory>,
 		OptionQuery,
 	>;
 
@@ -89,8 +92,8 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	pub fn update_timeline(
 		id: &IdentifierOf,
-		id_type: &IdentifierTypeOf,
-		entry: EventEntryOf<T>,
+		id_type: IdentifierTypeOf,
+		entry: EventEntryOf,
 	) -> Result<(), Error<T>> {
 		Identifiers::<T>::try_mutate(id, id_type, |timeline| -> Result<(), Error<T>> {
 			// Initialize the BoundedVec if it doesn't exist or get the existing one.

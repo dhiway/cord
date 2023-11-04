@@ -706,12 +706,12 @@ impl<T: Config> Pallet<T> {
 	/// A tuple of the registry id and the schema id.
 	pub fn is_a_delegate(
 		authorization_id: &AuthorizationIdOf,
-		delegate: RegistryCreatorIdOf<T>,
+		delegate: &RegistryCreatorIdOf<T>,
 		schema: Option<SchemaIdOf>,
 	) -> Result<RegistryIdOf, Error<T>> {
 		let delegate_details = <Authorizations<T>>::get(authorization_id);
 		if let Some(d) = delegate_details {
-			ensure!(d.delegate == delegate, Error::<T>::UnauthorizedOperation);
+			ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
 			ensure!(
 				(d.permissions & Permissions::ASSERT) == Permissions::ASSERT,
 				Error::<T>::UnauthorizedOperation
