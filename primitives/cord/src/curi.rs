@@ -201,7 +201,6 @@ impl Ss58Identifier {
 	}
 
 	pub fn default_error() -> Self {
-		// Define a default error value, for example, a single zero byte Base58 encoded.
 		let error_value_base58 = vec![0].to_base58();
 
 		// Convert the Base58 encoded string to a byte vector.

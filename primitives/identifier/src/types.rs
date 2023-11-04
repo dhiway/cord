@@ -50,6 +50,7 @@ pub enum CallTypeOf {
 	Revoke,
 	Restore,
 	Remove,
+	PartialRemove,
 	Rotate,
 	Digest,
 }

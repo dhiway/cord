@@ -50,6 +50,7 @@ use sp_std::{vec, vec::Vec};
 
 #[frame_support::pallet]
 pub mod pallet {
+
 	use super::*;
 	use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::{OptionQuery, *};
@@ -67,30 +68,17 @@ pub mod pallet {
 	pub type SchemaIdOf = Ss58Identifier;
 	/// Authorization Identifier
 	pub type AuthorizationIdOf = Ss58Identifier;
-	/// Hash of the registry.
-	pub type StatementHashOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of a creator identifier.
 	pub type StatementCreatorIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
-
 	/// Hash of the statement.
 	pub type StatementDigestOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-	/// Type for the statement entity
-	pub type StatementEntryOf<T> = StatementEntry<StatementDigestOf<T>, SchemaIdOf, RegistryIdOf>;
-	/// Type for the statement digest entity
-	pub type AttestationDetailsOf<T> = AttestationDetails<StatementCreatorIdOf<T>, StatusOf>;
-	/// Type for bulk transaction event details
-	pub type BulkTransactionResultOf<T> =
-		BulkTransactionResult<StatementDigestOf<T>, StatementIdOf>;
-
-	// /// Type for the statement commits
-	// pub type StatementActivityOf<T> = StatementCommit<
-	// 	StatementCommitActionOf,
-	// 	StatementDigestOf<T>,
-	// 	StatementCreatorIdOf<T>,
-	// 	BlockNumberFor<T>,
-	// >;
+	/// Type for the statement details
+	pub type StatementDetailsOf<T> =
+		StatementDetails<StatementDigestOf<T>, SchemaIdOf, RegistryIdOf>;
+	/// Type for the statement entry details
+	pub type StatementEntryStatusOf<T> = StatementEntryStatus<StatementCreatorIdOf<T>, StatusOf>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_registry::Config + identifier::Config {
@@ -100,13 +88,12 @@ pub mod pallet {
 			Success = <Self as Config>::OriginSuccess,
 		>;
 		type OriginSuccess: CallSources<AccountIdOf<Self>, StatementCreatorIdOf<Self>>;
-
-		/// The maximum number of activity for a statement.
+		/// Maximum entires supported per batch call
 		#[pallet::constant]
-		type MaxStatementActivities: Get<u32>;
-
-		type MaxDigestsPerBatch: Get<usize>;
-
+		type MaxDigestsPerBatch: Get<u16>;
+		/// Maximum removals per call
+		#[pallet::constant]
+		type MaxRemoveEntries: Get<u16>;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -119,18 +106,46 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	/// statement identifiers stored on chain.
-	/// It maps from an identifier to its details. Chain will only store the
-	/// last updated state of the data.
+	/// It maps from an identifier to its details.
+	/// Only stores the latest state.
 	#[pallet::storage]
 	#[pallet::getter(fn statements)]
 	pub type Statements<T> =
-		StorageMap<_, Blake2_128Concat, StatementIdOf, StatementEntryOf<T>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, StatementIdOf, StatementDetailsOf<T>, OptionQuery>;
 
-	/// statement hashes stored on chain.
-	/// It maps from a statement hash to an identifier (resolve from hash).
+	/// statement uniques stored on chain.
+	/// It maps from a statement identifier and hash to its details.
 	#[pallet::storage]
-	#[pallet::getter(fn statement_digests)]
-	pub type StatementDigests<T> = StorageDoubleMap<
+	#[pallet::getter(fn entries)]
+	pub type Entries<T> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		StatementIdOf,
+		Blake2_128Concat,
+		StatementDigestOf<T>,
+		StatementCreatorIdOf<T>,
+		OptionQuery,
+	>;
+
+	/// Revocation registry of statement entries stored on chain.
+	/// It maps from a statement identifier and hash to its details.
+	#[pallet::storage]
+	#[pallet::getter(fn revocation_lookup)]
+	pub type RevocationRegistry<T> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		StatementIdOf,
+		Blake2_128Concat,
+		StatementDigestOf<T>,
+		StatementEntryStatusOf<T>,
+		OptionQuery,
+	>;
+
+	/// Storage for Identifier lookup.
+	/// It maps from a statement entry digest and registry id to an identifier.
+	#[pallet::storage]
+	#[pallet::getter(fn identifier_lookup)]
+	pub type IdentifierLookup<T> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		StatementDigestOf<T>,
@@ -140,46 +155,36 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	/// statement uniques stored on chain.
-	/// It maps from a statement identifier and hash to its details.
-	#[pallet::storage]
-	#[pallet::getter(fn attestations)]
-	pub type Attestations<T> = StorageDoubleMap<
-		_,
-		Twox64Concat,
-		StatementIdOf,
-		Blake2_128Concat,
-		StatementDigestOf<T>,
-		AttestationDetailsOf<T>,
-		OptionQuery,
-	>;
-
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new statement identifier has been created.
 		/// \[statement identifier, statement digest, controller\]
-		Create {
-			success: Vec<BulkTransactionResultOf<T>>,
-			fail: Vec<BulkTransactionResultOf<T>>,
+		Created {
+			identifier: StatementIdOf,
+			digest: StatementDigestOf<T>,
 			author: StatementCreatorIdOf<T>,
 		},
 		/// A statement identifier has been updated.
 		/// \[statement identifier, digest, controller\]
-		Update {
+		Updated {
 			identifier: StatementIdOf,
 			digest: StatementDigestOf<T>,
 			author: StatementCreatorIdOf<T>,
 		},
 		/// A statement identifier status has been revoked.
 		/// \[statement identifier, controller\]
-		Revoke { identifier: StatementIdOf, author: StatementCreatorIdOf<T> },
+		Revoked { identifier: StatementIdOf, author: StatementCreatorIdOf<T> },
 		/// A statement identifier status has been restored.
 		/// \[statement identifier, controller\]
-		Restore { identifier: StatementIdOf, author: StatementCreatorIdOf<T> },
+		Restored { identifier: StatementIdOf, author: StatementCreatorIdOf<T> },
 		/// A statement identifier has been removed.
 		/// \[statement identifier,  controller\]
-		Remove { identifier: StatementIdOf, author: StatementCreatorIdOf<T> },
+		Removed { identifier: StatementIdOf, author: StatementCreatorIdOf<T> },
+		/// A statement identifier has been removed.
+		/// \[statement identifier,  controller\]
+		PartialRemoval { identifier: StatementIdOf, removed: u32, author: StatementCreatorIdOf<T> },
+
 		/// A statement digest has been added.
 		/// \[statement identifier, digest, controller\]
 		Digest {
@@ -204,8 +209,10 @@ pub mod pallet {
 		StatementAlreadyAnchored,
 		/// Statement idenfier not found
 		StatementNotFound,
-		/// Statement idenfier marked inactive
-		RevokedStatement,
+		/// Statement entry not found
+		StatementEntryNotFound,
+		/// Statement entry marked inactive
+		StatementRevoked,
 		/// Statement idenfier not marked inactive
 		StatementNotRevoked,
 		/// Only when the author is not the controller/delegate.
@@ -250,6 +257,8 @@ pub mod pallet {
 		MaxDigestLimitExceeded,
 		/// Bulk Transaction Failed
 		BulkTransactionFailed,
+		/// Associate digest already present
+		AssociateDigestAlreadyAnchored,
 	}
 
 	#[pallet::call]
@@ -271,79 +280,54 @@ pub mod pallet {
 		#[pallet::weight({0})]
 		pub fn create(
 			origin: OriginFor<T>,
-			digests: Vec<StatementDigestOf<T>>,
+			digest: StatementDigestOf<T>,
 			authorization: AuthorizationIdOf,
 			schema_id: Option<SchemaIdOf>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let registry_id: Ss58Identifier;
-			if let Some(schema_id) = schema_id.clone() {
-				registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
-					&authorization,
-					&creator,
-					Some(schema_id),
-				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
-			} else {
-				registry_id =
-					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &creator, None)
-						.map_err(<pallet_registry::Error<T>>::from)?;
+			// Validate registry_id based on schema_id presence.
+			let registry_id = match schema_id.clone() {
+				Some(id) =>
+					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &creator, Some(id)),
+				None => pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &creator, None),
 			}
+			.map_err(<pallet_registry::Error<T>>::from)?;
 
-			// now check the digests array
-			// let digests_len = statement_digests.len();
-			ensure!(
-				digests.len() <= T::MaxDigestsPerBatch::get(),
-				Error::<T>::MaxDigestLimitExceeded
+			// Id Digest = concat (H(<scale_encoded_statement_digest>,
+			// <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[
+					&digest.encode()[..],
+					&registry_id.clone().encode()[..],
+					&creator.clone().encode()[..],
+				]
+				.concat()[..],
 			);
 
-			let mut event_array: Vec<StatementDigestOf<T>> = vec![];
-			for digest in digests {
-				// Id Digest = concat (H(<scale_encoded_statement_digest>,
-				// <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
-				let id_digest = <T as frame_system::Config>::Hashing::hash(
-					&[
-						&digest.encode()[..],
-						&registry_id.clone().encode()[..],
-						&creator.clone().encode()[..],
-					]
-					.concat()[..],
-				);
+			let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
-				let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..])
-					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			ensure!(
+				!<Statements<T>>::contains_key(&identifier),
+				Error::<T>::StatementAlreadyAnchored
+			);
 
-				if <Statements<T>>::contains_key(&identifier) {
-					event_array.push(digest);
-					continue
-				}
-				<StatementDigests<T>>::insert(digest, registry_id.clone(), &identifier);
-
-				<Statements<T>>::insert(
-					&identifier,
-					StatementEntryOf::<T> {
-						digest,
-						schema: schema_id.clone(),
-						registry: registry_id.clone(),
-					},
-				);
-
-				<Attestations<T>>::insert(
-					&identifier,
+			<Statements<T>>::insert(
+				&identifier,
+				StatementDetailsOf::<T> {
 					digest,
-					AttestationDetailsOf::<T> { creator: creator.clone(), revoked: false },
-				);
+					schema: schema_id.clone(),
+					registry: registry_id.clone(),
+				},
+			);
 
-				Self::update_activity(&identifier, CallTypeOf::Genesis)
-					.map_err(<Error<T>>::from)?;
-			}
+			<Entries<T>>::insert(&identifier, digest, creator.clone());
+			<IdentifierLookup<T>>::insert(digest, &registry_id, &identifier);
 
-			// FIXME: Sometime in future, we need to fix this failures better.
-			// Fail the create() if no new identifiers are created.
-			ensure!(event_array.len() != digests_len, Error::<T>::StatementAlreadyAnchored);
+			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
 
-			Self::deposit_event(Event::Create { failed_digests: event_array, author: creator });
+			Self::deposit_event(Event::Created { identifier, digest, author: creator });
 
 			Ok(())
 		}
@@ -366,29 +350,35 @@ pub mod pallet {
 		pub fn update(
 			origin: OriginFor<T>,
 			statement_id: StatementIdOf,
-			statement_digest: StatementDigestOf<T>,
+			new_statement_digest: StatementDigestOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
-			let statement_attestations =
-				<Attestations<T>>::get(&statement_id, statement_details.digest)
-					.ok_or(Error::<T>::AttestationNotFound)?;
-			// If it is same digest then it should throw statement anchored error
+
+			// Check for revocation first to fail early if applicable.
 			ensure!(
-				statement_details.digest != statement_digest,
+				!<RevocationRegistry<T>>::contains_key(&statement_id, &statement_details.digest),
+				Error::<T>::StatementRevoked
+			);
+
+			// Check for digest uniqueness to fail early if the digest is the same.
+			ensure!(
+				statement_details.digest != new_statement_digest,
 				Error::<T>::StatementAlreadyAnchored
 			);
-			ensure!(!statement_attestations.revoked, Error::<T>::RevokedStatement);
 
-			if statement_attestations.creator != updater {
-				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
-					&authorization,
-					updater.clone(),
-				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+			// Check if the updater is the previous creator or a delegate with the proper
+			// authorization.
+			let is_updater_creator = Entries::<T>::get(&statement_id, &statement_details.digest)
+				.map_or(false, |prev_creator| prev_creator == updater);
+
+			if !is_updater_creator {
+				let registry_id =
+					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &updater, None)
+						.map_err(<pallet_registry::Error<T>>::from)?;
 
 				ensure!(
 					statement_details.registry == registry_id,
@@ -396,36 +386,30 @@ pub mod pallet {
 				);
 			}
 
-			<StatementDigests<T>>::insert(
-				statement_digest,
-				statement_details.registry.clone(),
+			<RevocationRegistry<T>>::insert(
+				&statement_id,
+				&statement_details.digest,
+				StatementEntryStatusOf::<T> { creator: updater.clone(), revoked: true },
+			);
+
+			<Entries<T>>::insert(&statement_id, &new_statement_digest, updater.clone());
+
+			<IdentifierLookup<T>>::insert(
+				&new_statement_digest,
+				&statement_details.registry.clone(),
 				&statement_id,
 			);
 
 			<Statements<T>>::insert(
 				&statement_id,
-				StatementEntryOf::<T> { digest: statement_digest, ..statement_details },
-			);
-
-			// Update the old info saying that got revoked
-			<Attestations<T>>::insert(
-				&statement_id,
-				statement_details.digest,
-				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: true },
-			);
-
-			// Update the new entry with hash to say this is active
-			<Attestations<T>>::insert(
-				&statement_id,
-				statement_digest,
-				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: false },
+				StatementDetailsOf::<T> { digest: new_statement_digest, ..statement_details },
 			);
 
 			Self::update_activity(&statement_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
 
-			Self::deposit_event(Event::Update {
+			Self::deposit_event(Event::Updated {
 				identifier: statement_id,
-				digest: statement_digest,
+				digest: new_statement_digest,
 				author: updater,
 			});
 
@@ -454,18 +438,22 @@ pub mod pallet {
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
-			let statement_attestations =
-				<Attestations<T>>::get(&statement_id, statement_details.digest)
-					.ok_or(Error::<T>::AttestationNotFound)?;
-			// If it is same digest then it should throw statement anchored error
-			ensure!(!statement_attestations.revoked, Error::<T>::RevokedStatement);
 
-			if statement_attestations.creator != updater {
-				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
-					&authorization,
-					updater.clone(),
-				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+			// Check for revocation first to fail early if applicable.
+			ensure!(
+				!<RevocationRegistry<T>>::contains_key(&statement_id, &statement_details.digest),
+				Error::<T>::StatementRevoked
+			);
+
+			// Check if the updater is the previous creator or a delegate with the proper
+			// authorization.
+			let is_updater_creator = Entries::<T>::get(&statement_id, &statement_details.digest)
+				.map_or(false, |prev_creator| prev_creator == updater);
+
+			if !is_updater_creator {
+				let registry_id =
+					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &updater, None)
+						.map_err(<pallet_registry::Error<T>>::from)?;
 
 				ensure!(
 					statement_details.registry == registry_id,
@@ -473,15 +461,14 @@ pub mod pallet {
 				);
 			}
 
-			// Update the info saying it got revoked
-			<Attestations<T>>::insert(
+			<RevocationRegistry<T>>::insert(
 				&statement_id,
-				statement_details.digest,
-				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: true },
+				&statement_details.digest,
+				StatementEntryStatusOf::<T> { creator: updater.clone(), revoked: true },
 			);
 
 			Self::update_activity(&statement_id, CallTypeOf::Revoke).map_err(<Error<T>>::from)?;
-			Self::deposit_event(Event::Revoke { identifier: statement_id, author: updater });
+			Self::deposit_event(Event::Revoked { identifier: statement_id, author: updater });
 
 			Ok(())
 		}
@@ -509,17 +496,22 @@ pub mod pallet {
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
-			let statement_attestations =
-				<Attestations<T>>::get(&statement_id, statement_details.digest)
-					.ok_or(Error::<T>::AttestationNotFound)?;
-			ensure!(statement_attestations.revoked, Error::<T>::StatementNotRevoked);
 
-			if statement_attestations.creator != updater {
-				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
-					&authorization,
-					updater.clone(),
-				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+			// Check for revocation first to fail early if not revoked.
+			ensure!(
+				<RevocationRegistry<T>>::contains_key(&statement_id, &statement_details.digest),
+				Error::<T>::StatementNotRevoked
+			);
+
+			// Check if the updater is the previous creator or a delegate with the proper
+			// authorization.
+			let is_updater_creator = Entries::<T>::get(&statement_id, &statement_details.digest)
+				.map_or(false, |prev_creator| prev_creator == updater);
+
+			if !is_updater_creator {
+				let registry_id =
+					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &updater, None)
+						.map_err(<pallet_registry::Error<T>>::from)?;
 
 				ensure!(
 					statement_details.registry == registry_id,
@@ -527,15 +519,10 @@ pub mod pallet {
 				);
 			}
 
-			// Update the existing info saying it got activated again (ie, revoked: false)
-			<Attestations<T>>::insert(
-				&statement_id,
-				statement_details.digest,
-				AttestationDetailsOf::<T> { creator: updater.clone(), revoked: false },
-			);
+			<RevocationRegistry<T>>::remove(&statement_id, &statement_details.digest);
 
 			Self::update_activity(&statement_id, CallTypeOf::Restore).map_err(<Error<T>>::from)?;
-			Self::deposit_event(Event::Restore { identifier: statement_id, author: updater });
+			Self::deposit_event(Event::Restored { identifier: statement_id, author: updater });
 
 			Ok(())
 		}
@@ -563,106 +550,68 @@ pub mod pallet {
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
-			let statement_attestations =
-				<Attestations<T>>::get(&statement_id, statement_details.digest)
-					.ok_or(Error::<T>::AttestationNotFound)?;
 
-			if statement_attestations.creator != updater {
-				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
-					&authorization,
-					updater.clone(),
-				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+			// Authorization check is moved up to fail early.
+			let registry_id =
+				pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &updater, None)
+					.map_err(<pallet_registry::Error<T>>::from)?;
 
-				ensure!(
-					statement_details.registry == registry_id,
-					Error::<T>::UnauthorizedOperation
+			ensure!(statement_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
+
+			// Count the entries in `Entries`.
+			let entries_count = <Entries<T>>::iter_prefix(&statement_id).count();
+			let max_removals = T::MaxRemoveEntries::get() as usize;
+
+			// Determine if a complete or partial removal is needed.
+			let is_complete_removal = entries_count <= max_removals;
+
+			// Start the removal process.
+			let mut removed_count = 0;
+			if is_complete_removal {
+				// Perform a complete removal.
+				for (digest, _) in <Entries<T>>::iter_prefix(&statement_id) {
+					<IdentifierLookup<T>>::remove(&digest, &registry_id);
+				}
+				let _ = <RevocationRegistry<T>>::clear_prefix(
+					&statement_id,
+					entries_count as u32,
+					None,
 				);
+				let _ = <Entries<T>>::clear_prefix(&statement_id, entries_count as u32, None);
+				<Statements<T>>::remove(&statement_id);
+			} else {
+				// Perform a partial removal.
+				for (digest, _) in <Entries<T>>::iter_prefix(&statement_id).take(max_removals) {
+					<IdentifierLookup<T>>::remove(&digest, &registry_id);
+					<RevocationRegistry<T>>::remove(&statement_id, &digest);
+					<Entries<T>>::remove(&statement_id, &digest);
+					removed_count += 1;
+				}
 			}
 
-			<Statements<T>>::take(&statement_id);
+			// Update activity and emit the appropriate event.
+			Self::update_activity(
+				&statement_id,
+				if is_complete_removal { CallTypeOf::Remove } else { CallTypeOf::PartialRemove },
+			)
+			.map_err(<Error<T>>::from)?;
 
-			// Remove all entries with this identifier in the doublemap. Not planning to use
-			// the result
-			let _ = <Attestations<T>>::clear_prefix(&statement_id, 0, None);
+			let event = if is_complete_removal {
+				Event::Removed { identifier: statement_id, author: updater }
+			} else {
+				Event::PartialRemoval {
+					identifier: statement_id,
+					removed: removed_count as u32,
+					author: updater,
+				}
+			};
 
-			Self::update_activity(&statement_id, CallTypeOf::Remove).map_err(<Error<T>>::from)?;
-
-			Self::deposit_event(Event::Remove { identifier: statement_id, author: updater });
+			Self::deposit_event(event);
 
 			Ok(())
 		}
 
-		/// Adds statement digest information.
-		/// `digest` is a function that takes a statement identifier, a
-		/// statement digest, and an authorization identifier, and inserts the
-		/// statement digest into the `StatementDigests` storage map, and then
-		/// deposits an event. This operation can only be performed bythe
-		/// statement issuer or delegated authorities.
-		///
-		/// Arguments:
-		///
-		/// * `origin`: The origin of the transaction.
-		/// * `statement_id`: The statement identifier.
-		/// * `statement_digest`: StatementDigestOf<T>
-		/// * `authorization`: The authorization ID of the delegate who is
-		///   allowed to perform this action.
-		///
-		/// Returns:
-		///
-		/// DispatchResult
 		#[pallet::call_index(5)]
-		#[pallet::weight({0})]
-		pub fn digest(
-			origin: OriginFor<T>,
-			statement_id: StatementIdOf,
-			statement_digest: StatementDigestOf<T>,
-			authorization: AuthorizationIdOf,
-		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-
-			let statement_details =
-				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
-			let statement_attestations =
-				<Attestations<T>>::get(&statement_id, statement_details.digest)
-					.ok_or(Error::<T>::AttestationNotFound)?;
-			ensure!(!statement_attestations.revoked, Error::<T>::RevokedStatement);
-
-			if statement_attestations.creator != creator {
-				let registry_id =
-					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &creator, None)
-						.map_err(<pallet_registry::Error<T>>::from)?;
-				ensure!(
-					statement_details.registry == registry_id,
-					Error::<T>::UnauthorizedOperation
-				);
-			}
-
-			<StatementDigests<T>>::insert(
-				statement_digest,
-				statement_details.registry.clone(),
-				&statement_id,
-			);
-
-			// Treat this as a new entry
-			<Attestations<T>>::insert(
-				&statement_id,
-				statement_details.digest,
-				AttestationDetailsOf::<T> { creator: creator.clone(), revoked: false },
-			);
-
-			Self::update_activity(&statement_id, CallTypeOf::Digest).map_err(<Error<T>>::from)?;
-
-			Self::deposit_event(Event::Digest {
-				identifier: statement_id,
-				digest: statement_digest,
-				author: creator,
-			});
-
-			Ok(())
-		}
-
-		#[pallet::call_index(6)]
 		#[pallet::weight({0})]
 		pub fn batch_create(
 			origin: OriginFor<T>,
@@ -703,38 +652,30 @@ pub mod pallet {
 				let identifier_result = Ss58Identifier::to_statement_id(&id_digest.encode());
 
 				match identifier_result {
-					Ok(identifier) => {
+					Ok(identifier) =>
 						if <Statements<T>>::contains_key(&identifier) {
 							fail += 1;
 							indices.push(index as u16);
 						} else {
-							<StatementDigests<T>>::insert(&digest, &registry_id, &identifier);
 							<Statements<T>>::insert(
 								&identifier,
-								StatementEntryOf::<T> {
+								StatementDetailsOf::<T> {
 									digest: digest.clone(),
 									schema: schema_id.clone(),
 									registry: registry_id.clone(),
 								},
 							);
-							<Attestations<T>>::insert(
-								&identifier,
-								&digest,
-								AttestationDetailsOf::<T> {
-									creator: creator.clone(),
-									revoked: false,
-								},
-							);
 
-							// If the update_activity function returns an error, handle it.
+							<Entries<T>>::insert(&identifier, digest, creator.clone());
+							<IdentifierLookup<T>>::insert(&digest, &registry_id, &identifier);
+
 							if Self::update_activity(&identifier, CallTypeOf::Genesis).is_err() {
 								fail += 1;
 								indices.push(index as u16);
 							} else {
 								success += 1;
 							}
-						}
-					},
+						},
 					Err(_) => {
 						fail += 1;
 						indices.push(index as u16);

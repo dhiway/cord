@@ -21,19 +21,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
-// /// A global index, formed as the extrinsic index within a block, together
-// with /// that block's height.
-// #[derive(
-// 	Copy, Clone, Eq, PartialEq, Encode, Decode, Default, RuntimeDebug, TypeInfo,
-// MaxEncodedLen, )]
-// pub struct Timepoint<BlockNumber> {
-// 	/// The height of the chain at the point in time.
-// 	pub height: BlockNumber,
-// 	/// The index of the extrinsic at the point in time.
-// 	pub index: u32,
-// }
-
-/// An on-chain statement entry mapped to an Identifier.
+/// An on-chain statement entry mapped to details.
 /// `StatementEntry` is a struct that contains a `StatementDigestOf`, a
 /// `SchemaIdOf`, and a `RegistryIdOf`.
 ///
@@ -45,19 +33,17 @@ use sp_runtime::RuntimeDebug;
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct StatementEntry<StatementDigestOf, SchemaIdOf, RegistryIdOf> {
+pub struct StatementDetails<StatementDigestOf, SchemaIdOf, RegistryIdOf> {
 	/// Statement hash.
 	pub digest: StatementDigestOf,
 	/// Registry Identifier
 	pub registry: RegistryIdOf,
 	/// Schema Identifier
 	pub schema: Option<SchemaIdOf>,
-	/// The flag indicating the  current status of the statement identifier.
-	pub revoked: StatusOf,
 }
 
-/// An on-chain statement:digest entry mapped to an Identifier:Hash.
-/// `AttestationDetails` is a struct that contains a `StatementCreatorIdOf`,
+/// An on-chain statement:digest entry mapped to statement entry details.
+/// `StatementEntryDetails` is a struct that contains a `StatementCreatorIdOf`,
 /// and a `StatusOf`.
 ///
 /// Properties:
@@ -69,20 +55,9 @@ pub struct StatementEntry<StatementDigestOf, SchemaIdOf, RegistryIdOf> {
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct AttestationDetails<StatementCreatorIdOf, StatusOf> {
-	/// Attestation creator.
+pub struct StatementEntryStatus<StatementCreatorIdOf, StatusOf> {
+	/// Statement status updater.
 	pub creator: StatementCreatorIdOf,
-	/// The flag indicating the status of the statement.
+	/// The flag indicating the status of the statement entry.
 	pub revoked: StatusOf,
-}
-
-/// Defining the possible actions that can be taken on a statement.
-#[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub enum StatementCommitActionOf {
-	Genesis,
-	Update,
-	Revoke,
-	Restore,
-	Remove,
-	Digest,
 }
