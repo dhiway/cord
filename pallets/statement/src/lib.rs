@@ -613,7 +613,7 @@ pub mod pallet {
 
 		#[pallet::call_index(5)]
 		#[pallet::weight({0})]
-		pub fn batch_create(
+		pub fn create_batch(
 			origin: OriginFor<T>,
 			digests: Vec<StatementDigestOf<T>>,
 			authorization: AuthorizationIdOf,
@@ -698,18 +698,12 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn update_activity(
-		statement_id: &StatementIdOf,
-		statement_action: CallTypeOf,
-	) -> Result<(), Error<T>> {
-		let statement_moment = Self::timepoint();
+	pub fn update_activity(tx_id: &StatementIdOf, tx_action: CallTypeOf) -> Result<(), Error<T>> {
+		let tx_moment = Self::timepoint();
 
-		let statement_entry = EventEntryOf { action: statement_action, location: statement_moment };
-		let _ = identifier::Pallet::<T>::update_timeline(
-			statement_id,
-			IdentifierTypeOf::Statement,
-			statement_entry,
-		);
+		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
+		let _ =
+			identifier::Pallet::<T>::update_timeline(tx_id, IdentifierTypeOf::Statement, tx_entry);
 		Ok(())
 	}
 

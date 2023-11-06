@@ -33,6 +33,27 @@ mod tests;
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 pub mod types;
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
+use identifier::{
+	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
+	EventEntryOf,
+};
+use sp_runtime::traits::UniqueSaturatedInto;
+
+/// Type of a CORD account.
+pub(crate) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
+/// Type of a space creator.
+pub type SpaceCreatorOf<T> = <T as Config>::SpaceCreatorId;
+/// Registry Identifier
+pub type SpaceIdOf = Ss58Identifier;
+/// Authorization Identifier
+pub type AuthorizationIdOf = Ss58Identifier;
+/// Chain space input code.
+pub type SpaceCodeOf<T> = <T as frame_system::Config>::Hash;
+
+/// Type of on-chain registry entry.
+pub type SpaceDetailsOf<T> = SpaceDetails<SpaceCodeOf<T>, SpaceCreatorOf<T>, StatusOf>;
+
+pub type SpaceAuthorizationOf<T> = SpaceAuthorization<SpaceIdOf, SpaceCreatorOf<T>, Permissions>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -41,62 +62,22 @@ pub mod pallet {
 	use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::SaturatedConversion;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
-	/// Registry Identifier
-	pub type RegistryIdOf = Ss58Identifier;
-	/// Schema Identifier
-	pub type SchemaIdOf = Ss58Identifier;
-	/// Authorization Identifier
-	pub type AuthorizationIdOf = Ss58Identifier;
-	/// Hash of the registry.
-	pub type RegistryHashOf<T> = <T as frame_system::Config>::Hash;
-
-	/// Type of a CORD account.
-	pub(crate) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-	/// Type of a registry creator.
-	pub type RegistryCreatorIdOf<T> = <T as Config>::RegistryCreatorId;
-	pub type InputRegistryOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedRegistryLength>;
-
-	pub type RegistryEntryOf<T> = RegistryEntry<
-		InputRegistryOf<T>,
-		RegistryHashOf<T>,
-		SchemaIdOf,
-		RegistryCreatorIdOf<T>,
-		StatusOf,
-	>;
-
-	pub type RegistryAuthorizationOf<T> =
-		RegistryAuthorization<RegistryIdOf, RegistryCreatorIdOf<T>, SchemaIdOf, Permissions>;
-
-	pub type RegistryCommitOf<T> = RegistryCommit<
-		RegistryCommitActionOf,
-		RegistryHashOf<T>,
-		RegistryCreatorIdOf<T>,
-		BlockNumberFor<T>,
-	>;
-
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_schema::Config {
+	pub trait Config: frame_system::Config + identifier::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = <Self as Config>::OriginSuccess,
 		>;
-		type OriginSuccess: CallSources<AccountIdOf<Self>, RegistryCreatorIdOf<Self>>;
-		type RegistryCreatorId: Parameter + MaxEncodedLen;
+		type OriginSuccess: CallSources<AccountIdOf<Self>, SpaceCreatorOf<Self>>;
+		type SpaceCreatorId: Parameter + MaxEncodedLen;
 
 		#[pallet::constant]
-		type MaxEncodedRegistryLength: Get<u32>;
-
-		#[pallet::constant]
-		type MaxRegistryAuthorities: Get<u32>;
-
-		#[pallet::constant]
-		type MaxRegistryCommitActions: Get<u32>;
+		type MaxSpaceDelegates: Get<u32>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -109,74 +90,63 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	/// registry information stored on chain.
+	/// Space information stored on chain.
 	/// It maps from an identifier to its details.
 	#[pallet::storage]
-	#[pallet::getter(fn registries)]
-	pub type Registries<T> =
-		StorageMap<_, Blake2_128Concat, RegistryIdOf, RegistryEntryOf<T>, OptionQuery>;
+	#[pallet::getter(fn spaces)]
+	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, SpaceIdOf, SpaceDetailsOf<T>, OptionQuery>;
 
+	/// Space authorizations stored on-chain.
+	/// It maps from an identifier to delegates.
 	#[pallet::storage]
 	#[pallet::getter(fn authorizations)]
 	pub type Authorizations<T> =
-		StorageMap<_, Blake2_128Concat, AuthorizationIdOf, RegistryAuthorizationOf<T>, OptionQuery>;
+		StorageMap<_, Blake2_128Concat, AuthorizationIdOf, SpaceAuthorizationOf<T>, OptionQuery>;
 
-	/// registry authorities stored on chain.
-	/// It maps from an identifier to a vector of delegates.
+	/// Space delegates stored on chain.
+	/// It maps from an identifier to a  bounded vec of delegates and
+	/// permissions.
 	#[pallet::storage]
-	#[pallet::getter(fn authorities)]
-	pub(super) type Authorities<T: Config> = StorageMap<
+	#[pallet::getter(fn delegates)]
+	pub(super) type Delegates<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
-		RegistryIdOf,
-		BoundedVec<RegistryCreatorIdOf<T>, T::MaxRegistryAuthorities>,
-		ValueQuery,
-	>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn commits)]
-	pub type Commits<T: Config> = StorageMap<
-		_,
-		Blake2_128Concat,
-		RegistryIdOf,
-		BoundedVec<RegistryCommitOf<T>, T::MaxRegistryCommitActions>,
+		SpaceIdOf,
+		BoundedVec<SpaceCreatorOf<T>, T::MaxSpaceDelegates>,
 		ValueQuery,
 	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new registry authorization has been added.
-		/// \[registry identifier, authorization,  authority\]
-		AddAuthorization {
-			registry: RegistryIdOf,
+		/// A new space authorization has been added.
+		/// \[space identifier, authorization,  delegate\]
+		Authorization {
+			space: SpaceIdOf,
 			authorization: AuthorizationIdOf,
-			delegate: RegistryCreatorIdOf<T>,
+			delegate: SpaceCreatorOf<T>,
 		},
-		/// A registry authorization has been removed.
-		/// \[registry identifier, authorization, ]
-		RemoveAuthorization { registry: RegistryIdOf, authorization: AuthorizationIdOf },
-		/// A new registry has been created.
-		/// \[registry identifier, creator\]
-		Create { registry: RegistryIdOf, creator: RegistryCreatorIdOf<T> },
-		/// A registry has been updated.
-		/// \[registry identifier, authority\]
-		Update { registry: RegistryIdOf, authority: RegistryCreatorIdOf<T> },
-		/// A registry has been archived.
-		/// \[registry identifier,  authority\]
-		Archive { registry: RegistryIdOf, authority: RegistryCreatorIdOf<T> },
-		/// A registry has been restored.
-		/// \[registry identifier,  authority\]
-		Restore { registry: RegistryIdOf, authority: RegistryCreatorIdOf<T> },
+		/// A space authorization has been removed.
+		/// \[space identifier, authorization, ]
+		Deauthorization { space: SpaceIdOf, authorization: AuthorizationIdOf },
+		/// A new chain space has been created.
+		/// \[space identifier, creator, authorization\]
+		Create { space: SpaceIdOf, creator: SpaceCreatorOf<T>, authorization: AuthorizationIdOf },
+		/// A space has been archived.
+		/// \[space identifier,  authority\]
+		Archive { space: SpaceIdOf, authority: SpaceCreatorOf<T> },
+		/// A space has been restored.
+		/// \[space identifier,  authority\]
+		Restore { space: SpaceIdOf, authority: SpaceCreatorOf<T> },
 	}
 
 	#[pallet::error]
 	#[derive(PartialEq)]
 	pub enum Error<T> {
-		/// Registry identifier is not unique
-		RegistryAlreadyAnchored,
-		/// Registry identifier not found
-		RegistryNotFound,
+		/// Space identifier is not unique
+		SpaceAlreadyAnchored,
+		/// Space identifier not found
+		SpaceNotFound,
 		/// Only when the author is not the controller or delegate.
 		UnauthorizedOperation,
 		/// Invalid Identifier
@@ -186,110 +156,23 @@ pub mod pallet {
 		// Invalid Identifier Prefix
 		InvalidIdentifierPrefix,
 		// Archived Registry
-		ArchivedRegistry,
+		ArchivedSpace,
 		// Registry not Archived
-		RegistryNotArchived,
-		/// Registry entries exceeded for an identifier
-		TooManyRegistryEntries,
-		/// Schema limit exceeds the permitted size.
-		MaxEncodedRegistryLimitExceeded,
-		/// Registry entries exceeded for an identifier
-		RegistryAuthoritiesLimitExceeded,
-		/// Registry commit entries exceeded
-		MaxRegistryCommitsExceeded,
+		SpaceNotArchived,
+		/// Space delegation limit exceeded
+		SpaceDelegatesLimitExceeded,
 		/// Empty transaction.
 		EmptyTransaction,
-		/// Invalid Schema.
-		InvalidSchema,
-		/// Schema not found
-		SchemaNotFound,
 		/// Authority already added
 		DelegateAlreadyAdded,
 		/// Authorization Id not found
 		AuthorizationNotFound,
-		/// Registry schema mismatch
-		RegistrySchemaMismatch,
+		/// Delegate not found.
+		DelegateNotFound,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Addsadds a delegate to the list of authorities for a registry.
-		///
-		/// Arguments:
-		///
-		/// * `origin`: OriginFor<T>
-		/// * `registry_id`: The registry to which the delegate is being added.
-		/// * `delegate`: The delegate to add to the registry.
-		///
-		/// Returns:
-		///
-		/// DispatchResult
-		#[pallet::call_index(0)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_admin_delegate())]
-		pub fn add_admin_delegate(
-			origin: OriginFor<T>,
-			registry_id: RegistryIdOf,
-			delegate: RegistryCreatorIdOf<T>,
-		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-
-			let registry_details =
-				<Registries<T>>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
-
-			ensure!(!registry_details.archive, Error::<T>::ArchivedRegistry);
-
-			if registry_details.creator != creator {
-				Self::is_an_authority(&registry_id, creator.clone()).map_err(Error::<T>::from)?;
-			}
-
-			// Id Digest = concat (H(<scale_encoded_registry_identifier>,
-			// <scale_encoded_creator_identifier>, <scale_encoded_delegate_identifier>))
-			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]]
-					.concat()[..],
-			);
-
-			let authorization_id = Ss58Identifier::to_authorization_id(&id_digest.encode()[..])
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
-
-			ensure!(
-				!<Authorizations<T>>::contains_key(&authorization_id),
-				Error::<T>::DelegateAlreadyAdded
-			);
-
-			let mut authorities = <Authorities<T>>::get(registry_id.clone());
-			authorities
-				.try_push(delegate.clone())
-				.map_err(|_| Error::<T>::RegistryAuthoritiesLimitExceeded)?;
-			<Authorities<T>>::insert(&registry_id, authorities);
-
-			<Authorizations<T>>::insert(
-				&authorization_id,
-				RegistryAuthorizationOf::<T> {
-					registry_id: registry_id.clone(),
-					delegate: delegate.clone(),
-					schema: registry_details.schema,
-					permissions: Permissions::all(),
-				},
-			);
-
-			Self::update_commit(
-				&registry_id,
-				id_digest,
-				creator,
-				RegistryCommitActionOf::Authorization,
-			)
-			.map_err(Error::<T>::from)?;
-
-			Self::deposit_event(Event::AddAuthorization {
-				registry: registry_id,
-				authorization: authorization_id,
-				delegate,
-			});
-
-			Ok(())
-		}
-
 		/// Adds a delegate to a registry.
 		///
 		/// Arguments:
@@ -301,62 +184,66 @@ pub mod pallet {
 		/// Returns:
 		///
 		/// DispatchResult
-		#[pallet::call_index(1)]
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_delegate())]
 		pub fn add_delegate(
 			origin: OriginFor<T>,
-			registry_id: RegistryIdOf,
-			delegate: RegistryCreatorIdOf<T>,
+			space_id: SpaceIdOf,
+			delegate: SpaceCreatorOf<T>,
+			authorization: AuthorizationIdOf,
+			is_admin: bool,
 		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let creator = T::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			// log::info!("{:?}", creator);
+			// Determine the space_id from the authorization
+			let admin_space_id = Self::is_a_space_admin(&authorization, creator.clone())
+				.map_err(Error::<T>::from)?;
+			ensure!(admin_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
-			let registry_details =
-				<Registries<T>>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
 
-			ensure!(!registry_details.archive, Error::<T>::ArchivedRegistry);
-
-			if registry_details.creator != creator {
-				Self::is_an_authority(&registry_id, creator.clone()).map_err(Error::<T>::from)?;
-			}
-
-			// Id Digest = concat (H(<scale_encoded_registry_identifier>,
+			// Construct the authorization_id from the provided parameters.
+			// Id Digest = concat (H(<scale_encoded_space_identifier>,
 			// <scale_encoded_creator_identifier>, <scale_encoded_delegate_identifier>))
-			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]]
-					.concat()[..],
+			let id_digest = T::Hashing::hash(
+				&[&space_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let authorization_id = Ss58Identifier::to_authorization_id(&id_digest.encode()[..])
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let delegate_authorization_id =
+				Ss58Identifier::to_authorization_id(&id_digest.encode())
+					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
-				!<Authorizations<T>>::contains_key(&authorization_id),
+				!Authorizations::<T>::contains_key(&delegate_authorization_id),
 				Error::<T>::DelegateAlreadyAdded
 			);
 
-			<Authorizations<T>>::insert(
-				&authorization_id,
-				RegistryAuthorizationOf::<T> {
-					registry_id: registry_id.clone(),
+			let mut delegates = Delegates::<T>::get(&space_id);
+			delegates
+				.try_push(delegate.clone())
+				.map_err(|_| Error::<T>::SpaceDelegatesLimitExceeded)?;
+			Delegates::<T>::insert(&space_id, delegates);
+
+			// Set permissions.
+			let permissions = if is_admin { Permissions::all() } else { Permissions::default() };
+
+			Authorizations::<T>::insert(
+				&delegate_authorization_id,
+				SpaceAuthorizationOf::<T> {
+					space_id: admin_space_id,
 					delegate: delegate.clone(),
-					schema: registry_details.schema,
-					permissions: Permissions::default(),
+					permissions,
+					delegator: creator,
 				},
 			);
 
-			Self::update_commit(
-				&registry_id,
-				id_digest,
-				creator,
-				RegistryCommitActionOf::Authorization,
-			)
-			.map_err(Error::<T>::from)?;
+			Self::update_activity(&space_id, CallTypeOf::Authorization)
+				.map_err(Error::<T>::from)?;
 
-			Self::deposit_event(Event::AddAuthorization {
-				registry: registry_id,
-				authorization: authorization_id,
+			Self::deposit_event(Event::Authorization {
+				space: space_id,
+				authorization: delegate_authorization_id,
 				delegate,
 			});
 
@@ -375,45 +262,48 @@ pub mod pallet {
 		/// Returns:
 		///
 		/// DispatchResult
-		#[pallet::call_index(2)]
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_delegate())]
 		pub fn remove_delegate(
 			origin: OriginFor<T>,
-			registry_id: RegistryIdOf,
-			authorization_id: AuthorizationIdOf,
+			space_id: SpaceIdOf,
+			remove_authorization: AuthorizationIdOf,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let registry_details =
-				<Registries<T>>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
+			// Ensure the authorization exists and retrieve its details.
+			let authorization_details = Authorizations::<T>::get(&remove_authorization)
+				.ok_or(Error::<T>::AuthorizationNotFound)?;
 
-			if registry_details.creator != creator {
-				Self::is_an_authority(&registry_id, creator.clone()).map_err(Error::<T>::from)?;
+			// Determine the space_id from the authorization
+			let admin_space_id = Self::is_a_space_admin(&authorization, creator.clone())
+				.map_err(Error::<T>::from)?;
+			ensure!(admin_space_id == space_id, Error::<T>::UnauthorizedOperation);
+
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+
+			let mut delegates = Delegates::<T>::get(&space_id);
+			if let Some(index) = delegates.iter().position(|d| d == &authorization_details.delegate)
+			{
+				delegates.remove(index);
+				Delegates::<T>::insert(&space_id, delegates);
+
+				Authorizations::<T>::remove(&remove_authorization);
+
+				Self::update_activity(&space_id, CallTypeOf::Deauthorization)
+					.map_err(Error::<T>::from)?;
+
+				Self::deposit_event(Event::Deauthorization {
+					space: space_id,
+					authorization: remove_authorization,
+				});
+
+				Ok(())
+			} else {
+				Err(Error::<T>::DelegateNotFound.into())
 			}
-
-			let tx_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&registry_id.encode()[..], &authorization_id.encode()[..], &creator.encode()[..]]
-					.concat()[..],
-			);
-			ensure!(
-				Authorizations::<T>::take(&authorization_id).is_some(),
-				Error::<T>::AuthorizationNotFound
-			);
-
-			Self::update_commit(
-				&registry_id,
-				tx_digest,
-				creator,
-				RegistryCommitActionOf::Deauthorization,
-			)
-			.map_err(Error::<T>::from)?;
-
-			Self::deposit_event(Event::RemoveAuthorization {
-				registry: registry_id,
-				authorization: authorization_id,
-			});
-
-			Ok(())
 		}
 
 		/// Create a new registry.
@@ -429,121 +319,61 @@ pub mod pallet {
 		/// Returns:
 		///
 		/// DispatchResult
-		#[pallet::call_index(3)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create(tx_registry.len().saturated_into()))]
-		pub fn create(
-			origin: OriginFor<T>,
-			tx_registry: InputRegistryOf<T>,
-			tx_schema: Option<SchemaIdOf>,
-		) -> DispatchResult {
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		pub fn create(origin: OriginFor<T>, space_code: SpaceCodeOf<T>) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-
-			ensure!(tx_registry.len() > 0, Error::<T>::EmptyTransaction);
-			ensure!(
-				tx_registry.len() <= T::MaxEncodedRegistryLength::get() as usize,
-				Error::<T>::MaxEncodedRegistryLimitExceeded
-			);
 
 			// Id Digest = concat (H(<scale_encoded_registry_input>,
 			// <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&tx_registry.encode()[..], &creator.encode()[..]].concat()[..],
+				&[&space_code.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
 			let identifier = Ss58Identifier::to_registry_id(&id_digest.encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
-			ensure!(
-				!<Registries<T>>::contains_key(&identifier),
-				Error::<T>::RegistryAlreadyAnchored
-			);
+			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
 
-			let digest = <T as frame_system::Config>::Hashing::hash(&tx_registry[..]);
+			// Construct the authorization_id from the provided parameters.
+			// Id Digest = concat (H(<scale_encoded_space_identifier>,
+			// <scale_encoded_creator_identifier> ))
+			let auth_id_digest =
+				T::Hashing::hash(&[&identifier.encode()[..], &creator.encode()[..]].concat()[..]);
 
-			if let Some(ref schema) = tx_schema {
-				ensure!(
-					<pallet_schema::Schemas<T>>::contains_key(schema),
-					Error::<T>::SchemaNotFound
-				);
-			}
+			let authorization_id = Ss58Identifier::to_authorization_id(&auth_id_digest.encode())
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
-			<Registries<T>>::insert(
-				&identifier,
-				RegistryEntryOf::<T> {
-					details: tx_registry,
-					digest,
-					schema: tx_schema,
-					creator: creator.clone(),
-					archive: false,
+			let mut delegates: BoundedVec<SpaceCreatorOf<T>, T::MaxSpaceDelegates> =
+				BoundedVec::default();
+			delegates
+				.try_push(creator.clone())
+				.map_err(|_| Error::<T>::SpaceDelegatesLimitExceeded)?;
+
+			Delegates::<T>::insert(&identifier, delegates);
+
+			Authorizations::<T>::insert(
+				&authorization_id,
+				SpaceAuthorizationOf::<T> {
+					space_id: identifier.clone(),
+					delegate: creator.clone(),
+					permissions: Permissions::all(),
+					delegator: creator.clone(),
 				},
 			);
-			Self::update_commit(
+
+			<Spaces<T>>::insert(
 				&identifier,
-				digest,
-				creator.clone(),
-				RegistryCommitActionOf::Genesis,
-			)
-			.map_err(Error::<T>::from)?;
-
-			Self::deposit_event(Event::Create { registry: identifier, creator });
-
-			Ok(())
-		}
-		/// Allows the creator or an admin delegate of a registry to update the
-		/// registry's details
-		///
-		/// Arguments:
-		///
-		/// * `origin`: OriginFor<T>
-		/// * `tx_registry`: The updated registry details
-		/// * `registry_id`: The registry ID of the registry to be updated.
-		///
-		/// Returns:
-		///
-		/// DispatchResult
-		#[pallet::call_index(4)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::update(tx_registry.len().saturated_into()))]
-		pub fn update(
-			origin: OriginFor<T>,
-			tx_registry: InputRegistryOf<T>,
-			registry_id: RegistryIdOf,
-		) -> DispatchResult {
-			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-
-			ensure!(tx_registry.len() > 0, Error::<T>::EmptyTransaction);
-			ensure!(
-				tx_registry.len() <= T::MaxEncodedRegistryLength::get() as usize,
-				Error::<T>::MaxEncodedRegistryLimitExceeded
+				SpaceDetailsOf::<T> { code: space_code, creator: creator.clone(), archive: false },
 			);
 
-			let registry_details =
-				<Registries<T>>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
-			ensure!(!registry_details.archive, Error::<T>::ArchivedRegistry);
+			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
 
-			if registry_details.creator != updater {
-				Self::is_an_authority(&registry_id, updater.clone()).map_err(Error::<T>::from)?;
-			}
-
-			let digest = <T as frame_system::Config>::Hashing::hash(&tx_registry[..]);
-
-			<Registries<T>>::insert(
-				&registry_id,
-				RegistryEntryOf::<T> {
-					details: tx_registry,
-					digest,
-					creator: updater.clone(),
-					..registry_details
-				},
-			);
-			Self::update_commit(
-				&registry_id,
-				digest,
-				updater.clone(),
-				RegistryCommitActionOf::Update,
-			)
-			.map_err(Error::<T>::from)?;
-
-			Self::deposit_event(Event::Update { registry: registry_id, authority: updater });
+			Self::deposit_event(Event::Create {
+				space: identifier,
+				creator,
+				authorization: authorization_id,
+			});
 
 			Ok(())
 		}
@@ -558,33 +388,27 @@ pub mod pallet {
 		/// Returns:
 		///
 		/// DispatchResult
-		#[pallet::call_index(5)]
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::archive())]
-		pub fn archive(origin: OriginFor<T>, registry_id: RegistryIdOf) -> DispatchResult {
+		pub fn archive(
+			origin: OriginFor<T>,
+			space_id: SpaceIdOf,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let registry_details =
-				<Registries<T>>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
-			ensure!(!registry_details.archive, Error::<T>::ArchivedRegistry);
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
 
-			if registry_details.creator != creator {
-				Self::is_an_authority(&registry_id, creator.clone()).map_err(Error::<T>::from)?;
-			}
+			let admin_space_id = Self::is_a_space_admin(&authorization, creator.clone())
+				.map_err(Error::<T>::from)?;
+			ensure!(admin_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
-			<Registries<T>>::insert(
-				&registry_id,
-				RegistryEntryOf::<T> { archive: true, ..registry_details },
-			);
+			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { archive: true, ..space_details });
 
-			Self::update_commit(
-				&registry_id,
-				registry_details.digest,
-				creator.clone(),
-				RegistryCommitActionOf::Archive,
-			)
-			.map_err(Error::<T>::from)?;
+			Self::update_activity(&space_id, CallTypeOf::Archive).map_err(Error::<T>::from)?;
 
-			Self::deposit_event(Event::Archive { registry: registry_id, authority: creator });
+			Self::deposit_event(Event::Archive { space: space_id, authority: creator });
 
 			Ok(())
 		}
@@ -599,33 +423,27 @@ pub mod pallet {
 		/// Returns:
 		///
 		/// DispatchResult
-		#[pallet::call_index(6)]
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::restore())]
-		pub fn restore(origin: OriginFor<T>, registry_id: RegistryIdOf) -> DispatchResult {
+		pub fn restore(
+			origin: OriginFor<T>,
+			space_id: SpaceIdOf,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let registry_details =
-				<Registries<T>>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
-			ensure!(registry_details.archive, Error::<T>::RegistryNotArchived);
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(space_details.archive, Error::<T>::SpaceNotArchived);
 
-			if registry_details.creator != creator {
-				Self::is_an_authority(&registry_id, creator.clone()).map_err(Error::<T>::from)?;
-			}
+			let admin_space_id = Self::is_a_space_admin(&authorization, creator.clone())
+				.map_err(Error::<T>::from)?;
+			ensure!(admin_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
-			<Registries<T>>::insert(
-				&registry_id,
-				RegistryEntryOf::<T> { archive: true, ..registry_details },
-			);
+			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { archive: false, ..space_details });
 
-			Self::update_commit(
-				&registry_id,
-				registry_details.digest,
-				creator.clone(),
-				RegistryCommitActionOf::Restore,
-			)
-			.map_err(<Error<T>>::from)?;
+			Self::update_activity(&space_id, CallTypeOf::Restore).map_err(Error::<T>::from)?;
 
-			Self::deposit_event(Event::Restore { registry: registry_id, authority: creator });
+			Self::deposit_event(Event::Restore { space: space_id, authority: creator });
 
 			Ok(())
 		}
@@ -633,127 +451,49 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// checks if the DID identifier passed is an authority of the `registry`
-	///
-	/// Arguments:
-	///
-	/// * `tx_registry`: The registry that the transaction is being performed
-	///   on.
-	/// * `authority`: The DID identifier that is trying to perform the
-	///   operation.
-	///
-	/// Returns:
-	///
-	/// A Result<(), Error<T>>
-	pub fn is_an_authority(
-		tx_registry: &RegistryIdOf,
-		authority: RegistryCreatorIdOf<T>,
-	) -> Result<(), Error<T>> {
-		let authorities = <Authorities<T>>::get(tx_registry);
-		ensure!(
-			(authorities.iter().find(|&a| *a == authority) == Some(&authority)),
-			Error::<T>::UnauthorizedOperation
-		);
+	pub fn is_a_delegate(tx_id: &SpaceIdOf, delegate: SpaceCreatorOf<T>) -> bool {
+		<Delegates<T>>::get(tx_id).iter().any(|d| d == &delegate)
+	}
 
+	pub fn is_a_space_delegate(
+		authorization_id: &AuthorizationIdOf,
+		delegate: &SpaceCreatorOf<T>,
+	) -> Result<SpaceIdOf, Error<T>> {
+		let d =
+			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
+
+		ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
+		ensure!(d.permissions.contains(Permissions::ASSERT), Error::<T>::UnauthorizedOperation);
+
+		Ok(d.space_id)
+	}
+
+	pub fn is_a_space_admin(
+		authorization_id: &AuthorizationIdOf,
+		delegate: SpaceCreatorOf<T>,
+	) -> Result<SpaceIdOf, Error<T>> {
+		let d =
+			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
+
+		ensure!(d.delegate == delegate, Error::<T>::UnauthorizedOperation);
+		ensure!(d.permissions.contains(Permissions::ADMIN), Error::<T>::UnauthorizedOperation);
+
+		Ok(d.space_id)
+	}
+
+	pub fn update_activity(tx_id: &SpaceIdOf, tx_action: CallTypeOf) -> Result<(), Error<T>> {
+		let tx_moment = Self::timepoint();
+
+		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
+		let _ =
+			identifier::Pallet::<T>::update_timeline(tx_id, IdentifierTypeOf::Statement, tx_entry);
 		Ok(())
 	}
 
-	/// Updates the Identifier commit history.
-	///
-	/// Arguments:
-	///
-	/// * `tx_registry`: The registry that the transaction is being committed
-	///   to.
-	/// * `tx_digest`: The hash of the transaction that was committed.
-	/// * `proposer`: The account that is proposing the transaction.
-	/// * `commit`: The action that was committed.
-	///
-	/// Returns:
-	///
-	/// A Result<(), Error<T>>
-	pub fn update_commit(
-		tx_registry: &RegistryIdOf,
-		tx_digest: RegistryHashOf<T>,
-		proposer: RegistryCreatorIdOf<T>,
-		commit: RegistryCommitActionOf,
-	) -> Result<(), Error<T>> {
-		let block_number = frame_system::Pallet::<T>::block_number();
-		Commits::<T>::try_mutate(tx_registry, |commits| {
-			commits
-				.try_push(RegistryCommitOf::<T> {
-					commit,
-					digest: tx_digest,
-					committed_by: proposer,
-					created_at: block_number,
-				})
-				.map_err(|_| Error::<T>::MaxRegistryCommitsExceeded)?;
-
-			Ok(())
-		})
-	}
-
-	/// Checks if the given `authorization_id` is a valid authorization for the
-	/// given `delegate` and `schema` (if provided)
-	///
-	/// Arguments:
-	///
-	/// * `authorization_id`: The authorization id that is being checked.
-	/// * `delegate`: The delegate account.
-	/// * `schema`: The schema that the delegate is using to assert.
-	///
-	/// Returns:
-	///
-	/// A tuple of the registry id and the schema id.
-	pub fn is_a_delegate(
-		authorization_id: &AuthorizationIdOf,
-		delegate: &RegistryCreatorIdOf<T>,
-		schema: Option<SchemaIdOf>,
-	) -> Result<RegistryIdOf, Error<T>> {
-		let delegate_details = <Authorizations<T>>::get(authorization_id);
-		if let Some(d) = delegate_details {
-			ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
-			ensure!(
-				(d.permissions & Permissions::ASSERT) == Permissions::ASSERT,
-				Error::<T>::UnauthorizedOperation
-			);
-			if let Some(s) = d.schema {
-				if let Some(m) = schema {
-					ensure!(s == m, Error::<T>::RegistrySchemaMismatch);
-				} else {
-					ensure!(false, Error::<T>::RegistrySchemaMismatch);
-				}
-			}
-			Ok(d.registry_id)
-		} else {
-			Err(Error::<T>::AuthorizationNotFound)
-		}
-	}
-
-	/// Checks if the given `authorization_id` is an admin of the given
-	/// `registry_id`
-	///
-	/// Arguments:
-	///
-	/// * `authorization_id`: The authorization id of the delegate.
-	/// * `delegate`: The delegate account.
-	///
-	/// Returns:
-	///
-	/// The registry id of the registry that the delegate is an admin of.
-	pub fn is_a_registry_admin(
-		authorization_id: &AuthorizationIdOf,
-		delegate: RegistryCreatorIdOf<T>,
-	) -> Result<RegistryIdOf, Error<T>> {
-		let delegate_details = <Authorizations<T>>::get(authorization_id);
-		if let Some(d) = delegate_details {
-			ensure!(d.delegate == delegate, Error::<T>::UnauthorizedOperation);
-			ensure!(
-				(d.permissions & Permissions::ADMIN) == Permissions::ADMIN,
-				Error::<T>::UnauthorizedOperation
-			);
-			Ok(d.registry_id)
-		} else {
-			Err(Error::<T>::AuthorizationNotFound)
+	pub fn timepoint() -> Timepoint {
+		Timepoint {
+			height: frame_system::Pallet::<T>::block_number().unique_saturated_into(),
+			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
 		}
 	}
 }

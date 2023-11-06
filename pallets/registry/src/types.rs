@@ -15,7 +15,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-
 // use crate::*;
 use bitflags::bitflags;
 use codec::{Decode, Encode, MaxEncodedLen};
@@ -48,56 +47,28 @@ impl Default for Permissions {
 	}
 }
 
-/// An on-chain registry details mapped to an identifier.
+/// An on-chain space details mapped to an identifier.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 
-pub struct RegistryEntry<InputRegistryOf, RegistryHashOf, SchemaIdOf, RegistryCreatorIdOf, StatusOf>
-{
-	// The Registry
-	pub details: InputRegistryOf,
-	/// Registry hash.
-	pub digest: RegistryHashOf,
-	///  \[OPTIONAL\] Schema identifier.
-	pub schema: Option<SchemaIdOf>,
-	/// Registry creator.
-	pub creator: RegistryCreatorIdOf,
-	/// The flag indicating the status of the registry.
+pub struct SpaceDetails<SpaceCodeOf, SpaceCreatorOf, StatusOf> {
+	// The Space Code
+	pub code: SpaceCodeOf,
+	/// Space creator.
+	pub creator: SpaceCreatorOf,
+	/// The flag indicating the status of the space.
 	pub archive: StatusOf,
 }
 
-/// An on-chain registry details mapped to an identifier.
+/// An on-chain registry delegate details mapped to an authoization identifier.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 
-pub struct RegistryAuthorization<RegistryIdOf, RegistryCreatorIdOf, SchemaIdOf, Permissions> {
-	// The Registry
-	pub registry_id: RegistryIdOf,
-	/// Registry delegate.
-	pub delegate: RegistryCreatorIdOf,
-	///  \[OPTIONAL\] Schema identifier.
-	pub schema: Option<SchemaIdOf>,
+pub struct SpaceAuthorization<SpaceIdOf, SpaceCreatorOf, Permissions> {
+	// The Space
+	pub space_id: SpaceIdOf,
+	/// Space delegate.
+	pub delegate: SpaceCreatorOf,
 	/// Registry creator.
 	pub permissions: Permissions,
-}
-
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct RegistryCommit<RegistryCommitActionOf, RegistryHashOf, RegistryCreatorIdOf, BlockNumber>
-{
-	/// Stream commit type
-	pub commit: RegistryCommitActionOf,
-	/// Registry hash.
-	pub digest: RegistryHashOf,
-	/// Registry delegate.
-	pub committed_by: RegistryCreatorIdOf,
-	/// Stream block number
-	pub created_at: BlockNumber,
-}
-
-#[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-pub enum RegistryCommitActionOf {
-	Genesis,
-	Authorization,
-	Deauthorization,
-	Update,
-	Archive,
-	Restore,
+	/// Space delegator.
+	pub delegator: SpaceCreatorOf,
 }

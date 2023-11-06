@@ -37,6 +37,7 @@ construct_runtime!(
 		System: frame_system,
 		Schema:pallet_schema,
 		Registry: pallet_registry,
+		Identifier: identifier,
 		Statement: pallet_statement,
 		MockOrigin: mock_origin,
 	}
@@ -80,17 +81,17 @@ impl mock_origin::Config for Test {
 
 parameter_types! {
 	#[derive(Debug, Clone)]
-	pub const MaxStatementActivities: u32 = 5u32;
-	pub const MaxDigestLength: usize = 5usize;
+	pub const MaxDigetsPerBatch: u16 = 5u16;
+	pub const MaxRemoveEntries: u16 = 5u16;
 }
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type MaxStatementActivities = MaxStatementActivities;
+	type MaxDigestsPerBatch = MaxDigetsPerBatch;
+	type MaxRemoveEntries = MaxRemoveEntries;
 	type WeightInfo = weights::SubstrateWeight<Test>;
-	type MaxDigestLength = MaxDigestLength;
 }
 
 parameter_types! {
@@ -123,6 +124,14 @@ impl pallet_schema::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
+}
+
+parameter_types! {
+	pub const MaxEventsHistory: u32 = 6u32;
+}
+
+impl identifier::Config for Test {
+	type MaxEventsHistory = MaxEventsHistory;
 }
 
 #[allow(dead_code)]

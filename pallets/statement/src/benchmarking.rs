@@ -15,7 +15,7 @@ use sp_std::convert::TryFrom;
 const SEED: u32 = 0;
 const MAX_PAYLOAD_BYTE_LENGTH: u32 = 5 * 1024;
 
-pub fn generate_statement_id<T: Config>(other_digest: &StatementHashOf<T>) -> StatementIdOf {
+pub fn generate_statement_id<T: Config>(other_digest: &StatementDigestOf<T>) -> StatementIdOf {
 	Ss58Identifier::to_statement_id(&(other_digest).encode()[..]).unwrap()
 }
 
@@ -83,18 +83,83 @@ benchmarks! {
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
-		<Attestations<T>>::insert(
-			identifier,
-			statement_digest,
-			AttestationDetailsOf::<T> {
-				creator: did.clone(),
-				revoked: false,
+		// <Attestations<T>>::insert(
+		// 	identifier,
+		// 	statement_digest,
+		// 	AttestationDetailsOf::<T> {
+		// 		creator: did.clone(),
+		// 		revoked: false,
+		// 	},
+		// );
+		//
+	}: _<T::RuntimeOrigin>(origin, statement_digest, authorization_id, None)
+	verify {
+		assert_last_event::<T>(Event::Created { identifier, author: did}.into());
+	}
+
+	create_batch {
+		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
+
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let did: T::RegistryCreatorId = account("did", 0, SEED);
+		let did1: T::RegistryCreatorId = account("did1", 0, SEED);
+
+		let statement0 = [77u8; 32].to_vec();
+		let statement1 = [87u8; 32].to_vec();
+		let statement2 = [97u8; 32].to_vec();
+
+		let statement_digest0 = <T as frame_system::Config>::Hashing::hash(&statement0[..]);
+		let statement_digest1 = <T as frame_system::Config>::Hashing::hash(&statement1[..]);
+		let statement_digest2 = <T as frame_system::Config>::Hashing::hash(&statement2[..]);
+
+		let raw_registry = [56u8; 256].to_vec();
+
+		let registry: InputRegistryOf<T> = BoundedVec::try_from(raw_registry).unwrap();
+
+		let id_digest = <T as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
+		);
+
+		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
+
+		let id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+				.concat()[..],
+		);
+
+		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
+
+		let auth_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+		);
+
+		let authorization_id: Ss58Identifier =
+		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+
+		<Authorizations<T>>::insert(
+			&authorization_id,
+			RegistryAuthorizationOf::<T> {
+				registry_id,
+				delegate: did.clone(),
+				schema: None,
+				permissions: Permissions::all(),
 			},
 		);
 
-	}: _<T::RuntimeOrigin>(origin, vec![statement_digest], authorization_id, None)
+		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
+
+		// <Attestations<T>>::insert(
+		// 	identifier,
+		// 	statement_digest,
+		// 	AttestationDetailsOf::<T> {
+		// 		creator: did.clone(),
+		// 		revoked: false,
+		// 	},
+		// );
+
+	}: _<T::RuntimeOrigin>(origin, vec![statement_digest0, statement_digest1, statement_digest2], authorization_id, None)
 	verify {
-		assert_last_event::<T>(Event::Create { failed_digests: vec![], author: did}.into());
+		assert_last_event::<T>(Event::BatchCreate { successful: 3, falied: 0, indices: [], author: did}.into());
 	}
 
 	update {
@@ -151,20 +216,17 @@ benchmarks! {
 
 		<Statements<T>>::insert(
 			&statement_id,
-			StatementEntryOf::<T> {
+			StatementDetailsOf::<T> {
 				digest: statement_digest,
 				schema: None,
 				registry: registry_id,
 			},
 		);
 
-		<Attestations<T>>::insert(
+		<Entries<T>>::insert(
 			&statement_id,
 			statement_digest,
-			AttestationDetailsOf::<T> {
-				creator: did.clone(),
-				revoked: false,
-			},
+			did.clone(),
 		);
 
 		let statement_update = [12u8; 32].to_vec();
@@ -175,7 +237,7 @@ benchmarks! {
 
 	}: _<T::RuntimeOrigin>(origin, statement_id, update_digest, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::Update { identifier,digest: update_digest, author: did}.into());
+		assert_last_event::<T>(Event::Updated { identifier,digest: update_digest, author: did}.into());
 	}
 
 	revoke {
@@ -230,29 +292,27 @@ benchmarks! {
 			},
 		);
 
-		<Statements<T>>::insert(
+			<Statements<T>>::insert(
 			&statement_id,
-			StatementEntryOf::<T> {
+			StatementDetailsOf::<T> {
 				digest: statement_digest,
 				schema: None,
 				registry: registry_id,
 			},
 		);
 
-		<Attestations<T>>::insert(
+		<Entries<T>>::insert(
 			&statement_id,
 			statement_digest,
-			AttestationDetailsOf::<T> {
-				creator: did.clone(),
-				revoked: false,
-			},
+			did.clone(),
 		);
+
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 	}: _<T::RuntimeOrigin>(origin, statement_id.clone(), authorization_id)
 	verify {
-		assert_last_event::<T>(Event::Revoke { identifier:statement_id,author: did}.into());
+		assert_last_event::<T>(Event::Revoked { identifier:statement_id,author: did}.into());
 	}
 
 	restore {
@@ -307,33 +367,40 @@ benchmarks! {
 			},
 		);
 
-		<Statements<T>>::insert(
+			<Statements<T>>::insert(
 			&statement_id,
-			StatementEntryOf::<T> {
+			StatementDetailsOf::<T> {
 				digest: statement_digest,
 				schema: None,
 				registry: registry_id,
 			},
 		);
 
-		<Attestations<T>>::insert(
+		<Entries<T>>::insert(
 			&statement_id,
 			statement_digest,
-			AttestationDetailsOf::<T> {
+			did.clone(),
+		);
+
+	<RevocationRegistry<T>>::insert(
+			&statement_id,
+			&statement_digest,
+			StatementEntryStatusOf::<T> {
 				creator: did.clone(),
 				revoked: true,
 			},
 		);
 
-		let statement_update = [12u8; 32].to_vec();
-		let update_digest = <T as frame_system::Config>::Hashing::hash(&statement_update[..]);
+
+		// let statement_update = [12u8; 32].to_vec();
+		// let update_digest = <T as frame_system::Config>::Hashing::hash(&statement_update[..]);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 
 	}: _<T::RuntimeOrigin>(origin, statement_id.clone(), authorization_id)
 	verify {
-		assert_last_event::<T>(Event::Restore {identifier:statement_id, author: did}.into());
+		assert_last_event::<T>(Event::Restored {identifier:statement_id, author: did}.into());
 	}
 
 

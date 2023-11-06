@@ -24,7 +24,7 @@ use sp_runtime::{traits::Hash, AccountId32};
 ///
 /// This function will panic if the conversion from digest to statement ID
 /// fails.
-pub fn generate_statement_id<T: Config>(digest: &StatementHashOf<T>) -> StatementIdOf {
+pub fn generate_statement_id<T: Config>(digest: &StatementDigestOf<T>) -> StatementIdOf {
 	Ss58Identifier::to_statement_id(&(digest).encode()[..]).unwrap()
 }
 
@@ -122,6 +122,63 @@ fn create_statement_should_succeed() {
 
 		assert_ok!(Statement::create(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
+			statement_digest,
+			authorization_id,
+			Some(schema_id)
+		));
+	});
+}
+
+#[test]
+fn create_statement_batch_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let delegate = DID_01;
+
+	let statement = vec![77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
+
+	let raw_registry = [56u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier =
+		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Schema::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			schema.clone()
+		));
+
+		assert_ok!(Registry::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			Some(schema_id.clone())
+		));
+
+		assert_ok!(Registry::add_admin_delegate(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id,
+			delegate.clone(),
+		));
+
+		assert_ok!(Statement::create_batch(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			vec![statement_digest],
 			authorization_id,
 			Some(schema_id)
@@ -178,7 +235,7 @@ fn create_statement_should_fail_if_statement_is_anchored() {
 
 		assert_ok!(Statement::create(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
-			vec![statement_digest],
+			statement_digest,
 			authorization_id.clone(),
 			Some(schema_id.clone())
 		));
@@ -186,7 +243,7 @@ fn create_statement_should_fail_if_statement_is_anchored() {
 		assert_err!(
 			Statement::create(
 				DoubleOrigin(author.clone(), delegate.clone()).into(),
-				vec![statement_digest],
+				statement_digest,
 				authorization_id,
 				Some(schema_id)
 			),
@@ -211,7 +268,7 @@ fn update_statement_should_succed() {
 	let statement = vec![77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &delegate.encode()[..]]
 			.concat()[..],
 	);
 	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
@@ -249,20 +306,12 @@ fn update_statement_should_succed() {
 			delegate.clone(),
 		));
 
-		<Statements<Test>>::insert(
-			&statement_id,
-			StatementEntryOf::<Test> {
-				digest: statement_digest,
-				schema: Some(schema_id.clone()),
-				registry: registry_id.clone(),
-			},
-		);
-
-		<Attestations<Test>>::insert(
-			&statement_id,
+		assert_ok!(Statement::create(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			statement_digest,
-			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
-		);
+			authorization_id.clone(),
+			Some(schema_id.clone())
+		));
 
 		let statement_update = vec![12u8; 32];
 		let update_digest = <Test as frame_system::Config>::Hashing::hash(&statement_update[..]);
@@ -292,7 +341,7 @@ fn update_should_fail_if_digest_is_same() {
 	let statement = vec![77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &delegate.encode()[..]]
 			.concat()[..],
 	);
 	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
@@ -330,19 +379,12 @@ fn update_should_fail_if_digest_is_same() {
 			delegate.clone(),
 		));
 
-		<Statements<Test>>::insert(
-			&statement_id,
-			StatementEntryOf::<Test> {
-				digest: statement_digest,
-				schema: Some(schema_id.clone()),
-				registry: registry_id.clone(),
-			},
-		);
-		<Attestations<Test>>::insert(
-			&statement_id,
+		assert_ok!(Statement::create(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			statement_digest,
-			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
-		);
+			authorization_id.clone(),
+			Some(schema_id.clone())
+		));
 
 		assert_err!(
 			Statement::update(
@@ -432,7 +474,7 @@ fn update_should_fail_if_statement_is_revoked() {
 	let statement = vec![77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &delegate.encode()[..]]
 			.concat()[..],
 	);
 	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
@@ -465,19 +507,18 @@ fn update_should_fail_if_statement_is_revoked() {
 			delegate.clone(),
 		));
 
-		<Statements<Test>>::insert(
-			&statement_id,
-			StatementEntryOf::<Test> {
-				digest: statement_digest,
-				schema: Some(schema_id.clone()),
-				registry: registry_id.clone(),
-			},
-		);
-		<Attestations<Test>>::insert(
-			&statement_id,
+		assert_ok!(Statement::create(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			statement_digest,
-			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: true },
-		);
+			authorization_id.clone(),
+			Some(schema_id.clone())
+		));
+
+		assert_ok!(Statement::revoke(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
+			statement_id.clone(),
+			authorization_id.clone(),
+		));
 
 		let statement_update = vec![12u8; 32];
 		let update_digest = <Test as frame_system::Config>::Hashing::hash(&statement_update[..]);
@@ -489,7 +530,7 @@ fn update_should_fail_if_statement_is_revoked() {
 				update_digest,
 				authorization_id,
 			),
-			Error::<Test>::RevokedStatement
+			Error::<Test>::StatementRevoked
 		);
 	});
 }
@@ -508,7 +549,7 @@ fn revoke_statement_should_succed() {
 	let statement = vec![77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &delegate.encode()[..]]
 			.concat()[..],
 	);
 	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
@@ -541,21 +582,82 @@ fn revoke_statement_should_succed() {
 			delegate.clone(),
 		));
 
-		<Statements<Test>>::insert(
-			&statement_id,
-			StatementEntryOf::<Test> {
-				digest: statement_digest,
-				schema: Some(schema_id.clone()),
-				registry: registry_id.clone(),
-			},
-		);
-		<Attestations<Test>>::insert(
-			&statement_id,
+		assert_ok!(Statement::create(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			statement_digest,
-			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
-		);
+			authorization_id.clone(),
+			Some(schema_id.clone())
+		));
 
 		assert_ok!(Statement::revoke(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
+			statement_id,
+			authorization_id,
+		));
+	});
+}
+
+#[test]
+fn restore_statement_should_succed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let delegate = DID_01;
+	let raw_registry = [56u8; 256].to_vec();
+	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+	let statement = vec![77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &delegate.encode()[..]]
+			.concat()[..],
+	);
+	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier =
+		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+	new_test_ext().execute_with(|| {
+		assert_ok!(Schema::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			schema.clone()
+		));
+
+		assert_ok!(Registry::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry.clone(),
+			Some(schema_id.clone())
+		));
+		assert_ok!(Registry::add_admin_delegate(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			registry_id.clone(),
+			delegate.clone(),
+		));
+
+		assert_ok!(Statement::create(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
+			statement_digest,
+			authorization_id.clone(),
+			Some(schema_id.clone())
+		));
+
+		assert_ok!(Statement::revoke(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
+			statement_id.clone(),
+			authorization_id.clone(),
+		));
+
+		assert_ok!(Statement::restore(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			statement_id,
 			authorization_id,
@@ -577,7 +679,7 @@ fn remove_statement_should_succed() {
 	let statement = vec![77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
+		&[&statement_digest.encode()[..], &registry_id.encode()[..], &delegate.encode()[..]]
 			.concat()[..],
 	);
 	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
@@ -610,93 +712,16 @@ fn remove_statement_should_succed() {
 			delegate.clone(),
 		));
 
-		<Statements<Test>>::insert(
-			&statement_id,
-			StatementEntryOf::<Test> {
-				digest: statement_digest,
-				schema: Some(schema_id.clone()),
-				registry: registry_id.clone(),
-			},
-		);
-		<Attestations<Test>>::insert(
-			&statement_id,
+		assert_ok!(Statement::create(
+			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			statement_digest,
-			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
-		);
+			authorization_id.clone(),
+			Some(schema_id.clone())
+		));
 
 		assert_ok!(Statement::remove(
 			DoubleOrigin(author.clone(), delegate.clone()).into(),
 			statement_id,
-			authorization_id,
-		));
-	});
-}
-
-#[test]
-fn digest_statement_should_succed() {
-	let creator = DID_00;
-	let author = ACCOUNT_00;
-	let delegate = DID_01;
-	let raw_registry = [56u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	let statement = vec![77u8; 32];
-	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
-	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&statement_digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]]
-			.concat()[..],
-	);
-	let statement_id = generate_statement_id::<Test>(&statement_id_digest);
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
-	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let authorization_id: Ss58Identifier =
-		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
-	new_test_ext().execute_with(|| {
-		assert_ok!(Schema::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			schema.clone()
-		));
-
-		assert_ok!(Registry::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			Some(schema_id.clone())
-		));
-		assert_ok!(Registry::add_admin_delegate(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone(),
-			delegate.clone(),
-		));
-
-		<Statements<Test>>::insert(
-			&statement_id,
-			StatementEntryOf::<Test> {
-				digest: statement_digest,
-				schema: Some(schema_id.clone()),
-				registry: registry_id.clone(),
-			},
-		);
-		<Attestations<Test>>::insert(
-			&statement_id,
-			statement_digest,
-			AttestationDetailsOf::<Test> { creator: creator.clone(), revoked: false },
-		);
-
-		assert_ok!(Statement::digest(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			statement_id,
-			statement_digest,
 			authorization_id,
 		));
 	});
