@@ -54,7 +54,7 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	/// Registry Identifier
-	pub type RegistryIdOf = Ss58Identifier;
+	pub type SpaceIdOf = Ss58Identifier;
 
 	/// Unique Identifier
 	pub type UniqueIdOf = Ss58Identifier;
@@ -66,7 +66,7 @@ pub mod pallet {
 	pub type UniqueHashOf<T> = <T as frame_system::Config>::Hash;
 
 	/// Type of a creator identifier.
-	pub type UniqueCreatorIdOf<T> = pallet_chain_space::RegistryCreatorIdOf<T>;
+	pub type UniqueCreatorIdOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
 
 	/// Hash of the unique.
 	pub type UniqueDigestOf<T> = <T as frame_system::Config>::Hash;
@@ -79,7 +79,7 @@ pub mod pallet {
 
 	/// Type for the unique entity
 	pub type UniqueEntryOf<T> =
-		UniqueEntry<InputUniqueOf<T>, UniqueCreatorIdOf<T>, Option<RegistryIdOf>, StatusOf>;
+		UniqueEntry<InputUniqueOf<T>, UniqueCreatorIdOf<T>, Option<SpaceIdOf>, StatusOf>;
 	/// Type for the unique commits
 	pub type UniqueCommitsOf<T> = UniqueCommit<
 		UniqueCommitActionOf,
@@ -248,16 +248,16 @@ pub mod pallet {
 				Error::<T>::MaxEncodedLimitExceeded
 			);
 
-			let mut u_reqistryid: Option<RegistryIdOf> = None;
+			let mut u_reqistryid: Option<SpaceIdOf> = None;
 
-			if let Some(authorization) = authorization.clone() {
-				let registry_id = pallet_chain_space::Pallet::<T>::is_a_delegate(
-					&authorization,
-					creator.clone(),
-					None,
+			if let Some(authorization_id) = authorization.as_ref() {
+				let space_id = pallet_chain_space::Pallet::<T>::is_a_space_delegate(
+					authorization_id,
+					&creator,
 				)
 				.map_err(<pallet_chain_space::Error<T>>::from)?;
-				u_reqistryid = Some(registry_id);
+
+				u_reqistryid = Some(space_id);
 			}
 
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
@@ -283,7 +283,7 @@ pub mod pallet {
 				UniqueEntryOf::<T> {
 					digest: unique_txn.clone(),
 					creator: creator.clone(),
-					registry: Some(u_reqistryid),
+					space: Some(u_reqistryid),
 					revoked: false,
 				},
 			);
@@ -334,16 +334,18 @@ pub mod pallet {
 			ensure!(!unique_details.revoked, Error::<T>::RevokedUnique);
 
 			if unique_details.creator != updater {
-				let registry_id = pallet_chain_space::Pallet::<T>::is_a_registry_admin(
-					&authorization.unwrap(),
-					updater.clone(),
-				)
-				.map_err(<pallet_chain_space::Error<T>>::from)?;
+				if let Some(ref authorization_id) = authorization {
+					let space_id = pallet_chain_space::Pallet::<T>::is_a_space_delegate(
+						authorization_id,
+						&updater,
+					)
+					.map_err(<pallet_chain_space::Error<T>>::from)?;
 
-				ensure!(
-					unique_details.registry.clone().unwrap_or(None) == Some(registry_id),
-					Error::<T>::UnauthorizedOperation
-				);
+					ensure!(
+						unique_details.space.clone().unwrap_or(None) == Some(space_id),
+						Error::<T>::UnauthorizedOperation
+					);
+				}
 			}
 
 			//Update entries and Identifiers mapping storage mapping
@@ -415,16 +417,13 @@ pub mod pallet {
 
 			// Check if the updater is authorized as a delegate
 			if unique_details.creator != updater {
-				let registry_id = pallet_chain_space::Pallet::<T>::is_a_delegate(
-					&authorization,
-					updater.clone(),
-					None,
-				)
-				.map_err(<pallet_chain_space::Error<T>>::from)?;
+				let space_id =
+					pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
+						.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 				// Return an error if the updater is not authorized as a delegate
 				ensure!(
-					unique_details.registry == Some(Some(registry_id)),
+					unique_details.space == Some(Some(space_id)),
 					Error::<T>::UnauthorizedOperation
 				);
 			}
@@ -474,16 +473,20 @@ pub mod pallet {
 				<UniqueIdentifiers<T>>::get(&unique_id).ok_or(Error::<T>::UniqueNotFound)?;
 
 			if unique_details.creator != updater {
-				let registry_id = pallet_chain_space::Pallet::<T>::is_a_registry_admin(
-					&authorization.unwrap(),
-					updater.clone(),
-				)
-				.map_err(<pallet_chain_space::Error<T>>::from)?;
+				if let Some(ref authorization_id) = authorization {
+					// Now authorization_id is a reference to the value inside the Option, if it
+					// exists
+					let space_id = pallet_chain_space::Pallet::<T>::is_a_space_delegate(
+						authorization_id, // Pass the Ss58Identifier reference
+						&updater,
+					)
+					.map_err(<pallet_chain_space::Error<T>>::from)?;
 
-				ensure!(
-					unique_details.registry.clone().unwrap_or(None) == Some(registry_id),
-					Error::<T>::UnauthorizedOperation
-				);
+					ensure!(
+						unique_details.space.clone().unwrap_or(None) == Some(space_id),
+						Error::<T>::UnauthorizedOperation
+					);
+				}
 			}
 
 			<UniqueIdentifiers<T>>::take(&unique_id);

@@ -62,8 +62,8 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use sp_std::{prelude::Clone, str};
 
-	/// Registry Identifier
-	pub type RegistryIdOf = Ss58Identifier;
+	/// Space Identifier
+	pub type SpaceIdOf = Ss58Identifier;
 
 	///Rating Identifier -- can remove later
 	pub type RatingIdOf = Ss58Identifier;
@@ -75,7 +75,7 @@ pub mod pallet {
 	pub type RatingHashOf<T> = <T as frame_system::Config>::Hash;
 
 	/// Type of a creator identifier.
-	pub type RatingCreatorIdOf<T> = pallet_chain_space::RegistryCreatorIdOf<T>;
+	pub type RatingCreatorIdOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
 
 	/// Hash of the Rating.
 	pub type RatingEntryHashOf<T> = <T as frame_system::Config>::Hash;
@@ -112,7 +112,7 @@ pub mod pallet {
 		RatingDetailsOf<T>,
 		RatingEntryHashOf<T>,
 		BlockNumberFor<T>,
-		RegistryIdOf,
+		SpaceIdOf,
 		RatingCreatorIdOf<T>,
 	>;
 
@@ -238,12 +238,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let registry_id = pallet_chain_space::Pallet::<T>::is_a_delegate(
-				&authorization,
-				author.clone(),
-				None,
-			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
+			// Authorization check is moved up to fail early.
+			let space_id =
+				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &author)
+					.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
 				(journal.entry.rating > 0 && journal.entry.count > 0),
@@ -272,7 +270,7 @@ pub mod pallet {
 					entry: journal.entry.clone(),
 					digest: journal.digest,
 					created_at: block_number,
-					registry: registry_id,
+					space: space_id,
 					creator: author.clone(),
 				},
 			);

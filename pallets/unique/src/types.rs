@@ -47,13 +47,13 @@ pub struct Timepoint<BlockNumber> {
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct UniqueEntry<UniqueDigestOf, UniqueCreatorIdOf, RegistryIdOf, StatusOf> {
+pub struct UniqueEntry<UniqueDigestOf, UniqueCreatorIdOf, SpaceIdOf, StatusOf> {
 	/// Unique hash.
 	pub digest: UniqueDigestOf, // incoming one
 	/// Unique creator.
 	pub creator: UniqueCreatorIdOf,
 	/// Registry Identifier
-	pub registry: Option<RegistryIdOf>,
+	pub space: Option<SpaceIdOf>,
 	/// The flag indicating the status of the stream.
 	pub revoked: StatusOf,
 }

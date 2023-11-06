@@ -748,25 +748,22 @@ impl pallet_schema::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxEncodedRegistryLength: u32 = 15_360;
-	pub const MaxRegistryAuthorities: u32 = 10_000;
-	pub const MaxRegistryCommitActions: u32 = 1_000;
+	pub const MaxSpaceDelegates: u32 = 10_000;
 }
 
 impl pallet_chain_space::Config for Runtime {
-	type RegistryCreatorId = DidIdentifier;
+	type SpaceCreatorId = DidIdentifier;
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
-	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
-	type MaxRegistryAuthorities = MaxRegistryAuthorities;
-	type MaxRegistryCommitActions = MaxRegistryCommitActions;
+	type ChainSpaceOrigin = MoreThanHalfCouncil;
+	type MaxSpaceDelegates = MaxSpaceDelegates;
 	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
 }
 
 parameter_types! {
-	pub const MaxStatementActivities: u32 = 1_000;
-	pub const MaxDigestLength: usize = 1_000_usize;
+	pub const MaxDigestsPerBatch: u16 = 1_000;
+	pub const MaxRemoveEntries: u16 = 1_000;
 }
 
 impl pallet_statement::Config for Runtime {
@@ -774,8 +771,8 @@ impl pallet_statement::Config for Runtime {
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_statement::WeightInfo<Runtime>;
-	type MaxStatementActivities = MaxStatementActivities;
-	type MaxDigestLength = MaxDigestLength;
+	type MaxDigestsPerBatch = MaxDigestsPerBatch;
+	type MaxRemoveEntries = MaxRemoveEntries;
 }
 
 impl pallet_remark::Config for Runtime {
@@ -844,7 +841,7 @@ construct_runtime! (
 		NetworkMembership: pallet_network_membership =101,
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,
-		Registry: pallet_chain_space = 104,
+		ChainSpace: pallet_chain_space = 104,
 		Statement: pallet_statement = 105,
 		DidName: pallet_did_name = 106,
 		Unique: pallet_unique = 107,
@@ -892,17 +889,15 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Score { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Registry(pallet_chain_space::Call::add_admin_delegate { .. }) =>
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::Registry(pallet_chain_space::Call::add_delegate { .. }) =>
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::remove_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::Registry(pallet_chain_space::Call::remove_delegate { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::Registry(pallet_chain_space::Call::create { .. }) =>
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::create { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Registry(pallet_chain_space::Call::archive { .. }) =>
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::archive { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Registry(pallet_chain_space::Call::restore { .. }) =>
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::restore { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) =>
 				single_key_relationship(&calls[..]),
@@ -992,7 +987,7 @@ mod benches {
 		[pallet_schema, Schema]
 		[pallet_statement, Statement]
 		[pallet_unique, Unique]
-		[pallet_chain_space, Registry]
+		[pallet_chain_space, ChainSpace]
 		[pallet_did, Did]
 		[pallet_did_name, DidName]
 		[pallet_network_membership, NetworkMembership]

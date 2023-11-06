@@ -622,7 +622,7 @@ pub mod pallet {
 			);
 
 			Self::update_activity(&statement_id, CallTypeOf::Revoke).map_err(<Error<T>>::from)?;
-			Self::deposit_event(Event::Revoked { identifier: statement_id, author: updater });
+			Self::deposit_event(Event::Revoke { identifier: statement_id, author: updater });
 
 			Ok(())
 		}
@@ -709,7 +709,7 @@ pub mod pallet {
 			<RevocationList<T>>::remove(&statement_id, &statement_details.digest);
 
 			Self::update_activity(&statement_id, CallTypeOf::Restore).map_err(<Error<T>>::from)?;
-			Self::deposit_event(Event::Restored { identifier: statement_id, author: updater });
+			Self::deposit_event(Event::Restore { identifier: statement_id, author: updater });
 
 			Ok(())
 		}
@@ -833,7 +833,7 @@ pub mod pallet {
 			.map_err(<Error<T>>::from)?;
 
 			let event = if is_complete_removal {
-				Event::Removed { identifier: statement_id, author: updater }
+				Event::Remove { identifier: statement_id, author: updater }
 			} else {
 				Event::PartialRemoval {
 					identifier: statement_id,

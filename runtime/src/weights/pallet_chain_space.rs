@@ -55,7 +55,7 @@ impl<T: frame_system::Config> pallet_chain_space::WeightInfo for WeightInfo<T> {
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 15360]`.
-	fn create(_l: u32, ) -> Weight {
+	fn create( ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `42`
 		//  Estimated: `72533`
@@ -70,7 +70,7 @@ impl<T: frame_system::Config> pallet_chain_space::WeightInfo for WeightInfo<T> {
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 15360]`.
-	fn update(_l: u32, ) -> Weight {
+	fn update( ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `15726`
 		//  Estimated: `72533`
