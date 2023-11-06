@@ -130,6 +130,24 @@ impl<T: frame_system::Config> pallet_chain_space::WeightInfo for WeightInfo<T> {
 	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
 	/// Storage: Registry Authorizations (r:1 w:1)
 	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Authorities (r:1 w:1)
+	/// Proof: Registry Authorities (max_values: None, max_size: Some(320068), added: 322543, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn add_audit_delegate() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `15726`
+		//  Estimated: `323533`
+		// Minimum execution time: 44_592_000 picoseconds.
+		Weight::from_parts(45_386_000, 0)
+			.saturating_add(Weight::from_parts(0, 323533))
+			.saturating_add(T::DbWeight::get().reads(4))
+			.saturating_add(T::DbWeight::get().writes(3))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
 	fn add_delegate() -> Weight {

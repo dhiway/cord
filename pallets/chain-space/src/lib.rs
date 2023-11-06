@@ -44,6 +44,10 @@
 //! - `restore`: Unarchives a space, returning it to active status.
 //! - `add_delegate`: Adds a delegate to a space, granting them specific
 //!   permissions.
+//! - `add_admin_delegate`: Adds an admin delegate to a space, granting them
+//!   administrative permissions.
+//! - `add_audit_delegate`: Adds an audit delegate to a space, granting them
+//!   audit permissions.
 //! - `remove_delegate`: Removes a delegate from a space, revoking their
 //!   permissions.
 //!
@@ -81,6 +85,8 @@
 //! - Creating a new space for a community-driven project.
 //! - Approving a space for official use after meeting certain criteria.
 //! - Archiving a space that is no longer active or has violated terms of use.
+//! - Adding delegates to a space to ensure ongoing compliance with governance
+//!   standards.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -99,11 +105,12 @@ mod tests;
 use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
 pub mod types;
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
+use codec::Encode;
 use identifier::{
 	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
 	EventEntryOf,
 };
-use sp_runtime::traits::UniqueSaturatedInto;
+use sp_runtime::traits::{Hash, UniqueSaturatedInto};
 
 /// Type of a CORD account.
 pub(crate) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
@@ -126,7 +133,7 @@ pub mod pallet {
 	use super::*;
 	pub use cord_primitives::{curi::Ss58Identifier, StatusOf};
 	use cord_utilities::traits::CallSources;
-	use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
+	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
 	/// The current storage version.
@@ -249,63 +256,35 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Adds a delegate to a specified space.
+		/// Adds a delegate with the ability to assert new entries to a space.
 		///
-		/// This function will add a new delegate to a space, given the space ID
-		/// and the delegate's information. It performs several checks to ensure
-		/// the operation is valid, such as verifying that the space exists,
-		/// is not archived, is approved, and has not exceeded its capacity.
-		/// Additionally, it checks if the creator is authorized to add a
-		/// delegate to the space and whether the delegate has already been
-		/// added.
+		/// The `ASSERT` permission allows the delegate to sign and add new
+		/// entries within the space. This function is called to grant a
+		/// delegate this specific permission. It checks that the caller has the
+		/// necessary authorization (admin rights) to add a delegate to the
+		/// space. If the caller is authorized, the delegate is added with the
+		/// `ASSERT` permission using the `space_delegate_addition`
+		/// internal function.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the transaction, which must be signed by
-		///   the creator or an admin.
+		/// - `origin`: The origin of the call, which must be signed by an admin
+		///   of the space.
 		/// - `space_id`: The identifier of the space to which the delegate is
 		///   being added.
 		/// - `delegate`: The identifier of the delegate being added to the
 		///   space.
-		/// - `authorization`: An identifier for the authorization being used to
-		///   validate the addition.
-		/// - `is_admin`: A boolean flag indicating if the delegate should be
-		///   added with admin permissions.
+		/// - `authorization`: The authorization ID used to validate the
+		///   addition.
 		///
 		/// # Returns
-		/// - `DispatchResult`: This function returns `Ok(())` if the delegate
-		///   is successfully added, or an error (`DispatchError`) if any of the
-		///   checks fail.
+		/// Returns `Ok(())` if the delegate was successfully added with
+		/// `ASSERT` permission, or an `Err` with an appropriate error if the
+		/// operation fails.
 		///
 		/// # Errors
-		/// - `UnauthorizedOperation`: If the origin is not authorized to add a
-		///   delegate to the space.
-		/// - `SpaceNotFound`: If the specified space ID does not correspond to
-		///   an existing space.
-		/// - `ArchivedSpace`: If the space is archived and no longer active.
-		/// - `SpaceNotApproved`: If the space has not been approved for use.
-		/// - `CapacityLimitExceeded`: If the space has reached its capacity for
-		///   delegates.
-		/// - `InvalidIdentifierLength`: If the constructed authorization ID is
-		///   not of valid length.
-		/// - `DelegateAlreadyAdded`: If the delegate is already added to the
+		/// - `UnauthorizedOperation`: If the caller is not an admin of the
 		///   space.
-		/// - `SpaceDelegatesLimitExceeded`: If the space cannot accept more
-		///   delegates.
-		///
-		///   # Events
-		///
-		/// - `Authorization`: This event is emitted after a delegate has been
-		///   successfully added to a space. It includes the unique identifiers
-		///   for the space (`space_id`), the authorization
-		///   (`authorization_id`), and the delegate (`delegate_id`).
-		///
-		/// Upon successful execution of the `add_delegate` function, the
-		/// `Authorization` event is dispatched to signal the successful
-		/// addition of a delegate to a space. The event carries
-		/// essential identifiers that can be utilized by external systems to
-		/// acknowledge the new delegation relationship within the space. This
-		/// event is particularly useful for tracking changes in permissions and
-		/// for audit purposes.
+		/// - Propagates errors from `space_delegate_addition` if it fails.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_delegate())]
 		pub fn add_delegate(
@@ -313,69 +292,111 @@ pub mod pallet {
 			space_id: SpaceIdOf,
 			delegate: SpaceCreatorOf<T>,
 			authorization: AuthorizationIdOf,
-			is_admin: bool,
 		) -> DispatchResult {
 			let creator = T::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			// Determine the space_id from the authorization
-			let admin_space_id = Self::is_a_space_admin(&authorization, creator.clone())
+			let auth_space_id = Self::is_a_space_admin(&authorization, creator.clone())
 				.map_err(Error::<T>::from)?;
-			ensure!(admin_space_id == space_id, Error::<T>::UnauthorizedOperation);
+			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
-			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
-			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
-			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
-			ensure!(
-				space_details.capacity == 0 || space_details.usage < space_details.capacity,
-				Error::<T>::CapacityLimitExceeded
-			);
-
-			// Construct the authorization_id from the provided parameters.
-			// Id Digest = concat (H(<scale_encoded_space_identifier>,
-			// <scale_encoded_creator_identifier>, <scale_encoded_delegate_identifier>))
-			let id_digest = T::Hashing::hash(
-				&[&space_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
-			);
-
-			let delegate_authorization_id =
-				Ss58Identifier::to_authorization_id(&id_digest.encode())
-					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
-
-			ensure!(
-				!Authorizations::<T>::contains_key(&delegate_authorization_id),
-				Error::<T>::DelegateAlreadyAdded
-			);
-
-			let mut delegates = Delegates::<T>::get(&space_id);
-			delegates
-				.try_push(delegate.clone())
-				.map_err(|_| Error::<T>::SpaceDelegatesLimitExceeded)?;
-			Delegates::<T>::insert(&space_id, delegates);
-
-			// Set permissions.
-			let permissions = if is_admin { Permissions::all() } else { Permissions::default() };
-
-			Authorizations::<T>::insert(
-				&delegate_authorization_id,
-				SpaceAuthorizationOf::<T> {
-					space_id: admin_space_id,
-					delegate: delegate.clone(),
-					permissions,
-					delegator: creator,
-				},
-			);
-
-			Self::increment_usage(&space_id).map_err(Error::<T>::from)?;
-
-			Self::update_activity(&space_id, CallTypeOf::Authorization)
+			let permissions = Permissions::ASSERT;
+			Self::space_delegate_addition(auth_space_id, delegate, creator, permissions)
 				.map_err(Error::<T>::from)?;
+			Ok(())
+		}
 
-			Self::deposit_event(Event::Authorization {
-				space: space_id,
-				authorization: delegate_authorization_id,
-				delegate,
-			});
+		/// Adds an administrative delegate to a space.
+		///
+		/// The `ADMIN` permission grants the delegate extensive control over
+		/// the space, including the ability to manage other delegates and
+		/// change space configurations. This function is called to
+		/// grant a delegate these administrative privileges. It verifies that
+		/// the caller has the necessary authorization (admin rights) to add an
+		/// admin delegate to the space. If the caller is authorized,
+		/// the delegate is added with the `ADMIN` permission using the
+		/// `space_delegate_addition` internal function.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the call, which must be signed by an
+		///   existing admin of the space.
+		/// - `space_id`: The identifier of the space to which the admin
+		///   delegate is being added.
+		/// - `delegate`: The identifier of the delegate being granted admin
+		///   permissions.
+		/// - `authorization`: The authorization ID used to validate the
+		///   addition.
+		///
+		/// # Returns
+		/// Returns `Ok(())` if the admin delegate was successfully added, or an
+		/// `Err` with an appropriate error if the operation fails.
+		///
+		/// # Errors
+		/// - `UnauthorizedOperation`: If the caller is not an admin of the
+		///   space.
+		/// - Propagates errors from `space_delegate_addition` if it fails.
+		#[pallet::call_index(1)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_admin_delegate())]
+		pub fn add_admin_delegate(
+			origin: OriginFor<T>,
+			space_id: SpaceIdOf,
+			delegate: SpaceCreatorOf<T>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = T::EnsureOrigin::ensure_origin(origin)?.subject();
 
+			// Determine the space_id from the authorization
+			let auth_space_id = Self::is_a_space_admin(&authorization, creator.clone())
+				.map_err(Error::<T>::from)?;
+			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
+
+			let permissions = Permissions::ADMIN;
+			Self::space_delegate_addition(auth_space_id, delegate, creator, permissions)
+				.map_err(Error::<T>::from)?;
+			Ok(())
+		}
+
+		/// Adds an audit delegate to a space.
+		///
+		/// The `AUDIT` permission grants the delegate the ability to perform
+		/// oversight and compliance checks within the space. This function is
+		/// used to assign a delegate these audit privileges. It ensures that
+		/// the caller has the necessary authorization (admin rights) to add an
+		/// audit delegate to the space. If the caller is authorized, the
+		/// delegate is added with the `AUDIT` permission using the
+		/// `space_delegate_addition` internal function.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the call, which must be signed by an
+		///   existing admin of the space.
+		/// - `space_id`: The identifier of the space to which the audit
+		///   delegate is being added.
+		/// - `delegate`: The identifier of the delegate being granted audit
+		///   permissions.
+		/// - `authorization`: The authorization ID used to validate the
+		///   addition.
+		///
+		/// # Returns
+		/// Returns `Ok(())` if the audit delegate was successfully added, or an
+		/// `Err` with an appropriate error if the operation fails.
+		#[pallet::call_index(2)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_audit_delegate())]
+		pub fn add_audit_delegate(
+			origin: OriginFor<T>,
+			space_id: SpaceIdOf,
+			delegate: SpaceCreatorOf<T>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = T::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			// Determine the space_id from the authorization
+			let auth_space_id = Self::is_a_space_admin(&authorization, creator.clone())
+				.map_err(Error::<T>::from)?;
+			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
+
+			let permissions = Permissions::AUDIT;
+			Self::space_delegate_addition(auth_space_id, delegate, creator, permissions)
+				.map_err(Error::<T>::from)?;
 			Ok(())
 		}
 
@@ -425,7 +446,7 @@ pub mod pallet {
 		/// revoked and they can no longer add entries to the space. This event
 		/// serves as a notification for external systems to update their
 		/// records, reflecting the change in delegation status for the space.
-		#[pallet::call_index(1)]
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_delegate())]
 		pub fn remove_delegate(
 			origin: OriginFor<T>,
@@ -505,7 +526,7 @@ pub mod pallet {
 		/// - `Create`: Emitted when a new space is successfully created. It
 		///   includes the space identifier, the creator's identifier, and the
 		///   authorization ID.
-		#[pallet::call_index(2)]
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(origin: OriginFor<T>, space_code: SpaceCodeOf<T>) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
@@ -611,7 +632,7 @@ pub mod pallet {
 		/// that they have the appropriate authority. Misuse can lead to
 		/// unauthorized approval of spaces, which may have security
 		/// implications.
-		#[pallet::call_index(3)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn approve(origin: OriginFor<T>, space_id: SpaceIdOf, capacity: u64) -> DispatchResult {
 			T::ChainSpaceOrigin::ensure_origin(origin)?;
@@ -668,7 +689,7 @@ pub mod pallet {
 		/// - `Archive`: Emitted when a space is successfully archived. It
 		///   includes the space ID and the authority who performed the
 		///   archival.
-		#[pallet::call_index(4)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::archive())]
 		pub fn archive(
 			origin: OriginFor<T>,
@@ -728,7 +749,7 @@ pub mod pallet {
 		/// - `Restore`: Emitted when a space is successfully restored. It
 		///   includes the space ID and the authority who performed the
 		///   restoration.
-		#[pallet::call_index(5)]
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::restore())]
 		pub fn restore(
 			origin: OriginFor<T>,
@@ -757,6 +778,98 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Adds a delegate to a space with specified permissions.
+	///
+	/// This function will add a new delegate to a space, given the space's ID,
+	/// the delegate's information, and the required permissions. It constructs
+	/// an authorization ID based on the space ID, delegate, and creator,
+	/// ensuring that the delegate is not already added. It also checks that the
+	/// space is not archived, is approved, and has not exceeded its capacity.
+	///
+	/// # Parameters
+	/// - `space_id`: The ID of the space to which the delegate is being added.
+	/// - `delegate`: The identifier of the delegate being added to the space.
+	/// - `creator`: The identifier of the creator or the caller who is adding
+	///   the delegate.
+	/// - `permissions`: The permissions to be assigned to the delegate.
+	/// - `authorization`: The authorization ID used to validate the addition.
+	///
+	/// # Returns
+	/// Returns `Ok(())` if the delegate was added successfully, or an `Err`
+	/// with an appropriate error if the operation fails.
+	///
+	/// # Errors
+	/// - `SpaceNotFound`: If the space with the given ID does not exist.
+	/// - `ArchivedSpace`: If the space is archived.
+	/// - `SpaceNotApproved`: If the space is not approved for adding delegates.
+	/// - `CapacityLimitExceeded`: If the space has reached its capacity limit.
+	/// - `InvalidIdentifierLength`: If the generated authorization ID is not
+	///   valid.
+	/// - `DelegateAlreadyAdded`: If the delegate is already added to the space.
+	/// - `SpaceDelegatesLimitExceeded`: If the space has reached the limit of
+	///   allowed delegates.
+	///
+	/// # Side Effects
+	/// - Updates the `Delegates` and `Authorizations` storage items.
+	/// - Increments the usage count of the space.
+	/// - Logs an `Authorization` event.
+	fn space_delegate_addition(
+		space_id: SpaceIdOf,
+		delegate: SpaceCreatorOf<T>,
+		creator: SpaceCreatorOf<T>,
+		permissions: Permissions,
+	) -> Result<(), Error<T>> {
+		let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+		ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+		ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+		ensure!(
+			space_details.capacity == 0 || space_details.usage < space_details.capacity,
+			Error::<T>::CapacityLimitExceeded
+		);
+
+		// Construct the authorization_id from the provided parameters.
+		// Id Digest = concat (H(<scale_encoded_space_identifier>,
+		// <scale_encoded_creator_identifier>, <scale_encoded_delegate_identifier>))
+		let id_digest = T::Hashing::hash(
+			&[&space_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
+		);
+
+		let delegate_authorization_id = Ss58Identifier::to_authorization_id(&id_digest.encode())
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+		ensure!(
+			!Authorizations::<T>::contains_key(&delegate_authorization_id),
+			Error::<T>::DelegateAlreadyAdded
+		);
+
+		let mut delegates = Delegates::<T>::get(&space_id);
+		delegates
+			.try_push(delegate.clone())
+			.map_err(|_| Error::<T>::SpaceDelegatesLimitExceeded)?;
+		Delegates::<T>::insert(&space_id, delegates);
+
+		Authorizations::<T>::insert(
+			&delegate_authorization_id,
+			SpaceAuthorizationOf::<T> {
+				space_id: space_id.clone(),
+				delegate: delegate.clone(),
+				permissions,
+				delegator: creator.clone(),
+			},
+		);
+
+		Self::increment_usage(&space_id).map_err(Error::<T>::from)?;
+		Self::update_activity(&space_id, CallTypeOf::Authorization).map_err(Error::<T>::from)?;
+
+		Self::deposit_event(Event::Authorization {
+			space: space_id,
+			authorization: delegate_authorization_id,
+			delegate,
+		});
+
+		Ok(())
+	}
+
 	/// Checks if a given entity is a delegate for the specified space.
 	///
 	/// This function retrieves the list of delegates for a space and determines
