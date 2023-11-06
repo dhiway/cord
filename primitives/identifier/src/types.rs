@@ -48,6 +48,7 @@ pub enum CallTypeOf {
 	Archive,
 	Authorization,
 	Deauthorization,
+	Approved,
 	Genesis,
 	Update,
 	Revoke,

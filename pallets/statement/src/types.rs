@@ -33,11 +33,11 @@ use sp_runtime::RuntimeDebug;
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct StatementDetails<StatementDigestOf, SchemaIdOf, RegistryIdOf> {
+pub struct StatementDetails<StatementDigestOf, SchemaIdOf, SpaceIdOf> {
 	/// Statement hash.
 	pub digest: StatementDigestOf,
 	/// Registry Identifier
-	pub registry: RegistryIdOf,
+	pub space: SpaceIdOf,
 	/// Schema Identifier
 	pub schema: Option<SchemaIdOf>,
 }
@@ -55,9 +55,9 @@ pub struct StatementDetails<StatementDigestOf, SchemaIdOf, RegistryIdOf> {
 #[derive(
 	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct StatementEntryStatus<StatementCreatorIdOf, StatusOf> {
+pub struct StatementEntryStatus<StatementCreatorOf, StatusOf> {
 	/// Statement status updater.
-	pub creator: StatementCreatorIdOf,
+	pub creator: StatementCreatorOf,
 	/// The flag indicating the status of the statement entry.
 	pub revoked: StatusOf,
 }

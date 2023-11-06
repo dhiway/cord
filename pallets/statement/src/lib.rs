@@ -60,8 +60,8 @@ pub mod pallet {
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
-	/// Registry Identifier
-	pub type RegistryIdOf = Ss58Identifier;
+	/// Space Identifier
+	pub type SpaceIdOf = Ss58Identifier;
 	/// Statement Identifier
 	pub type StatementIdOf = Ss58Identifier;
 	/// Schema Identifier
@@ -69,16 +69,15 @@ pub mod pallet {
 	/// Authorization Identifier
 	pub type AuthorizationIdOf = Ss58Identifier;
 	/// Type of a creator identifier.
-	pub type StatementCreatorIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
+	pub type StatementCreatorOf<T> = pallet_registry::SpaceCreatorOf<T>;
 	/// Hash of the statement.
 	pub type StatementDigestOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type for the statement details
-	pub type StatementDetailsOf<T> =
-		StatementDetails<StatementDigestOf<T>, SchemaIdOf, RegistryIdOf>;
+	pub type StatementDetailsOf<T> = StatementDetails<StatementDigestOf<T>, SchemaIdOf, SpaceIdOf>;
 	/// Type for the statement entry details
-	pub type StatementEntryStatusOf<T> = StatementEntryStatus<StatementCreatorIdOf<T>, StatusOf>;
+	pub type StatementEntryStatusOf<T> = StatementEntryStatus<StatementCreatorOf<T>, StatusOf>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_registry::Config + identifier::Config {
@@ -87,7 +86,7 @@ pub mod pallet {
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = <Self as Config>::OriginSuccess,
 		>;
-		type OriginSuccess: CallSources<AccountIdOf<Self>, StatementCreatorIdOf<Self>>;
+		type OriginSuccess: CallSources<AccountIdOf<Self>, StatementCreatorOf<Self>>;
 		/// Maximum entires supported per batch call
 		#[pallet::constant]
 		type MaxDigestsPerBatch: Get<u16>;
@@ -123,15 +122,15 @@ pub mod pallet {
 		StatementIdOf,
 		Blake2_128Concat,
 		StatementDigestOf<T>,
-		StatementCreatorIdOf<T>,
+		StatementCreatorOf<T>,
 		OptionQuery,
 	>;
 
 	/// Revocation registry of statement entries stored on chain.
 	/// It maps from a statement identifier and hash to its details.
 	#[pallet::storage]
-	#[pallet::getter(fn revocation_lookup)]
-	pub type RevocationRegistry<T> = StorageDoubleMap<
+	#[pallet::getter(fn revocation_list)]
+	pub type RevocationList<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
 		StatementIdOf,
@@ -150,7 +149,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		StatementDigestOf<T>,
 		Twox64Concat,
-		RegistryIdOf,
+		SpaceIdOf,
 		StatementIdOf,
 		OptionQuery,
 	>;
@@ -163,34 +162,34 @@ pub mod pallet {
 		Created {
 			identifier: StatementIdOf,
 			digest: StatementDigestOf<T>,
-			author: StatementCreatorIdOf<T>,
+			author: StatementCreatorOf<T>,
 		},
 		/// A statement identifier has been updated.
 		/// \[statement identifier, digest, controller\]
 		Updated {
 			identifier: StatementIdOf,
 			digest: StatementDigestOf<T>,
-			author: StatementCreatorIdOf<T>,
+			author: StatementCreatorOf<T>,
 		},
 		/// A statement identifier status has been revoked.
 		/// \[statement identifier, controller\]
-		Revoked { identifier: StatementIdOf, author: StatementCreatorIdOf<T> },
+		Revoked { identifier: StatementIdOf, author: StatementCreatorOf<T> },
 		/// A statement identifier status has been restored.
 		/// \[statement identifier, controller\]
-		Restored { identifier: StatementIdOf, author: StatementCreatorIdOf<T> },
+		Restored { identifier: StatementIdOf, author: StatementCreatorOf<T> },
 		/// A statement identifier has been removed.
 		/// \[statement identifier,  controller\]
-		Removed { identifier: StatementIdOf, author: StatementCreatorIdOf<T> },
+		Removed { identifier: StatementIdOf, author: StatementCreatorOf<T> },
 		/// A statement identifier has been removed.
 		/// \[statement identifier,  controller\]
-		PartialRemoval { identifier: StatementIdOf, removed: u32, author: StatementCreatorIdOf<T> },
+		PartialRemoval { identifier: StatementIdOf, removed: u32, author: StatementCreatorOf<T> },
 
 		/// A statement digest has been added.
 		/// \[statement identifier, digest, controller\]
 		Digest {
 			identifier: StatementIdOf,
 			digest: StatementDigestOf<T>,
-			author: StatementCreatorIdOf<T>,
+			author: StatementCreatorOf<T>,
 		},
 		/// A statement batch has been processed.
 		/// \[successful count, failed count, failed indices,
@@ -199,7 +198,7 @@ pub mod pallet {
 			successful: u32,
 			failed: u32,
 			indices: Vec<u16>,
-			author: StatementCreatorIdOf<T>,
+			author: StatementCreatorOf<T>,
 		},
 	}
 
@@ -286,20 +285,20 @@ pub mod pallet {
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			// Validate registry_id based on schema_id presence.
-			let registry_id = match schema_id.clone() {
-				Some(id) =>
-					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &creator, Some(id)),
-				None => pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &creator, None),
-			}
-			.map_err(<pallet_registry::Error<T>>::from)?;
+			let space_id =
+				pallet_registry::Pallet::<T>::is_a_space_delegate(&authorization, &creator)
+					.map_err(<pallet_registry::Error<T>>::from)?;
+
+			// Ensure the space has not exceeded its capacity.
+			pallet_registry::Pallet::<T>::ensure_capacity_not_exceeded(&space_id)
+				.map_err(<pallet_registry::Error<T>>::from)?;
 
 			// Id Digest = concat (H(<scale_encoded_statement_digest>,
 			// <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[
 					&digest.encode()[..],
-					&registry_id.clone().encode()[..],
+					&space_id.clone().encode()[..],
 					&creator.clone().encode()[..],
 				]
 				.concat()[..],
@@ -318,12 +317,15 @@ pub mod pallet {
 				StatementDetailsOf::<T> {
 					digest,
 					schema: schema_id.clone(),
-					registry: registry_id.clone(),
+					space: space_id.clone(),
 				},
 			);
 
 			<Entries<T>>::insert(&identifier, digest, creator.clone());
-			<IdentifierLookup<T>>::insert(digest, &registry_id, &identifier);
+			<IdentifierLookup<T>>::insert(digest, &space_id, &identifier);
+
+			pallet_registry::Pallet::<T>::increment_usage(&space_id)
+				.map_err(<pallet_registry::Error<T>>::from)?;
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
 
@@ -360,7 +362,7 @@ pub mod pallet {
 
 			// Check for revocation first to fail early if applicable.
 			ensure!(
-				!<RevocationRegistry<T>>::contains_key(&statement_id, &statement_details.digest),
+				!<RevocationList<T>>::contains_key(&statement_id, &statement_details.digest),
 				Error::<T>::StatementRevoked
 			);
 
@@ -370,23 +372,13 @@ pub mod pallet {
 				Error::<T>::StatementAlreadyAnchored
 			);
 
-			// Check if the updater is the previous creator or a delegate with the proper
-			// authorization.
-			let is_updater_creator = Entries::<T>::get(&statement_id, &statement_details.digest)
-				.map_or(false, |prev_creator| prev_creator == updater);
+			let space_id =
+				pallet_registry::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
+					.map_err(<pallet_registry::Error<T>>::from)?;
 
-			if !is_updater_creator {
-				let registry_id =
-					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &updater, None)
-						.map_err(<pallet_registry::Error<T>>::from)?;
+			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
-				ensure!(
-					statement_details.registry == registry_id,
-					Error::<T>::UnauthorizedOperation
-				);
-			}
-
-			<RevocationRegistry<T>>::insert(
+			<RevocationList<T>>::insert(
 				&statement_id,
 				&statement_details.digest,
 				StatementEntryStatusOf::<T> { creator: updater.clone(), revoked: true },
@@ -396,7 +388,7 @@ pub mod pallet {
 
 			<IdentifierLookup<T>>::insert(
 				&new_statement_digest,
-				&statement_details.registry.clone(),
+				&statement_details.space.clone(),
 				&statement_id,
 			);
 
@@ -404,6 +396,9 @@ pub mod pallet {
 				&statement_id,
 				StatementDetailsOf::<T> { digest: new_statement_digest, ..statement_details },
 			);
+
+			pallet_registry::Pallet::<T>::increment_usage(&space_id)
+				.map_err(<pallet_registry::Error<T>>::from)?;
 
 			Self::update_activity(&statement_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
 
@@ -441,7 +436,7 @@ pub mod pallet {
 
 			// Check for revocation first to fail early if applicable.
 			ensure!(
-				!<RevocationRegistry<T>>::contains_key(&statement_id, &statement_details.digest),
+				!<RevocationList<T>>::contains_key(&statement_id, &statement_details.digest),
 				Error::<T>::StatementRevoked
 			);
 
@@ -451,17 +446,14 @@ pub mod pallet {
 				.map_or(false, |prev_creator| prev_creator == updater);
 
 			if !is_updater_creator {
-				let registry_id =
-					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &updater, None)
+				let space_id =
+					pallet_registry::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
 						.map_err(<pallet_registry::Error<T>>::from)?;
 
-				ensure!(
-					statement_details.registry == registry_id,
-					Error::<T>::UnauthorizedOperation
-				);
+				ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 			}
 
-			<RevocationRegistry<T>>::insert(
+			<RevocationList<T>>::insert(
 				&statement_id,
 				&statement_details.digest,
 				StatementEntryStatusOf::<T> { creator: updater.clone(), revoked: true },
@@ -499,7 +491,7 @@ pub mod pallet {
 
 			// Check for revocation first to fail early if not revoked.
 			ensure!(
-				<RevocationRegistry<T>>::contains_key(&statement_id, &statement_details.digest),
+				<RevocationList<T>>::contains_key(&statement_id, &statement_details.digest),
 				Error::<T>::StatementNotRevoked
 			);
 
@@ -509,17 +501,14 @@ pub mod pallet {
 				.map_or(false, |prev_creator| prev_creator == updater);
 
 			if !is_updater_creator {
-				let registry_id =
-					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &updater, None)
+				let space_id =
+					pallet_registry::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
 						.map_err(<pallet_registry::Error<T>>::from)?;
 
-				ensure!(
-					statement_details.registry == registry_id,
-					Error::<T>::UnauthorizedOperation
-				);
+				ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 			}
 
-			<RevocationRegistry<T>>::remove(&statement_id, &statement_details.digest);
+			<RevocationList<T>>::remove(&statement_id, &statement_details.digest);
 
 			Self::update_activity(&statement_id, CallTypeOf::Restore).map_err(<Error<T>>::from)?;
 			Self::deposit_event(Event::Restored { identifier: statement_id, author: updater });
@@ -552,11 +541,11 @@ pub mod pallet {
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
 
 			// Authorization check is moved up to fail early.
-			let registry_id =
-				pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &updater, None)
+			let space_id =
+				pallet_registry::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
 					.map_err(<pallet_registry::Error<T>>::from)?;
 
-			ensure!(statement_details.registry == registry_id, Error::<T>::UnauthorizedOperation);
+			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
 			// Count the entries in `Entries`.
 			let entries_count = <Entries<T>>::iter_prefix(&statement_id).count();
@@ -570,23 +559,30 @@ pub mod pallet {
 			if is_complete_removal {
 				// Perform a complete removal.
 				for (digest, _) in <Entries<T>>::iter_prefix(&statement_id) {
-					<IdentifierLookup<T>>::remove(&digest, &registry_id);
+					<IdentifierLookup<T>>::remove(&digest, &space_id);
 				}
-				let _ = <RevocationRegistry<T>>::clear_prefix(
-					&statement_id,
-					entries_count as u32,
-					None,
-				);
+				let _ =
+					<RevocationList<T>>::clear_prefix(&statement_id, entries_count as u32, None);
 				let _ = <Entries<T>>::clear_prefix(&statement_id, entries_count as u32, None);
 				<Statements<T>>::remove(&statement_id);
+				pallet_registry::Pallet::<T>::decrement_usage_batch(
+					&space_id,
+					entries_count as u64,
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
 			} else {
 				// Perform a partial removal.
 				for (digest, _) in <Entries<T>>::iter_prefix(&statement_id).take(max_removals) {
-					<IdentifierLookup<T>>::remove(&digest, &registry_id);
-					<RevocationRegistry<T>>::remove(&statement_id, &digest);
+					<IdentifierLookup<T>>::remove(&digest, &space_id);
+					<RevocationList<T>>::remove(&statement_id, &digest);
 					<Entries<T>>::remove(&statement_id, &digest);
 					removed_count += 1;
 				}
+				pallet_registry::Pallet::<T>::decrement_usage_batch(
+					&space_id,
+					removed_count as u64,
+				)
+				.map_err(<pallet_registry::Error<T>>::from)?;
 			}
 
 			// Update activity and emit the appropriate event.
@@ -627,12 +623,15 @@ pub mod pallet {
 				Error::<T>::MaxDigestLimitExceeded
 			);
 
-			// Validate registry_id based on schema_id presence.
-			let registry_id = match schema_id.clone() {
-				Some(id) =>
-					pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &creator, Some(id)),
-				None => pallet_registry::Pallet::<T>::is_a_delegate(&authorization, &creator, None),
-			}
+			let space_id =
+				pallet_registry::Pallet::<T>::is_a_space_delegate(&authorization, &creator)
+					.map_err(<pallet_registry::Error<T>>::from)?;
+
+			// Ensure the space has not exceeded its capacity for batch.
+			pallet_registry::Pallet::<T>::ensure_capacity_not_exceeded_batch(
+				&space_id,
+				digests.len() as u64,
+			)
 			.map_err(<pallet_registry::Error<T>>::from)?;
 
 			let mut success = 0u32;
@@ -643,7 +642,7 @@ pub mod pallet {
 				let id_digest = <T as frame_system::Config>::Hashing::hash(
 					&[
 						&digest.encode()[..],
-						&registry_id.clone().encode()[..],
+						&space_id.clone().encode()[..],
 						&creator.clone().encode()[..],
 					]
 					.concat()[..],
@@ -662,12 +661,12 @@ pub mod pallet {
 								StatementDetailsOf::<T> {
 									digest: digest.clone(),
 									schema: schema_id.clone(),
-									registry: registry_id.clone(),
+									space: space_id.clone(),
 								},
 							);
 
 							<Entries<T>>::insert(&identifier, digest, creator.clone());
-							<IdentifierLookup<T>>::insert(&digest, &registry_id, &identifier);
+							<IdentifierLookup<T>>::insert(&digest, &space_id, &identifier);
 
 							if Self::update_activity(&identifier, CallTypeOf::Genesis).is_err() {
 								fail += 1;
@@ -684,6 +683,9 @@ pub mod pallet {
 			}
 
 			ensure!(success > 0, Error::<T>::BulkTransactionFailed);
+
+			pallet_registry::Pallet::<T>::increment_usage_batch(&space_id, success as u64)
+				.map_err(<pallet_registry::Error<T>>::from)?;
 
 			Self::deposit_event(Event::BatchCreate {
 				successful: success,

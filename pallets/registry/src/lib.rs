@@ -75,6 +75,7 @@ pub mod pallet {
 		>;
 		type OriginSuccess: CallSources<AccountIdOf<Self>, SpaceCreatorOf<Self>>;
 		type SpaceCreatorId: Parameter + MaxEncodedLen;
+		type ChainSpaceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		#[pallet::constant]
 		type MaxSpaceDelegates: Get<u32>;
@@ -132,6 +133,9 @@ pub mod pallet {
 		/// A new chain space has been created.
 		/// \[space identifier, creator, authorization\]
 		Create { space: SpaceIdOf, creator: SpaceCreatorOf<T>, authorization: AuthorizationIdOf },
+		/// A new chain space has been approved.
+		/// \[space identifier \]
+		Approve { space: SpaceIdOf },
 		/// A space has been archived.
 		/// \[space identifier,  authority\]
 		Archive { space: SpaceIdOf, authority: SpaceCreatorOf<T> },
@@ -169,6 +173,12 @@ pub mod pallet {
 		AuthorizationNotFound,
 		/// Delegate not found.
 		DelegateNotFound,
+		/// Space already approved
+		SpaceAlreadyApproved,
+		/// Space not approved.
+		SpaceNotApproved,
+		/// The capacity limit for the space has been exceeded.
+		CapacityLimitExceeded,
 	}
 
 	#[pallet::call]
@@ -202,6 +212,11 @@ pub mod pallet {
 
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+			ensure!(
+				space_details.capacity == 0 || space_details.usage < space_details.capacity,
+				Error::<T>::CapacityLimitExceeded
+			);
 
 			// Construct the authorization_id from the provided parameters.
 			// Id Digest = concat (H(<scale_encoded_space_identifier>,
@@ -237,6 +252,8 @@ pub mod pallet {
 					delegator: creator,
 				},
 			);
+
+			Self::increment_usage(&space_id).map_err(Error::<T>::from)?;
 
 			Self::update_activity(&space_id, CallTypeOf::Authorization)
 				.map_err(Error::<T>::from)?;
@@ -283,6 +300,7 @@ pub mod pallet {
 
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
 			let mut delegates = Delegates::<T>::get(&space_id);
 			if let Some(index) = delegates.iter().position(|d| d == &authorization_details.delegate)
@@ -291,6 +309,8 @@ pub mod pallet {
 				Delegates::<T>::insert(&space_id, delegates);
 
 				Authorizations::<T>::remove(&remove_authorization);
+
+				Self::decrement_usage(&space_id).map_err(Error::<T>::from)?;
 
 				Self::update_activity(&space_id, CallTypeOf::Deauthorization)
 					.map_err(Error::<T>::from)?;
@@ -364,7 +384,14 @@ pub mod pallet {
 
 			<Spaces<T>>::insert(
 				&identifier,
-				SpaceDetailsOf::<T> { code: space_code, creator: creator.clone(), archive: false },
+				SpaceDetailsOf::<T> {
+					code: space_code,
+					creator: creator.clone(),
+					capacity: 0,
+					usage: 0,
+					approved: false,
+					archive: false,
+				},
 			);
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
@@ -374,6 +401,27 @@ pub mod pallet {
 				creator,
 				authorization: authorization_id,
 			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		pub fn approve(origin: OriginFor<T>, space_id: SpaceIdOf, capacity: u64) -> DispatchResult {
+			T::ChainSpaceOrigin::ensure_origin(origin)?;
+
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+			ensure!(!space_details.approved, Error::<T>::SpaceAlreadyApproved);
+
+			<Spaces<T>>::insert(
+				&space_id,
+				SpaceDetailsOf::<T> { capacity, approved: true, ..space_details },
+			);
+
+			Self::update_activity(&space_id, CallTypeOf::Approved).map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::Approve { space: space_id });
 
 			Ok(())
 		}
@@ -388,7 +436,7 @@ pub mod pallet {
 		/// Returns:
 		///
 		/// DispatchResult
-		#[pallet::call_index(3)]
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::archive())]
 		pub fn archive(
 			origin: OriginFor<T>,
@@ -399,6 +447,7 @@ pub mod pallet {
 
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
 			let admin_space_id = Self::is_a_space_admin(&authorization, creator.clone())
 				.map_err(Error::<T>::from)?;
@@ -423,7 +472,7 @@ pub mod pallet {
 		/// Returns:
 		///
 		/// DispatchResult
-		#[pallet::call_index(4)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::restore())]
 		pub fn restore(
 			origin: OriginFor<T>,
@@ -434,6 +483,7 @@ pub mod pallet {
 
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(space_details.archive, Error::<T>::SpaceNotArchived);
+			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
 			let admin_space_id = Self::is_a_space_admin(&authorization, creator.clone())
 				.map_err(Error::<T>::from)?;
@@ -479,6 +529,85 @@ impl<T: Config> Pallet<T> {
 		ensure!(d.permissions.contains(Permissions::ADMIN), Error::<T>::UnauthorizedOperation);
 
 		Ok(d.space_id)
+	}
+
+	/// Ensures that the space has not exceeded its capacity.
+	pub fn ensure_capacity_not_exceeded(space_id: &SpaceIdOf) -> Result<(), Error<T>> {
+		Spaces::<T>::get(space_id)
+			.ok_or(Error::<T>::SpaceNotFound)
+			.and_then(|space_details| {
+				if space_details.capacity == 0 || space_details.usage < space_details.capacity {
+					Ok(())
+				} else {
+					Err(Error::<T>::CapacityLimitExceeded)
+				}
+			})
+	}
+
+	/// Ensures that the space has not exceeded its capacity for batch.
+	pub fn ensure_capacity_not_exceeded_batch(
+		space_id: &SpaceIdOf,
+		entries: u64,
+	) -> Result<(), Error<T>> {
+		Spaces::<T>::get(space_id)
+			.ok_or(Error::<T>::SpaceNotFound)
+			.and_then(|space_details| {
+				if space_details.capacity == 0 ||
+					space_details.usage + entries <= space_details.capacity
+				{
+					Ok(())
+				} else {
+					Err(Error::<T>::CapacityLimitExceeded)
+				}
+			})
+	}
+
+	/// Increments the usage of the space by one unit.
+	pub fn increment_usage(tx_id: &SpaceIdOf) -> Result<(), Error<T>> {
+		Spaces::<T>::try_mutate(tx_id, |space_opt| {
+			if let Some(space_details) = space_opt {
+				space_details.usage = space_details.usage.saturating_add(1);
+				Ok(())
+			} else {
+				Err(Error::<T>::SpaceNotFound.into())
+			}
+		})
+	}
+
+	/// Decrements the usage of the space by one unit.
+	pub fn decrement_usage(tx_id: &SpaceIdOf) -> Result<(), Error<T>> {
+		Spaces::<T>::try_mutate(tx_id, |space_opt| {
+			if let Some(space_details) = space_opt {
+				space_details.usage = space_details.usage.saturating_sub(1);
+				Ok(())
+			} else {
+				Err(Error::<T>::SpaceNotFound.into())
+			}
+		})
+	}
+
+	/// Increments the usage of the space by one unit.
+	pub fn increment_usage_batch(tx_id: &SpaceIdOf, increment: u64) -> Result<(), Error<T>> {
+		Spaces::<T>::try_mutate(tx_id, |space_opt| {
+			if let Some(space_details) = space_opt {
+				space_details.usage = space_details.usage.saturating_add(increment);
+				Ok(())
+			} else {
+				Err(Error::<T>::SpaceNotFound.into())
+			}
+		})
+	}
+
+	/// Decrements the usage of the space by one unit.
+	pub fn decrement_usage_batch(tx_id: &SpaceIdOf, decrement: u64) -> Result<(), Error<T>> {
+		Spaces::<T>::try_mutate(tx_id, |space_opt| {
+			if let Some(space_details) = space_opt {
+				space_details.usage = space_details.usage.saturating_sub(decrement);
+				Ok(())
+			} else {
+				Err(Error::<T>::SpaceNotFound.into())
+			}
+		})
 	}
 
 	pub fn update_activity(tx_id: &SpaceIdOf, tx_action: CallTypeOf) -> Result<(), Error<T>> {

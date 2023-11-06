@@ -55,6 +55,13 @@ pub struct SpaceDetails<SpaceCodeOf, SpaceCreatorOf, StatusOf> {
 	pub code: SpaceCodeOf,
 	/// Space creator.
 	pub creator: SpaceCreatorOf,
+	/// The maximum capacity that the space is approved for.
+	/// Capcity value set to zero allows unlimited transactions
+	pub capacity: u64,
+	/// The amount of the capacity that is currently being used.
+	pub usage: u64,
+	/// Approved by governance or root.
+	pub approved: StatusOf,
 	/// The flag indicating the status of the space.
 	pub archive: StatusOf,
 }
