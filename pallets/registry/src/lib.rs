@@ -547,13 +547,13 @@ impl<T: Config> Pallet<T> {
 	/// Ensures that the space has not exceeded its capacity for batch.
 	pub fn ensure_capacity_not_exceeded_batch(
 		space_id: &SpaceIdOf,
-		entries: u64,
+		entries: u16,
 	) -> Result<(), Error<T>> {
 		Spaces::<T>::get(space_id)
 			.ok_or(Error::<T>::SpaceNotFound)
 			.and_then(|space_details| {
 				if space_details.capacity == 0 ||
-					space_details.usage + entries <= space_details.capacity
+					space_details.usage + entries as u64 <= space_details.capacity
 				{
 					Ok(())
 				} else {
@@ -587,10 +587,10 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Increments the usage of the space by one unit.
-	pub fn increment_usage_batch(tx_id: &SpaceIdOf, increment: u64) -> Result<(), Error<T>> {
+	pub fn increment_usage_batch(tx_id: &SpaceIdOf, increment: u16) -> Result<(), Error<T>> {
 		Spaces::<T>::try_mutate(tx_id, |space_opt| {
 			if let Some(space_details) = space_opt {
-				space_details.usage = space_details.usage.saturating_add(increment);
+				space_details.usage = space_details.usage.saturating_add(increment.into());
 				Ok(())
 			} else {
 				Err(Error::<T>::SpaceNotFound.into())
@@ -599,10 +599,10 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Decrements the usage of the space by one unit.
-	pub fn decrement_usage_batch(tx_id: &SpaceIdOf, decrement: u64) -> Result<(), Error<T>> {
+	pub fn decrement_usage_batch(tx_id: &SpaceIdOf, decrement: u16) -> Result<(), Error<T>> {
 		Spaces::<T>::try_mutate(tx_id, |space_opt| {
 			if let Some(space_details) = space_opt {
-				space_details.usage = space_details.usage.saturating_sub(decrement);
+				space_details.usage = space_details.usage.saturating_sub(decrement.into());
 				Ok(())
 			} else {
 				Err(Error::<T>::SpaceNotFound.into())

@@ -567,7 +567,7 @@ pub mod pallet {
 				<Statements<T>>::remove(&statement_id);
 				pallet_registry::Pallet::<T>::decrement_usage_batch(
 					&space_id,
-					entries_count as u64,
+					entries_count as u16,
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 			} else {
@@ -580,7 +580,7 @@ pub mod pallet {
 				}
 				pallet_registry::Pallet::<T>::decrement_usage_batch(
 					&space_id,
-					removed_count as u64,
+					removed_count as u16,
 				)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 			}
@@ -630,7 +630,7 @@ pub mod pallet {
 			// Ensure the space has not exceeded its capacity for batch.
 			pallet_registry::Pallet::<T>::ensure_capacity_not_exceeded_batch(
 				&space_id,
-				digests.len() as u64,
+				digests.len() as u16,
 			)
 			.map_err(<pallet_registry::Error<T>>::from)?;
 
@@ -684,7 +684,7 @@ pub mod pallet {
 
 			ensure!(success > 0, Error::<T>::BulkTransactionFailed);
 
-			pallet_registry::Pallet::<T>::increment_usage_batch(&space_id, success as u64)
+			pallet_registry::Pallet::<T>::increment_usage_batch(&space_id, success as u16)
 				.map_err(<pallet_registry::Error<T>>::from)?;
 
 			Self::deposit_event(Event::BatchCreate {
