@@ -66,7 +66,7 @@ pub mod pallet {
 	pub type UniqueHashOf<T> = <T as frame_system::Config>::Hash;
 
 	/// Type of a creator identifier.
-	pub type UniqueCreatorIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
+	pub type UniqueCreatorIdOf<T> = pallet_chain_space::RegistryCreatorIdOf<T>;
 
 	/// Hash of the unique.
 	pub type UniqueDigestOf<T> = <T as frame_system::Config>::Hash;
@@ -89,7 +89,7 @@ pub mod pallet {
 	>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_registry::Config {
+	pub trait Config: frame_system::Config + pallet_chain_space::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
@@ -251,12 +251,12 @@ pub mod pallet {
 			let mut u_reqistryid: Option<RegistryIdOf> = None;
 
 			if let Some(authorization) = authorization.clone() {
-				let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
+				let registry_id = pallet_chain_space::Pallet::<T>::is_a_delegate(
 					&authorization,
 					creator.clone(),
 					None,
 				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 				u_reqistryid = Some(registry_id);
 			}
 
@@ -334,11 +334,11 @@ pub mod pallet {
 			ensure!(!unique_details.revoked, Error::<T>::RevokedUnique);
 
 			if unique_details.creator != updater {
-				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
+				let registry_id = pallet_chain_space::Pallet::<T>::is_a_registry_admin(
 					&authorization.unwrap(),
 					updater.clone(),
 				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 				ensure!(
 					unique_details.registry.clone().unwrap_or(None) == Some(registry_id),
@@ -415,12 +415,12 @@ pub mod pallet {
 
 			// Check if the updater is authorized as a delegate
 			if unique_details.creator != updater {
-				let registry_id = pallet_registry::Pallet::<T>::is_a_delegate(
+				let registry_id = pallet_chain_space::Pallet::<T>::is_a_delegate(
 					&authorization,
 					updater.clone(),
 					None,
 				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 				// Return an error if the updater is not authorized as a delegate
 				ensure!(
@@ -474,11 +474,11 @@ pub mod pallet {
 				<UniqueIdentifiers<T>>::get(&unique_id).ok_or(Error::<T>::UniqueNotFound)?;
 
 			if unique_details.creator != updater {
-				let registry_id = pallet_registry::Pallet::<T>::is_a_registry_admin(
+				let registry_id = pallet_chain_space::Pallet::<T>::is_a_registry_admin(
 					&authorization.unwrap(),
 					updater.clone(),
 				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 				ensure!(
 					unique_details.registry.clone().unwrap_or(None) == Some(registry_id),

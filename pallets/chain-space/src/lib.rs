@@ -16,48 +16,71 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 //
-//! # Chain Space Module
+
+//! # ChainSpace Pallet
 //!
-//! The Chain Space Module facilitates the creation and governance of isolated
-//! spaces within the CORD blockchain. These spaces serve as distinct segments
-//! with their own governance and permission systems, allowing for fine-grained
-//! control over state updates and interactions within each space.
+//! The ChainSpace pallet provides a framework for creating and managing
+//! isolated spaces within the CORD blockchain that can be governed and
+//! moderated with a fine-grained permission system. It allows for the creation,
+//! approval, and archival of spaces, as well as the management of delegates
+//! within these spaces.
 //!
 //! ## Overview
 //!
-//! The module is designed to provide a flexible framework for space management,
-//! enabling the establishment of various governance models tailored to the
-//! needs of each space. It supports the creation of spaces, each with
-//! a unique identifier and a set of permissions that dictate the actions that
-//! can be performed within that space.
+//! The ChainSpace pallet allows for the creation of distinct spaces on the CORD
+//! blockchain, each with its own set of rules and governance. These spaces can
+//! be used to manage different ecosystems or communities within the larger
+//! blockchain environment. Spaces are created with a unique identifier and can
+//! be managed by appointed delegates.
 //!
-//! ## Features
+//! ## Interface
 //!
-//! - **Isolated Spaces**: Each space is an isolated entity with its own state
-//!   and governance rules, ensuring that actions within one space do not affect
-//!   others.
-//! - **Governance**: Spaces can be managed via a governance model, which can be
-//!   as simple or complex as required by the space's stakeholders.
-//! - **Fine-Grained Permissions**: The module supports the creation of a
-//!   detailed permission system for each space, allowing for specific actions
-//!   to be permitted or denied based on the roles and rights of interacting
-//!   entities.
-//! - **State Updates**: State changes within a space are managed through a
-//!   controlled process that respects the established permission system,
-//!   ensuring that only authorized actions are executed.
+//! The pallet provides dispatchable functions for space management:
+//!
+//! - `create`: Initializes a new space with a unique identifier.
+//! - `approve`: Approves a space for use, setting its capacity and governance
+//!   status.
+//! - `archive`: Marks a space as archived, effectively freezing its state.
+//! - `restore`: Unarchives a space, returning it to active status.
+//! - `add_delegate`: Adds a delegate to a space, granting them specific
+//!   permissions.
+//! - `remove_delegate`: Removes a delegate from a space, revoking their
+//!   permissions.
+//!
+//! ## Permissions
+//!
+//! The pallet uses a permissions system to manage the actions that delegates
+//! can perform within a space. Permissions are granular and can be assigned to
+//! different roles, such as an admin or a regular delegate.
+//!
+//! ## Data Privacy
+//!
+//! The ChainSpace pallet is designed with data privacy as a core consideration.
+//! It does not directly store any personal or sensitive information on-chain.
+//! Instead, it manages references to off-chain data, ensuring that the
+//! blockchain layer remains compliant with data privacy regulations. Users and
+//! developers are responsible for ensuring that the off-chain data handling
+//! processes adhere to the applicable laws and standards.
 //!
 //! ## Usage
 //!
-//! The Chain Space Module is used by chain administrators and other authorized
-//! entities to create and manage spaces. It is accessed through a set of
-//! callable functions that allow for the creation, configuration, and
-//! governance of spaces. These functions are protected by the module's
-//! permission system, ensuring that only authorized users can perform
-//! governance actions.
+//! The ChainSpace pallet can be used by other pallets to create
+//! compartmentalized and governed sections of the blockchain. This is
+//! particularly useful for applications that require distinct governance models
+//! or privacy settings within a shared ecosystem.
 //!
-//! This module is crucial for permissioned chains that require
-//! compartmentalization of governance and a robust permission system to manage
-//! the diverse needs of their ecosystems.
+//! ## Governance Integration
+//!
+//! The ChainSpace pallet is integrated with on-chain governance pallets to
+//! allow space administrators and delegates to propose changes, vote on
+//! initiatives, or manage the space in accordance with the collective decisions
+//! of its members.
+//!
+//! ## Examples
+//!
+//! - Creating a new space for a community-driven project.
+//! - Approving a space for official use after meeting certain criteria.
+//! - Archiving a space that is no longer active or has violated terms of use.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -1030,13 +1053,6 @@ impl<T: Config> Pallet<T> {
 	/// entities. It is triggered by the system in response to actions such as
 	/// creating, modifying, or deleting a space, as well as adding or removing
 	/// delegates.
-	///
-	/// # Example
-	/// The following is an illustrative example of how the system might invoke
-	/// this function: ```
-	/// // Assume `tx_id` and `tx_action` are provided by the context in which a
-	/// space is being updated. update_activity(&tx_id, tx_action)?;
-	/// ```
 	///
 	/// The function ensures that the global timeline reflects all updates,
 	/// providing a reliable audit trail for the space's lifecycle.

@@ -20,6 +20,7 @@
 
 pub mod frame_system;
 pub mod pallet_balances;
+pub mod pallet_chain_space;
 pub mod pallet_collective;
 pub mod pallet_did;
 pub mod pallet_did_name;
@@ -30,7 +31,6 @@ pub mod pallet_membership;
 pub mod pallet_multisig;
 pub mod pallet_network_membership;
 pub mod pallet_preimage;
-pub mod pallet_registry;
 pub mod pallet_remark;
 pub mod pallet_scheduler;
 pub mod pallet_schema;

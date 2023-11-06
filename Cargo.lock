@@ -1488,6 +1488,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-babe",
  "pallet-balances",
+ "pallet-chain-space",
  "pallet-collective",
  "pallet-did",
  "pallet-did-name",
@@ -1502,7 +1503,6 @@ dependencies = [
  "pallet-node-authorization",
  "pallet-offences",
  "pallet-preimage",
- "pallet-registry",
  "pallet-remark",
  "pallet-runtime-upgrade",
  "pallet-scheduler",
@@ -5469,6 +5469,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-chain-space"
+version = "0.9.0"
+dependencies = [
+ "bitflags 1.3.2",
+ "cord-identifier",
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-collective"
 version = "0.9.0"
 dependencies = [
@@ -5725,29 +5748,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-registry"
-version = "0.9.0"
-dependencies = [
- "bitflags 1.3.2",
- "cord-identifier",
- "cord-primitives",
- "cord-utilities",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
- "substrate-wasm-builder",
-]
-
-[[package]]
 name = "pallet-remark"
 version = "23.0.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.1.0#eb65df7f9948b71356dcb07c3e7d2a8edd2bc126"
@@ -5826,7 +5826,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "pallet-balances",
- "pallet-registry",
+ "pallet-chain-space",
  "pallet-schema",
  "parity-scale-codec",
  "scale-info",
@@ -5893,7 +5893,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "pallet-balances",
- "pallet-registry",
+ "pallet-chain-space",
  "pallet-schema",
  "parity-scale-codec",
  "scale-info",
@@ -5963,7 +5963,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "pallet-balances",
- "pallet-registry",
+ "pallet-chain-space",
  "pallet-schema",
  "parity-scale-codec",
  "scale-info",

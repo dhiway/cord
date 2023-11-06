@@ -6,7 +6,7 @@ use cord_primitives::curi::Ss58Identifier;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
-use pallet_registry::{
+use pallet_chain_space::{
 	Authorizations, InputRegistryOf, Permissions, RegistryAuthorizationOf, RegistryHashOf,
 };
 use pallet_schema::SchemaHashOf;

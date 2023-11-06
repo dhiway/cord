@@ -753,7 +753,7 @@ parameter_types! {
 	pub const MaxRegistryCommitActions: u32 = 1_000;
 }
 
-impl pallet_registry::Config for Runtime {
+impl pallet_chain_space::Config for Runtime {
 	type RegistryCreatorId = DidIdentifier;
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
@@ -761,7 +761,7 @@ impl pallet_registry::Config for Runtime {
 	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
 	type MaxRegistryAuthorities = MaxRegistryAuthorities;
 	type MaxRegistryCommitActions = MaxRegistryCommitActions;
-	type WeightInfo = weights::pallet_registry::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -844,7 +844,7 @@ construct_runtime! (
 		NetworkMembership: pallet_network_membership =101,
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,
-		Registry: pallet_registry = 104,
+		Registry: pallet_chain_space = 104,
 		Statement: pallet_statement = 105,
 		DidName: pallet_did_name = 106,
 		Unique: pallet_unique = 107,
@@ -892,17 +892,17 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Score { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) =>
+			RuntimeCall::Registry(pallet_chain_space::Call::add_admin_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::Registry(pallet_registry::Call::add_delegate { .. }) =>
+			RuntimeCall::Registry(pallet_chain_space::Call::add_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::Registry(pallet_registry::Call::remove_delegate { .. }) =>
+			RuntimeCall::Registry(pallet_chain_space::Call::remove_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::Registry(pallet_registry::Call::create { .. }) =>
+			RuntimeCall::Registry(pallet_chain_space::Call::create { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Registry(pallet_registry::Call::archive { .. }) =>
+			RuntimeCall::Registry(pallet_chain_space::Call::archive { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Registry(pallet_registry::Call::restore { .. }) =>
+			RuntimeCall::Registry(pallet_chain_space::Call::restore { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) =>
 				single_key_relationship(&calls[..]),
@@ -992,7 +992,7 @@ mod benches {
 		[pallet_schema, Schema]
 		[pallet_statement, Statement]
 		[pallet_unique, Unique]
-		[pallet_registry, Registry]
+		[pallet_chain_space, Registry]
 		[pallet_did, Did]
 		[pallet_did_name, DidName]
 		[pallet_network_membership, NetworkMembership]

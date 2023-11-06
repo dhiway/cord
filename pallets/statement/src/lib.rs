@@ -18,10 +18,61 @@
 
 //! # Statement Pallet
 //!
-//! The Statement pallet is used to anchor identifiers representing off-chain
-//! documents. The pallet provides means of creating, updating, revoking and
-//! removing identifier data on-chain and delegated controls.
-
+//! The Statement Pallet is designed for blockchain systems that need to
+//! reference off-chain data without storing the actual data or recipient
+//! information on-chain. It provides a robust framework for managing statements
+//! that serve as references to data stored externally. This approach ensures
+//! data privacy and minimizes on-chain storage requirements while still
+//! leveraging the blockchain for data integrity and provenance.
+//!
+//! ## Overview
+//!
+//! The pallet allows users to create, update, revoke, restore, and remove
+//! statements, each identified by a unique identifier and optionally associated
+//! with an off-chain schema. It is built to ensure that only authorized
+//! entities can interact with the statements. The pallet maintains a log of all
+//! statement activities for audit purposes, but it does not store the actual
+//! data or the identities of the data recipients on-chain, thus providing a
+//! layer of privacy and reducing the blockchain's storage footprint.
+//!
+//! ## Features
+//!
+//! - **Reference Off-Chain Data**: Statements act as on-chain pointers to data
+//!   stored off-chain, allowing the blockchain to maintain a lightweight
+//!   footprint.
+//! - **Privacy Preservation**: By not storing recipient information on-chain,
+//!   the pallet respects privacy concerns and complies with data protection
+//!   regulations.
+//! - **Activity Logging**: All statement activities are timestamped and
+//!   recorded on-chain, providing an immutable history of actions without
+//!   revealing the actual data.
+//!
+//! ## Interface
+//!
+//! The pallet provides dispatchable functions to interact with statements:
+//!
+//! - `create`: References a new piece of off-chain data.
+//! - `create_batch`: References multiple pieces of off-chain data in a batch
+//!   operation.
+//! - `update`: Updates the reference to a piece of off-chain data.
+//! - `revoke`: Marks a statement's reference as inactive.
+//! - `restore`: Reactivates a revoked statement's reference.
+//! - `remove`: Removes a statement's reference from the blockchain.
+//!
+//!## Related Modules
+//!
+//! - [`ChainSpace`](../pallet_chain_space/index.html): Manages authorization
+//!   and capacity for statement references.
+//! - [`Identifier`](../identifier/index.html): Logs the timeline of statement
+//!   activities.
+//!
+//! ## Data Privacy
+//!
+//! This pallet is designed with data privacy in mind. It does not store
+//! sensitive or personally identifiable information on-chain, adhering to
+//! privacy laws and regulations. Users and developers should ensure that
+//! off-chain data storage and retrieval mechanisms also comply with such
+//! regulations.
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
@@ -69,7 +120,7 @@ pub mod pallet {
 	/// Authorization Identifier
 	pub type AuthorizationIdOf = Ss58Identifier;
 	/// Type of a creator identifier.
-	pub type StatementCreatorOf<T> = pallet_registry::SpaceCreatorOf<T>;
+	pub type StatementCreatorOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
 	/// Hash of the statement.
 	pub type StatementDigestOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of the identitiy.
@@ -80,7 +131,9 @@ pub mod pallet {
 	pub type StatementEntryStatusOf<T> = StatementEntryStatus<StatementCreatorOf<T>, StatusOf>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_registry::Config + identifier::Config {
+	pub trait Config:
+		frame_system::Config + pallet_chain_space::Config + identifier::Config
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
@@ -159,27 +212,27 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new statement identifier has been created.
 		/// \[statement identifier, statement digest, controller\]
-		Created {
+		Create {
 			identifier: StatementIdOf,
 			digest: StatementDigestOf<T>,
 			author: StatementCreatorOf<T>,
 		},
 		/// A statement identifier has been updated.
 		/// \[statement identifier, digest, controller\]
-		Updated {
+		Update {
 			identifier: StatementIdOf,
 			digest: StatementDigestOf<T>,
 			author: StatementCreatorOf<T>,
 		},
 		/// A statement identifier status has been revoked.
 		/// \[statement identifier, controller\]
-		Revoked { identifier: StatementIdOf, author: StatementCreatorOf<T> },
+		Revoke { identifier: StatementIdOf, author: StatementCreatorOf<T> },
 		/// A statement identifier status has been restored.
 		/// \[statement identifier, controller\]
-		Restored { identifier: StatementIdOf, author: StatementCreatorOf<T> },
+		Restore { identifier: StatementIdOf, author: StatementCreatorOf<T> },
 		/// A statement identifier has been removed.
 		/// \[statement identifier,  controller\]
-		Removed { identifier: StatementIdOf, author: StatementCreatorOf<T> },
+		Remove { identifier: StatementIdOf, author: StatementCreatorOf<T> },
 		/// A statement identifier has been removed.
 		/// \[statement identifier,  controller\]
 		PartialRemoval { identifier: StatementIdOf, removed: u32, author: StatementCreatorOf<T> },
@@ -262,19 +315,55 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Create a new statement and associates it with its
-		/// controller. The controller (issuer) is the owner of the identifier.
+		/// Creates a new statement within a specified space subject to
+		/// authorization and capacity constraints.
 		///
-		/// Arguments:
+		/// The function first ensures that the call's origin is authorized and
+		/// retrieves the subject, referred to as the creator. It then verifies
+		/// that the creator is a delegate for the space associated with the
+		/// given authorization. Following this, it checks that the space has
+		/// not exceeded its allowed number of statements.
 		///
-		/// * `origin`: The origin of the call.
-		/// * `statement_digests`: Array of the digest of the statements.
-		/// * `authorization`: AuthorizationIdOf.
-		/// * `schema_id`: The schema id of the statement.
+		/// A unique identifier for the statement is generated by hashing the
+		/// encoded statement digest, space identifier, and creator identifier.
+		/// The function ensures that this identifier has not been used to
+		/// anchor another statement.
 		///
-		/// Returns:
+		/// Once the identifier is confirmed to be unique, the statement details
+		/// are inserted into the `Statements` storage. Additionally, the
+		/// statement entry and identifier lookup are recorded in their
+		/// respective storages. The space's usage count is incremented to
+		/// reflect the addition of the new statement.
 		///
-		/// DispatchResult
+		/// The function also logs the creation event by updating the activity
+		/// log and emits an event to signal the successful creation of the
+		/// statement.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the dispatch call, which should be a
+		///   signed message from the creator.
+		/// - `digest`: The digest of the statement, serving as a unique
+		///   identifier.
+		/// - `authorization`: The authorization ID, verifying the creator's
+		///   delegation status.
+		/// - `schema_id`: An optional schema identifier to be associated with
+		///   the statement.
+		///
+		/// # Returns
+		/// A `DispatchResult` indicating the success or failure of the
+		/// statement creation. On success, it returns `Ok(())`. On failure, it
+		/// provides an error detailing the cause.
+		///
+		/// # Errors
+		/// The function can fail for several reasons including unauthorized
+		/// origin, the creator not being a delegate, space capacity being
+		/// exceeded, invalid statement identifier, or the statement already
+		/// being anchored. Errors related to incrementing space usage or
+		/// updating the activity log may also occur.
+		///
+		/// # Events
+		/// - `Create`: Emitted when a statement is successfully created,
+		///   containing the `identifier`, `digest`, and `author` (creator).
 		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
 		pub fn create(
@@ -286,12 +375,12 @@ pub mod pallet {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let space_id =
-				pallet_registry::Pallet::<T>::is_a_space_delegate(&authorization, &creator)
-					.map_err(<pallet_registry::Error<T>>::from)?;
+				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &creator)
+					.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			// Ensure the space has not exceeded its capacity.
-			pallet_registry::Pallet::<T>::ensure_capacity_not_exceeded(&space_id)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+			pallet_chain_space::Pallet::<T>::ensure_capacity_not_exceeded(&space_id)
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			// Id Digest = concat (H(<scale_encoded_statement_digest>,
 			// <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
@@ -324,29 +413,64 @@ pub mod pallet {
 			<Entries<T>>::insert(&identifier, digest, creator.clone());
 			<IdentifierLookup<T>>::insert(digest, &space_id, &identifier);
 
-			pallet_registry::Pallet::<T>::increment_usage(&space_id)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+			pallet_chain_space::Pallet::<T>::increment_usage(&space_id)
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
 
-			Self::deposit_event(Event::Created { identifier, digest, author: creator });
+			Self::deposit_event(Event::Create { identifier, digest, author: creator });
 
 			Ok(())
 		}
 
-		/// Updates the statement identifier with a new digest. The updated
-		/// digest represents the changes a statement reference document might
-		/// have undergone. Arguments:
+		/// Updates the digest of an existing statement after performing a
+		/// series of validations. Initially, the function confirms that the
+		/// call's origin is authorized and identifies the updater. It then
+		/// retrieves the statement details associated with the provided
+		/// `statement_id`. Before proceeding, the function checks whether the
+		/// statement has already been revoked; if so, it halts further
+		/// execution. Additionally, it ensures that the new digest provided for
+		/// the update is different from the current one to avoid unnecessary
+		/// operations.
 		///
-		/// * `origin`: The origin of the call.
-		/// * `statement_id`: The identifier of the statement to be updated.
-		/// * `statement_digest`: The hash of the statement reference document.
-		/// * `authorization`: The authorization ID of the delegate who is
-		///   allowed to perform this action.
+		/// Upon passing these checks, the updater's delegation status for the
+		/// space linked to the statement is verified. The existing statement is
+		/// then marked as revoked, and the new digest is recorded. This
+		/// involves updating the `Entries` storage with the new digest and the
+		/// updater's information, as well as adjusting the `IdentifierLookup`
+		/// to reflect the change. The `Statements` storage is also updated with
+		/// the new details of the statement.
 		///
-		/// Returns:
+		/// Subsequently, the space usage count is incremented to account for
+		/// the updated statement. An activity log entry is created to record
+		/// the update event. To conclude the process, an `Update` event is
+		/// emitted, which includes the statement identifier, the new digest,
+		/// and the authoring updater's details.
 		///
-		/// DispatchResult
+		/// # Parameters
+		/// - `origin`: The origin of the dispatch call, which should be a
+		///   signed message from the updater.
+		/// - `statement_id`: The identifier of the statement to be updated.
+		/// - `new_statement_digest`: The new digest to replace the existing one
+		///   for the statement.
+		/// - `authorization`: The authorization ID, verifying the updater's
+		///   delegation status.
+		///
+		/// # Returns
+		/// A `DispatchResult` indicating the success or failure of the update
+		/// operation. On success, it returns `Ok(())`. On failure, it provides
+		/// an error detailing the cause.
+		///
+		/// # Errors
+		/// The function can fail due to several reasons including an
+		/// unauthorized origin, the statement not found, the statement being
+		/// revoked, the new digest being the same as the existing one, or the
+		/// updater not being authorized for the operation.
+		///
+		/// # Events
+		/// - `Update`: Emitted when a statement is successfully updated,
+		///   containing the `identifier`, `digest`, and `author`
+		/// (updater).
 		#[pallet::call_index(1)]
 		#[pallet::weight({0})]
 		pub fn update(
@@ -373,8 +497,8 @@ pub mod pallet {
 			);
 
 			let space_id =
-				pallet_registry::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
-					.map_err(<pallet_registry::Error<T>>::from)?;
+				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
+					.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
@@ -397,12 +521,12 @@ pub mod pallet {
 				StatementDetailsOf::<T> { digest: new_statement_digest, ..statement_details },
 			);
 
-			pallet_registry::Pallet::<T>::increment_usage(&space_id)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+			pallet_chain_space::Pallet::<T>::increment_usage(&space_id)
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			Self::update_activity(&statement_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
 
-			Self::deposit_event(Event::Updated {
+			Self::deposit_event(Event::Update {
 				identifier: statement_id,
 				digest: new_statement_digest,
 				author: updater,
@@ -410,18 +534,56 @@ pub mod pallet {
 
 			Ok(())
 		}
-		/// Revokes a statement.
+
+		/// Revokes an existing statement, rendering it invalid for future
+		/// operations. The revocation process involves several authorization
+		/// and state checks to ensure the integrity of the operation.
 		///
-		/// Arguments:
+		/// Initially, the function authenticates the origin of the call to
+		/// identify the updater, who is attempting the revocation. It then
+		/// retrieves the details of the statement using the provided
+		/// `statement_id`. If the statement is not found, the function fails
+		/// with an error.
 		///
-		/// * `origin`: The origin of the transaction.
-		/// * `statement_id`: The statement identifier.
-		/// * `authorization`: The authorization ID of the delegate who is
-		///   allowed to perform this action.
+		/// Before proceeding, the function checks whether the statement has
+		/// already been revoked. If it has, the function terminates early to
+		/// prevent redundant revocation attempts. If the statement is active,
+		/// the function then determines whether the updater is the original
+		/// creator of the statement or a delegate with proper authorization. If
+		/// the updater is not the creator, they must be a delegate with
+		/// authorization for the space associated with the statement, and the
+		/// function checks for this condition.
 		///
-		/// Returns:
+		/// Once the updater's authority to revoke the statement is confirmed,
+		/// the function marks the statement as revoked in the `RevocationList`.
+		/// It updates the activity log to record the revocation event. Finally,
+		/// it emits a `Revoked` event, indicating the successful revocation of
+		/// the statement with the statement identifier and the
+		/// updater's information.
 		///
-		/// DispatchResult
+		/// # Parameters
+		/// - `origin`: The origin of the dispatch call, which should be a
+		///   signed message from the updater.
+		/// - `statement_id`: The identifier of the statement to be revoked.
+		/// - `authorization`: The authorization ID, verifying the updater's
+		///   delegation status if they are not the creator.
+		///
+		/// # Returns
+		/// A `DispatchResult` indicating the success or failure of the
+		/// revocation. On success, it returns `Ok(())`. On failure, it provides
+		/// an error detailing the cause, such as the statement not being found
+		/// or already being revoked, or the updater not having the authority to
+		/// revoke the statement.
+		///
+		/// # Errors
+		/// The function can fail due to several reasons including the statement
+		/// not being found, already being revoked, or the updater lacking the
+		/// authority to perform the revocation.
+		///
+		/// # Events
+		/// - `Revoked`: Emitted when a statement is successfully revoked,
+		///   containing the `identifier` of the statement and
+		/// the `author` who is the updater.
 		#[pallet::call_index(2)]
 		#[pallet::weight({0})]
 		pub fn revoke(
@@ -447,8 +609,8 @@ pub mod pallet {
 
 			if !is_updater_creator {
 				let space_id =
-					pallet_registry::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
-						.map_err(<pallet_registry::Error<T>>::from)?;
+					pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
+						.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 				ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 			}
@@ -465,18 +627,54 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Restore a previously revoked statement.
+		/// Restores a previously revoked statement, re-enabling its validity
+		/// within the system. The restoration is contingent upon a set of
+		/// checks to ensure that the action is permitted and appropriate.
 		///
-		/// Arguments:
+		/// The function commences by authenticating the origin of the call to
+		/// ascertain the identity of the updater attempting the restoration. It
+		/// then fetches the details of the statement using the `statement_id`
+		/// provided. If the statement does not exist, the function aborts and
+		/// signals an error.
 		///
-		/// * `origin`: The origin of the transaction.
-		/// * `statement_id`: The statement identifier.
-		/// * `authorization`: The authorization ID of the delegate who is
-		///   allowed to perform this action.
+		/// A crucial step in the process is to verify that the statement has
+		/// indeed been revoked; if not, the function ceases further execution.
+		/// Assuming the statement is revoked, the function then ascertains
+		/// whether the updater is either the original creator of the statement
+		/// or a delegate with the requisite authorization. If the updater
+		/// is not the creator, their delegation status for the space linked to
+		/// the statement is verified.
 		///
-		/// Returns:
+		/// Upon confirming the updater's authority to restore the statement,
+		/// the function removes the statement from the `RevocationList`,
+		/// effectively reactivating it. It then logs the restoration event in
+		/// the activity log. To finalize the process, a `Restored` event is
+		/// broadcast, indicating the successful restoration of the statement
+		/// with its identifier and the updater's details.
 		///
-		/// DispatchResult
+		/// # Parameters
+		/// - `origin`: The origin of the dispatch call, which should be a
+		///   signed message from the updater.
+		/// - `statement_id`: The identifier of the statement to be restored.
+		/// - `authorization`: The authorization ID, verifying the updater's
+		///   delegation status if they are not the creator.
+		///
+		/// # Returns
+		/// A `DispatchResult` indicating the success or failure of the
+		/// restoration. On success, it returns `Ok(())`. On failure, it
+		/// provides an error detailing the cause, such as the statement not
+		/// being found, not being revoked, or the updater not having the
+		/// authority to restore the statement.
+		///
+		/// # Errors
+		/// The function can fail for several reasons including the statement
+		/// not being found, not being revoked, or the updater lacking the
+		/// authority to perform the restoration.
+		///
+		/// # Events
+		/// - `Restored`: Emitted when a statement is successfully restored,
+		///   containing the `identifier` of the statement
+		/// and the `author` who is the updater.
 		#[pallet::call_index(3)]
 		#[pallet::weight({0})]
 		pub fn restore(
@@ -502,8 +700,8 @@ pub mod pallet {
 
 			if !is_updater_creator {
 				let space_id =
-					pallet_registry::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
-						.map_err(<pallet_registry::Error<T>>::from)?;
+					pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
+						.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 				ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 			}
@@ -516,18 +714,60 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Removes a statement from the registry.
+		/// Removes a statement and its associated entries from the system. The
+		/// removal can be either complete or partial, depending on the number
+		/// of entries associated with the statement and a predefined maximum
+		/// removal limit.
 		///
-		/// Arguments:
+		/// The function begins by authenticating the origin of the call to
+		/// identify the updater. It then retrieves the statement details using
+		/// the provided `statement_id`. If the statement cannot be found, the
+		/// function fails with an error. An early authorization check is
+		/// performed to ensure that the updater has the proper delegation
+		/// status for the space associated with the statement.
 		///
-		/// * `origin`: The origin of the transaction.
-		/// * `statement_id`: The statement id of the statement to be removed.
-		/// * `authorization`: The authorization ID of the delegate who is
-		///   allowed to perform this action.
+		/// The function counts the number of entries linked to the statement
+		/// and compares this to the maximum number of entries that can be
+		/// removed in a single operation, as specified by `MaxRemoveEntries`.
+		/// If the count is less than or equal to the maximum, a complete
+		/// removal is initiated; otherwise, a partial removal is performed.
 		///
-		/// Returns:
+		/// In a complete removal, all entries and their lookups are removed,
+		/// the statement is deleted, and the space usage is decremented
+		/// accordingly. In a partial removal, only up to the maximum number of
+		/// entries are removed, and the space usage is decremented by the
+		/// number of entries actually removed.
 		///
-		/// DispatchResult
+		/// After the removal process, the function updates the activity log to
+		/// record the event. It then emits either a `Removed` event for a
+		/// complete removal or a `PartialRemoval` event for a partial removal,
+		/// providing details of the operation including the statement
+		/// identifier and the updater's information.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the dispatch call, which should be a
+		///   signed message from the updater.
+		/// - `statement_id`: The identifier of the statement to be removed.
+		/// - `authorization`: The authorization ID, verifying the updater's
+		///   delegation status.
+		///
+		/// # Returns
+		/// A `DispatchResult` indicating the success or failure of the removal.
+		/// On success, it returns `Ok(())`. On failure, it provides an error
+		/// detailing the cause, such as the statement not being found or the
+		/// updater not having the authority to perform the removal.
+		///
+		/// # Errors
+		/// The function can fail for several reasons including the statement
+		/// not being found or the updater lacking the authority to perform the
+		/// removal.
+		///
+		/// # Events
+		/// - `Removed`: Emitted when a statement and all its entries are
+		///   completely removed.
+		/// - `PartialRemoval`: Emitted when only a portion of the entries are
+		///   removed, detailing the number of entries
+		/// removed.
 		#[pallet::call_index(4)]
 		#[pallet::weight({0})]
 		pub fn remove(
@@ -542,8 +782,8 @@ pub mod pallet {
 
 			// Authorization check is moved up to fail early.
 			let space_id =
-				pallet_registry::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
-					.map_err(<pallet_registry::Error<T>>::from)?;
+				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
+					.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
@@ -565,11 +805,11 @@ pub mod pallet {
 					<RevocationList<T>>::clear_prefix(&statement_id, entries_count as u32, None);
 				let _ = <Entries<T>>::clear_prefix(&statement_id, entries_count as u32, None);
 				<Statements<T>>::remove(&statement_id);
-				pallet_registry::Pallet::<T>::decrement_usage_batch(
+				pallet_chain_space::Pallet::<T>::decrement_usage_batch(
 					&space_id,
 					entries_count as u16,
 				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 			} else {
 				// Perform a partial removal.
 				for (digest, _) in <Entries<T>>::iter_prefix(&statement_id).take(max_removals) {
@@ -578,11 +818,11 @@ pub mod pallet {
 					<Entries<T>>::remove(&statement_id, &digest);
 					removed_count += 1;
 				}
-				pallet_registry::Pallet::<T>::decrement_usage_batch(
+				pallet_chain_space::Pallet::<T>::decrement_usage_batch(
 					&space_id,
 					removed_count as u16,
 				)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 			}
 
 			// Update activity and emit the appropriate event.
@@ -607,6 +847,54 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Creates multiple statements in a batch operation. This function
+		/// takes a vector of statement digests and attempts to create a new
+		/// statement for each digest. It performs checks on the batch size,
+		/// ensures the creator has the proper authorization, and verifies that
+		/// the space has enough capacity to accommodate the batch of new
+		/// statements.
+		///
+		/// The function iterates over the provided digests, generating a unique
+		/// identifier for each and attempting to create a new statement. If a
+		/// statement with the generated identifier already exists, or if there
+		/// is an error in generating the identifier, the digest is marked as
+		/// failed. Otherwise, the new statement is recorded along
+		/// with its details. The function also updates the activity log for
+		/// each successful creation.
+		///
+		/// After processing all digests, the function ensures that at least one
+		/// statement was successfully created. It then increments the usage
+		/// count of the space by the number of successful creations. Finally, a
+		/// `BatchCreate` event is emitted, summarizing the results of the batch
+		/// operation, including the number of successful and failed creations,
+		/// the indices of the failed digests, and the author of the batch
+		/// creation.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the dispatch call, which should be a
+		///   signed message from the creator.
+		/// - `digests`: A vector of statement digests to be processed in the
+		///   batch operation.
+		/// - `authorization`: The authorization ID, verifying the creator's
+		///   delegation status.
+		/// - `schema_id`: An optional schema identifier that may be associated
+		///   with the statements.
+		///
+		/// # Returns
+		/// A `DispatchResult` indicating the success or failure of the batch
+		/// creation. On success, it returns `Ok(())`. On failure, it provides
+		/// an error detailing the cause, such as exceeding the maximum number
+		/// of digests, the space capacity being exceeded, or all digests
+		/// failing to create statements.
+		///
+		/// # Errors
+		/// The function can fail for several reasons, including exceeding the
+		/// maximum number of digests allowed in a batch, the space capacity
+		/// being exceeded, or if no statements could be successfully created.
+		///
+		/// # Events
+		/// - `BatchCreate`: Emitted upon the completion of the batch operation,
+		///   providing details of the outcome.
 		#[pallet::call_index(5)]
 		#[pallet::weight({0})]
 		pub fn create_batch(
@@ -624,15 +912,15 @@ pub mod pallet {
 			);
 
 			let space_id =
-				pallet_registry::Pallet::<T>::is_a_space_delegate(&authorization, &creator)
-					.map_err(<pallet_registry::Error<T>>::from)?;
+				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &creator)
+					.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			// Ensure the space has not exceeded its capacity for batch.
-			pallet_registry::Pallet::<T>::ensure_capacity_not_exceeded_batch(
+			pallet_chain_space::Pallet::<T>::ensure_capacity_not_exceeded_batch(
 				&space_id,
 				digests.len() as u16,
 			)
-			.map_err(<pallet_registry::Error<T>>::from)?;
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let mut success = 0u32;
 			let mut fail = 0u32;
@@ -684,8 +972,8 @@ pub mod pallet {
 
 			ensure!(success > 0, Error::<T>::BulkTransactionFailed);
 
-			pallet_registry::Pallet::<T>::increment_usage_batch(&space_id, success as u16)
-				.map_err(<pallet_registry::Error<T>>::from)?;
+			pallet_chain_space::Pallet::<T>::increment_usage_batch(&space_id, success as u16)
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			Self::deposit_event(Event::BatchCreate {
 				successful: success,
@@ -700,6 +988,32 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Updates the global timeline with a new activity event for a statement.
+	/// This function is called whenever a significant action is performed on a
+	/// statement, ensuring that all such activities are logged with a timestamp
+	/// for future reference and accountability.
+	///
+	/// An `EventEntryOf` struct is created, encapsulating the type of action
+	/// (`tx_action`) and the `Timepoint` of the event, which is obtained by
+	/// calling the `timepoint` function. This entry is then passed to the
+	/// `update_timeline` function of the `identifier` pallet, which integrates
+	/// it into the global timeline.
+	///
+	/// # Parameters
+	/// - `tx_id`: The identifier of the statement that the activity pertains
+	///   to.
+	/// - `tx_action`: The type of action taken on the statement, encapsulated
+	///   within `CallTypeOf`.
+	///
+	/// # Returns
+	/// Returns `Ok(())` after successfully updating the timeline. If any errors
+	/// occur within the `update_timeline` function, they are not captured here
+	/// and the function will still return `Ok(())`.
+	///
+	/// # Usage
+	/// This function is not intended to be called directly by external entities
+	/// but is invoked internally within the pallet's logic whenever a
+	/// statement's status is altered.
 	pub fn update_activity(tx_id: &StatementIdOf, tx_action: CallTypeOf) -> Result<(), Error<T>> {
 		let tx_moment = Self::timepoint();
 
@@ -709,6 +1023,15 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	/// Retrieves the current timepoint.
+	///
+	/// This function returns a `Timepoint` structure containing the current
+	/// block number and extrinsic index. It is typically used in conjunction
+	/// with `update_activity` to record when an event occurred.
+	///
+	/// # Returns
+	/// - `Timepoint`: A structure containing the current block number and
+	///   extrinsic index.
 	pub fn timepoint() -> Timepoint {
 		Timepoint {
 			height: frame_system::Pallet::<T>::block_number().unique_saturated_into(),

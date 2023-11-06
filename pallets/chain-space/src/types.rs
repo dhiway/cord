@@ -26,25 +26,6 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
-/// Permissions for space management.
-///
-/// This structure defines a set of permissions using bitflags, allowing for a
-/// compact and efficient representation of different levels of access rights
-/// within a space. The permissions are used to control access to various
-/// actions that can be performed on a space.
-///
-/// ## Flags
-///
-/// - `ASSERT`: This permission allows for basic operations within a space that
-///   do not modify its state.
-/// - `ADMIN`: This permission grants the ability to perform administrative
-///   actions that can alter the space's configuration or state.
-///
-/// ## Usage
-///
-/// Permissions are combined using bitwise OR operations to grant multiple
-/// permissions at once. They can be checked using bitwise AND operations with
-/// the flags.
 bitflags! {
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
 	pub struct Permissions: u32 {

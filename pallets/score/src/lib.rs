@@ -75,7 +75,7 @@ pub mod pallet {
 	pub type RatingHashOf<T> = <T as frame_system::Config>::Hash;
 
 	/// Type of a creator identifier.
-	pub type RatingCreatorIdOf<T> = pallet_registry::RegistryCreatorIdOf<T>;
+	pub type RatingCreatorIdOf<T> = pallet_chain_space::RegistryCreatorIdOf<T>;
 
 	/// Hash of the Rating.
 	pub type RatingEntryHashOf<T> = <T as frame_system::Config>::Hash;
@@ -119,7 +119,7 @@ pub mod pallet {
 	pub type ScoreEntryOf = ScoreEntry<CountOf, RatingOf>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_registry::Config {
+	pub trait Config: frame_system::Config + pallet_chain_space::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
@@ -238,9 +238,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-			let registry_id =
-				pallet_registry::Pallet::<T>::is_a_delegate(&authorization, author.clone(), None)
-					.map_err(<pallet_registry::Error<T>>::from)?;
+			let registry_id = pallet_chain_space::Pallet::<T>::is_a_delegate(
+				&authorization,
+				author.clone(),
+				None,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
 				(journal.entry.rating > 0 && journal.entry.count > 0),

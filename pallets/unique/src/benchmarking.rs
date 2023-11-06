@@ -23,7 +23,7 @@ use codec::Encode;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{sp_runtime::traits::Hash, BoundedVec};
-use pallet_registry::{InputRegistryOf, RegistryHashOf};
+use pallet_chain_space::{InputRegistryOf, RegistryHashOf};
 use sp_std::{
 	convert::{TryFrom, TryInto},
 	vec::Vec,

@@ -36,7 +36,7 @@ construct_runtime!(
 	pub enum Test {
 		System: frame_system,
 		Schema:pallet_schema,
-		Registry: pallet_registry,
+		Registry: pallet_chain_space,
 		Identifier: identifier,
 		Statement: pallet_statement,
 		MockOrigin: mock_origin,
@@ -102,7 +102,7 @@ parameter_types! {
 	pub const MaxRegistryCommitActions: u32 = 5u32;
 }
 
-impl pallet_registry::Config for Test {
+impl pallet_chain_space::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
@@ -110,7 +110,7 @@ impl pallet_registry::Config for Test {
 	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
 	type MaxRegistryAuthorities = MaxRegistryAuthorities;
 	type MaxRegistryCommitActions = MaxRegistryCommitActions;
-	type WeightInfo = pallet_registry::weights::SubstrateWeight<Test>;
+	type WeightInfo = pallet_chain_space::weights::SubstrateWeight<Test>;
 }
 
 parameter_types! {

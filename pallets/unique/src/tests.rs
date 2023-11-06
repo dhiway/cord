@@ -5,7 +5,7 @@ use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_err, assert_ok, BoundedVec};
-use pallet_registry::{InputRegistryOf, RegistryHashOf, SchemaIdOf};
+use pallet_chain_space::{InputRegistryOf, RegistryHashOf, SchemaIdOf};
 use pallet_schema::{InputSchemaOf, SchemaHashOf};
 use sp_runtime::{traits::Hash, AccountId32};
 

@@ -40,7 +40,7 @@ pallet-membership = { default-features = false, path = '../pallets/membership/' 
 pallet-did = { default-features = false, path = '../pallets/did' }
 pallet-did-name = { default-features = false, path = '../pallets/did-name' }
 pallet-schema = { default-features = false, path = '../pallets/schema' }
-pallet-registry = { default-features = false, path = '../pallets/registry' }
+pallet-chain-space = { default-features = false, path = '../pallets/chain-space' }
 pallet-statement = { default-features = false, path = '../pallets/statement' }
 pallet-network-membership = { default-features = false, path = '../pallets/network-membership' }
 pallet-runtime-upgrade = { default-features = false, path = '../pallets/runtime-upgrade' }
@@ -158,7 +158,7 @@ std = [
 	"pallet-did/std",
 	"pallet-did-name/std",
 	"pallet-schema/std",
-	"pallet-registry/std",
+	"pallet-chain-space/std",
 	"pallet-statement/std",
 	"pallet-unique/std",
 	"pallet-score/std",
@@ -206,7 +206,7 @@ runtime-benchmarks = [
 	"pallet-schema/runtime-benchmarks",
 	"pallet-statement/runtime-benchmarks",
 	"pallet-unique/runtime-benchmarks",
-	"pallet-registry/runtime-benchmarks",
+	"pallet-chain-space/runtime-benchmarks",
 	"pallet-network-membership/runtime-benchmarks",
 	"hex-literal",
 	"pallet-sudo/runtime-benchmarks",
