@@ -129,6 +129,13 @@ pub mod pallet {
 	pub type StatementDetailsOf<T> = StatementDetails<StatementDigestOf<T>, SchemaIdOf, SpaceIdOf>;
 	/// Type for the statement entry details
 	pub type StatementEntryStatusOf<T> = StatementEntryStatus<StatementCreatorOf<T>, StatusOf>;
+	/// Type for the statement entry details
+	pub type StatementPresentationDetailsOf<T> = StatementPresentationDetails<
+		StatementCreatorOf<T>,
+		PresentationTypeOf,
+		StatementDigestOf<T>,
+		SpaceIdOf,
+	>;
 
 	#[pallet::config]
 	pub trait Config:
@@ -176,6 +183,20 @@ pub mod pallet {
 		Blake2_128Concat,
 		StatementDigestOf<T>,
 		StatementCreatorOf<T>,
+		OptionQuery,
+	>;
+
+	/// statement uniques stored on chain.
+	/// It maps from a statement identifier and hash to its details.
+	#[pallet::storage]
+	#[pallet::getter(fn presentations)]
+	pub type Presentations<T> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		StatementIdOf,
+		Blake2_128Concat,
+		StatementDigestOf<T>,
+		StatementPresentationDetailsOf<T>,
 		OptionQuery,
 	>;
 
@@ -236,10 +257,16 @@ pub mod pallet {
 		/// A statement identifier has been removed.
 		/// \[statement identifier,  controller\]
 		PartialRemoval { identifier: StatementIdOf, removed: u32, author: StatementCreatorOf<T> },
-
 		/// A statement digest has been added.
 		/// \[statement identifier, digest, controller\]
-		Digest {
+		PresentationAdded {
+			identifier: StatementIdOf,
+			digest: StatementDigestOf<T>,
+			author: StatementCreatorOf<T>,
+		},
+		/// A statement digest has been added.
+		/// \[statement identifier, digest, controller\]
+		PresentationRemoved {
 			identifier: StatementIdOf,
 			digest: StatementDigestOf<T>,
 			author: StatementCreatorOf<T>,
@@ -311,6 +338,10 @@ pub mod pallet {
 		BulkTransactionFailed,
 		/// Associate digest already present
 		AssociateDigestAlreadyAnchored,
+		/// Presentation is already anchored.
+		PresentationDigestAlreadyAnchored,
+		/// Presentation not found
+		PresentationNotFound,
 	}
 
 	#[pallet::call]
@@ -602,18 +633,11 @@ pub mod pallet {
 				Error::<T>::StatementRevoked
 			);
 
-			// Check if the updater is the previous creator or a delegate with the proper
-			// authorization.
-			let is_updater_creator = Entries::<T>::get(&statement_id, &statement_details.digest)
-				.map_or(false, |prev_creator| prev_creator == updater);
+			let space_id =
+				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
+					.map_err(<pallet_chain_space::Error<T>>::from)?;
 
-			if !is_updater_creator {
-				let space_id =
-					pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
-						.map_err(<pallet_chain_space::Error<T>>::from)?;
-
-				ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
-			}
+			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
 			<RevocationList<T>>::insert(
 				&statement_id,
@@ -980,6 +1004,139 @@ pub mod pallet {
 				failed: fail,
 				indices,
 				author: creator,
+			});
+
+			Ok(())
+		}
+
+		/// Adds a new presentation to a statement.
+		///
+		/// This function allows a creator (issuer) to associate a new
+		/// presentation (like a PDF or image) with an existing statement
+		/// identifier. Each presentation is identified by a unique digest and
+		/// is categorized by a presentation type (e.g., PDF, JPEG).
+		///
+		/// # Arguments
+		/// * `origin` - The origin of the call, which must be signed by the
+		///   creator or a delegate.
+		/// * `statement_id` - The identifier of the statement to which the
+		///   presentation will be added.
+		/// * `presentation_digest` - The digest that uniquely identifies the
+		///   new presentation.
+		/// * `presentation_type` - The type of the presentation being added
+		///   (e.g., PDF, JPEG).
+		/// * `authorization` - An authorization identifier proving the caller's
+		///   right to add the presentation.
+		///
+		/// # Errors
+		/// * `StatementNotFound` - If the statement with the given ID does not
+		///   exist.
+		/// * `StatementRevoked` - If the statement has been revoked and cannot
+		///   be modified.
+		/// * `UnauthorizedOperation` - If the caller is not authorized to add
+		///   presentations to the statement.
+		/// * `PresentationDigestAlreadyAnchored` - If the presentation digest
+		///   is already used for another presentation.
+		#[pallet::call_index(6)]
+		#[pallet::weight({0})]
+		pub fn add_presentation(
+			origin: OriginFor<T>,
+			statement_id: StatementIdOf,
+			presentation_digest: StatementDigestOf<T>,
+			presentation_type: PresentationTypeOf,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let statement_details =
+				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
+
+			// Check for revocation first to fail early if applicable.
+			ensure!(
+				!<RevocationList<T>>::contains_key(&statement_id, &statement_details.digest),
+				Error::<T>::StatementRevoked
+			);
+
+			// Authorization check.
+			let space_id =
+				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &creator)
+					.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
+
+			// Check for presentation digest uniqueness to fail early if the digest is
+			// already present.
+			ensure!(
+				!<Presentations<T>>::contains_key(&statement_id, &presentation_digest),
+				Error::<T>::PresentationDigestAlreadyAnchored
+			);
+
+			<IdentifierLookup<T>>::insert(&presentation_digest, &space_id, &statement_id);
+
+			<Presentations<T>>::insert(
+				&statement_id,
+				&presentation_digest,
+				StatementPresentationDetailsOf::<T> {
+					creator: creator.clone(),
+					presentation_type,
+					digest: statement_details.digest,
+					space: space_id.clone(),
+				},
+			);
+
+			pallet_chain_space::Pallet::<T>::increment_usage(&space_id)
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			// Update activity for the statement with the new view addition.
+			Self::update_activity(&statement_id, CallTypeOf::PresentationAdded)
+				.map_err(<Error<T>>::from)?;
+
+			// Emit an event to signal the successful addition of a new view.
+			Self::deposit_event(Event::PresentationAdded {
+				identifier: statement_id,
+				digest: presentation_digest,
+				author: creator,
+			});
+
+			Ok(())
+		}
+		#[pallet::call_index(7)]
+		#[pallet::weight({0})]
+		pub fn remove_presentation(
+			origin: OriginFor<T>,
+			statement_id: StatementIdOf,
+			presentation_digest: StatementDigestOf<T>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let remover = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			// Ensure the presentation exists.
+			let presentation_details = Presentations::<T>::get(&statement_id, &presentation_digest)
+				.ok_or(Error::<T>::PresentationNotFound)?;
+
+			// Authorization check.
+			let space_id =
+				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &remover)
+					.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			ensure!(presentation_details.space == space_id, Error::<T>::UnauthorizedOperation);
+
+			// Remove the presentation.
+			Presentations::<T>::remove(&statement_id, &presentation_digest);
+			IdentifierLookup::<T>::remove(&presentation_digest, &space_id);
+
+			pallet_chain_space::Pallet::<T>::decrement_usage(&space_id)
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			// Update activity for the statement with the presentation removal.
+			Self::update_activity(&statement_id, CallTypeOf::PresentationRemoved)
+				.map_err(<Error<T>>::from)?;
+
+			// Emit an event to signal the successful removal of the presentation.
+			Self::deposit_event(Event::PresentationRemoved {
+				identifier: statement_id,
+				digest: presentation_digest,
+				author: remover,
 			});
 
 			Ok(())

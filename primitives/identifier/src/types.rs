@@ -55,6 +55,8 @@ pub enum CallTypeOf {
 	Restore,
 	Remove,
 	PartialRemove,
+	PresentationAdded,
+	PresentationRemoved,
 	Rotate,
 	Digest,
 }

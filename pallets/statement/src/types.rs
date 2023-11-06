@@ -108,3 +108,103 @@ pub struct StatementEntryStatus<StatementCreatorOf, StatusOf> {
 	/// Indicates whether the statement has been revoked.
 	pub revoked: StatusOf,
 }
+
+/// Holds the details for a specific presentation of a statement.
+///
+/// This struct captures the unique identifiers and metadata for a presentation
+/// view of a statement, such as a PDF, image, or other visual representation.
+/// It is used to link the presentation directly to its corresponding statement
+/// and the space within which it is relevant.
+///
+/// ## Fields
+///
+/// - `presentation_digest`: A `StatementPresentationDigestOf` type that stores
+///   the hash of the presentation's content. This hash acts as a unique
+///   identifier for the presentation and ensures its integrity by allowing
+///   verification that the presentation has not been altered. e to which both
+///   the statement and its presentation are associated. This helps in
+///   categorizing and retrieving the presentation within the context of its
+///   space.
+///
+/// - `digest`: A `StatementDigestOf` type that holds the hash of the original
+///   statement's content. This serves as a reference back to the statement that
+///   the presentation represents, creating a link between the presentation and
+///   the statement's actual content.
+///
+/// - `space`: A `SpaceIdOf` type that signifies the identifier for the space to
+///   which both the statement and its presentation are associated. This helps
+///   in categorizing and retrieving the presentation within the context of its
+///   space.
+///
+/// ## Usage
+///
+/// `StatementPresentationDetails` is primarily used when a new presentation is
+/// created for a statement or when querying for presentations associated with a
+/// particular statement. It allows users and systems to manage and access the
+/// various presentations of statements efficiently, ensuring that
+/// each presentation can be authenticated and traced back to its original
+/// statement and space.
+#[derive(
+	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
+)]
+pub struct StatementPresentationDetails<
+	StatementCreatorOf,
+	PresentationTypeOf,
+	StatementDigestOf,
+	SpaceIdOf,
+> {
+	/// The DID identifier for the party responsible for creating the
+	/// presentation.
+	pub creator: StatementCreatorOf,
+	// /// The hash of the presentation's content, serving as a unique identifier.
+	// pub presentation_digest: StatementDigestOf,
+	/// Type of the presentation media
+	pub presentation_type: PresentationTypeOf,
+	/// The hash of the statement's content, linking the presentation to its
+	/// referenced state.
+	pub digest: StatementDigestOf,
+	/// The identifier for the space contextualizing the statement and its
+	/// presentation.
+	pub space: SpaceIdOf,
+}
+
+/// Enum representing various file types that could be associated with a
+/// statement's presentation.
+#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+pub enum PresentationTypeOf {
+	/// Represents a Portable Document Format (PDF) file.
+	PDF,
+	/// Represents a Joint Photographic Experts Group (JPEG) image file.
+	JPEG,
+	/// Represents a Portable Network Graphics (PNG) image file.
+	PNG,
+	/// Represents a Graphics Interchange Format (GIF) image file.
+	GIF,
+	/// Represents a Plain Text (TXT) file.
+	TXT,
+	/// Represents a Scalable Vector Graphics (SVG) file.
+	SVG,
+	/// Represents a JavaScript Object Notation (JSON) file.
+	JSON,
+}
+
+impl PresentationTypeOf {
+	/// Returns the typical file extension associated with the file type.
+	pub fn extension(&self) -> &str {
+		match self {
+			PresentationTypeOf::PDF => "pdf",
+			PresentationTypeOf::JPEG => "jpeg",
+			PresentationTypeOf::PNG => "png",
+			PresentationTypeOf::GIF => "gif",
+			PresentationTypeOf::TXT => "txt",
+			PresentationTypeOf::SVG => "svg",
+			PresentationTypeOf::JSON => "json",
+		}
+	}
+}
+
+impl MaxEncodedLen for PresentationTypeOf {
+	fn max_encoded_len() -> usize {
+		1 // Since all variants are unit variants, they encode to a single byte.
+	}
+}
