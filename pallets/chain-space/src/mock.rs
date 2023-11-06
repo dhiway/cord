@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate as pallet_registry;
+use crate as pallet_chain_space;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -37,8 +37,7 @@ pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 construct_runtime!(
 	pub enum Test {
 		System: frame_system,
-		Schema:pallet_schema,
-		Registry: pallet_registry,
+		Space: pallet_chain_space,
 		MockOrigin: mock_origin,
 	}
 );
@@ -87,7 +86,7 @@ parameter_types! {
 	pub const MaxRegistryCommitActions: u32 = 5u32;
 }
 
-impl pallet_registry::Config for Test {
+impl pallet_chain_space::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
@@ -96,19 +95,6 @@ impl pallet_registry::Config for Test {
 	type MaxRegistryAuthorities = MaxRegistryAuthorities;
 	type MaxRegistryCommitActions = MaxRegistryCommitActions;
 	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const MaxEncodedSchemaLength: u32 = 15_360;
-}
-
-impl pallet_schema::Config for Test {
-	type SchemaCreatorId = SubjectId;
-	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
-	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 }
 
 parameter_types! {
