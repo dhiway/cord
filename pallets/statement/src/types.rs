@@ -172,6 +172,8 @@ pub struct StatementPresentationDetails<
 /// statement's presentation.
 #[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo)]
 pub enum PresentationTypeOf {
+	/// Represents any other file type not explicitly listed.
+	Other,
 	/// Represents a Portable Document Format (PDF) file.
 	PDF,
 	/// Represents a Joint Photographic Experts Group (JPEG) image file.
@@ -186,12 +188,25 @@ pub enum PresentationTypeOf {
 	SVG,
 	/// Represents a JavaScript Object Notation (JSON) file.
 	JSON,
+	/// Represents a Microsoft Word Document (DOCX) file.
+	DOCX,
+	/// Represents an Excel Spreadsheet (XLSX) file.
+	XLSX,
+	/// Represents a PowerPoint Presentation (PPTX) file.
+	PPTX,
+	/// Represents an Audio file (MP3).
+	MP3,
+	/// Represents a Video file (MP4).
+	MP4,
+	// Represents an XML file.
+	XML,
 }
 
 impl PresentationTypeOf {
 	/// Returns the typical file extension associated with the file type.
 	pub fn extension(&self) -> &str {
 		match self {
+			PresentationTypeOf::Other => "unknown",
 			PresentationTypeOf::PDF => "pdf",
 			PresentationTypeOf::JPEG => "jpeg",
 			PresentationTypeOf::PNG => "png",
@@ -199,6 +214,12 @@ impl PresentationTypeOf {
 			PresentationTypeOf::TXT => "txt",
 			PresentationTypeOf::SVG => "svg",
 			PresentationTypeOf::JSON => "json",
+			PresentationTypeOf::DOCX => "docx",
+			PresentationTypeOf::XLSX => "xlsx",
+			PresentationTypeOf::PPTX => "pptx",
+			PresentationTypeOf::MP3 => "mp3",
+			PresentationTypeOf::MP4 => "mp4",
+			PresentationTypeOf::XML => "xml",
 		}
 	}
 }
