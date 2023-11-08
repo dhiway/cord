@@ -2,14 +2,17 @@ use super::*;
 use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
-use frame_support::{assert_err, assert_ok, BoundedVec};
-use frame_system::pallet_prelude::BlockNumberFor;
-use pallet_schema::InputSchemaOf;
+use frame_support::{assert_err, assert_ok, error::BadOrigin};
+use frame_system::RawOrigin;
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
 
-pub fn generate_registry_id<T: Config>(digest: &RegistryHashOf<T>) -> RegistryIdOf {
+pub fn generate_registry_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
 	Ss58Identifier::to_registry_id(&(digest).encode()[..]).unwrap()
+}
+
+pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
+	Ss58Identifier::to_authorization_id(&(digest).encode()[..]).unwrap()
 }
 
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
@@ -19,280 +22,112 @@ pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
 //TEST FUNCTION FOR ADD ADMIN DELEGATE
 
 #[test]
-fn add_admin_delegate_should_succeed() {
-	let creator = DID_00;
-	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	new_test_ext().execute_with(|| {
-		//Creating a registry
-		assert_ok!(Registry::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
-		));
-
-		//Admin should be able to add the delegate
-		assert_ok!(Registry::add_admin_delegate(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id,
-			DID_01,
-		));
-	});
-}
-
-#[test]
-fn add_admin_delegate_should_fail_if_registry_is_not_created() {
-	let creator = DID_00;
-	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-
-	new_test_ext().execute_with(|| {
-		//Should throw Error if registry is not created or found
-		assert_err!(
-			Registry::add_admin_delegate(
-				DoubleOrigin(author.clone(), creator.clone()).into(),
-				registry_id.clone(),
-				SubjectId(AccountId32::new([1u8; 32])),
-			),
-			Error::<Test>::RegistryNotFound
-		);
-	});
-}
-
-#[test]
-fn add_admin_delegate_should_fail_if_the_regisrty_is_archived() {
-	let creator = DID_00;
-	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-
-	new_test_ext().execute_with(|| {
-		//creating regisrty
-		assert_ok!(Registry::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
-		));
-
-		<Registries<Test>>::insert(
-			&registry_id,
-			RegistryEntryOf::<Test> {
-				archive: true,
-				..<Registries<Test>>::get(&registry_id).unwrap()
-			},
-		);
-
-		//Admin should be able to add the delegate
-		assert_err!(
-			Registry::add_admin_delegate(
-				DoubleOrigin(author.clone(), creator.clone()).into(),
-				registry_id,
-				DID_01,
-			),
-			Error::<Test>::ArchivedRegistry
-		);
-	});
-}
-
-#[test]
-fn add_admin_delegate_should_fail_if_creator_is_not_a_authority() {
-	let creator = DID_00;
-	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	new_test_ext().execute_with(|| {
-		//creating regisrty
-		assert_ok!(Registry::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
-		));
-
-		//Checking whether registry creator and creator are different
-		assert_ne!(<Registries<Test>>::get(&registry_id).unwrap().creator, DID_01);
-
-		assert_err!(
-			Registry::is_an_authority(&registry_id, DID_01),
-			Error::<Test>::UnauthorizedOperation
-		);
-	});
-}
-
-#[test]
-fn add_admin_delegate_should_fail_if_delegate_is_already_added() {
-	// env_logger::init();
-	let creator = DID_00;
-	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-
-	//Schema creation from schema pallet
-	let raw_schema = [2u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id_of: Ss58Identifier =
-		Ss58Identifier::to_schema_id(&schema_id_digest.encode()[..]).unwrap();
-
-	let new_block_number: BlockNumberFor<Test> = 1;
-
-	new_test_ext().execute_with(|| {
-		//adding schema
-		System::set_block_number(new_block_number);
-		//creating regisrty
-		assert_ok!(Schema::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			schema.clone()
-		));
-
-		//creating regisrty
-		assert_ok!(Registry::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			Some(schema_id_of)
-		));
-
-		//Admin should be able to add the delegate
-		assert_ok!(Registry::add_admin_delegate(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone(),
-			DID_00,
-		));
-
-		//When Trying to add same delegate again it says delegate already added
-		assert_err!(
-			Registry::add_admin_delegate(
-				DoubleOrigin(author.clone(), DID_00.clone()).into(),
-				registry_id.clone(),
-				DID_00,
-			),
-			Error::<Test>::DelegateAlreadyAdded
-		);
-	});
-}
-
-#[test]
-fn add_admin_delegate_should_max_authorities() {
-	let creator = DID_00;
-	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	new_test_ext().execute_with(|| {
-		//Creating a registry
-		assert_ok!(Registry::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
-		));
-
-		//Adding the delegate limit that is 3 Max Authorities
-		for a in 5..8u8 {
-			assert_ok!(Registry::add_admin_delegate(
-				DoubleOrigin(author.clone(), DID_00.clone()).into(),
-				registry_id.clone(),
-				SubjectId(AccountId32::new([a; 32])),
-			));
-		}
-		let did_08 = SubjectId(AccountId32::new([8u8; 32]));
-
-		//Should throw Error When Max authorities reached
-		assert_err!(
-			Registry::add_admin_delegate(
-				DoubleOrigin(author.clone(), DID_00.clone()).into(),
-				registry_id.clone(),
-				did_08,
-			),
-			Error::<Test>::RegistryAuthoritiesLimitExceeded
-		);
-	});
-}
-
-#[test]
-
-fn add_admin_delegate_should_update_commit() {
-	let creator = DID_00;
-	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	new_test_ext().execute_with(|| {
-		//creating regisrty
-		assert_ok!(Registry::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
-		));
-
-		assert_ok!(Registry::update_commit(
-			&registry_id,
-			id_digest,
-			creator.clone(),
-			RegistryCommitActionOf::Authorization
-		));
-
-		//Check wheter that event has been emitted
-		assert_eq!(
-			registry_events_since_last_call(),
-			vec![Event::Create { registry: registry_id, creator }]
-		);
-	});
-}
-
-//TEST FUNCTIONS FOR ADD_DELEGATE
-#[test]
 fn add_delegate_should_succeed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 	new_test_ext().execute_with(|| {
-		//Creating a registry
-		assert_ok!(Registry::create(
+		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
+			space_digest,
 		));
 
-		//should be able to add the delegate
-		assert_ok!(Registry::add_delegate(
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		//Admin should be able to add the delegate
+		assert_ok!(Space::add_delegate(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id,
+			space_id,
 			DID_01,
+			authorization_id,
+		));
+	});
+}
+
+#[test]
+fn add_admin_delegate_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		//Admin should be able to add the delegate
+		assert_ok!(Space::add_admin_delegate(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_id,
+			DID_01,
+			authorization_id,
+		));
+	});
+}
+
+#[test]
+fn add_audit_delegate_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		//Admin should be able to add the delegate
+		assert_ok!(Space::add_audit_delegate(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_id,
+			DID_01,
+			authorization_id,
 		));
 	});
 }
@@ -301,22 +136,97 @@ fn add_delegate_should_succeed() {
 fn add_delegate_should_fail_if_registry_is_not_created() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
 	new_test_ext().execute_with(|| {
 		//Should throw Error if registry is not created or found
 		assert_err!(
-			Registry::add_delegate(
+			Space::add_delegate(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
-				registry_id.clone(),
+				space_id,
 				SubjectId(AccountId32::new([1u8; 32])),
+				authorization_id,
 			),
-			Error::<Test>::RegistryNotFound
+			Error::<Test>::AuthorizationNotFound
+		);
+	});
+}
+
+#[test]
+fn add_admin_delegate_should_fail_if_registry_is_not_created() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		//Should throw Error if registry is not created or found
+		assert_err!(
+			Space::add_admin_delegate(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id,
+				SubjectId(AccountId32::new([1u8; 32])),
+				authorization_id,
+			),
+			Error::<Test>::AuthorizationNotFound
+		);
+	});
+}
+
+#[test]
+fn add_audit_delegate_should_fail_if_registry_is_not_created() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		//Should throw Error if registry is not created or found
+		assert_err!(
+			Space::add_audit_delegate(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id,
+				SubjectId(AccountId32::new([1u8; 32])),
+				authorization_id,
+			),
+			Error::<Test>::AuthorizationNotFound
 		);
 	});
 }
@@ -325,316 +235,692 @@ fn add_delegate_should_fail_if_registry_is_not_created() {
 fn add_delegate_should_fail_if_the_regisrty_is_archived() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
 
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 	new_test_ext().execute_with(|| {
-		//creating regisrty
-		assert_ok!(Registry::create(
+		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
+			space_digest,
 		));
 
-		<Registries<Test>>::insert(
-			&registry_id,
-			RegistryEntryOf::<Test> {
-				archive: true,
-				..<Registries<Test>>::get(&registry_id).unwrap()
-			},
-		);
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
-		//Admin should be able to add the delegate
+		assert_ok!(Space::archive(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_id.clone(),
+			authorization_id.clone(),
+		));
+
 		assert_err!(
-			Registry::add_delegate(
+			Space::add_delegate(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
-				registry_id,
-				DID_01,
+				space_id,
+				SubjectId(AccountId32::new([1u8; 32])),
+				authorization_id,
 			),
-			Error::<Test>::ArchivedRegistry
+			Error::<Test>::ArchivedSpace
 		);
 	});
 }
 
 #[test]
-fn add_delegate_should_fail_if_creator_is_not_a_authority() {
+fn add_delegate_should_fail_if_the_regisrty_is_not_approved() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 	new_test_ext().execute_with(|| {
-		//creating regisrty
-		assert_ok!(Registry::create(
+		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
+			space_digest,
 		));
 
-		//Checking whether registry creator and creator are different
-		assert_ne!(<Registries<Test>>::get(&registry_id).unwrap().creator, DID_01);
+		assert_err!(
+			Space::add_delegate(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id,
+				SubjectId(AccountId32::new([1u8; 32])),
+				authorization_id,
+			),
+			Error::<Test>::SpaceNotApproved
+		);
+	});
+}
+
+#[test]
+fn add_delegate_should_fail_if_a_non_delegate_tries_to_add() {
+	let creator = DID_00;
+	let creator1 = DID_01;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
 		assert_err!(
-			Registry::is_an_authority(&registry_id, DID_01),
+			Space::add_delegate(
+				DoubleOrigin(author.clone(), creator1.clone()).into(),
+				space_id,
+				SubjectId(AccountId32::new([1u8; 32])),
+				authorization_id,
+			),
 			Error::<Test>::UnauthorizedOperation
 		);
 	});
 }
 
 #[test]
-fn add_delegate_should_fail_if_delegate_is_already_added() {
+fn add_delegate_should_fail_if_the_space_capacity_is_full() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
-	//Schema creation from schema pallet
-	let raw_schema = [2u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let schema_id_of: Ss58Identifier =
-		Ss58Identifier::to_schema_id(&schema_id_digest.encode()[..]).unwrap();
 
-	let new_block_number: BlockNumberFor<Test> = 1;
-
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 	new_test_ext().execute_with(|| {
-		//adding schema
-		System::set_block_number(new_block_number);
-		//creating regisrty
-		assert_ok!(Schema::create(
+		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			schema.clone()
+			space_digest,
 		));
 
-		//creating regisrty
-		assert_ok!(Registry::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			Some(schema_id_of)
-		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
-		//Admin should be able to add the delegate
-		assert_ok!(Registry::add_delegate(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone(),
-			DID_00,
-		));
+		<Spaces<Test>>::insert(
+			&space_id,
+			SpaceDetailsOf::<Test> { usage: 3, ..<Spaces<Test>>::get(&space_id).unwrap() },
+		);
 
-		//When Trying to add same delegate again it says delegate already added
 		assert_err!(
-			Registry::add_delegate(
-				DoubleOrigin(author.clone(), DID_00.clone()).into(),
-				registry_id.clone(),
-				DID_00,
+			Space::add_delegate(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id,
+				SubjectId(AccountId32::new([1u8; 32])),
+				authorization_id,
 			),
-			Error::<Test>::DelegateAlreadyAdded
+			Error::<Test>::CapacityLimitExceeded
 		);
 	});
 }
 
 #[test]
-
-fn add_delegate_should_update_commit() {
+fn creating_a_new_space_should_succeed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+	let space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
 	new_test_ext().execute_with(|| {
-		//creating regisrty
-		assert_ok!(Registry::create(
+		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
+			space_digest,
 		));
+	});
+}
 
-		assert_ok!(Registry::update_commit(
-			&registry_id,
-			id_digest,
-			creator.clone(),
-			RegistryCommitActionOf::Authorization
+#[test]
+fn creating_a_duplicate_space_should_fail() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
 		));
-
-		//Check wheter that event has been emitted
-		assert_eq!(
-			registry_events_since_last_call(),
-			vec![Event::Create { registry: registry_id, creator }]
+		assert_err!(
+			Space::create(DoubleOrigin(author.clone(), creator.clone()).into(), space_digest,),
+			Error::<Test>::SpaceAlreadyAnchored
 		);
 	});
 }
 
-//TEST CASES FOR REMOVE DELEGATE FUNCTION
-
 #[test]
-fn remove_delegate_should_succeed() {
+fn approving_a_new_space_should_succeed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
-	let delegate = DID_01;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
-	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let authorization_id: Ss58Identifier =
-		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
-		System::set_block_number(1);
-
-		//creating regisrty
-		assert_ok!(Registry::create(
+		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+	});
+}
+
+#[test]
+fn approving_a_non_exixtent_space_should_fail() {
+	let creator = DID_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_err!(
+			Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity),
+			Error::<Test>::SpaceNotFound
+		);
+	});
+}
+
+#[test]
+fn archiving_a_space_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+		assert_ok!(Space::archive(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_id.clone(),
+			authorization_id.clone(),
 		));
 
-		//Admin should be able to add the delegate
-		assert_ok!(Registry::add_delegate(
+		assert_err!(
+			Space::add_delegate(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id,
+				SubjectId(AccountId32::new([1u8; 32])),
+				authorization_id,
+			),
+			Error::<Test>::ArchivedSpace
+		);
+	});
+}
+
+#[test]
+fn archiving_a_non_exixtent_space_should_fail() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_err!(
+			Space::archive(DoubleOrigin(author, creator).into(), space_id, authorization_id,),
+			Error::<Test>::AuthorizationNotFound
+		);
+	});
+}
+
+#[test]
+fn restoring_an_archived_a_space_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 5u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone(),
-			DID_01,
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+		assert_ok!(Space::archive(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_id.clone(),
+			authorization_id.clone(),
 		));
 
-		//removing the registry should succedd
-		assert_ok!(Registry::remove_delegate(
+		assert_ok!(Space::restore(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone(),
+			space_id.clone(),
+			authorization_id.clone(),
+		));
+
+		assert_ok!(Space::add_delegate(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_id,
+			SubjectId(AccountId32::new([1u8; 32])),
 			authorization_id,
 		));
 	});
 }
-// TODO - remove delegate should fail if it is not perfomed by an authority
 
 #[test]
-fn create_registry_should_succeed() {
+fn restoring_an_non_archived_a_space_should_fail() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
-
-	new_test_ext().execute_with(|| {
-		assert_ok!(Registry::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
-		));
-	});
-}
-
-// TODO registry create with non-existent schema id
-// TODO registry create failure - wrong input
-
-#[test]
-fn update_registry_should_succeed() {
-	let creator = DID_00;
-	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let space = [2u8; 256].to_vec();
+	let capacity = 5u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
 	new_test_ext().execute_with(|| {
-		//Creating a registry
-		assert_ok!(Registry::create(
+		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry,
-			None
+			space_digest,
 		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
-		let update_registry = [5u8; 256].to_vec();
-		let utx_registry: InputRegistryOf<Test> = BoundedVec::try_from(update_registry).unwrap();
-
-		assert_ok!(Registry::update(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			utx_registry,
-			registry_id
-		));
+		assert_err!(
+			Space::restore(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id.clone(),
+				authorization_id.clone(),
+			),
+			Error::<Test>::SpaceNotArchived
+		);
 	});
 }
-
-// TODO update failure test case
 
 #[test]
-fn archive_registry_should_succeed() {
+fn updating_space_capacity_by_root_should_succeed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let space = [2u8; 256].to_vec();
+	let capacity = 5u64;
+	let new_capacty = 10u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-	new_test_ext().execute_with(|| {
-		//Creating a registry
-		assert_ok!(Registry::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
-		));
 
-		//restoring a regisrty
-		assert_ok!(Registry::archive(
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone()
+			space_digest,
 		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		assert_ok!(Space::update_capacity(RawOrigin::Root.into(), space_id.clone(), new_capacty));
 	});
 }
-
-// TODO archive a non-existent registry - should fail
-// TODO archive a registry by an admin who is not the creator - should succeed
-// TODO archive registry by a delegate - should fail
 
 #[test]
-fn restore_registry_should_succeed() {
+fn updating_space_capacity_by_non_root_should_fail() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
-	let raw_registry = [2u8; 256].to_vec();
-	let registry: InputRegistryOf<Test> = BoundedVec::try_from(raw_registry).unwrap();
+	let space = [2u8; 256].to_vec();
+	let capacity = 5u64;
+	let new_capacty = 10u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
 	new_test_ext().execute_with(|| {
-		//Creating a registry
-		assert_ok!(Registry::create(
+		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry.clone(),
-			None
+			space_digest,
 		));
-
-		assert_ok!(Registry::archive(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id.clone()
-		));
-
-		//Updating a regisrty
-		assert_ok!(Registry::restore(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			registry_id
-		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+		assert_err!(
+			Space::update_capacity(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id,
+				new_capacty,
+			),
+			BadOrigin
+		);
 	});
 }
-//TODO add test cases to check error conditions
+
+#[test]
+fn reducing_space_capacity_by_root_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 10u64;
+	let new_capacty = 5u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		assert_ok!(Space::update_capacity(RawOrigin::Root.into(), space_id.clone(), new_capacty));
+	});
+}
+
+#[test]
+fn reducing_space_capacity_by_root_below_usage_should_fail() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 10u64;
+	let new_capacty = 5u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		<Spaces<Test>>::insert(
+			&space_id,
+			SpaceDetailsOf::<Test> { usage: 7, ..<Spaces<Test>>::get(&space_id).unwrap() },
+		);
+
+		assert_err!(
+			Space::update_capacity(RawOrigin::Root.into(), space_id.clone(), new_capacty),
+			Error::<Test>::CapacityLessThanUsage
+		);
+	});
+}
+
+#[test]
+fn resetting_space_usage_by_root_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 10u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		<Spaces<Test>>::insert(
+			&space_id,
+			SpaceDetailsOf::<Test> { usage: 7, ..<Spaces<Test>>::get(&space_id).unwrap() },
+		);
+
+		assert_ok!(Space::reset_usage(RawOrigin::Root.into(), space_id.clone()));
+	});
+}
+
+#[test]
+fn resetting_space_usage_by_non_root_should_fail() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 10u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		<Spaces<Test>>::insert(
+			&space_id,
+			SpaceDetailsOf::<Test> { usage: 7, ..<Spaces<Test>>::get(&space_id).unwrap() },
+		);
+
+		assert_err!(
+			Space::reset_usage(DoubleOrigin(author.clone(), creator.clone()).into(), space_id,),
+			BadOrigin
+		);
+	});
+}
+
+#[test]
+fn revoking_approval_of_a_space_by_root_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 10u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		assert_ok!(Space::approval_revoke(RawOrigin::Root.into(), space_id.clone()));
+	});
+}
+
+#[test]
+fn revoking_approval_of_a_space_by_non_root_should_fail() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 10u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		assert_err!(
+			Space::approval_revoke(DoubleOrigin(author.clone(), creator.clone()).into(), space_id,),
+			BadOrigin
+		);
+	});
+}
+
+#[test]
+fn restoring_approval_of_a_space_by_root_should_succeed() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 10u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		assert_ok!(Space::approval_revoke(RawOrigin::Root.into(), space_id.clone()));
+		assert_ok!(Space::approval_restore(RawOrigin::Root.into(), space_id.clone()));
+	});
+}
+
+#[test]
+fn restoring_approval_of_a_non_revoked_space_by_root_should_fail() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 10u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		assert_err!(
+			Space::approval_restore(RawOrigin::Root.into(), space_id.clone()),
+			Error::<Test>::SpaceAlreadyApproved
+		);
+	});
+}
+
+#[test]
+fn restoring_approval_of_a_space_by_non_root_should_fail() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 10u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		assert_ok!(Space::approval_revoke(RawOrigin::Root.into(), space_id.clone()));
+
+		assert_err!(
+			Space::approval_restore(DoubleOrigin(author.clone(), creator.clone()).into(), space_id,),
+			BadOrigin
+		);
+	});
+}

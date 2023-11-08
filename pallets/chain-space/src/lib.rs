@@ -217,6 +217,12 @@ pub mod pallet {
 		/// A space has been restored.
 		/// \[space identifier, \]
 		Revoke { space: SpaceIdOf },
+		/// A space approval has been revoked.
+		/// \[space identifier, \]
+		ApprovalRevoke { space: SpaceIdOf },
+		/// A space approval has been restored.
+		/// \[space identifier, \]
+		ApprovalRestore { space: SpaceIdOf },
 		/// A chain space capacity has been updated.
 		/// \[space identifier \]
 		UpdateCapacity { space: SpaceIdOf },
@@ -449,12 +455,6 @@ pub mod pallet {
 		/// - `Deauthorization`: Emitted when a delegate is successfully removed
 		///   from a space. The event includes the space ID and the
 		///   authorization ID of the removed delegate.
-		///
-		/// The function emits a `Deauthorization` event upon successful
-		/// completion, indicating that a delegate's authorization has been
-		/// revoked and they can no longer add entries to the space. This event
-		/// serves as a notification for external systems to update their
-		/// records, reflecting the change in delegation status for the space.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_delegate())]
 		pub fn remove_delegate(
@@ -637,7 +637,7 @@ pub mod pallet {
 		/// unauthorized approval of spaces, which may have security
 		/// implications.
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::approve())]
 		pub fn approve(origin: OriginFor<T>, space_id: SpaceIdOf, capacity: u64) -> DispatchResult {
 			T::ChainSpaceOrigin::ensure_origin(origin)?;
 
@@ -761,7 +761,7 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)
+			let auth_space_id = Self::ensure_authorization_restore_origin(&authorization, &creator)
 				.map_err(Error::<T>::from)?;
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
@@ -805,7 +805,7 @@ pub mod pallet {
 		/// * `UpdateCapacity` - Emits the space ID when the capacity is
 		///   successfully updated.
 		#[pallet::call_index(8)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_capacity())]
 		pub fn update_capacity(
 			origin: OriginFor<T>,
 			space_id: SpaceIdOf,
@@ -858,7 +858,7 @@ pub mod pallet {
 		/// - Emits `UpdateCapacity` upon successfully resetting the space's
 		///   usage counter.
 		#[pallet::call_index(9)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::reset_usage())]
 		pub fn reset_usage(origin: OriginFor<T>, space_id: SpaceIdOf) -> DispatchResult {
 			T::ChainSpaceOrigin::ensure_origin(origin)?;
 
@@ -900,8 +900,8 @@ pub mod pallet {
 		/// - Emits `Revoke` when the space's approved status is successfully
 		///   revoked.
 		#[pallet::call_index(10)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
-		pub fn revoke(origin: OriginFor<T>, space_id: SpaceIdOf) -> DispatchResult {
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::approval_revoke())]
+		pub fn approval_revoke(origin: OriginFor<T>, space_id: SpaceIdOf) -> DispatchResult {
 			T::ChainSpaceOrigin::ensure_origin(origin)?;
 
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
@@ -913,9 +913,29 @@ pub mod pallet {
 				SpaceDetailsOf::<T> { approved: false, ..space_details },
 			);
 
-			Self::update_activity(&space_id, CallTypeOf::Revoke).map_err(Error::<T>::from)?;
+			Self::update_activity(&space_id, CallTypeOf::CouncilRevoke)
+				.map_err(Error::<T>::from)?;
 
-			Self::deposit_event(Event::Revoke { space: space_id });
+			Self::deposit_event(Event::ApprovalRevoke { space: space_id });
+
+			Ok(())
+		}
+
+		#[pallet::call_index(11)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::approval_restore())]
+		pub fn approval_restore(origin: OriginFor<T>, space_id: SpaceIdOf) -> DispatchResult {
+			T::ChainSpaceOrigin::ensure_origin(origin)?;
+
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+			ensure!(!space_details.approved, Error::<T>::SpaceAlreadyApproved);
+
+			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { approved: true, ..space_details });
+
+			Self::update_activity(&space_id, CallTypeOf::CouncilRestore)
+				.map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::ApprovalRestore { space: space_id });
 
 			Ok(())
 		}
@@ -930,34 +950,6 @@ impl<T: Config> Pallet<T> {
 	/// an authorization ID based on the space ID, delegate, and creator,
 	/// ensuring that the delegate is not already added. It also checks that the
 	/// space is not archived, is approved, and has not exceeded its capacity.
-	///
-	/// # Parameters
-	/// - `space_id`: The ID of the space to which the delegate is being added.
-	/// - `delegate`: The identifier of the delegate being added to the space.
-	/// - `creator`: The identifier of the creator or the caller who is adding
-	///   the delegate.
-	/// - `permissions`: The permissions to be assigned to the delegate.
-	/// - `authorization`: The authorization ID used to validate the addition.
-	///
-	/// # Returns
-	/// Returns `Ok(())` if the delegate was added successfully, or an `Err`
-	/// with an appropriate error if the operation fails.
-	///
-	/// # Errors
-	/// - `SpaceNotFound`: If the space with the given ID does not exist.
-	/// - `ArchivedSpace`: If the space is archived.
-	/// - `SpaceNotApproved`: If the space is not approved for adding delegates.
-	/// - `CapacityLimitExceeded`: If the space has reached its capacity limit.
-	/// - `InvalidIdentifierLength`: If the generated authorization ID is not
-	///   valid.
-	/// - `DelegateAlreadyAdded`: If the delegate is already added to the space.
-	/// - `SpaceDelegatesLimitExceeded`: If the space has reached the limit of
-	///   allowed delegates.
-	///
-	/// # Side Effects
-	/// - Updates the `Delegates` and `Authorizations` storage items.
-	/// - Increments the usage count of the space.
-	/// - Logs an `Authorization` event.
 	fn space_delegate_addition(
 		space_id: SpaceIdOf,
 		delegate: SpaceCreatorOf<T>,
@@ -1010,14 +1002,6 @@ impl<T: Config> Pallet<T> {
 	/// This function retrieves the list of delegates for a space and determines
 	/// whether the specified delegate is among them. It is a read-only
 	/// operation and does not modify the state.
-	///
-	/// # Parameters
-	/// - `tx_id`: The identifier of the space to check for the delegation.
-	/// - `delegate`: The entity to check for delegate status.
-	///
-	/// # Returns
-	/// - `bool`: Returns `true` if the specified entity is a delegate of the
-	///   given space, otherwise `false`.
 	pub fn is_a_delegate(tx_id: &SpaceIdOf, delegate: SpaceCreatorOf<T>) -> bool {
 		<Delegates<T>>::get(tx_id).iter().any(|d| d == &delegate)
 	}
@@ -1026,24 +1010,6 @@ impl<T: Config> Pallet<T> {
 	///
 	/// This function checks if the provided delegate is associated with the
 	/// given authorization ID and has the 'ASSERT' permission.
-	///
-	/// # Parameters
-	/// - `authorization_id`: A reference to the identifier of the authorization
-	///   to check.
-	/// - `delegate`: A reference to the delegate whose status is being
-	///   verified.
-	///
-	/// # Returns
-	/// - `Result<SpaceIdOf, Error<T>>`: Returns `Ok(space_id)` if the delegate
-	///   has the 'ASSERT' permission for the space, otherwise returns an `Err`
-	///   with the appropriate error.
-	///
-	/// # Errors
-	/// - `AuthorizationNotFound`: If the authorization ID does not correspond
-	///   to any existing authorization.
-	/// - `UnauthorizedOperation`: If the delegate does not have the 'ASSERT'
-	///   permission or is not the delegate associated with the authorization
-	///   ID.
 	pub fn ensure_authorization_origin(
 		authorization_id: &AuthorizationIdOf,
 		delegate: &SpaceCreatorOf<T>,
@@ -1062,29 +1028,30 @@ impl<T: Config> Pallet<T> {
 		Ok(d.space_id)
 	}
 
+	pub fn ensure_authorization_restore_origin(
+		authorization_id: &AuthorizationIdOf,
+		delegate: &SpaceCreatorOf<T>,
+	) -> Result<SpaceIdOf, Error<T>> {
+		let d =
+			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
+
+		ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
+
+		Self::increment_usage(&d.space_id)?;
+
+		Self::validate_space_for_restore_transaction(&d.space_id)?;
+
+		ensure!(d.permissions.contains(Permissions::ASSERT), Error::<T>::UnauthorizedOperation);
+
+		Ok(d.space_id)
+	}
+
 	/// Checks if a given delegate is an admin for the space associated with the
 	/// authorization ID.
 	///
 	/// This function verifies whether the specified delegate is the admin of
 	/// the space by checking the 'ADMIN' permission within the authorization
 	/// tied to the provided authorization ID.
-	///
-	/// # Parameters
-	/// - `authorization_id`: A reference to the identifier of the authorization
-	///   to check.
-	/// - `delegate`: The delegate whose admin status is being verified.
-	///
-	/// # Returns
-	/// - `Result<SpaceIdOf, Error<T>>`: Returns `Ok(space_id)` if the delegate
-	///   is an admin for the space, otherwise returns an `Err` with the
-	///   appropriate error.
-	///
-	/// # Errors
-	/// - `AuthorizationNotFound`: If the authorization ID does not correspond
-	///   to any existing authorization.
-	/// - `UnauthorizedOperation`: If the delegate does not have the 'ADMIN'
-	///   permission or is not the delegate associated with the authorization
-	///   ID.
 	pub fn ensure_authorization_admin_origin(
 		authorization_id: &AuthorizationIdOf,
 		delegate: &SpaceCreatorOf<T>,
@@ -1096,13 +1063,20 @@ impl<T: Config> Pallet<T> {
 
 		Self::increment_usage(&d.space_id)?;
 
-		Self::validate_space_for_admin_transaction(&d.space_id)?;
+		Self::validate_space_for_transaction(&d.space_id)?;
 
 		ensure!(d.permissions.contains(Permissions::ADMIN), Error::<T>::UnauthorizedOperation);
 
 		Ok(d.space_id)
 	}
 
+	/// Ensures that the given delegate is authorized to perform an audit
+	/// operation on a space.
+	///
+	/// This function checks whether the provided `authorization_id` corresponds
+	/// to an existing authorization and whether the delegate associated with
+	/// that authorization is allowed to perform audit operations. It also
+	/// increments usage and validates the space for transactions.
 	pub fn ensure_authorization_audit_origin(
 		authorization_id: &AuthorizationIdOf,
 		delegate: &SpaceCreatorOf<T>,
@@ -1144,14 +1118,17 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// Validates a space for administrative transactions.
+	/// Validates a space for restore transactions.
 	///
 	/// This function checks that the specified space is approved and has not
 	/// exceeded its capacity limit. It is designed to be called before
 	/// performing any administrative actions on a space to ensure
 	/// that the space is in a proper state for such transactions.
-	pub fn validate_space_for_admin_transaction(space_id: &SpaceIdOf) -> Result<(), Error<T>> {
+	pub fn validate_space_for_restore_transaction(space_id: &SpaceIdOf) -> Result<(), Error<T>> {
 		let space_details = Spaces::<T>::get(space_id).ok_or(Error::<T>::SpaceNotFound)?;
+
+		// Ensure the space is archived.
+		ensure!(space_details.archive, Error::<T>::SpaceNotArchived);
 
 		// Ensure the space is approved for transactions.
 		ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
@@ -1198,90 +1175,12 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	/// Ensures that the space has not exceeded its capacity.
-	///
-	/// This function checks if the space identified by `space_id` has exceeded
-	/// its capacity for delegates or entries.
-	///
-	/// # Parameters
-	/// - `space_id`: A reference to the identifier of the space to check.
-	///
-	/// # Returns
-	/// - `Result<(), Error<T>>`: Returns `Ok(())` if the space has not exceeded
-	///   its capacity, otherwise returns an `Err` with the appropriate error.
-	///
-	/// # Errors
-	/// - `SpaceNotFound`: If the space ID does not correspond to any existing
-	///   space.
-	/// - `CapacityLimitExceeded`: If the space has reached or exceeded its
-	///   capacity limit.
-	pub fn ensure_capacity_not_exceeded(space_id: &SpaceIdOf) -> Result<(), Error<T>> {
-		Spaces::<T>::get(space_id)
-			.ok_or(Error::<T>::SpaceNotFound)
-			.and_then(|space_details| {
-				if space_details.capacity == 0 || space_details.usage < space_details.capacity {
-					Ok(())
-				} else {
-					Err(Error::<T>::CapacityLimitExceeded)
-				}
-			})
-	}
-
-	/// Ensures that the space has not exceeded its capacity, considering a
-	/// batch of entries.
-	///
-	/// This function checks if the space identified by `space_id` can
-	/// accommodate a specified number of new entries without exceeding its
-	/// capacity.
-	///
-	/// # Parameters
-	/// - `space_id`: A reference to the identifier of the space to check.
-	/// - `entries`: The number of new entries to be added to the space.
-	///
-	/// # Returns
-	/// - `Result<(), Error<T>>`: Returns `Ok(())` if the space can accommodate
-	///   the new entries, otherwise returns an `Err` with the appropriate
-	///   error.
-	///
-	/// # Errors
-	/// - `SpaceNotFound`: If the space ID does not correspond to any existing
-	///   space.
-	/// - `CapacityLimitExceeded`: If adding the new entries would exceed the
-	///   space's capacity limit.
-	pub fn ensure_capacity_not_exceeded_batch(
-		space_id: &SpaceIdOf,
-		entries: u16,
-	) -> Result<(), Error<T>> {
-		Spaces::<T>::get(space_id)
-			.ok_or(Error::<T>::SpaceNotFound)
-			.and_then(|space_details| {
-				if space_details.capacity == 0 ||
-					space_details.usage + entries as u64 <= space_details.capacity
-				{
-					Ok(())
-				} else {
-					Err(Error::<T>::CapacityLimitExceeded)
-				}
-			})
-	}
-
+	//
 	/// Increments the usage count of a space by one unit.
 	///
 	/// This function is used to increase the usage counter of a space,
 	/// typically when a new delegate or entry is added. It ensures that the
 	/// usage count does not overflow.
-	///
-	/// # Parameters
-	/// - `tx_id`: A reference to the identifier of the space whose usage is
-	///   being incremented.
-	///
-	/// # Returns
-	/// - `Result<(), Error<T>>`: Returns `Ok(())` if the usage is successfully
-	///   incremented, or an `Err` if the space does not exist.
-	///
-	/// # Errors
-	/// - `SpaceNotFound`: If the space ID does not correspond to any existing
-	///   space.
 	pub fn increment_usage(tx_id: &SpaceIdOf) -> Result<(), Error<T>> {
 		Spaces::<T>::try_mutate(tx_id, |space_opt| {
 			if let Some(space_details) = space_opt {
@@ -1298,18 +1197,6 @@ impl<T: Config> Pallet<T> {
 	/// This function is used to decrease the usage counter of a space,
 	/// typically when a delegate or entry is removed. It ensures that the usage
 	/// count does not underflow.
-	///
-	/// # Parameters
-	/// - `tx_id`: A reference to the identifier of the space whose usage is
-	///   being decremented.
-	///
-	/// # Returns
-	/// - `Result<(), Error<T>>`: Returns `Ok(())` if the usage is successfully
-	///   decremented, or an `Err` if the space does not exist.
-	///
-	/// # Errors
-	/// - `SpaceNotFound`: If the space ID does not correspond to any existing
-	///   space.
 	pub fn decrement_usage(tx_id: &SpaceIdOf) -> Result<(), Error<T>> {
 		Spaces::<T>::try_mutate(tx_id, |space_opt| {
 			if let Some(space_details) = space_opt {
@@ -1326,20 +1213,6 @@ impl<T: Config> Pallet<T> {
 	/// This function increases the usage counter of a space by the amount
 	/// specified in `increment`, which is useful for batch operations.
 	/// It ensures that the usage count does not overflow.
-	///
-	/// # Parameters
-	/// - `tx_id`: A reference to the identifier of the space whose usage is
-	///   being incremented.
-	/// - `increment`: The amount by which to increment the usage count.
-	///
-	/// # Returns
-	/// - `Result<(), Error<T>>`: Returns `Ok(())` if the usage is successfully
-	///   incremented by the specified amount, or an `Err` if the space does not
-	///   exist.
-	///
-	/// # Errors
-	/// - `SpaceNotFound`: If the space ID does not correspond to any existing
-	///   space.
 	pub fn increment_usage_entries(tx_id: &SpaceIdOf, increment: u16) -> Result<(), Error<T>> {
 		Spaces::<T>::try_mutate(tx_id, |space_opt| {
 			if let Some(space_details) = space_opt {
@@ -1356,20 +1229,6 @@ impl<T: Config> Pallet<T> {
 	/// This function decreases the usage counter of a space by the amount
 	/// specified in `decrement`, which is useful for batch removals. It ensures
 	/// that the usage count does not underflow.
-	///
-	/// # Parameters
-	/// - `tx_id`: A reference to the identifier of the space whose usage is
-	///   being decremented.
-	/// - `decrement`: The amount by which to decrement the usage count.
-	///
-	/// # Returns
-	/// - `Result<(), Error<T>>`: Returns `Ok(())` if the usage is successfully
-	///   decremented by the specified amount, or an `Err` if the space does not
-	///   exist.
-	///
-	/// # Errors
-	/// - `SpaceNotFound`: If the space ID does not correspond to any existing
-	///   space.
 	pub fn decrement_usage_entries(tx_id: &SpaceIdOf, decrement: u16) -> Result<(), Error<T>> {
 		Spaces::<T>::try_mutate(tx_id, |space_opt| {
 			if let Some(space_details) = space_opt {
@@ -1389,27 +1248,6 @@ impl<T: Config> Pallet<T> {
 	/// activity and the precise time at which it happened. This automated
 	/// tracking is crucial for maintaining a consistent and auditable record of
 	/// all space-related activities.
-	///
-	/// # Parameters
-	/// - `tx_id`: A reference to the identifier of the space that has been
-	///   updated.
-	/// - `tx_action`: The type of activity that has occurred, encapsulated
-	///   within `CallTypeOf`.
-	///
-	/// # Returns
-	/// - `Result<(), Error<T>>`: Returns `Ok(())` if the activity is
-	///   successfully recorded on the global timeline. In the context of the
-	///   system's automatic invocation, this function will typically not return
-	///   an error to the caller, but will handle any errors internally.
-	///
-	/// # Note
-	/// This function is not intended to be called directly by external
-	/// entities. It is triggered by the system in response to actions such as
-	/// creating, modifying, or deleting a space, as well as adding or removing
-	/// delegates.
-	///
-	/// The function ensures that the global timeline reflects all updates,
-	/// providing a reliable audit trail for the space's lifecycle.
 	pub fn update_activity(tx_id: &SpaceIdOf, tx_action: CallTypeOf) -> Result<(), Error<T>> {
 		let tx_moment = Self::timepoint();
 
@@ -1424,10 +1262,6 @@ impl<T: Config> Pallet<T> {
 	/// This function returns a `Timepoint` structure containing the current
 	/// block number and extrinsic index. It is typically used in conjunction
 	/// with `update_activity` to record when an event occurred.
-	///
-	/// # Returns
-	/// - `Timepoint`: A structure containing the current block number and
-	///   extrinsic index.
 	pub fn timepoint() -> Timepoint {
 		Timepoint {
 			height: frame_system::Pallet::<T>::block_number().unique_saturated_into(),

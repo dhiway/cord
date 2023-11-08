@@ -23,6 +23,7 @@ use frame_support::{
 	traits::{ConstU32, ConstU64},
 };
 
+use frame_system::EnsureRoot;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	BuildStorage, MultiSignature,
@@ -38,6 +39,7 @@ construct_runtime!(
 	pub enum Test {
 		System: frame_system,
 		Space: pallet_chain_space,
+		Identifier: identifier,
 		MockOrigin: mock_origin,
 	}
 );
@@ -80,36 +82,40 @@ impl mock_origin::Config for Test {
 
 parameter_types! {
 	#[derive(Debug, Clone)]
-	pub const MaxEncodedRegistryLength: u32 = 15_360;
-	pub const MaxRegistryAuthorities: u32 = 3u32;
-	#[derive(Debug, Clone)]
-	pub const MaxRegistryCommitActions: u32 = 5u32;
+	pub const MaxSpaceDelegates: u32 = 5u32;
 }
 
 impl pallet_chain_space::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type RegistryCreatorId = SubjectId;
-	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
-	type MaxRegistryAuthorities = MaxRegistryAuthorities;
-	type MaxRegistryCommitActions = MaxRegistryCommitActions;
+	type SpaceCreatorId = SubjectId;
+	type MaxSpaceDelegates = MaxSpaceDelegates;
+	type ChainSpaceOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
 }
 
 parameter_types! {
-	storage RegistryEvents: u32 = 0;
+	pub const MaxEventsHistory: u32 = 6u32;
+}
+
+impl identifier::Config for Test {
+	type MaxEventsHistory = MaxEventsHistory;
+}
+
+parameter_types! {
+	storage SpaceEvents: u32 = 0;
 }
 
 /// All events of this pallet.
-pub fn registry_events_since_last_call() -> Vec<super::Event<Test>> {
+pub fn space_events_since_last_call() -> Vec<super::Event<Test>> {
 	let events = System::events()
 		.into_iter()
 		.map(|r| r.event)
-		.filter_map(|e| if let RuntimeEvent::Registry(inner) = e { Some(inner) } else { None })
+		.filter_map(|e| if let RuntimeEvent::Space(inner) = e { Some(inner) } else { None })
 		.collect::<Vec<_>>();
-	let already_seen = RegistryEvents::get();
-	RegistryEvents::set(&(events.len() as u32));
+	let already_seen = SpaceEvents::get();
+	SpaceEvents::set(&(events.len() as u32));
 	events.into_iter().skip(already_seen as usize).collect()
 }
 

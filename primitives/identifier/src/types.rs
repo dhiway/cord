@@ -48,6 +48,8 @@ pub enum CallTypeOf {
 	Archive,
 	Authorization,
 	Capacity,
+	CouncilRevoke,
+	CouncilRestore,
 	Deauthorization,
 	Approved,
 	Genesis,
@@ -65,6 +67,7 @@ pub enum CallTypeOf {
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub enum IdentifierTypeOf {
 	Asset,
+	Auth,
 	Did,
 	Registry,
 	Statement,

@@ -51,6 +51,7 @@ use core::marker::PhantomData;
 /// Weight functions needed for pallet_chain_space.
 pub trait WeightInfo {
 	fn create( ) -> Weight;
+	fn approve( ) -> Weight;
 	fn update( ) -> Weight;
 	fn archive() -> Weight;
 	fn restore() -> Weight;
@@ -58,6 +59,11 @@ pub trait WeightInfo {
 	fn add_audit_delegate() -> Weight;
 	fn add_delegate() -> Weight;
 	fn remove_delegate() -> Weight;
+	fn update_capacity() -> Weight;
+	fn reset_usage() -> Weight;
+	fn revoke() -> Weight;
+	fn approval_revoke() -> Weight;
+	fn approval_restore() -> Weight;
 }
 
 /// Weights for pallet_chain_space using the CORD node and recommended hardware.
@@ -69,6 +75,20 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 15360]`.
 	fn create( ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `42`
+		//  Estimated: `72533`
+		// Minimum execution time: 73_437_000 picoseconds.
+		Weight::from_parts(76_124_324, 72533)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:1)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	/// The range of component `l` is `[1, 15360]`.
+	fn approve( ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `42`
 		//  Estimated: `72533`
@@ -181,6 +201,82 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
+		/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn update_capacity() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `72533`
+		// Minimum execution time: 37_965_000 picoseconds.
+		Weight::from_parts(40_086_000, 72533)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn reset_usage() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `72533`
+		// Minimum execution time: 37_965_000 picoseconds.
+		Weight::from_parts(40_086_000, 72533)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn revoke() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `72533`
+		// Minimum execution time: 37_965_000 picoseconds.
+		Weight::from_parts(40_086_000, 72533)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn approval_revoke() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `72533`
+		// Minimum execution time: 37_965_000 picoseconds.
+		Weight::from_parts(40_086_000, 72533)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn approval_restore() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `72533`
+		// Minimum execution time: 37_965_000 picoseconds.
+		Weight::from_parts(40_086_000, 72533)
+			.saturating_add(T::DbWeight::get().reads(3_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+
 }
 
 // For backwards compatibility and tests
@@ -191,6 +287,20 @@ impl WeightInfo for () {
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 15360]`.
 	fn create( ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `42`
+		//  Estimated: `72533`
+		// Minimum execution time: 73_437_000 picoseconds.
+		Weight::from_parts(76_124_324, 72533)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:1)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	/// The range of component `l` is `[1, 15360]`.
+	fn approve( ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `42`
 		//  Estimated: `72533`
@@ -303,4 +413,80 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(3_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
+		/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn update_capacity() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `72533`
+		// Minimum execution time: 37_965_000 picoseconds.
+		Weight::from_parts(40_086_000, 72533)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn reset_usage() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `72533`
+		// Minimum execution time: 37_965_000 picoseconds.
+		Weight::from_parts(40_086_000, 72533)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn revoke() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `72533`
+		// Minimum execution time: 37_965_000 picoseconds.
+		Weight::from_parts(40_086_000, 72533)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn approval_revoke() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `72533`
+		// Minimum execution time: 37_965_000 picoseconds.
+		Weight::from_parts(40_086_000, 72533)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	/// Storage: Registry Registries (r:1 w:0)
+	/// Proof: Registry Registries (max_values: None, max_size: Some(15544), added: 18019, mode: MaxEncodedLen)
+	/// Storage: Registry Authorizations (r:1 w:1)
+	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
+	/// Storage: Registry Commits (r:1 w:1)
+	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
+	fn approval_restore() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `16013`
+		//  Estimated: `72533`
+		// Minimum execution time: 37_965_000 picoseconds.
+		Weight::from_parts(40_086_000, 72533)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+
 }
