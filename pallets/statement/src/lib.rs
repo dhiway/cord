@@ -342,6 +342,8 @@ pub mod pallet {
 		PresentationDigestAlreadyAnchored,
 		/// Presentation not found
 		PresentationNotFound,
+		/// Statement digest already present on the chain.
+		StatementDigestAlreadyAnchored,
 	}
 
 	#[pallet::call]
@@ -404,14 +406,11 @@ pub mod pallet {
 			schema_id: Option<SchemaIdOf>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-
-			let space_id =
-				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &creator)
-					.map_err(<pallet_chain_space::Error<T>>::from)?;
-
-			// Ensure the space has not exceeded its capacity.
-			pallet_chain_space::Pallet::<T>::ensure_capacity_not_exceeded(&space_id)
-				.map_err(<pallet_chain_space::Error<T>>::from)?;
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&creator,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			// Id Digest = concat (H(<scale_encoded_statement_digest>,
 			// <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
@@ -443,9 +442,6 @@ pub mod pallet {
 
 			<Entries<T>>::insert(&identifier, digest, creator.clone());
 			<IdentifierLookup<T>>::insert(digest, &space_id, &identifier);
-
-			pallet_chain_space::Pallet::<T>::increment_usage(&space_id)
-				.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
 
@@ -511,27 +507,26 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&updater,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
 
-			// Check for revocation first to fail early if applicable.
+			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
+
 			ensure!(
 				!<RevocationList<T>>::contains_key(&statement_id, &statement_details.digest),
 				Error::<T>::StatementRevoked
 			);
 
-			// Check for digest uniqueness to fail early if the digest is the same.
 			ensure!(
-				statement_details.digest != new_statement_digest,
-				Error::<T>::StatementAlreadyAnchored
+				!<Entries<T>>::contains_key(&statement_id, &new_statement_digest),
+				Error::<T>::StatementDigestAlreadyAnchored
 			);
-
-			let space_id =
-				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
-					.map_err(<pallet_chain_space::Error<T>>::from)?;
-
-			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
 			<RevocationList<T>>::insert(
 				&statement_id,
@@ -623,19 +618,19 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&updater,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
 
-			// Check for revocation first to fail early if applicable.
 			ensure!(
 				!<RevocationList<T>>::contains_key(&statement_id, &statement_details.digest),
 				Error::<T>::StatementRevoked
 			);
-
-			let space_id =
-				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
-					.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
@@ -707,28 +702,21 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&updater,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
 
-			// Check for revocation first to fail early if not revoked.
 			ensure!(
 				<RevocationList<T>>::contains_key(&statement_id, &statement_details.digest),
 				Error::<T>::StatementNotRevoked
 			);
 
-			// Check if the updater is the previous creator or a delegate with the proper
-			// authorization.
-			let is_updater_creator = Entries::<T>::get(&statement_id, &statement_details.digest)
-				.map_or(false, |prev_creator| prev_creator == updater);
-
-			if !is_updater_creator {
-				let space_id =
-					pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
-						.map_err(<pallet_chain_space::Error<T>>::from)?;
-
-				ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
-			}
+			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
 			<RevocationList<T>>::remove(&statement_id, &statement_details.digest);
 
@@ -800,14 +788,14 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&updater,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
-
-			// Authorization check is moved up to fail early.
-			let space_id =
-				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &updater)
-					.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
@@ -829,7 +817,7 @@ pub mod pallet {
 					<RevocationList<T>>::clear_prefix(&statement_id, entries_count as u32, None);
 				let _ = <Entries<T>>::clear_prefix(&statement_id, entries_count as u32, None);
 				<Statements<T>>::remove(&statement_id);
-				pallet_chain_space::Pallet::<T>::decrement_usage_batch(
+				pallet_chain_space::Pallet::<T>::decrement_usage_entries(
 					&space_id,
 					entries_count as u16,
 				)
@@ -842,7 +830,7 @@ pub mod pallet {
 					<Entries<T>>::remove(&statement_id, &digest);
 					removed_count += 1;
 				}
-				pallet_chain_space::Pallet::<T>::decrement_usage_batch(
+				pallet_chain_space::Pallet::<T>::decrement_usage_entries(
 					&space_id,
 					removed_count as u16,
 				)
@@ -928,23 +916,16 @@ pub mod pallet {
 			schema_id: Option<SchemaIdOf>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&creator,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
-			// Ensure the incoming digests are not too large.
 			ensure!(
 				digests.len() <= T::MaxDigestsPerBatch::get() as usize,
 				Error::<T>::MaxDigestLimitExceeded
 			);
-
-			let space_id =
-				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &creator)
-					.map_err(<pallet_chain_space::Error<T>>::from)?;
-
-			// Ensure the space has not exceeded its capacity for batch.
-			pallet_chain_space::Pallet::<T>::ensure_capacity_not_exceeded_batch(
-				&space_id,
-				digests.len() as u16,
-			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let mut success = 0u32;
 			let mut fail = 0u32;
@@ -995,9 +976,12 @@ pub mod pallet {
 			}
 
 			ensure!(success > 0, Error::<T>::BulkTransactionFailed);
+			if digests.len() > 1 {
+				let increment = (digests.len() - 1) as u16;
 
-			pallet_chain_space::Pallet::<T>::increment_usage_batch(&space_id, success as u16)
-				.map_err(<pallet_chain_space::Error<T>>::from)?;
+				pallet_chain_space::Pallet::<T>::increment_usage_entries(&space_id, increment)
+					.map_err(<pallet_chain_space::Error<T>>::from)?;
+			}
 
 			Self::deposit_event(Event::BatchCreate {
 				successful: success,
@@ -1009,34 +993,37 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Adds a new presentation to a statement.
+		/// Adds a presentation to a specified statement.
 		///
-		/// This function allows a creator (issuer) to associate a new
-		/// presentation (like a PDF or image) with an existing statement
-		/// identifier. Each presentation is identified by a unique digest and
-		/// is categorized by a presentation type (e.g., PDF, JPEG).
+		/// This privileged function is reserved for execution by the council or
+		/// root origin only. It allows the removal of a presentation associated
+		/// with a given  `statement_id`. The function performs authorization
+		/// checks based on the provided `authorization` parameter, ensuring
+		/// that the operation is performed within the correct chain space.
 		///
-		/// # Arguments
-		/// * `origin` - The origin of the call, which must be signed by the
-		///   creator or a delegate.
-		/// * `statement_id` - The identifier of the statement to which the
+		/// # Parameters
+		/// - `origin`: The transaction's origin, restricted to council or root.
+		/// - `statement_id`: The identifier of the statement to which the
 		///   presentation will be added.
-		/// * `presentation_digest` - The digest that uniquely identifies the
-		///   new presentation.
-		/// * `presentation_type` - The type of the presentation being added
-		///   (e.g., PDF, JPEG).
-		/// * `authorization` - An authorization identifier proving the caller's
-		///   right to add the presentation.
+		/// - `presentation_digest`: The digest that uniquely identifies the new
+		///   presentation.
+		/// - `presentation_type`: The type categorization of the presentation.
+		/// - `authorization`: The authorization identifier for the creator,
+		///   required to perform the addition.
 		///
 		/// # Errors
-		/// * `StatementNotFound` - If the statement with the given ID does not
-		///   exist.
-		/// * `StatementRevoked` - If the statement has been revoked and cannot
-		///   be modified.
-		/// * `UnauthorizedOperation` - If the caller is not authorized to add
-		///   presentations to the statement.
-		/// * `PresentationDigestAlreadyAnchored` - If the presentation digest
-		///   is already used for another presentation.
+		/// - Returns `StatementNotFound` if the `statement_id` does not
+		///   correspond to any existing statement.
+		/// - Returns `StatementRevoked` if the statement associated with the
+		///   `statement_id` has been revoked.
+		/// - Returns `UnauthorizedOperation` if the operation is not authorized
+		///   within the associated space.
+		/// - Returns `PresentationDigestAlreadyAnchored` if the
+		///   `presentation_digest` is not unique.
+		///
+		/// # Events
+		/// - Emits `PresentationAdded` upon the successful addition of the
+		///   presentation.
 		#[pallet::call_index(6)]
 		#[pallet::weight({0})]
 		pub fn add_presentation(
@@ -1047,20 +1034,19 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&creator,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
 
-			// Check for revocation first to fail early if applicable.
 			ensure!(
 				!<RevocationList<T>>::contains_key(&statement_id, &statement_details.digest),
 				Error::<T>::StatementRevoked
 			);
-
-			// Authorization check.
-			let space_id =
-				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &creator)
-					.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
@@ -1084,10 +1070,6 @@ pub mod pallet {
 				},
 			);
 
-			pallet_chain_space::Pallet::<T>::increment_usage(&space_id)
-				.map_err(<pallet_chain_space::Error<T>>::from)?;
-
-			// Update activity for the statement with the new view addition.
 			Self::update_activity(&statement_id, CallTypeOf::PresentationAdded)
 				.map_err(<Error<T>>::from)?;
 
@@ -1100,6 +1082,33 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Removes a presentation from a specified statement state.
+		///
+		/// This privileged function is reserved for execution by the council or
+		/// root origin only. It allows the removal of a presentation associated
+		/// with the `statement_id` and identified by `presentation_digest`. The
+		/// function validates the `authorization` of the caller within the
+		/// specified chain space before proceeding with the removal.
+		///
+		/// # Parameters
+		/// - `origin`: The transaction's origin, restricted to council or root.
+		/// - `statement_id`: The identifier of the statement associated with
+		///   the presentation.
+		/// - `presentation_digest`: The digest that uniquely identifies the
+		///   presentation to be removed.
+		/// - `authorization`: The authorization identifier that the remover
+		///   must have to perform the removal.
+		///
+		/// # Errors
+		/// - Returns `PresentationNotFound` if the specified presentation does
+		///   not exist.
+		/// - Returns `UnauthorizedOperation` if the origin is not authorized to
+		///   perform this action.
+		///
+		/// # Events
+		/// - Emits `PresentationRemoved` upon the successful removal of the
+		///   presentation.
 		#[pallet::call_index(7)]
 		#[pallet::weight({0})]
 		pub fn remove_presentation(
@@ -1109,30 +1118,25 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let remover = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&remover,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
-			// Ensure the presentation exists.
 			let presentation_details = Presentations::<T>::get(&statement_id, &presentation_digest)
 				.ok_or(Error::<T>::PresentationNotFound)?;
 
-			// Authorization check.
-			let space_id =
-				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &remover)
-					.map_err(<pallet_chain_space::Error<T>>::from)?;
-
 			ensure!(presentation_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
-			// Remove the presentation.
 			Presentations::<T>::remove(&statement_id, &presentation_digest);
 			IdentifierLookup::<T>::remove(&presentation_digest, &space_id);
 
 			pallet_chain_space::Pallet::<T>::decrement_usage(&space_id)
 				.map_err(<pallet_chain_space::Error<T>>::from)?;
 
-			// Update activity for the statement with the presentation removal.
-			Self::update_activity(&statement_id, CallTypeOf::PresentationRemoved)
-				.map_err(<Error<T>>::from)?;
+			Self::update_activity(&statement_id, CallTypeOf::PresentationRemoved)?;
 
-			// Emit an event to signal the successful removal of the presentation.
 			Self::deposit_event(Event::PresentationRemoved {
 				identifier: statement_id,
 				digest: presentation_digest,

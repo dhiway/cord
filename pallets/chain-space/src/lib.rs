@@ -122,7 +122,6 @@ pub type SpaceIdOf = Ss58Identifier;
 pub type AuthorizationIdOf = Ss58Identifier;
 /// Chain space input code.
 pub type SpaceCodeOf<T> = <T as frame_system::Config>::Hash;
-
 /// Type of on-chain registry entry.
 pub type SpaceDetailsOf<T> = SpaceDetails<SpaceCodeOf<T>, SpaceCreatorOf<T>, StatusOf>;
 
@@ -215,6 +214,15 @@ pub mod pallet {
 		/// A space has been restored.
 		/// \[space identifier,  authority\]
 		Restore { space: SpaceIdOf, authority: SpaceCreatorOf<T> },
+		/// A space has been restored.
+		/// \[space identifier, \]
+		Revoke { space: SpaceIdOf },
+		/// A chain space capacity has been updated.
+		/// \[space identifier \]
+		UpdateCapacity { space: SpaceIdOf },
+		/// A chain space usage has been reset.
+		/// \[space identifier \]
+		ResetUsage { space: SpaceIdOf },
 	}
 
 	#[pallet::error]
@@ -252,6 +260,10 @@ pub mod pallet {
 		SpaceNotApproved,
 		/// The capacity limit for the space has been exceeded.
 		CapacityLimitExceeded,
+		/// The new capacity value is lower than the current usage
+		CapacityLessThanUsage,
+		/// Type capacity overflow
+		TypeCapacityOverflow,
 	}
 
 	#[pallet::call]
@@ -294,10 +306,9 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = T::EnsureOrigin::ensure_origin(origin)?.subject();
-
-			// Determine the space_id from the authorization
-			let auth_space_id = Self::is_a_space_admin(&authorization, creator.clone())
+			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)
 				.map_err(Error::<T>::from)?;
+
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			let permissions = Permissions::ASSERT;
@@ -344,10 +355,9 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = T::EnsureOrigin::ensure_origin(origin)?.subject();
-
-			// Determine the space_id from the authorization
-			let auth_space_id = Self::is_a_space_admin(&authorization, creator.clone())
+			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)
 				.map_err(Error::<T>::from)?;
+
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			let permissions = Permissions::ADMIN;
@@ -388,10 +398,9 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = T::EnsureOrigin::ensure_origin(origin)?.subject();
-
-			// Determine the space_id from the authorization
-			let auth_space_id = Self::is_a_space_admin(&authorization, creator.clone())
+			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)
 				.map_err(Error::<T>::from)?;
+
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			let permissions = Permissions::AUDIT;
@@ -455,19 +464,14 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)
+				.map_err(Error::<T>::from)?;
+
+			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			// Ensure the authorization exists and retrieve its details.
 			let authorization_details = Authorizations::<T>::get(&remove_authorization)
 				.ok_or(Error::<T>::AuthorizationNotFound)?;
-
-			// Determine the space_id from the authorization
-			let admin_space_id = Self::is_a_space_admin(&authorization, creator.clone())
-				.map_err(Error::<T>::from)?;
-			ensure!(admin_space_id == space_id, Error::<T>::UnauthorizedOperation);
-
-			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
-			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
-			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
 			let mut delegates = Delegates::<T>::get(&space_id);
 			if let Some(index) = delegates.iter().position(|d| d == &authorization_details.delegate)
@@ -697,14 +701,14 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)
+				.map_err(Error::<T>::from)?;
+
+			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
-
-			let admin_space_id = Self::is_a_space_admin(&authorization, creator.clone())
-				.map_err(Error::<T>::from)?;
-			ensure!(admin_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { archive: true, ..space_details });
 
@@ -757,20 +761,161 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)
+				.map_err(Error::<T>::from)?;
+			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(space_details.archive, Error::<T>::SpaceNotArchived);
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
-
-			let admin_space_id = Self::is_a_space_admin(&authorization, creator.clone())
-				.map_err(Error::<T>::from)?;
-			ensure!(admin_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { archive: false, ..space_details });
 
 			Self::update_activity(&space_id, CallTypeOf::Restore).map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Restore { space: space_id, authority: creator });
+
+			Ok(())
+		}
+
+		/// Updates the capacity of an existing space.
+		///
+		/// This extrinsic updates the capacity limit of a space, ensuring that
+		/// the new limit is not less than the current usage to prevent
+		/// over-allocation. It can only be called by an authorized origin and
+		/// not on archived or unapproved spaces.
+		///
+		/// # Arguments
+		/// * `origin` - The origin of the call, which must be from an
+		///   authorized source.
+		/// * `space_id` - The identifier of the space for which the capacity is
+		///   being updated.
+		/// * `new_capacity` - The new capacity limit to be set for the space.
+		///
+		/// # Errors
+		/// * `SpaceNotFound` - If the space with the given ID does not exist.
+		/// * `ArchivedSpace` - If the space is archived and thus cannot be
+		///   modified.
+		/// * `SpaceNotApproved` - If the space has not been approved for use
+		///   yet.
+		/// * `CapacityLessThanUsage` - If the new capacity is less than the
+		///   current usage of the space.
+		///
+		/// # Events
+		/// * `UpdateCapacity` - Emits the space ID when the capacity is
+		///   successfully updated.
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		pub fn update_capacity(
+			origin: OriginFor<T>,
+			space_id: SpaceIdOf,
+			new_capacity: u64,
+		) -> DispatchResult {
+			T::ChainSpaceOrigin::ensure_origin(origin)?;
+
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+
+			// Ensure the new capacity is greater than the current usage
+			ensure!(new_capacity >= space_details.usage, Error::<T>::CapacityLessThanUsage);
+
+			<Spaces<T>>::insert(
+				&space_id,
+				SpaceDetailsOf::<T> { capacity: new_capacity, ..space_details },
+			);
+
+			Self::update_activity(&space_id, CallTypeOf::Capacity).map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::UpdateCapacity { space: space_id });
+
+			Ok(())
+		}
+
+		/// Resets the usage counter of a specified space to zero.
+		///
+		/// This function can only be called by an authorized origin, defined by
+		/// `ChainSpaceOrigin`, and is used to reset the usage metrics for a
+		/// given space on the chain, identified by `space_id`. The reset action
+		/// is only permissible if the space exists, is not archived, and is
+		/// approved for operations.
+		///
+		/// # Parameters
+		/// - `origin`: The transaction's origin, which must pass the
+		///   `ChainSpaceOrigin` check.
+		/// - `space_id`: The identifier of the space for which the usage
+		///   counter will be reset.
+		///
+		/// # Errors
+		/// - Returns `SpaceNotFound` if the specified `space_id` does not
+		///   correspond to any existing space.
+		/// - Returns `ArchivedSpace` if the space is archived and thus cannot
+		///   be modified.
+		/// - Returns `SpaceNotApproved` if the space is not approved for
+		///   operations.
+		///
+		/// # Events
+		/// - Emits `UpdateCapacity` upon successfully resetting the space's
+		///   usage counter.
+		#[pallet::call_index(9)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		pub fn reset_usage(origin: OriginFor<T>, space_id: SpaceIdOf) -> DispatchResult {
+			T::ChainSpaceOrigin::ensure_origin(origin)?;
+
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+
+			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { usage: 0, ..space_details });
+
+			Self::update_activity(&space_id, CallTypeOf::Usage).map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::UpdateCapacity { space: space_id });
+
+			Ok(())
+		}
+
+		/// Revokes approval for a specified space.
+		///
+		/// This function can be executed by an authorized origin, as determined
+		/// by `ChainSpaceOrigin`. It is designed to change the status of a
+		/// given space, referred to by `space_id`, to unapproved.
+		/// The revocation is only allowed if the space is currently approved,
+		/// and not archived.
+		///
+		/// # Parameters
+		/// - `origin`: The transaction's origin, which must satisfy the
+		///   `ChainSpaceOrigin` policy.
+		/// - `space_id`: The identifier of the space whose approval status is
+		///   being revoked.
+		///
+		/// # Errors
+		/// - Returns `SpaceNotFound` if no space corresponds to the provided
+		///   `space_id`.
+		/// - Returns `ArchivedSpace` if the space is archived, in which case
+		///   its status cannot be altered.
+		/// - Returns `SpaceNotApproved` if the space is already unapproved.
+		///
+		/// # Events
+		/// - Emits `Revoke` when the space's approved status is successfully
+		///   revoked.
+		#[pallet::call_index(10)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		pub fn revoke(origin: OriginFor<T>, space_id: SpaceIdOf) -> DispatchResult {
+			T::ChainSpaceOrigin::ensure_origin(origin)?;
+
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+
+			<Spaces<T>>::insert(
+				&space_id,
+				SpaceDetailsOf::<T> { approved: false, ..space_details },
+			);
+
+			Self::update_activity(&space_id, CallTypeOf::Revoke).map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::Revoke { space: space_id });
 
 			Ok(())
 		}
@@ -819,15 +964,6 @@ impl<T: Config> Pallet<T> {
 		creator: SpaceCreatorOf<T>,
 		permissions: Permissions,
 	) -> Result<(), Error<T>> {
-		let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
-		ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
-		ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
-		ensure!(
-			space_details.capacity == 0 || space_details.usage < space_details.capacity,
-			Error::<T>::CapacityLimitExceeded
-		);
-
-		// Construct the authorization_id from the provided parameters.
 		// Id Digest = concat (H(<scale_encoded_space_identifier>,
 		// <scale_encoded_creator_identifier>, <scale_encoded_delegate_identifier>))
 		let id_digest = T::Hashing::hash(
@@ -858,7 +994,6 @@ impl<T: Config> Pallet<T> {
 			},
 		);
 
-		Self::increment_usage(&space_id).map_err(Error::<T>::from)?;
 		Self::update_activity(&space_id, CallTypeOf::Authorization).map_err(Error::<T>::from)?;
 
 		Self::deposit_event(Event::Authorization {
@@ -909,7 +1044,7 @@ impl<T: Config> Pallet<T> {
 	/// - `UnauthorizedOperation`: If the delegate does not have the 'ASSERT'
 	///   permission or is not the delegate associated with the authorization
 	///   ID.
-	pub fn is_a_space_delegate(
+	pub fn ensure_authorization_origin(
 		authorization_id: &AuthorizationIdOf,
 		delegate: &SpaceCreatorOf<T>,
 	) -> Result<SpaceIdOf, Error<T>> {
@@ -917,6 +1052,11 @@ impl<T: Config> Pallet<T> {
 			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
 
 		ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
+
+		Self::increment_usage(&d.space_id)?;
+
+		Self::validate_space_for_transaction(&d.space_id)?;
+
 		ensure!(d.permissions.contains(Permissions::ASSERT), Error::<T>::UnauthorizedOperation);
 
 		Ok(d.space_id)
@@ -945,18 +1085,119 @@ impl<T: Config> Pallet<T> {
 	/// - `UnauthorizedOperation`: If the delegate does not have the 'ADMIN'
 	///   permission or is not the delegate associated with the authorization
 	///   ID.
-	pub fn is_a_space_admin(
+	pub fn ensure_authorization_admin_origin(
 		authorization_id: &AuthorizationIdOf,
-		delegate: SpaceCreatorOf<T>,
+		delegate: &SpaceCreatorOf<T>,
 	) -> Result<SpaceIdOf, Error<T>> {
 		let d =
 			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
 
-		ensure!(d.delegate == delegate, Error::<T>::UnauthorizedOperation);
+		ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
+
+		Self::increment_usage(&d.space_id)?;
+
+		Self::validate_space_for_admin_transaction(&d.space_id)?;
+
 		ensure!(d.permissions.contains(Permissions::ADMIN), Error::<T>::UnauthorizedOperation);
 
 		Ok(d.space_id)
 	}
+
+	pub fn ensure_authorization_audit_origin(
+		authorization_id: &AuthorizationIdOf,
+		delegate: &SpaceCreatorOf<T>,
+	) -> Result<SpaceIdOf, Error<T>> {
+		let d =
+			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
+
+		ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
+
+		Self::increment_usage(&d.space_id)?;
+
+		Self::validate_space_for_transaction(&d.space_id)?;
+
+		ensure!(d.permissions.contains(Permissions::AUDIT), Error::<T>::UnauthorizedOperation);
+
+		Ok(d.space_id)
+	}
+
+	/// Validates that a space is eligible for a new transaction.
+	///
+	/// This function ensures that a space is not archived, is approved, and has
+	/// not exceeded its capacity limit before allowing a new transaction to be
+	/// recorded. It is a critical check that enforces the integrity and
+	/// constraints of space usage on the chain.
+	pub fn validate_space_for_transaction(space_id: &SpaceIdOf) -> Result<(), Error<T>> {
+		let space_details = Spaces::<T>::get(space_id).ok_or(Error::<T>::SpaceNotFound)?;
+
+		// Ensure the space is not archived.
+		ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+
+		// Ensure the space is approved for transactions.
+		ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+
+		// Ensure the space has not exceeded its capacity limit.
+		if space_details.capacity == 0 || space_details.usage < space_details.capacity {
+			Ok(())
+		} else {
+			Err(Error::<T>::CapacityLimitExceeded)
+		}
+	}
+
+	/// Validates a space for administrative transactions.
+	///
+	/// This function checks that the specified space is approved and has not
+	/// exceeded its capacity limit. It is designed to be called before
+	/// performing any administrative actions on a space to ensure
+	/// that the space is in a proper state for such transactions.
+	pub fn validate_space_for_admin_transaction(space_id: &SpaceIdOf) -> Result<(), Error<T>> {
+		let space_details = Spaces::<T>::get(space_id).ok_or(Error::<T>::SpaceNotFound)?;
+
+		// Ensure the space is approved for transactions.
+		ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+
+		// Ensure the space has not exceeded its capacity limit.
+		if space_details.capacity == 0 || space_details.usage < space_details.capacity {
+			Ok(())
+		} else {
+			Err(Error::<T>::CapacityLimitExceeded)
+		}
+	}
+
+	/// Validates that a space can accommodate a batch of new entries without
+	/// exceeding its capacity.
+	///
+	/// This function ensures that a space is not archived, is approved, and has
+	/// enough remaining capacity to accommodate a specified number of new
+	/// entries. It is a critical check that enforces the integrity and
+	/// constraints of space usage on the chain, especially when dealing
+	/// with batch operations.
+	pub fn validate_space_for_transaction_entries(
+		space_id: &SpaceIdOf,
+		entries: u16,
+	) -> Result<(), Error<T>> {
+		let space_details = Spaces::<T>::get(space_id).ok_or(Error::<T>::SpaceNotFound)?;
+
+		// Ensure the space is not archived.
+		ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+
+		// Ensure the space is approved for adding new entries.
+		ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+
+		// Calculate the new usage to check against the capacity.
+		let new_usage = space_details
+			.usage
+			.checked_add(entries as u64)
+			.ok_or(Error::<T>::TypeCapacityOverflow)?;
+
+		// Ensure the space has enough capacity to accommodate the new entries.
+		if space_details.capacity == 0 || new_usage <= space_details.capacity {
+			Ok(())
+		} else {
+			Err(Error::<T>::CapacityLimitExceeded)
+		}
+	}
+
 	/// Ensures that the space has not exceeded its capacity.
 	///
 	/// This function checks if the space identified by `space_id` has exceeded
@@ -1099,7 +1340,7 @@ impl<T: Config> Pallet<T> {
 	/// # Errors
 	/// - `SpaceNotFound`: If the space ID does not correspond to any existing
 	///   space.
-	pub fn increment_usage_batch(tx_id: &SpaceIdOf, increment: u16) -> Result<(), Error<T>> {
+	pub fn increment_usage_entries(tx_id: &SpaceIdOf, increment: u16) -> Result<(), Error<T>> {
 		Spaces::<T>::try_mutate(tx_id, |space_opt| {
 			if let Some(space_details) = space_opt {
 				space_details.usage = space_details.usage.saturating_add(increment.into());
@@ -1129,7 +1370,7 @@ impl<T: Config> Pallet<T> {
 	/// # Errors
 	/// - `SpaceNotFound`: If the space ID does not correspond to any existing
 	///   space.
-	pub fn decrement_usage_batch(tx_id: &SpaceIdOf, decrement: u16) -> Result<(), Error<T>> {
+	pub fn decrement_usage_entries(tx_id: &SpaceIdOf, decrement: u16) -> Result<(), Error<T>> {
 		Spaces::<T>::try_mutate(tx_id, |space_opt| {
 			if let Some(space_details) = space_opt {
 				space_details.usage = space_details.usage.saturating_sub(decrement.into());

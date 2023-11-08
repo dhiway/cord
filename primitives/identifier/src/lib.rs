@@ -22,7 +22,7 @@
 #![allow(clippy::unused_unit)]
 
 use cord_primitives::curi::Ss58Identifier;
-use sp_runtime::BoundedVec;
+use sp_runtime::{BoundedVec, DispatchResult};
 use sp_std::{prelude::Clone, str};
 pub mod types;
 pub use crate::types::*;
@@ -80,10 +80,6 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Idenfier is not unique
-		IdentifierAlreadyAnchored,
-		/// Not able to remove an entry from timeline
-		UnableToRemoveEntry,
 		// Max exvents history exceeded
 		MaxEventsHistoryExceeded,
 	}
@@ -94,25 +90,14 @@ impl<T: Config> Pallet<T> {
 		id: &IdentifierOf,
 		id_type: IdentifierTypeOf,
 		entry: EventEntryOf,
-	) -> Result<(), Error<T>> {
-		Identifiers::<T>::try_mutate(id, id_type, |timeline| -> Result<(), Error<T>> {
-			// Initialize the BoundedVec if it doesn't exist or get the existing one.
+	) -> DispatchResult {
+		Identifiers::<T>::try_mutate(id, id_type, |timeline| -> DispatchResult {
 			let events = timeline.get_or_insert_with(BoundedVec::default);
 
-			// If the BoundedVec is full, we need to make room by removing the oldest entry
-			// after genesis.
 			if events.len() == T::MaxEventsHistory::get() as usize {
-				// Ensure there's more than one event to keep the first one.
-				if events.len() > 1 {
-					// Remove the second element to make room for the new entry.
-					events.remove(1);
-				} else {
-					// If there's only one event, we can't remove it, so we return an error.
-					return Err(Error::<T>::UnableToRemoveEntry)
-				}
+				events.remove(1);
 			}
 
-			// Push the new event onto the BoundedVec, now that we've made room.
 			events.try_push(entry).map_err(|_| Error::<T>::MaxEventsHistoryExceeded)?;
 
 			Ok(())

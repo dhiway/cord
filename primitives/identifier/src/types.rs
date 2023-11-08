@@ -47,6 +47,7 @@ pub struct EventEntry<CallTypeOf> {
 pub enum CallTypeOf {
 	Archive,
 	Authorization,
+	Capacity,
 	Deauthorization,
 	Approved,
 	Genesis,
@@ -58,7 +59,7 @@ pub enum CallTypeOf {
 	PresentationAdded,
 	PresentationRemoved,
 	Rotate,
-	Digest,
+	Usage,
 }
 /// Defining the identifier target types.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
