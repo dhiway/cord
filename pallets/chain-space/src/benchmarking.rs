@@ -1,227 +1,389 @@
 #![cfg(feature = "runtime-benchmarks")]
 
-use super::*;
+use crate::*;
 use codec::Encode;
 use cord_primitives::curi::Ss58Identifier;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
-use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
-use sp_std::{
-	convert::{TryFrom, TryInto},
-	vec::Vec,
-};
-const SEED: u32 = 0;
+use frame_support::{pallet_prelude::EnsureOrigin, sp_runtime::traits::Hash};
+use frame_system::RawOrigin;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
+pub fn generate_registry_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
+	Ss58Identifier::to_registry_id(&(digest).encode()[..]).unwrap()
+}
+
+pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
+	Ss58Identifier::to_authorization_id(&(digest).encode()[..]).unwrap()
+}
+
+const SEED: u32 = 0;
+
 benchmarks! {
-	where_clause {
+		where_clause {
 		where
-		<T as Config>::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::RegistryCreatorId>,
+			<T as Config>::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::SpaceCreatorId>,
+			T::ChainSpaceOrigin: EnsureOrigin<T::RuntimeOrigin>,
 		}
-	create {
-		let l in 1 .. T::MaxEncodedRegistryLength::get();
+		add_delegate {
+			let caller: T::AccountId = account("caller", 0, SEED);
+			let did: T::SpaceCreatorId = account("did", 0, SEED);
+			let delegate_did: T::SpaceCreatorId = account("did", 1, SEED);
+			let space = [2u8; 256].to_vec();
+			let capacity = 5u64;
 
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let did: T::RegistryCreatorId = account("did", 0, SEED);
+			let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+			);
+			let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
 
-		let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
-		let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)
-			.expect("Test Registry should fit into the expected input length of the test runtime");
-		let digest = <T as frame_system::Config>::Hashing::hash(&registry[..]);
-		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry.encode()[..], &did.encode()[..]].concat()[..],
-		);
-		let registry_id = Ss58Identifier::to_registry_id(&(id_digest).encode()[..]).unwrap();
+			let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+			);
+			let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
+			let delegate_id_digest = T::Hashing::hash(
+				&[&space_id.encode()[..], &delegate_did.encode()[..], &did.encode()[..]].concat()[..],
+			);
+			let delegate_authorization_id = generate_authorization_id::<T>(&delegate_id_digest);
 
-	}: _<T::RuntimeOrigin>(origin, registry, None)
-	verify {
-	  //checks whether the last event was a successful creation of the registry
-		assert_last_event::<T>(Event::Create { registry: registry_id, creator:did }.into());
-	}
-
-	update {
-		let l in 1 .. T::MaxEncodedRegistryLength::get();
-
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let did: T::RegistryCreatorId = account("did", 0, SEED);
-
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
-
-		let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
-		let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)
-			.expect("Test Registry should fit into the expected input length of the test runtime");
-		let digest = <T as frame_system::Config>::Hashing::hash(&registry[..]);
-		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry.encode()[..], &did.encode()[..]].concat()[..],
-		);
-		let registry_id = Ss58Identifier::to_registry_id(&(id_digest).encode()[..]).unwrap();
-
-		Pallet::<T>::create(origin.clone(), registry, Option::None).expect("Should create a registry entry");
-
-		let registry_update: Vec<u8> = (2u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
-		let utx_registry: InputRegistryOf::<T> = BoundedVec::try_from(registry_update)
-			.expect("Update Registry should fit into the expected input length of the test runtime");
+			let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
+			let chain_space_origin = RawOrigin::Root.into();
 
 
-	}: _<T::RuntimeOrigin>(origin, utx_registry, registry_id.clone())
-	verify {
-		assert_last_event::<T>(Event::Update { registry: registry_id, authority: did }.into());
-	}
+			Pallet::<T>::create(origin, space_digest )?;
+			Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
 
-archive {
+			let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
+		}: _(origin, space_id, delegate_did, authorization_id  )
+		verify {
+			assert_last_event::<T>(Event::Authorization { space: space_id, authorization: delegate_authorization_id, delegate: delegate_did,  }.into());
+		}
 
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let did: T::RegistryCreatorId = account("did", 0, SEED);
+		// add_admin_delegate {
+		// 	let caller: T::AccountId = account("caller", 0, SEED);
+		// 	let did: T::SpaceCreatorId = account("did", 0, SEED);
+		// 	let delegate_did: T::SpaceCreatorId = account("did", 1, SEED);
+		// 	let space = [2u8; 256].to_vec();
+		// 	let capacity = 5u64;
+		//
+		// 	let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+		// 	let id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+		//
+		// 	let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+		//
+		// 	let delegate_id_digest = T::Hashing::hash(
+		// 		&[&space_id.encode()[..], &delegate_did.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let delegate_authorization_id = generate_authorization_id::<T>(&delegate_id_digest);
+		//
+		// 	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
+		// 	let root_origin = RawOrigin::Root.into();
+		//
+		// 	Pallet::<T>::create(origin, space_digest )?;
+		// 	Pallet::<T>::approve(root_origin, space_id, capacity )?;
+		//
+		// }: _<T::RuntimeOrigin>(origin, space_id, delegate_did, authorization_id  )
+		// verify {
+		// 	assert_last_event::<T>(Event::Authorization { space: space_id, authorization: delegate_authorization_id, delegate: delegate_did,  }.into());
+		// }
+		//
+		// add_audit_delegate {
+		// 	let caller: T::AccountId = account("caller", 0, SEED);
+		// 	let did: T::SpaceCreatorId = account("did", 0, SEED);
+		// 	let delegate_did: T::SpaceCreatorId = account("did", 1, SEED);
+		// 	let space = [2u8; 256].to_vec();
+		// 	let capacity = 5u64;
+		//
+		// 	let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+		// 	let id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+		//
+		// 	let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+		//
+		// 	let delegate_id_digest = T::Hashing::hash(
+		// 		&[&space_id.encode()[..], &delegate_did.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let delegate_authorization_id = generate_authorization_id::<T>(&delegate_id_digest);
+		//
+		// 	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
+		// 	let root_origin = RawOrigin::Root.into();
+		//
+		// 	Pallet::<T>::create(origin, space_digest )?;
+		// 	Pallet::<T>::approve(root_origin, space_id, capacity )?;
+		//
+		// }: _<T::RuntimeOrigin>(origin, space_id, delegate_did, authorization_id  )
+		// verify {
+		// 	assert_last_event::<T>(Event::Authorization { space: space_id, authorization: delegate_authorization_id, delegate: delegate_did,  }.into());
+		// }
+		//
+		// remove_delegate {
+		// 	let caller: T::AccountId = account("caller", 0, SEED);
+		// 	let did: T::SpaceCreatorId = account("did", 0, SEED);
+		// 	let delegate_did: T::SpaceCreatorId = account("did", 1, SEED);
+		// 	let capacity = 5u64;
+		//
+		// 	let space = [2u8; 256].to_vec();
+		// 	let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+		//
+		// 	let id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+		//
+		// 	let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+		//
+		// 	let delegate_id_digest = T::Hashing::hash(
+		// 		&[&space_id.encode()[..], &delegate_did.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let delegate_authorization_id = generate_authorization_id::<T>(&delegate_id_digest);
+		//
+		// 	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
+		// 	let root_origin = RawOrigin::Root.into();
+		//
+		// 	Pallet::<T>::create(origin, space_digest )?;
+		// 	Pallet::<T>::approve(root_origin, space_id, capacity )?;
+		// 	Pallet::<T>::add_delegate(origin, space_id, delegate_did, authorization_id )?;
+		//
+		// }: _<T::RuntimeOrigin>(origin, space_id, delegate_authorization_id, authorization_id)
+		// verify {
+		// 	assert_last_event::<T>(Event::Deauthorization { space: space_id, authorization: delegate_authorization_id }.into());
+		// }
+		//
+		// create {
+		// 	let caller: T::AccountId = account("caller", 0, SEED);
+		// 	let did: T::SpaceCreatorId = account("did", 0, SEED);
+		//
+		// 	let space = [2u8; 256].to_vec();
+		// 	let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+		//
+		// 	let id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+		//
+		// 	let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+		//
+		// 	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
+		//
+		// }: _<T::RuntimeOrigin>(origin, space_digest )
+		// verify {
+		// 	assert_last_event::<T>(Event::Create { space: space_id, creator: did, authorization: authorization_id }.into());
+		// }
+		//
+		// approve {
+		// 	let caller: T::AccountId = account("caller", 0, SEED);
+		// 	let did: T::SpaceCreatorId = account("did", 0, SEED);
+		// 	let space = [2u8; 256].to_vec();
+		// 	let capacity = 5u64;
+		//
+		// 	let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+		// 	let id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+		//
+		// 	let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+		//
+		// 	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
+		// 	let root_origin = RawOrigin::Root;
+		//
+		// 	Pallet::<T>::create(origin, space_digest )?;
+		//
+		// }: _(root_origin, space_id.clone(),capacity)
+		// verify {
+		// 	assert_last_event::<T>(Event::Approve { space: space_id }.into());
+		// }
+		//
+		// archive {
+		// 	let caller: T::AccountId = account("caller", 0, SEED);
+		// 	let did: T::SpaceCreatorId = account("did", 0, SEED);
+		// 	let space = [2u8; 256].to_vec();
+		//
+		// 	let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+		// 	let id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+		//
+		// 	let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+		//
+		// 	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
+		//
+		// 	Pallet::<T>::create(origin, space_digest )?;
+		//
+		// }: _<T::RuntimeOrigin>(origin, space_id.clone(), authorization_id )
+		// verify {
+		// 	assert_last_event::<T>(Event::Archive { space: space_id, authority: did, }.into());
+		// }
+		//
+		// restore {
+		// 	let caller: T::AccountId = account("caller", 0, SEED);
+		// 	let did: T::SpaceCreatorId = account("did", 0, SEED);
+		// 	let space = [2u8; 256].to_vec();
+		//
+		// 	let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+		// 	let id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+		//
+		// 	let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+		//
+		// 	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
+		//
+		// 	Pallet::<T>::create(origin, space_digest )?;
+		// 	Pallet::<T>::archive(origin, space_id.clone(), authorization_id )?;
+		//
+		// }: _<T::RuntimeOrigin>(origin, space_id, authorization_id )
+		// verify {
+		// 	assert_last_event::<T>(Event::Restore { space: space_id, authority: did, }.into());
+		// }
+		//
+		// update_capacity {
+		// 	let caller: T::AccountId = account("caller", 0, SEED);
+		// 	let did: T::SpaceCreatorId = account("did", 0, SEED);
+		// 	let space = [2u8; 256].to_vec();
+		// 	let capacity = 5u64;
+		// 	let new_capacity = 10u64;
+		//
+		// 	let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+		// 	let id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+		//
+		// 	let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+		//
+		// 	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
+		// 	let root_origin = RawOrigin::Root.into();
+		//
+		// 	Pallet::<T>::create(origin, space_digest )?;
+		// 	Pallet::<T>::approve(root_origin, space_id, capacity )?;
+		//
+		// }: _(root_origin, space_id.clone(), new_capacity)
+		// verify {
+		// 	assert_last_event::<T>(Event::UpdateCapacity { space: space_id }.into());
+		// }
+		//
+		// reset_usage {
+		// 	let caller: T::AccountId = account("caller", 0, SEED);
+		// 	let did: T::SpaceCreatorId = account("did", 0, SEED);
+		// 	let space = [2u8; 256].to_vec();
+		// 	let capacity = 5u64;
+		//
+		// 	let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+		// 	let id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+		//
+		// 	let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+		//
+		// 	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
+		// 	let root_origin = RawOrigin::Root.into();
+		//
+		// 	Pallet::<T>::create(origin, space_digest )?;
+		// 	Pallet::<T>::approve(root_origin, space_id, capacity )?;
+		//
+		// }: _(root_origin, space_id.clone())
+		// verify {
+		// 	assert_last_event::<T>(Event::ResetUsage { space: space_id }.into());
+		// }
+		//
+		// approval_revoke {
+		// 	let caller: T::AccountId = account("caller", 0, SEED);
+		// 	let did: T::SpaceCreatorId = account("did", 0, SEED);
+		// 	let space = [2u8; 256].to_vec();
+		// 	let capacity = 5u64;
+		//
+		// 	let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+		// 	let id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+		//
+		// 	let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+		//
+		// 	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
+		// 	let root_origin = RawOrigin::Root.into();
+		//
+		// 	Pallet::<T>::create(origin, space_digest )?;
+		// 	Pallet::<T>::approve(root_origin, space_id, capacity )?;
+		//
+		// }: _(root_origin, space_id.clone())
+		// verify {
+		// assert_last_event::<T>(Event::ApprovalRevoke { space: space_id }.into());
+		// }
+		//
+		// approval_restore {
+		// 	let caller: T::AccountId = account("caller", 0, SEED);
+		// 	let did: T::SpaceCreatorId = account("did", 0, SEED);
+		// 	let space = [2u8; 256].to_vec();
+		// 	let capacity = 5u64;
+		//
+		// 	let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+		// 	let id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+		//
+		// 	let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+		// 		&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+		// 	);
+		// 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+		//
+		// 	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
+		// 	let root_origin = RawOrigin::Root.into();
+		//
+		// 	Pallet::<T>::create(origin, space_digest )?;
+		// 	Pallet::<T>::approve(root_origin, space_id.clone(), capacity )?;
+		// 	Pallet::<T>::approval_revoke(root_origin, space_id.clone())?;
+		//
+		// }: _(root_origin, space_id.clone())
+		// verify {
+		// 	assert_last_event::<T>(Event::ApprovalRevoke { space: space_id }.into());
+		// }
+		//
+	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
 
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
-
-		let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
-		let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)
-			.expect("Test Registry should fit into the expected input length of the test runtime");
-		let digest = <T as frame_system::Config>::Hashing::hash(&registry[..]);
-		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry.encode()[..], &did.encode()[..]].concat()[..],
-		);
-		let registry_id = Ss58Identifier::to_registry_id(&(id_digest).encode()[..]).unwrap();
-
-		Pallet::<T>::create(origin.clone(), registry, None).expect("Should create a registry entry");
-
-}: _<T::RuntimeOrigin>(origin, registry_id.clone())
-
-verify {
-
-	assert_last_event::<T>(Event::Archive { registry: registry_id, authority: did }.into());
-}
-
-restore {
-
-	let caller: T::AccountId = account("caller", 0, SEED);
-	let did: T::RegistryCreatorId = account("did", 0, SEED);
-
-	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
-
-	let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
-	let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)
-		.expect("Test Registry should fit into the expected input length of the test runtime");
-	let digest = <T as frame_system::Config>::Hashing::hash(&registry[..]);
-	let id_digest = <T as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
-	);
-	let registry_id = Ss58Identifier::to_registry_id(&(id_digest).encode()[..]).unwrap();
-
-	Pallet::<T>::create(origin.clone(), registry, None).expect("Should create a registry entry");
-	Pallet::<T>::archive(origin.clone(), registry_id.clone()).expect("Should archive the registry");
-
-}: _<T::RuntimeOrigin>(origin, registry_id.clone())
-
-verify {
-	assert_last_event::<T>(Event::Restore { registry: registry_id, authority: did }.into());
-}
-
-add_admin_delegate {
-  //  let l in 1 .. MAX_DELEGATES;
-
-	let caller: T::AccountId = account("caller", 0, SEED);
-	let did: T::RegistryCreatorId = account("did", 0, SEED);
-	let delegate: T::RegistryCreatorId = account("delegate", 0, SEED);
-
-	let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
-
-	let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
-	let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)
-		.expect("Test Registry should fit into the expected input length of the test runtime");
-	let id_digest = <T as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
-	);
-	let registry_id = Ss58Identifier::to_registry_id(&(id_digest).encode()[..]).unwrap();
-
-	Pallet::<T>::create(origin.clone(), registry, None).expect("Should create a registry entry");
-
-
-}: _<T::RuntimeOrigin>(origin, registry_id.clone(), delegate.clone())
-verify {
-		let authorization_id = Ss58Identifier::to_authorization_id(
-		&(<T as frame_system::Config>::Hashing::hash(
-			&[&registry_id.encode()[..], &delegate.encode()[..], &did.encode()[..]].concat()[..],
-		)).encode()[..]
-	).expect("Authorization ID should be generated");
-
-
-	assert_last_event::<T>(Event::AddAuthorization {
-		registry: registry_id,
-		authorization: authorization_id,
-		delegate,
-	}.into());
-}
-add_delegate {
-
-	let caller: T::AccountId = account("caller", 0, SEED);
-	let did: T::RegistryCreatorId = account("did", 0, SEED);
-	let delegate: T::RegistryCreatorId = account("delegate", 0, SEED);
-
-	let origin = <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
-
-	let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
-	let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)
-		.expect("Test Registry should fit into the expected input length of the test runtime");
-	let digest = <T as frame_system::Config>::Hashing::hash(&registry[..]);
-	let id_digest = <T as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
-	);
-	let registry_id = Ss58Identifier::to_registry_id(&(id_digest).encode()[..]).unwrap();
-
-	Pallet::<T>::create(origin.clone(), registry, None).expect("Should create a registry entry");
-	let id_digest = <T as frame_system::Config>::Hashing::hash(
-		&[&registry_id.encode()[..], &delegate.encode()[..], &did.encode()[..]].concat()[..],
-	);
-	let authorization_id = Ss58Identifier::to_authorization_id(&id_digest.encode()[..])
-		.map_err(|_| Error::<T>::InvalidIdentifierLength).unwrap();
-
-}: _<T::RuntimeOrigin>(origin, registry_id.clone(), delegate.clone())
-verify {
-	assert_last_event::<T>(Event::AddAuthorization {
-		registry: registry_id,
-		authorization: authorization_id,
-		delegate,
-	}.into());
-}
-
-remove_delegate {
-
-	let caller: T::AccountId = account("caller", 0, SEED);
-	let did: T::RegistryCreatorId = account("did", 0, SEED);
-	let delegate: T::RegistryCreatorId = account("delegate", 0, SEED);
-
-	let origin = <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
-
-	let raw_registry: Vec<u8> = (0u8..u8::MAX).cycle().take(T::MaxEncodedRegistryLength::get().try_into().unwrap()).collect();
-	let registry: InputRegistryOf::<T> = BoundedVec::try_from(raw_registry)
-		.expect("Test Registry should fit into the expected input length of the test runtime");
-	let digest = <T as frame_system::Config>::Hashing::hash(&registry[..]);
-	let id_digest = <T as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
-	);
-	let registry_id = Ss58Identifier::to_registry_id(&(id_digest).encode()[..]).unwrap();
-
-	Pallet::<T>::create(origin.clone(), registry, None).expect("Should create a registry entry");
-	Pallet::<T>::add_admin_delegate(origin.clone(), registry_id.clone(), delegate.clone()).expect("Should add admin delegate");
-
-	let authorization_id = {
-		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry_id.encode()[..], &delegate.encode()[..], &did.encode()[..]].concat()[..],
-		);
-		Ss58Identifier::to_authorization_id(&id_digest.encode()[..]).unwrap()
-	};
-
-}: _<T::RuntimeOrigin>(origin, registry_id.clone(), authorization_id.clone())
-verify {
-	assert_last_event::<T>(Event::RemoveAuthorization { registry: registry_id, authorization: authorization_id }.into());
-}
-
-impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
 }

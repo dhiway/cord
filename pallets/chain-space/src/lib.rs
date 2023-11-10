@@ -312,9 +312,7 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = T::EnsureOrigin::ensure_origin(origin)?.subject();
-			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)
-				.map_err(Error::<T>::from)?;
-
+			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)?;
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			let permissions = Permissions::ASSERT;
@@ -361,14 +359,13 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = T::EnsureOrigin::ensure_origin(origin)?.subject();
-			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)
-				.map_err(Error::<T>::from)?;
+			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)?;
 
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			let permissions = Permissions::ADMIN;
-			Self::space_delegate_addition(auth_space_id, delegate, creator, permissions)
-				.map_err(Error::<T>::from)?;
+			Self::space_delegate_addition(auth_space_id, delegate, creator, permissions)?;
+
 			Ok(())
 		}
 
@@ -404,14 +401,13 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = T::EnsureOrigin::ensure_origin(origin)?.subject();
-			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)
-				.map_err(Error::<T>::from)?;
+			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)?;
 
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			let permissions = Permissions::AUDIT;
-			Self::space_delegate_addition(auth_space_id, delegate, creator, permissions)
-				.map_err(Error::<T>::from)?;
+			Self::space_delegate_addition(auth_space_id, delegate, creator, permissions)?;
+
 			Ok(())
 		}
 
@@ -483,8 +479,7 @@ pub mod pallet {
 
 				Self::decrement_usage(&space_id).map_err(Error::<T>::from)?;
 
-				Self::update_activity(&space_id, CallTypeOf::Deauthorization)
-					.map_err(Error::<T>::from)?;
+				Self::update_activity(&space_id, CallTypeOf::Deauthorization)?;
 
 				Self::deposit_event(Event::Deauthorization {
 					space: space_id,
@@ -870,7 +865,7 @@ pub mod pallet {
 
 			Self::update_activity(&space_id, CallTypeOf::Usage).map_err(Error::<T>::from)?;
 
-			Self::deposit_event(Event::UpdateCapacity { space: space_id });
+			Self::deposit_event(Event::ResetUsage { space: space_id });
 
 			Ok(())
 		}

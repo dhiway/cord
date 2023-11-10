@@ -237,11 +237,11 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-
-			// Authorization check is moved up to fail early.
-			let space_id =
-				pallet_chain_space::Pallet::<T>::is_a_space_delegate(&authorization, &author)
-					.map_err(<pallet_chain_space::Error<T>>::from)?;
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&author,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
 				(journal.entry.rating > 0 && journal.entry.count > 0),

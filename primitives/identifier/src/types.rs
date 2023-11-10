@@ -44,6 +44,7 @@ pub struct EventEntry<CallTypeOf> {
 
 /// Defining the possible actions that can be performed on a identifier.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[repr(u8)]
 pub enum CallTypeOf {
 	Archive,
 	Authorization,

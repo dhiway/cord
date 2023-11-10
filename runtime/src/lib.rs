@@ -786,20 +786,6 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
 }
 
-impl pallet_unique::Config for Runtime {
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_unique::WeightInfo<Runtime>;
-	type MaxUniqueCommits = MaxUniqueCommits;
-	type MaxEncodedLength = MaxEncodedLength;
-}
-
-parameter_types! {
-	pub const MaxUniqueCommits: u32 = 1_000;
-	pub const MaxEncodedLength: u32 = 15_360;
-}
-
 impl pallet_score::Config for Runtime {
 	type RatingCreatorIdOf = DidIdentifier;
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
@@ -844,7 +830,6 @@ construct_runtime! (
 		ChainSpace: pallet_chain_space = 104,
 		Statement: pallet_statement = 105,
 		DidName: pallet_did_name = 106,
-		Unique: pallet_unique = 107,
 		Score: pallet_score = 108,
 		Sudo: pallet_sudo = 255,
 	}
@@ -884,8 +869,6 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::Schema { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Statement { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Unique { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Score { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
@@ -986,7 +969,6 @@ mod benches {
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
 		[pallet_statement, Statement]
-		[pallet_unique, Unique]
 		[pallet_chain_space, ChainSpace]
 		[pallet_did, Did]
 		[pallet_did_name, DidName]

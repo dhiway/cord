@@ -123,7 +123,6 @@ pub fn space_events_since_last_call() -> Vec<super::Event<Test>> {
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	let t: sp_runtime::Storage =
 		frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
-
 	let mut ext = sp_io::TestExternalities::new(t);
 	#[cfg(feature = "runtime-benchmarks")]
 	let keystore = sp_keystore::testing::MemoryKeystore::new();
