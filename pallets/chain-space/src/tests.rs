@@ -277,7 +277,7 @@ fn add_delegate_should_fail_if_the_regisrty_is_archived() {
 }
 
 #[test]
-fn add_delegate_should_fail_if_the_regisrty_is_not_approved() {
+fn add_delegate_should_fail_if_the_space_is_not_approved() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let space = [2u8; 256].to_vec();
@@ -381,7 +381,7 @@ fn add_delegate_should_fail_if_the_space_capacity_is_full() {
 
 		<Spaces<Test>>::insert(
 			&space_id,
-			SpaceDetailsOf::<Test> { usage: 3, ..<Spaces<Test>>::get(&space_id).unwrap() },
+			SpaceDetailsOf::<Test> { txn_count: 3, ..<Spaces<Test>>::get(&space_id).unwrap() },
 		);
 
 		assert_err!(
@@ -640,7 +640,11 @@ fn updating_space_capacity_by_root_should_succeed() {
 		));
 		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
-		assert_ok!(Space::update_capacity(RawOrigin::Root.into(), space_id.clone(), new_capacty));
+		assert_ok!(Space::update_transaction_capacity(
+			RawOrigin::Root.into(),
+			space_id.clone(),
+			new_capacty
+		));
 	});
 }
 
@@ -664,7 +668,7 @@ fn updating_space_capacity_by_non_root_should_fail() {
 		));
 		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 		assert_err!(
-			Space::update_capacity(
+			Space::update_transaction_capacity(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
 				space_id,
 				new_capacty,
@@ -695,7 +699,11 @@ fn reducing_space_capacity_by_root_should_succeed() {
 		));
 		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
-		assert_ok!(Space::update_capacity(RawOrigin::Root.into(), space_id.clone(), new_capacty));
+		assert_ok!(Space::update_transaction_capacity(
+			RawOrigin::Root.into(),
+			space_id.clone(),
+			new_capacty
+		));
 	});
 }
 
@@ -722,11 +730,15 @@ fn reducing_space_capacity_by_root_below_usage_should_fail() {
 
 		<Spaces<Test>>::insert(
 			&space_id,
-			SpaceDetailsOf::<Test> { usage: 7, ..<Spaces<Test>>::get(&space_id).unwrap() },
+			SpaceDetailsOf::<Test> { txn_count: 7, ..<Spaces<Test>>::get(&space_id).unwrap() },
 		);
 
 		assert_err!(
-			Space::update_capacity(RawOrigin::Root.into(), space_id.clone(), new_capacty),
+			Space::update_transaction_capacity(
+				RawOrigin::Root.into(),
+				space_id.clone(),
+				new_capacty
+			),
 			Error::<Test>::CapacityLessThanUsage
 		);
 	});
@@ -754,10 +766,10 @@ fn resetting_space_usage_by_root_should_succeed() {
 
 		<Spaces<Test>>::insert(
 			&space_id,
-			SpaceDetailsOf::<Test> { usage: 7, ..<Spaces<Test>>::get(&space_id).unwrap() },
+			SpaceDetailsOf::<Test> { txn_count: 7, ..<Spaces<Test>>::get(&space_id).unwrap() },
 		);
 
-		assert_ok!(Space::reset_usage(RawOrigin::Root.into(), space_id.clone()));
+		assert_ok!(Space::reset_transaction_count(RawOrigin::Root.into(), space_id.clone()));
 	});
 }
 
@@ -783,11 +795,14 @@ fn resetting_space_usage_by_non_root_should_fail() {
 
 		<Spaces<Test>>::insert(
 			&space_id,
-			SpaceDetailsOf::<Test> { usage: 7, ..<Spaces<Test>>::get(&space_id).unwrap() },
+			SpaceDetailsOf::<Test> { txn_count: 7, ..<Spaces<Test>>::get(&space_id).unwrap() },
 		);
 
 		assert_err!(
-			Space::reset_usage(DoubleOrigin(author.clone(), creator.clone()).into(), space_id,),
+			Space::reset_transaction_count(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id,
+			),
 			BadOrigin
 		);
 	});

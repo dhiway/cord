@@ -59,7 +59,7 @@ impl<T: frame_system::Config> pallet_statement::WeightInfo for WeightInfo<T> {
 	/// Storage: Statement StatementDigests (r:0 w:1)
 	/// Proof: Statement StatementDigests (max_values: None, max_size: Some(98), added: 2573, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 5120]`.
-	fn create(_l: u32, ) -> Weight {
+	fn register( ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `300`
 		//  Estimated: `76533`
@@ -76,7 +76,7 @@ impl<T: frame_system::Config> pallet_statement::WeightInfo for WeightInfo<T> {
 	/// Storage: Statement StatementDigests (r:0 w:1)
 	/// Proof: Statement StatementDigests (max_values: None, max_size: Some(98), added: 2573, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 5120]`.
-	fn update(l: u32, ) -> Weight {
+	fn update( ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `287`
 		//  Estimated: `76533`
@@ -84,7 +84,7 @@ impl<T: frame_system::Config> pallet_statement::WeightInfo for WeightInfo<T> {
 		Weight::from_parts(24_886_928, 0)
 			.saturating_add(Weight::from_parts(0, 76533))
 			// Standard Error: 8
-			.saturating_add(Weight::from_parts(38, 0).saturating_mul(l.into()))
+			.saturating_add(Weight::from_parts(38, 0))
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(3))
 	}
@@ -93,7 +93,7 @@ impl<T: frame_system::Config> pallet_statement::WeightInfo for WeightInfo<T> {
 	/// Storage: Statement Commits (r:1 w:1)
 	/// Proof: Statement Commits (max_values: None, max_size: Some(73068), added: 75543, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 5120]`.
-	fn revoke(_l: u32, ) -> Weight {
+	fn revoke( ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `287`
 		//  Estimated: `76533`
@@ -108,7 +108,7 @@ impl<T: frame_system::Config> pallet_statement::WeightInfo for WeightInfo<T> {
 	/// Storage: Statement Commits (r:1 w:1)
 	/// Proof: Statement Commits (max_values: None, max_size: Some(73068), added: 75543, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 5120]`.
-	fn restore(l: u32, ) -> Weight {
+	fn restore( ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `287`
 		//  Estimated: `76533`
@@ -116,7 +116,7 @@ impl<T: frame_system::Config> pallet_statement::WeightInfo for WeightInfo<T> {
 		Weight::from_parts(22_590_531, 0)
 			.saturating_add(Weight::from_parts(0, 76533))
 			// Standard Error: 7
-			.saturating_add(Weight::from_parts(20, 0).saturating_mul(l.into()))
+			.saturating_add(Weight::from_parts(20, 0))
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
@@ -125,7 +125,7 @@ impl<T: frame_system::Config> pallet_statement::WeightInfo for WeightInfo<T> {
 	/// Storage: Statement Commits (r:1 w:1)
 	/// Proof: Statement Commits (max_values: None, max_size: Some(73068), added: 75543, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 5120]`.
-	fn remove(_l: u32, ) -> Weight {
+	fn remove( ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `287`
 		//  Estimated: `76533`
@@ -142,16 +142,44 @@ impl<T: frame_system::Config> pallet_statement::WeightInfo for WeightInfo<T> {
 	/// Storage: Statement StatementDigests (r:0 w:1)
 	/// Proof: Statement StatementDigests (max_values: None, max_size: Some(98), added: 2573, mode: MaxEncodedLen)
 	/// The range of component `l` is `[1, 5120]`.
-	fn digest(l: u32, ) -> Weight {
+	fn register_batch(l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `287`
 		//  Estimated: `76533`
-		// Minimum execution time: 21_673_000 picoseconds.
-		Weight::from_parts(22_736_764, 0)
-			.saturating_add(Weight::from_parts(0, 76533))
+		// Minimum execution time: 21_831_000 picoseconds.
+		Weight::from_parts(22_749_416, 76533)
 			// Standard Error: 7
-			.saturating_add(Weight::from_parts(13, 0).saturating_mul(l.into()))
-			.saturating_add(T::DbWeight::get().reads(2))
-			.saturating_add(T::DbWeight::get().writes(2))
+			.saturating_add(Weight::from_parts(32, 0).saturating_mul(l.into()))
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	
+	/// Storage: Statement Statements (r:1 w:1)
+	/// Proof: Statement Statements (max_values: None, max_size: Some(232), added: 2707, mode: MaxEncodedLen)
+	/// Storage: Statement Commits (r:1 w:1)
+	/// Proof: Statement Commits (max_values: None, max_size: Some(73068), added: 75543, mode: MaxEncodedLen)
+	/// The range of component `l` is `[1, 5120]`.
+	fn add_presentation( ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `287`
+		//  Estimated: `76533`
+		// Minimum execution time: 21_777_000 picoseconds.
+		Weight::from_parts(23_046_073, 76533)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+		/// Storage: Statement Statements (r:1 w:1)
+	/// Proof: Statement Statements (max_values: None, max_size: Some(232), added: 2707, mode: MaxEncodedLen)
+	/// Storage: Statement Commits (r:1 w:1)
+	/// Proof: Statement Commits (max_values: None, max_size: Some(73068), added: 75543, mode: MaxEncodedLen)
+	/// The range of component `l` is `[1, 5120]`.
+	fn remove_presentation( ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `287`
+		//  Estimated: `76533`
+		// Minimum execution time: 21_777_000 picoseconds.
+		Weight::from_parts(23_046_073, 76533)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
 }

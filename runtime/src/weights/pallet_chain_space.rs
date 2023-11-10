@@ -188,7 +188,7 @@ impl<T: frame_system::Config> pallet_chain_space::WeightInfo for WeightInfo<T> {
 	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
-	fn update_capacity() -> Weight {
+	fn update_transaction_capacity() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `16013`
 		//  Estimated: `72533`
@@ -203,7 +203,7 @@ impl<T: frame_system::Config> pallet_chain_space::WeightInfo for WeightInfo<T> {
 	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
-	fn reset_usage() -> Weight {
+	fn reset_transaction_count() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `16013`
 		//  Estimated: `72533`

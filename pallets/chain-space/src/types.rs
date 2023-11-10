@@ -72,9 +72,9 @@ impl Default for Permissions {
 ///
 /// - `code`: The unique code or identifier for the space.
 /// - `creator`: The account or entity that created the space.
-/// - `capacity`: The maximum allowed usage of the space. A value of zero
-///   denotes unlimited capacity.
-/// - `usage`: The current usage of the space's capacity.
+/// - `txn_capacity`: The maximum allowed transactions within the space. A value
+///   of zero denotes unlimited capacity.
+/// - `txn_count`: The current usage of the space's capacity.
 /// - `approved`: Indicates whether the space has been approved by the
 ///   appropriate governance body.
 /// - `archive`: Indicates whether the space is currently archived.
@@ -82,8 +82,8 @@ impl Default for Permissions {
 pub struct SpaceDetails<SpaceCodeOf, SpaceCreatorOf, StatusOf> {
 	pub code: SpaceCodeOf,
 	pub creator: SpaceCreatorOf,
-	pub capacity: u64,
-	pub usage: u64,
+	pub txn_capacity: u64,
+	pub txn_count: u64,
 	pub approved: StatusOf,
 	pub archive: StatusOf,
 }

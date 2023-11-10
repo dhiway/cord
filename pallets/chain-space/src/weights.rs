@@ -59,8 +59,8 @@ pub trait WeightInfo {
 	fn add_audit_delegate() -> Weight;
 	fn add_delegate() -> Weight;
 	fn remove_delegate() -> Weight;
-	fn update_capacity() -> Weight;
-	fn reset_usage() -> Weight;
+	fn update_transaction_capacity() -> Weight;
+	fn reset_transaction_count() -> Weight;
 	fn revoke() -> Weight;
 	fn approval_revoke() -> Weight;
 	fn approval_restore() -> Weight;
@@ -207,7 +207,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
-	fn update_capacity() -> Weight {
+	fn update_transaction_capacity() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `16013`
 		//  Estimated: `72533`
@@ -222,7 +222,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
-	fn reset_usage() -> Weight {
+	fn reset_transaction_count() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `16013`
 		//  Estimated: `72533`
@@ -419,7 +419,7 @@ impl WeightInfo for () {
 	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
-	fn update_capacity() -> Weight {
+	fn update_transaction_capacity() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `16013`
 		//  Estimated: `72533`
@@ -434,7 +434,7 @@ impl WeightInfo for () {
 	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
-	fn reset_usage() -> Weight {
+	fn reset_transaction_count() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `16013`
 		//  Estimated: `72533`

@@ -97,6 +97,7 @@ use identifier::{
 	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
 	EventEntryOf,
 };
+use sp_runtime::SaturatedConversion;
 use sp_std::{vec, vec::Vec};
 
 #[frame_support::pallet]
@@ -231,9 +232,9 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new statement identifier has been created.
+		/// A new statement identifier has been registered.
 		/// \[statement identifier, statement digest, controller\]
-		Create {
+		Register {
 			identifier: StatementIdOf,
 			digest: StatementDigestOf<T>,
 			author: StatementCreatorOf<T>,
@@ -274,7 +275,7 @@ pub mod pallet {
 		/// A statement batch has been processed.
 		/// \[successful count, failed count, failed indices,
 		/// controller]
-		BatchCreate {
+		RegisterBatch {
 			successful: u32,
 			failed: u32,
 			indices: Vec<u16>,
@@ -398,8 +399,8 @@ pub mod pallet {
 		/// - `Create`: Emitted when a statement is successfully created,
 		///   containing the `identifier`, `digest`, and `author` (creator).
 		#[pallet::call_index(0)]
-		#[pallet::weight({0})]
-		pub fn create(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::register())]
+		pub fn register(
 			origin: OriginFor<T>,
 			digest: StatementDigestOf<T>,
 			authorization: AuthorizationIdOf,
@@ -445,7 +446,7 @@ pub mod pallet {
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
 
-			Self::deposit_event(Event::Create { identifier, digest, author: creator });
+			Self::deposit_event(Event::Register { identifier, digest, author: creator });
 
 			Ok(())
 		}
@@ -499,7 +500,7 @@ pub mod pallet {
 		///   containing the `identifier`, `digest`, and `author`
 		/// (updater).
 		#[pallet::call_index(1)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update())]
 		pub fn update(
 			origin: OriginFor<T>,
 			statement_id: StatementIdOf,
@@ -611,7 +612,7 @@ pub mod pallet {
 		///   containing the `identifier` of the statement and
 		/// the `author` who is the updater.
 		#[pallet::call_index(2)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::revoke())]
 		pub fn revoke(
 			origin: OriginFor<T>,
 			statement_id: StatementIdOf,
@@ -695,7 +696,7 @@ pub mod pallet {
 		///   containing the `identifier` of the statement
 		/// and the `author` who is the updater.
 		#[pallet::call_index(3)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::restore())]
 		pub fn restore(
 			origin: OriginFor<T>,
 			statement_id: StatementIdOf,
@@ -781,12 +782,12 @@ pub mod pallet {
 		///   removed, detailing the number of entries
 		/// removed.
 		#[pallet::call_index(4)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove( ))]
 		pub fn remove(
 			origin: OriginFor<T>,
 			statement_id: StatementIdOf,
 			authorization: AuthorizationIdOf,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
@@ -854,9 +855,13 @@ pub mod pallet {
 				}
 			};
 
+			// Calculate the dynamic weight based on entries_count
+			let dynamic_weight =
+				<T as Config>::WeightInfo::remove().saturating_mul(entries_count as u64).into();
+
 			Self::deposit_event(event);
 
-			Ok(())
+			Ok(Some(dynamic_weight).into())
 		}
 
 		/// Creates multiple statements in a batch operation. This function
@@ -908,8 +913,8 @@ pub mod pallet {
 		/// - `BatchCreate`: Emitted upon the completion of the batch operation,
 		///   providing details of the outcome.
 		#[pallet::call_index(5)]
-		#[pallet::weight({0})]
-		pub fn create_batch(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_batch(digests.len().saturated_into()))]
+		pub fn register_batch(
 			origin: OriginFor<T>,
 			digests: Vec<StatementDigestOf<T>>,
 			authorization: AuthorizationIdOf,
@@ -983,7 +988,7 @@ pub mod pallet {
 					.map_err(<pallet_chain_space::Error<T>>::from)?;
 			}
 
-			Self::deposit_event(Event::BatchCreate {
+			Self::deposit_event(Event::RegisterBatch {
 				successful: success,
 				failed: fail,
 				indices,
@@ -1025,7 +1030,7 @@ pub mod pallet {
 		/// - Emits `PresentationAdded` upon the successful addition of the
 		///   presentation.
 		#[pallet::call_index(6)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_presentation( ))]
 		pub fn add_presentation(
 			origin: OriginFor<T>,
 			statement_id: StatementIdOf,
@@ -1110,7 +1115,7 @@ pub mod pallet {
 		/// - Emits `PresentationRemoved` upon the successful removal of the
 		///   presentation.
 		#[pallet::call_index(7)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_presentation( ))]
 		pub fn remove_presentation(
 			origin: OriginFor<T>,
 			statement_id: StatementIdOf,

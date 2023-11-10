@@ -316,8 +316,8 @@ pub mod pallet {
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			let permissions = Permissions::ASSERT;
-			Self::space_delegate_addition(auth_space_id, delegate, creator, permissions)
-				.map_err(Error::<T>::from)?;
+			Self::space_delegate_addition(auth_space_id, delegate, creator, permissions)?;
+
 			Ok(())
 		}
 
@@ -460,8 +460,8 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)
-				.map_err(Error::<T>::from)?;
+			let auth_space_id =
+				Self::ensure_authorization_admin_remove_origin(&authorization, &creator)?;
 
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
@@ -573,8 +573,8 @@ pub mod pallet {
 				SpaceDetailsOf::<T> {
 					code: space_code,
 					creator: creator.clone(),
-					capacity: 0,
-					usage: 0,
+					txn_capacity: 0,
+					txn_count: 0,
 					approved: false,
 					archive: false,
 				},
@@ -595,16 +595,15 @@ pub mod pallet {
 		///
 		/// This function can only be called by a council or root origin,
 		/// reflecting its privileged nature. It is used to approve a space that
-		/// has been previously created, setting its capacity and marking it as
-		/// approved. It ensures that the space exists, is not archived, and has
-		/// not already been approved.
+		/// has been previously created, setting its transaction capacity and
+		/// marking it as approved. It ensures that the space exists, is not
+		/// archived, and has not already been approved.
 		///
 		/// # Parameters
 		/// - `origin`: The origin of the transaction, which must be a council
 		///   or root origin.
 		/// - `space_id`: The identifier of the space to be approved.
-		/// - `capacity`: The capacity to be set for the space, which determines
-		///   the number of delegates or entries it can hold.
+		/// - `txn_capacity`: The transaction capacity to be set for the space.
 		///
 		/// # Returns
 		/// - `DispatchResult`: Returns `Ok(())` if the space is successfully
@@ -633,7 +632,11 @@ pub mod pallet {
 		/// implications.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::approve())]
-		pub fn approve(origin: OriginFor<T>, space_id: SpaceIdOf, capacity: u64) -> DispatchResult {
+		pub fn approve(
+			origin: OriginFor<T>,
+			space_id: SpaceIdOf,
+			txn_capacity: u64,
+		) -> DispatchResult {
 			T::ChainSpaceOrigin::ensure_origin(origin)?;
 
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
@@ -642,7 +645,7 @@ pub mod pallet {
 
 			<Spaces<T>>::insert(
 				&space_id,
-				SpaceDetailsOf::<T> { capacity, approved: true, ..space_details },
+				SpaceDetailsOf::<T> { txn_capacity, approved: true, ..space_details },
 			);
 
 			Self::update_activity(&space_id, CallTypeOf::Approved).map_err(Error::<T>::from)?;
@@ -696,8 +699,7 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)
-				.map_err(Error::<T>::from)?;
+			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)?;
 
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
@@ -756,8 +758,9 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let auth_space_id = Self::ensure_authorization_restore_origin(&authorization, &creator)
-				.map_err(Error::<T>::from)?;
+			let auth_space_id =
+				Self::ensure_authorization_restore_origin(&authorization, &creator)?;
+
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
@@ -773,7 +776,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Updates the capacity of an existing space.
+		/// Updates the transaction capacity of an existing space.
 		///
 		/// This extrinsic updates the capacity limit of a space, ensuring that
 		/// the new limit is not less than the current usage to prevent
@@ -785,7 +788,8 @@ pub mod pallet {
 		///   authorized source.
 		/// * `space_id` - The identifier of the space for which the capacity is
 		///   being updated.
-		/// * `new_capacity` - The new capacity limit to be set for the space.
+		/// * `new_txn_capacity` - The new capacity limit to be set for the
+		///   space.
 		///
 		/// # Errors
 		/// * `SpaceNotFound` - If the space with the given ID does not exist.
@@ -800,11 +804,11 @@ pub mod pallet {
 		/// * `UpdateCapacity` - Emits the space ID when the capacity is
 		///   successfully updated.
 		#[pallet::call_index(8)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_capacity())]
-		pub fn update_capacity(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_transaction_capacity())]
+		pub fn update_transaction_capacity(
 			origin: OriginFor<T>,
 			space_id: SpaceIdOf,
-			new_capacity: u64,
+			new_txn_capacity: u64,
 		) -> DispatchResult {
 			T::ChainSpaceOrigin::ensure_origin(origin)?;
 
@@ -813,11 +817,11 @@ pub mod pallet {
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
 			// Ensure the new capacity is greater than the current usage
-			ensure!(new_capacity >= space_details.usage, Error::<T>::CapacityLessThanUsage);
+			ensure!(new_txn_capacity >= space_details.txn_count, Error::<T>::CapacityLessThanUsage);
 
 			<Spaces<T>>::insert(
 				&space_id,
-				SpaceDetailsOf::<T> { capacity: new_capacity, ..space_details },
+				SpaceDetailsOf::<T> { txn_capacity: new_txn_capacity, ..space_details },
 			);
 
 			Self::update_activity(&space_id, CallTypeOf::Capacity).map_err(Error::<T>::from)?;
@@ -853,15 +857,18 @@ pub mod pallet {
 		/// - Emits `UpdateCapacity` upon successfully resetting the space's
 		///   usage counter.
 		#[pallet::call_index(9)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::reset_usage())]
-		pub fn reset_usage(origin: OriginFor<T>, space_id: SpaceIdOf) -> DispatchResult {
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::reset_transaction_count())]
+		pub fn reset_transaction_count(
+			origin: OriginFor<T>,
+			space_id: SpaceIdOf,
+		) -> DispatchResult {
 			T::ChainSpaceOrigin::ensure_origin(origin)?;
 
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
-			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { usage: 0, ..space_details });
+			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { txn_count: 0, ..space_details });
 
 			Self::update_activity(&space_id, CallTypeOf::Usage).map_err(Error::<T>::from)?;
 
@@ -1090,6 +1097,28 @@ impl<T: Config> Pallet<T> {
 		Ok(d.space_id)
 	}
 
+	/// Checks if a given delegate is an admin for the space associated with the
+	/// authorization ID.
+	///
+	/// This function verifies whether the specified delegate is the admin of
+	/// the space by checking the 'ADMIN' permission within the authorization
+	/// tied to the provided authorization ID.
+	pub fn ensure_authorization_admin_remove_origin(
+		authorization_id: &AuthorizationIdOf,
+		delegate: &SpaceCreatorOf<T>,
+	) -> Result<SpaceIdOf, Error<T>> {
+		let d =
+			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
+
+		ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
+
+		Self::validate_space_for_transaction(&d.space_id)?;
+
+		ensure!(d.permissions.contains(Permissions::ADMIN), Error::<T>::UnauthorizedOperation);
+
+		Ok(d.space_id)
+	}
+
 	/// Validates that a space is eligible for a new transaction.
 	///
 	/// This function ensures that a space is not archived, is approved, and has
@@ -1106,7 +1135,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
 		// Ensure the space has not exceeded its capacity limit.
-		if space_details.capacity == 0 || space_details.usage < space_details.capacity {
+		if space_details.txn_capacity == 0 || space_details.txn_count < space_details.txn_capacity {
 			Ok(())
 		} else {
 			Err(Error::<T>::CapacityLimitExceeded)
@@ -1129,7 +1158,7 @@ impl<T: Config> Pallet<T> {
 		ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
 		// Ensure the space has not exceeded its capacity limit.
-		if space_details.capacity == 0 || space_details.usage < space_details.capacity {
+		if space_details.txn_capacity == 0 || space_details.txn_count < space_details.txn_capacity {
 			Ok(())
 		} else {
 			Err(Error::<T>::CapacityLimitExceeded)
@@ -1158,12 +1187,12 @@ impl<T: Config> Pallet<T> {
 
 		// Calculate the new usage to check against the capacity.
 		let new_usage = space_details
-			.usage
+			.txn_count
 			.checked_add(entries as u64)
 			.ok_or(Error::<T>::TypeCapacityOverflow)?;
 
 		// Ensure the space has enough capacity to accommodate the new entries.
-		if space_details.capacity == 0 || new_usage <= space_details.capacity {
+		if space_details.txn_capacity == 0 || new_usage <= space_details.txn_capacity {
 			Ok(())
 		} else {
 			Err(Error::<T>::CapacityLimitExceeded)
@@ -1179,7 +1208,7 @@ impl<T: Config> Pallet<T> {
 	pub fn increment_usage(tx_id: &SpaceIdOf) -> Result<(), Error<T>> {
 		Spaces::<T>::try_mutate(tx_id, |space_opt| {
 			if let Some(space_details) = space_opt {
-				space_details.usage = space_details.usage.saturating_add(1);
+				space_details.txn_count = space_details.txn_count.saturating_add(1);
 				Ok(())
 			} else {
 				Err(Error::<T>::SpaceNotFound.into())
@@ -1195,7 +1224,7 @@ impl<T: Config> Pallet<T> {
 	pub fn decrement_usage(tx_id: &SpaceIdOf) -> Result<(), Error<T>> {
 		Spaces::<T>::try_mutate(tx_id, |space_opt| {
 			if let Some(space_details) = space_opt {
-				space_details.usage = space_details.usage.saturating_sub(1);
+				space_details.txn_count = space_details.txn_count.saturating_sub(1);
 				Ok(())
 			} else {
 				Err(Error::<T>::SpaceNotFound.into())
@@ -1211,7 +1240,7 @@ impl<T: Config> Pallet<T> {
 	pub fn increment_usage_entries(tx_id: &SpaceIdOf, increment: u16) -> Result<(), Error<T>> {
 		Spaces::<T>::try_mutate(tx_id, |space_opt| {
 			if let Some(space_details) = space_opt {
-				space_details.usage = space_details.usage.saturating_add(increment.into());
+				space_details.txn_count = space_details.txn_count.saturating_add(increment.into());
 				Ok(())
 			} else {
 				Err(Error::<T>::SpaceNotFound.into())
@@ -1227,7 +1256,7 @@ impl<T: Config> Pallet<T> {
 	pub fn decrement_usage_entries(tx_id: &SpaceIdOf, decrement: u16) -> Result<(), Error<T>> {
 		Spaces::<T>::try_mutate(tx_id, |space_opt| {
 			if let Some(space_details) = space_opt {
-				space_details.usage = space_details.usage.saturating_sub(decrement.into());
+				space_details.txn_count = space_details.txn_count.saturating_sub(decrement.into());
 				Ok(())
 			} else {
 				Err(Error::<T>::SpaceNotFound.into())
