@@ -289,14 +289,14 @@ pub mod pallet {
 		StatementAlreadyAnchored,
 		/// Statement idenfier not found
 		StatementNotFound,
+		/// Only when the author is not the controller/delegate.
+		UnauthorizedOperation,
 		/// Statement entry not found
 		StatementEntryNotFound,
 		/// Statement entry marked inactive
 		StatementRevoked,
 		/// Statement idenfier not marked inactive
 		StatementNotRevoked,
-		/// Only when the author is not the controller/delegate.
-		UnauthorizedOperation,
 		/// Statement link does not exist
 		StatementLinkNotFound,
 		/// Statement Link is revoked

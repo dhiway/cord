@@ -536,7 +536,7 @@ pub mod pallet {
 				&[&space_code.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let identifier = Ss58Identifier::to_registry_id(&id_digest.encode()[..])
+			let identifier = Ss58Identifier::to_space_id(&id_digest.encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);

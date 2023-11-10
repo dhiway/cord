@@ -6,25 +6,31 @@ use cord_primitives::curi::Ss58Identifier;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
-use pallet_chain_space::{
-	Authorizations, InputRegistryOf, Permissions, RegistryAuthorizationOf, RegistryHashOf,
-};
+use pallet_chain_space::{Authorizations, Permissions, SpaceAuthorizationOf, SpaceCodeOf};
 use pallet_schema::SchemaHashOf;
 use sp_std::convert::TryFrom;
 
 const SEED: u32 = 0;
 const MAX_PAYLOAD_BYTE_LENGTH: u32 = 5 * 1024;
 
-pub fn generate_statement_id<T: Config>(other_digest: &StatementDigestOf<T>) -> StatementIdOf {
-	Ss58Identifier::to_statement_id(&(other_digest).encode()[..]).unwrap()
+/// Generates a statement ID from a statement digest.
+pub fn generate_statement_id<T: Config>(digest: &StatementDigestOf<T>) -> StatementIdOf {
+	Ss58Identifier::to_statement_id(&(digest).encode()[..]).unwrap()
 }
 
-pub fn generate_schema_id<T: Config>(other_digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::to_schema_id(&(other_digest).encode()[..]).unwrap()
+/// Generates a schema ID from a schema digest.
+pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
+	Ss58Identifier::to_schema_id(&(digest).encode()[..]).unwrap()
 }
 
-pub fn generate_registry_id<T: Config>(other_digest: &RegistryHashOf<T>) -> RegistryIdOf {
-	Ss58Identifier::to_registry_id(&(other_digest).encode()[..]).unwrap()
+/// Generates a space ID from a digest.
+pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
+	Ss58Identifier::to_space_id(&(digest).encode()[..]).unwrap()
+}
+
+/// Generates an authorization ID from a digest.
+pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
+	Ss58Identifier::to_authorization_id(&(digest).encode()[..]).unwrap()
 }
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
@@ -36,20 +42,18 @@ benchmarks! {
 		where
 		<T as Config>::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::RegistryCreatorId>,
 		}
-	create {
-		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
+	register {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let did: T::RegistryCreatorId = account("did", 0, SEED);
-		let did1: T::RegistryCreatorId = account("did1", 0, SEED);
+		let did_0: T::SpaceCreatorId = account("did", 0, SEED);
+		let did_1: T::SpaceCreatorId = account("did", 1, SEED);
 
 		let statement = [77u8; 32].to_vec();
 
 		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
-		let raw_registry = [56u8; 256].to_vec();
+		let raw_space = [56u8; 256].to_vec();
 
-		let registry: InputRegistryOf<T> = BoundedVec::try_from(raw_registry).unwrap();
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
 		&[&registry.encode()[..], &did.encode()[..]].concat()[..],

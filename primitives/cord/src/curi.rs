@@ -29,7 +29,7 @@ use sp_std::{fmt::Debug, prelude::Clone, str, vec};
 /// CORD Identifier Prefix
 const PREFIX: &[u8] = b"CRDIDFR";
 /// CORD idents
-const IDENT_REG: u16 = 7101;
+const IDENT_SPACE: u16 = 7101;
 const IDENT_AUTH: u16 = 10447;
 const IDENT_SCHEMA: u16 = 1424;
 const IDENT_STATEMENT: u16 = 8902;
@@ -83,7 +83,7 @@ impl TryFrom<Vec<u8>> for Ss58Identifier {
 	type Error = &'static str;
 
 	fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-		let identifier = Ss58Identifier::to_registry_id(&value[..])
+		let identifier = Ss58Identifier::to_space_id(&value[..])
 			.map_err(|_| "Cannot convert provided input to a valid identifier.")?;
 
 		Ok(identifier)
@@ -148,8 +148,8 @@ impl Ss58Identifier {
 	pub fn to_authorization_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_AUTH)
 	}
-	pub fn to_registry_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_REG)
+	pub fn to_space_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_SPACE)
 	}
 	pub fn to_schema_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_SCHEMA)

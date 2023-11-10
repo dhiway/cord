@@ -7,8 +7,8 @@ use frame_system::RawOrigin;
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
 
-pub fn generate_registry_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::to_registry_id(&(digest).encode()[..]).unwrap()
+pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
+	Ss58Identifier::to_space_id(&(digest).encode()[..]).unwrap()
 }
 
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
@@ -33,7 +33,7 @@ fn add_delegate_should_succeed() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -70,7 +70,7 @@ fn add_admin_delegate_should_succeed() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate__id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -107,7 +107,7 @@ fn add_audit_delegate_should_succeed() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -133,7 +133,7 @@ fn add_audit_delegate_should_succeed() {
 }
 
 #[test]
-fn add_delegate_should_fail_if_registry_is_not_created() {
+fn add_delegate_should_fail_if_space_is_not_created() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let space = [2u8; 256].to_vec();
@@ -143,7 +143,7 @@ fn add_delegate_should_fail_if_registry_is_not_created() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -166,7 +166,7 @@ fn add_delegate_should_fail_if_registry_is_not_created() {
 }
 
 #[test]
-fn add_admin_delegate_should_fail_if_registry_is_not_created() {
+fn add_admin_delegate_should_fail_if_space_is_not_created() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let space = [2u8; 256].to_vec();
@@ -176,7 +176,7 @@ fn add_admin_delegate_should_fail_if_registry_is_not_created() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -199,7 +199,7 @@ fn add_admin_delegate_should_fail_if_registry_is_not_created() {
 }
 
 #[test]
-fn add_audit_delegate_should_fail_if_registry_is_not_created() {
+fn add_audit_delegate_should_fail_if_space_is_not_created() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let space = [2u8; 256].to_vec();
@@ -209,7 +209,7 @@ fn add_audit_delegate_should_fail_if_registry_is_not_created() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -243,7 +243,7 @@ fn add_delegate_should_fail_if_the_regisrty_is_archived() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -287,7 +287,7 @@ fn add_delegate_should_fail_if_the_space_is_not_approved() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -325,7 +325,7 @@ fn add_delegate_should_fail_if_a_non_delegate_tries_to_add() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -364,7 +364,7 @@ fn add_delegate_should_fail_if_the_space_capacity_is_full() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -441,7 +441,7 @@ fn approving_a_new_space_should_succeed() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
@@ -462,7 +462,7 @@ fn approving_a_non_exixtent_space_should_fail() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
 		assert_err!(
@@ -483,7 +483,7 @@ fn archiving_a_space_should_succeed() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
@@ -524,7 +524,7 @@ fn archiving_a_non_exixtent_space_should_fail() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
@@ -550,7 +550,7 @@ fn restoring_an_archived_a_space_should_succeed() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
@@ -595,7 +595,7 @@ fn restoring_an_non_archived_a_space_should_fail() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
@@ -632,7 +632,7 @@ fn updating_space_capacity_by_root_should_succeed() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -660,7 +660,7 @@ fn updating_space_capacity_by_non_root_should_fail() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -690,7 +690,7 @@ fn reducing_space_capacity_by_root_should_succeed() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
@@ -719,7 +719,7 @@ fn reducing_space_capacity_by_root_below_usage_should_fail() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
@@ -755,7 +755,7 @@ fn resetting_space_usage_by_root_should_succeed() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
@@ -784,7 +784,7 @@ fn resetting_space_usage_by_non_root_should_fail() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
@@ -819,7 +819,7 @@ fn revoking_approval_of_a_space_by_root_should_succeed() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
@@ -843,7 +843,7 @@ fn revoking_approval_of_a_space_by_non_root_should_fail() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
@@ -870,7 +870,7 @@ fn restoring_approval_of_a_space_by_root_should_succeed() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
@@ -895,7 +895,7 @@ fn restoring_approval_of_a_non_revoked_space_by_root_should_fail() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
@@ -922,7 +922,7 @@ fn restoring_approval_of_a_space_by_non_root_should_fail() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate_registry_id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
