@@ -31,8 +31,12 @@ use cord_primitives::{
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
+	genesis_builder_helper::{build_config, create_default_config},
 	parameter_types,
-	traits::{ConstU32, Contains, EitherOfDiverse, KeyOwnerProofSystem, PrivilegeCmp},
+	traits::{
+		fungible::HoldConsideration, ConstU32, Contains, EitherOfDiverse, KeyOwnerProofSystem,
+		LinearStoragePrice, PrivilegeCmp,
+	},
 	weights::{
 		constants::{
 			BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
@@ -275,6 +279,8 @@ parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub const PreimageByteDeposit: Balance = deposit(0, 1);
+	pub const PreimageHoldReason: RuntimeHoldReason = RuntimeHoldReason::Preimage(pallet_preimage::HoldReason::Preimage);
+
 }
 
 impl pallet_preimage::Config for Runtime {
@@ -282,8 +288,12 @@ impl pallet_preimage::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
-	type BaseDeposit = PreimageBaseDeposit;
-	type ByteDeposit = PreimageByteDeposit;
+	type Consideration = HoldConsideration<
+		AccountId,
+		Balances,
+		PreimageHoldReason,
+		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
+	>;
 }
 
 parameter_types! {
@@ -337,6 +347,8 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Runtime {
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
@@ -345,10 +357,9 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
-	type RuntimeHoldReason = RuntimeHoldReason;
-	type FreezeIdentifier = ();
-	type MaxHolds = ConstU32<0>;
-	type MaxFreezes = ConstU32<0>;
+	type FreezeIdentifier = RuntimeFreezeReason;
+	type MaxFreezes = ConstU32<1>;
+	type MaxHolds = ConstU32<5>;
 	type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
 }
 
@@ -378,6 +389,7 @@ impl_opaque_keys! {
 		pub babe: Babe,
 		pub im_online: ImOnline,
 		pub authority_discovery: AuthorityDiscovery,
+		pub mixnet: Mixnet,
 	}
 }
 
@@ -627,6 +639,29 @@ impl pallet_multisig::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MixnetNumCoverToCurrentBlocks: BlockNumber = 3;
+	pub const MixnetNumRequestsToCurrentBlocks: BlockNumber = 3;
+	pub const MixnetNumCoverToPrevBlocks: BlockNumber = 3;
+	pub const MixnetNumRegisterStartSlackBlocks: BlockNumber = 3;
+	pub const MixnetNumRegisterEndSlackBlocks: BlockNumber = 3;
+	pub const MixnetRegistrationPriority: TransactionPriority = ImOnlineUnsignedPriority::get() - 1;
+}
+
+impl pallet_mixnet::Config for Runtime {
+	type MaxAuthorities = MaxAuthorities;
+	type MaxExternalAddressSize = ConstU32<128>;
+	type MaxExternalAddressesPerMixnode = ConstU32<16>;
+	type NextSessionRotation = Babe;
+	type NumCoverToCurrentBlocks = MixnetNumCoverToCurrentBlocks;
+	type NumRequestsToCurrentBlocks = MixnetNumRequestsToCurrentBlocks;
+	type NumCoverToPrevBlocks = MixnetNumCoverToPrevBlocks;
+	type NumRegisterStartSlackBlocks = MixnetNumRegisterStartSlackBlocks;
+	type NumRegisterEndSlackBlocks = MixnetNumRegisterEndSlackBlocks;
+	type RegistrationPriority = MixnetRegistrationPriority;
+	type MinMixnodes = ConstU32<7>; // Low to allow small testing networks
+}
+
+parameter_types! {
 	pub const MaxProposalLength: u16 = 5;
 }
 impl authority_membership::Config for Runtime {
@@ -824,6 +859,7 @@ construct_runtime! (
 		Remark: pallet_remark = 37,
 		Identity: pallet_identity = 38,
 		Identifier: identifier = 39,
+		Mixnet: pallet_mixnet = 40,
 		NetworkMembership: pallet_network_membership =101,
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,
@@ -1201,6 +1237,24 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
+	impl sp_mixnet::runtime_api::MixnetApi<Block> for Runtime {
+		fn session_status() -> sp_mixnet::types::SessionStatus {
+			Mixnet::session_status()
+		}
+
+		fn prev_mixnodes() -> Result<Vec<sp_mixnet::types::Mixnode>, sp_mixnet::types::MixnodesErr> {
+			Mixnet::prev_mixnodes()
+		}
+
+		fn current_mixnodes() -> Result<Vec<sp_mixnet::types::Mixnode>, sp_mixnet::types::MixnodesErr> {
+			Mixnet::current_mixnodes()
+		}
+
+		fn maybe_register(session_index: sp_mixnet::types::SessionIndex, mixnode: sp_mixnet::types::Mixnode) -> bool {
+			Mixnet::maybe_register(session_index, mixnode)
+		}
+	}
+
 	impl sp_session::SessionKeys<Block> for Runtime {
 		fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
 			SessionKeys::generate(seed)
@@ -1274,6 +1328,16 @@ sp_api::impl_runtime_apis! {
 			let params = (&config, &whitelist);
 			add_benchmarks!(params, batches);
 			Ok(batches)
+		}
+	}
+
+	impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
+		fn create_default_config() -> Vec<u8> {
+			create_default_config::<RuntimeGenesisConfig>()
+		}
+
+		fn build_config(config: Vec<u8>) -> sp_genesis_builder::Result {
+			build_config::<RuntimeGenesisConfig>(config)
 		}
 	}
 }

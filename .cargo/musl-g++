@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Wrapper for building with musl.
+g++ "$@"

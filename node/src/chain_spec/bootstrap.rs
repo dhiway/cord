@@ -33,6 +33,7 @@ use serde::Deserialize;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::crypto::UncheckedInto;
+use sp_mixnet::types::AuthorityId as MixnetId;
 
 pub use cord_runtime_constants::{currency::*, time::*};
 
@@ -68,8 +69,9 @@ fn session_keys(
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
+	mixnet: MixnetId,
 ) -> SessionKeys {
-	SessionKeys { babe, grandpa, im_online, authority_discovery }
+	SessionKeys { babe, grandpa, im_online, authority_discovery, mixnet }
 }
 
 /// Custom config.
@@ -90,20 +92,27 @@ fn cord_custom_config_genesis(
 		})
 		.collect();
 
-	let initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)> =
-		config
-			.authorities
-			.iter()
-			.map(|auth| {
-				(
-					array_bytes::hex_n_into_unchecked(&auth[0]),
-					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-					array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
-					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-				)
-			})
-			.collect();
+	let initial_authorities: Vec<(
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+		MixnetId,
+	)> = config
+		.authorities
+		.iter()
+		.map(|auth| {
+			(
+				array_bytes::hex_n_into_unchecked(&auth[0]),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+			)
+		})
+		.collect();
 
 	let initial_council_members: Vec<AccountId> =
 		config.council_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
@@ -152,7 +161,14 @@ fn cord_custom_genesis(
 	wasm_binary: &[u8],
 	network_members: Vec<AccountId>,
 	well_known_nodes: Vec<(NodeId, AccountId)>,
-	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
+	initial_authorities: Vec<(
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+		MixnetId,
+	)>,
 	council_members: Vec<AccountId>,
 	tech_committee_members: Vec<AccountId>,
 	sudo_key: AccountId,
@@ -180,7 +196,13 @@ fn cord_custom_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						session_keys(x.1.clone(), x.2.clone(), x.3.clone(), x.4.clone()),
+						session_keys(
+							x.1.clone(),
+							x.2.clone(),
+							x.3.clone(),
+							x.4.clone(),
+							x.5.clone(),
+						),
 					)
 				})
 				.collect::<Vec<_>>(),
@@ -196,7 +218,7 @@ fn cord_custom_genesis(
 			members: council_members
 				.to_vec()
 				.try_into()
-				.unwrap_or_else(|e| panic!("Failed to add council memebers: {:?}", e)),
+				.unwrap_or_else(|e| panic!("Failed to add council members: {:?}", e)),
 			phantom: Default::default(),
 		},
 		technical_committee: Default::default(),
@@ -208,6 +230,7 @@ fn cord_custom_genesis(
 			phantom: Default::default(),
 		},
 		authority_discovery: Default::default(),
+		mixnet: Default::default(),
 		sudo: SudoConfig { key: Some(sudo_key) },
 	}
 }

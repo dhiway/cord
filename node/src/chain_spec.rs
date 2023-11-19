@@ -36,6 +36,7 @@ use serde::{Deserialize, Serialize};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, Pair, Public};
+use sp_mixnet::types::AuthorityId as MixnetId;
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 type AccountPublic = <Signature as Verify>::Signer;
@@ -68,8 +69,9 @@ fn session_keys(
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
+	mixnet: MixnetId,
 ) -> SessionKeys {
-	SessionKeys { babe, grandpa, im_online, authority_discovery }
+	SessionKeys { babe, grandpa, im_online, authority_discovery, mixnet }
 }
 
 /// Helper function to generate a crypto pair from seed
@@ -100,21 +102,22 @@ where
 /// Helper function to generate controller and session key from seed
 pub fn get_authority_keys_from_seed(
 	seed: &str,
-) -> (AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
+) -> (AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId, MixnetId) {
 	let keys = get_authority_keys(seed);
-	(keys.0, keys.1, keys.2, keys.3, keys.4)
+	(keys.0, keys.1, keys.2, keys.3, keys.4, keys.5)
 }
 
 /// Helper function to generate  controller and session key from seed
 pub fn get_authority_keys(
 	seed: &str,
-) -> (AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
+) -> (AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId, MixnetId) {
 	(
 		get_account_id_from_seed::<sr25519::Public>(seed),
 		get_from_seed::<BabeId>(seed),
 		get_from_seed::<GrandpaId>(seed),
 		get_from_seed::<ImOnlineId>(seed),
 		get_from_seed::<AuthorityDiscoveryId>(seed),
+		get_from_seed::<MixnetId>(seed),
 	)
 }
 
@@ -226,7 +229,14 @@ pub fn cord_builder_config() -> Result<CordChainSpec, String> {
 
 fn cord_local_genesis(
 	wasm_binary: &[u8],
-	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
+	initial_authorities: Vec<(
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+		MixnetId,
+	)>,
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
 ) -> RuntimeGenesisConfig {
@@ -253,7 +263,13 @@ fn cord_local_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						session_keys(x.1.clone(), x.2.clone(), x.3.clone(), x.4.clone()),
+						session_keys(
+							x.1.clone(),
+							x.2.clone(),
+							x.3.clone(),
+							x.4.clone(),
+							x.5.clone(),
+						),
 					)
 				})
 				.collect::<Vec<_>>(),
@@ -281,6 +297,7 @@ fn cord_local_genesis(
 			phantom: Default::default(),
 		},
 		authority_discovery: Default::default(),
+		mixnet: Default::default(),
 		sudo: SudoConfig { key: Some(root_key) },
 	}
 }
