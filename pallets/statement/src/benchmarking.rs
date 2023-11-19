@@ -53,14 +53,12 @@ benchmarks! {
 		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
 		let raw_space = [56u8; 256].to_vec();
+		let space_digest = <T as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+		let space_id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
 
-
-		let id_digest = <T as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
-		);
-
-		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
-
+		let space_id: SpaceIdOf = generate_space_id::<T>(&space_id_digest);
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
@@ -69,11 +67,19 @@ benchmarks! {
 		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did_1.encode()[..], &did_0.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
 		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+
+
+		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
+		let chain_space_origin = RawOrigin::Root.into();
+
+
+		Pallet::<T>::create(origin, space_digest )?;
+		Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
 
 		<Authorizations<T>>::insert(
 			&authorization_id,
