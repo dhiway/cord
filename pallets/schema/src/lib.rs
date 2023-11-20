@@ -53,6 +53,12 @@ pub mod benchmarking;
 #[cfg(test)]
 pub mod tests;
 
+use identifier::{
+	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
+	EventEntryOf,
+};
+use sp_runtime::traits::UniqueSaturatedInto;
+
 /// Extra Types for Schema
 pub mod types;
 
@@ -71,31 +77,32 @@ pub mod pallet {
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
+	/// Space Identifier
+	pub type SpaceIdOf = Ss58Identifier;
 	/// Schema Identifier
 	pub type SchemaIdOf = Ss58Identifier;
+	/// Authorization Identifier
+	pub type AuthorizationIdOf = Ss58Identifier;
 	/// Hash of the schema.
 	pub type SchemaHashOf<T> = <T as frame_system::Config>::Hash;
-
 	/// Type of a CORD account.
 	pub(crate) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type of a Schema creator.
-	pub type SchemaCreatorOf<T> = <T as Config>::SchemaCreatorId;
+	pub type SchemaCreatorOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
 	/// Type for an input schema
 	pub type InputSchemaOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedSchemaLength>;
 	/// Type for a schema entry
-	pub type SchemaEntryOf<T> = SchemaEntry<
-		InputSchemaOf<T>,
-		SchemaHashOf<T>,
-		<T as Config>::SchemaCreatorId,
-		BlockNumberFor<T>,
-	>;
+	pub type SchemaEntryOf<T> =
+		SchemaEntry<InputSchemaOf<T>, SchemaHashOf<T>, SchemaCreatorOf<T>, SpaceIdOf>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config:
+		frame_system::Config + pallet_chain_space::Config + identifier::Config
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = Self::OriginSuccess,
+			Success = <Self as Config>::OriginSuccess,
 		>;
 		type OriginSuccess: CallSources<AccountIdOf<Self>, SchemaCreatorOf<Self>>;
 		type SchemaCreatorId: Parameter + MaxEncodedLen;
@@ -158,7 +165,11 @@ pub mod pallet {
 		/// DispatchResult
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create(tx_schema.len().saturated_into()))]
-		pub fn create(origin: OriginFor<T>, tx_schema: InputSchemaOf<T>) -> DispatchResult {
+		pub fn create(
+			origin: OriginFor<T>,
+			tx_schema: InputSchemaOf<T>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			ensure!(tx_schema.len() > 0, Error::<T>::EmptyTransaction);
@@ -166,6 +177,12 @@ pub mod pallet {
 				tx_schema.len() <= T::MaxEncodedSchemaLength::get() as usize,
 				Error::<T>::MaxEncodedSchemaLimitExceeded
 			);
+
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&creator,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			// Id Digest = concat (H(<scale_encoded_schema_input>,
 			// <scale_encoded_creator_identifier>))
@@ -197,9 +214,11 @@ pub mod pallet {
 					schema: tx_schema,
 					digest,
 					creator: creator.clone(),
-					created_at: block_number,
+					space: space_id,
 				},
 			);
+
+			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
 
 			Self::deposit_event(Event::Created { identifier, creator });
 
@@ -222,5 +241,47 @@ impl<T: Config> Pallet<T> {
 	pub fn is_valid(tx_ident: &SchemaIdOf) -> Result<(), Error<T>> {
 		ensure!(<Schemas<T>>::contains_key(tx_ident), Error::<T>::SchemaNotFound);
 		Ok(())
+	}
+
+	/// Updates the global timeline with a new activity event for a schema.
+	///
+	/// An `EventEntryOf` struct is created, encapsulating the type of action
+	/// (`tx_action`) and the `Timepoint` of the event, which is obtained by
+	/// calling the `timepoint` function. This entry is then passed to the
+	/// `update_timeline` function of the `identifier` pallet, which integrates
+	/// it into the global timeline.
+	///
+	/// # Parameters
+	/// - `tx_id`: The identifier of the schema that the activity pertains to.
+	/// - `tx_action`: The type of action taken on the schema, encapsulated
+	///   within `CallTypeOf`.
+	///
+	/// # Returns
+	/// Returns `Ok(())` after successfully updating the timeline. If any errors
+	/// occur within the `update_timeline` function, they are not captured here
+	/// and the function will still return `Ok(())`.
+	pub fn update_activity(tx_id: &SchemaIdOf, tx_action: CallTypeOf) -> Result<(), Error<T>> {
+		let tx_moment = Self::timepoint();
+
+		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
+		let _ =
+			identifier::Pallet::<T>::update_timeline(tx_id, IdentifierTypeOf::Statement, tx_entry);
+		Ok(())
+	}
+
+	/// Retrieves the current timepoint.
+	///
+	/// This function returns a `Timepoint` structure containing the current
+	/// block number and extrinsic index. It is typically used in conjunction
+	/// with `update_activity` to record when an event occurred.
+	///
+	/// # Returns
+	/// - `Timepoint`: A structure containing the current block number and
+	///   extrinsic index.
+	pub fn timepoint() -> Timepoint {
+		Timepoint {
+			height: frame_system::Pallet::<T>::block_number().unique_saturated_into(),
+			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
+		}
 	}
 }
