@@ -57,6 +57,8 @@ pub trait WeightInfo {
 	fn clear_identity(r: u32, x: u32, ) -> Weight;
 	fn request_judgement(r: u32, x: u32, ) -> Weight;
 	fn cancel_request(r: u32, x: u32, ) -> Weight;
+	fn set_account_id(r: u32, ) -> Weight;
+	fn set_fields(r: u32, ) -> Weight;
 	fn provide_judgement(r: u32, x: u32, ) -> Weight;
 	fn kill_identity(r: u32, x: u32, ) -> Weight;
 }
@@ -162,6 +164,34 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1_u64))
 			.saturating_add(T::DbWeight::get().writes(1_u64))
 	}
+	/// Storage: Identity Registrars (r:1 w:1)
+	/// Proof: Identity Registrars (max_values: Some(1), max_size: Some(1141), added: 1636, mode: MaxEncodedLen)
+	/// The range of component `r` is `[1, 19]`.
+	fn set_account_id(r: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `89 + r * (57 ±0)`
+		//  Estimated: `2626`
+		// Minimum execution time: 7_437_000 picoseconds.
+		Weight::from_parts(8_051_889, 2626)
+			// Standard Error: 1_997
+			.saturating_add(Weight::from_parts(129_592, 0).saturating_mul(r.into()))
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
+	/// Storage: Identity Registrars (r:1 w:1)
+	/// Proof: Identity Registrars (max_values: Some(1), max_size: Some(1141), added: 1636, mode: MaxEncodedLen)
+	/// The range of component `r` is `[1, 19]`.
+	fn set_fields(r: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `89 + r * (57 ±0)`
+		//  Estimated: `2626`
+		// Minimum execution time: 7_385_000 picoseconds.
+		Weight::from_parts(7_911_589, 2626)
+			// Standard Error: 1_791
+			.saturating_add(Weight::from_parts(125_788, 0).saturating_mul(r.into()))
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 	/// Storage: Identity Registrars (r:1 w:0)
 	/// Proof: Identity Registrars (max_values: Some(1), max_size: Some(1141), added: 1636, mode: MaxEncodedLen)
 	/// Storage: Identity IdentityOf (r:1 w:1)
@@ -237,7 +267,6 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
-
 	/// Storage: Identity IdentityOf (r:1 w:1)
 	/// Proof: Identity IdentityOf (max_values: None, max_size: Some(7538), added: 10013, mode: MaxEncodedLen)
 	/// The range of component `r` is `[1, 20]`.
@@ -304,6 +333,34 @@ impl WeightInfo for () {
 		Weight::from_parts(33_304_799, 11003)
 			// Standard Error: 892
 			.saturating_add(Weight::from_parts(451_655, 0).saturating_mul(x.into()))
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: Identity Registrars (r:1 w:1)
+	/// Proof: Identity Registrars (max_values: Some(1), max_size: Some(1141), added: 1636, mode: MaxEncodedLen)
+	/// The range of component `r` is `[1, 19]`.
+	fn set_account_id(r: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `89 + r * (57 ±0)`
+		//  Estimated: `2626`
+		// Minimum execution time: 7_437_000 picoseconds.
+		Weight::from_parts(8_051_889, 2626)
+			// Standard Error: 1_997
+			.saturating_add(Weight::from_parts(129_592, 0).saturating_mul(r.into()))
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+	}
+	/// Storage: Identity Registrars (r:1 w:1)
+	/// Proof: Identity Registrars (max_values: Some(1), max_size: Some(1141), added: 1636, mode: MaxEncodedLen)
+	/// The range of component `r` is `[1, 19]`.
+	fn set_fields(r: u32, ) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `89 + r * (57 ±0)`
+		//  Estimated: `2626`
+		// Minimum execution time: 7_385_000 picoseconds.
+		Weight::from_parts(7_911_589, 2626)
+			// Standard Error: 1_791
+			.saturating_add(Weight::from_parts(125_788, 0).saturating_mul(r.into()))
 			.saturating_add(RocksDbWeight::get().reads(1_u64))
 			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
