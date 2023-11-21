@@ -312,7 +312,8 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = T::EnsureOrigin::ensure_origin(origin)?.subject();
-			let auth_space_id = Self::ensure_authorization_admin_origin(&authorization, &creator)?;
+			let auth_space_id =
+				Self::ensure_authorization_delegator_origin(&authorization, &creator)?;
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
 			let permissions = Permissions::ASSERT;
@@ -393,8 +394,8 @@ pub mod pallet {
 		/// Returns `Ok(())` if the audit delegate was successfully added, or an
 		/// `Err` with an appropriate error if the operation fails.
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_audit_delegate())]
-		pub fn add_audit_delegate(
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_delegator())]
+		pub fn add_delegator(
 			origin: OriginFor<T>,
 			space_id: SpaceIdOf,
 			delegate: SpaceCreatorOf<T>,
@@ -405,7 +406,7 @@ pub mod pallet {
 
 			ensure!(auth_space_id == space_id, Error::<T>::UnauthorizedOperation);
 
-			let permissions = Permissions::AUDIT;
+			let permissions = Permissions::DELEGATE;
 			Self::space_delegate_addition(auth_space_id, delegate, creator, permissions)?;
 
 			Ok(())
@@ -1079,7 +1080,7 @@ impl<T: Config> Pallet<T> {
 	/// to an existing authorization and whether the delegate associated with
 	/// that authorization is allowed to perform audit operations. It also
 	/// increments usage and validates the space for transactions.
-	pub fn ensure_authorization_audit_origin(
+	pub fn ensure_authorization_delegator_origin(
 		authorization_id: &AuthorizationIdOf,
 		delegate: &SpaceCreatorOf<T>,
 	) -> Result<SpaceIdOf, Error<T>> {
@@ -1092,7 +1093,10 @@ impl<T: Config> Pallet<T> {
 
 		Self::validate_space_for_transaction(&d.space_id)?;
 
-		ensure!(d.permissions.contains(Permissions::AUDIT), Error::<T>::UnauthorizedOperation);
+		ensure!(
+			d.permissions.contains(Permissions::DELEGATE | Permissions::ADMIN),
+			Error::<T>::UnauthorizedOperation
+		);
 
 		Ok(d.space_id)
 	}

@@ -914,7 +914,7 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
 			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_admin_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_audit_delegate { .. }) =>
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegator { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
 			RuntimeCall::ChainSpace(pallet_chain_space::Call::remove_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),

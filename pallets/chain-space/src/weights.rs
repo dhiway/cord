@@ -56,7 +56,7 @@ pub trait WeightInfo {
 	fn archive() -> Weight;
 	fn restore() -> Weight;
 	fn add_admin_delegate() -> Weight;
-	fn add_audit_delegate() -> Weight;
+	fn add_delegator() -> Weight;
 	fn add_delegate() -> Weight;
 	fn remove_delegate() -> Weight;
 	fn update_transaction_capacity() -> Weight;
@@ -162,7 +162,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Proof: Registry Authorities (max_values: None, max_size: Some(320068), added: 322543, mode: MaxEncodedLen)
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
-	fn add_audit_delegate() -> Weight {
+	fn add_delegator() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `15726`
 		//  Estimated: `323533`
@@ -374,7 +374,7 @@ impl WeightInfo for () {
 	/// Proof: Registry Authorities (max_values: None, max_size: Some(320068), added: 322543, mode: MaxEncodedLen)
 	/// Storage: Registry Commits (r:1 w:1)
 	/// Proof: Registry Commits (max_values: None, max_size: Some(69068), added: 71543, mode: MaxEncodedLen)
-	fn add_audit_delegate() -> Weight {
+	fn add_delegator() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `15726`
 		//  Estimated: `323533`

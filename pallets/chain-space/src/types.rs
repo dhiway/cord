@@ -30,8 +30,8 @@ bitflags! {
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
 	pub struct Permissions: u32 {
 		const ASSERT = 0b0000_0001;
-		const ADMIN = 0b0000_0010;
-		const AUDIT = 0b0000_0100;
+		const DELEGATE = 0b0000_0010;
+		const ADMIN = 0b0000_0100;
 	}
 }
 

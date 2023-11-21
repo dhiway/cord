@@ -96,7 +96,7 @@ fn add_admin_delegate_should_succeed() {
 }
 
 #[test]
-fn add_audit_delegate_should_succeed() {
+fn add_delegator_should_succeed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let space = [2u8; 256].to_vec();
@@ -123,7 +123,7 @@ fn add_audit_delegate_should_succeed() {
 		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
 		//Admin should be able to add the delegate
-		assert_ok!(Space::add_audit_delegate(
+		assert_ok!(Space::add_delegator(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_id,
 			DID_01,
@@ -199,7 +199,7 @@ fn add_admin_delegate_should_fail_if_space_is_not_created() {
 }
 
 #[test]
-fn add_audit_delegate_should_fail_if_space_is_not_created() {
+fn add_delegator_should_fail_if_space_is_not_created() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let space = [2u8; 256].to_vec();
@@ -220,7 +220,7 @@ fn add_audit_delegate_should_fail_if_space_is_not_created() {
 	new_test_ext().execute_with(|| {
 		//Should throw Error if registry is not created or found
 		assert_err!(
-			Space::add_audit_delegate(
+			Space::add_delegator(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
 				space_id,
 				SubjectId(AccountId32::new([1u8; 32])),
