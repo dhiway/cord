@@ -63,22 +63,21 @@ benchmarks! {
 		let did1: T::SpaceCreatorId = account("did", 0, SEED);
 		let capacity = 3u64;
 
-		let raw_schema: Vec<u8> = (0u8..u8::MAX).cycle().take(l.try_into().unwrap()).collect();
-		let schema = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of the test runtime.");
-		let digest = <T as frame_system::Config>::Hashing::hash(&schema[..]);
-		let schema_id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&schema.encode()[..], &did.encode()[..]].concat()[..],
-		);
-		let schema_id: SchemaIdOf = generate_schema_id::<T>(&schema_id_digest);
-
-
 		let raw_space = [2u8; 256].to_vec();
 		let space_digest = <T as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 		let space_id_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 		);
 		let space_id: SpaceIdOf = generate_space_id::<T>(&space_id_digest);
+
+		let raw_schema: Vec<u8> = (0u8..u8::MAX).cycle().take(l.try_into().unwrap()).collect();
+		let schema = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of the test runtime.");
+		let digest = <T as frame_system::Config>::Hashing::hash(&schema[..]);
+		let schema_id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&schema.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
+		);
+		let schema_id: SchemaIdOf = generate_schema_id::<T>(&schema_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],

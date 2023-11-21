@@ -70,7 +70,7 @@ fn add_admin_delegate_should_succeed() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let space_id: SpaceIdOf = generate__id::<Test>(&id_digest);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],

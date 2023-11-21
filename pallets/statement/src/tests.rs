@@ -40,20 +40,20 @@ fn register_statement_should_succeed() {
 	let statement = vec![77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -91,14 +91,6 @@ fn trying_to_register_statement_to_a_non_existent_space_should_fail() {
 	let statement = vec![77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
@@ -106,6 +98,13 @@ fn trying_to_register_statement_to_a_non_existent_space_should_fail() {
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
@@ -133,20 +132,20 @@ fn trying_to_register_statement_by_a_non_delegate_should_fail() {
 	let statement = vec![77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -190,20 +189,20 @@ fn updating_a_registered_statement_should_succeed() {
 	let new_statement = vec![88u8; 32];
 	let new_statement_digest = <Test as frame_system::Config>::Hashing::hash(&new_statement[..]);
 
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -267,20 +266,20 @@ fn updating_a_registered_statement_by_a_space_delegate_should_succeed() {
 	let new_statement = vec![88u8; 32];
 	let new_statement_digest = <Test as frame_system::Config>::Hashing::hash(&new_statement[..]);
 
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -351,20 +350,20 @@ fn trying_to_update_a_registered_statement_by_a_non_space_delegate_should_fail()
 	let new_statement = vec![88u8; 32];
 	let new_statement_digest = <Test as frame_system::Config>::Hashing::hash(&new_statement[..]);
 
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -430,20 +429,20 @@ fn trying_to_update_a_non_registered_statement_should_fail() {
 	let new_statement = vec![88u8; 32];
 	let new_statement_digest = <Test as frame_system::Config>::Hashing::hash(&new_statement[..]);
 
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -503,20 +502,20 @@ fn revoking_a_registered_statement_should_succeed() {
 	let statement_digest: StatementDigestOf<Test> =
 		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -578,20 +577,20 @@ fn revoking_a_registered_statement_by_a_non_delegate_should_fail() {
 	let statement_digest: StatementDigestOf<Test> =
 		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let new_raw_space = [4u8; 256].to_vec();
 	let new_space_digest =
@@ -676,20 +675,20 @@ fn restoring_a_revoked_statement_should_succeed() {
 	let statement_digest: StatementDigestOf<Test> =
 		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -756,20 +755,20 @@ fn trying_to_restore_a_non_revoked_statement_should_fail() {
 	let statement_digest: StatementDigestOf<Test> =
 		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -829,20 +828,20 @@ fn trying_to_restore_a_revoked_statement_by_a_non_delegate_should_fail() {
 	let statement_digest: StatementDigestOf<Test> =
 		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
-	let raw_schema = [11u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let new_raw_space = [4u8; 256].to_vec();
 	let new_space_digest =

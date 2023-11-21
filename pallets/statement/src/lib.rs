@@ -414,7 +414,7 @@ pub mod pallet {
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			// Id Digest = concat (H(<scale_encoded_statement_digest>,
-			// <scale_encoded_registry_identifier>, <scale_encoded_creator_identifier>))
+			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[
 					&digest.encode()[..],

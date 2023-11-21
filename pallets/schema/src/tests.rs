@@ -107,14 +107,6 @@ fn check_successful_schema_creation() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let capacity = 3u64;
-	let raw_schema = [2u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
@@ -122,6 +114,15 @@ fn check_successful_schema_creation() {
 		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -274,7 +275,7 @@ fn test_schema_lookup() {
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
 		// Create the schemas
 		assert_ok!(Schema::create(
@@ -299,7 +300,7 @@ fn test_schema_lookup() {
 			let digest: SchemaHashOf<Test> =
 				<Test as frame_system::Config>::Hashing::hash(&schema[..]);
 			let id_digest = <Test as frame_system::Config>::Hashing::hash(
-				&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
+				&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 			let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
 
