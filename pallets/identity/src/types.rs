@@ -22,7 +22,7 @@
 
 use super::*;
 use codec::{Decode, Encode, MaxEncodedLen};
-use enumflags2::{bitflags, BitFlags};
+use enumflags2::{BitFlag, BitFlags, _internal::RawBitFlags};
 use frame_support::{
 	traits::{ConstU32, Get},
 	BoundedVec, CloneNoBound, PartialEqNoBound, RuntimeDebugNoBound,
@@ -33,6 +33,11 @@ use scale_info::{
 };
 use sp_runtime::RuntimeDebug;
 use sp_std::{fmt::Debug, iter::once, prelude::*};
+
+/// An identifier for a single name registrar/identity verification service.
+pub type RegistrarIndex = u32;
+
+pub trait U64BitFlag: BitFlag + RawBitFlags<Numeric = u64> {}
 
 /// Either underlying data blob if it is at most 32 bytes, or a hash of it. If
 /// the data is greater than 32-bytes then it will be truncated when encoding.
@@ -45,6 +50,15 @@ pub enum Data {
 	/// Only the Blake2 hash of the data is stored. The preimage of the hash may
 	/// be retrieved through some hash-lookup service.
 	BlakeTwo256([u8; 32]),
+	/// Only the SHA2-256 hash of the data is stored. The preimage of the hash
+	/// may be retrieved through some hash-lookup service.
+	Sha256([u8; 32]),
+	/// Only the Keccak-256 hash of the data is stored. The preimage of the hash
+	/// may be retrieved through some hash-lookup service.
+	Keccak256([u8; 32]),
+	/// Only the SHA3-256 hash of the data is stored. The preimage of the hash
+	/// may be retrieved through some hash-lookup service.
+	ShaThree256([u8; 32]),
 }
 
 impl Data {
@@ -66,6 +80,9 @@ impl Decode for Data {
 				Data::Raw(r)
 			},
 			34 => Data::BlakeTwo256(<[u8; 32]>::decode(input)?),
+			35 => Data::Sha256(<[u8; 32]>::decode(input)?),
+			36 => Data::Keccak256(<[u8; 32]>::decode(input)?),
+			37 => Data::ShaThree256(<[u8; 32]>::decode(input)?),
 			_ => return Err(codec::Error::from("invalid leading byte")),
 		})
 	}
@@ -78,10 +95,13 @@ impl Encode for Data {
 			Data::Raw(ref x) => {
 				let l = x.len().min(32);
 				let mut r = vec![l as u8 + 1; l + 1];
-				r[1..].copy_from_slice(&x[..l]);
+				r[1..].copy_from_slice(&x[..l as usize]);
 				r
 			},
 			Data::BlakeTwo256(ref h) => once(34u8).chain(h.iter().cloned()).collect(),
+			Data::Sha256(ref h) => once(35u8).chain(h.iter().cloned()).collect(),
+			Data::Keccak256(ref h) => once(36u8).chain(h.iter().cloned()).collect(),
+			Data::ShaThree256(ref h) => once(37u8).chain(h.iter().cloned()).collect(),
 		}
 	}
 }
@@ -144,9 +164,19 @@ impl TypeInfo for Data {
 			(33, 32)
 		);
 
-		let variants = variants.variant("BlakeTwo256", |v| {
-			v.index(34).fields(Fields::unnamed().field(|f| f.ty::<[u8; 32]>()))
-		});
+		let variants = variants
+			.variant("BlakeTwo256", |v| {
+				v.index(34).fields(Fields::unnamed().field(|f| f.ty::<[u8; 32]>()))
+			})
+			.variant("Sha256", |v| {
+				v.index(35).fields(Fields::unnamed().field(|f| f.ty::<[u8; 32]>()))
+			})
+			.variant("Keccak256", |v| {
+				v.index(36).fields(Fields::unnamed().field(|f| f.ty::<[u8; 32]>()))
+			})
+			.variant("ShaThree256", |v| {
+				v.index(37).fields(Fields::unnamed().field(|f| f.ty::<[u8; 32]>()))
+			});
 
 		Type::builder().path(Path::new("Data", module_path!())).variant(variants)
 	}
@@ -200,113 +230,32 @@ impl Judgement {
 	}
 }
 
-/// The fields that we use to identify the owner of an account with. Each
-/// corresponds to a field in the `IdentityInfo` struct.
-#[bitflags]
-#[repr(u64)]
-#[derive(Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo)]
-pub enum IdentityField {
-	Display = 0b0000000000000000000000000000000000000000000000000000000000000001,
-	Legal = 0b0000000000000000000000000000000000000000000000000000000000000010,
-	Web = 0b0000000000000000000000000000000000000000000000000000000000000100,
-	Email = 0b0000000000000000000000000000000000000000000000000000000000001000,
-}
-
-/// Wrapper type for `BitFlags<IdentityField>` that implements `Codec`.
-#[derive(Clone, Copy, PartialEq, Default, RuntimeDebug)]
-pub struct IdentityFields(pub BitFlags<IdentityField>);
-
-impl MaxEncodedLen for IdentityFields {
-	fn max_encoded_len() -> usize {
-		u64::max_encoded_len()
-	}
-}
-
-impl Eq for IdentityFields {}
-impl Encode for IdentityFields {
-	fn using_encoded<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
-		self.0.bits().using_encoded(f)
-	}
-}
-impl Decode for IdentityFields {
-	fn decode<I: codec::Input>(input: &mut I) -> sp_std::result::Result<Self, codec::Error> {
-		let field = u64::decode(input)?;
-		Ok(Self(<BitFlags<IdentityField>>::from_bits(field).map_err(|_| "invalid value")?))
-	}
-}
-impl TypeInfo for IdentityFields {
-	type Identity = Self;
-
-	fn type_info() -> Type {
-		Type::builder()
-			.path(Path::new("BitFlags", module_path!()))
-			.type_params(vec![TypeParameter::new("T", Some(meta_type::<IdentityField>()))])
-			.composite(Fields::unnamed().field(|f| f.ty::<u64>().type_name("IdentityField")))
-	}
-}
-
 /// Information concerning the identity of the controller of an account.
-///
-/// NOTE: This should be stored at the end of the storage item to facilitate the
-/// addition of extra fields in a backwards compatible way through a specialized
-/// `Decode` impl.
-#[derive(
-	CloneNoBound, Encode, Decode, Eq, MaxEncodedLen, PartialEqNoBound, RuntimeDebugNoBound, TypeInfo,
-)]
-#[codec(mel_bound())]
-#[cfg_attr(test, derive(frame_support::DefaultNoBound))]
-#[scale_info(skip_type_params(FieldLimit))]
-pub struct IdentityInfo<FieldLimit: Get<u32>> {
-	/// Additional fields of the identity that are not catered for with the
-	/// struct's explicit fields.
-	pub additional: BoundedVec<(Data, Data), FieldLimit>,
+pub trait IdentityInformationProvider:
+	Encode + Decode + MaxEncodedLen + Clone + Debug + Eq + PartialEq + TypeInfo
+{
+	/// Type capable of representing all of the fields present in the identity
+	/// information as bit flags in `u64` format.
+	type IdentityField: Clone + Debug + Eq + PartialEq + TypeInfo + U64BitFlag;
 
-	/// A reasonable display name for the controller of the account. This should
-	/// be whatever it is that it is typically known as and should not be
-	/// confusable with other entities, given reasonable context.
-	///
-	/// Stored as UTF-8.
-	pub display: Data,
+	/// Check if an identity registered information for some given `fields`.
+	fn has_identity(&self, fields: u64) -> bool;
 
-	/// The full legal name in the local jurisdiction of the entity. This might
-	/// be a bit long-winded.
-	///
-	/// Stored as UTF-8.
-	pub legal: Data,
-
-	/// A representative website held by the controller of the account.
-	///
-	/// NOTE: `https://` is automatically prepended.
-	///
-	/// Stored as UTF-8.
-	pub web: Data,
-
-	/// The email address of the controller of the account.
-	///
-	/// Stored as UTF-8.
-	pub email: Data,
-}
-
-impl<FieldLimit: Get<u32>> IdentityInfo<FieldLimit> {
-	pub(crate) fn fields(&self) -> IdentityFields {
-		let mut res = <BitFlags<IdentityField>>::empty();
-		if !self.display.is_none() {
-			res.insert(IdentityField::Display);
-		}
-		if !self.legal.is_none() {
-			res.insert(IdentityField::Legal);
-		}
-		if !self.web.is_none() {
-			res.insert(IdentityField::Web);
-		}
-		if !self.email.is_none() {
-			res.insert(IdentityField::Email);
-		}
-		IdentityFields(res)
+	/// Interface for providing the number of additional fields this identity
+	/// information provider holds, used to charge for additional storage and
+	/// weight. This interface is present for backwards compatibility reasons
+	/// only and will be removed as soon as the reference identity
+	/// provider removes additional fields.
+	#[deprecated]
+	fn additional(&self) -> usize {
+		0
 	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn create_identity_info(num_fields: u32) -> Self;
 }
 
-/// Information concerning the identity of the controller of an account.
+/// Information on an identity along with judgements from registrars.
 ///
 /// NOTE: This is stored separately primarily to facilitate the addition of
 /// extra fields in a backwards compatible way through a specialized `Decode`
@@ -319,7 +268,7 @@ impl<FieldLimit: Get<u32>> IdentityInfo<FieldLimit> {
 pub struct Registration<
 	AccountId: Encode + Decode + Clone + Debug + Eq + PartialEq + MaxEncodedLen,
 	MaxJudgements: Get<u32>,
-	MaxAdditionalFields: Get<u32>,
+	IdentityInfo: IdentityInformationProvider,
 > {
 	/// Judgements from the registrars on this identity. Stored ordered by
 	/// `RegistrarIndex`. There may be only a single judgement from each
@@ -327,18 +276,76 @@ pub struct Registration<
 	pub judgements: BoundedVec<(AccountId, Judgement), MaxJudgements>,
 
 	/// Information on the identity.
-	pub info: IdentityInfo<MaxAdditionalFields>,
+	pub info: IdentityInfo,
 }
 
 impl<
 		AccountId: Encode + Decode + Clone + Debug + Eq + PartialEq + MaxEncodedLen,
 		MaxJudgements: Get<u32>,
-		MaxAdditionalFields: Get<u32>,
-	> Decode for Registration<AccountId, MaxJudgements, MaxAdditionalFields>
+		IdentityInfo: IdentityInformationProvider,
+	> Decode for Registration<AccountId, MaxJudgements, IdentityInfo>
 {
 	fn decode<I: codec::Input>(input: &mut I) -> sp_std::result::Result<Self, codec::Error> {
 		let (judgements, info) = Decode::decode(&mut AppendZerosInput::new(input))?;
 		Ok(Self { judgements, info })
+	}
+}
+/// Information concerning a registrar.
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+pub struct RegistrarInfo<
+	AccountId: Encode + Decode + Clone + Debug + Eq + PartialEq,
+	IdField: Clone + Debug + Eq + PartialEq + TypeInfo + U64BitFlag,
+> {
+	/// The account of the registrar.
+	pub account: AccountId,
+
+	/// Relevant fields for this registrar. Registrar judgements are limited to
+	/// attestations on these fields.
+	pub fields: IdentityFields<IdField>,
+}
+
+/// Wrapper type for `BitFlags<IdentityField>` that implements `Codec`.
+#[derive(Clone, Copy, PartialEq, RuntimeDebug)]
+pub struct IdentityFields<IdField: BitFlag>(pub BitFlags<IdField>);
+
+impl<IdField: U64BitFlag> Default for IdentityFields<IdField> {
+	fn default() -> Self {
+		Self(Default::default())
+	}
+}
+
+impl<IdField: U64BitFlag> MaxEncodedLen for IdentityFields<IdField>
+where
+	IdentityFields<IdField>: Encode,
+{
+	fn max_encoded_len() -> usize {
+		u64::max_encoded_len()
+	}
+}
+
+impl<IdField: U64BitFlag + PartialEq> Eq for IdentityFields<IdField> {}
+impl<IdField: U64BitFlag> Encode for IdentityFields<IdField> {
+	fn using_encoded<R, F: FnOnce(&[u8]) -> R>(&self, f: F) -> R {
+		let bits: u64 = self.0.bits();
+		bits.using_encoded(f)
+	}
+}
+impl<IdField: U64BitFlag> Decode for IdentityFields<IdField> {
+	fn decode<I: codec::Input>(input: &mut I) -> sp_std::result::Result<Self, codec::Error> {
+		let field = u64::decode(input)?;
+		Ok(Self(<BitFlags<IdField>>::from_bits(field).map_err(|_| "invalid value")?))
+	}
+}
+impl<IdField: Clone + Debug + Eq + PartialEq + TypeInfo + U64BitFlag> TypeInfo
+	for IdentityFields<IdField>
+{
+	type Identity = Self;
+
+	fn type_info() -> Type {
+		Type::builder()
+			.path(Path::new("BitFlags", module_path!()))
+			.type_params(vec![TypeParameter::new("T", Some(meta_type::<IdField>()))])
+			.composite(Fields::unnamed().field(|f| f.ty::<u64>().type_name("IdentityField")))
 	}
 }
 
@@ -356,8 +363,11 @@ mod tests {
 		let check_type_info = |data: &Data| {
 			let variant_name = match data {
 				Data::None => "None".to_string(),
-				Data::Raw(bytes) => format!("Raw{}", bytes.len()),
 				Data::BlakeTwo256(_) => "BlakeTwo256".to_string(),
+				Data::Sha256(_) => "Sha256".to_string(),
+				Data::Keccak256(_) => "Keccak256".to_string(),
+				Data::ShaThree256(_) => "ShaThree256".to_string(),
+				Data::Raw(bytes) => format!("Raw{}", bytes.len()),
 			};
 			if let scale_info::TypeDef::Variant(variant) = &type_info.type_def {
 				let variant = variant
@@ -387,7 +397,13 @@ mod tests {
 			};
 		};
 
-		let mut data = vec![Data::None, Data::BlakeTwo256(Default::default())];
+		let mut data = vec![
+			Data::None,
+			Data::BlakeTwo256(Default::default()),
+			Data::Sha256(Default::default()),
+			Data::Keccak256(Default::default()),
+			Data::ShaThree256(Default::default()),
+		];
 
 		// A Raw instance for all possible sizes of the Raw data
 		for n in 0..32 {

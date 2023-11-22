@@ -60,7 +60,7 @@ CORD=./target/production/cord
 # Manually exclude some pallets.
 PALLETS=(
   "pallet_schema"
-  "pallet_registry"
+  "pallet_chain_space"
   "pallet_did"
   "pallet_did_name"
   "pallet_network_membership"
@@ -98,7 +98,7 @@ for PALLET in "${PALLETS[@]}"; do
   pallet_schema)
     FOLDER="schema"
     ;;
-  pallet_registry)
+  pallet_chain_space)
     FOLDER="registry"
     ;;
   pallet_network_membership)

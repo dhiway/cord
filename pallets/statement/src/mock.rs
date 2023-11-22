@@ -21,6 +21,7 @@ use crate as pallet_statement;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{construct_runtime, parameter_types, traits::ConstU64};
 
+use frame_system::EnsureRoot;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	BuildStorage, MultiSignature,
@@ -36,7 +37,8 @@ construct_runtime!(
 	pub enum Test {
 		System: frame_system,
 		Schema:pallet_schema,
-		Registry: pallet_registry,
+		Space: pallet_chain_space,
+		Identifier: identifier,
 		Statement: pallet_statement,
 		MockOrigin: mock_origin,
 	}
@@ -80,36 +82,32 @@ impl mock_origin::Config for Test {
 
 parameter_types! {
 	#[derive(Debug, Clone)]
-	pub const MaxStatementActivities: u32 = 5u32;
-	pub const MaxDigestLength: usize = 5usize;
+	pub const MaxDigetsPerBatch: u16 = 5u16;
+	pub const MaxRemoveEntries: u16 = 5u16;
 }
 
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type MaxStatementActivities = MaxStatementActivities;
+	type MaxDigestsPerBatch = MaxDigetsPerBatch;
+	type MaxRemoveEntries = MaxRemoveEntries;
 	type WeightInfo = weights::SubstrateWeight<Test>;
-	type MaxDigestLength = MaxDigestLength;
 }
 
 parameter_types! {
 	#[derive(Debug, Clone)]
-	pub const MaxEncodedRegistryLength: u32 = 15_360;
-	pub const MaxRegistryAuthorities: u32 = 3u32;
-	#[derive(Debug, Clone)]
-	pub const MaxRegistryCommitActions: u32 = 5u32;
+	pub const MaxSpaceDelegates: u32 = 5u32;
 }
 
-impl pallet_registry::Config for Test {
+impl pallet_chain_space::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type RegistryCreatorId = SubjectId;
-	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
-	type MaxRegistryAuthorities = MaxRegistryAuthorities;
-	type MaxRegistryCommitActions = MaxRegistryCommitActions;
-	type WeightInfo = pallet_registry::weights::SubstrateWeight<Test>;
+	type SpaceCreatorId = SubjectId;
+	type MaxSpaceDelegates = MaxSpaceDelegates;
+	type ChainSpaceOrigin = EnsureRoot<AccountId>;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -123,6 +121,14 @@ impl pallet_schema::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
+}
+
+parameter_types! {
+	pub const MaxEventsHistory: u32 = 6u32;
+}
+
+impl identifier::Config for Test {
+	type MaxEventsHistory = MaxEventsHistory;
 }
 
 #[allow(dead_code)]

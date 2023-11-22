@@ -1,6 +1,6 @@
 [package]
-name = 'pallet-statement'
-description = 'Manage Statement Entries.'
+name = 'cord-identifier'
+description = 'Manage Identifier State.'
 version = "0.9.0"
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = '2021'
@@ -21,9 +21,6 @@ sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v
 sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", features = [
 	"std",
 ] }
-pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", features = [
-	"std",
-] }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", features = [
 	"mock",
 ] }
@@ -36,11 +33,8 @@ codec = { package = "parity-scale-codec", version = "3.6.1", default-features = 
 scale-info = { version = "2.10.0", default-features = false, features = [
 	"derive",
 ] }
-cord-primitives = { package = "cord-primitives", path = "../../primitives/cord", default-features = false }
-identifier = { package = "cord-identifier", path = "../../primitives/identifier", default-features = false }
+cord-primitives = { package = "cord-primitives", path = "../cord", default-features = false }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
-pallet-chain-space = { default-features = false, path = '../chain-space' }
-pallet-schema = { default-features = false, path = '../schema' }
 
 
 # Substrate dependencies
@@ -52,7 +46,6 @@ sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1
 sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false, optional = true }
 sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false, optional = true }
 sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false, optional = true }
-pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false, optional = true }
 
 [features]
 default = ['std']
@@ -66,7 +59,6 @@ runtime-benchmarks = [
 std = [
 	"codec/std",
 	"scale-info/std",
-	"identifier/std",
 	"frame-support/std",
 	"frame-system/std",
 	"frame-benchmarking?/std",
@@ -76,7 +68,6 @@ std = [
 	"sp-io/std",
 	"sp-std/std",
 	"sp-keystore/std",
-	"pallet-chain-space/std",
 ]
 
 try-runtime = [

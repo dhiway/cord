@@ -73,7 +73,7 @@ pub struct RatingEntry<
 	RatingEntryDetails,
 	RatingEntryHashOf,
 	BlockNumber,
-	RegistryIdOf,
+	SpaceIdOf,
 	RatingCreatorIdOf,
 > {
 	///journal entry
@@ -82,8 +82,8 @@ pub struct RatingEntry<
 	pub digest: RatingEntryHashOf,
 	/// The block number in which journal entry is included
 	pub created_at: BlockNumber,
-	/// Registry Identifier
-	pub registry: RegistryIdOf,
+	/// Space Identifier
+	pub space: SpaceIdOf,
 	/// Rating creator.
 	pub creator: RatingCreatorIdOf,
 }

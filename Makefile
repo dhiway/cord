@@ -54,7 +54,7 @@ check-did-name:
 
 # Rule to check the REGISTRY pallet with all targets
 check-registry:
-	cargo check --package pallet-registry $(CARGO_FLAGS)
+	cargo check --package pallet-chain-space $(CARGO_FLAGS)
 
 # Rule to check the SCHEMA pallet with all targets
 check-schema:
@@ -86,7 +86,7 @@ test-did-name:
 
 # Rule to test the REGISTRY pallet with all targets
 test-registry:
-	cargo test --package pallet-registry $(CARGO_FLAGS)
+	cargo test --package pallet-chain-space $(CARGO_FLAGS)
 
 # Rule to test the SCHEMA pallet with all targets
 test-schema:

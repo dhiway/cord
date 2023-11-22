@@ -31,8 +31,12 @@ use cord_primitives::{
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
+	genesis_builder_helper::{build_config, create_default_config},
 	parameter_types,
-	traits::{ConstU32, Contains, EitherOfDiverse, KeyOwnerProofSystem, PrivilegeCmp},
+	traits::{
+		fungible::HoldConsideration, ConstU32, Contains, EitherOfDiverse, KeyOwnerProofSystem,
+		LinearStoragePrice, PrivilegeCmp,
+	},
 	weights::{
 		constants::{
 			BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
@@ -46,6 +50,7 @@ use frame_system::{
 };
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 
+use pallet_identity::simple::IdentityInfo;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -275,6 +280,8 @@ parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
 	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
 	pub const PreimageByteDeposit: Balance = deposit(0, 1);
+	pub const PreimageHoldReason: RuntimeHoldReason = RuntimeHoldReason::Preimage(pallet_preimage::HoldReason::Preimage);
+
 }
 
 impl pallet_preimage::Config for Runtime {
@@ -282,8 +289,12 @@ impl pallet_preimage::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type ManagerOrigin = EnsureRoot<AccountId>;
-	type BaseDeposit = PreimageBaseDeposit;
-	type ByteDeposit = PreimageByteDeposit;
+	type Consideration = HoldConsideration<
+		AccountId,
+		Balances,
+		PreimageHoldReason,
+		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
+	>;
 }
 
 parameter_types! {
@@ -337,6 +348,8 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Runtime {
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
@@ -345,10 +358,9 @@ impl pallet_balances::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
-	type RuntimeHoldReason = RuntimeHoldReason;
-	type FreezeIdentifier = ();
-	type MaxHolds = ConstU32<0>;
-	type MaxFreezes = ConstU32<0>;
+	type FreezeIdentifier = RuntimeFreezeReason;
+	type MaxFreezes = ConstU32<1>;
+	type MaxHolds = ConstU32<5>;
 	type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
 }
 
@@ -378,6 +390,7 @@ impl_opaque_keys! {
 		pub babe: Babe,
 		pub im_online: ImOnline,
 		pub authority_discovery: AuthorityDiscovery,
+		pub mixnet: Mixnet,
 	}
 }
 
@@ -430,6 +443,7 @@ parameter_types! {
 impl pallet_identity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxAdditionalFields = MaxAdditionalFields;
+	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
 	type RegistrarOrigin = MoreThanHalfCouncil;
 	type WeightInfo = weights::pallet_identity::WeightInfo<Runtime>;
@@ -627,6 +641,29 @@ impl pallet_multisig::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MixnetNumCoverToCurrentBlocks: BlockNumber = 3;
+	pub const MixnetNumRequestsToCurrentBlocks: BlockNumber = 3;
+	pub const MixnetNumCoverToPrevBlocks: BlockNumber = 3;
+	pub const MixnetNumRegisterStartSlackBlocks: BlockNumber = 3;
+	pub const MixnetNumRegisterEndSlackBlocks: BlockNumber = 3;
+	pub const MixnetRegistrationPriority: TransactionPriority = ImOnlineUnsignedPriority::get() - 1;
+}
+
+impl pallet_mixnet::Config for Runtime {
+	type MaxAuthorities = MaxAuthorities;
+	type MaxExternalAddressSize = ConstU32<128>;
+	type MaxExternalAddressesPerMixnode = ConstU32<16>;
+	type NextSessionRotation = Babe;
+	type NumCoverToCurrentBlocks = MixnetNumCoverToCurrentBlocks;
+	type NumRequestsToCurrentBlocks = MixnetNumRequestsToCurrentBlocks;
+	type NumCoverToPrevBlocks = MixnetNumCoverToPrevBlocks;
+	type NumRegisterStartSlackBlocks = MixnetNumRegisterStartSlackBlocks;
+	type NumRegisterEndSlackBlocks = MixnetNumRegisterEndSlackBlocks;
+	type RegistrationPriority = MixnetRegistrationPriority;
+	type MinMixnodes = ConstU32<7>; // Low to allow small testing networks
+}
+
+parameter_types! {
 	pub const MaxProposalLength: u16 = 5;
 }
 impl authority_membership::Config for Runtime {
@@ -652,6 +689,7 @@ impl pallet_node_authorization::Config for Runtime {
 parameter_types! {
 	pub const MembershipPeriod: BlockNumber = YEAR;
 	pub const MaxMembersPerBlock: u32 = 1_000;
+	pub const MaxEventsHistory: u32 = 1_001;
 }
 
 impl pallet_network_membership::Config for Runtime {
@@ -660,6 +698,10 @@ impl pallet_network_membership::Config for Runtime {
 	type MembershipPeriod = MembershipPeriod;
 	type MaxMembersPerBlock = MaxMembersPerBlock;
 	type WeightInfo = weights::pallet_network_membership::WeightInfo<Runtime>;
+}
+
+impl identifier::Config for Runtime {
+	type MaxEventsHistory = MaxEventsHistory;
 }
 
 impl pallet_runtime_upgrade::Config for Runtime {
@@ -743,25 +785,22 @@ impl pallet_schema::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxEncodedRegistryLength: u32 = 15_360;
-	pub const MaxRegistryAuthorities: u32 = 10_000;
-	pub const MaxRegistryCommitActions: u32 = 1_000;
+	pub const MaxSpaceDelegates: u32 = 10_000;
 }
 
-impl pallet_registry::Config for Runtime {
-	type RegistryCreatorId = DidIdentifier;
+impl pallet_chain_space::Config for Runtime {
+	type SpaceCreatorId = DidIdentifier;
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
-	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
-	type MaxRegistryAuthorities = MaxRegistryAuthorities;
-	type MaxRegistryCommitActions = MaxRegistryCommitActions;
-	type WeightInfo = weights::pallet_registry::WeightInfo<Runtime>;
+	type ChainSpaceOrigin = MoreThanHalfCouncil;
+	type MaxSpaceDelegates = MaxSpaceDelegates;
+	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
 }
 
 parameter_types! {
-	pub const MaxStatementActivities: u32 = 1_000;
-	pub const MaxDigestLength: usize = 1_000_usize;
+	pub const MaxDigestsPerBatch: u16 = 1_000;
+	pub const MaxRemoveEntries: u16 = 1_000;
 }
 
 impl pallet_statement::Config for Runtime {
@@ -769,8 +808,8 @@ impl pallet_statement::Config for Runtime {
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_statement::WeightInfo<Runtime>;
-	type MaxStatementActivities = MaxStatementActivities;
-	type MaxDigestLength = MaxDigestLength;
+	type MaxDigestsPerBatch = MaxDigestsPerBatch;
+	type MaxRemoveEntries = MaxRemoveEntries;
 }
 
 impl pallet_remark::Config for Runtime {
@@ -782,20 +821,6 @@ impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
-}
-
-impl pallet_unique::Config for Runtime {
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_unique::WeightInfo<Runtime>;
-	type MaxUniqueCommits = MaxUniqueCommits;
-	type MaxEncodedLength = MaxEncodedLength;
-}
-
-parameter_types! {
-	pub const MaxUniqueCommits: u32 = 1_000;
-	pub const MaxEncodedLength: u32 = 15_360;
 }
 
 impl pallet_score::Config for Runtime {
@@ -834,14 +859,15 @@ construct_runtime! (
 		Historical: pallet_session_historical::{Pallet} = 33,
 		Multisig: pallet_multisig = 35,
 		Remark: pallet_remark = 37,
-		Identity: pallet_identity =38,
+		Identity: pallet_identity = 38,
+		Identifier: identifier = 39,
+		Mixnet: pallet_mixnet = 40,
 		NetworkMembership: pallet_network_membership =101,
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,
-		Registry: pallet_registry = 104,
+		ChainSpace: pallet_chain_space = 104,
 		Statement: pallet_statement = 105,
 		DidName: pallet_did_name = 106,
-		Unique: pallet_unique = 107,
 		Score: pallet_score = 108,
 		Sudo: pallet_sudo = 255,
 	}
@@ -882,21 +908,21 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Statement { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Unique { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Score { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Registry(pallet_registry::Call::add_admin_delegate { .. }) =>
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::Registry(pallet_registry::Call::add_delegate { .. }) =>
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_admin_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::Registry(pallet_registry::Call::remove_delegate { .. }) =>
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegator { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::Registry(pallet_registry::Call::create { .. }) =>
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::remove_delegate { .. }) =>
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::create { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Registry(pallet_registry::Call::archive { .. }) =>
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::archive { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Registry(pallet_registry::Call::restore { .. }) =>
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::restore { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
 			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) =>
 				single_key_relationship(&calls[..]),
@@ -985,8 +1011,7 @@ mod benches {
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
 		[pallet_statement, Statement]
-		[pallet_unique, Unique]
-		[pallet_registry, Registry]
+		[pallet_chain_space, ChainSpace]
 		[pallet_did, Did]
 		[pallet_did_name, DidName]
 		[pallet_network_membership, NetworkMembership]
@@ -1214,6 +1239,24 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
+	impl sp_mixnet::runtime_api::MixnetApi<Block> for Runtime {
+		fn session_status() -> sp_mixnet::types::SessionStatus {
+			Mixnet::session_status()
+		}
+
+		fn prev_mixnodes() -> Result<Vec<sp_mixnet::types::Mixnode>, sp_mixnet::types::MixnodesErr> {
+			Mixnet::prev_mixnodes()
+		}
+
+		fn current_mixnodes() -> Result<Vec<sp_mixnet::types::Mixnode>, sp_mixnet::types::MixnodesErr> {
+			Mixnet::current_mixnodes()
+		}
+
+		fn maybe_register(session_index: sp_mixnet::types::SessionIndex, mixnode: sp_mixnet::types::Mixnode) -> bool {
+			Mixnet::maybe_register(session_index, mixnode)
+		}
+	}
+
 	impl sp_session::SessionKeys<Block> for Runtime {
 		fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
 			SessionKeys::generate(seed)
@@ -1287,6 +1330,16 @@ sp_api::impl_runtime_apis! {
 			let params = (&config, &whitelist);
 			add_benchmarks!(params, batches);
 			Ok(batches)
+		}
+	}
+
+	impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
+		fn create_default_config() -> Vec<u8> {
+			create_default_config::<RuntimeGenesisConfig>()
+		}
+
+		fn build_config(config: Vec<u8>) -> sp_genesis_builder::Result {
+			build_config::<RuntimeGenesisConfig>(config)
 		}
 	}
 }

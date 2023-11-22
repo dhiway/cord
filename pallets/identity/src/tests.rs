@@ -21,8 +21,10 @@
 // Tests for Identity Pallet
 
 use super::*;
-use crate as pallet_identity;
-
+use crate::{
+	self as pallet_identity,
+	simple::{IdentityField as SimpleIdentityField, IdentityInfo},
+};
 use codec::{Decode, Encode};
 use frame_support::{
 	assert_noop, assert_ok, ord_parameter_types, parameter_types,
@@ -84,6 +86,7 @@ type EnsureOneOrRoot = EitherOfDiverse<EnsureRoot<u64>, EnsureSignedBy<One, u64>
 impl pallet_identity::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxAdditionalFields = MaxAdditionalFields;
+	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
 	type RegistrarOrigin = EnsureOneOrRoot;
 	type WeightInfo = ();
@@ -105,19 +108,39 @@ fn ten() -> IdentityInfo<MaxAdditionalFields> {
 fn twenty() -> IdentityInfo<MaxAdditionalFields> {
 	IdentityInfo {
 		display: Data::Raw(b"twenty".to_vec().try_into().unwrap()),
-		legal: Data::Raw(b"The Right Ordinal Twenty,Esq.".to_vec().try_into().unwrap()),
+		legal: Data::Raw(b"The Right Ordinal Twenty, Esq.".to_vec().try_into().unwrap()),
 		..Default::default()
 	}
+}
+
+#[test]
+fn identity_fields_repr_works() {
+	// `SimpleIdentityField` sanity checks.
+	assert_eq!(SimpleIdentityField::Display as u64, 1 << 0);
+	assert_eq!(SimpleIdentityField::Legal as u64, 1 << 1);
+	assert_eq!(SimpleIdentityField::Web as u64, 1 << 2);
+	assert_eq!(SimpleIdentityField::Email as u64, 1 << 3);
+
+	let fields = IdentityFields(SimpleIdentityField::Legal | SimpleIdentityField::Web);
+
+	assert!(!fields.0.contains(SimpleIdentityField::Display));
+	assert!(fields.0.contains(SimpleIdentityField::Legal));
+	assert!(fields.0.contains(SimpleIdentityField::Web));
+	assert!(!fields.0.contains(SimpleIdentityField::Email));
+
+	// The `IdentityFields` inner `BitFlags::bits` is used for `Encode`/`Decode`, so
+	// we ensure that the `u64` representation matches what we expect during
+	// encode/decode operations.
+	assert_eq!(
+		fields.0.bits(),
+		0b00000000_00000000_00000000_00000000_00000000_00000000_00000000_00000110
+	);
 }
 
 #[test]
 fn setting_identity_should_work() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Identity::set_identity(RuntimeOrigin::signed(10), Box::new(ten())));
-		assert_noop!(
-			Identity::set_identity(RuntimeOrigin::signed(10), Box::new(ten())),
-			Error::<Test>::AlreadyClaimed
-		);
 		assert_ok!(Identity::set_identity(RuntimeOrigin::signed(20), Box::new(twenty())));
 	});
 }
@@ -136,7 +159,9 @@ fn trailing_zeros_decodes_into_default_data() {
 fn adding_registrar_should_work() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Identity::add_registrar(RuntimeOrigin::signed(1), 3));
-		assert_eq!(Identity::registrars(), vec![3]);
+		let fields = IdentityFields(SimpleIdentityField::Display | SimpleIdentityField::Legal);
+		assert_ok!(Identity::set_fields(RuntimeOrigin::signed(3), fields));
+		assert_eq!(Identity::registrars(), vec![Some(RegistrarInfo { account: 3, fields })]);
 	});
 }
 
@@ -144,7 +169,10 @@ fn adding_registrar_should_work() {
 fn removing_registrar_should_work() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Identity::add_registrar(RuntimeOrigin::signed(1), 3));
-		assert_eq!(Identity::registrars(), vec![3]);
+		let fields = IdentityFields(SimpleIdentityField::Display | SimpleIdentityField::Legal);
+
+		assert_ok!(Identity::set_fields(RuntimeOrigin::signed(3), fields));
+		assert_eq!(Identity::registrars(), vec![Some(RegistrarInfo { account: 3, fields })]);
 		assert_ok!(Identity::remove_registrar(RuntimeOrigin::signed(1), 3));
 		assert_eq!(Identity::registrars(), vec![]);
 	});
@@ -343,15 +371,17 @@ fn requesting_judgement_should_work() {
 fn test_has_identity() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(Identity::set_identity(RuntimeOrigin::signed(10), Box::new(ten())));
-		assert!(Identity::has_identity(&10, IdentityField::Display as u64));
-		assert!(Identity::has_identity(&10, IdentityField::Legal as u64));
+		assert!(Identity::has_identity(&10, SimpleIdentityField::Display as u64));
+		assert!(Identity::has_identity(&10, SimpleIdentityField::Legal as u64));
 		assert!(Identity::has_identity(
 			&10,
-			IdentityField::Display as u64 | IdentityField::Legal as u64
+			SimpleIdentityField::Display as u64 | SimpleIdentityField::Legal as u64
 		));
 		assert!(!Identity::has_identity(
 			&10,
-			IdentityField::Display as u64 | IdentityField::Legal as u64 | IdentityField::Web as u64
+			SimpleIdentityField::Display as u64 |
+				SimpleIdentityField::Legal as u64 |
+				SimpleIdentityField::Web as u64
 		));
 	});
 }

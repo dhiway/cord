@@ -21,13 +21,13 @@ use sp_runtime::RuntimeDebug;
 
 /// An on-chain schema details mapped to an identifier.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct SchemaEntry<InputSchemaOf, SchemaHashOf, SchemaCreatorOf, BlockNumber> {
+pub struct SchemaEntry<InputSchemaOf, SchemaHashOf, SchemaCreatorOf, SpaceIdOf> {
 	/// The Schema
 	pub schema: InputSchemaOf,
 	/// Schema hash.
 	pub digest: SchemaHashOf,
 	/// Schema controller.
 	pub creator: SchemaCreatorOf,
-	/// The extrinsic in which schema is included
-	pub created_at: BlockNumber,
+	/// Identifier of the space asscoaiated with the schema
+	pub space: SpaceIdOf,
 }

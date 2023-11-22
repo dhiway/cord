@@ -21,6 +21,7 @@ use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
+use frame_system::RawOrigin;
 use sp_core::H256;
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
@@ -83,6 +84,16 @@ pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
 	Ss58Identifier::to_schema_id(&(digest).encode()[..]).unwrap()
 }
 
+/// Generates a space ID from a digest.
+pub fn generate_space_id<T: Config>(digest: &SchemaHashOf<T>) -> SpaceIdOf {
+	Ss58Identifier::to_space_id(&(digest).encode()[..]).unwrap()
+}
+
+/// Generates an authorization ID from a digest.
+pub fn generate_authorization_id<T: Config>(digest: &SchemaHashOf<T>) -> AuthorizationIdOf {
+	Ss58Identifier::to_authorization_id(&(digest).encode()[..]).unwrap()
+}
+
 // submit_schema_creation_operation
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
@@ -95,20 +106,42 @@ pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
 fn check_successful_schema_creation() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
+	let capacity = 3u64;
+
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
 	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
 	let digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
 	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
 		// Author Transaction
 		assert_ok!(Schema::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			schema.clone()
+			schema.clone(),
+			authorization_id
 		));
 
 		// Storage Checks
@@ -130,18 +163,40 @@ fn check_successful_schema_creation() {
 fn check_duplicate_schema_creation() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
+	let capacity = 3u64;
 	let raw_schema = [9u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+
 	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
 		// Author Transaction
 		assert_ok!(Schema::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			schema.clone()
+			schema.clone(),
+			authorization_id.clone()
 		));
 		// Try Author the same schema again. should fail.
 		assert_noop!(
-			Schema::create(DoubleOrigin(author, creator).into(), schema),
+			Schema::create(DoubleOrigin(author, creator).into(), schema, authorization_id),
 			Error::<Test>::SchemaAlreadyAnchored
 		);
 	});
@@ -153,12 +208,36 @@ fn check_duplicate_schema_creation() {
 fn check_empty_schema_creation() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
+	let capacity = 3u64;
 	let empty_schema: InputSchemaOf<Test> = BoundedVec::default();
 
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+
 	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
 		// Author Transaction
 		assert_noop!(
-			Schema::create(DoubleOrigin(author.clone(), creator.clone()).into(), empty_schema),
+			Schema::create(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				empty_schema,
+				authorization_id
+			),
 			Error::<Test>::EmptyTransaction
 		);
 	});
@@ -171,23 +250,49 @@ fn check_empty_schema_creation() {
 fn test_schema_lookup() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
+	let capacity = 5u64;
 
 	// Create multiple schemas
 	let schema1: InputSchemaOf<Test> = BoundedVec::try_from([1u8; 256].to_vec()).unwrap();
 	let schema2: InputSchemaOf<Test> = BoundedVec::try_from([2u8; 256].to_vec()).unwrap();
 	let schema3: InputSchemaOf<Test> = BoundedVec::try_from([3u8; 256].to_vec()).unwrap();
 
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+
 	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
 		// Create the schemas
 		assert_ok!(Schema::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			schema1.clone()
+			schema1.clone(),
+			authorization_id.clone()
 		));
 		assert_ok!(Schema::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			schema2.clone()
+			schema2.clone(),
+			authorization_id.clone()
 		));
-		assert_ok!(Schema::create(DoubleOrigin(author, creator.clone()).into(), schema3.clone()));
+		assert_ok!(Schema::create(
+			DoubleOrigin(author, creator.clone()).into(),
+			schema3.clone(),
+			authorization_id
+		));
 
 		// Retrieve and verify each schema
 		let schemas = vec![schema1, schema2, schema3];
@@ -195,7 +300,7 @@ fn test_schema_lookup() {
 			let digest: SchemaHashOf<Test> =
 				<Test as frame_system::Config>::Hashing::hash(&schema[..]);
 			let id_digest = <Test as frame_system::Config>::Hashing::hash(
-				&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
+				&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 			let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
 

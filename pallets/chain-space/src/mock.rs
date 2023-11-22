@@ -16,10 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate as pallet_unique;
+use crate as pallet_chain_space;
 use cord_utilities::mock::{mock_origin, SubjectId};
-use frame_support::{construct_runtime, parameter_types, traits::ConstU64};
+use frame_support::{
+	construct_runtime, parameter_types,
+	traits::{ConstU32, ConstU64},
+};
 
+use frame_system::EnsureRoot;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	BuildStorage, MultiSignature,
@@ -34,9 +38,8 @@ pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 construct_runtime!(
 	pub enum Test {
 		System: frame_system,
-		Unique: pallet_unique,
-		Registry: pallet_registry,
-		Schema: pallet_schema,
+		Space: pallet_chain_space,
+		Identifier: identifier,
 		MockOrigin: mock_origin,
 	}
 );
@@ -46,10 +49,13 @@ parameter_types! {
 }
 
 impl frame_system::Config for Test {
+	type BaseCallFilter = frame_support::traits::Everything;
+	type BlockWeights = ();
+	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
+	type Nonce = u64;
 	type Block = Block;
-	type Nonce = u32;
 	type Hash = Hash;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
@@ -62,13 +68,10 @@ impl frame_system::Config for Test {
 	type AccountData = ();
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
-	type BaseCallFilter = frame_support::traits::Everything;
 	type SystemWeightInfo = ();
-	type BlockWeights = ();
-	type BlockLength = ();
 	type SS58Prefix = SS58Prefix;
 	type OnSetCode = ();
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MaxConsumers = ConstU32<2>;
 }
 
 impl mock_origin::Config for Test {
@@ -78,56 +81,48 @@ impl mock_origin::Config for Test {
 }
 
 parameter_types! {
-	pub const  MaxEncodedLength: u32 = 15_360;
-	pub const MaxUniqueCommits: u32 = 15_360;
+	#[derive(Debug, Clone)]
+	pub const MaxSpaceDelegates: u32 = 5u32;
 }
 
-impl pallet_unique::Config for Test {
+impl pallet_chain_space::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type RuntimeEvent = RuntimeEvent;
+	type SpaceCreatorId = SubjectId;
+	type MaxSpaceDelegates = MaxSpaceDelegates;
+	type ChainSpaceOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
-	type MaxEncodedLength = MaxEncodedLength;
-	type MaxUniqueCommits = MaxUniqueCommits;
 }
 
 parameter_types! {
-	pub const MaxEncodedSchemaLength: u32 = 15_360;
+	pub const MaxEventsHistory: u32 = 6u32;
 }
 
-impl pallet_schema::Config for Test {
-	type SchemaCreatorId = SubjectId;
-	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
-	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
+impl identifier::Config for Test {
+	type MaxEventsHistory = MaxEventsHistory;
 }
 
 parameter_types! {
-	#[derive(Debug, Clone)]
-	pub const MaxEncodedRegistryLength: u32 = 15_360;
-	pub const MaxRegistryAuthorities: u32 = 3u32;
-	#[derive(Debug, Clone)]
-	pub const MaxRegistryCommitActions: u32 = 5u32;
+	storage SpaceEvents: u32 = 0;
 }
 
-impl pallet_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
-	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
-	type RegistryCreatorId = SubjectId;
-	type MaxEncodedRegistryLength = MaxEncodedRegistryLength;
-	type MaxRegistryAuthorities = MaxRegistryAuthorities;
-	type MaxRegistryCommitActions = MaxRegistryCommitActions;
-	type WeightInfo = pallet_registry::weights::SubstrateWeight<Test>;
+/// All events of this pallet.
+pub fn space_events_since_last_call() -> Vec<super::Event<Test>> {
+	let events = System::events()
+		.into_iter()
+		.map(|r| r.event)
+		.filter_map(|e| if let RuntimeEvent::Space(inner) = e { Some(inner) } else { None })
+		.collect::<Vec<_>>();
+	let already_seen = SpaceEvents::get();
+	SpaceEvents::set(&(events.len() as u32));
+	events.into_iter().skip(already_seen as usize).collect()
 }
 
 #[allow(dead_code)]
 pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	let t: sp_runtime::Storage =
 		frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
-
 	let mut ext = sp_io::TestExternalities::new(t);
 	#[cfg(feature = "runtime-benchmarks")]
 	let keystore = sp_keystore::testing::MemoryKeystore::new();
