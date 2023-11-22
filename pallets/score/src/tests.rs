@@ -21,7 +21,7 @@ use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_ok, BoundedVec};
-use pallet_registry::{InputRegistryOf, RegistryHashOf};
+use pallet_chain_space::{InputRegistryOf, RegistryHashOf};
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
 

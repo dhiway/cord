@@ -63,6 +63,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod benchmarking;
+pub mod simple;
+
 #[cfg(test)]
 mod tests;
 mod types;
@@ -73,8 +75,10 @@ use sp_std::prelude::*;
 pub use weights::WeightInfo;
 
 pub use pallet::*;
-pub use types::{Data, IdentityField, IdentityFields, IdentityInfo, Judgement, Registration};
-
+pub use types::{
+	Data, IdentityFields, IdentityInformationProvider, Judgement, RegistrarIndex, RegistrarInfo,
+	Registration,
+};
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
 #[frame_support::pallet]
@@ -93,6 +97,9 @@ pub mod pallet {
 		/// pretty high.
 		#[pallet::constant]
 		type MaxAdditionalFields: Get<u32>;
+
+		/// Structure holding information about an identity.
+		type IdentityInformation: IdentityInformationProvider;
 
 		/// Maxmimum number of registrars allowed in the system. Needed to bound
 		/// the complexity of, e.g., updating judgements.
@@ -117,7 +124,7 @@ pub mod pallet {
 		_,
 		Twox64Concat,
 		T::AccountId,
-		Registration<T::AccountId, T::MaxRegistrars, T::MaxAdditionalFields>,
+		Registration<T::AccountId, T::MaxRegistrars, T::IdentityInformation>,
 		OptionQuery,
 	>;
 
@@ -125,8 +132,21 @@ pub mod pallet {
 	/// through a special origin (likely a council motion).
 	#[pallet::storage]
 	#[pallet::getter(fn registrars)]
-	pub(super) type Registrars<T: Config> =
-		StorageValue<_, BoundedVec<T::AccountId, T::MaxRegistrars>, ValueQuery>;
+	pub(super) type Registrars<T: Config> = StorageValue<
+		_,
+		BoundedVec<
+			Option<
+				RegistrarInfo<
+					T::AccountId,
+					<T::IdentityInformation as IdentityInformationProvider>::IdentityField,
+				>,
+			>,
+			T::MaxRegistrars,
+		>,
+		ValueQuery,
+	>;
+	// pub(super) type Registrars<T: Config> =
+	// 	StorageValue<_, BoundedVec<T::AccountId, T::MaxRegistrars>, ValueQuery>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -148,6 +168,8 @@ pub mod pallet {
 		JudgementGiven,
 		/// Invalid judgement.
 		InvalidJudgement,
+		/// The index is invalid.
+		InvalidIndex,
 		/// The target is invalid.
 		InvalidTarget,
 		/// Too many additional fields.
@@ -172,13 +194,13 @@ pub mod pallet {
 		/// A name was removed and the given balance slashed.
 		IdentityKilled { who: T::AccountId },
 		/// A judgement was asked from a registrar.
-		JudgementRequested { who: T::AccountId, registrar: T::AccountId, digest: T::Hash },
+		JudgementRequested { who: T::AccountId, registrar: T::AccountId },
 		/// A judgement request was retracted.
 		JudgementUnrequested { who: T::AccountId, registrar: T::AccountId },
 		/// A judgement was given by a registrar.
 		JudgementGiven { target: T::AccountId, registrar: T::AccountId },
 		/// A registrar was added.
-		RegistrarAdded { registrar: T::AccountId },
+		RegistrarAdded { registrar_index: RegistrarIndex },
 		/// A registrar was removed.
 		RegistrarRemoved { registrar: T::AccountId },
 	}
@@ -202,16 +224,23 @@ pub mod pallet {
 			T::RegistrarOrigin::ensure_origin(origin)?;
 			let account = T::Lookup::lookup(account)?;
 
-			let registrar_count =
-				<Registrars<T>>::try_mutate(|registrars| -> Result<usize, DispatchError> {
-					ensure!(!registrars.contains(&account), Error::<T>::RegistrarAlreadyExists); // Ensure the registrar does not already exist
+			let (i, registrar_count) = <Registrars<T>>::try_mutate(
+				|registrars| -> Result<(RegistrarIndex, usize), DispatchError> {
+					ensure!(
+						!registrars.iter().any(|registrar| match registrar {
+							Some(registrar_info) => &registrar_info.account == &account,
+							None => false,
+						}),
+						Error::<T>::RegistrarAlreadyExists
+					);
 					registrars
-						.try_push(account.clone())
+						.try_push(Some(RegistrarInfo { account, fields: Default::default() }))
 						.map_err(|_| Error::<T>::TooManyRegistrars)?;
-					Ok(registrars.len())
-				})?;
+					Ok(((registrars.len() - 1) as RegistrarIndex, registrars.len()))
+				},
+			)?;
 
-			Self::deposit_event(Event::RegistrarAdded { registrar: account });
+			Self::deposit_event(Event::RegistrarAdded { registrar_index: i });
 
 			Ok(Some(T::WeightInfo::add_registrar(registrar_count as u32)).into())
 		}
@@ -230,17 +259,22 @@ pub mod pallet {
 		))]
 		pub fn set_identity(
 			origin: OriginFor<T>,
-			info: Box<IdentityInfo<T::MaxAdditionalFields>>,
+			info: Box<T::IdentityInformation>,
 		) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
-			let extra_fields = info.additional.len() as u32;
+			#[allow(deprecated)]
+			let extra_fields = info.additional() as u32;
 			ensure!(extra_fields <= T::MaxAdditionalFields::get(), Error::<T>::TooManyFields);
 
-			// Check if identity already exists
-			ensure!(!<IdentityOf<T>>::contains_key(&sender), Error::<T>::AlreadyClaimed);
-
-			// Create a new Registration struct
-			let id = Registration { info: *info, judgements: BoundedVec::default() };
+			let id = match <IdentityOf<T>>::get(&sender) {
+				Some(mut id) => {
+					// Only keep non-positive judgements.
+					id.judgements.retain(|j| j.1.is_sticky());
+					id.info = *info;
+					id
+				},
+				None => Registration { info: *info, judgements: BoundedVec::default() },
+			};
 
 			// Insert the new identity into storage
 			<IdentityOf<T>>::insert(&sender, id);
@@ -272,9 +306,10 @@ pub mod pallet {
 
 			Self::deposit_event(Event::IdentityCleared { who: sender });
 
+			#[allow(deprecated)]
 			Ok(Some(T::WeightInfo::clear_identity(
-				id.judgements.len() as u32,      // R
-				id.info.additional.len() as u32, // X
+				id.judgements.len() as u32,  // R
+				id.info.additional() as u32, // X
 			))
 			.into())
 		}
@@ -298,11 +333,20 @@ pub mod pallet {
 			registrar: T::AccountId,
 		) -> DispatchResultWithPostInfo {
 			let sender = ensure_signed(origin)?;
-			ensure!(<Registrars<T>>::get().contains(&registrar), Error::<T>::RegistrarNotFound);
+			let registrars = <Registrars<T>>::get();
+
+			let registrar_acc = registrars
+				.iter()
+				.find_map(|reg_info| match reg_info {
+					Some(info) if info.account == registrar => Some(info.account.clone()),
+					_ => None,
+				})
+				.ok_or(Error::<T>::RegistrarNotFound)?;
 
 			let mut id = <IdentityOf<T>>::get(&sender).ok_or(Error::<T>::NoIdentity)?;
 
-			let item = (registrar.clone(), Judgement::Requested);
+			let item = (registrar_acc.clone(), Judgement::Requested);
+
 			match id.judgements.binary_search_by_key(&registrar, |x| x.0.clone()) {
 				Ok(i) =>
 					if id.judgements[i].1.is_sticky() {
@@ -315,11 +359,12 @@ pub mod pallet {
 			}
 
 			let judgements = id.judgements.len();
-			let extra_fields = id.info.additional.len();
-			let digest = T::Hashing::hash_of(&id.info);
+			#[allow(deprecated)]
+			let extra_fields = id.info.additional();
+
 			<IdentityOf<T>>::insert(&sender, id);
 
-			Self::deposit_event(Event::JudgementRequested { who: sender, registrar, digest });
+			Self::deposit_event(Event::JudgementRequested { who: sender, registrar });
 
 			Ok(Some(T::WeightInfo::request_judgement(judgements as u32, extra_fields as u32))
 				.into())
@@ -361,12 +406,90 @@ pub mod pallet {
 			}
 
 			let judgements = id.judgements.len();
-			let extra_fields = id.info.additional.len();
+			#[allow(deprecated)]
+			let extra_fields = id.info.additional();
 			<IdentityOf<T>>::insert(&sender, id);
 
 			Self::deposit_event(Event::JudgementUnrequested { who: sender, registrar });
 
 			Ok(Some(T::WeightInfo::cancel_request(judgements as u32, extra_fields as u32)).into())
+		}
+
+		/// Change the account associated with a registrar.
+		///
+		/// The dispatch origin for this call must be _Signed_ and the sender
+		/// must be the account of the registrar whose index is `index`.
+		///
+		/// - `index`: the index of the registrar whose fee is to be set.
+		/// - `new`: the new account ID.
+		#[pallet::call_index(5)]
+		#[pallet::weight(T::WeightInfo::set_account_id(T::MaxRegistrars::get()))]
+		pub fn set_account_id(
+			origin: OriginFor<T>,
+			new: AccountIdLookupOf<T>,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			let new = T::Lookup::lookup(new)?;
+
+			let registrars =
+				<Registrars<T>>::mutate(|registrars| -> Result<usize, DispatchError> {
+					let registrar_found = registrars.iter_mut().any(|registrar_option| {
+						if let Some(registrar) = registrar_option {
+							if registrar.account == who {
+								registrar.account = new.clone();
+								return true
+							}
+						}
+						false
+					});
+
+					if !registrar_found {
+						return Err(DispatchError::from(Error::<T>::RegistrarNotFound))
+					}
+
+					Ok(registrars.len())
+				})?;
+
+			Ok(Some(T::WeightInfo::set_account_id(registrars as u32)).into())
+		}
+
+		/// Set the field information for a registrar.
+		///
+		/// The dispatch origin for this call must be _Signed_ and the sender
+		/// must be the account of the registrar whose index is `index`.
+		///
+		/// - `index`: the index of the registrar whose fee is to be set.
+		/// - `fields`: the fields that the registrar concerns themselves with.
+		#[pallet::call_index(6)]
+		#[pallet::weight(T::WeightInfo::set_fields(T::MaxRegistrars::get()))]
+		pub fn set_fields(
+			origin: OriginFor<T>,
+			fields: IdentityFields<
+				<T::IdentityInformation as IdentityInformationProvider>::IdentityField,
+			>,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			let registrars =
+				<Registrars<T>>::mutate(|registrars| -> Result<usize, DispatchError> {
+					let registrar = registrars.iter_mut().any(|registrar_option| {
+						if let Some(registrar) = registrar_option {
+							if registrar.account == who {
+								registrar.fields = fields.clone();
+								return true
+							}
+						}
+						false
+					});
+
+					if !registrar {
+						return Err(DispatchError::from(Error::<T>::RegistrarNotFound))
+					}
+
+					Ok(registrars.len())
+				})?;
+
+			Ok(Some(T::WeightInfo::set_fields(registrars as u32)).into())
 		}
 
 		/// Provide a judgement for an account's identity.
@@ -390,7 +513,7 @@ pub mod pallet {
 		///   - where `R` registrar-count (governance-bounded).
 		///   - where `X` additional-field-count (deposit-bounded and
 		///     code-bounded).
-		#[pallet::call_index(5)]
+		#[pallet::call_index(7)]
 		#[pallet::weight(T::WeightInfo::provide_judgement(
 			T::MaxRegistrars::get(), // R
 			T::MaxAdditionalFields::get(), // X
@@ -404,7 +527,15 @@ pub mod pallet {
 			let registrar = ensure_signed(origin)?;
 			let target = T::Lookup::lookup(target)?;
 			ensure!(!judgement.has_requested(), Error::<T>::InvalidJudgement);
-			ensure!(Registrars::<T>::get().contains(&registrar), Error::<T>::RegistrarNotFound);
+
+			let registrars = Registrars::<T>::get();
+			let registrar_found =
+				registrars.iter().any(|registrar_option| match registrar_option {
+					Some(r) => r.account == registrar,
+					None => false,
+				});
+
+			ensure!(registrar_found, Error::<T>::RegistrarNotFound);
 
 			let mut id = <IdentityOf<T>>::get(&target).ok_or(Error::<T>::InvalidTarget)?;
 
@@ -422,7 +553,9 @@ pub mod pallet {
 			}
 
 			let judgements = id.judgements.len();
-			let extra_fields = id.info.additional.len();
+			#[allow(deprecated)]
+			let extra_fields = id.info.additional();
+
 			<IdentityOf<T>>::insert(&target, id);
 			Self::deposit_event(Event::JudgementGiven { target, registrar });
 
@@ -438,7 +571,7 @@ pub mod pallet {
 		///   must be an account with a registered identity.
 		///
 		/// Emits `IdentityKilled` if successful.
-		#[pallet::call_index(6)]
+		#[pallet::call_index(8)]
 		#[pallet::weight(T::WeightInfo::kill_identity(
 			T::MaxRegistrars::get(), // R
 			T::MaxAdditionalFields::get(), // X
@@ -456,9 +589,10 @@ pub mod pallet {
 
 			Self::deposit_event(Event::IdentityKilled { who: target });
 
+			#[allow(deprecated)]
 			Ok(Some(T::WeightInfo::kill_identity(
-				id.judgements.len() as u32,      // R
-				id.info.additional.len() as u32, // X
+				id.judgements.len() as u32,  // R
+				id.info.additional() as u32, // X
 			))
 			.into())
 		}
@@ -470,29 +604,32 @@ pub mod pallet {
 		/// - `account`: the account of the registrar.
 		///
 		/// Emits `RegistrarRemoved` if successful.
-		#[pallet::call_index(7)]
+		#[pallet::call_index(9)]
 		#[pallet::weight(T::WeightInfo::remove_registrar())]
 		pub fn remove_registrar(
 			origin: OriginFor<T>,
 			account: AccountIdLookupOf<T>,
 		) -> DispatchResultWithPostInfo {
-			T::RegistrarOrigin::ensure_origin(origin)?; // Ensure the origin is authorized
-			let account = T::Lookup::lookup(account)?; // Look up the AccountId
+			T::RegistrarOrigin::ensure_origin(origin)?;
+			let account_id = T::Lookup::lookup(account)?;
 
-			// Try to remove the registrar
 			<Registrars<T>>::try_mutate(|registrars| -> Result<(), DispatchError> {
 				let position = registrars
 					.iter()
-					.position(|x| *x == account)
+					.position(|registrar_option| {
+						if let Some(registrar_info) = registrar_option {
+							registrar_info.account == account_id
+						} else {
+							false
+						}
+					})
 					.ok_or(Error::<T>::RegistrarNotFound)?;
 				registrars.remove(position);
 				Ok(())
 			})?;
 
-			// Emit an event to log the removal of the registrar
-			Self::deposit_event(Event::RegistrarRemoved { registrar: account });
+			Self::deposit_event(Event::RegistrarRemoved { registrar: account_id });
 
-			// Return the weight for the transaction
 			Ok(Some(T::WeightInfo::remove_registrar()).into())
 		}
 	}
@@ -503,6 +640,6 @@ impl<T: Config> Pallet<T> {
 	/// identity field.
 	pub fn has_identity(who: &T::AccountId, fields: u64) -> bool {
 		IdentityOf::<T>::get(who)
-			.map_or(false, |registration| (registration.info.fields().0.bits() & fields) == fields)
+			.map_or(false, |registration| (registration.info.has_identity(fields)))
 	}
 }

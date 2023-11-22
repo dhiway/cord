@@ -24,7 +24,7 @@ use cord_primitives::curi::Ss58Identifier;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{sp_runtime::traits::Hash, BoundedVec};
-use pallet_registry::{
+use pallet_chain_space::{
 	Authorizations, InputRegistryOf, Permissions, RegistryAuthorizationOf, RegistryHashOf,
 };
 use sp_std::{convert::TryFrom, vec::Vec};

@@ -29,7 +29,7 @@ use sp_std::{fmt::Debug, prelude::Clone, str, vec};
 /// CORD Identifier Prefix
 const PREFIX: &[u8] = b"CRDIDFR";
 /// CORD idents
-const IDENT_REG: u16 = 7101;
+const IDENT_SPACE: u16 = 7101;
 const IDENT_AUTH: u16 = 10447;
 const IDENT_SCHEMA: u16 = 1424;
 const IDENT_STATEMENT: u16 = 8902;
@@ -83,7 +83,7 @@ impl TryFrom<Vec<u8>> for Ss58Identifier {
 	type Error = &'static str;
 
 	fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-		let identifier = Ss58Identifier::to_registry_id(&value[..])
+		let identifier = Ss58Identifier::to_space_id(&value[..])
 			.map_err(|_| "Cannot convert provided input to a valid identifier.")?;
 
 		Ok(identifier)
@@ -148,8 +148,8 @@ impl Ss58Identifier {
 	pub fn to_authorization_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_AUTH)
 	}
-	pub fn to_registry_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_REG)
+	pub fn to_space_id(data: &[u8]) -> Result<Self, IdentifierError> {
+		Self::from_encoded(data, IDENT_SPACE)
 	}
 	pub fn to_schema_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_SCHEMA)
@@ -199,6 +199,27 @@ impl Ss58Identifier {
 		ensure!(ident == id_ident, IdentifierError::InvalidPrefix);
 		Ok(())
 	}
+
+	pub fn default_error() -> Self {
+		let error_value_base58 = vec![0].to_base58();
+
+		// Convert the Base58 encoded string to a byte vector.
+		let error_value_bytes = error_value_base58.into_bytes();
+
+		// Attempt to convert the byte vector into a BoundedVec.
+		let bounded_error_value = BoundedVec::try_from(error_value_bytes)
+			.expect("Should not fail as the length is within bounds");
+
+		Ss58Identifier(bounded_error_value)
+	}
+	// /// Returns a default `Ss58Identifi
+	// /// er` with an error state.
+	// pub fn default_error() -> Self {
+	// 	let error_state = vec![0; 49];
+	// 	let bounded_error_state = BoundedVec::try_from(error_state)
+	// 		.expect("Should not fail as the length is within bounds");
+	// 	Ss58Identifier(bounded_error_state)
+	// }
 }
 
 impl AsRef<[u8]> for Ss58Identifier {

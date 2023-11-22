@@ -19,6 +19,7 @@
 use crate as pallet_schema;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{parameter_types, traits::ConstU64};
+use frame_system::EnsureRoot;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	BuildStorage, MultiSignature,
@@ -35,6 +36,8 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system,
 		Schema: pallet_schema,
+		Space: pallet_chain_space,
+		Identifier: identifier,
 		MockOrigin: mock_origin,
 	}
 );
@@ -86,6 +89,29 @@ impl pallet_schema::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
+}
+
+parameter_types! {
+	#[derive(Debug, Clone)]
+	pub const MaxSpaceDelegates: u32 = 5u32;
+}
+
+impl pallet_chain_space::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
+	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
+	type SpaceCreatorId = SubjectId;
+	type MaxSpaceDelegates = MaxSpaceDelegates;
+	type ChainSpaceOrigin = EnsureRoot<AccountId>;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const MaxEventsHistory: u32 = 6u32;
+}
+
+impl identifier::Config for Test {
+	type MaxEventsHistory = MaxEventsHistory;
 }
 
 #[allow(dead_code)]
