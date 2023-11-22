@@ -125,7 +125,7 @@ impl<FieldLimit: Get<u32> + 'static> IdentityInformationProvider for IdentityInf
 			display: data.clone(),
 			legal: data.clone(),
 			web: data.clone(),
-			email: data.clone(),
+			email: data,
 		}
 	}
 }

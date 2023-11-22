@@ -12,8 +12,8 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
-pub fn generate_registry_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::to_registry_id(&(digest).encode()[..]).unwrap()
+pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
+	Ss58Identifier::to_space_id(&(digest).encode()[..]).unwrap()
 }
 
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
@@ -24,7 +24,7 @@ const SEED: u32 = 0;
 
 benchmarks! {
 		where_clause {
-		where
+			where
 			<T as Config>::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::SpaceCreatorId>,
 			T::ChainSpaceOrigin: EnsureOrigin<T::RuntimeOrigin>,
 		}
@@ -39,7 +39,7 @@ benchmarks! {
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 			);
-			let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+			let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
@@ -75,7 +75,7 @@ benchmarks! {
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 			 );
-			 let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
@@ -109,7 +109,7 @@ benchmarks! {
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 			 );
-			 let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
@@ -144,7 +144,7 @@ benchmarks! {
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 			 );
-			 let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
@@ -163,7 +163,7 @@ benchmarks! {
 			 Pallet::<T>::approve(root_origin, space_id, capacity )?;
 			 Pallet::<T>::add_delegate(origin, space_id, delegate_did, authorization_id )?;
 
-		 }: _<T::RuntimeOrigin>(origin, space_id, delegate_authorization_id, authorization_id)
+		 }: _<T::RuntimeOrigin>(origin, space_id.clone(), delegate_authorization_id, authorization_id)
 		 verify {
 			 assert_last_event::<T>(Event::Deauthorization { space: space_id, authorization: delegate_authorization_id }.into());
 		 }
@@ -178,7 +178,7 @@ benchmarks! {
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 			 );
-			 let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
@@ -202,7 +202,7 @@ benchmarks! {
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 			 );
-			 let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
@@ -228,7 +228,7 @@ benchmarks! {
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 			 );
-			 let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
@@ -253,7 +253,7 @@ benchmarks! {
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 			 );
-			 let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
@@ -265,7 +265,7 @@ benchmarks! {
 			 Pallet::<T>::create(origin, space_digest )?;
 			 Pallet::<T>::archive(origin, space_id.clone(), authorization_id )?;
 
-		 }: _<T::RuntimeOrigin>(origin, space_id, authorization_id )
+		 }: _<T::RuntimeOrigin>(origin, space_id.clone(), authorization_id )
 		 verify {
 			 assert_last_event::<T>(Event::Restore { space: space_id, authority: did, }.into());
 		 }
@@ -281,7 +281,7 @@ benchmarks! {
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 			 );
-			 let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
@@ -309,7 +309,7 @@ benchmarks! {
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 			 );
-			 let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
@@ -337,7 +337,7 @@ benchmarks! {
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 			 );
-			 let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
@@ -365,7 +365,7 @@ benchmarks! {
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 			 );
-			 let space_id: SpaceIdOf = generate_registry_id::<T>(&id_digest);
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
 				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],

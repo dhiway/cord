@@ -188,7 +188,7 @@ mod benchmarks {
 		let info = T::IdentityInformation::create_identity_info(x);
 		let caller_origin =
 			<T as frame_system::Config>::RuntimeOrigin::from(RawOrigin::Signed(caller.clone()));
-		Identity::<T>::set_identity(caller_origin.clone(), Box::new(info))?;
+		Identity::<T>::set_identity(caller_origin, Box::new(info))?;
 
 		let registrar: T::AccountId = account("registrar", 0, SEED);
 		// let registrar = T::Lookup::unlookup(registrar.clone());
@@ -219,7 +219,7 @@ mod benchmarks {
 
 		let registrar: T::AccountId = account("registrar", 0, SEED);
 
-		Identity::<T>::request_judgement(caller_origin.clone(), registrar.clone())?;
+		Identity::<T>::request_judgement(caller_origin, registrar.clone())?;
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), registrar.clone());
