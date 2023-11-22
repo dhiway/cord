@@ -985,7 +985,7 @@ impl<T: Config> Pallet<T> {
 				space_id: space_id.clone(),
 				delegate: delegate.clone(),
 				permissions,
-				delegator: creator.clone(),
+				delegator: creator,
 			},
 		);
 
@@ -1215,7 +1215,7 @@ impl<T: Config> Pallet<T> {
 				space_details.txn_count = space_details.txn_count.saturating_add(1);
 				Ok(())
 			} else {
-				Err(Error::<T>::SpaceNotFound.into())
+				Err(Error::<T>::SpaceNotFound)
 			}
 		})
 	}
@@ -1231,7 +1231,7 @@ impl<T: Config> Pallet<T> {
 				space_details.txn_count = space_details.txn_count.saturating_sub(1);
 				Ok(())
 			} else {
-				Err(Error::<T>::SpaceNotFound.into())
+				Err(Error::<T>::SpaceNotFound)
 			}
 		})
 	}
@@ -1247,7 +1247,7 @@ impl<T: Config> Pallet<T> {
 				space_details.txn_count = space_details.txn_count.saturating_add(increment.into());
 				Ok(())
 			} else {
-				Err(Error::<T>::SpaceNotFound.into())
+				Err(Error::<T>::SpaceNotFound)
 			}
 		})
 	}
@@ -1263,7 +1263,7 @@ impl<T: Config> Pallet<T> {
 				space_details.txn_count = space_details.txn_count.saturating_sub(decrement.into());
 				Ok(())
 			} else {
-				Err(Error::<T>::SpaceNotFound.into())
+				Err(Error::<T>::SpaceNotFound)
 			}
 		})
 	}

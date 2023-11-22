@@ -187,8 +187,8 @@ pub mod pallet {
 			// Id Digest = concat (H(<scale_encoded_schema_input>,
 			// <<scale_encoded_space_identifier>, scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&tx_schema.encode()[..], &space_id.clone().encode()[..], &creator.encode()[..]]
-					.concat()[..],
+				&[&tx_schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()
+					[..],
 			);
 
 			let identifier = Ss58Identifier::to_schema_id(&(id_digest).encode()[..])
