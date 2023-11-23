@@ -228,7 +228,7 @@ pub mod pallet {
 				|registrars| -> Result<(RegistrarIndex, usize), DispatchError> {
 					ensure!(
 						!registrars.iter().any(|registrar| match registrar {
-							Some(registrar_info) => &registrar_info.account == &account,
+							Some(registrar_info) => registrar_info.account == account,
 							None => false,
 						}),
 						Error::<T>::RegistrarAlreadyExists
@@ -345,7 +345,7 @@ pub mod pallet {
 
 			let mut id = <IdentityOf<T>>::get(&sender).ok_or(Error::<T>::NoIdentity)?;
 
-			let item = (registrar_acc.clone(), Judgement::Requested);
+			let item = (registrar_acc, Judgement::Requested);
 
 			match id.judgements.binary_search_by_key(&registrar, |x| x.0.clone()) {
 				Ok(i) =>
@@ -475,7 +475,7 @@ pub mod pallet {
 					let registrar = registrars.iter_mut().any(|registrar_option| {
 						if let Some(registrar) = registrar_option {
 							if registrar.account == who {
-								registrar.fields = fields.clone();
+								registrar.fields = fields;
 								return true
 							}
 						}
