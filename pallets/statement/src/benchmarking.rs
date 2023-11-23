@@ -60,7 +60,7 @@ benchmarks! {
 
 		let space_id: SpaceIdOf = generate_space_id::<T>(&space_id_digest);
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
@@ -84,7 +84,7 @@ benchmarks! {
 		<Authorizations<T>>::insert(
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
-				registry_id,
+				space_id,
 				delegate: did.clone(),
 				schema: None,
 				permissions: Permissions::all(),
@@ -130,17 +130,17 @@ benchmarks! {
 		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
+		let space_id: RegistryIdOf = generate_space_id::<T>(&id_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
 		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
@@ -149,7 +149,7 @@ benchmarks! {
 		<Authorizations<T>>::insert(
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
-				registry_id,
+				space_id,
 				delegate: did.clone(),
 				schema: None,
 				permissions: Permissions::all(),
@@ -188,27 +188,27 @@ benchmarks! {
 		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
+		let space_id: RegistryIdOf = generate_space_id::<T>(&id_digest);
 
 		let statement = [77u8; 32].to_vec();
 
 		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
 		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
 		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
@@ -217,7 +217,7 @@ benchmarks! {
 		<Authorizations<T>>::insert(
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
-				registry_id: registry_id.clone(),
+				space_id: space_id.clone(),
 				delegate: did1,
 				schema: None,
 				permissions: Permissions::all(),
@@ -229,7 +229,7 @@ benchmarks! {
 			StatementDetailsOf::<T> {
 				digest: statement_digest,
 				schema: None,
-				registry: registry_id,
+				registry: space_id,
 			},
 		);
 
@@ -266,27 +266,27 @@ benchmarks! {
 		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
+		let space_id: RegistryIdOf = generate_space_id::<T>(&id_digest);
 
 		let statement = [77u8; 32].to_vec();
 
 		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
 		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
 		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
@@ -295,7 +295,7 @@ benchmarks! {
 		<Authorizations<T>>::insert(
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
-				registry_id: registry_id.clone(),
+				space_id: space_id.clone(),
 				delegate: did1,
 				schema: None,
 				permissions: Permissions::all(),
@@ -307,7 +307,7 @@ benchmarks! {
 			StatementDetailsOf::<T> {
 				digest: statement_digest,
 				schema: None,
-				registry: registry_id,
+				registry: space_id,
 			},
 		);
 
@@ -341,27 +341,27 @@ benchmarks! {
 		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
+		let space_id: RegistryIdOf = generate_space_id::<T>(&id_digest);
 
 		let statement = [77u8; 32].to_vec();
 
 		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
 		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
 		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
@@ -370,7 +370,7 @@ benchmarks! {
 		<Authorizations<T>>::insert(
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
-				registry_id: registry_id.clone(),
+				space_id: space_id.clone(),
 				delegate: did1,
 				schema: None,
 				permissions: Permissions::all(),
@@ -382,7 +382,7 @@ benchmarks! {
 			StatementDetailsOf::<T> {
 				digest: statement_digest,
 				schema: None,
-				registry: registry_id,
+				registry: space_id,
 			},
 		);
 
@@ -430,27 +430,27 @@ benchmarks! {
 		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
+		let space_id: RegistryIdOf = generate_space_id::<T>(&id_digest);
 
 		let statement = [77u8; 32].to_vec();
 
 		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
 		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
 		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
@@ -459,7 +459,7 @@ benchmarks! {
 		<Authorizations<T>>::insert(
 			&authorization_id,
 			RegistryAuthorizationOf::<T> {
-				registry_id: registry_id.clone(),
+				space_id: space_id.clone(),
 				delegate: did1,
 				schema: None,
 				permissions: Permissions::all(),
@@ -471,7 +471,7 @@ benchmarks! {
 			StatementEntryOf::<T> {
 				digest: statement_digest,
 				schema: None,
-				registry: registry_id,
+				registry: space_id,
 			},
 		);
 
@@ -509,20 +509,20 @@ benchmarks! {
 		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let registry_id: RegistryIdOf = generate_registry_id::<T>(&id_digest);
+		let space_id: RegistryIdOf = generate_space_id::<T>(&id_digest);
 
 		let statement = [77u8; 32].to_vec();
 
 		let statement_digest = <T as frame_system::Config>::Hashing::hash(&statement[..]);
 
 		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &registry_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 

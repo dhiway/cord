@@ -61,6 +61,8 @@
 //! [`Config`]: ./trait.Config.html
 
 #![cfg_attr(not(feature = "std"), no_std)]
+// added for handling a storage complex structure.
+#![allow(clippy::type_complexity)]
 
 mod benchmarking;
 pub mod simple;
