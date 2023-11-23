@@ -45,7 +45,7 @@ benchmarks! {
 	register {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let did_0: T::SpaceCreatorId = account("did", 0, SEED);
+		let did: T::SpaceCreatorId = account("did", 0, SEED);
 		let did_1: T::SpaceCreatorId = account("did", 1, SEED);
 
 		let statement = [77u8; 32].to_vec();
