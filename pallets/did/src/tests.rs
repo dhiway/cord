@@ -41,6 +41,7 @@ use crate::{
 	service_endpoints::DidEndpoint,
 	DidBlacklist,
 };
+use crate::Did;
 
 // create
 

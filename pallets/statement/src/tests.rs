@@ -212,8 +212,8 @@ fn updating_a_registered_statement_should_succeed() {
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&statement_digest.encode()[..],
-			&space_id.clone().encode()[..],
-			&creator.clone().encode()[..],
+			&space_id.encode()[..],
+			&creator.encode()[..],
 		]
 		.concat()[..],
 	);
@@ -289,8 +289,8 @@ fn updating_a_registered_statement_by_a_space_delegate_should_succeed() {
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&statement_digest.encode()[..],
-			&space_id.clone().encode()[..],
-			&creator.clone().encode()[..],
+			&space_id.encode()[..],
+			&creator.encode()[..],
 		]
 		.concat()[..],
 	);
@@ -373,8 +373,8 @@ fn trying_to_update_a_registered_statement_by_a_non_space_delegate_should_fail()
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&statement_digest.encode()[..],
-			&space_id.clone().encode()[..],
-			&creator.clone().encode()[..],
+			&space_id.encode()[..],
+			&creator.encode()[..],
 		]
 		.concat()[..],
 	);
@@ -452,8 +452,8 @@ fn trying_to_update_a_non_registered_statement_should_fail() {
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&statement_digest.encode()[..],
-			&space_id.clone().encode()[..],
-			&creator.clone().encode()[..],
+			&space_id.encode()[..],
+			&creator.encode()[..],
 		]
 		.concat()[..],
 	);
@@ -525,8 +525,8 @@ fn revoking_a_registered_statement_should_succeed() {
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&statement_digest.encode()[..],
-			&space_id.clone().encode()[..],
-			&creator.clone().encode()[..],
+			&space_id.encode()[..],
+			&creator.encode()[..],
 		]
 		.concat()[..],
 	);
@@ -594,7 +594,7 @@ fn revoking_a_registered_statement_by_a_non_delegate_should_fail() {
 
 	let new_raw_space = [4u8; 256].to_vec();
 	let new_space_digest =
-		<Test as frame_system::Config>::Hashing::hash(&&new_raw_space.encode()[..]);
+		<Test as frame_system::Config>::Hashing::hash(&new_raw_space.encode()[..]);
 	let new_space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&new_space_digest.encode()[..], &delegate.encode()[..]].concat()[..],
 	);
@@ -608,8 +608,8 @@ fn revoking_a_registered_statement_by_a_non_delegate_should_fail() {
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&statement_digest.encode()[..],
-			&space_id.clone().encode()[..],
-			&creator.clone().encode()[..],
+			&space_id.encode()[..],
+			&creator.encode()[..],
 		]
 		.concat()[..],
 	);
@@ -632,7 +632,7 @@ fn revoking_a_registered_statement_by_a_non_delegate_should_fail() {
 			new_space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity.clone()));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 		assert_ok!(Space::approve(RawOrigin::Root.into(), new_space_id, capacity));
 
 		assert_ok!(Schema::create(
@@ -698,8 +698,8 @@ fn restoring_a_revoked_statement_should_succeed() {
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&statement_digest.encode()[..],
-			&space_id.clone().encode()[..],
-			&creator.clone().encode()[..],
+			&space_id.encode()[..],
+			&creator.encode()[..],
 		]
 		.concat()[..],
 	);
@@ -778,8 +778,8 @@ fn trying_to_restore_a_non_revoked_statement_should_fail() {
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&statement_digest.encode()[..],
-			&space_id.clone().encode()[..],
-			&creator.clone().encode()[..],
+			&space_id.encode()[..],
+			&creator.encode()[..],
 		]
 		.concat()[..],
 	);
@@ -845,7 +845,7 @@ fn trying_to_restore_a_revoked_statement_by_a_non_delegate_should_fail() {
 
 	let new_raw_space = [4u8; 256].to_vec();
 	let new_space_digest =
-		<Test as frame_system::Config>::Hashing::hash(&&new_raw_space.encode()[..]);
+		<Test as frame_system::Config>::Hashing::hash(&new_raw_space.encode()[..]);
 	let new_space_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&new_space_digest.encode()[..], &delegate.encode()[..]].concat()[..],
 	);
@@ -859,8 +859,8 @@ fn trying_to_restore_a_revoked_statement_by_a_non_delegate_should_fail() {
 	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&statement_digest.encode()[..],
-			&space_id.clone().encode()[..],
-			&creator.clone().encode()[..],
+			&space_id.encode()[..],
+			&creator.encode()[..],
 		]
 		.concat()[..],
 	);
@@ -883,7 +883,7 @@ fn trying_to_restore_a_revoked_statement_by_a_non_delegate_should_fail() {
 			new_space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity.clone()));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 		assert_ok!(Space::approve(RawOrigin::Root.into(), new_space_id, capacity));
 
 		assert_ok!(Schema::create(
