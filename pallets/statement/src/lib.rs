@@ -416,12 +416,7 @@ pub mod pallet {
 			// Id Digest = concat (H(<scale_encoded_statement_digest>,
 			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[
-					&digest.encode()[..],
-					&space_id.clone().encode()[..],
-					&creator.clone().encode()[..],
-				]
-				.concat()[..],
+				&[&digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
 			let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..])
@@ -520,26 +515,26 @@ pub mod pallet {
 			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
 			ensure!(
-				!<RevocationList<T>>::contains_key(&statement_id, &statement_details.digest),
+				!<RevocationList<T>>::contains_key(&statement_id, statement_details.digest),
 				Error::<T>::StatementRevoked
 			);
 
 			ensure!(
-				!<Entries<T>>::contains_key(&statement_id, &new_statement_digest),
+				!<Entries<T>>::contains_key(&statement_id, new_statement_digest),
 				Error::<T>::StatementDigestAlreadyAnchored
 			);
 
 			<RevocationList<T>>::insert(
 				&statement_id,
-				&statement_details.digest,
+				statement_details.digest,
 				StatementEntryStatusOf::<T> { creator: updater.clone(), revoked: true },
 			);
 
-			<Entries<T>>::insert(&statement_id, &new_statement_digest, updater.clone());
+			<Entries<T>>::insert(&statement_id, new_statement_digest, updater.clone());
 
 			<IdentifierLookup<T>>::insert(
-				&new_statement_digest,
-				&statement_details.space.clone(),
+				new_statement_digest,
+				statement_details.space.clone(),
 				&statement_id,
 			);
 
@@ -629,7 +624,7 @@ pub mod pallet {
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
 
 			ensure!(
-				!<RevocationList<T>>::contains_key(&statement_id, &statement_details.digest),
+				!<RevocationList<T>>::contains_key(&statement_id, statement_details.digest),
 				Error::<T>::StatementRevoked
 			);
 
@@ -637,7 +632,7 @@ pub mod pallet {
 
 			<RevocationList<T>>::insert(
 				&statement_id,
-				&statement_details.digest,
+				statement_details.digest,
 				StatementEntryStatusOf::<T> { creator: updater.clone(), revoked: true },
 			);
 
@@ -713,13 +708,13 @@ pub mod pallet {
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
 
 			ensure!(
-				<RevocationList<T>>::contains_key(&statement_id, &statement_details.digest),
+				<RevocationList<T>>::contains_key(&statement_id, statement_details.digest),
 				Error::<T>::StatementNotRevoked
 			);
 
 			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
-			<RevocationList<T>>::remove(&statement_id, &statement_details.digest);
+			<RevocationList<T>>::remove(&statement_id, statement_details.digest);
 
 			Self::update_activity(&statement_id, CallTypeOf::Restore).map_err(<Error<T>>::from)?;
 			Self::deposit_event(Event::Restore { identifier: statement_id, author: updater });
@@ -812,7 +807,7 @@ pub mod pallet {
 			if is_complete_removal {
 				// Perform a complete removal.
 				for (digest, _) in <Entries<T>>::iter_prefix(&statement_id) {
-					<IdentifierLookup<T>>::remove(&digest, &space_id);
+					<IdentifierLookup<T>>::remove(digest, &space_id);
 				}
 				let _ =
 					<RevocationList<T>>::clear_prefix(&statement_id, entries_count as u32, None);
@@ -826,9 +821,9 @@ pub mod pallet {
 			} else {
 				// Perform a partial removal.
 				for (digest, _) in <Entries<T>>::iter_prefix(&statement_id).take(max_removals) {
-					<IdentifierLookup<T>>::remove(&digest, &space_id);
-					<RevocationList<T>>::remove(&statement_id, &digest);
-					<Entries<T>>::remove(&statement_id, &digest);
+					<IdentifierLookup<T>>::remove(digest, &space_id);
+					<RevocationList<T>>::remove(&statement_id, digest);
+					<Entries<T>>::remove(&statement_id, digest);
 					removed_count += 1;
 				}
 				pallet_chain_space::Pallet::<T>::decrement_usage_entries(
@@ -857,7 +852,7 @@ pub mod pallet {
 
 			// Calculate the dynamic weight based on entries_count
 			let dynamic_weight =
-				<T as Config>::WeightInfo::remove().saturating_mul(entries_count as u64).into();
+				<T as Config>::WeightInfo::remove().saturating_mul(entries_count as u64);
 
 			Self::deposit_event(event);
 
@@ -957,14 +952,14 @@ pub mod pallet {
 							<Statements<T>>::insert(
 								&identifier,
 								StatementDetailsOf::<T> {
-									digest: digest.clone(),
+									digest: *digest,
 									schema: schema_id.clone(),
 									space: space_id.clone(),
 								},
 							);
 
 							<Entries<T>>::insert(&identifier, digest, creator.clone());
-							<IdentifierLookup<T>>::insert(&digest, &space_id, &identifier);
+							<IdentifierLookup<T>>::insert(digest, &space_id, &identifier);
 
 							if Self::update_activity(&identifier, CallTypeOf::Genesis).is_err() {
 								fail += 1;
@@ -1049,7 +1044,7 @@ pub mod pallet {
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
 
 			ensure!(
-				!<RevocationList<T>>::contains_key(&statement_id, &statement_details.digest),
+				!<RevocationList<T>>::contains_key(&statement_id, statement_details.digest),
 				Error::<T>::StatementRevoked
 			);
 
@@ -1058,20 +1053,20 @@ pub mod pallet {
 			// Check for presentation digest uniqueness to fail early if the digest is
 			// already present.
 			ensure!(
-				!<Presentations<T>>::contains_key(&statement_id, &presentation_digest),
+				!<Presentations<T>>::contains_key(&statement_id, presentation_digest),
 				Error::<T>::PresentationDigestAlreadyAnchored
 			);
 
-			<IdentifierLookup<T>>::insert(&presentation_digest, &space_id, &statement_id);
+			<IdentifierLookup<T>>::insert(presentation_digest, &space_id, &statement_id);
 
 			<Presentations<T>>::insert(
 				&statement_id,
-				&presentation_digest,
+				presentation_digest,
 				StatementPresentationDetailsOf::<T> {
 					creator: creator.clone(),
 					presentation_type,
 					digest: statement_details.digest,
-					space: space_id.clone(),
+					space: space_id,
 				},
 			);
 
@@ -1129,13 +1124,13 @@ pub mod pallet {
 			)
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
-			let presentation_details = Presentations::<T>::get(&statement_id, &presentation_digest)
+			let presentation_details = Presentations::<T>::get(&statement_id, presentation_digest)
 				.ok_or(Error::<T>::PresentationNotFound)?;
 
 			ensure!(presentation_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
-			Presentations::<T>::remove(&statement_id, &presentation_digest);
-			IdentifierLookup::<T>::remove(&presentation_digest, &space_id);
+			Presentations::<T>::remove(&statement_id, presentation_digest);
+			IdentifierLookup::<T>::remove(presentation_digest, &space_id);
 
 			pallet_chain_space::Pallet::<T>::decrement_usage(&space_id)
 				.map_err(<pallet_chain_space::Error<T>>::from)?;
