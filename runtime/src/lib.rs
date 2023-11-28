@@ -828,8 +828,9 @@ impl pallet_score::Config for Runtime {
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
+	type MaxEncodedValueLength = ConstU32<128>;
+	type MaxRatingValue = ConstU32<50>;
 	type WeightInfo = weights::pallet_score::WeightInfo<Runtime>;
-	type ValueLimit = ConstU32<72>;
 }
 
 construct_runtime! (

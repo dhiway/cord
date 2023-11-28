@@ -23,29 +23,29 @@ use sp_runtime::RuntimeDebug;
 #[derive(
 	Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct RatingEntryDetails<
-	EntityIdentifierOf,
-	TransactionIdentfierOf,
-	CollectorIdentifierOf,
-	RatingTypeOf,
-	RatingOf,
-	RatingEntryType,
-	CountOf,
-> {
-	///entity Identifier
-	pub entity: EntityIdentifierOf,
-	/// transaction identifier for which the score is requested
-	pub tid: TransactionIdentfierOf,
-	///score collector identifier
-	pub collector: CollectorIdentifierOf,
-	/// score type
+pub struct EntityDetails<EntityIdentifier> {
+	/// Unique Identifier (UID) for the entity being rated
+	pub entity_uid: EntityIdentifier,
+	/// messsage identifier of the rating entry
+	pub entity_id: EntityIdentifier,
+}
+
+#[derive(
+	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+)]
+pub struct RatingInputEntry<EntityIdentifier, EntityTypeOf, RatingTypeOf> {
+	/// Unique Identifier (UID) for the entity being rated
+	pub entity_uid: EntityIdentifier,
+	/// Unique Identifier (UID) for the rating provider
+	pub provider_uid: EntityIdentifier,
+	/// Count of raing transactions for the entry
+	pub count_of_txn: u64,
+	/// Cumulative sum of ratings for the entity
+	pub total_rating: u64,
+	/// Type of the entity (seller/logistic)
+	pub entity_type: EntityTypeOf,
+	/// Type of rating (overall/delivery)
 	pub rating_type: RatingTypeOf,
-	///entity rating
-	pub rating: RatingOf,
-	///Rating Entry Type
-	pub entry_type: RatingEntryType,
-	//total  Count
-	pub count: CountOf,
 }
 
 #[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
@@ -54,52 +54,68 @@ pub enum RatingTypeOf {
 	Delivery,
 }
 
-#[derive(
-	Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
-)]
-pub struct RatingInput<RatingEntryDetails, RatingEntryHashOf, RatingCreatorIdOf> {
-	/// journal entry
-	pub entry: RatingEntryDetails,
-	/// tx digest
-	pub digest: RatingEntryHashOf,
-	/// entity signature
-	pub creator: RatingCreatorIdOf,
+#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+pub enum EntityTypeOf {
+	Retail,
+	Logistic,
+}
+
+#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+pub enum EntryTypeOf {
+	Credit,
+	Debit,
+}
+
+impl EntityTypeOf {
+	pub fn is_valid_entity_type(&self) -> bool {
+		matches!(self, Self::Retail | Self::Logistic)
+	}
+}
+
+impl RatingTypeOf {
+	pub fn is_valid_rating_type(&self) -> bool {
+		matches!(self, Self::Overall | Self::Delivery)
+	}
 }
 
 #[derive(
 	Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
 pub struct RatingEntry<
-	RatingEntryDetails,
-	RatingEntryHashOf,
-	BlockNumber,
+	EntityIdentifier,
+	EntityTypeOf,
+	RatingTypeOf,
+	RatingEntryId,
+	RatingEntryHash,
+	MessageIdentifier,
 	SpaceIdOf,
-	RatingCreatorIdOf,
+	RatingCreatorId,
+	EntryTypeOf,
+	BlockNumber,
 > {
-	///journal entry
-	pub entry: RatingEntryDetails,
-	/// tx digest
-	pub digest: RatingEntryHashOf,
-	/// The block number in which journal entry is included
-	pub created_at: BlockNumber,
+	pub entry: RatingInputEntry<EntityIdentifier, EntityTypeOf, RatingTypeOf>,
+	/// rating digest
+	pub digest: RatingEntryHash,
+	/// messsage identifier of the rating entry
+	pub message_id: MessageIdentifier,
 	/// Space Identifier
 	pub space: SpaceIdOf,
 	/// Rating creator.
-	pub creator: RatingCreatorIdOf,
+	pub creator: RatingCreatorId,
+	/// Type of the rating entry (credit/debit)
+	pub entry_type: EntryTypeOf,
+	/// Rating reference entry
+	pub reference_id: Option<RatingEntryId>,
+	/// The block number in which journal entry is included
+	pub created_at: BlockNumber,
 }
 
 #[derive(
 	Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
 )]
-pub struct ScoreEntry<CountOf, RatingOf> {
-	///entry count
-	pub count: CountOf,
-	/// aggregrated Score
-	pub rating: RatingOf,
-}
-
-#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub enum RatingEntryType {
-	Credit,
-	Debit,
+pub struct AggregatedEntryOf {
+	/// aggregated transaction count
+	pub count_of_txn: u64,
+	/// aggregated rating
+	pub total_rating: u64,
 }

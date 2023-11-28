@@ -18,21 +18,87 @@
 
 //! # Score Pallet
 //!
-//! Score Pallet maintains aggregated scores for different entities,
-//! updating them whenever a new journal entry is added,
-//! associate it with their account id.
+//! The Score Pallet is responsible for maintaining aggregated scores for
+//! various entities within the system. It updates these scores based on new
+//! journal entries associated with respective account IDs. This pallet
+//! plays a crucial role in managing and reflecting the reputation or
+//! performance metrics of entities on the blockchain.
 //!
-//! - [`Config`]
-//! - [`Call`]
-//! - [`Pallet`]
+//! ## Overview
+//!
+//! The Score Pallet provides functionality to:
+//! - Register new rating entries.
+//! - Amend or revise existing ratings.
+//! - Aggregate scores based on credit/debit entries.
+//!
+//! It interacts with other components of the system to ensure accurate and
+//! up-to-date scorekeeping.
 //!
 //! ### Terminology
 //!
-//! - **Score:**:
+//! - **Rating Entry:** A record detailing the rating given to an entity,
+//!   including the score, the entity being rated, and other metadata.
+//! - **Score:** A numerical representation of an entity's aggregated ratings
+//!   over time.
+//! - **Aggregate Score:** The cumulative score of an entity, calculated by
+//!   summing individual scores from rating entries.
+//! - **Credit Entry:** A positive adjustment or addition to an entity's score.
+//! - **Debit Entry:** A negative adjustment or subtraction from an entity's
+//!   score.
 //!
-//! ## Assumptions
+//! ### Assumptions
 //!
-//! - The Score hash was created using CORD SDK.
+//! - Scores and ratings are assumed to be represented as integers.
+//! - The Score hash is assumed to be generated using the CORD SDK, ensuring
+//!   integrity and non-repudiation of score data.
+//!
+//! ### Storage
+//!
+//! - `RatingEntries`: Stores all the rating entries, indexed by a unique
+//!   identifier.
+//! - `AggregateScores`: Keeps track of the aggregate scores for each entity and
+//!   rating type.
+//!
+//! ### Events
+//!
+//! The pallet emits events when:
+//! - A new rating entry is added.
+//! - An existing rating entry is amended.
+//! - Aggregate scores are updated.
+//!
+//! ### Errors
+//!
+//! Errors indicate conditions where an operation could not be completed:
+//! - Invalid rating values.
+//! - Unauthorized operations.
+//! - Duplicate message identifiers.
+//! - Reference identifiers not found.
+//!
+//! [`Config`]: The configuration trait for the pallet.
+//! [`Call`]: The dispatchable calls supported by the pallet.
+//! [`Pallet`]: The main struct that implements the pallet's functionality.
+//!
+//! ## Usage
+//!
+//! The following example shows how to use the Score Pallet in your runtime:
+//!
+//! ```rust
+//! use score_pallet::{Pallet, Call, Config};
+//! ```
+//!
+//! ## Interface
+//!
+//! ### Public Functions
+//!
+//! - `register_rating`: Registers a new rating entry.
+//! - `amend_rating`: Amends an existing rating entry.
+//! - `revise_rating`: Revises a rating entry, creating a new linked entry.
+//!
+//! ## Implementation Details
+//!
+//! The Score Pallet utilizes a combination of storage maps and events to
+//! maintain and communicate the state and changes in scoring data. Efficient
+//! and secure hash algorithms are used for score calculation and verification.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -58,15 +124,19 @@ pub mod pallet {
 	use super::*;
 	pub use cord_primitives::{curi::Ss58Identifier, CountOf, RatingOf};
 	use cord_utilities::traits::CallSources;
-	use frame_support::pallet_prelude::*;
+	use frame_support::{pallet_prelude::*, Twox64Concat};
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::traits::Hash;
 	use sp_std::{prelude::Clone, str};
 
-	/// Space Identifier
+	/// SS58 Chain Space Identifier
 	pub type SpaceIdOf = Ss58Identifier;
 
-	///Rating Identifier -- can remove later
-	pub type RatingIdOf = Ss58Identifier;
+	///SS58 Rating Identifier
+	pub type RatingEntryIdOf = Ss58Identifier;
+
+	///SS58 Entity Identifier
+	pub type EntityIdOf = Ss58Identifier;
 
 	/// Authorization Identifier
 	pub type AuthorizationIdOf = Ss58Identifier;
@@ -86,37 +156,32 @@ pub mod pallet {
 	/// Type for an Identifier
 	pub type IdentifierOf = Ss58Identifier;
 
-	/// Type for a Entity(Buisness) Identifier
-	pub type EntityIdentifierOf<T> = <T as frame_system::Config>::AccountId;
-
 	///Type for a Collector(Buyer) Identifier
 	pub type CollectorIdentifierOf<T> = <T as frame_system::Config>::AccountId;
 
 	pub type JournalIdentifierOf = IdentifierOf;
-	pub type TransactionIdentifierOf<T> = BoundedVec<u8, <T as Config>::ValueLimit>;
+	pub type MessageIdentifierOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
+	pub type EntityIdentifierOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
+	pub type EntityIdentityOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
+	pub type ProviderIdentifierOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 
-	pub type RatingDetailsOf<T> = RatingEntryDetails<
-		EntityIdentifierOf<T>,
-		TransactionIdentifierOf<T>,
-		CollectorIdentifierOf<T>,
-		RatingTypeOf,
-		RatingOf,
-		RatingEntryType,
-		CountOf,
-	>;
-
-	pub type RatingInputOf<T> =
-		RatingInput<RatingDetailsOf<T>, RatingEntryHashOf<T>, RatingCreatorIdOf<T>>;
+	pub type RatingInputEntryOf<T> =
+		RatingInputEntry<EntityIdentifierOf<T>, EntityTypeOf, RatingTypeOf>;
 
 	pub type RatingEntryOf<T> = RatingEntry<
-		RatingDetailsOf<T>,
+		EntityIdentifierOf<T>,
+		EntityTypeOf,
+		RatingTypeOf,
+		RatingEntryIdOf,
 		RatingEntryHashOf<T>,
-		BlockNumberFor<T>,
+		MessageIdentifierOf<T>,
 		SpaceIdOf,
 		RatingCreatorIdOf<T>,
+		EntryTypeOf,
+		BlockNumberFor<T>,
 	>;
 
-	pub type ScoreEntryOf = ScoreEntry<CountOf, RatingOf>;
+	// pub type AggregatedEntryOf = AggregatedEntry;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_chain_space::Config {
@@ -130,7 +195,9 @@ pub mod pallet {
 		type RatingCreatorIdOf: Parameter + MaxEncodedLen;
 
 		#[pallet::constant]
-		type ValueLimit: Get<u32>;
+		type MaxEncodedValueLength: Get<u32>;
+		#[pallet::constant]
+		type MaxRatingValue: Get<u32>;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -141,150 +208,466 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	/// journal entry identifiers stored on chain.
+	/// rating entry identifiers with rating details stored on chain.
 	#[pallet::storage]
-	#[pallet::getter(fn journal)]
-	pub type Journal<T> = StorageDoubleMap<
-		_,
-		Twox64Concat,
-		JournalIdentifierOf,
-		Blake2_128Concat,
-		RatingTypeOf,
-		RatingEntryOf<T>,
-		OptionQuery,
-	>;
+	#[pallet::getter(fn rating_entries)]
+	pub type RatingEntries<T> =
+		StorageMap<_, Blake2_128Concat, RatingEntryIdOf, RatingEntryOf<T>, OptionQuery>;
 
-	/// network score - aggregated and mapped to an entity identifier.
+	/// aggregated network score - aggregated and mapped to an entity
+	/// identifier.
 	#[pallet::storage]
-	#[pallet::getter(fn score)]
-	pub type Scores<T> = StorageDoubleMap<
+	#[pallet::getter(fn aggregate_scores)]
+	pub type AggregateScores<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
 		EntityIdentifierOf<T>,
 		Blake2_128Concat,
 		RatingTypeOf,
-		ScoreEntryOf,
+		AggregatedEntryOf,
 		OptionQuery,
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn tid_entries)]
-	pub type TransactionIdentifiers<T> = StorageDoubleMap<
+	#[pallet::getter(fn message_identifiers)]
+	pub type MessageIdentifiers<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
-		TransactionIdentifierOf<T>,
+		MessageIdentifierOf<T>,
 		Blake2_128Concat,
-		RatingTypeOf,
 		EntityIdentifierOf<T>,
+		RatingEntryIdOf,
 	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A new journal entry has been added.
-		/// \[entry identifier, entity, author\]
-		JournalEntry {
-			identifier: JournalIdentifierOf,
-			entity: EntityIdentifierOf<T>,
-			author: RatingCreatorIdOf<T>,
-		},
+		/// A new rating entry has been added.
+		/// \[rating entry identifier, entity\]
+		RatingEntryAdded { identifier: RatingEntryIdOf, entity: EntityIdentifierOf<T> },
+		/// A rating entry has been amended.
+		/// \[rating entry identifier, entity, \]
+		RatingEntryRevoked { identifier: RatingEntryIdOf, entity: EntityIdentifierOf<T> },
 		/// Aggregate scores has been updated.
 		/// \[entity identifier\]
-		AggregateUpdated { entity: EntityIdentifierOf<T> },
+		AggregateScoreUpdated { entity: EntityIdentifierOf<T> },
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
+		/// Unauthorized operation
+		UnauthorizedOperation,
 		/// Invalid Identifer Length
 		InvalidIdentifierLength,
-		// Invalid digest
+		/// Invalid digest
 		InvalidDigest,
-		// Invalid creator signature
+		/// Invalid creator signature
 		InvalidSignature,
-		// Invalid Rating Identifier
+		/// Invalid Rating Identifier
 		InvalidRatingIdentifier,
-		// Transaction already rated
-		TransactionAlreadyRated,
-		// Invalid rating value - should be between 1 and 50
+		/// Transaction already rated
+		MessageIdAlreadyExists,
+		/// Invalid rating value - should be between 1 and 50
 		InvalidRatingValue,
-		// Exceeds the maximum allowed entries in a single transaction
+		/// Exceeds the maximum allowed entries in a single transaction
 		TooManyJournalEntries,
-		// Invalid entity signature
+		/// Invalid entity signature
 		InvalidEntitySignature,
-		//Stream digest is not unique
+		/// Stream digest is not unique
 		DigestAlreadyAnchored,
-		//If Rating and count value Zero
-		CountCannotBeZero,
-		//If Rating and count value Zero
-		RatingCannotBeZero,
+		/// Rating idenfier already exist
+		RatingIdentifierAlreadyAdded,
+		/// Invalid rating or entry type
+		InvalidEntryOrRatingType,
+		/// Rating identifier not found
+		RatingIdentifierNotFound,
+		/// Referenced rating identifier not found
+		ReferenceIdentifierNotFound,
+		/// Refrenced identifer is not a debit transaction
+		ReferenceNotAmendIdentifier,
+		/// Rating Entity mismatch
+		EntityMismatch,
+		/// Rating Space mismatch
+		SpaceMismatch,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		/// Registers a new rating in the system.
 		///
-		/// Create a new rating identifier and associates it with its
-		/// controller. The controller (issuer) is the owner of the identifier.
+		/// This function allows a user to submit a new rating for an entity.
+		/// The rating is recorded along with various metadata, including the
+		/// author of the rating, the space ID, and a unique message identifier.
 		///
-		/// * origin: the identity of the Transaction Author.
-		/// * tx_journal: the incoming rating entry.
-		/// * `authorization`: The authorization ID of the delegate who is
-		///   allowed to perform this action.
+		/// # Arguments
+		/// * `origin` - The origin of the call, which should be a signed user
+		///   in most cases.
+		/// * `entry` - The rating entry, containing details about the entity
+		///   being rated, the rating itself, and other metadata.
+		/// * `digest` - A hash representing some unique aspects of the rating,
+		///   used for identification and integrity purposes.
+		/// * `authorization` - An identifier for authorization, used to
+		///   validate the origin's permission to make this rating.
+		///
+		/// # Errors
+		/// Returns `Error::<T>::InvalidRatingValue` if the rating value is not
+		/// within the expected range.
+		/// Returns `Error::<T>::InvalidEntryOrRatingType` if the entry type or
+		/// rating type is not valid.
+		/// Returns `Error::<T>::MessageIdAlreadyExists` if the message
+		/// identifier is already used.
+		/// Returns `Error::<T>::InvalidIdentifierLength` if the generated
+		/// identifier for the rating is of invalid length.
+		/// Returns `Error::<T>::RatingIdentifierAlreadyAdded` if the rating
+		/// identifier is already in use.
+		///
+		/// # Events
+		/// Emits `RatingEntryAdded` when a new rating is successfully
+		/// registered.
+		///
+		/// # Example
+		/// ```
+		/// register_rating(origin, entry, digest, authorization)?;
+		/// ```
 		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
-		pub fn add_rating(
+		pub fn register_rating(
 			origin: OriginFor<T>,
-			journal: RatingInputOf<T>,
+			entry: RatingInputEntryOf<T>,
+			digest: RatingEntryHashOf<T>,
+			message_id: MessageIdentifierOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let author = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
-				&author,
+				&creator,
 			)
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				(journal.entry.rating > 0 && journal.entry.count > 0),
+				entry.total_rating > 0 &&
+					entry.count_of_txn > 0 &&
+					entry.total_rating <= entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
 
-			let identifier = Ss58Identifier::to_scoring_id(&(journal.digest).encode()[..])
+			ensure!(
+				entry.entity_type.is_valid_entity_type() &&
+					entry.rating_type.is_valid_rating_type(),
+				Error::<T>::InvalidEntryOrRatingType
+			);
+
+			ensure!(
+				!<MessageIdentifiers<T>>::contains_key(&message_id, &entry.provider_uid),
+				Error::<T>::MessageIdAlreadyExists
+			);
+
+			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>)
+			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[
+					&digest.encode()[..],
+					&message_id.encode()[..],
+					&space_id.encode()[..],
+					&creator.encode()[..],
+				]
+				.concat()[..],
+			);
+
+			let identifier = Ss58Identifier::to_scoring_id(&(id_digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
-				!<TransactionIdentifiers<T>>::contains_key(
-					&journal.entry.tid,
-					&journal.entry.rating_type
-				),
-				Error::<T>::TransactionAlreadyRated
+				!<RatingEntries<T>>::contains_key(&identifier),
+				Error::<T>::RatingIdentifierAlreadyAdded
 			);
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
-			Self::aggregate_score(&journal.entry)?;
+			Self::aggregate_score(&entry, EntryTypeOf::Credit)?;
 
-			<Journal<T>>::insert(
+			let entity = entry.entity_uid.clone();
+			let provider = entry.provider_uid.clone();
+
+			<RatingEntries<T>>::insert(
 				&identifier,
-				&journal.entry.rating_type,
 				RatingEntryOf::<T> {
-					entry: journal.entry.clone(),
-					digest: journal.digest,
-					created_at: block_number,
+					entry,
+					digest,
+					message_id: message_id.clone(),
 					space: space_id,
-					creator: author.clone(),
+					creator,
+					entry_type: EntryTypeOf::Credit,
+					reference_id: None,
+					created_at: block_number,
 				},
 			);
-			<TransactionIdentifiers<T>>::insert(
-				&journal.entry.tid,
-				&journal.entry.rating_type,
-				&journal.entry.entity,
+
+			<MessageIdentifiers<T>>::insert(message_id, provider, &identifier);
+
+			Self::deposit_event(Event::RatingEntryAdded { identifier, entity });
+
+			Ok(())
+		}
+
+		/// Amends an existing rating entry by creating a debit entry linked to
+		/// the original.
+		///
+		/// This function facilitates the amendment of a previously submitted
+		/// rating. It creates a debit entry referencing the original rating
+		/// entry. This function is typically used to correct or revoke a
+		/// rating.
+		///
+		/// # Arguments
+		/// * `origin` - The origin of the call, usually a signed user.
+		/// * `entry_identifier` - The identifier of the rating entry to be
+		///   amended.
+		/// * `message_id` - A new message identifier for the amendment.
+		/// * `digest` - A hash representing the amendment, used for
+		///   identification and integrity purposes.
+		/// * `authorization` - An identifier for authorization, validating the
+		///   origin's permission to amend the rating.
+		///
+		/// # Errors
+		/// Returns `Error::<T>::RatingIdentifierNotFound` if the original
+		/// rating entry is not found.
+		/// Returns `Error::<T>::UnauthorizedOperation` if the origin does not
+		/// have the authority to amend the rating.
+		/// Returns `Error::<T>::MessageIdAlreadyExists` if the new message
+		/// identifier is already in use.
+		/// Returns `Error::<T>::InvalidIdentifierLength` if the generated
+		/// identifier for the amendment is of invalid length.
+		/// Returns `Error::<T>::RatingIdentifierAlreadyAdded` if the amendment
+		/// identifier is already in use.
+		///
+		/// # Events
+		/// Emits `RatingEntryRevoked` when a rating entry is successfully
+		/// amended.
+		///
+		/// # Example
+		/// ```
+		/// amend_rating(origin, entry_identifier, message_id, digest, authorization)?;
+		/// ```
+		#[pallet::call_index(1)]
+		#[pallet::weight({0})]
+		pub fn amend_rating(
+			origin: OriginFor<T>,
+			entry_identifier: RatingEntryIdOf,
+			message_id: MessageIdentifierOf<T>,
+			digest: RatingEntryHashOf<T>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&creator,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			let rating_details = <RatingEntries<T>>::get(&entry_identifier)
+				.ok_or(Error::<T>::RatingIdentifierNotFound)?;
+
+			ensure!(rating_details.space == space_id, Error::<T>::UnauthorizedOperation);
+
+			ensure!(
+				!<MessageIdentifiers<T>>::contains_key(
+					&message_id,
+					&rating_details.entry.provider_uid
+				),
+				Error::<T>::MessageIdAlreadyExists
 			);
 
-			Self::deposit_event(Event::JournalEntry {
-				identifier,
-				entity: journal.entry.entity.clone(),
-				author,
-			});
+			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>)
+			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[
+					&digest.encode()[..],
+					&message_id.encode()[..],
+					&space_id.encode()[..],
+					&creator.encode()[..],
+				]
+				.concat()[..],
+			);
+
+			let identifier = Ss58Identifier::to_scoring_id(&(id_digest).encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+			ensure!(
+				!<RatingEntries<T>>::contains_key(&identifier),
+				Error::<T>::RatingIdentifierAlreadyAdded
+			);
+
+			let block_number = frame_system::Pallet::<T>::block_number();
+
+			Self::aggregate_score(&rating_details.entry, EntryTypeOf::Debit)?;
+
+			let entity = rating_details.entry.entity_uid.clone();
+			let provider = rating_details.entry.provider_uid.clone();
+
+			<RatingEntries<T>>::insert(
+				&identifier,
+				RatingEntryOf::<T> {
+					creator,
+
+					entry_type: EntryTypeOf::Debit,
+					reference_id: Some(entry_identifier),
+					created_at: block_number,
+					..rating_details
+				},
+			);
+
+			<MessageIdentifiers<T>>::insert(&message_id, provider, &identifier);
+
+			Self::deposit_event(Event::RatingEntryRevoked { identifier, entity });
+
+			Ok(())
+		}
+
+		/// Revises an existing rating by creating a new credit entry linked to
+		/// the original.
+		///
+		/// This function allows for the modification of a previously submitted
+		/// rating. It creates a new credit entry which is linked to the
+		/// original rating (referred to by `amend_ref_id`). This function is
+		/// used for correcting or updating an existing rating.
+		///
+		/// # Arguments
+		/// * `origin` - The origin of the call, usually a signed user.
+		/// * `entry` - The new rating entry with updated details.
+		/// * `digest` - A hash representing the revised rating, used for
+		///   identification and integrity.
+		/// * `message_id` - A new message identifier for the revised rating.
+		/// * `amend_ref_id` - The identifier of the original rating entry that
+		///   is being revised.
+		/// * `authorization` - An identifier for authorization, validating the
+		///   origin's permission to revise the rating.
+		///
+		/// # Errors
+		/// Returns `Error::<T>::InvalidRatingValue` if the new rating value is
+		/// not within the expected range.
+		/// Returns `Error::<T>::InvalidEntryOrRatingType` if the entry type or
+		/// rating type of the new rating is invalid.
+		/// Returns `Error::<T>::ReferenceIdentifierNotFound` if the original
+		/// rating reference identifier is not found.
+		/// Returns `Error::<T>::EntityMismatch` if the entity UID of the new
+		/// rating does not match the original.
+		/// Returns `Error::<T>::SpaceMismatch` if the space ID does not match
+		/// the original. Returns `Error::<T>::ReferenceNotAmendIdentifier` if
+		/// the original entry is not a debit entry.
+		/// Returns `Error::<T>::MessageIdAlreadyExists` if the new message
+		/// identifier is already in use.
+		/// Returns `Error::<T>::InvalidIdentifierLength` if the generated
+		/// identifier for the revision is of invalid length.
+		/// Returns `Error::<T>::RatingIdentifierAlreadyAdded` if the revised
+		/// rating identifier is already in use.
+		///
+		/// # Events
+		/// Emits `RatingEntryRevoked` when an existing rating entry is
+		/// successfully revised.
+		///
+		/// # Example
+		/// ```
+		/// revise_rating(origin, entry, digest, message_id, amend_ref_id, authorization)?;
+		/// ```
+		#[pallet::call_index(2)]
+		#[pallet::weight({0})]
+		pub fn revise_rating(
+			origin: OriginFor<T>,
+			entry: RatingInputEntryOf<T>,
+			digest: RatingEntryHashOf<T>,
+			message_id: MessageIdentifierOf<T>,
+			amend_ref_id: RatingEntryIdOf,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&creator,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			ensure!(
+				entry.total_rating > 0 &&
+					entry.count_of_txn > 0 &&
+					entry.total_rating <= entry.count_of_txn * T::MaxRatingValue::get() as u64,
+				Error::<T>::InvalidRatingValue
+			);
+
+			ensure!(
+				entry.entity_type.is_valid_entity_type() &&
+					entry.rating_type.is_valid_rating_type(),
+				Error::<T>::InvalidEntryOrRatingType
+			);
+
+			let rating_details = <RatingEntries<T>>::get(&amend_ref_id)
+				.ok_or(Error::<T>::ReferenceIdentifierNotFound)?;
+
+			let input_entity_uid = &entry.entity_uid;
+			let stored_entity_uid = &rating_details.entry.entity_uid;
+			ensure!(input_entity_uid == stored_entity_uid, Error::<T>::EntityMismatch);
+
+			let ref_space_id = &space_id;
+			let stored_space_id = &rating_details.space;
+			ensure!(ref_space_id == stored_space_id, Error::<T>::SpaceMismatch);
+
+			let stored_entry_type: EntryTypeOf = rating_details.entry_type;
+			ensure!(
+				EntryTypeOf::Debit == stored_entry_type,
+				Error::<T>::ReferenceNotAmendIdentifier
+			);
+
+			ensure!(
+				!<MessageIdentifiers<T>>::contains_key(
+					&message_id,
+					&rating_details.entry.provider_uid
+				),
+				Error::<T>::MessageIdAlreadyExists
+			);
+
+			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>)
+			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[
+					&digest.encode()[..],
+					&message_id.encode()[..],
+					&space_id.encode()[..],
+					&creator.encode()[..],
+				]
+				.concat()[..],
+			);
+
+			let identifier = Ss58Identifier::to_scoring_id(&(id_digest).encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+			ensure!(
+				!<RatingEntries<T>>::contains_key(&identifier),
+				Error::<T>::RatingIdentifierAlreadyAdded
+			);
+
+			let block_number = frame_system::Pallet::<T>::block_number();
+
+			Self::aggregate_score(&rating_details.entry, EntryTypeOf::Debit)?;
+			let entity = rating_details.entry.entity_uid.clone();
+			let provider = rating_details.entry.provider_uid.clone();
+
+			<RatingEntries<T>>::insert(
+				&identifier,
+				RatingEntryOf::<T> {
+					entry,
+					digest,
+					space: space_id,
+					message_id: message_id.clone(),
+					creator,
+					entry_type: EntryTypeOf::Credit,
+					reference_id: rating_details.reference_id,
+					created_at: block_number,
+				},
+			);
+
+			<MessageIdentifiers<T>>::insert(message_id, provider, &identifier);
+
+			Self::deposit_event(Event::RatingEntryRevoked { identifier, entity });
 
 			Ok(())
 		}
@@ -292,31 +675,71 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn aggregate_score(entry: &RatingDetailsOf<T>) -> Result<(), pallet::Error<T>> {
-		ensure!(entry.count > 0, Error::<T>::CountCannotBeZero);
-		ensure!(entry.rating > 0, Error::<T>::RatingCannotBeZero);
-
-		if let Some(mut aggregate) = <Scores<T>>::get(&entry.entity, &entry.rating_type) {
-			match entry.entry_type {
-				RatingEntryType::Credit => {
-					aggregate.count = aggregate.count.saturating_add(entry.count);
-					aggregate.rating = aggregate.rating.saturating_add(entry.rating);
+	/// Updated the Score Aggregates of an entity.
+	///
+	/// This function updates the aggregate score of an entity based on the new
+	/// rating entry. It adjusts the total rating and count of transactions
+	/// either by adding (in case of a credit entry) or subtracting (in case of
+	/// a debit entry) the values from the new rating entry.
+	///
+	/// # Arguments
+	/// * `entry` - A reference to the rating input entry which contains the
+	///   rating details.
+	/// * `rtype` - The type of the rating entry, either `Credit` or `Debit`,
+	///   indicating how the aggregate score should be adjusted.
+	///
+	/// # Returns
+	/// Returns `Ok(())` if the operation is successful, or an appropriate error
+	/// if it fails.
+	///
+	/// # Errors
+	/// This function returns an error if there are issues with updating the
+	/// aggregate scores in storage.
+	///
+	/// # Events
+	/// Emits an `AggregateScoreUpdated` event upon successful update.
+	///
+	/// # Example
+	/// ```
+	/// aggregate_score(&entry, EntryTypeOf::Credit)?;
+	/// ```
+	pub fn aggregate_score(
+		entry: &RatingInputEntryOf<T>,
+		rtype: EntryTypeOf,
+	) -> Result<(), pallet::Error<T>> {
+		if let Some(mut aggregate) =
+			<AggregateScores<T>>::get(&entry.entity_uid, &entry.rating_type)
+		{
+			match rtype {
+				EntryTypeOf::Credit => {
+					aggregate.count_of_txn =
+						aggregate.count_of_txn.saturating_add(entry.count_of_txn);
+					aggregate.total_rating =
+						aggregate.total_rating.saturating_add(entry.total_rating);
 				},
-				RatingEntryType::Debit => {
-					aggregate.count = aggregate.count.saturating_sub(entry.count);
-					aggregate.rating = aggregate.rating.saturating_sub(entry.rating);
+				EntryTypeOf::Debit => {
+					aggregate.count_of_txn =
+						aggregate.count_of_txn.saturating_sub(entry.count_of_txn);
+					aggregate.total_rating =
+						aggregate.total_rating.saturating_sub(entry.total_rating);
 				},
 			};
-			<Scores<T>>::insert(
-				&entry.entity,
+			<AggregateScores<T>>::insert(
+				&entry.entity_uid,
 				&entry.rating_type,
-				ScoreEntryOf { count: aggregate.count, rating: aggregate.rating },
+				AggregatedEntryOf {
+					count_of_txn: aggregate.count_of_txn,
+					total_rating: aggregate.total_rating,
+				},
 			);
 		} else {
-			let new_score_entry = ScoreEntryOf { count: entry.count, rating: entry.rating };
-			<Scores<T>>::insert(&entry.entity, &entry.rating_type, new_score_entry);
+			let new_score_entry = AggregatedEntryOf {
+				count_of_txn: entry.count_of_txn,
+				total_rating: entry.total_rating,
+			};
+			<AggregateScores<T>>::insert(&entry.entity_uid, &entry.rating_type, new_score_entry);
 		}
-		Self::deposit_event(Event::AggregateUpdated { entity: entry.entity.clone() });
+		Self::deposit_event(Event::AggregateScoreUpdated { entity: entry.entity_uid.clone() });
 		Ok(())
 	}
 }
