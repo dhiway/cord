@@ -6,6 +6,7 @@ use cord_primitives::curi::Ss58Identifier;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash};
+use frame_system::RawOrigin;
 use pallet_chain_space::{Authorizations, Permissions, SpaceAuthorizationOf, SpaceCodeOf};
 use pallet_schema::SchemaHashOf;
 use sp_std::convert::TryFrom;
@@ -40,7 +41,7 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 benchmarks! {
 	where_clause {
 		where
-		<T as Config>::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::RegistryCreatorId>,
+		<T as Config>::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::SpaceCreatorId>,
 		}
 	register {
 
@@ -55,7 +56,7 @@ benchmarks! {
 		let raw_space = [56u8; 256].to_vec();
 		let space_digest = <T as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
 		let space_id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+			&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 	);
 
 		let space_id: SpaceIdOf = generate_space_id::<T>(&space_id_digest);
@@ -67,7 +68,7 @@ benchmarks! {
 		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did_1.encode()[..], &did_0.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did_1.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
@@ -79,17 +80,18 @@ benchmarks! {
 
 
 		Pallet::<T>::create(origin, space_digest )?;
-		Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
+		Pallet::<T>::approve(chain_space_origin, space_id, 100).expect("Approval should not fail.");
 
-		<Authorizations<T>>::insert(
-			&authorization_id,
-			RegistryAuthorizationOf::<T> {
-				space_id,
-				delegate: did.clone(),
-				schema: None,
-				permissions: Permissions::all(),
-			},
-		);
+		// TODO
+		// <Authorizations<T>>::insert(
+		// 	&authorization_id,
+		// 	SpaceAuthorizationOf::<T> {
+		// 		space_id,
+		// 		delegate: did.clone(),
+		// 		schema: None,
+		// 		permissions: Permissions::all(),
+		// 	},
+		// );
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
@@ -111,8 +113,8 @@ benchmarks! {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let did: T::RegistryCreatorId = account("did", 0, SEED);
-		let did1: T::RegistryCreatorId = account("did1", 0, SEED);
+		let did: T::SpaceCreatorId = account("did", 0, SEED);
+		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
 
 		let statement0 = [77u8; 32].to_vec();
 		let statement1 = [87u8; 32].to_vec();
@@ -124,16 +126,16 @@ benchmarks! {
 
 		let raw_registry = [56u8; 256].to_vec();
 
-		let registry: InputRegistryOf<T> = BoundedVec::try_from(raw_registry).unwrap();
+		let space: <T> = BoundedVec::try_from(raw_registry).unwrap();
 
-		let id_digest = <T as frame_system::Config>::Hashing::hash(
-		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
+		let space_digest = <T as frame_system::Config>::Hashing::hash(
+		&[&space.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let space_id: RegistryIdOf = generate_space_id::<T>(&id_digest);
+		let space_id: SpaceIdOf = generate_space_id::<T>(&space_digest);
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]]
+			&[&statement_digest0.encode()[..], &space_id.encode()[..], &did.encode()[..]]
 				.concat()[..],
 		);
 
@@ -146,15 +148,16 @@ benchmarks! {
 		let authorization_id: Ss58Identifier =
 		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
-		<Authorizations<T>>::insert(
-			&authorization_id,
-			RegistryAuthorizationOf::<T> {
-				space_id,
-				delegate: did.clone(),
-				schema: None,
-				permissions: Permissions::all(),
-			},
-		);
+		//TODO
+		// <Authorizations<T>>::insert(
+		// 	&authorization_id,
+		// 	SpaceAuthorizationOf::<T> {
+		// 		space_id,
+		// 		delegate: did.clone(),
+		// 		schema: None,
+		// 		permissions: Permissions::all(),
+		// 	},
+		// );
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
@@ -176,19 +179,19 @@ benchmarks! {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let did: T::RegistryCreatorId = account("did", 0, SEED);
-		let did1: T::RegistryCreatorId = account("did1", 0, SEED);
+		let did: T::SpaceCreatorId = account("did", 0, SEED);
+		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
 
 
 		let raw_registry = [56u8; 256].to_vec();
 
-		let registry: InputRegistryOf<T> = BoundedVec::try_from(raw_registry).unwrap();
+		let registry: <T> = BoundedVec::try_from(raw_registry).unwrap();
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
 		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let space_id: RegistryIdOf = generate_space_id::<T>(&id_digest);
+		let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 		let statement = [77u8; 32].to_vec();
 
@@ -216,7 +219,7 @@ benchmarks! {
 
 		<Authorizations<T>>::insert(
 			&authorization_id,
-			RegistryAuthorizationOf::<T> {
+			SpaceAuthorizationOf::<T> {
 				space_id: space_id.clone(),
 				delegate: did1,
 				schema: None,
@@ -254,19 +257,19 @@ benchmarks! {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let did: T::RegistryCreatorId = account("did", 0, SEED);
-		let did1: T::RegistryCreatorId = account("did1", 0, SEED);
+		let did: T::SpaceCreatorId = account("did", 0, SEED);
+		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
 
 
 		let raw_registry = [56u8; 256].to_vec();
 
-		let registry: InputRegistryOf<T> = BoundedVec::try_from(raw_registry).unwrap();
+		let registry: <T> = BoundedVec::try_from(raw_registry).unwrap();
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
 		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let space_id: RegistryIdOf = generate_space_id::<T>(&id_digest);
+		let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 		let statement = [77u8; 32].to_vec();
 
@@ -294,7 +297,7 @@ benchmarks! {
 
 		<Authorizations<T>>::insert(
 			&authorization_id,
-			RegistryAuthorizationOf::<T> {
+			SpaceAuthorizationOf::<T> {
 				space_id: space_id.clone(),
 				delegate: did1,
 				schema: None,
@@ -329,19 +332,19 @@ benchmarks! {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let did: T::RegistryCreatorId = account("did", 0, SEED);
-		let did1: T::RegistryCreatorId = account("did1", 0, SEED);
+		let did: T::SpaceCreatorId = account("did", 0, SEED);
+		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
 
 
 		let raw_registry = [56u8; 256].to_vec();
 
-		let registry: InputRegistryOf<T> = BoundedVec::try_from(raw_registry).unwrap();
+		let registry: <T> = BoundedVec::try_from(raw_registry).unwrap();
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
 		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let space_id: RegistryIdOf = generate_space_id::<T>(&id_digest);
+		let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 		let statement = [77u8; 32].to_vec();
 
@@ -369,7 +372,7 @@ benchmarks! {
 
 		<Authorizations<T>>::insert(
 			&authorization_id,
-			RegistryAuthorizationOf::<T> {
+			SpaceAuthorizationOf::<T> {
 				space_id: space_id.clone(),
 				delegate: did1,
 				schema: None,
@@ -392,7 +395,7 @@ benchmarks! {
 			did.clone(),
 		);
 
-	<RevocationRegistry<T>>::insert(
+	<RevocationList<T>>::insert(
 			&statement_id,
 			&statement_digest,
 			StatementEntryStatusOf::<T> {
@@ -418,19 +421,19 @@ benchmarks! {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let did: T::RegistryCreatorId = account("did", 0, SEED);
-		let did1: T::RegistryCreatorId = account("did1", 0, SEED);
+		let did: T::SpaceCreatorId = account("did", 0, SEED);
+		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
 
 
 		let raw_registry = [56u8; 256].to_vec();
 
-		let registry: InputRegistryOf<T> = BoundedVec::try_from(raw_registry).unwrap();
+		let registry: <T> = BoundedVec::try_from(raw_registry).unwrap();
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
 		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let space_id: RegistryIdOf = generate_space_id::<T>(&id_digest);
+		let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 		let statement = [77u8; 32].to_vec();
 
@@ -458,7 +461,7 @@ benchmarks! {
 
 		<Authorizations<T>>::insert(
 			&authorization_id,
-			RegistryAuthorizationOf::<T> {
+			SpaceAuthorizationOf::<T> {
 				space_id: space_id.clone(),
 				delegate: did1,
 				schema: None,
@@ -466,14 +469,15 @@ benchmarks! {
 			},
 		);
 
-		<Statements<T>>::insert(
-			&statement_id,
-			StatementEntryOf::<T> {
-				digest: statement_digest,
-				schema: None,
-				registry: space_id,
-			},
-		);
+		//TODO
+		// <Statements<T>>::insert(
+		// 	&statement_id,
+		// 	StatementEntryOf::<T> {
+		// 		digest: statement_digest,
+		// 		schema: None,
+		// 		registry: space_id,
+		// 	},
+		// );
 
 		// The operation which is expected in method is clear_prefix, but that gives
 		// error. Better to setup weights on insert check only for now
@@ -497,19 +501,19 @@ benchmarks! {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let did: T::RegistryCreatorId = account("did", 0, SEED);
-		let did1: T::RegistryCreatorId = account("did1", 0, SEED);
+		let did: T::SpaceCreatorId = account("did", 0, SEED);
+		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
 
 
 		let raw_registry = [56u8; 256].to_vec();
 
-		let registry: InputRegistryOf<T> = BoundedVec::try_from(raw_registry).unwrap();
+		let registry: <T> = BoundedVec::try_from(raw_registry).unwrap();
 
 		let id_digest = <T as frame_system::Config>::Hashing::hash(
 		&[&registry.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let space_id: RegistryIdOf = generate_space_id::<T>(&id_digest);
+		let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 		let statement = [77u8; 32].to_vec();
 
@@ -538,7 +542,7 @@ benchmarks! {
 
 		<Authorizations<T>>::insert(
 			&authorization_id,
-			RegistryAuthorizationOf::<T> {
+			SpaceAuthorizationOf::<T> {
 				registry_id: registry_id.clone(),
 				delegate: did1,
 				schema: None,
@@ -546,14 +550,15 @@ benchmarks! {
 			},
 		);
 
-		<Statements<T>>::insert(
-			&statement_id,
-			StatementEntryOf::<T> {
-				digest: statement_digest,
-				schema: None,
-				registry: registry_id,
-			},
-		);
+		//TODO
+		// <Statements<T>>::insert(
+		// 	&statement_id,
+		// 	StatementEntryOf::<T> {
+		// 		digest: statement_digest,
+		// 		schema: None,
+		// 		registry: registry_id,
+		// 	},
+		// );
 
 		<Attestations<T>>::insert(
 			&statement_id,
