@@ -18,14 +18,14 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+use crate as pallet_did;
 use codec::{Decode, Encode};
+use cord_utilities::mock::*;
 use frame_support::{
 	parameter_types,
 	traits::{ConstU32, ConstU64},
-	BoundedVec,
 };
-#[cfg(feature = "runtime-benchmarks")]
-use frame_system::EnsureSigned;
+use frame_system::EnsureRoot;
 use scale_info::TypeInfo;
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{
@@ -33,10 +33,11 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
 	BuildStorage, MultiSignature, MultiSigner,
 };
-use sp_std::vec::Vec;
+
+#[cfg(feature = "runtime-benchmarks")]
+use frame_system::EnsureSigned;
 
 use crate::{
-	self as did,
 	did_details::{
 		DeriveDidCallAuthorizationVerificationKeyRelationship, DeriveDidCallKeyRelationshipResult,
 		DidAuthorizedCallOperation, DidAuthorizedCallOperationWithVerificationRelationship,
@@ -58,9 +59,11 @@ pub(crate) type DidIdentifier = AccountId;
 frame_support::construct_runtime!(
 	pub enum Test
 	{
-		Did: did,
-		Schema: pallet_schema,
+		Did: pallet_did,
 		System: frame_system,
+		Space: pallet_chain_space,
+		Identifier: identifier,
+		MockOrigin: mock_origin,
 	}
 );
 
@@ -140,25 +143,33 @@ impl Config for Test {
 	type MaxNumberOfUrlsPerService = MaxNumberOfUrlsPerService;
 }
 
-parameter_types! {
-	pub const MaxEncodedSchemaLength: u32 = 102_400;
+impl mock_origin::Config for Test {
+	type RuntimeOrigin = RuntimeOrigin;
+	type AccountId = AccountId;
+	type SubjectId = SubjectId;
 }
 
-impl pallet_schema::Config for Test {
-	#[cfg(feature = "runtime-benchmarks")]
-	type EnsureOrigin = EnsureSigned<DidIdentifier>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type OriginSuccess = AccountId;
+parameter_types! {
+	#[derive(Debug, Clone)]
+	pub const MaxSpaceDelegates: u32 = 5u32;
+}
 
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type EnsureOrigin = EnsureDidOrigin<DidIdentifier, AccountId>;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type OriginSuccess = DidRawOrigin<AccountId, DidIdentifier>;
-
-	type SchemaCreatorId = DidIdentifier;
+impl pallet_chain_space::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
+	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
+	type SpaceCreatorId = SubjectId;
+	type MaxSpaceDelegates = MaxSpaceDelegates;
+	type ChainSpaceOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
-	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
+}
+
+parameter_types! {
+	pub const MaxEventsHistory: u32 = 6u32;
+}
+
+impl identifier::Config for Test {
+	type MaxEventsHistory = MaxEventsHistory;
 }
 
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
@@ -250,37 +261,35 @@ pub fn generate_key_id(key: &DidPublicKey<AccountId>) -> KeyIdOf<Test> {
 	crate_utils::calculate_key_id::<Test>(key)
 }
 
-pub(crate) fn get_assertion_key_test_input() -> Vec<u8> {
-	[0u8; 32].to_vec()
+pub(crate) fn get_assertion_key_test_input() -> H256 {
+	H256::try_from([1u8; 32]).unwrap()
 }
 pub(crate) fn get_assertion_key_call() -> RuntimeCall {
-	RuntimeCall::Schema(pallet_schema::Call::create {
-		tx_schema: BoundedVec::try_from(get_assertion_key_test_input()).unwrap(),
+	RuntimeCall::Space(pallet_chain_space::Call::create {
+		space_code: get_assertion_key_test_input(),
 	})
 }
-pub(crate) fn get_authentication_key_test_input() -> Vec<u8> {
-	[1u8; 32].to_vec()
+pub(crate) fn get_authentication_key_test_input() -> H256 {
+	H256::try_from([1u8; 32]).unwrap()
 }
 pub(crate) fn get_authentication_key_call() -> RuntimeCall {
-	RuntimeCall::Schema(pallet_schema::Call::create {
-		tx_schema: BoundedVec::try_from(get_authentication_key_test_input()).unwrap(),
+	RuntimeCall::Space(pallet_chain_space::Call::create {
+		space_code: get_authentication_key_test_input(),
 	})
 }
-pub(crate) fn get_delegation_key_test_input() -> Vec<u8> {
-	[2u8; 32].to_vec()
+pub(crate) fn get_delegation_key_test_input() -> H256 {
+	H256::try_from([1u8; 32]).unwrap()
 }
 pub(crate) fn get_delegation_key_call() -> RuntimeCall {
-	RuntimeCall::Schema(pallet_schema::Call::create {
-		tx_schema: BoundedVec::try_from(get_delegation_key_test_input()).unwrap(),
+	RuntimeCall::Space(pallet_chain_space::Call::create {
+		space_code: get_delegation_key_test_input(),
 	})
 }
-pub(crate) fn get_none_key_test_input() -> Vec<u8> {
-	[3u8; 32].to_vec()
+pub(crate) fn get_none_key_test_input() -> H256 {
+	H256::try_from([1u8; 32]).unwrap()
 }
 pub(crate) fn get_none_key_call() -> RuntimeCall {
-	RuntimeCall::Schema(pallet_schema::Call::create {
-		tx_schema: BoundedVec::try_from(get_none_key_test_input()).unwrap(),
-	})
+	RuntimeCall::Space(pallet_chain_space::Call::create { space_code: get_none_key_test_input() })
 }
 
 #[cfg(not(feature = "runtime-benchmarks"))]
