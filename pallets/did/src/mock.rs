@@ -270,7 +270,7 @@ pub(crate) fn get_assertion_key_call() -> RuntimeCall {
 	})
 }
 pub(crate) fn get_authentication_key_test_input() -> H256 {
-	H256::try_from([1u8; 32]).unwrap()
+	H256::try_from([2u8; 32]).unwrap()
 }
 pub(crate) fn get_authentication_key_call() -> RuntimeCall {
 	RuntimeCall::Space(pallet_chain_space::Call::create {
@@ -278,7 +278,7 @@ pub(crate) fn get_authentication_key_call() -> RuntimeCall {
 	})
 }
 pub(crate) fn get_delegation_key_test_input() -> H256 {
-	H256::try_from([1u8; 32]).unwrap()
+	H256::try_from([3u8; 32]).unwrap()
 }
 pub(crate) fn get_delegation_key_call() -> RuntimeCall {
 	RuntimeCall::Space(pallet_chain_space::Call::create {
@@ -286,7 +286,7 @@ pub(crate) fn get_delegation_key_call() -> RuntimeCall {
 	})
 }
 pub(crate) fn get_none_key_test_input() -> H256 {
-	H256::try_from([1u8; 32]).unwrap()
+	H256::try_from([4u8; 32]).unwrap()
 }
 pub(crate) fn get_none_key_call() -> RuntimeCall {
 	RuntimeCall::Space(pallet_chain_space::Call::create { space_code: get_none_key_test_input() })
