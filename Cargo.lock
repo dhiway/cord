@@ -5861,6 +5861,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-asset"
+version = "0.9.0"
+dependencies = [
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-chain-space",
+ "pallet-schema",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "pallet-authority-discovery"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.3.0#401f8a3e9448db854f5605b679fa085b8f445039"
