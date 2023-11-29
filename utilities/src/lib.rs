@@ -23,8 +23,7 @@
 pub mod deposit;
 pub use deposit::{free_deposit, reserve_deposit};
 
-/* DEBUG: uncommenting below fails pallet-did's clippy run */
-//#[cfg(any(feature = "runtime-benchmarks", feature = "mock"))]
+#[cfg(any(feature = "runtime-benchmarks", feature = "mock"))]
 pub mod mock;
 pub mod signature;
 pub mod traits;
