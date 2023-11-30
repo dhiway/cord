@@ -46,7 +46,7 @@ use frame_support::{
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot,
+	EnsureRoot, EnsureSigned,
 };
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 
@@ -833,6 +833,20 @@ impl pallet_score::Config for Runtime {
 	type WeightInfo = weights::pallet_score::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const MaxEncodedValueLength: u32 = 1_024;
+	pub const MaxAssetDistribution: u32 = u32::MAX;
+}
+
+impl pallet_asset::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Signature = Signature;
+	type Signer = <Signature as Verify>::Signer;
+	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type MaxEncodedValueLength = MaxEncodedValueLength;
+	type MaxAssetDistribution = MaxAssetDistribution;
+}
+
 construct_runtime! (
 	pub struct Runtime
 	{
@@ -870,6 +884,7 @@ construct_runtime! (
 		Statement: pallet_statement = 105,
 		DidName: pallet_did_name = 106,
 		Score: pallet_score = 108,
+		Asset: pallet_asset =109,
 		Sudo: pallet_sudo = 255,
 	}
 );

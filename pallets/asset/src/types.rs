@@ -126,11 +126,11 @@ pub struct AssetIssuanceEntry<AssetIdOf, AccountId> {
 #[derive(
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
-pub struct AssetTransferEntry<AssetIdOf, Hash, AccountId> {
+pub struct AssetTransferEntry<AssetIdOf, AssetInstanceIdOf, AccountId> {
 	/// type of the asset
 	pub asset_id: AssetIdOf,
 	/// asset instance identifier
-	pub asset_instance_id: Hash,
+	pub asset_instance_id: AssetInstanceIdOf,
 	/// asset owner
 	pub new_asset_owner: AccountId,
 }

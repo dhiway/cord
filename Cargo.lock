@@ -1768,6 +1768,7 @@ dependencies = [
  "hex-literal 0.4.1",
  "log",
  "network-membership",
+ "pallet-asset",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -5864,6 +5865,7 @@ dependencies = [
 name = "pallet-asset"
 version = "0.9.0"
 dependencies = [
+ "cord-identifier",
  "cord-primitives",
  "cord-utilities",
  "frame-benchmarking",

@@ -23,6 +23,11 @@ pub mod types;
 
 pub use crate::{pallet::*, types::*};
 use frame_support::{ensure, traits::Get};
+use identifier::{
+	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
+	EventEntryOf,
+};
+use sp_runtime::traits::UniqueSaturatedInto;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -36,8 +41,11 @@ pub mod pallet {
 	};
 	use sp_std::{prelude::Clone, str};
 
-	///SS58 Rating Identifier
+	///SS58 Asset Identifier
 	pub type AssetIdOf = Ss58Identifier;
+
+	///SS58 Asset Identifier
+	pub type AssetInstanceIdOf = Ss58Identifier;
 
 	/// Type of an account identifier.
 	pub type CordAccountIdOf<T> = <T as frame_system::Config>::AccountId;
@@ -77,12 +85,12 @@ pub mod pallet {
 	>;
 
 	pub type AssetTransferEntryOf<T> =
-		AssetTransferEntry<AssetIdOf, EntryHashOf<T>, CordAccountIdOf<T>>;
+		AssetTransferEntry<AssetIdOf, AssetInstanceIdOf, CordAccountIdOf<T>>;
 
 	pub type AssetIssuanceEntryOf<T> = AssetIssuanceEntry<AssetIdOf, CordAccountIdOf<T>>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + identifier::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
@@ -119,7 +127,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		AssetIdOf,
-		BoundedVec<EntryHashOf<T>, T::MaxAssetDistribution>,
+		BoundedVec<AssetInstanceIdOf, T::MaxAssetDistribution>,
 		OptionQuery,
 	>;
 
@@ -131,7 +139,7 @@ pub mod pallet {
 		Twox64Concat,
 		AssetIdOf,
 		Blake2_128Concat,
-		EntryHashOf<T>,
+		AssetInstanceIdOf,
 		AssetDistributionEntryOf<T>,
 		OptionQuery,
 	>;
@@ -149,13 +157,13 @@ pub mod pallet {
 		Create { identifier: AssetIdOf, issuer: CordAccountIdOf<T> },
 		/// A new asset entry has been added.
 		/// \[asset entry identifier, instance identifier\]
-		Issue { identifier: AssetIdOf, instance: EntryHashOf<T> },
+		Issue { identifier: AssetIdOf, instance: AssetInstanceIdOf },
 		/// A asset has been transfered.
 		/// \[asset entry identifier, instance identifier, owner, beneficiary,
 		/// \]
 		Transfer {
 			identifier: AssetIdOf,
-			instance: EntryHashOf<T>,
+			instance: AssetInstanceIdOf,
 			from: CordAccountIdOf<T>,
 			to: CordAccountIdOf<T>,
 		},
@@ -235,6 +243,7 @@ pub mod pallet {
 				},
 			);
 
+			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
 			Self::deposit_event(Event::Create { identifier, issuer });
 
 			Ok(())
@@ -280,18 +289,22 @@ pub mod pallet {
 				Error::<T>::InvalidSignature
 			);
 
+			let instance_id = Ss58Identifier::to_asset_id(&(digest).encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
 			let block_number = frame_system::Pallet::<T>::block_number();
 
 			Distribution::<T>::try_mutate(&entry.asset_id, |dist_option| {
 				let dist = dist_option.get_or_insert_with(BoundedVec::default);
-				dist.try_push(digest).map_err(|_| Error::<T>::DistributionLimitExceeded)
+				dist.try_push(instance_id.clone())
+					.map_err(|_| Error::<T>::DistributionLimitExceeded)
 			})?;
 
 			<AssetLookup<T>>::insert(&digest, &entry.asset_id.clone());
 
 			<Issuance<T>>::insert(
 				&entry.asset_id,
-				&digest,
+				&instance_id,
 				AssetDistributionEntryOf::<T> {
 					asset_instance_detail: asset.asset_detail,
 					asset_instance_parent: entry.asset_id.clone(),
@@ -302,7 +315,8 @@ pub mod pallet {
 				},
 			);
 
-			Self::deposit_event(Event::Issue { identifier: entry.asset_id, instance: digest });
+			Self::update_activity(&instance_id, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
+			Self::deposit_event(Event::Issue { identifier: entry.asset_id, instance: instance_id });
 
 			Ok(())
 		}
@@ -316,7 +330,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let instance = <Issuance<T>>::get(&entry.asset_id, entry.asset_instance_id)
+			let instance = <Issuance<T>>::get(&entry.asset_id, &entry.asset_instance_id)
 				.ok_or(Error::<T>::AssetInstanceNotFound)?;
 
 			ensure!(instance.asset_instance_owner == owner, Error::<T>::UnauthorizedOperation);
@@ -353,6 +367,8 @@ pub mod pallet {
 				},
 			);
 
+			Self::update_activity(&entry.asset_instance_id, CallTypeOf::Transfer)
+				.map_err(<Error<T>>::from)?;
 			Self::deposit_event(Event::Transfer {
 				identifier: entry.asset_id,
 				instance: entry.asset_instance_id,
@@ -370,5 +386,21 @@ impl<T: Config> Pallet<T> {
 		<Distribution<T>>::get(&asset_id)
 			.map(|bounded_vec| bounded_vec.len() as u32)
 			.unwrap_or(0)
+	}
+
+	pub fn update_activity(tx_id: &AssetIdOf, tx_action: CallTypeOf) -> Result<(), Error<T>> {
+		let tx_moment = Self::timepoint();
+
+		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
+		let _ =
+			identifier::Pallet::<T>::update_timeline(tx_id, IdentifierTypeOf::Statement, tx_entry);
+		Ok(())
+	}
+
+	pub fn timepoint() -> Timepoint {
+		Timepoint {
+			height: frame_system::Pallet::<T>::block_number().unique_saturated_into(),
+			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
+		}
 	}
 }
