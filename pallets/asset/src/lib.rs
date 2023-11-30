@@ -394,8 +394,7 @@ impl<T: Config> Pallet<T> {
 		let tx_moment = Self::timepoint();
 
 		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
-		let _ =
-			identifier::Pallet::<T>::update_timeline(tx_id, IdentifierTypeOf::Statement, tx_entry);
+		let _ = identifier::Pallet::<T>::update_timeline(tx_id, IdentifierTypeOf::Asset, tx_entry);
 		Ok(())
 	}
 

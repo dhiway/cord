@@ -820,14 +820,14 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
 }
 
-impl pallet_score::Config for Runtime {
+impl pallet_network_score::Config for Runtime {
 	type RatingCreatorIdOf = DidIdentifier;
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
 	type MaxEncodedValueLength = ConstU32<128>;
 	type MaxRatingValue = ConstU32<50>;
-	type WeightInfo = weights::pallet_score::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_network_score::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -880,7 +880,7 @@ construct_runtime! (
 		ChainSpace: pallet_chain_space = 104,
 		Statement: pallet_statement = 105,
 		DidName: pallet_did_name = 106,
-		Score: pallet_score = 108,
+		NetworkScore: pallet_network_score = 108,
 		Asset: pallet_asset =109,
 		Sudo: pallet_sudo = 255,
 	}
@@ -918,11 +918,11 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::DidName { .. } =>
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
 			RuntimeCall::Schema { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
 			RuntimeCall::Statement { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
-			RuntimeCall::Score { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
+			RuntimeCall::NetworkScore { .. } =>
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
 			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
 			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_admin_delegate { .. }) =>
@@ -932,11 +932,11 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::ChainSpace(pallet_chain_space::Call::remove_delegate { .. }) =>
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
 			RuntimeCall::ChainSpace(pallet_chain_space::Call::create { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
 			RuntimeCall::ChainSpace(pallet_chain_space::Call::archive { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
 			RuntimeCall::ChainSpace(pallet_chain_space::Call::restore { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::AssertionMethod),
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
 			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) =>
 				single_key_relationship(&calls[..]),
 			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) =>
@@ -1028,7 +1028,7 @@ mod benches {
 		[pallet_did, Did]
 		[pallet_did_name, DidName]
 		[pallet_network_membership, NetworkMembership]
-		[pallet_score, Score]
+		[pallet_network_score, NetworkScore]
 		[pallet_sudo, Sudo]
 	);
 }

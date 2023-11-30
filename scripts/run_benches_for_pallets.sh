@@ -68,7 +68,8 @@ PALLETS=(
   "pallet_membership"
   "pallet_collective"
   "pallet_unique"
-  "pallet_score"
+  "pallet_network_score"
+  "pallet_identity"
 )
 
 echo "[+] Benchmarking ${#PALLETS[@]} pallets."
@@ -99,7 +100,7 @@ for PALLET in "${PALLETS[@]}"; do
     FOLDER="schema"
     ;;
   pallet_chain_space)
-    FOLDER="registry"
+    FOLDER="chain_space"
     ;;
   pallet_network_membership)
     FOLDER="network-membership"
@@ -113,11 +114,11 @@ for PALLET in "${PALLETS[@]}"; do
   pallet_collective)
     FOLDER="collective"
     ;;
-  pallet_unique)
-    FOLDER="unique"
+  pallet_identity)
+    FOLDER="identity"
     ;;
-  pallet_score)
-    FOLDER="score"
+  pallet_network_score)
+    FOLDER="network_score"
     ;;
 
   *)

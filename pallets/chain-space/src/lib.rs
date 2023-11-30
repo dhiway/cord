@@ -480,7 +480,11 @@ pub mod pallet {
 
 				Self::decrement_usage(&space_id).map_err(Error::<T>::from)?;
 
-				Self::update_activity(&space_id, CallTypeOf::Deauthorization)?;
+				Self::update_activity(
+					&space_id,
+					IdentifierTypeOf::Auth,
+					CallTypeOf::Deauthorization,
+				)?;
 
 				Self::deposit_event(Event::Deauthorization {
 					space: space_id,
@@ -581,7 +585,8 @@ pub mod pallet {
 				},
 			);
 
-			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
+			Self::update_activity(&identifier, IdentifierTypeOf::ChainSpace, CallTypeOf::Genesis)
+				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Create {
 				space: identifier,
@@ -649,7 +654,8 @@ pub mod pallet {
 				SpaceDetailsOf::<T> { txn_capacity, approved: true, ..space_details },
 			);
 
-			Self::update_activity(&space_id, CallTypeOf::Approved).map_err(Error::<T>::from)?;
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Approved)
+				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Approve { space: space_id });
 
@@ -710,7 +716,8 @@ pub mod pallet {
 
 			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { archive: true, ..space_details });
 
-			Self::update_activity(&space_id, CallTypeOf::Archive).map_err(Error::<T>::from)?;
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Archive)
+				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Archive { space: space_id, authority: creator });
 
@@ -770,7 +777,8 @@ pub mod pallet {
 
 			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { archive: false, ..space_details });
 
-			Self::update_activity(&space_id, CallTypeOf::Restore).map_err(Error::<T>::from)?;
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Restore)
+				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Restore { space: space_id, authority: creator });
 
@@ -825,7 +833,8 @@ pub mod pallet {
 				SpaceDetailsOf::<T> { txn_capacity: new_txn_capacity, ..space_details },
 			);
 
-			Self::update_activity(&space_id, CallTypeOf::Capacity).map_err(Error::<T>::from)?;
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Capacity)
+				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::UpdateCapacity { space: space_id });
 
@@ -871,7 +880,8 @@ pub mod pallet {
 
 			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { txn_count: 0, ..space_details });
 
-			Self::update_activity(&space_id, CallTypeOf::Usage).map_err(Error::<T>::from)?;
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Usage)
+				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::ResetUsage { space: space_id });
 
@@ -916,8 +926,12 @@ pub mod pallet {
 				SpaceDetailsOf::<T> { approved: false, ..space_details },
 			);
 
-			Self::update_activity(&space_id, CallTypeOf::CouncilRevoke)
-				.map_err(Error::<T>::from)?;
+			Self::update_activity(
+				&space_id,
+				IdentifierTypeOf::ChainSpace,
+				CallTypeOf::CouncilRevoke,
+			)
+			.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::ApprovalRevoke { space: space_id });
 
@@ -935,8 +949,12 @@ pub mod pallet {
 
 			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { approved: true, ..space_details });
 
-			Self::update_activity(&space_id, CallTypeOf::CouncilRestore)
-				.map_err(Error::<T>::from)?;
+			Self::update_activity(
+				&space_id,
+				IdentifierTypeOf::ChainSpace,
+				CallTypeOf::CouncilRestore,
+			)
+			.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::ApprovalRestore { space: space_id });
 
@@ -989,7 +1007,8 @@ impl<T: Config> Pallet<T> {
 			},
 		);
 
-		Self::update_activity(&space_id, CallTypeOf::Authorization).map_err(Error::<T>::from)?;
+		Self::update_activity(&space_id, IdentifierTypeOf::Auth, CallTypeOf::Authorization)
+			.map_err(Error::<T>::from)?;
 
 		Self::deposit_event(Event::Authorization {
 			space: space_id,
@@ -1276,12 +1295,15 @@ impl<T: Config> Pallet<T> {
 	/// activity and the precise time at which it happened. This automated
 	/// tracking is crucial for maintaining a consistent and auditable record of
 	/// all space-related activities.
-	pub fn update_activity(tx_id: &SpaceIdOf, tx_action: CallTypeOf) -> Result<(), Error<T>> {
+	pub fn update_activity(
+		tx_id: &SpaceIdOf,
+		tx_type: IdentifierTypeOf,
+		tx_action: CallTypeOf,
+	) -> Result<(), Error<T>> {
 		let tx_moment = Self::timepoint();
 
 		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
-		let _ =
-			identifier::Pallet::<T>::update_timeline(tx_id, IdentifierTypeOf::Statement, tx_entry);
+		let _ = identifier::Pallet::<T>::update_timeline(tx_id, tx_type, tx_entry);
 		Ok(())
 	}
 

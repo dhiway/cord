@@ -48,7 +48,7 @@ pallet-collective = { default-features = false, path = '../pallets/collective' }
 pallet-identity = { default-features = false, path = '../pallets/identity' }
 pallet-offences = { default-features = false, path = '../pallets/offences' }
 pallet-node-authorization = { default-features = false, path = "../pallets/node-authorization" }
-pallet-score = { default-features = false, path = '../pallets/score' }
+pallet-network-score = { default-features = false, path = '../pallets/network-score' }
 pallet-asset = { default-features = false, path = '../pallets/asset' }
 
 # Internal runtime API (with default disabled)
@@ -164,7 +164,7 @@ std = [
 	"pallet-schema/std",
 	"pallet-chain-space/std",
 	"pallet-statement/std",
-	"pallet-score/std",
+	"pallet-network-score/std",
 	"pallet-asset/std",
 	"pallet-network-membership/std",
 	"pallet-runtime-upgrade/std",
@@ -217,7 +217,7 @@ runtime-benchmarks = [
 	"hex-literal",
 	"pallet-sudo/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
-	"pallet-score/runtime-benchmarks",
+	"pallet-network-score/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -245,7 +245,7 @@ try-runtime = [
 	"pallet-schema/try-runtime",
 	"pallet-statement/try-runtime",
 	"pallet-did/try-runtime",
-	"pallet-score/try-runtime",
+	"pallet-network-score/try-runtime",
 ]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.

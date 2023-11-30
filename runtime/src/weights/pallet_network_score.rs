@@ -49,7 +49,7 @@ use core::marker::PhantomData;
 
 /// Weight functions for `pallet_score`.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_score::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> pallet_network_score::WeightInfo for WeightInfo<T> {
 	/// Storage: Registry Authorizations (r:1 w:0)
 	/// Proof: Registry Authorizations (max_values: None, max_size: Some(203), added: 2678, mode: MaxEncodedLen)
 	/// Storage: Score JournalHashes (r:1 w:1)
