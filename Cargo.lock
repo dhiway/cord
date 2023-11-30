@@ -1768,6 +1768,7 @@ dependencies = [
  "hex-literal 0.4.1",
  "log",
  "network-membership",
+ "pallet-asset",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -5858,6 +5859,27 @@ dependencies = [
  "ecdsa 0.14.8",
  "elliptic-curve 0.12.3",
  "sha2 0.10.8",
+]
+
+[[package]]
+name = "pallet-asset"
+version = "0.9.0"
+dependencies = [
+ "cord-identifier",
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
