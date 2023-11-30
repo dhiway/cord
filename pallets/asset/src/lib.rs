@@ -211,27 +211,32 @@ pub mod pallet {
 			ensure!(entry.asset_qty > 0 && entry.asset_value > 0, Error::<T>::InvalidAssetValue);
 			ensure!(entry.asset_type.is_valid_asset_type(), Error::<T>::InvalidAssetType);
 
-			let digest = <T as frame_system::Config>::Hashing::hash(&entry.encode().as_slice());
+			let digest = <T as frame_system::Config>::Hashing::hash(
+				&[
+					&issuer.encode()[..],
+					&entry.asset_qty.encode()[..],
+					&entry.asset_value.encode()[..],
+					&entry.asset_tag.encode()[..],
+					&entry.asset_meta.encode()[..],
+					&entry.asset_desc.encode()[..],
+					&entry.asset_type.encode()[..],
+				]
+				.concat()[..],
+			);
 
 			ensure!(
-				signature.verify(&(&digest).encode()[..], &issuer),
+				signature.verify(&(digest).encode()[..], &issuer),
 				Error::<T>::InvalidSignature
 			);
 
-			// Id Digest = concat (H(<scale_encoded_digest>,
-			// <scale_encoded_creator_identifier>))
-			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&digest.encode()[..], &issuer.encode()[..]].concat()[..],
-			);
-
-			let identifier = Ss58Identifier::to_asset_id(&(id_digest).encode()[..])
+			let identifier = Ss58Identifier::to_asset_id(&(digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Assets<T>>::contains_key(&identifier), Error::<T>::AssetIdAlreadyExists);
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
-			<AssetLookup<T>>::insert(&digest, &identifier);
+			<AssetLookup<T>>::insert(digest, &identifier);
 
 			<Assets<T>>::insert(
 				&identifier,
@@ -285,7 +290,7 @@ pub mod pallet {
 			);
 
 			ensure!(
-				signature.verify(&(&digest).encode()[..], &issuer),
+				signature.verify(&(digest).encode()[..], &issuer),
 				Error::<T>::InvalidSignature
 			);
 
@@ -300,7 +305,7 @@ pub mod pallet {
 					.map_err(|_| Error::<T>::DistributionLimitExceeded)
 			})?;
 
-			<AssetLookup<T>>::insert(&digest, &entry.asset_id.clone());
+			<AssetLookup<T>>::insert(digest, &entry.asset_id);
 
 			<Issuance<T>>::insert(
 				&entry.asset_id,
@@ -350,10 +355,7 @@ pub mod pallet {
 				.concat()[..],
 			);
 
-			ensure!(
-				signature.verify(&(&digest).encode()[..], &owner),
-				Error::<T>::InvalidSignature
-			);
+			ensure!(signature.verify(&(digest).encode()[..], &owner), Error::<T>::InvalidSignature);
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
@@ -383,7 +385,7 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	pub fn get_distributed_qty(asset_id: &AssetIdOf) -> u32 {
-		<Distribution<T>>::get(&asset_id)
+		<Distribution<T>>::get(asset_id)
 			.map(|bounded_vec| bounded_vec.len() as u32)
 			.unwrap_or(0)
 	}
