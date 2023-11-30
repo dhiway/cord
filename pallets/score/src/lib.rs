@@ -248,6 +248,9 @@ pub mod pallet {
 		/// A rating entry has been amended.
 		/// \[rating entry identifier, entity, \]
 		RatingEntryRevoked { identifier: RatingEntryIdOf, entity: EntityIdentifierOf<T> },
+		/// A rating entry has been revised (after amend).
+		/// \[rating entry identifier, entity, \]
+		RatingEntryRevised { identifier: RatingEntryIdOf, entity: EntityIdentifierOf<T> },
 		/// Aggregate scores has been updated.
 		/// \[entity identifier\]
 		AggregateScoreUpdated { entity: EntityIdentifierOf<T> },
@@ -667,7 +670,7 @@ pub mod pallet {
 
 			<MessageIdentifiers<T>>::insert(message_id, provider, &identifier);
 
-			Self::deposit_event(Event::RatingEntryRevoked { identifier, entity });
+			Self::deposit_event(Event::RatingEntryRevised { identifier, entity });
 
 			Ok(())
 		}
