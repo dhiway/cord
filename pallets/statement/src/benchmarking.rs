@@ -41,7 +41,6 @@ benchmarks! {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
-		let did_1: T::SpaceCreatorId = account("did", 1, SEED);
 		let capacity = 3u64;
 
 		let statement = [77u8; 32].to_vec();
@@ -63,7 +62,7 @@ benchmarks! {
 		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did_1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
@@ -85,8 +84,7 @@ benchmarks! {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
-		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
-		let capacity = 3u64;
+		let capacity = 5u64;
 
 		let raw_space = [56u8; 256].to_vec();
 		let space_digest = <T as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
@@ -104,12 +102,10 @@ benchmarks! {
 			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let statement_id = generate_statement_id::<T>(&statement_id_digest);
-
-		let identifier = Ss58Identifier::to_statement_id(&(statement_id).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_statement_id(&(statement_id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
@@ -137,8 +133,7 @@ benchmarks! {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
-		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
-		let capacity = 3u64;
+		let capacity = 5u64;
 
 		let raw_space = [56u8; 256].to_vec();
 		let space_digest = <T as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
@@ -152,12 +147,10 @@ benchmarks! {
 		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
-		let statement_id = generate_statement_id::<T>(&statement_id_digest);
-
-		let identifier = Ss58Identifier::to_statement_id(&(statement_id).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_statement_id(&(statement_id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
@@ -182,8 +175,7 @@ benchmarks! {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
-		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
-		let capacity = 3u64;
+		let capacity = 6u64;
 
 		let raw_space = [56u8; 256].to_vec();
 		let space_digest = <T as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
@@ -197,16 +189,14 @@ benchmarks! {
 		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
-		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
-		let identifier = Ss58Identifier::to_statement_id(&(statement_id).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_statement_id(&(statement_id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let authorization_id: Ss58Identifier =
-		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		let authorization_id: Ss58Identifier = Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 		let chain_space_origin = RawOrigin::Root.into();
 
@@ -227,8 +217,7 @@ benchmarks! {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
-		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
-		let capacity = 3u64;
+		let capacity = 5u64;
 
 		let raw_space = [56u8; 256].to_vec();
 		let space_digest = <T as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
@@ -242,12 +231,11 @@ benchmarks! {
 		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
-		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
-		let identifier = Ss58Identifier::to_statement_id(&(statement_id).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_statement_id(&(statement_id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
@@ -272,7 +260,6 @@ benchmarks! {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
-		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
 		let capacity = 3u64;
 
 		let raw_space = [56u8; 256].to_vec();
@@ -291,7 +278,7 @@ benchmarks! {
 		let statement_digest2 = <T as frame_system::Config>::Hashing::hash(&statement2[..]);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
@@ -312,7 +299,6 @@ benchmarks! {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
-		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
 		let capacity = 3u64;
 
 		let raw_space = [56u8; 256].to_vec();
@@ -327,12 +313,11 @@ benchmarks! {
 		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
-		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
-		let identifier = Ss58Identifier::to_statement_id(&(statement_id).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_statement_id(&(statement_id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier =
@@ -357,8 +342,7 @@ benchmarks! {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
-		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
-		let capacity = 3u64;
+		let capacity = 4u64;
 
 		let raw_space = [56u8; 256].to_vec();
 		let space_digest = <T as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
@@ -372,12 +356,11 @@ benchmarks! {
 		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
-		let statement_id = generate_statement_id::<T>(&statement_id_digest);
 
-		let identifier = Ss58Identifier::to_statement_id(&(statement_id).encode()[..]).unwrap();
+		let identifier = Ss58Identifier::to_statement_id(&(statement_id_digest).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did1.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier = Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
