@@ -63,6 +63,7 @@ pub enum CallTypeOf {
 	PresentationRemoved,
 	Rotate,
 	Usage,
+	Transfer,
 }
 /// Defining the identifier target types.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
