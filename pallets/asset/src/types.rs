@@ -17,14 +17,13 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use cord_primitives::BlockNumber;
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
 #[derive(
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
-pub struct AssetInputEntry<AssetDescription, AssetTypeOf, AccountId, AssetTag, AssetMeta> {
+pub struct AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta> {
 	/// type of the asset
 	pub asset_type: AssetTypeOf,
 	/// asset description
@@ -33,8 +32,6 @@ pub struct AssetInputEntry<AssetDescription, AssetTypeOf, AccountId, AssetTag, A
 	pub asset_qty: u32,
 	/// asset value
 	pub asset_value: u32,
-	/// asset owner
-	pub asset_owner: AccountId,
 	/// open structure - 1024 bytes max
 	pub asset_tag: AssetTag,
 	/// open structure - 1024 bytes max
@@ -79,7 +76,7 @@ pub struct AssetEntry<
 	AssetMeta,
 	BlockNumber,
 > {
-	pub asset_entry: AssetInputEntry<AssetDescription, AssetTypeOf, AccountId, AssetTag, AssetMeta>,
+	pub asset_detail: AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta>,
 	/// status of the asset
 	pub asset_status: AssetStatusOf,
 	/// asset issuer
@@ -91,11 +88,49 @@ pub struct AssetEntry<
 #[derive(
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
-pub struct AssetTransferEntry<AssetIdOf, AccountId> {
+pub struct AssetDistributionEntry<
+	AssetDescription,
+	AssetTypeOf,
+	AssetStatusOf,
+	AccountId,
+	AssetTag,
+	AssetMeta,
+	BlockNumber,
+	AssetId,
+> {
+	pub asset_instance_detail: AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta>,
+	/// asset parent reference
+	pub asset_instance_parent: AssetId,
+	/// status of the asset
+	pub asset_instance_status: AssetStatusOf,
+	/// asset issuer
+	pub asset_instance_issuer: AccountId,
+	/// asset owner
+	pub asset_instance_owner: AccountId,
+	/// asset inlclusion block
+	pub created_at: BlockNumber,
+}
+
+#[derive(
+	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+)]
+pub struct AssetIssuanceEntry<AssetIdOf, AccountId> {
 	/// type of the asset
 	pub asset_id: AssetIdOf,
-	/// asset quantity
-	pub transfer_qty: u32,
+	/// asset owner
+	pub new_asset_owner: AccountId,
+	/// issuance quantity
+	pub asset_issuance_qty: Option<u32>,
+}
+
+#[derive(
+	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+)]
+pub struct AssetTransferEntry<AssetIdOf, Hash, AccountId> {
+	/// type of the asset
+	pub asset_id: AssetIdOf,
+	/// asset instance identifier
+	pub asset_instance_id: Hash,
 	/// asset owner
 	pub new_asset_owner: AccountId,
 }

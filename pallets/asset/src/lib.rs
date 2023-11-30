@@ -22,21 +22,17 @@
 pub mod types;
 
 pub use crate::{pallet::*, types::*};
-use frame_support::{
-	ensure,
-	traits::{BalanceStatus, Currency, Get, OnUnbalanced, ReservableCurrency},
-};
+use frame_support::{ensure, traits::Get};
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	pub use cord_primitives::{curi::Ss58Identifier, CountOf, RatingOf};
-	use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, Twox64Concat};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::{
-		traits::{Hash, IdentifyAccount, Saturating, Verify},
-		SaturatedConversion,
+		traits::{Hash, IdentifyAccount, Verify},
+		BoundedVec,
 	};
 	use sp_std::{prelude::Clone, str};
 
@@ -56,13 +52,8 @@ pub mod pallet {
 	pub type AssetTagOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 	pub type AssetMetadataOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 
-	pub type AssetInputEntryOf<T> = AssetInputEntry<
-		AssetDescriptionOf<T>,
-		AssetTypeOf,
-		CordAccountIdOf<T>,
-		AssetTagOf<T>,
-		AssetMetadataOf<T>,
-	>;
+	pub type AssetInputEntryOf<T> =
+		AssetInputEntry<AssetDescriptionOf<T>, AssetTypeOf, AssetTagOf<T>, AssetMetadataOf<T>>;
 
 	pub type AssetEntryOf<T> = AssetEntry<
 		AssetDescriptionOf<T>,
@@ -74,7 +65,21 @@ pub mod pallet {
 		BlockNumberFor<T>,
 	>;
 
-	pub type AssetTransferEntryOf<T> = AssetTransferEntry<AssetIdOf, CordAccountIdOf<T>>;
+	pub type AssetDistributionEntryOf<T> = AssetDistributionEntry<
+		AssetDescriptionOf<T>,
+		AssetTypeOf,
+		AssetStatusOf,
+		CordAccountIdOf<T>,
+		AssetTagOf<T>,
+		AssetMetadataOf<T>,
+		BlockNumberFor<T>,
+		AssetIdOf,
+	>;
+
+	pub type AssetTransferEntryOf<T> =
+		AssetTransferEntry<AssetIdOf, EntryHashOf<T>, CordAccountIdOf<T>>;
+
+	pub type AssetIssuanceEntryOf<T> = AssetIssuanceEntry<AssetIdOf, CordAccountIdOf<T>>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -91,6 +96,9 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxEncodedValueLength: Get<u32>;
+
+		#[pallet::constant]
+		type MaxAssetDistribution: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -102,13 +110,29 @@ pub mod pallet {
 	/// asset entry identifiers with  details stored on chain.
 	#[pallet::storage]
 	#[pallet::getter(fn assets)]
-	pub type Assets<T> = StorageDoubleMap<
+	pub type Assets<T> = StorageMap<_, Blake2_128Concat, AssetIdOf, AssetEntryOf<T>, OptionQuery>;
+
+	/// asset entry identifiers with  details stored on chain.
+	#[pallet::storage]
+	#[pallet::getter(fn distribution)]
+	pub type Distribution<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		AssetIdOf,
+		BoundedVec<EntryHashOf<T>, T::MaxAssetDistribution>,
+		OptionQuery,
+	>;
+
+	/// asset entry identifiers with  details stored on chain.
+	#[pallet::storage]
+	#[pallet::getter(fn issued)]
+	pub type Issuance<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
 		AssetIdOf,
 		Blake2_128Concat,
 		EntryHashOf<T>,
-		AssetEntryOf<T>,
+		AssetDistributionEntryOf<T>,
 		OptionQuery,
 	>;
 
@@ -121,11 +145,20 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new asset entry has been added.
-		/// \[asset entry identifier, entity\]
-		Issuance { identifier: AssetIdOf, issuer: CordAccountIdOf<T> },
+		/// \[asset entry identifier, issuer\]
+		Create { identifier: AssetIdOf, issuer: CordAccountIdOf<T> },
+		/// A new asset entry has been added.
+		/// \[asset entry identifier, instance identifier\]
+		Issue { identifier: AssetIdOf, instance: EntryHashOf<T> },
 		/// A asset has been transfered.
-		/// \[asset entry identifier, owner, beneficiary, \]
-		Transfer { identifier: AssetIdOf, from: CordAccountIdOf<T>, to: CordAccountIdOf<T> },
+		/// \[asset entry identifier, instance identifier, owner, beneficiary,
+		/// \]
+		Transfer {
+			identifier: AssetIdOf,
+			instance: EntryHashOf<T>,
+			from: CordAccountIdOf<T>,
+			to: CordAccountIdOf<T>,
+		},
 	}
 
 	#[pallet::error]
@@ -148,13 +181,19 @@ pub mod pallet {
 		AssetIdNotFound,
 		/// Asset is not active
 		AssetNotActive,
+		/// Not enough balance
+		InsufficientBalance,
+		/// distribution limit exceeded
+		DistributionLimitExceeded,
+		/// asset instance not found
+		AssetInstanceNotFound,
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
-		pub fn issue(
+		pub fn create(
 			origin: OriginFor<T>,
 			entry: AssetInputEntryOf<T>,
 			signature: SignatureOf<T>,
@@ -180,10 +219,7 @@ pub mod pallet {
 			let identifier = Ss58Identifier::to_asset_id(&(id_digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
-			ensure!(
-				!<Assets<T>>::contains_key(&identifier, &digest),
-				Error::<T>::AssetIdAlreadyExists
-			);
+			ensure!(!<Assets<T>>::contains_key(&identifier), Error::<T>::AssetIdAlreadyExists);
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
@@ -191,21 +227,87 @@ pub mod pallet {
 
 			<Assets<T>>::insert(
 				&identifier,
-				&digest,
 				AssetEntryOf::<T> {
-					asset_entry: entry,
+					asset_detail: entry,
 					asset_status: AssetStatusOf::ACTIVE,
 					asset_issuer: issuer.clone(),
 					created_at: block_number,
 				},
 			);
 
-			Self::deposit_event(Event::Issuance { identifier, issuer });
+			Self::deposit_event(Event::Create { identifier, issuer });
 
 			Ok(())
 		}
 
 		#[pallet::call_index(1)]
+		#[pallet::weight({0})]
+		pub fn issue(
+			origin: OriginFor<T>,
+			entry: AssetIssuanceEntryOf<T>,
+			signature: SignatureOf<T>,
+		) -> DispatchResult {
+			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+
+			let mut asset = <Assets<T>>::get(&entry.asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
+
+			ensure!(asset.asset_issuer == issuer, Error::<T>::UnauthorizedOperation);
+
+			ensure!(AssetStatusOf::ACTIVE == asset.asset_status, Error::<T>::AssetNotActive);
+
+			let distribued_qty = Self::get_distributed_qty(&entry.asset_id);
+			let issuance_qty = entry.asset_issuance_qty.unwrap_or(1);
+
+			ensure!(
+				distribued_qty + issuance_qty <= asset.asset_detail.asset_qty,
+				Error::<T>::InsufficientBalance
+			);
+
+			asset.asset_detail.asset_qty = issuance_qty;
+
+			let digest = <T as frame_system::Config>::Hashing::hash(
+				&[
+					&entry.asset_id.encode()[..],
+					&entry.new_asset_owner.encode()[..],
+					&issuer.encode()[..],
+					&issuance_qty.encode()[..],
+				]
+				.concat()[..],
+			);
+
+			ensure!(
+				signature.verify(&(&digest).encode()[..], &issuer),
+				Error::<T>::InvalidSignature
+			);
+
+			let block_number = frame_system::Pallet::<T>::block_number();
+
+			Distribution::<T>::try_mutate(&entry.asset_id, |dist_option| {
+				let dist = dist_option.get_or_insert_with(BoundedVec::default);
+				dist.try_push(digest).map_err(|_| Error::<T>::DistributionLimitExceeded)
+			})?;
+
+			<AssetLookup<T>>::insert(&digest, &entry.asset_id.clone());
+
+			<Issuance<T>>::insert(
+				&entry.asset_id,
+				&digest,
+				AssetDistributionEntryOf::<T> {
+					asset_instance_detail: asset.asset_detail,
+					asset_instance_parent: entry.asset_id.clone(),
+					asset_instance_status: AssetStatusOf::ACTIVE,
+					asset_instance_issuer: issuer,
+					asset_instance_owner: entry.new_asset_owner,
+					created_at: block_number,
+				},
+			);
+
+			Self::deposit_event(Event::Issue { identifier: entry.asset_id, instance: digest });
+
+			Ok(())
+		}
+
+		#[pallet::call_index(2)]
 		#[pallet::weight({0})]
 		pub fn transfer(
 			origin: OriginFor<T>,
@@ -214,14 +316,25 @@ pub mod pallet {
 		) -> DispatchResult {
 			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
-			let digest = <T as frame_system::Config>::Hashing::hash(&entry.encode().as_slice());
+			let instance = <Issuance<T>>::get(&entry.asset_id, entry.asset_instance_id)
+				.ok_or(Error::<T>::AssetInstanceNotFound)?;
 
-			let asset_details =
-				<Assets<T>>::get(&entry.asset_id, &digest).ok_or(Error::<T>::AssetIdNotFound);
+			ensure!(instance.asset_instance_owner == owner, Error::<T>::UnauthorizedOperation);
 
-			ensure!(entry.transfer_qty => asset_details.asset_qty> 0, Error::<T>::InsufficientBalance);
-			let stored_status = asset_details.asset_status;
-			ensure!(AssetStatusOf::ACTIVE == stored_status, Error::<T>::AssetNotActive);
+			ensure!(
+				AssetStatusOf::ACTIVE == instance.asset_instance_status,
+				Error::<T>::AssetNotActive
+			);
+
+			let digest = <T as frame_system::Config>::Hashing::hash(
+				&[
+					&entry.asset_id.encode()[..],
+					&entry.asset_instance_id.encode()[..],
+					&entry.new_asset_owner.encode()[..],
+					&owner.encode()[..],
+				]
+				.concat()[..],
+			);
 
 			ensure!(
 				signature.verify(&(&digest).encode()[..], &owner),
@@ -230,20 +343,32 @@ pub mod pallet {
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
-			<Assets<T>>::insert(
+			<Issuance<T>>::insert(
 				&entry.asset_id,
-				&digest,
-				AssetEntryOf::<T> {
-					asset_issuer: owner.clone(),
-					asset_entry: entry,
+				&entry.asset_instance_id,
+				AssetDistributionEntryOf::<T> {
+					asset_instance_owner: entry.new_asset_owner.clone(),
 					created_at: block_number,
-					..asset_details
+					..instance
 				},
 			);
 
-			Self::deposit_event(Event::Issuance { identifier: asset_id, issuer: owner });
+			Self::deposit_event(Event::Transfer {
+				identifier: entry.asset_id,
+				instance: entry.asset_instance_id,
+				from: owner,
+				to: entry.new_asset_owner,
+			});
 
 			Ok(())
 		}
+	}
+}
+
+impl<T: Config> Pallet<T> {
+	pub fn get_distributed_qty(asset_id: &AssetIdOf) -> u32 {
+		<Distribution<T>>::get(&asset_id)
+			.map(|bounded_vec| bounded_vec.len() as u32)
+			.unwrap_or(0)
 	}
 }

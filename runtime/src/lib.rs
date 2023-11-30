@@ -689,7 +689,7 @@ impl pallet_node_authorization::Config for Runtime {
 parameter_types! {
 	pub const MembershipPeriod: BlockNumber = YEAR;
 	pub const MaxMembersPerBlock: u32 = 1_000;
-	pub const MaxEventsHistory: u32 = 1_001;
+	pub const MaxEventsHistory: u32 = u32::MAX;
 }
 
 impl pallet_network_membership::Config for Runtime {
