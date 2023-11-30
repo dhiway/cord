@@ -35,8 +35,9 @@ hex-literal = "0.3.4"
 
 # Internal dependencies
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
-pallet-schema = { optional = true, path = '../schema' }
 cord-primitives = { package = "cord-primitives", path = "../../primitives/cord", optional = true }
+identifier = { package = "cord-identifier", path = "../../primitives/identifier", default-features = false }
+pallet-chain-space = { package = "pallet-chain-space", default-features = false, path = '../chain-space' }
 
 # Substrate dependencies
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
@@ -69,7 +70,8 @@ runtime-benchmarks = [
 ]
 std = [
 	"codec/std",
-	"pallet-schema/std",
+	"pallet-chain-space/std",
+	"identifier/std",
 	"frame-support/std",
 	"frame-system/std",
 	"cord-utilities/std",
