@@ -65,7 +65,41 @@ benchmarks! {
 			assert_last_event::<T>(Event::Authorization { space: space_id, authorization: delegate_authorization_id, delegate: delegate_did,  }.into());
 		}
 
-		 add_admin_delegate {
+		add_admin_delegate {
+			 let caller: T::AccountId = account("caller", 0, SEED);
+			 let did: T::SpaceCreatorId = account("did", 0, SEED);
+			 let delegate_did: T::SpaceCreatorId = account("did", 1, SEED);
+			 let space = [2u8; 256].to_vec();
+			 let capacity = 5u64;
+
+			 let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+			 let id_digest = <T as frame_system::Config>::Hashing::hash(
+				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+			 );
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
+
+			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+			 );
+			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+
+			 let delegate_id_digest = T::Hashing::hash(
+				 &[&space_id.encode()[..], &delegate_did.encode()[..], &did.encode()[..]].concat()[..],
+			 );
+			 let delegate_authorization_id = generate_authorization_id::<T>(&delegate_id_digest);
+
+			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
+			 let root_origin = RawOrigin::Root.into();
+
+			 Pallet::<T>::create(origin.clone(), space_digest )?;
+			 Pallet::<T>::approve(root_origin, space_id.clone(), capacity )?;
+
+		}: _<T::RuntimeOrigin>(origin, space_id.clone(), delegate_did.clone(), authorization_id  )
+		verify {
+			 assert_last_event::<T>(Event::Authorization { space: space_id, authorization: delegate_authorization_id, delegate: delegate_did,  }.into());
+		}
+
+		add_delegator {
 			 let caller: T::AccountId = account("caller", 0, SEED);
 			 let did: T::SpaceCreatorId = account("did", 0, SEED);
 			 let delegate_did: T::SpaceCreatorId = account("did", 1, SEED);
@@ -99,41 +133,7 @@ benchmarks! {
 			 assert_last_event::<T>(Event::Authorization { space: space_id, authorization: delegate_authorization_id, delegate: delegate_did,  }.into());
 		 }
 
-		 add_delegator {
-			 let caller: T::AccountId = account("caller", 0, SEED);
-			 let did: T::SpaceCreatorId = account("did", 0, SEED);
-			 let delegate_did: T::SpaceCreatorId = account("did", 1, SEED);
-			 let space = [2u8; 256].to_vec();
-			 let capacity = 5u64;
-
-			 let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
-			 let id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
-			 );
-			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
-
-			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
-			 );
-			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
-
-			 let delegate_id_digest = T::Hashing::hash(
-				 &[&space_id.encode()[..], &delegate_did.encode()[..], &did.encode()[..]].concat()[..],
-			 );
-			 let delegate_authorization_id = generate_authorization_id::<T>(&delegate_id_digest);
-
-			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
-			 let root_origin = RawOrigin::Root.into();
-
-			 Pallet::<T>::create(origin.clone(), space_digest )?;
-			 Pallet::<T>::approve(root_origin, space_id.clone(), capacity )?;
-
-		 }: _<T::RuntimeOrigin>(origin, space_id.clone(), delegate_did.clone(), authorization_id  )
-		 verify {
-			 assert_last_event::<T>(Event::Authorization { space: space_id, authorization: delegate_authorization_id, delegate: delegate_did,  }.into());
-		 }
-
-		 remove_delegate {
+		remove_delegate {
 			 let caller: T::AccountId = account("caller", 0, SEED);
 			 let did: T::SpaceCreatorId = account("did", 0, SEED);
 			 let delegate_did: T::SpaceCreatorId = account("did", 1, SEED);
@@ -164,10 +164,10 @@ benchmarks! {
 			 Pallet::<T>::approve(root_origin, space_id.clone(), capacity )?;
 			 Pallet::<T>::add_delegate(origin.clone(), space_id.clone(), delegate_did, authorization_id.clone() )?;
 
-		 }: _<T::RuntimeOrigin>(origin, space_id.clone(), delegate_authorization_id.clone(), authorization_id)
-		 verify {
+		}: _<T::RuntimeOrigin>(origin, space_id.clone(), delegate_authorization_id.clone(), authorization_id)
+		verify {
 			 assert_last_event::<T>(Event::Deauthorization { space: space_id, authorization: delegate_authorization_id }.into());
-		 }
+		}
 
 		 create {
 			 let caller: T::AccountId = account("caller", 0, SEED);
@@ -220,10 +220,11 @@ benchmarks! {
 			 assert_last_event::<T>(Event::Approve { space: space_id }.into());
 		 }
 
-		 archive {
+		archive {
 			 let caller: T::AccountId = account("caller", 0, SEED);
 			 let did: T::SpaceCreatorId = account("did", 0, SEED);
 			 let space = [2u8; 256].to_vec();
+			 let capacity = 5u64;
 
 			 let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
@@ -239,16 +240,18 @@ benchmarks! {
 			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 			 Pallet::<T>::create(origin.clone(), space_digest )?;
+			 Pallet::<T>::approve(RawOrigin::Root.into(), space_id.clone(), capacity )?;
 
 		 }: _<T::RuntimeOrigin>(origin, space_id.clone(), authorization_id )
 		 verify {
 			 assert_last_event::<T>(Event::Archive { space: space_id, authority: did, }.into());
 		 }
 
-		 restore {
+		restore {
 			 let caller: T::AccountId = account("caller", 0, SEED);
 			 let did: T::SpaceCreatorId = account("did", 0, SEED);
 			 let space = [2u8; 256].to_vec();
+			 let capacity = 5u64;
 
 			 let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
 			 let id_digest = <T as frame_system::Config>::Hashing::hash(
@@ -264,6 +267,7 @@ benchmarks! {
 			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 			 Pallet::<T>::create(origin.clone(), space_digest )?;
+			 Pallet::<T>::approve(RawOrigin::Root.into(), space_id.clone(), capacity )?;
 			 Pallet::<T>::archive(origin.clone(), space_id.clone(), authorization_id.clone() )?;
 
 		 }: _<T::RuntimeOrigin>(origin, space_id.clone(), authorization_id )
@@ -271,7 +275,7 @@ benchmarks! {
 			 assert_last_event::<T>(Event::Restore { space: space_id, authority: did, }.into());
 		 }
 
-		 update_transaction_capacity {
+		update_transaction_capacity {
 			 let caller: T::AccountId = account("caller", 0, SEED);
 			 let did: T::SpaceCreatorId = account("did", 0, SEED);
 			 let space = [2u8; 256].to_vec();
@@ -300,7 +304,7 @@ benchmarks! {
 			 assert_last_event::<T>(Event::UpdateCapacity { space: space_id }.into());
 		 }
 
-		 reset_transaction_count {
+		reset_transaction_count {
 			 let caller: T::AccountId = account("caller", 0, SEED);
 			 let did: T::SpaceCreatorId = account("did", 0, SEED);
 			 let space = [2u8; 256].to_vec();
@@ -320,14 +324,14 @@ benchmarks! {
 			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
 
 			 Pallet::<T>::create(origin.clone(), space_digest )?;
-			 Pallet::<T>::approve(origin.clone(), space_id.clone(), capacity )?;
+			 Pallet::<T>::approve(RawOrigin::Root.into(), space_id.clone(), capacity )?;
 
-		 }: _<T::RuntimeOrigin>(origin, space_id.clone())
-		 verify {
+		}: _<T::RuntimeOrigin>(RawOrigin::Root.into(), space_id.clone())
+		verify {
 			 assert_last_event::<T>(Event::ResetUsage { space: space_id }.into());
-		 }
+		}
 
-		 approval_revoke {
+		approval_revoke {
 			 let caller: T::AccountId = account("caller", 0, SEED);
 			 let did: T::SpaceCreatorId = account("did", 0, SEED);
 			 let space = [2u8; 256].to_vec();
@@ -347,9 +351,9 @@ benchmarks! {
 			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
 
 			 Pallet::<T>::create(origin.clone(), space_digest )?;
-			 Pallet::<T>::approve(origin.clone(), space_id.clone(), capacity )?;
+			 Pallet::<T>::approve(RawOrigin::Root.into(), space_id.clone(), capacity )?;
 
-		 }: _<T::RuntimeOrigin>(origin, space_id.clone())
+		 }: _<T::RuntimeOrigin>(RawOrigin::Root.into(), space_id.clone())
 		 verify {
 			 assert_last_event::<T>(Event::ApprovalRevoke { space: space_id }.into());
 		 }
@@ -374,12 +378,12 @@ benchmarks! {
 			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
 
 			 Pallet::<T>::create(origin.clone(), space_digest )?;
-			 Pallet::<T>::approve(origin.clone(), space_id.clone(), capacity )?;
-			 Pallet::<T>::approval_revoke(origin.clone(), space_id.clone())?;
+			 Pallet::<T>::approve(RawOrigin::Root.into(), space_id.clone(), capacity )?;
+			 Pallet::<T>::approval_revoke(RawOrigin::Root.into(), space_id.clone())?;
 
-		 }: _<T::RuntimeOrigin>(origin, space_id.clone())
+		 }: _<T::RuntimeOrigin>(RawOrigin::Root.into(), space_id.clone())
 		 verify {
-			 assert_last_event::<T>(Event::ApprovalRevoke { space: space_id }.into());
+			 assert_last_event::<T>(Event::ApprovalRestore { space: space_id }.into());
 		 }
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
