@@ -88,10 +88,9 @@ benchmarks! {
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
 		let chain_space_origin = RawOrigin::Root.into();
 
-		pallet_chain_space::Pallet::<T>::create(origin, space_digest )?;
+		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
 		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
 
-		let origin = <T as Config>::EnsureOrigin::generate_origin(caller, did);
 	}: _<T::RuntimeOrigin>(origin, schema, authorization_id)
 	verify {
 		assert_last_event::<T>(Event::<T>::Created { identifier: schema_id, creator: did1 }.into());
