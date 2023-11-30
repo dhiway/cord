@@ -23,7 +23,8 @@ use codec::Encode;
 use cord_primitives::curi::Ss58Identifier;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
-use frame_support::BoundedVec;
+use frame_support::{sp_runtime::traits::Hash, BoundedVec};
+use frame_system::RawOrigin;
 use pallet_chain_space::SpaceCodeOf;
 
 const SEED: u32 = 0;
@@ -53,17 +54,11 @@ benchmarks! {
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
 		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
 
-		let raw_registry = [56u8; 256].to_vec();
-		let registry = BoundedVec::try_from(raw_registry).unwrap();
-		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry.encode()[..], &did.encode()[..]].concat()[..],
-		);
-		let registry_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 		let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 		let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 		let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 		let entry = RatingInputEntryOf::<T> {
-			entity_uid,
+			entity_uid: entity_uid.clone(),
 			provider_uid,
 			total_rating: 250u64,
 			count_of_txn: 7u64,
@@ -74,18 +69,30 @@ benchmarks! {
 			&[&entry.encode()[..]].concat()[..],
 		);
 
+		let raw_space = [2u8; 256].to_vec();
+		let space_digest = <T as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+		let space_id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		);
+		let space_id: SpaceIdOf = generate_space_id::<T>(&space_id_digest);
+
 		let identifier = Ss58Identifier::to_scoring_id(&(entry_digest.clone()).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry_id.encode()[..], &did1.encode()[..], &caller.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did1.encode()[..], &caller.encode()[..]].concat()[..],
 		);
 		let authorization_id: AuthorizationIdOf =
 			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
-		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller,did1.clone());
-	 }: _<T::RuntimeOrigin>(origin, entry, entry_digest, message_id, authorization_id)
+		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did1);
+		let chain_space_origin = RawOrigin::Root.into();
+
+		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
+		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, 3u64 ).expect("Approval should not fail.");
+
+	}: _<T::RuntimeOrigin>(origin, entry, entry_digest, message_id, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::RatingEntryAdded { identifier, entity: entity_uid.clone()}.into());
+		assert_last_event::<T>(Event::RatingEntryAdded { identifier, entity: entity_uid}.into());
 	}
 
 	amend_rating {
@@ -95,17 +102,17 @@ benchmarks! {
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
 		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
 
-		let raw_registry = [56u8; 256].to_vec();
-		let registry= BoundedVec::try_from(raw_registry).unwrap();
-		let id_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry.encode()[..], &did.encode()[..]].concat()[..],
+		let raw_space = [2u8; 256].to_vec();
+		let space_digest = <T as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+		let space_id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
 		);
-		let registry_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
+		let space_id: SpaceIdOf = generate_space_id::<T>(&space_id_digest);
 		let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 		let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 		let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 		let entry = RatingInputEntryOf::<T> {
-			entity_uid,
+			entity_uid: entity_uid.clone(),
 			provider_uid,
 			total_rating: 250u64,
 			count_of_txn: 7u64,
@@ -119,15 +126,20 @@ benchmarks! {
 		let identifier = Ss58Identifier::to_scoring_id(&(entry_digest.clone()).encode()[..]).unwrap();
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&registry_id.encode()[..], &did1.encode()[..], &caller.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did1.encode()[..], &caller.encode()[..]].concat()[..],
 		);
 		let authorization_id: AuthorizationIdOf =
 			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
-		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller,did1.clone());
-	 }: _<T::RuntimeOrigin>(origin, identifier, message_id, entry_digest, authorization_id)
+		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did1);
+		let chain_space_origin = RawOrigin::Root.into();
+
+		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
+		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, 3u64 ).expect("Approval should not fail.");
+
+	}: _<T::RuntimeOrigin>(origin, identifier.clone(), message_id, entry_digest, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::RatingEntryRevoked { identifier, entity: entity_uid.clone()}.into());
+		assert_last_event::<T>(Event::RatingEntryRevoked { identifier, entity: entity_uid}.into());
 	}
 
 	impl_benchmark_test_suite! (Pallet, crate::mock::new_test_ext(), crate::mock::Test)
