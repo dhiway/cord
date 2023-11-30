@@ -81,9 +81,6 @@ pub use pallet_timestamp::Call as TimestampCall;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
-#[cfg(feature = "runtime-benchmarks")]
-use frame_system::EnsureSigned;
-
 /// Constant values used within the runtime.
 use cord_runtime_constants::{currency::*, time::*};
 
