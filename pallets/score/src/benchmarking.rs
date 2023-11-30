@@ -77,7 +77,7 @@ benchmarks! {
 		let authorization_id: AuthorizationIdOf =
 			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
-		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller.clone(), did1.clone());
+		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did1.clone());
 
 		let entry_digest = <T as frame_system::Config>::Hashing::hash(&entry.encode()[..]);
 
@@ -146,7 +146,7 @@ benchmarks! {
 		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
 		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, 3u64 ).expect("Approval should not fail.");
 
-		let _ = Pallet::<T>::register_rating(origin.clone(), entry, entry_digest.clone(), message_id_add, authorization_id.clone());
+		let _ = Pallet::<T>::register_rating(origin.clone(), entry, entry_digest, message_id_add, authorization_id.clone());
 	}: _<T::RuntimeOrigin>(origin, identifier_add, message_id_revoke, entry_digest, authorization_id)
 	verify {
 		assert_last_event::<T>(Event::RatingEntryRevoked { identifier: identifier_revoke, entity: entity_uid}.into());
@@ -222,7 +222,7 @@ benchmarks! {
 		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
 		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, 10u64 ).expect("Approval should not fail.");
 
-		let _ = Pallet::<T>::register_rating(origin.clone(), entry, entry_digest.clone(), message_id_add, authorization_id.clone());
+		let _ = Pallet::<T>::register_rating(origin.clone(), entry, entry_digest, message_id_add, authorization_id.clone());
 		let _ = Pallet::<T>::amend_rating(origin.clone(), identifier_add, message_id_revoke, entry_digest, authorization_id.clone());
 	}: _<T::RuntimeOrigin>(origin, entry_revise, entry_revise_digest, message_id_revise, identifier_revoke, authorization_id)
 	verify {

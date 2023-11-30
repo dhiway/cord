@@ -245,9 +245,9 @@ pub fn get_ecdsa_assertion_key(seed: &[u8; 32]) -> ecdsa::Pair {
 	ecdsa::Pair::from_seed(seed)
 }
 
-pub fn get_ed25519_delegation_key(seed: &[u8; 32]) -> ed25519::Pair {
-	ed25519::Pair::from_seed(seed)
-}
+//pub fn get_ed25519_delegation_key(seed: &[u8; 32]) -> ed25519::Pair {
+//	ed25519::Pair::from_seed(seed)
+//}
 
 pub fn get_sr25519_delegation_key(seed: &[u8; 32]) -> sr25519::Pair {
 	sr25519::Pair::from_seed(seed)

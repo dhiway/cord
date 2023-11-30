@@ -323,7 +323,7 @@ benchmarks! {
 
 			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
 
-			 Pallet::<T>::create(origin.clone(), space_digest )?;
+			 Pallet::<T>::create(origin, space_digest )?;
 			 Pallet::<T>::approve(RawOrigin::Root.into(), space_id.clone(), capacity )?;
 
 		}: _<T::RuntimeOrigin>(RawOrigin::Root.into(), space_id.clone())
@@ -350,7 +350,7 @@ benchmarks! {
 
 			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
 
-			 Pallet::<T>::create(origin.clone(), space_digest )?;
+			 Pallet::<T>::create(origin, space_digest )?;
 			 Pallet::<T>::approve(RawOrigin::Root.into(), space_id.clone(), capacity )?;
 
 		 }: _<T::RuntimeOrigin>(RawOrigin::Root.into(), space_id.clone())
@@ -377,7 +377,7 @@ benchmarks! {
 
 			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
 
-			 Pallet::<T>::create(origin.clone(), space_digest )?;
+			 Pallet::<T>::create(origin, space_digest )?;
 			 Pallet::<T>::approve(RawOrigin::Root.into(), space_id.clone(), capacity )?;
 			 Pallet::<T>::approval_revoke(RawOrigin::Root.into(), space_id.clone())?;
 

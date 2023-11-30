@@ -85,7 +85,7 @@ benchmarks! {
 
 		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
 
-		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
+		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
 		let chain_space_origin = RawOrigin::Root.into();
 
 		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;

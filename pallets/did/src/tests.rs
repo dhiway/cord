@@ -19,7 +19,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use codec::Encode;
-use frame_support::{assert_err, assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok};
 use frame_system::pallet_prelude::BlockNumberFor;
 
 use sp_core::{ed25519, Pair};
