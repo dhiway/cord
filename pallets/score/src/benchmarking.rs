@@ -152,5 +152,82 @@ benchmarks! {
 		assert_last_event::<T>(Event::RatingEntryRevoked { identifier: identifier_revoke, entity: entity_uid}.into());
 	}
 
+	revise_rating {
+		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
+
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let did: T::SpaceCreatorId = account("did", 0, SEED);
+
+		let raw_space = [2u8; 256].to_vec();
+		let space_digest = <T as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+		let space_id_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+		);
+		let space_id: SpaceIdOf = generate_space_id::<T>(&space_id_digest);
+
+		let message_id_add = BoundedVec::try_from([82u8; 10].to_vec()).unwrap();
+		let message_id_revoke = BoundedVec::try_from([85u8; 10].to_vec()).unwrap();
+		let message_id_revise = BoundedVec::try_from([86u8; 10].to_vec()).unwrap();
+		let entity_uid = BoundedVec::try_from([83u8; 10].to_vec()).unwrap();
+		let provider_uid = BoundedVec::try_from([84u8; 10].to_vec()).unwrap();
+		let entry = RatingInputEntryOf::<T> {
+			entity_uid: entity_uid.clone(),
+			provider_uid: provider_uid.clone(),
+			total_rating: 250u64,
+			count_of_txn: 7u64,
+			entity_type: EntityTypeOf::Logistic,
+			rating_type: RatingTypeOf::Overall,
+		};
+
+		let entry_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&entry.encode()[..]].concat()[..],
+		);
+
+		let entry_revise = RatingInputEntryOf::<T> {
+			entity_uid: entity_uid.clone(),
+			provider_uid,
+			total_rating: 250u64,
+			count_of_txn: 6u64,
+			entity_type: EntityTypeOf::Logistic,
+			rating_type: RatingTypeOf::Overall,
+		};
+		let entry_revise_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&entry.encode()[..]].concat()[..],
+		);
+
+		let id_digest_add =  <T as frame_system::Config>::Hashing::hash(
+			&[&(entry_digest.clone()).encode()[..], &message_id_add.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
+		);
+		let identifier_add = Ss58Identifier::to_scoring_id(&id_digest_add.encode()[..]).unwrap();
+
+		let id_digest =  <T as frame_system::Config>::Hashing::hash(
+			&[&(entry_digest.clone()).encode()[..], &message_id_revoke.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
+		);
+		let identifier_revoke = Ss58Identifier::to_scoring_id(&id_digest.encode()[..]).unwrap();
+
+		let id_digest_revise =  <T as frame_system::Config>::Hashing::hash(
+			&[&(entry_revise_digest.clone()).encode()[..], &message_id_revise.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
+		);
+		let identifier_revise = Ss58Identifier::to_scoring_id(&id_digest_revise.encode()[..]).unwrap();
+
+		let auth_digest = <T as frame_system::Config>::Hashing::hash(
+			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+		);
+		let authorization_id: AuthorizationIdOf =
+			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+
+		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did);
+		let chain_space_origin = RawOrigin::Root.into();
+
+		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
+		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, 10u64 ).expect("Approval should not fail.");
+
+		let _ = Pallet::<T>::register_rating(origin.clone(), entry, entry_digest.clone(), message_id_add, authorization_id.clone());
+		let _ = Pallet::<T>::amend_rating(origin.clone(), identifier_add, message_id_revoke, entry_digest, authorization_id.clone());
+	}: _<T::RuntimeOrigin>(origin, entry_revise, entry_revise_digest, message_id_revise, identifier_revoke, authorization_id)
+	verify {
+		assert_last_event::<T>(Event::RatingEntryRevised { identifier: identifier_revise, entity: entity_uid}.into());
+	}
+
 	impl_benchmark_test_suite! (Pallet, crate::mock::new_test_ext(), crate::mock::Test)
 }
