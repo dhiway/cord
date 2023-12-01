@@ -1,5 +1,5 @@
 [package]
-name = "pallet-score"
+name = "pallet-network-score"
 description = "Manage network scores"
 version = "0.9.0"
 authors = ["Dhiway Networks <info@dhiway.com>"]

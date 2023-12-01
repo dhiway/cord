@@ -118,6 +118,11 @@ pub mod types;
 
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
 use frame_support::ensure;
+use identifier::{
+	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
+	EventEntryOf,
+};
+use sp_runtime::traits::UniqueSaturatedInto;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -184,7 +189,9 @@ pub mod pallet {
 	// pub type AggregatedEntryOf = AggregatedEntry;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_chain_space::Config {
+	pub trait Config:
+		frame_system::Config + pallet_chain_space::Config + identifier::Config
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
@@ -409,6 +416,8 @@ pub mod pallet {
 
 			<MessageIdentifiers<T>>::insert(message_id, provider, &identifier);
 
+			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
+
 			Self::deposit_event(Event::RatingEntryAdded { identifier, entity });
 
 			Ok(())
@@ -514,13 +523,17 @@ pub mod pallet {
 					creator,
 
 					entry_type: EntryTypeOf::Debit,
-					reference_id: Some(entry_identifier),
+					reference_id: Some(entry_identifier.clone()),
 					created_at: block_number,
 					..rating_details
 				},
 			);
 
 			<MessageIdentifiers<T>>::insert(&message_id, provider, &identifier);
+
+			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
+			Self::update_activity(&entry_identifier, CallTypeOf::Debit)
+				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::RatingEntryRevoked { identifier, entity });
 
@@ -653,6 +666,7 @@ pub mod pallet {
 			Self::aggregate_score(&rating_details.entry, EntryTypeOf::Debit)?;
 			let entity = rating_details.entry.entity_uid.clone();
 			let provider = rating_details.entry.provider_uid.clone();
+			let reference_id = rating_details.reference_id.clone().unwrap();
 
 			<RatingEntries<T>>::insert(
 				&identifier,
@@ -669,6 +683,9 @@ pub mod pallet {
 			);
 
 			<MessageIdentifiers<T>>::insert(message_id, provider, &identifier);
+
+			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
+			Self::update_activity(&reference_id, CallTypeOf::Credit).map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::RatingEntryRevised { identifier, entity });
 
@@ -744,5 +761,46 @@ impl<T: Config> Pallet<T> {
 		}
 		Self::deposit_event(Event::AggregateScoreUpdated { entity: entry.entity_uid.clone() });
 		Ok(())
+	}
+
+	/// Updates the global timeline with a new rating event for an entity.
+	///
+	/// An `EventEntryOf` struct is created, encapsulating the type of action
+	/// (`tx_action`) and the `Timepoint` of the event, which is obtained by
+	/// calling the `timepoint` function. This entry is then passed to the
+	/// `update_timeline` function of the `identifier` pallet, which integrates
+	/// it into the global timeline.
+	///
+	/// # Parameters
+	/// - `tx_id`: The identifier of the schema that the activity pertains to.
+	/// - `tx_action`: The type of action taken on the schema, encapsulated
+	///   within `CallTypeOf`.
+	///
+	/// # Returns
+	/// Returns `Ok(())` after successfully updating the timeline. If any errors
+	/// occur within the `update_timeline` function, they are not captured here
+	/// and the function will still return `Ok(())`.
+	pub fn update_activity(tx_id: &RatingEntryIdOf, tx_action: CallTypeOf) -> Result<(), Error<T>> {
+		let tx_moment = Self::timepoint();
+
+		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
+		let _ = identifier::Pallet::<T>::update_timeline(tx_id, IdentifierTypeOf::Rating, tx_entry);
+		Ok(())
+	}
+
+	/// Retrieves the current timepoint.
+	///
+	/// This function returns a `Timepoint` structure containing the current
+	/// block number and extrinsic index. It is typically used in conjunction
+	/// with `update_activity` to record when an event occurred.
+	///
+	/// # Returns
+	/// - `Timepoint`: A structure containing the current block number and
+	///   extrinsic index.
+	pub fn timepoint() -> Timepoint {
+		Timepoint {
+			height: frame_system::Pallet::<T>::block_number().unique_saturated_into(),
+			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
+		}
 	}
 }

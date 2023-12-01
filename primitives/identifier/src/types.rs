@@ -64,13 +64,17 @@ pub enum CallTypeOf {
 	Rotate,
 	Usage,
 	Transfer,
+	Debit,
+	Credit,
 }
 /// Defining the identifier target types.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub enum IdentifierTypeOf {
 	Asset,
 	Auth,
+	ChainSpace,
 	Did,
+	Rating,
 	Registry,
 	Statement,
 	Schema,
