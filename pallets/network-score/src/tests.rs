@@ -48,10 +48,11 @@ fn check_successful_rating_creation() {
 	let entry = RatingInputEntryOf::<Test> {
 		entity_uid,
 		provider_uid,
-		total_rating: 250u64,
+		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
 		entity_type: EntityTypeOf::Logistic,
 		rating_type: RatingTypeOf::Overall,
+		provider_did: creator.clone(),
 	};
 	let entry_digest =
 		<Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);

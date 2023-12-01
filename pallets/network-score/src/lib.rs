@@ -171,17 +171,17 @@ pub mod pallet {
 	pub type ProviderIdentifierOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 
 	pub type RatingInputEntryOf<T> =
-		RatingInputEntry<EntityIdentifierOf<T>, EntityTypeOf, RatingTypeOf>;
+		RatingInputEntry<EntityIdentifierOf<T>, RatingProviderIdOf<T>, EntityTypeOf, RatingTypeOf>;
 
 	pub type RatingEntryOf<T> = RatingEntry<
 		EntityIdentifierOf<T>,
+		RatingProviderIdOf<T>,
 		EntityTypeOf,
 		RatingTypeOf,
 		RatingEntryIdOf,
 		RatingEntryHashOf<T>,
 		MessageIdentifierOf<T>,
 		SpaceIdOf,
-		RatingProviderIdOf<T>,
 		AccountIdOf<T>,
 		EntryTypeOf,
 		<T as timestamp::Config>::Moment,
@@ -251,25 +251,28 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new rating entry has been added.
-		/// \[rating entry identifier, entity, provider\]
+		/// \[rating entry identifier, entity, provider, creator\]
 		RatingEntryAdded {
 			identifier: RatingEntryIdOf,
 			entity: EntityIdentifierOf<T>,
 			provider: RatingProviderIdOf<T>,
+			creator: AccountIdOf<T>,
 		},
 		/// A rating entry has been amended.
-		/// \[rating entry identifier, entity, \]
+		/// \[rating entry identifier, entity, creator\]
 		RatingEntryRevoked {
 			identifier: RatingEntryIdOf,
 			entity: EntityIdentifierOf<T>,
 			provider: RatingProviderIdOf<T>,
+			creator: AccountIdOf<T>,
 		},
 		/// A rating entry has been revised (after amend).
-		/// \[rating entry identifier, entity, \]
+		/// \[rating entry identifier, entity, creator \]
 		RatingEntryRevised {
 			identifier: RatingEntryIdOf,
 			entity: EntityIdentifierOf<T>,
 			provider: RatingProviderIdOf<T>,
+			creator: AccountIdOf<T>,
 		},
 		/// Aggregate scores has been updated.
 		/// \[entity identifier\]
@@ -371,9 +374,10 @@ pub mod pallet {
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				entry.total_rating > 0 &&
+				entry.total_encoded_rating > 0 &&
 					entry.count_of_txn > 0 &&
-					entry.total_rating <= entry.count_of_txn * T::MaxRatingValue::get() as u64,
+					entry.total_encoded_rating <=
+						entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
 
@@ -388,7 +392,9 @@ pub mod pallet {
 				Error::<T>::MessageIdAlreadyExists
 			);
 
-			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>)
+			let provider_did = entry.provider_did.clone();
+
+			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>
 			// <scale_encoded_space_identifier>, <scale_encoded_provider_identifier>,
 			// <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
@@ -396,7 +402,7 @@ pub mod pallet {
 					&digest.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
-					&provider.encode()[..],
+					&provider_did.encode()[..],
 					&creator.encode()[..],
 				]
 				.concat()[..],
@@ -422,19 +428,23 @@ pub mod pallet {
 					digest,
 					message_id: message_id.clone(),
 					space: space_id,
-					provider_id: provider.clone(),
-					creator_id: creator,
+					creator_id: creator.clone(),
 					entry_type: EntryTypeOf::Credit,
 					reference_id: None,
 					created_at,
 				},
 			);
 
-			<MessageIdentifiers<T>>::insert(message_id, &provider, &identifier);
+			<MessageIdentifiers<T>>::insert(message_id, &provider_did, &identifier);
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
 
-			Self::deposit_event(Event::RatingEntryAdded { identifier, entity, provider });
+			Self::deposit_event(Event::RatingEntryAdded {
+				identifier,
+				entity,
+				provider: provider_did,
+				creator,
+			});
 
 			Ok(())
 		}
@@ -506,6 +516,7 @@ pub mod pallet {
 				Error::<T>::MessageIdAlreadyExists
 			);
 
+			let provider_did = rating_details.entry.provider_did.clone();
 			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>)
 			// <scale_encoded_space_identifier>, <scale_encoded_provider_identifier>,
 			// <scale_encoded_creator_identifier>))
@@ -514,7 +525,7 @@ pub mod pallet {
 					&digest.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
-					&provider.encode()[..],
+					&provider_did.encode()[..],
 					&creator.encode()[..],
 				]
 				.concat()[..],
@@ -536,8 +547,7 @@ pub mod pallet {
 			<RatingEntries<T>>::insert(
 				&identifier,
 				RatingEntryOf::<T> {
-					provider_id: provider.clone(),
-					creator_id: creator,
+					creator_id: creator.clone(),
 					entry_type: EntryTypeOf::Debit,
 					reference_id: Some(entry_identifier.clone()),
 					created_at,
@@ -545,13 +555,18 @@ pub mod pallet {
 				},
 			);
 
-			<MessageIdentifiers<T>>::insert(&message_id, &provider, &identifier);
+			<MessageIdentifiers<T>>::insert(&message_id, &provider_did, &identifier);
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
 			Self::update_activity(&entry_identifier, CallTypeOf::Debit)
 				.map_err(Error::<T>::from)?;
 
-			Self::deposit_event(Event::RatingEntryRevoked { identifier, entity, provider });
+			Self::deposit_event(Event::RatingEntryRevoked {
+				identifier,
+				entity,
+				provider: provider_did,
+				creator,
+			});
 
 			Ok(())
 		}
@@ -623,9 +638,10 @@ pub mod pallet {
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				entry.total_rating > 0 &&
+				entry.total_encoded_rating > 0 &&
 					entry.count_of_txn > 0 &&
-					entry.total_rating <= entry.count_of_txn * T::MaxRatingValue::get() as u64,
+					entry.total_encoded_rating <=
+						entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
 
@@ -655,6 +671,8 @@ pub mod pallet {
 				Error::<T>::MessageIdAlreadyExists
 			);
 
+			let provider_did = entry.provider_did.clone();
+
 			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>)
 			// <scale_encoded_space_identifier>,<scale_encoded_provider_identifier>,
 			// <scale_encoded_creator_identifier>))
@@ -663,7 +681,7 @@ pub mod pallet {
 					&digest.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
-					&provider.encode()[..],
+					&provider_did.encode()[..],
 					&creator.encode()[..],
 				]
 				.concat()[..],
@@ -689,22 +707,26 @@ pub mod pallet {
 					digest,
 					space: space_id,
 					message_id: message_id.clone(),
-					provider_id: provider.clone(),
-					creator_id: creator,
+					creator_id: creator.clone(),
 					entry_type: EntryTypeOf::Credit,
 					reference_id: reference_id_option.clone(),
 					created_at,
 				},
 			);
 
-			<MessageIdentifiers<T>>::insert(message_id, &provider, &identifier);
+			<MessageIdentifiers<T>>::insert(message_id, &provider_did, &identifier);
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
 			if let Some(reference_id) = reference_id_option {
 				Self::update_activity(&reference_id, CallTypeOf::Credit)
 					.map_err(Error::<T>::from)?;
 			}
-			Self::deposit_event(Event::RatingEntryRevised { identifier, entity, provider });
+			Self::deposit_event(Event::RatingEntryRevised {
+				identifier,
+				entity,
+				provider: provider_did,
+				creator,
+			});
 
 			Ok(())
 		}
@@ -751,14 +773,14 @@ impl<T: Config> Pallet<T> {
 				EntryTypeOf::Credit => {
 					aggregate.count_of_txn =
 						aggregate.count_of_txn.saturating_add(entry.count_of_txn);
-					aggregate.total_rating =
-						aggregate.total_rating.saturating_add(entry.total_rating);
+					aggregate.total_encoded_rating =
+						aggregate.total_encoded_rating.saturating_add(entry.total_encoded_rating);
 				},
 				EntryTypeOf::Debit => {
 					aggregate.count_of_txn =
 						aggregate.count_of_txn.saturating_sub(entry.count_of_txn);
-					aggregate.total_rating =
-						aggregate.total_rating.saturating_sub(entry.total_rating);
+					aggregate.total_encoded_rating =
+						aggregate.total_encoded_rating.saturating_sub(entry.total_encoded_rating);
 				},
 			};
 			<AggregateScores<T>>::insert(
@@ -766,13 +788,13 @@ impl<T: Config> Pallet<T> {
 				&entry.rating_type,
 				AggregatedEntryOf {
 					count_of_txn: aggregate.count_of_txn,
-					total_rating: aggregate.total_rating,
+					total_encoded_rating: aggregate.total_encoded_rating,
 				},
 			);
 		} else {
 			let new_score_entry = AggregatedEntryOf {
 				count_of_txn: entry.count_of_txn,
-				total_rating: entry.total_rating,
+				total_encoded_rating: entry.total_encoded_rating,
 			};
 			<AggregateScores<T>>::insert(&entry.entity_uid, &entry.rating_type, new_score_entry);
 		}

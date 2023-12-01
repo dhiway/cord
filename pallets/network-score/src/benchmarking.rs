@@ -59,10 +59,11 @@ benchmarks! {
 		let entry = RatingInputEntryOf::<T> {
 			entity_uid: entity_uid.clone(),
 			provider_uid,
-			total_rating: 250u64,
+			total_encoded_rating: 250u64,
 			count_of_txn: 7u64,
 			entity_type: EntityTypeOf::Logistic,
 			rating_type: RatingTypeOf::Overall,
+			provider_did: did1.clone(),
 		};
 
 		let raw_space = [2u8; 256].to_vec();
@@ -93,7 +94,7 @@ benchmarks! {
 
 	}: _<T::RuntimeOrigin>(origin, entry, entry_digest, message_id, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::RatingEntryAdded { identifier, entity: entity_uid, provider: did1}.into());
+		assert_last_event::<T>(Event::RatingEntryAdded { identifier, entity: entity_uid, provider: did1, creator: caller}.into());
 	}
 
 	revoke_rating {
@@ -115,10 +116,11 @@ benchmarks! {
 		let entry = RatingInputEntryOf::<T> {
 			entity_uid: entity_uid.clone(),
 			provider_uid,
-			total_rating: 250u64,
+			total_encoded_rating: 250u64,
 			count_of_txn: 7u64,
 			entity_type: EntityTypeOf::Logistic,
 			rating_type: RatingTypeOf::Overall,
+			provider_did: did1.clone(),
 		};
 		let entry_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&entry.encode()[..]].concat()[..],
@@ -140,7 +142,7 @@ benchmarks! {
 		let authorization_id: AuthorizationIdOf =
 			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
-		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did1.clone());
+		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller.clone(), did1.clone());
 		let chain_space_origin = RawOrigin::Root.into();
 
 		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
@@ -149,7 +151,7 @@ benchmarks! {
 		let _ = Pallet::<T>::register_rating(origin.clone(), entry, entry_digest, message_id_add, authorization_id.clone());
 	}: _<T::RuntimeOrigin>(origin, identifier_add, message_id_revoke, entry_digest, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::RatingEntryRevoked { identifier: identifier_revoke, entity: entity_uid, provider: did1}.into());
+		assert_last_event::<T>(Event::RatingEntryRevoked { identifier: identifier_revoke, entity: entity_uid, provider: did1, creator: caller}.into());
 	}
 
 	revise_rating {
@@ -173,10 +175,11 @@ benchmarks! {
 		let entry = RatingInputEntryOf::<T> {
 			entity_uid: entity_uid.clone(),
 			provider_uid: provider_uid.clone(),
-			total_rating: 250u64,
+			total_encoded_rating: 250u64,
 			count_of_txn: 7u64,
 			entity_type: EntityTypeOf::Logistic,
 			rating_type: RatingTypeOf::Overall,
+			provider_did: did.clone(),
 		};
 
 		let entry_digest = <T as frame_system::Config>::Hashing::hash(
@@ -186,10 +189,11 @@ benchmarks! {
 		let entry_revise = RatingInputEntryOf::<T> {
 			entity_uid: entity_uid.clone(),
 			provider_uid,
-			total_rating: 250u64,
+			total_encoded_rating: 250u64,
 			count_of_txn: 6u64,
 			entity_type: EntityTypeOf::Logistic,
 			rating_type: RatingTypeOf::Overall,
+			provider_did: did.clone(),
 		};
 		let entry_revise_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&entry.encode()[..]].concat()[..],
@@ -216,7 +220,7 @@ benchmarks! {
 		let authorization_id: AuthorizationIdOf =
 			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
-		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did.clone());
+		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
 		let chain_space_origin = RawOrigin::Root.into();
 
 		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
@@ -226,7 +230,7 @@ benchmarks! {
 		let _ = Pallet::<T>::revoke_rating(origin.clone(), identifier_add, message_id_revoke, entry_digest, authorization_id.clone());
 	}: _<T::RuntimeOrigin>(origin, entry_revise, entry_revise_digest, message_id_revise, identifier_revoke, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::RatingEntryRevised { identifier: identifier_revise, entity: entity_uid, provider: did}.into());
+		assert_last_event::<T>(Event::RatingEntryRevised { identifier: identifier_revise, entity: entity_uid, provider: did, creator: caller}.into());
 	}
 
 	impl_benchmark_test_suite! (Pallet, crate::mock::new_test_ext(), crate::mock::Test)

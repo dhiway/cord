@@ -33,7 +33,7 @@ pub struct EntityDetails<EntityIdentifier> {
 #[derive(
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
-pub struct RatingInputEntry<EntityIdentifier, EntityTypeOf, RatingTypeOf> {
+pub struct RatingInputEntry<EntityIdentifier, RatingProviderId, EntityTypeOf, RatingTypeOf> {
 	/// Unique Identifier (UID) for the entity being rated
 	pub entity_uid: EntityIdentifier,
 	/// Unique Identifier (UID) for the rating provider
@@ -41,11 +41,13 @@ pub struct RatingInputEntry<EntityIdentifier, EntityTypeOf, RatingTypeOf> {
 	/// Count of raing transactions for the entry
 	pub count_of_txn: u64,
 	/// Cumulative sum of ratings for the entity
-	pub total_rating: u64,
+	pub total_encoded_rating: u64,
 	/// Type of the entity (seller/logistic)
 	pub entity_type: EntityTypeOf,
 	/// Type of rating (overall/delivery)
 	pub rating_type: RatingTypeOf,
+	/// DID identifier of the provider
+	pub provider_did: RatingProviderId,
 }
 
 #[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
@@ -83,26 +85,24 @@ impl RatingTypeOf {
 )]
 pub struct RatingEntry<
 	EntityIdentifier,
+	RatingProviderId,
 	EntityTypeOf,
 	RatingTypeOf,
 	RatingEntryId,
 	RatingEntryHash,
 	MessageIdentifier,
 	SpaceIdOf,
-	RatingProviderId,
 	AccountId,
 	EntryTypeOf,
 	Moment,
 > {
-	pub entry: RatingInputEntry<EntityIdentifier, EntityTypeOf, RatingTypeOf>,
+	pub entry: RatingInputEntry<EntityIdentifier, RatingProviderId, EntityTypeOf, RatingTypeOf>,
 	/// rating digest
 	pub digest: RatingEntryHash,
 	/// messsage identifier of the rating entry
 	pub message_id: MessageIdentifier,
 	/// Space Identifier
 	pub space: SpaceIdOf,
-	/// Rating provider id - entity initiating the transaction.
-	pub provider_id: RatingProviderId,
 	/// entity anchoring the transaction on-chain
 	pub creator_id: AccountId,
 	/// Type of the rating entry (credit/debit)
@@ -120,5 +120,5 @@ pub struct AggregatedEntryOf {
 	/// aggregated transaction count
 	pub count_of_txn: u64,
 	/// aggregated rating
-	pub total_rating: u64,
+	pub total_encoded_rating: u64,
 }
