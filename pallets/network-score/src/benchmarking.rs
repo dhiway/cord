@@ -77,12 +77,12 @@ benchmarks! {
 		let authorization_id: AuthorizationIdOf =
 			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
-		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did1.clone());
+		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller.clone(), did1.clone());
 
 		let entry_digest = <T as frame_system::Config>::Hashing::hash(&entry.encode()[..]);
 
 		let id_digest =  <T as frame_system::Config>::Hashing::hash(
-			&[&(entry_digest.clone()).encode()[..], &message_id.encode()[..], &space_id.encode()[..], &did1.encode()[..]].concat()[..]
+			&[&(entry_digest.clone()).encode()[..], &message_id.encode()[..], &space_id.encode()[..], &did1.encode()[..], &caller.encode()[..]].concat()[..]
 		);
 		let identifier = Ss58Identifier::to_scoring_id(&id_digest.encode()[..]).unwrap();
 
@@ -93,10 +93,10 @@ benchmarks! {
 
 	}: _<T::RuntimeOrigin>(origin, entry, entry_digest, message_id, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::RatingEntryAdded { identifier, entity: entity_uid}.into());
+		assert_last_event::<T>(Event::RatingEntryAdded { identifier, entity: entity_uid, provider: did1}.into());
 	}
 
-	amend_rating {
+	revoke_rating {
 		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -125,12 +125,12 @@ benchmarks! {
 		);
 
 		let id_digest_add =  <T as frame_system::Config>::Hashing::hash(
-			&[&(entry_digest.clone()).encode()[..], &message_id_add.encode()[..], &space_id.encode()[..], &did1.encode()[..]].concat()[..]
+			&[&(entry_digest.clone()).encode()[..], &message_id_add.encode()[..], &space_id.encode()[..], &did1.encode()[..], &caller.encode()[..]].concat()[..]
 		);
 		let identifier_add = Ss58Identifier::to_scoring_id(&id_digest_add.encode()[..]).unwrap();
 
 		let id_digest =  <T as frame_system::Config>::Hashing::hash(
-			&[&(entry_digest.clone()).encode()[..], &message_id_revoke.encode()[..], &space_id.encode()[..], &did1.encode()[..]].concat()[..]
+			&[&(entry_digest.clone()).encode()[..], &message_id_revoke.encode()[..], &space_id.encode()[..], &did1.encode()[..], &caller.encode()[..]].concat()[..]
 		);
 		let identifier_revoke = Ss58Identifier::to_scoring_id(&id_digest.encode()[..]).unwrap();
 
@@ -140,7 +140,7 @@ benchmarks! {
 		let authorization_id: AuthorizationIdOf =
 			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
-		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did1);
+		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did1.clone());
 		let chain_space_origin = RawOrigin::Root.into();
 
 		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
@@ -149,7 +149,7 @@ benchmarks! {
 		let _ = Pallet::<T>::register_rating(origin.clone(), entry, entry_digest, message_id_add, authorization_id.clone());
 	}: _<T::RuntimeOrigin>(origin, identifier_add, message_id_revoke, entry_digest, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::RatingEntryRevoked { identifier: identifier_revoke, entity: entity_uid}.into());
+		assert_last_event::<T>(Event::RatingEntryRevoked { identifier: identifier_revoke, entity: entity_uid, provider: did1}.into());
 	}
 
 	revise_rating {
@@ -196,17 +196,17 @@ benchmarks! {
 		);
 
 		let id_digest_add =  <T as frame_system::Config>::Hashing::hash(
-			&[&(entry_digest.clone()).encode()[..], &message_id_add.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
+			&[&(entry_digest.clone()).encode()[..], &message_id_add.encode()[..], &space_id.encode()[..], &did.encode()[..], &caller.encode()[..]].concat()[..]
 		);
 		let identifier_add = Ss58Identifier::to_scoring_id(&id_digest_add.encode()[..]).unwrap();
 
 		let id_digest =  <T as frame_system::Config>::Hashing::hash(
-			&[&(entry_digest.clone()).encode()[..], &message_id_revoke.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
+			&[&(entry_digest.clone()).encode()[..], &message_id_revoke.encode()[..], &space_id.encode()[..], &did.encode()[..], &caller.encode()[..]].concat()[..]
 		);
 		let identifier_revoke = Ss58Identifier::to_scoring_id(&id_digest.encode()[..]).unwrap();
 
 		let id_digest_revise =  <T as frame_system::Config>::Hashing::hash(
-			&[&(entry_revise_digest.clone()).encode()[..], &message_id_revise.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
+			&[&(entry_revise_digest.clone()).encode()[..], &message_id_revise.encode()[..], &space_id.encode()[..], &did.encode()[..], &caller.encode()[..]].concat()[..]
 		);
 		let identifier_revise = Ss58Identifier::to_scoring_id(&id_digest_revise.encode()[..]).unwrap();
 
@@ -216,17 +216,17 @@ benchmarks! {
 		let authorization_id: AuthorizationIdOf =
 			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
-		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did);
+		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller, did.clone());
 		let chain_space_origin = RawOrigin::Root.into();
 
 		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
 		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, 10u64 ).expect("Approval should not fail.");
 
 		let _ = Pallet::<T>::register_rating(origin.clone(), entry, entry_digest, message_id_add, authorization_id.clone());
-		let _ = Pallet::<T>::amend_rating(origin.clone(), identifier_add, message_id_revoke, entry_digest, authorization_id.clone());
+		let _ = Pallet::<T>::revoke_rating(origin.clone(), identifier_add, message_id_revoke, entry_digest, authorization_id.clone());
 	}: _<T::RuntimeOrigin>(origin, entry_revise, entry_revise_digest, message_id_revise, identifier_revoke, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::RatingEntryRevised { identifier: identifier_revise, entity: entity_uid}.into());
+		assert_last_event::<T>(Event::RatingEntryRevised { identifier: identifier_revise, entity: entity_uid, provider: did}.into());
 	}
 
 	impl_benchmark_test_suite! (Pallet, crate::mock::new_test_ext(), crate::mock::Test)

@@ -89,9 +89,10 @@ pub struct RatingEntry<
 	RatingEntryHash,
 	MessageIdentifier,
 	SpaceIdOf,
-	RatingCreatorId,
+	RatingProviderId,
+	AccountId,
 	EntryTypeOf,
-	BlockNumber,
+	Moment,
 > {
 	pub entry: RatingInputEntry<EntityIdentifier, EntityTypeOf, RatingTypeOf>,
 	/// rating digest
@@ -100,14 +101,16 @@ pub struct RatingEntry<
 	pub message_id: MessageIdentifier,
 	/// Space Identifier
 	pub space: SpaceIdOf,
-	/// Rating creator.
-	pub creator: RatingCreatorId,
+	/// Rating provider id - entity initiating the transaction.
+	pub provider_id: RatingProviderId,
+	/// entity anchoring the transaction on-chain
+	pub creator_id: AccountId,
 	/// Type of the rating entry (credit/debit)
 	pub entry_type: EntryTypeOf,
 	/// Rating reference entry
 	pub reference_id: Option<RatingEntryId>,
-	/// The block number in which journal entry is included
-	pub created_at: BlockNumber,
+	/// The block number in which rating entry is included
+	pub created_at: Moment,
 }
 
 #[derive(
