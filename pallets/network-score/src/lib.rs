@@ -202,6 +202,7 @@ pub mod pallet {
 
 		type RatingProviderIdOf: Parameter + MaxEncodedLen;
 
+
 		#[pallet::constant]
 		type MaxEncodedValueLength: Get<u32>;
 		#[pallet::constant]
@@ -370,6 +371,7 @@ pub mod pallet {
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&provider,
+
 			)
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 

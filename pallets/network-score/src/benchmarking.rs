@@ -64,6 +64,7 @@ benchmarks! {
 			entity_type: EntityTypeOf::Logistic,
 			rating_type: RatingTypeOf::Overall,
 			provider_did: did1.clone(),
+
 		};
 
 		let raw_space = [2u8; 256].to_vec();
@@ -84,6 +85,7 @@ benchmarks! {
 
 		let id_digest =  <T as frame_system::Config>::Hashing::hash(
 			&[&(entry_digest.clone()).encode()[..], &message_id.encode()[..], &space_id.encode()[..], &did1.encode()[..], &caller.encode()[..]].concat()[..]
+
 		);
 		let identifier = Ss58Identifier::to_scoring_id(&id_digest.encode()[..]).unwrap();
 
@@ -143,7 +145,6 @@ benchmarks! {
 			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
 
 		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller.clone(), did1.clone());
-		let chain_space_origin = RawOrigin::Root.into();
 
 		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
 		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, 3u64 ).expect("Approval should not fail.");
