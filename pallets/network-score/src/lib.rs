@@ -202,7 +202,6 @@ pub mod pallet {
 
 		type RatingProviderIdOf: Parameter + MaxEncodedLen;
 
-
 		#[pallet::constant]
 		type MaxEncodedValueLength: Get<u32>;
 		#[pallet::constant]
@@ -371,7 +370,6 @@ pub mod pallet {
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&provider,
-
 			)
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
@@ -395,17 +393,18 @@ pub mod pallet {
 			);
 
 			let provider_did = entry.provider_did.clone();
+			let entity_uid = entry.entity_uid.clone();
 
-			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>
-			// <scale_encoded_space_identifier>, <scale_encoded_provider_identifier>,
-			// <scale_encoded_creator_identifier>))
+			// Id Digest = concat (H(<scale_encoded_digest>,(<scale_encoded_entity_uid>),
+			// (<scale_encoded_message_id> <scale_encoded_space_identifier>,
+			// <scale_encoded_provider_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[
 					&digest.encode()[..],
+					&entity_uid.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
 					&provider_did.encode()[..],
-					&creator.encode()[..],
 				]
 				.concat()[..],
 			);
@@ -519,16 +518,18 @@ pub mod pallet {
 			);
 
 			let provider_did = rating_details.entry.provider_did.clone();
-			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>)
-			// <scale_encoded_space_identifier>, <scale_encoded_provider_identifier>,
-			// <scale_encoded_creator_identifier>))
+			let entity_uid = rating_details.entry.entity_uid.clone();
+
+			// Id Digest = concat (H(<scale_encoded_digest>,(<scale_encoded_entity_uid>),
+			// (<scale_encoded_message_id>) <scale_encoded_space_identifier>,
+			// <scale_encoded_provider_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[
 					&digest.encode()[..],
+					&entity_uid.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
 					&provider_did.encode()[..],
-					&creator.encode()[..],
 				]
 				.concat()[..],
 			);
@@ -674,17 +675,17 @@ pub mod pallet {
 			);
 
 			let provider_did = entry.provider_did.clone();
-
-			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>)
-			// <scale_encoded_space_identifier>,<scale_encoded_provider_identifier>,
-			// <scale_encoded_creator_identifier>))
+			let entity_uid = entry.entity_uid.clone();
+			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_entity_uid>),
+			// (<scale_encoded_message_id>), <scale_encoded_space_identifier>,
+			// <scale_encoded_provider_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[
 					&digest.encode()[..],
+					&entity_uid.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
 					&provider_did.encode()[..],
-					&creator.encode()[..],
 				]
 				.concat()[..],
 			);
