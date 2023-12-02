@@ -310,7 +310,7 @@ pub mod pallet {
 		/// Referenced rating identifier not found
 		ReferenceIdentifierNotFound,
 		/// Refrenced identifer is not a debit transaction
-		ReferenceNotAmendIdentifier,
+		ReferenceNotDebitIdentifier,
 		/// Rating Entity mismatch
 		EntityMismatch,
 		/// Rating Space mismatch
@@ -666,7 +666,7 @@ pub mod pallet {
 			let stored_entry_type: EntryTypeOf = rating_details.entry_type;
 			ensure!(
 				EntryTypeOf::Debit == stored_entry_type,
-				Error::<T>::ReferenceNotAmendIdentifier
+				Error::<T>::ReferenceNotDebitIdentifier
 			);
 
 			ensure!(
