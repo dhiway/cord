@@ -698,7 +698,7 @@ pub mod pallet {
 				Error::<T>::RatingIdentifierAlreadyAdded
 			);
 
-			Self::aggregate_score(&rating_details.entry, EntryTypeOf::Debit)?;
+			Self::aggregate_score(&entry, EntryTypeOf::Credit)?;
 			let entity = rating_details.entry.entity_uid.clone();
 			let reference_id_option = rating_details.reference_id;
 			let created_at = Self::get_current_time();
