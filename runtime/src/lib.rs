@@ -822,9 +822,8 @@ parameter_types! {
 
 impl pallet_asset::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Signature = Signature;
-	type Signer = <Signature as Verify>::Signer;
-	type EnsureOrigin = EnsureSigned<Self::AccountId>;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type MaxEncodedValueLength = MaxEncodedValueLength;
 	type MaxAssetDistribution = MaxAssetDistribution;
 }

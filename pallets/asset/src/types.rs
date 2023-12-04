@@ -71,7 +71,7 @@ pub struct AssetEntry<
 	AssetDescription,
 	AssetTypeOf,
 	AssetStatusOf,
-	AccountId,
+	AssetCreatorOf,
 	AssetTag,
 	AssetMeta,
 	BlockNumber,
@@ -82,7 +82,7 @@ pub struct AssetEntry<
 	/// status of the asset
 	pub asset_status: AssetStatusOf,
 	/// asset issuer
-	pub asset_issuer: AccountId,
+	pub asset_issuer: AssetCreatorOf,
 	/// asset inlclusion block
 	pub created_at: BlockNumber,
 }
@@ -94,7 +94,7 @@ pub struct AssetDistributionEntry<
 	AssetDescription,
 	AssetTypeOf,
 	AssetStatusOf,
-	AccountId,
+	AssetCreatorOf,
 	AssetTag,
 	AssetMeta,
 	BlockNumber,
@@ -106,9 +106,9 @@ pub struct AssetDistributionEntry<
 	/// status of the asset
 	pub asset_instance_status: AssetStatusOf,
 	/// asset issuer
-	pub asset_instance_issuer: AccountId,
+	pub asset_instance_issuer: AssetCreatorOf,
 	/// asset owner
-	pub asset_instance_owner: AccountId,
+	pub asset_instance_owner: AssetCreatorOf,
 	/// asset inlclusion block
 	pub created_at: BlockNumber,
 }
@@ -116,11 +116,11 @@ pub struct AssetDistributionEntry<
 #[derive(
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
-pub struct AssetIssuanceEntry<AssetIdOf, AccountId> {
+pub struct AssetIssuanceEntry<AssetIdOf, AssetCreatorOf> {
 	/// type of the asset
 	pub asset_id: AssetIdOf,
 	/// asset owner
-	pub asset_owner: AccountId,
+	pub asset_owner: AssetCreatorOf,
 	/// issuance quantity
 	pub asset_issuance_qty: Option<u32>,
 }
@@ -128,13 +128,13 @@ pub struct AssetIssuanceEntry<AssetIdOf, AccountId> {
 #[derive(
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
-pub struct AssetTransferEntry<AssetIdOf, AssetInstanceIdOf, AccountId> {
+pub struct AssetTransferEntry<AssetIdOf, AssetInstanceIdOf, AssetCreatorOf> {
 	/// type of the asset
 	pub asset_id: AssetIdOf,
 	/// asset instance identifier
 	pub asset_instance_id: AssetInstanceIdOf,
 	/// asset owner
-	pub asset_owner: AccountId,
+	pub asset_owner: AssetCreatorOf,
 	/// new asset owner
-	pub new_asset_owner: AccountId,
+	pub new_asset_owner: AssetCreatorOf,
 }
