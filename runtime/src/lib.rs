@@ -46,7 +46,7 @@ use frame_support::{
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot, EnsureSigned,
+	EnsureRoot,
 };
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 
@@ -72,6 +72,9 @@ use sp_std::{cmp::Ordering, prelude::*};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
+
+#[cfg(feature = "runtime-benchmarks")]
+use frame_system::EnsureSigned;
 
 pub use frame_system::Call as SystemCall;
 pub use pallet_balances::Call as BalancesCall;
@@ -830,20 +833,6 @@ impl pallet_network_score::Config for Runtime {
 	type WeightInfo = weights::pallet_network_score::WeightInfo<Runtime>;
 }
 
-parameter_types! {
-	pub const MaxEncodedValueLength: u32 = 1_024;
-	pub const MaxAssetDistribution: u32 = u32::MAX;
-}
-
-impl pallet_asset::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Signature = Signature;
-	type Signer = <Signature as Verify>::Signer;
-	type EnsureOrigin = EnsureSigned<Self::AccountId>;
-	type MaxEncodedValueLength = MaxEncodedValueLength;
-	type MaxAssetDistribution = MaxAssetDistribution;
-}
-
 construct_runtime! (
 	pub struct Runtime
 	{
@@ -881,7 +870,6 @@ construct_runtime! (
 		Statement: pallet_statement = 105,
 		DidName: pallet_did_name = 106,
 		NetworkScore: pallet_network_score = 108,
-		Asset: pallet_asset =109,
 		Sudo: pallet_sudo = 255,
 	}
 );

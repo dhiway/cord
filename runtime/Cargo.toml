@@ -49,7 +49,6 @@ pallet-identity = { default-features = false, path = '../pallets/identity' }
 pallet-offences = { default-features = false, path = '../pallets/offences' }
 pallet-node-authorization = { default-features = false, path = "../pallets/node-authorization" }
 pallet-network-score = { default-features = false, path = '../pallets/network-score' }
-pallet-asset = { default-features = false, path = '../pallets/asset' }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "../runtime-api/did", default-features = false }
@@ -165,7 +164,6 @@ std = [
 	"pallet-chain-space/std",
 	"pallet-statement/std",
 	"pallet-network-score/std",
-	"pallet-asset/std",
 	"pallet-network-membership/std",
 	"pallet-runtime-upgrade/std",
 	"pallet-did-runtime-api/std",

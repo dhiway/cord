@@ -35,9 +35,7 @@ const IDENT_SCHEMA: u16 = 7366;
 const IDENT_STATEMENT: u16 = 8902;
 const IDENT_ENTITY: u16 = 6480;
 const IDENT_TEMPLATE: u16 = 8911;
-const IDENT_ASSET: u16 = 2348;
 const IDENT_RATING: u16 = 6077;
-const IDENT_ASSET_INSTANCE: u16 = 11380;
 
 /// The minimum length of a valid identifier.
 pub const MINIMUM_IDENTIFIER_LENGTH: usize = 2;
@@ -162,12 +160,6 @@ impl Ss58Identifier {
 	}
 	pub fn to_template_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_TEMPLATE)
-	}
-	pub fn to_asset_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_ASSET)
-	}
-	pub fn to_asset_instance_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_ASSET_INSTANCE)
 	}
 	pub fn to_scoring_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_RATING)
