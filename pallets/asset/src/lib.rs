@@ -27,12 +27,14 @@ use identifier::{
 	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
 	EventEntryOf,
 };
+use pallet_chain_space::AuthorizationIdOf;
 use sp_runtime::traits::UniqueSaturatedInto;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	pub use cord_primitives::{CountOf, RatingOf};
+	use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, Twox64Concat};
 	use frame_system::pallet_prelude::*;
 	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
@@ -48,11 +50,10 @@ pub mod pallet {
 	///SS58 Asset Identifier
 	pub type AssetInstanceIdOf = Ss58Identifier;
 
-	/// Type of an account identifier.
-	pub type CordAccountIdOf<T> = <T as frame_system::Config>::AccountId;
-
-	/// Type of an account identifier.
-	pub type SignatureOf<T> = <T as Config>::Signature;
+	/// Type of a creator identifier.
+	pub type AssetCreatorOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
+	/// Type of the identitiy.
+	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 
 	/// Hash of the Rating.
 	pub type EntryHashOf<T> = <T as frame_system::Config>::Hash;
@@ -68,7 +69,7 @@ pub mod pallet {
 		AssetDescriptionOf<T>,
 		AssetTypeOf,
 		AssetStatusOf,
-		CordAccountIdOf<T>,
+		AssetCreatorOf<T>,
 		AssetTagOf<T>,
 		AssetMetadataOf<T>,
 		BlockNumberFor<T>,
@@ -78,7 +79,7 @@ pub mod pallet {
 		AssetDescriptionOf<T>,
 		AssetTypeOf,
 		AssetStatusOf,
-		CordAccountIdOf<T>,
+		AssetCreatorOf<T>,
 		AssetTagOf<T>,
 		AssetMetadataOf<T>,
 		BlockNumberFor<T>,
@@ -86,23 +87,20 @@ pub mod pallet {
 	>;
 
 	pub type AssetTransferEntryOf<T> =
-		AssetTransferEntry<AssetIdOf, AssetInstanceIdOf, CordAccountIdOf<T>>;
+		AssetTransferEntry<AssetIdOf, AssetInstanceIdOf, AssetCreatorOf<T>>;
 
-	pub type AssetIssuanceEntryOf<T> = AssetIssuanceEntry<AssetIdOf, CordAccountIdOf<T>>;
+	pub type AssetIssuanceEntryOf<T> = AssetIssuanceEntry<AssetIdOf, AssetCreatorOf<T>>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + identifier::Config {
+	pub trait Config:
+		frame_system::Config + pallet_chain_space::Config + identifier::Config
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = CordAccountIdOf<Self>,
+			Success = <Self as Config>::OriginSuccess,
 		>;
-		type Signature: Verify<Signer = <Self as pallet::Config>::Signer>
-			+ Parameter
-			+ MaxEncodedLen
-			+ TypeInfo;
-		type Signer: IdentifyAccount<AccountId = CordAccountIdOf<Self>> + Parameter;
-
+		type OriginSuccess: CallSources<AccountIdOf<Self>, AssetCreatorOf<Self>>;
 		#[pallet::constant]
 		type MaxEncodedValueLength: Get<u32>;
 
@@ -155,7 +153,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// A new asset entry has been added.
 		/// \[asset entry identifier, issuer\]
-		Create { identifier: AssetIdOf, issuer: CordAccountIdOf<T> },
+		Create { identifier: AssetIdOf, issuer: AssetCreatorOf<T> },
 		/// A new asset entry has been added.
 		/// \[asset entry identifier, instance identifier\]
 		Issue { identifier: AssetIdOf, instance: AssetInstanceIdOf },
@@ -165,8 +163,8 @@ pub mod pallet {
 		Transfer {
 			identifier: AssetIdOf,
 			instance: AssetInstanceIdOf,
-			from: CordAccountIdOf<T>,
-			to: CordAccountIdOf<T>,
+			from: AssetCreatorOf<T>,
+			to: AssetCreatorOf<T>,
 		},
 	}
 
@@ -206,20 +204,22 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			entry: AssetInputEntryOf<T>,
 			digest: EntryHashOf<T>,
-			signature: SignatureOf<T>,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-
-			ensure!(
-				signature.verify(&(digest).encode()[..], &issuer),
-				Error::<T>::InvalidSignature
-			);
+			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&creator,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(entry.asset_qty > 0 && entry.asset_value > 0, Error::<T>::InvalidAssetValue);
 			ensure!(entry.asset_type.is_valid_asset_type(), Error::<T>::InvalidAssetType);
 
+			// Id Digest = concat (H(<scale_encoded_statement_digest>,
+			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&digest.encode()[..], &issuer.encode()[..]].concat()[..],
+				&[&digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
 			let identifier =
@@ -238,13 +238,13 @@ pub mod pallet {
 					asset_detail: entry,
 					asset_issuance: Zero::zero(),
 					asset_status: AssetStatusOf::ACTIVE,
-					asset_issuer: issuer.clone(),
+					asset_issuer: creator.clone(),
 					created_at: block_number,
 				},
 			);
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
-			Self::deposit_event(Event::Create { identifier, issuer });
+			Self::deposit_event(Event::Create { identifier, issuer: creator });
 
 			Ok(())
 		}
@@ -255,14 +255,14 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			entry: AssetIssuanceEntryOf<T>,
 			digest: EntryHashOf<T>,
-			signature: SignatureOf<T>,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-
-			ensure!(
-				signature.verify(&(digest).encode()[..], &issuer),
-				Error::<T>::InvalidSignature
-			);
+			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&issuer,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let asset = <Assets<T>>::get(&entry.asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
 
@@ -337,9 +337,14 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			entry: AssetTransferEntryOf<T>,
 			digest: EntryHashOf<T>,
-			signature: SignatureOf<T>,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let _owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&owner,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let instance = <Issuance<T>>::get(&entry.asset_id, &entry.asset_instance_id)
 				.ok_or(Error::<T>::AssetInstanceNotFound)?;
@@ -354,10 +359,11 @@ pub mod pallet {
 				Error::<T>::AssetNotActive
 			);
 
-			ensure!(
-				signature.verify(&(digest).encode()[..], &entry.asset_owner),
-				Error::<T>::InvalidSignature
-			);
+			//
+			//ensure!(
+			//	signature.verify(&(digest).encode()[..], &entry.asset_owner),
+			//	Error::<T>::InvalidSignature
+			//);
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
