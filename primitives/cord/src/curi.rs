@@ -29,16 +29,15 @@ use sp_std::{fmt::Debug, prelude::Clone, str, vec};
 /// CORD Identifier Prefix
 const PREFIX: &[u8] = b"CRDIDFR";
 /// CORD idents
-const IDENT_SPACE: u16 = 7101;
-const IDENT_AUTH: u16 = 10447;
-const IDENT_SCHEMA: u16 = 1424;
+const IDENT_SPACE: u16 = 3390;
+const IDENT_AUTH: u16 = 2092;
+const IDENT_SCHEMA: u16 = 7366;
 const IDENT_STATEMENT: u16 = 8902;
 const IDENT_ENTITY: u16 = 6480;
-const IDENT_TEMPLATE: u16 = 5035;
-const IDENT_ASSET: u16 = 2604;
-const IDENT_UNIQUE: u16 = 8903;
-const IDENT_SCORING: u16 = 11034;
-const IDENT_ASSET_INSTANCE: u16 = 13172;
+const IDENT_TEMPLATE: u16 = 8911;
+const IDENT_ASSET: u16 = 2348;
+const IDENT_RATING: u16 = 6077;
+const IDENT_ASSET_INSTANCE: u16 = 11380;
 
 /// The minimum length of a valid identifier.
 pub const MINIMUM_IDENTIFIER_LENGTH: usize = 2;
@@ -170,11 +169,8 @@ impl Ss58Identifier {
 	pub fn to_asset_instance_id(data: &[u8]) -> Result<Self, IdentifierError> {
 		Self::from_encoded(data, IDENT_ASSET_INSTANCE)
 	}
-	pub fn to_unique_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_UNIQUE)
-	}
 	pub fn to_scoring_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_SCORING)
+		Self::from_encoded(data, IDENT_RATING)
 	}
 	pub fn inner(&self) -> &[u8] {
 		&self.0
@@ -216,14 +212,6 @@ impl Ss58Identifier {
 
 		Ss58Identifier(bounded_error_value)
 	}
-	// /// Returns a default `Ss58Identifi
-	// /// er` with an error state.
-	// pub fn default_error() -> Self {
-	// 	let error_state = vec![0; 49];
-	// 	let bounded_error_state = BoundedVec::try_from(error_state)
-	// 		.expect("Should not fail as the length is within bounds");
-	// 	Ss58Identifier(bounded_error_state)
-	// }
 }
 
 impl AsRef<[u8]> for Ss58Identifier {

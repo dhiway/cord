@@ -150,7 +150,7 @@ pub mod pallet {
 	pub type RatingHashOf<T> = <T as frame_system::Config>::Hash;
 
 	/// Type of a creator identifier.
-	pub type RatingCreatorIdOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
+	pub type RatingProviderIdOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
 
 	/// Hash of the Rating.
 	pub type RatingEntryHashOf<T> = <T as frame_system::Config>::Hash;
@@ -171,35 +171,36 @@ pub mod pallet {
 	pub type ProviderIdentifierOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 
 	pub type RatingInputEntryOf<T> =
-		RatingInputEntry<EntityIdentifierOf<T>, EntityTypeOf, RatingTypeOf>;
+		RatingInputEntry<EntityIdentifierOf<T>, RatingProviderIdOf<T>, EntityTypeOf, RatingTypeOf>;
 
 	pub type RatingEntryOf<T> = RatingEntry<
 		EntityIdentifierOf<T>,
+		RatingProviderIdOf<T>,
 		EntityTypeOf,
 		RatingTypeOf,
 		RatingEntryIdOf,
 		RatingEntryHashOf<T>,
 		MessageIdentifierOf<T>,
 		SpaceIdOf,
-		RatingCreatorIdOf<T>,
+		AccountIdOf<T>,
 		EntryTypeOf,
-		BlockNumberFor<T>,
+		<T as timestamp::Config>::Moment,
 	>;
 
 	// pub type AggregatedEntryOf = AggregatedEntry;
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_chain_space::Config + identifier::Config
+		frame_system::Config + pallet_chain_space::Config + identifier::Config + timestamp::Config
 	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
 			Success = <Self as Config>::OriginSuccess,
 		>;
-		type OriginSuccess: CallSources<AccountIdOf<Self>, RatingCreatorIdOf<Self>>;
+		type OriginSuccess: CallSources<AccountIdOf<Self>, RatingProviderIdOf<Self>>;
 
-		type RatingCreatorIdOf: Parameter + MaxEncodedLen;
+		type RatingProviderIdOf: Parameter + MaxEncodedLen;
 
 		#[pallet::constant]
 		type MaxEncodedValueLength: Get<u32>;
@@ -242,7 +243,7 @@ pub mod pallet {
 		Twox64Concat,
 		MessageIdentifierOf<T>,
 		Blake2_128Concat,
-		EntityIdentifierOf<T>,
+		RatingProviderIdOf<T>,
 		RatingEntryIdOf,
 	>;
 
@@ -250,14 +251,29 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new rating entry has been added.
-		/// \[rating entry identifier, entity\]
-		RatingEntryAdded { identifier: RatingEntryIdOf, entity: EntityIdentifierOf<T> },
+		/// \[rating entry identifier, entity, provider, creator\]
+		RatingEntryAdded {
+			identifier: RatingEntryIdOf,
+			entity: EntityIdentifierOf<T>,
+			provider: RatingProviderIdOf<T>,
+			creator: AccountIdOf<T>,
+		},
 		/// A rating entry has been amended.
-		/// \[rating entry identifier, entity, \]
-		RatingEntryRevoked { identifier: RatingEntryIdOf, entity: EntityIdentifierOf<T> },
+		/// \[rating entry identifier, entity, creator\]
+		RatingEntryRevoked {
+			identifier: RatingEntryIdOf,
+			entity: EntityIdentifierOf<T>,
+			provider: RatingProviderIdOf<T>,
+			creator: AccountIdOf<T>,
+		},
 		/// A rating entry has been revised (after amend).
-		/// \[rating entry identifier, entity, \]
-		RatingEntryRevised { identifier: RatingEntryIdOf, entity: EntityIdentifierOf<T> },
+		/// \[rating entry identifier, entity, creator \]
+		RatingEntryRevised {
+			identifier: RatingEntryIdOf,
+			entity: EntityIdentifierOf<T>,
+			provider: RatingProviderIdOf<T>,
+			creator: AccountIdOf<T>,
+		},
 		/// Aggregate scores has been updated.
 		/// \[entity identifier\]
 		AggregateScoreUpdated { entity: EntityIdentifierOf<T> },
@@ -294,7 +310,7 @@ pub mod pallet {
 		/// Referenced rating identifier not found
 		ReferenceIdentifierNotFound,
 		/// Refrenced identifer is not a debit transaction
-		ReferenceNotAmendIdentifier,
+		ReferenceNotDebitIdentifier,
 		/// Rating Entity mismatch
 		EntityMismatch,
 		/// Rating Space mismatch
@@ -348,17 +364,20 @@ pub mod pallet {
 			message_id: MessageIdentifierOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let tx_authors = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let provider = tx_authors.subject();
+			let creator = tx_authors.sender();
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
-				&creator,
+				&provider,
 			)
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				entry.total_rating > 0 &&
+				entry.total_encoded_rating > 0 &&
 					entry.count_of_txn > 0 &&
-					entry.total_rating <= entry.count_of_txn * T::MaxRatingValue::get() as u64,
+					entry.total_encoded_rating <=
+						entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
 
@@ -369,18 +388,23 @@ pub mod pallet {
 			);
 
 			ensure!(
-				!<MessageIdentifiers<T>>::contains_key(&message_id, &entry.provider_uid),
+				!<MessageIdentifiers<T>>::contains_key(&message_id, &provider),
 				Error::<T>::MessageIdAlreadyExists
 			);
 
-			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>)
-			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
+			let provider_did = entry.provider_did.clone();
+			let entity_uid = entry.entity_uid.clone();
+
+			// Id Digest = concat (H(<scale_encoded_digest>,(<scale_encoded_entity_uid>),
+			// (<scale_encoded_message_id> <scale_encoded_space_identifier>,
+			// <scale_encoded_provider_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[
 					&digest.encode()[..],
+					&entity_uid.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
-					&creator.encode()[..],
+					&provider_did.encode()[..],
 				]
 				.concat()[..],
 			);
@@ -393,12 +417,10 @@ pub mod pallet {
 				Error::<T>::RatingIdentifierAlreadyAdded
 			);
 
-			let block_number = frame_system::Pallet::<T>::block_number();
-
 			Self::aggregate_score(&entry, EntryTypeOf::Credit)?;
 
 			let entity = entry.entity_uid.clone();
-			let provider = entry.provider_uid.clone();
+			let created_at = Self::get_current_time();
 
 			<RatingEntries<T>>::insert(
 				&identifier,
@@ -407,18 +429,23 @@ pub mod pallet {
 					digest,
 					message_id: message_id.clone(),
 					space: space_id,
-					creator,
+					creator_id: creator.clone(),
 					entry_type: EntryTypeOf::Credit,
 					reference_id: None,
-					created_at: block_number,
+					created_at,
 				},
 			);
 
-			<MessageIdentifiers<T>>::insert(message_id, provider, &identifier);
+			<MessageIdentifiers<T>>::insert(message_id, &provider_did, &identifier);
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
 
-			Self::deposit_event(Event::RatingEntryAdded { identifier, entity });
+			Self::deposit_event(Event::RatingEntryAdded {
+				identifier,
+				entity,
+				provider: provider_did,
+				creator,
+			});
 
 			Ok(())
 		}
@@ -463,17 +490,20 @@ pub mod pallet {
 		/// ```
 		#[pallet::call_index(1)]
 		#[pallet::weight({0})]
-		pub fn amend_rating(
+		pub fn revoke_rating(
 			origin: OriginFor<T>,
 			entry_identifier: RatingEntryIdOf,
 			message_id: MessageIdentifierOf<T>,
 			digest: RatingEntryHashOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let tx_authors = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let provider = tx_authors.subject();
+			let creator = tx_authors.sender();
+
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
-				&creator,
+				&provider,
 			)
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
@@ -483,21 +513,23 @@ pub mod pallet {
 			ensure!(rating_details.space == space_id, Error::<T>::UnauthorizedOperation);
 
 			ensure!(
-				!<MessageIdentifiers<T>>::contains_key(
-					&message_id,
-					&rating_details.entry.provider_uid
-				),
+				!<MessageIdentifiers<T>>::contains_key(&message_id, &provider),
 				Error::<T>::MessageIdAlreadyExists
 			);
 
-			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>)
-			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
+			let provider_did = rating_details.entry.provider_did.clone();
+			let entity_uid = rating_details.entry.entity_uid.clone();
+
+			// Id Digest = concat (H(<scale_encoded_digest>,(<scale_encoded_entity_uid>),
+			// (<scale_encoded_message_id>) <scale_encoded_space_identifier>,
+			// <scale_encoded_provider_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[
 					&digest.encode()[..],
+					&entity_uid.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
-					&creator.encode()[..],
+					&provider_did.encode()[..],
 				]
 				.concat()[..],
 			);
@@ -510,32 +542,34 @@ pub mod pallet {
 				Error::<T>::RatingIdentifierAlreadyAdded
 			);
 
-			let block_number = frame_system::Pallet::<T>::block_number();
-
 			Self::aggregate_score(&rating_details.entry, EntryTypeOf::Debit)?;
 
 			let entity = rating_details.entry.entity_uid.clone();
-			let provider = rating_details.entry.provider_uid.clone();
+			let created_at = Self::get_current_time();
 
 			<RatingEntries<T>>::insert(
 				&identifier,
 				RatingEntryOf::<T> {
-					creator,
-
+					creator_id: creator.clone(),
 					entry_type: EntryTypeOf::Debit,
 					reference_id: Some(entry_identifier.clone()),
-					created_at: block_number,
+					created_at,
 					..rating_details
 				},
 			);
 
-			<MessageIdentifiers<T>>::insert(&message_id, provider, &identifier);
+			<MessageIdentifiers<T>>::insert(&message_id, &provider_did, &identifier);
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
 			Self::update_activity(&entry_identifier, CallTypeOf::Debit)
 				.map_err(Error::<T>::from)?;
 
-			Self::deposit_event(Event::RatingEntryRevoked { identifier, entity });
+			Self::deposit_event(Event::RatingEntryRevoked {
+				identifier,
+				entity,
+				provider: provider_did,
+				creator,
+			});
 
 			Ok(())
 		}
@@ -593,20 +627,24 @@ pub mod pallet {
 			entry: RatingInputEntryOf<T>,
 			digest: RatingEntryHashOf<T>,
 			message_id: MessageIdentifierOf<T>,
-			amend_ref_id: RatingEntryIdOf,
+			debit_ref_id: RatingEntryIdOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let tx_authors = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let provider = tx_authors.subject();
+			let creator = tx_authors.sender();
+
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
-				&creator,
+				&provider,
 			)
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				entry.total_rating > 0 &&
+				entry.total_encoded_rating > 0 &&
 					entry.count_of_txn > 0 &&
-					entry.total_rating <= entry.count_of_txn * T::MaxRatingValue::get() as u64,
+					entry.total_encoded_rating <=
+						entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
 
@@ -616,39 +654,38 @@ pub mod pallet {
 				Error::<T>::InvalidEntryOrRatingType
 			);
 
-			let rating_details = <RatingEntries<T>>::get(&amend_ref_id)
+			let rating_details = <RatingEntries<T>>::get(&debit_ref_id)
 				.ok_or(Error::<T>::ReferenceIdentifierNotFound)?;
 
-			let input_entity_uid = &entry.entity_uid;
-			let stored_entity_uid = &rating_details.entry.entity_uid;
-			ensure!(input_entity_uid == stored_entity_uid, Error::<T>::EntityMismatch);
-
-			let ref_space_id = &space_id;
-			let stored_space_id = &rating_details.space;
-			ensure!(ref_space_id == stored_space_id, Error::<T>::SpaceMismatch);
+			ensure!(
+				entry.entity_uid == rating_details.entry.entity_uid,
+				Error::<T>::EntityMismatch
+			);
+			ensure!(space_id == rating_details.space, Error::<T>::SpaceMismatch);
 
 			let stored_entry_type: EntryTypeOf = rating_details.entry_type;
 			ensure!(
 				EntryTypeOf::Debit == stored_entry_type,
-				Error::<T>::ReferenceNotAmendIdentifier
+				Error::<T>::ReferenceNotDebitIdentifier
 			);
 
 			ensure!(
-				!<MessageIdentifiers<T>>::contains_key(
-					&message_id,
-					&rating_details.entry.provider_uid
-				),
+				!<MessageIdentifiers<T>>::contains_key(&message_id, &provider),
 				Error::<T>::MessageIdAlreadyExists
 			);
 
-			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_message_id>)
-			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
+			let provider_did = entry.provider_did.clone();
+			let entity_uid = entry.entity_uid.clone();
+			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_entity_uid>),
+			// (<scale_encoded_message_id>), <scale_encoded_space_identifier>,
+			// <scale_encoded_provider_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[
 					&digest.encode()[..],
+					&entity_uid.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
-					&creator.encode()[..],
+					&provider_did.encode()[..],
 				]
 				.concat()[..],
 			);
@@ -661,12 +698,10 @@ pub mod pallet {
 				Error::<T>::RatingIdentifierAlreadyAdded
 			);
 
-			let block_number = frame_system::Pallet::<T>::block_number();
-
-			Self::aggregate_score(&rating_details.entry, EntryTypeOf::Debit)?;
+			Self::aggregate_score(&entry, EntryTypeOf::Credit)?;
 			let entity = rating_details.entry.entity_uid.clone();
-			let provider = rating_details.entry.provider_uid.clone();
-			let reference_id = rating_details.reference_id.clone().unwrap();
+			let reference_id_option = rating_details.reference_id;
+			let created_at = Self::get_current_time();
 
 			<RatingEntries<T>>::insert(
 				&identifier,
@@ -675,19 +710,26 @@ pub mod pallet {
 					digest,
 					space: space_id,
 					message_id: message_id.clone(),
-					creator,
+					creator_id: creator.clone(),
 					entry_type: EntryTypeOf::Credit,
-					reference_id: rating_details.reference_id,
-					created_at: block_number,
+					reference_id: reference_id_option.clone(),
+					created_at,
 				},
 			);
 
-			<MessageIdentifiers<T>>::insert(message_id, provider, &identifier);
+			<MessageIdentifiers<T>>::insert(message_id, &provider_did, &identifier);
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
-			Self::update_activity(&reference_id, CallTypeOf::Credit).map_err(Error::<T>::from)?;
-
-			Self::deposit_event(Event::RatingEntryRevised { identifier, entity });
+			if let Some(reference_id) = reference_id_option {
+				Self::update_activity(&reference_id, CallTypeOf::Credit)
+					.map_err(Error::<T>::from)?;
+			}
+			Self::deposit_event(Event::RatingEntryRevised {
+				identifier,
+				entity,
+				provider: provider_did,
+				creator,
+			});
 
 			Ok(())
 		}
@@ -734,14 +776,14 @@ impl<T: Config> Pallet<T> {
 				EntryTypeOf::Credit => {
 					aggregate.count_of_txn =
 						aggregate.count_of_txn.saturating_add(entry.count_of_txn);
-					aggregate.total_rating =
-						aggregate.total_rating.saturating_add(entry.total_rating);
+					aggregate.total_encoded_rating =
+						aggregate.total_encoded_rating.saturating_add(entry.total_encoded_rating);
 				},
 				EntryTypeOf::Debit => {
 					aggregate.count_of_txn =
 						aggregate.count_of_txn.saturating_sub(entry.count_of_txn);
-					aggregate.total_rating =
-						aggregate.total_rating.saturating_sub(entry.total_rating);
+					aggregate.total_encoded_rating =
+						aggregate.total_encoded_rating.saturating_sub(entry.total_encoded_rating);
 				},
 			};
 			<AggregateScores<T>>::insert(
@@ -749,13 +791,13 @@ impl<T: Config> Pallet<T> {
 				&entry.rating_type,
 				AggregatedEntryOf {
 					count_of_txn: aggregate.count_of_txn,
-					total_rating: aggregate.total_rating,
+					total_encoded_rating: aggregate.total_encoded_rating,
 				},
 			);
 		} else {
 			let new_score_entry = AggregatedEntryOf {
 				count_of_txn: entry.count_of_txn,
-				total_rating: entry.total_rating,
+				total_encoded_rating: entry.total_encoded_rating,
 			};
 			<AggregateScores<T>>::insert(&entry.entity_uid, &entry.rating_type, new_score_entry);
 		}
@@ -802,5 +844,9 @@ impl<T: Config> Pallet<T> {
 			height: frame_system::Pallet::<T>::block_number().unique_saturated_into(),
 			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
 		}
+	}
+
+	fn get_current_time() -> T::Moment {
+		timestamp::Pallet::<T>::get()
 	}
 }

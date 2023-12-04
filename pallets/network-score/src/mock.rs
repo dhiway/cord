@@ -39,6 +39,7 @@ construct_runtime!(
 		Space: pallet_chain_space,
 		Identifier: identifier,
 		Score: pallet_score,
+		TimeStamp: timestamp,
 		MockOrigin: mock_origin,
 	}
 );
@@ -86,7 +87,7 @@ parameter_types! {
 impl pallet_score::Config for Test {
 	type MaxEncodedValueLength = MaxEncodedValueLength;
 	type MaxRatingValue = MaxRatingValue;
-	type RatingCreatorIdOf = SubjectId;
+	type RatingProviderIdOf = SubjectId;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
 	type RuntimeEvent = RuntimeEvent;
@@ -114,6 +115,12 @@ parameter_types! {
 
 impl identifier::Config for Test {
 	type MaxEventsHistory = MaxEventsHistory;
+}
+impl timestamp::Config for Test {
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = ConstU64<5>;
+	type WeightInfo = ();
 }
 
 #[allow(dead_code)]

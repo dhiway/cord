@@ -821,7 +821,7 @@ impl pallet_sudo::Config for Runtime {
 }
 
 impl pallet_network_score::Config for Runtime {
-	type RatingCreatorIdOf = DidIdentifier;
+	type RatingProviderIdOf = DidIdentifier;
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
