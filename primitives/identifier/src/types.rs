@@ -66,6 +66,7 @@ pub enum CallTypeOf {
 	Transfer,
 	Debit,
 	Credit,
+	Issue,
 }
 /// Defining the identifier target types.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]

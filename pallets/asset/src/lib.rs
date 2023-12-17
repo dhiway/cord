@@ -36,7 +36,7 @@ pub mod pallet {
 	use frame_support::{pallet_prelude::*, Twox64Concat};
 	use frame_system::pallet_prelude::*;
 	use sp_runtime::{
-		traits::{Hash, IdentifyAccount, Verify},
+		traits::{Hash, IdentifyAccount, Verify, Zero},
 		BoundedVec,
 	};
 	use sp_std::{prelude::Clone, str};
@@ -190,7 +190,7 @@ pub mod pallet {
 		/// Asset is not active
 		AssetNotActive,
 		/// Not enough balance
-		InsufficientBalance,
+		OverIssuanceLimit,
 		/// distribution limit exceeded
 		DistributionLimitExceeded,
 		/// asset instance not found
@@ -204,32 +204,24 @@ pub mod pallet {
 		pub fn create(
 			origin: OriginFor<T>,
 			entry: AssetInputEntryOf<T>,
+			digest: EntryHashOf<T>,
 			signature: SignatureOf<T>,
 		) -> DispatchResult {
 			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-
-			ensure!(entry.asset_qty > 0 && entry.asset_value > 0, Error::<T>::InvalidAssetValue);
-			ensure!(entry.asset_type.is_valid_asset_type(), Error::<T>::InvalidAssetType);
-
-			let digest = <T as frame_system::Config>::Hashing::hash(
-				&[
-					&issuer.encode()[..],
-					&entry.asset_qty.encode()[..],
-					&entry.asset_value.encode()[..],
-					&entry.asset_tag.encode()[..],
-					&entry.asset_meta.encode()[..],
-					&entry.asset_desc.encode()[..],
-					&entry.asset_type.encode()[..],
-				]
-				.concat()[..],
-			);
 
 			ensure!(
 				signature.verify(&(digest).encode()[..], &issuer),
 				Error::<T>::InvalidSignature
 			);
 
-			let identifier = Ss58Identifier::to_asset_id(&(digest).encode()[..])
+			ensure!(entry.asset_qty > 0 && entry.asset_value > 0, Error::<T>::InvalidAssetValue);
+			ensure!(entry.asset_type.is_valid_asset_type(), Error::<T>::InvalidAssetType);
+
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&digest.encode()[..], &issuer.encode()[..]].concat()[..],
+			);
+
+			let identifier = Ss58Identifier::to_asset_id(&(id_digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Assets<T>>::contains_key(&identifier), Error::<T>::AssetIdAlreadyExists);
@@ -242,6 +234,7 @@ pub mod pallet {
 				&identifier,
 				AssetEntryOf::<T> {
 					asset_detail: entry,
+					asset_issuance: Zero::zero(),
 					asset_status: AssetStatusOf::ACTIVE,
 					asset_issuer: issuer.clone(),
 					created_at: block_number,
@@ -259,42 +252,43 @@ pub mod pallet {
 		pub fn issue(
 			origin: OriginFor<T>,
 			entry: AssetIssuanceEntryOf<T>,
+			digest: EntryHashOf<T>,
 			signature: SignatureOf<T>,
 		) -> DispatchResult {
 			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
-
-			let mut asset = <Assets<T>>::get(&entry.asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
-
-			ensure!(asset.asset_issuer == issuer, Error::<T>::UnauthorizedOperation);
-
-			ensure!(AssetStatusOf::ACTIVE == asset.asset_status, Error::<T>::AssetNotActive);
-
-			let distribued_qty = Self::get_distributed_qty(&entry.asset_id);
-			let issuance_qty = entry.asset_issuance_qty.unwrap_or(1);
-
-			ensure!(
-				distribued_qty + issuance_qty <= asset.asset_detail.asset_qty,
-				Error::<T>::InsufficientBalance
-			);
-
-			asset.asset_detail.asset_qty = issuance_qty;
-
-			let digest = <T as frame_system::Config>::Hashing::hash(
-				&[
-					&entry.asset_id.encode()[..],
-					&entry.new_asset_owner.encode()[..],
-					&issuer.encode()[..],
-					&issuance_qty.encode()[..],
-				]
-				.concat()[..],
-			);
 
 			ensure!(
 				signature.verify(&(digest).encode()[..], &issuer),
 				Error::<T>::InvalidSignature
 			);
 
-			let instance_id = Ss58Identifier::to_asset_id(&(digest).encode()[..])
+			let asset = <Assets<T>>::get(&entry.asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
+
+			ensure!(asset.asset_issuer == issuer, Error::<T>::UnauthorizedOperation);
+
+			ensure!(AssetStatusOf::ACTIVE == asset.asset_status, Error::<T>::AssetNotActive);
+
+			let issuance_qty = entry.asset_issuance_qty.unwrap_or(1);
+			let overall_issuance = asset.asset_issuance.saturating_add(issuance_qty);
+
+			ensure!(
+				overall_issuance <= asset.asset_detail.asset_qty,
+				Error::<T>::OverIssuanceLimit
+			);
+			let mut asset_instance = asset.clone();
+			asset_instance.asset_detail.asset_qty = issuance_qty;
+
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[
+					&entry.asset_id.encode()[..],
+					&entry.asset_owner.encode()[..],
+					&issuer.encode()[..],
+					&digest.encode()[..],
+				]
+				.concat()[..],
+			);
+
+			let instance_id = Ss58Identifier::to_asset_instance_id(&(id_digest).encode()[..])
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			let block_number = frame_system::Pallet::<T>::block_number();
@@ -311,15 +305,21 @@ pub mod pallet {
 				&entry.asset_id,
 				&instance_id,
 				AssetDistributionEntryOf::<T> {
-					asset_instance_detail: asset.asset_detail,
+					asset_instance_detail: asset_instance.asset_detail,
 					asset_instance_parent: entry.asset_id.clone(),
 					asset_instance_status: AssetStatusOf::ACTIVE,
 					asset_instance_issuer: issuer,
-					asset_instance_owner: entry.new_asset_owner,
+					asset_instance_owner: entry.asset_owner,
 					created_at: block_number,
 				},
 			);
 
+			<Assets<T>>::insert(
+				&entry.asset_id,
+				AssetEntryOf::<T> { asset_issuance: overall_issuance, ..asset },
+			);
+
+			Self::update_activity(&entry.asset_id, CallTypeOf::Issue).map_err(<Error<T>>::from)?;
 			Self::update_activity(&instance_id, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
 			Self::deposit_event(Event::Issue { identifier: entry.asset_id, instance: instance_id });
 
@@ -331,31 +331,28 @@ pub mod pallet {
 		pub fn transfer(
 			origin: OriginFor<T>,
 			entry: AssetTransferEntryOf<T>,
+			digest: EntryHashOf<T>,
 			signature: SignatureOf<T>,
 		) -> DispatchResult {
-			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
+			let _owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 
 			let instance = <Issuance<T>>::get(&entry.asset_id, &entry.asset_instance_id)
 				.ok_or(Error::<T>::AssetInstanceNotFound)?;
 
-			ensure!(instance.asset_instance_owner == owner, Error::<T>::UnauthorizedOperation);
+			ensure!(
+				instance.asset_instance_owner == entry.asset_owner,
+				Error::<T>::UnauthorizedOperation
+			);
 
 			ensure!(
 				AssetStatusOf::ACTIVE == instance.asset_instance_status,
 				Error::<T>::AssetNotActive
 			);
 
-			let digest = <T as frame_system::Config>::Hashing::hash(
-				&[
-					&entry.asset_id.encode()[..],
-					&entry.asset_instance_id.encode()[..],
-					&entry.new_asset_owner.encode()[..],
-					&owner.encode()[..],
-				]
-				.concat()[..],
+			ensure!(
+				signature.verify(&(digest).encode()[..], &entry.asset_owner),
+				Error::<T>::InvalidSignature
 			);
-
-			ensure!(signature.verify(&(digest).encode()[..], &owner), Error::<T>::InvalidSignature);
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
@@ -374,7 +371,7 @@ pub mod pallet {
 			Self::deposit_event(Event::Transfer {
 				identifier: entry.asset_id,
 				instance: entry.asset_instance_id,
-				from: owner,
+				from: entry.asset_owner,
 				to: entry.new_asset_owner,
 			});
 
