@@ -77,6 +77,8 @@ pub struct AssetEntry<
 	BlockNumber,
 > {
 	pub asset_detail: AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta>,
+	/// asset issuance count
+	pub asset_issuance: u32,
 	/// status of the asset
 	pub asset_status: AssetStatusOf,
 	/// asset issuer
@@ -118,7 +120,7 @@ pub struct AssetIssuanceEntry<AssetIdOf, AccountId> {
 	/// type of the asset
 	pub asset_id: AssetIdOf,
 	/// asset owner
-	pub new_asset_owner: AccountId,
+	pub asset_owner: AccountId,
 	/// issuance quantity
 	pub asset_issuance_qty: Option<u32>,
 }
@@ -132,5 +134,7 @@ pub struct AssetTransferEntry<AssetIdOf, AssetInstanceIdOf, AccountId> {
 	/// asset instance identifier
 	pub asset_instance_id: AssetInstanceIdOf,
 	/// asset owner
+	pub asset_owner: AccountId,
+	/// new asset owner
 	pub new_asset_owner: AccountId,
 }
