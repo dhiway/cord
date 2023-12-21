@@ -31,7 +31,6 @@ use futures::prelude::*;
 pub use sc_client_api::AuxStore;
 use sc_client_api::{Backend as BackendT, BlockBackend};
 use sc_consensus_babe::{self, SlotProportion};
-use sc_executor::NativeElseWasmExecutor;
 use sc_network::{event::Event, NetworkEventStream, NetworkService};
 use sc_network_sync::{warp::WarpSyncParams, SyncingService};
 use sc_service::RpcHandlers;
@@ -42,7 +41,7 @@ pub use sc_service::{
 };
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
-pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi, StateBackend};
+pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi};
 pub use sp_authority_discovery::AuthorityDiscoveryApi;
 pub use sp_blockchain::{HeaderBackend, HeaderMetadata};
 pub use sp_consensus::{Proposal, SelectChain};
@@ -55,24 +54,18 @@ pub use sp_runtime::{
 };
 use std::sync::Arc;
 
-// Declare an instance of the native executor named `ExecutorDispatch`. Include
-// the wasm binary as the equivalent wasm code.
-pub struct ExecutorDispatch;
+/// Host functions required for runtime and  node.
+#[cfg(not(feature = "runtime-benchmarks"))]
+pub type HostFunctions = (sp_io::SubstrateHostFunctions);
 
-impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
-	type ExtendHostFunctions = (
-		frame_benchmarking::benchmarking::HostFunctions,
-		sp_statement_store::runtime_api::HostFunctions,
-	);
+/// Host functions required for runtime and  node.
+#[cfg(feature = "runtime-benchmarks")]
+pub type HostFunctions =
+	(sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions);
 
-	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		cord_runtime::api::dispatch(method, data)
-	}
-
-	fn native_version() -> sc_executor::NativeVersion {
-		cord_runtime::native_version()
-	}
-}
+/// A specialized `WasmExecutor` intended to use with CORD node. It
+/// provides all required HostFunctions.
+pub type RuntimeExecutor = sc_executor::WasmExecutor<HostFunctions>;
 
 /// Identifies the variant of the chain.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -111,8 +104,7 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 }
 
 /// The full client type definition.
-pub type FullClient =
-	sc_service::TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
+pub type FullClient = sc_service::TFullClient<Block, RuntimeApi, RuntimeExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport =
@@ -305,7 +297,7 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
-	let executor = sc_service::new_native_or_wasm_executor(config);
+	let executor = sc_service::new_wasm_executor(&config);
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
@@ -483,18 +475,19 @@ pub fn new_full_base(
 
 	let grandpa_protocol_name =
 		sc_consensus_grandpa::protocol_standard_name(&genesis_hash, &config.chain_spec);
-	net_config.add_notification_protocol(sc_consensus_grandpa::grandpa_peers_set_config(
-		grandpa_protocol_name.clone(),
-	));
+	let (grandpa_protocol_config, grandpa_notification_service) =
+		sc_consensus_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone());
+	net_config.add_notification_protocol(grandpa_protocol_config);
 
 	let mixnet_protocol_name =
 		sc_mixnet::protocol_name(genesis_hash.as_ref(), config.chain_spec.fork_id());
-	if let Some(mixnet_config) = &mixnet_config {
-		net_config.add_notification_protocol(sc_mixnet::peers_set_config(
-			mixnet_protocol_name.clone(),
-			mixnet_config,
-		));
-	}
+	let mixnet_notification_service = mixnet_config.as_ref().map(|mixnet_config| {
+		let (config, notification_service) =
+			sc_mixnet::peers_set_config(mixnet_protocol_name.clone(), mixnet_config);
+		net_config.add_notification_protocol(config);
+		notification_service
+	});
+
 	let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
 		backend.clone(),
 		import_setup.1.shared_authority_set().clone(),
@@ -524,6 +517,8 @@ pub fn new_full_base(
 			mixnet_protocol_name,
 			transaction_pool.clone(),
 			Some(keystore_container.keystore()),
+			mixnet_notification_service
+				.expect("`NotificationService` exists since mixnet was enabled; qed"),
 		);
 		task_manager.spawn_handle().spawn("mixnet", None, mixnet);
 	}
@@ -554,10 +549,14 @@ pub fn new_full_base(
 
 	if let Some(hwbench) = hwbench {
 		sc_sysinfo::print_hwbench(&hwbench);
-		if !SUBSTRATE_REFERENCE_HARDWARE.check_hardware(&hwbench) && role.is_authority() {
-			log::warn!(
-				"⚠️  The hardware does not meet the minimal requirements for role 'Authority'."
-			);
+		match SUBSTRATE_REFERENCE_HARDWARE.check_hardware(&hwbench) {
+			Err(err) if role.is_authority() => {
+				log::warn!(
+					"⚠️  The hardware does not meet the minimal requirements {} for role 'Authority'.",
+					err
+				);
+			},
+			_ => {},
 		}
 
 		if let Some(ref mut telemetry) = telemetry {
@@ -688,6 +687,7 @@ pub fn new_full_base(
 			link: grandpa_link,
 			network: network.clone(),
 			sync: Arc::new(sync_service.clone()),
+			notification_service: grandpa_notification_service,
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 			voting_rule: sc_consensus_grandpa::VotingRulesBuilder::default().build(),
 			prometheus_registry,

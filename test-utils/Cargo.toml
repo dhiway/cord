@@ -13,7 +13,7 @@ publish = false
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-substrate-rpc-client = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0" }
+substrate-rpc-client = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 assert_cmd = "2.0.10"
 nix = "0.26.2"
 regex = "1.7.3"

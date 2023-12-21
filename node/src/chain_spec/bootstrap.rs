@@ -20,11 +20,7 @@
 
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 pub use cord_runtime::RuntimeGenesisConfig;
-use cord_runtime::{
-	AuthorityMembershipConfig, BabeConfig, CouncilMembershipConfig, IndicesConfig,
-	NetworkMembershipConfig, NodeAuthorizationConfig, SessionConfig, SessionKeys, SudoConfig,
-	SystemConfig, TechnicalMembershipConfig,
-};
+use cord_runtime::SessionKeys;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_consensus_grandpa::AuthorityId as GrandpaId;
 use sc_service::ChainType;
@@ -75,10 +71,7 @@ fn session_keys(
 }
 
 /// Custom config.
-fn cord_custom_config_genesis(
-	wasm_binary: &[u8],
-	config: ChainParams,
-) -> cord_runtime::RuntimeGenesisConfig {
+fn cord_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 	let initial_network_members: Vec<AccountId> =
 		config.network_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
 
@@ -125,7 +118,6 @@ fn cord_custom_config_genesis(
 
 	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
 	cord_custom_genesis(
-		wasm_binary,
 		initial_network_members,
 		initial_well_known_nodes,
 		initial_authorities,
@@ -136,29 +128,27 @@ fn cord_custom_config_genesis(
 }
 
 pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> {
-	let wasm_binary = cord_runtime::WASM_BINARY.ok_or("CORD development wasm not available")?;
 	let properties = get_properties("WAY", 12, 29);
 	let chain_name = String::from(config.chain_name());
 	let chain_type = config.chain_type();
-	Ok(CordChainSpec::from_genesis(
-		&chain_name,
-		"crdcc",
-		chain_type,
-		move || cord_custom_config_genesis(wasm_binary, config.clone()),
-		vec![],
-		Some(
-			TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
-				.expect("CORD Staging telemetry url is valid; qed"),
-		),
-		Some(DEFAULT_PROTOCOL_ID),
-		None,
-		Some(properties),
+	Ok(CordChainSpec::builder(
+		cord_runtime::WASM_BINARY.ok_or("Cord development wasm not available")?,
 		Default::default(),
-	))
+	)
+	.with_name(&chain_name)
+	.with_id("crdcc")
+	.with_chain_type(chain_type)
+	.with_genesis_config_patch(cord_custom_config_genesis(config.clone()))
+	.with_telemetry_endpoints(
+		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
+			.expect("Cord telemetry url is valid; qed"),
+	)
+	.with_protocol_id(DEFAULT_PROTOCOL_ID)
+	.with_properties(properties)
+	.build())
 }
 
 fn cord_custom_genesis(
-	wasm_binary: &[u8],
 	network_members: Vec<AccountId>,
 	well_known_nodes: Vec<(NodeId, AccountId)>,
 	initial_authorities: Vec<(
@@ -172,25 +162,22 @@ fn cord_custom_genesis(
 	council_members: Vec<AccountId>,
 	tech_committee_members: Vec<AccountId>,
 	sudo_key: AccountId,
-) -> RuntimeGenesisConfig {
-	RuntimeGenesisConfig {
-		system: SystemConfig { code: wasm_binary.to_vec(), ..Default::default() },
-		balances: Default::default(),
-		indices: IndicesConfig { indices: vec![] },
-		node_authorization: NodeAuthorizationConfig {
-			nodes: well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect(),
+) -> serde_json::Value {
+	serde_json::json!( {
+		"node_authorization":  {
+			"nodes": well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},
-		network_membership: NetworkMembershipConfig {
-			members: network_members.iter().cloned().map(|member| (member, false)).collect(),
+		"network_membership":  {
+			"members": network_members.iter().cloned().map(|member| (member, false)).collect::<Vec<_>>(),
 		},
-		authority_membership: AuthorityMembershipConfig {
-			initial_authorities: initial_authorities
+		"authority_membership":  {
+			"initial_authorities": initial_authorities
 				.iter()
 				.map(|x| x.0.clone())
 				.collect::<Vec<_>>(),
 		},
-		session: SessionConfig {
-			keys: initial_authorities
+		"session":  {
+			"keys": initial_authorities
 				.iter()
 				.map(|x| {
 					(
@@ -207,30 +194,23 @@ fn cord_custom_genesis(
 				})
 				.collect::<Vec<_>>(),
 		},
-		babe: BabeConfig {
-			epoch_config: Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
-			..Default::default()
+		"babe":  {
+			"epoch_config": Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
-		grandpa: Default::default(),
-		im_online: Default::default(),
-		council: Default::default(),
-		council_membership: CouncilMembershipConfig {
-			members: council_members
-				.to_vec()
-				.try_into()
-				.unwrap_or_else(|e| panic!("Failed to add council members: {:?}", e)),
-			phantom: Default::default(),
+		"council_membership":  {
+			"members": council_members,
+				// .to_vec()
+				// .try_into()
+				// .unwrap_or_else(|e| panic!("Failed to add council members: {:?}", e)),
+				// "phantom": Default::default(),
 		},
-		technical_committee: Default::default(),
-		technical_membership: TechnicalMembershipConfig {
-			members: tech_committee_members
-				.to_vec()
-				.try_into()
-				.unwrap_or_else(|e| panic!("Failed to add committee members: {:?}", e)),
-			phantom: Default::default(),
+		"technical_membership":  {
+			"members": tech_committee_members,
+				// .to_vec()
+				// .try_into()
+				// .unwrap_or_else(|e| panic!("Failed to add committee members: {:?}", e)),
+				// "phantom": Default::default(),
 		},
-		authority_discovery: Default::default(),
-		mixnet: Default::default(),
-		sudo: SudoConfig { key: Some(sudo_key) },
-	}
+		"sudo": { "key": Some(sudo_key) },
+	})
 }

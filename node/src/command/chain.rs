@@ -109,7 +109,12 @@ impl BootstrapChainCmd {
 			sudo_key: initial_sudo_key,
 		};
 
-		let chain_spec: CordChainSpec = cord_custom_config(chain_params)?;
+		// let chain_spec: CordChainSpec = cord_custom_config(chain_params);
+
+		let chain_spec = match cord_custom_config(chain_params) {
+			Ok(spec) => spec,
+			Err(e) => panic!("Chain spec creation failed: {}", e),
+		};
 
 		let json = sc_service::chain_ops::build_spec(&chain_spec, self.raw)?;
 		if std::io::stdout().write_all(json.as_bytes()).is_err() {

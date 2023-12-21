@@ -16,19 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-pub mod chain_spec;
-
-#[macro_use]
-pub mod service;
-
 #[cfg(feature = "cli")]
 mod benchmarking;
+pub mod chain_spec;
 
 #[cfg(feature = "cli")]
 mod cli;
 
 #[cfg(feature = "cli")]
 mod command;
+pub mod service;
 
 #[cfg(feature = "cli")]
 pub use cli::*;
