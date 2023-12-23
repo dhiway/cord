@@ -8,7 +8,7 @@ use serde::Deserialize;
 
 use crate::chain_spec::{
 	bootstrap::{cord_custom_config, ChainParams},
-	ChainType, CordChainSpec,
+	ChainType,
 };
 
 #[derive(Debug, Deserialize)]
@@ -108,8 +108,6 @@ impl BootstrapChainCmd {
 			tech_committee_members: initial_tech_committee_members,
 			sudo_key: initial_sudo_key,
 		};
-
-		// let chain_spec: CordChainSpec = cord_custom_config(chain_params);
 
 		let chain_spec = match cord_custom_config(chain_params) {
 			Ok(spec) => spec,

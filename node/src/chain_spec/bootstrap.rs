@@ -30,6 +30,7 @@ use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::crypto::UncheckedInto;
 use sp_mixnet::types::AuthorityId as MixnetId;
+use sp_std::collections::btree_map::BTreeMap;
 
 pub use cord_runtime_constants::{currency::*, time::*};
 
@@ -164,14 +165,14 @@ fn cord_custom_genesis(
 	sudo_key: AccountId,
 ) -> serde_json::Value {
 	serde_json::json!( {
-		"node_authorization":  {
+		"nodeAuthorization":  {
 			"nodes": well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},
-		"network_membership":  {
-			"members": network_members.iter().cloned().map(|member| (member, false)).collect::<Vec<_>>(),
+		"networkMembership":  {
+			"members": network_members.iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
 		},
-		"authority_membership":  {
-			"initial_authorities": initial_authorities
+		"authorityMembership":  {
+			"initialAuthorities": initial_authorities
 				.iter()
 				.map(|x| x.0.clone())
 				.collect::<Vec<_>>(),
@@ -195,21 +196,19 @@ fn cord_custom_genesis(
 				.collect::<Vec<_>>(),
 		},
 		"babe":  {
-			"epoch_config": Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
+			"epochConfig": Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
-		"council_membership":  {
-			"members": council_members,
-				// .to_vec()
-				// .try_into()
-				// .unwrap_or_else(|e| panic!("Failed to add council members: {:?}", e)),
-				// "phantom": Default::default(),
+		"councilMembership":  {
+			"members": council_members
+				.iter()
+				.map(|x| x.clone())
+				.collect::<Vec<_>>(),
 		},
-		"technical_membership":  {
-			"members": tech_committee_members,
-				// .to_vec()
-				// .try_into()
-				// .unwrap_or_else(|e| panic!("Failed to add committee members: {:?}", e)),
-				// "phantom": Default::default(),
+		"technicalMembership":  {
+			"members": tech_committee_members
+				.iter()
+				.map(|x| x.clone())
+				.collect::<Vec<_>>(),
 		},
 		"sudo": { "key": Some(sudo_key) },
 	})

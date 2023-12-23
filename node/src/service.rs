@@ -56,7 +56,7 @@ use std::sync::Arc;
 
 /// Host functions required for runtime and  node.
 #[cfg(not(feature = "runtime-benchmarks"))]
-pub type HostFunctions = (sp_io::SubstrateHostFunctions);
+pub type HostFunctions = sp_io::SubstrateHostFunctions;
 
 /// Host functions required for runtime and  node.
 #[cfg(feature = "runtime-benchmarks")]
