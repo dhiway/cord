@@ -16,28 +16,28 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use assert_cmd::cargo::cargo_bin;
-use std::process::Command;
-use tempfile::tempdir;
+fn main() {
+	#[cfg(feature = "std")]
+	{
+		substrate_wasm_builder::WasmBuilder::new()
+			.with_current_project()
+			.export_heap_base()
+			// Note that we set the stack-size to 1MB explicitly even though it is set
+			// to this value by default. This is because some of our tests
+			// (`restoration_of_globals`) depend on the stack-size.
+			.append_to_rust_flags("-Clink-arg=-zstack-size=1048576")
+			.import_memory()
+			.build();
+	}
 
-use cord_cli_test_utils as common;
-
-#[tokio::test]
-#[cfg(unix)]
-async fn purge_chain_works() {
-	let base_path = tempdir().expect("could not create a temp dir");
-
-	common::run_node_for_a_while(base_path.path(), &["--dev", "--no-hardware-benchmarks"]).await;
-
-	let status = Command::new(cargo_bin("cord"))
-		.args(["purge-chain", "--dev", "-d"])
-		.arg(base_path.path())
-		.arg("-y")
-		.status()
-		.unwrap();
-	assert!(status.success());
-
-	// Make sure that the `dev` chain folder exists, but the `db` is deleted.
-	assert!(base_path.path().join("chains/dev/").exists());
-	assert!(!base_path.path().join("chains/dev/db/full").exists());
+	#[cfg(feature = "std")]
+	{
+		substrate_wasm_builder::WasmBuilder::new()
+			.with_current_project()
+			.export_heap_base()
+			.import_memory()
+			.set_file_name("wasm_binary_logging_disabled.rs")
+			.enable_feature("disable-logging")
+			.build();
+	}
 }

@@ -70,7 +70,7 @@ async fn telemetry_works() {
 		let mut cord = process::Command::new(cargo_bin("cord"));
 
 		let mut cord = KillChildOnDrop(
-			cord.args(["--dev", "--tmp", "--telemetry-url"])
+			cord.args(&["--dev", "--tmp", "--telemetry-url"])
 				.arg(format!("ws://{} 10", addr))
 				.arg("--no-hardware-benchmarks")
 				.stdout(process::Stdio::piped())

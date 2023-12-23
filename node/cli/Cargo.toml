@@ -22,8 +22,6 @@ maintenance = { status = "actively-developed" }
 is-it-maintained-issue-resolution = { repository = "dhiway/cord" }
 is-it-maintained-open-issues = { repository = "dhiway/cord" }
 
-# The same node binary as the `substrate` (defined in the workspace `Cargo.toml`) binary,
-# but just exposed by this crate here.
 [[bin]]
 name = "cord"
 path = "bin/main.rs"
@@ -44,15 +42,6 @@ log = "0.4.17"
 hex = { version = "0.4.3", default-features = false }
 toml = "0.7.3"
 
-# hex-literal = "0.4.1"
-# thiserror = "1.0.48"
-# kvdb = "0.13.0"
-# kvdb-rocksdb = { version = "0.19.0", optional = true }
-# parity-db = { version = "0.4.8", optional = true }
-# async-trait = "0.1.57"
-# schnellru = "0.2.1"
-# is_executable = "1.0.1"
-
 # Substrate primitives
 sp-authority-discovery = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 sp-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
@@ -69,18 +58,8 @@ sp-transaction-storage-proof = { git = "https://github.com/dhiway/substrate-sdk"
 sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 sp-mixnet = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 sp-statement-store = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-# sp-transaction-pool = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-# sp-session = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-# sp-storage = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-# sp-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-# sp-state-machine = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-# sp-offchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-# sp-trie = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-# sp-weights = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-# sp-version = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-
 
 # Substrate Client dependencies
 sc-client-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
@@ -114,11 +93,8 @@ sc-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "relea
 frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 frame-system-rpc-runtime-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-# pallet-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 pallet-im-online = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-# frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-
 
 # cord-specific dependencies
 cord-runtime = { package = "cord-runtime", path = "../../runtime" }
@@ -141,7 +117,7 @@ sc-client-db = { git = "https://github.com/dhiway/substrate-sdk", branch = "rele
 sc-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 sc-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 sc-consensus-epochs = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-sc-service-test = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
+cord-service-test = { path = "../../test-utils/service" }
 sc-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 sp-tracing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
@@ -158,17 +134,11 @@ tokio-util = { version = "0.7.4", features = ["compat"] }
 wait-timeout = "0.2"
 substrate-rpc-client = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 pallet-timestamp = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-cord-cli-test-utils = { package = "cord-cli-test-utils", path = "../../test-utils" }
-
-# async-std = { version = "1.10.0", features = ["attributes"] }
-# env_logger = "0.9.0"
-# assert_matches = "1.5.0"
-# serial_test = "2.0.0"
-# substrate-test-utils = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
+cord-cli-test-utils = { package = "cord-cli-test-utils", path = "../../test-utils/cli" }
 
 wat = "1.0"
 frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-# node-testing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
+cord-node-testing = { path = "../testing" }
 pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 pallet-sudo = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 sp-application-crypto = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
@@ -234,7 +204,7 @@ try-runtime = [
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"sp-runtime/try-runtime",
-	# "cord-cli-test-utils/try-runtime",
+	"cord-cli-test-utils/try-runtime",
 	"try-runtime-cli/try-runtime",
 ]
 

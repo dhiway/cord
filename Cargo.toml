@@ -1,4 +1,5 @@
 [workspace.package]
+version = "0.9.1"
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = "2021"
 homepage = "https://cord.network"
@@ -10,16 +11,23 @@ resolver = "2"
 
 members = [
 	"node/cli",
+	"node/rpc",
+	"node/inspect",
+	"node/testing",
 	"pallets/*",
 	"primitives/*",
 	"runtime",
 	"runtime/constants",
 	"runtime/authorities",
 	"runtime-api/*",
-	"node/rpc",
-	"node/inspect",
 	"utilities",
 	"test-utils",
+	"test-utils/cli",
+	"test-utils/client",
+	"test-utils/runtime",
+	"test-utils/runtime/client",
+	"test-utils/runtime/transaction-pool",
+	"test-utils/service",
 ]
 
 
