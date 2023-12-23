@@ -202,6 +202,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anes"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
+
+[[package]]
 name = "ansi_term"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -451,7 +457,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "paste",
- "rustc_version 0.4.0",
+ "rustc_version",
  "zeroize",
 ]
 
@@ -716,72 +722,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "assert_matches"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
-
-[[package]]
-name = "async-attributes"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3203e79f4dd9bdda415ed03cf14dae5a2bf775c683a00f94e9cd1faf0f596e5"
-dependencies = [
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "async-channel"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81953c529336010edd6d8e358f886d9581267795c61b19475b71314bffa46d35"
 dependencies = [
  "concurrent-queue",
- "event-listener 2.5.3",
+ "event-listener",
  "futures-core",
-]
-
-[[package]]
-name = "async-channel"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d37875bd9915b7d67c2f117ea2c30a0989874d0b2cb694fe25403c85763c0c9e"
-dependencies = [
- "concurrent-queue",
- "event-listener 3.1.0",
- "event-listener-strategy",
- "futures-core",
- "pin-project-lite 0.2.13",
-]
-
-[[package]]
-name = "async-executor"
-version = "1.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc5ea910c42e5ab19012bab31f53cb4d63d54c3a27730f9a833a88efcf4bb52d"
-dependencies = [
- "async-lock 3.1.0",
- "async-task",
- "concurrent-queue",
- "fastrand 2.0.1",
- "futures-lite 2.0.1",
- "slab",
-]
-
-[[package]]
-name = "async-global-executor"
-version = "2.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1b6f5d7df27bd294849f8eec66ecfc63d11814df7a4f5d74168a2394467b776"
-dependencies = [
- "async-channel 1.9.0",
- "async-executor",
- "async-io",
- "async-lock 2.8.0",
- "blocking",
- "futures-lite 1.13.0",
- "once_cell",
 ]
 
 [[package]]
@@ -790,11 +738,11 @@ version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fc5b45d93ef0529756f812ca52e44c221b35341892d3dcc34132ac02f3dd2af"
 dependencies = [
- "async-lock 2.8.0",
+ "async-lock",
  "autocfg",
  "cfg-if",
  "concurrent-queue",
- "futures-lite 1.13.0",
+ "futures-lite",
  "log",
  "parking",
  "polling",
@@ -810,52 +758,8 @@ version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "287272293e9d8c41773cec55e365490fe034813a2f172f502d6ddcf75b2f582b"
 dependencies = [
- "event-listener 2.5.3",
+ "event-listener",
 ]
-
-[[package]]
-name = "async-lock"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "deb2ab2aa8a746e221ab826c73f48bc6ba41be6763f0855cb249eb6d154cf1d7"
-dependencies = [
- "event-listener 3.1.0",
- "event-listener-strategy",
- "pin-project-lite 0.2.13",
-]
-
-[[package]]
-name = "async-std"
-version = "1.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62565bb4402e926b29953c785397c6dc0391b7b446e45008b0049eb43cec6f5d"
-dependencies = [
- "async-attributes",
- "async-channel 1.9.0",
- "async-global-executor",
- "async-io",
- "async-lock 2.8.0",
- "crossbeam-utils",
- "futures-channel",
- "futures-core",
- "futures-io",
- "futures-lite 1.13.0",
- "gloo-timers",
- "kv-log-macro",
- "log",
- "memchr",
- "once_cell",
- "pin-project-lite 0.2.13",
- "pin-utils",
- "slab",
- "wasm-bindgen-futures",
-]
-
-[[package]]
-name = "async-task"
-version = "4.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4eb2cdb97421e01129ccb49169d8279ed21e829929144f4a22a6e54ac549ca1"
 
 [[package]]
 name = "async-trait"
@@ -1188,22 +1092,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
-name = "blocking"
-version = "1.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a37913e8dc4ddcc604f0c6d3bf2887c995153af3611de9e23c352b44c1b9118"
-dependencies = [
- "async-channel 2.1.0",
- "async-lock 3.1.0",
- "async-task",
- "fastrand 2.0.1",
- "futures-io",
- "futures-lite 2.0.1",
- "piper",
- "tracing",
-]
-
-[[package]]
 name = "bounded-collections"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1340,6 +1228,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cast"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
+
+[[package]]
 name = "cc"
 version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1448,6 +1342,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "ciborium"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "effd91f6c78e5a4ace8a5d3c0b6bfaec9e2baaef55f3efc00e45fb2e477ee926"
+dependencies = [
+ "ciborium-io",
+ "ciborium-ll",
+ "serde",
+]
+
+[[package]]
+name = "ciborium-io"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdf919175532b369853f5d5e20b26b43112613fd6fe7aee757e35f7a44642656"
+
+[[package]]
+name = "ciborium-ll"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "defaa24ecc093c77630e6c15e17c51f5e187bf35ee514f4e2d67baaa96dae22b"
+dependencies = [
+ "ciborium-io",
+ "half",
+]
+
+[[package]]
 name = "cid"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1490,15 +1411,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ckb-merkle-mountain-range"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56ccb671c5921be8a84686e6212ca184cb1d7c51cadcdbfcbd1cc3f042f5dfb8"
-dependencies = [
- "cfg-if",
-]
-
-[[package]]
 name = "clang-sys"
 version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1507,6 +1419,18 @@ dependencies = [
  "glob",
  "libc",
  "libloading",
+]
+
+[[package]]
+name = "clap"
+version = "3.2.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ea181bf566f71cb9a5d17a59e1871af638180a18fb0035c92ae62b705207123"
+dependencies = [
+ "bitflags 1.3.2",
+ "clap_lex 0.2.4",
+ "indexmap 1.9.3",
+ "textwrap",
 ]
 
 [[package]]
@@ -1527,7 +1451,7 @@ checksum = "a216b506622bb1d316cd51328dce24e07bdff4a6128a47c7e7fad11878d5adbb"
 dependencies = [
  "anstream",
  "anstyle",
- "clap_lex",
+ "clap_lex 0.6.0",
  "strsim",
  "terminal_size",
 ]
@@ -1538,7 +1462,7 @@ version = "4.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bffe91f06a11b4b9420f62103854e90867812cd5d01557f853c5ee8e791b12ae"
 dependencies = [
- "clap",
+ "clap 4.4.11",
 ]
 
 [[package]]
@@ -1551,6 +1475,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.41",
+]
+
+[[package]]
+name = "clap_lex"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
+dependencies = [
+ "os_str_bytes",
 ]
 
 [[package]]
@@ -1689,7 +1622,7 @@ dependencies = [
  "log",
  "network-membership",
  "pallet-network-membership",
- "pallet-offences 0.9.0",
+ "pallet-offences",
  "pallet-session",
  "parity-scale-codec",
  "scale-info",
@@ -1740,7 +1673,7 @@ dependencies = [
 name = "cord-inspect"
 version = "0.9.0"
 dependencies = [
- "clap",
+ "clap 4.4.11",
  "parity-scale-codec",
  "sc-cli",
  "sc-client-api",
@@ -1754,15 +1687,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "cord-node"
+name = "cord-node-cli"
 version = "0.9.0"
 dependencies = [
  "array-bytes 6.2.0",
  "assert_cmd",
- "assert_matches",
- "async-std",
- "async-trait",
- "clap",
+ "clap 4.4.11",
  "clap_complete",
  "cord-cli-test-utils",
  "cord-inspect",
@@ -1770,7 +1700,7 @@ dependencies = [
  "cord-rpc",
  "cord-runtime",
  "cord-runtime-constants",
- "env_logger 0.9.3",
+ "criterion",
  "frame-benchmarking",
  "frame-benchmarking-cli",
  "frame-support",
@@ -1778,33 +1708,29 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "futures",
  "hex",
- "hex-literal 0.4.1",
- "is_executable",
  "jsonrpsee",
- "kvdb",
- "kvdb-rocksdb",
  "log",
  "network-membership",
  "nix 0.26.4",
- "node-testing",
- "pallet-babe",
  "pallet-balances",
  "pallet-im-online",
  "pallet-network-membership",
  "pallet-root-testing",
  "pallet-sudo",
  "pallet-timestamp",
- "parity-db",
  "parity-scale-codec",
+ "platforms",
  "regex",
  "sc-authority-discovery",
  "sc-basic-authorship",
+ "sc-block-builder",
  "sc-chain-spec",
  "sc-cli",
  "sc-client-api",
  "sc-client-db",
  "sc-consensus",
  "sc-consensus-babe",
+ "sc-consensus-epochs",
  "sc-consensus-grandpa",
  "sc-consensus-slots",
  "sc-executor",
@@ -1817,6 +1743,7 @@ dependencies = [
  "sc-offchain",
  "sc-rpc",
  "sc-service",
+ "sc-service-test",
  "sc-statement-store",
  "sc-storage-monitor",
  "sc-sync-state-rpc",
@@ -1825,15 +1752,12 @@ dependencies = [
  "sc-transaction-pool",
  "sc-transaction-pool-api",
  "scale-info",
- "schnellru",
  "serde",
  "serde_json",
- "serial_test",
  "soketto",
  "sp-api",
  "sp-application-crypto",
  "sp-authority-discovery",
- "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
  "sp-consensus-babe",
@@ -1845,26 +1769,19 @@ dependencies = [
  "sp-keyring",
  "sp-keystore",
  "sp-mixnet",
- "sp-offchain",
  "sp-runtime",
- "sp-session",
  "sp-state-machine",
  "sp-statement-store",
  "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "sp-storage 13.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
  "sp-timestamp",
- "sp-transaction-pool",
+ "sp-tracing 10.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
  "sp-transaction-storage-proof",
  "sp-trie",
- "sp-version",
- "sp-weights",
  "substrate-build-script-utils",
  "substrate-frame-cli",
  "substrate-prometheus-endpoint",
  "substrate-rpc-client",
- "substrate-test-utils",
  "tempfile",
- "thiserror",
  "tokio",
  "tokio-util",
  "toml 0.7.8",
@@ -1941,21 +1858,21 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-chain-space",
- "pallet-collective 0.9.0",
+ "pallet-collective",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
  "pallet-grandpa",
- "pallet-identity 0.9.0",
+ "pallet-identity",
  "pallet-im-online",
  "pallet-indices",
- "pallet-membership 0.9.0",
+ "pallet-membership",
  "pallet-mixnet",
  "pallet-multisig",
  "pallet-network-membership",
  "pallet-network-score",
  "pallet-node-authorization",
- "pallet-offences 0.9.0",
+ "pallet-offences",
  "pallet-preimage",
  "pallet-remark",
  "pallet-runtime-upgrade",
@@ -1963,7 +1880,7 @@ dependencies = [
  "pallet-schema",
  "pallet-session",
  "pallet-staking",
- "pallet-statement 0.9.0",
+ "pallet-statement",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-weight-runtime-api",
@@ -2192,6 +2109,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "criterion"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7c76e09c1aae2bc52b3d2f29e13c6572553b30c4aa1b8a49fd70de6412654cb"
+dependencies = [
+ "anes",
+ "atty",
+ "cast",
+ "ciborium",
+ "clap 3.2.25",
+ "criterion-plot",
+ "futures",
+ "itertools 0.10.5",
+ "lazy_static",
+ "num-traits",
+ "oorandom",
+ "plotters",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tinytemplate",
+ "tokio",
+ "walkdir",
+]
+
+[[package]]
+name = "criterion-plot"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
+dependencies = [
+ "cast",
+ "itertools 0.10.5",
+]
+
+[[package]]
 name = "crossbeam-deque"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2351,7 +2306,7 @@ dependencies = [
  "digest 0.10.7",
  "fiat-crypto",
  "platforms",
- "rustc_version 0.4.0",
+ "rustc_version",
  "subtle 2.4.1",
  "zeroize",
 ]
@@ -2444,19 +2399,6 @@ dependencies = [
  "darling_core",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "dashmap"
-version = "5.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "978747c1d849a7d2ee5e8adc0159961c48fb7e5db2f06af6723b80123bb53856"
-dependencies = [
- "cfg-if",
- "hashbrown 0.14.2",
- "lock_api",
- "once_cell",
- "parking_lot_core 0.9.9",
 ]
 
 [[package]]
@@ -2605,7 +2547,7 @@ dependencies = [
  "convert_case",
  "proc-macro2",
  "quote",
- "rustc_version 0.4.0",
+ "rustc_version",
  "syn 1.0.109",
 ]
 
@@ -2752,12 +2694,6 @@ name = "downcast"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1435fa1053d8b2fbbe9be7e97eca7f33d37b28409959813daefc1446a14247f1"
-
-[[package]]
-name = "downcast-rs"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
 name = "dtoa"
@@ -3007,27 +2943,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
-name = "event-listener"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d93877bcde0eb80ca09131a08d23f0a5c18a620b01db137dba666d18cd9b30c2"
-dependencies = [
- "concurrent-queue",
- "parking",
- "pin-project-lite 0.2.13",
-]
-
-[[package]]
-name = "event-listener-strategy"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d96b852f1345da36d551b9473fa1e2b1eb5c5195585c6c018118bc92a8d91160"
-dependencies = [
- "event-listener 3.1.0",
- "pin-project-lite 0.2.13",
-]
-
-[[package]]
 name = "exit-future"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3272,7 +3187,7 @@ dependencies = [
  "Inflector",
  "array-bytes 6.2.0",
  "chrono",
- "clap",
+ "clap 4.4.11",
  "comfy-table",
  "frame-benchmarking",
  "frame-support",
@@ -3310,21 +3225,6 @@ dependencies = [
  "sp-wasm-interface 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
  "thiserror",
  "thousands",
-]
-
-[[package]]
-name = "frame-benchmarking-pallet-pov"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
 ]
 
 [[package]]
@@ -3574,12 +3474,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fs_extra"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c"
-
-[[package]]
 name = "fsio"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3653,20 +3547,6 @@ dependencies = [
  "parking",
  "pin-project-lite 0.2.13",
  "waker-fn",
-]
-
-[[package]]
-name = "futures-lite"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3831c2651acb5177cbd83943f3d9c8912c5ad03c76afcc0e9511ba568ec5ebb"
-dependencies = [
- "fastrand 2.0.1",
- "futures-core",
- "futures-io",
- "memchr",
- "parking",
- "pin-project-lite 0.2.13",
 ]
 
 [[package]]
@@ -3864,18 +3744,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gloo-timers"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b995a66bb87bebce9a0f4a95aed01daca4872c050bfcb21653361c03bc35e5c"
-dependencies = [
- "futures-channel",
- "futures-core",
- "js-sys",
- "wasm-bindgen",
-]
-
-[[package]]
 name = "group"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3915,6 +3783,12 @@ dependencies = [
  "tokio-util",
  "tracing",
 ]
+
+[[package]]
+name = "half"
+version = "1.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eabb4a44450da02c90444cf74558da904edde8fb4e9035a9a6a4e15445af0bd7"
 
 [[package]]
 name = "handlebars"
@@ -4337,12 +4211,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "indexmap-nostd"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e04e2fd2b8188ea827b32ef11de88377086d690286ab35747ef7f9bf3ccb590"
-
-[[package]]
 name = "indicatif"
 version = "0.17.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4448,15 +4316,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "is_executable"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa9acdc6d67b75e626ad644734e8bc6df893d9cd2a834129065d3dd6158ea9c8"
-dependencies = [
- "winapi",
-]
-
-[[package]]
 name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4542,7 +4401,7 @@ checksum = "2b5dde66c53d6dcdc8caea1874a45632ec0fcf5b437789f1e45766a1512ce803"
 dependencies = [
  "anyhow",
  "arrayvec 0.7.4",
- "async-lock 2.8.0",
+ "async-lock",
  "async-trait",
  "beef",
  "futures-channel",
@@ -4669,133 +4528,6 @@ name = "keystream"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c33070833c9ee02266356de0c43f723152bd38bd96ddf52c82b3af10c9138b28"
-
-[[package]]
-name = "kitchensink-runtime"
-version = "3.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-benchmarking-pallet-pov",
- "frame-election-provider-support",
- "frame-executive",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "frame-try-runtime",
- "log",
- "node-primitives",
- "pallet-alliance",
- "pallet-asset-conversion",
- "pallet-asset-conversion-tx-payment",
- "pallet-asset-rate",
- "pallet-asset-tx-payment",
- "pallet-assets",
- "pallet-authority-discovery",
- "pallet-authorship",
- "pallet-babe",
- "pallet-bags-list",
- "pallet-balances",
- "pallet-bounties",
- "pallet-broker",
- "pallet-child-bounties",
- "pallet-collective 4.0.0-dev",
- "pallet-contracts",
- "pallet-conviction-voting",
- "pallet-core-fellowship",
- "pallet-democracy",
- "pallet-election-provider-multi-phase",
- "pallet-election-provider-support-benchmarking",
- "pallet-elections-phragmen",
- "pallet-fast-unstake",
- "pallet-glutton",
- "pallet-grandpa",
- "pallet-identity 4.0.0-dev",
- "pallet-im-online",
- "pallet-indices",
- "pallet-insecure-randomness-collective-flip",
- "pallet-lottery",
- "pallet-membership 4.0.0-dev",
- "pallet-message-queue",
- "pallet-mixnet",
- "pallet-mmr",
- "pallet-multisig",
- "pallet-nft-fractionalization",
- "pallet-nfts",
- "pallet-nfts-runtime-api",
- "pallet-nis",
- "pallet-nomination-pools",
- "pallet-nomination-pools-benchmarking",
- "pallet-nomination-pools-runtime-api",
- "pallet-offences 4.0.0-dev",
- "pallet-offences-benchmarking",
- "pallet-preimage",
- "pallet-proxy",
- "pallet-ranked-collective",
- "pallet-recovery",
- "pallet-referenda",
- "pallet-remark",
- "pallet-root-testing",
- "pallet-safe-mode",
- "pallet-salary",
- "pallet-scheduler",
- "pallet-session",
- "pallet-session-benchmarking",
- "pallet-skip-feeless-payment",
- "pallet-society",
- "pallet-staking",
- "pallet-staking-reward-curve",
- "pallet-staking-runtime-api",
- "pallet-state-trie-migration",
- "pallet-statement 4.0.0-dev",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-tips",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-transaction-storage",
- "pallet-treasury",
- "pallet-tx-pause",
- "pallet-uniques",
- "pallet-utility",
- "pallet-vesting",
- "pallet-whitelist",
- "parity-scale-codec",
- "primitive-types",
- "scale-info",
- "serde_json",
- "sp-api",
- "sp-authority-discovery",
- "sp-block-builder",
- "sp-consensus-babe",
- "sp-consensus-grandpa",
- "sp-core",
- "sp-genesis-builder",
- "sp-inherents",
- "sp-io",
- "sp-mixnet",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-staking",
- "sp-statement-store",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "sp-storage 13.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "sp-transaction-pool",
- "sp-version",
- "static_assertions",
- "substrate-wasm-builder",
-]
-
-[[package]]
-name = "kv-log-macro"
-version = "1.0.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0de8b303297635ad57c9f5059fd9cee7a47f8e8daa09df0fcd07dd39fb22977f"
-dependencies = [
- "log",
-]
 
 [[package]]
 name = "kvdb"
@@ -5458,9 +5190,6 @@ name = "log"
 version = "0.4.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
-dependencies = [
- "value-bag",
-]
 
 [[package]]
 name = "lru"
@@ -5746,22 +5475,6 @@ dependencies = [
  "subtle 2.4.1",
  "thiserror",
  "zeroize",
-]
-
-[[package]]
-name = "mmr-rpc"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "anyhow",
- "jsonrpsee",
- "parity-scale-codec",
- "serde",
- "sp-api",
- "sp-blockchain",
- "sp-core",
- "sp-mmr-primitives",
- "sp-runtime",
 ]
 
 [[package]]
@@ -6087,86 +5800,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "node-primitives"
-version = "2.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "sp-core",
- "sp-runtime",
-]
-
-[[package]]
-name = "node-rpc"
-version = "3.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "jsonrpsee",
- "mmr-rpc",
- "node-primitives",
- "pallet-transaction-payment-rpc",
- "sc-chain-spec",
- "sc-client-api",
- "sc-consensus-babe",
- "sc-consensus-babe-rpc",
- "sc-consensus-grandpa",
- "sc-consensus-grandpa-rpc",
- "sc-mixnet",
- "sc-rpc",
- "sc-rpc-api",
- "sc-rpc-spec-v2",
- "sc-sync-state-rpc",
- "sc-transaction-pool-api",
- "sp-api",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus",
- "sp-consensus-babe",
- "sp-keystore",
- "sp-runtime",
- "sp-statement-store",
- "substrate-frame-rpc-system",
- "substrate-state-trie-migration-rpc",
-]
-
-[[package]]
-name = "node-testing"
-version = "3.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-system",
- "fs_extra",
- "futures",
- "kitchensink-runtime",
- "log",
- "node-primitives",
- "pallet-asset-conversion",
- "pallet-asset-conversion-tx-payment",
- "pallet-asset-tx-payment",
- "pallet-assets",
- "pallet-skip-feeless-payment",
- "parity-scale-codec",
- "sc-block-builder",
- "sc-client-api",
- "sc-client-db",
- "sc-consensus",
- "sc-executor",
- "sc-service",
- "sp-api",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-inherents",
- "sp-io",
- "sp-keyring",
- "sp-runtime",
- "sp-timestamp",
- "staging-node-cli",
- "substrate-test-client",
- "tempfile",
-]
-
-[[package]]
 name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6318,6 +5951,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
 
 [[package]]
+name = "oorandom"
+version = "11.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
+
+[[package]]
 name = "opaque-debug"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6342,6 +5981,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
 
 [[package]]
+name = "os_str_bytes"
+version = "6.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
+
+[[package]]
 name = "p256"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6364,26 +6009,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-alliance"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-collective 4.0.0-dev",
- "pallet-identity 4.0.0-dev",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-core-hashing",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
 name = "pallet-asset"
 version = "0.9.0"
 dependencies = [
@@ -6402,88 +6027,6 @@ dependencies = [
  "sp-runtime",
  "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
  "substrate-wasm-builder",
-]
-
-[[package]]
-name = "pallet-asset-conversion"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-asset-conversion-tx-payment"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-asset-conversion",
- "pallet-transaction-payment",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-asset-rate"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-asset-tx-payment"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-transaction-payment",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-assets"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
 ]
 
 [[package]]
@@ -6541,28 +6084,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-bags-list"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "aquamarine",
- "docify",
- "frame-benchmarking",
- "frame-election-provider-support",
- "frame-support",
- "frame-system",
- "log",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "sp-tracing 10.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
 name = "pallet-balances"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
@@ -6573,41 +6094,6 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-bounties"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-treasury",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-broker"
-version = "0.1.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "bitvec",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
  "sp-runtime",
  "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
 ]
@@ -6636,25 +6122,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-child-bounties"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-bounties",
- "pallet-treasury",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
 name = "pallet-collective"
 version = "0.9.0"
 dependencies = [
@@ -6667,128 +6134,6 @@ dependencies = [
  "parity-scale-codec",
  "rand 0.8.5",
  "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-collective"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-contracts"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "bitflags 1.3.2",
- "environmental",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "log",
- "pallet-balances",
- "pallet-contracts-proc-macro",
- "pallet-contracts-uapi",
- "parity-scale-codec",
- "rand 0.8.5",
- "scale-info",
- "serde",
- "smallvec",
- "sp-api",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "staging-xcm",
- "staging-xcm-builder",
- "wasm-instrument 0.4.0",
- "wasmi",
-]
-
-[[package]]
-name = "pallet-contracts-proc-macro"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.41",
-]
-
-[[package]]
-name = "pallet-contracts-uapi"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "bitflags 1.3.2",
- "parity-scale-codec",
- "paste",
- "scale-info",
-]
-
-[[package]]
-name = "pallet-conviction-voting"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "assert_matches",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-core-fellowship"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-democracy"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -6852,99 +6197,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-election-provider-multi-phase"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-election-provider-support",
- "frame-support",
- "frame-system",
- "log",
- "pallet-election-provider-support-benchmarking",
- "parity-scale-codec",
- "rand 0.8.5",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-npos-elections",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "strum 0.24.1",
-]
-
-[[package]]
-name = "pallet-election-provider-support-benchmarking"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-election-provider-support",
- "frame-system",
- "parity-scale-codec",
- "sp-npos-elections",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-elections-phragmen"
-version = "5.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-npos-elections",
- "sp-runtime",
- "sp-staking",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-fast-unstake"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "docify",
- "frame-benchmarking",
- "frame-election-provider-support",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
- "sp-staking",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-glutton"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "blake2 0.10.6",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
 name = "pallet-grandpa"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
@@ -6978,22 +6230,6 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-identity"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "enumflags2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
  "sp-io",
  "sp-runtime",
  "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
@@ -7037,34 +6273,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-insecure-randomness-collective-flip"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "safe-mix",
- "scale-info",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-lottery"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
 name = "pallet-membership"
 version = "0.9.0"
 dependencies = [
@@ -7083,42 +6291,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-membership"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-message-queue"
-version = "7.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "sp-weights",
-]
-
-[[package]]
 name = "pallet-mixnet"
 version = "0.1.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
@@ -7134,24 +6306,6 @@ dependencies = [
  "sp-arithmetic",
  "sp-io",
  "sp-mixnet",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-mmr"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-mmr-primitives",
  "sp-runtime",
  "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
 ]
@@ -7217,68 +6371,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-nft-fractionalization"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-assets",
- "pallet-nfts",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-nfts"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "enumflags2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-nfts-runtime-api"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "pallet-nfts",
- "parity-scale-codec",
- "sp-api",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-nis"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
 name = "pallet-node-authorization"
 version = "0.9.0"
 dependencies = [
@@ -7296,56 +6388,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-nomination-pools"
-version = "1.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-staking",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "sp-tracing 10.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-nomination-pools-benchmarking"
-version = "1.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-election-provider-support",
- "frame-support",
- "frame-system",
- "pallet-bags-list",
- "pallet-nomination-pools",
- "pallet-staking",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-runtime-interface 17.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "sp-staking",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-nomination-pools-runtime-api"
-version = "1.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "pallet-nomination-pools",
- "parity-scale-codec",
- "sp-api",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
 name = "pallet-offences"
 version = "0.9.0"
 dependencies = [
@@ -7363,47 +6405,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-offences"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-runtime",
- "sp-staking",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-offences-benchmarking"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-election-provider-support",
- "frame-support",
- "frame-system",
- "log",
- "pallet-babe",
- "pallet-balances",
- "pallet-grandpa",
- "pallet-im-online",
- "pallet-offences 4.0.0-dev",
- "pallet-session",
- "pallet-staking",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-staking",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
 name = "pallet-preimage"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
@@ -7415,72 +6416,6 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-proxy"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-ranked-collective"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-recovery"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-referenda"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-arithmetic",
  "sp-io",
  "sp-runtime",
  "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
@@ -7529,43 +6464,6 @@ dependencies = [
  "sp-io",
  "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
  "substrate-wasm-builder",
-]
-
-[[package]]
-name = "pallet-safe-mode"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "docify",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-balances",
- "pallet-proxy",
- "pallet-utility",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-salary"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
 ]
 
 [[package]]
@@ -7631,54 +6529,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-session-benchmarking"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-session",
- "pallet-staking",
- "parity-scale-codec",
- "rand 0.8.5",
- "sp-runtime",
- "sp-session",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-skip-feeless-payment"
-version = "1.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-society"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "rand_chacha 0.2.2",
- "scale-info",
- "sp-arithmetic",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
 name = "pallet-staking"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
@@ -7697,44 +6547,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-staking-reward-curve"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "proc-macro-crate 2.0.1",
- "proc-macro2",
- "quote",
- "syn 2.0.41",
-]
-
-[[package]]
-name = "pallet-staking-runtime-api"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "parity-scale-codec",
- "sp-api",
- "sp-staking",
-]
-
-[[package]]
-name = "pallet-state-trie-migration"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
  "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
 ]
 
@@ -7759,24 +6571,6 @@ dependencies = [
  "sp-runtime",
  "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
  "substrate-wasm-builder",
-]
-
-[[package]]
-name = "pallet-statement"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-statement-store",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
 ]
 
 [[package]]
@@ -7816,89 +6610,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-tips"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-treasury",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-transaction-payment"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-transaction-payment-rpc"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "jsonrpsee",
- "pallet-transaction-payment-rpc-runtime-api",
- "parity-scale-codec",
- "sp-api",
- "sp-blockchain",
- "sp-core",
- "sp-rpc",
- "sp-runtime",
- "sp-weights",
-]
-
-[[package]]
-name = "pallet-transaction-payment-rpc-runtime-api"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "pallet-transaction-payment",
- "parity-scale-codec",
- "sp-api",
- "sp-runtime",
- "sp-weights",
-]
-
-[[package]]
-name = "pallet-transaction-storage"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-inherents",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "sp-transaction-storage-proof",
-]
-
-[[package]]
 name = "pallet-transaction-weight-runtime-api"
 version = "0.9.0"
 dependencies = [
@@ -7913,58 +6624,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-treasury"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "docify",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "pallet-balances",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-tx-pause"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "docify",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-balances",
- "pallet-proxy",
- "pallet-utility",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-uniques"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
 name = "pallet-utility"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
@@ -7976,36 +6635,6 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-vesting"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
-]
-
-[[package]]
-name = "pallet-whitelist"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
  "sp-runtime",
  "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
 ]
@@ -8268,17 +6897,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
-name = "piper"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "668d31b1c4eba19242f2088b2bf3316b82ca31082a8335764db4e083db7485d4"
-dependencies = [
- "atomic-waker",
- "fastrand 2.0.1",
- "futures-io",
-]
-
-[[package]]
 name = "pkcs8"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8311,32 +6929,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14e6ab3f592e6fb464fc9712d8d6e6912de6473954635fd76a589d832cffcbb0"
 
 [[package]]
-name = "polkadot-core-primitives"
-version = "1.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
+name = "plotters"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2c224ba00d7cadd4d5c660deaf2098e5e80e07846537c51f9cfa4be50c1fd45"
 dependencies = [
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
+ "num-traits",
+ "plotters-backend",
+ "plotters-svg",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
-name = "polkadot-parachain-primitives"
-version = "1.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
+name = "plotters-backend"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e76628b4d3a7581389a35d5b6e2139607ad7c75b17aed325f210aa91f4a9609"
+
+[[package]]
+name = "plotters-svg"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38f6d39893cca0701371e3c27294f09797214b86f1fb951b89ade8ec04e2abab"
 dependencies = [
- "bounded-collections",
- "derive_more",
- "parity-scale-codec",
- "polkadot-core-primitives",
- "scale-info",
- "serde",
- "sp-core",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "sp-weights",
+ "plotters-backend",
 ]
 
 [[package]]
@@ -9151,15 +7768,6 @@ checksum = "3e75f6a532d0fd9f7f13144f392b6ad56a32696bfcd9c78f797f16bbb6f072d6"
 
 [[package]]
 name = "rustc_version"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
-dependencies = [
- "semver 0.9.0",
-]
-
-[[package]]
-name = "rustc_version"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
@@ -9321,15 +7929,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ad4cc8da4ef723ed60bced201181d83791ad433213d8c24efffda1eec85d741"
 
 [[package]]
-name = "safe-mix"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d3d055a2582e6b00ed7a31c1524040aa391092bf636328350813f3a0605215c"
-dependencies = [
- "rustc_version 0.2.3",
-]
-
-[[package]]
 name = "safe_arch"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9468,7 +8067,7 @@ dependencies = [
  "array-bytes 6.2.0",
  "bip39",
  "chrono",
- "clap",
+ "clap 4.4.11",
  "fdlimit",
  "futures",
  "itertools 0.10.5",
@@ -9765,7 +8364,7 @@ dependencies = [
  "sp-maybe-compressed-blob",
  "sp-wasm-interface 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
  "thiserror",
- "wasm-instrument 0.3.0",
+ "wasm-instrument",
 ]
 
 [[package]]
@@ -9852,7 +8451,7 @@ version = "0.10.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
 dependencies = [
  "array-bytes 6.2.0",
- "async-channel 1.9.0",
+ "async-channel",
  "async-trait",
  "asynchronous-codec",
  "bytes",
@@ -9894,7 +8493,7 @@ name = "sc-network-bitswap"
 version = "0.10.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
 dependencies = [
- "async-channel 1.9.0",
+ "async-channel",
  "cid",
  "futures",
  "libp2p-identity",
@@ -9951,7 +8550,7 @@ version = "0.10.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
 dependencies = [
  "array-bytes 6.2.0",
- "async-channel 1.9.0",
+ "async-channel",
  "futures",
  "libp2p-identity",
  "log",
@@ -9972,7 +8571,7 @@ version = "0.10.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
 dependencies = [
  "array-bytes 6.2.0",
- "async-channel 1.9.0",
+ "async-channel",
  "futures",
  "libp2p",
  "log",
@@ -9991,7 +8590,7 @@ version = "0.10.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
 dependencies = [
  "array-bytes 6.2.0",
- "async-channel 1.9.0",
+ "async-channel",
  "async-trait",
  "fork-tree",
  "futures",
@@ -10243,6 +8842,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "sc-service-test"
+version = "2.0.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
+dependencies = [
+ "array-bytes 6.2.0",
+ "async-channel",
+ "fdlimit",
+ "futures",
+ "log",
+ "parity-scale-codec",
+ "parking_lot 0.12.1",
+ "sc-block-builder",
+ "sc-client-api",
+ "sc-client-db",
+ "sc-consensus",
+ "sc-executor",
+ "sc-network",
+ "sc-network-sync",
+ "sc-service",
+ "sc-transaction-pool-api",
+ "sp-api",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-state-machine",
+ "sp-storage 13.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
+ "sp-tracing 10.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
+ "sp-trie",
+ "substrate-test-runtime",
+ "substrate-test-runtime-client",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "sc-state-db"
 version = "0.10.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
@@ -10277,7 +8913,7 @@ name = "sc-storage-monitor"
 version = "0.1.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
 dependencies = [
- "clap",
+ "clap 4.4.11",
  "fs4",
  "log",
  "sc-client-db",
@@ -10432,7 +9068,7 @@ name = "sc-utils"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
 dependencies = [
- "async-channel 1.9.0",
+ "async-channel",
  "futures",
  "futures-timer",
  "lazy_static",
@@ -10639,15 +9275,6 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
-dependencies = [
- "semver-parser",
-]
-
-[[package]]
-name = "semver"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "836fa6a3e1e547f9a2c4040802ec865b5d85f4014efe00555d7090a3dcaa1090"
@@ -10705,31 +9332,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12022b835073e5b11e90a14f86838ceb1c8fb0325b72416845c487ac0fa95e80"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "serial_test"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e56dd856803e253c8f298af3f4d7eb0ae5e23a737252cd90bb4f3b435033b2d"
-dependencies = [
- "dashmap",
- "futures",
- "lazy_static",
- "log",
- "parking_lot 0.12.1",
- "serial_test_derive",
-]
-
-[[package]]
-name = "serial_test_derive"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91d129178576168c589c9ec973feedf7d3126c01ac2bf08795109aa35b69fb8f"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.41",
 ]
 
 [[package]]
@@ -10909,7 +9511,7 @@ dependencies = [
  "curve25519-dalek 4.1.1",
  "rand_core 0.6.4",
  "ring 0.17.5",
- "rustc_version 0.4.0",
+ "rustc_version",
  "sha2 0.10.8",
  "subtle 2.4.1",
 ]
@@ -11226,7 +9828,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.4.1"
-source = "git+https://github.com/paritytech/polkadot-sdk#ebe2aad6f0ae576a0e176f38a084fe7579f936dd"
+source = "git+https://github.com/paritytech/polkadot-sdk#8acd63003c1ec76738d5ad48123ecb80063ab848"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -11266,7 +9868,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ebe2aad6f0ae576a0e176f38a084fe7579f936dd"
+source = "git+https://github.com/paritytech/polkadot-sdk#8acd63003c1ec76738d5ad48123ecb80063ab848"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -11287,7 +9889,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.19.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ebe2aad6f0ae576a0e176f38a084fe7579f936dd"
+source = "git+https://github.com/paritytech/polkadot-sdk#8acd63003c1ec76738d5ad48123ecb80063ab848"
 dependencies = [
  "environmental",
  "parity-scale-codec",
@@ -11400,24 +10002,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-mmr-primitives"
-version = "4.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "ckb-merkle-mountain-range",
- "log",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-api",
- "sp-core",
- "sp-debug-derive 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "thiserror",
-]
-
-[[package]]
 name = "sp-npos-elections"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
@@ -11506,7 +10090,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "17.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ebe2aad6f0ae576a0e176f38a084fe7579f936dd"
+source = "git+https://github.com/paritytech/polkadot-sdk#8acd63003c1ec76738d5ad48123ecb80063ab848"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -11537,7 +10121,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "11.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ebe2aad6f0ae576a0e176f38a084fe7579f936dd"
+source = "git+https://github.com/paritytech/polkadot-sdk#8acd63003c1ec76738d5ad48123ecb80063ab848"
 dependencies = [
  "Inflector",
  "expander",
@@ -11629,7 +10213,7 @@ source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789f
 [[package]]
 name = "sp-std"
 version = "8.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ebe2aad6f0ae576a0e176f38a084fe7579f936dd"
+source = "git+https://github.com/paritytech/polkadot-sdk#8acd63003c1ec76738d5ad48123ecb80063ab848"
 
 [[package]]
 name = "sp-storage"
@@ -11647,7 +10231,7 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "13.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ebe2aad6f0ae576a0e176f38a084fe7579f936dd"
+source = "git+https://github.com/paritytech/polkadot-sdk#8acd63003c1ec76738d5ad48123ecb80063ab848"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -11685,7 +10269,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "10.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ebe2aad6f0ae576a0e176f38a084fe7579f936dd"
+source = "git+https://github.com/paritytech/polkadot-sdk#8acd63003c1ec76738d5ad48123ecb80063ab848"
 dependencies = [
  "parity-scale-codec",
  "sp-std 8.0.0 (git+https://github.com/paritytech/polkadot-sdk)",
@@ -11787,7 +10371,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#ebe2aad6f0ae576a0e176f38a084fe7579f936dd"
+source = "git+https://github.com/paritytech/polkadot-sdk#8acd63003c1ec76738d5ad48123ecb80063ab848"
 dependencies = [
  "anyhow",
  "impl-trait-for-tuples",
@@ -11875,158 +10459,6 @@ name = "stable_deref_trait"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
-
-[[package]]
-name = "staging-node-cli"
-version = "3.0.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "array-bytes 6.2.0",
- "clap",
- "clap_complete",
- "frame-benchmarking",
- "frame-benchmarking-cli",
- "frame-system",
- "frame-system-rpc-runtime-api",
- "futures",
- "jsonrpsee",
- "kitchensink-runtime",
- "log",
- "node-primitives",
- "node-rpc",
- "pallet-asset-conversion-tx-payment",
- "pallet-asset-tx-payment",
- "pallet-assets",
- "pallet-balances",
- "pallet-im-online",
- "pallet-skip-feeless-payment",
- "parity-scale-codec",
- "rand 0.8.5",
- "sc-authority-discovery",
- "sc-basic-authorship",
- "sc-chain-spec",
- "sc-cli",
- "sc-client-api",
- "sc-consensus",
- "sc-consensus-babe",
- "sc-consensus-grandpa",
- "sc-consensus-slots",
- "sc-executor",
- "sc-mixnet",
- "sc-network",
- "sc-network-common",
- "sc-network-statement",
- "sc-network-sync",
- "sc-offchain",
- "sc-rpc",
- "sc-service",
- "sc-statement-store",
- "sc-storage-monitor",
- "sc-sync-state-rpc",
- "sc-sysinfo",
- "sc-telemetry",
- "sc-transaction-pool",
- "sc-transaction-pool-api",
- "serde",
- "serde_json",
- "sp-api",
- "sp-authority-discovery",
- "sp-consensus",
- "sp-consensus-babe",
- "sp-consensus-grandpa",
- "sp-core",
- "sp-inherents",
- "sp-io",
- "sp-keyring",
- "sp-keystore",
- "sp-mixnet",
- "sp-runtime",
- "sp-statement-store",
- "sp-timestamp",
- "sp-transaction-storage-proof",
- "staging-node-inspect",
- "substrate-build-script-utils",
- "substrate-frame-cli",
- "try-runtime-cli",
-]
-
-[[package]]
-name = "staging-node-inspect"
-version = "0.9.0-dev"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "clap",
- "parity-scale-codec",
- "sc-cli",
- "sc-client-api",
- "sc-service",
- "sp-blockchain",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-statement-store",
- "thiserror",
-]
-
-[[package]]
-name = "staging-xcm"
-version = "1.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "bounded-collections",
- "derivative",
- "environmental",
- "impl-trait-for-tuples",
- "log",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-weights",
- "xcm-procedural",
-]
-
-[[package]]
-name = "staging-xcm-builder"
-version = "1.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "log",
- "pallet-transaction-payment",
- "parity-scale-codec",
- "polkadot-parachain-primitives",
- "scale-info",
- "sp-arithmetic",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "sp-weights",
- "staging-xcm",
- "staging-xcm-executor",
-]
-
-[[package]]
-name = "staging-xcm-executor"
-version = "1.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "environmental",
- "frame-benchmarking",
- "frame-support",
- "impl-trait-for-tuples",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
- "sp-weights",
- "staging-xcm",
-]
 
 [[package]]
 name = "static_assertions"
@@ -12164,7 +10596,7 @@ name = "substrate-frame-cli"
 version = "4.0.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
 dependencies = [
- "clap",
+ "clap 4.4.11",
  "frame-support",
  "frame-system",
  "sc-cli",
@@ -12260,12 +10692,62 @@ dependencies = [
 ]
 
 [[package]]
-name = "substrate-test-utils"
-version = "4.0.0-dev"
+name = "substrate-test-runtime"
+version = "2.0.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
+dependencies = [
+ "array-bytes 6.2.0",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "frame-system-rpc-runtime-api",
+ "log",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "sc-service",
+ "scale-info",
+ "sp-api",
+ "sp-application-crypto",
+ "sp-block-builder",
+ "sp-consensus-aura",
+ "sp-consensus-babe",
+ "sp-consensus-grandpa",
+ "sp-core",
+ "sp-externalities 0.19.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-io",
+ "sp-keyring",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-state-machine",
+ "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
+ "sp-transaction-pool",
+ "sp-trie",
+ "sp-version",
+ "substrate-wasm-builder",
+ "trie-db",
+]
+
+[[package]]
+name = "substrate-test-runtime-client"
+version = "2.0.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
 dependencies = [
  "futures",
- "tokio",
+ "sc-block-builder",
+ "sc-client-api",
+ "sc-consensus",
+ "sp-api",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-runtime",
+ "substrate-test-client",
+ "substrate-test-runtime",
 ]
 
 [[package]]
@@ -12411,6 +10893,12 @@ name = "termtree"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
+
+[[package]]
+name = "textwrap"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "222a222a5bfe1bba4a77b45ec488a741b3cb8872e5e499451fd7d0129c9c7c3d"
 
 [[package]]
 name = "thiserror"
@@ -12870,7 +11358,7 @@ version = "0.10.0-dev"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
 dependencies = [
  "async-trait",
- "clap",
+ "clap 4.4.11",
  "frame-remote-externalities",
  "frame-try-runtime",
  "hex",
@@ -13071,12 +11559,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b7e5d4d90034032940e4ace0d9a9a057e7a45cd94e6c007832e39edb82f6d"
 
 [[package]]
-name = "value-bag"
-version = "1.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a72e1902dde2bd6441347de2b70b7f5d59bf157c6c62f0c44572607a1d55bbe"
-
-[[package]]
 name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13258,15 +11740,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wasm-instrument"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a47ecb37b9734d1085eaa5ae1a81e60801fd8c28d4cabdd8aedb982021918bc"
-dependencies = [
- "parity-wasm",
-]
-
-[[package]]
 name = "wasm-opt"
 version = "0.116.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13322,37 +11795,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wasmi"
-version = "0.31.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acfc1e384a36ca532d070a315925887247f3c7e23567e23e0ac9b1c5d6b8bf76"
-dependencies = [
- "smallvec",
- "spin 0.9.8",
- "wasmi_arena",
- "wasmi_core",
- "wasmparser-nostd",
-]
-
-[[package]]
-name = "wasmi_arena"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "401c1f35e413fac1846d4843745589d9ec678977ab35a384db8ae7830525d468"
-
-[[package]]
-name = "wasmi_core"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcf1a7db34bff95b85c261002720c00c3a6168256dcb93041d3fa2054d19856a"
-dependencies = [
- "downcast-rs",
- "libm",
- "num-traits",
- "paste",
-]
-
-[[package]]
 name = "wasmparser"
 version = "0.102.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13360,15 +11802,6 @@ checksum = "48134de3d7598219ab9eaf6b91b15d8e50d31da76b8519fe4ecfcec2cf35104b"
 dependencies = [
  "indexmap 1.9.3",
  "url",
-]
-
-[[package]]
-name = "wasmparser-nostd"
-version = "0.100.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9157cab83003221bfd385833ab587a039f5d6fa7304854042ba358a3b09e0724"
-dependencies = [
- "indexmap-nostd",
 ]
 
 [[package]]
@@ -14136,17 +12569,6 @@ dependencies = [
  "rusticata-macros",
  "thiserror",
  "time",
-]
-
-[[package]]
-name = "xcm-procedural"
-version = "1.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0#789ffb66dcfcf3b54a1e6786e928ac91c4fdb465"
-dependencies = [
- "Inflector",
- "proc-macro2",
- "quote",
- "syn 2.0.41",
 ]
 
 [[package]]

@@ -1,3 +1,28 @@
+[workspace.package]
+authors = ['Dhiway Networks <info@dhiway.com>']
+edition = "2021"
+homepage = "https://cord.network"
+repository = "https://github.com/dhiway/cord"
+license = "GPL-3.0"
+
+[workspace]
+resolver = "2"
+
+members = [
+	"node/cli",
+	"pallets/*",
+	"primitives/*",
+	"runtime",
+	"runtime/constants",
+	"runtime/authorities",
+	"runtime-api/*",
+	"node/rpc",
+	"node/inspect",
+	"utilities",
+	"test-utils",
+]
+
+
 [profile.release]
 panic = 'unwind'
 opt-level = 3
@@ -61,19 +86,3 @@ uint = { opt-level = 3 }
 x25519-dalek = { opt-level = 3 }
 yamux = { opt-level = 3 }
 zeroize = { opt-level = 3 }
-
-[workspace]
-members = [
-	"node",
-	"pallets/*",
-	"primitives/*",
-	"runtime",
-	"runtime/constants",
-	"runtime/authorities",
-	"runtime-api/*",
-	"rpc",
-	"inspect",
-	"utilities",
-	"test-utils",
-]
-resolver = "2"
