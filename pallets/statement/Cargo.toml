@@ -1,12 +1,12 @@
 [package]
 name = 'pallet-statement'
 description = 'Manage Statement Entries.'
-version = "0.9.0"
-authors = ['Dhiway Networks <info@dhiway.com>']
-edition = '2021'
-license = "GPL-3.0"
-homepage = "https://cord.network"
-repository = "https://github.com/dhiway/cord"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [[package.metadata.docs.rs]]
 targets = ['x86_64-unknown-linux-gnu']

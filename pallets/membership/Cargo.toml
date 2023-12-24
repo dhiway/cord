@@ -1,15 +1,15 @@
 [package]
 name = "pallet-membership"
-version = "0.9.0"
+description = "FRAME membership management pallet - modified to support CORD governance"
 authors = [
 	"Parity Technologies <admin@parity.io>",
 	"Dhiway Networks <info@dhiway.com>",
 ]
-description = "FRAME membership management pallet - modified to support CORD governance"
-edition = "2021"
-license = "GPL-3.0"
-homepage = "https://cord.network"
-repository = "https://github.com/dhiway/cord"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 readme = "README.md"
 
 [package.metadata.docs.rs]

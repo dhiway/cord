@@ -1,12 +1,12 @@
 [package]
 name = "pallet-did-runtime-api"
 description = "Runtime APIs for dealing with DIDs."
-version = "0.9.0"
-authors = ['Dhiway <info@dhiway.com>', 'BOTLabs GmbH']
-edition = '2021'
-license = "GPL-3.0"
-homepage = "https://cord.network"
-repository = "https://github.com/dhiway/cord"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 # External dependencies

@@ -1,15 +1,15 @@
 [package]
 name = "pallet-collective"
-version = "0.9.0"
+description = "Collective system: Members of a set of account IDs can make their collective feelings known through dispatched calls from one of two specialized origins."
 authors = [
 	"Parity Technologies <admin@parity.io>",
 	"Dhiway Networks <info@dhiway.com>",
 ]
-edition = "2021"
-license = "GPL-3.0"
-homepage = "https://cord.network"
-repository = "https://github.com/dhiway/cord"
-description = "Collective system: Members of a set of account IDs can make their collective feelings known through dispatched calls from one of two specialized origins."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 readme = "README.md"
 
 [package.metadata.docs.rs]
