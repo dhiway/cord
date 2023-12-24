@@ -249,6 +249,7 @@ impl<Block: BlockT, D, Backend, G: GenesisInit>
 	D: sc_executor::NativeExecutionDispatch,
 {
 	/// Build the test client with the given native executor.
+	#[allow(clippy::type_complexity)]
 	pub fn build_with_native_executor<RuntimeApi, I>(
 		self,
 		executor: I,
@@ -338,7 +339,7 @@ impl RpcHandlersExt for RpcHandlers {
 						"params": ["0x{}"],
 						"id": 0
 					}}"#,
-				array_bytes::bytes2hex("", &extrinsic.encode())
+				array_bytes::bytes2hex("", extrinsic.encode())
 			))
 			.await
 			.expect("valid JSON-RPC request object; qed");
@@ -356,7 +357,7 @@ pub(crate) fn parse_rpc_result(
 
 	if let Some(error) = error {
 		return Err(serde_json::from_value(error.clone())
-			.expect("the JSONRPC result's error is always valid; qed"))
+			.expect("the JSONRPC result's error is always valid; qed"));
 	}
 
 	Ok(RpcTransactionOutput { result, receiver })
@@ -390,7 +391,7 @@ where
 				if notification.is_new_best {
 					blocks.insert(*notification.header.number());
 					if blocks.len() == count {
-						break
+						break;
 					}
 				}
 			}

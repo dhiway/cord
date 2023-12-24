@@ -37,43 +37,37 @@
 //! Each DID identifier is mapped to a set of keys, which in CORD are used for
 //! different purposes.
 //!
-//! - One **authentication key**: used to sign and authorise DID-management
-//!   operations (e.g., the update of some keys or the deletion of the whole
-//!   DID). This is required to always be present as otherwise the DID becomes
-//!   unusable since no operation signature can be verified anymore.
+//! - One **authentication key**: used to sign and authorise DID-management operations (e.g., the
+//!   update of some keys or the deletion of the whole DID). This is required to always be present
+//!   as otherwise the DID becomes unusable since no operation signature can be verified anymore.
 //!
-//! - Zero or more **key agreement keys**: used by other parties that want to
-//!   interact with the DID subject to perform ECDH and encrypt information
-//!   addressed to the DID subject.
+//! - Zero or more **key agreement keys**: used by other parties that want to interact with the DID
+//!   subject to perform ECDH and encrypt information addressed to the DID subject.
 //!
-//! - Zero or one **delegation key**: used to sign and authorise the creation of
-//!   new delegation nodes on the CORD blockchain. In case no delegation key is
-//!   present, the DID subject cannot write new delegations on the CORD
-//!   blockchain. For more info, check the [delegation
+//! - Zero or one **delegation key**: used to sign and authorise the creation of new delegation
+//!   nodes on the CORD blockchain. In case no delegation key is present, the DID subject cannot
+//!   write new delegations on the CORD blockchain. For more info, check the [delegation
 //!   pallet](../../delegation/).
 //!
-//! - Zero or one **assertion key**: used to sign and authorise the creation of
-//!   new entries [stream, score..] on the CORD blockchain. In case no assertion
-//!   key is present, the DID subject cannot write new entries on the CORD
-//!   blockchain. For more info, check the [streams pallet](../../streams/).
+//! - Zero or one **assertion key**: used to sign and authorise the creation of new entries [stream,
+//!   score..] on the CORD blockchain. In case no assertion key is present, the DID subject cannot
+//!   write new entries on the CORD blockchain. For more info, check the [streams
+//!   pallet](../../streams/).
 //!
-//! - A set of **public keys**: includes at least the previous keys in addition
-//!   to any past assertion key that has been rotated but not entirely revoked.
+//! - A set of **public keys**: includes at least the previous keys in addition to any past
+//!   assertion key that has been rotated but not entirely revoked.
 //!
-//! - A set of **service endpoints**: pointing to the description of the
-//!   services the DID subject exposes. For more information, check the W3C DID
-//!   Core specification.
+//! - A set of **service endpoints**: pointing to the description of the services the DID subject
+//!   exposes. For more information, check the W3C DID Core specification.
 //!
-//! - A **transaction counter**: acts as a nonce to avoid replay or signature
-//!   forgery attacks. Each time a DID-signed transaction is executed, the
-//!   counter is incremented.
+//! - A **transaction counter**: acts as a nonce to avoid replay or signature forgery attacks. Each
+//!   time a DID-signed transaction is executed, the counter is incremented.
 //!
 //! ## Assumptions
 //!
-//! - After it is generated and signed by a client, a DID-authorised operation
-//!   can be submitted for evaluation anytime between the time the operation is
-//!   created and [MaxBlocksTxValidity] blocks after that. After this time has
-//!   elapsed, the operation is considered invalid.
+//! - After it is generated and signed by a client, a DID-authorised operation can be submitted for
+//!   evaluation anytime between the time the operation is created and [MaxBlocksTxValidity] blocks
+//!   after that. After this time has elapsed, the operation is considered invalid.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -489,16 +483,15 @@ pub mod pallet {
 		/// Emits `DidCreated`.
 		///
 		/// # <weight>
-		/// - The transaction's complexity is mainly dependent on the number of
-		///   new key agreement keys and the number of new service endpoints
-		///   included in the operation.
+		/// - The transaction's complexity is mainly dependent on the number of new key agreement
+		///   keys and the number of new service endpoints included in the operation.
 		/// ---------
 		/// Weight: O(K) + O(N) where K is the number of new key agreement
 		/// keys bounded by `MaxNewKeyAgreementKeys`, while N is the number of
 		/// new service endpoints bounded by `MaxNumberOfServicesPerDid`.
 		/// - Reads: [Origin Account], Did, DidBlacklist
-		/// - Writes: Did (with K new key agreement keys), ServiceEndpoints
-		///   (with N new service endpoints), DidEndpointsCount
+		/// - Writes: Did (with K new key agreement keys), ServiceEndpoints (with N new service
+		///   endpoints), DidEndpointsCount
 		/// # </weight>
 		#[pallet::call_index(0)]
 		#[pallet::weight({
@@ -1131,12 +1124,10 @@ pub mod pallet {
 		///
 		/// # Errors
 		///
-		/// * When the DID was deleted, this function returns a `AlreadyDeleted`
-		///   error.
-		/// * When the DID already exists, this function returns a
-		///   `AlreadyExists` error.
-		/// * When the [sender] doesn't have enough free balance, this function
-		///   returns a `UnableToPayFees` error.
+		/// * When the DID was deleted, this function returns a `AlreadyDeleted` error.
+		/// * When the DID already exists, this function returns a `AlreadyExists` error.
+		/// * When the [sender] doesn't have enough free balance, this function returns a
+		///   `UnableToPayFees` error.
 		pub fn try_insert_did(
 			did_identifier: DidIdentifierOf<T>,
 			did_entry: DidDetails<T>,

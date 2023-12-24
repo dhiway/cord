@@ -81,8 +81,8 @@ pub fn start_node() -> Child {
 ///
 /// # Arguments
 ///
-/// * `args: &[&str]` - A slice of string references representing the arguments
-///   to pass to the `cargo b` command.
+/// * `args: &[&str]` - A slice of string references representing the arguments to pass to the
+///   `cargo b` command.
 ///
 /// # Panics
 ///
@@ -129,8 +129,8 @@ pub fn build_cord(args: &[&str]) {
 ///
 /// # Arguments
 ///
-/// * `child_stream` - An async tokio stream, e.g. from a child process
-///   `ChildStderr` or `ChildStdout`.
+/// * `child_stream` - An async tokio stream, e.g. from a child process `ChildStderr` or
+///   `ChildStdout`.
 /// * `re` - A `Regex` pattern to search for in the stream.
 ///
 /// # Returns

@@ -98,7 +98,7 @@ pub fn start_node() -> Child {
 	Command::new(cargo_bin("cord"))
 		.stdout(process::Stdio::piped())
 		.stderr(process::Stdio::piped())
-		.args(&["--dev", "--tmp", "--rpc-port=45789", "--no-hardware-benchmarks"])
+		.args(["--dev", "--tmp", "--rpc-port=45789", "--no-hardware-benchmarks"])
 		.spawn()
 		.unwrap()
 }
@@ -114,8 +114,8 @@ pub fn start_node() -> Child {
 ///
 /// # Arguments
 ///
-/// * `args: &[&str]` - A slice of string references representing the arguments
-///   to pass to the `cargo b` command.
+/// * `args: &[&str]` - A slice of string references representing the arguments to pass to the
+///   `cargo b` command.
 ///
 /// # Panics
 ///
@@ -147,7 +147,7 @@ pub fn build_substrate(args: &[&str]) {
 	let output = cmd
 		.args(args)
 		.output()
-		.expect(format!("Failed to execute 'cargo b' with args {:?}'", args).as_str());
+		.unwrap_or_else(|_| panic!("Failed to execute 'cargo b' with args {:?}'", args));
 
 	if !output.status.success() {
 		panic!(
@@ -166,8 +166,8 @@ pub fn build_substrate(args: &[&str]) {
 ///
 /// # Arguments
 ///
-/// * `child_stream` - An async tokio stream, e.g. from a child process
-///   `ChildStderr` or `ChildStdout`.
+/// * `child_stream` - An async tokio stream, e.g. from a child process `ChildStderr` or
+///   `ChildStdout`.
 /// * `re` - A `Regex` pattern to search for in the stream.
 ///
 /// # Returns
@@ -199,9 +199,8 @@ where
 {
 	let mut stdio_reader = tokio::io::BufReader::new(stream).lines();
 	while let Ok(Some(line)) = stdio_reader.next_line().await {
-		match re.find(line.as_str()) {
-			Some(_) => return Ok(()),
-			None => (),
+		if re.find(line.as_str()).is_some() {
+			return Ok(());
 		}
 	}
 	Err(String::from("Stream closed without any lines matching the regex."))
@@ -225,7 +224,7 @@ pub async fn wait_n_finalized_blocks(n: usize, url: &str) {
 		if let Ok(block) = ChainApi::<(), Hash, Header, ()>::finalized_head(&rpc).await {
 			built_blocks.insert(block);
 			if built_blocks.len() > n {
-				break
+				break;
 			}
 		};
 		interval.tick().await;
@@ -340,13 +339,13 @@ pub fn extract_info_from_output(read: impl Read + Send) -> (NodeInfo, String) {
 		.find_map(|line| {
 			let line = line.expect("failed to obtain next line while extracting node info");
 			data.push_str(&line);
-			data.push_str("\n");
+			data.push('\n');
 
 			// does the line contain our port (we expect this specific output from
 			// substrate).
 			let sock_addr = match line.split_once("Running JSON-RPC server: addr=") {
 				None => return None,
-				Some((_, after)) => after.split_once(",").unwrap().0,
+				Some((_, after)) => after.split_once(',').unwrap().0,
 			};
 
 			Some(format!("ws://{}", sock_addr))

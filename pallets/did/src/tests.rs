@@ -124,7 +124,7 @@ fn check_successful_complete_creation() {
 	let alice_did = get_did_identifier_from_sr25519_key(auth_key.public());
 	let auth_did_key = DidVerificationKey::from(auth_key.public());
 	let enc_keys = DidNewKeyAgreementKeySetOf::<Test>::try_from(
-		vec![get_x25519_encryption_key(&ENC_SEED_0), get_x25519_encryption_key(&ENC_SEED_1)]
+		[get_x25519_encryption_key(&ENC_SEED_0), get_x25519_encryption_key(&ENC_SEED_1)]
 			.iter()
 			.copied()
 			.collect::<BTreeSet<DidEncryptionKey>>(),

@@ -37,7 +37,7 @@ fn register_statement_should_succeed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let capacity = 3u64;
-	let statement = vec![77u8; 32];
+	let statement = [77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
 	let raw_space = [2u8; 256].to_vec();
@@ -88,7 +88,7 @@ fn trying_to_register_statement_to_a_non_existent_space_should_fail() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
-	let statement = vec![77u8; 32];
+	let statement = [77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
 	let raw_space = [2u8; 256].to_vec();
@@ -129,7 +129,7 @@ fn trying_to_register_statement_by_a_non_delegate_should_fail() {
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
 	let capacity = 3u64;
-	let statement = vec![77u8; 32];
+	let statement = [77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
 	let raw_space = [2u8; 256].to_vec();
@@ -183,10 +183,10 @@ fn updating_a_registered_statement_should_succeed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let capacity = 5u64;
-	let statement = vec![77u8; 32];
+	let statement = [77u8; 32];
 	let statement_digest: StatementDigestOf<Test> =
 		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
-	let new_statement = vec![88u8; 32];
+	let new_statement = [88u8; 32];
 	let new_statement_digest = <Test as frame_system::Config>::Hashing::hash(&new_statement[..]);
 
 	let raw_space = [2u8; 256].to_vec();
@@ -256,9 +256,9 @@ fn updating_a_registered_statement_by_a_space_delegate_should_succeed() {
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
 	let capacity = 5u64;
-	let statement = vec![77u8; 32];
+	let statement = [77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
-	let new_statement = vec![88u8; 32];
+	let new_statement = [88u8; 32];
 	let new_statement_digest = <Test as frame_system::Config>::Hashing::hash(&new_statement[..]);
 
 	let raw_space = [2u8; 256].to_vec();
@@ -335,9 +335,9 @@ fn trying_to_update_a_registered_statement_by_a_non_space_delegate_should_fail()
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
 	let capacity = 5u64;
-	let statement = vec![77u8; 32];
+	let statement = [77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
-	let new_statement = vec![88u8; 32];
+	let new_statement = [88u8; 32];
 	let new_statement_digest = <Test as frame_system::Config>::Hashing::hash(&new_statement[..]);
 
 	let raw_space = [2u8; 256].to_vec();
@@ -409,9 +409,9 @@ fn trying_to_update_a_non_registered_statement_should_fail() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let capacity = 5u64;
-	let statement = vec![77u8; 32];
+	let statement = [77u8; 32];
 	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
-	let new_statement = vec![88u8; 32];
+	let new_statement = [88u8; 32];
 	let new_statement_digest = <Test as frame_system::Config>::Hashing::hash(&new_statement[..]);
 
 	let raw_space = [2u8; 256].to_vec();
@@ -478,7 +478,7 @@ fn revoking_a_registered_statement_should_succeed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let capacity = 5u64;
-	let statement = vec![77u8; 32];
+	let statement = [77u8; 32];
 	let statement_digest: StatementDigestOf<Test> =
 		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
@@ -548,7 +548,7 @@ fn revoking_a_registered_statement_by_a_non_delegate_should_fail() {
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
 	let capacity = 5u64;
-	let statement = vec![77u8; 32];
+	let statement = [77u8; 32];
 	let statement_digest: StatementDigestOf<Test> =
 		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
@@ -641,7 +641,7 @@ fn restoring_a_revoked_statement_should_succeed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let capacity = 5u64;
-	let statement = vec![77u8; 32];
+	let statement = [77u8; 32];
 	let statement_digest: StatementDigestOf<Test> =
 		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
@@ -716,7 +716,7 @@ fn trying_to_restore_a_non_revoked_statement_should_fail() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let capacity = 5u64;
-	let statement = vec![77u8; 32];
+	let statement = [77u8; 32];
 	let statement_digest: StatementDigestOf<Test> =
 		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
 
@@ -784,7 +784,7 @@ fn trying_to_restore_a_revoked_statement_by_a_non_delegate_should_fail() {
 	let author = ACCOUNT_00;
 	let delegate = DID_01;
 	let capacity = 5u64;
-	let statement = vec![77u8; 32];
+	let statement = [77u8; 32];
 	let statement_digest: StatementDigestOf<Test> =
 		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
 

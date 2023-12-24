@@ -38,18 +38,14 @@
 //! The pallet provides dispatchable functions for space management:
 //!
 //! - `create`: Initializes a new space with a unique identifier.
-//! - `approve`: Approves a space for use, setting its capacity and governance
-//!   status.
+//! - `approve`: Approves a space for use, setting its capacity and governance status.
 //! - `archive`: Marks a space as archived, effectively freezing its state.
 //! - `restore`: Unarchives a space, returning it to active status.
-//! - `add_delegate`: Adds a delegate to a space, granting them specific
+//! - `add_delegate`: Adds a delegate to a space, granting them specific permissions.
+//! - `add_admin_delegate`: Adds an admin delegate to a space, granting them administrative
 //!   permissions.
-//! - `add_admin_delegate`: Adds an admin delegate to a space, granting them
-//!   administrative permissions.
-//! - `add_audit_delegate`: Adds an audit delegate to a space, granting them
-//!   audit permissions.
-//! - `remove_delegate`: Removes a delegate from a space, revoking their
-//!   permissions.
+//! - `add_audit_delegate`: Adds an audit delegate to a space, granting them audit permissions.
+//! - `remove_delegate`: Removes a delegate from a space, revoking their permissions.
 //!
 //! ## Permissions
 //!
@@ -85,8 +81,7 @@
 //! - Creating a new space for a community-driven project.
 //! - Approving a space for official use after meeting certain criteria.
 //! - Archiving a space that is no longer active or has violated terms of use.
-//! - Adding delegates to a space to ensure ongoing compliance with governance
-//!   standards.
+//! - Adding delegates to a space to ensure ongoing compliance with governance standards.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
@@ -285,14 +280,10 @@ pub mod pallet {
 		/// internal function.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the call, which must be signed by an admin
-		///   of the space.
-		/// - `space_id`: The identifier of the space to which the delegate is
-		///   being added.
-		/// - `delegate`: The identifier of the delegate being added to the
-		///   space.
-		/// - `authorization`: The authorization ID used to validate the
-		///   addition.
+		/// - `origin`: The origin of the call, which must be signed by an admin of the space.
+		/// - `space_id`: The identifier of the space to which the delegate is being added.
+		/// - `delegate`: The identifier of the delegate being added to the space.
+		/// - `authorization`: The authorization ID used to validate the addition.
 		///
 		/// # Returns
 		/// Returns `Ok(())` if the delegate was successfully added with
@@ -300,8 +291,7 @@ pub mod pallet {
 		/// operation fails.
 		///
 		/// # Errors
-		/// - `UnauthorizedOperation`: If the caller is not an admin of the
-		///   space.
+		/// - `UnauthorizedOperation`: If the caller is not an admin of the space.
 		/// - Propagates errors from `space_delegate_addition` if it fails.
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_delegate())]
@@ -334,22 +324,18 @@ pub mod pallet {
 		/// `space_delegate_addition` internal function.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the call, which must be signed by an
-		///   existing admin of the space.
-		/// - `space_id`: The identifier of the space to which the admin
-		///   delegate is being added.
-		/// - `delegate`: The identifier of the delegate being granted admin
-		///   permissions.
-		/// - `authorization`: The authorization ID used to validate the
-		///   addition.
+		/// - `origin`: The origin of the call, which must be signed by an existing admin of the
+		///   space.
+		/// - `space_id`: The identifier of the space to which the admin delegate is being added.
+		/// - `delegate`: The identifier of the delegate being granted admin permissions.
+		/// - `authorization`: The authorization ID used to validate the addition.
 		///
 		/// # Returns
 		/// Returns `Ok(())` if the admin delegate was successfully added, or an
 		/// `Err` with an appropriate error if the operation fails.
 		///
 		/// # Errors
-		/// - `UnauthorizedOperation`: If the caller is not an admin of the
-		///   space.
+		/// - `UnauthorizedOperation`: If the caller is not an admin of the space.
 		/// - Propagates errors from `space_delegate_addition` if it fails.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_admin_delegate())]
@@ -381,14 +367,11 @@ pub mod pallet {
 		/// `space_delegate_addition` internal function.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the call, which must be signed by an
-		///   existing admin of the space.
-		/// - `space_id`: The identifier of the space to which the audit
-		///   delegate is being added.
-		/// - `delegate`: The identifier of the delegate being granted audit
-		///   permissions.
-		/// - `authorization`: The authorization ID used to validate the
-		///   addition.
+		/// - `origin`: The origin of the call, which must be signed by an existing admin of the
+		///   space.
+		/// - `space_id`: The identifier of the space to which the audit delegate is being added.
+		/// - `delegate`: The identifier of the delegate being granted audit permissions.
+		/// - `authorization`: The authorization ID used to validate the addition.
 		///
 		/// # Returns
 		/// Returns `Ok(())` if the audit delegate was successfully added, or an
@@ -421,37 +404,31 @@ pub mod pallet {
 		/// verifies that the caller has the authority to remove a delegate.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the transaction, which must be signed by
-		///   the creator or an admin.
-		/// - `space_id`: The identifier of the space from which the delegate is
-		///   being removed.
-		/// - `remove_authorization`: The authorization ID of the delegate to be
-		///   removed.
-		/// - `authorization`: An identifier for the authorization being used to
-		///   validate the removal.
+		/// - `origin`: The origin of the transaction, which must be signed by the creator or an
+		///   admin.
+		/// - `space_id`: The identifier of the space from which the delegate is being removed.
+		/// - `remove_authorization`: The authorization ID of the delegate to be removed.
+		/// - `authorization`: An identifier for the authorization being used to validate the
+		///   removal.
 		///
 		/// # Returns
-		/// - `DispatchResult`: This function returns `Ok(())` if the delegate
-		///   is successfully removed, or an error (`DispatchError`) if any of
-		///   the checks fail.
+		/// - `DispatchResult`: This function returns `Ok(())` if the delegate is successfully
+		///   removed, or an error (`DispatchError`) if any of the checks fail.
 		///
 		/// # Errors
-		/// - `AuthorizationNotFound`: If the provided `remove_authorization`
-		///   does not exist.
-		/// - `UnauthorizedOperation`: If the origin is not authorized to remove
-		///   a delegate from the space.
-		/// - `SpaceNotFound`: If the specified space ID does not correspond to
-		///   an existing space.
+		/// - `AuthorizationNotFound`: If the provided `remove_authorization` does not exist.
+		/// - `UnauthorizedOperation`: If the origin is not authorized to remove a delegate from the
+		///   space.
+		/// - `SpaceNotFound`: If the specified space ID does not correspond to an existing space.
 		/// - `ArchivedSpace`: If the space is archived and no longer active.
 		/// - `SpaceNotApproved`: If the space has not been approved for use.
-		/// - `DelegateNotFound`: If the delegate specified by
-		///   `remove_authorization` is not found in the space.
+		/// - `DelegateNotFound`: If the delegate specified by `remove_authorization` is not found
+		///   in the space.
 		///
 		/// # Events
 		///
-		/// - `Deauthorization`: Emitted when a delegate is successfully removed
-		///   from a space. The event includes the space ID and the
-		///   authorization ID of the removed delegate.
+		/// - `Deauthorization`: Emitted when a delegate is successfully removed from a space. The
+		///   event includes the space ID and the authorization ID of the removed delegate.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_delegate())]
 		pub fn remove_delegate(
@@ -508,28 +485,25 @@ pub mod pallet {
 		/// all permissions.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the transaction, which must be signed by
-		///   the creator.
+		/// - `origin`: The origin of the transaction, which must be signed by the creator.
 		/// - `space_code`: A unique code representing the space to be created.
 		///
 		/// # Returns
-		/// - `DispatchResult`: Returns `Ok(())` if the space is successfully
-		///   created, or an error (`DispatchError`) if:
+		/// - `DispatchResult`: Returns `Ok(())` if the space is successfully created, or an error
+		///   (`DispatchError`) if:
 		///   - The generated space identifier is already in use.
 		///   - The generated authorization ID is of invalid length.
 		///   - The space delegates limit is exceeded.
 		///
 		/// # Errors
-		/// - `InvalidIdentifierLength`: If the generated identifiers for the
-		///   space or authorization are of invalid length.
+		/// - `InvalidIdentifierLength`: If the generated identifiers for the space or authorization
+		///   are of invalid length.
 		/// - `SpaceAlreadyAnchored`: If the space identifier is already in use.
-		/// - `SpaceDelegatesLimitExceeded`: If the space exceeds the limit of
-		///   allowed delegates.
+		/// - `SpaceDelegatesLimitExceeded`: If the space exceeds the limit of allowed delegates.
 		///
 		/// # Events
-		/// - `Create`: Emitted when a new space is successfully created. It
-		///   includes the space identifier, the creator's identifier, and the
-		///   authorization ID.
+		/// - `Create`: Emitted when a new space is successfully created. It includes the space
+		///   identifier, the creator's identifier, and the authorization ID.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(origin: OriginFor<T>, space_code: SpaceCodeOf<T>) -> DispatchResult {
@@ -606,30 +580,27 @@ pub mod pallet {
 		/// archived, and has not already been approved.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the transaction, which must be a council
-		///   or root origin.
+		/// - `origin`: The origin of the transaction, which must be a council or root origin.
 		/// - `space_id`: The identifier of the space to be approved.
 		/// - `txn_capacity`: The transaction capacity to be set for the space.
 		///
 		/// # Returns
-		/// - `DispatchResult`: Returns `Ok(())` if the space is successfully
-		///   approved, or an error (`DispatchError`) if:
+		/// - `DispatchResult`: Returns `Ok(())` if the space is successfully approved, or an error
+		///   (`DispatchError`) if:
 		///   - The origin is not a council or root origin.
 		///   - The space does not exist.
 		///   - The space is archived.
 		///   - The space is already approved.
 		///
 		/// # Errors
-		/// - `BadOrigin`: If the call does not come from a council or root
-		///   origin.
-		/// - `SpaceNotFound`: If the specified space ID does not correspond to
-		///   an existing space.
+		/// - `BadOrigin`: If the call does not come from a council or root origin.
+		/// - `SpaceNotFound`: If the specified space ID does not correspond to an existing space.
 		/// - `ArchivedSpace`: If the space is archived and no longer active.
 		/// - `SpaceAlreadyApproved`: If the space has already been approved.
 		///
 		/// # Events
-		/// - `Approve`: Emitted when a space is successfully approved. It
-		///   includes the space identifier.
+		/// - `Approve`: Emitted when a space is successfully approved. It includes the space
+		///   identifier.
 		///
 		/// # Security Considerations
 		/// Due to the privileged nature of this function, callers must ensure
@@ -671,33 +642,30 @@ pub mod pallet {
 		/// authorization ID.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the transaction, which must be signed by
-		///   the creator or an admin with the appropriate authority.
+		/// - `origin`: The origin of the transaction, which must be signed by the creator or an
+		///   admin with the appropriate authority.
 		/// - `space_id`: The identifier of the space to be archived.
-		/// - `authorization`: An identifier for the authorization being used to
-		///   validate the archival.
+		/// - `authorization`: An identifier for the authorization being used to validate the
+		///   archival.
 		///
 		/// # Returns
-		/// - `DispatchResult`: Returns `Ok(())` if the space is successfully
-		///   archived, or an error (`DispatchError`) if:
+		/// - `DispatchResult`: Returns `Ok(())` if the space is successfully archived, or an error
+		///   (`DispatchError`) if:
 		///   - The space does not exist.
 		/// - `ArchivedSpace`: If the space is already archived.
 		/// - `SpaceNotApproved`: If the space has not been approved for use.
-		/// - `UnauthorizedOperation`: If the caller does not have the authority
-		///   to archive the space.
+		/// - `UnauthorizedOperation`: If the caller does not have the authority to archive the
+		///   space.
 		///
 		/// # Errors
-		/// - `SpaceNotFound`: If the specified space ID does not correspond to
-		///   an existing space.
+		/// - `SpaceNotFound`: If the specified space ID does not correspond to an existing space.
 		/// - `ArchivedSpace`: If the space is already archived.
 		/// - `SpaceNotApproved`: If the space has not been approved for use.
-		/// - `UnauthorizedOperation`: If the caller is not authorized to
-		///   archive the space.
+		/// - `UnauthorizedOperation`: If the caller is not authorized to archive the space.
 		///
 		/// # Events
-		/// - `Archive`: Emitted when a space is successfully archived. It
-		///   includes the space ID and the authority who performed the
-		///   archival.
+		/// - `Archive`: Emitted when a space is successfully archived. It includes the space ID and
+		///   the authority who performed the archival.
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::archive())]
 		pub fn archive(
@@ -732,32 +700,29 @@ pub mod pallet {
 		/// restore the space, as indicated by the provided authorization ID.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the transaction, which must be signed by
-		///   the creator or an admin with the appropriate authority.
+		/// - `origin`: The origin of the transaction, which must be signed by the creator or an
+		///   admin with the appropriate authority.
 		/// - `space_id`: The identifier of the space to be restored.
-		/// - `authorization`: An identifier for the authorization being used to
-		///   validate the restoration.
+		/// - `authorization`: An identifier for the authorization being used to validate the
+		///   restoration.
 		///
 		/// # Returns
-		/// - `DispatchResult`: Returns `Ok(())` if the space is successfully
-		///   restored, or an error (`DispatchError`) if:
+		/// - `DispatchResult`: Returns `Ok(())` if the space is successfully restored, or an error
+		///   (`DispatchError`) if:
 		///   - The space does not exist.
 		///   - The space is not archived.
 		///   - The space is not approved.
 		///   - The caller does not have the authority to restore the space.
 		///
 		/// # Errors
-		/// - `SpaceNotFound`: If the specified space ID does not correspond to
-		///   an existing space.
+		/// - `SpaceNotFound`: If the specified space ID does not correspond to an existing space.
 		/// - `SpaceNotArchived`: If the space is not currently archived.
 		/// - `SpaceNotApproved`: If the space has not been approved for use.
-		/// - `UnauthorizedOperation`: If the caller is not authorized to
-		///   restore the space.
+		/// - `UnauthorizedOperation`: If the caller is not authorized to restore the space.
 		///
 		/// # Events
-		/// - `Restore`: Emitted when a space is successfully restored. It
-		///   includes the space ID and the authority who performed the
-		///   restoration.
+		/// - `Restore`: Emitted when a space is successfully restored. It includes the space ID and
+		///   the authority who performed the restoration.
 		#[pallet::call_index(7)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::restore())]
 		pub fn restore(
@@ -793,25 +758,19 @@ pub mod pallet {
 		/// not on archived or unapproved spaces.
 		///
 		/// # Arguments
-		/// * `origin` - The origin of the call, which must be from an
-		///   authorized source.
-		/// * `space_id` - The identifier of the space for which the capacity is
-		///   being updated.
-		/// * `new_txn_capacity` - The new capacity limit to be set for the
-		///   space.
+		/// * `origin` - The origin of the call, which must be from an authorized source.
+		/// * `space_id` - The identifier of the space for which the capacity is being updated.
+		/// * `new_txn_capacity` - The new capacity limit to be set for the space.
 		///
 		/// # Errors
 		/// * `SpaceNotFound` - If the space with the given ID does not exist.
-		/// * `ArchivedSpace` - If the space is archived and thus cannot be
-		///   modified.
-		/// * `SpaceNotApproved` - If the space has not been approved for use
-		///   yet.
-		/// * `CapacityLessThanUsage` - If the new capacity is less than the
-		///   current usage of the space.
+		/// * `ArchivedSpace` - If the space is archived and thus cannot be modified.
+		/// * `SpaceNotApproved` - If the space has not been approved for use yet.
+		/// * `CapacityLessThanUsage` - If the new capacity is less than the current usage of the
+		///   space.
 		///
 		/// # Events
-		/// * `UpdateCapacity` - Emits the space ID when the capacity is
-		///   successfully updated.
+		/// * `UpdateCapacity` - Emits the space ID when the capacity is successfully updated.
 		#[pallet::call_index(8)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_transaction_capacity())]
 		pub fn update_transaction_capacity(
@@ -850,22 +809,17 @@ pub mod pallet {
 		/// approved for operations.
 		///
 		/// # Parameters
-		/// - `origin`: The transaction's origin, which must pass the
-		///   `ChainSpaceOrigin` check.
-		/// - `space_id`: The identifier of the space for which the usage
-		///   counter will be reset.
+		/// - `origin`: The transaction's origin, which must pass the `ChainSpaceOrigin` check.
+		/// - `space_id`: The identifier of the space for which the usage counter will be reset.
 		///
 		/// # Errors
-		/// - Returns `SpaceNotFound` if the specified `space_id` does not
-		///   correspond to any existing space.
-		/// - Returns `ArchivedSpace` if the space is archived and thus cannot
-		///   be modified.
-		/// - Returns `SpaceNotApproved` if the space is not approved for
-		///   operations.
+		/// - Returns `SpaceNotFound` if the specified `space_id` does not correspond to any
+		///   existing space.
+		/// - Returns `ArchivedSpace` if the space is archived and thus cannot be modified.
+		/// - Returns `SpaceNotApproved` if the space is not approved for operations.
 		///
 		/// # Events
-		/// - Emits `UpdateCapacity` upon successfully resetting the space's
-		///   usage counter.
+		/// - Emits `UpdateCapacity` upon successfully resetting the space's usage counter.
 		#[pallet::call_index(9)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::reset_transaction_count())]
 		pub fn reset_transaction_count(
@@ -897,21 +851,17 @@ pub mod pallet {
 		/// and not archived.
 		///
 		/// # Parameters
-		/// - `origin`: The transaction's origin, which must satisfy the
-		///   `ChainSpaceOrigin` policy.
-		/// - `space_id`: The identifier of the space whose approval status is
-		///   being revoked.
+		/// - `origin`: The transaction's origin, which must satisfy the `ChainSpaceOrigin` policy.
+		/// - `space_id`: The identifier of the space whose approval status is being revoked.
 		///
 		/// # Errors
-		/// - Returns `SpaceNotFound` if no space corresponds to the provided
-		///   `space_id`.
-		/// - Returns `ArchivedSpace` if the space is archived, in which case
-		///   its status cannot be altered.
+		/// - Returns `SpaceNotFound` if no space corresponds to the provided `space_id`.
+		/// - Returns `ArchivedSpace` if the space is archived, in which case its status cannot be
+		///   altered.
 		/// - Returns `SpaceNotApproved` if the space is already unapproved.
 		///
 		/// # Events
-		/// - Emits `Revoke` when the space's approved status is successfully
-		///   revoked.
+		/// - Emits `Revoke` when the space's approved status is successfully revoked.
 		#[pallet::call_index(10)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::approval_revoke())]
 		pub fn approval_revoke(origin: OriginFor<T>, space_id: SpaceIdOf) -> DispatchResult {

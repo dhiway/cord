@@ -180,7 +180,7 @@ impl Ss58Identifier {
 		let identifier = str::from_utf8(id.inner()).map_err(|_| IdentifierError::InvalidFormat)?;
 		let data = identifier.from_base58().map_err(|_| IdentifierError::InvalidIdentifier)?;
 		if data.len() < 2 {
-			return Err(IdentifierError::InvalidIdentifierLength)
+			return Err(IdentifierError::InvalidIdentifierLength);
 		}
 		ensure!(
 			(identifier.len() > 2 && identifier.len() < 50),
@@ -201,7 +201,7 @@ impl Ss58Identifier {
 	}
 
 	pub fn default_error() -> Self {
-		let error_value_base58 = vec![0].to_base58();
+		let error_value_base58 = [0].to_base58();
 
 		// Convert the Base58 encoded string to a byte vector.
 		let error_value_bytes = error_value_base58.into_bytes();

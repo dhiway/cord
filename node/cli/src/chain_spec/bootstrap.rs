@@ -199,16 +199,10 @@ fn cord_custom_genesis(
 			"epochConfig": Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
 		"councilMembership":  {
-			"members": council_members
-				.iter()
-				.map(|x| x.clone())
-				.collect::<Vec<_>>(),
+			"members": council_members.to_vec(),
 		},
 		"technicalMembership":  {
-			"members": tech_committee_members
-				.iter()
-				.map(|x| x.clone())
-				.collect::<Vec<_>>(),
+			"members": tech_committee_members.to_vec(),
 		},
 		"sudo": { "key": Some(sudo_key) },
 	})

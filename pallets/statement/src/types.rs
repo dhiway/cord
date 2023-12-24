@@ -45,19 +45,17 @@ use sp_runtime::RuntimeDebug;
 ///
 /// ## Fields
 ///
-/// - `digest`: A `StatementDigestOf` type that stores the hash of the
-///   statement's content. This hash serves as a cryptographic proof that can be
-///   used to verify the integrity of the statement's data, ensuring that the
-///   data has not been altered since the hash was generated.
+/// - `digest`: A `StatementDigestOf` type that stores the hash of the statement's content. This
+///   hash serves as a cryptographic proof that can be used to verify the integrity of the
+///   statement's data, ensuring that the data has not been altered since the hash was generated.
 ///
-/// - `space`: A `SpaceIdOf` type that represents the identifier for the space
-///   to which the statement is associated. This identifier helps categorize the
-///   statement within a specific context or domain within the system.
+/// - `space`: A `SpaceIdOf` type that represents the identifier for the space to which the
+///   statement is associated. This identifier helps categorize the statement within a specific
+///   context or domain within the system.
 ///
-/// - `schema`: An optional `SchemaIdOf` type that, if provided, points to a
-///   schema defining the structure or expected format of the statement's data.
-///   This can be used for data validation or to aid in the interpretation of
-///   the statement's data.
+/// - `schema`: An optional `SchemaIdOf` type that, if provided, points to a schema defining the
+///   structure or expected format of the statement's data. This can be used for data validation or
+///   to aid in the interpretation of the statement's data.
 ///
 /// ## Usage
 ///
@@ -85,14 +83,12 @@ pub struct StatementDetails<StatementDigestOf, SchemaIdOf, SpaceIdOf> {
 ///
 /// ## Fields
 ///
-/// - `creator`: The identifier of the account that has revoked the statement.
-///   This field is used to track which account has performed the revocation
-///   action.
+/// - `creator`: The identifier of the account that has revoked the statement. This field is used to
+///   track which account has performed the revocation action.
 ///
-/// - `revoked`: A boolean value that indicates whether the statement has been
-///   revoked. A value of `true` confirms that the statement is no longer
-///   considered active, while `false` would imply that the statement has not
-///   been revoked.
+/// - `revoked`: A boolean value that indicates whether the statement has been revoked. A value of
+///   `true` confirms that the statement is no longer considered active, while `false` would imply
+///   that the statement has not been revoked.
 ///
 /// ## Usage
 ///
@@ -118,23 +114,19 @@ pub struct StatementEntryStatus<StatementCreatorOf, StatusOf> {
 ///
 /// ## Fields
 ///
-/// - `presentation_digest`: A `StatementPresentationDigestOf` type that stores
-///   the hash of the presentation's content. This hash acts as a unique
-///   identifier for the presentation and ensures its integrity by allowing
-///   verification that the presentation has not been altered. e to which both
-///   the statement and its presentation are associated. This helps in
-///   categorizing and retrieving the presentation within the context of its
-///   space.
+/// - `presentation_digest`: A `StatementPresentationDigestOf` type that stores the hash of the
+///   presentation's content. This hash acts as a unique identifier for the presentation and ensures
+///   its integrity by allowing verification that the presentation has not been altered. e to which
+///   both the statement and its presentation are associated. This helps in categorizing and
+///   retrieving the presentation within the context of its space.
 ///
-/// - `digest`: A `StatementDigestOf` type that holds the hash of the original
-///   statement's content. This serves as a reference back to the statement that
-///   the presentation represents, creating a link between the presentation and
-///   the statement's actual content.
+/// - `digest`: A `StatementDigestOf` type that holds the hash of the original statement's content.
+///   This serves as a reference back to the statement that the presentation represents, creating a
+///   link between the presentation and the statement's actual content.
 ///
-/// - `space`: A `SpaceIdOf` type that signifies the identifier for the space to
-///   which both the statement and its presentation are associated. This helps
-///   in categorizing and retrieving the presentation within the context of its
-///   space.
+/// - `space`: A `SpaceIdOf` type that signifies the identifier for the space to which both the
+///   statement and its presentation are associated. This helps in categorizing and retrieving the
+///   presentation within the context of its space.
 ///
 /// ## Usage
 ///

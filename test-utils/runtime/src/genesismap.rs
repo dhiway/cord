@@ -61,7 +61,6 @@ impl Default for GenesisStorageBuilder {
 				Sr25519Keyring::Charlie.into(),
 			],
 			(0..16_usize)
-				.into_iter()
 				.map(|i| AccountKeyring::numeric(i).public())
 				.chain(vec![
 					AccountKeyring::Alice.into(),
@@ -112,12 +111,8 @@ impl GenesisStorageBuilder {
 
 	/// A `RuntimeGenesisConfig` from internal configuration
 	pub fn genesis_config(&self) -> RuntimeGenesisConfig {
-		let authorities_sr25519: Vec<_> = self
-			.authorities
-			.clone()
-			.into_iter()
-			.map(|id| sr25519::Public::from(id))
-			.collect();
+		let authorities_sr25519: Vec<_> =
+			self.authorities.clone().into_iter().map(sr25519::Public::from).collect();
 
 		RuntimeGenesisConfig {
 			system: Default::default(),
@@ -177,7 +172,6 @@ pub fn insert_genesis_block(storage: &mut Storage) -> sp_core::hash::H256 {
 		sp_runtime::StateVersion::V1,
 	);
 	let block: crate::Block = construct_genesis_block(state_root, StateVersion::V1);
-	let genesis_hash = block.header.hash();
 
-	genesis_hash
+	block.header.hash()
 }

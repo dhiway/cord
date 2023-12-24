@@ -85,6 +85,7 @@ pub struct ChainState {
 }
 
 /// Test Api for transaction pool.
+#[allow(clippy::type_complexity)]
 pub struct TestApi {
 	valid_modifier: RwLock<Box<dyn Fn(&mut ValidTransaction) + Send + Sync>>,
 	chain: RwLock<ChainState>,
@@ -277,7 +278,7 @@ impl ChainApi for TestApi {
 				if !found_best {
 					return ready(Ok(Err(TransactionValidityError::Invalid(
 						InvalidTransaction::Custom(1),
-					))))
+					))));
 				}
 			},
 			Ok(None) =>
@@ -299,7 +300,7 @@ impl ChainApi for TestApi {
 		};
 
 		if self.chain.read().invalid_hashes.contains(&self.hash_and_length(&uxt).0) {
-			return ready(Ok(Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(0)))))
+			return ready(Ok(Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(0)))));
 		}
 
 		let mut validity =

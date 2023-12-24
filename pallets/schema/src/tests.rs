@@ -38,8 +38,8 @@ const ALTERNATIVE_SCHEMA_HASH_SEED: u64 = 2u64;
 ///
 /// # Arguments
 ///
-/// * `default` - A boolean value indicating whether to use the default schema
-///   hash seed or an alternative one.
+/// * `default` - A boolean value indicating whether to use the default schema hash seed or an
+///   alternative one.
 ///
 /// # Type Parameters
 ///

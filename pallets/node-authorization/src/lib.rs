@@ -362,8 +362,7 @@ pub mod pallet {
 		/// Add additional connections to a given node.
 		///
 		/// - `node`: identifier of the node.
-		/// - `connections`: additonal nodes from which the connections are
-		///   allowed.
+		/// - `connections`: additonal nodes from which the connections are allowed.
 		#[pallet::call_index(4)]
 		#[pallet::weight(T::WeightInfo::add_connection())]
 		pub fn add_connection(
@@ -400,8 +399,7 @@ pub mod pallet {
 		/// Remove additional connections of a given node.
 		///
 		/// - `node`: identifier of the node.
-		/// - `connections`: additonal nodes from which the connections are not
-		///   allowed anymore.
+		/// - `connections`: additonal nodes from which the connections are not allowed anymore.
 		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::remove_connection())]
 		pub fn remove_connection(

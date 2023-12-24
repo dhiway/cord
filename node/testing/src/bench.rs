@@ -69,8 +69,8 @@ pub struct BenchKeyring {
 
 #[derive(Clone)]
 enum BenchPair {
-	Sr25519(sr25519::Pair),
-	Ed25519(ed25519::Pair),
+	Sr25519(Box<sr25519::Pair>),
+	Ed25519(Box<ed25519::Pair>),
 }
 
 impl BenchPair {
@@ -92,7 +92,7 @@ pub fn drop_system_cache() {
 			target: "bench-logistics",
 			"Clearing system cache on windows is not supported. Benchmark might totally be wrong.",
 		);
-		return
+		return;
 	}
 
 	std::process::Command::new("sync")
@@ -284,7 +284,7 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if self.content.size.map(|size| size <= self.iteration).unwrap_or(false) {
-			return None
+			return None;
 		}
 
 		let sender = self.keyring.at(self.iteration);
@@ -425,7 +425,7 @@ impl BenchDb {
 	/// Uses already instantiated Client.
 	pub fn generate_inherents(&mut self, client: &Client) -> Vec<OpaqueExtrinsic> {
 		let mut inherent_data = InherentData::new();
-		let timestamp = 1 * MinimumPeriod::get();
+		let timestamp = MinimumPeriod::get();
 
 		inherent_data
 			.put_data(sp_timestamp::INHERENT_IDENTIFIER, &timestamp)
@@ -530,12 +530,12 @@ impl BenchKeyring {
 					let pair =
 						sr25519::Pair::from_string(&seed, None).expect("failed to generate pair");
 					let account_id = AccountPublic::from(pair.public()).into_account();
-					(account_id, BenchPair::Sr25519(pair))
+					(account_id, BenchPair::Sr25519(Box::new(pair)))
 				},
 				KeyTypes::Ed25519 => {
 					let pair = ed25519::Pair::from_seed(&blake2_256(seed.as_bytes()));
 					let account_id = AccountPublic::from(pair.public()).into_account();
-					(account_id, BenchPair::Ed25519(pair))
+					(account_id, BenchPair::Ed25519(Box::new(pair)))
 				},
 			};
 			accounts.insert(account_id, pair);

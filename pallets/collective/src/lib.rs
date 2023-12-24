@@ -386,11 +386,10 @@ pub mod pallet {
 	impl<T: Config<I>, I: 'static> Pallet<T, I> {
 		/// Set the collective's membership.
 		///
-		/// - `new_members`: The new member list. Be nice to the chain and
-		///   provide it sorted.
+		/// - `new_members`: The new member list. Be nice to the chain and provide it sorted.
 		/// - `prime`: The prime member whose vote sets the default.
-		/// - `old_count`: The upper bound for the previous number of members in
-		///   storage. Used for weight estimation.
+		/// - `old_count`: The upper bound for the previous number of members in storage. Used for
+		///   weight estimation.
 		///
 		/// The dispatch of this call must be `SetMembersOrigin`.
 		///
@@ -611,8 +610,7 @@ pub mod pallet {
 		/// Must be called by the Root origin.
 		///
 		/// Parameters:
-		/// * `proposal_hash`: The hash of the proposal that should be
-		///   disapproved.
+		/// * `proposal_hash`: The hash of the proposal that should be disapproved.
 		///
 		/// ## Complexity
 		/// O(P) where P is the number of max proposals

@@ -71,6 +71,7 @@ pub trait TestNetNode: Clone + Future<Output = Result<(), Error>> + Send + 'stat
 	type RuntimeApi: Send + Sync;
 	type TransactionPool: TransactionPool<Block = Self::Block>;
 
+	#[allow(clippy::type_complexity)]
 	fn client(&self) -> Arc<Client<Self::Backend, Self::Executor, Self::Block, Self::RuntimeApi>>;
 	fn transaction_pool(&self) -> Arc<Self::TransactionPool>;
 	fn network(
@@ -182,7 +183,7 @@ where
 				interval.tick().await;
 
 				if full_nodes.iter().all(|(id, service, _, _)| full_predicate(*id, service)) {
-					break
+					break;
 				}
 			}
 		};
@@ -458,6 +459,8 @@ pub fn sync<G, E, Fb, F, B, ExF, U>(
 	const NUM_FULL_NODES: usize = 10;
 	const NUM_BLOCKS: usize = 512;
 	let temp = tempdir_with_prefix("substrate-sync-test");
+
+	#[allow(clippy::redundant_closure)]
 	let mut network = TestNet::new(
 		&temp,
 		spec,

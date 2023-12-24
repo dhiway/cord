@@ -28,10 +28,9 @@
 //!
 //! ### Terminology
 //!
-//! - **Schema:**: Schemas are templates used to guarantee the structure, and by
-//!   extension the semantics, of the set of claims comprising a
-//!   Stream/Verifiable Credential. A shared Schema allows all parties to
-//!   reference data in a known way. An identifier can optionally link to a
+//! - **Schema:**: Schemas are templates used to guarantee the structure, and by extension the
+//!   semantics, of the set of claims comprising a Stream/Verifiable Credential. A shared Schema
+//!   allows all parties to reference data in a known way. An identifier can optionally link to a
 //!   valid schema identifier.
 //!
 //! ## Assumptions
@@ -254,8 +253,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// # Parameters
 	/// - `tx_id`: The identifier of the schema that the activity pertains to.
-	/// - `tx_action`: The type of action taken on the schema, encapsulated
-	///   within `CallTypeOf`.
+	/// - `tx_action`: The type of action taken on the schema, encapsulated within `CallTypeOf`.
 	///
 	/// # Returns
 	/// Returns `Ok(())` after successfully updating the timeline. If any errors
@@ -276,8 +274,7 @@ impl<T: Config> Pallet<T> {
 	/// with `update_activity` to record when an event occurred.
 	///
 	/// # Returns
-	/// - `Timepoint`: A structure containing the current block number and
-	///   extrinsic index.
+	/// - `Timepoint`: A structure containing the current block number and extrinsic index.
 	pub fn timepoint() -> Timepoint {
 		Timepoint {
 			height: frame_system::Pallet::<T>::block_number().unique_saturated_into(),

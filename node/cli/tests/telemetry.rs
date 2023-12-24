@@ -53,7 +53,7 @@ async fn telemetry_works() {
 						let object =
 							json.as_object().unwrap().get("payload").unwrap().as_object().unwrap();
 						if matches!(object.get("best"), Some(serde_json::Value::String(_))) {
-							break
+							break;
 						}
 					},
 
@@ -70,7 +70,7 @@ async fn telemetry_works() {
 		let mut cord = process::Command::new(cargo_bin("cord"));
 
 		let mut cord = KillChildOnDrop(
-			cord.args(&["--dev", "--tmp", "--telemetry-url"])
+			cord.args(["--dev", "--tmp", "--telemetry-url"])
 				.arg(format!("ws://{} 10", addr))
 				.arg("--no-hardware-benchmarks")
 				.stdout(process::Stdio::piped())

@@ -158,7 +158,7 @@ fn finality_notification_check(
 #[test]
 fn construct_genesis_should_work_with_native() {
 	let mut storage = GenesisStorageBuilder::new(
-		vec![Sr25519Keyring::One.public().into(), Sr25519Keyring::Two.public().into()],
+		vec![Sr25519Keyring::One.public(), Sr25519Keyring::Two.public()],
 		vec![AccountKeyring::One.into(), AccountKeyring::Two.into()],
 		1000 * WAY,
 	)
@@ -189,7 +189,7 @@ fn construct_genesis_should_work_with_native() {
 #[test]
 fn construct_genesis_should_work_with_wasm() {
 	let mut storage = GenesisStorageBuilder::new(
-		vec![Sr25519Keyring::One.public().into(), Sr25519Keyring::Two.public().into()],
+		vec![Sr25519Keyring::One.public(), Sr25519Keyring::Two.public()],
 		vec![AccountKeyring::One.into(), AccountKeyring::Two.into()],
 		1000 * WAY,
 	)
@@ -233,7 +233,7 @@ fn client_initializes_from_genesis_ok() {
 			.runtime_api()
 			.balance_of(client.chain_info().best_hash, AccountKeyring::Ferdie.into())
 			.unwrap(),
-		0 * WAY
+		0
 	);
 }
 
@@ -536,7 +536,7 @@ fn uncles_with_multiple_forks() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: 1 * WAY,
+			amount: WAY,
 			nonce: 1,
 		})
 		.unwrap();
@@ -555,7 +555,7 @@ fn uncles_with_multiple_forks() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: 1 * WAY,
+			amount: WAY,
 			nonce: 0,
 		})
 		.unwrap();
@@ -740,7 +740,7 @@ fn finality_target_on_longest_chain_with_multiple_forks() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: 1 * WAY,
+			amount: WAY,
 			nonce: 1,
 		})
 		.unwrap();
@@ -760,7 +760,7 @@ fn finality_target_on_longest_chain_with_multiple_forks() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: 1 * WAY,
+			amount: WAY,
 			nonce: 0,
 		})
 		.unwrap();
@@ -1145,7 +1145,7 @@ fn importing_diverged_finalized_block_should_trigger_reorg() {
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
-		amount: 1 * WAY,
+		amount: WAY,
 		nonce: 0,
 	})
 	.unwrap();
@@ -1206,7 +1206,7 @@ fn finalizing_diverged_block_should_trigger_reorg() {
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
-		amount: 1 * WAY,
+		amount: WAY,
 		nonce: 0,
 	})
 	.unwrap();
@@ -1537,7 +1537,7 @@ fn doesnt_import_blocks_that_revert_finality() {
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
-		amount: 1 * WAY,
+		amount: WAY,
 		nonce: 0,
 	})
 	.unwrap();
@@ -1934,7 +1934,7 @@ fn storage_keys_prefix_and_start_key_works() {
 	let res: Vec<_> = client
 		.storage_keys(block_hash, Some(&prefix), None)
 		.unwrap()
-		.map(|x| array_bytes::bytes2hex("", &x.0))
+		.map(|x| array_bytes::bytes2hex("", x.0))
 		.collect();
 	assert_eq!(
 		res,
@@ -1952,7 +1952,7 @@ fn storage_keys_prefix_and_start_key_works() {
 			Some(&StorageKey(array_bytes::hex2bytes_unchecked("3a636f6465"))),
 		)
 		.unwrap()
-		.map(|x| array_bytes::bytes2hex("", &x.0))
+		.map(|x| array_bytes::bytes2hex("", x.0))
 		.collect();
 	assert_eq!(res, ["3a65787472696e7369635f696e646578",]);
 
@@ -1997,7 +1997,7 @@ fn storage_keys_works() {
 		.storage_keys(block_hash, Some(&prefix), None)
 		.unwrap()
 		.take(19)
-		.map(|x| array_bytes::bytes2hex("", &x.0))
+		.map(|x| array_bytes::bytes2hex("", x.0))
 		.collect();
 
 	assert_eq!(res, expected_keys[0..19],);
@@ -2007,7 +2007,7 @@ fn storage_keys_works() {
 		.storage_keys(block_hash, Some(&prefix), Some(&StorageKey("".into())))
 		.unwrap()
 		.take(19)
-		.map(|x| array_bytes::bytes2hex("", &x.0))
+		.map(|x| array_bytes::bytes2hex("", x.0))
 		.collect();
 	assert_eq!(res, expected_keys[0..19],);
 
@@ -2020,7 +2020,7 @@ fn storage_keys_works() {
 		)
 		.unwrap()
 		.take(8)
-		.map(|x| array_bytes::bytes2hex("", &x.0))
+		.map(|x| array_bytes::bytes2hex("", x.0))
 		.collect();
 	assert_eq!(
 		res,
@@ -2041,7 +2041,7 @@ fn storage_keys_works() {
 		)
 		.unwrap()
 		.take(7)
-		.map(|x| array_bytes::bytes2hex("", &x.0))
+		.map(|x| array_bytes::bytes2hex("", x.0))
 		.collect();
 	assert_eq!(
 		res,
@@ -2062,7 +2062,7 @@ fn storage_keys_works() {
 		)
 		.unwrap()
 		.take(8)
-		.map(|x| array_bytes::bytes2hex("", &x.0))
+		.map(|x| array_bytes::bytes2hex("", x.0))
 		.collect();
 	assert_eq!(
 		res,
@@ -2204,7 +2204,7 @@ fn reorg_triggers_a_notification_even_for_sources_that_should_not_trigger_notifi
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
-		amount: 1 * WAY,
+		amount: WAY,
 		nonce: 0,
 	})
 	.unwrap();

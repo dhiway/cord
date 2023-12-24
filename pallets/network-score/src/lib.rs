@@ -36,28 +36,24 @@
 //!
 //! ### Terminology
 //!
-//! - **Rating Entry:** A record detailing the rating given to an entity,
-//!   including the score, the entity being rated, and other metadata.
-//! - **Score:** A numerical representation of an entity's aggregated ratings
-//!   over time.
-//! - **Aggregate Score:** The cumulative score of an entity, calculated by
-//!   summing individual scores from rating entries.
+//! - **Rating Entry:** A record detailing the rating given to an entity, including the score, the
+//!   entity being rated, and other metadata.
+//! - **Score:** A numerical representation of an entity's aggregated ratings over time.
+//! - **Aggregate Score:** The cumulative score of an entity, calculated by summing individual
+//!   scores from rating entries.
 //! - **Credit Entry:** A positive adjustment or addition to an entity's score.
-//! - **Debit Entry:** A negative adjustment or subtraction from an entity's
-//!   score.
+//! - **Debit Entry:** A negative adjustment or subtraction from an entity's score.
 //!
 //! ### Assumptions
 //!
 //! - Scores and ratings are assumed to be represented as integers.
-//! - The Score hash is assumed to be generated using the CORD SDK, ensuring
-//!   integrity and non-repudiation of score data.
+//! - The Score hash is assumed to be generated using the CORD SDK, ensuring integrity and
+//!   non-repudiation of score data.
 //!
 //! ### Storage
 //!
-//! - `RatingEntries`: Stores all the rating entries, indexed by a unique
-//!   identifier.
-//! - `AggregateScores`: Keeps track of the aggregate scores for each entity and
-//!   rating type.
+//! - `RatingEntries`: Stores all the rating entries, indexed by a unique identifier.
+//! - `AggregateScores`: Keeps track of the aggregate scores for each entity and rating type.
 //!
 //! ### Events
 //!
@@ -326,14 +322,13 @@ pub mod pallet {
 		/// author of the rating, the space ID, and a unique message identifier.
 		///
 		/// # Arguments
-		/// * `origin` - The origin of the call, which should be a signed user
-		///   in most cases.
-		/// * `entry` - The rating entry, containing details about the entity
-		///   being rated, the rating itself, and other metadata.
-		/// * `digest` - A hash representing some unique aspects of the rating,
-		///   used for identification and integrity purposes.
-		/// * `authorization` - An identifier for authorization, used to
-		///   validate the origin's permission to make this rating.
+		/// * `origin` - The origin of the call, which should be a signed user in most cases.
+		/// * `entry` - The rating entry, containing details about the entity being rated, the
+		///   rating itself, and other metadata.
+		/// * `digest` - A hash representing some unique aspects of the rating, used for
+		///   identification and integrity purposes.
+		/// * `authorization` - An identifier for authorization, used to validate the origin's
+		///   permission to make this rating.
 		///
 		/// # Errors
 		/// Returns `Error::<T>::InvalidRatingValue` if the rating value is not
@@ -460,13 +455,12 @@ pub mod pallet {
 		///
 		/// # Arguments
 		/// * `origin` - The origin of the call, usually a signed user.
-		/// * `entry_identifier` - The identifier of the rating entry to be
-		///   amended.
+		/// * `entry_identifier` - The identifier of the rating entry to be amended.
 		/// * `message_id` - A new message identifier for the amendment.
-		/// * `digest` - A hash representing the amendment, used for
-		///   identification and integrity purposes.
-		/// * `authorization` - An identifier for authorization, validating the
-		///   origin's permission to amend the rating.
+		/// * `digest` - A hash representing the amendment, used for identification and integrity
+		///   purposes.
+		/// * `authorization` - An identifier for authorization, validating the origin's permission
+		///   to amend the rating.
 		///
 		/// # Errors
 		/// Returns `Error::<T>::RatingIdentifierNotFound` if the original
@@ -585,13 +579,12 @@ pub mod pallet {
 		/// # Arguments
 		/// * `origin` - The origin of the call, usually a signed user.
 		/// * `entry` - The new rating entry with updated details.
-		/// * `digest` - A hash representing the revised rating, used for
-		///   identification and integrity.
+		/// * `digest` - A hash representing the revised rating, used for identification and
+		///   integrity.
 		/// * `message_id` - A new message identifier for the revised rating.
-		/// * `amend_ref_id` - The identifier of the original rating entry that
-		///   is being revised.
-		/// * `authorization` - An identifier for authorization, validating the
-		///   origin's permission to revise the rating.
+		/// * `amend_ref_id` - The identifier of the original rating entry that is being revised.
+		/// * `authorization` - An identifier for authorization, validating the origin's permission
+		///   to revise the rating.
 		///
 		/// # Errors
 		/// Returns `Error::<T>::InvalidRatingValue` if the new rating value is
@@ -745,10 +738,9 @@ impl<T: Config> Pallet<T> {
 	/// a debit entry) the values from the new rating entry.
 	///
 	/// # Arguments
-	/// * `entry` - A reference to the rating input entry which contains the
-	///   rating details.
-	/// * `rtype` - The type of the rating entry, either `Credit` or `Debit`,
-	///   indicating how the aggregate score should be adjusted.
+	/// * `entry` - A reference to the rating input entry which contains the rating details.
+	/// * `rtype` - The type of the rating entry, either `Credit` or `Debit`, indicating how the
+	///   aggregate score should be adjusted.
 	///
 	/// # Returns
 	/// Returns `Ok(())` if the operation is successful, or an appropriate error
@@ -815,8 +807,7 @@ impl<T: Config> Pallet<T> {
 	///
 	/// # Parameters
 	/// - `tx_id`: The identifier of the schema that the activity pertains to.
-	/// - `tx_action`: The type of action taken on the schema, encapsulated
-	///   within `CallTypeOf`.
+	/// - `tx_action`: The type of action taken on the schema, encapsulated within `CallTypeOf`.
 	///
 	/// # Returns
 	/// Returns `Ok(())` after successfully updating the timeline. If any errors
@@ -837,8 +828,7 @@ impl<T: Config> Pallet<T> {
 	/// with `update_activity` to record when an event occurred.
 	///
 	/// # Returns
-	/// - `Timepoint`: A structure containing the current block number and
-	///   extrinsic index.
+	/// - `Timepoint`: A structure containing the current block number and extrinsic index.
 	pub fn timepoint() -> Timepoint {
 		Timepoint {
 			height: frame_system::Pallet::<T>::block_number().unique_saturated_into(),
