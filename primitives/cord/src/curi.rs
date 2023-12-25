@@ -180,7 +180,7 @@ impl Ss58Identifier {
 		let identifier = str::from_utf8(id.inner()).map_err(|_| IdentifierError::InvalidFormat)?;
 		let data = identifier.from_base58().map_err(|_| IdentifierError::InvalidIdentifier)?;
 		if data.len() < 2 {
-			return Err(IdentifierError::InvalidIdentifierLength);
+			return Err(IdentifierError::InvalidIdentifierLength)
 		}
 		ensure!(
 			(identifier.len() > 2 && identifier.len() < 50),

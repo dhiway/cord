@@ -92,7 +92,7 @@ pub fn drop_system_cache() {
 			target: "bench-logistics",
 			"Clearing system cache on windows is not supported. Benchmark might totally be wrong.",
 		);
-		return;
+		return
 	}
 
 	std::process::Command::new("sync")
@@ -284,7 +284,7 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if self.content.size.map(|size| size <= self.iteration).unwrap_or(false) {
-			return None;
+			return None
 		}
 
 		let sender = self.keyring.at(self.iteration);
