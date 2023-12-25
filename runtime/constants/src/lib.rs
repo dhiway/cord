@@ -45,7 +45,6 @@ pub mod time {
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
 	#[allow(clippy::identity_op)]
 	pub const EPOCH_DURATION: BlockNumber = prod_or_fast!(5 * MINUTES, 1 * MINUTES);
-
 	pub const MINIMUM_DURATION: u64 = SLOT_DURATION / 2;
 
 	// These time units are defined in number of blocks.
