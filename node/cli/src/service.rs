@@ -111,7 +111,7 @@ type FullGrandpaBlockImport =
 	sc_consensus_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
 
 /// The transaction pool type defintion.
-type TransactionPool = sc_transaction_pool::FullPool<Block, FullClient>;
+pub type TransactionPool = sc_transaction_pool::FullPool<Block, FullClient>;
 
 /// The minimum period of blocks on which justifications will be
 /// imported and generated.

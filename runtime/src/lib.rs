@@ -39,7 +39,7 @@ use frame_support::{
 	},
 	weights::{
 		constants::{
-			BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_MILLIS,
+			BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_SECOND,
 		},
 		Weight,
 	},
@@ -73,11 +73,14 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
+#[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
+#[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
+#[cfg(any(feature = "std", test))]
 pub use pallet_staking::StakerStatus;
-pub use pallet_timestamp::Call as TimestampCall;
-
+#[cfg(any(feature = "std", test))]
+pub use pallet_sudo::Call as SudoCall;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
@@ -172,10 +175,10 @@ pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
 /// We allow `Normal` extrinsics to fill up the block up to 80%, the rest can be
 /// used by  Operational  extrinsics.
 pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(80);
-/// We allow for 300 milli-seconds of compute with a 1 second average block
+/// We allow for 2 seconds of compute with a 6 second average block
 /// time. The storage proof size is not limited so far.
 pub const MAXIMUM_BLOCK_WEIGHT: Weight =
-	Weight::from_parts(WEIGHT_REF_TIME_PER_MILLIS.saturating_mul(300), u64::MAX);
+	Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2), u64::MAX);
 
 const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO.deconstruct());
 
@@ -236,7 +239,7 @@ pub struct OriginPrivilegeCmp;
 impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
 		if left == right {
-			return Some(Ordering::Equal)
+			return Some(Ordering::Equal);
 		}
 
 		match (left, right) {

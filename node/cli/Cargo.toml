@@ -207,15 +207,3 @@ try-runtime = [
 	"cord-cli-test-utils/try-runtime",
 	"try-runtime-cli/try-runtime",
 ]
-
-# [[bench]]
-# name = "transaction_pool"
-# harness = false
-
-# [[bench]]
-# name = "block_production"
-# harness = false
-
-# [[bench]]
-# name = "executor"
-# harness = false
