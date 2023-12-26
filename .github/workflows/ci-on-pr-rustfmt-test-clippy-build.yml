@@ -29,6 +29,15 @@ jobs:
       - name: show active toolchain
         run: rustup show active-toolchain
 
+      - name: cache rust toolchain and dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/
+            target/
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-rust-
+
       - name: rustfmt
         run: cargo fmt --all -- --check
 
@@ -41,6 +50,15 @@ jobs:
 
       - name: install dependencies
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
+
+      - name: cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/
+            target/
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-rust-
 
       - name: cargo test
         run: rustup component add rust-src && cargo test --release --all --all-targets --locked --features=runtime-benchmarks --no-fail-fast --verbose --color always
@@ -55,6 +73,15 @@ jobs:
       - name: install dependencies
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
 
+      - name: cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/
+            target/
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-rust-
+
       - name: cargo clippy
         run: rustup component add rust-src && cargo clippy --all --no-deps --all-targets --features=runtime-benchmarks -- -D warnings
 
@@ -67,6 +94,15 @@ jobs:
 
       - name: install dependencies
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
+
+      - name: cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/
+            target/
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-rust-
 
       - name: cargo build
         run: rustup component add rust-src && cargo build --locked
