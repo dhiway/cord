@@ -52,4 +52,4 @@ jobs:
           restore-keys: ${{ runner.os }}-rust-
 
       - name: cargo build
-        run: rustup target add wasm32-unknown-unknown && cargo build --locked
+        run: rustup target add wasm32-unknown-unknown && rustup component add rust-src && cargo build --locked
