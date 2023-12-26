@@ -103,7 +103,7 @@ pub fn drop_system_cache() {
 	{
 		log::trace!(target: "bench-logistics", "Clearing system cache...");
 		std::process::Command::new("echo")
-			.args(&["3", ">", "/proc/sys/vm/drop_caches", "2>", "/dev/null"])
+			.args(["3", ">", "/proc/sys/vm/drop_caches", "2>", "/dev/null"])
 			.output()
 			.expect("Failed to execute system cache clear");
 
@@ -112,7 +112,7 @@ pub fn drop_system_cache() {
 
 		// this should refill write cache with 2GB of garbage
 		std::process::Command::new("dd")
-			.args(&["if=/dev/urandom", &temp_file_path, "bs=64M", "count=32"])
+			.args(["if=/dev/urandom", &temp_file_path, "bs=64M", "count=32"])
 			.output()
 			.expect("Failed to execute dd for cache clear");
 
