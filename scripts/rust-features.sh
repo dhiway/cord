@@ -57,7 +57,7 @@ function feature_does_not_imply() {
     echo "❌ $ENABLED implies $STAYS_DISABLED in the workspace"
   else
     echo "✅ $ENABLED does not imply $STAYS_DISABLED in the workspace"
-    # return
+    return
   fi
 
   # Find all Cargo.toml files but exclude the root one since we already know that it is broken.

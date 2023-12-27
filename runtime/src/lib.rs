@@ -90,10 +90,7 @@ use cord_runtime_constants::{currency::*, time::*};
 // Weights used in the runtime.
 mod weights;
 // CORD Pallets
-// mod authority_manager;
-mod entities;
 pub use authority_membership;
-pub use entities::ValidatorFullIdentification;
 pub use pallet_network_membership;
 pub mod benchmark;
 pub use benchmark::DummySignature;

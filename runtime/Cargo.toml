@@ -7,6 +7,7 @@ edition.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
+publish = false
 
 [lints]
 workspace = true
@@ -16,7 +17,6 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # third-party dependencies
-serde = { version = "1.0.193", default-features = false }
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
 	"derive",
 	"max-encoded-len",
@@ -152,7 +152,6 @@ std = [
 	"cord-utilities/std",
 	"codec/std",
 	"scale-info/std",
-	"serde/std",
 	"serde_json/std",
 	"identifier/std",
 	"sp-inherents/std",

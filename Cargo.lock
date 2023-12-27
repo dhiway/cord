@@ -1781,7 +1781,6 @@ dependencies = [
  "rusty-hook",
  "scale-info",
  "separator",
- "serde",
  "serde_json",
  "sp-api",
  "sp-authority-discovery",
