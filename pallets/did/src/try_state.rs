@@ -29,6 +29,7 @@ use crate::{
 	ServiceEndpoints,
 };
 
+#[allow(dead_code)]
 pub(crate) fn do_try_state<T: Config>() -> Result<(), TryRuntimeError> {
 	Did::<T>::iter().try_for_each(
 		|(did_subject, did_details): (DidIdentifierOf<T>, DidDetails<T>)| -> Result<(), TryRuntimeError> {

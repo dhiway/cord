@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-#[allow(missing_docs)]
+#![allow(missing_docs)]
 use crate::command::{chain_setup::BootstrapChainCmd, gen_key::KeySubcommand};
 
 #[derive(Debug, clap::Parser)]
