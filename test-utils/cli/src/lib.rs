@@ -200,7 +200,7 @@ where
 	let mut stdio_reader = tokio::io::BufReader::new(stream).lines();
 	while let Ok(Some(line)) = stdio_reader.next_line().await {
 		if re.find(line.as_str()).is_some() {
-			return Ok(())
+			return Ok(());
 		}
 	}
 	Err(String::from("Stream closed without any lines matching the regex."))
@@ -224,7 +224,7 @@ pub async fn wait_n_finalized_blocks(n: usize, url: &str) {
 		if let Ok(block) = ChainApi::<(), Hash, Header, ()>::finalized_head(&rpc).await {
 			built_blocks.insert(block);
 			if built_blocks.len() > n {
-				break
+				break;
 			}
 		};
 		interval.tick().await;

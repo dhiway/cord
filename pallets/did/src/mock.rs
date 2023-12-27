@@ -313,7 +313,7 @@ impl DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall {
 			#[cfg(feature = "runtime-benchmarks")]
 			if *self == Self::get_call_for_did_call_benchmark() {
 				// Always require an authentication key to dispatch calls during benchmarking
-				return Ok(DidVerificationKeyRelationship::Authentication)
+				return Ok(DidVerificationKeyRelationship::Authentication);
 			}
 			Err(RelationshipDeriveError::NotCallableByDid)
 		}

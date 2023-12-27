@@ -183,7 +183,7 @@ where
 				interval.tick().await;
 
 				if full_nodes.iter().all(|(id, service, _, _)| full_predicate(*id, service)) {
-					break
+					break;
 				}
 			}
 		};

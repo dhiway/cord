@@ -294,7 +294,7 @@ pub mod pallet {
 			ensure!(add_id.len() < T::MaxNodeIdLength::get() as usize, Error::<T>::NodeIdTooLong);
 
 			if remove_id == add_id {
-				return Ok(())
+				return Ok(());
 			}
 
 			let remove = Self::generate_peer_id(&remove_id)?;

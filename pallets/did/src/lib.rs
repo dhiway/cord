@@ -1308,7 +1308,7 @@ pub mod pallet {
 				.maybe_cursor
 				.is_some()
 			{
-				return Err(Error::<T>::Internal.into())
+				return Err(Error::<T>::Internal.into());
 			};
 
 			// `take` calls `kill` internally

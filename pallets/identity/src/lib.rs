@@ -351,7 +351,7 @@ pub mod pallet {
 			match id.judgements.binary_search_by_key(&registrar, |x| x.0.clone()) {
 				Ok(i) =>
 					if id.judgements[i].1.is_sticky() {
-						return Err(Error::<T>::StickyJudgement.into())
+						return Err(Error::<T>::StickyJudgement.into());
 					} else {
 						id.judgements[i] = item
 					},
@@ -402,7 +402,7 @@ pub mod pallet {
 				// Judgement is in the "Requested" state, proceed with the cancellation
 				id.judgements.remove(pos);
 			} else {
-				return Err(Error::<T>::JudgementGiven.into())
+				return Err(Error::<T>::JudgementGiven.into());
 			}
 
 			let judgements = id.judgements.len();
@@ -437,14 +437,14 @@ pub mod pallet {
 						if let Some(registrar) = registrar_option {
 							if registrar.account == who {
 								registrar.account = new.clone();
-								return true
+								return true;
 							}
 						}
 						false
 					});
 
 					if !registrar_found {
-						return Err(DispatchError::from(Error::<T>::RegistrarNotFound))
+						return Err(DispatchError::from(Error::<T>::RegistrarNotFound));
 					}
 
 					Ok(registrars.len())
@@ -476,14 +476,14 @@ pub mod pallet {
 						if let Some(registrar) = registrar_option {
 							if registrar.account == who {
 								registrar.fields = fields;
-								return true
+								return true;
 							}
 						}
 						false
 					});
 
 					if !registrar {
-						return Err(DispatchError::from(Error::<T>::RegistrarNotFound))
+						return Err(DispatchError::from(Error::<T>::RegistrarNotFound));
 					}
 
 					Ok(registrars.len())
@@ -536,7 +536,7 @@ pub mod pallet {
 			let mut id = <IdentityOf<T>>::get(&target).ok_or(Error::<T>::InvalidTarget)?;
 
 			if T::Hashing::hash_of(&id.info) != digest {
-				return Err(Error::<T>::JudgementForDifferentIdentity.into())
+				return Err(Error::<T>::JudgementForDifferentIdentity.into());
 			}
 
 			let item = (registrar.clone(), judgement);

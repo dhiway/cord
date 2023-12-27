@@ -453,7 +453,7 @@ fn code_using_trie() -> u64 {
 		let mut t = TrieDBMutBuilderV1::<Hashing>::new(&mut mdb, &mut root).build();
 		for (key, value) in &pairs {
 			if t.insert(key, value).is_err() {
-				return 101
+				return 101;
 			}
 		}
 	}
