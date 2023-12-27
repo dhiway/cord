@@ -29,6 +29,7 @@ members = [
 	"test-utils/runtime/transaction-pool",
 	"test-utils/service",
 ]
+default-members = ["node/cli"]
 
 [workspace.lints.rust]
 suspicious_double_ref_op = { level = "allow", priority = 2 }

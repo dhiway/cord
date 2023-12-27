@@ -1981,6 +1981,7 @@ version = "0.9.1"
 dependencies = [
  "frame-support",
  "frame-system",
+ "log",
  "parity-scale-codec",
  "scale-info",
  "serde",
