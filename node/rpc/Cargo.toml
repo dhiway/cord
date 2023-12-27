@@ -7,6 +7,9 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 jsonrpsee = { version = "0.16.2", features = ["server"] }
 cord-primitives = { package = "cord-primitives", path = "../../primitives/cord" }

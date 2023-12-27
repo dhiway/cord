@@ -36,7 +36,7 @@
 // --execution=wasm
 // --wasm-execution=compiled
 // --heap-pages=4096
-// --output=./pallets/score/src/weights.rs
+// --output=./pallets/network-score/src/weights.rs
 // --header=./HEADER-GPL3
 // --template=./.maintain/frame-weight-template.hbs
 

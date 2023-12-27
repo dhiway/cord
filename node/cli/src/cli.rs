@@ -16,11 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! CORD CLI.
+#[allow(missing_docs)]
+use crate::command::{chain_setup::BootstrapChainCmd, gen_key::KeySubcommand};
 
-#![allow(missing_docs)]
-use crate::command::chain::BootstrapChainCmd;
-/// An overarching CLI command definition.
 #[derive(Debug, clap::Parser)]
 pub struct Cli {
 	/// Possible subcommand with parameters.
@@ -80,7 +78,7 @@ pub enum Subcommand {
 
 	/// Key management cli utilities
 	#[command(subcommand)]
-	Key(crate::command::key::KeySubcommand),
+	Key(KeySubcommand),
 
 	/// Verify a signature for a message, provided on STDIN, with a given
 	/// (public or secret) key.

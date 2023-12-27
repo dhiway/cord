@@ -16,8 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-pub mod chain;
-pub mod key;
+pub mod chain_setup;
+pub mod gen_key;
 
 use crate::{
 	benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder},
@@ -159,7 +159,7 @@ pub fn run() -> Result<()> {
 								"Runtime benchmarking wasn't enabled when building the node. \
 							You can enable it with `--features runtime-benchmarks`."
 									.into(),
-							)
+							);
 						}
 
 						cmd.run::<Block, sp_statement_store::runtime_api::HostFunctions>(config)

@@ -18,7 +18,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limits.
-#![recursion_limit = "1024"]
+#![recursion_limit = "512"]
 
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
@@ -239,7 +239,7 @@ pub struct OriginPrivilegeCmp;
 impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
 		if left == right {
-			return Some(Ordering::Equal)
+			return Some(Ordering::Equal);
 		}
 
 		match (left, right) {
@@ -305,17 +305,12 @@ parameter_types! {
 impl pallet_babe::Config for Runtime {
 	type EpochDuration = EpochDuration;
 	type ExpectedBlockTime = ExpectedBlockTime;
-
 	// session module is the trigger
 	type EpochChangeTrigger = pallet_babe::ExternalTrigger;
-
 	type DisabledValidators = Session;
-
 	type WeightInfo = ();
-
 	type MaxAuthorities = MaxAuthorities;
-	type MaxNominators = ();
-
+	type MaxNominators = ConstU32<0>;
 	type KeyOwnerProof =
 		<Historical as KeyOwnerProofSystem<(KeyTypeId, pallet_babe::AuthorityId)>>::Proof;
 	type EquivocationReportSystem =
@@ -408,18 +403,26 @@ impl pallet_session::Config for Runtime {
 	type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
 }
 
-pub struct FullIdentificationOfImpl;
-impl sp_runtime::traits::Convert<AccountId, Option<entities::ValidatorFullIdentification>>
-	for FullIdentificationOfImpl
-{
-	fn convert(_: AccountId) -> Option<entities::ValidatorFullIdentification> {
-		Some(entities::ValidatorFullIdentification)
+//pub struct FullIdentificationOfImpl;
+//pub struct ValidatorFullIdentification;
+//impl sp_runtime::traits::Convert<AccountId, Option<ValidatorFullIdentification>>
+//	for FullIdentificationOfImpl
+//{
+//	fn convert(_: AccountId) -> Option<ValidatorFullIdentification> {
+//		Some(ValidatorFullIdentification)
+//	}
+//}
+//
+pub struct FullIdentificationOf;
+impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf {
+	fn convert(_: AccountId) -> Option<()> {
+		Some(Default::default())
 	}
 }
 
 impl pallet_session::historical::Config for Runtime {
-	type FullIdentification = ValidatorFullIdentification;
-	type FullIdentificationOf = FullIdentificationOfImpl;
+	type FullIdentification = ();
+	type FullIdentificationOf = FullIdentificationOf;
 }
 
 parameter_types! {

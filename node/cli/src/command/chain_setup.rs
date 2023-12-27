@@ -11,6 +11,8 @@ use crate::chain_spec::{
 	ChainType,
 };
 
+// use chain_spec::bootstrap::{cord_custom_config, ChainParams, ChainType};
+
 #[derive(Debug, Deserialize)]
 pub struct ChainConfigParams {
 	pub chain_name: String,
@@ -46,7 +48,7 @@ impl BootstrapChainCmd {
 		let chain_name = if config.chain_name.len() <= 64 {
 			config.chain_name.clone()
 		} else {
-			return Err("Chain name should not be more than 64 characters".into())
+			return Err("Chain name should not be more than 64 characters".into());
 		};
 
 		let chain_type: Result<ChainType, String> = match config.chain_type.as_str() {
