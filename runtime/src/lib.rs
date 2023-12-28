@@ -882,6 +882,7 @@ construct_runtime! (
 	}
 );
 
+#[rustfmt::skip]
 impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall {
 	fn derive_verification_key_relationship(
 		&self,
@@ -907,38 +908,54 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 		}
 		match self {
 			// DID creation is not allowed through the DID proxy.
-			RuntimeCall::Did(pallet_did::Call::create { .. }) =>
-				Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
-			RuntimeCall::Did { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::DidName { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::Schema { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::Statement { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::NetworkScore { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegate { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_admin_delegate { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegator { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::remove_delegate { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::create { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::archive { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::restore { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) =>
-				single_key_relationship(&calls[..]),
-			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) =>
-				single_key_relationship(&calls[..]),
-			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
-				single_key_relationship(&calls[..]),
+			RuntimeCall::Did(pallet_did::Call::create { .. }) => {
+				Err(pallet_did::RelationshipDeriveError::NotCallableByDid)
+			},
+			RuntimeCall::Did { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::DidName { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::Schema { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::Statement { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::NetworkScore { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegate { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_admin_delegate { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegator { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::remove_delegate { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::create { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::archive { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::restore { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {
+				single_key_relationship(&calls[..])
+			},
+			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) => {
+				single_key_relationship(&calls[..])
+			},
+			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
+				single_key_relationship(&calls[..])
+			},
 			#[cfg(not(feature = "runtime-benchmarks"))]
 			_ => Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
 			// By default, returns the authentication key
