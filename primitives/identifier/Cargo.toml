@@ -36,6 +36,8 @@ codec = { package = "parity-scale-codec", version = "3.6.1", default-features = 
 scale-info = { version = "2.10.0", default-features = false, features = [
 	"derive",
 ] }
+base58 = "0.2.0"
+blake2-rfc = { version = "0.2.18", default-features = false }
 cord-primitives = { package = "cord-primitives", path = "../cord", default-features = false }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
 
