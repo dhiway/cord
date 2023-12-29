@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-#![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
 use crate::*;
@@ -25,7 +24,11 @@ use blake2_rfc::blake2b::{Blake2b, Blake2bResult};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{ensure, sp_runtime::RuntimeDebug, traits::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
-use sp_std::{fmt::Debug, prelude::Clone, str, vec};
+use sp_std::{
+	fmt::Debug,
+	prelude::{Clone, Vec},
+	str, vec,
+};
 
 /// CORD Identifier Prefix
 const PREFIX: &[u8] = b"CRDIDFR";
