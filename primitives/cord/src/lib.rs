@@ -25,7 +25,7 @@ use sp_runtime::{
 	MultiSignature, OpaqueExtrinsic,
 };
 use sp_std::vec::Vec;
-pub mod curi;
+// pub mod curi;
 // pub mod nid;
 
 /// An index to a block.

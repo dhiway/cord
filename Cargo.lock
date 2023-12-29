@@ -1509,6 +1509,8 @@ dependencies = [
 name = "cord-identifier"
 version = "0.9.1"
 dependencies = [
+ "base58",
+ "blake2-rfc",
  "cord-primitives",
  "cord-utilities",
  "frame-benchmarking",
@@ -1685,11 +1687,6 @@ dependencies = [
 name = "cord-primitives"
 version = "0.9.1"
 dependencies = [
- "base58",
- "blake2-rfc",
- "frame-support",
- "parity-scale-codec",
- "scale-info",
  "sp-core",
  "sp-runtime",
  "sp-std 8.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.5.0)",
