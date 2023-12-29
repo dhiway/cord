@@ -10,22 +10,23 @@ use sp_runtime::{traits::Hash, AccountId32};
 
 /// Generates a statement ID from a statement digest.
 pub fn generate_statement_id<T: Config>(digest: &StatementDigestOf<T>) -> StatementIdOf {
-	Ss58Identifier::to_statement_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Statement).unwrap()
 }
 
 /// Generates a schema ID from a schema digest.
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::to_schema_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema).unwrap()
 }
 
 /// Generates a space ID from a digest.
 pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::to_space_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
 }
 
 /// Generates an authorization ID from a digest.
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::to_authorization_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
+		.unwrap()
 }
 
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));

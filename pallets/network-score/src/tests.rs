@@ -27,11 +27,11 @@ use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
 
 pub fn generate_rating_id<T: Config>(digest: &RatingEntryHashOf<T>) -> RatingEntryIdOf {
-	Ss58Identifier::to_scoring_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Rating).unwrap()
 }
 
 pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::to_space_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
 }
 
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
@@ -68,7 +68,8 @@ fn check_successful_rating_creation() {
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
+			.unwrap();
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);

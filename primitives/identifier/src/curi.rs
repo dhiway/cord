@@ -16,32 +16,78 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-// #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
+
 use crate::*;
 use base58::{FromBase58, ToBase58};
 use blake2_rfc::blake2b::{Blake2b, Blake2bResult};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{ensure, sp_runtime::RuntimeDebug, traits::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
-use sp_std::{fmt::Debug, prelude::Clone, str, vec};
+use sp_std::{
+	fmt::Debug,
+	prelude::{Clone, Vec},
+	str, vec,
+};
 
 /// CORD Identifier Prefix
 const PREFIX: &[u8] = b"CRDIDFR";
-/// CORD idents
-const IDENT_SPACE: u16 = 3390;
-const IDENT_AUTH: u16 = 2092;
-const IDENT_SCHEMA: u16 = 7366;
-const IDENT_STATEMENT: u16 = 8902;
-const IDENT_ENTITY: u16 = 6480;
-const IDENT_TEMPLATE: u16 = 8911;
-const IDENT_ASSET: u16 = 2348;
-const IDENT_RATING: u16 = 6077;
-const IDENT_ASSET_INSTANCE: u16 = 11380;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IdentifierType {
+	Authorization,
+	Space,
+	Schema,
+	Statement,
+	Entity,
+	Template,
+	Asset,
+	AssetInstance,
+	Rating,
+}
+
+impl IdentifierType {
+	const IDENT_AUTH: u16 = 2092;
+	const IDENT_SPACE: u16 = 3390;
+	const IDENT_SCHEMA: u16 = 7366;
+	const IDENT_STATEMENT: u16 = 8902;
+	const IDENT_ENTITY: u16 = 6480;
+	const IDENT_TEMPLATE: u16 = 8911;
+	const IDENT_ASSET: u16 = 2348;
+	const IDENT_RATING: u16 = 6077;
+	const IDENT_ASSET_INSTANCE: u16 = 11380;
+
+	fn ident_value(&self) -> u16 {
+		match self {
+			IdentifierType::Authorization => Self::IDENT_AUTH,
+			IdentifierType::Space => Self::IDENT_SPACE,
+			IdentifierType::Schema => Self::IDENT_SCHEMA,
+			IdentifierType::Statement => Self::IDENT_STATEMENT,
+			IdentifierType::Entity => Self::IDENT_ENTITY,
+			IdentifierType::Template => Self::IDENT_TEMPLATE,
+			IdentifierType::Asset => Self::IDENT_ASSET,
+			IdentifierType::AssetInstance => Self::IDENT_ASSET_INSTANCE,
+			IdentifierType::Rating => Self::IDENT_RATING,
+		}
+	}
+	fn from_u16(value: u16) -> Option<Self> {
+		match value {
+			2092 => Some(IdentifierType::Authorization),
+			3390 => Some(IdentifierType::Space),
+			7366 => Some(IdentifierType::Schema),
+			8902 => Some(IdentifierType::Statement),
+			6480 => Some(IdentifierType::Entity),
+			8911 => Some(IdentifierType::Template),
+			2348 => Some(IdentifierType::Asset),
+			6077 => Some(IdentifierType::AssetInstance),
+			11380 => Some(IdentifierType::Rating),
+			_ => None,
+		}
+	}
+}
 
 /// The minimum length of a valid identifier.
 pub const MINIMUM_IDENTIFIER_LENGTH: usize = 2;
-// const MINIMUM_IDENTIFIER_LENGTH_U32: u32 = MINIMUM_IDENTIFIER_LENGTH as u32;
 /// The maximum length of a valid identifier.
 pub const MAXIMUM_IDENTIFIER_LENGTH: usize = 49;
 const MAXIMUM_IDENTIFIER_LENGTH_U32: u32 = MAXIMUM_IDENTIFIER_LENGTH as u32;
@@ -68,34 +114,37 @@ pub enum IdentifierError {
 	InvalidIdentifier,
 	/// The identifier has an invalid length.
 	InvalidIdentifierLength,
+	/// Identifier timeline update failed
+	UpdateFailed,
+	MaxEventsHistoryExceeded,
 }
 
-/// An error with the interpretation of a secret.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum IdentifierType {
-	Registry,
-	Authorization,
-	Schema,
-	Statement,
+pub trait IdentifierCreator {
+	fn create_identifier(
+		data: &[u8],
+		id_type: IdentifierType,
+	) -> Result<Ss58Identifier, IdentifierError>;
 }
 
-impl TryFrom<Vec<u8>> for Ss58Identifier {
-	type Error = &'static str;
-
-	fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-		let identifier = Ss58Identifier::to_space_id(&value[..])
-			.map_err(|_| "Cannot convert provided input to a valid identifier.")?;
-
-		Ok(identifier)
+impl IdentifierCreator for Ss58Identifier {
+	fn create_identifier(
+		data: &[u8],
+		id_type: IdentifierType,
+	) -> Result<Ss58Identifier, IdentifierError> {
+		let id_ident = id_type.ident_value();
+		Ss58Identifier::from_encoded(data, id_ident)
 	}
 }
 
-#[cfg(feature = "std")]
-impl TryFrom<String> for Ss58Identifier {
-	type Error = &'static str;
+pub trait CordIdentifierType {
+	fn get_type(&self) -> Result<IdentifierType, IdentifierError>;
+}
 
-	fn try_from(value: String) -> Result<Self, Self::Error> {
-		Self::try_from(value.into_bytes())
+impl CordIdentifierType for Ss58Identifier {
+	fn get_type(&self) -> Result<IdentifierType, IdentifierError> {
+		let identifier_type_u16 = self.get_identifier_type()?;
+
+		IdentifierType::from_u16(identifier_type_u16).ok_or(IdentifierError::InvalidIdentifier)
 	}
 }
 
@@ -145,59 +194,35 @@ impl Ss58Identifier {
 		))
 	}
 
-	pub fn to_authorization_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_AUTH)
-	}
-	pub fn to_space_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_SPACE)
-	}
-	pub fn to_schema_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_SCHEMA)
-	}
-	pub fn to_statement_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_STATEMENT)
-	}
-	pub fn to_entity_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_ENTITY)
-	}
-	pub fn to_template_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_TEMPLATE)
-	}
-	pub fn to_asset_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_ASSET)
-	}
-	pub fn to_asset_instance_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_ASSET_INSTANCE)
-	}
-	pub fn to_scoring_id(data: &[u8]) -> Result<Self, IdentifierError> {
-		Self::from_encoded(data, IDENT_RATING)
-	}
 	pub fn inner(&self) -> &[u8] {
 		&self.0
 	}
 
-	pub fn get_ident(id: Self, id_ident: u16) -> IdentVerificationResult {
-		let identifier = str::from_utf8(id.inner()).map_err(|_| IdentifierError::InvalidFormat)?;
+	pub fn get_identifier_type(&self) -> Result<u16, IdentifierError> {
+		let identifier =
+			str::from_utf8(self.inner()).map_err(|_| IdentifierError::InvalidFormat)?;
 		let data = identifier.from_base58().map_err(|_| IdentifierError::InvalidIdentifier)?;
+
 		if data.len() < 2 {
 			return Err(IdentifierError::InvalidIdentifierLength);
 		}
+
+		// Ensure the identifier length is within the expected range
 		ensure!(
-			(identifier.len() > 2 && identifier.len() < 50),
+			identifier.len() > 2 && identifier.len() < 50,
 			IdentifierError::InvalidIdentifierLength
 		);
-		let (_prefix_len, ident) = match data[0] {
-			0..=63 => (1, data[0] as u16),
+
+		// Extract the identifier type
+		match data[0] {
+			0..=63 => Ok(data[0] as u16),
 			64..=127 => {
 				let lower = (data[0] << 2) | (data[1] >> 6);
 				let upper = data[1] & 0b00111111;
-				(2, (lower as u16) | ((upper as u16) << 8))
+				Ok((lower as u16) | ((upper as u16) << 8))
 			},
-			_ => return Err(IdentifierError::InvalidPrefix),
-		};
-
-		ensure!(ident == id_ident, IdentifierError::InvalidPrefix);
-		Ok(())
+			_ => Err(IdentifierError::InvalidPrefix),
+		}
 	}
 
 	pub fn default_error() -> Self {
@@ -211,6 +236,27 @@ impl Ss58Identifier {
 			.expect("Should not fail as the length is within bounds");
 
 		Ss58Identifier(bounded_error_value)
+	}
+}
+
+pub struct IdentifierTimeline;
+
+impl IdentifierTimeline {
+	pub fn update_timeline<T: Config>(
+		id: &IdentifierOf,
+		id_type: IdentifierTypeOf,
+		entry: EventEntryOf,
+	) -> Result<(), IdentifierError>
+	where
+		Pallet<T>: IdentifierUpdate<IdentifierOf, IdentifierTypeOf, EventEntryOf, IdentifierError>,
+	{
+		<Pallet<T> as IdentifierUpdate<
+			IdentifierOf,
+			IdentifierTypeOf,
+			EventEntryOf,
+			IdentifierError,
+		>>::update_timeline(id, id_type, entry)
+		.map_err(|_| IdentifierError::MaxEventsHistoryExceeded)
 	}
 }
 

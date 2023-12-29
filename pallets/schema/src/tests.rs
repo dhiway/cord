@@ -81,17 +81,18 @@ where
 ///
 /// This function will panic if the conversion from digest to schema ID fails.
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::to_schema_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema).unwrap()
 }
 
 /// Generates a space ID from a digest.
 pub fn generate_space_id<T: Config>(digest: &SchemaHashOf<T>) -> SpaceIdOf {
-	Ss58Identifier::to_space_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
 }
 
 /// Generates an authorization ID from a digest.
 pub fn generate_authorization_id<T: Config>(digest: &SchemaHashOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::to_authorization_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
+		.unwrap()
 }
 
 // submit_schema_creation_operation

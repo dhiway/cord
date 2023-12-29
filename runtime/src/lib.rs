@@ -23,10 +23,11 @@
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
-pub use cord_primitives::{curi::Ss58Identifier, AccountId, Signature};
 use cord_primitives::{
 	prod_or_fast, AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Moment, Nonce,
 };
+pub use cord_primitives::{AccountId, Signature};
+pub use identifier::Ss58Identifier;
 
 use frame_support::{
 	construct_runtime, derive_impl,

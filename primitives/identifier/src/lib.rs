@@ -21,8 +21,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-use cord_primitives::curi::Ss58Identifier;
-use sp_runtime::{BoundedVec, DispatchResult};
+pub mod curi;
+pub use crate::curi::{
+	CordIdentifierType, IdentifierCreator, IdentifierError, IdentifierTimeline, IdentifierType,
+	Ss58Identifier,
+};
+use sp_runtime::BoundedVec;
 use sp_std::{prelude::Clone, str};
 pub mod types;
 pub use crate::types::*;
@@ -30,6 +34,7 @@ use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
 
 pub use crate::{pallet::*, types::*};
+pub use pallet::*;
 use sp_std::vec;
 
 #[frame_support::pallet]
@@ -85,22 +90,27 @@ pub mod pallet {
 	}
 }
 
-impl<T: Config> Pallet<T> {
-	pub fn update_timeline(
+pub trait IdentifierUpdate<I, IT, EE, E> {
+	fn update_timeline(id: &I, id_type: IT, entry: EE) -> Result<(), E>;
+}
+
+impl<T: Config> IdentifierUpdate<IdentifierOf, IdentifierTypeOf, EventEntryOf, IdentifierError>
+	for Pallet<T>
+{
+	fn update_timeline(
 		id: &IdentifierOf,
 		id_type: IdentifierTypeOf,
 		entry: EventEntryOf,
-	) -> DispatchResult {
-		Identifiers::<T>::try_mutate(id, id_type, |timeline| -> DispatchResult {
+	) -> Result<(), IdentifierError> {
+		Identifiers::<T>::try_mutate(id, id_type, |timeline| {
 			let events = timeline.get_or_insert_with(BoundedVec::default);
 
 			if events.len() == T::MaxEventsHistory::get() as usize {
 				events.remove(1);
 			}
 
-			events.try_push(entry).map_err(|_| Error::<T>::MaxEventsHistoryExceeded)?;
-
-			Ok(())
+			events.try_push(entry).map_err(|_| IdentifierError::MaxEventsHistoryExceeded)
 		})
+		.map_err(|_| IdentifierError::MaxEventsHistoryExceeded) // Map DispatchError to your custom Error
 	}
 }

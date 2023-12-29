@@ -67,10 +67,10 @@ use frame_support::ensure;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	pub use cord_primitives::curi::Ss58Identifier;
 	pub use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
 	use sp_runtime::{traits::Hash, SaturatedConversion};
 
 	/// The current storage version.
@@ -190,8 +190,11 @@ pub mod pallet {
 					[..],
 			);
 
-			let identifier = Ss58Identifier::to_schema_id(&(id_digest).encode()[..])
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = Ss58Identifier::create_identifier(
+				&(id_digest).encode()[..],
+				IdentifierType::Schema,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);
 
@@ -263,7 +266,7 @@ impl<T: Config> Pallet<T> {
 		let tx_moment = Self::timepoint();
 
 		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
-		let _ = identifier::Pallet::<T>::update_timeline(tx_id, IdentifierTypeOf::Schema, tx_entry);
+		let _ = IdentifierTimeline::update_timeline::<T>(tx_id, IdentifierTypeOf::Schema, tx_entry);
 		Ok(())
 	}
 

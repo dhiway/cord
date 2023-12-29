@@ -2,11 +2,11 @@
 
 use super::*;
 use codec::Encode;
-use cord_primitives::curi::Ss58Identifier;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::sp_runtime::traits::Hash;
 use frame_system::RawOrigin;
+use identifier::{IdentifierType, Ss58Identifier};
 use pallet_chain_space::SpaceCodeOf;
 
 const SEED: u32 = 0;
@@ -14,17 +14,18 @@ const MAX_PAYLOAD_BYTE_LENGTH: u32 = 5 * 1024;
 
 /// Generates a statement ID from a statement digest.
 pub fn generate_statement_id<T: Config>(digest: &StatementDigestOf<T>) -> StatementIdOf {
-	Ss58Identifier::to_statement_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Statement).unwrap()
 }
 
 /// Generates a space ID from a digest.
 pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::to_space_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
 }
 
 /// Generates an authorization ID from a digest.
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::to_authorization_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
+		.unwrap()
 }
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
@@ -59,14 +60,13 @@ benchmarks! {
 				.concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..]).unwrap();
+		let identifier = generate_statement_id::<T>(&id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let authorization_id: Ss58Identifier =
-		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 		let chain_space_origin = RawOrigin::Root.into();
@@ -102,14 +102,13 @@ benchmarks! {
 			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_statement_id(&(statement_id_digest).encode()[..]).unwrap();
+		let identifier = generate_statement_id::<T>(&statement_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let authorization_id: Ss58Identifier =
-		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
 
 		let statement_update = [12u8; 32].to_vec();
 		let update_digest = <T as frame_system::Config>::Hashing::hash(&statement_update[..]);
@@ -147,14 +146,13 @@ benchmarks! {
 		let statement_id_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
-		let identifier = Ss58Identifier::to_statement_id(&(statement_id_digest).encode()[..]).unwrap();
+		let identifier = generate_statement_id::<T>(&statement_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let authorization_id: Ss58Identifier =
-		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 		let chain_space_origin = RawOrigin::Root.into();
@@ -190,13 +188,13 @@ benchmarks! {
 			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_statement_id(&(statement_id_digest).encode()[..]).unwrap();
+		let identifier = generate_statement_id::<T>(&statement_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let authorization_id: Ss58Identifier = Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 		let chain_space_origin = RawOrigin::Root.into();
 
@@ -232,14 +230,13 @@ benchmarks! {
 			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_statement_id(&(statement_id_digest).encode()[..]).unwrap();
+		let identifier = generate_statement_id::<T>(&statement_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let authorization_id: Ss58Identifier =
-		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 		let chain_space_origin = RawOrigin::Root.into();
@@ -281,8 +278,7 @@ benchmarks! {
 			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let authorization_id: Ss58Identifier =
-		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 		let chain_space_origin = RawOrigin::Root.into();
 
@@ -314,14 +310,13 @@ benchmarks! {
 			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_statement_id(&(statement_id_digest).encode()[..]).unwrap();
+		let identifier = generate_statement_id::<T>(&statement_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let authorization_id: Ss58Identifier =
-		Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 		let chain_space_origin = RawOrigin::Root.into();
@@ -357,13 +352,13 @@ benchmarks! {
 			&[&statement_digest.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let identifier = Ss58Identifier::to_statement_id(&(statement_id_digest).encode()[..]).unwrap();
+		let identifier = generate_statement_id::<T>(&statement_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
-		let authorization_id: Ss58Identifier = Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
 
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 		let chain_space_origin = RawOrigin::Root.into();

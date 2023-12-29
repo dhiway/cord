@@ -20,22 +20,27 @@
 
 use super::*;
 use codec::Encode;
-use cord_primitives::curi::Ss58Identifier;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{sp_runtime::traits::Hash, BoundedVec};
 use frame_system::RawOrigin;
+use identifier::{IdentifierType, Ss58Identifier};
 use pallet_chain_space::SpaceCodeOf;
 
 const SEED: u32 = 0;
 const MAX_PAYLOAD_BYTE_LENGTH: u32 = 15 * 1024;
 
 pub fn generate_space_id<T: Config>(other_digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::to_space_id(&(other_digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(other_digest).encode()[..], IdentifierType::Space).unwrap()
 }
 
 pub fn generate_rating_id<T: Config>(other_digest: &RatingEntryHashOf<T>) -> RatingEntryIdOf {
-	Ss58Identifier::to_scoring_id(&(other_digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(other_digest).encode()[..], IdentifierType::Rating).unwrap()
+}
+
+pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
+		.unwrap()
 }
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
@@ -75,8 +80,7 @@ benchmarks! {
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&space_id.encode()[..], &did1.encode()[..]].concat()[..],
 		);
-		let authorization_id: AuthorizationIdOf =
-			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_digest);
 
 		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller.clone(), did1.clone());
 
@@ -85,7 +89,7 @@ benchmarks! {
 		let id_digest =  <T as frame_system::Config>::Hashing::hash(
 			&[&(entry_digest.clone()).encode()[..], &entity_uid.encode()[..], &message_id.encode()[..], &space_id.encode()[..], &did1.encode()[..]].concat()[..]
 		);
-		let identifier = Ss58Identifier::to_scoring_id(&id_digest.encode()[..]).unwrap();
+		let identifier = generate_rating_id::<T>(&id_digest);
 
 		let chain_space_origin = RawOrigin::Root.into();
 
@@ -129,18 +133,18 @@ benchmarks! {
 		let id_digest_add =  <T as frame_system::Config>::Hashing::hash(
 			&[&(entry_digest.clone()).encode()[..], &entity_uid.encode()[..], &message_id_add.encode()[..], &space_id.encode()[..], &did1.encode()[..]].concat()[..]
 		);
-		let identifier_add = Ss58Identifier::to_scoring_id(&id_digest_add.encode()[..]).unwrap();
+		let identifier_add = generate_rating_id::<T>(&id_digest_add);
 
 		let id_digest =  <T as frame_system::Config>::Hashing::hash(
 			&[&(entry_digest.clone()).encode()[..], &entity_uid.encode()[..], &message_id_revoke.encode()[..], &space_id.encode()[..], &did1.encode()[..]].concat()[..]
 		);
-		let identifier_revoke = Ss58Identifier::to_scoring_id(&id_digest.encode()[..]).unwrap();
+		let identifier_revoke = generate_rating_id::<T>(&id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&space_id.encode()[..], &did1.encode()[..]].concat()[..],
 		);
 		let authorization_id: AuthorizationIdOf =
-			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+			generate_authorization_id::<T>(&auth_digest);
 
 		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller.clone(), did1.clone());
 		let chain_space_origin = RawOrigin::Root.into();
@@ -202,23 +206,22 @@ benchmarks! {
 		let id_digest_add =  <T as frame_system::Config>::Hashing::hash(
 			&[&(entry_digest.clone()).encode()[..], &entity_uid.encode()[..], &message_id_add.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
 		);
-		let identifier_add = Ss58Identifier::to_scoring_id(&id_digest_add.encode()[..]).unwrap();
+		let identifier_add = generate_rating_id::<T>(&id_digest_add);
 
 		let id_digest =  <T as frame_system::Config>::Hashing::hash(
 			&[&(entry_digest.clone()).encode()[..], &entity_uid.encode()[..], &message_id_revoke.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
 		);
-		let identifier_revoke = Ss58Identifier::to_scoring_id(&id_digest.encode()[..]).unwrap();
+		let identifier_revoke = generate_rating_id::<T>(&id_digest);
 
 		let id_digest_revise =  <T as frame_system::Config>::Hashing::hash(
 			&[&(entry_revise_digest.clone()).encode()[..], &entity_uid.encode()[..], &message_id_revise.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
 		);
-		let identifier_revise = Ss58Identifier::to_scoring_id(&id_digest_revise.encode()[..]).unwrap();
+		let identifier_revise = generate_rating_id::<T>(&id_digest_revise);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
 			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
 		);
-		let authorization_id: AuthorizationIdOf =
-			Ss58Identifier::to_authorization_id(&auth_digest.encode()[..]).unwrap();
+		let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_digest);
 
 		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
 		let chain_space_origin = RawOrigin::Root.into();

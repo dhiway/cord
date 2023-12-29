@@ -125,10 +125,11 @@ pub type SpaceAuthorizationOf<T> = SpaceAuthorization<SpaceIdOf, SpaceCreatorOf<
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	pub use cord_primitives::{curi::Ss58Identifier, StatusOf};
+	pub use cord_primitives::StatusOf;
 	use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -515,8 +516,9 @@ pub mod pallet {
 				&[&space_code.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let identifier = Ss58Identifier::to_space_id(&id_digest.encode()[..])
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier =
+				Ss58Identifier::create_identifier(&id_digest.encode()[..], IdentifierType::Space)
+					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
 
@@ -526,8 +528,11 @@ pub mod pallet {
 			let auth_id_digest =
 				T::Hashing::hash(&[&identifier.encode()[..], &creator.encode()[..]].concat()[..]);
 
-			let authorization_id = Ss58Identifier::to_authorization_id(&auth_id_digest.encode())
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let authorization_id = Ss58Identifier::create_identifier(
+				&auth_id_digest.encode(),
+				IdentifierType::Authorization,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			let mut delegates: BoundedVec<SpaceCreatorOf<T>, T::MaxSpaceDelegates> =
 				BoundedVec::default();
@@ -933,8 +938,9 @@ impl<T: Config> Pallet<T> {
 			&[&space_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
 		);
 
-		let delegate_authorization_id = Ss58Identifier::to_authorization_id(&id_digest.encode())
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+		let delegate_authorization_id =
+			Ss58Identifier::create_identifier(&id_digest.encode(), IdentifierType::Authorization)
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 		ensure!(
 			!Authorizations::<T>::contains_key(&delegate_authorization_id),
@@ -1253,7 +1259,7 @@ impl<T: Config> Pallet<T> {
 		let tx_moment = Self::timepoint();
 
 		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
-		let _ = identifier::Pallet::<T>::update_timeline(tx_id, tx_type, tx_entry);
+		let _ = IdentifierTimeline::update_timeline::<T>(tx_id, tx_type, tx_entry);
 		Ok(())
 	}
 
