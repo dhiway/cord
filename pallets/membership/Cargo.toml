@@ -1,16 +1,19 @@
 [package]
 name = "pallet-membership"
-version = "0.9.0"
+description = "FRAME membership management pallet - modified to support CORD governance"
 authors = [
 	"Parity Technologies <admin@parity.io>",
 	"Dhiway Networks <info@dhiway.com>",
 ]
-description = "FRAME membership management pallet - modified to support CORD governance"
-edition = "2021"
-license = "GPL-3.0"
-homepage = "https://cord.network"
-repository = "https://github.com/dhiway/cord"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 readme = "README.md"
+
+[lints]
+workspace = true
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -25,13 +28,13 @@ pallet-network-membership = { package = "pallet-network-membership", path = "../
 log = { version = "0.4.17", default-features = false }
 
 # Substrate dependencies
-frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false, optional = true }
-frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false }
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false }
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false, optional = true }
+frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
 
 [features]
 default = ["std"]

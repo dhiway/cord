@@ -67,7 +67,7 @@ jobs:
           restore-keys: ${{ runner.os }}-rust-
 
       - name: cargo test
-        run: cargo test --release --all --all-targets --locked --features=runtime-benchmarks --no-fail-fast --verbose --color always
+        run: rustup component add rust-src && cargo test --release --all --all-targets --locked --features=runtime-benchmarks --no-fail-fast --verbose --color always
 
   clippy:
     runs-on: ubuntu-latest
@@ -89,7 +89,7 @@ jobs:
           restore-keys: ${{ runner.os }}-rust-
 
       - name: cargo clippy
-        run: cargo clippy --all --no-deps --all-targets --features=runtime-benchmarks -- -D warnings
+        run: rustup component add rust-src && cargo clippy --all --no-deps --all-targets --features=runtime-benchmarks -- -D warnings
 
   build:
     runs-on: ubuntu-latest
@@ -111,4 +111,5 @@ jobs:
           restore-keys: ${{ runner.os }}-rust-
 
       - name: cargo build
-        run: cargo build --locked
+        run: rustup component add rust-src && cargo build --locked
+

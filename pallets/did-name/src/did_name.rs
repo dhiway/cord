@@ -93,13 +93,13 @@ impl<T: Config> TryFrom<Vec<u8>> for AsciiDidName<T> {
 fn is_valid_did_name_prefix(input: &[u8]) -> bool {
 	// Check prefix is empty or not
 	if input.is_empty() {
-		return false
+		return false;
 	}
 
 	// Check first character
 	// - Must be a lowercase letter
 	if !(input[0].is_ascii_lowercase()) {
-		return false
+		return false;
 	}
 
 	// Check characters
@@ -113,11 +113,11 @@ fn is_valid_did_name_prefix(input: &[u8]) -> bool {
 		} else if matches!(c, b'.') {
 			if let Some(prev) = prev_char {
 				if prev == &b'.' {
-					return false
+					return false;
 				}
 			}
 		} else {
-			return false // unexpected character
+			return false; // unexpected character
 		}
 		prev_char = Some(c);
 	}
@@ -125,7 +125,7 @@ fn is_valid_did_name_prefix(input: &[u8]) -> bool {
 	// Check last character
 	// - Do not allow a period at the end
 	if input.last() == Some(&b'.') {
-		return false
+		return false;
 	}
 	is_valid
 }

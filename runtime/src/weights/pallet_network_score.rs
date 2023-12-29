@@ -31,7 +31,7 @@
 // --chain=dev
 // --steps=50
 // --repeat=20
-// --pallet=pallet_score
+// --pallet=pallet_network_score
 // --extrinsic=entries
 // --execution=wasm
 // --wasm-execution=compiled

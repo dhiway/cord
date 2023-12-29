@@ -154,24 +154,24 @@ pub mod pallet {
 			T::AuthorityMembershipOrigin::ensure_origin(origin)?;
 
 			if !pallet_network_membership::Pallet::<T>::is_member(&candidate) {
-				return Err(Error::<T>::NetworkMembershipNotFound.into())
+				return Err(Error::<T>::NetworkMembershipNotFound.into());
 			}
 
 			let member = T::ValidatorIdOf::convert(candidate.clone())
 				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
 			if !pallet_session::Pallet::<T>::is_registered(&member) {
-				return Err(Error::<T>::SessionKeysNotAdded.into())
+				return Err(Error::<T>::SessionKeysNotAdded.into());
 			}
 
 			if Self::is_blacklisted(&member) {
-				return Err(Error::<T>::MemberBlackListed.into())
+				return Err(Error::<T>::MemberBlackListed.into());
 			}
 
 			if Self::is_incoming(&member) {
-				return Err(Error::<T>::MemberAlreadyIncoming.into())
+				return Err(Error::<T>::MemberAlreadyIncoming.into());
 			}
 			if Self::is_outgoing(&member) {
-				return Err(Error::<T>::MemberAlreadyOutgoing.into())
+				return Err(Error::<T>::MemberAlreadyOutgoing.into());
 			}
 
 			Self::add_authority_member(&member)?;
@@ -253,7 +253,7 @@ pub mod pallet {
 				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
 
 			if Self::is_blacklisted(&member) {
-				return Err(Error::<T>::MemberBlackListed.into())
+				return Err(Error::<T>::MemberBlackListed.into());
 			}
 
 			ensure!(<Members<T>>::get().contains(&member), Error::<T>::MemberNotFound);
@@ -319,7 +319,7 @@ impl<T: Config> pallet_session::SessionManager<T::ValidatorId> for Pallet<T> {
 		if members_to_add.is_empty() {
 			if members_to_del.is_empty() {
 				// when no change to the set of autorities, return None
-				return None
+				return None;
 			} else {
 				Self::deposit_event(Event::OutgoingAuthorities(members_to_del.clone()));
 			}

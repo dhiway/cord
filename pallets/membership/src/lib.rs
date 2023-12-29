@@ -232,7 +232,7 @@ pub mod pallet {
 			let add = T::Lookup::lookup(add)?;
 
 			if remove == add {
-				return Ok(())
+				return Ok(());
 			}
 			ensure!(
 				pallet_network_membership::Pallet::<T>::is_member(&add),

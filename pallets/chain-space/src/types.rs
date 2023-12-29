@@ -72,11 +72,10 @@ impl Default for Permissions {
 ///
 /// - `code`: The unique code or identifier for the space.
 /// - `creator`: The account or entity that created the space.
-/// - `txn_capacity`: The maximum allowed transactions within the space. A value
-///   of zero denotes unlimited capacity.
+/// - `txn_capacity`: The maximum allowed transactions within the space. A value of zero denotes
+///   unlimited capacity.
 /// - `txn_count`: The current usage of the space's capacity.
-/// - `approved`: Indicates whether the space has been approved by the
-///   appropriate governance body.
+/// - `approved`: Indicates whether the space has been approved by the appropriate governance body.
 /// - `archive`: Indicates whether the space is currently archived.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 pub struct SpaceDetails<SpaceCodeOf, SpaceCreatorOf, StatusOf> {
@@ -96,8 +95,7 @@ pub struct SpaceDetails<SpaceCodeOf, SpaceCreatorOf, StatusOf> {
 ///
 /// ## Fields
 ///
-/// - `space_id`: The identifier of the space to which the authorization
-///   applies.
+/// - `space_id`: The identifier of the space to which the authorization applies.
 /// - `delegate`: The entity that has been granted permissions within the space.
 /// - `permissions`: The specific permissions granted to the delegate.
 /// - `delegator`: The entity that granted the permissions to the delegates

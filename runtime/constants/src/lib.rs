@@ -41,11 +41,10 @@ pub mod currency {
 /// Time and blocks.
 pub mod time {
 	use cord_primitives::{prod_or_fast, BlockNumber, Moment};
-	pub const MILLISECS_PER_BLOCK: Moment = 3000;
+	pub const MILLISECS_PER_BLOCK: Moment = 6000;
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
 	#[allow(clippy::identity_op)]
-	pub const EPOCH_DURATION: BlockNumber = prod_or_fast!(2 * MINUTES, 1 * MINUTES);
-
+	pub const EPOCH_DURATION: BlockNumber = prod_or_fast!(5 * MINUTES, 1 * MINUTES);
 	pub const MINIMUM_DURATION: u64 = SLOT_DURATION / 2;
 
 	// These time units are defined in number of blocks.
@@ -85,8 +84,7 @@ pub mod fee {
 	/// Yet, it can be used for any other sort of change to weight-fee. Some
 	/// examples being:
 	///   - Setting it to `0` will essentially disable the weight fee.
-	///   - Setting it to `1` will cause the literal `#[weight = x]` values to
-	///     be charged.
+	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
 	pub struct WeightToFee;
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;

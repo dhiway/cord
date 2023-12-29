@@ -1,11 +1,14 @@
 [package]
 name = 'cord-primitives'
-version = "0.9.0"
-authors = ['Dhiway Networks <info@dhiway.com>']
-edition = '2021'
-license = "GPL-3.0"
-homepage = "https://cord.network"
-repository = "https://github.com/dhiway/cord"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
@@ -17,10 +20,10 @@ scale-info = { version = "2.10.0", default-features = false, features = [
 ] }
 base58 = "0.2.0"
 blake2-rfc = { version = "0.2.18", default-features = false }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.3.0" }
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.3.0" }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.3.0" }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.3.0" }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.5.0" }
+frame-support = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.5.0" }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.5.0" }
+sp-std = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.5.0" }
 
 [features]
 default = ["std"]

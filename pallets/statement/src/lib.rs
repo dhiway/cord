@@ -37,23 +37,19 @@
 //!
 //! ## Features
 //!
-//! - **Reference Off-Chain Data**: Statements act as on-chain pointers to data
-//!   stored off-chain, allowing the blockchain to maintain a lightweight
-//!   footprint.
-//! - **Privacy Preservation**: By not storing recipient information on-chain,
-//!   the pallet respects privacy concerns and complies with data protection
-//!   regulations.
-//! - **Activity Logging**: All statement activities are timestamped and
-//!   recorded on-chain, providing an immutable history of actions without
-//!   revealing the actual data.
+//! - **Reference Off-Chain Data**: Statements act as on-chain pointers to data stored off-chain,
+//!   allowing the blockchain to maintain a lightweight footprint.
+//! - **Privacy Preservation**: By not storing recipient information on-chain, the pallet respects
+//!   privacy concerns and complies with data protection regulations.
+//! - **Activity Logging**: All statement activities are timestamped and recorded on-chain,
+//!   providing an immutable history of actions without revealing the actual data.
 //!
 //! ## Interface
 //!
 //! The pallet provides dispatchable functions to interact with statements:
 //!
 //! - `create`: References a new piece of off-chain data.
-//! - `create_batch`: References multiple pieces of off-chain data in a batch
-//!   operation.
+//! - `create_batch`: References multiple pieces of off-chain data in a batch operation.
 //! - `update`: Updates the reference to a piece of off-chain data.
 //! - `revoke`: Marks a statement's reference as inactive.
 //! - `restore`: Reactivates a revoked statement's reference.
@@ -61,10 +57,9 @@
 //!
 //!## Related Modules
 //!
-//! - [`ChainSpace`](../pallet_chain_space/index.html): Manages authorization
-//!   and capacity for statement references.
-//! - [`Identifier`](../identifier/index.html): Logs the timeline of statement
-//!   activities.
+//! - [`ChainSpace`](../pallet_chain_space/index.html): Manages authorization and capacity for
+//!   statement references.
+//! - [`Identifier`](../identifier/index.html): Logs the timeline of statement activities.
 //!
 //! ## Data Privacy
 //!
@@ -374,14 +369,11 @@ pub mod pallet {
 		/// statement.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the dispatch call, which should be a
-		///   signed message from the creator.
-		/// - `digest`: The digest of the statement, serving as a unique
-		///   identifier.
-		/// - `authorization`: The authorization ID, verifying the creator's
-		///   delegation status.
-		/// - `schema_id`: An optional schema identifier to be associated with
-		///   the statement.
+		/// - `origin`: The origin of the dispatch call, which should be a signed message from the
+		///   creator.
+		/// - `digest`: The digest of the statement, serving as a unique identifier.
+		/// - `authorization`: The authorization ID, verifying the creator's delegation status.
+		/// - `schema_id`: An optional schema identifier to be associated with the statement.
 		///
 		/// # Returns
 		/// A `DispatchResult` indicating the success or failure of the
@@ -396,8 +388,8 @@ pub mod pallet {
 		/// updating the activity log may also occur.
 		///
 		/// # Events
-		/// - `Create`: Emitted when a statement is successfully created,
-		///   containing the `identifier`, `digest`, and `author` (creator).
+		/// - `Create`: Emitted when a statement is successfully created, containing the
+		///   `identifier`, `digest`, and `author` (creator).
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::register())]
 		pub fn register(
@@ -471,13 +463,11 @@ pub mod pallet {
 		/// and the authoring updater's details.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the dispatch call, which should be a
-		///   signed message from the updater.
+		/// - `origin`: The origin of the dispatch call, which should be a signed message from the
+		///   updater.
 		/// - `statement_id`: The identifier of the statement to be updated.
-		/// - `new_statement_digest`: The new digest to replace the existing one
-		///   for the statement.
-		/// - `authorization`: The authorization ID, verifying the updater's
-		///   delegation status.
+		/// - `new_statement_digest`: The new digest to replace the existing one for the statement.
+		/// - `authorization`: The authorization ID, verifying the updater's delegation status.
 		///
 		/// # Returns
 		/// A `DispatchResult` indicating the success or failure of the update
@@ -491,8 +481,8 @@ pub mod pallet {
 		/// updater not being authorized for the operation.
 		///
 		/// # Events
-		/// - `Update`: Emitted when a statement is successfully updated,
-		///   containing the `identifier`, `digest`, and `author`
+		/// - `Update`: Emitted when a statement is successfully updated, containing the
+		///   `identifier`, `digest`, and `author`
 		/// (updater).
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::update())]
@@ -584,11 +574,11 @@ pub mod pallet {
 		/// updater's information.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the dispatch call, which should be a
-		///   signed message from the updater.
+		/// - `origin`: The origin of the dispatch call, which should be a signed message from the
+		///   updater.
 		/// - `statement_id`: The identifier of the statement to be revoked.
-		/// - `authorization`: The authorization ID, verifying the updater's
-		///   delegation status if they are not the creator.
+		/// - `authorization`: The authorization ID, verifying the updater's delegation status if
+		///   they are not the creator.
 		///
 		/// # Returns
 		/// A `DispatchResult` indicating the success or failure of the
@@ -603,8 +593,8 @@ pub mod pallet {
 		/// authority to perform the revocation.
 		///
 		/// # Events
-		/// - `Revoked`: Emitted when a statement is successfully revoked,
-		///   containing the `identifier` of the statement and
+		/// - `Revoked`: Emitted when a statement is successfully revoked, containing the
+		///   `identifier` of the statement and
 		/// the `author` who is the updater.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::revoke())]
@@ -668,11 +658,11 @@ pub mod pallet {
 		/// with its identifier and the updater's details.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the dispatch call, which should be a
-		///   signed message from the updater.
+		/// - `origin`: The origin of the dispatch call, which should be a signed message from the
+		///   updater.
 		/// - `statement_id`: The identifier of the statement to be restored.
-		/// - `authorization`: The authorization ID, verifying the updater's
-		///   delegation status if they are not the creator.
+		/// - `authorization`: The authorization ID, verifying the updater's delegation status if
+		///   they are not the creator.
 		///
 		/// # Returns
 		/// A `DispatchResult` indicating the success or failure of the
@@ -687,8 +677,8 @@ pub mod pallet {
 		/// authority to perform the restoration.
 		///
 		/// # Events
-		/// - `Restored`: Emitted when a statement is successfully restored,
-		///   containing the `identifier` of the statement
+		/// - `Restored`: Emitted when a statement is successfully restored, containing the
+		///   `identifier` of the statement
 		/// and the `author` who is the updater.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::restore())]
@@ -753,11 +743,10 @@ pub mod pallet {
 		/// identifier and the updater's information.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the dispatch call, which should be a
-		///   signed message from the updater.
+		/// - `origin`: The origin of the dispatch call, which should be a signed message from the
+		///   updater.
 		/// - `statement_id`: The identifier of the statement to be removed.
-		/// - `authorization`: The authorization ID, verifying the updater's
-		///   delegation status.
+		/// - `authorization`: The authorization ID, verifying the updater's delegation status.
 		///
 		/// # Returns
 		/// A `DispatchResult` indicating the success or failure of the removal.
@@ -771,10 +760,9 @@ pub mod pallet {
 		/// removal.
 		///
 		/// # Events
-		/// - `Removed`: Emitted when a statement and all its entries are
-		///   completely removed.
-		/// - `PartialRemoval`: Emitted when only a portion of the entries are
-		///   removed, detailing the number of entries
+		/// - `Removed`: Emitted when a statement and all its entries are completely removed.
+		/// - `PartialRemoval`: Emitted when only a portion of the entries are removed, detailing
+		///   the number of entries
 		/// removed.
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove( ))]
@@ -883,14 +871,11 @@ pub mod pallet {
 		/// creation.
 		///
 		/// # Parameters
-		/// - `origin`: The origin of the dispatch call, which should be a
-		///   signed message from the creator.
-		/// - `digests`: A vector of statement digests to be processed in the
-		///   batch operation.
-		/// - `authorization`: The authorization ID, verifying the creator's
-		///   delegation status.
-		/// - `schema_id`: An optional schema identifier that may be associated
-		///   with the statements.
+		/// - `origin`: The origin of the dispatch call, which should be a signed message from the
+		///   creator.
+		/// - `digests`: A vector of statement digests to be processed in the batch operation.
+		/// - `authorization`: The authorization ID, verifying the creator's delegation status.
+		/// - `schema_id`: An optional schema identifier that may be associated with the statements.
 		///
 		/// # Returns
 		/// A `DispatchResult` indicating the success or failure of the batch
@@ -905,8 +890,8 @@ pub mod pallet {
 		/// being exceeded, or if no statements could be successfully created.
 		///
 		/// # Events
-		/// - `BatchCreate`: Emitted upon the completion of the batch operation,
-		///   providing details of the outcome.
+		/// - `BatchCreate`: Emitted upon the completion of the batch operation, providing details
+		///   of the outcome.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_batch(digests.len().saturated_into()))]
 		pub fn register_batch(
@@ -1003,27 +988,25 @@ pub mod pallet {
 		///
 		/// # Parameters
 		/// - `origin`: The transaction's origin, restricted to council or root.
-		/// - `statement_id`: The identifier of the statement to which the
-		///   presentation will be added.
-		/// - `presentation_digest`: The digest that uniquely identifies the new
-		///   presentation.
+		/// - `statement_id`: The identifier of the statement to which the presentation will be
+		///   added.
+		/// - `presentation_digest`: The digest that uniquely identifies the new presentation.
 		/// - `presentation_type`: The type categorization of the presentation.
-		/// - `authorization`: The authorization identifier for the creator,
-		///   required to perform the addition.
+		/// - `authorization`: The authorization identifier for the creator, required to perform the
+		///   addition.
 		///
 		/// # Errors
-		/// - Returns `StatementNotFound` if the `statement_id` does not
-		///   correspond to any existing statement.
-		/// - Returns `StatementRevoked` if the statement associated with the
-		///   `statement_id` has been revoked.
-		/// - Returns `UnauthorizedOperation` if the operation is not authorized
-		///   within the associated space.
-		/// - Returns `PresentationDigestAlreadyAnchored` if the
-		///   `presentation_digest` is not unique.
+		/// - Returns `StatementNotFound` if the `statement_id` does not correspond to any existing
+		///   statement.
+		/// - Returns `StatementRevoked` if the statement associated with the `statement_id` has
+		///   been revoked.
+		/// - Returns `UnauthorizedOperation` if the operation is not authorized within the
+		///   associated space.
+		/// - Returns `PresentationDigestAlreadyAnchored` if the `presentation_digest` is not
+		///   unique.
 		///
 		/// # Events
-		/// - Emits `PresentationAdded` upon the successful addition of the
-		///   presentation.
+		/// - Emits `PresentationAdded` upon the successful addition of the presentation.
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::add_presentation( ))]
 		pub fn add_presentation(
@@ -1093,22 +1076,19 @@ pub mod pallet {
 		///
 		/// # Parameters
 		/// - `origin`: The transaction's origin, restricted to council or root.
-		/// - `statement_id`: The identifier of the statement associated with
-		///   the presentation.
-		/// - `presentation_digest`: The digest that uniquely identifies the
-		///   presentation to be removed.
-		/// - `authorization`: The authorization identifier that the remover
-		///   must have to perform the removal.
+		/// - `statement_id`: The identifier of the statement associated with the presentation.
+		/// - `presentation_digest`: The digest that uniquely identifies the presentation to be
+		///   removed.
+		/// - `authorization`: The authorization identifier that the remover must have to perform
+		///   the removal.
 		///
 		/// # Errors
-		/// - Returns `PresentationNotFound` if the specified presentation does
-		///   not exist.
-		/// - Returns `UnauthorizedOperation` if the origin is not authorized to
-		///   perform this action.
+		/// - Returns `PresentationNotFound` if the specified presentation does not exist.
+		/// - Returns `UnauthorizedOperation` if the origin is not authorized to perform this
+		///   action.
 		///
 		/// # Events
-		/// - Emits `PresentationRemoved` upon the successful removal of the
-		///   presentation.
+		/// - Emits `PresentationRemoved` upon the successful removal of the presentation.
 		#[pallet::call_index(7)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_presentation( ))]
 		pub fn remove_presentation(
@@ -1161,10 +1141,8 @@ impl<T: Config> Pallet<T> {
 	/// it into the global timeline.
 	///
 	/// # Parameters
-	/// - `tx_id`: The identifier of the statement that the activity pertains
-	///   to.
-	/// - `tx_action`: The type of action taken on the statement, encapsulated
-	///   within `CallTypeOf`.
+	/// - `tx_id`: The identifier of the statement that the activity pertains to.
+	/// - `tx_action`: The type of action taken on the statement, encapsulated within `CallTypeOf`.
 	///
 	/// # Returns
 	/// Returns `Ok(())` after successfully updating the timeline. If any errors
@@ -1191,8 +1169,7 @@ impl<T: Config> Pallet<T> {
 	/// with `update_activity` to record when an event occurred.
 	///
 	/// # Returns
-	/// - `Timepoint`: A structure containing the current block number and
-	///   extrinsic index.
+	/// - `Timepoint`: A structure containing the current block number and extrinsic index.
 	pub fn timepoint() -> Timepoint {
 		Timepoint {
 			height: frame_system::Pallet::<T>::block_number().unique_saturated_into(),

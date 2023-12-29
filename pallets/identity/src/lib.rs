@@ -321,8 +321,7 @@ pub mod pallet {
 		/// The dispatch origin for this call must be _Signed_ and the sender
 		/// must have a registered identity.
 		///
-		/// - `reg_index`: The index of the registrar whose judgement is
-		///   requested.
+		/// - `reg_index`: The index of the registrar whose judgement is requested.
 		///
 		/// Emits `JudgementRequested` if successful.
 		#[pallet::call_index(3)]
@@ -352,7 +351,7 @@ pub mod pallet {
 			match id.judgements.binary_search_by_key(&registrar, |x| x.0.clone()) {
 				Ok(i) =>
 					if id.judgements[i].1.is_sticky() {
-						return Err(Error::<T>::StickyJudgement.into())
+						return Err(Error::<T>::StickyJudgement.into());
 					} else {
 						id.judgements[i] = item
 					},
@@ -379,8 +378,7 @@ pub mod pallet {
 		/// The dispatch origin for this call must be _Signed_ and the sender
 		/// must have a registered identity.
 		///
-		/// - `reg_index`: The index of the registrar whose judgement is no
-		///   longer requested.
+		/// - `reg_index`: The index of the registrar whose judgement is no longer requested.
 		///
 		/// Emits `JudgementUnrequested` if successful.
 		#[pallet::call_index(4)]
@@ -404,7 +402,7 @@ pub mod pallet {
 				// Judgement is in the "Requested" state, proceed with the cancellation
 				id.judgements.remove(pos);
 			} else {
-				return Err(Error::<T>::JudgementGiven.into())
+				return Err(Error::<T>::JudgementGiven.into());
 			}
 
 			let judgements = id.judgements.len();
@@ -439,14 +437,14 @@ pub mod pallet {
 						if let Some(registrar) = registrar_option {
 							if registrar.account == who {
 								registrar.account = new.clone();
-								return true
+								return true;
 							}
 						}
 						false
 					});
 
 					if !registrar_found {
-						return Err(DispatchError::from(Error::<T>::RegistrarNotFound))
+						return Err(DispatchError::from(Error::<T>::RegistrarNotFound));
 					}
 
 					Ok(registrars.len())
@@ -478,14 +476,14 @@ pub mod pallet {
 						if let Some(registrar) = registrar_option {
 							if registrar.account == who {
 								registrar.fields = fields;
-								return true
+								return true;
 							}
 						}
 						false
 					});
 
 					if !registrar {
-						return Err(DispatchError::from(Error::<T>::RegistrarNotFound))
+						return Err(DispatchError::from(Error::<T>::RegistrarNotFound));
 					}
 
 					Ok(registrars.len())
@@ -499,22 +497,18 @@ pub mod pallet {
 		/// The dispatch origin for this call must be _Signed_ and the sender
 		/// must be the account of the registrar whose index is `reg_index`.
 		///
-		/// - `reg_index`: the index of the registrar whose judgement is being
-		///   made.
-		/// - `target`: the account whose identity the judgement is upon. This
-		///   must be an account with a registered identity.
-		/// - `judgement`: the judgement of the registrar of index `reg_index`
-		///   about `target`.
-		/// - `identity`: The hash of the [`IdentityInfo`] for that the
-		///   judgement is provided.
+		/// - `reg_index`: the index of the registrar whose judgement is being made.
+		/// - `target`: the account whose identity the judgement is upon. This must be an account
+		///   with a registered identity.
+		/// - `judgement`: the judgement of the registrar of index `reg_index` about `target`.
+		/// - `identity`: The hash of the [`IdentityInfo`] for that the judgement is provided.
 		///
 		/// Emits `JudgementGiven` if successful.
 		///
 		/// ## Complexity
 		/// - `O(R + X)`.
 		///   - where `R` registrar-count (governance-bounded).
-		///   - where `X` additional-field-count (deposit-bounded and
-		///     code-bounded).
+		///   - where `X` additional-field-count (deposit-bounded and code-bounded).
 		#[pallet::call_index(7)]
 		#[pallet::weight(T::WeightInfo::provide_judgement(
 			T::MaxRegistrars::get(), // R
@@ -542,7 +536,7 @@ pub mod pallet {
 			let mut id = <IdentityOf<T>>::get(&target).ok_or(Error::<T>::InvalidTarget)?;
 
 			if T::Hashing::hash_of(&id.info) != digest {
-				return Err(Error::<T>::JudgementForDifferentIdentity.into())
+				return Err(Error::<T>::JudgementForDifferentIdentity.into());
 			}
 
 			let item = (registrar.clone(), judgement);
@@ -569,8 +563,8 @@ pub mod pallet {
 		///
 		/// The dispatch origin for this call must match `T::RegistrarOrigin`.
 		///
-		/// - `target`: the account whose identity the judgement is upon. This
-		///   must be an account with a registered identity.
+		/// - `target`: the account whose identity the judgement is upon. This must be an account
+		///   with a registered identity.
 		///
 		/// Emits `IdentityKilled` if successful.
 		#[pallet::call_index(8)]

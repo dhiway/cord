@@ -1,0 +1,135 @@
+[package]
+name = "cord-test-runtime"
+version = "0.9.1-dev"
+authors.workspace = true
+edition.workspace = true
+build = "build.rs"
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+sp-application-crypto = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false, features = [
+	"serde",
+] }
+sp-consensus-aura = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false, features = [
+	"serde",
+] }
+sp-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false, features = [
+	"serde",
+] }
+sp-genesis-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
+	"derive",
+] }
+scale-info = { version = "2.10.0", default-features = false, features = [
+	"derive",
+] }
+sp-inherents = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-keyring = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", optional = true }
+sp-offchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-version = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-session = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false, features = [
+	"serde",
+] }
+pallet-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+frame-executive = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+frame-system-rpc-runtime-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+pallet-timestamp = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-consensus-grandpa = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false, features = [
+	"serde",
+] }
+sp-trie = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-transaction-pool = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+trie-db = { version = "0.28.0", default-features = false }
+sc-service = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false, features = [
+	"test-helpers",
+], optional = true }
+sp-state-machine = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-externalities = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+
+# 3rd party
+array-bytes = { version = "6.1", optional = true }
+log = { version = "0.4.17", default-features = false }
+
+[dev-dependencies]
+futures = "0.3.21"
+sc-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
+sc-executor = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
+sc-executor-common = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
+sp-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
+cord-test-runtime-client = { path = "client" }
+sp-tracing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
+json-patch = { version = "1.0.0", default-features = false }
+serde = { version = "1.0.193", features = [
+	"alloc",
+	"derive",
+], default-features = false }
+serde_json = { version = "1.0.108", default-features = false, features = [
+	"alloc",
+] }
+
+[build-dependencies]
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", optional = true }
+
+[features]
+default = ["std"]
+
+std = [
+	"array-bytes",
+	"codec/std",
+	"frame-executive/std",
+	"frame-support/std",
+	"frame-system-rpc-runtime-api/std",
+	"frame-system/std",
+	"log/std",
+	"pallet-babe/std",
+	"pallet-balances/std",
+	"pallet-timestamp/std",
+	"sc-executor/std",
+	"sc-service",
+	"scale-info/std",
+	"serde/std",
+	"serde_json/std",
+	"sp-api/std",
+	"sp-application-crypto/std",
+	"sp-block-builder/std",
+	"sp-consensus-aura/std",
+	"sp-consensus-babe/std",
+	"sp-consensus-grandpa/std",
+	"sp-core/std",
+	"sp-externalities/std",
+	"sp-genesis-builder/std",
+	"sp-inherents/std",
+	"sp-io/std",
+	"sp-keyring",
+	"sp-offchain/std",
+	"sp-runtime/std",
+	"sp-session/std",
+	"sp-state-machine/std",
+	"sp-std/std",
+	"sp-tracing/std",
+	"sp-transaction-pool/std",
+	"sp-trie/std",
+	"sp-version/std",
+	"substrate-wasm-builder",
+	"trie-db/std",
+]
+# Special feature to disable logging
+disable-logging = ["sp-api/disable-logging"]

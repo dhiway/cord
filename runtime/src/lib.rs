@@ -18,7 +18,7 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limits.
-#![recursion_limit = "1024"]
+#![recursion_limit = "512"]
 
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
@@ -29,7 +29,7 @@ use cord_primitives::{
 };
 
 use frame_support::{
-	construct_runtime,
+	construct_runtime, derive_impl,
 	dispatch::DispatchClass,
 	genesis_builder_helper::{build_config, create_default_config},
 	parameter_types,
@@ -73,11 +73,14 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use static_assertions::const_assert;
 
+#[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
+#[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
+#[cfg(any(feature = "std", test))]
 pub use pallet_staking::StakerStatus;
-pub use pallet_timestamp::Call as TimestampCall;
-
+#[cfg(any(feature = "std", test))]
+pub use pallet_sudo::Call as SudoCall;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
@@ -87,10 +90,7 @@ use cord_runtime_constants::{currency::*, time::*};
 // Weights used in the runtime.
 mod weights;
 // CORD Pallets
-// mod authority_manager;
-mod entities;
 pub use authority_membership;
-pub use entities::ValidatorFullIdentification;
 pub use pallet_network_membership;
 pub mod benchmark;
 pub use benchmark::DummySignature;
@@ -121,7 +121,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cord"),
 	impl_name: create_runtime_str!("dhiway-cord"),
 	authoring_version: 0,
-	spec_version: 9001,
+	spec_version: 9010,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -172,8 +172,8 @@ pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
 /// We allow `Normal` extrinsics to fill up the block up to 80%, the rest can be
 /// used by  Operational  extrinsics.
 pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(80);
-/// We allow for 2 seconds of compute with a 6 second average block time.
-/// The storage proof size is not limited so far.
+/// We allow for 2 seconds of compute with a 6 second average block
+/// time. The storage proof size is not limited so far.
 pub const MAXIMUM_BLOCK_WEIGHT: Weight =
 	Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2), u64::MAX);
 
@@ -205,29 +205,22 @@ parameter_types! {
    pub const SS58Prefix: u8 = 29;
 }
 
+#[derive_impl(frame_system::config_preludes::SolochainDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Runtime {
 	type BaseCallFilter = BaseFilter;
 	type BlockWeights = RuntimeBlockWeights;
 	type BlockLength = RuntimeBlockLength;
 	type DbWeight = RocksDbWeight;
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
 	type Nonce = Nonce;
 	type Hash = Hash;
-	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = AccountIdLookup<AccountId, ()>;
 	type Block = Block;
-	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type Version = Version;
-	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<Balance>;
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
 	type SystemWeightInfo = weights::frame_system::WeightInfo<Runtime>;
 	type SS58Prefix = SS58Prefix;
-	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
@@ -243,7 +236,7 @@ pub struct OriginPrivilegeCmp;
 impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 	fn cmp_privilege(left: &OriginCaller, right: &OriginCaller) -> Option<Ordering> {
 		if left == right {
-			return Some(Ordering::Equal)
+			return Some(Ordering::Equal);
 		}
 
 		match (left, right) {
@@ -309,17 +302,12 @@ parameter_types! {
 impl pallet_babe::Config for Runtime {
 	type EpochDuration = EpochDuration;
 	type ExpectedBlockTime = ExpectedBlockTime;
-
 	// session module is the trigger
 	type EpochChangeTrigger = pallet_babe::ExternalTrigger;
-
 	type DisabledValidators = Session;
-
 	type WeightInfo = ();
-
 	type MaxAuthorities = MaxAuthorities;
-	type MaxNominators = ();
-
+	type MaxNominators = ConstU32<0>;
 	type KeyOwnerProof =
 		<Historical as KeyOwnerProofSystem<(KeyTypeId, pallet_babe::AuthorityId)>>::Proof;
 	type EquivocationReportSystem =
@@ -357,7 +345,7 @@ impl pallet_balances::Config for Runtime {
 	type AccountStore = System;
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = ConstU32<1>;
-	type MaxHolds = ConstU32<5>;
+	type MaxHolds = ConstU32<6>;
 	type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
 }
 
@@ -412,18 +400,26 @@ impl pallet_session::Config for Runtime {
 	type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
 }
 
-pub struct FullIdentificationOfImpl;
-impl sp_runtime::traits::Convert<AccountId, Option<entities::ValidatorFullIdentification>>
-	for FullIdentificationOfImpl
-{
-	fn convert(_: AccountId) -> Option<entities::ValidatorFullIdentification> {
-		Some(entities::ValidatorFullIdentification)
+//pub struct FullIdentificationOfImpl;
+//pub struct ValidatorFullIdentification;
+//impl sp_runtime::traits::Convert<AccountId, Option<ValidatorFullIdentification>>
+//	for FullIdentificationOfImpl
+//{
+//	fn convert(_: AccountId) -> Option<ValidatorFullIdentification> {
+//		Some(ValidatorFullIdentification)
+//	}
+//}
+//
+pub struct FullIdentificationOf;
+impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf {
+	fn convert(_: AccountId) -> Option<()> {
+		Some(Default::default())
 	}
 }
 
 impl pallet_session::historical::Config for Runtime {
-	type FullIdentification = ValidatorFullIdentification;
-	type FullIdentificationOf = FullIdentificationOfImpl;
+	type FullIdentification = ();
+	type FullIdentificationOf = FullIdentificationOf;
 }
 
 parameter_types! {
@@ -886,6 +882,7 @@ construct_runtime! (
 	}
 );
 
+#[rustfmt::skip]
 impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall {
 	fn derive_verification_key_relationship(
 		&self,
@@ -911,38 +908,54 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 		}
 		match self {
 			// DID creation is not allowed through the DID proxy.
-			RuntimeCall::Did(pallet_did::Call::create { .. }) =>
-				Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
-			RuntimeCall::Did { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::DidName { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::Schema { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::Statement { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::NetworkScore { .. } =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegate { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_admin_delegate { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegator { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::remove_delegate { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::create { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::archive { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::restore { .. }) =>
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) =>
-				single_key_relationship(&calls[..]),
-			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) =>
-				single_key_relationship(&calls[..]),
-			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) =>
-				single_key_relationship(&calls[..]),
+			RuntimeCall::Did(pallet_did::Call::create { .. }) => {
+				Err(pallet_did::RelationshipDeriveError::NotCallableByDid)
+			},
+			RuntimeCall::Did { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::DidName { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::Schema { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::Statement { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::NetworkScore { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegate { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_admin_delegate { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegator { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::remove_delegate { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::create { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::archive { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::restore { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {
+				single_key_relationship(&calls[..])
+			},
+			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) => {
+				single_key_relationship(&calls[..])
+			},
+			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
+				single_key_relationship(&calls[..])
+			},
 			#[cfg(not(feature = "runtime-benchmarks"))]
 			_ => Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
 			// By default, returns the authentication key
@@ -1287,7 +1300,7 @@ sp_api::impl_runtime_apis! {
 	fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
 			log::info!("try-runtime::on_runtime_upgrade cord.");
 			let weight = Executive::try_runtime_upgrade(checks).unwrap();
-			(weight, BlockWeights::get().max_block)
+			(weight, RuntimeBlockWeights::get().max_block)
 		}
 
 		fn execute_block(

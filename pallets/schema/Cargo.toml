@@ -1,24 +1,27 @@
 [package]
 name = 'pallet-schema'
 description = 'Manage Schemas'
-version = "0.9.0"
-authors = ['Dhiway Networks <info@dhiway.com>']
-edition = '2021'
-license = "GPL-3.0"
-homepage = "https://cord.network"
-repository = "https://github.com/dhiway/cord"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", features = [
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", features = [
 	"std",
 ] }
-sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", features = [
+sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", features = [
 	"std",
 ] }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", features = [
@@ -40,14 +43,14 @@ pallet-chain-space = { default-features = false, path = '../chain-space' }
 log = { version = "0.4.17", default-features = false }
 
 # Substrate dependencies
-frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false, optional = true }
-frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false }
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false, optional = true }
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false, optional = true }
-sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.3.0", default-features = false, optional = true }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false, optional = true }
+frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false, optional = true }
+sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false, optional = true }
+sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false, optional = true }
 
 [features]
 default = ['std']

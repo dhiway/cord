@@ -1,9 +1,7 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 BOTLabs GmbH.
 // Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Adapted to meet the requirements of the CORD project.
 
 // CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -83,8 +81,8 @@ pub fn start_node() -> Child {
 ///
 /// # Arguments
 ///
-/// * `args: &[&str]` - A slice of string references representing the arguments
-///   to pass to the `cargo b` command.
+/// * `args: &[&str]` - A slice of string references representing the arguments to pass to the
+///   `cargo b` command.
 ///
 /// # Panics
 ///
@@ -131,8 +129,8 @@ pub fn build_cord(args: &[&str]) {
 ///
 /// # Arguments
 ///
-/// * `child_stream` - An async tokio stream, e.g. from a child process
-///   `ChildStderr` or `ChildStdout`.
+/// * `child_stream` - An async tokio stream, e.g. from a child process `ChildStderr` or
+///   `ChildStdout`.
 /// * `re` - A `Regex` pattern to search for in the stream.
 ///
 /// # Returns
@@ -165,7 +163,7 @@ where
 	let mut stdio_reader = tokio::io::BufReader::new(stream).lines();
 	while let Ok(Some(line)) = stdio_reader.next_line().await {
 		if re.find(line.as_str()).is_some() {
-			return Ok(())
+			return Ok(());
 		}
 	}
 	Err(String::from("Stream closed without any lines matching the regex."))
@@ -188,7 +186,7 @@ pub async fn wait_n_finalized_blocks(n: usize, url: &str) {
 		if let Ok(block) = ChainApi::<(), Hash, Header, ()>::finalized_head(&rpc).await {
 			built_blocks.insert(block);
 			if built_blocks.len() > n {
-				break
+				break;
 			}
 		};
 		interval.tick().await;
