@@ -1,23 +1,24 @@
 #![cfg(feature = "runtime-benchmarks")]
 
-use crate::*;
+use super::*;
 use codec::Encode;
-use cord_primitives::curi::Ss58Identifier;
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
-use frame_support::{pallet_prelude::EnsureOrigin, sp_runtime::traits::Hash};
+use frame_support::sp_runtime::traits::Hash;
 use frame_system::RawOrigin;
+use identifier::{IdentifierType, Ss58Identifier};
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
 pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::to_space_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
 }
 
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::to_authorization_id(&(digest).encode()[..]).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
+		.unwrap()
 }
 
 const SEED: u32 = 0;
@@ -26,9 +27,8 @@ benchmarks! {
 		where_clause {
 			where
 			<T as Config>::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::SpaceCreatorId>,
-			T::ChainSpaceOrigin: EnsureOrigin<T::RuntimeOrigin>,
+			// T::ChainSpaceOrigin: EnsureOrigin<T::RuntimeOrigin>,
 		}
-
 		add_delegate {
 			let caller: T::AccountId = account("caller", 0, SEED);
 			let did: T::SpaceCreatorId = account("did", 0, SEED);

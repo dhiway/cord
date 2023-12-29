@@ -145,26 +145,6 @@ impl CordIdentifierType for Ss58Identifier {
 	}
 }
 
-// impl TryFrom<Vec<u8>> for Ss58Identifier {
-// 	type Error = &'static str;
-//
-// 	fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-// 		let identifier = Ss58Identifier::to_space_id(&value[..])
-// 			.map_err(|_| "Cannot convert provided input to a valid identifier.")?;
-//
-// 		Ok(identifier)
-// 	}
-// }
-
-// #[cfg(feature = "std")]
-// impl TryFrom<String> for Ss58Identifier {
-// 	type Error = &'static str;
-//
-// 	fn try_from(value: String) -> Result<Self, Self::Error> {
-// 		Self::try_from(value.into_bytes())
-// 	}
-// }
-
 impl Ss58Identifier {
 	/// Generate Blake2b Hash
 	pub fn ss58hash(data: &[u8]) -> Blake2bResult {
@@ -241,30 +221,6 @@ impl Ss58Identifier {
 			_ => Err(IdentifierError::InvalidPrefix),
 		}
 	}
-
-	// pub fn get_ident(id: Self, id_ident: u16) -> IdentVerificationResult {
-	// 	let identifier = str::from_utf8(id.inner()).map_err(|_| IdentifierError::InvalidFormat)?;
-	// 	let data = identifier.from_base58().map_err(|_| IdentifierError::InvalidIdentifier)?;
-	// 	if data.len() < 2 {
-	// 		return Err(IdentifierError::InvalidIdentifierLength);
-	// 	}
-	// 	ensure!(
-	// 		(identifier.len() > 2 && identifier.len() < 50),
-	// 		IdentifierError::InvalidIdentifierLength
-	// 	);
-	// 	let (_prefix_len, ident) = match data[0] {
-	// 		0..=63 => (1, data[0] as u16),
-	// 		64..=127 => {
-	// 			let lower = (data[0] << 2) | (data[1] >> 6);
-	// 			let upper = data[1] & 0b00111111;
-	// 			(2, (lower as u16) | ((upper as u16) << 8))
-	// 		},
-	// 		_ => return Err(IdentifierError::InvalidPrefix),
-	// 	};
-	//
-	// 	ensure!(ident == id_ident, IdentifierError::InvalidPrefix);
-	// 	Ok(())
-	// }
 
 	pub fn default_error() -> Self {
 		let error_value_base58 = [0].to_base58();

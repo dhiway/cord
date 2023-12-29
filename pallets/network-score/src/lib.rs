@@ -123,10 +123,11 @@ use sp_runtime::traits::UniqueSaturatedInto;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	pub use cord_primitives::{curi::Ss58Identifier, CountOf, RatingOf};
+	pub use cord_primitives::{CountOf, RatingOf};
 	use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, Twox64Concat};
 	use frame_system::pallet_prelude::*;
+	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
 	use sp_runtime::traits::Hash;
 	use sp_std::{prelude::Clone, str};
 
@@ -404,8 +405,11 @@ pub mod pallet {
 				.concat()[..],
 			);
 
-			let identifier = Ss58Identifier::to_scoring_id(&(id_digest).encode()[..])
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = Ss58Identifier::create_identifier(
+				&(id_digest).encode()[..],
+				IdentifierType::Rating,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
 				!<RatingEntries<T>>::contains_key(&identifier),
@@ -528,8 +532,11 @@ pub mod pallet {
 				.concat()[..],
 			);
 
-			let identifier = Ss58Identifier::to_scoring_id(&(id_digest).encode()[..])
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = Ss58Identifier::create_identifier(
+				&(id_digest).encode()[..],
+				IdentifierType::Rating,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
 				!<RatingEntries<T>>::contains_key(&identifier),
@@ -683,8 +690,11 @@ pub mod pallet {
 				.concat()[..],
 			);
 
-			let identifier = Ss58Identifier::to_scoring_id(&(id_digest).encode()[..])
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = Ss58Identifier::create_identifier(
+				&(id_digest).encode()[..],
+				IdentifierType::Rating,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
 				!<RatingEntries<T>>::contains_key(&identifier),
@@ -817,7 +827,7 @@ impl<T: Config> Pallet<T> {
 		let tx_moment = Self::timepoint();
 
 		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
-		let _ = identifier::Pallet::<T>::update_timeline(tx_id, IdentifierTypeOf::Rating, tx_entry);
+		let _ = IdentifierTimeline::update_timeline::<T>(tx_id, IdentifierTypeOf::Rating, tx_entry);
 		Ok(())
 	}
 

@@ -80,7 +80,7 @@ pub mod mock;
 #[cfg(test)]
 pub mod tests;
 
-use cord_primitives::{curi::Ss58Identifier, StatusOf};
+use cord_primitives::StatusOf;
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_runtime::traits::UniqueSaturatedInto;
 use sp_std::{prelude::Clone, str};
@@ -102,6 +102,7 @@ pub mod pallet {
 	use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::{OptionQuery, *};
 	use frame_system::pallet_prelude::*;
+	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
 	use sp_runtime::traits::Hash;
 
 	/// The current storage version.
@@ -411,8 +412,11 @@ pub mod pallet {
 				&[&digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let identifier = Ss58Identifier::to_statement_id(&(id_digest).encode()[..])
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = Ss58Identifier::create_identifier(
+				&(id_digest).encode()[..],
+				IdentifierType::Statement,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
 				!<Statements<T>>::contains_key(&identifier),
@@ -532,9 +536,6 @@ pub mod pallet {
 				&statement_id,
 				StatementDetailsOf::<T> { digest: new_statement_digest, ..statement_details },
 			);
-
-			pallet_chain_space::Pallet::<T>::increment_usage(&space_id)
-				.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			Self::update_activity(&statement_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
 
@@ -894,6 +895,7 @@ pub mod pallet {
 		///   of the outcome.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::register_batch(digests.len().saturated_into()))]
+		#[rustfmt::skip]
 		pub fn register_batch(
 			origin: OriginFor<T>,
 			digests: Vec<StatementDigestOf<T>>,
@@ -926,10 +928,13 @@ pub mod pallet {
 					.concat()[..],
 				);
 
-				let identifier_result = Ss58Identifier::to_statement_id(&id_digest.encode());
+				let identifier_result = Ss58Identifier::create_identifier(
+					&(id_digest).encode()[..],
+					IdentifierType::Statement,
+				);
 
 				match identifier_result {
-					Ok(identifier) =>
+					Ok(identifier) => {
 						if <Statements<T>>::contains_key(&identifier) {
 							fail += 1;
 							indices.push(index as u16);
@@ -952,7 +957,8 @@ pub mod pallet {
 							} else {
 								success += 1;
 							}
-						},
+						}
+					},
 					Err(_) => {
 						fail += 1;
 						indices.push(index as u16);
@@ -1158,7 +1164,7 @@ impl<T: Config> Pallet<T> {
 
 		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
 		let _ =
-			identifier::Pallet::<T>::update_timeline(tx_id, IdentifierTypeOf::Statement, tx_entry);
+			IdentifierTimeline::update_timeline::<T>(tx_id, IdentifierTypeOf::Statement, tx_entry);
 		Ok(())
 	}
 
