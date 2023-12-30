@@ -33,8 +33,7 @@ pub use crate::types::*;
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
 
-pub use crate::{pallet::*, types::*};
-pub use pallet::*;
+pub use crate::pallet::*;
 use sp_std::vec;
 
 #[frame_support::pallet]
