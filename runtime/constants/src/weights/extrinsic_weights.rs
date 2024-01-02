@@ -18,7 +18,7 @@
 
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 4.0.0-dev
 //! DATE: 2024-01-02 (Y/M/D)
-//! HOSTNAME: `pi.lan`, CPU: `<UNKNOWN>`
+//! HOSTNAME: `smohan-dev-host`, CPU: `Intel(R) Xeon(R) CPU @ 2.20GHz`
 //!
 //! SHORT-NAME: `extrinsic`, LONG-NAME: `ExtrinsicBase`, RUNTIME: `Cord Ignite`
 //! WARMUPS: `10`, REPEAT: `100`
@@ -26,7 +26,7 @@
 //! WEIGHT-METRIC: `Average`, WEIGHT-MUL: `1.0`, WEIGHT-ADD: `0`
 
 // Executed Command:
-//   ./target/release/cord
+//   ./target/production/cord
 //   benchmark
 //   overhead
 //   --chain=dev
@@ -44,17 +44,17 @@ parameter_types! {
 	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 63_351, 90_580
-	///   Average:  65_696
-	///   Median:   64_367
-	///   Std-Dev:  4226.27
+	///   Min, Max: 115_322, 119_214
+	///   Average:  116_296
+	///   Median:   116_212
+	///   Std-Dev:  546.78
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 83_508
-	///   95th: 74_027
-	///   75th: 65_536
+	///   99th: 118_010
+	///   95th: 117_095
+	///   75th: 116_507
 	pub const ExtrinsicBaseWeight: Weight =
-		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(65_696), 0);
+		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(116_296), 0);
 }
 
 #[cfg(test)]
