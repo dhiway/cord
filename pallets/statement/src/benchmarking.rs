@@ -38,7 +38,6 @@ benchmarks! {
 		<T as Config>::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::SpaceCreatorId>,
 	}
 	register {
-		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
@@ -80,7 +79,6 @@ benchmarks! {
 	}
 
 	update {
-		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
@@ -128,7 +126,6 @@ benchmarks! {
 	}
 
 	revoke {
-		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
@@ -169,7 +166,6 @@ benchmarks! {
 	}
 
 	restore {
-		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
@@ -291,7 +287,6 @@ benchmarks! {
 	}
 
 	add_presentation {
-		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);
@@ -333,7 +328,6 @@ benchmarks! {
 	}
 
 	remove_presentation {
-		let l in 1 .. MAX_PAYLOAD_BYTE_LENGTH;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let did: T::SpaceCreatorId = account("did", 0, SEED);

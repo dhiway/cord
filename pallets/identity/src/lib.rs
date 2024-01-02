@@ -147,8 +147,6 @@ pub mod pallet {
 		>,
 		ValueQuery,
 	>;
-	// pub(super) type Registrars<T: Config> =
-	// 	StorageValue<_, BoundedVec<T::AccountId, T::MaxRegistrars>, ValueQuery>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -326,9 +324,10 @@ pub mod pallet {
 		/// Emits `JudgementRequested` if successful.
 		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::request_judgement(
-			T::MaxRegistrars::get(), // R
-			T::MaxAdditionalFields::get(), // X
+		T::MaxRegistrars::get(), // R
+		T::MaxAdditionalFields::get(), // X
 		))]
+		#[rustfmt::skip]
 		pub fn request_judgement(
 			origin: OriginFor<T>,
 			registrar: T::AccountId,
@@ -349,14 +348,16 @@ pub mod pallet {
 			let item = (registrar_acc, Judgement::Requested);
 
 			match id.judgements.binary_search_by_key(&registrar, |x| x.0.clone()) {
-				Ok(i) =>
+				Ok(i) => {
 					if id.judgements[i].1.is_sticky() {
 						return Err(Error::<T>::StickyJudgement.into());
 					} else {
 						id.judgements[i] = item
-					},
-				Err(i) =>
-					id.judgements.try_insert(i, item).map_err(|_| Error::<T>::TooManyRegistrars)?,
+					}
+				},
+				Err(i) => {
+					id.judgements.try_insert(i, item).map_err(|_| Error::<T>::TooManyRegistrars)?
+				},
 			}
 
 			let judgements = id.judgements.len();
@@ -601,7 +602,7 @@ pub mod pallet {
 		///
 		/// Emits `RegistrarRemoved` if successful.
 		#[pallet::call_index(9)]
-		#[pallet::weight(T::WeightInfo::remove_registrar())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove_registrar(T::MaxRegistrars::get()))]
 		pub fn remove_registrar(
 			origin: OriginFor<T>,
 			account: AccountIdLookupOf<T>,
@@ -609,24 +610,25 @@ pub mod pallet {
 			T::RegistrarOrigin::ensure_origin(origin)?;
 			let account_id = T::Lookup::lookup(account)?;
 
-			<Registrars<T>>::try_mutate(|registrars| -> Result<(), DispatchError> {
-				let position = registrars
-					.iter()
-					.position(|registrar_option| {
-						if let Some(registrar_info) = registrar_option {
-							registrar_info.account == account_id
-						} else {
-							false
-						}
-					})
-					.ok_or(Error::<T>::RegistrarNotFound)?;
-				registrars.remove(position);
-				Ok(())
-			})?;
+			let registrar_count =
+				<Registrars<T>>::try_mutate(|registrars| -> Result<usize, DispatchError> {
+					let position = registrars
+						.iter()
+						.position(|registrar_option| {
+							if let Some(registrar_info) = registrar_option {
+								registrar_info.account == account_id
+							} else {
+								false
+							}
+						})
+						.ok_or(Error::<T>::RegistrarNotFound)?;
+					registrars.remove(position);
+					Ok(registrars.len())
+				})?;
 
 			Self::deposit_event(Event::RegistrarRemoved { registrar: account_id });
 
-			Ok(Some(T::WeightInfo::remove_registrar()).into())
+			Ok(Some(T::WeightInfo::remove_registrar(registrar_count as u32)).into())
 		}
 	}
 }

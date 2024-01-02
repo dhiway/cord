@@ -16,10 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION
-//! 4.0.0-dev DATE: 2023-05-25 (Y/M/D)
-//! HOSTNAME: `ip-172-31-3-249`, CPU: `Intel(R) Xeon(R) Platinum 8375C CPU @
-//! 2.90GHz`
+//! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 4.0.0-dev
+//! DATE: 2024-01-02 (Y/M/D)
+//! HOSTNAME: `pi.lan`, CPU: `<UNKNOWN>`
 //!
 //! SHORT-NAME: `block`, LONG-NAME: `BlockExecution`, RUNTIME: `Cord Ignite`
 //! WARMUPS: `10`, REPEAT: `100`
@@ -27,11 +26,10 @@
 //! WEIGHT-METRIC: `Average`, WEIGHT-MUL: `1.0`, WEIGHT-ADD: `0`
 
 // Executed Command:
-//   ./target/production/cord
+//   ./target/release/cord
 //   benchmark
 //   overhead
 //   --chain=dev
-//   --execution=wasm
 //   --wasm-execution=compiled
 //   --weight-path=runtime/constants/src/weights/
 //   --warmup=10
@@ -46,17 +44,17 @@ parameter_types! {
 	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 218_200, 244_112
-	///   Average:  223_580
-	///   Median:   221_485
-	///   Std-Dev:  5572.62
+	///   Min, Max: 509_458, 930_292
+	///   Average:  539_319
+	///   Median:   518_459
+	///   Std-Dev:  60118.9
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 240_098
-	///   95th: 236_504
-	///   75th: 223_531
+	///   99th: 814_833
+	///   95th: 632_958
+	///   75th: 526_542
 	pub const BlockExecutionWeight: Weight =
-		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(223_580), 0);
+		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(539_319), 0);
 }
 
 #[cfg(test)]

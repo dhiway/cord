@@ -51,25 +51,24 @@ done
 
 if [ "$skip_build" != true ]; then
   echo "[+] Compiling CORD benchmarks..."
-  cargo build --profile=production --locked --features=runtime-benchmarks --bin cord
+  cargo build --profile=release --locked --features=runtime-benchmarks --bin cord
 fi
 
 # The executable to use.
-CORD=./target/production/cord
+CORD=./target/release/cord
 
 # Manually exclude some pallets.
 PALLETS=(
-  "pallet_schema"
   "pallet_chain_space"
+  "pallet_collective"
   "pallet_did"
   "pallet_did_name"
-  "pallet_network_membership"
-  "pallet_statement"
-  "pallet_membership"
-  "pallet_collective"
-  "pallet_unique"
-  "pallet_network_score"
   "pallet_identity"
+  "pallet_membership"
+  "pallet_network_membership"
+  "pallet_network_score"
+  "pallet_schema"
+  "pallet_statement"
 )
 
 echo "[+] Benchmarking ${#PALLETS[@]} pallets."
@@ -90,35 +89,35 @@ for PALLET in "${PALLETS[@]}"; do
   fi
 
   case $PALLET in
+  pallet_chain_space)
+    FOLDER="chain-space"
+    ;;
+  pallet_collective)
+    FOLDER="collective"
+    ;;
   pallet_did)
     FOLDER="did"
     ;;
   pallet_did_name)
     FOLDER="did-name"
     ;;
-  pallet_schema)
-    FOLDER="schema"
-    ;;
-  pallet_chain_space)
-    FOLDER="chain_space"
-    ;;
-  pallet_network_membership)
-    FOLDER="network-membership"
-    ;;
-  pallet_statement)
-    FOLDER="statement"
+  pallet_identity)
+    FOLDER="identity"
     ;;
   pallet_membership)
     FOLDER="membership"
     ;;
-  pallet_collective)
-    FOLDER="collective"
-    ;;
-  pallet_identity)
-    FOLDER="identity"
+  pallet_network_membership)
+    FOLDER="network-membership"
     ;;
   pallet_network_score)
-    FOLDER="network_score"
+    FOLDER="network-score"
+    ;;
+  pallet_schema)
+    FOLDER="schema"
+    ;;
+  pallet_statement)
+    FOLDER="statement"
     ;;
 
   *)
@@ -134,11 +133,10 @@ for PALLET in "${PALLETS[@]}"; do
   OUTPUT=$(
     $CORD benchmark pallet \
       --chain=dev \
-      --steps=50 \
-      --repeat=20 \
+      --steps=5 \
+      --repeat=2 \
       --pallet="$PALLET" \
       --extrinsic="*" \
-      --execution=wasm \
       --wasm-execution=compiled \
       --heap-pages=4096 \
       --output="$WEIGHT_FILE" \

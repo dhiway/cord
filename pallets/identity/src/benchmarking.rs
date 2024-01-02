@@ -97,10 +97,7 @@ mod benchmarks {
 	}
 
 	#[benchmark]
-	fn set_identity(
-		r: Linear<1, { T::MaxRegistrars::get() }>,
-		x: Linear<0, { T::MaxAdditionalFields::get() }>,
-	) -> Result<(), BenchmarkError> {
+	fn set_identity(r: Linear<0, { T::MaxAdditionalFields::get() }>) -> Result<(), BenchmarkError> {
 		add_registrars::<T>(r)?;
 
 		let caller: T::AccountId = whitelisted_caller();
@@ -128,7 +125,7 @@ mod benchmarks {
 		#[extrinsic_call]
 		_(
 			RawOrigin::Signed(caller.clone()),
-			Box::new(T::IdentityInformation::create_identity_info(x)),
+			Box::new(T::IdentityInformation::create_identity_info(r)),
 		);
 
 		assert_last_event::<T>(Event::<T>::IdentitySet { who: caller }.into());
