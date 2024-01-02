@@ -766,7 +766,7 @@ pub mod pallet {
 		///   the number of entries
 		/// removed.
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove( ))]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove(T::MaxRemoveEntries::get() as u32))]
 		pub fn remove(
 			origin: OriginFor<T>,
 			statement_id: StatementIdOf,
@@ -839,13 +839,9 @@ pub mod pallet {
 				}
 			};
 
-			// Calculate the dynamic weight based on entries_count
-			let dynamic_weight =
-				<T as Config>::WeightInfo::remove().saturating_mul(entries_count as u64);
-
 			Self::deposit_event(event);
 
-			Ok(Some(dynamic_weight).into())
+			Ok(Some(<T as Config>::WeightInfo::remove(entries_count as u32)).into())
 		}
 
 		/// Creates multiple statements in a batch operation. This function

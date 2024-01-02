@@ -23,11 +23,11 @@ done
 
 if [ "$skip_build" != true ]; then
   echo "[+] Compiling benchmarks..."
-  cargo build --profile=production --locked --features=runtime-benchmarks --bin cord
+  cargo build --profile=release --locked --features=runtime-benchmarks --bin cord
 fi
 
 # The executable to use.
-CORD=./target/production/cord
+CORD=./target/release/cord
 
 # Load all pallet names in an array.
 PALLETS=($(
@@ -58,8 +58,8 @@ for PALLET in "${PALLETS[@]}"; do
   OUTPUT=$(
     $CORD benchmark pallet \
       --chain=dev \
-      --steps=50 \
-      --repeat=20 \
+      --steps=5 \
+      --repeat=2 \
       --pallet="$PALLET" \
       --extrinsic="*" \
       --execution=wasm \
@@ -79,7 +79,6 @@ echo "[+] Benchmarking block and extrinsic overheads..."
 OUTPUT=$(
   $CORD benchmark overhead \
     --chain="dev" \
-    --execution=wasm \
     --wasm-execution=compiled \
     --weight-path="runtime/constants/src/weights/" \
     --warmup=10 \
