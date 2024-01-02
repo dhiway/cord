@@ -51,11 +51,11 @@ done
 
 if [ "$skip_build" != true ]; then
   echo "[+] Compiling CORD benchmarks..."
-  cargo build --profile=release --locked --features=runtime-benchmarks --bin cord
+  cargo build --profile=production --locked --features=runtime-benchmarks --bin cord
 fi
 
 # The executable to use.
-CORD=./target/release/cord
+CORD=./target/production/cord
 
 # Manually exclude some pallets.
 PALLETS=(
@@ -133,8 +133,8 @@ for PALLET in "${PALLETS[@]}"; do
   OUTPUT=$(
     $CORD benchmark pallet \
       --chain=dev \
-      --steps=5 \
-      --repeat=2 \
+      --steps=50 \
+      --repeat=20 \
       --pallet="$PALLET" \
       --extrinsic="*" \
       --wasm-execution=compiled \

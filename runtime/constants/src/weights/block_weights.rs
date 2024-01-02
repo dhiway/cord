@@ -18,7 +18,7 @@
 
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 4.0.0-dev
 //! DATE: 2024-01-02 (Y/M/D)
-//! HOSTNAME: `pi.lan`, CPU: `<UNKNOWN>`
+//! HOSTNAME: `smohan-dev-host`, CPU: `Intel(R) Xeon(R) CPU @ 2.20GHz`
 //!
 //! SHORT-NAME: `block`, LONG-NAME: `BlockExecution`, RUNTIME: `Cord Ignite`
 //! WARMUPS: `10`, REPEAT: `100`
@@ -26,7 +26,7 @@
 //! WEIGHT-METRIC: `Average`, WEIGHT-MUL: `1.0`, WEIGHT-ADD: `0`
 
 // Executed Command:
-//   ./target/release/cord
+//   ./target/production/cord
 //   benchmark
 //   overhead
 //   --chain=dev
@@ -44,17 +44,17 @@ parameter_types! {
 	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 509_458, 930_292
-	///   Average:  539_319
-	///   Median:   518_459
-	///   Std-Dev:  60118.9
+	///   Min, Max: 280_638, 577_472
+	///   Average:  296_782
+	///   Median:   289_366
+	///   Std-Dev:  31325.24
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 814_833
-	///   95th: 632_958
-	///   75th: 526_542
+	///   99th: 354_400
+	///   95th: 326_914
+	///   75th: 297_281
 	pub const BlockExecutionWeight: Weight =
-		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(539_319), 0);
+		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(296_782), 0);
 }
 
 #[cfg(test)]
