@@ -23,7 +23,6 @@
 pub mod impls;
 
 use frame_support::{dispatch::DispatchResult, ensure, pallet_prelude::*, traits::EnsureOrigin};
-pub use impls::*;
 pub use pallet::*;
 use sp_runtime::traits::Convert;
 use sp_staking::{

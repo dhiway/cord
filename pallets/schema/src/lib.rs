@@ -61,7 +61,7 @@ use sp_runtime::traits::UniqueSaturatedInto;
 /// Extra Types for Schema
 pub mod types;
 
-pub use crate::{pallet::*, types::*, weights::WeightInfo};
+pub use crate::{types::*, weights::WeightInfo};
 use frame_support::ensure;
 
 #[frame_support::pallet]
