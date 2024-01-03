@@ -29,6 +29,7 @@ use frame_benchmarking::{account, benchmarks_instance_pallet, whitelisted_caller
 use frame_system::{
 	pallet_prelude::BlockNumberFor, Call as SystemCall, Pallet as System, RawOrigin as SystemOrigin,
 };
+// use pallet_network_membership::traits::IsMember;
 
 const SEED: u32 = 0;
 
@@ -53,7 +54,14 @@ set_members {
 	let mut old_members = vec![];
 	for i in 0 .. m {
 		let old_member = account::<T::AccountId>("member", i, SEED);
-		NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), old_member.clone(), false).expect("Approval should not fail.");
+		match NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), old_member.clone(), false) {
+			Ok(_) => {},
+			Err(e) => {
+				if e != pallet_network_membership::Error::<T>::MembershipAlreadyAcquired.into() {
+					panic!("Unexpected error during nomination: {:?}", e);
+				}
+			}
+		}
 		old_members.push(old_member);
 	}
 	let old_members_count = old_members.len() as u32;
@@ -127,7 +135,15 @@ execute {
 	let caller: T::AccountId = whitelisted_caller();
 	members.push(caller.clone());
 
-	NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
+	match NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false) {
+		Ok(_) => {},
+		Err(e) => {
+			if e != pallet_network_membership::Error::<T>::MembershipAlreadyAcquired.into() {
+				panic!("Unexpected error during nomination: {:?}", e);
+			}
+		}
+	}
+		// NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
 	Collective::<T, I>::set_members(SystemOrigin::Root.into(), members, None, T::MaxMembers::get())?;
 
 	let proposal: T::Proposal = SystemCall::<T>::remark { remark: id_to_remark_data(1, b as usize) }.into();
@@ -158,7 +174,15 @@ propose_execute {
 	let caller: T::AccountId = whitelisted_caller();
 	members.push(caller.clone());
 
-	NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
+	match NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false) {
+		Ok(_) => {},
+		Err(e) => {
+			if e != pallet_network_membership::Error::<T>::MembershipAlreadyAcquired.into() {
+				panic!("Unexpected error during nomination: {:?}", e);
+			}
+		}
+	}
+		// NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
 	Collective::<T, I>::set_members(SystemOrigin::Root.into(), members, None, T::MaxMembers::get())?;
 
 	let proposal: T::Proposal = SystemCall::<T>::remark { remark: id_to_remark_data(1, b as usize) }.into();
@@ -189,7 +213,16 @@ propose_proposed {
 	}
 	let caller: T::AccountId = whitelisted_caller();
 	members.push(caller.clone());
-	NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
+	match NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false) {
+		Ok(_) => {},
+		Err(e) => {
+			if e != pallet_network_membership::Error::<T>::MembershipAlreadyAcquired.into() {
+				panic!("Unexpected error during nomination: {:?}", e);
+			}
+		}
+	}
+
+			// NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
 	Collective::<T, I>::set_members(SystemOrigin::Root.into(), members, None, T::MaxMembers::get())?;
 
 	let threshold = m;
@@ -235,7 +268,16 @@ vote {
 	}
 	let voter: T::AccountId = account::<T::AccountId>("member", 98, SEED);
 	members.push(voter.clone());
-	NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), proposer.clone(), false).expect("Approval should not fail.");
+	match NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), proposer.clone(), false) {
+		Ok(_) => {},
+		Err(e) => {
+			if e != pallet_network_membership::Error::<T>::MembershipAlreadyAcquired.into() {
+				panic!("Unexpected error during nomination: {:?}", e);
+			}
+		}
+	}
+
+	// NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), proposer.clone(), false).expect("Approval should not fail.");
 	Collective::<T, I>::set_members(SystemOrigin::Root.into(), members.clone(), None, T::MaxMembers::get())?;
 
 	// Threshold is 1 less than the number of members so that one person can vote nay
@@ -311,7 +353,16 @@ close_early_disapproved {
 	}
 	let voter = account::<T::AccountId>("member", 99, SEED);
 	members.push(voter.clone());
-	NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), proposer.clone(), false).expect("Approval should not fail.");
+	match NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), proposer.clone(), false) {
+		Ok(_) => {},
+		Err(e) => {
+			if e != pallet_network_membership::Error::<T>::MembershipAlreadyAcquired.into() {
+				panic!("Unexpected error during nomination: {:?}", e);
+			}
+		}
+	}
+
+	// NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), proposer.clone(), false).expect("Approval should not fail.");
 	Collective::<T, I>::set_members(SystemOrigin::Root.into(), members.clone(), None, T::MaxMembers::get())?;
 
 	// Threshold is total members so that one nay will disapprove the vote
@@ -389,7 +440,16 @@ close_early_approved {
 	}
 	let caller: T::AccountId = whitelisted_caller();
 	members.push(caller.clone());
-	NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
+	match NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false) {
+		Ok(_) => {},
+		Err(e) => {
+			if e != pallet_network_membership::Error::<T>::MembershipAlreadyAcquired.into() {
+				panic!("Unexpected error during nomination: {:?}", e);
+			}
+		}
+	}
+
+			// NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
 	Collective::<T, I>::set_members(SystemOrigin::Root.into(), members.clone(), None, T::MaxMembers::get())?;
 
 	// Threshold is 2 so any two ayes will approve the vote
@@ -471,7 +531,16 @@ close_disapproved {
 	}
 	let caller: T::AccountId = whitelisted_caller();
 	members.push(caller.clone());
-	NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
+	match NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false) {
+		Ok(_) => {},
+		Err(e) => {
+			if e != pallet_network_membership::Error::<T>::MembershipAlreadyAcquired.into() {
+				panic!("Unexpected error during nomination: {:?}", e);
+			}
+		}
+	}
+
+			// NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
 
 	Collective::<T, I>::set_members(
 		SystemOrigin::Root.into(),
@@ -555,7 +624,16 @@ close_approved {
 	}
 	let caller: T::AccountId = whitelisted_caller();
 	members.push(caller.clone());
-	NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
+	match NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false) {
+		Ok(_) => {},
+		Err(e) => {
+			if e != pallet_network_membership::Error::<T>::MembershipAlreadyAcquired.into() {
+				panic!("Unexpected error during nomination: {:?}", e);
+			}
+		}
+	}
+
+	// NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
 	Collective::<T, I>::set_members(
 		SystemOrigin::Root.into(),
 		members.clone(),
@@ -627,7 +705,17 @@ disapprove_proposal {
 	}
 	let caller = account::<T::AccountId>("member", 10, SEED);
 	members.push(caller.clone());
-	NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
+	match NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false) {
+		Ok(_) => {},
+		Err(e) => {
+			if e != pallet_network_membership::Error::<T>::MembershipAlreadyAcquired.into() {
+				panic!("Unexpected error during nomination: {:?}", e);
+			}
+		}
+	}
+
+
+			// NetworkMembership::Pallet::<T>::nominate(SystemOrigin::Root.into(), caller.clone(), false).expect("Approval should not fail.");
 	Collective::<T, I>::set_members(
 		SystemOrigin::Root.into(),
 		members.clone(),
