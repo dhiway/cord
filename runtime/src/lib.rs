@@ -165,7 +165,7 @@ type EnsureRootOrCommitteeApproval = EitherOfDiverse<
 /// a single extrinsic will not be allowed to consume more than
 /// `AvailableBlockRatio - 10%`.
 pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
-/// We allow `Normal` extrinsics to fill up the block up to 60%, the rest can be
+/// We allow `Normal` extrinsics to fill up the block up to 50%, the rest can be
 /// used by  Operational  extrinsics.
 pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(50);
 // We'll verify that WEIGHT_REF_TIME_PER_SECOND does not overflow, allowing us to use
