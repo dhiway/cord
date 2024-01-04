@@ -40,11 +40,23 @@ pub mod currency {
 
 /// Time and blocks.
 pub mod time {
-	use cord_primitives::{prod_or_fast, BlockNumber, Moment};
+	use cord_primitives::{BlockNumber, Moment};
 	pub const MILLISECS_PER_BLOCK: Moment = 3000;
+
+	// NOTE: Currently it is not possible to change the slot duration after the chain has started.
+	//       Attempting to do so will brick block production.
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
+
+	// NOTE: Currently it is not possible to change the epoch duration after the chain has started.
+	//       Attempting to do so will brick block production.
 	#[allow(clippy::identity_op)]
-	pub const EPOCH_DURATION: BlockNumber = prod_or_fast!(2 * MINUTES, 1 * MINUTES);
+	pub const EPOCH_DURATION_IN_BLOCKS: BlockNumber = 2 * MINUTES;
+	pub const EPOCH_DURATION_IN_SLOTS: u64 = {
+		const SLOT_FILL_RATE: f64 = MILLISECS_PER_BLOCK as f64 / SLOT_DURATION as f64;
+
+		(EPOCH_DURATION_IN_BLOCKS as f64 * SLOT_FILL_RATE) as u64
+	};
+
 	pub const MINIMUM_DURATION: u64 = SLOT_DURATION / 2;
 
 	// These time units are defined in number of blocks.
