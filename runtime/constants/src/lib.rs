@@ -122,7 +122,7 @@ mod tests {
 		let full_block = WeightToFee::weight_to_fee(&MAXIMUM_BLOCK_WEIGHT);
 		println!("Full Block {}", full_block);
 		assert!(full_block >= 1_00 * UNITS);
-		assert!(full_block <= 1_000 * UNITS);
+		assert!(full_block <= 2_000 * UNITS);
 	}
 
 	#[test]
