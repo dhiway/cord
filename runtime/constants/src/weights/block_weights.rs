@@ -17,8 +17,8 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 4.0.0-dev
-//! DATE: 2024-01-02 (Y/M/D)
-//! HOSTNAME: `smohan-dev-host`, CPU: `Intel(R) Xeon(R) CPU @ 2.20GHz`
+//! DATE: 2024-01-04 (Y/M/D)
+//! HOSTNAME: `smohan-dev-host`, CPU: `AMD EPYC 7B12`
 //!
 //! SHORT-NAME: `block`, LONG-NAME: `BlockExecution`, RUNTIME: `Cord Ignite`
 //! WARMUPS: `10`, REPEAT: `100`
@@ -44,17 +44,17 @@ parameter_types! {
 	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 280_638, 577_472
-	///   Average:  296_782
-	///   Median:   289_366
-	///   Std-Dev:  31325.24
+	///   Min, Max: 195_430, 221_230
+	///   Average:  201_904
+	///   Median:   200_409
+	///   Std-Dev:  5093.73
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 354_400
-	///   95th: 326_914
-	///   75th: 297_281
+	///   99th: 221_051
+	///   95th: 211_640
+	///   75th: 204_240
 	pub const BlockExecutionWeight: Weight =
-		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(296_782), 0);
+		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(201_904), 0);
 }
 
 #[cfg(test)]
