@@ -41,6 +41,7 @@ use frame_support::{
 	weights::{
 		constants::{
 			BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_MILLIS,
+			WEIGHT_REF_TIME_PER_SECOND,
 		},
 		Weight,
 	},
@@ -160,49 +161,50 @@ type EnsureRootOrCommitteeApproval = EitherOfDiverse<
 	pallet_collective::EnsureProportionMoreThan<AccountId, TechnicalCollective, 3, 5>,
 >;
 
-// // Technical Committee Council
-// pub type EnsureRootOrAllTechnicalCommittee = EitherOfDiverse<
-// 	EnsureRoot<AccountId>,
-// 	pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1,
-// 1>, >;
-
-/// We assume that an on-initialize consumes 1% of the weight on average, hence
+/// We assume that an on-initialize consumes 10% of the weight on average, hence
 /// a single extrinsic will not be allowed to consume more than
-/// `AvailableBlockRatio - 1%`.
-pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
-/// We allow `Normal` extrinsics to fill up the block up to 80%, the rest can be
+/// `AvailableBlockRatio - 10%`.
+pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
+/// We allow `Normal` extrinsics to fill up the block up to 50%, the rest can be
 /// used by  Operational  extrinsics.
-pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(80);
-/// We allow for 2 seconds of compute with a 6 second average block
-/// time. The storage proof size is not limited so far.
-pub const MAXIMUM_BLOCK_WEIGHT: Weight =
-	Weight::from_parts(WEIGHT_REF_TIME_PER_MILLIS.saturating_mul(1500), u64::MAX);
+pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(50);
+// We'll verify that WEIGHT_REF_TIME_PER_SECOND does not overflow, allowing us to use
+// simple multiply and divide operators instead of saturating or checked ones.
+const_assert!(WEIGHT_REF_TIME_PER_SECOND.checked_div(3).is_some());
+const_assert!((WEIGHT_REF_TIME_PER_SECOND / 3).checked_mul(2).is_some());
+/// We allow for 1/3 of block time for computations, with maximum proof size.
+/// It's 3/3 sec for cord runtime with 3 second block duration.
+const MAXIMUM_BLOCK_WEIGHT: Weight =
+	Weight::from_parts(WEIGHT_REF_TIME_PER_MILLIS * MILLISECS_PER_BLOCK / 3, u64::MAX);
 
 const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO.deconstruct());
+
+pub fn block_weights_for(maximum_block_weight: Weight) -> BlockWeights {
+	BlockWeights::builder()
+		.base_block(BlockExecutionWeight::get())
+		.for_class(DispatchClass::all(), |weights| {
+			weights.base_extrinsic = ExtrinsicBaseWeight::get();
+		})
+		.for_class(DispatchClass::Normal, |weights| {
+			weights.max_total = Some(NORMAL_DISPATCH_RATIO * maximum_block_weight);
+		})
+		.for_class(DispatchClass::Operational, |weights| {
+			weights.max_total = Some(maximum_block_weight);
+			// Operational transactions have some extra reserved space, so that they
+			// are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
+			weights.reserved =
+				Some(maximum_block_weight - NORMAL_DISPATCH_RATIO * maximum_block_weight);
+		})
+		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
+		.build_or_panic()
+}
 
 parameter_types! {
    pub const BlockHashCount: BlockNumber = 2400;
    pub const Version: RuntimeVersion = VERSION;
+   pub RuntimeBlockWeights: BlockWeights = block_weights_for(MAXIMUM_BLOCK_WEIGHT);
    pub RuntimeBlockLength: BlockLength =
 	   BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
-   pub RuntimeBlockWeights: BlockWeights = BlockWeights::builder()
-	   .base_block(BlockExecutionWeight::get())
-	   .for_class(DispatchClass::all(), |weights| {
-		   weights.base_extrinsic = ExtrinsicBaseWeight::get();
-	   })
-	   .for_class(DispatchClass::Normal, |weights| {
-		   weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT);
-	   })
-	   .for_class(DispatchClass::Operational, |weights| {
-		   weights.max_total = Some(MAXIMUM_BLOCK_WEIGHT);
-		   // Operational transactions have some extra reserved space, so that they
-		   // are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
-		   weights.reserved = Some(
-			   MAXIMUM_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT
-		   );
-	   })
-	   .avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
-	   .build_or_panic();
    pub const SS58Prefix: u8 = 29;
 }
 
@@ -289,11 +291,7 @@ impl pallet_preimage::Config for Runtime {
 }
 
 parameter_types! {
-	pub EpochDuration: u64 = prod_or_fast!(
-		EPOCH_DURATION as u64,
-		2 * MINUTES as u64,
-		"CORD_EPOCH_DURATION"
-	);
+	pub EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS;
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 	pub ReportLongevity: u64 =
 		BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
@@ -401,16 +399,6 @@ impl pallet_session::Config for Runtime {
 	type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
 }
 
-//pub struct FullIdentificationOfImpl;
-//pub struct ValidatorFullIdentification;
-//impl sp_runtime::traits::Convert<AccountId, Option<ValidatorFullIdentification>>
-//	for FullIdentificationOfImpl
-//{
-//	fn convert(_: AccountId) -> Option<ValidatorFullIdentification> {
-//		Some(ValidatorFullIdentification)
-//	}
-//}
-//
 pub struct FullIdentificationOf;
 impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf {
 	fn convert(_: AccountId) -> Option<()> {
