@@ -39,7 +39,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
 	use sp_runtime::{
-		traits::{Hash, IdentifyAccount, Verify, Zero},
+		traits::{Hash, Zero},
 		BoundedVec,
 	};
 	use sp_std::{prelude::Clone, str};
@@ -188,6 +188,8 @@ pub mod pallet {
 		AssetIdNotFound,
 		/// Asset is not active
 		AssetNotActive,
+		/// Asset is not active
+		InstanceNotActive,
 		/// Not enough balance
 		OverIssuanceLimit,
 		/// distribution limit exceeded
@@ -209,7 +211,7 @@ pub mod pallet {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
-				&creator,
+				&creator.clone(),
 			)
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
@@ -284,6 +286,7 @@ pub mod pallet {
 				&[
 					&entry.asset_id.encode()[..],
 					&entry.asset_owner.encode()[..],
+					&space_id.encode()[..],
 					&issuer.encode()[..],
 					&digest.encode()[..],
 				]
@@ -336,34 +339,29 @@ pub mod pallet {
 		pub fn transfer(
 			origin: OriginFor<T>,
 			entry: AssetTransferEntryOf<T>,
-			digest: EntryHashOf<T>,
-			authorization: AuthorizationIdOf,
+			_digest: EntryHashOf<T>,
 		) -> DispatchResult {
 			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
-				&authorization,
-				&owner,
-			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
+			let asset = <Assets<T>>::get(&entry.asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
 			let instance = <Issuance<T>>::get(&entry.asset_id, &entry.asset_instance_id)
 				.ok_or(Error::<T>::AssetInstanceNotFound)?;
 
+			ensure!(
+				instance.asset_instance_owner == owner,
+				Error::<T>::UnauthorizedOperation
+			);
 			ensure!(
 				instance.asset_instance_owner == entry.asset_owner,
 				Error::<T>::UnauthorizedOperation
 			);
 
+			ensure!(AssetStatusOf::ACTIVE == asset.asset_status, Error::<T>::AssetNotActive);
+
 			ensure!(
 				AssetStatusOf::ACTIVE == instance.asset_instance_status,
-				Error::<T>::AssetNotActive
+				Error::<T>::InstanceNotActive
 			);
-
-			//
-			//ensure!(
-			//	signature.verify(&(digest).encode()[..], &entry.asset_owner),
-			//	Error::<T>::InvalidSignature
-			//);
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
@@ -382,7 +380,7 @@ pub mod pallet {
 			Self::deposit_event(Event::Transfer {
 				identifier: entry.asset_id,
 				instance: entry.asset_instance_id,
-				from: entry.asset_owner,
+				from: owner,
 				to: entry.new_asset_owner,
 			});
 
