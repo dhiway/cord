@@ -347,10 +347,7 @@ pub mod pallet {
 			let instance = <Issuance<T>>::get(&entry.asset_id, &entry.asset_instance_id)
 				.ok_or(Error::<T>::AssetInstanceNotFound)?;
 
-			ensure!(
-				instance.asset_instance_owner == owner,
-				Error::<T>::UnauthorizedOperation
-			);
+			ensure!(instance.asset_instance_owner == owner, Error::<T>::UnauthorizedOperation);
 			ensure!(
 				instance.asset_instance_owner == entry.asset_owner,
 				Error::<T>::UnauthorizedOperation
