@@ -914,6 +914,9 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::NetworkScore { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
+			RuntimeCall::Asset { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
 			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegate { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
