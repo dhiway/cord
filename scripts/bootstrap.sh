@@ -88,8 +88,9 @@ generate_address() {
 }
 
 generate_node_key() {
-  $cord key generate-node-key >"$OUTPUT_DIR/node$i.key" 2>/dev/null
-
+    if [ ! -e $OUTPUT_DIR/node$i.key ]; then
+	$cord key generate-node-key >"$OUTPUT_DIR/node$i.key" 2>/dev/null
+    fi
   NODE_KEY=$($cord key inspect-node-key --file "$OUTPUT_DIR/node$i.key")
   echo "\"${NODE_KEY}\"," >>$CONFIG_FILE
 }
