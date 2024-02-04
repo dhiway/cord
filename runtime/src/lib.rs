@@ -48,8 +48,12 @@ use frame_support::{
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot, EnsureSigned,
+	EnsureRoot,
 };
+
+#[cfg(feature = "runtime-benchmarks")]
+use frame_system::EnsureSigned;
+
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 
 use pallet_identity::simple::IdentityInfo;

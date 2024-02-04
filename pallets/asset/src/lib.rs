@@ -166,6 +166,9 @@ pub mod pallet {
 			from: AssetCreatorOf<T>,
 			to: AssetCreatorOf<T>,
 		},
+		/// An asset entry has been revoked.
+		/// \[asset entry identifier, optional instance identifier\]
+		Revoke { identifier: AssetIdOf, instance: Option<AssetInstanceIdOf> },
 	}
 
 	#[pallet::error]
@@ -380,6 +383,59 @@ pub mod pallet {
 				from: owner,
 				to: entry.new_asset_owner,
 			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight({0})]
+		pub fn revoke(
+			origin: OriginFor<T>,
+			asset_id: AssetIdOf,
+			instance_id: Option<AssetInstanceIdOf>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let _space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&owner,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			let asset = <Assets<T>>::get(&asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
+
+			ensure!(asset.asset_issuer == owner, Error::<T>::UnauthorizedOperation);
+
+			ensure!(AssetStatusOf::ACTIVE == asset.asset_status, Error::<T>::AssetNotActive);
+
+			/* If instance ID is provided, only revoke the instance, not the asset */
+			if let Some(ref inst_id) = instance_id {
+				let instance = <Issuance<T>>::get(&asset_id, &inst_id)
+					.ok_or(Error::<T>::AssetInstanceNotFound)?;
+				ensure!(
+					AssetStatusOf::ACTIVE == instance.asset_instance_status,
+					Error::<T>::InstanceNotActive
+				);
+
+				/* update the storage with new status */
+				<Issuance<T>>::insert(
+					&asset_id,
+					&inst_id,
+					AssetDistributionEntryOf::<T> {
+						asset_instance_status: AssetStatusOf::REVOKED,
+						..instance
+					},
+				);
+
+				Self::update_activity(&inst_id, CallTypeOf::Revoke).map_err(<Error<T>>::from)?;
+			} else {
+				<Assets<T>>::insert(
+					&asset_id,
+					AssetEntryOf::<T> { asset_status: AssetStatusOf::REVOKED, ..asset },
+				);
+				Self::update_activity(&asset_id, CallTypeOf::Revoke).map_err(<Error<T>>::from)?;
+			}
+			Self::deposit_event(Event::Revoke { identifier: asset_id, instance: instance_id });
 
 			Ok(())
 		}
