@@ -400,18 +400,12 @@ pub mod pallet {
 			asset_id: AssetIdOf,
 			instance_id: Option<AssetInstanceIdOf>,
 			new_status: AssetStatusOf,
-			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let _space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
-				&authorization,
-				&owner,
-			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
+			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
 			let asset = <Assets<T>>::get(&asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
 
-			ensure!(asset.asset_issuer == owner, Error::<T>::UnauthorizedOperation);
+			ensure!(asset.asset_issuer == issuer, Error::<T>::UnauthorizedOperation);
 
 			/* If instance ID is provided, only revoke the instance, not the asset */
 			if let Some(ref inst_id) = instance_id {
