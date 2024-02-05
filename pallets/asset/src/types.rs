@@ -49,7 +49,6 @@ pub enum AssetTypeOf {
 pub enum AssetStatusOf {
 	ACTIVE,
 	INACTIVE,
-	REVOKED,
 	EXPIRED,
 }
 
@@ -61,7 +60,7 @@ impl AssetTypeOf {
 
 impl AssetStatusOf {
 	pub fn is_valid_status_type(&self) -> bool {
-		matches!(self, Self::ACTIVE | Self::INACTIVE | Self::EXPIRED | Self::REVOKED)
+		matches!(self, Self::ACTIVE | Self::INACTIVE | Self::EXPIRED)
 	}
 }
 

@@ -168,7 +168,11 @@ pub mod pallet {
 		},
 		/// An asset entry has been revoked.
 		/// \[asset entry identifier, optional instance identifier\]
-		Revoke { identifier: AssetIdOf, instance: Option<AssetInstanceIdOf> },
+		StatusChange {
+			identifier: AssetIdOf,
+			instance: Option<AssetInstanceIdOf>,
+			status: AssetStatusOf,
+		},
 	}
 
 	#[pallet::error]
@@ -199,6 +203,8 @@ pub mod pallet {
 		DistributionLimitExceeded,
 		/// asset instance not found
 		AssetInstanceNotFound,
+		/// Asset is in same status as asked for
+		AssetInSameState,
 	}
 
 	#[pallet::call]
@@ -389,10 +395,11 @@ pub mod pallet {
 
 		#[pallet::call_index(3)]
 		#[pallet::weight({0})]
-		pub fn revoke(
+		pub fn status_change(
 			origin: OriginFor<T>,
 			asset_id: AssetIdOf,
 			instance_id: Option<AssetInstanceIdOf>,
+			new_status: AssetStatusOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
@@ -406,15 +413,13 @@ pub mod pallet {
 
 			ensure!(asset.asset_issuer == owner, Error::<T>::UnauthorizedOperation);
 
-			ensure!(AssetStatusOf::ACTIVE == asset.asset_status, Error::<T>::AssetNotActive);
-
 			/* If instance ID is provided, only revoke the instance, not the asset */
 			if let Some(ref inst_id) = instance_id {
 				let instance = <Issuance<T>>::get(&asset_id, &inst_id)
 					.ok_or(Error::<T>::AssetInstanceNotFound)?;
 				ensure!(
-					AssetStatusOf::ACTIVE == instance.asset_instance_status,
-					Error::<T>::InstanceNotActive
+					new_status.clone() == instance.asset_instance_status,
+					Error::<T>::AssetInSameState
 				);
 
 				/* update the storage with new status */
@@ -422,20 +427,25 @@ pub mod pallet {
 					&asset_id,
 					&inst_id,
 					AssetDistributionEntryOf::<T> {
-						asset_instance_status: AssetStatusOf::REVOKED,
+						asset_instance_status: new_status.clone(),
 						..instance
 					},
 				);
 
-				Self::update_activity(&inst_id, CallTypeOf::Revoke).map_err(<Error<T>>::from)?;
+				Self::update_activity(&inst_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
 			} else {
+				ensure!(new_status.clone() != asset.asset_status, Error::<T>::AssetInSameState);
 				<Assets<T>>::insert(
 					&asset_id,
-					AssetEntryOf::<T> { asset_status: AssetStatusOf::REVOKED, ..asset },
+					AssetEntryOf::<T> { asset_status: new_status.clone(), ..asset },
 				);
-				Self::update_activity(&asset_id, CallTypeOf::Revoke).map_err(<Error<T>>::from)?;
+				Self::update_activity(&asset_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
 			}
-			Self::deposit_event(Event::Revoke { identifier: asset_id, instance: instance_id });
+			Self::deposit_event(Event::StatusChange {
+				identifier: asset_id,
+				instance: instance_id,
+				status: new_status,
+			});
 
 			Ok(())
 		}
