@@ -26,6 +26,13 @@ pub use crate::curi::{
 	CordIdentifierType, IdentifierCreator, IdentifierError, IdentifierTimeline, IdentifierType,
 	Ss58Identifier,
 };
+
+#[cfg(any(feature = "mock", test))]
+pub mod mock;
+
+#[cfg(test)]
+mod tests;
+
 use sp_runtime::BoundedVec;
 use sp_std::{prelude::Clone, str};
 pub mod types;

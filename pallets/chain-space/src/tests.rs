@@ -450,9 +450,10 @@ fn creating_a_invalid_identifier_length_should_fail() {
 			Ss58Identifier::create_identifier(&(space2).encode()[..], IdentifierType::Space),
 			IdentifierError::InvalidIdentifierLength
 		);
-		assert_ok!(
-			Ss58Identifier::create_identifier(&(space3).encode()[..], IdentifierType::Space)
-		);
+		assert_ok!(Ss58Identifier::create_identifier(
+			&(space3).encode()[..],
+			IdentifierType::Space
+		));
 	});
 }
 
