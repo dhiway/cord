@@ -166,8 +166,8 @@ pub mod pallet {
 			from: AssetCreatorOf<T>,
 			to: AssetCreatorOf<T>,
 		},
-		/// An asset entry has been revoked.
-		/// \[asset entry identifier, optional instance identifier\]
+		/// An asset (or instance) entry has a new Status now
+		/// \[asset entry identifier, optional instance identifier, new status\]
 		StatusChange {
 			identifier: AssetIdOf,
 			instance: Option<AssetInstanceIdOf>,
