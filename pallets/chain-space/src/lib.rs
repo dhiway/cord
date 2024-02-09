@@ -118,7 +118,7 @@ pub type AuthorizationIdOf = Ss58Identifier;
 /// Chain space input code.
 pub type SpaceCodeOf<T> = <T as frame_system::Config>::Hash;
 /// Type of on-chain registry entry.
-pub type SpaceDetailsOf<T> = SpaceDetails<SpaceCodeOf<T>, SpaceCreatorOf<T>, StatusOf>;
+pub type SpaceDetailsOf<T> = SpaceDetails<SpaceCodeOf<T>, SpaceCreatorOf<T>, StatusOf, SpaceIdOf>;
 
 pub type SpaceAuthorizationOf<T> = SpaceAuthorization<SpaceIdOf, SpaceCreatorOf<T>, Permissions>;
 
@@ -561,6 +561,7 @@ pub mod pallet {
 					txn_count: 0,
 					approved: false,
 					archive: false,
+					parent: None,
 				},
 			);
 
@@ -912,6 +913,129 @@ pub mod pallet {
 			.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::ApprovalRestore { space: space_id });
+
+			Ok(())
+		}
+
+		/// Creates a new space with a unique identifier based on the provided
+		/// space code and the creator's identity.
+		///
+		/// This function generates a unique identifier for the space by hashing
+		/// the encoded space code and creator's identifier. It ensures that the
+		/// generated space identifier is not already in use. An authorization
+		/// ID is also created for the new space, which is used to manage
+		/// delegations. The creator is automatically added as a delegate with
+		/// all permissions.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the transaction, which must be signed by the creator.
+		/// - `space_code`: A unique code representing the space to be created.
+		///
+		/// # Returns
+		/// - `DispatchResult`: Returns `Ok(())` if the space is successfully created, or an error
+		///   (`DispatchError`) if:
+		///   - The generated space identifier is already in use.
+		///   - The generated authorization ID is of invalid length.
+		///   - The space delegates limit is exceeded.
+		///
+		/// # Errors
+		/// - `InvalidIdentifierLength`: If the generated identifiers for the space or authorization
+		///   are of invalid length.
+		/// - `SpaceAlreadyAnchored`: If the space identifier is already in use.
+		/// - `SpaceDelegatesLimitExceeded`: If the space exceeds the limit of allowed delegates.
+		///
+		/// # Events
+		/// - `Create`: Emitted when a new space is successfully created. It includes the space
+		///   identifier, the creator's identifier, and the authorization ID.
+		#[pallet::call_index(12)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		pub fn subspace_create(
+			origin: OriginFor<T>,
+			space_code: SpaceCodeOf<T>,
+			count: u64,
+			space_id: SpaceIdOf,
+		) -> DispatchResult {
+			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+
+			// Ensure the new capacity is greater than the current usage
+			ensure!(
+				count <= (space_details.txn_capacity - space_details.txn_count),
+				Error::<T>::CapacityLimitExceeded
+			);
+
+			// Id Digest = concat (H(<scale_encoded_registry_input>,
+			// <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&space_code.encode()[..], &creator.encode()[..], &space_id.encode()[..]].concat()
+					[..],
+			);
+
+			let identifier =
+				Ss58Identifier::create_identifier(&id_digest.encode()[..], IdentifierType::Space)
+					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
+
+			// Construct the authorization_id from the provided parameters.
+			// Id Digest = concat (H(<scale_encoded_space_identifier>,
+			// <scale_encoded_creator_identifier> ))
+			let auth_id_digest =
+				T::Hashing::hash(&[&identifier.encode()[..], &creator.encode()[..]].concat()[..]);
+
+			let authorization_id = Ss58Identifier::create_identifier(
+				&auth_id_digest.encode(),
+				IdentifierType::Authorization,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+			let mut delegates: BoundedVec<SpaceCreatorOf<T>, T::MaxSpaceDelegates> =
+				BoundedVec::default();
+			delegates
+				.try_push(creator.clone())
+				.map_err(|_| Error::<T>::SpaceDelegatesLimitExceeded)?;
+
+			Delegates::<T>::insert(&identifier, delegates);
+
+			Authorizations::<T>::insert(
+				&authorization_id,
+				SpaceAuthorizationOf::<T> {
+					space_id: identifier.clone(),
+					delegate: creator.clone(),
+					permissions: Permissions::all(),
+					delegator: creator.clone(),
+				},
+			);
+
+			/* Update the parent space with added count */
+			<Spaces<T>>::insert(
+				&space_id,
+				SpaceDetailsOf::<T> { txn_count: count + space_details.txn_count, ..space_details },
+			);
+			<Spaces<T>>::insert(
+				&identifier,
+				SpaceDetailsOf::<T> {
+					code: space_code,
+					creator: creator.clone(),
+					txn_capacity: count,
+					txn_count: 0,
+					approved: false,
+					archive: false,
+					parent: Some(space_id),
+				},
+			);
+
+			Self::update_activity(&identifier, IdentifierTypeOf::ChainSpace, CallTypeOf::Genesis)
+				.map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::Create {
+				space: identifier,
+				creator,
+				authorization: authorization_id,
+			});
 
 			Ok(())
 		}

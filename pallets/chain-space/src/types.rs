@@ -78,13 +78,14 @@ impl Default for Permissions {
 /// - `approved`: Indicates whether the space has been approved by the appropriate governance body.
 /// - `archive`: Indicates whether the space is currently archived.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct SpaceDetails<SpaceCodeOf, SpaceCreatorOf, StatusOf> {
+pub struct SpaceDetails<SpaceCodeOf, SpaceCreatorOf, StatusOf, SpaceIdOf> {
 	pub code: SpaceCodeOf,
 	pub creator: SpaceCreatorOf,
 	pub txn_capacity: u64,
 	pub txn_count: u64,
 	pub approved: StatusOf,
 	pub archive: StatusOf,
+	pub parent: Option<SpaceIdOf>,
 }
 
 /// Authorization details for a space delegate.
