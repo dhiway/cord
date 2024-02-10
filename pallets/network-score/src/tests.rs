@@ -145,7 +145,7 @@ fn check_duplicate_message_id() {
             authorization_id.clone(),
         ));
 
-        // Attempt to register the same rating entry again, expecting an error
+        //Outut message id already exist after finding the same message id
         assert_err!(
             Score::register_rating(
                 DoubleOrigin(author.clone(), creator.clone()).into(),
