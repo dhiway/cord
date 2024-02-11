@@ -510,7 +510,6 @@ fn add_delegate_should_fail_if_delegate_already_exists() {
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
-	let permissions = Permissions::ASSERT;
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
