@@ -918,7 +918,7 @@ pub mod pallet {
 		}
 
 		/// Creates a new space with a unique identifier based on the provided
-		/// space code and the creator's identity.
+		/// space code and the creator's identity, along with parent space ID.
 		///
 		/// This function generates a unique identifier for the space by hashing
 		/// the encoded space code and creator's identifier. It ensures that the
@@ -926,10 +926,17 @@ pub mod pallet {
 		/// ID is also created for the new space, which is used to manage
 		/// delegations. The creator is automatically added as a delegate with
 		/// all permissions.
+		/// NOTE: this call is different from create() in just 1 main step. This
+		/// space can be created from the already 'approved' space, as a
+		/// 'space-approval' is a council activity, instead in this case, its
+		/// owner/creator's task. Thus reducing the involvement of council once
+		/// the top level approval is present.
 		///
 		/// # Parameters
 		/// - `origin`: The origin of the transaction, which must be signed by the creator.
 		/// - `space_code`: A unique code representing the space to be created.
+		/// - `count`: Number of approved transaction capacity in the sub-space.
+		/// - `space_id`: Identifier of the parent space.
 		///
 		/// # Returns
 		/// - `DispatchResult`: Returns `Ok(())` if the space is successfully created, or an error
@@ -960,6 +967,7 @@ pub mod pallet {
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+			ensure!(space_details.creator == creator.clone(), Error::<T>::UnauthorizedOperation);
 
 			// Ensure the new capacity is greater than the current usage
 			ensure!(
@@ -1022,7 +1030,7 @@ pub mod pallet {
 					creator: creator.clone(),
 					txn_capacity: count,
 					txn_count: 0,
-					approved: false,
+					approved: true,
 					archive: false,
 					parent: Some(space_id),
 				},
