@@ -31,4 +31,3 @@ release.json
 rls*.log
 runtime/wasm/target/
 target/
-desktop.ini
