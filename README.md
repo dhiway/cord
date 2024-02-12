@@ -22,15 +22,16 @@ git clone https://github.com/dhiway/cord.git
 cd cord
 ```
 
-### Build CORD in production mode
+### Build CORD in release mode
 
-To build the production version of the project, optimized for performance, execute the following command:
+To build the release version of the project, optimized for performance, execute the following command:
 
 ```bash
-cargo build --production
+cargo build --release
 ```
 
-This will create the production binary in the `target/production` directory.
+This will create the production binary in the `target/release` directory.
+When CORD is built using `cargo build` the binary will be present in `target/debug` directory.
 
 ### Run Single Node Local CORD Network
 
