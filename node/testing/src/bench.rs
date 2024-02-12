@@ -95,9 +95,9 @@ pub fn drop_system_cache() {
 		return;
 	}
 
-	std::process::Command::new("sync")
-		.output()
-		.expect("Failed to execute system cache clear");
+	// std::process::Command::new("sync")
+	// 	.output()
+	// 	.expect("Failed to execute system cache clear");
 
 	#[cfg(target_os = "linux")]
 	{

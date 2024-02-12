@@ -16,10 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+#[allow(unused_imports)]
 use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 use tempfile::tempdir;
-
 use cord_cli_test_utils as common;
 
 #[tokio::test]
