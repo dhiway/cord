@@ -92,7 +92,6 @@ fn check_successful_rating_creation() {
 	});
 }
 
-
 #[test]
 fn check_duplicate_message_id() {
 	let creator = DID_00.clone();
@@ -138,26 +137,25 @@ fn check_duplicate_message_id() {
 
 		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
 
-	// Register the rating entry once
-assert_ok!(Score::register_rating(
-    DoubleOrigin(author.clone(), creator.clone()).into(),
-    entry.clone(),
-    entry_digest,
-    message_id.clone(),
-    authorization_id.clone(),
-));
+		// Register the rating entry once
+		assert_ok!(Score::register_rating(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			entry.clone(),
+			entry_digest,
+			message_id.clone(),
+			authorization_id.clone(),
+		));
 
-//error as if found the same message id
-assert_err!(
-    Score::register_rating(
-        DoubleOrigin(author.clone(), creator.clone()).into(),
-        entry,
-        entry_digest,
-        message_id,
-        authorization_id,
-    ),
-    Error::<Test>::MessageIdAlreadyExists
-);
-	
+		//error as if found the same message id
+		assert_err!(
+			Score::register_rating(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				entry,
+				entry_digest,
+				message_id,
+				authorization_id,
+			),
+			Error::<Test>::MessageIdAlreadyExists
+		);
 	});
 }
