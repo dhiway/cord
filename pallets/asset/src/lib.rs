@@ -166,6 +166,13 @@ pub mod pallet {
 			from: AssetCreatorOf<T>,
 			to: AssetCreatorOf<T>,
 		},
+		/// An asset (or instance) entry has a new Status now
+		/// \[asset entry identifier, optional instance identifier, new status\]
+		StatusChange {
+			identifier: AssetIdOf,
+			instance: Option<AssetInstanceIdOf>,
+			status: AssetStatusOf,
+		},
 	}
 
 	#[pallet::error]
@@ -196,6 +203,8 @@ pub mod pallet {
 		DistributionLimitExceeded,
 		/// asset instance not found
 		AssetInstanceNotFound,
+		/// Asset is in same status as asked for
+		AssetInSameState,
 	}
 
 	#[pallet::call]
@@ -379,6 +388,57 @@ pub mod pallet {
 				instance: entry.asset_instance_id,
 				from: owner,
 				to: entry.new_asset_owner,
+			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight({0})]
+		pub fn status_change(
+			origin: OriginFor<T>,
+			asset_id: AssetIdOf,
+			instance_id: Option<AssetInstanceIdOf>,
+			new_status: AssetStatusOf,
+		) -> DispatchResult {
+			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let asset = <Assets<T>>::get(&asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
+
+			ensure!(asset.asset_issuer == issuer, Error::<T>::UnauthorizedOperation);
+
+			/* If instance ID is provided, only revoke the instance, not the asset */
+			if let Some(ref inst_id) = instance_id {
+				let instance = <Issuance<T>>::get(&asset_id, &inst_id)
+					.ok_or(Error::<T>::AssetInstanceNotFound)?;
+				ensure!(
+					new_status.clone() == instance.asset_instance_status,
+					Error::<T>::AssetInSameState
+				);
+
+				/* update the storage with new status */
+				<Issuance<T>>::insert(
+					&asset_id,
+					&inst_id,
+					AssetDistributionEntryOf::<T> {
+						asset_instance_status: new_status.clone(),
+						..instance
+					},
+				);
+
+				Self::update_activity(&inst_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
+			} else {
+				ensure!(new_status.clone() != asset.asset_status, Error::<T>::AssetInSameState);
+				<Assets<T>>::insert(
+					&asset_id,
+					AssetEntryOf::<T> { asset_status: new_status.clone(), ..asset },
+				);
+				Self::update_activity(&asset_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
+			}
+			Self::deposit_event(Event::StatusChange {
+				identifier: asset_id,
+				instance: instance_id,
+				status: new_status,
 			});
 
 			Ok(())
