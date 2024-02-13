@@ -104,14 +104,18 @@ benchmarks! {
 			let origin =  <T as Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
 			let capacity = 5u64;
 
+			let digest = <Test as frame_system::Config>::Hashing::hash(
+				&[&entry.encode()[..]].concat()[..],
+			);
+
 			let chain_space_origin = RawOrigin::Root.into();
 
 			pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
 			pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
 
-		}: _<T::RuntimeOrigin>(origin, entry, space_digest, authorization_id)
+		}: _<T::RuntimeOrigin>(origin, entry, digest, authorization_id)
 		verify {
-			assert_last_event::<T>(Event::Create { identifier, issuer: did }.into());
+			assert_last_event::<T>(Event::Create { identifier, issuer: did.clone() }.into());
 		}
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);

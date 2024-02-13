@@ -21,8 +21,14 @@
 
 pub mod types;
 
+#[cfg(any(feature = "mock", test))]
+pub mod mock;
+
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
+
+#[cfg(test)]
+mod tests;
 
 pub use crate::{pallet::*, types::*};
 use frame_support::{ensure, traits::Get};
