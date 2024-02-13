@@ -97,6 +97,53 @@ fn add_admin_delegate_should_succeed() {
 }
 
 #[test]
+fn add_admin_delegate_should_fail_if_admin_delegate_already_exists() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		//Admin should be able to add the delegate
+		assert_ok!(Space::add_admin_delegate(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_id.clone(),
+			DID_01.clone(),
+			authorization_id.clone(),
+		));
+
+		assert_err!(
+			Space::add_admin_delegate(
+				DoubleOrigin(author, creator).into(),
+				space_id,
+				DID_01,
+				authorization_id,
+			),
+			Error::<Test>::DelegateAlreadyAdded
+		);
+	});
+}
+
+#[test]
 fn add_delegator_should_succeed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
@@ -130,6 +177,53 @@ fn add_delegator_should_succeed() {
 			DID_01,
 			authorization_id,
 		));
+	});
+}
+
+#[test]
+fn add_delegator_should_fail_if_delegator_already_exists() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		//Admin should be able to add the delegate
+		assert_ok!(Space::add_delegator(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_id.clone(),
+			DID_01.clone(),
+			authorization_id.clone(),
+		));
+
+		assert_err!(
+			Space::add_delegator(
+				DoubleOrigin(author, creator).into(),
+				space_id,
+				DID_01,
+				authorization_id,
+			),
+			Error::<Test>::DelegateAlreadyAdded
+		)
 	});
 }
 
@@ -393,6 +487,54 @@ fn add_delegate_should_fail_if_the_space_capacity_is_full() {
 				authorization_id,
 			),
 			Error::<Test>::CapacityLimitExceeded
+		);
+	});
+}
+
+#[test]
+fn add_delegate_should_fail_if_delegate_already_exists() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		//Admin should be able to add the delegate
+		assert_ok!(Space::add_delegate(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_id.clone(),
+			DID_01.clone(),
+			authorization_id.clone(),
+		));
+
+		assert_err!(
+			Space::add_delegate(
+				DoubleOrigin(author, creator).into(),
+				space_id,
+				DID_01,
+				authorization_id,
+			),
+			Error::<Test>::DelegateAlreadyAdded
 		);
 	});
 }
