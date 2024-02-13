@@ -190,7 +190,7 @@ impl Ss58Identifier {
 		Ok(Self(
 			Vec::<u8>::from(v.to_base58())
 				.try_into()
-				.map_err(|_| IdentifierError::InvalidIdentifierLength)?,
+				.map_err(|_| IdentifierError::InvalidIdentifier)?,
 		))
 	}
 
