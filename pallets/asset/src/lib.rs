@@ -21,6 +21,9 @@
 
 pub mod types;
 
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarking;
+
 pub use crate::{pallet::*, types::*};
 use frame_support::{ensure, traits::Get};
 use identifier::{
