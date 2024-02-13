@@ -25,6 +25,8 @@ use frame_system::RawOrigin;
 use pallet_chain_space::SpaceCodeOf;
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
+use frame_support::assert_err;
+
 
 pub fn generate_rating_id<T: Config>(digest: &RatingEntryHashOf<T>) -> RatingEntryIdOf {
 	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Rating).unwrap()
