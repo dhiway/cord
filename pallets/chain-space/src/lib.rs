@@ -165,6 +165,13 @@ pub mod pallet {
 	#[pallet::getter(fn spaces)]
 	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, SpaceIdOf, SpaceDetailsOf<T>, OptionQuery>;
 
+	/// subspaces stored on chain.
+	/// It maps from a parent space identifier and identifier to its details.
+	#[pallet::storage]
+	#[pallet::getter(fn subspaces)]
+	pub type Subspaces<T> =
+		StorageDoubleMap<_, Twox64Concat, SpaceIdOf, Blake2_128Concat, SpaceIdOf, u64, OptionQuery>;
+
 	/// Space authorizations stored on-chain.
 	/// It maps from an identifier to delegates.
 	#[pallet::storage]
@@ -784,14 +791,53 @@ pub mod pallet {
 			space_id: SpaceIdOf,
 			new_txn_capacity: u64,
 		) -> DispatchResult {
-			T::ChainSpaceOrigin::ensure_origin(origin)?;
-
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
 			// Ensure the new capacity is greater than the current usage
 			ensure!(new_txn_capacity >= space_details.txn_count, Error::<T>::CapacityLessThanUsage);
+
+			if let Some(ref parent) = space_details.parent.clone() {
+				let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+				let parent_details =
+					Spaces::<T>::get(&parent.clone()).ok_or(Error::<T>::SpaceNotFound)?;
+				ensure!(
+					parent_details.creator.clone() == creator,
+					Error::<T>::UnauthorizedOperation
+				);
+
+				if new_txn_capacity > space_details.txn_capacity {
+					let diff = new_txn_capacity - space_details.txn_capacity;
+
+					// Ensure the new capacity is greater than the current usage
+					ensure!(
+						(parent_details.txn_capacity - parent_details.txn_count) >= diff,
+						Error::<T>::CapacityLessThanUsage
+					);
+
+					<Spaces<T>>::insert(
+						&parent.clone(),
+						SpaceDetailsOf::<T> {
+							txn_count: parent_details.txn_count + diff,
+							..space_details.clone()
+						},
+					);
+				} else {
+					let diff = space_details.txn_capacity - new_txn_capacity;
+					<Spaces<T>>::insert(
+						&parent.clone(),
+						SpaceDetailsOf::<T> {
+							txn_count: parent_details.txn_count - diff,
+							..space_details.clone()
+						},
+					);
+				}
+				<Subspaces<T>>::insert(&parent, &space_id, new_txn_capacity);
+			} else {
+				T::ChainSpaceOrigin::ensure_origin(origin)?;
+			}
 
 			<Spaces<T>>::insert(
 				&space_id,
@@ -838,7 +884,12 @@ pub mod pallet {
 			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
-			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { txn_count: 0, ..space_details });
+			let mut txn_count: u64 = 0;
+			for (_key2, value) in Subspaces::<T>::iter_prefix(&space_id) {
+				txn_count += value;
+			}
+
+			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { txn_count, ..space_details });
 
 			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Usage)
 				.map_err(Error::<T>::from)?;
@@ -1020,9 +1071,10 @@ pub mod pallet {
 
 			/* Update the parent space with added count */
 			<Spaces<T>>::insert(
-				&space_id,
+				&space_id.clone(),
 				SpaceDetailsOf::<T> { txn_count: count + space_details.txn_count, ..space_details },
 			);
+			<Subspaces<T>>::insert(&space_id.clone(), &identifier, count);
 			<Spaces<T>>::insert(
 				&identifier,
 				SpaceDetailsOf::<T> {
