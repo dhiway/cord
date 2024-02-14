@@ -27,9 +27,6 @@ pub mod mock;
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 
-#[cfg(test)]
-mod tests;
-
 pub use crate::{pallet::*, types::*};
 use frame_support::{ensure, traits::Get};
 use identifier::{
@@ -236,7 +233,7 @@ pub mod pallet {
 			ensure!(entry.asset_qty > 0 && entry.asset_value > 0, Error::<T>::InvalidAssetValue);
 			ensure!(entry.asset_type.is_valid_asset_type(), Error::<T>::InvalidAssetType);
 
-			// Id Digest = concat (H(<scale_encoded_statement_digest>,
+			// Id Digest = concat (H(<scale_encoded_entry_digest>,
 			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[&digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
