@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
 
       - name: install dependencies
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
@@ -36,7 +36,7 @@ jobs:
         run: rustup component add rustfmt --toolchain nightly-x86_64-unknown-linux-gnu
 
       - name: cache rust toolchain and dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/
@@ -52,13 +52,13 @@ jobs:
     needs: rustfmt
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
 
       - name: install dependencies
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
 
       - name: cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/
@@ -74,13 +74,13 @@ jobs:
     needs: rustfmt
     steps:
       - name: checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
 
       - name: install dependencies
         run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
 
       - name: cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/
@@ -96,20 +96,18 @@ jobs:
   #   needs: rustfmt
   #   steps:
   #     - name: checkout repository
-  #       uses: actions/checkout@v3
-
+  #       uses: actions/checkout@v4.1.1
   #     - name: install dependencies
   #       run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
 
   #     - name: cache
-  #       uses: actions/cache@v3
+  #       uses: actions/cache@v4
   #       with:
   #         path: |
   #           ~/.cargo/
   #           target/
   #         key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
   #         restore-keys: ${{ runner.os }}-rust-
-
   #     - name: cargo build
   #       run: rustup component add rust-src && cargo build --locked
 
