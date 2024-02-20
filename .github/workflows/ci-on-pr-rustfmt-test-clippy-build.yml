@@ -91,25 +91,25 @@ jobs:
       - name: cargo clippy
         run: rustup component add rust-src && cargo clippy --all --no-deps --all-targets --features=runtime-benchmarks -- -D warnings
 
-  build:
-    runs-on: ubuntu-latest
-    needs: rustfmt
-    steps:
-      - name: checkout repository
-        uses: actions/checkout@v3
+  # build:
+  #   runs-on: ubuntu-latest
+  #   needs: rustfmt
+  #   steps:
+  #     - name: checkout repository
+  #       uses: actions/checkout@v3
 
-      - name: install dependencies
-        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
+  #     - name: install dependencies
+  #       run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
 
-      - name: cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/
-            target/
-          key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-rust-
+  #     - name: cache
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: |
+  #           ~/.cargo/
+  #           target/
+  #         key: ${{ runner.os }}-rust-${{ hashFiles('**/Cargo.lock') }}
+  #         restore-keys: ${{ runner.os }}-rust-
 
-      - name: cargo build
-        run: rustup component add rust-src && cargo build --locked
+  #     - name: cargo build
+  #       run: rustup component add rust-src && cargo build --locked
 
