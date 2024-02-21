@@ -1,6 +1,6 @@
 [package]
 name = "pallet-asset"
-description = "Experimentatl pallet for benchmarks"
+description = "Manage Asset"
 version = "0.9.1-dev"
 authors.workspace = true
 edition.workspace = true
@@ -69,7 +69,7 @@ std = [
 	"identifier/std",
 	"frame-support/std",
 	"frame-system/std",
-	"frame-benchmarking?/std",
+	"frame-benchmarking/std",
 	"cord-primitives/std",
 	"cord-utilities/std",
 	"pallet-balances/std",

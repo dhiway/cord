@@ -69,6 +69,7 @@ PALLETS=(
   "pallet_network_score"
   "pallet_schema"
   "pallet_statement"
+  "pallet_asset"
 )
 
 echo "[+] Benchmarking ${#PALLETS[@]} pallets."
@@ -118,6 +119,9 @@ for PALLET in "${PALLETS[@]}"; do
     ;;
   pallet_statement)
     FOLDER="statement"
+    ;;
+  pallet_asset)
+    FOLDER="asset"
     ;;
 
   *)

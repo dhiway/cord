@@ -244,6 +244,7 @@ runtime-benchmarks = [
 	"pallet-sudo/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
 	"pallet-network-score/runtime-benchmarks",
+	"pallet-asset/runtime-benchmarks",
 ]
 
 try-runtime = [

@@ -869,7 +869,7 @@ construct_runtime! (
 		Statement: pallet_statement = 105,
 		DidName: pallet_did_name = 106,
 		NetworkScore: pallet_network_score = 108,
-		Asset: pallet_asset =109,
+		Asset: pallet_asset = 109,
 		Sudo: pallet_sudo = 255,
 	}
 );
@@ -1036,6 +1036,7 @@ mod benches {
 		[pallet_network_membership, NetworkMembership]
 		[pallet_network_score, NetworkScore]
 		[pallet_sudo, Sudo]
+		[pallet_asset, Asset]
 	);
 }
 
