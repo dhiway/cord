@@ -823,7 +823,7 @@ checksum = "93f2635620bf0b9d4576eb7bb9a38a55df78bd1205d26fa994b25911a69f212f"
 dependencies = [
  "bitcoin_hashes",
  "rand 0.8.5",
- "rand_core 0.6.4",
+ "rand_core 0.5.1",
  "serde",
  "unicode-normalization",
 ]
@@ -9053,9 +9053,9 @@ checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
 
 [[package]]
 name = "snow"
-version = "0.9.4"
+version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58021967fd0a5eeeb23b08df6cc244a4d4a5b4aec1d27c9e02fad1a58b4cd74e"
+checksum = "2e87c18a6608909007e75a60e04d03eda77b601c94de1c74d9a9dc2c04ab789a"
 dependencies = [
  "aes-gcm",
  "blake2 0.10.6",
