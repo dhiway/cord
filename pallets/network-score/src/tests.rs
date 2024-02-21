@@ -20,7 +20,7 @@ use super::*;
 use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
-use frame_support::{assert_ok, BoundedVec};
+use frame_support::{assert_err, assert_ok, BoundedVec};
 use frame_system::RawOrigin;
 use pallet_chain_space::SpaceCodeOf;
 use sp_runtime::{traits::Hash, AccountId32};
@@ -89,5 +89,73 @@ fn check_successful_rating_creation() {
 			message_id,
 			authorization_id,
 		));
+	});
+}
+
+#[test]
+fn check_duplicate_message_id() {
+	let creator = DID_00.clone();
+	let author = ACCOUNT_00.clone();
+
+	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
+	let entry = RatingInputEntryOf::<Test> {
+		entity_uid,
+		provider_uid,
+		total_encoded_rating: 250u64,
+		count_of_txn: 7u64,
+		entity_type: EntityTypeOf::Logistic,
+		rating_type: RatingTypeOf::Overall,
+		provider_did: creator.clone(),
+	};
+	let entry_digest =
+		<Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
+
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: AuthorizationIdOf =
+		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
+			.unwrap();
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		// Author Transaction
+
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+
+		// Register the rating entry once
+		assert_ok!(Score::register_rating(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			entry.clone(),
+			entry_digest,
+			message_id.clone(),
+			authorization_id.clone(),
+		));
+
+		//error as if found the same message id
+		assert_err!(
+			Score::register_rating(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				entry,
+				entry_digest,
+				message_id,
+				authorization_id,
+			),
+			Error::<Test>::MessageIdAlreadyExists
+		);
 	});
 }
