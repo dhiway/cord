@@ -25,7 +25,6 @@ pub fn generate_asset_id<T: Config>(digest: &SpaceCodeOf<T>) -> AssetIdOf {
 }
 
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
-// pub(crate) const DID_01: SubjectId = SubjectId(AccountId32::new([5u8; 32]));
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
 
 #[test]
@@ -47,13 +46,11 @@ fn asset_create_should_succeed() {
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
 	let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-	//let asset_type = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 	let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 	let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 	let asset_qty = 10;
 	let asset_value = 10;
 	let asset_type = AssetTypeOf::MF;
-	//let asset_status = AssetStatusOf::ACTIVE;
 
 	let entry = AssetInputEntryOf::<Test> {
 		asset_desc,
@@ -99,16 +96,15 @@ fn asset_issue_should_succeed() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
+
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
 	let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-	//let asset_type = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 	let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 	let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 	let asset_qty = 10;
 	let asset_value = 10;
 	let asset_type = AssetTypeOf::MF;
-	//let asset_status = AssetStatusOf::ACTIVE;
 
 	let entry = AssetInputEntryOf::<Test> {
 		asset_desc,
@@ -125,13 +121,10 @@ fn asset_issue_should_succeed() {
 		&[&digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
-	let asset_id =
-		Ss58Identifier::create_identifier(&(issue_id_digest).encode()[..], IdentifierType::Asset);
-
-	//let asset_id: Ss58Identifier = generate_asset_id::<Test>(&digest);
+	let asset_id: Ss58Identifier = generate_asset_id::<Test>(&issue_id_digest);
 
 	let issue_entry = AssetIssuanceEntryOf::<Test> {
-		asset_id: asset_id.unwrap(),
+		asset_id,
 		asset_owner: creator.clone(),
 		asset_issuance_qty: Some(10),
 	};
