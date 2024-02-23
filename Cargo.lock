@@ -753,12 +753,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c7f02d4ea65f2c1853089ffd8d2787bdbc63de2f0d29dedbcf8ccdfa0ccd4cf"
 
 [[package]]
-name = "base58"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6107fe1be6682a68940da878d9e9f5e90ca5745b3dec9fd1bb393c8777d4f581"
-
-[[package]]
 name = "base64"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1509,8 +1503,8 @@ dependencies = [
 name = "cord-identifier"
 version = "0.9.1"
 dependencies = [
- "base58",
  "blake2-rfc",
+ "bs58 0.5.0",
  "cord-primitives",
  "cord-utilities",
  "frame-benchmarking",
