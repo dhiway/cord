@@ -20,7 +20,6 @@
 
 use crate::*;
 use blake2_rfc::blake2b::{Blake2b, Blake2bResult};
-use bs58::{decode, encode};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{ensure, sp_runtime::RuntimeDebug, traits::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
@@ -188,7 +187,7 @@ impl Ss58Identifier {
 		v.extend(&r.as_bytes()[0..2]);
 
 		Ok(Self(
-			Vec::<u8>::from(encode(v).into_string())
+			Vec::<u8>::from(bs58::encode(v).into_string())
 				.try_into()
 				.map_err(|_| IdentifierError::InvalidIdentifier)?,
 		))
@@ -201,9 +200,10 @@ impl Ss58Identifier {
 	pub fn get_identifier_type(&self) -> Result<u16, IdentifierError> {
 		let identifier =
 			str::from_utf8(self.inner()).map_err(|_| IdentifierError::InvalidFormat)?;
-		// let data = identifier.from_base58().map_err(|_| IdentifierError::InvalidIdentifier)?;
 
-		let data = decode(identifier).into_vec().map_err(|_| IdentifierError::InvalidIdentifier)?;
+		let data = bs58::decode(identifier)
+			.into_vec()
+			.map_err(|_| IdentifierError::InvalidIdentifier)?;
 
 		if data.len() < 2 {
 			return Err(IdentifierError::InvalidIdentifierLength);
@@ -228,7 +228,7 @@ impl Ss58Identifier {
 	}
 
 	pub fn default_error() -> Self {
-		let error_value_base58 = encode([0]).into_string();
+		let error_value_base58 = bs58::encode([0]).into_string();
 
 		// Convert the Base58 encoded string to a byte vector.
 		let error_value_bytes = error_value_base58.into_bytes();
