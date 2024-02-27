@@ -1082,3 +1082,50 @@ fn restoring_approval_of_a_space_by_non_root_should_fail() {
 		);
 	});
 }
+
+#[test]
+fn add_delegate_should_fail_if_space_delegates_limit_exceeded() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		// Create the space
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		// Add the maximum number of delegates to the space
+		let mut delegate_count: u8 = 0;
+		loop {
+			match Space::space_delegate_addition(
+				space_id.clone(),
+				SubjectId(AccountId32::new([delegate_count; 32])),
+				creator.clone(),
+				Permissions::all(),
+			) {
+				Ok(_) => delegate_count += 1,
+				Err(_) => break,
+			}
+		}
+
+		// Attempt to add one more delegate, which should exceed the limit and result in the expected error
+		assert_err!(
+			Space::space_delegate_addition(
+				space_id.clone(),
+				SubjectId(AccountId32::new([delegate_count; 32])),
+				creator.clone(),
+				Permissions::all(),
+			),
+			Error::<Test>::SpaceDelegatesLimitExceeded
+		);
+	});
+}
