@@ -165,13 +165,6 @@ pub mod pallet {
 	#[pallet::getter(fn spaces)]
 	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, SpaceIdOf, SpaceDetailsOf<T>, OptionQuery>;
 
-	/// subspaces stored on chain.
-	/// It maps from a parent space identifier and identifier to its details.
-	#[pallet::storage]
-	#[pallet::getter(fn subspaces)]
-	pub type Subspaces<T> =
-		StorageDoubleMap<_, Twox64Concat, SpaceIdOf, Blake2_128Concat, SpaceIdOf, u64, OptionQuery>;
-
 	/// Space authorizations stored on-chain.
 	/// It maps from an identifier to delegates.
 	#[pallet::storage]
@@ -565,10 +558,11 @@ pub mod pallet {
 					code: space_code,
 					creator: creator.clone(),
 					txn_capacity: 0,
+					txn_reserve: 0,
 					txn_count: 0,
 					approved: false,
 					archive: false,
-					parent: None,
+					parent: identifier.clone(),
 				},
 			);
 
@@ -796,45 +790,38 @@ pub mod pallet {
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
 			// Ensure the new capacity is greater than the current usage
-			ensure!(new_txn_capacity >= space_details.txn_count, Error::<T>::CapacityLessThanUsage);
+			ensure!(
+				new_txn_capacity >= (space_details.txn_count + space_details.txn_reserve),
+				Error::<T>::CapacityLessThanUsage
+			);
 
-			if let Some(ref parent) = space_details.parent.clone() {
+			if space_id.clone() != space_details.parent.clone() {
 				let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
-				let parent_details =
-					Spaces::<T>::get(&parent.clone()).ok_or(Error::<T>::SpaceNotFound)?;
+				let parent_details = Spaces::<T>::get(&space_details.parent.clone())
+					.ok_or(Error::<T>::SpaceNotFound)?;
 				ensure!(
 					parent_details.creator.clone() == creator,
 					Error::<T>::UnauthorizedOperation
 				);
 
-				if new_txn_capacity > space_details.txn_capacity {
-					let diff = new_txn_capacity - space_details.txn_capacity;
+				// Ensure the new capacity is greater than the current usage
+				ensure!(
+					(parent_details.txn_capacity
+						>= (parent_details.txn_count
+							+ parent_details.txn_reserve + new_txn_capacity
+							- space_details.txn_capacity)),
+					Error::<T>::CapacityLessThanUsage
+				);
 
-					// Ensure the new capacity is greater than the current usage
-					ensure!(
-						(parent_details.txn_capacity - parent_details.txn_count) >= diff,
-						Error::<T>::CapacityLessThanUsage
-					);
-
-					<Spaces<T>>::insert(
-						&parent.clone(),
-						SpaceDetailsOf::<T> {
-							txn_count: parent_details.txn_count + diff,
-							..space_details.clone()
-						},
-					);
-				} else {
-					let diff = space_details.txn_capacity - new_txn_capacity;
-					<Spaces<T>>::insert(
-						&parent.clone(),
-						SpaceDetailsOf::<T> {
-							txn_count: parent_details.txn_count - diff,
-							..space_details.clone()
-						},
-					);
-				}
-				<Subspaces<T>>::insert(&parent, &space_id, new_txn_capacity);
+				<Spaces<T>>::insert(
+					&space_details.parent.clone(),
+					SpaceDetailsOf::<T> {
+						txn_reserve: parent_details.txn_reserve - space_details.txn_capacity
+							+ new_txn_capacity,
+						..parent_details.clone()
+					},
+				);
 			} else {
 				T::ChainSpaceOrigin::ensure_origin(origin)?;
 			}
@@ -878,16 +865,23 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			space_id: SpaceIdOf,
 		) -> DispatchResult {
-			T::ChainSpaceOrigin::ensure_origin(origin)?;
-
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
-			let mut txn_count: u64 = 0;
-			for (_key2, value) in Subspaces::<T>::iter_prefix(&space_id) {
-				txn_count += value;
+			if space_id.clone() != space_details.parent.clone() {
+				let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+				let parent_details = Spaces::<T>::get(&space_details.parent.clone())
+					.ok_or(Error::<T>::SpaceNotFound)?;
+				ensure!(
+					parent_details.creator.clone() == creator,
+					Error::<T>::UnauthorizedOperation
+				);
+			} else {
+				T::ChainSpaceOrigin::ensure_origin(origin)?;
 			}
+			let txn_count: u64 = 0;
 
 			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { txn_count, ..space_details });
 
@@ -1022,7 +1016,9 @@ pub mod pallet {
 
 			// Ensure the new capacity is greater than the current usage
 			ensure!(
-				count <= (space_details.txn_capacity - space_details.txn_count),
+				count
+					<= (space_details.txn_capacity
+						- (space_details.txn_count + space_details.txn_reserve)),
 				Error::<T>::CapacityLimitExceeded
 			);
 
@@ -1072,19 +1068,23 @@ pub mod pallet {
 			/* Update the parent space with added count */
 			<Spaces<T>>::insert(
 				&space_id.clone(),
-				SpaceDetailsOf::<T> { txn_count: count + space_details.txn_count, ..space_details },
+				SpaceDetailsOf::<T> {
+					txn_count: space_details.txn_count + 1,
+					txn_reserve: space_details.txn_reserve + count,
+					..space_details
+				},
 			);
-			<Subspaces<T>>::insert(&space_id.clone(), &identifier, count);
 			<Spaces<T>>::insert(
 				&identifier,
 				SpaceDetailsOf::<T> {
 					code: space_code,
 					creator: creator.clone(),
 					txn_capacity: count,
+					txn_reserve: 0,
 					txn_count: 0,
 					approved: true,
 					archive: false,
-					parent: Some(space_id),
+					parent: space_id,
 				},
 			);
 

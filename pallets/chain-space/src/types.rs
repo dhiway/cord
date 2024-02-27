@@ -82,10 +82,11 @@ pub struct SpaceDetails<SpaceCodeOf, SpaceCreatorOf, StatusOf, SpaceIdOf> {
 	pub code: SpaceCodeOf,
 	pub creator: SpaceCreatorOf,
 	pub txn_capacity: u64,
+	pub txn_reserve: u64,
 	pub txn_count: u64,
 	pub approved: StatusOf,
 	pub archive: StatusOf,
-	pub parent: Option<SpaceIdOf>,
+	pub parent: SpaceIdOf,
 }
 
 /// Authorization details for a space delegate.
