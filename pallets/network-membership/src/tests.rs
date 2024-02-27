@@ -229,3 +229,52 @@ fn test_revoke_membership_non_authority() {
 		assert_eq!(NetworkMembership::members_count(), 1);
 	});
 }
+
+#[test]
+fn test_renew_membership_again_should_fail() {
+	new_test_ext().execute_with(|| {
+		run_to_block(1);
+
+		assert!(NetworkMembership::is_member(&AccountId::new([11u8; 32])));
+
+		assert_ok!(NetworkMembership::nominate(
+			RawOrigin::Root.into(),
+			AccountId::new([13u8; 32]),
+			true
+		));
+
+		System::assert_has_event(RuntimeEvent::NetworkMembership(Event::MembershipAcquired {
+			member: AccountId::new([13u8; 32]),
+		}));
+
+		run_to_block(2);
+		// Membership renewal request is made for first time, should pass
+		assert_ok!(NetworkMembership::renew(RawOrigin::Root.into(), AccountId::new([13u8; 32]),));
+		// Membership renewal request is made again, renewal request already exists, should fail
+		assert_err!(
+			NetworkMembership::renew(RawOrigin::Root.into(), AccountId::new([13u8; 32]),),
+			Error::<Test>::MembershipRenewalAlreadyRequested
+		);
+
+		System::assert_has_event(RuntimeEvent::NetworkMembership(
+			Event::MembershipRenewalRequested { member: AccountId::new([13u8; 32]) },
+		));
+
+		run_to_block(6);
+		assert!(NetworkMembership::is_member(&AccountId::new([13u8; 32])));
+		System::assert_has_event(RuntimeEvent::NetworkMembership(Event::MembershipRenewed {
+			member: AccountId::new([13u8; 32]),
+		}));
+
+		run_to_block(10);
+		assert!(NetworkMembership::is_member(&AccountId::new([13u8; 32])));
+
+		// This ensures that the account was successfully added
+		assert_eq!(
+			NetworkMembership::members(AccountId::new([13u8; 32])),
+			Some(MemberData { expire_on: 6 + MembershipPeriod::get() })
+		);
+
+		assert_eq!(NetworkMembership::members_count(), 1);
+	});
+}
