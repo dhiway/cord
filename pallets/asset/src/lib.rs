@@ -421,7 +421,7 @@ pub mod pallet {
 				let instance = <Issuance<T>>::get(&asset_id, &inst_id)
 					.ok_or(Error::<T>::AssetInstanceNotFound)?;
 				ensure!(
-					new_status.clone() == instance.asset_instance_status,
+					new_status.clone() != instance.asset_instance_status,
 					Error::<T>::AssetInSameState
 				);
 
