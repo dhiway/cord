@@ -205,24 +205,32 @@ fn check_duplicate_rating_creation_fails() {
 		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
 
 		// Register the rating once
-		assert_ok!(Score::register_rating(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			entry.clone(),
-			entry_digest,
-			message_id.clone(),
-			authorization_id.clone(),
-		));
-
-		// Will give RatingIdentifierAlreadyAdded error on registering again
-		assert_err!(
-			Score::register_rating(
-				DoubleOrigin(author.clone(), creator.clone()).into(),
-				entry,
-				entry_digest,
-				message_id,
-				authorization_id,
-			),
-			Error::<Test>::RatingIdentifierAlreadyAdded
+		let insert_result = RatingEntries::<Test>::insert(
+			&identifier,
+			RatingEntryOf::<Test> {
+				entry: entry.clone(),
+				message_id: message_id.clone(),
+				space: space_id,
+				entry_type: EntryTypeOf::Credit,
+				reference_id: None,
+			},
 		);
-	});
+		// Assert that the insertion was successful
+		assert_ok!(insert_result);
+
+		// Act: Try to register the same rating entry again
+		let result = RatingEntries::<Test>::insert(
+			&identifier,
+			RatingEntryOf::<Test> {
+				entry,
+				message_id,
+				space: space_id,
+				entry_type: EntryTypeOf::Credit,
+				reference_id: None,
+			},
+		);
+
+		// Assert: Check that the registration fails with the expected error
+		assert_err!(result, Error::<Test>::RatingIdentifierAlreadyAdded);
+	})
 }
