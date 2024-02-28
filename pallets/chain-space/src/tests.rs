@@ -1117,7 +1117,8 @@ fn add_delegate_should_fail_if_space_delegates_limit_exceeded() {
 			}
 		}
 
-		// Attempt to add one more delegate, which should exceed the limit and result in the expected error
+		// Attempt to add one more delegate, which should exceed the limit and result in the
+		// expected error
 		assert_err!(
 			Space::space_delegate_addition(
 				space_id.clone(),
