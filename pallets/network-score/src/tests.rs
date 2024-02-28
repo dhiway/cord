@@ -159,78 +159,64 @@ fn check_duplicate_message_id() {
 		);
 	});
 }
-
 #[test]
-fn check_duplicate_rating_creation_fails() {
-	let creator = DID_00.clone();
-	let author = ACCOUNT_00.clone();
+fn test_register_rating_id_already_exists() {
+    // Define test parameters
+    let creator = DID_00.clone();
+    let author = ACCOUNT_00.clone();
+    let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+    let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+    let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
+    let entry = RatingInputEntryOf::<Test> {
+        entity_uid,
+        provider_uid,
+        total_encoded_rating: 250u64,
+        count_of_txn: 7u64,
+        entity_type: EntityTypeOf::Logistic,
+        rating_type: RatingTypeOf::Overall,
+        provider_did: creator.clone(),
+    };
+    let entry_digest =
+        <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
+    let raw_space = [2u8; 256].to_vec();
+    let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+    let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+        &[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+    );
+    let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+    let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+        &[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+    );
+    let authorization_id: AuthorizationIdOf =
+        Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
+            .unwrap();
 
-	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
-	let entry = RatingInputEntryOf::<Test> {
-		entity_uid,
-		provider_uid,
-		total_encoded_rating: 250u64,
-		count_of_txn: 7u64,
-		entity_type: EntityTypeOf::Logistic,
-		rating_type: RatingTypeOf::Overall,
-		provider_did: creator.clone(),
-	};
-	let entry_digest =
-		<Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
+    new_test_ext().execute_with(|| {
+        System::set_block_number(1);
 
-	let raw_space = [2u8; 256].to_vec();
-	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
-	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+        // Create a space
+        assert_ok!(Space::create(DoubleOrigin(author.clone(), creator.clone()).into(), space_digest));
+        assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
 
-	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
-
-	new_test_ext().execute_with(|| {
-		System::set_block_number(1);
-
-		assert_ok!(Space::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			space_digest,
+        // Register the rating entry once
+        assert_ok!(Score::<T>::register_rating(
+			origin.clone(),
+			entry.clone(),
+			digest.clone(),
+			message_id.clone(),
+			authorization.clone(),
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
-
-		// Register the rating once
-		let insert_result = RatingEntries::<Test>::insert(
-			&identifier,
-			RatingEntryOf::<Test> {
-				entry: entry.clone(),
-				message_id: message_id.clone(),
-				space: space_id,
-				entry_type: EntryTypeOf::Credit,
-				reference_id: None,
-			},
-		);
-		// Assert that the insertion was successful
-		assert_ok!(insert_result);
-
-		// Act: Try to register the same rating entry again
-		let result = RatingEntries::<Test>::insert(
-			&identifier,
-			RatingEntryOf::<Test> {
+        // Attempt to register another rating entry with the same message ID
+		assert_err!(
+			Score::register_rating(
+				origin,
 				entry,
+				digest,
 				message_id,
-				space: space_id,
-				entry_type: EntryTypeOf::Credit,
-				reference_id: None,
-			},
-		);
-
-		// Assert: Check that the registration fails with the expected error
-		assert_err!(result, Error::<Test>::RatingIdentifierAlreadyAdded);
-	})
+				authorization,
+			),
+			Error::<T>::RatingIdentifierAlreadyAdded
+        );
+    });
 }
