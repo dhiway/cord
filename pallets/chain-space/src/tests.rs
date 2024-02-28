@@ -1105,16 +1105,13 @@ fn add_delegate_should_fail_if_space_delegates_limit_exceeded() {
 
 		// Add the maximum number of delegates to the space
 		let mut delegate_count: u8 = 0;
-		loop {
-			match Space::space_delegate_addition(
-				space_id.clone(),
-				SubjectId(AccountId32::new([delegate_count; 32])),
-				creator.clone(),
-				Permissions::all(),
-			) {
-				Ok(_) => delegate_count += 1,
-				Err(_) => break,
-			}
+		while let Ok(_) = Space::space_delegate_addition(
+			space_id.clone(),
+			SubjectId(AccountId32::new([delegate_count; 32])),
+			creator.clone(),
+			Permissions::all(),
+		) {
+			delegate_count += 1;
 		}
 
 		// Attempt to add one more delegate, which should exceed the limit and result in the
