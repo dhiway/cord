@@ -27,16 +27,16 @@ log = { version = "0.4.17", default-features = false }
 
 network-membership = { package = "network-membership", path = "../../primitives/network-membership", default-features = false }
 pallet-network-membership = { package = "pallet-network-membership", path = "../../pallets/network-membership", default-features = false }
-frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false, optional = true }
-frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0", default-features = false, optional = true }
+frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0", default-features = false }
+frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0", default-features = false }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0", default-features = false }
+sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0", default-features = false }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0", default-features = false }
 
 [dev-dependencies]
-frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0", default-features = false }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0", default-features = false }
 rand = "0.8"
 
 [features]
