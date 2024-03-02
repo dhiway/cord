@@ -22,7 +22,7 @@ use crate as pallet_did;
 use codec::{Decode, Encode};
 use cord_utilities::mock::*;
 use frame_support::{
-	parameter_types,
+	construct_runtime, derive_impl, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
 use frame_system::EnsureRoot;
@@ -56,7 +56,7 @@ pub(crate) type AccountPublic = <Signature as Verify>::Signer;
 pub(crate) type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 pub(crate) type DidIdentifier = AccountId;
 
-frame_support::construct_runtime!(
+construct_runtime!(
 	pub enum Test
 	{
 		Did: pallet_did,
@@ -72,6 +72,7 @@ parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 }
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();

@@ -32,8 +32,6 @@ members = [
 default-members = ["node/cli"]
 
 [workspace.dependencies]
-polkavm-linker = "0.8.2"
-polkavm-derive = "0.8.0"
 log = { version = "0.4.20", default-features = false }
 quote = { version = "1.0.33" }
 serde = { version = "1.0.197", default-features = false }

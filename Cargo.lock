@@ -1848,6 +1848,7 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-state-machine",
+ "tokio",
 ]
 
 [[package]]
@@ -1868,6 +1869,7 @@ dependencies = [
  "pallet-timestamp",
  "parity-scale-codec",
  "sc-block-builder",
+ "sc-chain-spec",
  "sc-executor",
  "sc-executor-common",
  "sc-service",
@@ -1882,6 +1884,7 @@ dependencies = [
  "sp-consensus-babe",
  "sp-consensus-grandpa",
  "sp-core",
+ "sp-crypto-hashing",
  "sp-externalities 0.25.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.8.0)",
  "sp-genesis-builder",
  "sp-inherents",

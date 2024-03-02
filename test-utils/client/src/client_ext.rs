@@ -88,8 +88,7 @@ where
 	}
 }
 
-/// This implementation is required, because of the weird api requirements
-/// around `BlockImport`.
+/// This implementation is required, because of the weird api requirements around `BlockImport`.
 #[async_trait::async_trait]
 impl<Block: BlockT, T> ClientBlockImportExt<Block> for std::sync::Arc<T>
 where

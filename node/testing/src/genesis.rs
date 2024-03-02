@@ -92,6 +92,5 @@ pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
 		technical_committee: Default::default(),
 		technical_membership: Default::default(),
 		sudo: Default::default(),
-		mixnet: Default::default(),
 	}
 }
