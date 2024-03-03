@@ -67,7 +67,7 @@ jobs:
           restore-keys: ${{ runner.os }}-rust-
 
       - name: cargo test
-        run: rustup component add rust-src && cargo test --release --all --all-targets --locked --features=runtime-benchmarks --no-fail-fast --verbose --color always
+        run: rustup component add rust-src && cargo test --release --all --all-targets --features=runtime-benchmarks --no-fail-fast --verbose --color always
 
   clippy:
     runs-on: ubuntu-latest
