@@ -952,10 +952,10 @@ fn registering_a_statement_again_should_fail() {
 fn updating_a_registered_statement_again_should_fail() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
-	let delegate = DID_01;
-	let capacity = 10u64;
+	let capacity = 5u64;
 	let statement = [77u8; 32];
-	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+	let statement_digest: StatementDigestOf<Test> =
+		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
 	let new_statement = [88u8; 32];
 	let new_statement_digest = <Test as frame_system::Config>::Hashing::hash(&new_statement[..]);
 
@@ -985,18 +985,13 @@ fn updating_a_registered_statement_again_should_fail() {
 
 	let statement_id: StatementIdOf = generate_statement_id::<Test>(&statement_id_digest);
 
-	let delegate_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
-	);
-	let delegate_authorization_id = generate_authorization_id::<Test>(&delegate_id_digest);
-
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Schema::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -1012,18 +1007,18 @@ fn updating_a_registered_statement_again_should_fail() {
 		));
 
 		assert_ok!(Statement::update(
-			DoubleOrigin(author.clone(), delegate.clone()).into(),
+			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_id.clone(),
 			new_statement_digest,
-			delegate_authorization_id.clone(),
+			authorization_id.clone(),
 		));
 
 		assert_err!(
 			Statement::update(
-				DoubleOrigin(author, delegate).into(),
+				DoubleOrigin(author, creator).into(),
 				statement_id,
 				new_statement_digest,
-				delegate_authorization_id,
+				authorization_id,
 			),
 			Error::<Test>::StatementDigestAlreadyAnchored
 		);
