@@ -23,7 +23,7 @@
 
 use crate::cli::Cli;
 use codec::Encode;
-use cord_primitives::Block;
+pub use cord_primitives::Block;
 pub use cord_runtime::RuntimeApi;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 use frame_system_rpc_runtime_api::AccountNonceApi;
@@ -32,7 +32,7 @@ pub use sc_client_api::AuxStore;
 use sc_client_api::{Backend as BackendT, BlockBackend};
 use sc_consensus_babe::{self, SlotProportion};
 use sc_network::{event::Event, NetworkEventStream, NetworkService};
-use sc_network_sync::{warp::WarpSyncParams, SyncingService};
+use sc_network_sync::{strategy::warp::WarpSyncParams, SyncingService};
 use sc_service::RpcHandlers;
 pub use sc_service::{
 	config::{DatabaseSource, PrometheusConfig},
@@ -52,7 +52,7 @@ pub use sp_runtime::{
 	traits::{self as runtime_traits, BlakeTwo256, Block as BlockT, Header as HeaderT, NumberFor},
 	OpaqueExtrinsic, SaturatedConversion,
 };
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 /// Host functions required for runtime and  node.
 #[cfg(not(feature = "runtime-benchmarks"))]
@@ -261,7 +261,6 @@ exists; qed",
 #[allow(clippy::type_complexity)]
 pub fn new_partial(
 	config: &Configuration,
-	mixnet_config: Option<&sc_mixnet::Config>,
 ) -> Result<
 	sc_service::PartialComponents<
 		FullClient,
@@ -281,7 +280,6 @@ pub fn new_partial(
 			),
 			sc_consensus_grandpa::SharedVoterState,
 			Option<Telemetry>,
-			Option<sc_mixnet::ApiBackend>,
 		),
 	>,
 	ServiceError,
@@ -362,7 +360,6 @@ pub fn new_partial(
 		})?;
 
 	let import_setup = (block_import, grandpa_link, babe_link);
-	let (mixnet_api, mixnet_api_backend) = mixnet_config.map(sc_mixnet::Api::new).unzip();
 
 	let (rpc_extensions_builder, rpc_setup) = {
 		let (_, grandpa_link, _) = &import_setup;
@@ -403,7 +400,6 @@ pub fn new_partial(
 					finality_provider: finality_proof_provider.clone(),
 				},
 				backend: rpc_backend.clone(),
-				mixnet_api: mixnet_api.as_ref().cloned(),
 			};
 
 			cord_rpc::create_full(deps).map_err(Into::into)
@@ -420,7 +416,7 @@ pub fn new_partial(
 		select_chain,
 		import_queue,
 		transaction_pool,
-		other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry, mixnet_api_backend),
+		other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry),
 	})
 }
 
@@ -443,13 +439,21 @@ pub struct NewFullBase {
 /// Creates a full service from the configuration.
 pub fn new_full_base(
 	config: Configuration,
-	mixnet_config: Option<sc_mixnet::Config>,
 	disable_hardware_benchmarks: bool,
 	with_startup_data: impl FnOnce(
 		&sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
 		&sc_consensus_babe::BabeLink<Block>,
 	),
 ) -> Result<NewFullBase, ServiceError> {
+	let role = config.role.clone();
+	let force_authoring = config.force_authoring;
+	let backoff_authoring_blocks =
+		Some(sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default());
+	let name = config.network.node_name.clone();
+	let enable_grandpa = !config.disable_grandpa;
+	let prometheus_registry = config.prometheus_registry().cloned();
+	let enable_offchain_worker = config.offchain_worker.enabled;
+
 	let hwbench = (!disable_hardware_benchmarks)
 		.then_some(config.database.path().map(|database_path| {
 			let _ = std::fs::create_dir_all(database_path);
@@ -465,8 +469,8 @@ pub fn new_full_base(
 		keystore_container,
 		select_chain,
 		transaction_pool,
-		other: (rpc_builder, import_setup, rpc_setup, mut telemetry, mixnet_api_backend),
-	} = new_partial(&config, mixnet_config.as_ref())?;
+		other: (rpc_builder, import_setup, rpc_setup, mut telemetry),
+	} = new_partial(&config)?;
 
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
@@ -478,15 +482,6 @@ pub fn new_full_base(
 	let (grandpa_protocol_config, grandpa_notification_service) =
 		sc_consensus_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone());
 	net_config.add_notification_protocol(grandpa_protocol_config);
-
-	let mixnet_protocol_name =
-		sc_mixnet::protocol_name(genesis_hash.as_ref(), config.chain_spec.fork_id());
-	let mixnet_notification_service = mixnet_config.as_ref().map(|mixnet_config| {
-		let (config, notification_service) =
-			sc_mixnet::peers_set_config(mixnet_protocol_name.clone(), mixnet_config);
-		net_config.add_notification_protocol(config);
-		notification_service
-	});
 
 	let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
 		backend.clone(),
@@ -506,31 +501,6 @@ pub fn new_full_base(
 			warp_sync_params: Some(WarpSyncParams::WithProvider(warp_sync)),
 			block_relay: None,
 		})?;
-
-	if let Some(mixnet_config) = mixnet_config {
-		let mixnet = sc_mixnet::run(
-			mixnet_config,
-			mixnet_api_backend.expect("Mixnet API backend created if mixnet enabled"),
-			client.clone(),
-			sync_service.clone(),
-			network.clone(),
-			mixnet_protocol_name,
-			transaction_pool.clone(),
-			Some(keystore_container.keystore()),
-			mixnet_notification_service
-				.expect("`NotificationService` exists since mixnet was enabled; qed"),
-		);
-		task_manager.spawn_handle().spawn("mixnet", None, mixnet);
-	}
-
-	let role = config.role.clone();
-	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks =
-		Some(sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default());
-	let name = config.network.node_name.clone();
-	let enable_grandpa = !config.disable_grandpa;
-	let prometheus_registry = config.prometheus_registry().cloned();
-	let enable_offchain_worker = config.offchain_worker.enabled;
 
 	let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
@@ -738,17 +708,18 @@ pub fn new_full_base(
 
 /// Builds a new service for a full client.
 pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
-	let mixnet_config = cli.mixnet_params.config(config.role.is_authority());
-	let database_source = config.database.clone();
-	let task_manager = new_full_base(config, mixnet_config, cli.no_hardware_benchmarks, |_, _| ())
+	let database_path = config.database.path().map(Path::to_path_buf);
+	let task_manager = new_full_base(config, cli.no_hardware_benchmarks, |_, _| ())
 		.map(|NewFullBase { task_manager, .. }| task_manager)?;
 
-	sc_storage_monitor::StorageMonitorService::try_spawn(
-		cli.storage_monitor,
-		database_source,
-		&task_manager.spawn_essential_handle(),
-	)
-	.map_err(|e| ServiceError::Application(e.into()))?;
+	if let Some(database_path) = database_path {
+		sc_storage_monitor::StorageMonitorService::try_spawn(
+			cli.storage_monitor,
+			database_path,
+			&task_manager.spawn_essential_handle(),
+		)
+		.map_err(|e| ServiceError::Application(e.into()))?;
+	}
 
 	Ok(task_manager)
 }

@@ -29,7 +29,6 @@ use serde::Deserialize;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::crypto::UncheckedInto;
-use sp_mixnet::types::AuthorityId as MixnetId;
 use sp_std::collections::btree_map::BTreeMap;
 
 pub use cord_runtime_constants::{currency::*, time::*};
@@ -66,9 +65,8 @@ fn session_keys(
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
-	mixnet: MixnetId,
 ) -> SessionKeys {
-	SessionKeys { babe, grandpa, im_online, authority_discovery, mixnet }
+	SessionKeys { babe, grandpa, im_online, authority_discovery }
 }
 
 /// Custom config.
@@ -86,27 +84,20 @@ fn cord_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 		})
 		.collect();
 
-	let initial_authorities: Vec<(
-		AccountId,
-		BabeId,
-		GrandpaId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-		MixnetId,
-	)> = config
-		.authorities
-		.iter()
-		.map(|auth| {
-			(
-				array_bytes::hex_n_into_unchecked(&auth[0]),
-				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-				array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
-				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-			)
-		})
-		.collect();
+	let initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)> =
+		config
+			.authorities
+			.iter()
+			.map(|auth| {
+				(
+					array_bytes::hex_n_into_unchecked(&auth[0]),
+					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+					array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
+					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				)
+			})
+			.collect();
 
 	let initial_council_members: Vec<AccountId> =
 		config.council_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
@@ -152,14 +143,7 @@ pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> 
 fn cord_custom_genesis(
 	network_members: Vec<AccountId>,
 	well_known_nodes: Vec<(NodeId, AccountId)>,
-	initial_authorities: Vec<(
-		AccountId,
-		BabeId,
-		GrandpaId,
-		ImOnlineId,
-		AuthorityDiscoveryId,
-		MixnetId,
-	)>,
+	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
 	council_members: Vec<AccountId>,
 	tech_committee_members: Vec<AccountId>,
 	sudo_key: AccountId,
@@ -189,7 +173,6 @@ fn cord_custom_genesis(
 							x.2.clone(),
 							x.3.clone(),
 							x.4.clone(),
-							x.5.clone(),
 						),
 					)
 				})

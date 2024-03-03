@@ -18,7 +18,7 @@
 
 use crate as pallet_schema;
 use cord_utilities::mock::{mock_origin, SubjectId};
-use frame_support::{parameter_types, traits::ConstU64};
+use frame_support::{construct_runtime, derive_impl, parameter_types, traits::ConstU64};
 use frame_system::EnsureRoot;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
@@ -31,7 +31,7 @@ type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 
-frame_support::construct_runtime!(
+construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
@@ -46,6 +46,7 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 29;
 }
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;

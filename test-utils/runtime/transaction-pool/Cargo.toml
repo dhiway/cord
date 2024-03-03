@@ -19,8 +19,8 @@ codec = { package = "parity-scale-codec", version = "3.6.1" }
 futures = "0.3.21"
 parking_lot = "0.12.1"
 thiserror = "1.0"
-sc-transaction-pool = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-sc-transaction-pool-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.5.0" }
+sc-transaction-pool = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
+sc-transaction-pool-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
+sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
 cord-test-runtime-client = { path = "../client" }

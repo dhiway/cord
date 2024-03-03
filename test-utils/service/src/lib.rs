@@ -29,7 +29,10 @@ use sc_network::{
 use sc_network_sync::SyncingService;
 use sc_service::{
 	client::Client,
-	config::{BasePath, DatabaseSource, KeystoreConfig},
+	config::{
+		BasePath, DatabaseSource, KeystoreConfig, RpcBatchRequestConfig, WasmExecutionMethod,
+		WasmtimeInstantiationStrategy,
+	},
 	BlocksPruning, ChainSpecExtension, Configuration, Error, GenericChainSpec, Role,
 	RuntimeGenesis, SpawnTaskHandle, TaskManager,
 };
@@ -243,17 +246,22 @@ fn node_config<
 		state_pruning: Default::default(),
 		blocks_pruning: BlocksPruning::KeepFinalized,
 		chain_spec: Box::new((*spec).clone()),
-		wasm_method: Default::default(),
+		wasm_method: WasmExecutionMethod::Compiled {
+			instantiation_strategy: WasmtimeInstantiationStrategy::PoolingCopyOnWrite,
+		},
 		wasm_runtime_overrides: Default::default(),
 		rpc_addr: Default::default(),
+		rpc_max_request_size: Default::default(),
+		rpc_max_response_size: Default::default(),
 		rpc_max_connections: Default::default(),
 		rpc_cors: None,
 		rpc_methods: Default::default(),
-		rpc_max_request_size: Default::default(),
-		rpc_max_response_size: Default::default(),
 		rpc_id_provider: Default::default(),
 		rpc_max_subs_per_conn: Default::default(),
 		rpc_port: 9944,
+		rpc_message_buffer_capacity: Default::default(),
+		rpc_batch_config: RpcBatchRequestConfig::Unlimited,
+		rpc_rate_limit: None,
 		prometheus_config: None,
 		telemetry_endpoints: None,
 		default_heap_pages: None,

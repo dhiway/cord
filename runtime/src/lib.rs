@@ -109,7 +109,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 /// Max size for serialized extrinsic params for this testing runtime.
 /// This is a quite arbitrary but empirically battle tested value.
 #[cfg(test)]
-pub const CALL_PARAMS_MAX_SIZE: usize = 240;
+pub const CALL_PARAMS_MAX_SIZE: usize = 244;
 
 /// Wasm binary unwrapped. If built with `SKIP_WASM_BUILD`, the function panics.
 #[cfg(feature = "std")]
@@ -348,7 +348,6 @@ impl pallet_balances::Config for Runtime {
 	type AccountStore = System;
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = ConstU32<1>;
-	type MaxHolds = ConstU32<6>;
 	type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
 }
 
@@ -378,7 +377,6 @@ impl_opaque_keys! {
 		pub babe: Babe,
 		pub im_online: ImOnline,
 		pub authority_discovery: AuthorityDiscovery,
-		pub mixnet: Mixnet,
 	}
 }
 
@@ -627,29 +625,6 @@ impl pallet_multisig::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MixnetNumCoverToCurrentBlocks: BlockNumber = 3;
-	pub const MixnetNumRequestsToCurrentBlocks: BlockNumber = 3;
-	pub const MixnetNumCoverToPrevBlocks: BlockNumber = 3;
-	pub const MixnetNumRegisterStartSlackBlocks: BlockNumber = 3;
-	pub const MixnetNumRegisterEndSlackBlocks: BlockNumber = 3;
-	pub const MixnetRegistrationPriority: TransactionPriority = ImOnlineUnsignedPriority::get() - 1;
-}
-
-impl pallet_mixnet::Config for Runtime {
-	type MaxAuthorities = MaxAuthorities;
-	type MaxExternalAddressSize = ConstU32<128>;
-	type MaxExternalAddressesPerMixnode = ConstU32<16>;
-	type NextSessionRotation = Babe;
-	type NumCoverToCurrentBlocks = MixnetNumCoverToCurrentBlocks;
-	type NumRequestsToCurrentBlocks = MixnetNumRequestsToCurrentBlocks;
-	type NumCoverToPrevBlocks = MixnetNumCoverToPrevBlocks;
-	type NumRegisterStartSlackBlocks = MixnetNumRegisterStartSlackBlocks;
-	type NumRegisterEndSlackBlocks = MixnetNumRegisterEndSlackBlocks;
-	type RegistrationPriority = MixnetRegistrationPriority;
-	type MinMixnodes = ConstU32<7>; // Low to allow small testing networks
-}
-
-parameter_types! {
 	pub const MaxProposalLength: u16 = 5;
 }
 impl authority_membership::Config for Runtime {
@@ -833,7 +808,7 @@ impl pallet_asset::Config for Runtime {
 }
 
 construct_runtime! (
-	pub struct Runtime
+	pub enum Runtime
 	{
 		System: frame_system = 0,
 		Scheduler: pallet_scheduler = 1,
@@ -856,12 +831,11 @@ construct_runtime! (
 		NodeAuthorization: pallet_node_authorization = 18,
 		RuntimeUpgrade: pallet_runtime_upgrade = 19,
 		Utility: pallet_utility = 31,
-		Historical: pallet_session_historical::{Pallet} = 33,
+		Historical: pallet_session_historical = 33,
 		Multisig: pallet_multisig = 35,
 		Remark: pallet_remark = 37,
 		Identity: pallet_identity = 38,
 		Identifier: identifier = 39,
-		Mixnet: pallet_mixnet = 40,
 		NetworkMembership: pallet_network_membership =101,
 		Did: pallet_did = 102,
 		Schema: pallet_schema = 103,
@@ -1255,24 +1229,6 @@ sp_api::impl_runtime_apis! {
 	impl pallet_transaction_weight_runtime_api::TransactionWeightApi<Block> for Runtime {
 		fn query_weight_info(uxt: <Block as BlockT>::Extrinsic) -> RuntimeDispatchWeightInfo {
 			NetworkMembership::query_weight_info(uxt)
-		}
-	}
-
-	impl sp_mixnet::runtime_api::MixnetApi<Block> for Runtime {
-		fn session_status() -> sp_mixnet::types::SessionStatus {
-			Mixnet::session_status()
-		}
-
-		fn prev_mixnodes() -> Result<Vec<sp_mixnet::types::Mixnode>, sp_mixnet::types::MixnodesErr> {
-			Mixnet::prev_mixnodes()
-		}
-
-		fn current_mixnodes() -> Result<Vec<sp_mixnet::types::Mixnode>, sp_mixnet::types::MixnodesErr> {
-			Mixnet::current_mixnodes()
-		}
-
-		fn maybe_register(session_index: sp_mixnet::types::SessionIndex, mixnode: sp_mixnet::types::Mixnode) -> bool {
-			Mixnet::maybe_register(session_index, mixnode)
 		}
 	}
 
