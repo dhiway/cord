@@ -785,6 +785,7 @@ pub mod pallet {
 			space_id: SpaceIdOf,
 			new_txn_capacity: u64,
 		) -> DispatchResult {
+			T::ChainSpaceOrigin::ensure_origin(origin)?;
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
@@ -796,34 +797,26 @@ pub mod pallet {
 			);
 
 			if space_id.clone() != space_details.parent.clone() {
-				let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-
 				let parent_details = Spaces::<T>::get(&space_details.parent.clone())
 					.ok_or(Error::<T>::SpaceNotFound)?;
-				ensure!(
-					parent_details.creator.clone() == creator,
-					Error::<T>::UnauthorizedOperation
-				);
 
 				// Ensure the new capacity is greater than the current usage
 				ensure!(
-					(parent_details.txn_capacity >=
-						(parent_details.txn_count +
-							parent_details.txn_reserve + new_txn_capacity -
-							space_details.txn_capacity)),
+					(parent_details.txn_capacity
+						>= (parent_details.txn_count
+							+ parent_details.txn_reserve + new_txn_capacity
+							- space_details.txn_capacity)),
 					Error::<T>::CapacityLessThanUsage
 				);
 
 				<Spaces<T>>::insert(
 					&space_details.parent.clone(),
 					SpaceDetailsOf::<T> {
-						txn_reserve: parent_details.txn_reserve - space_details.txn_capacity +
-							new_txn_capacity,
+						txn_reserve: parent_details.txn_reserve - space_details.txn_capacity
+							+ new_txn_capacity,
 						..parent_details.clone()
 					},
 				);
-			} else {
-				T::ChainSpaceOrigin::ensure_origin(origin)?;
 			}
 
 			<Spaces<T>>::insert(
@@ -999,7 +992,7 @@ pub mod pallet {
 		/// - `Create`: Emitted when a new space is successfully created. It includes the space
 		///   identifier, the creator's identifier, and the authorization ID.
 		#[pallet::call_index(12)]
-		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::subspace_create())]
 		pub fn subspace_create(
 			origin: OriginFor<T>,
 			space_code: SpaceCodeOf<T>,
@@ -1015,17 +1008,16 @@ pub mod pallet {
 
 			// Ensure the new capacity is greater than the current usage
 			ensure!(
-				count <=
-					(space_details.txn_capacity -
-						(space_details.txn_count + space_details.txn_reserve)),
+				count
+					<= (space_details.txn_capacity
+						- (space_details.txn_count + space_details.txn_reserve)),
 				Error::<T>::CapacityLimitExceeded
 			);
 
 			// Id Digest = concat (H(<scale_encoded_registry_input>,
 			// <scale_encoded_creator_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&space_code.encode()[..], &creator.encode()[..], &space_id.encode()[..]].concat()
-					[..],
+				&[&space_code.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
 			let identifier =
@@ -1095,6 +1087,85 @@ pub mod pallet {
 				creator,
 				authorization: authorization_id,
 			});
+
+			Ok(())
+		}
+
+		/// Updates the transaction capacity of an existing subspace.
+		///
+		/// This extrinsic updates the capacity limit of a space, ensuring that
+		/// the new limit is not less than the current usage to prevent
+		/// over-allocation. It can only be called by an authorized origin and
+		/// not on archived or unapproved spaces.
+		///
+		/// # Arguments
+		/// * `origin` - The origin of the call, which must be from an authorized source.
+		/// * `space_id` - The identifier of the space for which the capacity is being updated.
+		/// * `new_txn_capacity` - The new capacity limit to be set for the space.
+		///
+		/// # Errors
+		/// * `SpaceNotFound` - If the space with the given ID does not exist.
+		/// * `ArchivedSpace` - If the space is archived and thus cannot be modified.
+		/// * `SpaceNotApproved` - If the space has not been approved for use yet.
+		/// * `CapacityLessThanUsage` - If the new capacity is less than the current usage of the
+		///   space.
+		///
+		/// # Events
+		/// * `UpdateCapacity` - Emits the space ID when the capacity is successfully updated.
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_transaction_capacity())]
+		pub fn update_transaction_capacity_sub(
+			origin: OriginFor<T>,
+			space_id: SpaceIdOf,
+			new_txn_capacity: u64,
+		) -> DispatchResult {
+			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+
+			// Ensure the new capacity is greater than the current usage
+			ensure!(
+				new_txn_capacity >= (space_details.txn_count + space_details.txn_reserve),
+				Error::<T>::CapacityLessThanUsage
+			);
+
+			// If its a top level Space, then this is unauthorized.
+			ensure!(
+				space_details.parent.clone() != space_id.clone(),
+				Error::<T>::UnauthorizedOperation
+			);
+
+			let parent_details =
+				Spaces::<T>::get(&space_details.parent.clone()).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(parent_details.creator.clone() == creator, Error::<T>::UnauthorizedOperation);
+
+			// Ensure the new capacity is greater than the current usage
+			ensure!(
+				(parent_details.txn_capacity
+					>= (parent_details.txn_count + parent_details.txn_reserve + new_txn_capacity
+						- space_details.txn_capacity)),
+				Error::<T>::CapacityLessThanUsage
+			);
+
+			<Spaces<T>>::insert(
+				&space_details.parent.clone(),
+				SpaceDetailsOf::<T> {
+					txn_reserve: parent_details.txn_reserve - space_details.txn_capacity
+						+ new_txn_capacity,
+					..parent_details.clone()
+				},
+			);
+
+			<Spaces<T>>::insert(
+				&space_id,
+				SpaceDetailsOf::<T> { txn_capacity: new_txn_capacity, ..space_details },
+			);
+
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Capacity)
+				.map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::UpdateCapacity { space: space_id });
 
 			Ok(())
 		}

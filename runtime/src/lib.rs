@@ -916,6 +916,15 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::ChainSpace(pallet_chain_space::Call::restore { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::subspace_create { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::update_transaction_capacity { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::ChainSpace(pallet_chain_space::Call::update_transaction_capacity_sub { .. }) => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
 			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {
 				single_key_relationship(&calls[..])
 			},

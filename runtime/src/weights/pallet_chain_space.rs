@@ -241,4 +241,22 @@ impl<T: frame_system::Config> pallet_chain_space::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
+	/// Storage: `ChainSpace::Spaces` (r:1 w:1)
+	/// Proof: `ChainSpace::Spaces` (`max_values`: None, `max_size`: Some(148), added: 2623, mode: `MaxEncodedLen`)
+	/// Storage: `Identifier::Identifiers` (r:1 w:1)
+	/// Proof: `Identifier::Identifiers` (`max_values`: None, `max_size`: Some(4294967295), added: 2474, mode: `MaxEncodedLen`)
+	/// Storage: `ChainSpace::Delegates` (r:0 w:1)
+	/// Proof: `ChainSpace::Delegates` (`max_values`: None, `max_size`: Some(320068), added: 322543, mode: `MaxEncodedLen`)
+	/// Storage: `ChainSpace::Authorizations` (r:0 w:1)
+	/// Proof: `ChainSpace::Authorizations` (`max_values`: None, `max_size`: Some(184), added: 2659, mode: `MaxEncodedLen`)
+	fn subspace_create() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `115`
+		//  Estimated: `3613`
+		// Minimum execution time: 27_200_000 picoseconds.
+		Weight::from_parts(27_760_000, 0)
+			.saturating_add(Weight::from_parts(0, 3613))
+			.saturating_add(T::DbWeight::get().reads(2))
+			.saturating_add(T::DbWeight::get().writes(4))
+	}
 }
