@@ -1181,7 +1181,10 @@ pub mod pallet {
 			let mut did_details = Did::<T>::get(&operation.did)
 				.ok_or(StorageError::NotFound(errors::NotFoundKind::Did))?;
 
-			Self::validate_counter_value(operation.tx_counter, &did_details)?;
+			// TODO: With agency model this nonce check would cause a problem when we get
+			// to utility batch etc. Re-enable this once we have more tests
+			// Self::validate_counter_value(operation.tx_counter, &did_details)?;
+
 			// Increase the tx counter as soon as it is considered valid, no matter if the
 			// signature is valid or not.
 			did_details.increase_tx_counter();
