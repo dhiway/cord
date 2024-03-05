@@ -61,6 +61,7 @@ pub trait WeightInfo {
 	fn reset_transaction_count() -> Weight;
 	fn approval_revoke() -> Weight;
 	fn approval_restore() -> Weight;
+	fn subspace_create() -> Weight;
 }
 
 /// Weights for `pallet_chain_space` using the CORD node and recommended hardware.
@@ -246,6 +247,20 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2_u64))
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
+	/// Storage: `ChainSpace::Spaces` (r:1 w:1)
+	/// Proof: `ChainSpace::Spaces` (`max_values`: None, `max_size`: Some(148), added: 2623, mode: `MaxEncodedLen`)
+	/// Storage: `Identifier::Identifiers` (r:1 w:1)
+	/// Proof: `Identifier::Identifiers` (`max_values`: None, `max_size`: Some(4294967295), added: 2474, mode: `MaxEncodedLen`)
+	fn subspace_create() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `445`
+		//  Estimated: `3613`
+		// Minimum execution time: 21_510_000 picoseconds.
+		Weight::from_parts(28_140_000, 3613)
+			.saturating_add(T::DbWeight::get().reads(2_u64))
+			.saturating_add(T::DbWeight::get().writes(2_u64))
+	}
+	
 }
 
 // For backwards compatibility and tests.
@@ -429,5 +444,22 @@ impl WeightInfo for () {
 		Weight::from_parts(21_830_000, 3613)
 			.saturating_add(RocksDbWeight::get().reads(2_u64))
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
+	}
+	/// Storage: `ChainSpace::Spaces` (r:1 w:1)
+	/// Proof: `ChainSpace::Spaces` (`max_values`: None, `max_size`: Some(148), added: 2623, mode: `MaxEncodedLen`)
+	/// Storage: `Identifier::Identifiers` (r:1 w:1)
+	/// Proof: `Identifier::Identifiers` (`max_values`: None, `max_size`: Some(4294967295), added: 2474, mode: `MaxEncodedLen`)
+	/// Storage: `ChainSpace::Delegates` (r:0 w:1)
+	/// Proof: `ChainSpace::Delegates` (`max_values`: None, `max_size`: Some(320068), added: 322543, mode: `MaxEncodedLen`)
+	/// Storage: `ChainSpace::Authorizations` (r:0 w:1)
+	/// Proof: `ChainSpace::Authorizations` (`max_values`: None, `max_size`: Some(184), added: 2659, mode: `MaxEncodedLen`)
+	fn subspace_create() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `115`
+		//  Estimated: `3613`
+		// Minimum execution time: 27_360_000 picoseconds.
+		Weight::from_parts(28_140_000, 3613)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(4_u64))
 	}
 }

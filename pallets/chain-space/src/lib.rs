@@ -118,7 +118,7 @@ pub type AuthorizationIdOf = Ss58Identifier;
 /// Chain space input code.
 pub type SpaceCodeOf<T> = <T as frame_system::Config>::Hash;
 /// Type of on-chain registry entry.
-pub type SpaceDetailsOf<T> = SpaceDetails<SpaceCodeOf<T>, SpaceCreatorOf<T>, StatusOf>;
+pub type SpaceDetailsOf<T> = SpaceDetails<SpaceCodeOf<T>, SpaceCreatorOf<T>, StatusOf, SpaceIdOf>;
 
 pub type SpaceAuthorizationOf<T> = SpaceAuthorization<SpaceIdOf, SpaceCreatorOf<T>, Permissions>;
 
@@ -558,9 +558,11 @@ pub mod pallet {
 					code: space_code,
 					creator: creator.clone(),
 					txn_capacity: 0,
+					txn_reserve: 0,
 					txn_count: 0,
 					approved: false,
 					archive: false,
+					parent: identifier.clone(),
 				},
 			);
 
@@ -784,13 +786,38 @@ pub mod pallet {
 			new_txn_capacity: u64,
 		) -> DispatchResult {
 			T::ChainSpaceOrigin::ensure_origin(origin)?;
-
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 
 			// Ensure the new capacity is greater than the current usage
-			ensure!(new_txn_capacity >= space_details.txn_count, Error::<T>::CapacityLessThanUsage);
+			ensure!(
+				new_txn_capacity >= (space_details.txn_count + space_details.txn_reserve),
+				Error::<T>::CapacityLessThanUsage
+			);
+
+			if space_id.clone() != space_details.parent.clone() {
+				let parent_details = Spaces::<T>::get(&space_details.parent.clone())
+					.ok_or(Error::<T>::SpaceNotFound)?;
+
+				// Ensure the new capacity is greater than the current usage
+				ensure!(
+					(parent_details.txn_capacity >=
+						(parent_details.txn_count +
+							parent_details.txn_reserve + new_txn_capacity -
+							space_details.txn_capacity)),
+					Error::<T>::CapacityLessThanUsage
+				);
+
+				<Spaces<T>>::insert(
+					&space_details.parent.clone(),
+					SpaceDetailsOf::<T> {
+						txn_reserve: parent_details.txn_reserve - space_details.txn_capacity +
+							new_txn_capacity,
+						..parent_details.clone()
+					},
+				);
+			}
 
 			<Spaces<T>>::insert(
 				&space_id,
@@ -831,11 +858,22 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			space_id: SpaceIdOf,
 		) -> DispatchResult {
-			T::ChainSpaceOrigin::ensure_origin(origin)?;
-
 			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
 			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+
+			if space_id.clone() != space_details.parent.clone() {
+				let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+				let parent_details = Spaces::<T>::get(&space_details.parent.clone())
+					.ok_or(Error::<T>::SpaceNotFound)?;
+				ensure!(
+					parent_details.creator.clone() == creator,
+					Error::<T>::UnauthorizedOperation
+				);
+			} else {
+				T::ChainSpaceOrigin::ensure_origin(origin)?;
+			}
 
 			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { txn_count: 0, ..space_details });
 
@@ -912,6 +950,222 @@ pub mod pallet {
 			.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::ApprovalRestore { space: space_id });
+
+			Ok(())
+		}
+
+		/// Creates a new space with a unique identifier based on the provided
+		/// space code and the creator's identity, along with parent space ID.
+		///
+		/// This function generates a unique identifier for the space by hashing
+		/// the encoded space code and creator's identifier. It ensures that the
+		/// generated space identifier is not already in use. An authorization
+		/// ID is also created for the new space, which is used to manage
+		/// delegations. The creator is automatically added as a delegate with
+		/// all permissions.
+		/// NOTE: this call is different from create() in just 1 main step. This
+		/// space can be created from the already 'approved' space, as a
+		/// 'space-approval' is a council activity, instead in this case, its
+		/// owner/creator's task. Thus reducing the involvement of council once
+		/// the top level approval is present.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the transaction, which must be signed by the creator.
+		/// - `space_code`: A unique code representing the space to be created.
+		/// - `count`: Number of approved transaction capacity in the sub-space.
+		/// - `space_id`: Identifier of the parent space.
+		///
+		/// # Returns
+		/// - `DispatchResult`: Returns `Ok(())` if the space is successfully created, or an error
+		///   (`DispatchError`) if:
+		///   - The generated space identifier is already in use.
+		///   - The generated authorization ID is of invalid length.
+		///   - The space delegates limit is exceeded.
+		///
+		/// # Errors
+		/// - `InvalidIdentifierLength`: If the generated identifiers for the space or authorization
+		///   are of invalid length.
+		/// - `SpaceAlreadyAnchored`: If the space identifier is already in use.
+		/// - `SpaceDelegatesLimitExceeded`: If the space exceeds the limit of allowed delegates.
+		///
+		/// # Events
+		/// - `Create`: Emitted when a new space is successfully created. It includes the space
+		///   identifier, the creator's identifier, and the authorization ID.
+		#[pallet::call_index(12)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::subspace_create())]
+		pub fn subspace_create(
+			origin: OriginFor<T>,
+			space_code: SpaceCodeOf<T>,
+			count: u64,
+			space_id: SpaceIdOf,
+		) -> DispatchResult {
+			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+			ensure!(space_details.creator == creator.clone(), Error::<T>::UnauthorizedOperation);
+
+			// Ensure the new capacity is greater than the current usage
+			ensure!(
+				count <=
+					(space_details.txn_capacity -
+						(space_details.txn_count + space_details.txn_reserve)),
+				Error::<T>::CapacityLimitExceeded
+			);
+
+			// Id Digest = concat (H(<scale_encoded_registry_input>,
+			// <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&space_code.encode()[..], &creator.encode()[..]].concat()[..],
+			);
+
+			let identifier =
+				Ss58Identifier::create_identifier(&id_digest.encode()[..], IdentifierType::Space)
+					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
+
+			// Construct the authorization_id from the provided parameters.
+			// Id Digest = concat (H(<scale_encoded_space_identifier>,
+			// <scale_encoded_creator_identifier> ))
+			let auth_id_digest =
+				T::Hashing::hash(&[&identifier.encode()[..], &creator.encode()[..]].concat()[..]);
+
+			let authorization_id = Ss58Identifier::create_identifier(
+				&auth_id_digest.encode(),
+				IdentifierType::Authorization,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+			let mut delegates: BoundedVec<SpaceCreatorOf<T>, T::MaxSpaceDelegates> =
+				BoundedVec::default();
+			delegates
+				.try_push(creator.clone())
+				.map_err(|_| Error::<T>::SpaceDelegatesLimitExceeded)?;
+
+			Delegates::<T>::insert(&identifier, delegates);
+
+			Authorizations::<T>::insert(
+				&authorization_id,
+				SpaceAuthorizationOf::<T> {
+					space_id: identifier.clone(),
+					delegate: creator.clone(),
+					permissions: Permissions::all(),
+					delegator: creator.clone(),
+				},
+			);
+
+			/* Update the parent space with added count */
+			<Spaces<T>>::insert(
+				&space_id.clone(),
+				SpaceDetailsOf::<T> {
+					txn_count: space_details.txn_count + 1,
+					txn_reserve: space_details.txn_reserve + count,
+					..space_details
+				},
+			);
+			<Spaces<T>>::insert(
+				&identifier,
+				SpaceDetailsOf::<T> {
+					code: space_code,
+					creator: creator.clone(),
+					txn_capacity: count,
+					txn_reserve: 0,
+					txn_count: 0,
+					approved: true,
+					archive: false,
+					parent: space_id,
+				},
+			);
+
+			Self::update_activity(&identifier, IdentifierTypeOf::ChainSpace, CallTypeOf::Genesis)
+				.map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::Create {
+				space: identifier,
+				creator,
+				authorization: authorization_id,
+			});
+
+			Ok(())
+		}
+
+		/// Updates the transaction capacity of an existing subspace.
+		///
+		/// This extrinsic updates the capacity limit of a space, ensuring that
+		/// the new limit is not less than the current usage to prevent
+		/// over-allocation. It can only be called by an authorized origin and
+		/// not on archived or unapproved spaces.
+		///
+		/// # Arguments
+		/// * `origin` - The origin of the call, which must be from an authorized source.
+		/// * `space_id` - The identifier of the space for which the capacity is being updated.
+		/// * `new_txn_capacity` - The new capacity limit to be set for the space.
+		///
+		/// # Errors
+		/// * `SpaceNotFound` - If the space with the given ID does not exist.
+		/// * `ArchivedSpace` - If the space is archived and thus cannot be modified.
+		/// * `SpaceNotApproved` - If the space has not been approved for use yet.
+		/// * `CapacityLessThanUsage` - If the new capacity is less than the current usage of the
+		///   space.
+		///
+		/// # Events
+		/// * `UpdateCapacity` - Emits the space ID when the capacity is successfully updated.
+		#[pallet::call_index(13)]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::update_transaction_capacity())]
+		pub fn update_transaction_capacity_sub(
+			origin: OriginFor<T>,
+			space_id: SpaceIdOf,
+			new_txn_capacity: u64,
+		) -> DispatchResult {
+			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_details = Spaces::<T>::get(&space_id).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(!space_details.archive, Error::<T>::ArchivedSpace);
+			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
+
+			// Ensure the new capacity is greater than the current usage
+			ensure!(
+				new_txn_capacity >= (space_details.txn_count + space_details.txn_reserve),
+				Error::<T>::CapacityLessThanUsage
+			);
+
+			// If its a top level Space, then this is unauthorized.
+			ensure!(
+				space_details.parent.clone() != space_id.clone(),
+				Error::<T>::UnauthorizedOperation
+			);
+
+			let parent_details =
+				Spaces::<T>::get(&space_details.parent.clone()).ok_or(Error::<T>::SpaceNotFound)?;
+			ensure!(parent_details.creator.clone() == creator, Error::<T>::UnauthorizedOperation);
+
+			// Ensure the new capacity is greater than the current usage
+			ensure!(
+				(parent_details.txn_capacity >=
+					(parent_details.txn_count + parent_details.txn_reserve + new_txn_capacity -
+						space_details.txn_capacity)),
+				Error::<T>::CapacityLessThanUsage
+			);
+
+			<Spaces<T>>::insert(
+				&space_details.parent.clone(),
+				SpaceDetailsOf::<T> {
+					txn_reserve: parent_details.txn_reserve - space_details.txn_capacity +
+						new_txn_capacity,
+					..parent_details.clone()
+				},
+			);
+
+			<Spaces<T>>::insert(
+				&space_id,
+				SpaceDetailsOf::<T> { txn_capacity: new_txn_capacity, ..space_details },
+			);
+
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Capacity)
+				.map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::UpdateCapacity { space: space_id });
 
 			Ok(())
 		}
