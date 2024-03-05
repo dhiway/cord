@@ -410,14 +410,14 @@ benchmarks! {
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
-			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
+			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
 
 			 Pallet::<T>::create(origin.clone(), space_digest )?;
 			 Pallet::<T>::approve(RawOrigin::Root.into(), space_id.clone(), capacity )?;
 
-		 }: _<T::RuntimeOrigin>(origin.clone(), subspace_digest, 10u64, space_id.clone())
+		 }: _<T::RuntimeOrigin>(origin, subspace_digest, 10u64, space_id.clone())
 		 verify {
-			 assert_last_event::<T>(Event::Create { space: subspace_id, creator: origin, authorization: authorization_id }.into());
+			 assert_last_event::<T>(Event::Create { space: subspace_id, creator: did, authorization: authorization_id }.into());
 		 }
 
 	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
