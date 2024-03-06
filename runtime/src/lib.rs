@@ -805,6 +805,7 @@ impl pallet_asset::Config for Runtime {
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type MaxEncodedValueLength = MaxEncodedValueLength;
 	type MaxAssetDistribution = MaxAssetDistribution;
+	type WeightInfo = weights::pallet_asset::WeightInfo<Runtime>;
 }
 
 construct_runtime! (

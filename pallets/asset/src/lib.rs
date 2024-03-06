@@ -21,6 +21,8 @@
 
 pub mod types;
 
+pub mod weights;
+
 #[cfg(any(feature = "mock", test))]
 pub mod mock;
 
@@ -30,7 +32,7 @@ pub mod benchmarking;
 #[cfg(test)]
 mod tests;
 
-pub use crate::{pallet::*, types::*};
+pub use crate::{pallet::*, types::*, weights::WeightInfo};
 use frame_support::{ensure, traits::Get};
 use identifier::{
 	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
@@ -115,6 +117,9 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxAssetDistribution: Get<u32>;
+
+		/// Weight information for extrinsics in this pallet.
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -219,7 +224,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(
 			origin: OriginFor<T>,
 			entry: AssetInputEntryOf<T>,
@@ -270,7 +275,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(1)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::issue())]
 		pub fn issue(
 			origin: OriginFor<T>,
 			entry: AssetIssuanceEntryOf<T>,
@@ -353,7 +358,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(2)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::transfer())]
 		pub fn transfer(
 			origin: OriginFor<T>,
 			entry: AssetTransferEntryOf<T>,
@@ -403,7 +408,7 @@ pub mod pallet {
 		}
 
 		#[pallet::call_index(3)]
-		#[pallet::weight({0})]
+		#[pallet::weight(<T as pallet::Config>::WeightInfo::status_change())]
 		pub fn status_change(
 			origin: OriginFor<T>,
 			asset_id: AssetIdOf,
