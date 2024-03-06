@@ -1181,9 +1181,7 @@ pub mod pallet {
 			let mut did_details = Did::<T>::get(&operation.did)
 				.ok_or(StorageError::NotFound(errors::NotFoundKind::Did))?;
 
-			// TODO: With agency model this nonce check would cause a problem when we get
-			// to utility batch etc. Re-enable this once we have more tests
-			// Self::validate_counter_value(operation.tx_counter, &did_details)?;
+			Self::validate_counter_value(operation.tx_counter, &did_details)?;
 
 			// Increase the tx counter as soon as it is considered valid, no matter if the
 			// signature is valid or not.
@@ -1255,17 +1253,22 @@ pub mod pallet {
 		/// we do not have yet any mechanism in place to wrap the counter value
 		/// around when the limit is reached.
 		fn validate_counter_value(
-			counter: u64,
-			did_details: &DidDetails<T>,
+			_counter: u64,
+			_did_details: &DidDetails<T>,
 		) -> Result<(), DidError> {
 			// Verify that the operation counter is equal to the stored one + 1,
 			// possibly wrapping around when u64::MAX is reached.
+
+			// TODO: With agency model this nonce check would cause a problem when we get
+			// to utility batch etc. Re-enable this once we have better control of nonce
+			// check in utility methods.
+			/*
 			let expected_nonce_value = did_details.last_tx_counter.wrapping_add(1);
 			ensure!(
 				counter == expected_nonce_value,
 				DidError::Signature(SignatureError::InvalidNonce)
 			);
-
+			*/
 			Ok(())
 		}
 
