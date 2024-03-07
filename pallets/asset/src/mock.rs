@@ -94,6 +94,7 @@ impl Config for Test {
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
 	type MaxEncodedValueLength = MaxEncodedValueLength;
 	type MaxAssetDistribution = MaxAssetDistribution;
+	type WeightInfo = ();
 }
 
 parameter_types! {
