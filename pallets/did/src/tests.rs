@@ -2044,7 +2044,6 @@ fn check_did_not_found_call_error() {
 	});
 }
 
-/*
 #[test]
 fn check_too_small_tx_counter_after_wrap_call_error() {
 	let auth_key = get_sr25519_authentication_key(&AUTH_SEED_0);
@@ -2075,9 +2074,7 @@ fn check_too_small_tx_counter_after_wrap_call_error() {
 		);
 	});
 }
-*/
 
-/*
 #[test]
 fn check_too_small_tx_counter_call_error() {
 	let auth_key = get_sr25519_authentication_key(&AUTH_SEED_0);
@@ -2107,9 +2104,7 @@ fn check_too_small_tx_counter_call_error() {
 		);
 	});
 }
-*/
 
-/*
 #[test]
 fn check_equal_tx_counter_call_error() {
 	let auth_key = get_sr25519_authentication_key(&AUTH_SEED_0);
@@ -2137,9 +2132,7 @@ fn check_equal_tx_counter_call_error() {
 		);
 	});
 }
-*/
 
-/*
 #[test]
 fn check_too_large_tx_counter_call_error() {
 	let auth_key = get_sr25519_authentication_key(&AUTH_SEED_0);
@@ -2167,7 +2160,6 @@ fn check_too_large_tx_counter_call_error() {
 		);
 	});
 }
-*/
 /* TODO: fix it - BadOrigin for submit_did_call
 #[test]
 fn check_tx_block_number_too_low_error() {
@@ -2712,7 +2704,6 @@ fn check_tx_counter_wrap_operation_verification() {
 	});
 }
 
-/*
 #[test]
 fn check_smaller_counter_operation_verification() {
 	let auth_key = get_ed25519_authentication_key(&AUTH_SEED_0);
@@ -2741,9 +2732,7 @@ fn check_smaller_counter_operation_verification() {
 		);
 	});
 }
-*/
 
-/*
 #[test]
 fn check_equal_counter_operation_verification() {
 	let auth_key = get_ed25519_authentication_key(&AUTH_SEED_0);
@@ -2770,9 +2759,7 @@ fn check_equal_counter_operation_verification() {
 		);
 	});
 }
-*/
 
-/*
 #[test]
 fn check_too_large_counter_operation_verification() {
 	let auth_key = get_ed25519_authentication_key(&AUTH_SEED_0);
@@ -2799,7 +2786,6 @@ fn check_too_large_counter_operation_verification() {
 		);
 	});
 }
-*/
 
 #[test]
 fn check_verification_key_not_present_operation_verification() {
