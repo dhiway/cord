@@ -392,3 +392,23 @@ fn get_authorized_nodes_works() {
 		);
 	});
 }
+
+#[test]
+fn add_connection_already_connected_error() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(NodeAuthorization::add_connection(
+			RuntimeOrigin::signed(10),
+			test_node(TEST_NODE_1),
+			test_node(TEST_NODE_2)
+		));
+
+		assert_noop!(
+			NodeAuthorization::add_connection(
+				RuntimeOrigin::signed(10),
+				test_node(TEST_NODE_1),
+				test_node(TEST_NODE_2)
+			),
+			Error::<Test>::AlreadyConnected
+		);
+	});
+}
