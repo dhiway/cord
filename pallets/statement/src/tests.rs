@@ -1062,42 +1062,42 @@ fn adding_duplicate_presentation_should_fail() {
 
 	let statement_id: StatementIdOf = generate_statement_id::<Test>(&statement_id_digest);
 
-    let presentation = [88u8; 32];
-    let presentation_digest = <Test as frame_system::Config>::Hashing::hash(&presentation[..]);
-    let presentation_type = PresentationTypeOf::Other; // Adjust this to the correct variant
+	let presentation = [88u8; 32];
+	let presentation_digest = <Test as frame_system::Config>::Hashing::hash(&presentation[..]);
+	let presentation_type = PresentationTypeOf::Other; // Adjust this to the correct variant
 
-    new_test_ext().execute_with(|| {
-        assert_ok!(Space::create(
-            DoubleOrigin(author.clone(), creator.clone()).into(),
-            space_digest,
-        ));
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
 
 		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
-        assert_ok!(Statement::register(
-            DoubleOrigin(author.clone(), creator.clone()).into(),
-            statement_digest,
-            authorization_id.clone(),
-            None,
-        ));
+		assert_ok!(Statement::register(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			statement_digest,
+			authorization_id.clone(),
+			None,
+		));
 
-        assert_ok!(Statement::add_presentation(
-            DoubleOrigin(author.clone(), creator.clone()).into(),
-            statement_id.clone(), // Use the generated statement_id
-            presentation_digest,
-            presentation_type,
-            authorization_id.clone(),
-        ));
+		assert_ok!(Statement::add_presentation(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			statement_id.clone(), // Use the generated statement_id
+			presentation_digest,
+			presentation_type,
+			authorization_id.clone(),
+		));
 
-        assert_err!(
-            Statement::add_presentation(
-                DoubleOrigin(author, creator).into(),
-                statement_id, // Use the generated statement_id
-                presentation_digest,
+		assert_err!(
+			Statement::add_presentation(
+				DoubleOrigin(author, creator).into(),
+				statement_id, // Use the generated statement_id
+				presentation_digest,
 				presentation_type,
-                authorization_id,
-            ),
+				authorization_id,
+			),
 			Error::<Test>::PresentationDigestAlreadyAnchored
-        );
-    });
+		);
+	});
 }
