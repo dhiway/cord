@@ -94,6 +94,24 @@ fn add_well_known_node_works() {
 }
 
 #[test]
+fn add_well_known_node_already_claimed() {
+	new_test_ext().execute_with(|| {
+		let node_id = test_node(TEST_NODE_6);
+
+		let node = NodeAuthorization::generate_peer_id(&node_id).unwrap();
+		let bounded_node_id: sp_runtime::BoundedVec<u8, _> =
+			node_id.clone().try_into().expect("Node ID too long");
+
+		<Owners<Test>>::insert(&node, NodeInfo { id: bounded_node_id, owner: 10 });
+
+		assert_noop!(
+			NodeAuthorization::add_well_known_node(RuntimeOrigin::signed(1), node_id.clone(), 20),
+			Error::<Test>::AlreadyClaimed
+		);
+	});
+}
+
+#[test]
 fn remove_well_known_node_works() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
