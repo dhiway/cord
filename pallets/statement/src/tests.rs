@@ -1024,3 +1024,86 @@ fn updating_a_registered_statement_again_should_fail() {
 		);
 	});
 }
+
+#[test]
+fn trying_to_update_or_revoke_a_revoked_statement_should_fail() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let capacity = 5u64;
+	let statement = [77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+	let new_statement = [88u8; 32];
+	let new_statement_digest = <Test as frame_system::Config>::Hashing::hash(&new_statement[..]);
+
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+
+	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&statement_digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let statement_id: StatementIdOf = generate_statement_id::<Test>(&statement_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
+		assert_ok!(Schema::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			schema.clone(),
+			authorization_id.clone()
+		));
+
+		assert_ok!(Statement::register(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			statement_digest,
+			authorization_id.clone(),
+			Some(schema_id)
+		));
+
+		// Revoke the statement
+		assert_ok!(Statement::revoke(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			statement_id.clone(),
+			authorization_id.clone(),
+		));
+
+		// Try to update the revoked statement
+		assert_err!(
+			Statement::update(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				statement_id.clone(),
+				new_statement_digest,
+				authorization_id.clone(),
+			),
+			Error::<Test>::StatementRevoked
+		);
+
+		// Try to revoke the already revoked statement
+		assert_err!(
+			Statement::revoke(DoubleOrigin(author, creator).into(), statement_id, authorization_id,),
+			Error::<Test>::StatementRevoked
+		);
+	});
+}
