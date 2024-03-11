@@ -1026,7 +1026,7 @@ fn updating_a_registered_statement_again_should_fail() {
 }
 
 #[test]
-fn trying_to_update_or_revoke_a_revoked_statement_should_fail() {
+fn trying_to_update_or_revoke_or_add_presentation_for_revoked_statement_should_fail() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 	let capacity = 5u64;
@@ -1102,7 +1102,23 @@ fn trying_to_update_or_revoke_a_revoked_statement_should_fail() {
 
 		// Try to revoke the already revoked statement
 		assert_err!(
-			Statement::revoke(DoubleOrigin(author, creator).into(), statement_id, authorization_id,),
+			Statement::revoke(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				statement_id.clone(),
+				authorization_id.clone(),
+			),
+			Error::<Test>::StatementRevoked
+		);
+
+		// Try to add a presentation for the revoked statement
+		assert_err!(
+			Statement::add_presentation(
+				DoubleOrigin(author, creator).into(),
+				statement_id,
+				statement_digest,
+				PresentationTypeOf::Other,
+				authorization_id,
+			),
 			Error::<Test>::StatementRevoked
 		);
 	});
