@@ -341,6 +341,8 @@ pub mod pallet {
 		PresentationNotFound,
 		/// Statement digest already present on the chain.
 		StatementDigestAlreadyAnchored,
+		/// if there is a insufficient space capacity
+		InsufficientSpaceCapacity,
 	}
 
 	#[pallet::call]
@@ -1179,3 +1181,4 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 }
+
