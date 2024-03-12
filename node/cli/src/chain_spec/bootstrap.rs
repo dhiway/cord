@@ -39,6 +39,7 @@ use crate::chain_spec::{get_properties, Extensions, CORD_TELEMETRY_URL, DEFAULT_
 pub struct ChainParams {
 	pub chain_name: String,
 	pub chain_type: ChainType,
+	pub ss58_identifier_format: u16,
 	pub authorities: Vec<Vec<String>>,
 	pub well_known_nodes: Vec<Vec<String>>,
 	pub network_members: Vec<String>,
@@ -54,6 +55,9 @@ impl ChainParams {
 
 	pub fn chain_name(&self) -> &str {
 		&self.chain_name
+	}
+	pub fn ss58_identifier_format(&self) -> u16 {
+		self.ss58_identifier_format
 	}
 }
 
@@ -71,6 +75,7 @@ fn session_keys(
 
 /// Custom config.
 fn cord_custom_config_genesis(config: ChainParams) -> serde_json::Value {
+	let ss58_identifier_format = config.ss58_identifier_format();
 	let initial_network_members: Vec<AccountId> =
 		config.network_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
 
@@ -116,6 +121,7 @@ fn cord_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 		initial_council_members,
 		initial_tech_committee_members,
 		initial_sudo_key,
+		ss58_identifier_format,
 	)
 }
 
@@ -147,8 +153,12 @@ fn cord_custom_genesis(
 	council_members: Vec<AccountId>,
 	tech_committee_members: Vec<AccountId>,
 	sudo_key: AccountId,
+	ss58_identifier_format: u16,
 ) -> serde_json::Value {
 	serde_json::json!( {
+		"identifier": {
+			"ss58IdentifierFormat": ss58_identifier_format,
+		},
 		"nodeAuthorization":  {
 			"nodes": well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},

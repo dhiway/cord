@@ -1021,7 +1021,7 @@ pub mod pallet {
 			);
 
 			let identifier =
-				Ss58Identifier::create_identifier(&id_digest.encode()[..], IdentifierType::Space)
+				Ss58Identifier::create_identifier(&id_digest.encode()[..])
 					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);

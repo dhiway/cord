@@ -132,6 +132,7 @@ fn cord_development_config_genesis() -> serde_json::Value {
 			get_account_id_from_seed::<sr25519::Public>("Alice"),
 		)],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		29,
 	)
 }
 
@@ -161,6 +162,7 @@ fn cord_local_config_genesis() -> serde_json::Value {
 			),
 		],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		29,
 	)
 }
 
@@ -218,8 +220,12 @@ fn cord_local_genesis(
 	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
+	ss58_identifier_format: u16,
 ) -> serde_json::Value {
 	serde_json::json!( {
+		"identifier": {
+			"ss58IdentifierFormat": ss58_identifier_format,
+		},
 		"nodeAuthorization":  {
 			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},

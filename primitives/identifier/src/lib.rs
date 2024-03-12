@@ -23,7 +23,7 @@
 
 pub mod curi;
 pub use crate::curi::{
-	CordIdentifierType, IdentifierCreator, IdentifierError, IdentifierTimeline, IdentifierType,
+	IdentifierCreator, IdentifierError, IdentifierTimeline, IdentifierType,
 	Ss58Identifier,
 };
 use sp_runtime::BoundedVec;
@@ -32,6 +32,7 @@ pub mod types;
 pub use crate::types::*;
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
+use core::marker::PhantomData;
 
 pub use crate::pallet::*;
 use sp_std::vec;
@@ -88,10 +89,31 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn prefix)]
+	pub type Prefix<T: Config> = StorageValue<_, u16>;
+
 	#[pallet::error]
 	pub enum Error<T> {
 		// Max exvents history exceeded
 		MaxEventsHistoryExceeded,
+		// Prefix Missing
+		PrefixNotFound,
+	}
+
+	#[pallet::genesis_config]
+	#[derive(frame_support::DefaultNoBound)]
+	pub struct GenesisConfig<T: Config> {
+		phantom: PhantomData<T>,
+		pub ss58_identifier_format: u16,
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+		fn build(&self) {
+			log::info!("Setting new prefix key {:?}", &self.ss58_identifier_format);
+			Prefix::<T>::put(&self.ss58_identifier_format);
+		}
 	}
 }
 

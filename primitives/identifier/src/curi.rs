@@ -45,45 +45,7 @@ pub enum IdentifierType {
 	Rating,
 }
 
-impl IdentifierType {
-	const IDENT_AUTH: u16 = 2092;
-	const IDENT_SPACE: u16 = 3390;
-	const IDENT_SCHEMA: u16 = 7366;
-	const IDENT_STATEMENT: u16 = 8902;
-	const IDENT_ENTITY: u16 = 6480;
-	const IDENT_TEMPLATE: u16 = 8911;
-	const IDENT_ASSET: u16 = 2348;
-	const IDENT_RATING: u16 = 6077;
-	const IDENT_ASSET_INSTANCE: u16 = 11380;
-
-	fn ident_value(&self) -> u16 {
-		match self {
-			IdentifierType::Authorization => Self::IDENT_AUTH,
-			IdentifierType::Space => Self::IDENT_SPACE,
-			IdentifierType::Schema => Self::IDENT_SCHEMA,
-			IdentifierType::Statement => Self::IDENT_STATEMENT,
-			IdentifierType::Entity => Self::IDENT_ENTITY,
-			IdentifierType::Template => Self::IDENT_TEMPLATE,
-			IdentifierType::Asset => Self::IDENT_ASSET,
-			IdentifierType::AssetInstance => Self::IDENT_ASSET_INSTANCE,
-			IdentifierType::Rating => Self::IDENT_RATING,
-		}
-	}
-	fn from_u16(value: u16) -> Option<Self> {
-		match value {
-			2092 => Some(IdentifierType::Authorization),
-			3390 => Some(IdentifierType::Space),
-			7366 => Some(IdentifierType::Schema),
-			8902 => Some(IdentifierType::Statement),
-			6480 => Some(IdentifierType::Entity),
-			8911 => Some(IdentifierType::Template),
-			2348 => Some(IdentifierType::Asset),
-			6077 => Some(IdentifierType::AssetInstance),
-			11380 => Some(IdentifierType::Rating),
-			_ => None,
-		}
-	}
-}
+const DEFAULT_SS58_IDENTIFIER_PREFIX: u16 = 10029;
 
 /// The minimum length of a valid identifier.
 pub const MINIMUM_IDENTIFIER_LENGTH: usize = 2;
@@ -121,29 +83,19 @@ pub enum IdentifierError {
 pub trait IdentifierCreator {
 	fn create_identifier(
 		data: &[u8],
-		id_type: IdentifierType,
 	) -> Result<Ss58Identifier, IdentifierError>;
 }
 
 impl IdentifierCreator for Ss58Identifier {
 	fn create_identifier(
 		data: &[u8],
-		id_type: IdentifierType,
 	) -> Result<Ss58Identifier, IdentifierError> {
-		let id_ident = id_type.ident_value();
-		Ss58Identifier::from_encoded(data, id_ident)
-	}
-}
-
-pub trait CordIdentifierType {
-	fn get_type(&self) -> Result<IdentifierType, IdentifierError>;
-}
-
-impl CordIdentifierType for Ss58Identifier {
-	fn get_type(&self) -> Result<IdentifierType, IdentifierError> {
-		let identifier_type_u16 = self.get_identifier_type()?;
-
-		IdentifierType::from_u16(identifier_type_u16).ok_or(IdentifierError::InvalidIdentifier)
+		let format = Prefix::get();
+		if let Some(ss58_identifier_format) = format {
+			Ss58Identifier::from_encoded(data, ss58_identifier_format)
+		} else {
+			Ss58Identifier::from_encoded(data, DEFAULT_SS58_IDENTIFIER_PREFIX)
+		}
 	}
 }
 
