@@ -1024,3 +1024,69 @@ fn updating_a_registered_statement_again_should_fail() {
 		);
 	});
 }
+#[test]
+fn bulk_transaction_should_fail() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let capacity = 100u64;
+	let mut val:u8 = 1;
+	let mut batch_size:u8 = 4;
+	let mut digests: Vec<StatementDigestOf<Test>> = Vec::new();
+	while batch_size > 0 {
+		let statement = [val; 3];
+		let statement_digest: StatementDigestOf<Test> =
+		<Test as frame_system::Config>::Hashing::hash(&statement[..]);
+		digests.push(statement_digest);
+		val += 1;
+		batch_size -= 1;
+	}
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
+		assert_ok!(Schema::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			schema.clone(),
+			authorization_id.clone()
+		));
+
+		assert_ok!(Statement::register_batch(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			digests.clone(),
+			authorization_id.clone(),
+			Some(schema_id.clone())
+		));
+		assert_err!(
+			Statement::register_batch(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				digests.clone(),
+				authorization_id.clone(),
+				Some(schema_id)
+			),
+			Error::<Test>::BulkTransactionFailed
+		);
+	});	
+}
