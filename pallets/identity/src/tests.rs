@@ -381,7 +381,7 @@ fn test_has_identity() {
 		assert!(!Identity::has_identity(
 			&10,
 			SimpleIdentityField::Display as u64 |
-				SimpleIdentityField::Legal as u64 |
+				SimpleIdentityField::Legal as u64 |rustfmt pallets/identity/src/tests.rs
 				SimpleIdentityField::Web as u64
 		));
 	});
@@ -389,11 +389,11 @@ fn test_has_identity() {
 
 #[test]
 fn add_registrar_should_fail_if_registrar_already_exists() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(Identity::add_registrar(RuntimeOrigin::signed(1), 3));
-        assert_noop!(
-            Identity::add_registrar(RuntimeOrigin::signed(1), 3),
-            Error::<Test>::RegistrarAlreadyExists
-        );
-    });
+	new_test_ext().execute_with(|| {
+		assert_ok!(Identity::add_registrar(RuntimeOrigin::signed(1), 3));
+		assert_noop!(
+			Identity::add_registrar(RuntimeOrigin::signed(1), 3),
+			Error::<Test>::RegistrarAlreadyExists
+		);
+	});
 }
