@@ -386,3 +386,14 @@ fn test_has_identity() {
 		));
 	});
 }
+
+#[test]
+fn add_registrar_should_fail_if_registrar_already_exists() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Identity::add_registrar(RuntimeOrigin::signed(1), 3));
+        assert_noop!(
+            Identity::add_registrar(RuntimeOrigin::signed(1), 3),
+            Error::<Test>::RegistrarAlreadyExists
+        );
+    });
+}
