@@ -210,6 +210,7 @@ parameter_types! {
    pub RuntimeBlockLength: BlockLength =
 	   BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
    pub const SS58Prefix: u8 = 29;
+   pub const Ss58IdentifierPrefix: u32 = 100;
 }
 
 #[derive_impl(frame_system::config_preludes::SolochainDefaultConfig as frame_system::DefaultConfig)]
@@ -663,6 +664,7 @@ impl pallet_network_membership::Config for Runtime {
 
 impl identifier::Config for Runtime {
 	type MaxEventsHistory = MaxEventsHistory;
+	type Ss58IdentifierPrefix = Ss58IdentifierPrefix;
 }
 
 impl pallet_runtime_upgrade::Config for Runtime {
