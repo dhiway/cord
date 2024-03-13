@@ -32,6 +32,8 @@ use sp_std::{
 /// CORD Identifier Prefix
 const PREFIX: &[u8] = b"CRDIDFR";
 
+const network_id: u16 = 70;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IdentifierType {
 	Authorization,
@@ -130,7 +132,8 @@ impl IdentifierCreator for Ss58Identifier {
 		data: &[u8],
 		id_type: IdentifierType,
 	) -> Result<Ss58Identifier, IdentifierError> {
-		let id_ident = id_type.ident_value();
+		let id_ident = id_type.ident_value() + network_id;
+		println!("ss58 :{:?}", Ss58Identifier::from_encoded(data, id_ident));
 		Ss58Identifier::from_encoded(data, id_ident)
 	}
 }
@@ -143,7 +146,8 @@ impl CordIdentifierType for Ss58Identifier {
 	fn get_type(&self) -> Result<IdentifierType, IdentifierError> {
 		let identifier_type_u16 = self.get_identifier_type()?;
 
-		IdentifierType::from_u16(identifier_type_u16).ok_or(IdentifierError::InvalidIdentifier)
+		IdentifierType::from_u16(identifier_type_u16 - network_id)
+			.ok_or(IdentifierError::InvalidIdentifier)
 	}
 }
 

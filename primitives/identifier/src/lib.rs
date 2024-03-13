@@ -67,6 +67,9 @@ pub mod pallet {
 		/// The maximum number of activity for a statement.
 		#[pallet::constant]
 		type MaxEventsHistory: Get<u32>;
+
+		#[pallet::constant]
+		type Ss58IdentifierPrefix: Get<u32>;
 	}
 
 	#[pallet::pallet]
