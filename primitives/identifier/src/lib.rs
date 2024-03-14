@@ -69,7 +69,7 @@ pub mod pallet {
 		type MaxEventsHistory: Get<u32>;
 
 		#[pallet::constant]
-		type Ss58IdentifierPrefix: Get<u32>;
+		type Ss58IdentifierPrefix: Get<u16>;
 	}
 
 	#[pallet::pallet]

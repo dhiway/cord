@@ -32,7 +32,12 @@ use sp_std::{
 /// CORD Identifier Prefix
 const PREFIX: &[u8] = b"CRDIDFR";
 
-const network_id: u16 = 70;
+const network_id: u16 = 0;
+
+//use identifier::Config::Ss58IdentifierPrefix;
+
+/* Use constant to differentiate identifier types */
+//const network_id: u16 = Ss58IdentifierPrefix;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IdentifierType {
