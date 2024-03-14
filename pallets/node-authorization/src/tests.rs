@@ -94,7 +94,7 @@ fn add_well_known_node_works() {
 }
 
 #[test]
-fn add_well_known_node_already_claimed() {
+fn adding_already_claimed_well_known_node_should_fail() {
 	new_test_ext().execute_with(|| {
 		let node_id = test_node(TEST_NODE_6);
 
