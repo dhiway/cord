@@ -69,12 +69,16 @@ pub mod pallet {
 	/// Hash of the Rating.
 	pub type EntryHashOf<T> = <T as frame_system::Config>::Hash;
 
+	pub type AssetQtyOf<T> = u32;
+
 	pub type AssetDescriptionOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 	pub type AssetTagOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 	pub type AssetMetadataOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 
 	pub type AssetInputEntryOf<T> =
 		AssetInputEntry<AssetDescriptionOf<T>, AssetTypeOf, AssetTagOf<T>, AssetMetadataOf<T>>;
+
+	pub type VCAssetInputEntryOf<T> = VCAssetInputEntry;
 
 	pub type AssetEntryOf<T> = AssetEntry<
 		AssetDescriptionOf<T>,
@@ -85,6 +89,11 @@ pub mod pallet {
 		AssetMetadataOf<T>,
 		BlockNumberFor<T>,
 	>;
+
+	pub type VCAssetEntryOf<T> = VCAssetEntry<AssetStatusOf, AssetCreatorOf<T>, BlockNumberFor<T>>;
+
+	pub type VCAssetDistributionEntryOf<T> =
+		VCAssetDistributionEntry<AssetStatusOf, AssetCreatorOf<T>, BlockNumberFor<T>, AssetIdOf>;
 
 	pub type AssetDistributionEntryOf<T> = AssetDistributionEntry<
 		AssetDescriptionOf<T>,
@@ -133,6 +142,14 @@ pub mod pallet {
 	#[pallet::getter(fn assets)]
 	pub type Assets<T> = StorageMap<_, Blake2_128Concat, AssetIdOf, AssetEntryOf<T>, OptionQuery>;
 
+	// TODO
+	/* add new storage */
+	/// asset vc entry identifiers with  details stored on chain.
+	#[pallet::storage]
+	#[pallet::getter(fn assets)]
+	pub type VCAssets<T> =
+		StorageMap<_, Blake2_128Concat, AssetIdOf, VCAssetEntryOf<T>, OptionQuery>;
+
 	/// asset entry identifiers with  details stored on chain.
 	#[pallet::storage]
 	#[pallet::getter(fn distribution)]
@@ -154,6 +171,21 @@ pub mod pallet {
 		Blake2_128Concat,
 		AssetInstanceIdOf,
 		AssetDistributionEntryOf<T>,
+		OptionQuery,
+	>;
+
+	// TODO
+	/* Add new storage VcIssuance */
+	/// asset entry identifiers with  details stored on chain.
+	#[pallet::storage]
+	#[pallet::getter(fn issued)]
+	pub type VCIssuance<T> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		AssetIdOf,
+		Blake2_128Concat,
+		AssetInstanceIdOf,
+		VCAssetDistributionEntryOf<T>,
 		OptionQuery,
 	>;
 
@@ -203,6 +235,8 @@ pub mod pallet {
 		AssetIdAlreadyExists,
 		/// Invalid asset value - should be greater than zero
 		InvalidAssetValue,
+		/// Invalid asset quantity - should be greater than zero
+		InvalidAssetQty,
 		/// Invalid asset type
 		InvalidAssetType,
 		/// Asset identifier not found
@@ -223,6 +257,64 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		#[pallet::call_index(5)]
+		// TODO: Run actual weights
+		// weight set to 0
+		#[pallet::weight(0)]
+		pub fn vc_create(
+			origin: OriginFor<T>,
+			entry: VCAssetInputEntryOf<T>,
+			digest: EntryHashOf<T>,
+			authorization: AuthorizationIdOf,
+			asset_qty: AssetQtyOf<T>,
+		) -> DispatchResult {
+			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&creator.clone(),
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			// value not required
+			ensure!(entry.asset_qty > 0, Error::<T>::InvalidAssetQty);
+
+			//ensure!(entry.asset_type.is_valid_asset_type(), Error::<T>::InvalidAssetType);
+
+			// Id Digest = concat (H(<scale_encoded_entry_digest>,
+			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+			);
+
+			let identifier =
+				Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Asset)
+					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+			ensure!(!<Assets<T>>::contains_key(&identifier), Error::<T>::AssetIdAlreadyExists);
+
+			let block_number = frame_system::Pallet::<T>::block_number();
+
+			<AssetLookup<T>>::insert(digest, &identifier);
+
+			<Assets<T>>::insert(
+				&identifier,
+				AssetEntryOf::<T> {
+					asset_detail: entry,
+					// id_digest, detail not reqd
+					asset_issuance: Zero::zero(),
+					asset_status: AssetStatusOf::ACTIVE,
+					asset_issuer: creator.clone(),
+					created_at: block_number,
+					// asset qty from parameter
+				},
+			);
+
+			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
+			Self::deposit_event(Event::Create { identifier, issuer: creator });
+
+			Ok(())
+		}
+
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
 		pub fn create(
@@ -281,6 +373,7 @@ pub mod pallet {
 			entry: AssetIssuanceEntryOf<T>,
 			digest: EntryHashOf<T>,
 			authorization: AuthorizationIdOf,
+			// qty
 		) -> DispatchResult {
 			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
@@ -295,6 +388,7 @@ pub mod pallet {
 
 			ensure!(AssetStatusOf::ACTIVE == asset.asset_status, Error::<T>::AssetNotActive);
 
+			// qty from parameter
 			let issuance_qty = entry.asset_issuance_qty.unwrap_or(1);
 			let overall_issuance = asset.asset_issuance.saturating_add(issuance_qty);
 

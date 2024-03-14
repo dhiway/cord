@@ -38,6 +38,14 @@ pub struct AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta> {
 	pub asset_meta: AssetMeta,
 }
 
+#[derive(
+	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+)]
+pub struct VCAssetInputEntry {
+	/// asset quantity
+	pub asset_qty: u32,
+}
+
 #[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 pub enum AssetTypeOf {
 	ART,
@@ -90,6 +98,21 @@ pub struct AssetEntry<
 #[derive(
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
+pub struct VCAssetEntry<AssetStatusOf, AssetCreatorOf, BlockNumber> {
+	pub asset_detail: VCAssetInputEntry,
+	/// asset issuance count
+	pub asset_issuance: u32,
+	/// status of the asset
+	pub asset_status: AssetStatusOf,
+	/// asset issuer
+	pub asset_issuer: AssetCreatorOf,
+	/// asset inlclusion block
+	pub created_at: BlockNumber,
+}
+
+#[derive(
+	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+)]
 pub struct AssetDistributionEntry<
 	AssetDescription,
 	AssetTypeOf,
@@ -101,6 +124,23 @@ pub struct AssetDistributionEntry<
 	AssetId,
 > {
 	pub asset_instance_detail: AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta>,
+	/// asset parent reference
+	pub asset_instance_parent: AssetId,
+	/// status of the asset
+	pub asset_instance_status: AssetStatusOf,
+	/// asset issuer
+	pub asset_instance_issuer: AssetCreatorOf,
+	/// asset owner
+	pub asset_instance_owner: AssetCreatorOf,
+	/// asset inlclusion block
+	pub created_at: BlockNumber,
+}
+
+#[derive(
+	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+)]
+pub struct VCAssetDistributionEntry<AssetStatusOf, AssetCreatorOf, BlockNumber, AssetId> {
+	pub asset_instance_detail: VCAssetInputEntry,
 	/// asset parent reference
 	pub asset_instance_parent: AssetId,
 	/// status of the asset
