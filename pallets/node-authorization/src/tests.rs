@@ -394,7 +394,7 @@ fn get_authorized_nodes_works() {
 }
 
 #[test]
-fn add_connection_already_connected_error() {
+fn adding_already_connected_connection_should_fail() {
 	new_test_ext().execute_with(|| {
 		assert_ok!(NodeAuthorization::add_connection(
 			RuntimeOrigin::signed(10),
