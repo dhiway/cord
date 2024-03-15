@@ -619,6 +619,107 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		#[pallet::call_index(6)]
+		#[pallet::weight({0})]
+		pub fn vc_transfer(
+			origin: OriginFor<T>,
+			entry: AssetTransferEntryOf<T>,
+			_digest: EntryHashOf<T>,
+		) -> DispatchResult {
+			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let asset = <VCAssets<T>>::get(&entry.asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
+			let instance = <VCIssuance<T>>::get(&entry.asset_id, &entry.asset_instance_id)
+				.ok_or(Error::<T>::AssetInstanceNotFound)?;
+
+			ensure!(instance.asset_instance_owner == owner, Error::<T>::UnauthorizedOperation);
+			ensure!(
+				instance.asset_instance_owner == entry.asset_owner,
+				Error::<T>::UnauthorizedOperation
+			);
+
+			ensure!(AssetStatusOf::ACTIVE == asset.asset_status, Error::<T>::AssetNotActive);
+
+			ensure!(
+				AssetStatusOf::ACTIVE == instance.asset_instance_status,
+				Error::<T>::InstanceNotActive
+			);
+
+			let block_number = frame_system::Pallet::<T>::block_number();
+
+			<VCIssuance<T>>::insert(
+				&entry.asset_id,
+				&entry.asset_instance_id,
+				VCAssetDistributionEntryOf::<T> {
+					asset_instance_owner: entry.new_asset_owner.clone(),
+					created_at: block_number,
+					..instance
+				},
+			);
+
+			Self::update_activity(&entry.asset_instance_id, CallTypeOf::Transfer)
+				.map_err(<Error<T>>::from)?;
+			Self::deposit_event(Event::Transfer {
+				identifier: entry.asset_id,
+				instance: entry.asset_instance_id,
+				from: owner,
+				to: entry.new_asset_owner,
+			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(7)]
+		#[pallet::weight({0})]
+		pub fn vc_status_change(
+			origin: OriginFor<T>,
+			asset_id: AssetIdOf,
+			instance_id: Option<AssetInstanceIdOf>,
+			new_status: AssetStatusOf,
+		) -> DispatchResult {
+			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let asset = <VCAssets<T>>::get(&asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
+
+			ensure!(asset.asset_issuer == issuer, Error::<T>::UnauthorizedOperation);
+
+			/* If instance ID is provided, only revoke the instance, not the asset */
+			if let Some(ref inst_id) = instance_id {
+				let instance = <VCIssuance<T>>::get(&asset_id, &inst_id)
+					.ok_or(Error::<T>::AssetInstanceNotFound)?;
+				ensure!(
+					new_status.clone() != instance.asset_instance_status,
+					Error::<T>::AssetInSameState
+				);
+
+				/* update the storage with new status */
+				<VCIssuance<T>>::insert(
+					&asset_id,
+					&inst_id,
+					VCAssetDistributionEntryOf::<T> {
+						asset_instance_status: new_status.clone(),
+						..instance
+					},
+				);
+
+				Self::update_activity(&inst_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
+			} else {
+				ensure!(new_status.clone() != asset.asset_status, Error::<T>::AssetInSameState);
+				<VCAssets<T>>::insert(
+					&asset_id,
+					VCAssetEntryOf::<T> { asset_status: new_status.clone(), ..asset },
+				);
+				Self::update_activity(&asset_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
+			}
+			Self::deposit_event(Event::StatusChange {
+				identifier: asset_id,
+				instance: instance_id,
+				status: new_status,
+			});
+
+			Ok(())
+		}
 	}
 }
 
