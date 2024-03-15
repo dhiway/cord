@@ -394,7 +394,7 @@ fn asset_vc_transfer_should_succeed() {
 		assert_ok!(Asset::vc_transfer(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			transfer_entry.clone(),
-			transfer_entry_digest.clone(),
+			transfer_entry_digest,
 		));
 	});
 }
