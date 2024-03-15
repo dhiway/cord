@@ -2,7 +2,7 @@ use super::*;
 use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
-use frame_support::{assert_ok, BoundedVec};
+use frame_support::{assert_err, assert_ok, BoundedVec};
 use frame_system::RawOrigin;
 use pallet_chain_space::{SpaceCodeOf, SpaceIdOf};
 use sp_runtime::{traits::Hash, AccountId32};
@@ -23,10 +23,8 @@ pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> Authoriz
 pub fn generate_asset_id<T: Config>(digest: &SpaceCodeOf<T>) -> AssetIdOf {
 	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Asset).unwrap()
 }
-
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
-
 #[test]
 fn asset_create_should_succeed() {
 	let creator = DID_00;
