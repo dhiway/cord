@@ -200,7 +200,7 @@ fn trying_to_create_an_already_present_asset_should_fail() {
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			entry.clone(),
-			digest.clone(),
+			digest,
 			authorization_id.clone()
 		));
 		assert_err!(
