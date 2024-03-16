@@ -65,10 +65,7 @@ pub mod pallet {
 	pub type AssetCreatorOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-
-	/// Hash of the Rating.
-	//pub type EntryHashOf<T> = <T as frame_system::Config>::Hash;
-
+	/// Type of Asset quantity.
 	pub type AssetQtyOf = u64;
 
 	pub type AssetDescriptionOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
@@ -77,8 +74,6 @@ pub mod pallet {
 
 	pub type AssetInputEntryOf<T> =
 		AssetInputEntry<AssetDescriptionOf<T>, AssetTypeOf, AssetTagOf<T>, AssetMetadataOf<T>>;
-
-	pub type VCAssetInputEntryOf = VCAssetInputEntry;
 
 	pub type AssetEntryOf<T> = AssetEntry<
 		AssetDescriptionOf<T>,
@@ -138,17 +133,18 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	/// asset entry identifiers with  details stored on chain.
+	/// asset entry identifiers with details stored on chain.
 	#[pallet::storage]
 	#[pallet::getter(fn assets)]
 	pub type Assets<T> = StorageMap<_, Blake2_128Concat, AssetIdOf, AssetEntryOf<T>, OptionQuery>;
 
+	/// asset vc entry idenitfiers with details stored on chain.
 	#[pallet::storage]
 	#[pallet::getter(fn vc_assets)]
 	pub type VCAssets<T> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf, VCAssetEntryOf<T>, OptionQuery>;
 
-	/// asset entry identifiers with  details stored on chain.
+	/// asset entry identifiers with details stored on chain.
 	#[pallet::storage]
 	#[pallet::getter(fn distribution)]
 	pub type Distribution<T: Config> = StorageMap<
@@ -172,6 +168,7 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// asset vc entry identifiers with details stored on chain.
 	#[pallet::storage]
 	#[pallet::getter(fn vc_issued)]
 	pub type VCIssuance<T> = StorageDoubleMap<
@@ -487,8 +484,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(4)]
 		// TODO: Set actual weights
+		#[pallet::call_index(4)]
 		#[pallet::weight({0})]
 		pub fn vc_create(
 			origin: OriginFor<T>,

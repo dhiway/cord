@@ -41,15 +41,6 @@ pub struct AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta> {
 	/// open structure - 1024 bytes max
 	pub asset_meta: AssetMeta,
 }
-
-#[derive(
-	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
-)]
-pub struct VCAssetInputEntry {
-	/// asset quantity
-	pub asset_qty: u64,
-}
-
 #[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 pub enum AssetTypeOf {
 	ART,
@@ -103,12 +94,8 @@ pub struct AssetEntry<
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
 pub struct VCAssetEntry<AssetStatusOf, AssetCreatorOf, BlockNumber, EntryHashOf> {
-	/// asset_detail consists of asset_qty (TODO: Keep any one asset_qty/this)
-	//pub asset_detail: VCAssetInputEntry,
-
 	/// digest of the input entry
 	pub digest: EntryHashOf,
-
 	/// asset issuance count
 	pub asset_issuance: u64,
 	/// status of the asset
@@ -116,7 +103,7 @@ pub struct VCAssetEntry<AssetStatusOf, AssetCreatorOf, BlockNumber, EntryHashOf>
 	/// asset issuer
 	pub asset_issuer: AssetCreatorOf,
 	/// asset quantity
-	pub asset_qty: u64,
+	pub asset_qty: AssetQtyOf,
 	/// asset inlclusion block
 	pub created_at: BlockNumber,
 }
@@ -151,7 +138,6 @@ pub struct AssetDistributionEntry<
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
 pub struct VCAssetDistributionEntry<AssetStatusOf, AssetCreatorOf, BlockNumber, AssetId> {
-	//pub asset_instance_detail: VCAssetInputEntry,
 	pub asset_qty: AssetQtyOf,
 	/// asset parent reference
 	pub asset_instance_parent: AssetId,
