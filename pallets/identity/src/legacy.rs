@@ -20,13 +20,15 @@
 //
 
 use codec::{Decode, Encode, MaxEncodedLen};
+#[cfg(feature = "runtime-benchmarks")]
+use enumflags2::BitFlag;
 use enumflags2::{bitflags, BitFlags};
 use frame_support::{traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound};
 use scale_info::{build::Variants, Path, Type, TypeInfo};
 use sp_runtime::{BoundedVec, RuntimeDebug};
 use sp_std::prelude::*;
 
-use crate::types::{Data, IdentityFields, IdentityInformationProvider, U64BitFlag};
+use crate::types::{Data, IdentityInformationProvider};
 
 /// The fields that we use to identify the owner of an account with. Each
 /// corresponds to a field in the `IdentityInfo` struct.
@@ -38,6 +40,7 @@ pub enum IdentityField {
 	Legal,
 	Web,
 	Email,
+	Image,
 }
 
 impl TypeInfo for IdentityField {
@@ -49,12 +52,11 @@ impl TypeInfo for IdentityField {
 				.variant("Display", |v| v.index(0))
 				.variant("Legal", |v| v.index(1))
 				.variant("Web", |v| v.index(2))
-				.variant("Email", |v| v.index(3)),
+				.variant("Email", |v| v.index(3))
+				.variant("Image", |v| v.index(4)),
 		)
 	}
 }
-
-impl U64BitFlag for IdentityField {}
 
 /// Information concerning the identity of the controller of an account.
 ///
@@ -72,7 +74,6 @@ impl U64BitFlag for IdentityField {}
 	TypeInfo,
 )]
 #[codec(mel_bound())]
-#[cfg_attr(test, derive(frame_support::DefaultNoBound))]
 #[scale_info(skip_type_params(FieldLimit))]
 pub struct IdentityInfo<FieldLimit: Get<u32>> {
 	/// Additional fields of the identity that are not catered for with the
@@ -103,36 +104,53 @@ pub struct IdentityInfo<FieldLimit: Get<u32>> {
 	///
 	/// Stored as UTF-8.
 	pub email: Data,
+	/// A graphic image representing the controller of the account. Should be a company,
+	/// organization or project logo or a headshot in the case of a human.
+	pub image: Data,
 }
 
 impl<FieldLimit: Get<u32> + 'static> IdentityInformationProvider for IdentityInfo<FieldLimit> {
-	type IdentityField = IdentityField;
+	type FieldsIdentifier = u64;
 
-	fn has_identity(&self, fields: u64) -> bool {
-		self.fields().0.bits() & fields == fields
-	}
-
-	fn additional(&self) -> usize {
-		self.additional.len()
+	fn has_identity(&self, fields: Self::FieldsIdentifier) -> bool {
+		self.fields().bits() & fields == fields
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn create_identity_info(num_fields: u32) -> Self {
+	fn create_identity_info() -> Self {
 		let data = Data::Raw(vec![0; 32].try_into().unwrap());
 
 		IdentityInfo {
-			additional: vec![(data.clone(), data.clone()); num_fields as usize].try_into().unwrap(),
+			additional: vec![(data.clone(), data.clone()); FieldLimit::get().try_into().unwrap()]
+				.try_into()
+				.unwrap(),
 			display: data.clone(),
 			legal: data.clone(),
 			web: data.clone(),
-			email: data,
+			email: data.clone(),
+			image: data,
+		}
+	}
+	#[cfg(feature = "runtime-benchmarks")]
+	fn all_fields() -> Self::FieldsIdentifier {
+		IdentityField::all().bits()
+	}
+}
+impl<FieldLimit: Get<u32>> Default for IdentityInfo<FieldLimit> {
+	fn default() -> Self {
+		IdentityInfo {
+			additional: BoundedVec::default(),
+			display: Data::None,
+			legal: Data::None,
+			web: Data::None,
+			email: Data::None,
+			image: Data::None,
 		}
 	}
 }
 
 impl<FieldLimit: Get<u32>> IdentityInfo<FieldLimit> {
-	#[allow(unused)]
-	pub(crate) fn fields(&self) -> IdentityFields<IdentityField> {
+	pub(crate) fn fields(&self) -> BitFlags<IdentityField> {
 		let mut res = <BitFlags<IdentityField>>::empty();
 		if !self.display.is_none() {
 			res.insert(IdentityField::Display);
@@ -146,6 +164,9 @@ impl<FieldLimit: Get<u32>> IdentityInfo<FieldLimit> {
 		if !self.email.is_none() {
 			res.insert(IdentityField::Email);
 		}
-		IdentityFields(res)
+		if !self.image.is_none() {
+			res.insert(IdentityField::Image);
+		}
+		res
 	}
 }
