@@ -22,7 +22,7 @@ use super::{Event as CollectiveEvent, *};
 use crate as pallet_collective;
 use frame_benchmarking::{account, whitelisted_caller};
 use frame_support::{
-	assert_noop, assert_ok, parameter_types,
+	assert_noop, assert_ok, construct_runtime, derive_impl, parameter_types,
 	traits::{ConstU32, ConstU64, OnFinalize, OnInitialize},
 	Hashable,
 };
@@ -36,7 +36,7 @@ use sp_runtime::{
 
 pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 
-frame_support::construct_runtime!(
+construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system::{Pallet, Call, Event<T>},
@@ -92,6 +92,8 @@ parameter_types! {
 		frame_system::limits::BlockWeights::simple_max(Weight::MAX);
 	pub static MaxProposalWeight: Weight = default_max_proposal_weight();
 }
+
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = BlockWeights;

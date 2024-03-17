@@ -19,7 +19,7 @@
 use super::*;
 use crate::{self as cord_authority_membership};
 use frame_support::{
-	parameter_types,
+	construct_runtime, derive_impl, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
 use sp_state_machine::BasicExternalities;
@@ -53,15 +53,16 @@ impl From<UintAuthorityId> for MockSessionKeys {
 }
 
 // Configure a mock runtime to test the pallet.
-frame_support::construct_runtime!(
+construct_runtime!(
 	pub enum Test {
 		System: frame_system,
-		Session: pallet_session::{Pallet, Call, Storage, Config<T>, Event},
-		NetworkMembership: pallet_network_membership::{Pallet, Call, Storage, Event<T>, Config<T>},
-		AuthorityMembership: cord_authority_membership::{Pallet, Call, Storage, Config<T>, Event<T>},
+		Session: pallet_session,
+		NetworkMembership: pallet_network_membership,
+		AuthorityMembership: cord_authority_membership,
 	}
 );
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();

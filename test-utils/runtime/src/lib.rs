@@ -29,7 +29,7 @@ pub mod genesismap;
 
 use codec::{Decode, Encode};
 use frame_support::{
-	construct_runtime,
+	construct_runtime, derive_impl,
 	dispatch::DispatchClass,
 	genesis_builder_helper::{build_config, create_default_config},
 	parameter_types,
@@ -345,7 +345,7 @@ parameter_types! {
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
 }
-
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::pallet::Config for Runtime {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = RuntimeBlockWeights;
@@ -405,7 +405,6 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
-	type MaxHolds = ConstU32<1>;
 }
 
 impl cord_test_pallet::Config for Runtime {}
@@ -852,11 +851,11 @@ pub mod storage_key_generator {
 	}
 	#[allow(clippy::ptr_arg)]
 	fn concat_hashes(input: &Vec<&[u8]>) -> String {
-		input.iter().map(|s| sp_core::hashing::twox_128(s)).map(hex).collect()
+		input.iter().map(|s| sp_crypto_hashing::twox_128(s)).map(hex).collect()
 	}
 
 	fn twox_64_concat(x: &[u8]) -> Vec<u8> {
-		sp_core::hashing::twox_64(x).iter().chain(x.iter()).cloned().collect::<Vec<_>>()
+		sp_crypto_hashing::twox_64(x).iter().chain(x.iter()).cloned().collect()
 	}
 
 	/// Generate the hashed storage keys from the raw literals. These keys are
@@ -896,7 +895,7 @@ pub mod storage_key_generator {
 				AccountKeyring::Charlie.public().to_vec(),
 			])
 			.map(|pubkey| {
-				sp_core::hashing::blake2_128(&pubkey)
+				sp_crypto_hashing::blake2_128(&pubkey)
 					.iter()
 					.chain(pubkey.iter())
 					.cloned()
@@ -1199,8 +1198,8 @@ mod tests {
 				16
 			);
 
-			assert!(
-				!CheckSubstrateCall {}
+			assert_eq!(
+				CheckSubstrateCall {}
 					.validate(
 						&x,
 						&ExtrinsicBuilder::new_call_do_not_propagate().build().function,
@@ -1208,7 +1207,8 @@ mod tests {
 						len
 					)
 					.unwrap()
-					.propagate
+					.propagate,
+				false
 			);
 		})
 	}
@@ -1295,9 +1295,9 @@ mod tests {
 		fn default_config_as_json_works() {
 			sp_tracing::try_init_simple();
 			let mut t = BasicExternalities::new_empty();
-			let r = executor_call(&mut t, "GenesisBuilder_create_default_config", &[]).unwrap();
+			let r = executor_call(&mut t, "GenesisBuilder_create_default_config", &vec![]).unwrap();
 			let r = Vec::<u8>::decode(&mut &r[..]).unwrap();
-			let json = String::from_utf8(r).expect("returned value is json. qed.");
+			let json = String::from_utf8(r.into()).expect("returned value is json. qed.");
 
 			let expected = r#"{"system":{},"babe":{"authorities":[],"epochConfig":null},"cordTest":{"authorities":[]},"balances":{"balances":[]}}"#;
 			assert_eq!(expected.to_string(), json);
@@ -1393,7 +1393,7 @@ mod tests {
 			sp_tracing::try_init_simple();
 
 			let mut t = BasicExternalities::new_empty();
-			let r = executor_call(&mut t, "GenesisBuilder_create_default_config", &[]).unwrap();
+			let r = executor_call(&mut t, "GenesisBuilder_create_default_config", &vec![]).unwrap();
 			let r = Vec::<u8>::decode(&mut &r[..]).unwrap();
 			let mut default_config: serde_json::Value =
 				serde_json::from_slice(&r[..]).expect("returned value is json. qed.");
@@ -1417,7 +1417,7 @@ mod tests {
 				}
 			});
 
-			json_patch::merge(&mut default_config, &patch);
+			sc_chain_spec::json_merge(&mut default_config, patch);
 
 			// Build genesis config using custom json:
 			let mut t = BasicExternalities::new_empty();

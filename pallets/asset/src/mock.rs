@@ -20,7 +20,7 @@ use super::*;
 use crate as pallet_asset;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{
-	construct_runtime, parameter_types,
+	construct_runtime, derive_impl, parameter_types,
 	traits::{ConstU32, ConstU64},
 };
 
@@ -50,6 +50,7 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 29;
 }
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
@@ -93,6 +94,7 @@ impl Config for Test {
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
 	type MaxEncodedValueLength = MaxEncodedValueLength;
 	type MaxAssetDistribution = MaxAssetDistribution;
+	type WeightInfo = ();
 }
 
 parameter_types! {

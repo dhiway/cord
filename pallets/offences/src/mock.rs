@@ -22,7 +22,7 @@ use crate as pallet_offences;
 use crate::{Config, SlashStrategy};
 use codec::Encode;
 use frame_support::{
-	parameter_types,
+	construct_runtime, derive_impl, parameter_types,
 	traits::{ConstU32, ConstU64},
 	weights::{constants::RocksDbWeight, Weight},
 };
@@ -57,7 +57,7 @@ impl<Reporter, Offender> pallet_offences::OnOffenceHandler<Reporter, Offender, W
 
 type Block = frame_system::mocking::MockBlock<Runtime>;
 
-frame_support::construct_runtime!(
+construct_runtime!(
 	pub struct Runtime
 	{
 		System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>},
@@ -65,6 +65,7 @@ frame_support::construct_runtime!(
 	}
 );
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Runtime {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();

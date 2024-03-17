@@ -93,15 +93,13 @@ impl<Block: BlockT, ExecutorDispatch, G: GenesisInit>
 		Self::with_backend(backend)
 	}
 
-	/// Create new `TestClientBuilder` with default backend and pruning window
-	/// size
+	/// Create new `TestClientBuilder` with default backend and pruning window size
 	pub fn with_pruning_window(blocks_pruning: u32) -> Self {
 		let backend = Arc::new(Backend::new_test(blocks_pruning, 0));
 		Self::with_backend(backend)
 	}
 
-	/// Create new `TestClientBuilder` with default backend and storage chain
-	/// mode
+	/// Create new `TestClientBuilder` with default backend and storage chain mode
 	pub fn with_tx_storage(blocks_pruning: u32) -> Self {
 		let backend =
 			Arc::new(Backend::new_test_with_tx_storage(BlocksPruning::Some(blocks_pruning), 0));
@@ -249,7 +247,6 @@ impl<Block: BlockT, D, Backend, G: GenesisInit>
 	D: sc_executor::NativeExecutionDispatch,
 {
 	/// Build the test client with the given native executor.
-	#[allow(clippy::type_complexity)]
 	pub fn build_with_native_executor<RuntimeApi, I>(
 		self,
 		executor: I,
@@ -288,7 +285,7 @@ pub struct RpcTransactionOutput {
 	/// The output string of the transaction if any.
 	pub result: String,
 	/// An async receiver if data will be returned via a callback.
-	pub receiver: futures::channel::mpsc::UnboundedReceiver<String>,
+	pub receiver: tokio::sync::mpsc::Receiver<String>,
 }
 
 impl std::fmt::Debug for RpcTransactionOutput {
@@ -304,8 +301,7 @@ pub struct RpcTransactionError {
 	pub code: i64,
 	/// A String providing a short description of the error.
 	pub message: String,
-	/// A Primitive or Structured value that contains additional information
-	/// about the error.
+	/// A Primitive or Structured value that contains additional information about the error.
 	pub data: Option<serde_json::Value>,
 }
 
@@ -339,7 +335,7 @@ impl RpcHandlersExt for RpcHandlers {
 						"params": ["0x{}"],
 						"id": 0
 					}}"#,
-				array_bytes::bytes2hex("", extrinsic.encode())
+				array_bytes::bytes2hex("", &extrinsic.encode())
 			))
 			.await
 			.expect("valid JSON-RPC request object; qed");
@@ -349,7 +345,7 @@ impl RpcHandlersExt for RpcHandlers {
 
 pub(crate) fn parse_rpc_result(
 	result: String,
-	receiver: futures::channel::mpsc::UnboundedReceiver<String>,
+	receiver: tokio::sync::mpsc::Receiver<String>,
 ) -> Result<RpcTransactionOutput, RpcTransactionError> {
 	let json: serde_json::Value =
 		serde_json::from_str(&result).expect("the result can only be a JSONRPC string; qed");
@@ -369,9 +365,9 @@ where
 	C: BlockchainEvents<B>,
 	B: BlockT,
 {
-	/// Wait for `count` blocks to be imported in the node and then exit. This
-	/// function will not return if no blocks are ever created, thus you should
-	/// restrict the maximum amount of time of the test execution.
+	/// Wait for `count` blocks to be imported in the node and then exit. This function will not
+	/// return if no blocks are ever created, thus you should restrict the maximum amount of time of
+	/// the test execution.
 	fn wait_for_blocks(&self, count: usize) -> Pin<Box<dyn Future<Output = ()> + Send>>;
 }
 
@@ -403,7 +399,7 @@ where
 mod tests {
 	#[test]
 	fn parses_error_properly() {
-		let (_, rx) = futures::channel::mpsc::unbounded();
+		let (_, rx) = tokio::sync::mpsc::channel(1);
 		assert!(super::parse_rpc_result(
 			r#"{
 				"jsonrpc": "2.0",
@@ -415,7 +411,7 @@ mod tests {
 		)
 		.is_ok());
 
-		let (_, rx) = futures::channel::mpsc::unbounded();
+		let (_, rx) = tokio::sync::mpsc::channel(1);
 		let error = super::parse_rpc_result(
 			r#"{
 				"jsonrpc": "2.0",
@@ -433,7 +429,7 @@ mod tests {
 		assert_eq!(error.message, "Method not found");
 		assert!(error.data.is_none());
 
-		let (_, rx) = futures::channel::mpsc::unbounded();
+		let (_, rx) = tokio::sync::mpsc::channel(1);
 		let error = super::parse_rpc_result(
 			r#"{
 				"jsonrpc": "2.0",

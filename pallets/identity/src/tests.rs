@@ -27,7 +27,7 @@ use crate::{
 };
 use codec::{Decode, Encode};
 use frame_support::{
-	assert_noop, assert_ok, ord_parameter_types, parameter_types,
+	assert_noop, assert_ok, construct_runtime, derive_impl, ord_parameter_types, parameter_types,
 	traits::{ConstU32, ConstU64, EitherOfDiverse},
 };
 use frame_system::{EnsureRoot, EnsureSignedBy};
@@ -39,7 +39,7 @@ use sp_runtime::{
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
-frame_support::construct_runtime!(
+construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>},
@@ -47,6 +47,7 @@ frame_support::construct_runtime!(
 	}
 );
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();
@@ -383,5 +384,15 @@ fn test_has_identity() {
 				SimpleIdentityField::Legal as u64 |
 				SimpleIdentityField::Web as u64
 		));
+	});
+}
+#[test]
+fn add_registrar_should_fail_if_registrar_already_exists() {
+	new_test_ext().execute_with(|| {
+		assert_ok!(Identity::add_registrar(RuntimeOrigin::signed(1), 3));
+		assert_noop!(
+			Identity::add_registrar(RuntimeOrigin::signed(1), 3),
+			Error::<Test>::RegistrarAlreadyExists
+		);
 	});
 }

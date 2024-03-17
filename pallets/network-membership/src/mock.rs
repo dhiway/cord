@@ -19,7 +19,7 @@
 // use super::*;
 use crate::{self as pallet_network_membership};
 use frame_support::{
-	construct_runtime, parameter_types,
+	construct_runtime, derive_impl, parameter_types,
 	traits::{ConstU32, ConstU64, OnFinalize, OnInitialize},
 };
 use frame_system::{pallet_prelude::BlockNumberFor, EnsureRoot};
@@ -47,6 +47,7 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 29;
 }
 
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = ();

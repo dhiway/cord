@@ -386,6 +386,40 @@ benchmarks! {
 			 assert_last_event::<T>(Event::ApprovalRestore { space: space_id }.into());
 		 }
 
+		subspace_create {
+			 let caller: T::AccountId = account("caller", 0, SEED);
+			 let did: T::SpaceCreatorId = account("did", 0, SEED);
+			 let space = [2u8; 256].to_vec();
+			 let subspace = [5u8; 256].to_vec();
+			 let capacity = 50u64;
+
+			 let space_digest = <T as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+			 let subspace_digest = <T as frame_system::Config>::Hashing::hash(&subspace.encode()[..]);
+			 let id_digest = <T as frame_system::Config>::Hashing::hash(
+				 &[&space_digest.encode()[..], &did.encode()[..]].concat()[..],
+			 );
+			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
+
+			 let sub_id_digest = <T as frame_system::Config>::Hashing::hash(
+				 &[&subspace_digest.encode()[..], &did.encode()[..]].concat()[..],
+			 );
+			 let subspace_id: SpaceIdOf = generate_space_id::<T>(&sub_id_digest);
+
+			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
+				 &[&subspace_id.encode()[..], &did.encode()[..]].concat()[..],
+			 );
+			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
+
+			 let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did.clone());
+
+			 Pallet::<T>::create(origin.clone(), space_digest )?;
+			 Pallet::<T>::approve(RawOrigin::Root.into(), space_id.clone(), capacity )?;
+
+		 }: _<T::RuntimeOrigin>(origin, subspace_digest, 10u64, space_id.clone())
+		 verify {
+			 assert_last_event::<T>(Event::Create { space: subspace_id, creator: did, authorization: authorization_id }.into());
+		 }
+
 	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
 
 }

@@ -19,7 +19,7 @@
 use super::*;
 use crate as pallet_score;
 use cord_utilities::mock::{mock_origin, SubjectId};
-use frame_support::{construct_runtime, parameter_types, traits::ConstU64};
+use frame_support::{construct_runtime, derive_impl, parameter_types, traits::ConstU64};
 use frame_system::EnsureRoot;
 use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
@@ -47,6 +47,8 @@ construct_runtime!(
 parameter_types! {
 	pub const SS58Prefix: u8 = 29;
 }
+
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
 impl frame_system::Config for Test {
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
