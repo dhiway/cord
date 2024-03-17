@@ -159,6 +159,7 @@ fn check_duplicate_message_id() {
 		);
 	});
 }
+#[test]
 fn test_register_rating_id_already_exists() {
 	// Define test parameters
 	let creator = DID_00.clone();
