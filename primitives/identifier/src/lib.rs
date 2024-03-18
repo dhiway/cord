@@ -26,8 +26,7 @@ pub use crate::curi::{IdentifierError, IdentifierTimeline, IdentifierType, Ss58I
 use sp_runtime::BoundedVec;
 use sp_std::{prelude::Clone, str};
 pub mod types;
-pub use crate::pallet::*;
-pub use crate::types::*;
+pub use crate::{pallet::*, types::*};
 use cord_primitives::DEFAULT_SS58_IDENTIFIER_PREFIX;
 use core::marker::PhantomData;
 use frame_support::traits::Get;
