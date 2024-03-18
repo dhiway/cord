@@ -90,7 +90,8 @@ impl IdentifierCreator for Ss58Identifier {
 	fn create_identifier(
 		data: &[u8],
 	) -> Result<Ss58Identifier, IdentifierError> {
-		let format = Prefix::get();
+		//let format = Prefix::get();
+		let format = Some(0);
 		if let Some(ss58_identifier_format) = format {
 			Ss58Identifier::from_encoded(data, ss58_identifier_format)
 		} else {
