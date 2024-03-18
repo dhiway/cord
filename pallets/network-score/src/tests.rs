@@ -68,8 +68,7 @@ fn check_successful_rating_creation() {
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: AuthorizationIdOf =
-		identifier::Pallet::<T>::create_identifier(&auth_digest.encode()[..])
-			.unwrap();
+		identifier::Pallet::<T>::create_identifier(&auth_digest.encode()[..]).unwrap();
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
@@ -123,8 +122,7 @@ fn check_duplicate_message_id() {
 		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: AuthorizationIdOf =
-		identifier::Pallet::<T>::create_identifier(&auth_digest.encode()[..])
-			.unwrap();
+		identifier::Pallet::<T>::create_identifier(&auth_digest.encode()[..]).unwrap();
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);

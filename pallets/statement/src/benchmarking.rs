@@ -24,8 +24,7 @@ pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
 
 /// Generates an authorization ID from a digest.
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..])
-		.unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {

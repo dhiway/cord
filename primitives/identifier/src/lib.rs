@@ -22,18 +22,16 @@
 #![allow(clippy::unused_unit)]
 
 pub mod curi;
-pub use crate::curi::{
-	IdentifierError, IdentifierTimeline, IdentifierType, Ss58Identifier,
-};
+pub use crate::curi::{IdentifierError, IdentifierTimeline, IdentifierType, Ss58Identifier};
 use sp_runtime::BoundedVec;
 use sp_std::{prelude::Clone, str};
 pub mod types;
+pub use crate::pallet::*;
 pub use crate::types::*;
+use cord_primitives::DEFAULT_SS58_IDENTIFIER_PREFIX;
+use core::marker::PhantomData;
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
-use core::marker::PhantomData;
-use cord_primitives::DEFAULT_SS58_IDENTIFIER_PREFIX;
-pub use crate::pallet::*;
 use sp_std::vec;
 
 #[cfg(any(feature = "mock", test))]
@@ -142,9 +140,7 @@ impl<T: Config> IdentifierUpdate<IdentifierOf, IdentifierTypeOf, EventEntryOf, I
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn create_identifier(
-		data: &[u8],
-	) -> Result<Ss58Identifier, IdentifierError> {
+	pub fn create_identifier(data: &[u8]) -> Result<Ss58Identifier, IdentifierError> {
 		let format = Ss58Format::<T>::get();
 		if let Some(ss58_identifier_format) = format {
 			Ss58Identifier::from_encoded(data, ss58_identifier_format)

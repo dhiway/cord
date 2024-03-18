@@ -82,7 +82,7 @@ impl BootstrapChainCmd {
 			)),
 		};
 
-		let ss58_identifier_format: u16 = if config.ss58_identifier_format != 0 { 
+		let ss58_identifier_format: u16 = if config.ss58_identifier_format != 0 {
 			config.ss58_identifier_format
 		} else {
 			DEFAULT_SS58_IDENTIFIER_PREFIX

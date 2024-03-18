@@ -413,7 +413,7 @@ pub mod pallet {
 			);
 
 			let identifier = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
 				!<Statements<T>>::contains_key(&identifier),

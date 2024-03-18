@@ -39,8 +39,7 @@ pub fn generate_rating_id<T: Config>(other_digest: &RatingEntryHashOf<T>) -> Rat
 }
 
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..])
-		.unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {

@@ -17,8 +17,7 @@ pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
 }
 
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..])
-		.unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 const SEED: u32 = 0;

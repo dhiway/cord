@@ -370,16 +370,16 @@ pub mod pallet {
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				entry.total_encoded_rating > 0 &&
-					entry.count_of_txn > 0 &&
-					entry.total_encoded_rating <=
-						entry.count_of_txn * T::MaxRatingValue::get() as u64,
+				entry.total_encoded_rating > 0
+					&& entry.count_of_txn > 0
+					&& entry.total_encoded_rating
+						<= entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
 
 			ensure!(
-				entry.entity_type.is_valid_entity_type() &&
-					entry.rating_type.is_valid_rating_type(),
+				entry.entity_type.is_valid_entity_type()
+					&& entry.rating_type.is_valid_rating_type(),
 				Error::<T>::InvalidEntryOrRatingType
 			);
 
@@ -406,7 +406,7 @@ pub mod pallet {
 			);
 
 			let identifier = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
 				!<RatingEntries<T>>::contains_key(&identifier),
@@ -530,7 +530,7 @@ pub mod pallet {
 			);
 
 			let identifier = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
 				!<RatingEntries<T>>::contains_key(&identifier),
@@ -635,16 +635,16 @@ pub mod pallet {
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				entry.total_encoded_rating > 0 &&
-					entry.count_of_txn > 0 &&
-					entry.total_encoded_rating <=
-						entry.count_of_txn * T::MaxRatingValue::get() as u64,
+				entry.total_encoded_rating > 0
+					&& entry.count_of_txn > 0
+					&& entry.total_encoded_rating
+						<= entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
 
 			ensure!(
-				entry.entity_type.is_valid_entity_type() &&
-					entry.rating_type.is_valid_rating_type(),
+				entry.entity_type.is_valid_entity_type()
+					&& entry.rating_type.is_valid_rating_type(),
 				Error::<T>::InvalidEntryOrRatingType
 			);
 
@@ -685,7 +685,7 @@ pub mod pallet {
 			);
 
 			let identifier = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
 				!<RatingEntries<T>>::contains_key(&identifier),

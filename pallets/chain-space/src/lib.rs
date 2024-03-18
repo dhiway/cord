@@ -516,9 +516,8 @@ pub mod pallet {
 				&[&space_code.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let identifier =
-				identifier::Pallet::<T>::create_identifier(&id_digest.encode()[..])
-					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = identifier::Pallet::<T>::create_identifier(&id_digest.encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
 
@@ -528,8 +527,9 @@ pub mod pallet {
 			let auth_id_digest =
 				T::Hashing::hash(&[&identifier.encode()[..], &creator.encode()[..]].concat()[..]);
 
-			let authorization_id = identifier::Pallet::<T>::create_identifier(&auth_id_digest.encode())
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let authorization_id =
+				identifier::Pallet::<T>::create_identifier(&auth_id_digest.encode())
+					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			let mut delegates: BoundedVec<SpaceCreatorOf<T>, T::MaxSpaceDelegates> =
 				BoundedVec::default();
@@ -799,18 +799,18 @@ pub mod pallet {
 
 				// Ensure the new capacity is greater than the current usage
 				ensure!(
-					(parent_details.txn_capacity >=
-						(parent_details.txn_count +
-							parent_details.txn_reserve + new_txn_capacity -
-							space_details.txn_capacity)),
+					(parent_details.txn_capacity
+						>= (parent_details.txn_count
+							+ parent_details.txn_reserve + new_txn_capacity
+							- space_details.txn_capacity)),
 					Error::<T>::CapacityLessThanUsage
 				);
 
 				<Spaces<T>>::insert(
 					&space_details.parent.clone(),
 					SpaceDetailsOf::<T> {
-						txn_reserve: parent_details.txn_reserve - space_details.txn_capacity +
-							new_txn_capacity,
+						txn_reserve: parent_details.txn_reserve - space_details.txn_capacity
+							+ new_txn_capacity,
 						..parent_details.clone()
 					},
 				);
@@ -1005,9 +1005,9 @@ pub mod pallet {
 
 			// Ensure the new capacity is greater than the current usage
 			ensure!(
-				count <=
-					(space_details.txn_capacity -
-						(space_details.txn_count + space_details.txn_reserve)),
+				count
+					<= (space_details.txn_capacity
+						- (space_details.txn_count + space_details.txn_reserve)),
 				Error::<T>::CapacityLimitExceeded
 			);
 
@@ -1017,9 +1017,8 @@ pub mod pallet {
 				&[&space_code.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let identifier =
-			identifier::Pallet::<T>::create_identifier(&id_digest.encode()[..])
-					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = identifier::Pallet::<T>::create_identifier(&id_digest.encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
 
@@ -1029,10 +1028,9 @@ pub mod pallet {
 			let auth_id_digest =
 				T::Hashing::hash(&[&identifier.encode()[..], &creator.encode()[..]].concat()[..]);
 
-			let authorization_id = identifier::Pallet::<T>::create_identifier(
-				&auth_id_digest.encode()
-			)
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let authorization_id =
+				identifier::Pallet::<T>::create_identifier(&auth_id_digest.encode())
+					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			let mut delegates: BoundedVec<SpaceCreatorOf<T>, T::MaxSpaceDelegates> =
 				BoundedVec::default();
@@ -1138,17 +1136,17 @@ pub mod pallet {
 
 			// Ensure the new capacity is greater than the current usage
 			ensure!(
-				(parent_details.txn_capacity >=
-					(parent_details.txn_count + parent_details.txn_reserve + new_txn_capacity -
-						space_details.txn_capacity)),
+				(parent_details.txn_capacity
+					>= (parent_details.txn_count + parent_details.txn_reserve + new_txn_capacity
+						- space_details.txn_capacity)),
 				Error::<T>::CapacityLessThanUsage
 			);
 
 			<Spaces<T>>::insert(
 				&space_details.parent.clone(),
 				SpaceDetailsOf::<T> {
-					txn_reserve: parent_details.txn_reserve - space_details.txn_capacity +
-						new_txn_capacity,
+					txn_reserve: parent_details.txn_reserve - space_details.txn_capacity
+						+ new_txn_capacity,
 					..parent_details.clone()
 				},
 			);

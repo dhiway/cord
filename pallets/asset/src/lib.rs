@@ -247,9 +247,8 @@ pub mod pallet {
 				&[&digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let identifier =
-				identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
-					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Assets<T>>::contains_key(&identifier), Error::<T>::AssetIdAlreadyExists);
 
@@ -317,7 +316,7 @@ pub mod pallet {
 			);
 
 			let instance_id = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
