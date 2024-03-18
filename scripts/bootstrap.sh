@@ -31,7 +31,7 @@ NUM_AUTHORITIES=3
 SECRET="0xf32255f569d8b1a12086dfd194653a5377fafcb67345753987741ec5542920ce"
 OUTPUT_DIR="."
 
-while getopts "m:n:a:s:o:" flag; do
+while getopts "m:n:a:s:o:p:c:" flag; do
   case "${flag}" in
   m) NUM_MEMBERS=${OPTARG} ;;
   n) NUM_NODES=${OPTARG} ;;

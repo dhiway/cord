@@ -24,7 +24,6 @@ use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{sp_runtime::traits::Hash, BoundedVec};
 use frame_system::RawOrigin;
-use identifier::{IdentifierType, Ss58Identifier};
 use pallet_chain_space::SpaceCodeOf;
 
 const SEED: u32 = 0;

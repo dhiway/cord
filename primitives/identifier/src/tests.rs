@@ -11,13 +11,13 @@ fn creating_a_invalid_identifier_length_should_fail() {
 
 	new_test_ext().execute_with(|| {
 		assert_err!(
-			identifier::Pallet::<T>::create_identifier(&(space1).encode()[..]),
+			Pallet::<Test>::create_identifier(&(space1).encode()[..]),
 			IdentifierError::InvalidIdentifierLength
 		);
 		assert_err!(
-			identifier::Pallet::<T>::create_identifier(&(space2).encode()[..]),
+			Pallet::<Test>::create_identifier(&(space2).encode()[..]),
 			IdentifierError::InvalidIdentifierLength
 		);
-		assert_ok!(identifier::Pallet::<T>::create_identifier(&(space3).encode()[..]));
+		assert_ok!(Pallet::<Test>::create_identifier(&(space3).encode()[..]));
 	});
 }

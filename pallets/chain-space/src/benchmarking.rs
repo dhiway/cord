@@ -6,7 +6,6 @@ use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::sp_runtime::traits::Hash;
 use frame_system::RawOrigin;
-use identifier::{IdentifierType, Ss58Identifier};
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());

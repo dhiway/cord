@@ -7,7 +7,6 @@ use frame_benchmarking::{account, benchmarks};
 use frame_support::sp_runtime::traits::Hash;
 use frame_system::RawOrigin;
 
-use identifier::{IdentifierType, Ss58Identifier};
 use pallet_chain_space::{SpaceCodeOf, SpaceIdOf};
 use sp_runtime::BoundedVec;
 
