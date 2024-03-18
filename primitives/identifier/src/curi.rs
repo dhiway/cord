@@ -45,8 +45,6 @@ pub enum IdentifierType {
 	Rating,
 }
 
-const DEFAULT_SS58_IDENTIFIER_PREFIX: u16 = 10029;
-
 /// The minimum length of a valid identifier.
 pub const MINIMUM_IDENTIFIER_LENGTH: usize = 2;
 /// The maximum length of a valid identifier.
@@ -78,26 +76,6 @@ pub enum IdentifierError {
 	/// Identifier timeline update failed
 	UpdateFailed,
 	MaxEventsHistoryExceeded,
-}
-
-pub trait IdentifierCreator {
-	fn create_identifier(
-		data: &[u8],
-	) -> Result<Ss58Identifier, IdentifierError>;
-}
-
-impl IdentifierCreator for Ss58Identifier {
-	fn create_identifier(
-		data: &[u8],
-	) -> Result<Ss58Identifier, IdentifierError> {
-		//let format = Prefix::get();
-		let format = Some(0);
-		if let Some(ss58_identifier_format) = format {
-			Ss58Identifier::from_encoded(data, ss58_identifier_format)
-		} else {
-			Ss58Identifier::from_encoded(data, DEFAULT_SS58_IDENTIFIER_PREFIX)
-		}
-	}
 }
 
 impl Ss58Identifier {

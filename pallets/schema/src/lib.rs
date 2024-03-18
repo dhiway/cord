@@ -70,7 +70,7 @@ pub mod pallet {
 	pub use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
+	pub use identifier::{IdentifierTimeline, IdentifierType, Ss58Identifier};
 	use sp_runtime::{traits::Hash, SaturatedConversion};
 
 	/// The current storage version.
@@ -190,10 +190,7 @@ pub mod pallet {
 					[..],
 			);
 
-			let identifier = Ss58Identifier::create_identifier(
-				&(id_digest).encode()[..],
-				IdentifierType::Schema,
-			)
+			let identifier = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Schemas<T>>::contains_key(&identifier), Error::<T>::SchemaAlreadyAnchored);

@@ -129,7 +129,7 @@ pub mod pallet {
 	use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
+	pub use identifier::{IdentifierTimeline, IdentifierType, Ss58Identifier};
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -517,7 +517,7 @@ pub mod pallet {
 			);
 
 			let identifier =
-				Ss58Identifier::create_identifier(&id_digest.encode()[..], IdentifierType::Space)
+				identifier::Pallet::<T>::create_identifier(&id_digest.encode()[..])
 					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
@@ -528,10 +528,7 @@ pub mod pallet {
 			let auth_id_digest =
 				T::Hashing::hash(&[&identifier.encode()[..], &creator.encode()[..]].concat()[..]);
 
-			let authorization_id = Ss58Identifier::create_identifier(
-				&auth_id_digest.encode(),
-				IdentifierType::Authorization,
-			)
+			let authorization_id = identifier::Pallet::<T>::create_identifier(&auth_id_digest.encode())
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			let mut delegates: BoundedVec<SpaceCreatorOf<T>, T::MaxSpaceDelegates> =
@@ -1021,7 +1018,7 @@ pub mod pallet {
 			);
 
 			let identifier =
-				Ss58Identifier::create_identifier(&id_digest.encode()[..])
+			identifier::Pallet::<T>::create_identifier(&id_digest.encode()[..])
 					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
@@ -1032,9 +1029,8 @@ pub mod pallet {
 			let auth_id_digest =
 				T::Hashing::hash(&[&identifier.encode()[..], &creator.encode()[..]].concat()[..]);
 
-			let authorization_id = Ss58Identifier::create_identifier(
-				&auth_id_digest.encode(),
-				IdentifierType::Authorization,
+			let authorization_id = identifier::Pallet::<T>::create_identifier(
+				&auth_id_digest.encode()
 			)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
@@ -1193,7 +1189,7 @@ impl<T: Config> Pallet<T> {
 		);
 
 		let delegate_authorization_id =
-			Ss58Identifier::create_identifier(&id_digest.encode(), IdentifierType::Authorization)
+			identifier::Pallet::<T>::create_identifier(&id_digest.encode())
 				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 		ensure!(

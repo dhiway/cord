@@ -23,8 +23,7 @@
 
 pub mod curi;
 pub use crate::curi::{
-	IdentifierCreator, IdentifierError, IdentifierTimeline, IdentifierType,
-	Ss58Identifier,
+	IdentifierError, IdentifierTimeline, IdentifierType, Ss58Identifier,
 };
 use sp_runtime::BoundedVec;
 use sp_std::{prelude::Clone, str};
@@ -33,7 +32,7 @@ pub use crate::types::*;
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
 use core::marker::PhantomData;
-
+use cord_primitives::DEFAULT_SS58_IDENTIFIER_PREFIX;
 pub use crate::pallet::*;
 use sp_std::vec;
 
@@ -90,8 +89,8 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn prefix)]
-	pub type Prefix<T: Config> = StorageValue<_, u16>;
+	#[pallet::getter(fn ss58format)]
+	pub type Ss58Format<T: Config> = StorageValue<_, u16>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -112,7 +111,7 @@ pub mod pallet {
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			log::info!("Setting new prefix key {:?}", &self.ss58_identifier_format);
-			Prefix::<T>::put(&self.ss58_identifier_format);
+			Ss58Format::<T>::put(&self.ss58_identifier_format);
 		}
 	}
 }
@@ -139,5 +138,18 @@ impl<T: Config> IdentifierUpdate<IdentifierOf, IdentifierTypeOf, EventEntryOf, I
 			events.try_push(entry).map_err(|_| IdentifierError::MaxEventsHistoryExceeded)
 		})
 		.map_err(|_| IdentifierError::MaxEventsHistoryExceeded) // Map DispatchError to your custom Error
+	}
+}
+
+impl<T: Config> Pallet<T> {
+	pub fn create_identifier(
+		data: &[u8],
+	) -> Result<Ss58Identifier, IdentifierError> {
+		let format = Ss58Format::<T>::get();
+		if let Some(ss58_identifier_format) = format {
+			Ss58Identifier::from_encoded(data, ss58_identifier_format)
+		} else {
+			Ss58Identifier::from_encoded(data, DEFAULT_SS58_IDENTIFIER_PREFIX)
+		}
 	}
 }

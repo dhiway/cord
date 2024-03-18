@@ -127,7 +127,7 @@ pub mod pallet {
 	use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, Twox64Concat};
 	use frame_system::pallet_prelude::*;
-	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
+	pub use identifier::{IdentifierTimeline, IdentifierType, Ss58Identifier};
 	use sp_runtime::traits::Hash;
 	use sp_std::{prelude::Clone, str};
 
@@ -405,10 +405,7 @@ pub mod pallet {
 				.concat()[..],
 			);
 
-			let identifier = Ss58Identifier::create_identifier(
-				&(id_digest).encode()[..],
-				IdentifierType::Rating,
-			)
+			let identifier = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
@@ -532,10 +529,7 @@ pub mod pallet {
 				.concat()[..],
 			);
 
-			let identifier = Ss58Identifier::create_identifier(
-				&(id_digest).encode()[..],
-				IdentifierType::Rating,
-			)
+			let identifier = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
@@ -690,10 +684,7 @@ pub mod pallet {
 				.concat()[..],
 			);
 
-			let identifier = Ss58Identifier::create_identifier(
-				&(id_digest).encode()[..],
-				IdentifierType::Rating,
-			)
+			let identifier = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(

@@ -16,20 +16,20 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 }
 
 pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..])
 		.unwrap()
 }
 
 pub fn generate_asset_id<T: Config>(digest: &SpaceCodeOf<T>) -> AssetIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Asset).unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 pub fn generate_asset_instance_id<T: Config>(digest: &SpaceCodeOf<T>) -> AssetInstanceIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::AssetInstance)
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..])
 		.unwrap()
 }
 

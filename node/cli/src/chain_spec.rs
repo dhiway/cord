@@ -20,7 +20,7 @@
 
 pub mod bootstrap;
 
-pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
+pub use cord_primitives::{AccountId, Balance, NodeId, Signature, DEFAULT_SS58_IDENTIFIER_PREFIX};
 pub use cord_runtime::RuntimeGenesisConfig;
 use cord_runtime::{Block, SessionKeys};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -132,7 +132,7 @@ fn cord_development_config_genesis() -> serde_json::Value {
 			get_account_id_from_seed::<sr25519::Public>("Alice"),
 		)],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
-		29,
+		DEFAULT_SS58_IDENTIFIER_PREFIX,
 	)
 }
 
@@ -162,7 +162,7 @@ fn cord_local_config_genesis() -> serde_json::Value {
 			),
 		],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
-		29,
+		DEFAULT_SS58_IDENTIFIER_PREFIX,
 	)
 }
 

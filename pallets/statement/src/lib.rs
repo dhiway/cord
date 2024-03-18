@@ -102,7 +102,7 @@ pub mod pallet {
 	use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::{OptionQuery, *};
 	use frame_system::pallet_prelude::*;
-	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
+	pub use identifier::{IdentifierTimeline, IdentifierType, Ss58Identifier};
 	use sp_runtime::traits::Hash;
 
 	/// The current storage version.
@@ -412,10 +412,7 @@ pub mod pallet {
 				&[&digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let identifier = Ss58Identifier::create_identifier(
-				&(id_digest).encode()[..],
-				IdentifierType::Statement,
-			)
+			let identifier = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
@@ -924,10 +921,7 @@ pub mod pallet {
 					.concat()[..],
 				);
 
-				let identifier_result = Ss58Identifier::create_identifier(
-					&(id_digest).encode()[..],
-					IdentifierType::Statement,
-				);
+				let identifier_result = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..]);
 
 				match identifier_result {
 					Ok(identifier) => {

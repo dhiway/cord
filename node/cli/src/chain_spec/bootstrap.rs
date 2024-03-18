@@ -56,6 +56,7 @@ impl ChainParams {
 	pub fn chain_name(&self) -> &str {
 		&self.chain_name
 	}
+
 	pub fn ss58_identifier_format(&self) -> u16 {
 		self.ss58_identifier_format
 	}
