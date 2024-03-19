@@ -21,7 +21,7 @@
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 32.0.0
 //! DATE: 2024-03-18, STEPS: `50`, REPEAT: `20`, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! WORST CASE MAP SIZE: `1000000`
-//! HOSTNAME: `pi.local`, CPU: `<UNKNOWN>`
+//! HOSTNAME: `smohan-dev-host`, CPU: `AMD EPYC 7B12`
 //! WASM-EXECUTION: `Compiled`, CHAIN: `Some("dev")`, DB CACHE: `1024`
 
 // Executed Command:
@@ -76,8 +76,8 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		// Proof Size summary in bytes:
 		//  Measured:  `801`
 		//  Estimated: `4145`
-		// Minimum execution time: 30_000_000 picoseconds.
-		Weight::from_parts(31_709_871, 4145)
+		// Minimum execution time: 48_770_000 picoseconds.
+		Weight::from_parts(50_541_201, 4145)
 			.saturating_add(T::DbWeight::get().reads(7_u64))
 			.saturating_add(T::DbWeight::get().writes(5_u64))
 	}
@@ -96,12 +96,14 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: `Identifier::Identifiers` (r:2 w:2)
 	/// Proof: `Identifier::Identifiers` (`max_values`: None, `max_size`: Some(4294967295), added: 2474, mode: `MaxEncodedLen`)
 	/// The range of component `l` is `[1, 15360]`.
-	fn revoke_rating(_l: u32, ) -> Weight {
+	fn revoke_rating(l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1329`
 		//  Estimated: `7300`
-		// Minimum execution time: 40_000_000 picoseconds.
-		Weight::from_parts(42_228_013, 7300)
+		// Minimum execution time: 63_930_000 picoseconds.
+		Weight::from_parts(66_128_098, 7300)
+			// Standard Error: 8
+			.saturating_add(Weight::from_parts(8, 0).saturating_mul(l.into()))
 			.saturating_add(T::DbWeight::get().reads(9_u64))
 			.saturating_add(T::DbWeight::get().writes(6_u64))
 	}
@@ -120,12 +122,14 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: `Identifier::Identifiers` (r:2 w:2)
 	/// Proof: `Identifier::Identifiers` (`max_values`: None, `max_size`: Some(4294967295), added: 2474, mode: `MaxEncodedLen`)
 	/// The range of component `l` is `[1, 15360]`.
-	fn revise_rating(_l: u32, ) -> Weight {
+	fn revise_rating(l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1428`
 		//  Estimated: `7300`
-		// Minimum execution time: 41_000_000 picoseconds.
-		Weight::from_parts(43_528_011, 7300)
+		// Minimum execution time: 65_520_000 picoseconds.
+		Weight::from_parts(67_287_568, 7300)
+			// Standard Error: 6
+			.saturating_add(Weight::from_parts(64, 0).saturating_mul(l.into()))
 			.saturating_add(T::DbWeight::get().reads(9_u64))
 			.saturating_add(T::DbWeight::get().writes(6_u64))
 	}
@@ -152,8 +156,8 @@ impl WeightInfo for () {
 		// Proof Size summary in bytes:
 		//  Measured:  `801`
 		//  Estimated: `4145`
-		// Minimum execution time: 30_000_000 picoseconds.
-		Weight::from_parts(31_709_871, 4145)
+		// Minimum execution time: 48_770_000 picoseconds.
+		Weight::from_parts(50_541_201, 4145)
 			.saturating_add(RocksDbWeight::get().reads(7_u64))
 			.saturating_add(RocksDbWeight::get().writes(5_u64))
 	}
@@ -172,12 +176,14 @@ impl WeightInfo for () {
 	/// Storage: `Identifier::Identifiers` (r:2 w:2)
 	/// Proof: `Identifier::Identifiers` (`max_values`: None, `max_size`: Some(4294967295), added: 2474, mode: `MaxEncodedLen`)
 	/// The range of component `l` is `[1, 15360]`.
-	fn revoke_rating(_l: u32, ) -> Weight {
+	fn revoke_rating(l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1329`
 		//  Estimated: `7300`
-		// Minimum execution time: 40_000_000 picoseconds.
-		Weight::from_parts(42_228_013, 7300)
+		// Minimum execution time: 63_930_000 picoseconds.
+		Weight::from_parts(66_128_098, 7300)
+			// Standard Error: 8
+			.saturating_add(Weight::from_parts(8, 0).saturating_mul(l.into()))
 			.saturating_add(RocksDbWeight::get().reads(9_u64))
 			.saturating_add(RocksDbWeight::get().writes(6_u64))
 	}
@@ -196,12 +202,14 @@ impl WeightInfo for () {
 	/// Storage: `Identifier::Identifiers` (r:2 w:2)
 	/// Proof: `Identifier::Identifiers` (`max_values`: None, `max_size`: Some(4294967295), added: 2474, mode: `MaxEncodedLen`)
 	/// The range of component `l` is `[1, 15360]`.
-	fn revise_rating(_l: u32, ) -> Weight {
+	fn revise_rating(l: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `1428`
 		//  Estimated: `7300`
-		// Minimum execution time: 41_000_000 picoseconds.
-		Weight::from_parts(43_528_011, 7300)
+		// Minimum execution time: 65_520_000 picoseconds.
+		Weight::from_parts(67_287_568, 7300)
+			// Standard Error: 6
+			.saturating_add(Weight::from_parts(64, 0).saturating_mul(l.into()))
 			.saturating_add(RocksDbWeight::get().reads(9_u64))
 			.saturating_add(RocksDbWeight::get().writes(6_u64))
 	}
