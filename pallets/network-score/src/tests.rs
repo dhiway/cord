@@ -210,13 +210,15 @@ fn test_register_rating_id_already_exists() {
 			authorization_id.clone(),
 		));
 
+		// Remove message_id and provider_did from entries
+		<MessageIdentifiers<Test>>::remove(message_id.clone(), creator.clone());
 		// Attempt to register another rating entry with the same identifier
 		assert_err!(
 			Score::register_rating(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
 				entry.clone(),
-				entry_digest,                                       // Reusing the same digest
-				BoundedVec::try_from([74u8; 10].to_vec()).unwrap(), // Using a different message ID
+				entry_digest,
+				message_id.clone(),
 				authorization_id.clone(),
 			),
 			Error::<Test>::RatingIdentifierAlreadyAdded
