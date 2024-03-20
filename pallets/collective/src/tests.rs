@@ -1353,3 +1353,62 @@ fn genesis_build_panics_with_duplicate_members() {
 	.build_storage()
 	.unwrap();
 }
+
+
+use crate::{Error, Config, Module};
+use frame_support::{assert_noop, assert_ok, impl_outer_dispatch};
+use frame_system::{self as system, RawOrigin};
+use sp_core::H256;
+use sp_runtime::{traits::{BlakeTwo256, IdentityLookup}, testing::Header};
+use crate::ChangeMembers;
+
+impl_outer_dispatch! {
+    pub enum OuterCall {
+        Collective(crate::Call),
+        System(system::Call),
+    }
+}
+
+type AccountId = u64;
+
+// Mock runtime to test the pallet
+frame_support::construct_runtime!(
+    pub enum Runtime where
+        Block = Block,
+        NodeBlock = Block,
+        UncheckedExtrinsic = UncheckedExtrinsic
+    {
+        System: system::{Module, Call, Config},
+        Collective: collective::{Module, Call, Config},
+    }
+);
+
+#[test]
+fn test_prime_account_not_member() {
+    // Initialize your runtime
+    let mut t = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
+    t.execute_with(|| {
+        // Add a member to the collective
+        let member_id: AccountId = 1;
+        CollectiveModule::set_members(RawOrigin::Root.into(), vec![member_id.clone()]).unwrap();
+
+        // Attempt to perform an action requiring membership with a non-member account
+        let non_member_id: AccountId = 2;
+        assert_noop!(
+            CollectiveModule::some_function(RawOrigin::Signed(non_member_id).into()),
+            Error::<Runtime>::PrimeAccountNotMember
+        );
+
+        // Test other functions returning PrimeAccountNotMember error
+        assert_noop!(
+            CollectiveModule::another_function(RawOrigin::Signed(non_member_id).into()),
+            Error::<Runtime>::PrimeAccountNotMember
+        );
+
+        assert_noop!(
+            CollectiveModule::yet_another_function(RawOrigin::Signed(non_member_id).into()),
+            Error::<Runtime>::PrimeAccountNotMember
+        );
+
+    });
+}
