@@ -155,3 +155,85 @@ fn asset_issue_should_succeed() {
 		));
 	});
 }
+
+
+// test for `AssetIdNotFound` 
+#[test]
+fn asset_issue_should_fail_with_asset_id_not_found() {
+    let creator = DID_00;
+    let author = ACCOUNT_00;
+    let capacity = 5u64;
+
+    // existing code to create space and authorization_id
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+
+
+
+    let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+    let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+    let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+    let asset_qty = 10;
+    let asset_value = 10;
+    let asset_type = AssetTypeOf::MF;
+
+    let entry = AssetInputEntryOf::<Test> {
+        asset_desc,
+        asset_qty,
+        asset_type,
+        asset_value,
+        asset_tag,
+        asset_meta,
+    };
+
+    let digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
+
+    // non-existent asset ID
+    let invalid_asset_id_digest = <Test as frame_system::Config>::Hashing::hash(&[b"invalid_asset_id"]);
+    let invalid_asset_id: Ss58Identifier = generate_asset_id::<Test>(&invalid_asset_id_digest);
+
+    let issue_entry = AssetIssuanceEntryOf::<Test> {
+        asset_id: invalid_asset_id, // Using the invalid asset ID
+        asset_owner: creator.clone(),
+        asset_issuance_qty: Some(10),
+    };
+
+    let issue_entry_digest =
+        <Test as frame_system::Config>::Hashing::hash(&[&issue_entry.encode()[..]].concat()[..]);
+
+    new_test_ext().execute_with(|| {
+        assert_ok!(Space::create(
+            DoubleOrigin(author.clone(), creator.clone()).into(),
+            space_digest,
+        ));
+
+        assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
+        assert_ok!(Asset::create(
+            DoubleOrigin(author.clone(), creator.clone()).into(),
+            entry,
+            digest,
+            authorization_id.clone()
+        ));
+
+        // Assertion that Asset::issue fails with AssetIdNotFound
+        let result = Asset::issue(
+            DoubleOrigin(author.clone(), creator.clone()).into(),
+            issue_entry.clone(),
+            issue_entry_digest,
+            authorization_id,
+        );
+        //  assert_err or similar to check for AssetIdNotFound error
+        assert_eq!(result.err().unwrap(), <Error<AssetIdNotFound>>::UnexpectedError);
+    });
+}
