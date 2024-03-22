@@ -20,6 +20,10 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
+use crate::AssetQtyOf;
+
+pub type EntryHashOf<T> = <T as frame_system::Config>::Hash;
+
 #[derive(
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
@@ -29,7 +33,7 @@ pub struct AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta> {
 	/// asset description
 	pub asset_desc: AssetDescription,
 	/// asset quantity
-	pub asset_qty: u32,
+	pub asset_qty: u64,
 	/// asset value
 	pub asset_value: u32,
 	/// open structure - 1024 bytes max
@@ -37,7 +41,6 @@ pub struct AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta> {
 	/// open structure - 1024 bytes max
 	pub asset_meta: AssetMeta,
 }
-
 #[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 pub enum AssetTypeOf {
 	ART,
@@ -78,11 +81,29 @@ pub struct AssetEntry<
 > {
 	pub asset_detail: AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta>,
 	/// asset issuance count
-	pub asset_issuance: u32,
+	pub asset_issuance: u64,
 	/// status of the asset
 	pub asset_status: AssetStatusOf,
 	/// asset issuer
 	pub asset_issuer: AssetCreatorOf,
+	/// asset inlclusion block
+	pub created_at: BlockNumber,
+}
+
+#[derive(
+	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+)]
+pub struct VCAssetEntry<AssetStatusOf, AssetCreatorOf, BlockNumber, EntryHashOf> {
+	/// digest of the input entry
+	pub digest: EntryHashOf,
+	/// asset issuance count
+	pub asset_issuance: u64,
+	/// status of the asset
+	pub asset_status: AssetStatusOf,
+	/// asset issuer
+	pub asset_issuer: AssetCreatorOf,
+	/// asset quantity
+	pub asset_qty: AssetQtyOf,
 	/// asset inlclusion block
 	pub created_at: BlockNumber,
 }
@@ -116,13 +137,30 @@ pub struct AssetDistributionEntry<
 #[derive(
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
+pub struct VCAssetDistributionEntry<AssetStatusOf, AssetCreatorOf, BlockNumber, AssetId> {
+	pub asset_qty: AssetQtyOf,
+	/// asset parent reference
+	pub asset_instance_parent: AssetId,
+	/// status of the asset
+	pub asset_instance_status: AssetStatusOf,
+	/// asset issuer
+	pub asset_instance_issuer: AssetCreatorOf,
+	/// asset owner
+	pub asset_instance_owner: AssetCreatorOf,
+	/// asset inlclusion block
+	pub created_at: BlockNumber,
+}
+
+#[derive(
+	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+)]
 pub struct AssetIssuanceEntry<AssetIdOf, AssetCreatorOf> {
 	/// type of the asset
 	pub asset_id: AssetIdOf,
 	/// asset owner
 	pub asset_owner: AssetCreatorOf,
 	/// issuance quantity
-	pub asset_issuance_qty: Option<u32>,
+	pub asset_issuance_qty: Option<u64>,
 }
 
 #[derive(
