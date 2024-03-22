@@ -193,8 +193,8 @@ fn check_entity_mismatch() {
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
 			.unwrap();
-	
-	let debit_ref_id:RatingEntryIdOf = generate_rating_id::<Test>(&entry_digest);
+
+	let debit_ref_id: RatingEntryIdOf = generate_rating_id::<Test>(&entry_digest);
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
@@ -215,9 +215,9 @@ fn check_entity_mismatch() {
 			authorization_id.clone(),
 		));
 
-		//error 
+		//error
 		let mut mismatched_entry = entry.clone();
-        mismatched_entry.entity_uid = BoundedVec::try_from([80u8; 10].to_vec()).unwrap();
+		mismatched_entry.entity_uid = BoundedVec::try_from([80u8; 10].to_vec()).unwrap();
 		assert_err!(
 			Score::revise_rating(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -231,5 +231,3 @@ fn check_entity_mismatch() {
 		);
 	});
 }
-
-
