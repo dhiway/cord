@@ -56,7 +56,7 @@ use frame_system::EnsureSigned;
 
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 
-use pallet_identity::simple::IdentityInfo;
+use pallet_identity::legacy::IdentityInfo;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -127,7 +127,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cord"),
 	impl_name: create_runtime_str!("dhiway-cord"),
 	authoring_version: 0,
-	spec_version: 9014,
+	spec_version: 9100,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -419,19 +419,40 @@ parameter_types! {
 }
 
 parameter_types! {
-	// Minimum 4 CENTS/byte
-	pub const MaxAdditionalFields: u32 = 10;
-	pub const MaxRegistrars: u32 = 25;
+	pub const MaxSubAccounts: u32 = 100;
+	pub const MaxRegistrars: u32 = 20;
+	pub const MaxAdditionalFields: u32 = 20;
 }
 
 impl pallet_identity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxSubAccounts = MaxSubAccounts;
 	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
 	type RegistrarOrigin = MoreThanHalfCouncil;
-	type WeightInfo = weights::pallet_identity::WeightInfo<Runtime>;
+	type OffchainSignature = Signature;
+	type SigningPublicKey = <Signature as Verify>::Signer;
+	type UsernameAuthorityOrigin = MoreThanHalfCouncil;
+	type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
+	type MaxSuffixLength = ConstU32<7>;
+	type MaxUsernameLength = ConstU32<32>;
+	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
+
+// parameter_types! {
+// 	// Minimum 4 CENTS/byte
+// 	pub const MaxAdditionalFields: u32 = 10;
+// 	pub const MaxRegistrars: u32 = 25;
+// }
+
+// impl pallet_identity::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type MaxAdditionalFields = MaxAdditionalFields;
+// 	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
+// 	type MaxRegistrars = MaxRegistrars;
+// 	type RegistrarOrigin = MoreThanHalfCouncil;
+// 	type WeightInfo = weights::pallet_identity::WeightInfo<Runtime>;
+// }
 
 parameter_types! {
 	pub MotionDuration: BlockNumber = prod_or_fast!(3 * DAYS, 2 * MINUTES, "CORD_MOTION_DURATION");
@@ -990,12 +1011,8 @@ pub type Executive = frame_executive::Executive<
 pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
 
 #[cfg(feature = "runtime-benchmarks")]
-#[macro_use]
-extern crate frame_benchmarking;
-
-#[cfg(feature = "runtime-benchmarks")]
 mod benches {
-	define_benchmarks!(
+	frame_benchmarking::define_benchmarks!(
 		[frame_benchmarking, BaselineBench::<Runtime>]
 		[pallet_babe, Babe]
 		[pallet_balances, Balances]
