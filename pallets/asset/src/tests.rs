@@ -2,7 +2,7 @@ use super::*;
 use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
-use frame_support::{assert_ok, BoundedVec};
+use frame_support::{assert_err, assert_ok, BoundedVec};
 use frame_system::RawOrigin;
 use pallet_chain_space::{SpaceCodeOf, SpaceIdOf};
 use sp_runtime::{traits::Hash, AccountId32};
@@ -23,17 +23,14 @@ pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> Authoriz
 pub fn generate_asset_id<T: Config>(digest: &SpaceCodeOf<T>) -> AssetIdOf {
 	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Asset).unwrap()
 }
-
 /// Generates a asset instance ID from a digest
 pub fn generate_asset_instance_id<T: Config>(digest: &SpaceCodeOf<T>) -> AssetInstanceIdOf {
 	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::AssetInstance)
 		.unwrap()
 }
-
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
 pub(crate) const DID_01: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
-
 #[test]
 fn asset_create_should_succeed() {
 	let creator = DID_00;
@@ -162,6 +159,8 @@ fn asset_issue_should_succeed() {
 		));
 	});
 }
+#[test]
+fn trying_to_create_an_already_present_asset_should_fail() {
 
 #[test]
 fn asset_vc_create_should_succeed() {
@@ -206,7 +205,21 @@ fn asset_vc_create_should_succeed() {
 		));
 
 		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
-
+		assert_ok!(Asset::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			entry.clone(),
+			digest,
+			authorization_id.clone()
+		));
+		assert_err!(
+			Asset::create(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				entry,
+				digest,
+				authorization_id
+			),
+			Error::<Test>::AssetIdAlreadyExists
+		)
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			asset_qty,
