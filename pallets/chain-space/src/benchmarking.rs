@@ -6,19 +6,17 @@ use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::sp_runtime::traits::Hash;
 use frame_system::RawOrigin;
-use identifier::{IdentifierType, Ss58Identifier};
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
 pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
-		.unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 const SEED: u32 = 0;

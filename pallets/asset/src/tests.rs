@@ -10,18 +10,17 @@ use sp_std::prelude::*;
 
 /// Generates a space ID from a digest.
 pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 /// Generates an authorization ID from a digest.
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
-		.unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 /// Generates a asset ID from a digest.
 pub fn generate_asset_id<T: Config>(digest: &SpaceCodeOf<T>) -> AssetIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Asset).unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 /// Generates a asset instance ID from a digest

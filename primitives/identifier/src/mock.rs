@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+use crate as identifier;
 use frame_support::{
 	construct_runtime, derive_impl, parameter_types,
 	traits::{ConstU32, ConstU64},
@@ -37,6 +38,14 @@ construct_runtime!(
 		System: frame_system
 	}
 );
+
+parameter_types! {
+	pub const MaxEventsHistory: u32 = 6u32;
+}
+
+impl identifier::Config for Test {
+	type MaxEventsHistory = MaxEventsHistory;
+}
 
 parameter_types! {
 	pub const SS58Prefix: u8 = 29;

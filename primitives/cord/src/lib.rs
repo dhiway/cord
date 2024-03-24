@@ -100,6 +100,9 @@ pub type NodeId = Vec<u8>;
 // pub const AUTHORSHIP_PERIOD: u32 = 5256000;
 pub const AUTHORSHIP_PERIOD: u32 = 20;
 
+/// SS58 identifier format prefix
+pub const DEFAULT_SS58_IDENTIFIER_PREFIX: u16 = 10029;
+
 /// Macro to set a value (e.g. when using the `parameter_types` macro) to either
 /// a production value or to an environment variable or testing value (in case
 /// the `fast-runtime` feature is selected). Note that the environment variable
