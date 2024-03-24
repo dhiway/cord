@@ -169,7 +169,7 @@ fn check_entity_mismatch() {
 	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
-		entity_uid,
+		entity_uid: entity_uid.clone(),
 		provider_uid,
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
@@ -194,7 +194,19 @@ fn check_entity_mismatch() {
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
 			.unwrap();
 
-	let debit_ref_id: RatingEntryIdOf = generate_rating_id::<Test>(&entry_digest);
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[
+			&entry_digest.encode()[..],
+			&entity_uid.encode()[..],
+			&message_id.encode()[..],
+			&space_id.encode()[..],
+			&creator.clone().encode()[..],
+		]
+		.concat()[..],
+	);
+
+	let identifier =
+		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating);
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
@@ -218,13 +230,15 @@ fn check_entity_mismatch() {
 		//error
 		let mut mismatched_entry = entry.clone();
 		mismatched_entry.entity_uid = BoundedVec::try_from([80u8; 10].to_vec()).unwrap();
+		let mismatched_entry_digest =
+			<Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
 		assert_err!(
 			Score::revise_rating(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
 				mismatched_entry.clone(),
-				entry_digest,
+				mismatched_entry_digest,
 				message_id.clone(),
-				debit_ref_id,
+				identifier.unwrap(),
 				authorization_id.clone(),
 			),
 			Error::<Test>::EntityMismatch
