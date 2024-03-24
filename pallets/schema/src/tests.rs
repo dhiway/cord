@@ -314,3 +314,26 @@ fn test_schema_lookup() {
 		}
 	});
 }
+
+//The test_schema_not_found function checks for SchemaNotFound error in scenarios
+//where an attempt is made to get a non-existent schema.
+// Define constants for testing
+const DID: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
+const ACCOUNT: AccountId = AccountId::new([2u8; 32]);
+
+// Add a new test case to check SchemaNotFound error
+#[test]
+fn test_schema_not_found() {
+    // Generate a schema hash for testing
+    let schema_hash: SchemaHashOf<Test> = get_schema_hash::<Test>(true);
+
+    // Generate a schema ID based on the schema hash
+    let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_hash);
+
+    // Execute the test within the mock runtime
+    new_test_ext().execute_with(|| {
+        // Test scenario 1: Attempting to get a non-existent schema should result in SchemaNotFound
+        assert_noop!(
+            Schema::get_schema(RawOrigin::Signed(ACCOUNT).into(), schema_id.clone()),
+            Error::<Test>::SchemaNotFound
+        );
