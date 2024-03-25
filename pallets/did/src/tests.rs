@@ -2870,3 +2870,51 @@ fn check_invalid_signature_operation_verification() {
 		);
 	});
 }
+
+// This test case will help ensure that the MaxKeyAgreementKeysExceeded error is properly handled in the pallet-did module
+// when attempting to exceed the maximum number of key agreement keys for a DID.
+#[test]
+fn check_max_key_agreement_keys_exceeded() {
+    // Generate authentication key for the DID
+    let auth_key = get_sr25519_authentication_key(&AUTH_SEED_0);
+    let did = get_did_identifier_from_sr25519_key(auth_key.public());
+    let caller = ACCOUNT_00;
+    
+    // Generate the maximum number of key agreement keys
+    let max_keys = <MaxKeyAgreementKeys<Test>>::get();
+    let mut key_agreement_keys = Vec::new();
+    for _ in 0..max_keys {
+        let key = get_sr25519_authentication_key(&generate_random_seed());
+        key_agreement_keys.push(DidVerificationKey::from(key.public()));
+    }
+
+    // Create a mock DID with the maximum number of key agreement keys
+    let mock_did = generate_base_did_details::<Test>(key_agreement_keys);
+
+    // Generate a call operation with the DID
+    let call_operation = generate_test_did_call(
+        DidVerificationKeyRelationship::Authentication,
+        did.clone(),
+        caller.clone(),
+    );
+
+    // Sign the call operation with an alternative authentication key
+    let alternative_auth_key = get_ed25519_authentication_key(&AUTH_SEED_0);
+    let signature = alternative_auth_key.sign(call_operation.encode().as_ref());
+
+    new_test_ext().execute_with(|| {
+        // Insert the mock DID into storage
+        did::Did::<Test>::insert(did.clone(), mock_did);
+
+        // Attempt to submit a DID call with the signed operation
+        assert_noop!(
+            Did::submit_did_call(
+                RuntimeOrigin::signed(caller),
+                Box::new(call_operation.operation),
+                did::DidSignature::from(signature)
+            ),
+            did::Error::<Test>::MaxKeyAgreementKeysExceeded
+        );
+    });
+}
+
