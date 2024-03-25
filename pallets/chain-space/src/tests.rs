@@ -1126,3 +1126,42 @@ fn add_delegate_should_fail_if_space_delegates_limit_exceeded() {
 		);
 	});
 }
+
+// This test case will help ensure that the TypeCapacityOverflow error is properly handled in the pallet-chain-space 
+// module when attempting to create spaces exceeding the specified type capacity.
+#[test]
+fn create_space_should_fail_type_capacity_overflow() {
+    let creator = DID_00;
+    let author = ACCOUNT_00;
+    let capacity = 5u64; // Set the capacity for the type
+    let space = [2u8; 256].to_vec();
+    let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+    new_test_ext().execute_with(|| {
+        // Create spaces up to the capacity
+        for i in 0..capacity {
+            let space_id = i;
+            let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+                &[&space_digest.encode()[..], &space_id.encode()[..]].concat()[..],
+            );
+            assert_ok!(Space::create(
+                DoubleOrigin(author.clone(), creator.clone()).into(),
+                space_id_digest,
+            ));
+        }
+
+        // Attempt to create another space, exceeding the capacity
+        let next_space_id = capacity + 1;
+        let next_space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+            &[&space_digest.encode()[..], &next_space_id.encode()[..]].concat()[..],
+        );
+        assert_err!(
+            Space::create(
+                DoubleOrigin(author.clone(), creator.clone()).into(),
+                next_space_id_digest,
+            ),
+            Error::<Test>::TypeCapacityOverflow
+        );
+    });
+}
+
