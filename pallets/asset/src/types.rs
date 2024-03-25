@@ -176,3 +176,65 @@ pub struct AssetTransferEntry<AssetIdOf, AssetInstanceIdOf, AssetCreatorOf> {
 	/// new asset owner
 	pub new_asset_owner: AssetCreatorOf,
 }
+
+//This test case will help ensure that the InvalidDigest error is properly handled in the Asset pallet
+// when attempting to create an asset with an invalid digest.
+#[test]
+fn asset_create_should_fail_invalid_digest() {
+    let creator = DID_00;
+    let author = ACCOUNT_00;
+    let capacity = 5u64;
+
+    let raw_space = [2u8; 256].to_vec();
+    let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+    let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+        &[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+    );
+    let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+    let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+        &[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+    );
+    let authorization_id: Ss58Identifier =
+        generate_authorization_id::<Test>(&auth_digest);
+
+    let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+    let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+    let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+    let asset_qty = 10;
+    let asset_value = 10;
+    let asset_type = AssetTypeOf::MF;
+
+    let entry = AssetInputEntryOf::<Test> {
+        asset_desc,
+        asset_qty,
+        asset_type,
+        asset_value,
+        asset_tag,
+        asset_meta,
+    };
+
+    // Create an invalid digest (e.g., an empty vector)
+    let invalid_digest: Vec<u8> = vec![];
+
+    new_test_ext().execute_with(|| {
+        assert_ok!(Space::create(
+            DoubleOrigin(author.clone(), creator.clone()).into(),
+            space_digest,
+        ));
+
+        assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
+        // Attempt to create asset with invalid digest
+        assert_err!(
+            Asset::create(
+                DoubleOrigin(author.clone(), creator.clone()).into(),
+                entry,
+                invalid_digest,
+                authorization_id,
+            ),
+            Error::<Test>::InvalidDigest
+        );
+    });
+}
+
