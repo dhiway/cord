@@ -495,3 +495,65 @@ fn asset_vc_status_change_should_succeed() {
 		));
 	});
 }
+
+// This test case will help ensure that the InvalidAssetValue error is properly handled in the Asset pallet when attempting to
+//create an asset with an invalid asset value, such as a negative value.
+#[test]
+fn asset_create_should_fail_invalid_asset_value() {
+    let creator = DID_00;
+    let author = ACCOUNT_00;
+    let capacity = 5u64;
+
+    let raw_space = [2u8; 256].to_vec();
+    let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+    let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+        &[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+    );
+    let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+    let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+        &[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+    );
+    let authorization_id: Ss58Identifier =
+        generate_authorization_id::<Test>(&auth_digest);
+
+    // Create an entry with an invalid asset value (e.g., negative value)
+    let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+    let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+    let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+    let asset_qty = 10;
+    let asset_value = -10; // Invalid asset value
+    let asset_type = AssetTypeOf::MF;
+
+    let entry = AssetInputEntryOf::<Test> {
+        asset_desc,
+        asset_qty,
+        asset_type,
+        asset_value,
+        asset_tag,
+        asset_meta,
+    };
+
+    let digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
+
+    new_test_ext().execute_with(|| {
+        assert_ok!(Space::create(
+            DoubleOrigin(author.clone(), creator.clone()).into(),
+            space_digest,
+        ));
+
+        assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
+        // Attempt to create asset with invalid asset value
+        assert_err!(
+            Asset::create(
+                DoubleOrigin(author.clone(), creator.clone()).into(),
+                entry,
+                digest,
+                authorization_id,
+            ),
+            Error::<Test>::InvalidAssetValue
+        );
+    });
+}
+
