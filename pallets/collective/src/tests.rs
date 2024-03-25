@@ -1353,3 +1353,20 @@ fn genesis_build_panics_with_duplicate_members() {
 	.build_storage()
 	.unwrap();
 }
+
+// This test case will help ensure that the DelegateNotFound error is properly handled in the pallet-collective module 
+// when attempting to perform an action that requires a delegate that does not exist.
+#[test]
+fn check_delegate_not_found() {
+    ExtBuilder::default().build_and_execute(|| {
+        // Create a proposal with a non-existent delegate
+        let proposal = make_proposal(42);
+        let proposal_len: u32 = proposal.using_encoded(|p| p.len() as u32);
+
+        // Attempt to propose with a non-existent delegate (e.g., 150)
+        assert_noop!(
+            Collective::propose(RuntimeOrigin::signed(150), 3, Box::new(proposal), proposal_len),
+            Error::<Test, Instance1>::DelegateNotFound
+        );
+    });
+}
