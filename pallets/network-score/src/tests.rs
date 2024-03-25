@@ -161,7 +161,7 @@ fn check_duplicate_message_id() {
 }
 
 #[test]
-fn check_entity_mismatch() {
+fn revise_rating_with_entry_entity_mismatch_should_fail() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 
