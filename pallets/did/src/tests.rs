@@ -2870,3 +2870,31 @@ fn check_invalid_signature_operation_verification() {
 		);
 	});
 }
+
+// This test case will help ensure that the InvalidDidAuthorizationCall error is properly handled in the pallet-did module
+//when attempting to make an invalid DID authorization call.
+#[test]
+fn check_invalid_did_authorization_call() {
+    // Generate authentication keys for DIDs
+    let auth_key = get_sr25519_authentication_key(&AUTH_SEED_0);
+    let alice_did = get_did_identifier_from_sr25519_key(auth_key.public());
+
+    // Create a base DID creation details
+    let details = generate_base_did_creation_details::<Test>(alice_did, ACCOUNT_00);
+
+    // Sign the details with an invalid key
+    let invalid_key = get_sr25519_authentication_key(&AUTH_SEED_1); // Using a different key
+    let signature = invalid_key.sign(details.encode().as_ref());
+
+    new_test_ext().execute_with(|| {
+        // Attempt to create a DID with an invalid signature
+        assert_noop!(
+            Did::create(
+                RuntimeOrigin::signed(ACCOUNT_00),
+                Box::new(details),
+                did::DidSignature::from(signature)
+            ),
+            did::Error::<Test>::InvalidDidAuthorizationCall
+        );
+    });
+}
