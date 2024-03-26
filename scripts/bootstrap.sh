@@ -2,13 +2,15 @@
 set -e
 
 function usage() {
-  echo "Usage: $0 -m <num_members> -n <num_nodes> -a <num_authorities> -s <SECRET> -o <output_directory>"
+  echo "Usage: $0 -m <num_members> -n <num_nodes> -a <num_authorities> -s <SECRET> -i <network_id> -c <chain_name> -o <output_directory>"
   echo ""
   echo "Options:"
   echo "  -m, --num-members     Number of network members"
   echo "  -n, --num-nodes       Number of authorised nodes in the network"
   echo "  -a, --num-authorities Number of authorities (validators)"
   echo "  -s, --SECRET          Secret key or seed for generating new accounts"
+  echo "  -i, --network-id      Network ID of the chain"
+  echo "  -c, --chain-name      Name of network chain"
   echo "  -o, --output-directory Directory where output files will be saved (default is current directory)"
   echo ""
   echo "Description:"
@@ -26,14 +28,18 @@ NUM_AUTHORITIES=3
 # Don't use accounts generated with this secret in production
 SECRET="0xf32255f569d8b1a12086dfd194653a5377fafcb67345753987741ec5542920ce"
 OUTPUT_DIR="."
+NETWORK_ID=29
+NETWORK_NAME="CORD Custom Chain"
 
-while getopts "m:n:a:s:o:" flag; do
+while getopts "m:n:a:s:i:c:o:" flag; do
   case "${flag}" in
   m) NUM_MEMBERS=${OPTARG} ;;
   n) NUM_NODES=${OPTARG} ;;
   a) NUM_AUTHORITIES=${OPTARG} ;;
   s) SECRET=${OPTARG} ;;
   o) OUTPUT_DIR=${OPTARG} ;;
+  i) NETWORK_ID=${OPTARG} ;;
+  c) NETWORK_NAME=${OPTARG} ;;
   *)
     usage
     exit
@@ -53,7 +59,8 @@ echo "
 # This configuration file defines the settings for the CORD Custom Chain.
 # Please review and customize the parameters as needed for your specific use case.
 " >>$CONFIG_FILE
-echo "chain_name = \"CORD Custom Chain\"" >>$CONFIG_FILE
+echo "network_id = ${NETWORK_ID}" >>$CONFIG_FILE
+echo "chain_name = \"${NETWORK_NAME}\"" >>$CONFIG_FILE
 echo "chain_type = \"local\"" >>$CONFIG_FILE
 echo "" >>$CONFIG_FILE
 

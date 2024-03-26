@@ -38,6 +38,7 @@ use crate::chain_spec::{get_properties, Extensions, CORD_TELEMETRY_URL, DEFAULT_
 #[derive(Debug, Deserialize, Clone)]
 pub struct ChainParams {
 	pub chain_name: String,
+	pub network_id: u32,
 	pub chain_type: ChainType,
 	pub authorities: Vec<Vec<String>>,
 	pub well_known_nodes: Vec<Vec<String>>,
@@ -54,6 +55,10 @@ impl ChainParams {
 
 	pub fn chain_name(&self) -> &str {
 		&self.chain_name
+	}
+
+	pub fn network_id(&self) -> u32 {
+		self.network_id
 	}
 }
 
@@ -120,7 +125,8 @@ fn cord_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 }
 
 pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> {
-	let properties = get_properties("WAY", 12, 29);
+	let network_id = config.network_id();
+	let properties = get_properties("WAY", 12, network_id);
 	let chain_name = String::from(config.chain_name());
 	let chain_type = config.chain_type();
 	Ok(CordChainSpec::builder(

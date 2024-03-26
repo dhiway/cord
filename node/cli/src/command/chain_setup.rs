@@ -34,6 +34,7 @@ use crate::chain_spec::{
 #[derive(Debug, Deserialize)]
 pub struct ChainConfigParams {
 	pub chain_name: String,
+	pub network_id: u32,
 	pub chain_type: String,
 	pub authorities: Vec<Vec<String>>,
 	pub well_known_nodes: Vec<Vec<String>>,
@@ -68,6 +69,14 @@ impl BootstrapChainCmd {
 		} else {
 			return Err("Chain name should not be more than 64 characters".into());
 		};
+
+		// let network_id = if config.network_id.len() <= 64 {
+		// 	config.network_id.clone()
+		// } else {
+		// 	return Err("Chain name should not be more than 64 characters".into());
+		// };
+
+		let network_id = config.network_id.clone();
 
 		let chain_type: Result<ChainType, String> = match config.chain_type.as_str() {
 			"dev" => Ok(ChainType::Development),
@@ -120,6 +129,7 @@ impl BootstrapChainCmd {
 
 		let chain_params = ChainParams {
 			chain_name,
+			network_id,
 			chain_type,
 			authorities: initial_authorities,
 			well_known_nodes: initial_well_known_nodes,
