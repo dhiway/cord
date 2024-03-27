@@ -337,3 +337,5 @@ fn test_schema_not_found() {
             Schema::get_schema(RawOrigin::Signed(ACCOUNT).into(), schema_id.clone()),
             Error::<Test>::SchemaNotFound
         );
+    }); // Add this closing curly brace
+}
