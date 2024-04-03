@@ -373,18 +373,12 @@ pub mod pallet {
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				entry.total_encoded_rating > 0
-					&& entry.count_of_txn > 0
-					&& entry.total_encoded_rating
-						<= entry.count_of_txn * T::MaxRatingValue::get() as u64,
+				entry.total_encoded_rating > 0 &&
+					entry.count_of_txn > 0 &&
+					entry.total_encoded_rating <=
+						entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
-
-			// ensure!(
-			// 	entry.entity_type.is_valid_entity_type() &&
-			// 		entry.rating_type.is_valid_rating_type(),
-			// 	Error::<T>::InvalidEntryOrRatingType
-			// );
 
 			ensure!(
 				!<MessageIdentifiers<T>>::contains_key(&message_id, &provider),
@@ -644,10 +638,10 @@ pub mod pallet {
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				entry.total_encoded_rating > 0
-					&& entry.count_of_txn > 0
-					&& entry.total_encoded_rating
-						<= entry.count_of_txn * T::MaxRatingValue::get() as u64,
+				entry.total_encoded_rating > 0 &&
+					entry.count_of_txn > 0 &&
+					entry.total_encoded_rating <=
+						entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
 
