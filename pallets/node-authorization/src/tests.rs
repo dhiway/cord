@@ -64,13 +64,13 @@ fn add_well_known_node_works() {
 			Error::<Test>::NodeIdTooLong
 		);
 		assert_noop!(
-            NodeAuthorization::add_well_known_node(
-                RuntimeOrigin::signed(1),
+			NodeAuthorization::add_well_known_node(
+				RuntimeOrigin::signed(1),
 				test_node(TEST_NODE_7),
-                15
-            ),
-            Error::<Test>::InvalidNodeIdentifier  
-        );
+				15
+			),
+			Error::<Test>::InvalidNodeIdentifier
+		);
 		assert_ok!(NodeAuthorization::add_well_known_node(
 			RuntimeOrigin::signed(1),
 			test_node(TEST_NODE_4),
@@ -119,12 +119,12 @@ fn remove_well_known_node_works() {
 			Error::<Test>::NodeIdTooLong
 		);
 		assert_noop!(
-            NodeAuthorization::remove_well_known_node(
-                RuntimeOrigin::signed(1),
+			NodeAuthorization::remove_well_known_node(
+				RuntimeOrigin::signed(1),
 				test_node(TEST_NODE_7),
-            ),
-            Error::<Test>::InvalidNodeIdentifier  
-        );
+			),
+			Error::<Test>::InvalidNodeIdentifier
+		);
 		assert_noop!(
 			NodeAuthorization::remove_well_known_node(
 				RuntimeOrigin::signed(1),
@@ -174,13 +174,13 @@ fn swap_well_known_node_works() {
 			Error::<Test>::NodeIdTooLong
 		);
 		assert_noop!(
-            NodeAuthorization::swap_well_known_node(
-                RuntimeOrigin::signed(1),
+			NodeAuthorization::swap_well_known_node(
+				RuntimeOrigin::signed(1),
 				test_node(TEST_NODE_7),
 				test_node(TEST_NODE_6)
-            ),
-            Error::<Test>::InvalidNodeIdentifier  
-        );
+			),
+			Error::<Test>::InvalidNodeIdentifier
+		);
 		assert_noop!(
 			NodeAuthorization::swap_well_known_node(
 				RuntimeOrigin::signed(3),
