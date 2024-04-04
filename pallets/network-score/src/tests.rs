@@ -310,5 +310,17 @@ fn test_register_rating_id_already_exists() {
 			),
 			Error::<Test>::RatingIdentifierAlreadyAdded
 		);
+		// Attempt to revoke a rating entry with the same identifier
+		assert_err!(
+			Score::revise_rating(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				entry.clone(),
+				entry_digest,
+				message_id.clone(),
+				debit_ref_id.clone(),
+				authorization_id.clone(),
+			),
+			Error::<Test>::RatingIdentifierAlreadyAdded
+		)
 	});
 }
