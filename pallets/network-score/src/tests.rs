@@ -279,6 +279,19 @@ fn test_register_rating_id_already_exists() {
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
 			.unwrap();
 
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[
+			&entry_digest.encode()[..],
+			&entity_uid.encode()[..],
+			&message_id.encode()[..],
+			&space_id.encode()[..],
+			&creator.clone().encode()[..],
+		]
+		.concat()[..],
+	);
+
+	let identifier =
+		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating);
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
