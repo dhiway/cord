@@ -254,7 +254,6 @@ fn test_register_rating_id_already_exists() {
 	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
-	let debit_ref_id = Ss58Identifier::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
 		entity_uid,
 		provider_uid,
