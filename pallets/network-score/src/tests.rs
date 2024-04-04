@@ -255,7 +255,7 @@ fn test_register_rating_id_already_exists() {
 	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
-		entity_uid.clone(),
+		entity_uid: entity_uid.clone(),
 		provider_uid,
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
