@@ -281,7 +281,7 @@ fn test_register_rating_id_already_exists() {
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&entry_digest.encode()[..],
-			&entity_uid.encode()[..],
+			&entity_uid.clone().encode()[..],
 			&message_id.encode()[..],
 			&space_id.encode()[..],
 			&creator.clone().encode()[..],
