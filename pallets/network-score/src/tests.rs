@@ -330,7 +330,7 @@ fn test_register_rating_id_already_exists() {
 				entry.clone(),
 				entry_digest,
 				message_id.clone(),
-				debit_ref_id.clone(),
+				identifier.clone(),
 				authorization_id.clone(),
 			),
 			Error::<Test>::RatingIdentifierAlreadyAdded
