@@ -277,7 +277,7 @@ fn test_register_rating_id_already_exists() {
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
 			.unwrap();
-		
+
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
