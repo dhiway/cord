@@ -348,9 +348,9 @@ fn test_revoke_rating_id_already_exists() {
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
 			.unwrap();
 
-	<RatingEntries<T>>::insert(
+	<RatingEntries<Test>>::insert(
 		&identifier,
-		RatingEntryOf::<T> {
+		RatingEntryOf::<Test> {
 			entry,
 			digest,
 			space: space_id,
