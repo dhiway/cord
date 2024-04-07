@@ -318,12 +318,10 @@ fn test_revoked_rating_id_already_exists() {
 	// Define test parameters
 	let creator = DID_00.clone();
 	let author = ACCOUNT_00.clone();
-	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
-		entity_uid: entity_uid.clone(),
-		provider_uid,
+		entity_uid: BoundedVec::try_from([73u8; 10].to_vec()).unwrap(),
+		provider_uid: BoundedVec::try_from([73u8; 10].to_vec()).unwrap(),
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
 		entity_type: EntityTypeOf::Logistic,
@@ -387,7 +385,7 @@ fn test_revoked_rating_id_already_exists() {
 				identifier.unwrap(),
 				authorization_id.clone(),
 			),
-			Error::<Test>::RatingIdentifierAlreadyAdded
+			Error::<Test>::ReferenceNotDebitIdentifier
 		)
 	});
 }
