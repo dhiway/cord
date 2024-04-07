@@ -43,14 +43,15 @@ fn check_successful_rating_creation() {
 	let author = ACCOUNT_00;
 
 	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
+	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let entity_name = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
-		entity_uid,
-		provider_uid,
+		entity_id,
+		entity_name,
+		provider_id,
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
-		entity_type: EntityTypeOf::Logistic,
 		rating_type: RatingTypeOf::Overall,
 		provider_did: creator.clone(),
 	};
@@ -98,14 +99,15 @@ fn check_duplicate_message_id() {
 	let author = ACCOUNT_00.clone();
 
 	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
+	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let entity_name = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
-		entity_uid,
-		provider_uid,
+		entity_id,
+		entity_name,
+		provider_id,
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
-		entity_type: EntityTypeOf::Logistic,
 		rating_type: RatingTypeOf::Overall,
 		provider_did: creator.clone(),
 	};
@@ -166,14 +168,15 @@ fn revise_rating_with_entry_entity_mismatch_should_fail() {
 	let author = ACCOUNT_00;
 
 	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
+	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let entity_name = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
-		entity_uid: entity_uid.clone(),
-		provider_uid,
+		entity_id: entity_id.clone(),
+		entity_name: entity_name.clone(),
+		provider_id,
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
-		entity_type: EntityTypeOf::Logistic,
 		rating_type: RatingTypeOf::Overall,
 		provider_did: creator.clone(),
 	};
@@ -197,7 +200,7 @@ fn revise_rating_with_entry_entity_mismatch_should_fail() {
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&entry_digest.encode()[..],
-			&entity_uid.encode()[..],
+			&entity_id.encode()[..],
 			&message_id.encode()[..],
 			&space_id.encode()[..],
 			&creator.clone().encode()[..],
@@ -229,7 +232,7 @@ fn revise_rating_with_entry_entity_mismatch_should_fail() {
 
 		//error
 		let mut mismatched_entry = entry.clone();
-		mismatched_entry.entity_uid = BoundedVec::try_from([80u8; 10].to_vec()).unwrap();
+		mismatched_entry.entity_id = BoundedVec::try_from([80u8; 10].to_vec()).unwrap();
 		let mismatched_entry_digest =
 			<Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
 		assert_err!(
@@ -252,14 +255,15 @@ fn test_register_rating_id_already_exists() {
 	let creator = DID_00.clone();
 	let author = ACCOUNT_00.clone();
 	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
+	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let entity_name = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
-		entity_uid,
-		provider_uid,
+		entity_id,
+		entity_name,
+		provider_id,
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
-		entity_type: EntityTypeOf::Logistic,
 		rating_type: RatingTypeOf::Overall,
 		provider_did: creator.clone(),
 	};

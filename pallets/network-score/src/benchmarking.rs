@@ -59,14 +59,15 @@ benchmarks! {
 		let did1: T::SpaceCreatorId = account("did1", 0, SEED);
 
 		let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-		let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-		let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
+		let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+		let entity_name = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+		let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 		let entry = RatingInputEntryOf::<T> {
-			entity_uid: entity_uid.clone(),
-			provider_uid,
+			entity_id: entity_id.clone(),
+			entity_name: entity_name.clone(),
+			provider_id,
 			total_encoded_rating: 250u64,
 			count_of_txn: 7u64,
-			entity_type: EntityTypeOf::Logistic,
 			rating_type: RatingTypeOf::Overall,
 			provider_did: did1.clone(),
 		};
@@ -87,7 +88,7 @@ benchmarks! {
 		let entry_digest = <T as frame_system::Config>::Hashing::hash(&entry.encode()[..]);
 
 		let id_digest =  <T as frame_system::Config>::Hashing::hash(
-			&[&(entry_digest.clone()).encode()[..], &entity_uid.encode()[..], &message_id.encode()[..], &space_id.encode()[..], &did1.encode()[..]].concat()[..]
+			&[&(entry_digest.clone()).encode()[..], &entity_id.encode()[..], &message_id.encode()[..], &space_id.encode()[..], &did1.encode()[..]].concat()[..]
 		);
 		let identifier = generate_rating_id::<T>(&id_digest);
 
@@ -98,7 +99,7 @@ benchmarks! {
 
 	}: _<T::RuntimeOrigin>(origin, entry, entry_digest, message_id, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::RatingEntryAdded { identifier, entity: entity_uid, provider: did1, creator: caller}.into());
+		assert_last_event::<T>(Event::RatingEntryAdded { identifier, entity: entity_id, provider: did1, creator: caller}.into());
 	}
 
 	revoke_rating {
@@ -115,14 +116,15 @@ benchmarks! {
 		let space_id: SpaceIdOf = generate_space_id::<T>(&space_id_digest);
 		let message_id_add = BoundedVec::try_from([82u8; 10].to_vec()).unwrap();
 		let message_id_revoke = BoundedVec::try_from([85u8; 10].to_vec()).unwrap();
-		let entity_uid = BoundedVec::try_from([83u8; 10].to_vec()).unwrap();
-		let provider_uid = BoundedVec::try_from([84u8; 10].to_vec()).unwrap();
+		let entity_id = BoundedVec::try_from([83u8; 10].to_vec()).unwrap();
+		let entity_name = BoundedVec::try_from([83u8; 10].to_vec()).unwrap();
+		let provider_id = BoundedVec::try_from([84u8; 10].to_vec()).unwrap();
 		let entry = RatingInputEntryOf::<T> {
-			entity_uid: entity_uid.clone(),
-			provider_uid,
+			entity_id: entity_id.clone(),
+			entity_name: entity_name.clone(),
+			provider_id,
 			total_encoded_rating: 250u64,
 			count_of_txn: 7u64,
-			entity_type: EntityTypeOf::Logistic,
 			rating_type: RatingTypeOf::Overall,
 			provider_did: did1.clone(),
 		};
@@ -131,12 +133,12 @@ benchmarks! {
 		);
 
 		let id_digest_add =  <T as frame_system::Config>::Hashing::hash(
-			&[&(entry_digest.clone()).encode()[..], &entity_uid.encode()[..], &message_id_add.encode()[..], &space_id.encode()[..], &did1.encode()[..]].concat()[..]
+			&[&(entry_digest.clone()).encode()[..], &entity_id.encode()[..], &message_id_add.encode()[..], &space_id.encode()[..], &did1.encode()[..]].concat()[..]
 		);
 		let identifier_add = generate_rating_id::<T>(&id_digest_add);
 
 		let id_digest =  <T as frame_system::Config>::Hashing::hash(
-			&[&(entry_digest.clone()).encode()[..], &entity_uid.encode()[..], &message_id_revoke.encode()[..], &space_id.encode()[..], &did1.encode()[..]].concat()[..]
+			&[&(entry_digest.clone()).encode()[..], &entity_id.encode()[..], &message_id_revoke.encode()[..], &space_id.encode()[..], &did1.encode()[..]].concat()[..]
 		);
 		let identifier_revoke = generate_rating_id::<T>(&id_digest);
 
@@ -155,7 +157,7 @@ benchmarks! {
 		let _ = Pallet::<T>::register_rating(origin.clone(), entry, entry_digest, message_id_add, authorization_id.clone());
 	}: _<T::RuntimeOrigin>(origin, identifier_add, message_id_revoke, entry_digest, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::RatingEntryRevoked { identifier: identifier_revoke, entity: entity_uid, provider: did1, creator: caller}.into());
+		assert_last_event::<T>(Event::RatingEntryRevoked { identifier: identifier_revoke, entity: entity_id, provider: did1, creator: caller}.into());
 	}
 
 	revise_rating {
@@ -174,14 +176,15 @@ benchmarks! {
 		let message_id_add = BoundedVec::try_from([82u8; 10].to_vec()).unwrap();
 		let message_id_revoke = BoundedVec::try_from([85u8; 10].to_vec()).unwrap();
 		let message_id_revise = BoundedVec::try_from([86u8; 10].to_vec()).unwrap();
-		let entity_uid = BoundedVec::try_from([83u8; 10].to_vec()).unwrap();
-		let provider_uid = BoundedVec::try_from([84u8; 10].to_vec()).unwrap();
+		let entity_id = BoundedVec::try_from([83u8; 10].to_vec()).unwrap();
+		let entity_name = BoundedVec::try_from([83u8; 10].to_vec()).unwrap();
+		let provider_id = BoundedVec::try_from([84u8; 10].to_vec()).unwrap();
 		let entry = RatingInputEntryOf::<T> {
-			entity_uid: entity_uid.clone(),
-			provider_uid: provider_uid.clone(),
+			entity_id: entity_id.clone(),
+			entity_name: entity_name.clone(),
+			provider_id: provider_id.clone(),
 			total_encoded_rating: 250u64,
 			count_of_txn: 7u64,
-			entity_type: EntityTypeOf::Logistic,
 			rating_type: RatingTypeOf::Overall,
 			provider_did: did.clone(),
 		};
@@ -191,11 +194,11 @@ benchmarks! {
 		);
 
 		let entry_revise = RatingInputEntryOf::<T> {
-			entity_uid: entity_uid.clone(),
-			provider_uid,
+			entity_id: entity_id.clone(),
+			entity_name: entity_name.clone(),
+			provider_id,
 			total_encoded_rating: 250u64,
 			count_of_txn: 6u64,
-			entity_type: EntityTypeOf::Logistic,
 			rating_type: RatingTypeOf::Overall,
 			provider_did: did.clone(),
 		};
@@ -204,17 +207,17 @@ benchmarks! {
 		);
 
 		let id_digest_add =  <T as frame_system::Config>::Hashing::hash(
-			&[&(entry_digest.clone()).encode()[..], &entity_uid.encode()[..], &message_id_add.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
+			&[&(entry_digest.clone()).encode()[..], &entity_id.encode()[..], &message_id_add.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
 		);
 		let identifier_add = generate_rating_id::<T>(&id_digest_add);
 
 		let id_digest =  <T as frame_system::Config>::Hashing::hash(
-			&[&(entry_digest.clone()).encode()[..], &entity_uid.encode()[..], &message_id_revoke.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
+			&[&(entry_digest.clone()).encode()[..], &entity_id.encode()[..], &message_id_revoke.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
 		);
 		let identifier_revoke = generate_rating_id::<T>(&id_digest);
 
 		let id_digest_revise =  <T as frame_system::Config>::Hashing::hash(
-			&[&(entry_revise_digest.clone()).encode()[..], &entity_uid.encode()[..], &message_id_revise.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
+			&[&(entry_revise_digest.clone()).encode()[..], &entity_id.encode()[..], &message_id_revise.encode()[..], &space_id.encode()[..], &did.encode()[..]].concat()[..]
 		);
 		let identifier_revise = generate_rating_id::<T>(&id_digest_revise);
 
@@ -233,7 +236,7 @@ benchmarks! {
 		let _ = Pallet::<T>::revoke_rating(origin.clone(), identifier_add, message_id_revoke, entry_digest, authorization_id.clone());
 	}: _<T::RuntimeOrigin>(origin, entry_revise, entry_revise_digest, message_id_revise, identifier_revoke, authorization_id)
 	verify {
-		assert_last_event::<T>(Event::RatingEntryRevised { identifier: identifier_revise, entity: entity_uid, provider: did, creator: caller}.into());
+		assert_last_event::<T>(Event::RatingEntryRevised { identifier: identifier_revise, entity: entity_id, provider: did, creator: caller}.into());
 	}
 
 	impl_benchmark_test_suite! (Pallet, crate::mock::new_test_ext(), crate::mock::Test)
