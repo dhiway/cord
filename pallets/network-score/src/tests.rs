@@ -359,7 +359,6 @@ fn test_revoke_rating_id_already_exists() {
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
 			.unwrap();
 
-
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
