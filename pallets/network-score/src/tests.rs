@@ -334,16 +334,6 @@ fn test_revoke_rating_id_already_exists() {
 	let identifier =
 		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating)
 			.unwrap();
-	let entry = RatingInputEntryOf::<Test> {
-		identifier,
-		entity_uid,
-		provider_uid,
-		total_encoded_rating: 250u64,
-		count_of_txn: 7u64,
-		entity_type: EntityTypeOf::Logistic,
-		rating_type: RatingTypeOf::Overall,
-		provider_did: creator.clone(),
-	};
 	let entry_digest =
 		<Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
 	let raw_space = [2u8; 256].to_vec();
@@ -358,6 +348,17 @@ fn test_revoke_rating_id_already_exists() {
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
 			.unwrap();
+
+	let entry = RatingInputEntryOf::<Test> {
+		identifier,
+		entity_uid,
+		provider_uid,
+		total_encoded_rating: 250u64,
+		count_of_txn: 7u64,
+		entity_type: EntityTypeOf::Logistic,
+		rating_type: RatingTypeOf::Overall,
+		provider_did: creator.clone(),
+	};
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
