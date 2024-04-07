@@ -356,7 +356,7 @@ fn test_revoke_rating_id_already_exists() {
 	);
 
 	let identifier =
-		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating);
+		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating).unwrap();
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
@@ -374,6 +374,8 @@ fn test_revoke_rating_id_already_exists() {
 			message_id.clone(),
 			authorization_id.clone(),
 		));
+		
+		<RatingEntries<Test>>::remove(&identifier);
 
 		assert_err!(
 			Score::revise_rating(
@@ -381,7 +383,7 @@ fn test_revoke_rating_id_already_exists() {
 				entry.clone(),
 				entry_digest,
 				message_id.clone(),
-				identifier.unwrap(),
+				identifier,
 				authorization_id.clone(),
 			),
 			Error::<Test>::ReferenceNotDebitIdentifier
