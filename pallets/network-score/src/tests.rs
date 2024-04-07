@@ -386,7 +386,7 @@ fn test_revoked_rating_id_already_exists() {
 				identifier.unwrap(),
 				authorization_id.clone(),
 			),
-			Error::<Test>::Reference
+			Error::<Test>::ReferenceNotDebitIdentifier
 		)
 	});
 }
