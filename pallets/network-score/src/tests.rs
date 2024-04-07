@@ -375,7 +375,6 @@ fn test_revoke_rating_id_already_exists() {
 			authorization_id.clone(),
 		));
 
-		<MessageIdentifiers<Test>>::remove(message_id.clone(), creator.clone());
 		assert_err!(
 			Score::revise_rating(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
