@@ -358,8 +358,7 @@ fn test_revoke_rating_id_already_exists() {
 	let identifier =
 		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating)
 			.unwrap();
-	let mut rating_entry =
-		RatingEntries::<Test>::get(&identifier).ok_or(Error::<Test>::RatingIdentifierNotFound)?;
+	let mut rating_entry = RatingEntries::<Test>::get(&identifier);
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
