@@ -360,6 +360,9 @@ fn test_revoke_rating_id_already_exists() {
 			.unwrap();
 	let mut rating_entry = RatingEntries::<Test>::get(&identifier);
 
+	// Unwrap the Option to access the inner RatingEntry struct
+	let mut rating_entry = rating_entry.unwrap();
+
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
