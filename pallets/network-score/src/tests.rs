@@ -356,6 +356,8 @@ fn test_revoke_rating_id_already_exists() {
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
 			.unwrap();
+	let rating_details = <RatingEntries<Test>>::get(&identifier);
+	let stored_entry_type: EntryTypeOf = rating_details.entry_type;
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
@@ -377,8 +379,6 @@ fn test_revoke_rating_id_already_exists() {
 		// Remove message_id and provider_did from entries
 		<MessageIdentifiers<Test>>::remove(message_id.clone(), creator.clone());
 		// Entry type of should not be anything other than Debit
-		let rating_details = <RatingEntries<Test>>::get(&identifier);
-		let stored_entry_type: EntryTypeOf = rating_details.entry_type;
 		rating_details.entry_type = EntryTypeOf::Debit;
 
 		assert_err!(
