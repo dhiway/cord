@@ -377,6 +377,7 @@ fn test_revoke_rating_id_already_exists() {
 		// Remove message_id and provider_did from entries
 		<MessageIdentifiers<Test>>::remove(message_id.clone(), creator.clone());
 		// Entry type of should not be anything other than Debit
+		let rating_details = <RatingEntries<Test>>::get(&identifier);
 		let stored_entry_type: EntryTypeOf = rating_details.entry_type;
 		rating_details.entry_type = EntryTypeOf::Debit;
 
