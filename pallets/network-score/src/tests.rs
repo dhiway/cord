@@ -344,8 +344,22 @@ fn test_revoke_rating_id_already_exists() {
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
 			.unwrap();
-	let rating_details = <RatingEntries<Test>>::get(&identifier);
-	let stored_entry_type: EntryTypeOf = rating_details.entry_type;
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[
+			&entry_digest.encode()[..],
+			&entry.entity_uid.encode()[..],
+			&message_id.encode()[..],
+			&space_id.encode()[..],
+			&creator.clone().encode()[..],
+		]
+		.concat()[..],
+	);
+
+	let identifier =
+		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating)
+			.unwrap();
+	let mut rating_entry =
+		RatingEntries::<Test>::get(&identifier).ok_or(Error::<T>::RatingEntryNotFound)?;
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
@@ -367,7 +381,8 @@ fn test_revoke_rating_id_already_exists() {
 		// Remove message_id and provider_did from entries
 		<MessageIdentifiers<Test>>::remove(message_id.clone(), creator.clone());
 		// Entry type of should not be anything other than Debit
-		rating_details.entry_type = EntryTypeOf::Debit;
+		rating_entry.entry_type = EntryTypeOf::Debit;
+		RatingEntries::<Test>::insert(&identifier, &rating_entry);
 
 		assert_err!(
 			Score::revise_rating(
@@ -375,7 +390,7 @@ fn test_revoke_rating_id_already_exists() {
 				entry.clone(),
 				entry_digest,
 				message_id.clone(),
-				identifier,
+				identifier.clone(),
 				authorization_id.clone(),
 			),
 			Error::<Test>::RatingIdentifierAlreadyAdded
