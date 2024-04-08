@@ -358,7 +358,7 @@ fn test_revoke_rating_id_already_exists() {
 	let identifier =
 		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating)
 			.unwrap();
-	let mut rating_entry = RatingEntries::<Test>::get(&identifier);
+	let rating_entry = RatingEntries::<Test>::get(&identifier);
 
 	// Unwrap the Option to access the inner RatingEntry struct
 	let mut rating_entry = rating_entry.unwrap();
