@@ -60,11 +60,9 @@ benchmarks! {
 
 		let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 		let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-		let entity_name = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 		let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 		let entry = RatingInputEntryOf::<T> {
 			entity_id: entity_id.clone(),
-			entity_name: entity_name.clone(),
 			provider_id,
 			total_encoded_rating: 250u64,
 			count_of_txn: 7u64,
@@ -117,11 +115,9 @@ benchmarks! {
 		let message_id_add = BoundedVec::try_from([82u8; 10].to_vec()).unwrap();
 		let message_id_revoke = BoundedVec::try_from([85u8; 10].to_vec()).unwrap();
 		let entity_id = BoundedVec::try_from([83u8; 10].to_vec()).unwrap();
-		let entity_name = BoundedVec::try_from([83u8; 10].to_vec()).unwrap();
 		let provider_id = BoundedVec::try_from([84u8; 10].to_vec()).unwrap();
 		let entry = RatingInputEntryOf::<T> {
 			entity_id: entity_id.clone(),
-			entity_name: entity_name.clone(),
 			provider_id,
 			total_encoded_rating: 250u64,
 			count_of_txn: 7u64,
@@ -177,11 +173,9 @@ benchmarks! {
 		let message_id_revoke = BoundedVec::try_from([85u8; 10].to_vec()).unwrap();
 		let message_id_revise = BoundedVec::try_from([86u8; 10].to_vec()).unwrap();
 		let entity_id = BoundedVec::try_from([83u8; 10].to_vec()).unwrap();
-		let entity_name = BoundedVec::try_from([83u8; 10].to_vec()).unwrap();
 		let provider_id = BoundedVec::try_from([84u8; 10].to_vec()).unwrap();
 		let entry = RatingInputEntryOf::<T> {
 			entity_id: entity_id.clone(),
-			entity_name: entity_name.clone(),
 			provider_id: provider_id.clone(),
 			total_encoded_rating: 250u64,
 			count_of_txn: 7u64,
@@ -195,7 +189,6 @@ benchmarks! {
 
 		let entry_revise = RatingInputEntryOf::<T> {
 			entity_id: entity_id.clone(),
-			entity_name: entity_name.clone(),
 			provider_id,
 			total_encoded_rating: 250u64,
 			count_of_txn: 6u64,

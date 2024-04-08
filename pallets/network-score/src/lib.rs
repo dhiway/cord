@@ -166,18 +166,12 @@ pub mod pallet {
 	pub type EntityIdentifierOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 	pub type EntityIdentityOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 	pub type ProviderIdentifierOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
-	pub type EntityNameOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 
-	pub type RatingInputEntryOf<T> = RatingInputEntry<
-		EntityIdentifierOf<T>,
-		EntityNameOf<T>,
-		RatingProviderIdOf<T>,
-		RatingTypeOf,
-	>;
+	pub type RatingInputEntryOf<T> =
+		RatingInputEntry<EntityIdentifierOf<T>, RatingProviderIdOf<T>, RatingTypeOf>;
 
 	pub type RatingEntryOf<T> = RatingEntry<
 		EntityIdentifierOf<T>,
-		EntityNameOf<T>,
 		RatingProviderIdOf<T>,
 		RatingTypeOf,
 		RatingEntryIdOf,
@@ -303,8 +297,8 @@ pub mod pallet {
 		DigestAlreadyAnchored,
 		/// Rating idenfier already exist
 		RatingIdentifierAlreadyAdded,
-		/// Invalid rating or entry type
-		InvalidEntryOrRatingType,
+		/// Invalid rating type
+		InvalidRatingType,
 		/// Rating identifier not found
 		RatingIdentifierNotFound,
 		/// Referenced rating identifier not found
@@ -337,7 +331,7 @@ pub mod pallet {
 		/// # Errors
 		/// Returns `Error::<T>::InvalidRatingValue` if the rating value is not
 		/// within the expected range.
-		/// Returns `Error::<T>::InvalidEntryOrRatingType` if the entry type or
+		/// Returns `Error::<T>::InvalidRatingType` if the entry type or
 		/// rating type is not valid.
 		/// Returns `Error::<T>::MessageIdAlreadyExists` if the message
 		/// identifier is already used.
@@ -380,6 +374,8 @@ pub mod pallet {
 				Error::<T>::InvalidRatingValue
 			);
 
+			ensure!(entry.rating_type.is_valid_rating_type(), Error::<T>::InvalidRatingType);
+
 			ensure!(
 				!<MessageIdentifiers<T>>::contains_key(&message_id, &provider),
 				Error::<T>::MessageIdAlreadyExists
@@ -388,7 +384,7 @@ pub mod pallet {
 			let provider_did = entry.provider_did.clone();
 			let entity_id = entry.entity_id.clone();
 
-			// Id Digest = concat (H(<scale_encoded_digest>,(<scale_encoded_entity_uid>),
+			// Id Digest = concat (H(<scale_encoded_digest>,(<scale_encoded_entity_id>),
 			// (<scale_encoded_message_id> <scale_encoded_space_identifier>,
 			// <scale_encoded_provider_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
@@ -515,7 +511,7 @@ pub mod pallet {
 			let provider_did = rating_details.entry.provider_did.clone();
 			let entity_id = rating_details.entry.entity_id.clone();
 
-			// Id Digest = concat (H(<scale_encoded_digest>,(<scale_encoded_entity_uid>),
+			// Id Digest = concat (H(<scale_encoded_digest>,(<scale_encoded_entity_id>),
 			// (<scale_encoded_message_id>) <scale_encoded_space_identifier>,
 			// <scale_encoded_provider_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
@@ -593,7 +589,7 @@ pub mod pallet {
 		/// # Errors
 		/// Returns `Error::<T>::InvalidRatingValue` if the new rating value is
 		/// not within the expected range.
-		/// Returns `Error::<T>::InvalidEntryOrRatingType` if the entry type or
+		/// Returns `Error::<T>::InvalidRatingType` if the entry type or
 		/// rating type of the new rating is invalid.
 		/// Returns `Error::<T>::ReferenceIdentifierNotFound` if the original
 		/// rating reference identifier is not found.
@@ -645,6 +641,8 @@ pub mod pallet {
 				Error::<T>::InvalidRatingValue
 			);
 
+			ensure!(entry.rating_type.is_valid_rating_type(), Error::<T>::InvalidRatingType);
+
 			let rating_details = <RatingEntries<T>>::get(&debit_ref_id)
 				.ok_or(Error::<T>::ReferenceIdentifierNotFound)?;
 
@@ -663,14 +661,14 @@ pub mod pallet {
 			);
 
 			let provider_did = entry.provider_did.clone();
-			let entity_uid = entry.entity_id.clone();
-			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_entity_uid>),
+			let entity_id = entry.entity_id.clone();
+			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_entity_id>),
 			// (<scale_encoded_message_id>), <scale_encoded_space_identifier>,
 			// <scale_encoded_provider_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[
 					&digest.encode()[..],
-					&entity_uid.encode()[..],
+					&entity_id.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
 					&provider_did.encode()[..],

@@ -33,11 +33,9 @@ pub struct EntityDetails<EntityIdentifier> {
 #[derive(
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
-pub struct RatingInputEntry<EntityIdentifier, EntityName, RatingProviderId, RatingTypeOf> {
+pub struct RatingInputEntry<EntityIdentifier, RatingProviderId, RatingTypeOf> {
 	/// Identifier for the entity being rated
 	pub entity_id: EntityIdentifier,
-	/// Name of the entity being rated
-	pub entity_name: EntityName,
 	/// Unique Identifier (UID) for the rating provider
 	pub provider_id: EntityIdentifier,
 	/// Count of raing transactions for the entry
@@ -73,7 +71,6 @@ impl RatingTypeOf {
 )]
 pub struct RatingEntry<
 	EntityIdentifier,
-	EntityName,
 	RatingProviderId,
 	RatingTypeOf,
 	RatingEntryId,
@@ -84,7 +81,7 @@ pub struct RatingEntry<
 	EntryTypeOf,
 	Moment,
 > {
-	pub entry: RatingInputEntry<EntityIdentifier, EntityName, RatingProviderId, RatingTypeOf>,
+	pub entry: RatingInputEntry<EntityIdentifier, RatingProviderId, RatingTypeOf>,
 	/// rating digest
 	pub digest: RatingEntryHash,
 	/// messsage identifier of the rating entry

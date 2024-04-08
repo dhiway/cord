@@ -44,11 +44,9 @@ fn check_successful_rating_creation() {
 
 	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-	let entity_name = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
 		entity_id,
-		entity_name,
 		provider_id,
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
@@ -100,11 +98,9 @@ fn check_duplicate_message_id() {
 
 	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-	let entity_name = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
 		entity_id,
-		entity_name,
 		provider_id,
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
@@ -169,11 +165,9 @@ fn revise_rating_with_entry_entity_mismatch_should_fail() {
 
 	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-	let entity_name = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
 		entity_id: entity_id.clone(),
-		entity_name: entity_name.clone(),
 		provider_id,
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
@@ -256,11 +250,9 @@ fn test_register_rating_id_already_exists() {
 	let author = ACCOUNT_00.clone();
 	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-	let entity_name = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
 		entity_id,
-		entity_name,
 		provider_id,
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
