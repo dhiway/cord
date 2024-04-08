@@ -315,24 +315,12 @@ fn test_register_rating_id_already_exists() {
 
 #[test]
 fn test_revoke_rating_id_already_exists() {
+	// Define test parameters
 	let creator = DID_00.clone();
 	let author = ACCOUNT_00.clone();
 	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
 	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
-	let id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[
-			&entry_digest.encode()[..],
-			&entry.entity_uid.encode()[..],
-			&message_id.encode()[..],
-			&space_id.encode()[..],
-			&creator.clone().encode()[..],
-		]
-		.concat()[..],
-	);
-
-	let identifier =
-		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating);
 	let entry = RatingInputEntryOf::<Test> {
 		entity_uid,
 		provider_uid,
