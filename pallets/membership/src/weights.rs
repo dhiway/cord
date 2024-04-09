@@ -52,10 +52,10 @@ pub trait WeightInfo {
 	fn add_member(m: u32, ) -> Weight;
 	fn remove_member(m: u32, ) -> Weight;
 	fn swap_member(m: u32, ) -> Weight;
-	fn reset_member(m: u32, ) -> Weight;
+	fn reset_members(m: u32, ) -> Weight;
 	fn change_key(m: u32, ) -> Weight;
 	fn set_prime(m: u32, ) -> Weight;
-	fn clear_prime(m: u32, ) -> Weight;
+	fn clear_prime() -> Weight;
 }
 
 /// Weights for `pallet_membership` using the CORD node and recommended hardware.
@@ -143,7 +143,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: `TechnicalCommittee::Prime` (r:0 w:1)
 	/// Proof: `TechnicalCommittee::Prime` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// The range of component `m` is `[1, 50]`.
-	fn reset_member(m: u32, ) -> Weight {
+	fn reset_members(m: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `206 + m * (64 ±0)`
 		//  Estimated: `3086 + m * (64 ±0)`
@@ -204,14 +204,12 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	/// Storage: `TechnicalCommittee::Prime` (r:0 w:1)
 	/// Proof: `TechnicalCommittee::Prime` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// The range of component `m` is `[1, 50]`.
-	fn clear_prime(m: u32, ) -> Weight {
+	fn clear_prime() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 2_330_000 picoseconds.
-		Weight::from_parts(2_567_728, 0)
-			// Standard Error: 231
-			.saturating_add(Weight::from_parts(2_131, 0).saturating_mul(m.into()))
+		// Minimum execution time: 3_373_000 picoseconds.
+		Weight::from_parts(3_750_452, 0)
 			.saturating_add(T::DbWeight::get().writes(2_u64))
 	}
 }
@@ -300,7 +298,7 @@ impl WeightInfo for () {
 	/// Storage: `TechnicalCommittee::Prime` (r:0 w:1)
 	/// Proof: `TechnicalCommittee::Prime` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// The range of component `m` is `[1, 50]`.
-	fn reset_member(m: u32, ) -> Weight {
+	fn reset_members(m: u32, ) -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `206 + m * (64 ±0)`
 		//  Estimated: `3086 + m * (64 ±0)`
@@ -361,14 +359,12 @@ impl WeightInfo for () {
 	/// Storage: `TechnicalCommittee::Prime` (r:0 w:1)
 	/// Proof: `TechnicalCommittee::Prime` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	/// The range of component `m` is `[1, 50]`.
-	fn clear_prime(m: u32, ) -> Weight {
+	fn clear_prime() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 2_330_000 picoseconds.
-		Weight::from_parts(2_567_728, 0)
-			// Standard Error: 231
-			.saturating_add(Weight::from_parts(2_131, 0).saturating_mul(m.into()))
+		// Minimum execution time: 3_373_000 picoseconds.
+		Weight::from_parts(3_750_452, 0)
 			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
 }
