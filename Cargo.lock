@@ -5905,16 +5905,14 @@ dependencies = [
 
 [[package]]
 name = "pallet-collective"
-version = "0.9.1"
+version = "28.0.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.8.0#ec7817e5adc2f3a91dd94b0465dd61b4c1b07ab7"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
- "network-membership",
- "pallet-network-membership",
  "parity-scale-codec",
- "rand",
  "scale-info",
  "sp-core",
  "sp-io",

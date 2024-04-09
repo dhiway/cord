@@ -51,7 +51,6 @@ pallet-chain-space = { default-features = false, path = '../pallets/chain-space'
 pallet-statement = { default-features = false, path = '../pallets/statement' }
 pallet-network-membership = { default-features = false, path = '../pallets/network-membership' }
 pallet-runtime-upgrade = { default-features = false, path = '../pallets/runtime-upgrade' }
-pallet-collective = { default-features = false, path = '../pallets/collective' }
 pallet-identity = { default-features = false, path = '../pallets/identity' }
 pallet-offences = { default-features = false, path = '../pallets/offences' }
 pallet-node-authorization = { default-features = false, path = "../pallets/node-authorization" }
@@ -100,6 +99,7 @@ pallet-authority-discovery = { git = "https://github.com/dhiway/substrate-sdk", 
 pallet-authorship = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
 pallet-babe = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
 pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
+pallet-collective = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
 frame-executive = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
 pallet-grandpa = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
 pallet-im-online = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
