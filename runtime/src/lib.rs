@@ -456,7 +456,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = MaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
-	type NetworkMembershipOrigin = EnsureRoot<Self::AccountId>;
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
 	type MaxProposalWeight = MaxProposalWeight;
 }
 
@@ -484,7 +484,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxMembers = MaxMembers;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
-	type NetworkMembershipOrigin = EnsureRoot<Self::AccountId>;
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
 	type MaxProposalWeight = MaxProposalWeight;
 }
 
