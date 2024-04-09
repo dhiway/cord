@@ -32,7 +32,7 @@ use sp_core::{crypto::key_types::DUMMY, H256};
 use sp_runtime::{
 	impl_opaque_keys,
 	testing::UintAuthorityId,
-	traits::{BlakeTwo256, ConvertInto, IdentityLookup, OpaqueKeys},
+	traits::{BlakeTwo256, ConvertInto, IdentityLookup, IsMember, OpaqueKeys},
 	BuildStorage, KeyTypeId,
 };
 use sp_staking::offence::OffenceDetails;
@@ -149,17 +149,24 @@ impl pallet_session::historical::Config for Test {
 	type FullIdentificationOf = FullIdentificationOfImpl;
 }
 
+pub struct TestIsNetworkMember;
+impl IsMember<u64> for TestIsNetworkMember {
+	fn is_member(member_id: &u64) -> bool {
+		member_id % 3 == 0
+	}
+}
+
 impl cord_authority_membership::Config for Test {
 	type AuthorityMembershipOrigin = EnsureRoot<u64>;
 	type RuntimeEvent = RuntimeEvent;
-	// type WeightInfo = ();
+	type IsMember = TestIsNetworkMember;
 }
 
 parameter_types! {
-	pub static Validators: Vec<u64> = vec![1, 2, 3];
-	pub static NextValidators: Vec<u64> = vec![1, 2, 3];
+	pub static Validators: Vec<u64> = vec![3,6,9];
+	pub static NextValidators: Vec<u64> = vec![3,6,9];
 	pub static Authorities: Vec<UintAuthorityId> =
-		vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)];
+		vec![UintAuthorityId(3), UintAuthorityId(6), UintAuthorityId(9)];
 	pub static ValidatorAccounts: BTreeMap<u64, u64> = BTreeMap::new();
 
 }
@@ -169,13 +176,12 @@ pub fn authorities() -> Vec<UintAuthorityId> {
 }
 
 // Build genesis storage according to the mock runtime.
-pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
-	let keys: Vec<_> = NextValidators::get()
-		.iter()
-		.cloned()
-		.map(|i| (i, i, UintAuthorityId(i).into()))
+pub fn new_test_ext(authorities_len: u64) -> sp_io::TestExternalities {
+	let keys: Vec<_> = (1..=authorities_len)
+		.map(|i| (i * 3, i * 3, UintAuthorityId(i * 3).into()))
 		.collect();
+
+	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	BasicExternalities::execute_with_storage(&mut t, || {
 		for (ref k, ..) in &keys {
 			frame_system::Pallet::<Test>::inc_providers(k);

@@ -53,7 +53,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_io::storage;
 use sp_runtime::{
-	traits::{Dispatchable, Hash},
+	traits::{Dispatchable, Hash, IsMember},
 	DispatchError, RuntimeDebug,
 };
 use sp_std::{marker::PhantomData, prelude::*, result};
@@ -185,7 +185,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use network_membership::traits::IsMember;
+	// use network_membership::traits::IsMember;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
