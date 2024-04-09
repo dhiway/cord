@@ -30,7 +30,7 @@ use frame_support::{
 	traits::{ChangeMembers, Contains, Get, InitializeMembers, SortedMembers},
 	BoundedVec,
 };
-use sp_runtime::traits::StaticLookup;
+use sp_runtime::traits::{IsMember, StaticLookup};
 use sp_std::prelude::*;
 
 pub mod weights;
@@ -45,7 +45,6 @@ pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::IsMember;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
@@ -55,13 +54,12 @@ pub mod pallet {
 	pub struct Pallet<T, I = ()>(PhantomData<(T, I)>);
 
 	#[pallet::config]
-	pub trait Config<I: 'static = ()>:
-		frame_system::Config + pallet_network_membership::Config
-	{
+	pub trait Config<I: 'static = ()>: frame_system::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self, I>>
 			+ IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
+		type IsMember: IsMember<Self::AccountId>;
 		/// Required origin for adding a member (though can always be Root).
 		type AddOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
@@ -174,10 +172,7 @@ pub mod pallet {
 			T::AddOrigin::ensure_origin(origin)?;
 			let who = T::Lookup::lookup(who)?;
 
-			ensure!(
-				pallet_network_membership::Pallet::<T>::is_member(&who),
-				Error::<T, I>::NotMember
-			);
+			ensure!(T::IsMember::is_member(&who), Error::<T, I>::NotMember);
 
 			let mut members = <Members<T, I>>::get();
 			let location = members.binary_search(&who).err().ok_or(Error::<T, I>::AlreadyMember)?;
@@ -234,10 +229,7 @@ pub mod pallet {
 			if remove == add {
 				return Ok(());
 			}
-			ensure!(
-				pallet_network_membership::Pallet::<T>::is_member(&add),
-				Error::<T, I>::NotMember
-			);
+			ensure!(T::IsMember::is_member(&add), Error::<T, I>::NotMember);
 
 			let mut members = <Members<T, I>>::get();
 			let location = members.binary_search(&remove).ok().ok_or(Error::<T, I>::NotMember)?;
@@ -288,10 +280,7 @@ pub mod pallet {
 			let remove = ensure_signed(origin)?;
 			let new = T::Lookup::lookup(new)?;
 
-			ensure!(
-				pallet_network_membership::Pallet::<T>::is_member(&new),
-				Error::<T, I>::NotMember
-			);
+			ensure!(T::IsMember::is_member(&new), Error::<T, I>::NotMember);
 
 			if remove != new {
 				let mut members = <Members<T, I>>::get();
@@ -406,7 +395,6 @@ mod benchmark {
 			set_members::<T, I>(members, None);
 			let new_member = account::<T::AccountId>("add", m, SEED);
 			let new_member_lookup = T::Lookup::unlookup(new_member.clone());
-			let _ = pallet_network_membership::Pallet::<T>::nominate(RawOrigin::Root.into(), new_member.clone(), true);
 		}: {
 			assert_ok!(<Membership<T, I>>::add_member(
 				T::AddOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?,
@@ -449,7 +437,6 @@ mod benchmark {
 			let add_lookup = T::Lookup::unlookup(add.clone());
 			let remove = members.first().cloned().unwrap();
 			let remove_lookup = T::Lookup::unlookup(remove.clone());
-			let _ = pallet_network_membership::Pallet::<T>::nominate(RawOrigin::Root.into(), add.clone(), true);
 		}: {
 			assert_ok!(<Membership<T, I>>::swap_member(
 				T::SwapOrigin::try_successful_origin().map_err(|_| BenchmarkError::Weightless)?,
@@ -494,7 +481,6 @@ mod benchmark {
 
 			let add = account::<T::AccountId>("member", m, SEED);
 			let add_lookup = T::Lookup::unlookup(add.clone());
-			let _ = pallet_network_membership::Pallet::<T>::nominate(RawOrigin::Root.into(), add.clone(), true);
 			whitelist!(prime);
 		}: {
 			assert_ok!(<Membership<T, I>>::change_key(RawOrigin::Signed(prime.clone()).into(), add_lookup));
@@ -565,9 +551,9 @@ mod tests {
 	construct_runtime!(
 		pub enum Test
 		{
-			System: frame_system::{Pallet, Call, Config<T>, Storage, Event<T>},
-			Membership: pallet_membership::{Pallet, Call, Storage, Config<T>, Event<T>},
-			NetworkMembership: pallet_network_membership::{Pallet, Call, Storage, Event<T>, Config<T>},
+			System: frame_system,
+			Membership: pallet_membership,
+			NetworkMembership: pallet_network_membership,
 		}
 	);
 
@@ -650,8 +636,25 @@ mod tests {
 		type WeightInfo = ();
 	}
 
+	pub struct TestIsNetworkMember;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	impl IsMember<u64> for TestIsNetworkMember {
+		fn is_member(member_id: &u64) -> bool {
+			(1..=30).contains(member_id)
+		}
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	impl IsMember<<Test as frame_system::Config>::AccountId> for TestIsNetworkMember {
+		fn is_member(_account_id: &<Test as frame_system::Config>::AccountId) -> bool {
+			// For benchmarking, assume all generated accounts are members
+			true
+		}
+	}
+
 	impl Config for Test {
 		type RuntimeEvent = RuntimeEvent;
+		type IsMember = TestIsNetworkMember;
 		type AddOrigin = EnsureSignedBy<One, u64>;
 		type RemoveOrigin = EnsureSignedBy<Two, u64>;
 		type SwapOrigin = EnsureSignedBy<Three, u64>;

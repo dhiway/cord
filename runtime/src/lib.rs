@@ -439,21 +439,6 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
-// parameter_types! {
-// 	// Minimum 4 CENTS/byte
-// 	pub const MaxAdditionalFields: u32 = 10;
-// 	pub const MaxRegistrars: u32 = 25;
-// }
-
-// impl pallet_identity::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type MaxAdditionalFields = MaxAdditionalFields;
-// 	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
-// 	type MaxRegistrars = MaxRegistrars;
-// 	type RegistrarOrigin = MoreThanHalfCouncil;
-// 	type WeightInfo = weights::pallet_identity::WeightInfo<Runtime>;
-// }
-
 parameter_types! {
 	pub MotionDuration: BlockNumber = prod_or_fast!(3 * DAYS, 2 * MINUTES, "CORD_MOTION_DURATION");
 	pub const MaxProposals: u32 = 100;
@@ -477,6 +462,7 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type IsMember = NetworkMembership;
 	type AddOrigin = MoreThanHalfCouncil;
 	type RemoveOrigin = MoreThanHalfCouncil;
 	type SwapOrigin = MoreThanHalfCouncil;
@@ -504,6 +490,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 
 impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type IsMember = NetworkMembership;
 	type AddOrigin = MoreThanHalfCouncil;
 	type RemoveOrigin = MoreThanHalfCouncil;
 	type SwapOrigin = MoreThanHalfCouncil;
