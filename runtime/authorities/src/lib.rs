@@ -24,11 +24,7 @@ pub mod impls;
 
 use frame_support::{dispatch::DispatchResult, ensure, pallet_prelude::*, traits::EnsureOrigin};
 pub use pallet::*;
-use sp_runtime::traits::Convert;
-use sp_staking::{
-	offence::{Offence, OffenceError, ReportOffence},
-	SessionIndex,
-};
+use sp_staking::SessionIndex;
 use sp_std::{vec, vec::Vec};
 
 #[cfg(any(feature = "mock", test))]
@@ -44,21 +40,24 @@ pub mod pallet {
 	use super::*;
 	use frame_support::traits::ValidatorRegistration;
 	use frame_system::pallet_prelude::*;
-	use network_membership::traits::IsMember;
+	use sp_runtime::traits::{Convert, IsMember};
+
+	/// The current storage version.
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+
 	#[pallet::pallet]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	#[pallet::without_storage_info]
 	pub struct Pallet<T>(_);
 
 	/// Configuration.
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config
-		+ pallet_session::Config
-		+ pallet_network_membership::Config
-		+ pallet_session::historical::Config
+		frame_system::Config + pallet_session::Config + pallet_session::historical::Config
 	{
 		/// The overreaching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+		type IsMember: IsMember<Self::AccountId>;
 		/// Privileged origin that can add or remove validators.
 		type AuthorityMembershipOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 	}
@@ -72,7 +71,6 @@ pub mod pallet {
 		/// List of members who will leave the set of authorities at the next
 		/// session. [Vec<member_id>]
 		OutgoingAuthorities(Vec<T::ValidatorId>),
-
 		/// A member will be added to the authority membership.
 		MemberAdded(T::AccountId),
 		/// A member will leave the set of authorities in 2 sessions.
@@ -93,7 +91,6 @@ pub mod pallet {
 		MemberAlreadyExists,
 		/// Already outgoing
 		MemberAlreadyOutgoing,
-		/// Not found owner key
 		/// There is no authority with the given ID.
 		MemberNotFound,
 		/// Member is blacklisted
@@ -148,16 +145,17 @@ pub mod pallet {
 		/// Add new authorities to the set.
 		/// The new authorities will be active from current session + 2.
 		#[pallet::call_index(0)]
-		#[pallet::weight({100_000})]
+		#[pallet::weight({200_000})]
 		pub fn nominate(origin: OriginFor<T>, candidate: T::AccountId) -> DispatchResult {
 			T::AuthorityMembershipOrigin::ensure_origin(origin)?;
 
-			if !pallet_network_membership::Pallet::<T>::is_member(&candidate) {
+			if !T::IsMember::is_member(&candidate) {
 				return Err(Error::<T>::NetworkMembershipNotFound.into());
 			}
 
 			let member = T::ValidatorIdOf::convert(candidate.clone())
 				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
+
 			if !pallet_session::Pallet::<T>::is_registered(&member) {
 				return Err(Error::<T>::SessionKeysNotAdded.into());
 			}
@@ -182,7 +180,7 @@ pub mod pallet {
 		/// Remove authorities from the set.
 		/// The removed authorities will be deactivated from current session + 2
 		#[pallet::call_index(1)]
-		#[pallet::weight({100_000})]
+		#[pallet::weight({200_000})]
 		pub fn remove(origin: OriginFor<T>, candidate: T::AccountId) -> DispatchResult {
 			T::AuthorityMembershipOrigin::ensure_origin(origin)?;
 
@@ -208,7 +206,7 @@ pub mod pallet {
 
 		/// Remove members from blacklist.
 		#[pallet::call_index(2)]
-		#[pallet::weight({100_000})]
+		#[pallet::weight({200_000})]
 		pub fn remove_member_from_blacklist(
 			origin: OriginFor<T>,
 			candidate: T::AccountId,
@@ -229,7 +227,7 @@ pub mod pallet {
 		/// Mark an authority member offline.
 		/// The authority will be deactivated from current session + 2.
 		#[pallet::call_index(3)]
-		#[pallet::weight({100_000})]
+		#[pallet::weight({200_000})]
 		pub fn go_offline(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let member = T::ValidatorIdOf::convert(who.clone())
@@ -245,7 +243,7 @@ pub mod pallet {
 		/// Mark an authority member going online.
 		/// Authority will be activated from current session + 2.
 		#[pallet::call_index(4)]
-		#[pallet::weight({100_000})]
+		#[pallet::weight({200_000})]
 		pub fn go_online(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let member = T::ValidatorIdOf::convert(who.clone())
@@ -371,7 +369,6 @@ impl<T: Config> pallet_session::historical::SessionManager<T::ValidatorId, T::Fu
 		<Self as pallet_session::SessionManager<_>>::new_session(new_index).map(|validators_ids| {
 			validators_ids.into_iter().filter_map(add_full_identification::<T>).collect()
 		})
-		// .map(|r| r.into_iter().map(|v| (v, Default::default())).collect())
 	}
 	fn new_session_genesis(
 		new_index: SessionIndex,
@@ -389,27 +386,5 @@ impl<T: Config> pallet_session::historical::SessionManager<T::ValidatorId, T::Fu
 
 	fn end_session(end_index: SessionIndex) {
 		<Self as pallet_session::SessionManager<_>>::end_session(end_index)
-	}
-}
-
-impl<T: Config, O: Offence<(T::AccountId, T::AccountId)>>
-	ReportOffence<T::AccountId, (T::AccountId, T::AccountId), O> for Pallet<T>
-{
-	fn report_offence(_reporters: Vec<T::AccountId>, offence: O) -> Result<(), OffenceError> {
-		let offenders = offence.offenders();
-
-		for (a, _) in offenders.into_iter() {
-			let v = T::ValidatorIdOf::convert(a).ok_or(OffenceError::DuplicateReport)?;
-			Self::mark_for_blacklist_and_removal(v);
-		}
-
-		Ok(())
-	}
-
-	fn is_known_offence(
-		_offenders: &[(T::AccountId, T::AccountId)],
-		_time_slot: &O::TimeSlot,
-	) -> bool {
-		false
 	}
 }

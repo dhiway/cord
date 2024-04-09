@@ -650,6 +650,7 @@ parameter_types! {
 }
 impl authority_membership::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type IsMember = NetworkMembership;
 	type AuthorityMembershipOrigin = MoreThanHalfCouncil;
 }
 
@@ -838,8 +839,8 @@ construct_runtime! (
 		Timestamp: pallet_timestamp = 3,
 		Indices: pallet_indices = 4,
 		Balances: pallet_balances = 5,
-		Authorship: pallet_authorship = 6,
-		AuthorityMembership: authority_membership = 7,
+		AuthorityMembership: authority_membership = 6,
+		Authorship: pallet_authorship = 7,
 		Offences: pallet_offences = 8,
 		Session: pallet_session = 9,
 		Grandpa: pallet_grandpa = 10,
