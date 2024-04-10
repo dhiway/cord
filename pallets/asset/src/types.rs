@@ -137,10 +137,18 @@ pub struct AssetDistributionEntry<
 #[derive(
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
-pub struct VCAssetDistributionEntry<AssetStatusOf, AssetCreatorOf, BlockNumber, AssetId> {
+pub struct VCAssetDistributionEntry<
+	AssetStatusOf,
+	AssetCreatorOf,
+	EntryHashOf,
+	BlockNumber,
+	AssetId,
+> {
 	pub asset_qty: AssetQtyOf,
 	/// asset parent reference
 	pub asset_instance_parent: AssetId,
+	/// asset instance digest
+	pub digest: EntryHashOf,
 	/// status of the asset
 	pub asset_instance_status: AssetStatusOf,
 	/// asset issuer
