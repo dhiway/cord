@@ -2,7 +2,7 @@ use super::*;
 use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
-use frame_support::{assert_ok, BoundedVec};
+use frame_support::{assert_err, assert_ok, BoundedVec};
 use frame_system::RawOrigin;
 use pallet_chain_space::{SpaceCodeOf, SpaceIdOf};
 use sp_runtime::{traits::Hash, AccountId32};
@@ -494,4 +494,88 @@ fn asset_vc_status_change_should_succeed() {
 			AssetStatusOf::INACTIVE
 		));
 	});
+}
+
+#[test]
+fn check_asset_type() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let capacity = 5u64;
+
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+
+	let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_qty = 10;
+	let asset_value = 10;
+	let asset_type = AssetTypeOf::MF;
+
+	let entry = AssetInputEntryOf::<Test> {
+		asset_desc,
+		asset_qty,
+		asset_type: asset_type.clone(),
+		asset_value,
+		asset_tag,
+		asset_meta,
+	};
+
+	let digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
+
+	if asset_type == AssetTypeOf::ART ||
+		asset_type == AssetTypeOf::BOND ||
+		asset_type == AssetTypeOf::MF
+	{
+		new_test_ext().execute_with(|| {
+			assert_ok!(Space::create(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_digest,
+			));
+
+			assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
+			assert_ok!(Asset::create(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				entry,
+				digest,
+				authorization_id
+			));
+		});
+	} else {
+		new_test_ext().execute_with(|| {
+			assert_ok!(Space::create(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_digest,
+			));
+
+			assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
+			assert_ok!(Asset::create(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				entry.clone(),
+				digest,
+				authorization_id.clone()
+			));
+
+			assert_err!(
+				Asset::create(
+					DoubleOrigin(author.clone(), creator.clone()).into(),
+					entry,
+					digest,
+					authorization_id
+				),
+				Error::<Test>::InvalidAssetType
+			);
+		});
+	}
 }
