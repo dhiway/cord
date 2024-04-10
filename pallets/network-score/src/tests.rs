@@ -313,7 +313,7 @@ fn test_register_rating_id_already_exists() {
 fn test_revoke_rating_id_already_exists() {
 	let creator = DID_00.clone();
 	let author = ACCOUNT_00.clone();
-	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let message_id = BoundedVec::try_from([82u8; 10].to_vec()).unwrap();
 	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
@@ -388,7 +388,7 @@ fn test_revise_rating_id_already_exists() {
 	// Define test parameters
 	let creator = DID_00.clone();
 	let author = ACCOUNT_00.clone();
-	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let message_id = BoundedVec::try_from([82u8; 10].to_vec()).unwrap();
 	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
@@ -451,7 +451,7 @@ fn test_revise_rating_id_already_exists() {
 		assert_err!(
 			Score::revoke_rating(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
-				identifier.clone(),
+				identifier,
 				message_id.clone(),
 				entry_digest,
 				authorization_id.clone(),
@@ -465,7 +465,7 @@ fn test_revise_rating_id_already_exists() {
 				entry.clone(),
 				entry_digest,
 				message_id.clone(),
-				identifier.clone(),
+				identifier,
 				authorization_id.clone(),
 			),
 			Error::<Test>::RatingIdentifierAlreadyAdded
