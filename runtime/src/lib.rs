@@ -843,95 +843,59 @@ mod runtime {
 	pub type Balances = pallet_balances;
 	#[runtime::pallet_index(8)]
 	pub type Session = pallet_session;
-	#[runtime::pallet_index(9)]
-	pub type Council = pallet_collective<Instance1>;
-	#[runtime::pallet_index(10)]
-	pub type CouncilMembership = pallet_membership<Instance1>;
-	#[runtime::pallet_index(11)]
-	pub type TechnicalCommittee = pallet_collective<Instance2>;
-	#[runtime::pallet_index(12)]
-	pub type TechnicalMembership = pallet_membership<Instance2>;
-	#[runtime::pallet_index(13)]
-	pub type Grandpa = pallet_grandpa;
-	#[runtime::pallet_index(14)]
-	pub type Sudo = pallet_sudo;
-	#[runtime::pallet_index(15)]
-	pub type ImOnline = pallet_im_online;
-	#[runtime::pallet_index(16)]
-	pub type AuthorityDiscovery = pallet_authority_discovery;
-	#[runtime::pallet_index(17)]
-	pub type Offences = pallet_offences;
-	#[runtime::pallet_index(18)]
-	pub type Historical = pallet_session_historical;
 	#[runtime::pallet_index(20)]
-	pub type Identity = pallet_identity;
+	pub type Council = pallet_collective<Instance1>;
 	#[runtime::pallet_index(21)]
-	pub type Scheduler = pallet_scheduler;
+	pub type CouncilMembership = pallet_membership<Instance1>;
 	#[runtime::pallet_index(22)]
-	pub type Preimage = pallet_preimage;
+	pub type TechnicalCommittee = pallet_collective<Instance2>;
 	#[runtime::pallet_index(23)]
-	pub type Multisig = pallet_multisig;
-	#[runtime::pallet_index(24)]
-	pub type NodeAuthorization = pallet_node_authorization;
+	pub type TechnicalMembership = pallet_membership<Instance2>;
 	#[runtime::pallet_index(25)]
-	pub type RuntimeUpgrade = pallet_runtime_upgrade;
+	pub type Grandpa = pallet_grandpa;
 	#[runtime::pallet_index(26)]
-	pub type Identifier = identifier;
+	pub type ImOnline = pallet_im_online;
 	#[runtime::pallet_index(27)]
-	pub type NetworkMembership = pallet_network_membership;
+	pub type AuthorityDiscovery = pallet_authority_discovery;
 	#[runtime::pallet_index(28)]
-	pub type Did = pallet_did;
+	pub type Offences = pallet_offences;
 	#[runtime::pallet_index(29)]
-	pub type Schema = pallet_schema;
+	pub type Historical = pallet_session_historical;
 	#[runtime::pallet_index(30)]
-	pub type ChainSpace = pallet_chain_space;
+	pub type Identity = pallet_identity;
 	#[runtime::pallet_index(31)]
-	pub type Statement = pallet_statement;
+	pub type Scheduler = pallet_scheduler;
 	#[runtime::pallet_index(32)]
-	pub type DidName = pallet_did_name;
+	pub type Preimage = pallet_preimage;
 	#[runtime::pallet_index(33)]
-	pub type NetworkScore = pallet_network_score;
+	pub type Multisig = pallet_multisig;
 	#[runtime::pallet_index(34)]
+	pub type NodeAuthorization = pallet_node_authorization;
+	#[runtime::pallet_index(35)]
+	pub type RuntimeUpgrade = pallet_runtime_upgrade;
+	#[runtime::pallet_index(50)]
+	pub type Identifier = identifier;
+	#[runtime::pallet_index(51)]
+	pub type NetworkMembership = pallet_network_membership;
+	#[runtime::pallet_index(52)]
+	pub type Did = pallet_did;
+	#[runtime::pallet_index(53)]
+	pub type Schema = pallet_schema;
+	#[runtime::pallet_index(54)]
+	pub type ChainSpace = pallet_chain_space;
+	#[runtime::pallet_index(55)]
+	pub type Statement = pallet_statement;
+	#[runtime::pallet_index(56)]
+	pub type DidName = pallet_did_name;
+	#[runtime::pallet_index(57)]
+	pub type NetworkScore = pallet_network_score;
+	#[runtime::pallet_index(58)]
 	pub type Asset = pallet_asset;
-	#[runtime::pallet_index(40)]
+	#[runtime::pallet_index(59)]
 	pub type Remark = pallet_remark;
+	#[runtime::pallet_index(100)]
+	pub type Sudo = pallet_sudo;
 }
-// Scheduler: pallet_scheduler = 1,
-// Babe: pallet_babe = 2,
-// Timestamp: pallet_timestamp = 3,
-// Indices: pallet_indices = 4,
-// Balances: pallet_balances = 5,
-// AuthorityMembership: authority_membership = 6,
-// Authorship: pallet_authorship = 7,
-// Offences: pallet_offences = 8,
-// Session: pallet_session = 9,
-// Grandpa: pallet_grandpa = 10,
-// ImOnline: pallet_im_online = 11,
-// AuthorityDiscovery: pallet_authority_discovery = 12,
-// Preimage: pallet_preimage = 13,
-// Council: pallet_collective::<Instance1> = 14,
-// CouncilMembership: pallet_membership::<Instance1> = 15,
-// TechnicalCommittee: pallet_collective::<Instance2> = 16,
-// TechnicalMembership: pallet_membership::<Instance2> = 17,
-// NodeAuthorization: pallet_node_authorization = 18,
-// RuntimeUpgrade: pallet_runtime_upgrade = 19,
-// Utility: pallet_utility = 31,
-// Historical: pallet_session_historical = 33,
-// Multisig: pallet_multisig = 35,
-// Remark: pallet_remark = 37,
-// Identity: pallet_identity = 38,
-// Identifier: identifier = 39,
-// NetworkMembership: pallet_network_membership =101,
-// Did: pallet_did = 102,
-// Schema: pallet_schema = 103,
-// ChainSpace: pallet_chain_space = 104,
-// Statement: pallet_statement = 105,
-// DidName: pallet_did_name = 106,
-// NetworkScore: pallet_network_score = 108,
-// Asset: pallet_asset = 109,
-// Sudo: pallet_sudo = 255,
-// }
-// }
 
 #[rustfmt::skip]
 impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall {
