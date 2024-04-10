@@ -31,7 +31,7 @@ pub use cord_primitives::{AccountId, Signature};
 pub use identifier::Ss58Identifier;
 
 use frame_support::{
-	construct_runtime, derive_impl,
+	derive_impl,
 	dispatch::DispatchClass,
 	genesis_builder_helper::{build_config, create_default_config},
 	parameter_types,
@@ -169,7 +169,7 @@ type EnsureRootOrCommitteeApproval = EitherOfDiverse<
 pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
 /// We allow `Normal` extrinsics to fill up the block up to 50%, the rest can be
 /// used by  Operational  extrinsics.
-pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(50);
+pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(90);
 // We'll verify that WEIGHT_REF_TIME_PER_SECOND does not overflow, allowing us to use
 // simple multiply and divide operators instead of saturating or checked ones.
 const_assert!(WEIGHT_REF_TIME_PER_SECOND.checked_div(3).is_some());
@@ -210,7 +210,7 @@ parameter_types! {
    pub const SS58Prefix: u8 = 29;
 }
 
-#[derive_impl(frame_system::config_preludes::SolochainDefaultConfig as frame_system::DefaultConfig)]
+#[derive_impl(frame_system::config_preludes::SolochainDefaultConfig)]
 impl frame_system::Config for Runtime {
 	type BaseCallFilter = BaseFilter;
 	type BlockWeights = RuntimeBlockWeights;
@@ -227,6 +227,7 @@ impl frame_system::Config for Runtime {
 	type SystemWeightInfo = weights::frame_system::WeightInfo<Runtime>;
 	type SS58Prefix = SS58Prefix;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MultiBlockMigrator = ();
 }
 
 parameter_types! {
@@ -808,46 +809,129 @@ impl pallet_asset::Config for Runtime {
 	type WeightInfo = weights::pallet_asset::WeightInfo<Runtime>;
 }
 
-construct_runtime! (
-	pub enum Runtime
-	{
-		System: frame_system = 0,
-		Scheduler: pallet_scheduler = 1,
-		Babe: pallet_babe = 2,
-		Timestamp: pallet_timestamp = 3,
-		Indices: pallet_indices = 4,
-		Balances: pallet_balances = 5,
-		AuthorityMembership: authority_membership = 6,
-		Authorship: pallet_authorship = 7,
-		Offences: pallet_offences = 8,
-		Session: pallet_session = 9,
-		Grandpa: pallet_grandpa = 10,
-		ImOnline: pallet_im_online = 11,
-		AuthorityDiscovery: pallet_authority_discovery = 12,
-		Preimage: pallet_preimage = 13,
-		Council: pallet_collective::<Instance1> = 14,
-		CouncilMembership: pallet_membership::<Instance1> = 15,
-		TechnicalCommittee: pallet_collective::<Instance2> = 16,
-		TechnicalMembership: pallet_membership::<Instance2> = 17,
-		NodeAuthorization: pallet_node_authorization = 18,
-		RuntimeUpgrade: pallet_runtime_upgrade = 19,
-		Utility: pallet_utility = 31,
-		Historical: pallet_session_historical = 33,
-		Multisig: pallet_multisig = 35,
-		Remark: pallet_remark = 37,
-		Identity: pallet_identity = 38,
-		Identifier: identifier = 39,
-		NetworkMembership: pallet_network_membership =101,
-		Did: pallet_did = 102,
-		Schema: pallet_schema = 103,
-		ChainSpace: pallet_chain_space = 104,
-		Statement: pallet_statement = 105,
-		DidName: pallet_did_name = 106,
-		NetworkScore: pallet_network_score = 108,
-		Asset: pallet_asset = 109,
-		Sudo: pallet_sudo = 255,
-	}
-);
+#[frame_support::runtime]
+mod runtime {
+	#[runtime::runtime]
+	#[runtime::derive(
+		RuntimeCall,
+		RuntimeEvent,
+		RuntimeError,
+		RuntimeOrigin,
+		RuntimeFreezeReason,
+		RuntimeHoldReason,
+		RuntimeSlashReason,
+		RuntimeLockId,
+		RuntimeTask
+	)]
+	pub struct Runtime;
+
+	#[runtime::pallet_index(0)]
+	pub type System = frame_system;
+	#[runtime::pallet_index(1)]
+	pub type Utility = pallet_utility;
+	#[runtime::pallet_index(2)]
+	pub type Babe = pallet_babe;
+	#[runtime::pallet_index(3)]
+	pub type Timestamp = pallet_timestamp;
+	#[runtime::pallet_index(4)]
+	pub type AuthorityMembership = authority_membership;
+	#[runtime::pallet_index(5)]
+	pub type Authorship = pallet_authorship;
+	#[runtime::pallet_index(6)]
+	pub type Indices = pallet_indices;
+	#[runtime::pallet_index(7)]
+	pub type Balances = pallet_balances;
+	#[runtime::pallet_index(8)]
+	pub type Session = pallet_session;
+	#[runtime::pallet_index(9)]
+	pub type Council = pallet_collective<Instance1>;
+	#[runtime::pallet_index(10)]
+	pub type CouncilMembership = pallet_membership<Instance1>;
+	#[runtime::pallet_index(11)]
+	pub type TechnicalCommittee = pallet_collective<Instance2>;
+	#[runtime::pallet_index(12)]
+	pub type TechnicalMembership = pallet_membership<Instance2>;
+	#[runtime::pallet_index(13)]
+	pub type Grandpa = pallet_grandpa;
+	#[runtime::pallet_index(14)]
+	pub type Sudo = pallet_sudo;
+	#[runtime::pallet_index(15)]
+	pub type ImOnline = pallet_im_online;
+	#[runtime::pallet_index(16)]
+	pub type AuthorityDiscovery = pallet_authority_discovery;
+	#[runtime::pallet_index(17)]
+	pub type Offences = pallet_offences;
+	#[runtime::pallet_index(18)]
+	pub type Historical = pallet_session_historical;
+	#[runtime::pallet_index(20)]
+	pub type Identity = pallet_identity;
+	#[runtime::pallet_index(21)]
+	pub type Scheduler = pallet_scheduler;
+	#[runtime::pallet_index(22)]
+	pub type Preimage = pallet_preimage;
+	#[runtime::pallet_index(23)]
+	pub type Multisig = pallet_multisig;
+	#[runtime::pallet_index(24)]
+	pub type NodeAuthorization = pallet_node_authorization;
+	#[runtime::pallet_index(25)]
+	pub type RuntimeUpgrade = pallet_runtime_upgrade;
+	#[runtime::pallet_index(26)]
+	pub type Identifier = identifier;
+	#[runtime::pallet_index(27)]
+	pub type NetworkMembership = pallet_network_membership;
+	#[runtime::pallet_index(28)]
+	pub type Did = pallet_did;
+	#[runtime::pallet_index(29)]
+	pub type Schema = pallet_schema;
+	#[runtime::pallet_index(30)]
+	pub type ChainSpace = pallet_chain_space;
+	#[runtime::pallet_index(31)]
+	pub type Statement = pallet_statement;
+	#[runtime::pallet_index(32)]
+	pub type DidName = pallet_did_name;
+	#[runtime::pallet_index(33)]
+	pub type NetworkScore = pallet_network_score;
+	#[runtime::pallet_index(34)]
+	pub type Asset = pallet_asset;
+	#[runtime::pallet_index(40)]
+	pub type Remark = pallet_remark;
+}
+// Scheduler: pallet_scheduler = 1,
+// Babe: pallet_babe = 2,
+// Timestamp: pallet_timestamp = 3,
+// Indices: pallet_indices = 4,
+// Balances: pallet_balances = 5,
+// AuthorityMembership: authority_membership = 6,
+// Authorship: pallet_authorship = 7,
+// Offences: pallet_offences = 8,
+// Session: pallet_session = 9,
+// Grandpa: pallet_grandpa = 10,
+// ImOnline: pallet_im_online = 11,
+// AuthorityDiscovery: pallet_authority_discovery = 12,
+// Preimage: pallet_preimage = 13,
+// Council: pallet_collective::<Instance1> = 14,
+// CouncilMembership: pallet_membership::<Instance1> = 15,
+// TechnicalCommittee: pallet_collective::<Instance2> = 16,
+// TechnicalMembership: pallet_membership::<Instance2> = 17,
+// NodeAuthorization: pallet_node_authorization = 18,
+// RuntimeUpgrade: pallet_runtime_upgrade = 19,
+// Utility: pallet_utility = 31,
+// Historical: pallet_session_historical = 33,
+// Multisig: pallet_multisig = 35,
+// Remark: pallet_remark = 37,
+// Identity: pallet_identity = 38,
+// Identifier: identifier = 39,
+// NetworkMembership: pallet_network_membership =101,
+// Did: pallet_did = 102,
+// Schema: pallet_schema = 103,
+// ChainSpace: pallet_chain_space = 104,
+// Statement: pallet_statement = 105,
+// DidName: pallet_did_name = 106,
+// NetworkScore: pallet_network_score = 108,
+// Asset: pallet_asset = 109,
+// Sudo: pallet_sudo = 255,
+// }
+// }
 
 #[rustfmt::skip]
 impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall {
@@ -1031,7 +1115,7 @@ sp_api::impl_runtime_apis! {
 			Executive::execute_block(block);
 		}
 
-		fn initialize_block(header: &<Block as BlockT>::Header) {
+		fn initialize_block(header: &<Block as BlockT>::Header) -> sp_runtime::ExtrinsicInclusionMode {
 			Executive::initialize_block(header)
 		}
 	}
