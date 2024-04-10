@@ -385,7 +385,7 @@ fn test_revoke_rating_id_already_exists() {
 	});
 }
 #[test]
-fn test_revoke_rating_id_already_exists() {
+fn test_revise_rating_id_already_exists() {
 	// Define test parameters
 	let creator = DID_00.clone();
 	let author = ACCOUNT_00.clone();
@@ -449,10 +449,10 @@ fn test_revoke_rating_id_already_exists() {
 
 		// Remove message_id and provider_did from entries
 		<MessageIdentifiers<Test>>::remove(message_id.clone(), creator.clone());
-		// Calling revoke_rating() method to set EntryTypeOf to Debit
+		//Calling revoke_rating() method to set the EntryTypeOf to Debit
 		assert_ok!(Score::revoke_rating(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			identifier.unwrap(),
+			identifier.clone(),
 			message_id.clone(),
 			entry_digest,
 			authorization_id.clone(),
