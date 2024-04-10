@@ -1,6 +1,6 @@
 [package]
 name = "cord-service-test"
-version = "0.9.1-dev"
+version = "0.9.2-dev"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
