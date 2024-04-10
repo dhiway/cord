@@ -551,15 +551,15 @@ mod tests {
 	use crate as pallet_membership;
 
 	use frame_support::{
-		assert_noop, assert_ok, assert_storage_noop, construct_runtime, derive_impl,
-		ord_parameter_types, parameter_types, traits::ConstU32,
+		assert_noop, assert_ok, assert_storage_noop, derive_impl, ord_parameter_types,
+		parameter_types, traits::ConstU32,
 	};
 	use frame_system::{pallet_prelude::BlockNumberFor, EnsureRoot, EnsureSignedBy};
 	use sp_runtime::{bounded_vec, traits::BadOrigin, BuildStorage};
 
 	type Block = frame_system::mocking::MockBlock<Test>;
 
-	construct_runtime!(
+	frame_support::construct_runtime!(
 		pub enum Test
 		{
 			System: frame_system,
@@ -573,7 +573,7 @@ mod tests {
 		pub static Prime: Option<u64> = None;
 	}
 
-	#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
+	#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 	impl frame_system::Config for Test {
 		type Block = Block;
 	}

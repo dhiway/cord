@@ -44,6 +44,7 @@ std = [
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"pallet-network-membership/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
