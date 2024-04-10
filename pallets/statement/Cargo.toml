@@ -14,17 +14,11 @@ workspace = true
 [[package.metadata.docs.rs]]
 targets = ['x86_64-unknown-linux-gnu']
 
-[build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-
 [dev-dependencies]
 sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", features = [
 	"std",
 ] }
 sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", features = [
-	"std",
-] }
-pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", features = [
 	"std",
 ] }
 cord-utilities = { package = "cord-utilities", path = "../../utilities", features = [
@@ -55,7 +49,6 @@ sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1
 sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
 sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
 sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
-pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
 
 [features]
 default = ['std']

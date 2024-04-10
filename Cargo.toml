@@ -44,7 +44,8 @@ thiserror = { version = "1.0.48" }
 
 [workspace.lints.rust]
 suspicious_double_ref_op = { level = "allow", priority = 2 }
-non_camel_case_types = { level = "allow", priority = 2 }
+# non_camel_case_types = { level = "allow", priority = 1 }
+non_camel_case_types = "allow"
 
 [workspace.lints.clippy]
 all = { level = "allow", priority = 0 }
@@ -80,6 +81,9 @@ opt-level = 3
 inherits = "release"
 lto = true
 codegen-units = 1
+
+[profile.dev]
+split-debuginfo = "unpacked"
 
 # make sure dev builds with backtrace do
 # not slow us down
