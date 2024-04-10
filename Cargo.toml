@@ -44,6 +44,7 @@ thiserror = { version = "1.0.48" }
 
 [workspace.lints.rust]
 suspicious_double_ref_op = { level = "allow", priority = 2 }
+non_camel_case_types = { level = "allow", priority = 2 }
 
 [workspace.lints.clippy]
 all = { level = "allow", priority = 0 }
@@ -70,7 +71,6 @@ derivable_impls = { level = "allow", priority = 2 }                  # false pos
 stable_sort_primitive = { level = "allow", priority = 2 }            # prefer stable sort
 extra-unused-type-parameters = { level = "allow", priority = 2 }     # stylistic
 default_constructed_unit_structs = { level = "allow", priority = 2 } # stylistic
-non_camel_case_types = { level = "allow", priority = 2 }             # stylistic
 
 [profile.release]
 panic = 'unwind'

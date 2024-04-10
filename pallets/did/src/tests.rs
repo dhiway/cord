@@ -219,7 +219,7 @@ fn check_duplicate_did_creation() {
 		assert_ok!(Did::create(
 			RuntimeOrigin::signed(ACCOUNT_00),
 			Box::new(details.clone()),
-			did::DidSignature::from(signature.clone()),
+			did::DidSignature::from(signature),
 		));
 		assert_noop!(
 			Did::create(
@@ -2232,7 +2232,7 @@ fn check_tx_block_number_too_high_error() {
 			Did::submit_did_call(
 				RuntimeOrigin::signed(caller.clone()),
 				Box::new(call_operation.operation.clone()),
-				did::DidSignature::from(signature.clone())
+				did::DidSignature::from(signature)
 			),
 			did::Error::<Test>::TransactionExpired
 		);
