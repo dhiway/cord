@@ -6,7 +6,6 @@ use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::sp_runtime::traits::Hash;
 use frame_system::RawOrigin;
-use identifier::{IdentifierType, Ss58Identifier};
 use pallet_chain_space::SpaceCodeOf;
 
 const SEED: u32 = 0;
@@ -14,18 +13,17 @@ const MAX_PAYLOAD_BYTE_LENGTH: u32 = 5 * 1024;
 
 /// Generates a statement ID from a statement digest.
 pub fn generate_statement_id<T: Config>(digest: &StatementDigestOf<T>) -> StatementIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Statement).unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 /// Generates a space ID from a digest.
 pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 /// Generates an authorization ID from a digest.
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
-		.unwrap()
+	identifier::Pallet::<T>::create_identifier(&(digest).encode()[..]).unwrap()
 }
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {

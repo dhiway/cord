@@ -31,10 +31,13 @@ use crate::chain_spec::{
 
 // use chain_spec::bootstrap::{cord_custom_config, ChainParams, ChainType};
 
+const DEFAULT_SS58_IDENTIFIER_PREFIX: u16 = 10029;
+
 #[derive(Debug, Deserialize)]
 pub struct ChainConfigParams {
 	pub chain_name: String,
 	pub chain_type: String,
+	pub ss58_identifier_format: u16,
 	pub authorities: Vec<Vec<String>>,
 	pub well_known_nodes: Vec<Vec<String>>,
 	pub network_members: Vec<Vec<String>>,
@@ -79,8 +82,11 @@ impl BootstrapChainCmd {
 			)),
 		};
 
-		let chain_type = chain_type?;
-
+		let ss58_identifier_format: u16 = if config.ss58_identifier_format != 0 {
+			config.ss58_identifier_format
+		} else {
+			DEFAULT_SS58_IDENTIFIER_PREFIX
+		};
 		let initial_members: Vec<String> =
 			config.network_members.iter().map(|net| net[1].clone()).collect();
 
@@ -118,9 +124,11 @@ impl BootstrapChainCmd {
 				.expect("No authorities provided; cannot set sudo_key")
 		});
 
+		let chain_type = chain_type?;
 		let chain_params = ChainParams {
 			chain_name,
 			chain_type,
+			ss58_identifier_format,
 			authorities: initial_authorities,
 			well_known_nodes: initial_well_known_nodes,
 			network_members: initial_members,

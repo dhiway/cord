@@ -48,7 +48,7 @@ pub mod pallet {
 	use cord_utilities::traits::CallSources;
 	use frame_support::{pallet_prelude::*, Twox64Concat};
 	use frame_system::pallet_prelude::*;
-	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
+	pub use identifier::{IdentifierTimeline, IdentifierType, Ss58Identifier};
 	use sp_runtime::{
 		traits::{Hash, Zero},
 		BoundedVec,
@@ -278,9 +278,8 @@ pub mod pallet {
 				&[&digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let identifier =
-				Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Asset)
-					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Assets<T>>::contains_key(&identifier), Error::<T>::AssetIdAlreadyExists);
 
@@ -347,11 +346,8 @@ pub mod pallet {
 				.concat()[..],
 			);
 
-			let instance_id = Ss58Identifier::create_identifier(
-				&(id_digest).encode()[..],
-				IdentifierType::AssetInstance,
-			)
-			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let instance_id = identifier::Pallet::<T>::create_identifier(&(id_digest).encode()[..])
+				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 

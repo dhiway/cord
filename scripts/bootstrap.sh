@@ -10,6 +10,8 @@ function usage() {
   echo "  -a, --num-authorities Number of authorities (validators)"
   echo "  -s, --SECRET          Secret key or seed for generating new accounts"
   echo "  -o, --output-directory Directory where output files will be saved (default is current directory)"
+  echo "  -p, --ss58prefix      Prefix for ss58 identifiers"
+  echo "  -c, --chain-name      Name of the Network"
   echo ""
   echo "Description:"
   echo "  This script generates a configuration file for the CORD Custom Chain, including"
@@ -20,6 +22,8 @@ function usage() {
   echo "  The generated configuration is written to 'config.toml' and account details to 'accounts.txt'."
 }
 # Defaults
+NETWORK_NAME="CORD Custom Chain"
+SS58_PREFIX=29
 NUM_MEMBERS=6
 NUM_NODES=5
 NUM_AUTHORITIES=3
@@ -27,13 +31,15 @@ NUM_AUTHORITIES=3
 SECRET="0xf32255f569d8b1a12086dfd194653a5377fafcb67345753987741ec5542920ce"
 OUTPUT_DIR="."
 
-while getopts "m:n:a:s:o:" flag; do
+while getopts "m:n:a:s:o:p:c:" flag; do
   case "${flag}" in
   m) NUM_MEMBERS=${OPTARG} ;;
   n) NUM_NODES=${OPTARG} ;;
   a) NUM_AUTHORITIES=${OPTARG} ;;
   s) SECRET=${OPTARG} ;;
   o) OUTPUT_DIR=${OPTARG} ;;
+  i) SS58_PREFIX=${OPTARG} ;;
+  c) NETWORK_NAME=${OPTARG} ;;
   *)
     usage
     exit
@@ -53,8 +59,9 @@ echo "
 # This configuration file defines the settings for the CORD Custom Chain.
 # Please review and customize the parameters as needed for your specific use case.
 " >>$CONFIG_FILE
-echo "chain_name = \"CORD Custom Chain\"" >>$CONFIG_FILE
+echo "chain_name = \"${NETWORK_NAME}\"" >>$CONFIG_FILE
 echo "chain_type = \"local\"" >>$CONFIG_FILE
+echo "ss58IdentifierFormat = ${SS58_PREFIX}" >>$CONFIG_FILE
 echo "" >>$CONFIG_FILE
 
 # Initialize Accounts files
