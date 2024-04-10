@@ -448,13 +448,16 @@ fn test_revise_rating_id_already_exists() {
 		// Remove message_id and provider_did from entries
 		<MessageIdentifiers<Test>>::remove(message_id.clone(), creator.clone());
 		//Calling revoke_rating() method to set the EntryTypeOf to Debit
-		revoke_rating(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			identifier.clone(),
-			message_id.clone(),
-			entry_digest,
-			authorization_id.clone(),
-		)?;
+		assert_err!(
+			Score::revoke_rating(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				identifier.unwrap(),
+				message_id.clone(),
+				entry_digest,
+				authorization_id.clone(),
+			),
+			Error::<Test>::RatingIdentifierAlreadyAdded
+		);
 
 		assert_err!(
 			Score::revise_rating(
