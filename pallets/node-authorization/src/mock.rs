@@ -98,6 +98,7 @@ pub const TEST_NODE_4: &str = "12D3KooWFMNXNsQtDX5CS9Fw25WcH8JRwQALmKm1XJ5dKEZge
 pub const TEST_NODE_5: &str = "12D3KooWCzvmH8ehWaPttWVzj1ERB1FvMqVcqfDRvwLqzJDAqBih";
 pub const TEST_NODE_6: &str = "12D3KooW9tw9VUZkysjCwBpJo8ArH9TsgUWZhFqqUtii6VfTCvL6";
 pub const TEST_NODE_LEN: &str = "12D3KooWCzvmH8ehWaPttWVzj1ERB1FvMqVcqfDRvwLqzJDAqBih8123w";
+pub const TEST_NODE_7: &str = "13C3KooWCzVmH8ehW/PttWVzj1ERB1Fv0qVcqf1RvwLQzJDAqBih";
 
 pub fn test_node(input: &str) -> NodeId {
 	input.as_bytes().to_vec()

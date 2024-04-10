@@ -88,8 +88,13 @@ pub mod pallet {
 	pub type VCAssetEntryOf<T> =
 		VCAssetEntry<AssetStatusOf, AssetCreatorOf<T>, BlockNumberFor<T>, EntryHashOf<T>>;
 
-	pub type VCAssetDistributionEntryOf<T> =
-		VCAssetDistributionEntry<AssetStatusOf, AssetCreatorOf<T>, BlockNumberFor<T>, AssetIdOf>;
+	pub type VCAssetDistributionEntryOf<T> = VCAssetDistributionEntry<
+		AssetStatusOf,
+		AssetCreatorOf<T>,
+		EntryHashOf<T>,
+		BlockNumberFor<T>,
+		AssetIdOf,
+	>;
 
 	pub type AssetDistributionEntryOf<T> = AssetDistributionEntry<
 		AssetDescriptionOf<T>,
@@ -598,6 +603,7 @@ pub mod pallet {
 				VCAssetDistributionEntryOf::<T> {
 					asset_qty: issuance_qty,
 					asset_instance_parent: entry.asset_id.clone(),
+					digest,
 					asset_instance_status: AssetStatusOf::ACTIVE,
 					asset_instance_issuer: issuer,
 					asset_instance_owner: entry.asset_owner,
@@ -622,7 +628,7 @@ pub mod pallet {
 		pub fn vc_transfer(
 			origin: OriginFor<T>,
 			entry: AssetTransferEntryOf<T>,
-			_digest: EntryHashOf<T>,
+			digest: EntryHashOf<T>,
 		) -> DispatchResult {
 			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 
@@ -650,6 +656,7 @@ pub mod pallet {
 				&entry.asset_instance_id,
 				VCAssetDistributionEntryOf::<T> {
 					asset_instance_owner: entry.new_asset_owner.clone(),
+					digest,
 					created_at: block_number,
 					..instance
 				},
