@@ -317,11 +317,10 @@ fn test_revoke_rating_id_already_exists() {
 	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
-		entity_uid,
-		provider_uid,
+		entity_id,
+		provider_id,
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
-		entity_type: EntityTypeOf::Logistic,
 		rating_type: RatingTypeOf::Overall,
 		provider_did: creator.clone(),
 	};
@@ -393,11 +392,10 @@ fn test_revise_rating_id_already_exists() {
 	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
-		entity_uid,
-		provider_uid,
+		entity_id,
+		provider_id,
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
-		entity_type: EntityTypeOf::Logistic,
 		rating_type: RatingTypeOf::Overall,
 		provider_did: creator.clone(),
 	};
@@ -418,7 +416,7 @@ fn test_revise_rating_id_already_exists() {
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&entry_digest.encode()[..],
-			&entry.entity_uid.encode()[..],
+			&entry.entity_id.encode()[..],
 			&message_id.encode()[..],
 			&space_id.encode()[..],
 			&creator.clone().encode()[..],
