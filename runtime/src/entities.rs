@@ -16,29 +16,31 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! A list of the different weight modules for our runtime.
+use frame_support::pallet_prelude::*;
+use scale_info::TypeInfo;
 
-pub mod frame_system;
-pub mod pallet_asset;
-pub mod pallet_babe;
-pub mod pallet_balances;
-pub mod pallet_chain_space;
-pub mod pallet_collective;
-pub mod pallet_did;
-pub mod pallet_did_name;
-pub mod pallet_identity;
-pub mod pallet_im_online;
-pub mod pallet_indices;
-pub mod pallet_membership;
-pub mod pallet_multisig;
-pub mod pallet_network_membership;
-pub mod pallet_network_score;
-pub mod pallet_preimage;
-pub mod pallet_remark;
-pub mod pallet_scheduler;
-pub mod pallet_schema;
-pub mod pallet_session;
-pub mod pallet_statement;
-pub mod pallet_sudo;
-pub mod pallet_timestamp;
-pub mod pallet_utility;
+#[derive(
+	Encode,
+	Decode,
+	Default,
+	Clone,
+	Copy,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	RuntimeDebug,
+	TypeInfo,
+	serde::Deserialize,
+	serde::Serialize,
+)]
+pub struct ValidatorFullIdentification;
+
+pub struct GetCurrentEpochIndex<Runtime>(core::marker::PhantomData<Runtime>);
+impl<Runtime: pallet_babe::Config> frame_support::pallet_prelude::Get<u64>
+	for GetCurrentEpochIndex<Runtime>
+{
+	fn get() -> u64 {
+		pallet_babe::Pallet::<Runtime>::epoch_index()
+	}
+}

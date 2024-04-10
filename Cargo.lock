@@ -1737,7 +1737,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-schema",
  "pallet-session",
- "pallet-staking",
+ "pallet-session-benchmarking",
  "pallet-statement",
  "pallet-sudo",
  "pallet-timestamp",
@@ -1748,6 +1748,7 @@ dependencies = [
  "rusty-hook",
  "scale-info",
  "separator",
+ "serde",
  "serde_json",
  "sp-api",
  "sp-authority-discovery",
@@ -3094,34 +3095,6 @@ dependencies = [
  "sp-wasm-interface 20.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.8.0)",
  "thiserror",
  "thousands",
-]
-
-[[package]]
-name = "frame-election-provider-solution-type"
-version = "13.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.8.0#ec7817e5adc2f3a91dd94b0465dd61b4c1b07ab7"
-dependencies = [
- "proc-macro-crate 3.1.0",
- "proc-macro2",
- "quote",
- "syn 2.0.52",
-]
-
-[[package]]
-name = "frame-election-provider-support"
-version = "28.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.8.0#ec7817e5adc2f3a91dd94b0465dd61b4c1b07ab7"
-dependencies = [
- "frame-election-provider-solution-type",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-npos-elections",
- "sp-runtime",
- "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.8.0)",
 ]
 
 [[package]]
@@ -6291,25 +6264,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-staking"
-version = "28.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.8.0#ec7817e5adc2f3a91dd94b0465dd61b4c1b07ab7"
+name = "pallet-session-benchmarking"
+version = "0.9.1"
 dependencies = [
  "frame-benchmarking",
- "frame-election-provider-support",
- "frame-support",
  "frame-system",
- "log",
- "pallet-authorship",
  "pallet-session",
  "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-application-crypto",
- "sp-io",
  "sp-runtime",
- "sp-staking",
  "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.8.0)",
+ "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -9782,20 +9746,6 @@ dependencies = [
  "scale-info",
  "sp-api",
  "sp-application-crypto",
- "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.8.0)",
-]
-
-[[package]]
-name = "sp-npos-elections"
-version = "26.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.8.0#ec7817e5adc2f3a91dd94b0465dd61b4c1b07ab7"
-dependencies = [
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-arithmetic",
- "sp-core",
- "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.8.0)",
 ]
 

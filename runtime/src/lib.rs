@@ -22,6 +22,7 @@
 
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
+pub mod entities;
 
 use cord_primitives::{
 	prod_or_fast, AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Moment, Nonce,
@@ -54,12 +55,11 @@ use frame_system::{
 #[cfg(feature = "runtime-benchmarks")]
 use frame_system::EnsureSigned;
 
-use sp_consensus_grandpa::AuthorityId as GrandpaId;
-
 use pallet_identity::legacy::IdentityInfo;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::{
@@ -83,8 +83,6 @@ use static_assertions::const_assert;
 pub use frame_system::Call as SystemCall;
 #[cfg(any(feature = "std", test))]
 pub use pallet_balances::Call as BalancesCall;
-#[cfg(any(feature = "std", test))]
-pub use pallet_staking::StakerStatus;
 #[cfg(any(feature = "std", test))]
 pub use pallet_sudo::Call as SudoCall;
 #[cfg(any(feature = "std", test))]
@@ -308,7 +306,7 @@ impl pallet_babe::Config for Runtime {
 	// session module is the trigger
 	type EpochChangeTrigger = pallet_babe::ExternalTrigger;
 	type DisabledValidators = Session;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_babe::WeightInfo<Runtime>;
 	type MaxAuthorities = MaxAuthorities;
 	type MaxNominators = ConstU32<0>;
 	type KeyOwnerProof =
@@ -380,19 +378,10 @@ impl_opaque_keys! {
 	}
 }
 
-/// Special `ValidatorIdOf` implementation that is just returning the input as
-/// result.
-pub struct ValidatorIdOf;
-impl sp_runtime::traits::Convert<AccountId, Option<AccountId>> for ValidatorIdOf {
-	fn convert(a: AccountId) -> Option<AccountId> {
-		Some(a)
-	}
-}
-
 impl pallet_session::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ValidatorId = AccountId;
-	type ValidatorIdOf = ValidatorIdOf;
+	type ValidatorIdOf = sp_runtime::traits::ConvertInto;
 	type ShouldEndSession = Babe;
 	type NextSessionRotation = Babe;
 	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, AuthorityMembership>;
@@ -401,16 +390,18 @@ impl pallet_session::Config for Runtime {
 	type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
 }
 
-pub struct FullIdentificationOf;
-impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOf {
-	fn convert(_: AccountId) -> Option<()> {
-		Some(Default::default())
+pub struct FullIdentificationOfImpl;
+impl sp_runtime::traits::Convert<AccountId, Option<entities::ValidatorFullIdentification>>
+	for FullIdentificationOfImpl
+{
+	fn convert(_: AccountId) -> Option<entities::ValidatorFullIdentification> {
+		Some(entities::ValidatorFullIdentification)
 	}
 }
 
 impl pallet_session::historical::Config for Runtime {
-	type FullIdentification = ();
-	type FullIdentificationOf = FullIdentificationOf;
+	type FullIdentification = entities::ValidatorFullIdentification;
+	type FullIdentificationOf = FullIdentificationOfImpl;
 }
 
 parameter_types! {
@@ -1007,6 +998,7 @@ mod benches {
 		[pallet_collective, Council]
 		[pallet_grandpa, Grandpa]
 		[pallet_identity, Identity]
+		[pallet_session, SessionBench::<Runtime>]
 		[pallet_im_online, ImOnline]
 		[pallet_indices, Indices]
 		[pallet_membership, TechnicalMembership]
@@ -1289,6 +1281,7 @@ sp_api::impl_runtime_apis! {
 			use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 
+			use pallet_session_benchmarking::Pallet as SessionBench;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use baseline::Pallet as BaselineBench;
 
@@ -1309,9 +1302,11 @@ sp_api::impl_runtime_apis! {
 			use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch };
 			use sp_storage::TrackedStorageKey;
 
+			use pallet_session_benchmarking::Pallet as SessionBench;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use baseline::Pallet as BaselineBench;
 
+			impl pallet_session_benchmarking::Config for Runtime {}
 			impl frame_system_benchmarking::Config for Runtime {}
 			impl baseline::Config for Runtime {}
 

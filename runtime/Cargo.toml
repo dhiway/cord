@@ -26,6 +26,7 @@ scale-info = { version = "2.10.0", default-features = false, features = [
 	"serde",
 ] }
 log = { workspace = true }
+serde = { version = "1.0.197", default-features = false }
 serde_json = { features = ["alloc", "arbitrary_precision"], workspace = true }
 
 static_assertions = "1.1.0"
@@ -55,6 +56,7 @@ pallet-identity = { default-features = false, path = '../pallets/identity' }
 pallet-offences = { default-features = false, path = '../pallets/offences' }
 pallet-node-authorization = { default-features = false, path = "../pallets/node-authorization" }
 pallet-network-score = { default-features = false, path = '../pallets/network-score' }
+pallet-session-benchmarking = { default-features = false, path = '../pallets/session-benchmarking' }
 pallet-asset = { default-features = false, path = '../pallets/asset' }
 
 # Internal runtime API (with default disabled)
@@ -94,7 +96,7 @@ sp-transaction-pool = { git = "https://github.com/dhiway/substrate-sdk", default
 sp-block-builder = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
 sp-genesis-builder = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
 
-pallet-staking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
+# pallet-staking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
 pallet-authority-discovery = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
 pallet-authorship = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
 pallet-babe = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
@@ -126,6 +128,7 @@ frame-system-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", d
 frame-try-runtime = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, optional = true, branch = "release-v1.8.0" }
 
 [dev-dependencies]
+sp-staking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
 hex-literal = "0.4.1"
 tiny-keccak = { version = "2.0.2", features = ["keccak"] }
 keyring = { package = "sp-keyring", git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
@@ -147,6 +150,7 @@ std = [
 	"cord-utilities/std",
 	"codec/std",
 	"scale-info/std",
+	"serde/std",
 	"serde_json/std",
 	"identifier/std",
 	"sp-inherents/std",
@@ -172,9 +176,9 @@ std = [
 	"pallet-offences/std",
 	"pallet-preimage/std",
 	"pallet-scheduler/std",
+	"pallet-session-benchmarking/std",
 	"pallet-session/std",
 	"pallet-sudo/std",
-	"pallet-staking/std",
 	"pallet-timestamp/std",
 	"pallet-utility/std",
 	"pallet-babe/std",
@@ -208,6 +212,7 @@ std = [
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
+	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
@@ -222,6 +227,8 @@ runtime-benchmarks = [
 	"pallet-offences/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
+	"pallet-session-benchmarking/runtime-benchmarks",
+	"pallet-session/try-runtime",
 	"pallet-remark/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
@@ -234,15 +241,16 @@ runtime-benchmarks = [
 	"pallet-network-membership/runtime-benchmarks",
 	"hex-literal",
 	"pallet-sudo/runtime-benchmarks",
-	"frame-system-benchmarking/runtime-benchmarks",
 	"pallet-network-score/runtime-benchmarks",
 	"pallet-asset/runtime-benchmarks",
+	"sp-staking/runtime-benchmarks",
 ]
 
 try-runtime = [
 	"frame-executive/try-runtime",
 	"frame-try-runtime",
 	"frame-system/try-runtime",
+	"frame-support/try-runtime",
 	"pallet-authority-discovery/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
@@ -253,17 +261,28 @@ try-runtime = [
 	"pallet-indices/try-runtime",
 	"pallet-membership/try-runtime",
 	"pallet-multisig/try-runtime",
+	"pallet-offences/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-scheduler/try-runtime",
+	"pallet-session-benchmarking/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-babe/try-runtime",
 	"pallet-schema/try-runtime",
+	"pallet-chain-space/try-runtime",
 	"pallet-statement/try-runtime",
 	"pallet-did/try-runtime",
+	"pallet-did-name/try-runtime",
 	"pallet-network-score/try-runtime",
+	"pallet-asset/try-runtime",
+	"pallet-node-authorization/try-runtime",
+	"pallet-network-membership/try-runtime",
+	"pallet-runtime-upgrade/try-runtime",
+	"pallet-remark/try-runtime",
+	"authority-membership/try-runtime",
+	"identifier/try-runtime",
 ]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
