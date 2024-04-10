@@ -451,7 +451,7 @@ fn test_revise_rating_id_already_exists() {
 		assert_err!(
 			Score::revoke_rating(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
-				identifier,
+				identifier.clone(),
 				message_id.clone(),
 				entry_digest,
 				authorization_id.clone(),
