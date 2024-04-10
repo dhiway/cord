@@ -53,7 +53,7 @@ impl From<UintAuthorityId> for MockSessionKeys {
 }
 
 // Configure a mock runtime to test the pallet.
-construct_runtime!(
+frame_support::construct_runtime!(
 	pub enum Test {
 		System: frame_system,
 		Session: pallet_session,
@@ -150,9 +150,18 @@ impl pallet_session::historical::Config for Test {
 }
 
 pub struct TestIsNetworkMember;
+#[cfg(not(feature = "runtime-benchmarks"))]
 impl IsMember<u64> for TestIsNetworkMember {
 	fn is_member(member_id: &u64) -> bool {
 		member_id % 3 == 0
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl IsMember<<Test as frame_system::Config>::AccountId> for TestIsNetworkMember {
+	fn is_member(_account_id: &<Test as frame_system::Config>::AccountId) -> bool {
+		// For benchmarking, assume all generated accounts are members
+		true
 	}
 }
 

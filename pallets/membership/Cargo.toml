@@ -23,15 +23,12 @@ codec = { package = "parity-scale-codec", version = "3.6.1", default-features = 
 scale-info = { version = "2.11.1", default-features = false, features = [
 	"derive",
 ] }
-network-membership = { package = "network-membership", path = "../../primitives/network-membership", default-features = false }
 pallet-network-membership = { package = "pallet-network-membership", path = "../../pallets/network-membership", default-features = false }
-log = { version = "0.4.17", default-features = false }
 
 # Substrate dependencies
 frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
 frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
 frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
 sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
 sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
 sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
@@ -40,17 +37,13 @@ sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1
 default = ["std"]
 std = [
 	"codec/std",
-	"network-membership/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
-	"log/std",
 	"scale-info/std",
-	"sp-core/std",
 	"sp-io/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"pallet-network-membership/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

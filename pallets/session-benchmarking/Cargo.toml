@@ -11,9 +11,6 @@ version.workspace = true
 [lints]
 workspace = true
 
-[build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
