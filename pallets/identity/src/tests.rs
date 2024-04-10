@@ -28,12 +28,8 @@ use crate::{
 
 use codec::{Decode, Encode};
 use frame_support::{
-	assert_noop,
-	assert_ok,
-	derive_impl,
-	parameter_types,
+	assert_noop, assert_ok, derive_impl, parameter_types,
 	traits::{ConstU32, ConstU64, Get, OnFinalize, OnInitialize},
-	// BoundedVec,
 };
 use frame_system::EnsureRoot;
 use sp_core::H256;
@@ -58,7 +54,7 @@ frame_support::construct_runtime!(
 	}
 );
 
-#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;

@@ -21,16 +21,13 @@
 use crate as pallet_did;
 use codec::{Decode, Encode};
 use cord_utilities::mock::*;
-use frame_support::{
-	construct_runtime, derive_impl, parameter_types,
-	traits::{ConstU32, ConstU64},
-};
+use frame_support::{derive_impl, parameter_types};
 use frame_system::EnsureRoot;
 use scale_info::TypeInfo;
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{
 	testing::H256,
-	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, Verify},
+	traits::{IdentifyAccount, IdentityLookup, Verify},
 	BuildStorage, MultiSignature, MultiSigner,
 };
 
@@ -50,13 +47,12 @@ use crate::{
 use crate::{DidRawOrigin, EnsureDidOrigin};
 
 pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
-pub(crate) type Hash = sp_core::H256;
 pub(crate) type Signature = MultiSignature;
 pub(crate) type AccountPublic = <Signature as Verify>::Signer;
 pub(crate) type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
 pub(crate) type DidIdentifier = AccountId;
 
-construct_runtime!(
+frame_support::construct_runtime!(
 	pub enum Test
 	{
 		Did: pallet_did,
@@ -72,31 +68,14 @@ parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 }
 
-#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
-	type BaseCallFilter = frame_support::traits::Everything;
-	type BlockWeights = ();
-	type BlockLength = ();
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	type Block = Block;
-	type Nonce = u64;
-	type Hash = Hash;
-	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
-	type RuntimeEvent = RuntimeEvent;
-	type BlockHashCount = ConstU64<250>;
-	type DbWeight = ();
-	type Version = ();
-	type PalletInfo = PalletInfo;
-	type AccountData = pallet_balances::AccountData<u128>;
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
-	type SystemWeightInfo = ();
 	type SS58Prefix = SS58Prefix;
-	type OnSetCode = ();
-	type MaxConsumers = ConstU32<2>;
 }
 
 parameter_types! {
