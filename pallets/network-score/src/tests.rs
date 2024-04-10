@@ -314,8 +314,8 @@ fn test_revoke_rating_id_already_exists() {
 	let creator = DID_00.clone();
 	let author = ACCOUNT_00.clone();
 	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
+	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
 		entity_id,
 		provider_id,
@@ -342,7 +342,7 @@ fn test_revoke_rating_id_already_exists() {
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&entry_digest.encode()[..],
-			&entry.entity_uid.encode()[..],
+			&entry.entity_id.encode()[..],
 			&message_id.encode()[..],
 			&space_id.encode()[..],
 			&creator.clone().encode()[..],
@@ -389,8 +389,8 @@ fn test_revise_rating_id_already_exists() {
 	let creator = DID_00.clone();
 	let author = ACCOUNT_00.clone();
 	let message_id = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-	let entity_uid = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-	let provider_uid = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
+	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
 		entity_id,
 		provider_id,
