@@ -21,13 +21,8 @@ use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_benchmarking::__private::storage::types::OptionQuery;
-use frame_support::{
-	assert_err, assert_ok,
-	storage::{StorageMap, StorageValue},
-	traits::StorageInstance,
-	Blake2_128Concat, BoundedVec,
-};
-use frame_system::{offchain::StorageKind, RawOrigin};
+use frame_support::{assert_err, assert_ok, storage::StorageMap, Blake2_128Concat, BoundedVec};
+use frame_system::RawOrigin;
 use pallet_chain_space::SpaceCodeOf;
 use sp_core::offchain::StorageKind;
 use sp_runtime::{traits::Hash, AccountId32};
@@ -436,10 +431,7 @@ fn test_revise_rating_id_already_exists() {
 			.unwrap();
 
 	// Create a mock storage instance for RatingEntries
-	let mut mock_storage =
-		StorageMap::<Blake2_128Concat, RatingEntryIdOf, RatingEntryOf<Test>, OptionQuery>::new(
-			StorageKind::Global,
-		);
+	let mut mock_storage = StorageMap::<RatingEntryIdOf, RatingEntryOf<Test>>::new();
 
 	// Insert the identifier with EntryTypeOf::Debit into the mock storage
 	mock_storage.insert(&identifier, EntryTypeOf::Debit);
