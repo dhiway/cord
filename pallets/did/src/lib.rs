@@ -277,14 +277,12 @@ pub mod pallet {
 	///
 	/// It maps from a DID identifier to the DID details.
 	#[pallet::storage]
-	#[pallet::getter(fn get_did)]
 	pub type Did<T> = StorageMap<_, Blake2_128Concat, DidIdentifierOf<T>, DidDetails<T>>;
 
 	/// Service endpoints associated with DIDs.
 	///
 	/// It maps from (DID identifier, service ID) to the service details.
 	#[pallet::storage]
-	#[pallet::getter(fn get_service_endpoints)]
 	pub type ServiceEndpoints<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
@@ -307,7 +305,6 @@ pub mod pallet {
 	/// It maps from a DID identifier to a unit tuple, for the sake of tracking
 	/// DID identifiers.
 	#[pallet::storage]
-	#[pallet::getter(fn get_deleted_did)]
 	pub(crate) type DidBlacklist<T> = StorageMap<_, Blake2_128Concat, DidIdentifierOf<T>, ()>;
 
 	#[pallet::event]

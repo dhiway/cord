@@ -86,7 +86,6 @@ pub mod pallet {
 	/// The primary structure that holds all offence records keyed by report
 	/// identifiers.
 	#[pallet::storage]
-	#[pallet::getter(fn reports)]
 	pub type Reports<T: Config> = StorageMap<
 		_,
 		Twox64Concat,

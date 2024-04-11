@@ -105,22 +105,18 @@ pub mod pallet {
 
 	/// list incoming authorities
 	#[pallet::storage]
-	#[pallet::getter(fn incoming)]
 	pub type IncomingAuthorities<T: Config> = StorageValue<_, Vec<T::ValidatorId>, ValueQuery>;
 
 	/// list outgoing authorities
 	#[pallet::storage]
-	#[pallet::getter(fn outgoing)]
 	pub type OutgoingAuthorities<T: Config> = StorageValue<_, Vec<T::ValidatorId>, ValueQuery>;
 
 	/// maps member id to member data
 	#[pallet::storage]
-	#[pallet::getter(fn member)]
 	pub type Members<T: Config> = StorageValue<_, Vec<T::ValidatorId>, ValueQuery>;
 
 	// Blacklist.
 	#[pallet::storage]
-	#[pallet::getter(fn blacklist)]
 	pub type BlackList<T: Config> = StorageValue<_, Vec<T::ValidatorId>, ValueQuery>;
 
 	#[pallet::genesis_config]

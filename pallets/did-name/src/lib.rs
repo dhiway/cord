@@ -67,19 +67,16 @@ pub mod pallet {
 
 	/// Map of name -> ownership details.
 	#[pallet::storage]
-	#[pallet::getter(fn owner)]
 	pub type Owner<T> = StorageMap<_, Blake2_128Concat, DidNameOf<T>, DidNameOwnershipOf<T>>;
 
 	/// Map of owner -> name.
 	#[pallet::storage]
-	#[pallet::getter(fn names)]
 	pub type Names<T> = StorageMap<_, Blake2_128Concat, DidNameOwnerOf<T>, DidNameOf<T>>;
 
 	/// Map of name -> ().
 	///
 	/// If a name key is present, the name is currently banned.
 	#[pallet::storage]
-	#[pallet::getter(fn is_banned)]
 	pub type Banned<T> = StorageMap<_, Blake2_128Concat, DidNameOf<T>, ()>;
 
 	#[pallet::config]

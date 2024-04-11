@@ -140,18 +140,15 @@ pub mod pallet {
 
 	/// asset entry identifiers with details stored on chain.
 	#[pallet::storage]
-	#[pallet::getter(fn assets)]
 	pub type Assets<T> = StorageMap<_, Blake2_128Concat, AssetIdOf, AssetEntryOf<T>, OptionQuery>;
 
 	/// asset vc entry idenitfiers with details stored on chain.
 	#[pallet::storage]
-	#[pallet::getter(fn vc_assets)]
 	pub type VCAssets<T> =
 		StorageMap<_, Blake2_128Concat, AssetIdOf, VCAssetEntryOf<T>, OptionQuery>;
 
 	/// asset entry identifiers with details stored on chain.
 	#[pallet::storage]
-	#[pallet::getter(fn distribution)]
 	pub type Distribution<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
@@ -162,7 +159,6 @@ pub mod pallet {
 
 	/// asset entry identifiers with  details stored on chain.
 	#[pallet::storage]
-	#[pallet::getter(fn issued)]
 	pub type Issuance<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
@@ -175,7 +171,6 @@ pub mod pallet {
 
 	/// asset vc entry identifiers with details stored on chain.
 	#[pallet::storage]
-	#[pallet::getter(fn vc_issued)]
 	pub type VCIssuance<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
@@ -187,7 +182,6 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn asset_lookup)]
 	pub type AssetLookup<T> =
 		StorageMap<_, Blake2_128Concat, EntryHashOf<T>, AssetIdOf, OptionQuery>;
 

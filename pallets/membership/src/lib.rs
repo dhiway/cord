@@ -99,13 +99,11 @@ pub mod pallet {
 
 	/// The current membership, stored as an ordered Vec.
 	#[pallet::storage]
-	#[pallet::getter(fn members)]
 	pub type Members<T: Config<I>, I: 'static = ()> =
 		StorageValue<_, BoundedVec<T::AccountId, T::MaxMembers>, ValueQuery>;
 
 	/// The current prime member, if one exists.
 	#[pallet::storage]
-	#[pallet::getter(fn prime)]
 	pub type Prime<T: Config<I>, I: 'static = ()> = StorageValue<_, T::AccountId, OptionQuery>;
 
 	#[pallet::genesis_config]
@@ -333,7 +331,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			T::PrimeOrigin::ensure_origin(origin)?;
 			let who = T::Lookup::lookup(who)?;
-			let members = Self::members();
+			let members = <Members<T, I>>::get();
 			members.binary_search(&who).ok().ok_or(Error::<T, I>::NotMember)?;
 			Prime::<T, I>::put(&who);
 			T::MembershipChanged::set_prime(Some(who));
@@ -367,13 +365,13 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
 
 impl<T: Config<I>, I: 'static> Contains<T::AccountId> for Pallet<T, I> {
 	fn contains(t: &T::AccountId) -> bool {
-		Self::members().binary_search(t).is_ok()
+		<Members<T, I>>::get().binary_search(t).is_ok()
 	}
 }
 
 impl<T: Config<I>, I: 'static> SortedMembers<T::AccountId> for Pallet<T, I> {
 	fn sorted_members() -> Vec<T::AccountId> {
-		Self::members().to_vec()
+		<Members<T, I>>::get().to_vec()
 	}
 
 	fn count() -> usize {
