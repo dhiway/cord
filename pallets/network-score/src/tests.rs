@@ -15,13 +15,12 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-#[allow(unused_imports)]
+
 use super::*;
 use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
-use frame_benchmarking::__private::storage::types::OptionQuery;
-use frame_support::{assert_err, assert_ok, storage::StorageMap, Blake2_128Concat, BoundedVec};
+use frame_support::{assert_err, assert_ok, storage::StorageMap, BoundedVec};
 use frame_system::RawOrigin;
 use pallet_chain_space::SpaceCodeOf;
 use sp_core::offchain::StorageKind;
@@ -431,7 +430,7 @@ fn test_revise_rating_id_already_exists() {
 			.unwrap();
 
 	// Create a mock storage instance for RatingEntries
-	let mut mock_storage = StorageMap::<RatingEntryIdOf, RatingEntryOf<Test>>::new();
+	let mut mock_storage = StorageMap::<RatingEntryIdOf, RatingEntryOf<Test>>::get_or_default();
 
 	// Insert the identifier with EntryTypeOf::Debit into the mock storage
 	mock_storage.insert(&identifier, EntryTypeOf::Debit);
