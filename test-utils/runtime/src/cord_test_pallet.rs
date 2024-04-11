@@ -53,7 +53,6 @@ pub mod pallet {
 	pub trait Config: frame_system::Config {}
 
 	#[pallet::storage]
-	#[pallet::getter(fn authorities)]
 	pub type Authorities<T> = StorageValue<_, Vec<Public>, ValueQuery>;
 
 	#[pallet::genesis_config]

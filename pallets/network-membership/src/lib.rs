@@ -81,7 +81,6 @@ pub mod pallet {
 
 	// maps author identity with expire block
 	#[pallet::storage]
-	#[pallet::getter(fn members)]
 	pub(super) type Members<T: Config> = CountedStorageMap<
 		_,
 		Blake2_128Concat,

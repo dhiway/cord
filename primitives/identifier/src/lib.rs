@@ -77,7 +77,6 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
 	#[pallet::storage]
-	#[pallet::getter(fn identifiers)]
 	pub type Identifiers<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,

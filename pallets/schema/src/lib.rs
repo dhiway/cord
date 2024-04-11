@@ -120,7 +120,6 @@ pub mod pallet {
 	/// schemas stored on chain.
 	/// It maps from a schema identifier to its details.
 	#[pallet::storage]
-	#[pallet::getter(fn schemas)]
 	pub type Schemas<T> = StorageMap<_, Blake2_128Concat, SchemaIdOf, SchemaEntryOf<T>>;
 
 	#[pallet::event]

@@ -162,13 +162,11 @@ pub mod pallet {
 	/// Space information stored on chain.
 	/// It maps from an identifier to its details.
 	#[pallet::storage]
-	#[pallet::getter(fn spaces)]
 	pub type Spaces<T> = StorageMap<_, Blake2_128Concat, SpaceIdOf, SpaceDetailsOf<T>, OptionQuery>;
 
 	/// Space authorizations stored on-chain.
 	/// It maps from an identifier to delegates.
 	#[pallet::storage]
-	#[pallet::getter(fn authorizations)]
 	pub type Authorizations<T> =
 		StorageMap<_, Blake2_128Concat, AuthorizationIdOf, SpaceAuthorizationOf<T>, OptionQuery>;
 
@@ -176,7 +174,6 @@ pub mod pallet {
 	/// It maps from an identifier to a  bounded vec of delegates and
 	/// permissions.
 	#[pallet::storage]
-	#[pallet::getter(fn delegates)]
 	pub(super) type Delegates<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
