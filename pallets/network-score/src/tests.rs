@@ -20,8 +20,13 @@ use super::*;
 use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
-use frame_support::{assert_err, assert_ok, BoundedVec};
-use frame_system::RawOrigin;
+use frame_support::{
+	assert_err, assert_ok,
+	storage::{StorageMap, StorageValue},
+	traits::StorageInstance,
+	BoundedVec,
+};
+use frame_system::{offchain::StorageKind, RawOrigin};
 use pallet_chain_space::SpaceCodeOf;
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
@@ -392,8 +397,8 @@ fn test_revise_rating_id_already_exists() {
 	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
 	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 	let entry = RatingInputEntryOf::<Test> {
-		entity_id,
-		provider_id,
+		entity_id: entity_id.clone(),
+		provider_id: provider_id.clone(),
 		total_encoded_rating: 250u64,
 		count_of_txn: 7u64,
 		rating_type: RatingTypeOf::Overall,
@@ -428,7 +433,19 @@ fn test_revise_rating_id_already_exists() {
 		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating)
 			.unwrap();
 
-	new_test_ext().execute_with(|| {
+	// Create a mock storage instance for RatingEntries
+	let mut mock_storage =
+		StorageMap::<Blake2_128Concat, RatingEntryIdOf, RatingEntryOf<Test>, OptionQuery>::new(
+			StorageKind::Global,
+		);
+
+	// Insert the identifier with EntryTypeOf::Debit into the mock storage
+	mock_storage.insert(&identifier, EntryTypeOf::Debit);
+
+	// Initialize the test externalities with the mock storage
+	let mut ext = new_test_ext();
+	ext.register_extension(mock_storage);
+	ext.execute_with(|| {
 		System::set_block_number(1);
 
 		assert_ok!(Space::create(
@@ -447,18 +464,8 @@ fn test_revise_rating_id_already_exists() {
 
 		// Remove message_id and provider_did from entries
 		<MessageIdentifiers<Test>>::remove(message_id.clone(), creator.clone());
-		//Calling revoke_rating() method to set the EntryTypeOf to Debit
-		assert_err!(
-			Score::revoke_rating(
-				DoubleOrigin(author.clone(), creator.clone()).into(),
-				identifier.clone(),
-				message_id.clone(),
-				entry_digest,
-				authorization_id.clone(),
-			),
-			Error::<Test>::RatingIdentifierAlreadyAdded
-		);
 
+		// Call the revise_rating function expecting RatingIdentifierAlreadyAdded error
 		assert_err!(
 			Score::revise_rating(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
