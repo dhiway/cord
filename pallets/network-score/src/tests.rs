@@ -15,19 +15,21 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-
+#[allow(unused_imports)]
 use super::*;
 use crate::mock::*;
 use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
+use frame_benchmarking::__private::storage::types::OptionQuery;
 use frame_support::{
 	assert_err, assert_ok,
 	storage::{StorageMap, StorageValue},
 	traits::StorageInstance,
-	BoundedVec,
+	Blake2_128Concat, BoundedVec,
 };
 use frame_system::{offchain::StorageKind, RawOrigin};
 use pallet_chain_space::SpaceCodeOf;
+use sp_core::offchain::StorageKind;
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
 
