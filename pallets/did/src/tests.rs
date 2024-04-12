@@ -55,7 +55,8 @@ fn check_successful_simple_ed25519_creation() {
 			Box::new(details),
 			did::DidSignature::from(signature),
 		));
-		let stored_did = Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+		let stored_did =
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(stored_did.authentication_key, generate_key_id(&auth_did_key.clone().into()));
 		assert_eq!(stored_did.key_agreement_keys.len(), 0);
 		assert_eq!(stored_did.delegation_key, None);
@@ -81,7 +82,8 @@ fn check_successful_simple_sr25519_creation() {
 			Box::new(details),
 			did::DidSignature::from(signature),
 		));
-		let stored_did = Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+		let stored_did =
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(stored_did.authentication_key, generate_key_id(&auth_did_key.clone().into()));
 		assert_eq!(stored_did.key_agreement_keys.len(), 0);
 		assert_eq!(stored_did.delegation_key, None);
@@ -107,7 +109,8 @@ fn check_successful_simple_ecdsa_creation() {
 			Box::new(details),
 			did::DidSignature::from(signature),
 		));
-		let stored_did = Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+		let stored_did =
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(stored_did.authentication_key, generate_key_id(&auth_did_key.clone().into()));
 		assert_eq!(stored_did.key_agreement_keys.len(), 0);
 		assert_eq!(stored_did.delegation_key, None);
@@ -153,7 +156,8 @@ fn check_successful_complete_creation() {
 			did::DidSignature::from(signature),
 		));
 
-		let stored_did = Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+		let stored_did =
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(stored_did.authentication_key, generate_key_id(&auth_did_key.clone().into()));
 		assert_eq!(stored_did.key_agreement_keys.len(), 2);
 		for key in enc_keys.iter().copied() {
@@ -188,7 +192,7 @@ fn check_successful_complete_creation() {
 		// We check that the service details in the creation operation have been all
 		// stored in the storage...
 		details.new_service_details.iter().for_each(|new_service| {
-			let stored_service = Did::get_service_endpoints(&alice_did, &new_service.id)
+			let stored_service = did::ServiceEndpoints::<Test>::get(&alice_did, &new_service.id)
 				.expect("Service endpoint should be stored.");
 			assert_eq!(stored_service.id, new_service.id);
 			assert_eq!(stored_service.urls, new_service.urls);
@@ -622,7 +626,7 @@ fn check_successful_authentication_key_update() {
 			DidVerificationKey::from(new_auth_key.public())
 		));
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(
 			new_did_details.authentication_key,
 			generate_key_id(&DidVerificationKey::from(new_auth_key.public()).into())
@@ -665,7 +669,7 @@ fn check_successful_authentication_key_max_public_keys_update() {
 		));
 
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(
 			new_did_details.authentication_key,
 			generate_key_id(&DidVerificationKey::from(new_auth_key.public()).into())
@@ -704,7 +708,7 @@ fn check_reused_key_authentication_key_update() {
 		));
 
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(
 			new_did_details.authentication_key,
 			generate_key_id(&DidVerificationKey::from(new_auth_key.public()).into())
@@ -801,7 +805,7 @@ fn check_successful_delegation_key_update() {
 		assert_ok!(Did::set_delegation_key(origin, DidVerificationKey::from(new_del_key.public())));
 
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(
 			new_did_details.delegation_key,
 			Some(generate_key_id(&DidVerificationKey::from(new_del_key.public()).into()))
@@ -846,7 +850,7 @@ fn check_successful_delegation_key_max_public_keys_update() {
 		assert_ok!(Did::set_delegation_key(origin, DidVerificationKey::from(new_del_key.public())));
 
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(
 			new_did_details.delegation_key,
 			Some(generate_key_id(&DidVerificationKey::from(new_del_key.public()).into()))
@@ -882,7 +886,7 @@ fn check_reused_key_delegation_key_update() {
 		assert_ok!(Did::set_delegation_key(origin, DidVerificationKey::from(new_del_key.public())));
 
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(
 			new_did_details.delegation_key,
 			Some(generate_key_id(&DidVerificationKey::from(new_del_key.public()).into()))
@@ -1002,7 +1006,7 @@ fn check_successful_delegation_key_deletion() {
 		assert_ok!(Did::remove_delegation_key(origin));
 
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert!(new_did_details.delegation_key.is_none());
 		let public_keys = new_did_details.public_keys;
 		// Total is -1 for the removal + auth key = 1
@@ -1032,7 +1036,7 @@ fn check_successful_reused_delegation_key_deletion() {
 		assert_ok!(Did::remove_delegation_key(origin));
 
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert!(new_did_details.delegation_key.is_none());
 		let public_keys = new_did_details.public_keys;
 		// Total should be unchanged as the key was re-used so it is not completely
@@ -1096,7 +1100,7 @@ fn check_successful_assertion_key_update() {
 		System::set_block_number(new_block_number);
 		assert_ok!(Did::set_assertion_key(origin, DidVerificationKey::from(new_att_key.public())));
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(
 			new_did_details.assertion_key,
 			Some(generate_key_id(&DidVerificationKey::from(new_att_key.public()).into()))
@@ -1140,7 +1144,7 @@ fn check_successful_assertion_key_max_public_keys_update() {
 		System::set_block_number(new_block_number);
 		assert_ok!(Did::set_assertion_key(origin, DidVerificationKey::from(new_att_key.public())));
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(
 			new_did_details.assertion_key,
 			Some(generate_key_id(&DidVerificationKey::from(new_att_key.public()).into()))
@@ -1176,7 +1180,7 @@ fn check_reused_key_assertion_key_update() {
 		assert_ok!(Did::set_assertion_key(origin, DidVerificationKey::from(new_att_key.public())));
 
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(
 			new_did_details.assertion_key,
 			Some(generate_key_id(&DidVerificationKey::from(new_att_key.public()).into()))
@@ -1296,7 +1300,7 @@ fn check_successful_assertion_key_deletion() {
 		assert_ok!(Did::remove_assertion_key(origin));
 
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert!(new_did_details.assertion_key.is_none());
 		let public_keys = new_did_details.public_keys;
 		// Total is -1 for the removal + auth key = 1
@@ -1325,7 +1329,7 @@ fn check_successful_reused_assertion_key_deletion() {
 		did::Did::<Test>::insert(alice_did.clone(), old_did_details.clone());
 		assert_ok!(Did::remove_assertion_key(origin));
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert!(new_did_details.assertion_key.is_none());
 		let public_keys = new_did_details.public_keys;
 		// Total should be unchanged as the key was re-used so it is not completely
@@ -1384,7 +1388,7 @@ fn check_successful_key_agreement_key_addition() {
 		System::set_block_number(new_block_number);
 		assert_ok!(Did::add_key_agreement_key(origin, new_key_agreement_key,));
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert_eq!(new_did_details.key_agreement_keys.len(), 1);
 		assert_eq!(
 			new_did_details.key_agreement_keys.iter().next().unwrap(),
@@ -1458,7 +1462,7 @@ fn check_successful_key_agreement_key_deletion() {
 		did::Did::<Test>::insert(alice_did.clone(), old_did_details);
 		assert_ok!(Did::remove_key_agreement_key(origin, generate_key_id(&old_enc_key.into()),));
 		let new_did_details =
-			Did::get_did(&alice_did).expect("ALICE_DID should be present on chain.");
+			did::Did::<Test>::get(&alice_did).expect("ALICE_DID should be present on chain.");
 		assert!(new_did_details.key_agreement_keys.is_empty());
 		let public_keys = new_did_details.public_keys;
 		// Total is -1 for the enc key removal + auth key = 1
@@ -1919,8 +1923,8 @@ fn check_successful_deletion_no_endpoints() {
 		did::Did::<Test>::insert(alice_did.clone(), did_details);
 		assert_eq!(did::pallet::DidEndpointsCount::<Test>::get(&alice_did), 0);
 		assert_ok!(Did::delete(origin, 0));
-		assert!(Did::get_did(alice_did.clone()).is_none());
-		assert!(Did::get_deleted_did(alice_did.clone()).is_some());
+		assert!(did::Did::<Test>::get(alice_did.clone()).is_none());
+		assert!(did::DidBlacklist::<Test>::get(alice_did.clone()).is_some());
 
 		assert_eq!(did::pallet::DidEndpointsCount::<Test>::get(&alice_did), 0);
 
@@ -1963,8 +1967,8 @@ fn check_successful_deletion_with_endpoints() {
 		assert_eq!(did::pallet::DidEndpointsCount::<Test>::get(&alice_did), 1);
 
 		assert_ok!(Did::delete(origin, 1));
-		assert!(Did::get_did(alice_did.clone()).is_none());
-		assert!(Did::get_deleted_did(alice_did.clone()).is_some());
+		assert!(did::Did::<Test>::get(alice_did.clone()).is_none());
+		assert!(did::DidBlacklist::<Test>::get(alice_did.clone()).is_some());
 
 		assert_eq!(did::pallet::DidEndpointsCount::<Test>::get(&alice_did), 0);
 
@@ -2584,8 +2588,8 @@ fn check_authentication_successful_operation_verification() {
 			&did::DidSignature::from(signature)
 		));
 		// Verify that the DID tx counter has increased
-		let did_details =
-			Did::get_did(&call_operation.operation.did).expect("DID should be present on chain.");
+		let did_details = did::Did::<Test>::get(&call_operation.operation.did)
+			.expect("DID should be present on chain.");
 		assert_eq!(did_details.last_tx_counter, mock_did.last_tx_counter + 1u64);
 	});
 }
@@ -2614,8 +2618,8 @@ fn check_assertion_successful_operation_verification() {
 			&did::DidSignature::from(signature)
 		));
 		// Verify that the DID tx counter has increased
-		let did_details =
-			Did::get_did(&call_operation.operation.did).expect("DID should be present on chain.");
+		let did_details = did::Did::<Test>::get(&call_operation.operation.did)
+			.expect("DID should be present on chain.");
 		assert_eq!(did_details.last_tx_counter, mock_did.last_tx_counter + 1u64);
 	});
 }
@@ -2644,8 +2648,8 @@ fn check_delegation_successful_operation_verification() {
 			&did::DidSignature::from(signature)
 		));
 		// Verify that the DID tx counter has increased
-		let did_details =
-			Did::get_did(&call_operation.operation.did).expect("DID should be present on chain.");
+		let did_details = did::Did::<Test>::get(&call_operation.operation.did)
+			.expect("DID should be present on chain.");
 		assert_eq!(did_details.last_tx_counter, mock_did.last_tx_counter + 1u64);
 	});
 }
@@ -2698,8 +2702,8 @@ fn check_tx_counter_wrap_operation_verification() {
 			&did::DidSignature::from(signature)
 		));
 		// Verify that the DID tx counter has wrapped around
-		let did_details =
-			Did::get_did(&call_operation.operation.did).expect("DID should be present on chain.");
+		let did_details = did::Did::<Test>::get(&call_operation.operation.did)
+			.expect("DID should be present on chain.");
 		assert_eq!(did_details.last_tx_counter, 0u64);
 	});
 }

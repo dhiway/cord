@@ -300,7 +300,7 @@ fn adding_registrar_should_work() {
 		let fields = IdentityField::Display | IdentityField::Legal;
 		assert_ok!(Identity::set_fields(RuntimeOrigin::signed(three.clone()), fields.bits()));
 		assert_eq!(
-			Identity::registrars(),
+			Registrars::<Test>::get(),
 			vec![Some(RegistrarInfo { account: three, fields: fields.bits() })]
 		);
 	});
@@ -315,12 +315,12 @@ fn removing_registrar_should_work() {
 		let fields = IdentityField::Display | IdentityField::Legal;
 		assert_ok!(Identity::set_fields(RuntimeOrigin::signed(three.clone()), fields.bits()));
 		assert_eq!(
-			Identity::registrars(),
+			Registrars::<Test>::get(),
 			vec![Some(RegistrarInfo { account: three.clone(), fields: fields.bits() })]
 		);
 
 		assert_ok!(Identity::remove_registrar(RuntimeOrigin::root(), three.clone()));
-		assert_eq!(Identity::registrars(), vec![]);
+		assert_eq!(Registrars::<Test>::get(), vec![]);
 	});
 }
 
@@ -352,7 +352,7 @@ fn registration_should_work() {
 			RuntimeOrigin::signed(ten.clone()),
 			Box::new(ten_info.clone())
 		));
-		assert_eq!(Identity::identity(ten.clone()).unwrap().0.info, ten_info);
+		assert_eq!(IdentityOf::<Test>::get(ten.clone()).unwrap().0.info, ten_info);
 		assert_ok!(Identity::clear_identity(RuntimeOrigin::signed(ten.clone())));
 		assert_noop!(
 			Identity::clear_identity(RuntimeOrigin::signed(ten)),
@@ -429,7 +429,7 @@ fn uninvited_judgement_should_work() {
 			identity_hash
 		));
 		assert_eq!(
-			Identity::identity(ten.clone()).unwrap().0.judgements,
+			IdentityOf::<Test>::get(ten.clone()).unwrap().0.judgements,
 			vec![(three, Judgement::Reasonable)]
 		);
 	});
@@ -451,7 +451,7 @@ fn clearing_identity_and_judgement_should_work() {
 			BlakeTwo256::hash_of(&infoof_ten())
 		));
 		assert_ok!(Identity::clear_identity(RuntimeOrigin::signed(ten.clone())));
-		assert_eq!(Identity::identity(ten), None);
+		assert_eq!(IdentityOf::<Test>::get(ten), None);
 	});
 }
 
@@ -463,7 +463,7 @@ fn killing_account_should_work() {
 		assert_ok!(Identity::set_identity(RuntimeOrigin::signed(ten.clone()), Box::new(ten_info)));
 		assert_noop!(Identity::kill_identity(RuntimeOrigin::signed(one), ten.clone()), BadOrigin);
 		assert_ok!(Identity::kill_identity(RuntimeOrigin::root(), ten.clone()));
-		assert_eq!(Identity::identity(ten.clone()), None);
+		assert_eq!(IdentityOf::<Test>::get(ten.clone()), None);
 		assert_noop!(
 			Identity::kill_identity(RuntimeOrigin::root(), ten),
 			Error::<Test>::NoIdentity
@@ -553,7 +553,7 @@ fn clearing_account_should_remove_subaccounts_and_refund() {
 			vec![(twenty.clone(), Data::Raw(vec![40; 1].try_into().unwrap()))]
 		));
 		assert_ok!(Identity::clear_identity(RuntimeOrigin::signed(ten.clone())));
-		assert!(Identity::super_of(twenty).is_none());
+		assert!(SuperOf::<Test>::get(twenty).is_none());
 	});
 }
 
@@ -568,7 +568,7 @@ fn killing_account_should_remove_subaccounts_and_not_refund() {
 			vec![(twenty.clone(), Data::Raw(vec![40; 1].try_into().unwrap()))]
 		));
 		assert_ok!(Identity::kill_identity(RuntimeOrigin::root(), ten.clone()));
-		assert!(Identity::super_of(twenty).is_none());
+		assert!(SuperOf::<Test>::get(twenty).is_none());
 	});
 }
 
@@ -720,8 +720,8 @@ fn reap_identity_works() {
 		// reap
 		assert_ok!(Identity::reap_identity(&ten));
 		// no identity or subs
-		assert!(Identity::identity(ten.clone()).is_none());
-		assert!(Identity::super_of(twenty).is_none());
+		assert!(IdentityOf::<Test>::get(ten.clone()).is_none());
+		assert!(SuperOf::<Test>::get(twenty).is_none());
 		// balance is unreserved
 	});
 }
@@ -802,7 +802,7 @@ fn set_username_with_signature_without_existing_identity_should_work() {
 
 		// Even though user has no balance and no identity, they get a default one for free.
 		assert_eq!(
-			Identity::identity(&who_account),
+			IdentityOf::<Test>::get(&who_account),
 			Some((
 				Registration { judgements: Default::default(), info: Default::default() },
 				Some(username_to_sign.clone())
@@ -853,7 +853,7 @@ fn set_username_with_signature_with_existing_identity_should_work() {
 		));
 
 		assert_eq!(
-			Identity::identity(&who_account),
+			IdentityOf::<Test>::get(&who_account),
 			Some((
 				Registration { judgements: Default::default(), info: ten_info },
 				Some(username_to_sign.clone())
@@ -932,7 +932,7 @@ fn set_username_with_bytes_signature_should_work() {
 		// The username in storage should not include `<Bytes>`. As in, it's the original
 		// `username_to_sign`.
 		assert_eq!(
-			Identity::identity(&who_account),
+			IdentityOf::<Test>::get(&who_account),
 			Some((
 				Registration { judgements: Default::default(), info: Default::default() },
 				Some(username_to_sign.clone())
@@ -988,7 +988,7 @@ fn set_username_with_acceptance_should_work() {
 		assert!(PendingUsernames::<Test>::get::<&Username<Test>>(&full_username).is_none());
 		// Check Identity storage
 		assert_eq!(
-			Identity::identity(&who),
+			IdentityOf::<Test>::get(&who),
 			Some((
 				Registration { judgements: Default::default(), info: Default::default() },
 				Some(full_username.clone())
@@ -1140,7 +1140,7 @@ fn setting_primary_should_work() {
 
 		// First username set as primary.
 		assert_eq!(
-			Identity::identity(&who_account),
+			IdentityOf::<Test>::get(&who_account),
 			Some((
 				Registration { judgements: Default::default(), info: Default::default() },
 				Some(first_to_sign.clone())
@@ -1162,7 +1162,7 @@ fn setting_primary_should_work() {
 
 		// The primary is still the first username.
 		assert_eq!(
-			Identity::identity(&who_account),
+			IdentityOf::<Test>::get(&who_account),
 			Some((
 				Registration { judgements: Default::default(), info: Default::default() },
 				Some(first_to_sign.clone())
@@ -1186,7 +1186,7 @@ fn setting_primary_should_work() {
 
 		// The primary is now the second username.
 		assert_eq!(
-			Identity::identity(&who_account),
+			IdentityOf::<Test>::get(&who_account),
 			Some((
 				Registration { judgements: Default::default(), info: Default::default() },
 				Some(second_to_sign.clone())
@@ -1315,7 +1315,7 @@ fn removing_dangling_usernames_should_work() {
 
 		// The primary should still be the first one.
 		assert_eq!(
-			Identity::identity(&who_account),
+			IdentityOf::<Test>::get(&who_account),
 			Some((
 				Registration { judgements: Default::default(), info: ten_info },
 				Some(username_to_sign.clone())
@@ -1345,7 +1345,7 @@ fn removing_dangling_usernames_should_work() {
 		assert_ok!(Identity::clear_identity(RuntimeOrigin::signed(who_account.clone()),));
 
 		// Identity is gone
-		assert!(Identity::identity(who_account.clone()).is_none());
+		assert!(IdentityOf::<Test>::get(who_account.clone()).is_none());
 
 		// The reverse lookup of the primary is gone.
 		assert!(AccountOfUsername::<Test>::get::<&Username<Test>>(&username_to_sign).is_none());
