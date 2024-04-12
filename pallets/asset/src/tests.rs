@@ -495,3 +495,205 @@ fn asset_vc_status_change_should_succeed() {
 		));
 	});
 }
+#[test]
+fn test_asset_in_same_state() {
+	// Set up test parameters
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let capacity = 5u64;
+
+	// Generate space and authorization IDs
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+
+	// Generate asset entry and issuance
+	let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_qty = 10;
+	let asset_value = 10;
+	let asset_type = AssetTypeOf::MF;
+
+	let entry = AssetInputEntryOf::<Test> {
+		asset_desc,
+		asset_qty,
+		asset_type,
+		asset_value,
+		asset_tag,
+		asset_meta,
+	};
+
+	let digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
+
+	let issue_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let asset_id: Ss58Identifier = generate_asset_id::<Test>(&issue_id_digest);
+
+	let issue_entry = AssetIssuanceEntryOf::<Test> {
+		asset_id: asset_id.clone(), // Use the same asset ID for issuance
+		asset_owner: creator.clone(),
+		asset_issuance_qty: Some(10),
+	};
+
+	let issue_entry_digest =
+		<Test as frame_system::Config>::Hashing::hash(&[&issue_entry.encode()[..]].concat()[..]);
+
+	let instance_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[
+			&asset_id.encode()[..],
+			&creator.encode()[..],
+			&space_id.encode()[..],
+			&creator.encode()[..],
+			&issue_entry_digest.encode()[..],
+		]
+		.concat()[..],
+	);
+
+	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
+
+	new_test_ext().execute_with(|| {
+		// Create space and asset
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
+		assert_ok!(Asset::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			entry,
+			digest,
+			authorization_id.clone()
+		));
+
+		assert_ok!(Asset::issue(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			issue_entry.clone(),
+			issue_entry_digest,
+			authorization_id
+		));
+
+		// Call status_change with the same status as the current asset status
+		assert_err!(
+			Asset::status_change(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				asset_id,
+				Some(instance_id),
+				AssetStatusOf::ACTIVE,
+			),
+			Error::<Test>::AssetInSameState
+		);
+	});
+}
+
+#[test]
+fn asset_vc_same_status_() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+
+	let capacity = 5u64;
+
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+
+	let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_qty = 10;
+	let asset_value = 10;
+	let asset_type = AssetTypeOf::MF;
+
+	let entry = AssetInputEntryOf::<Test> {
+		asset_desc,
+		asset_qty,
+		asset_type,
+		asset_value,
+		asset_tag,
+		asset_meta,
+	};
+
+	let digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
+
+	let issue_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let asset_id: Ss58Identifier = generate_asset_id::<Test>(&issue_id_digest);
+
+	let issue_entry = AssetIssuanceEntryOf::<Test> {
+		asset_id: asset_id.clone(),
+		asset_owner: creator.clone(),
+		asset_issuance_qty: Some(10),
+	};
+
+	let issue_entry_digest =
+		<Test as frame_system::Config>::Hashing::hash(&[&issue_entry.encode()[..]].concat()[..]);
+
+	let instance_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[
+			&asset_id.encode()[..],
+			&creator.encode()[..],
+			&space_id.encode()[..],
+			&creator.encode()[..],
+			&issue_entry_digest.encode()[..],
+		]
+		.concat()[..],
+	);
+
+	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
+		assert_ok!(Asset::vc_create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			asset_qty,
+			digest,
+			authorization_id.clone()
+		));
+
+		assert_ok!(Asset::vc_issue(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			issue_entry.clone(),
+			issue_entry_digest,
+			authorization_id
+		));
+
+		assert_err!(
+			Asset::vc_status_change(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				asset_id.clone(),
+				Some(instance_id.clone()),
+				AssetStatusOf::ACTIVE
+			),
+			Error::<Test>::AssetInSameState
+		);
+	});
+}
