@@ -43,21 +43,40 @@
 #![allow(unused_imports)]
 #![allow(missing_docs)]
 
-use frame_support::{traits::Get, weights::Weight};
-use core::marker::PhantomData;
+use frame_support::{
+    traits::Get,
+    weights::{
+        constants::{WEIGHT_REF_TIME_PER_MICROS, WEIGHT_REF_TIME_PER_NANOS},
+        Weight,
+    },
+};
+use sp_std::marker::PhantomData;
 
 /// Weight functions for `pallet_babe`.
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_babe::WeightInfo for WeightInfo<T> {
-	/// The range of component `x` is `[0, 1]`.
-	fn check_equivocation_proof(x: u32, ) -> Weight {
-		// Proof Size summary in bytes:
-		//  Measured:  `0`
-		//  Estimated: `0`
-		// Minimum execution time: 89_180_000 picoseconds.
-		Weight::from_parts(90_210_006, 0)
-			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 116_545
-			.saturating_add(Weight::from_parts(721_093, 0).saturating_mul(x.into()))
-	}
+    fn plan_config_change() -> Weight {
+        T::DbWeight::get().writes(1)
+    }
+
+    fn report_equivocation(validator_count: u32, _p: u32) -> Weight {
+        // we take the validator set count from the membership proof to
+        // calculate the weight but we set a floor of 100 validators.
+        let validator_count = validator_count.max(100) as u64;
+
+        // checking membership proof
+        (Weight::from_parts(WEIGHT_REF_TIME_PER_MICROS, 0) * 35)
+            .saturating_add(
+                (Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS, 0) * 175)
+                    .saturating_mul(validator_count),
+            )
+            .saturating_add(T::DbWeight::get().reads(5))
+            // check equivocation proof
+            .saturating_add(Weight::from_parts(WEIGHT_REF_TIME_PER_MICROS, 0) * 110)
+            // report offence
+            .saturating_add(Weight::from_parts(WEIGHT_REF_TIME_PER_MICROS, 0) * 110)
+            .saturating_add(T::DbWeight::get().writes(3))
+    }
 }
+
+

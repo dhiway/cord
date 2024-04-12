@@ -13,20 +13,17 @@ workspace = true
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
-[build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
-
 [dependencies]
-clap = { version = "4.5.1", features = ["derive"] }
+clap = { version = "4.5.3", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "3.6.1" }
 thiserror = { workspace = true }
-sc-cli = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
-sc-client-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
-sc-service = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0", default-features = false }
-sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
+sc-cli = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
+sc-client-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
+sc-service = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
+sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
+sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
 
 [features]
 runtime-benchmarks = [

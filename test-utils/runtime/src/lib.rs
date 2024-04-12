@@ -21,11 +21,16 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate alloc;
 pub mod cord_test_pallet;
 #[cfg(feature = "std")]
 pub mod extrinsic;
 #[cfg(feature = "std")]
 pub mod genesismap;
+
+use alloc::boxed::Box;
+#[cfg(not(feature = "std"))]
+use alloc::{vec, vec::Vec};
 
 use codec::{Decode, Encode};
 use frame_support::{
@@ -44,12 +49,9 @@ use frame_system::{
 	CheckNonce, CheckWeight,
 };
 use scale_info::TypeInfo;
-use sp_std::prelude::*;
-#[cfg(not(feature = "std"))]
-use sp_std::vec;
-
 use sp_application_crypto::{ecdsa, ed25519, sr25519, RuntimeAppPublic};
 use sp_core::{OpaqueMetadata, RuntimeDebug};
+use sp_std::prelude::*;
 use sp_trie::{
 	trie_types::{TrieDBBuilder, TrieDBMutBuilderV1},
 	PrefixedMemoryDB, StorageProof,
@@ -63,7 +65,7 @@ use sp_runtime::{
 	create_runtime_str, impl_opaque_keys,
 	traits::{BlakeTwo256, Block as BlockT, DispatchInfoOf, NumberFor, Verify},
 	transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError},
-	ApplyExtrinsicResult, Perbill,
+	ApplyExtrinsicResult, ExtrinsicInclusionMode, Perbill,
 };
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
@@ -269,7 +271,7 @@ impl sp_runtime::traits::SignedExtension for CheckSubstrateCall {
 
 	fn additional_signed(
 		&self,
-	) -> sp_std::result::Result<Self::AdditionalSigned, TransactionValidityError> {
+	) -> core::result::Result<Self::AdditionalSigned, TransactionValidityError> {
 		Ok(())
 	}
 
@@ -345,7 +347,7 @@ parameter_types! {
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
 }
-#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::pallet::Config for Runtime {
 	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = RuntimeBlockWeights;
@@ -378,9 +380,6 @@ pub mod currency {
 	pub const UNITS: Balance = WAY / 100;
 	pub const MILLIUNITS: Balance = UNITS / 100;
 	pub const NANOUNITS: Balance = MILLIUNITS / 100;
-	// const MILLICENTS: Balance = 1_000_000_000;
-	// const CENTS: Balance = 1_000 * MILLICENTS; // assume this is worth about
-	// a cent. pub const WAY: Balance = 100 * CENTS;
 }
 
 parameter_types! {
@@ -447,7 +446,7 @@ fn code_using_trie() -> u64 {
 	.to_vec();
 
 	let mut mdb = PrefixedMemoryDB::default();
-	let mut root = sp_std::default::Default::default();
+	let mut root = core::default::Default::default();
 	{
 		let mut t = TrieDBMutBuilderV1::<Hashing>::new(&mut mdb, &mut root).build();
 		for (key, value) in &pairs {
@@ -487,9 +486,9 @@ impl_runtime_apis! {
 			Executive::execute_block(block);
 		}
 
-		fn initialize_block(header: &<Block as BlockT>::Header) {
+		fn initialize_block(header: &<Block as BlockT>::Header) -> ExtrinsicInclusionMode {
 			log::trace!(target: LOG_TARGET, "initialize_block: {header:#?}");
-			Executive::initialize_block(header);
+			Executive::initialize_block(header)
 		}
 	}
 
@@ -501,7 +500,7 @@ impl_runtime_apis! {
 		fn metadata_at_version(_version: u32) -> Option<OpaqueMetadata> {
 			unimplemented!()
 		}
-		fn metadata_versions() -> sp_std::vec::Vec<u32> {
+		fn metadata_versions() -> alloc::vec::Vec<u32> {
 			unimplemented!()
 		}
 	}
@@ -1299,7 +1298,7 @@ mod tests {
 			let r = Vec::<u8>::decode(&mut &r[..]).unwrap();
 			let json = String::from_utf8(r.into()).expect("returned value is json. qed.");
 
-			let expected = r#"{"system":{},"babe":{"authorities":[],"epochConfig":null},"cordTest":{"authorities":[]},"balances":{"balances":[]}}"#;
+			let expected = r#"{"system":{},"babe":{"authorities":[],"epochConfig":{"c":[1,4],"allowed_slots":"PrimaryAndSecondaryVRFSlots"}},"cordTest":{"authorities":[]},"balances":{"balances":[]}}"#;
 			assert_eq!(expected.to_string(), json);
 		}
 

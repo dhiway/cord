@@ -244,7 +244,7 @@ fn revise_rating_with_entry_entity_mismatch_should_fail() {
 }
 
 #[test]
-fn test_register_rating_id_already_exists() {
+fn register_rating_with_existing_rating_identifier_should_fail() {
 	// Define test parameters
 	let creator = DID_00.clone();
 	let author = ACCOUNT_00.clone();
@@ -310,7 +310,7 @@ fn test_register_rating_id_already_exists() {
 }
 
 #[test]
-fn test_revoke_rating_id_already_exists() {
+fn revoke_rating_with_existing_rating_identifier_should_fail() {
 	let creator = DID_00.clone();
 	let author = ACCOUNT_00.clone();
 	let message_id = BoundedVec::try_from([82u8; 10].to_vec()).unwrap();
@@ -371,6 +371,7 @@ fn test_revoke_rating_id_already_exists() {
 		));
 
 		<MessageIdentifiers<Test>>::remove(message_id.clone(), creator.clone());
+
 		assert_err!(
 			Score::revoke_rating(
 				DoubleOrigin(author.clone(), creator.clone()).into(),

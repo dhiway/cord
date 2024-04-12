@@ -11,39 +11,33 @@ repository.workspace = true
 [lints]
 workspace = true
 
-[build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
-
 [dev-dependencies]
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
+sp-io = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
 maplit = "1.0.2"
-env_logger = "0.9.0"
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
 	"derive",
 ] }
-scale-info = { version = "2.10.0", default-features = false, features = [
+scale-info = { version = "2.11.1", default-features = false, features = [
 	"derive",
 ] }
-serde = { version = "1.0.193", default-features = false, optional = true }
+serde = { version = "1.0.197", default-features = false, optional = true }
 network-membership = { package = "network-membership", path = "../../primitives/network-membership", default-features = false }
-log = { version = "0.4.17", default-features = false }
 
 # Substrate dependencies
-frame-system = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, optional = true, branch = "release-v1.8.0" }
+frame-system = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
+frame-support = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
+sp-std = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, optional = true, branch = "release-v1.10.0" }
 
-frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0", default-features = false, optional = true }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
 
 [features]
 default = ['std']
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
-	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 ]
@@ -51,7 +45,6 @@ std = [
 	"codec/std",
 	"network-membership/std",
 	"scale-info/std",
-	"frame-support/std",
 	"frame-system/std",
 	"frame-benchmarking?/std",
 	"network-membership/std",
@@ -59,5 +52,6 @@ std = [
 	"sp-core/std",
 	"sp-std/std",
 	"serde",
-	"log/std",
+	# "log/std",
 ]
+try-runtime = ["frame-support/try-runtime"]

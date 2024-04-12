@@ -14,31 +14,25 @@ workspace = true
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
-[build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.8.0" }
-
 [dev-dependencies]
-env_logger = { version = "0.10.0" }
 pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", features = [
 	"std",
-], branch = "release-v1.8.0" }
+], branch = "release-v1.10.0" }
 frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", features = [
 	"std",
-], branch = "release-v1.8.0" }
+], branch = "release-v1.10.0" }
 sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", features = [
 	"std",
-], branch = "release-v1.8.0" }
+], branch = "release-v1.10.0" }
 
 
 [dependencies]
 # External dependencies
 log = "0.4.17"
 fluent-uri = { version = "0.1.4", default-features = false }
-hex-literal = "0.3.4"
 
 # Internal dependencies
 cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
-cord-primitives = { package = "cord-primitives", path = "../../primitives/cord", optional = true }
 identifier = { package = "cord-identifier", path = "../../primitives/identifier", default-features = false }
 pallet-chain-space = { package = "pallet-chain-space", default-features = false, path = '../chain-space' }
 
@@ -47,20 +41,20 @@ codec = { package = "parity-scale-codec", version = "3.6.1", default-features = 
 	"derive",
 	"max-encoded-len",
 ] }
-scale-info = { version = "2.10.0", default-features = false, features = [
+scale-info = { version = "2.11.1", default-features = false, features = [
 	"derive",
 ] }
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
-frame-system = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0" }
+frame-support = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
+frame-system = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
+sp-io = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
+sp-std = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
 
 # Benchmarking dependencies
-frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0", optional = true }
-pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0", optional = true }
-sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.8.0", optional = true }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0", optional = true }
+pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0", optional = true }
+sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0", optional = true }
 
 [features]
 default = ["std"]
@@ -78,7 +72,6 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"cord-utilities/std",
-	"cord-primitives/std",
 	"log/std",
 	"pallet-balances/std",
 	"scale-info/std",

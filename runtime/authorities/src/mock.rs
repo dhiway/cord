@@ -18,21 +18,18 @@
 //
 use super::*;
 use crate::{self as cord_authority_membership};
-use frame_support::{
-	construct_runtime, derive_impl, parameter_types,
-	traits::{ConstU32, ConstU64},
-};
+use frame_support::{derive_impl, parameter_types};
 use sp_state_machine::BasicExternalities;
 use std::collections::BTreeMap;
 
 use frame_system::{pallet_prelude::BlockNumberFor, EnsureRoot};
 use pallet_offences::{traits::OnOffenceHandler, SlashStrategy};
 use pallet_session::ShouldEndSession;
-use sp_core::{crypto::key_types::DUMMY, H256};
+use sp_core::crypto::key_types::DUMMY;
 use sp_runtime::{
 	impl_opaque_keys,
 	testing::UintAuthorityId,
-	traits::{BlakeTwo256, ConvertInto, IdentityLookup, OpaqueKeys},
+	traits::{ConvertInto, IsMember, OpaqueKeys},
 	BuildStorage, KeyTypeId,
 };
 use sp_staking::offence::OffenceDetails;
@@ -53,7 +50,7 @@ impl From<UintAuthorityId> for MockSessionKeys {
 }
 
 // Configure a mock runtime to test the pallet.
-construct_runtime!(
+frame_support::construct_runtime!(
 	pub enum Test {
 		System: frame_system,
 		Session: pallet_session,
@@ -62,31 +59,11 @@ construct_runtime!(
 	}
 );
 
-#[derive_impl(frame_system::config_preludes::TestDefaultConfig as frame_system::DefaultConfig)]
+#[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
-	type BaseCallFilter = frame_support::traits::Everything;
-	type BlockWeights = ();
-	type BlockLength = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type Nonce = u64;
-	type Hash = H256;
-	type RuntimeCall = RuntimeCall;
-	type Hashing = BlakeTwo256;
 	type AccountId = u64;
-	type Lookup = IdentityLookup<Self::AccountId>;
 	type Block = Block;
-	type RuntimeEvent = RuntimeEvent;
-	type BlockHashCount = ConstU64<250>;
-	type DbWeight = ();
-	type Version = ();
-	type PalletInfo = PalletInfo;
 	type AccountData = ();
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
-	type SystemWeightInfo = ();
-	type SS58Prefix = ();
-	type OnSetCode = ();
-	type MaxConsumers = ConstU32<16>;
 }
 
 pub struct TestSessionHandler;
@@ -149,17 +126,33 @@ impl pallet_session::historical::Config for Test {
 	type FullIdentificationOf = FullIdentificationOfImpl;
 }
 
+pub struct TestIsNetworkMember;
+#[cfg(not(feature = "runtime-benchmarks"))]
+impl IsMember<u64> for TestIsNetworkMember {
+	fn is_member(member_id: &u64) -> bool {
+		member_id % 3 == 0
+	}
+}
+
+#[cfg(feature = "runtime-benchmarks")]
+impl IsMember<<Test as frame_system::Config>::AccountId> for TestIsNetworkMember {
+	fn is_member(_account_id: &<Test as frame_system::Config>::AccountId) -> bool {
+		// For benchmarking, assume all generated accounts are members
+		true
+	}
+}
+
 impl cord_authority_membership::Config for Test {
 	type AuthorityMembershipOrigin = EnsureRoot<u64>;
 	type RuntimeEvent = RuntimeEvent;
-	// type WeightInfo = ();
+	type IsMember = TestIsNetworkMember;
 }
 
 parameter_types! {
-	pub static Validators: Vec<u64> = vec![1, 2, 3];
-	pub static NextValidators: Vec<u64> = vec![1, 2, 3];
+	pub static Validators: Vec<u64> = vec![3,6,9];
+	pub static NextValidators: Vec<u64> = vec![3,6,9];
 	pub static Authorities: Vec<UintAuthorityId> =
-		vec![UintAuthorityId(1), UintAuthorityId(2), UintAuthorityId(3)];
+		vec![UintAuthorityId(3), UintAuthorityId(6), UintAuthorityId(9)];
 	pub static ValidatorAccounts: BTreeMap<u64, u64> = BTreeMap::new();
 
 }
@@ -169,13 +162,12 @@ pub fn authorities() -> Vec<UintAuthorityId> {
 }
 
 // Build genesis storage according to the mock runtime.
-pub fn new_test_ext() -> sp_io::TestExternalities {
-	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
-	let keys: Vec<_> = NextValidators::get()
-		.iter()
-		.cloned()
-		.map(|i| (i, i, UintAuthorityId(i).into()))
+pub fn new_test_ext(authorities_len: u64) -> sp_io::TestExternalities {
+	let keys: Vec<_> = (1..=authorities_len)
+		.map(|i| (i * 3, i * 3, UintAuthorityId(i * 3).into()))
 		.collect();
+
+	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	BasicExternalities::execute_with_storage(&mut t, || {
 		for (ref k, ..) in &keys {
 			frame_system::Pallet::<Test>::inc_providers(k);

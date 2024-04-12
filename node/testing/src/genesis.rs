@@ -20,9 +20,8 @@
 
 use crate::keyring::*;
 use cord_runtime::{
-	AccountId, AuthorityMembershipConfig, BabeConfig, BalancesConfig, GrandpaConfig, IndicesConfig,
-	NetworkMembershipConfig, NodeAuthorizationConfig, RuntimeGenesisConfig, SessionConfig,
-	BABE_GENESIS_EPOCH_CONFIG,
+	AccountId, AuthorityMembershipConfig, BalancesConfig, IndicesConfig, NetworkMembershipConfig,
+	NodeAuthorizationConfig, RuntimeGenesisConfig, SessionConfig,
 };
 use cord_runtime_constants::currency::*;
 use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
@@ -50,7 +49,6 @@ pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
 	let members = vec![alice(), bob(), charlie()];
 
 	RuntimeGenesisConfig {
-		system: Default::default(),
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig { balances: endowed },
 		node_authorization: NodeAuthorizationConfig {
@@ -79,18 +77,6 @@ pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
 				),
 			],
 		},
-		babe: BabeConfig {
-			authorities: vec![],
-			epoch_config: Some(BABE_GENESIS_EPOCH_CONFIG),
-			..Default::default()
-		},
-		grandpa: GrandpaConfig { authorities: vec![], _config: Default::default() },
-		im_online: Default::default(),
-		authority_discovery: Default::default(),
-		council: Default::default(),
-		council_membership: Default::default(),
-		technical_committee: Default::default(),
-		technical_membership: Default::default(),
-		sudo: Default::default(),
+		..Default::default()
 	}
 }
