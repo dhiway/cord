@@ -244,7 +244,7 @@ fn updating_a_registered_statement_should_succeed() {
 			authorization_id,
 		));
 
-		let revoked_statements = Statement::revocation_list(statement_id, statement_digest)
+		let revoked_statements = RevocationList::<Test>::get(statement_id, statement_digest)
 			.expect("Old Statement digest should be present on the revoked list.");
 
 		assert!(revoked_statements.revoked);
@@ -536,7 +536,7 @@ fn revoking_a_registered_statement_should_succeed() {
 			authorization_id,
 		));
 
-		let revoked_statements = Statement::revocation_list(statement_id, statement_digest)
+		let revoked_statements = RevocationList::<Test>::get(statement_id, statement_digest)
 			.expect("Old Statement digest should be present on the revoked list.");
 
 		assert!(revoked_statements.revoked);
@@ -699,8 +699,9 @@ fn restoring_a_revoked_statement_should_succeed() {
 			authorization_id.clone(),
 		));
 
-		let revoked_statements = Statement::revocation_list(statement_id.clone(), statement_digest)
-			.expect("Old Statement digest should be present on the revoked list.");
+		let revoked_statements =
+			RevocationList::<Test>::get(statement_id.clone(), statement_digest)
+				.expect("Old Statement digest should be present on the revoked list.");
 
 		assert!(revoked_statements.revoked);
 

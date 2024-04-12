@@ -32,9 +32,9 @@ fn test_genesis_build() {
 	new_test_ext(3).execute_with(|| {
 		run_to_block(1);
 		// Verify AuthorityMembers state
-		assert_eq!(AuthorityMembership::incoming(), EMPTY);
-		assert_eq!(AuthorityMembership::outgoing(), EMPTY);
-		assert_eq!(AuthorityMembership::member(), vec![3, 6, 9]);
+		assert_eq!(IncomingAuthorities::<Test>::get(), EMPTY);
+		assert_eq!(OutgoingAuthorities::<Test>::get(), EMPTY);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
 		// Verify Session state
 		assert_eq!(Session::current_index(), 0);
 		assert_eq!(Session::validators(), vec![3, 6, 9]);
@@ -63,10 +63,10 @@ fn test_go_offline() {
 		// Verify state
 		assert_eq!(Session::current_index(), 0); // we are currently at session 0
 		assert_eq!(Session::validators(), vec![3, 6, 9]);
-		assert_eq!(AuthorityMembership::incoming(), EMPTY);
-		assert_eq!(AuthorityMembership::outgoing(), vec![9]);
-		assert_eq!(AuthorityMembership::blacklist(), EMPTY);
-		assert_eq!(AuthorityMembership::member(), vec![3, 6, 9]);
+		assert_eq!(IncomingAuthorities::<Test>::get(), EMPTY);
+		assert_eq!(OutgoingAuthorities::<Test>::get(), vec![9]);
+		assert_eq!(BlackList::<Test>::get(), EMPTY);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
 
 		// Member 3 should be outgoing at the next session (session 1).
 		// They should be out at session 2.
@@ -91,14 +91,14 @@ fn test_go_offline_then_go_online() {
 
 		// Member 3 should be able to go offline
 		assert_ok!(AuthorityMembership::go_offline(RuntimeOrigin::signed(3)),);
-		assert_eq!(AuthorityMembership::outgoing(), vec![3]);
+		assert_eq!(OutgoingAuthorities::<Test>::get(), vec![3]);
 
 		run_to_block(10);
 		assert_eq!(Session::current_index(), 2);
 		assert_eq!(Session::validators(), vec![9, 6]);
 		// Member 3 should be able to go online
 		assert_ok!(AuthorityMembership::go_online(RuntimeOrigin::signed(3)),);
-		assert_eq!(AuthorityMembership::incoming(), vec![3]);
+		assert_eq!(IncomingAuthorities::<Test>::get(), vec![3]);
 
 		run_to_block(20);
 		assert_eq!(Session::current_index(), 4);
@@ -120,16 +120,16 @@ fn test_add_and_remove_an_authority_member() {
 			vec![]
 		));
 		assert_ok!(AuthorityMembership::nominate(RuntimeOrigin::root(), 12));
-		assert_eq!(AuthorityMembership::member(), vec![3, 6, 9, 12]);
-		assert_eq!(AuthorityMembership::incoming(), vec![12]);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9, 12]);
+		assert_eq!(IncomingAuthorities::<Test>::get(), vec![12]);
 
 		// Member 12 should be **effectively** in the authorities set in 2 sessions
 		run_to_block(10);
 		assert_eq!(Session::current_index(), 2);
 		assert_eq!(Session::validators(), vec![3, 6, 9, 12]);
 		assert_ok!(AuthorityMembership::remove(RuntimeOrigin::root(), 12));
-		assert_eq!(AuthorityMembership::member(), vec![3, 6, 9]);
-		assert_eq!(AuthorityMembership::outgoing(), vec![12]);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
+		assert_eq!(OutgoingAuthorities::<Test>::get(), vec![12]);
 
 		run_to_block(15);
 		assert_eq!(Session::current_index(), 3);
@@ -156,16 +156,16 @@ fn test_go_online_with_a_removed_authority_member() {
 			vec![]
 		));
 		assert_ok!(AuthorityMembership::nominate(RuntimeOrigin::root(), 12));
-		assert_eq!(AuthorityMembership::member(), vec![3, 6, 9, 12]);
-		assert_eq!(AuthorityMembership::incoming(), vec![12]);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9, 12]);
+		assert_eq!(IncomingAuthorities::<Test>::get(), vec![12]);
 
 		// Member 12 should be **effectively** in the authorities set in 2 sessions
 		run_to_block(10);
 		assert_eq!(Session::current_index(), 2);
 		assert_eq!(Session::validators(), vec![3, 6, 9, 12]);
 		assert_ok!(AuthorityMembership::remove(RuntimeOrigin::root(), 12));
-		assert_eq!(AuthorityMembership::member(), vec![3, 6, 9]);
-		assert_eq!(AuthorityMembership::outgoing(), vec![12]);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
+		assert_eq!(OutgoingAuthorities::<Test>::get(), vec![12]);
 
 		assert_err!(
 			AuthorityMembership::go_online(RuntimeOrigin::signed(12)),
@@ -191,10 +191,10 @@ fn test_offence_disconnect() {
 		);
 
 		// Verify state
-		assert_eq!(AuthorityMembership::incoming(), EMPTY);
-		assert_eq!(AuthorityMembership::member(), vec![3, 6, 9]);
-		assert_eq!(AuthorityMembership::outgoing(), vec![9, 3]);
-		assert_eq!(AuthorityMembership::blacklist(), EMPTY);
+		assert_eq!(IncomingAuthorities::<Test>::get(), EMPTY);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
+		assert_eq!(OutgoingAuthorities::<Test>::get(), vec![9, 3]);
+		assert_eq!(BlackList::<Test>::get(), EMPTY);
 
 		// Member 2 and 3 should be outgoing at the next session
 		run_to_block(5);
@@ -223,10 +223,10 @@ fn test_offence_disconnect() {
 			pallet_offences::SlashStrategy::Disconnect,
 		);
 
-		assert_eq!(AuthorityMembership::incoming(), EMPTY);
-		assert_eq!(AuthorityMembership::member(), vec![3, 6, 9]);
-		assert_eq!(AuthorityMembership::outgoing(), vec![3]);
-		assert_eq!(AuthorityMembership::blacklist(), EMPTY);
+		assert_eq!(IncomingAuthorities::<Test>::get(), EMPTY);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
+		assert_eq!(OutgoingAuthorities::<Test>::get(), vec![3]);
+		assert_eq!(BlackList::<Test>::get(), EMPTY);
 	});
 }
 
@@ -244,21 +244,21 @@ fn test_offence_black_list() {
 		);
 
 		// Verify state
-		assert_eq!(AuthorityMembership::member(), vec![3, 6, 9]);
-		assert_eq!(AuthorityMembership::outgoing(), vec![9]);
-		assert_eq!(AuthorityMembership::blacklist(), vec![9]);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
+		assert_eq!(OutgoingAuthorities::<Test>::get(), vec![9]);
+		assert_eq!(BlackList::<Test>::get(), vec![9]);
 
 		// Member 3 should be outgoing at the next session
 		run_to_block(5);
 		assert_eq!(Session::current_index(), 1);
 		assert_eq!(Session::validators(), vec![3, 6, 9]);
-		assert_eq!(AuthorityMembership::blacklist(), vec![9]); // still in blacklist
+		assert_eq!(BlackList::<Test>::get(), vec![9]); // still in blacklist
 
 		// Member 3 should be out at session 2
 		run_to_block(10);
 		assert_eq!(Session::current_index(), 2);
 		assert_eq!(Session::validators(), vec![3, 6]);
-		assert_eq!(AuthorityMembership::blacklist(), vec![9]); // still in blacklist
+		assert_eq!(BlackList::<Test>::get(), vec![9]); // still in blacklist
 	});
 }
 /// tests that blacklisting prevents 3 from going online
@@ -273,10 +273,10 @@ fn test_offence_black_list_prevent_from_going_online() {
 		);
 
 		// Verify state
-		assert_eq!(AuthorityMembership::incoming(), EMPTY);
-		assert_eq!(AuthorityMembership::outgoing(), vec![9]);
-		assert_eq!(AuthorityMembership::blacklist(), vec![9]);
-		assert_eq!(AuthorityMembership::member(), vec![3, 6, 9]);
+		assert_eq!(IncomingAuthorities::<Test>::get(), EMPTY);
+		assert_eq!(OutgoingAuthorities::<Test>::get(), vec![9]);
+		assert_eq!(BlackList::<Test>::get(), vec![9]);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
 
 		// Member 3 should not be allowed to go online
 		run_to_block(25);
@@ -291,11 +291,11 @@ fn test_offence_black_list_prevent_from_going_online() {
 			AuthorityMembership::remove_member_from_blacklist(RuntimeOrigin::signed(9), 9),
 			BadOrigin
 		);
-		assert_eq!(AuthorityMembership::blacklist(), vec![9]);
+		assert_eq!(BlackList::<Test>::get(), vec![9]);
 
 		// Authorized origin should be able to remove from blacklist
 		assert_ok!(AuthorityMembership::remove_member_from_blacklist(RawOrigin::Root.into(), 9));
-		assert_eq!(AuthorityMembership::blacklist(), EMPTY);
+		assert_eq!(BlackList::<Test>::get(), EMPTY);
 		System::assert_last_event(Event::MemberWhiteList(9).into());
 
 		// Authorized should not be able to remove a non-existing member from blacklist
