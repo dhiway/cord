@@ -384,3 +384,130 @@ fn revoke_rating_with_existing_rating_identifier_should_fail() {
 		);
 	});
 }
+
+#[test]
+fn test_revise_rating_id_already_exists() {
+	let creator = DID_00.clone();
+	let author = ACCOUNT_00.clone();
+	let message_id = BoundedVec::try_from([82u8; 10].to_vec()).unwrap();
+	let message_id_revise: BoundedVec<u8, MaxEncodedValueLength> =
+		BoundedVec::try_from([75u8; 10].to_vec()).unwrap();
+	let message_id_revoke = BoundedVec::try_from([84u8; 10].to_vec()).unwrap();
+	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
+	let entry = RatingInputEntryOf::<Test> {
+		entity_id: entity_id.clone(),
+		provider_id: provider_id.clone(),
+		total_encoded_rating: 250u64,
+		count_of_txn: 7u64,
+		rating_type: RatingTypeOf::Overall,
+		provider_did: creator.clone(),
+	};
+	let entry_digest =
+		<Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
+
+	let entry_revise = RatingInputEntryOf::<Test> {
+		entity_id: entity_id.clone(),
+		provider_id: provider_id.clone(),
+		total_encoded_rating: 250u64,
+		count_of_txn: 7u64,
+		rating_type: RatingTypeOf::Overall,
+		provider_did: creator.clone(),
+	};
+	let entry_revise_digest =
+		<Test as frame_system::Config>::Hashing::hash(&[&entry_revise.encode()[..]].concat()[..]);
+
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: AuthorizationIdOf =
+		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
+			.unwrap();
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[
+			&entry_digest.encode()[..],
+			&entry.entity_id.encode()[..],
+			&message_id.encode()[..],
+			&space_id.encode()[..],
+			&creator.clone().encode()[..],
+		]
+		.concat()[..],
+	);
+
+	let identifier =
+		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating)
+			.unwrap();
+	let id_digest_revise = <Test as frame_system::Config>::Hashing::hash(
+		&[
+			&entry_revise_digest.encode()[..],
+			&entry_revise.entity_id.encode()[..],
+			&message_id_revoke.encode()[..],
+			&space_id.encode()[..],
+			&creator.clone().encode()[..],
+		]
+		.concat()[..],
+	);
+	let identifier_add =
+		Ss58Identifier::create_identifier(&(id_digest_revise).encode()[..], IdentifierType::Rating)
+			.unwrap();
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		// Create a space
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 5u64));
+
+		// Register the rating entry once
+		assert_ok!(Score::register_rating(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			entry.clone(),
+			entry_digest,
+			message_id.clone(),
+			authorization_id.clone(),
+		));
+
+		// Revoke the rating to create a debit entry
+		assert_ok!(Score::revoke_rating(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			identifier.clone(),
+			message_id_revoke.clone(),
+			entry_digest.clone(),
+			authorization_id.clone()
+		));
+
+		// Revise rating to create a new rating for the entity
+		assert_ok!(Score::revise_rating(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			entry_revise.clone(),
+			entry_revise_digest.clone(),
+			message_id_revise.clone(),
+			identifier_add.clone(),
+			authorization_id.clone(),
+		));
+
+		// // Remove the messgae_id from list to reach `RatingIdentifierAlreadyAdded` block.
+		<MessageIdentifiers<Test>>::remove(message_id_revise.clone(), creator.clone());
+
+		// // Error when revising rating again with same rating identifier
+		assert_err!(
+			Score::revise_rating(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				entry_revise.clone(),
+				entry_revise_digest.clone(),
+				message_id_revise.clone(),
+				identifier_add.clone(),
+				authorization_id.clone(),
+			),
+			Error::<Test>::RatingIdentifierAlreadyAdded
+		);
+	})
+}
