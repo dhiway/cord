@@ -386,7 +386,7 @@ fn revoke_rating_with_existing_rating_identifier_should_fail() {
 }
 
 #[test]
-fn test_revise_rating_id_already_exists() {
+fn revise_rating_with_existing_rating_identifier_should_fail() {
 	let creator = DID_00.clone();
 	let author = ACCOUNT_00.clone();
 	let message_id = BoundedVec::try_from([82u8; 10].to_vec()).unwrap();
