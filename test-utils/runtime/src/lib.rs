@@ -79,6 +79,8 @@ pub type AuraId = sp_consensus_aura::sr25519::AuthorityId;
 #[cfg(feature = "std")]
 pub use extrinsic::{ExtrinsicBuilder, Transfer};
 
+//use crate::cord_test_pallet::Authorities;
+
 const LOG_TARGET: &str = "cord-test-runtime";
 
 // Include the WASM binary
@@ -629,6 +631,10 @@ impl_runtime_apis! {
 			sp_consensus_aura::SlotDuration::from_millis(1000)
 		}
 
+		/* TODO:: Remove deprecated way of accessing storage through getter,
+		 * instead use Authorities<Type>::get().
+		 * Currently type resolution is failing to fulfill above.
+		 */
 		fn authorities() -> Vec<AuraId> {
 			CordTest::authorities().into_iter().map(AuraId::from).collect()
 		}
