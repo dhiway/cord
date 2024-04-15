@@ -480,7 +480,7 @@ fn revise_rating_with_existing_rating_identifier_should_fail() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			identifier.clone(),
 			message_id_revoke.clone(),
-			entry_digest.clone(),
+			entry_digest,
 			authorization_id.clone()
 		));
 
@@ -488,7 +488,7 @@ fn revise_rating_with_existing_rating_identifier_should_fail() {
 		assert_ok!(Score::revise_rating(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			entry_revise.clone(),
-			entry_revise_digest.clone(),
+			entry_revise_digest,
 			message_id_revise.clone(),
 			identifier_add.clone(),
 			authorization_id.clone(),
@@ -502,7 +502,7 @@ fn revise_rating_with_existing_rating_identifier_should_fail() {
 			Score::revise_rating(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
 				entry_revise.clone(),
-				entry_revise_digest.clone(),
+				entry_revise_digest,
 				message_id_revise.clone(),
 				identifier_add.clone(),
 				authorization_id.clone(),
