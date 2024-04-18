@@ -496,7 +496,7 @@ fn asset_vc_status_change_should_succeed() {
 	});
 }
 #[test]
-fn test_asset_status_in_same_state_1() {
+fn changing_status_of_asset_instance_with_same_status_should_fail() {
 	// Set up test parameters
 	let creator = DID_00;
 	let author = ACCOUNT_00;
@@ -599,7 +599,7 @@ fn test_asset_status_in_same_state_1() {
 }
 
 #[test]
-fn test_vc_asset_status_in_same_state_1() {
+fn changing_status_of_vc_asset_instance_with_same_status_should_fail() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 
@@ -699,7 +699,7 @@ fn test_vc_asset_status_in_same_state_1() {
 }
 
 #[test]
-fn test_asset_status_in_same_state_2() {
+fn changing_status_of_asset_with_same_status_should_fail() {
 	// Set up test parameters
 	let creator = DID_00;
 	let author = ACCOUNT_00;
@@ -789,7 +789,7 @@ fn test_asset_status_in_same_state_2() {
 }
 
 #[test]
-fn test_vc_asset_status_in_same_state_2() {
+fn changing_status_of_vc_asset_with_same_status_should_fail() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 
