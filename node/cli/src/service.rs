@@ -463,9 +463,9 @@ pub fn new_full_base(
 	} else {
 		let mut backoff = sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default();
 
-		if config.chain_spec.is_cord_local()
-			|| config.chain_spec.is_cord_staging()
-			|| config.chain_spec.is_dev()
+		if config.chain_spec.is_cord_local() ||
+			config.chain_spec.is_cord_staging() ||
+			config.chain_spec.is_dev()
 		{
 			// on testnets that are in flux, finality has stalled
 			// sometimes due to operational issues.

@@ -69,9 +69,9 @@ impl SubstrateCli for Cli {
 				let path = std::path::PathBuf::from(path);
 				let chain_spec = Box::new(chain_spec::CordChainSpec::from_json_file(path.clone())?)
 					as Box<dyn sc_service::ChainSpec>;
-				if chain_spec.is_cord()
-					|| chain_spec.is_cord_local()
-					|| chain_spec.is_cord_staging()
+				if chain_spec.is_cord() ||
+					chain_spec.is_cord_local() ||
+					chain_spec.is_cord_staging()
 				{
 					Box::new(chain_spec::CordChainSpec::from_json_file(path)?)
 				} else {
@@ -224,9 +224,8 @@ pub fn run() -> Result<()> {
 							&ext_factory,
 						)
 					},
-					BenchmarkCmd::Machine(cmd) => {
-						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())
-					},
+					BenchmarkCmd::Machine(cmd) =>
+						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()),
 				}
 			})
 		},
