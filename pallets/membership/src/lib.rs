@@ -627,7 +627,7 @@ mod tests {
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	impl IsMember<u64> for TestIsNetworkMember {
 		fn is_member(member_id: &u64) -> bool {
-			(1..=30).contains(member_id)
+			(1..=40).contains(member_id)
 		}
 	}
 
