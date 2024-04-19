@@ -23,7 +23,7 @@ use crate::{
 	benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder},
 	chain_spec,
 	cli::{Cli, Subcommand},
-	service as cord_service,
+	service::{self as cord_service, IdentifyVariant},
 };
 
 use cord_primitives::Block;
@@ -62,13 +62,22 @@ impl SubstrateCli for Cli {
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		let spec = match id {
-			"cord" | "" => Box::new(chain_spec::cord_staging_config()?),
-			"cord_dev" | "dev" | "ignite" => Box::new(chain_spec::cord_dev_config()?),
-			"local" | "spin" => Box::new(chain_spec::cord_local_config()?),
-			"staging" | "sprint" => Box::new(chain_spec::cord_staging_config()?),
-			"builder" | "spark" => Box::new(chain_spec::cord_builder_config()?),
-			path =>
-				Box::new(chain_spec::CordChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+			"cord" | "braid" | "" => Box::new(chain_spec::cord_local_config()?),
+			"dev" | "braid-dev" => Box::new(chain_spec::cord_dev_config()?),
+			"local" | "braid-local" => Box::new(chain_spec::cord_local_config()?),
+			path => {
+				let path = std::path::PathBuf::from(path);
+				let chain_spec = Box::new(chain_spec::CordChainSpec::from_json_file(path.clone())?)
+					as Box<dyn sc_service::ChainSpec>;
+				if chain_spec.is_cord()
+					|| chain_spec.is_cord_local()
+					|| chain_spec.is_cord_staging()
+				{
+					Box::new(chain_spec::CordChainSpec::from_json_file(path)?)
+				} else {
+					chain_spec
+				}
+			},
 		};
 		Ok(spec)
 	}
@@ -215,13 +224,14 @@ pub fn run() -> Result<()> {
 							&ext_factory,
 						)
 					},
-					BenchmarkCmd::Machine(cmd) =>
-						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()),
+					BenchmarkCmd::Machine(cmd) => {
+						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())
+					},
 				}
 			})
 		},
 		#[cfg(feature = "try-runtime")]
-		Some(Subcommand::TryRuntime) => Err(try_runtime_cli::DEPRECATION_NOTICE.into()),
+		Some(Subcommand::TryRuntime) => Err(try_runtime_cli::DEPRECATION_NOTICE.to_owned().into()),
 		#[cfg(not(feature = "try-runtime"))]
 		Some(Subcommand::TryRuntime) => Err("TryRuntime wasn't enabled when building the node. \
                 You can enable it with `--features try-runtime`."

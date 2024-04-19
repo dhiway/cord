@@ -21,7 +21,6 @@
 pub mod bootstrap;
 
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
-pub use cord_runtime::RuntimeGenesisConfig;
 use cord_runtime::{Block, SessionKeys};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
@@ -58,7 +57,7 @@ pub struct Extensions {
 }
 
 /// Specialized `ChainSpec`.
-pub type CordChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
+pub type CordChainSpec = sc_service::GenericChainSpec<(), Extensions>;
 
 fn session_keys(
 	babe: BabeId,
@@ -170,8 +169,8 @@ pub fn cord_dev_config() -> Result<CordChainSpec, String> {
 		cord_runtime::WASM_BINARY.ok_or("Cord development wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Cord Ignite")
-	.with_id("dev")
+	.with_name("Braid")
+	.with_id("braid_dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(cord_development_config_genesis())
 	.with_telemetry_endpoints(
@@ -189,8 +188,8 @@ pub fn cord_local_config() -> Result<CordChainSpec, String> {
 		cord_runtime::WASM_BINARY.ok_or("Cord development wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Cord Spin")
-	.with_id("local")
+	.with_name("Braid")
+	.with_id("braid_local")
 	.with_chain_type(ChainType::Local)
 	.with_genesis_config_patch(cord_local_config_genesis())
 	.with_telemetry_endpoints(
@@ -200,18 +199,6 @@ pub fn cord_local_config() -> Result<CordChainSpec, String> {
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.with_properties(properties)
 	.build())
-}
-
-// pub fn cord_config() -> Result<CordChainSpec, String> {
-// CordChainSpec::from_json_bytes(&include_bytes!("../chain-specs/cord.json")[..
-// ]) }
-
-pub fn cord_staging_config() -> Result<CordChainSpec, String> {
-	CordChainSpec::from_json_bytes(&include_bytes!("../res/sprint.json")[..])
-}
-
-pub fn cord_builder_config() -> Result<CordChainSpec, String> {
-	CordChainSpec::from_json_bytes(&include_bytes!("../res/spark.json")[..])
 }
 
 fn cord_local_genesis(
