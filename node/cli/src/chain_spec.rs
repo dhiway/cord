@@ -22,7 +22,7 @@ pub mod bootstrap;
 
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 pub use cord_runtime::RuntimeGenesisConfig;
-use cord_runtime::{Block, SessionKeys};
+use cord_runtime::{Block, SS58Prefix, SessionKeys};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
 use sc_consensus_grandpa::AuthorityId as GrandpaId;
@@ -184,6 +184,7 @@ pub fn cord_dev_config() -> Result<CordChainSpec, String> {
 }
 
 pub fn cord_local_config() -> Result<CordChainSpec, String> {
+	// let properties = get_properties("WAY", 12, SS58Prefix);
 	let properties = get_properties("WAY", 12, 29);
 	Ok(CordChainSpec::builder(
 		cord_runtime::WASM_BINARY.ok_or("Cord development wasm not available")?,

@@ -28,8 +28,6 @@ use cord_primitives::{
 	prod_or_fast, AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Moment, Nonce,
 };
 pub use cord_primitives::{AccountId, Signature};
-pub use identifier::Ss58Identifier;
-
 use frame_support::{
 	derive_impl,
 	dispatch::DispatchClass,
@@ -51,6 +49,7 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot,
 };
+pub use identifier::Ss58Identifier;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_system::EnsureSigned;
@@ -208,6 +207,7 @@ parameter_types! {
    pub RuntimeBlockLength: BlockLength =
 	   BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
    pub const SS58Prefix: u8 = 29;
+   pub const SS58IdentifierPrefix: u8 = 100;
 }
 
 #[derive_impl(frame_system::config_preludes::SolochainDefaultConfig)]
@@ -652,6 +652,7 @@ parameter_types! {
 	pub const MembershipPeriod: BlockNumber = YEAR;
 	pub const MaxMembersPerBlock: u32 = 1_000;
 	pub const MaxEventsHistory: u32 = u32::MAX;
+	pub const Ss58IdentifierPrefix: u16 = 1000;
 }
 
 impl pallet_network_membership::Config for Runtime {
@@ -664,6 +665,7 @@ impl pallet_network_membership::Config for Runtime {
 
 impl identifier::Config for Runtime {
 	type MaxEventsHistory = MaxEventsHistory;
+	type Ss58IdentifierPrefix = Ss58IdentifierPrefix;
 }
 
 impl pallet_runtime_upgrade::Config for Runtime {
