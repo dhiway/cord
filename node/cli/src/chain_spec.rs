@@ -170,7 +170,7 @@ pub fn cord_dev_config() -> Result<CordChainSpec, String> {
 		Default::default(),
 	)
 	.with_name("Braid")
-	.with_id("braid_dev")
+	.with_id("dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(cord_development_config_genesis())
 	.with_telemetry_endpoints(
@@ -189,7 +189,7 @@ pub fn cord_local_config() -> Result<CordChainSpec, String> {
 		Default::default(),
 	)
 	.with_name("Braid")
-	.with_id("braid_local")
+	.with_id("local")
 	.with_chain_type(ChainType::Local)
 	.with_genesis_config_patch(cord_local_config_genesis())
 	.with_telemetry_endpoints(
