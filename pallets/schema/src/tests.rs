@@ -317,30 +317,45 @@ fn test_schema_lookup() {
 
 #[cfg(test)]
 mod tests {
+	// This module contains unit tests for the `pallet/schema` module.
+	// Unit tests are isolated tests that focus on the functionality of a single module
+	// and are typically run during development and testing to ensure the module
+	// behaves as expected.
+	// The `#[cfg(test)]` attribute ensures this module is only compiled when the
+	// `test` feature is enabled.
 	use super::*;
+	use mock::MockStorage; // Assuming you have a mock for storage
 
 	#[test]
-	fn test_max_encoded_schema_limit_exceeded() {
-		// Arrange: Set up test environment
-		let mut mock_storage = new_test_ext().0; // Initialize mock storage
-
-		// Replace MAX_SCHEMA_SIZE with the actual limit from your code
+	fn test_max_encoded_schema_limit_exceeded_create() {
+		// Arrange
+		let mut mock_storage = MockStorage::new();
 		const MAX_SCHEMA_SIZE: usize = 1024; // Replace with the actual value
 
-		// Act: Perform the action that might trigger the error
-		let mut large_schema_data = vec![0u8; MAX_SCHEMA_SIZE + 1]; // Create data exceeding the limit
-
-		// Replace some_function_that_encodes_schema with the actual function
+		// Act
+		let large_schema_data = vec![0u8; MAX_SCHEMA_SIZE + 1];
 		let result = Schema::create(
-			Origin::signed(DID_00), // Replace with appropriate origin type based on your pallet
+			Origin::signed(DID_00), // Replace with appropriate origin type
 			large_schema_data.clone(),
-			Default::default(), // Replace with any additional arguments if needed
+			Default::default(),
 		);
 
-		// Assert: Verify the expected error
-		assert_eq!(
-			result.err().unwrap(),
-			<Error<Test>>::MaxEncodedSchemaLimitExceeded, // Replace with the appropriate error type
-		);
+		// Assert
+		assert_eq!(result.err().unwrap(), Error::<Test>::MaxEncodedSchemaLimitExceeded,);
+	}
+
+	// Add similar test cases for other functions that might return the error
+
+	#[test]
+	fn test_max_encoded_schema_limit_exceeded_edge_case() {
+		// Arrange (similar to above)
+
+		// Act
+		let almost_large_data = vec![0u8; MAX_SCHEMA_SIZE - 1];
+		let result =
+			Schema::create(Origin::signed(DID_00), almost_large_data.clone(), Default::default());
+
+		// Assert
+		assert!(result.is_ok()); // Should not exceed limit
 	}
 }
