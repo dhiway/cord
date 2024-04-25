@@ -314,3 +314,33 @@ fn test_schema_lookup() {
 		}
 	});
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_max_encoded_schema_limit_exceeded() {
+		// Arrange: Set up test environment
+		let mut mock_storage = new_test_ext().0; // Initialize mock storage
+
+		// Replace MAX_SCHEMA_SIZE with the actual limit from your code
+		const MAX_SCHEMA_SIZE: usize = 1024; // Replace with the actual value
+
+		// Act: Perform the action that might trigger the error
+		let mut large_schema_data = vec![0u8; MAX_SCHEMA_SIZE + 1]; // Create data exceeding the limit
+
+		// Replace some_function_that_encodes_schema with the actual function
+		let result = Schema::create(
+			Origin::signed(DID_00), // Replace with appropriate origin type based on your pallet
+			large_schema_data.clone(),
+			Default::default(), // Replace with any additional arguments if needed
+		);
+
+		// Assert: Verify the expected error
+		assert_eq!(
+			result.err().unwrap(),
+			<Error<Test>>::MaxEncodedSchemaLimitExceeded, // Replace with the appropriate error type
+		);
+	}
+}
