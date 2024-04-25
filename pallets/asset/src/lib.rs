@@ -236,6 +236,8 @@ pub mod pallet {
 		InvalidAssetQty,
 		/// Invalid asset type
 		InvalidAssetType,
+		/// Invalid Asset status type
+		InvalidAssetStatus,
 		/// Asset identifier not found
 		AssetIdNotFound,
 		/// Asset is not active
@@ -451,6 +453,8 @@ pub mod pallet {
 			let asset = <Assets<T>>::get(&asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
 
 			ensure!(asset.asset_issuer == issuer, Error::<T>::UnauthorizedOperation);
+
+			ensure!(new_status.is_valid_status_type(), Error::<T>::InvalidAssetStatus);
 
 			/* If instance ID is provided, only revoke the instance, not the asset */
 			if let Some(ref inst_id) = instance_id {
@@ -687,6 +691,8 @@ pub mod pallet {
 			let asset = <VCAssets<T>>::get(&asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
 
 			ensure!(asset.asset_issuer == issuer, Error::<T>::UnauthorizedOperation);
+
+			ensure!(new_status.is_valid_status_type(), Error::<T>::InvalidAssetStatus);
 
 			/* If instance ID is provided, only revoke the instance, not the asset */
 			if let Some(ref inst_id) = instance_id {
