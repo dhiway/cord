@@ -64,7 +64,7 @@ docker run --rm dhiway/cord --version
 You can also pass any argument/flag that CORD supports:
 
 ```bash
-docker run --rm dhiway/cord --dev --name "CordDocker"
+docker run --name "CordDocker" --rm dhiway/cord --dev 
 ```
 
 Once you are done experimenting and picking the best node name :) you can start CORD as daemon, exposes the CORD ports and mount a volume that will keep your blockchain data locally.
@@ -84,7 +84,7 @@ docker run -d -p 9944:9944 -p 30333:30333 -p 9933:9933 -p 9615:9615 -v cord:/dat
 3. Additionally if you want to have custom node name you can add the `--name "YourName"` at the end
 
 ```bash
-docker run -d -p 9944:9944 -p 30333:30333 -p 9933:9933 -p 9615:9615 -v cord:/data dhiway/cord --dev --rpc-external --rpc-cors all --name "CordDocker"
+docker run --name "CordDocker" -d -p 9944:9944 -p 30333:30333 -p 9933:9933 -p 9615:9615 -v cord:/data dhiway/cord --dev --rpc-external --rpc-cors all 
 ```
 
 
