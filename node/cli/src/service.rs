@@ -79,7 +79,10 @@ pub enum Chain {
 pub trait IdentifyVariant {
 	/// Returns `true` if this is a configuration for Cord network.
 	fn is_cord(&self) -> bool;
-
+	/// Returns `true` if this is a configuration for Cord local network.
+	fn is_cord_local(&self) -> bool;
+	/// Returns `true` if this is a configuration for Cord staging network.
+	fn is_cord_staging(&self) -> bool;
 	/// Returns true if this configuration is for a development network.
 	fn is_dev(&self) -> bool;
 
@@ -89,13 +92,20 @@ pub trait IdentifyVariant {
 
 impl IdentifyVariant for Box<dyn ChainSpec> {
 	fn is_cord(&self) -> bool {
-		self.id().to_lowercase().starts_with("cord")
+		self.id().to_lowercase() == "cord" || self.id().to_lowercase() == "braid"
+	}
+	fn is_cord_local(&self) -> bool {
+		self.id().to_lowercase().ends_with("local")
+	}
+	fn is_cord_staging(&self) -> bool {
+		self.id().to_lowercase().ends_with("staging")
 	}
 	fn is_dev(&self) -> bool {
 		self.id().ends_with("dev")
 	}
 	fn identify_chain(&self) -> Chain {
-		if self.is_cord() {
+		if self.is_cord() || self.is_cord_local() || self.is_cord_local() || self.is_cord_staging()
+		{
 			Chain::Cord
 		} else {
 			Chain::Unknown
@@ -447,8 +457,23 @@ pub fn new_full_base(
 ) -> Result<NewFullBase, ServiceError> {
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks =
-		Some(sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default());
+	let backoff_authoring_blocks = if config.chain_spec.is_cord() {
+		// the block authoring backoff is disabled on production networks
+		None
+	} else {
+		let mut backoff = sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default();
+
+		if config.chain_spec.is_cord_local() ||
+			config.chain_spec.is_cord_staging() ||
+			config.chain_spec.is_dev()
+		{
+			// on testnets that are in flux, finality has stalled
+			// sometimes due to operational issues.
+			backoff.max_interval = 10;
+		}
+
+		Some(backoff)
+	};
 	let name = config.network.node_name.clone();
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();

@@ -101,17 +101,14 @@ pub mod pallet {
 
 	/// The set of well known nodes. This is stored sorted (just by value).
 	#[pallet::storage]
-	#[pallet::getter(fn well_known_nodes)]
 	pub type WellKnownNodes<T> = StorageValue<_, BTreeSet<PeerId>, ValueQuery>;
 
 	/// A map that maintains the ownership of each node.
 	#[pallet::storage]
-	#[pallet::getter(fn owners)]
 	pub type Owners<T: Config> = StorageMap<_, Blake2_128Concat, PeerId, NodeInfoOf<T>>;
 
 	/// The additional adapative connections of each node.
 	#[pallet::storage]
-	#[pallet::getter(fn additional_connection)]
 	pub type AdditionalConnections<T> =
 		StorageMap<_, Blake2_128Concat, PeerId, BTreeSet<PeerId>, ValueQuery>;
 

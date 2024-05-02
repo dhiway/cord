@@ -52,6 +52,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {}
 
+	/* TODO:: Remove deprecated getter call, instead use Authorities<Type>::get() */
 	#[pallet::storage]
 	#[pallet::getter(fn authorities)]
 	pub type Authorities<T> = StorageValue<_, Vec<Public>, ValueQuery>;

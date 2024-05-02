@@ -170,7 +170,6 @@ pub mod pallet {
 
 	/// Information that is pertinent to identify the entity behind an account.
 	#[pallet::storage]
-	#[pallet::getter(fn identity)]
 	pub(super) type IdentityOf<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
@@ -181,7 +180,6 @@ pub mod pallet {
 	/// The super-identity of an alternative "sub" identity together with its name, within that
 	/// context. If the account is not some other account's sub-identity, then just `None`.
 	#[pallet::storage]
-	#[pallet::getter(fn super_of)]
 	pub(super) type SuperOf<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, (T::AccountId, Data), OptionQuery>;
 
@@ -191,7 +189,6 @@ pub mod pallet {
 	///
 	/// TWOX-NOTE: OK ― `AccountId` is a secure hash.
 	#[pallet::storage]
-	#[pallet::getter(fn subs_of)]
 	pub(super) type SubsOf<T: Config> = StorageMap<
 		_,
 		Twox64Concat,
@@ -203,7 +200,6 @@ pub mod pallet {
 	/// The set of registrars. Not expected to get very big as can only be added
 	/// through a special origin (likely a council motion).
 	#[pallet::storage]
-	#[pallet::getter(fn registrars)]
 	pub(super) type Registrars<T: Config> = StorageValue<
 		_,
 		BoundedVec<
@@ -220,7 +216,6 @@ pub mod pallet {
 
 	/// A map of the accounts who are authorized to grant usernames.
 	#[pallet::storage]
-	#[pallet::getter(fn authority)]
 	pub(super) type UsernameAuthorities<T: Config> =
 		StorageMap<_, Twox64Concat, T::AccountId, AuthorityPropertiesOf<T>, OptionQuery>;
 
@@ -230,7 +225,6 @@ pub mod pallet {
 	/// Multiple usernames may map to the same `AccountId`, but `IdentityOf` will only map to one
 	/// primary username.
 	#[pallet::storage]
-	#[pallet::getter(fn username)]
 	pub(super) type AccountOfUsername<T: Config> =
 		StorageMap<_, Blake2_128Concat, Username<T>, T::AccountId, OptionQuery>;
 
@@ -241,7 +235,6 @@ pub mod pallet {
 	///
 	/// First tuple item is the account and second is the acceptance deadline.
 	#[pallet::storage]
-	#[pallet::getter(fn preapproved_usernames)]
 	pub type PendingUsernames<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,

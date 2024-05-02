@@ -212,14 +212,12 @@ pub mod pallet {
 
 	/// rating entry identifiers with rating details stored on chain.
 	#[pallet::storage]
-	#[pallet::getter(fn rating_entries)]
 	pub type RatingEntries<T> =
 		StorageMap<_, Blake2_128Concat, RatingEntryIdOf, RatingEntryOf<T>, OptionQuery>;
 
 	/// aggregated network score - aggregated and mapped to an entity
 	/// identifier.
 	#[pallet::storage]
-	#[pallet::getter(fn aggregate_scores)]
 	pub type AggregateScores<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
@@ -231,7 +229,6 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn message_identifiers)]
 	pub type MessageIdentifiers<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,

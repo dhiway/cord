@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{mock::*, Error, Event, MemberData};
+use crate::{mock::*, Error, Event, MemberData, Members};
 
 use frame_support::{assert_err, assert_ok, error::BadOrigin};
 use frame_system::RawOrigin;
@@ -27,7 +27,7 @@ fn test_genesis_build() {
 		run_to_block(1);
 		// Verify state
 		assert_eq!(
-			NetworkMembership::members(AccountId::new([11u8; 32])),
+			Members::<Test>::get(AccountId::new([11u8; 32])),
 			Some(MemberData { expire_on: 5 })
 		);
 		assert_eq!(NetworkMembership::members_count(), 1);
@@ -51,7 +51,7 @@ fn test_add_member_request() {
 
 		// This ensures that the account was successfully added
 		assert_eq!(
-			NetworkMembership::members(AccountId::new([13u8; 32])),
+			Members::<Test>::get(AccountId::new([13u8; 32])),
 			Some(MemberData { expire_on: 1 + MembershipPeriod::get() })
 		);
 
@@ -124,7 +124,7 @@ fn test_renew_membership() {
 
 		// This ensures that the account was successfully added
 		assert_eq!(
-			NetworkMembership::members(AccountId::new([13u8; 32])),
+			Members::<Test>::get(AccountId::new([13u8; 32])),
 			Some(MemberData { expire_on: 6 + MembershipPeriod::get() })
 		);
 
@@ -270,7 +270,7 @@ fn test_renew_membership_again_should_fail() {
 
 		// This ensures that the account was successfully added
 		assert_eq!(
-			NetworkMembership::members(AccountId::new([13u8; 32])),
+			Members::<Test>::get(AccountId::new([13u8; 32])),
 			Some(MemberData { expire_on: 6 + MembershipPeriod::get() })
 		);
 
