@@ -265,7 +265,7 @@ impl<I: AsRef<[u8; 32]>, AccountId> DidVerifiableIdentifier<AccountId> for I {
 				ensure!(&hashed_recovered_pk == raw_public_key, SignatureError::InvalidData);
 				// Safe to reconstruct the public key using the recovered value from
 				// secp256k1_ecdsa_recover_compressed
-				Ok(DidVerificationKey::from(ecdsa::Public(recovered_pk)))
+				Ok(DidVerificationKey::from(ecdsa::Public::from(recovered_pk)))
 			},
 		}
 	}

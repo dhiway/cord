@@ -165,14 +165,12 @@ pub mod pallet {
 	/// It maps from an identifier to its details.
 	/// Only stores the latest state.
 	#[pallet::storage]
-	#[pallet::getter(fn statements)]
 	pub type Statements<T> =
 		StorageMap<_, Blake2_128Concat, StatementIdOf, StatementDetailsOf<T>, OptionQuery>;
 
 	/// statement uniques stored on chain.
 	/// It maps from a statement identifier and hash to its details.
 	#[pallet::storage]
-	#[pallet::getter(fn entries)]
 	pub type Entries<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
@@ -186,7 +184,6 @@ pub mod pallet {
 	/// statement uniques stored on chain.
 	/// It maps from a statement identifier and hash to its details.
 	#[pallet::storage]
-	#[pallet::getter(fn presentations)]
 	pub type Presentations<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
@@ -200,7 +197,6 @@ pub mod pallet {
 	/// Revocation registry of statement entries stored on chain.
 	/// It maps from a statement identifier and hash to its details.
 	#[pallet::storage]
-	#[pallet::getter(fn revocation_list)]
 	pub type RevocationList<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
@@ -214,7 +210,6 @@ pub mod pallet {
 	/// Storage for Identifier lookup.
 	/// It maps from a statement entry digest and registry id to an identifier.
 	#[pallet::storage]
-	#[pallet::getter(fn identifier_lookup)]
 	pub type IdentifierLookup<T> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,

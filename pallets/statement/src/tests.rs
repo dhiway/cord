@@ -244,7 +244,7 @@ fn updating_a_registered_statement_should_succeed() {
 			authorization_id,
 		));
 
-		let revoked_statements = Statement::revocation_list(statement_id, statement_digest)
+		let revoked_statements = RevocationList::<Test>::get(statement_id, statement_digest)
 			.expect("Old Statement digest should be present on the revoked list.");
 
 		assert!(revoked_statements.revoked);
@@ -536,7 +536,7 @@ fn revoking_a_registered_statement_should_succeed() {
 			authorization_id,
 		));
 
-		let revoked_statements = Statement::revocation_list(statement_id, statement_digest)
+		let revoked_statements = RevocationList::<Test>::get(statement_id, statement_digest)
 			.expect("Old Statement digest should be present on the revoked list.");
 
 		assert!(revoked_statements.revoked);
@@ -699,8 +699,9 @@ fn restoring_a_revoked_statement_should_succeed() {
 			authorization_id.clone(),
 		));
 
-		let revoked_statements = Statement::revocation_list(statement_id.clone(), statement_digest)
-			.expect("Old Statement digest should be present on the revoked list.");
+		let revoked_statements =
+			RevocationList::<Test>::get(statement_id.clone(), statement_digest)
+				.expect("Old Statement digest should be present on the revoked list.");
 
 		assert!(revoked_statements.revoked);
 
@@ -1074,6 +1075,171 @@ fn removing_nonexistent_presentation_should_fail() {
 				authorization_id,
 			),
 			Error::<Test>::PresentationNotFound
+		);
+	});
+}
+
+#[test]
+fn bulk_registering_statements_with_same_digest_should_fail() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let capacity = 10u64;
+
+	let mut statement_digests = Vec::new();
+	for _ in 0..5 {
+		let statement = [77u8; 32];
+		let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+		statement_digests.push(statement_digest);
+	}
+
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
+		assert_ok!(Schema::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			schema.clone(),
+			authorization_id.clone()
+		));
+
+		assert_ok!(Statement::register(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			statement_digests[0],
+			authorization_id.clone(),
+			Some(schema_id.clone())
+		));
+
+		assert_err!(
+			Statement::register_batch(
+				DoubleOrigin(author, creator).into(),
+				statement_digests,
+				authorization_id,
+				Some(schema_id)
+			),
+			Error::<Test>::BulkTransactionFailed
+		);
+	});
+}
+
+#[test]
+fn trying_to_update_or_revoke_or_add_presentation_for_revoked_statement_should_fail() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let capacity = 5u64;
+	let statement = [77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+	let new_statement = [88u8; 32];
+	let new_statement_digest = <Test as frame_system::Config>::Hashing::hash(&new_statement[..]);
+
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let raw_schema = [11u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+
+	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&statement_digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let statement_id: StatementIdOf = generate_statement_id::<Test>(&statement_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
+		assert_ok!(Schema::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			schema.clone(),
+			authorization_id.clone()
+		));
+
+		assert_ok!(Statement::register(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			statement_digest,
+			authorization_id.clone(),
+			Some(schema_id)
+		));
+
+		// Revoke the statement
+		assert_ok!(Statement::revoke(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			statement_id.clone(),
+			authorization_id.clone(),
+		));
+
+		// Try to update the revoked statement
+		assert_err!(
+			Statement::update(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				statement_id.clone(),
+				new_statement_digest,
+				authorization_id.clone(),
+			),
+			Error::<Test>::StatementRevoked
+		);
+
+		// Try to revoke the already revoked statement
+		assert_err!(
+			Statement::revoke(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				statement_id.clone(),
+				authorization_id.clone(),
+			),
+			Error::<Test>::StatementRevoked
+		);
+
+		// Try to add a presentation for the revoked statement
+		assert_err!(
+			Statement::add_presentation(
+				DoubleOrigin(author, creator).into(),
+				statement_id,
+				statement_digest,
+				PresentationTypeOf::Other,
+				authorization_id,
+			),
+			Error::<Test>::StatementRevoked
 		);
 	});
 }

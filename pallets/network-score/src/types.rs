@@ -33,17 +33,15 @@ pub struct EntityDetails<EntityIdentifier> {
 #[derive(
 	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
 )]
-pub struct RatingInputEntry<EntityIdentifier, RatingProviderId, EntityTypeOf, RatingTypeOf> {
-	/// Unique Identifier (UID) for the entity being rated
-	pub entity_uid: EntityIdentifier,
+pub struct RatingInputEntry<EntityIdentifier, RatingProviderId, RatingTypeOf> {
+	/// Identifier for the entity being rated
+	pub entity_id: EntityIdentifier,
 	/// Unique Identifier (UID) for the rating provider
-	pub provider_uid: EntityIdentifier,
+	pub provider_id: EntityIdentifier,
 	/// Count of raing transactions for the entry
 	pub count_of_txn: u64,
 	/// Cumulative sum of ratings for the entity
 	pub total_encoded_rating: u64,
-	/// Type of the entity (seller/logistic)
-	pub entity_type: EntityTypeOf,
 	/// Type of rating (overall/delivery)
 	pub rating_type: RatingTypeOf,
 	/// DID identifier of the provider
@@ -57,21 +55,9 @@ pub enum RatingTypeOf {
 }
 
 #[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub enum EntityTypeOf {
-	Retail,
-	Logistic,
-}
-
-#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 pub enum EntryTypeOf {
 	Credit,
 	Debit,
-}
-
-impl EntityTypeOf {
-	pub fn is_valid_entity_type(&self) -> bool {
-		matches!(self, Self::Retail | Self::Logistic)
-	}
 }
 
 impl RatingTypeOf {
@@ -86,7 +72,6 @@ impl RatingTypeOf {
 pub struct RatingEntry<
 	EntityIdentifier,
 	RatingProviderId,
-	EntityTypeOf,
 	RatingTypeOf,
 	RatingEntryId,
 	RatingEntryHash,
@@ -96,7 +81,7 @@ pub struct RatingEntry<
 	EntryTypeOf,
 	Moment,
 > {
-	pub entry: RatingInputEntry<EntityIdentifier, RatingProviderId, EntityTypeOf, RatingTypeOf>,
+	pub entry: RatingInputEntry<EntityIdentifier, RatingProviderId, RatingTypeOf>,
 	/// rating digest
 	pub digest: RatingEntryHash,
 	/// messsage identifier of the rating entry

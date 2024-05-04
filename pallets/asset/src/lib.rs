@@ -65,9 +65,8 @@ pub mod pallet {
 	pub type AssetCreatorOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-
-	/// Hash of the Rating.
-	pub type EntryHashOf<T> = <T as frame_system::Config>::Hash;
+	/// Type of Asset quantity.
+	pub type AssetQtyOf = u64;
 
 	pub type AssetDescriptionOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 	pub type AssetTagOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
@@ -84,6 +83,17 @@ pub mod pallet {
 		AssetTagOf<T>,
 		AssetMetadataOf<T>,
 		BlockNumberFor<T>,
+	>;
+
+	pub type VCAssetEntryOf<T> =
+		VCAssetEntry<AssetStatusOf, AssetCreatorOf<T>, BlockNumberFor<T>, EntryHashOf<T>>;
+
+	pub type VCAssetDistributionEntryOf<T> = VCAssetDistributionEntry<
+		AssetStatusOf,
+		AssetCreatorOf<T>,
+		EntryHashOf<T>,
+		BlockNumberFor<T>,
+		AssetIdOf,
 	>;
 
 	pub type AssetDistributionEntryOf<T> = AssetDistributionEntry<
@@ -128,14 +138,17 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
-	/// asset entry identifiers with  details stored on chain.
+	/// asset entry identifiers with details stored on chain.
 	#[pallet::storage]
-	#[pallet::getter(fn assets)]
 	pub type Assets<T> = StorageMap<_, Blake2_128Concat, AssetIdOf, AssetEntryOf<T>, OptionQuery>;
 
-	/// asset entry identifiers with  details stored on chain.
+	/// asset vc entry idenitfiers with details stored on chain.
 	#[pallet::storage]
-	#[pallet::getter(fn distribution)]
+	pub type VCAssets<T> =
+		StorageMap<_, Blake2_128Concat, AssetIdOf, VCAssetEntryOf<T>, OptionQuery>;
+
+	/// asset entry identifiers with details stored on chain.
+	#[pallet::storage]
 	pub type Distribution<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
@@ -146,7 +159,6 @@ pub mod pallet {
 
 	/// asset entry identifiers with  details stored on chain.
 	#[pallet::storage]
-	#[pallet::getter(fn issued)]
 	pub type Issuance<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
@@ -157,8 +169,19 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// asset vc entry identifiers with details stored on chain.
 	#[pallet::storage]
-	#[pallet::getter(fn asset_lookup)]
+	pub type VCIssuance<T> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		AssetIdOf,
+		Blake2_128Concat,
+		AssetInstanceIdOf,
+		VCAssetDistributionEntryOf<T>,
+		OptionQuery,
+	>;
+
+	#[pallet::storage]
 	pub type AssetLookup<T> =
 		StorageMap<_, Blake2_128Concat, EntryHashOf<T>, AssetIdOf, OptionQuery>;
 
@@ -203,8 +226,12 @@ pub mod pallet {
 		AssetIdAlreadyExists,
 		/// Invalid asset value - should be greater than zero
 		InvalidAssetValue,
+		/// Invalid asset quantity - should be greater than zero
+		InvalidAssetQty,
 		/// Invalid asset type
 		InvalidAssetType,
+		/// Invalid Asset status type
+		InvalidAssetStatus,
 		/// Asset identifier not found
 		AssetIdNotFound,
 		/// Asset is not active
@@ -421,6 +448,8 @@ pub mod pallet {
 
 			ensure!(asset.asset_issuer == issuer, Error::<T>::UnauthorizedOperation);
 
+			ensure!(new_status.is_valid_status_type(), Error::<T>::InvalidAssetStatus);
+
 			/* If instance ID is provided, only revoke the instance, not the asset */
 			if let Some(ref inst_id) = instance_id {
 				let instance = <Issuance<T>>::get(&asset_id, &inst_id)
@@ -446,6 +475,244 @@ pub mod pallet {
 				<Assets<T>>::insert(
 					&asset_id,
 					AssetEntryOf::<T> { asset_status: new_status.clone(), ..asset },
+				);
+				Self::update_activity(&asset_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
+			}
+			Self::deposit_event(Event::StatusChange {
+				identifier: asset_id,
+				instance: instance_id,
+				status: new_status,
+			});
+
+			Ok(())
+		}
+
+		// TODO: Set actual weights
+		#[pallet::call_index(4)]
+		#[pallet::weight({0})]
+		pub fn vc_create(
+			origin: OriginFor<T>,
+			asset_qty: AssetQtyOf,
+			digest: EntryHashOf<T>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&creator.clone(),
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			ensure!(asset_qty > 0, Error::<T>::InvalidAssetQty);
+
+			// Id Digest = concat (H(<scale_encoded_entry_digest>,
+			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+			);
+
+			let identifier =
+				Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Asset)
+					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+			ensure!(!<VCAssets<T>>::contains_key(&identifier), Error::<T>::AssetIdAlreadyExists);
+
+			let block_number = frame_system::Pallet::<T>::block_number();
+
+			<AssetLookup<T>>::insert(digest, &identifier);
+
+			<VCAssets<T>>::insert(
+				&identifier,
+				VCAssetEntryOf::<T> {
+					asset_qty,
+					digest,
+					asset_issuance: Zero::zero(),
+					asset_status: AssetStatusOf::ACTIVE,
+					asset_issuer: creator.clone(),
+					created_at: block_number,
+				},
+			);
+
+			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
+			Self::deposit_event(Event::Create { identifier, issuer: creator });
+
+			Ok(())
+		}
+
+		#[pallet::call_index(5)]
+		#[pallet::weight({0})]
+		pub fn vc_issue(
+			origin: OriginFor<T>,
+			entry: AssetIssuanceEntryOf<T>,
+			digest: EntryHashOf<T>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&issuer,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			let asset = <VCAssets<T>>::get(&entry.asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
+
+			ensure!(asset.asset_issuer == issuer, Error::<T>::UnauthorizedOperation);
+
+			ensure!(AssetStatusOf::ACTIVE == asset.asset_status, Error::<T>::AssetNotActive);
+
+			let issuance_qty = entry.asset_issuance_qty.unwrap_or(1);
+			let overall_issuance = asset.asset_issuance.saturating_add(issuance_qty);
+
+			ensure!(overall_issuance <= asset.asset_qty, Error::<T>::OverIssuanceLimit);
+
+			let mut asset_instance = asset.clone();
+			asset_instance.asset_qty = issuance_qty;
+
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[
+					&entry.asset_id.encode()[..],
+					&entry.asset_owner.encode()[..],
+					&space_id.encode()[..],
+					&issuer.encode()[..],
+					&digest.encode()[..],
+				]
+				.concat()[..],
+			);
+
+			let instance_id = Ss58Identifier::create_identifier(
+				&(id_digest).encode()[..],
+				IdentifierType::AssetInstance,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+			let block_number = frame_system::Pallet::<T>::block_number();
+
+			Distribution::<T>::try_mutate(&entry.asset_id, |dist_option| {
+				let dist = dist_option.get_or_insert_with(BoundedVec::default);
+				dist.try_push(instance_id.clone())
+					.map_err(|_| Error::<T>::DistributionLimitExceeded)
+			})?;
+
+			<AssetLookup<T>>::insert(digest, &entry.asset_id);
+
+			<VCIssuance<T>>::insert(
+				&entry.asset_id,
+				&instance_id,
+				VCAssetDistributionEntryOf::<T> {
+					asset_qty: issuance_qty,
+					asset_instance_parent: entry.asset_id.clone(),
+					digest,
+					asset_instance_status: AssetStatusOf::ACTIVE,
+					asset_instance_issuer: issuer,
+					asset_instance_owner: entry.asset_owner,
+					created_at: block_number,
+				},
+			);
+
+			<VCAssets<T>>::insert(
+				&entry.asset_id,
+				VCAssetEntryOf::<T> { asset_issuance: overall_issuance, ..asset },
+			);
+
+			Self::update_activity(&entry.asset_id, CallTypeOf::Issue).map_err(<Error<T>>::from)?;
+			Self::update_activity(&instance_id, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
+			Self::deposit_event(Event::Issue { identifier: entry.asset_id, instance: instance_id });
+
+			Ok(())
+		}
+
+		#[pallet::call_index(6)]
+		#[pallet::weight({0})]
+		pub fn vc_transfer(
+			origin: OriginFor<T>,
+			entry: AssetTransferEntryOf<T>,
+			digest: EntryHashOf<T>,
+		) -> DispatchResult {
+			let owner = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let asset = <VCAssets<T>>::get(&entry.asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
+			let instance = <VCIssuance<T>>::get(&entry.asset_id, &entry.asset_instance_id)
+				.ok_or(Error::<T>::AssetInstanceNotFound)?;
+
+			ensure!(instance.asset_instance_owner == owner, Error::<T>::UnauthorizedOperation);
+			ensure!(
+				instance.asset_instance_owner == entry.asset_owner,
+				Error::<T>::UnauthorizedOperation
+			);
+
+			ensure!(AssetStatusOf::ACTIVE == asset.asset_status, Error::<T>::AssetNotActive);
+
+			ensure!(
+				AssetStatusOf::ACTIVE == instance.asset_instance_status,
+				Error::<T>::InstanceNotActive
+			);
+
+			let block_number = frame_system::Pallet::<T>::block_number();
+
+			<VCIssuance<T>>::insert(
+				&entry.asset_id,
+				&entry.asset_instance_id,
+				VCAssetDistributionEntryOf::<T> {
+					asset_instance_owner: entry.new_asset_owner.clone(),
+					digest,
+					created_at: block_number,
+					..instance
+				},
+			);
+
+			Self::update_activity(&entry.asset_instance_id, CallTypeOf::Transfer)
+				.map_err(<Error<T>>::from)?;
+			Self::deposit_event(Event::Transfer {
+				identifier: entry.asset_id,
+				instance: entry.asset_instance_id,
+				from: owner,
+				to: entry.new_asset_owner,
+			});
+
+			Ok(())
+		}
+
+		#[pallet::call_index(7)]
+		#[pallet::weight({0})]
+		pub fn vc_status_change(
+			origin: OriginFor<T>,
+			asset_id: AssetIdOf,
+			instance_id: Option<AssetInstanceIdOf>,
+			new_status: AssetStatusOf,
+		) -> DispatchResult {
+			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let asset = <VCAssets<T>>::get(&asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
+
+			ensure!(asset.asset_issuer == issuer, Error::<T>::UnauthorizedOperation);
+
+			ensure!(new_status.is_valid_status_type(), Error::<T>::InvalidAssetStatus);
+
+			/* If instance ID is provided, only revoke the instance, not the asset */
+			if let Some(ref inst_id) = instance_id {
+				let instance = <VCIssuance<T>>::get(&asset_id, &inst_id)
+					.ok_or(Error::<T>::AssetInstanceNotFound)?;
+				ensure!(
+					new_status.clone() != instance.asset_instance_status,
+					Error::<T>::AssetInSameState
+				);
+
+				/* update the storage with new status */
+				<VCIssuance<T>>::insert(
+					&asset_id,
+					&inst_id,
+					VCAssetDistributionEntryOf::<T> {
+						asset_instance_status: new_status.clone(),
+						..instance
+					},
+				);
+
+				Self::update_activity(&inst_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
+			} else {
+				ensure!(new_status.clone() != asset.asset_status, Error::<T>::AssetInSameState);
+				<VCAssets<T>>::insert(
+					&asset_id,
+					VCAssetEntryOf::<T> { asset_status: new_status.clone(), ..asset },
 				);
 				Self::update_activity(&asset_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
 			}

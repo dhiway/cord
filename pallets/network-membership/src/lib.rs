@@ -81,7 +81,6 @@ pub mod pallet {
 
 	// maps author identity with expire block
 	#[pallet::storage]
-	#[pallet::getter(fn members)]
 	pub(super) type Members<T: Config> = CountedStorageMap<
 		_,
 		Blake2_128Concat,
@@ -312,7 +311,7 @@ impl<T: Config> Pallet<T> {
 		total_weight
 	}
 	/// check if identity is member
-	pub fn is_member_inner(member: &CordAccountOf<T>) -> bool {
+	pub fn is_member(member: &CordAccountOf<T>) -> bool {
 		Members::<T>::contains_key(member)
 	}
 	// Query the data that we know about the weight of a given `call`.
@@ -331,15 +330,9 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> network_membership::traits::IsMember<T::AccountId> for Pallet<T> {
-	fn is_member(member: &CordAccountOf<T>) -> bool {
-		Self::is_member_inner(member)
-	}
-}
-
 impl<T: Config> sp_runtime::traits::IsMember<T::AccountId> for Pallet<T> {
 	fn is_member(member: &CordAccountOf<T>) -> bool {
-		Self::is_member_inner(member)
+		Self::is_member(member)
 	}
 }
 

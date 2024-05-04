@@ -16,8 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 4.0.0-dev
-//! DATE: 2024-01-04 (Y/M/D)
+//! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 32.0.0
+//! DATE: 2024-03-18 (Y/M/D)
 //! HOSTNAME: `smohan-dev-host`, CPU: `AMD EPYC 7B12`
 //!
 //! SHORT-NAME: `extrinsic`, LONG-NAME: `ExtrinsicBase`, RUNTIME: `Cord Ignite`
@@ -44,17 +44,17 @@ parameter_types! {
 	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 86_459, 87_622
-	///   Average:  86_795
-	///   Median:   86_766
-	///   Std-Dev:  220.79
+	///   Min, Max: 65_979, 67_447
+	///   Average:  66_458
+	///   Median:   66_382
+	///   Std-Dev:  298.31
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 87_619
-	///   95th: 87_194
-	///   75th: 86_876
+	///   99th: 67_405
+	///   95th: 66_932
+	///   75th: 66_621
 	pub const ExtrinsicBaseWeight: Weight =
-		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(86_795), 0);
+		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(66_458), 0);
 }
 
 #[cfg(test)]

@@ -168,12 +168,11 @@ pub mod pallet {
 	pub type ProviderIdentifierOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 
 	pub type RatingInputEntryOf<T> =
-		RatingInputEntry<EntityIdentifierOf<T>, RatingProviderIdOf<T>, EntityTypeOf, RatingTypeOf>;
+		RatingInputEntry<EntityIdentifierOf<T>, RatingProviderIdOf<T>, RatingTypeOf>;
 
 	pub type RatingEntryOf<T> = RatingEntry<
 		EntityIdentifierOf<T>,
 		RatingProviderIdOf<T>,
-		EntityTypeOf,
 		RatingTypeOf,
 		RatingEntryIdOf,
 		RatingEntryHashOf<T>,
@@ -183,8 +182,6 @@ pub mod pallet {
 		EntryTypeOf,
 		<T as timestamp::Config>::Moment,
 	>;
-
-	// pub type AggregatedEntryOf = AggregatedEntry;
 
 	#[pallet::config]
 	pub trait Config:
@@ -215,14 +212,12 @@ pub mod pallet {
 
 	/// rating entry identifiers with rating details stored on chain.
 	#[pallet::storage]
-	#[pallet::getter(fn rating_entries)]
 	pub type RatingEntries<T> =
 		StorageMap<_, Blake2_128Concat, RatingEntryIdOf, RatingEntryOf<T>, OptionQuery>;
 
 	/// aggregated network score - aggregated and mapped to an entity
 	/// identifier.
 	#[pallet::storage]
-	#[pallet::getter(fn aggregate_scores)]
 	pub type AggregateScores<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
@@ -234,7 +229,6 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn message_identifiers)]
 	pub type MessageIdentifiers<T> = StorageDoubleMap<
 		_,
 		Twox64Concat,
@@ -300,8 +294,8 @@ pub mod pallet {
 		DigestAlreadyAnchored,
 		/// Rating idenfier already exist
 		RatingIdentifierAlreadyAdded,
-		/// Invalid rating or entry type
-		InvalidEntryOrRatingType,
+		/// Invalid rating type
+		InvalidRatingType,
 		/// Rating identifier not found
 		RatingIdentifierNotFound,
 		/// Referenced rating identifier not found
@@ -334,7 +328,7 @@ pub mod pallet {
 		/// # Errors
 		/// Returns `Error::<T>::InvalidRatingValue` if the rating value is not
 		/// within the expected range.
-		/// Returns `Error::<T>::InvalidEntryOrRatingType` if the entry type or
+		/// Returns `Error::<T>::InvalidRatingType` if the entry type or
 		/// rating type is not valid.
 		/// Returns `Error::<T>::MessageIdAlreadyExists` if the message
 		/// identifier is already used.
@@ -377,11 +371,7 @@ pub mod pallet {
 				Error::<T>::InvalidRatingValue
 			);
 
-			ensure!(
-				entry.entity_type.is_valid_entity_type() &&
-					entry.rating_type.is_valid_rating_type(),
-				Error::<T>::InvalidEntryOrRatingType
-			);
+			ensure!(entry.rating_type.is_valid_rating_type(), Error::<T>::InvalidRatingType);
 
 			ensure!(
 				!<MessageIdentifiers<T>>::contains_key(&message_id, &provider),
@@ -389,15 +379,15 @@ pub mod pallet {
 			);
 
 			let provider_did = entry.provider_did.clone();
-			let entity_uid = entry.entity_uid.clone();
+			let entity_id = entry.entity_id.clone();
 
-			// Id Digest = concat (H(<scale_encoded_digest>,(<scale_encoded_entity_uid>),
+			// Id Digest = concat (H(<scale_encoded_digest>,(<scale_encoded_entity_id>),
 			// (<scale_encoded_message_id> <scale_encoded_space_identifier>,
 			// <scale_encoded_provider_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[
 					&digest.encode()[..],
-					&entity_uid.encode()[..],
+					&entity_id.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
 					&provider_did.encode()[..],
@@ -418,7 +408,7 @@ pub mod pallet {
 
 			Self::aggregate_score(&entry, EntryTypeOf::Credit)?;
 
-			let entity = entry.entity_uid.clone();
+			let entity = entry.entity_id.clone();
 			let created_at = Self::get_current_time();
 
 			<RatingEntries<T>>::insert(
@@ -516,15 +506,15 @@ pub mod pallet {
 			);
 
 			let provider_did = rating_details.entry.provider_did.clone();
-			let entity_uid = rating_details.entry.entity_uid.clone();
+			let entity_id = rating_details.entry.entity_id.clone();
 
-			// Id Digest = concat (H(<scale_encoded_digest>,(<scale_encoded_entity_uid>),
+			// Id Digest = concat (H(<scale_encoded_digest>,(<scale_encoded_entity_id>),
 			// (<scale_encoded_message_id>) <scale_encoded_space_identifier>,
 			// <scale_encoded_provider_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[
 					&digest.encode()[..],
-					&entity_uid.encode()[..],
+					&entity_id.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
 					&provider_did.encode()[..],
@@ -545,7 +535,7 @@ pub mod pallet {
 
 			Self::aggregate_score(&rating_details.entry, EntryTypeOf::Debit)?;
 
-			let entity = rating_details.entry.entity_uid.clone();
+			let entity = rating_details.entry.entity_id.clone();
 			let created_at = Self::get_current_time();
 
 			<RatingEntries<T>>::insert(
@@ -596,7 +586,7 @@ pub mod pallet {
 		/// # Errors
 		/// Returns `Error::<T>::InvalidRatingValue` if the new rating value is
 		/// not within the expected range.
-		/// Returns `Error::<T>::InvalidEntryOrRatingType` if the entry type or
+		/// Returns `Error::<T>::InvalidRatingType` if the entry type or
 		/// rating type of the new rating is invalid.
 		/// Returns `Error::<T>::ReferenceIdentifierNotFound` if the original
 		/// rating reference identifier is not found.
@@ -648,19 +638,12 @@ pub mod pallet {
 				Error::<T>::InvalidRatingValue
 			);
 
-			ensure!(
-				entry.entity_type.is_valid_entity_type() &&
-					entry.rating_type.is_valid_rating_type(),
-				Error::<T>::InvalidEntryOrRatingType
-			);
+			ensure!(entry.rating_type.is_valid_rating_type(), Error::<T>::InvalidRatingType);
 
 			let rating_details = <RatingEntries<T>>::get(&debit_ref_id)
 				.ok_or(Error::<T>::ReferenceIdentifierNotFound)?;
 
-			ensure!(
-				entry.entity_uid == rating_details.entry.entity_uid,
-				Error::<T>::EntityMismatch
-			);
+			ensure!(entry.entity_id == rating_details.entry.entity_id, Error::<T>::EntityMismatch);
 			ensure!(space_id == rating_details.space, Error::<T>::SpaceMismatch);
 
 			let stored_entry_type: EntryTypeOf = rating_details.entry_type;
@@ -675,14 +658,14 @@ pub mod pallet {
 			);
 
 			let provider_did = entry.provider_did.clone();
-			let entity_uid = entry.entity_uid.clone();
-			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_entity_uid>),
+			let entity_id = entry.entity_id.clone();
+			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_entity_id>),
 			// (<scale_encoded_message_id>), <scale_encoded_space_identifier>,
 			// <scale_encoded_provider_identifier>))
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
 				&[
 					&digest.encode()[..],
-					&entity_uid.encode()[..],
+					&entity_id.encode()[..],
 					&message_id.encode()[..],
 					&space_id.encode()[..],
 					&provider_did.encode()[..],
@@ -702,7 +685,7 @@ pub mod pallet {
 			);
 
 			Self::aggregate_score(&entry, EntryTypeOf::Credit)?;
-			let entity = rating_details.entry.entity_uid.clone();
+			let entity = rating_details.entry.entity_id.clone();
 			let reference_id_option = rating_details.reference_id;
 			let created_at = Self::get_current_time();
 
@@ -771,8 +754,7 @@ impl<T: Config> Pallet<T> {
 		entry: &RatingInputEntryOf<T>,
 		rtype: EntryTypeOf,
 	) -> Result<(), pallet::Error<T>> {
-		if let Some(mut aggregate) =
-			<AggregateScores<T>>::get(&entry.entity_uid, &entry.rating_type)
+		if let Some(mut aggregate) = <AggregateScores<T>>::get(&entry.entity_id, &entry.rating_type)
 		{
 			match rtype {
 				EntryTypeOf::Credit => {
@@ -789,7 +771,7 @@ impl<T: Config> Pallet<T> {
 				},
 			};
 			<AggregateScores<T>>::insert(
-				&entry.entity_uid,
+				&entry.entity_id,
 				&entry.rating_type,
 				AggregatedEntryOf {
 					count_of_txn: aggregate.count_of_txn,
@@ -801,9 +783,9 @@ impl<T: Config> Pallet<T> {
 				count_of_txn: entry.count_of_txn,
 				total_encoded_rating: entry.total_encoded_rating,
 			};
-			<AggregateScores<T>>::insert(&entry.entity_uid, &entry.rating_type, new_score_entry);
+			<AggregateScores<T>>::insert(&entry.entity_id, &entry.rating_type, new_score_entry);
 		}
-		Self::deposit_event(Event::AggregateScoreUpdated { entity: entry.entity_uid.clone() });
+		Self::deposit_event(Event::AggregateScoreUpdated { entity: entry.entity_id.clone() });
 		Ok(())
 	}
 
