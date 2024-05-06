@@ -5,7 +5,7 @@ use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_ok, BoundedVec};
 use frame_system::RawOrigin;
 use pallet_chain_space::{SpaceCodeOf, SpaceIdOf};
-use sp_runtime::{traits::Hash, AccountId32};
+use sp_runtime::{traits::Hash, AccountId32,ModuleError,DispatchError};
 use sp_std::prelude::*;
 
 /// Generates a space ID from a digest.
