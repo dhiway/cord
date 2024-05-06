@@ -229,7 +229,6 @@ fn test_revoke_membership_non_authority() {
 	});
 }
 
-
 #[test]
 fn test_renew_membership_again_should_fail() {
 	new_test_ext().execute_with(|| {
