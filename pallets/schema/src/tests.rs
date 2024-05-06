@@ -314,3 +314,23 @@ fn test_schema_lookup() {
 		}
 	});
 }
+
+//Schema not found testcase
+#[test]
+fn test_schema_not_found() {
+    let creator = DID_00;
+    let author = ACCOUNT_00;
+
+    // Define a schema ID that does not exist
+    let non_existent_schema_id: SchemaIdOf = generate_schema_id::<Test>(&H256::zero());
+
+    new_test_ext().execute_with(|| {
+        // Ensure necessary preconditions are set up here
+
+        // Attempt to retrieve the non-existent schema
+        assert_noop!(
+            Schema::get(RawOrigin::Signed(author.clone()).into(), non_existent_schema_id),
+            Error::<Test>::SchemaNotFound
+        );
+    });
+}
