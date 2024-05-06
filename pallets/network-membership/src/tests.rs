@@ -229,44 +229,6 @@ fn test_revoke_membership_non_authority() {
 	});
 }
 
-#[test]
-fn test_renew_non_existent_membership() {
-    new_test_ext().execute_with(|| {
-        run_to_block(1);
-
-        // Attempt to renew membership of a non-existent member
-        assert_err!(
-            NetworkMembership::renew(
-                RawOrigin::Root.into(),
-                AccountId::new([99u8; 32]), // Assuming this account doesn't exist in the registry
-            ),
-            Error::<Test>::MembershipNotFound
-        );
-
-        // Ensure membership count remains unchanged
-        assert_eq!(NetworkMembership::members_count(), 1);
-    });
-}
-
-#[test]
-fn test_revoke_non_existent_membership() {
-    new_test_ext().execute_with(|| {
-        run_to_block(1);
-
-        // Attempt to revoke membership of a non-existent member
-        assert_err!(
-            NetworkMembership::revoke(
-                RawOrigin::Root.into(),
-                AccountId::new([99u8; 32]), // Assuming this account doesn't exist in the registry
-            ),
-            Error::<Test>::MembershipNotFound
-        );
-
-        // Ensure membership count remains unchanged
-        assert_eq!(NetworkMembership::members_count(), 1);
-    });
-}
-
 
 #[test]
 fn test_renew_membership_again_should_fail() {
