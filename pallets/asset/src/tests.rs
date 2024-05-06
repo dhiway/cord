@@ -5,7 +5,7 @@ use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_ok, BoundedVec};
 use frame_system::RawOrigin;
 use pallet_chain_space::{SpaceCodeOf, SpaceIdOf};
-use sp_runtime::{traits::Hash, AccountId32};
+use sp_runtime::{traits::Hash, AccountId32,ModuleError, DispatchError};
 use sp_std::prelude::*;
 
 /// Generates a space ID from a digest.
@@ -493,5 +493,64 @@ fn asset_vc_status_change_should_succeed() {
 			Some(instance_id.clone()),
 			AssetStatusOf::INACTIVE
 		));
+	});
+}
+
+#[test]
+fn asset_create_unauthorized_operation() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+
+	let raw_space = [3u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	// Generate an invalid authorization_id
+	let invalid_auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &"invalid".encode()[..]].concat()[..],
+	);
+	let invalid_authorization_id: Ss58Identifier =
+		generate_authorization_id::<Test>(&invalid_auth_digest);
+
+	let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_qty = 10;
+	let asset_value = 10;
+	let asset_type = AssetTypeOf::MF;
+
+	let entry = AssetInputEntryOf::<Test> {
+		asset_desc,
+		asset_qty,
+		asset_type,
+		asset_value,
+		asset_tag,
+		asset_meta,
+	};
+
+	let digest = <Test as frame_system::Config>::Hashing::hash(&entry.encode()[..]);
+
+	new_test_ext().execute_with(|| {
+		// Attempt to create an asset without proper authorization
+		let result = Asset::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			entry,
+			digest,
+			invalid_authorization_id,
+		);
+
+		// UnauthorizedOperation error is returned
+		match result {
+			Ok(_) => panic!("Expected Err(_). Got Ok(_)"),
+			Err(DispatchError::Module(ModuleError { message, .. })) => {
+				// Access the error message
+				let error_message = message.unwrap();
+				assert_eq!(error_message, "AuthorizationNotFound");
+			},
+			_ => panic!("Unexpected error"),
+		}
 	});
 }
