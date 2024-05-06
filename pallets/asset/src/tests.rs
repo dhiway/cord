@@ -400,48 +400,64 @@ fn asset_vc_transfer_should_succeed() {
 }
 
 #[test]
-fn asset_create_unauthorized_should_fail() {
- 
-    let unauthorized_origin = Origin::signed(ACCOUNT_01); // Assuming ACCOUNT_01 is not authorized
+fn asset_create_unauthorized_operation() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
 
-    // Define asset creation parameters
-    let creator = DID_00;
-    let author = ACCOUNT_00;
-    let capacity = 5u64;
-    let raw_space = [2u8; 256].to_vec();
-    let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
-    let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
-        &[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
-    );
-    let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
-    let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-        &[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
-    );
-    let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
-    let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-    let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-    let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-    let asset_qty = 10;
-    let asset_value = 10;
-    let asset_type = AssetTypeOf::MF;
-    let entry = AssetInputEntryOf::<Test> {
-        asset_desc,
-        asset_qty,
-        asset_type,
-        asset_value,
-        asset_tag,
-        asset_meta,
-    };
-    let digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
-    new_test_ext().execute_with(|| {
-        // Attempt to create asset with an unauthorized origin
-        assert_noop!(
-            Asset::create(unauthorized_origin, entry, digest, authorization_id),
-            Error::<Test>::UnauthorizedOperation
-        );
-    });
+	// Generate an invalid authorization_id
+	let invalid_auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &"invalid".encode()[..]].concat()[..],
+	);
+	let invalid_authorization_id: Ss58Identifier =
+		generate_authorization_id::<Test>(&invalid_auth_digest);
+
+	let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_qty = 10;
+	let asset_value = 10;
+	let asset_type = AssetTypeOf::MF;
+
+	let entry = AssetInputEntryOf::<Test> {
+		asset_desc,
+		asset_qty,
+		asset_type,
+		asset_value,
+		asset_tag,
+		asset_meta,
+	};
+
+	let digest = <Test as frame_system::Config>::Hashing::hash(&entry.encode()[..]);
+
+	new_test_ext().execute_with(|| {
+		// Attempt to create an asset without proper authorization
+		let result = Asset::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			entry,
+			digest,
+			invalid_authorization_id,
+		);
+
+		// Assert that UnauthorizedOperation error is returned
+		match result {
+			Ok(_) => panic!("Expected Err(_). Got Ok(_)"),
+			Err(DispatchError::Module(ModuleError { message, .. })) => {
+				// Access the error message
+				let error_message = message.unwrap();
+				assert_eq!(error_message, "AuthorizationNotFound");
+			},
+			_ => panic!("Unexpected error variant"),
+		}
+	});
 }
+
 
 
 #[test]
