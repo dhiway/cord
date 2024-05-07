@@ -175,7 +175,7 @@ benchmarks! {
 			pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity).expect("Approval should not fail.");
 			Pallet::<T>::create(origin.clone(), entry, digest, authorization_id.clone())?;
 
-		}: _<T::RuntimeOrigin>(origin, issue_entry, issue_entry_digest, authorization_id)
+		}: _<T::RuntimeOrigin>(origin, issue_entry, issue_entry_digest, authorization_id, None)
 		verify {
 			assert_last_event::<T>(Event::Issue { identifier: asset_id, instance: instance_id }.into());
 		}
@@ -265,7 +265,7 @@ benchmarks! {
 			pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
 			pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity).expect("Approval should not fail.");
 			Pallet::<T>::create(origin.clone(), entry, digest, authorization_id.clone())?;
-			Pallet::<T>::issue(origin.clone(), issue_entry, issue_entry_digest, authorization_id)?;
+			Pallet::<T>::issue(origin.clone(), issue_entry, issue_entry_digest, authorization_id, None)?;
 
 		}: _<T::RuntimeOrigin>(origin, transfer_entry, transfer_entry_digest)
 		verify {
@@ -346,7 +346,7 @@ benchmarks! {
 			pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
 			pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity).expect("Approval should not fail.");
 			Pallet::<T>::create(origin.clone(), entry, digest, authorization_id.clone())?;
-			Pallet::<T>::issue(origin.clone(), issue_entry, issue_entry_digest, authorization_id)?;
+			Pallet::<T>::issue(origin.clone(), issue_entry, issue_entry_digest, authorization_id, None)?;
 
 		}: _<T::RuntimeOrigin>(origin, asset_id.clone(), Some(instance_id.clone()), new_status.clone())
 		verify {
