@@ -102,7 +102,8 @@ pub mod pallet {
 		Create { identifier: WitnessIdOf, creator: WitnessCreatorOf<T> },
 
 		/// A new signer has signed the document as a witness.
-		/// \[witness entry identifier, signer, current_witness_count, required_witness_count, status\]
+		/// \[witness entry identifier, signer, current_witness_count, required_witness_count,
+		/// status\]
 		Witness {
 			identifier: WitnessIdOf,
 			signer: WitnessCreatorOf<T>,
