@@ -125,7 +125,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cord"),
 	impl_name: create_runtime_str!("dhiway-cord"),
 	authoring_version: 0,
-	spec_version: 9200,
+	spec_version: 9300,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -809,6 +809,18 @@ impl pallet_asset::Config for Runtime {
 	type WeightInfo = weights::pallet_asset::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const MaxWitnessCount: u32 = 5;
+}
+
+impl pallet_witness::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+	type MaxEncodedValueLength = MaxEncodedValueLength;
+	type MaxWitnessCount = MaxWitnessCount;
+}
+
 #[frame_support::runtime]
 mod runtime {
 	#[runtime::runtime]
@@ -893,6 +905,8 @@ mod runtime {
 	pub type Asset = pallet_asset;
 	#[runtime::pallet_index(59)]
 	pub type Remark = pallet_remark;
+	#[runtime::pallet_index(60)]
+	pub type Witness = pallet_witness;
 	#[runtime::pallet_index(100)]
 	pub type Sudo = pallet_sudo;
 }
@@ -942,6 +956,9 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::Asset { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::Witness { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegate { .. }) => {
