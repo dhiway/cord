@@ -133,6 +133,8 @@ pub mod pallet {
 		WitnessSignerCannotBeSameAsWitnessCreator,
 		/// Witness signer has already part of witness party.
 		SignerIsAlreadyWitness,
+		/// Document digest should remain the same,
+		DocumentDigestHasChanged,
 	}
 
 	#[pallet::call]
@@ -187,7 +189,7 @@ pub mod pallet {
 		pub fn witness(
 			origin: OriginFor<T>,
 			identifier: DocumentIdOf,
-			_digest: EntryHashOf<T>,
+			digest: EntryHashOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let signer = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
@@ -208,7 +210,8 @@ pub mod pallet {
 				Error::<T>::WitnessIdAlreadyApproved
 			);
 
-			// If hash changes from previous throw err
+			/* Ensure digest of the document hasn't changed */
+			ensure!(witness_entry.digest == digest, Error::<T>::DocumentDigestHasChanged);
 
 			/* Ensure witness signer is not same as witness entry creator */
 			ensure!(
