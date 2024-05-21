@@ -23,6 +23,7 @@ pub mod types;
 
 pub use crate::{pallet::*, types::*};
 use frame_support::{ensure, traits::Get};
+use frame_system::WeightInfo;
 use identifier::{
 	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
 	EventEntryOf,
@@ -52,12 +53,12 @@ pub mod pallet {
 
 	// Type of a document identifier.
 	pub type DocumentIdOf = Ss58Identifier;
+	//pub type DocumentIdOf = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 
-	// Type of a witness identifier.
-	pub type WitnessIdOf = Ss58Identifier;
-
+	// Type of witness signers entry containing list of signers.
 	pub type WitnessSignersEntryOf<T> = WitnessSignersEntry<WitnessesOf<T>, BlockNumberFor<T>>;
 
+	// Type of witness entry containing witness & document detail.
 	pub type WitnessEntryOf<T> =
 		WitnessEntry<WitnessCreatorOf<T>, EntryHashOf<T>, WitnessStatusOf, BlockNumberFor<T>>;
 
@@ -76,6 +77,8 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxWitnessCount: Get<u32>;
+
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -98,19 +101,23 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A new witness entry has been added.
-		/// \[witness entry identifier, creator\]
-		Create { identifier: WitnessIdOf, creator: WitnessCreatorOf<T> },
+		/// \[document identifier, creator\]
+		Create { identifier: DocumentIdOf, creator: WitnessCreatorOf<T> },
 
 		/// A new signer has signed the document as a witness.
-		/// \[witness entry identifier, signer, current_witness_count, required_witness_count,
+		/// \[document identifier, signer, current_witness_count, required_witness_count,
 		/// status\]
 		Witness {
-			identifier: WitnessIdOf,
+			identifier: DocumentIdOf,
 			signer: WitnessCreatorOf<T>,
 			current_witness_count: u32,
 			required_witness_count: u32,
 			status: WitnessStatusOf,
 		},
+
+		/// Witness Approval Complete Event for the Document
+		/// \[document identifier\]
+		DocumentWitnessComplete { identifier: DocumentIdOf },
 	}
 
 	#[pallet::error]
@@ -119,20 +126,20 @@ pub mod pallet {
 		InvalidIdentifierLength,
 		/// Unauthorized operation
 		UnauthorizedOperation,
-		/// Witness Id not found in the storage
+		/// Document Id not found in the storage
 		DocumentIdNotFound,
 		/// Witness count should be less than 5 and greater than 0
 		InvalidWitnessCount,
 		/// Witness sign count has reached maximum
 		MaxWitnessCountReached,
 		/// Witness creation already added
-		WitnessIdAlreadyExists,
+		DocumentIdAlreadyExists,
 		/// Witness Identifier is already approved,
-		WitnessIdAlreadyApproved,
+		DocumentIdAlreadyApproved,
 		/// Witness signer did cannot be same as witness creator did
 		WitnessSignerCannotBeSameAsWitnessCreator,
 		/// Witness signer has already part of witness party.
-		SignerIsAlreadyWitness,
+		SignerIsAlreadyAWitness,
 		/// Document digest should remain the same,
 		DocumentDigestHasChanged,
 	}
@@ -162,7 +169,7 @@ pub mod pallet {
 				Error::<T>::InvalidWitnessCount
 			);
 
-			ensure!(!<Witness<T>>::contains_key(&identifier), Error::<T>::WitnessIdAlreadyExists);
+			ensure!(!<Witness<T>>::contains_key(&identifier), Error::<T>::DocumentIdAlreadyExists);
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
@@ -190,15 +197,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			identifier: DocumentIdOf,
 			digest: EntryHashOf<T>,
-			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let signer = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-
-			let _space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
-				&authorization,
-				&signer.clone(),
-			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			/* Ensure witness entry identifier exists to sign the document */
 			let witness_entry =
@@ -206,8 +206,8 @@ pub mod pallet {
 
 			/* Ensure witness entry is not already approved */
 			ensure!(
-				witness_entry.witness_status == WitnessStatusOf::WITNESSAPPROVALCOMPLETE,
-				Error::<T>::WitnessIdAlreadyApproved
+				witness_entry.witness_status != WitnessStatusOf::WITNESSAPPROVALCOMPLETE,
+				Error::<T>::DocumentIdAlreadyApproved
 			);
 
 			/* Ensure digest of the document hasn't changed */
@@ -215,22 +215,20 @@ pub mod pallet {
 
 			/* Ensure witness signer is not same as witness entry creator */
 			ensure!(
-				witness_entry.witness_creator == signer,
+				witness_entry.witness_creator != signer,
 				Error::<T>::WitnessSignerCannotBeSameAsWitnessCreator
 			);
 
 			let block_number = frame_system::Pallet::<T>::block_number();
 
-			// Convert the Option to a Result, ensuring that there's a value
+			/* Set to default value of empty vec if key does not exist */
 			let mut witness_signers =
-				<WitnessesSignatures<T>>::get(&identifier).ok_or(Error::<T>::DocumentIdNotFound)?;
+				<WitnessesSignatures<T>>::get(&identifier).unwrap_or_default();
 
-			// Iterate over the existing signers
+			/* Ensure current signer is not part of existing witness party */
 			for existing_signer in &witness_signers.witnesses {
-				// Check if the current signer already exists
 				if existing_signer == &signer {
-					// If the current signer already exists, throw an error
-					return Err(Error::<T>::SignerIsAlreadyWitness.into());
+					return Err(Error::<T>::SignerIsAlreadyAWitness.into());
 				}
 			}
 
@@ -241,7 +239,7 @@ pub mod pallet {
 				return Err(Error::<T>::MaxWitnessCountReached.into());
 			}
 
-			// Update the storage with the modified witness_signers
+			/* Update the storage with the modified witness_signers */
 			<WitnessesSignatures<T>>::insert(
 				&identifier,
 				WitnessSignersEntryOf::<T> {
@@ -279,12 +277,17 @@ pub mod pallet {
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
 			Self::deposit_event(Event::Witness {
-				identifier,
+				identifier: identifier.clone(),
 				signer,
 				current_witness_count: updated_current_witness_count,
 				required_witness_count: witness_entry.required_witness_count,
 				status: witness_status,
 			});
+
+			/* Deposit Witness Approval Complete Event once required witness count is reached */
+			if witness_entry.current_witness_count + 1 == witness_entry.required_witness_count {
+				Self::deposit_event(Event::DocumentWitnessComplete { identifier });
+			}
 
 			Ok(())
 		}
@@ -292,13 +295,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	// pub fn get_distributed_qty(asset_id: &AssetIdOf) -> u32 {
-	// 	<Distribution<T>>::get(asset_id)
-	// 		.map(|bounded_vec| bounded_vec.len() as u32)
-	// 		.unwrap_or(0)
-	// }
-
-	pub fn update_activity(tx_id: &WitnessIdOf, tx_action: CallTypeOf) -> Result<(), Error<T>> {
+	pub fn update_activity(tx_id: &DocumentIdOf, tx_action: CallTypeOf) -> Result<(), Error<T>> {
 		let tx_moment = Self::timepoint();
 
 		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
