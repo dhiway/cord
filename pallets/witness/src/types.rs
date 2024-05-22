@@ -41,7 +41,17 @@ pub struct WitnessEntry<WitnessCreatorOf, EntryHashOf, WitnessStatusOf, BlockNum
 }
 
 #[derive(
-	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+	Encode,
+	Decode,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
+	Default,
 )]
 pub struct WitnessSignersEntry<WitnessesOf, BlockNumber> {
 	// Witnesses who signed the document

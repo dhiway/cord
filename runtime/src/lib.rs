@@ -819,6 +819,7 @@ impl pallet_witness::Config for Runtime {
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type MaxEncodedValueLength = MaxEncodedValueLength;
 	type MaxWitnessCount = MaxWitnessCount;
+	type WeightInfo = ();
 }
 
 #[frame_support::runtime]
