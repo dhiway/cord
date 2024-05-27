@@ -26,12 +26,12 @@ scale-info = { version = "2.11.1", default-features = false, features = [
 pallet-network-membership = { package = "pallet-network-membership", path = "../../pallets/network-membership", default-features = false }
 
 # Substrate dependencies
-frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
-frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false, optional = true }
+frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
 
 [features]
 default = ["std"]

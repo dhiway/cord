@@ -23,9 +23,9 @@ scale-info = { version = "2.11.1", default-features = false, features = [
 ] }
 
 # Substrate dependencies
-frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
+frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
 
 [features]
 default = ['std']

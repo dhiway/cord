@@ -1,6 +1,6 @@
 [package]
 name = "cord-test-runtime"
-version = "0.9.2-dev"
+version = "0.9.3-dev"
 authors.workspace = true
 edition.workspace = true
 build = "build.rs"
@@ -16,56 +16,56 @@ workspace = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-sp-application-crypto = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, features = [
+sp-application-crypto = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false, features = [
 	"serde",
 ] }
-sp-consensus-aura = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, features = [
+sp-consensus-aura = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false, features = [
 	"serde",
 ] }
-sp-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, features = [
+sp-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false, features = [
 	"serde",
 ] }
-sp-genesis-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
+sp-genesis-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
 codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
 	"derive",
 ] }
 scale-info = { version = "2.11.1", default-features = false, features = [
 	"derive",
 ] }
-sp-inherents = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-keyring = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-offchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, features = [
+sp-inherents = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-keyring = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-offchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false, features = [
 	"serde",
 ] }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-version = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-session = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, features = [
+sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-version = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-session = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false, features = [
 	"serde",
 ] }
-pallet-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-frame-executive = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-frame-system-rpc-runtime-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-pallet-timestamp = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-consensus-grandpa = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, features = [
+pallet-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+frame-executive = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+frame-system-rpc-runtime-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+pallet-timestamp = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-consensus-grandpa = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false, features = [
 	"serde",
 ] }
-sp-trie = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-transaction-pool = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
+sp-trie = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-transaction-pool = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
 trie-db = { version = "0.28.0", default-features = false }
-sc-service = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, features = [
+sc-service = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false, features = [
 	"test-helpers",
 ], optional = true }
-sp-state-machine = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-externalities = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-crypto-hashing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
+sp-state-machine = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-externalities = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sp-crypto-hashing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
 
 # 3rd party
 array-bytes = { version = "6.1", optional = true }
@@ -73,19 +73,19 @@ log = { version = "0.4.17", default-features = false }
 
 [dev-dependencies]
 futures = "0.3.30"
-sc-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sc-executor = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sc-executor-common = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sp-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
+sc-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sc-executor = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sc-executor-common = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sp-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 cord-test-runtime-client = { path = "client" }
-sp-tracing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
+sp-tracing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 json-patch = { version = "1.0.0", default-features = false }
 serde = { features = ["alloc", "derive"], workspace = true }
 serde_json = { features = ["alloc"], workspace = true }
-sc-chain-spec = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
+sc-chain-spec = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 
 [build-dependencies]
-substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", optional = true }
+substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", optional = true }
 
 [features]
 default = ["std"]

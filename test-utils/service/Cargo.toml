@@ -1,6 +1,6 @@
 [package]
 name = "cord-service-test"
-version = "0.9.2-dev"
+version = "0.9.3-dev"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -24,26 +24,26 @@ parity-scale-codec = "3.6.1"
 parking_lot = "0.12.1"
 tempfile = "3.1.0"
 tokio = { version = "1.22.0", features = ["time"] }
-sc-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sc-client-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sc-client-db = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sc-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sc-executor = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sc-network = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sc-network-sync = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sc-service = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", features = [
+sc-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sc-client-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sc-client-db = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
+sc-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sc-executor = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sc-network = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sc-network-sync = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sc-service = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", features = [
 	"test-helpers",
 ] }
-sc-transaction-pool-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sp-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sp-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sp-state-machine = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sp-storage = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sp-tracing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sp-trie = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
+sc-transaction-pool-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sp-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sp-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sp-state-machine = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sp-storage = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sp-tracing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sp-trie = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
+sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 cord-test-runtime = { path = "../runtime" }
 cord-test-runtime-client = { path = "../runtime/client" }
