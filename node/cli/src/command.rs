@@ -62,9 +62,9 @@ impl SubstrateCli for Cli {
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		let spec = match id {
-			"cord" | "braid" | "" => Box::new(chain_spec::cord_local_config()?),
-			"dev" | "braid-dev" => Box::new(chain_spec::cord_dev_config()?),
-			"local" | "braid-local" => Box::new(chain_spec::cord_local_config()?),
+			"cord" | "" => Box::new(chain_spec::cord_local_config()?),
+			"dev" | "cord-dev" => Box::new(chain_spec::cord_dev_config()?),
+			"local" | "cord-local" => Box::new(chain_spec::cord_local_config()?),
 			path => {
 				let path = std::path::PathBuf::from(path);
 				let chain_spec = Box::new(chain_spec::CordChainSpec::from_json_file(path.clone())?)

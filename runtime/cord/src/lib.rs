@@ -24,33 +24,21 @@ use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 pub mod entities;
 
-use cord_primitives::{
-	prod_or_fast, AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Moment, Nonce,
-};
 pub use cord_primitives::{AccountId, Signature};
+use cord_primitives::{AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Moment, Nonce};
+use cord_runtime_common::{impl_runtime_weights, prod_or_fast, BlockHashCount, BlockLength};
 pub use identifier::Ss58Identifier;
 
 use frame_support::{
 	derive_impl,
-	dispatch::DispatchClass,
 	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
 	traits::{
 		fungible::HoldConsideration, ConstU32, Contains, EitherOfDiverse, KeyOwnerProofSystem,
 		LinearStoragePrice, PrivilegeCmp,
 	},
-	weights::{
-		constants::{
-			BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_REF_TIME_PER_MILLIS,
-			WEIGHT_REF_TIME_PER_SECOND,
-		},
-		Weight,
-	},
 };
-use frame_system::{
-	limits::{BlockLength, BlockWeights},
-	EnsureRoot,
-};
+use frame_system::EnsureRoot;
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_system::EnsureSigned;
@@ -77,7 +65,6 @@ use sp_std::{cmp::Ordering, prelude::*};
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
-use static_assertions::const_assert;
 
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
@@ -90,6 +77,9 @@ pub use sp_runtime::BuildStorage;
 
 /// Constant values used within the runtime.
 use cord_runtime_constants::{currency::*, time::*};
+
+use cord_runtime_common as runtime_common;
+impl_runtime_weights!(cord_runtime_constants);
 
 // Weights used in the runtime.
 mod weights;
@@ -163,58 +153,16 @@ type EnsureRootOrCommitteeApproval = EitherOfDiverse<
 	pallet_collective::EnsureProportionMoreThan<AccountId, TechnicalCollective, 3, 5>,
 >;
 
-/// We assume that an on-initialize consumes 10% of the weight on average, hence
-/// a single extrinsic will not be allowed to consume more than
-/// `AvailableBlockRatio - 10%`.
-pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
-/// We allow `Normal` extrinsics to fill up the block up to 50%, the rest can be
-/// used by  Operational  extrinsics.
-pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(90);
-// We'll verify that WEIGHT_REF_TIME_PER_SECOND does not overflow, allowing us to use
-// simple multiply and divide operators instead of saturating or checked ones.
-const_assert!(WEIGHT_REF_TIME_PER_SECOND.checked_div(3).is_some());
-const_assert!((WEIGHT_REF_TIME_PER_SECOND / 3).checked_mul(2).is_some());
-/// We allow for 1/3 of block time for computations, with maximum proof size.
-/// It's 3/3 sec for cord runtime with 3 second block duration.
-const MAXIMUM_BLOCK_WEIGHT: Weight =
-	Weight::from_parts(WEIGHT_REF_TIME_PER_MILLIS * MILLISECS_PER_BLOCK / 3, u64::MAX);
-
-const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO.deconstruct());
-
-pub fn block_weights_for(maximum_block_weight: Weight) -> BlockWeights {
-	BlockWeights::builder()
-		.base_block(BlockExecutionWeight::get())
-		.for_class(DispatchClass::all(), |weights| {
-			weights.base_extrinsic = ExtrinsicBaseWeight::get();
-		})
-		.for_class(DispatchClass::Normal, |weights| {
-			weights.max_total = Some(NORMAL_DISPATCH_RATIO * maximum_block_weight);
-		})
-		.for_class(DispatchClass::Operational, |weights| {
-			weights.max_total = Some(maximum_block_weight);
-			// Operational transactions have some extra reserved space, so that they
-			// are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
-			weights.reserved =
-				Some(maximum_block_weight - NORMAL_DISPATCH_RATIO * maximum_block_weight);
-		})
-		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
-		.build_or_panic()
-}
-
 parameter_types! {
-   pub const BlockHashCount: BlockNumber = 2400;
    pub const Version: RuntimeVersion = VERSION;
-   pub RuntimeBlockWeights: BlockWeights = block_weights_for(MAXIMUM_BLOCK_WEIGHT);
-   pub RuntimeBlockLength: BlockLength =
-	   BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
    pub const SS58Prefix: u8 = 29;
 }
 
 #[derive_impl(frame_system::config_preludes::SolochainDefaultConfig)]
 impl frame_system::Config for Runtime {
 	type BaseCallFilter = BaseFilter;
-	type BlockWeights = RuntimeBlockWeights;
-	type BlockLength = RuntimeBlockLength;
+	type BlockWeights = BlockWeights;
+	type BlockLength = BlockLength;
 	type DbWeight = RocksDbWeight;
 	type Nonce = Nonce;
 	type Hash = Hash;
@@ -231,7 +179,7 @@ impl frame_system::Config for Runtime {
 }
 
 parameter_types! {
-	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
 	pub const MaxScheduledPerBlock: u32 = 50;
 	pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
@@ -294,7 +242,11 @@ impl pallet_preimage::Config for Runtime {
 }
 
 parameter_types! {
-	pub EpochDuration: u64 = EPOCH_DURATION_IN_SLOTS;
+	pub EpochDuration: u64 = prod_or_fast!(
+		EPOCH_DURATION_IN_SLOTS as u64,
+		2 * MINUTES as u64,
+		"CORD_EPOCH_DURATION"
+	);
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 	pub ReportLongevity: u64 =
 		BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
@@ -351,11 +303,7 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-		pub MinimumPeriod: u64 = prod_or_fast!(
-		MINIMUM_DURATION,
-		500_u64,
-		"CORD_MINIMUM_DURATION"
-	);
+	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -435,7 +383,7 @@ parameter_types! {
 	pub MotionDuration: BlockNumber = prod_or_fast!(3 * DAYS, 2 * MINUTES, "CORD_MOTION_DURATION");
 	pub const MaxProposals: u32 = 100;
 	pub const MaxMembers: u32 = 50;
-	pub MaxProposalWeight: Weight = Perbill::from_percent(80) * RuntimeBlockWeights::get().max_block;
+	pub MaxProposalWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
 }
 
 type CouncilCollective = pallet_collective::Instance1;

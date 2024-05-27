@@ -94,7 +94,7 @@ pub trait IdentifyVariant {
 
 impl IdentifyVariant for Box<dyn ChainSpec> {
 	fn is_cord(&self) -> bool {
-		self.id().to_lowercase() == "cord" || self.id().to_lowercase() == "braid"
+		self.id().to_lowercase() == "cord"
 	}
 	fn is_cord_local(&self) -> bool {
 		self.id().to_lowercase().ends_with("local")
@@ -225,7 +225,7 @@ exists; qed",
 	let best_block = client.chain_info().best_number;
 	let nonce = nonce.unwrap_or_else(|| fetch_nonce(client, sender.clone()));
 
-	let period = cord_runtime::BlockHashCount::get()
+	let period = cord_runtime_common::BlockHashCount::get()
 		.checked_next_power_of_two()
 		.map(|c| c / 2)
 		.unwrap_or(2) as u64;

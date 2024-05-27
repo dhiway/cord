@@ -24,7 +24,7 @@ tempfile = "3.1.0"
 frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 node-cli = { package = "cord-node-cli", path = "../cli" }
 node-primitives = { package = "cord-primitives", path = "../../primitives/cord" }
-cord-runtime = { package = "cord-runtime", path = "../../runtime" }
+cord-runtime = { package = "cord-runtime", path = "../../runtime/cord" }
 sc-block-builder = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 sc-client-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 sc-client-db = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", features = [
@@ -49,4 +49,4 @@ sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "releas
 sp-timestamp = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
 cord-test-client = { path = "../../test-utils/client" }
 pallet-network-membership = { package = "pallet-network-membership", path = "../../pallets/network-membership" }
-cord-runtime-constants = { package = "cord-runtime-constants", path = "../../runtime/constants" }
+cord-runtime-constants = { package = "cord-runtime-constants", path = "../../runtime/cord/constants" }

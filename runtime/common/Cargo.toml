@@ -1,0 +1,76 @@
+[package]
+name = "cord-runtime-common"
+description = "Pallets and constants used in CORD Chain networks."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+parity-scale-codec = { version = "3.6.12", default-features = false, features = [
+	"derive",
+] }
+log = { workspace = true }
+scale-info = { version = "2.11.1", default-features = false, features = [
+	"derive",
+] }
+static_assertions = "1.1.0"
+
+sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0", features = [
+	"serde",
+] }
+sp-staking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0", features = [
+	"serde",
+] }
+sp-core = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0", features = [
+	"serde",
+] }
+
+pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+frame-support = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-staking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+frame-system = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-timestamp = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-transaction-payment = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+primitives = { package = "cord-primitives", path = "../../primitives/cord", default-features = false }
+
+[dev-dependencies]
+hex-literal = "0.4.1"
+frame-support-test = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-babe = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+sp-keyring = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+serde_json = { workspace = true, default-features = true }
+libsecp256k1 = "0.7.0"
+
+[features]
+default = ["std"]
+no_std = []
+std = [
+	"frame-support/std",
+	"frame-system/std",
+	"log/std",
+	"pallet-balances/std",
+	"pallet-staking/std",
+	"pallet-timestamp/std",
+	"pallet-transaction-payment/std",
+	"parity-scale-codec/std",
+	"primitives/std",
+	"scale-info/std",
+	"sp-core/std",
+	"sp-runtime/std",
+	"sp-staking/std",
+]
+try-runtime = [
+	"frame-support-test/try-runtime",
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-balances/try-runtime",
+	"pallet-staking/try-runtime",
+	"pallet-timestamp/try-runtime",
+	"pallet-transaction-payment/try-runtime",
+	"sp-runtime/try-runtime",
+]

@@ -38,25 +38,26 @@ primitive-types = { version = "0.12.0", default-features = false, features = [
 
 # Local
 authority-membership = { package = "cord-authority-membership", path = "./authorities", default-features = false }
-cord-primitives = { package = "cord-primitives", path = "../primitives/cord", default-features = false }
-identifier = { package = "cord-identifier", path = "../primitives/identifier", default-features = false }
-network-membership = { package = "network-membership", path = "../primitives/network-membership", default-features = false }
+cord-primitives = { package = "cord-primitives", path = "../../primitives/cord", default-features = false }
+identifier = { package = "cord-identifier", path = "../../primitives/identifier", default-features = false }
+network-membership = { package = "network-membership", path = "../../primitives/network-membership", default-features = false }
 cord-runtime-constants = { package = "cord-runtime-constants", path = "./constants", default-features = false }
+cord-runtime-common = { package = "cord-runtime-common", path = "../common", default-features = false }
 
-pallet-membership = { default-features = false, path = '../pallets/membership/' }
-pallet-did = { default-features = false, path = '../pallets/did' }
-pallet-did-name = { default-features = false, path = '../pallets/did-name' }
-pallet-schema = { default-features = false, path = '../pallets/schema' }
-pallet-chain-space = { default-features = false, path = '../pallets/chain-space' }
-pallet-statement = { default-features = false, path = '../pallets/statement' }
-pallet-network-membership = { default-features = false, path = '../pallets/network-membership' }
-pallet-runtime-upgrade = { default-features = false, path = '../pallets/runtime-upgrade' }
-pallet-identity = { default-features = false, path = '../pallets/identity' }
-pallet-offences = { default-features = false, path = '../pallets/offences' }
-pallet-node-authorization = { default-features = false, path = "../pallets/node-authorization" }
-pallet-network-score = { default-features = false, path = '../pallets/network-score' }
-pallet-session-benchmarking = { default-features = false, path = '../pallets/session-benchmarking' }
-pallet-asset = { default-features = false, path = '../pallets/asset' }
+pallet-membership = { default-features = false, path = '../../pallets/membership/' }
+pallet-did = { default-features = false, path = '../../pallets/did' }
+pallet-did-name = { default-features = false, path = '../../pallets/did-name' }
+pallet-schema = { default-features = false, path = '../../pallets/schema' }
+pallet-chain-space = { default-features = false, path = '../../pallets/chain-space' }
+pallet-statement = { default-features = false, path = '../../pallets/statement' }
+pallet-network-membership = { default-features = false, path = '../../pallets/network-membership' }
+pallet-runtime-upgrade = { default-features = false, path = '../../pallets/runtime-upgrade' }
+pallet-identity = { default-features = false, path = '../../pallets/identity' }
+pallet-offences = { default-features = false, path = '../../pallets/offences' }
+pallet-node-authorization = { default-features = false, path = "../../pallets/node-authorization" }
+pallet-network-score = { default-features = false, path = '../../pallets/network-score' }
+pallet-session-benchmarking = { default-features = false, path = '../../pallets/session-benchmarking' }
+pallet-asset = { default-features = false, path = '../../pallets/asset' }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { package = "pallet-did-runtime-api", path = "./api/did", default-features = false }
@@ -137,6 +138,7 @@ default = ['std']
 std = [
 	"sp-authority-discovery/std",
 	"cord-primitives/std",
+	"cord-runtime-common/std",
 	"network-membership/std",
 	"authority-membership/std",
 	"frame-system-benchmarking?/std",
@@ -272,6 +274,7 @@ try-runtime = [
 	"pallet-network-membership/try-runtime",
 	"pallet-runtime-upgrade/try-runtime",
 	"pallet-remark/try-runtime",
+	"cord-runtime-common/try-runtime",
 	"authority-membership/try-runtime",
 	"identifier/try-runtime",
 ]

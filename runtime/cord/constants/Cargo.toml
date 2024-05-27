@@ -11,7 +11,8 @@ workspace = true
 smallvec = "1.8.0"
 
 frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
-cord-primitives = { path = "../../primitives/cord", default-features = false }
+cord-primitives = { path = "../../../primitives/cord", default-features = false }
+cord-runtime-common = { path = "../../common", default-features = false }
 sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
 sp-weights = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
 sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
@@ -21,6 +22,7 @@ default = ["std"]
 std = [
 	"frame-support/std",
 	"cord-primitives/std",
+	"cord-runtime-common/std",
 	"sp-core/std",
 	"sp-runtime/std",
 	"sp-weights/std",
