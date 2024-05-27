@@ -40,6 +40,7 @@ use sc_client_db::{Backend, BlocksPruning, DatabaseSettings, DatabaseSource, Pru
 use sc_consensus::{
 	BlockCheckParams, BlockImport, BlockImportParams, ForkChoiceStrategy, ImportResult,
 };
+use sc_executor::WasmExecutor;
 use sc_service::client::{new_in_mem, Client, LocalCallExecutor};
 use sp_api::ProvideRuntimeApi;
 use sp_consensus::{BlockOrigin, Error as ConsensusError, SelectChain};
@@ -79,7 +80,7 @@ fn construct_block(
 	StateMachine::new(
 		backend,
 		&mut overlay,
-		&new_native_or_wasm_executor(),
+		&WasmExecutor::default(),
 		"Core_initialize_block",
 		&header.encode(),
 		&mut Default::default(),
@@ -93,7 +94,7 @@ fn construct_block(
 		StateMachine::new(
 			backend,
 			&mut overlay,
-			&new_native_or_wasm_executor(),
+			&WasmExecutor::default(),
 			"BlockBuilder_apply_extrinsic",
 			&tx.encode(),
 			&mut Default::default(),
@@ -107,7 +108,7 @@ fn construct_block(
 	let ret_data = StateMachine::new(
 		backend,
 		&mut overlay,
-		&new_native_or_wasm_executor(),
+		&WasmExecutor::default(),
 		"BlockBuilder_finalize_block",
 		&[],
 		&mut Default::default(),
@@ -175,7 +176,7 @@ fn construct_genesis_should_work_with_native() {
 	let _ = StateMachine::new(
 		&backend,
 		&mut overlay,
-		&new_native_or_wasm_executor(),
+		&WasmExecutor::default(),
 		"Core_execute_block",
 		&b1data,
 		&mut Default::default(),
@@ -206,7 +207,7 @@ fn construct_genesis_should_work_with_wasm() {
 	let _ = StateMachine::new(
 		&backend,
 		&mut overlay,
-		&new_native_or_wasm_executor(),
+		&WasmExecutor::default(),
 		"Core_execute_block",
 		&b1data,
 		&mut Default::default(),
@@ -2080,7 +2081,7 @@ fn cleans_up_closed_notification_sinks_on_block_import() {
 	use cord_test_runtime_client::GenesisInit;
 
 	let backend = Arc::new(sc_client_api::in_mem::Backend::new());
-	let executor = new_native_or_wasm_executor();
+	let executor = WasmExecutor::default();
 	let client_config = sc_service::ClientConfig::default();
 
 	let genesis_block_builder = sc_service::GenesisBlockBuilder::new(
@@ -2107,11 +2108,7 @@ fn cleans_up_closed_notification_sinks_on_block_import() {
 
 	type TestClient = Client<
 		in_mem::Backend<Block>,
-		LocalCallExecutor<
-			Block,
-			in_mem::Backend<Block>,
-			sc_executor::NativeElseWasmExecutor<LocalExecutorDispatch>,
-		>,
+		LocalCallExecutor<Block, in_mem::Backend<Block>, WasmExecutor>,
 		Block,
 		RuntimeApi,
 	>;

@@ -31,6 +31,7 @@ use futures::prelude::*;
 pub use sc_client_api::AuxStore;
 use sc_client_api::{Backend as BackendT, BlockBackend};
 use sc_consensus_babe::{self, SlotProportion};
+use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
 use sc_network::{
 	event::Event, service::traits::NetworkService, NetworkBackend, NetworkEventStream,
 };
@@ -116,7 +117,11 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 }
 
 /// The full client type definition.
-pub type FullClient = sc_service::TFullClient<Block, RuntimeApi, RuntimeExecutor>;
+pub type FullClient = sc_service::TFullClient<
+	Block,
+	RuntimeApi,
+	WasmExecutor<(sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions)>,
+>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport =
@@ -307,7 +312,19 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
-	let executor = sc_service::new_wasm_executor(config);
+	let heap_pages = config
+		.default_heap_pages
+		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static { extra_pages: h as _ });
+
+	let executor = WasmExecutor::builder()
+		.with_execution_method(config.wasm_method)
+		.with_onchain_heap_alloc_strategy(heap_pages)
+		.with_offchain_heap_alloc_strategy(heap_pages)
+		.with_max_runtime_instances(config.max_runtime_instances)
+		.with_runtime_cache_size(config.runtime_cache_size)
+		.build();
+
+	// let executor = sc_service::new_wasm_executor(config);
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
@@ -465,9 +482,9 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	} else {
 		let mut backoff = sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default();
 
-		if config.chain_spec.is_cord_local()
-			|| config.chain_spec.is_cord_staging()
-			|| config.chain_spec.is_dev()
+		if config.chain_spec.is_cord_local() ||
+			config.chain_spec.is_cord_staging() ||
+			config.chain_spec.is_dev()
 		{
 			// on testnets that are in flux, finality has stalled
 			// sometimes due to operational issues.
