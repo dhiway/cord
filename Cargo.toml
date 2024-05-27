@@ -10,17 +10,17 @@ license = "GPL-3.0"
 resolver = "2"
 
 members = [
-	"node/cli",
-	"node/rpc",
-	"node/inspect",
-	"node/testing",
+	"nodes/cord/cli",
+	"nodes/cord/rpc",
+	"nodes/cord/inspect",
+	"nodes/cord/testing",
 	"pallets/*",
 	"primitives/*",
-	"runtime/common",
-	"runtime/cord/api/*",
-	"runtime/cord/constants",
-	"runtime/cord/authorities",
-	"runtime/cord/",
+	"runtimes/common",
+	"runtimes/cord/api/*",
+	"runtimes/cord/constants",
+	"runtimes/cord/authorities",
+	"runtimes/cord/",
 	"utilities",
 	"test-utils",
 	"test-utils/cli",
@@ -30,7 +30,7 @@ members = [
 	"test-utils/runtime/transaction-pool",
 	"test-utils/service",
 ]
-default-members = ["node/cli"]
+default-members = ["nodes/cord/cli"]
 
 [workspace.dependencies]
 log = { version = "0.4.20", default-features = false }

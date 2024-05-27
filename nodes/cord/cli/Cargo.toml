@@ -93,14 +93,14 @@ frame-system-rpc-runtime-api = { git = "https://github.com/dhiway/substrate-sdk"
 pallet-im-online = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 
 # cord-specific dependencies
-cord-runtime = { package = "cord-runtime", path = "../../runtime/cord" }
-cord-runtime-common = { package = "cord-runtime-common", path = "../../runtime/common" }
-cord-primitives = { package = "cord-primitives", path = "../../primitives/cord" }
-network-membership = { package = "network-membership", path = "../../primitives/network-membership" }
+cord-runtime = { package = "cord-runtime", path = "../../../runtimes/cord" }
+cord-runtime-common = { package = "cord-runtime-common", path = "../../../runtimes/common" }
+cord-primitives = { package = "cord-primitives", path = "../../../primitives/cord" }
+network-membership = { package = "network-membership", path = "../../../primitives/network-membership" }
 cord-inspect = { package = "cord-inspect", path = "../inspect" }
 cord-rpc = { package = "cord-rpc", path = "../rpc" }
-cord-runtime-constants = { package = "cord-runtime-constants", path = "../../runtime/cord/constants" }
-pallet-network-membership = { package = "pallet-network-membership", path = "../../pallets/network-membership" }
+cord-runtime-constants = { package = "cord-runtime-constants", path = "../../../runtimes/cord/constants" }
+pallet-network-membership = { package = "pallet-network-membership", path = "../../../pallets/network-membership" }
 
 # CLI-specific dependencies
 sc-cli = { git = "https://github.com/dhiway/substrate-sdk", optional = true, branch = "release-v1.12.0" }
@@ -111,7 +111,7 @@ serde_json = { workspace = true, default-features = true }
 sc-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 sc-consensus = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 sc-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
-cord-service-test = { path = "../../test-utils/service" }
+cord-service-test = { path = "../../../test-utils/service" }
 sp-tracing = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 sp-blockchain = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 
@@ -123,7 +123,7 @@ regex = "1.5.5"
 soketto = "0.7.1"
 tokio = { version = "1.17.0", features = ["macros", "parking_lot", "time"] }
 tokio-util = { version = "0.7.4", features = ["compat"] }
-cord-cli-test-utils = { package = "cord-cli-test-utils", path = "../../test-utils/cli" }
+cord-cli-test-utils = { package = "cord-cli-test-utils", path = "../../../test-utils/cli" }
 
 frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 cord-node-testing = { path = "../testing" }

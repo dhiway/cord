@@ -12,7 +12,7 @@ workspace = true
 
 [dependencies]
 jsonrpsee = { version = "0.22", features = ["server"] }
-cord-primitives = { package = "cord-primitives", path = "../../primitives/cord" }
+cord-primitives = { package = "cord-primitives", path = "../../../primitives/cord" }
 sc-chain-spec = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 sc-client-api = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
 sc-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0" }
