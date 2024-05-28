@@ -59,7 +59,7 @@ sp-consensus-grandpa = { git = "https://github.com/dhiway/substrate-sdk", branch
 ] }
 sp-trie = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
 sp-transaction-pool = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false }
-trie-db = { version = "0.28.0", default-features = false }
+trie-db = { version = "0.29.0", default-features = false }
 sc-service = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.12.0", default-features = false, features = [
 	"test-helpers",
 ], optional = true }
@@ -70,6 +70,8 @@ sp-crypto-hashing = { git = "https://github.com/dhiway/substrate-sdk", branch = 
 # 3rd party
 array-bytes = { version = "6.1", optional = true }
 log = { version = "0.4.17", default-features = false }
+serde_json = { workspace = true, features = ["alloc"] }
+hex-literal = { version = "0.4.1" }
 
 [dev-dependencies]
 futures = "0.3.30"

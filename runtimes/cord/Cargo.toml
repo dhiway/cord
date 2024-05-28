@@ -209,6 +209,7 @@ runtime-benchmarks = [
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"sp-staking/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
@@ -236,7 +237,6 @@ runtime-benchmarks = [
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-network-score/runtime-benchmarks",
 	"pallet-asset/runtime-benchmarks",
-	"sp-staking/runtime-benchmarks",
 ]
 
 try-runtime = [

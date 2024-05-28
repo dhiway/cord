@@ -29,10 +29,7 @@ use sc_network::{
 use sc_network_sync::SyncingService;
 use sc_service::{
 	client::Client,
-	config::{
-		BasePath, DatabaseSource, KeystoreConfig, RpcBatchRequestConfig, WasmExecutionMethod,
-		WasmtimeInstantiationStrategy,
-	},
+	config::{BasePath, DatabaseSource, KeystoreConfig, RpcBatchRequestConfig},
 	BlocksPruning, ChainSpecExtension, Configuration, Error, GenericChainSpec, Role,
 	RuntimeGenesis, SpawnTaskHandle, TaskManager,
 };
@@ -77,9 +74,7 @@ pub trait TestNetNode: Clone + Future<Output = Result<(), Error>> + Send + 'stat
 	#[allow(clippy::type_complexity)]
 	fn client(&self) -> Arc<Client<Self::Backend, Self::Executor, Self::Block, Self::RuntimeApi>>;
 	fn transaction_pool(&self) -> Arc<Self::TransactionPool>;
-	fn network(
-		&self,
-	) -> Arc<sc_network::NetworkService<Self::Block, <Self::Block as BlockT>::Hash>>;
+	fn network(&self) -> Arc<dyn sc_network::service::traits::NetworkService>;
 	fn sync(&self) -> &Arc<SyncingService<Self::Block>>;
 	fn spawn_handle(&self) -> SpawnTaskHandle;
 }
@@ -88,7 +83,7 @@ pub struct TestNetComponents<TBl: BlockT, TBackend, TExec, TRtApi, TExPool> {
 	task_manager: Arc<Mutex<TaskManager>>,
 	client: Arc<Client<TBackend, TExec, TBl, TRtApi>>,
 	transaction_pool: Arc<TExPool>,
-	network: Arc<sc_network::NetworkService<TBl, <TBl as BlockT>::Hash>>,
+	network: Arc<dyn sc_network::service::traits::NetworkService>,
 	sync: Arc<SyncingService<TBl>>,
 }
 
@@ -98,7 +93,7 @@ impl<TBl: BlockT, TBackend, TExec, TRtApi, TExPool>
 	pub fn new(
 		task_manager: TaskManager,
 		client: Arc<Client<TBackend, TExec, TBl, TRtApi>>,
-		network: Arc<sc_network::NetworkService<TBl, <TBl as BlockT>::Hash>>,
+		network: Arc<dyn sc_network::service::traits::NetworkService>,
 		sync: Arc<SyncingService<TBl>>,
 		transaction_pool: Arc<TExPool>,
 	) -> Self {
@@ -157,9 +152,7 @@ where
 	fn transaction_pool(&self) -> Arc<Self::TransactionPool> {
 		self.transaction_pool.clone()
 	}
-	fn network(
-		&self,
-	) -> Arc<sc_network::NetworkService<Self::Block, <Self::Block as BlockT>::Hash>> {
+	fn network(&self) -> Arc<dyn sc_network::service::traits::NetworkService> {
 		self.network.clone()
 	}
 	fn sync(&self) -> &Arc<SyncingService<Self::Block>> {
@@ -246,22 +239,22 @@ fn node_config<
 		state_pruning: Default::default(),
 		blocks_pruning: BlocksPruning::KeepFinalized,
 		chain_spec: Box::new((*spec).clone()),
-		wasm_method: WasmExecutionMethod::Compiled {
-			instantiation_strategy: WasmtimeInstantiationStrategy::PoolingCopyOnWrite,
-		},
+		wasm_method: Default::default(),
 		wasm_runtime_overrides: Default::default(),
 		rpc_addr: Default::default(),
-		rpc_max_request_size: Default::default(),
-		rpc_max_response_size: Default::default(),
 		rpc_max_connections: Default::default(),
 		rpc_cors: None,
 		rpc_methods: Default::default(),
+		rpc_max_request_size: Default::default(),
+		rpc_max_response_size: Default::default(),
 		rpc_id_provider: Default::default(),
 		rpc_max_subs_per_conn: Default::default(),
 		rpc_port: 9944,
 		rpc_message_buffer_capacity: Default::default(),
 		rpc_batch_config: RpcBatchRequestConfig::Unlimited,
 		rpc_rate_limit: None,
+		rpc_rate_limit_whitelisted_ips: Default::default(),
+		rpc_rate_limit_trust_proxy_headers: Default::default(),
 		prometheus_config: None,
 		telemetry_endpoints: None,
 		default_heap_pages: None,

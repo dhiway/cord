@@ -20,7 +20,6 @@
 
 use frame_support::{
 	parameter_types,
-	traits::ConstU32,
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 };
 use frame_system::limits;
@@ -29,8 +28,6 @@ use sp_runtime::{FixedPointNumber, Perbill, Perquintill};
 use static_assertions::const_assert;
 
 pub use pallet_balances::Call as BalancesCall;
-#[cfg(feature = "std")]
-pub use pallet_staking::StakerStatus;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::Multiplier;
 pub use sp_runtime::traits::Bounded;
@@ -68,16 +65,6 @@ parameter_types! {
 	pub BlockLength: limits::BlockLength =
 	limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 }
-
-// /// Parameterized slow adjusting fee updated based on
-// /// <https://research.web3.foundation/Polkadot/overview/token-economics#2-slow-adjusting-mechanism>
-// pub type SlowAdjustingFeeUpdate<R> = TargetedFeeAdjustment<
-// 	R,
-// 	TargetBlockFullness,
-// 	AdjustmentVariable,
-// 	MinimumMultiplier,
-// 	MaximumMultiplier,
-// >;
 
 /// Implements the weight types for a runtime.
 /// It expects the passed runtime constants to contain a `weights` module.
@@ -128,13 +115,6 @@ macro_rules! impl_runtime_weights {
 /// This must only be used as long as the balance type is `u128`.
 pub type CurrencyToVote = sp_staking::currency_to_vote::U128CurrencyToVote;
 static_assertions::assert_eq_size!(primitives::Balance, u128);
-
-/// A reasonable benchmarking config for staking pallet.
-pub struct StakingBenchmarkingConfig;
-impl pallet_staking::BenchmarkingConfig for StakingBenchmarkingConfig {
-	type MaxValidators = ConstU32<1000>;
-	type MaxNominators = ConstU32<1000>;
-}
 
 /// Convert a balance to an unsigned 256-bit number, use in nomination pools.
 pub struct BalanceToU256;

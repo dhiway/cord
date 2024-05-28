@@ -31,11 +31,12 @@ sp-core = { git = "https://github.com/dhiway/substrate-sdk", default-features = 
 
 pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 frame-support = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
-pallet-staking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+# pallet-staking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 frame-system = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-timestamp = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-transaction-payment = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 primitives = { package = "cord-primitives", path = "../../primitives/cord", default-features = false }
+frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0", optional = true }
 
 [dev-dependencies]
 hex-literal = "0.4.1"
@@ -52,9 +53,10 @@ no_std = []
 std = [
 	"frame-support/std",
 	"frame-system/std",
+	"frame-benchmarking?/std",
 	"log/std",
 	"pallet-balances/std",
-	"pallet-staking/std",
+	# "pallet-staking/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment/std",
 	"parity-scale-codec/std",
@@ -64,12 +66,20 @@ std = [
 	"sp-runtime/std",
 	"sp-staking/std",
 ]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	# "sp-staking/runtime-benchmarks",
+	# "pallet-staking/runtime-benchmarks",
+]
 try-runtime = [
 	"frame-support-test/try-runtime",
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"pallet-balances/try-runtime",
-	"pallet-staking/try-runtime",
+	# "pallet-staking/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"sp-runtime/try-runtime",
