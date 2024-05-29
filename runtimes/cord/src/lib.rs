@@ -578,6 +578,7 @@ parameter_types! {
 impl authority_membership::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type IsMember = NetworkMembership;
+	type MinAuthorities = ConstU32<3>;
 	type AuthorityMembershipOrigin = MoreThanHalfCouncil;
 }
 

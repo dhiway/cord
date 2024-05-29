@@ -33,8 +33,8 @@ fn test_genesis_build() {
 		run_to_block(1);
 		// Verify AuthorityMembers state
 		assert_eq!(IncomingAuthorities::<Test>::get(), EMPTY);
-		assert_eq!(OutgoingAuthorities::<Test>::get(), EMPTY);
 		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
+		assert_eq!(OutgoingAuthorities::<Test>::get(), EMPTY);
 		// Verify Session state
 		assert_eq!(Session::current_index(), 0);
 		assert_eq!(Session::validators(), vec![3, 6, 9]);
@@ -120,16 +120,16 @@ fn test_add_and_remove_an_authority_member() {
 			vec![]
 		));
 		assert_ok!(AuthorityMembership::nominate(RuntimeOrigin::root(), 12));
-		assert_eq!(Members::<Test>::get(), vec![3, 6, 9, 12]);
 		assert_eq!(IncomingAuthorities::<Test>::get(), vec![12]);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9, 12]);
 
 		// Member 12 should be **effectively** in the authorities set in 2 sessions
 		run_to_block(10);
 		assert_eq!(Session::current_index(), 2);
 		assert_eq!(Session::validators(), vec![3, 6, 9, 12]);
 		assert_ok!(AuthorityMembership::remove(RuntimeOrigin::root(), 12));
-		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
 		assert_eq!(OutgoingAuthorities::<Test>::get(), vec![12]);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
 
 		run_to_block(15);
 		assert_eq!(Session::current_index(), 3);
@@ -156,16 +156,16 @@ fn test_go_online_with_a_removed_authority_member() {
 			vec![]
 		));
 		assert_ok!(AuthorityMembership::nominate(RuntimeOrigin::root(), 12));
-		assert_eq!(Members::<Test>::get(), vec![3, 6, 9, 12]);
 		assert_eq!(IncomingAuthorities::<Test>::get(), vec![12]);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9, 12]);
 
 		// Member 12 should be **effectively** in the authorities set in 2 sessions
 		run_to_block(10);
 		assert_eq!(Session::current_index(), 2);
 		assert_eq!(Session::validators(), vec![3, 6, 9, 12]);
 		assert_ok!(AuthorityMembership::remove(RuntimeOrigin::root(), 12));
-		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
 		assert_eq!(OutgoingAuthorities::<Test>::get(), vec![12]);
+		assert_eq!(Members::<Test>::get(), vec![3, 6, 9]);
 
 		assert_err!(
 			AuthorityMembership::go_online(RuntimeOrigin::signed(12)),

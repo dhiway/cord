@@ -72,7 +72,7 @@ where
 			SlashStrategy::Disconnect =>
 				for offender in offenders {
 					if let Some(member) = T::ValidatorIdOf::convert(offender.offender.0.clone()) {
-						Self::mark_for_removal(member);
+						Self::mark_for_disconnect(member);
 						add_db_reads_writes(1, 1);
 					}
 				},

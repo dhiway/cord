@@ -145,6 +145,7 @@ impl IsMember<<Test as frame_system::Config>::AccountId> for TestIsNetworkMember
 impl cord_authority_membership::Config for Test {
 	type AuthorityMembershipOrigin = EnsureRoot<u64>;
 	type RuntimeEvent = RuntimeEvent;
+	type MinAuthorities = ConstU32<1>;
 	type IsMember = TestIsNetworkMember;
 }
 

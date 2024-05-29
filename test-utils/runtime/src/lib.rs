@@ -51,8 +51,7 @@ use frame_system::{
 use scale_info::TypeInfo;
 use serde_json::json;
 use sp_api::{decl_runtime_apis, impl_runtime_apis};
-use sp_application_crypto::Ss58Codec;
-use sp_application_crypto::{ecdsa, ed25519, sr25519, RuntimeAppPublic};
+use sp_application_crypto::{ecdsa, ed25519, sr25519, RuntimeAppPublic, Ss58Codec};
 pub use sp_core::hash::H256;
 use sp_core::{OpaqueMetadata, RuntimeDebug};
 use sp_genesis_builder::PresetId;
@@ -290,9 +289,8 @@ impl sp_runtime::traits::SignedExtension for CheckSubstrateCall {
 	) -> TransactionValidity {
 		log::trace!(target: LOG_TARGET, "validate");
 		match call {
-			RuntimeCall::CordTest(ref cord_test_call) => {
-				cord_test_pallet::validate_runtime_call(cord_test_call)
-			},
+			RuntimeCall::CordTest(ref cord_test_call) =>
+				cord_test_pallet::validate_runtime_call(cord_test_call),
 			_ => Ok(Default::default()),
 		}
 	}
