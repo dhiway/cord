@@ -180,12 +180,15 @@ pub mod pallet {
 		SpaceIdOf,
 		AccountIdOf<T>,
 		EntryTypeOf,
-		<T as timestamp::Config>::Moment,
+		<T as pallet_timestamp::Config>::Moment,
 	>;
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_chain_space::Config + identifier::Config + timestamp::Config
+		frame_system::Config
+		+ pallet_chain_space::Config
+		+ identifier::Config
+		+ pallet_timestamp::Config
 	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
@@ -364,10 +367,10 @@ pub mod pallet {
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				entry.total_encoded_rating > 0 &&
-					entry.count_of_txn > 0 &&
-					entry.total_encoded_rating <=
-						entry.count_of_txn * T::MaxRatingValue::get() as u64,
+				entry.total_encoded_rating > 0
+					&& entry.count_of_txn > 0
+					&& entry.total_encoded_rating
+						<= entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
 
@@ -631,10 +634,10 @@ pub mod pallet {
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				entry.total_encoded_rating > 0 &&
-					entry.count_of_txn > 0 &&
-					entry.total_encoded_rating <=
-						entry.count_of_txn * T::MaxRatingValue::get() as u64,
+				entry.total_encoded_rating > 0
+					&& entry.count_of_txn > 0
+					&& entry.total_encoded_rating
+						<= entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
 
@@ -829,6 +832,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn get_current_time() -> T::Moment {
-		timestamp::Pallet::<T>::get()
+		pallet_timestamp::Pallet::<T>::get()
 	}
 }
