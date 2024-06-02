@@ -62,7 +62,7 @@ use tokio::io::{AsyncBufReadExt, AsyncRead};
 ///
 /// [`Child`]: std::process::Child
 pub fn start_node() -> Child {
-	Command::new(cargo_bin("cord"))
+	Command::new(cargo_bin("braid"))
 		.stdout(process::Stdio::piped())
 		.stderr(process::Stdio::piped())
 		.args(["--dev", "--tmp", "--rpc-port=45789", "--no-hardware-benchmarks"])
@@ -196,7 +196,7 @@ pub async fn wait_n_finalized_blocks(n: usize, url: &str) {
 /// Run the node for a while (3 blocks)
 pub async fn run_node_for_a_while(base_path: &Path, args: &[&str]) {
 	run_with_timeout(Duration::from_secs(60 * 10), async move {
-		let mut cmd = Command::new(cargo_bin("cord"))
+		let mut cmd = Command::new(cargo_bin("braid"))
 			.stdout(process::Stdio::piped())
 			.stderr(process::Stdio::piped())
 			.args(args)

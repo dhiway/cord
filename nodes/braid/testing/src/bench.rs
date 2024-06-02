@@ -38,8 +38,8 @@ use cord_braid_runtime::{
 	UncheckedExtrinsic,
 };
 use cord_braid_runtime_constants::currency::WAY;
+use cord_primitives::Block;
 use futures::executor;
-use node_primitives::Block;
 use sc_block_builder::BlockBuilderBuilder;
 use sc_client_api::{execution_extensions::ExecutionExtensions, UsageProvider};
 use sc_client_db::PruningMode;
@@ -264,7 +264,7 @@ pub struct BlockContentIterator<'a> {
 	iteration: usize,
 	content: BlockContent,
 	runtime_version: sc_executor::RuntimeVersion,
-	genesis_hash: node_primitives::Hash,
+	genesis_hash: cord_primitives::Hash,
 	keyring: &'a BenchKeyring,
 }
 

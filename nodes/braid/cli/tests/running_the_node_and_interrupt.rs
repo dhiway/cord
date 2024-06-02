@@ -26,7 +26,7 @@ use std::{
 
 use tempfile::tempdir;
 
-use cord_cli_test_utils as common;
+use cord_braid_cli_test_utils as common;
 
 #[tokio::test]
 async fn running_the_node_works_and_can_be_interrupted() {
@@ -34,7 +34,7 @@ async fn running_the_node_works_and_can_be_interrupted() {
 		async fn run_command_and_kill(signal: Signal) {
 			let base_path = tempdir().expect("could not create a temp dir");
 			let mut cmd = common::KillChildOnDrop(
-				Command::new(cargo_bin("cord"))
+				Command::new(cargo_bin("braid"))
 					.stdout(process::Stdio::piped())
 					.stderr(process::Stdio::piped())
 					.args(["--dev", "-d"])

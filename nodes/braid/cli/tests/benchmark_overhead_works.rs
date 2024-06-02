@@ -29,7 +29,7 @@ fn benchmark_overhead_works() {
 
 	// Only put 10 extrinsics into the block otherwise it takes forever to build it
 	// especially for a non-release build.
-	let status = Command::new(cargo_bin("cord"))
+	let status = Command::new(cargo_bin("braid"))
 		.args(["benchmark", "overhead", "--dev", "-d"])
 		.arg(base_path)
 		.arg("--weight-path")

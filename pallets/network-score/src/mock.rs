@@ -38,7 +38,7 @@ frame_support::construct_runtime!(
 		Space: pallet_chain_space,
 		Identifier: identifier,
 		Score: pallet_score,
-		TimeStamp: timestamp,
+		TimeStamp: pallet_timestamp,
 		MockOrigin: mock_origin,
 	}
 );
@@ -100,7 +100,7 @@ parameter_types! {
 impl identifier::Config for Test {
 	type MaxEventsHistory = MaxEventsHistory;
 }
-impl timestamp::Config for Test {
+impl pallet_timestamp::Config for Test {
 	type Moment = u64;
 	type OnTimestampSet = ();
 	type MinimumPeriod = ConstU64<5>;

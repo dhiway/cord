@@ -39,7 +39,7 @@ type AccountPublic = <Signature as Verify>::Signer;
 pub use cord_braid_runtime_constants::{currency::*, time::*};
 
 const CORD_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
-const DEFAULT_PROTOCOL_ID: &str = "cord";
+const DEFAULT_PROTOCOL_ID: &str = "braid";
 
 /// Node `ChainSpec` extensions.
 ///
@@ -238,18 +238,6 @@ fn cord_local_genesis(
 		},
 		"babe":  {
 			"epochConfig": Some(cord_braid_runtime::BABE_GENESIS_EPOCH_CONFIG),
-		},
-		"councilMembership":  {
-			"members": initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>(),
-		},
-		"technicalMembership":  {
-			"members": initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>(),
 		},
 		"sudo": { "key": Some(root_key) },
 	})

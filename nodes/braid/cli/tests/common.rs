@@ -35,11 +35,11 @@ use sp_runtime::{
 };
 use sp_state_machine::TestExternalities as CoreTestExternalities;
 
+use cord_braid_node_testing::keyring::*;
 use cord_braid_runtime::{
 	Block, BuildStorage, CheckedExtrinsic, Header, Runtime, UncheckedExtrinsic,
 };
 use cord_braid_runtime_constants::currency::*;
-use cord_node_testing::keyring::*;
 use cord_primitives::{BlockNumber, Hash};
 
 use cord_braid_node_cli::service::RuntimeExecutor;
@@ -85,7 +85,7 @@ pub const TRANSACTION_VERSION: u32 = cord_braid_runtime::VERSION.transaction_ver
 pub type TestExternalities<H> = CoreTestExternalities<H>;
 
 pub fn sign(xt: CheckedExtrinsic) -> UncheckedExtrinsic {
-	cord_node_testing::keyring::sign(xt, SPEC_VERSION, TRANSACTION_VERSION, GENESIS_HASH)
+	cord_braid_node_testing::keyring::sign(xt, SPEC_VERSION, TRANSACTION_VERSION, GENESIS_HASH)
 }
 
 pub fn default_transfer_call() -> pallet_balances::Call<Runtime> {
@@ -121,7 +121,7 @@ pub fn executor_call(
 pub fn new_test_ext(code: &[u8]) -> TestExternalities<BlakeTwo256> {
 	TestExternalities::new_with_code(
 		code,
-		cord_node_testing::genesis::config().build_storage().unwrap(),
+		cord_braid_node_testing::genesis::config().build_storage().unwrap(),
 	)
 }
 

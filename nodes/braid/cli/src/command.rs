@@ -26,8 +26,8 @@ use crate::{
 	service::{self as cord_service, IdentifyVariant},
 };
 
-use cord_primitives::Block;
 use cord_braid_runtime::{ExistentialDeposit, RuntimeApi};
+use cord_primitives::Block;
 use cord_service::{new_partial, FullClient};
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
 use sc_cli::{Result, SubstrateCli};
@@ -62,16 +62,16 @@ impl SubstrateCli for Cli {
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		let spec = match id {
-			"cord" | "" => Box::new(chain_spec::cord_local_config()?),
-			"dev" | "cord-dev" => Box::new(chain_spec::cord_dev_config()?),
-			"local" | "cord-local" => Box::new(chain_spec::cord_local_config()?),
+			"braid" | "" => Box::new(chain_spec::cord_local_config()?),
+			"dev" | "braid-dev" => Box::new(chain_spec::cord_dev_config()?),
+			"local" | "braid-local" => Box::new(chain_spec::cord_local_config()?),
 			path => {
 				let path = std::path::PathBuf::from(path);
 				let chain_spec = Box::new(chain_spec::CordChainSpec::from_json_file(path.clone())?)
 					as Box<dyn sc_service::ChainSpec>;
-				if chain_spec.is_cord() ||
-					chain_spec.is_cord_local() ||
-					chain_spec.is_cord_staging()
+				if chain_spec.is_cord()
+					|| chain_spec.is_cord_local()
+					|| chain_spec.is_cord_staging()
 				{
 					Box::new(chain_spec::CordChainSpec::from_json_file(path)?)
 				} else {

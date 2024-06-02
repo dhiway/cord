@@ -34,8 +34,6 @@ use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_consensus::SelectChain;
 use sp_consensus_babe::BabeApi;
 use sp_keystore::KeystorePtr;
-use substrate_frame_rpc_system as frame_rpc_system;
-use substrate_state_trie_migration_rpc as state_trie_migration_rpc;
 
 /// A type representing all RPC extensions.
 pub type RpcExtension = RpcModule<()>;
@@ -104,7 +102,7 @@ where
 		+ Send
 		+ Sync
 		+ 'static,
-	C::Api: frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>,
+	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>,
 	C::Api: BabeApi<Block>,
 	C::Api: BlockBuilder<Block>,
 	P: TransactionPool + 'static,
@@ -112,13 +110,13 @@ where
 	B: sc_client_api::Backend<Block> + Send + Sync + 'static,
 	B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashingFor<Block>>,
 {
-	use frame_rpc_system::{System, SystemApiServer};
 	use sc_consensus_babe_rpc::{Babe, BabeApiServer};
 	use sc_consensus_grandpa_rpc::{Grandpa, GrandpaApiServer};
 	use sc_rpc::dev::{Dev, DevApiServer};
 	use sc_rpc_spec_v2::chain_spec::{ChainSpec, ChainSpecApiServer};
 	use sc_sync_state_rpc::{SyncState, SyncStateApiServer};
-	use state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
+	use substrate_frame_rpc_system::{System, SystemApiServer};
+	use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 	let mut io = RpcModule::new(());
 

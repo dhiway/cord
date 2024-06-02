@@ -34,8 +34,8 @@ use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
 	traits::{
-		fungible::HoldConsideration, ConstU32, Contains, EitherOfDiverse, KeyOwnerProofSystem,
-		LinearStoragePrice, PrivilegeCmp,
+		fungible::HoldConsideration, ConstU32, Contains, KeyOwnerProofSystem, LinearStoragePrice,
+		PrivilegeCmp,
 	},
 };
 use frame_system::EnsureRoot;
@@ -112,8 +112,8 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 /// Runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("cord"),
-	impl_name: create_runtime_str!("dhiway-cord"),
+	spec_name: create_runtime_str!("braid"),
+	impl_name: create_runtime_str!("dhiway-cord-braid"),
 	authoring_version: 0,
 	spec_version: 9300,
 	impl_version: 0,
@@ -142,16 +142,6 @@ impl Contains<RuntimeCall> for BaseFilter {
 		true
 	}
 }
-
-type MoreThanHalfCouncil = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
->;
-
-type EnsureRootOrCommitteeApproval = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<AccountId, TechnicalCollective, 3, 5>,
->;
 
 parameter_types! {
    pub const Version: RuntimeVersion = VERSION;
@@ -196,11 +186,6 @@ impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 		match (left, right) {
 			// Root is greater than anything.
 			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
-			// Check which one has more yes votes.
-			(
-				OriginCaller::Council(pallet_collective::RawOrigin::Members(l_yes_votes, l_count)),
-				OriginCaller::Council(pallet_collective::RawOrigin::Members(r_yes_votes, r_count)),
-			) => Some((l_yes_votes * r_count).cmp(&(r_yes_votes * l_count))),
 			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
 			_ => None,
 		}
@@ -213,7 +198,7 @@ impl pallet_scheduler::Config for Runtime {
 	type PalletsOrigin = OriginCaller;
 	type RuntimeCall = RuntimeCall;
 	type MaximumWeight = MaximumSchedulerWeight;
-	type ScheduleOrigin = EnsureRootOrCommitteeApproval;
+	type ScheduleOrigin = EnsureRoot<AccountId>;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type WeightInfo = weights::pallet_scheduler::WeightInfo<Runtime>;
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
@@ -245,12 +230,12 @@ parameter_types! {
 	pub EpochDuration: u64 = prod_or_fast!(
 		EPOCH_DURATION_IN_SLOTS as u64,
 		2 * MINUTES as u64,
-		"CORD_EPOCH_DURATION"
+		"BRAID_EPOCH_DURATION"
 	);
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 	pub ReportLongevity: u64 =
 		BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
-	pub const MaxAuthorities: u32 = 1_000;
+	pub const MaxAuthorities: u32 = 300;
 }
 
 impl pallet_babe::Config for Runtime {
@@ -369,77 +354,14 @@ impl pallet_identity::Config for Runtime {
 	type MaxSubAccounts = MaxSubAccounts;
 	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
-	type RegistrarOrigin = MoreThanHalfCouncil;
+	type RegistrarOrigin = EnsureRoot<AccountId>;
 	type OffchainSignature = Signature;
 	type SigningPublicKey = <Signature as Verify>::Signer;
-	type UsernameAuthorityOrigin = MoreThanHalfCouncil;
+	type UsernameAuthorityOrigin = EnsureRoot<AccountId>;
 	type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
 	type MaxSuffixLength = ConstU32<7>;
 	type MaxUsernameLength = ConstU32<32>;
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
-}
-
-parameter_types! {
-	pub MotionDuration: BlockNumber = prod_or_fast!(3 * DAYS, 2 * MINUTES, "CORD_MOTION_DURATION");
-	pub const MaxProposals: u32 = 100;
-	pub const MaxMembers: u32 = 50;
-	pub MaxProposalWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
-}
-
-type CouncilCollective = pallet_collective::Instance1;
-impl pallet_collective::Config<CouncilCollective> for Runtime {
-	type RuntimeOrigin = RuntimeOrigin;
-	type Proposal = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type MotionDuration = MotionDuration;
-	type MaxProposals = MaxProposals;
-	type MaxMembers = MaxMembers;
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
-	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
-	type MaxProposalWeight = MaxProposalWeight;
-}
-
-impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type IsMember = NetworkMembership;
-	type AddOrigin = MoreThanHalfCouncil;
-	type RemoveOrigin = MoreThanHalfCouncil;
-	type SwapOrigin = MoreThanHalfCouncil;
-	type ResetOrigin = MoreThanHalfCouncil;
-	type PrimeOrigin = MoreThanHalfCouncil;
-	type MembershipInitialized = Council;
-	type MembershipChanged = Council;
-	type MaxMembers = MaxMembers;
-	type WeightInfo = weights::pallet_membership::WeightInfo<Runtime>;
-}
-
-type TechnicalCollective = pallet_collective::Instance2;
-impl pallet_collective::Config<TechnicalCollective> for Runtime {
-	type RuntimeOrigin = RuntimeOrigin;
-	type Proposal = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type MotionDuration = MotionDuration;
-	type MaxProposals = MaxProposals;
-	type MaxMembers = MaxMembers;
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
-	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
-	type MaxProposalWeight = MaxProposalWeight;
-}
-
-impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type IsMember = NetworkMembership;
-	type AddOrigin = MoreThanHalfCouncil;
-	type RemoveOrigin = MoreThanHalfCouncil;
-	type SwapOrigin = MoreThanHalfCouncil;
-	type ResetOrigin = MoreThanHalfCouncil;
-	type PrimeOrigin = MoreThanHalfCouncil;
-	type MembershipInitialized = TechnicalCommittee;
-	type MembershipChanged = TechnicalCommittee;
-	type MaxMembers = MaxMembers;
-	type WeightInfo = weights::pallet_membership::WeightInfo<Runtime>;
 }
 
 impl pallet_offences::Config for Runtime {
@@ -579,7 +501,7 @@ impl authority_membership::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type IsMember = NetworkMembership;
 	type MinAuthorities = ConstU32<3>;
-	type AuthorityMembershipOrigin = MoreThanHalfCouncil;
+	type AuthorityMembershipOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {
@@ -593,7 +515,7 @@ impl pallet_node_authorization::Config for Runtime {
 	type MaxWellKnownNodes = MaxWellKnownNodes;
 	type MaxPeerIdLength = MaxPeerIdLength;
 	type MaxNodeIdLength = MaxNodeIdLength;
-	type NodeAuthorizationOrigin = MoreThanHalfCouncil;
+	type NodeAuthorizationOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
 }
 
@@ -605,7 +527,7 @@ parameter_types! {
 
 impl pallet_network_membership::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type NetworkMembershipOrigin = MoreThanHalfCouncil;
+	type NetworkMembershipOrigin = EnsureRoot<AccountId>;
 	type MembershipPeriod = MembershipPeriod;
 	type MaxMembersPerBlock = MaxMembersPerBlock;
 	type WeightInfo = weights::pallet_network_membership::WeightInfo<Runtime>;
@@ -616,7 +538,7 @@ impl identifier::Config for Runtime {
 }
 
 impl pallet_runtime_upgrade::Config for Runtime {
-	type SetCodeOrigin = EnsureRootOrCommitteeApproval;
+	type SetCodeOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {
@@ -704,7 +626,7 @@ impl pallet_chain_space::Config for Runtime {
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
-	type ChainSpaceOrigin = MoreThanHalfCouncil;
+	type ChainSpaceOrigin = EnsureRoot<AccountId>;
 	type MaxSpaceDelegates = MaxSpaceDelegates;
 	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
 }
@@ -792,14 +714,6 @@ mod runtime {
 	pub type Balances = pallet_balances;
 	#[runtime::pallet_index(8)]
 	pub type Session = pallet_session;
-	#[runtime::pallet_index(20)]
-	pub type Council = pallet_collective<Instance1>;
-	#[runtime::pallet_index(21)]
-	pub type CouncilMembership = pallet_membership<Instance1>;
-	#[runtime::pallet_index(22)]
-	pub type TechnicalCommittee = pallet_collective<Instance2>;
-	#[runtime::pallet_index(23)]
-	pub type TechnicalMembership = pallet_membership<Instance2>;
 	#[runtime::pallet_index(25)]
 	pub type Grandpa = pallet_grandpa;
 	#[runtime::pallet_index(26)]
@@ -992,13 +906,11 @@ mod benches {
 		[frame_benchmarking, BaselineBench::<Runtime>]
 		[pallet_babe, Babe]
 		[pallet_balances, Balances]
-		[pallet_collective, Council]
 		[pallet_grandpa, Grandpa]
 		[pallet_identity, Identity]
 		[pallet_session, SessionBench::<Runtime>]
 		[pallet_im_online, ImOnline]
 		[pallet_indices, Indices]
-		[pallet_membership, TechnicalMembership]
 		[pallet_multisig, Multisig]
 		[pallet_preimage, Preimage]
 		[pallet_remark, Remark]

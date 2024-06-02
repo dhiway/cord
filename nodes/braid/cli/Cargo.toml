@@ -43,7 +43,10 @@ jsonrpsee = { features = ["server"], workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
 hex = { workspace = true }
-toml = { workspace = true, default-features = true }
+toml = { workspace = true }
+kvdb = { workspace = true }
+kvdb-rocksdb = { workspace = true, optional = true }
+parity-db = { workspace = true, optional = true }
 
 # Substrate primitives
 sp-authority-discovery = { workspace = true }
@@ -153,7 +156,7 @@ pallet-balances = { workspace = true }
 sc-storage-monitor = { workspace = true }
 
 [features]
-default = ["cli"]
+default = ["cli", "rocksdb"]
 cli = [
 	"cord-braid-node-inspect",
 	"sc-cli",
@@ -163,6 +166,7 @@ cli = [
 	"clap_complete",
 	"substrate-build-script-utils",
 ]
+rocksdb = ["sc-client-db/rocksdb"]
 # fast-runtime = ["cord-braid-runtime/fast-runtime"]
 runtime-benchmarks = [
 	"cord-braid-runtime/runtime-benchmarks",

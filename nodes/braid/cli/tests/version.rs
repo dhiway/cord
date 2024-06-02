@@ -27,7 +27,7 @@ fn expected_regex() -> Regex {
 #[test]
 fn version_is_full() {
 	let expected = expected_regex();
-	let output = Command::new(cargo_bin("cord")).args(["--version"]).output().unwrap();
+	let output = Command::new(cargo_bin("braid")).args(["--version"]).output().unwrap();
 
 	assert!(output.status.success(), "command returned with non-success exit code");
 
@@ -41,11 +41,11 @@ fn version_is_full() {
 fn test_regex_matches_properly() {
 	let expected = expected_regex();
 
-	let captures = expected.captures("cord 0.7.0-da487d19d").unwrap();
+	let captures = expected.captures("braid 0.7.0-da487d19d").unwrap();
 	assert_eq!(&captures[1], "0.7.0");
 	assert_eq!(&captures[2], "da487d19d");
 
-	let captures = expected.captures("cord 0.7.0-alpha.5-da487d19d").unwrap();
+	let captures = expected.captures("braid 0.7.0-alpha.5-da487d19d").unwrap();
 	assert_eq!(&captures[1], "0.7.0-alpha.5");
 	assert_eq!(&captures[2], "da487d19d");
 }

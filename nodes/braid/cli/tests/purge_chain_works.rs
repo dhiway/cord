@@ -20,7 +20,7 @@ use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 use tempfile::tempdir;
 
-use cord_cli_test_utils as common;
+use cord_braid_cli_test_utils as common;
 
 #[tokio::test]
 #[cfg(unix)]
@@ -29,7 +29,7 @@ async fn purge_chain_works() {
 
 	common::run_node_for_a_while(base_path.path(), &["--dev", "--no-hardware-benchmarks"]).await;
 
-	let status = Command::new(cargo_bin("cord"))
+	let status = Command::new(cargo_bin("braid"))
 		.args(["purge-chain", "--dev", "-d"])
 		.arg(base_path.path())
 		.arg("-y")

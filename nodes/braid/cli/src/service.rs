@@ -95,7 +95,7 @@ pub trait IdentifyVariant {
 
 impl IdentifyVariant for Box<dyn ChainSpec> {
 	fn is_cord(&self) -> bool {
-		self.id().to_lowercase() == "cord"
+		self.id().to_lowercase() == "braid"
 	}
 	fn is_cord_local(&self) -> bool {
 		self.id().to_lowercase().ends_with("local")
@@ -117,11 +117,7 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 }
 
 /// The full client type definition.
-pub type FullClient = sc_service::TFullClient<
-	Block,
-	RuntimeApi,
-	WasmExecutor<(sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions)>,
->;
+pub type FullClient = sc_service::TFullClient<Block, RuntimeApi, RuntimeExecutor>;
 type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type FullGrandpaBlockImport =

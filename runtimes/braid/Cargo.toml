@@ -37,7 +37,7 @@ network-membership = { workspace = true }
 cord-braid-runtime-constants = { workspace = true }
 cord-runtime-common = { workspace = true }
 
-pallet-membership = { workspace = true }
+# pallet-membership = { workspace = true }
 pallet-did = { workspace = true }
 pallet-did-name = { workspace = true }
 pallet-schema = { workspace = true }
@@ -79,7 +79,7 @@ pallet-authority-discovery = { workspace = true }
 pallet-authorship = { workspace = true }
 pallet-babe = { workspace = true }
 pallet-balances = { workspace = true }
-pallet-collective = { workspace = true }
+# pallet-collective = { workspace = true }
 frame-executive = { workspace = true }
 pallet-grandpa = { workspace = true }
 pallet-im-online = { workspace = true }
@@ -134,12 +134,10 @@ std = [
 	"pallet-authority-discovery/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
-	"pallet-collective/std",
 	"pallet-grandpa/std",
 	"pallet-identity/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
-	"pallet-membership/std",
 	"pallet-multisig/std",
 	"pallet-offences/std",
 	"pallet-preimage/std",
@@ -186,12 +184,10 @@ runtime-benchmarks = [
 	"sp-staking/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
-	"pallet-collective/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
 	"pallet-identity/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
-	"pallet-membership/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-offences/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
@@ -221,12 +217,10 @@ try-runtime = [
 	"pallet-authority-discovery/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
-	"pallet-collective/try-runtime",
 	"pallet-grandpa/try-runtime",
 	"pallet-identity/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
-	"pallet-membership/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-offences/try-runtime",
 	"pallet-preimage/try-runtime",

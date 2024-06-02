@@ -19,11 +19,11 @@
 #![cfg(unix)]
 
 use assert_cmd::cargo::cargo_bin;
+use cord_primitives::{Hash, Header};
 use nix::{
 	sys::signal::{kill, Signal, Signal::SIGINT},
 	unistd::Pid,
 };
-use node_primitives::{Hash, Header};
 use regex::Regex;
 use sp_rpc::{list::ListOrValue, number::NumberOrHex};
 use std::{
@@ -37,7 +37,7 @@ use tokio::io::{AsyncBufReadExt, AsyncRead};
 
 /// Similar to [`crate::start_node`] spawns a node, but works in environments
 /// where the cord binary is not accessible with
-/// `cargo_bin("cord")`, and allows customising the args passed in.
+/// `cargo_bin("braid")`, and allows customising the args passed in.
 ///
 /// Helpful if you need a Cord dev node running in the background of a
 /// project external to `cord`.
@@ -62,10 +62,12 @@ pub fn start_node_inline(args: Vec<&str>) -> Result<(), sc_service::error::Error
 	use sc_cli::SubstrateCli;
 
 	// Prepend the args with some dummy value because the first arg is skipped.
-	let cli_call = std::iter::once("cord").chain(args);
-	let cli = node_cli::Cli::from_iter(cli_call);
+	let cli_call = std::iter::once("braid").chain(args);
+	let cli = cord_braid_node_cli::Cli::from_iter(cli_call);
 	let runner = cli.create_runner(&cli.run).unwrap();
-	runner.run_node_until_exit(|config| async move { node_cli::service::new_full(config, cli) })
+	runner.run_node_until_exit(|config| async move {
+		cord_braid_node_cli::service::new_full(config, cli)
+	})
 }
 
 /// Starts a new Cord node in development mode with a temporary chain.
@@ -95,7 +97,7 @@ pub fn start_node_inline(args: Vec<&str>) -> Result<(), sc_service::error::Error
 ///
 /// [`Child`]: std::process::Child
 pub fn start_node() -> Child {
-	Command::new(cargo_bin("cord"))
+	Command::new(cargo_bin("braid"))
 		.stdout(process::Stdio::piped())
 		.stderr(process::Stdio::piped())
 		.args(["--dev", "--tmp", "--rpc-port=45789", "--no-hardware-benchmarks"])
@@ -234,7 +236,7 @@ pub async fn wait_n_finalized_blocks(n: usize, url: &str) {
 /// Run the node for a while (3 blocks)
 pub async fn run_node_for_a_while(base_path: &Path, args: &[&str]) {
 	run_with_timeout(Duration::from_secs(60 * 10), async move {
-		let mut cmd = Command::new(cargo_bin("cord"))
+		let mut cmd = Command::new(cargo_bin("braid"))
 			.stdout(process::Stdio::piped())
 			.stderr(process::Stdio::piped())
 			.args(args)
@@ -273,8 +275,9 @@ pub async fn block_hash(block_number: u64, url: &str) -> Result<Hash, String> {
 	.map_err(|_| "Couldn't get block hash".to_string())?;
 
 	match result {
-		ListOrValue::Value(maybe_block_hash) if maybe_block_hash.is_some() =>
-			Ok(maybe_block_hash.unwrap()),
+		ListOrValue::Value(maybe_block_hash) if maybe_block_hash.is_some() => {
+			Ok(maybe_block_hash.unwrap())
+		},
 		_ => Err("Couldn't get block hash".to_string()),
 	}
 }

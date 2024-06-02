@@ -19,20 +19,20 @@
 //! Utilities to build a `TestClient` for `cord-test-runtime`.
 
 /// Re-export test-client utilities.
-pub use cord_test_client::*;
+pub use cord_braid_test_client::*;
 use sp_runtime::BuildStorage;
 
 /// Call executor for `cord-test-runtime` `TestClient`.
-use node_cli::service::RuntimeExecutor;
+use cord_braid_node_cli::service::RuntimeExecutor;
 
 /// Default backend type.
-pub type Backend = sc_client_db::Backend<node_primitives::Block>;
+pub type Backend = sc_client_db::Backend<cord_primitives::Block>;
 
 /// Test client type.
 pub type Client = client::Client<
 	Backend,
-	client::LocalCallExecutor<node_primitives::Block, Backend, RuntimeExecutor>,
-	node_primitives::Block,
+	client::LocalCallExecutor<cord_primitives::Block, Backend, RuntimeExecutor>,
+	cord_primitives::Block,
 	cord_braid_runtime::RuntimeApi,
 >;
 
@@ -40,7 +40,7 @@ pub type Client = client::Client<
 #[derive(Default)]
 pub struct GenesisParameters;
 
-impl cord_test_client::GenesisInit for GenesisParameters {
+impl cord_braid_test_client::GenesisInit for GenesisParameters {
 	fn genesis_storage(&self) -> Storage {
 		let mut storage = crate::genesis::config().build_storage().unwrap();
 		storage.top.insert(
@@ -61,9 +61,9 @@ pub trait TestClientBuilderExt: Sized {
 }
 
 impl TestClientBuilderExt
-	for cord_test_client::TestClientBuilder<
-		node_primitives::Block,
-		client::LocalCallExecutor<node_primitives::Block, Backend, RuntimeExecutor>,
+	for cord_braid_test_client::TestClientBuilder<
+		cord_primitives::Block,
+		client::LocalCallExecutor<cord_primitives::Block, Backend, RuntimeExecutor>,
 		Backend,
 		GenesisParameters,
 	>

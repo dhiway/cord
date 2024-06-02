@@ -35,7 +35,7 @@ fn benchmark_pallet_works() {
 }
 
 fn benchmark_pallet(steps: u32, repeat: u32, should_work: bool) {
-	let status = Command::new(cargo_bin("cord"))
+	let status = Command::new(cargo_bin("braid"))
 		.args(["benchmark", "pallet", "--dev"])
 		// Use the `addition` benchmark since is the fastest.
 		.args(["--pallet", "frame-benchmarking", "--extrinsic", "addition"])

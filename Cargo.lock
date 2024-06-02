@@ -1405,6 +1405,8 @@ dependencies = [
  "futures",
  "hex",
  "jsonrpsee",
+ "kvdb",
+ "kvdb-rocksdb",
  "log",
  "network-membership",
  "nix 0.26.4",
@@ -1412,6 +1414,7 @@ dependencies = [
  "pallet-im-online",
  "pallet-network-membership",
  "pallet-root-testing",
+ "parity-db",
  "parity-scale-codec",
  "regex",
  "sc-authority-discovery",
@@ -1576,7 +1579,6 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-chain-space",
- "pallet-collective",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
@@ -1584,7 +1586,6 @@ dependencies = [
  "pallet-identity",
  "pallet-im-online",
  "pallet-indices",
- "pallet-membership",
  "pallet-multisig",
  "pallet-network-membership",
  "pallet-network-score",
@@ -1753,7 +1754,7 @@ dependencies = [
  "sp-trie",
  "sp-version",
  "substrate-wasm-builder",
- "trie-db 0.28.0",
+ "trie-db",
 ]
 
 [[package]]
@@ -5911,23 +5912,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-collective"
-version = "28.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0#7377777053f9c9c3c5eff4bcdfc965a56fa52e63"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
-]
-
-[[package]]
 name = "pallet-did"
 version = "0.9.3"
 dependencies = [
@@ -10044,7 +10028,7 @@ dependencies = [
  "sp-trie",
  "thiserror",
  "tracing",
- "trie-db 0.29.1",
+ "trie-db",
 ]
 
 [[package]]
@@ -10181,7 +10165,7 @@ dependencies = [
  "sp-externalities 0.25.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
  "thiserror",
  "tracing",
- "trie-db 0.29.1",
+ "trie-db",
  "trie-root",
 ]
 
@@ -10490,7 +10474,7 @@ dependencies = [
  "sp-runtime",
  "sp-state-machine",
  "sp-trie",
- "trie-db 0.29.1",
+ "trie-db",
 ]
 
 [[package]]
@@ -11025,19 +11009,6 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
-]
-
-[[package]]
-name = "trie-db"
-version = "0.28.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff28e0f815c2fea41ebddf148e008b077d2faddb026c9555b29696114d602642"
-dependencies = [
- "hash-db",
- "hashbrown 0.13.2",
- "log",
- "rustc-hex",
- "smallvec",
 ]
 
 [[package]]

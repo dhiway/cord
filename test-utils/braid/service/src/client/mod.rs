@@ -17,8 +17,8 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use async_channel::TryRecvError;
-use cord_test_runtime::TestAPI;
-use cord_test_runtime_client::{
+use cord_braid_test_runtime::TestAPI;
+use cord_braid_test_runtime_client::{
 	runtime::{
 		currency::WAY,
 		genesismap::{insert_genesis_block, GenesisStorageBuilder},
@@ -219,7 +219,7 @@ fn construct_genesis_should_work_with_wasm() {
 
 #[test]
 fn client_initializes_from_genesis_ok() {
-	let client = cord_test_runtime_client::new();
+	let client = cord_braid_test_runtime_client::new();
 
 	assert_eq!(
 		client
@@ -239,7 +239,7 @@ fn client_initializes_from_genesis_ok() {
 
 #[test]
 fn block_builder_works_with_no_transactions() {
-	let mut client = cord_test_runtime_client::new();
+	let mut client = cord_braid_test_runtime_client::new();
 
 	let block = BlockBuilderBuilder::new(&client)
 		.on_parent_block(client.chain_info().genesis_hash)
@@ -257,7 +257,7 @@ fn block_builder_works_with_no_transactions() {
 
 #[test]
 fn block_builder_works_with_transactions() {
-	let mut client = cord_test_runtime_client::new();
+	let mut client = cord_braid_test_runtime_client::new();
 
 	let mut builder = BlockBuilderBuilder::new(&client)
 		.on_parent_block(client.chain_info().genesis_hash)
@@ -317,7 +317,7 @@ fn block_builder_works_with_transactions() {
 
 #[test]
 fn block_builder_does_not_include_invalid() {
-	let mut client = cord_test_runtime_client::new();
+	let mut client = cord_braid_test_runtime_client::new();
 	let mut builder = BlockBuilderBuilder::new(&client)
 		.on_parent_block(client.chain_info().genesis_hash)
 		.with_parent_block_number(0)
@@ -391,7 +391,7 @@ fn best_containing_with_genesis_block() {
 fn uncles_with_only_ancestors() {
 	// block tree:
 	// G -> A1 -> A2
-	let mut client = cord_test_runtime_client::new();
+	let mut client = cord_braid_test_runtime_client::new();
 
 	// G -> A1
 	let a1 = BlockBuilderBuilder::new(&client)
@@ -425,7 +425,7 @@ fn uncles_with_multiple_forks() {
 	//      A1 -> B2 -> B3 -> B4
 	//	          B2 -> C3
 	//	    A1 -> D2
-	let mut client = cord_test_runtime_client::new();
+	let mut client = cord_braid_test_runtime_client::new();
 
 	// G -> A1
 	let a1 = BlockBuilderBuilder::new(&client)
@@ -1054,7 +1054,7 @@ fn finality_target_with_best_not_on_longest_chain() {
 fn import_with_justification() {
 	// block tree:
 	// G -> A1 -> A2 -> A3
-	let mut client = cord_test_runtime_client::new();
+	let mut client = cord_braid_test_runtime_client::new();
 
 	let mut finality_notifications = client.finality_notification_stream();
 
@@ -1108,7 +1108,7 @@ fn import_with_justification() {
 
 #[test]
 fn importing_diverged_finalized_block_should_trigger_reorg() {
-	let mut client = cord_test_runtime_client::new();
+	let mut client = cord_braid_test_runtime_client::new();
 
 	// G -> A1 -> A2
 	//   \
@@ -1391,7 +1391,7 @@ fn finality_notifications_content() {
 
 #[test]
 fn get_block_by_bad_block_hash_returns_none() {
-	let client = cord_test_runtime_client::new();
+	let client = cord_braid_test_runtime_client::new();
 
 	let hash = H256::from_low_u64_be(5);
 	assert!(client.block(hash).unwrap().is_none());
@@ -1399,7 +1399,7 @@ fn get_block_by_bad_block_hash_returns_none() {
 
 #[test]
 fn expect_block_hash_by_block_number_doesnt_panic() {
-	let client = cord_test_runtime_client::new();
+	let client = cord_braid_test_runtime_client::new();
 
 	// backend uses u32 for block numbers, make sure we don't panic when
 	// trying to convert
@@ -1409,7 +1409,7 @@ fn expect_block_hash_by_block_number_doesnt_panic() {
 
 #[test]
 fn get_hash_by_block_number_doesnt_panic() {
-	let client = cord_test_runtime_client::new();
+	let client = cord_braid_test_runtime_client::new();
 
 	// backend uses u32 for block numbers, make sure we don't panic when
 	// trying to convert
@@ -1419,9 +1419,9 @@ fn get_hash_by_block_number_doesnt_panic() {
 #[test]
 fn state_reverted_on_reorg() {
 	sp_tracing::try_init_simple();
-	let mut client = cord_test_runtime_client::new();
+	let mut client = cord_braid_test_runtime_client::new();
 
-	let current_balance = |client: &cord_test_runtime_client::TestClient| {
+	let current_balance = |client: &cord_braid_test_runtime_client::TestClient| {
 		client
 			.runtime_api()
 			.balance_of(client.chain_info().best_hash, AccountKeyring::Alice.into())
@@ -1991,9 +1991,9 @@ fn storage_keys_works() {
 	sp_tracing::try_init_simple();
 
 	let expected_keys =
-		cord_test_runtime::storage_key_generator::get_expected_storage_hashed_keys(false);
+		cord_braid_test_runtime::storage_key_generator::get_expected_storage_hashed_keys(false);
 
-	let client = cord_test_runtime_client::new();
+	let client = cord_braid_test_runtime_client::new();
 	let block_hash = client.info().best_hash;
 	let prefix = StorageKey(array_bytes::hex2bytes_unchecked(""));
 
@@ -2081,14 +2081,14 @@ fn storage_keys_works() {
 
 #[test]
 fn cleans_up_closed_notification_sinks_on_block_import() {
-	use cord_test_runtime_client::GenesisInit;
+	use cord_braid_test_runtime_client::GenesisInit;
 
 	let backend = Arc::new(sc_client_api::in_mem::Backend::new());
 	let executor = WasmExecutor::default();
 	let client_config = sc_service::ClientConfig::default();
 
 	let genesis_block_builder = sc_service::GenesisBlockBuilder::new(
-		&cord_test_runtime_client::GenesisParameters::default().genesis_storage(),
+		&cord_braid_test_runtime_client::GenesisParameters::default().genesis_storage(),
 		!client_config.no_genesis,
 		backend.clone(),
 		executor.clone(),
@@ -2272,7 +2272,7 @@ fn use_dalek_ext_works() {
 
 #[test]
 fn finalize_after_best_block_updates_best() {
-	let mut client = cord_test_runtime_client::new();
+	let mut client = cord_braid_test_runtime_client::new();
 
 	// G -> A1
 	let a1 = BlockBuilderBuilder::new(&client)

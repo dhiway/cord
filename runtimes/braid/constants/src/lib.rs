@@ -42,7 +42,7 @@ pub mod currency {
 pub mod time {
 	use cord_primitives::{BlockNumber, Moment};
 	use cord_runtime_common::prod_or_fast;
-	pub const MILLISECS_PER_BLOCK: Moment = 6000;
+	pub const MILLISECS_PER_BLOCK: Moment = 3000;
 
 	// NOTE: Currently it is not possible to change the slot duration after the chain has started.
 	//       Attempting to do so will brick block production.

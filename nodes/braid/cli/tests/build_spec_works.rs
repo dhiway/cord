@@ -24,7 +24,7 @@ use tempfile::tempdir;
 fn build_spec_works() {
 	let base_path = tempdir().expect("could not create a temp dir");
 
-	let output = Command::new(cargo_bin("cord"))
+	let output = Command::new(cargo_bin("braid"))
 		.args(["build-spec", "--dev", "-d"])
 		.arg(base_path.path())
 		.output()

@@ -27,7 +27,7 @@ use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
 const NAME_SEPARATOR: u8 = b'@';
-const NETWORK_SUFFIX: &[u8] = b"cord";
+const NETWORK_SUFFIX: &[u8] = b"braid";
 
 /// A DID name.
 ///

@@ -24,7 +24,7 @@ use std::{
 	time::Duration,
 };
 
-use cord_cli_test_utils as common;
+use cord_braid_cli_test_utils as common;
 
 // #[allow(dead_code)]
 // Apparently `#[ignore]` doesn't actually work to disable this one.
@@ -32,7 +32,7 @@ use cord_cli_test_utils as common;
 #[ignore]
 async fn temp_base_path_works() {
 	common::run_with_timeout(Duration::from_secs(60 * 10), async move {
-		let mut cmd = Command::new(cargo_bin("cord"));
+		let mut cmd = Command::new(cargo_bin("braid"));
 		let mut child = common::KillChildOnDrop(
 			cmd.args(["--dev", "--tmp", "--no-hardware-benchmarks"])
 				.stdout(Stdio::piped())
