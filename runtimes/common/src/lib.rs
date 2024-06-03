@@ -19,18 +19,18 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use cord_primitives::{Balance, BlockNumber};
-use frame_support::{
-	parameter_types,
-	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
-};
+use frame_support::parameter_types;
+use frame_support::traits::{Currency, OnUnbalanced};
+
 use frame_system::limits;
 use sp_runtime::{FixedPointNumber, Perbill, Perquintill};
 use static_assertions::const_assert;
 
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
-use pallet_transaction_payment::Multiplier;
+use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 pub use sp_runtime::traits::Bounded;
+use sp_std::marker::PhantomData;
 
 /// We assume that an on-initialize consumes 1% of the weight on average, hence a single extrinsic
 /// will not be allowed to consume more than `AvailableBlockRatio - 1%`.
@@ -38,9 +38,6 @@ pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
 /// We allow `Normal` extrinsics to fill up the block up to 80%, the rest can be used
 /// by  Operational  extrinsics.
 pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(80);
-/// We allow for 2 seconds of block time for computations, with maximum proof size.
-pub const MAXIMUM_BLOCK_WEIGHT: Weight =
-	Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2), u64::MAX);
 
 const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO.deconstruct());
 
@@ -64,25 +61,61 @@ parameter_types! {
 	limits::BlockLength::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 }
 
+/// Parameterized slow adjusting fee updated based on
+/// <https://research.web3.foundation/Polkadot/overview/token-economics#2-slow-adjusting-mechanism>
+pub type SlowAdjustingFeeUpdate<R> = TargetedFeeAdjustment<
+	R,
+	TargetBlockFullness,
+	AdjustmentVariable,
+	MinimumMultiplier,
+	MaximumMultiplier,
+>;
+
+// type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
+
+// pub struct EverythingToTheTreasury;
+
+pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
+	<T as frame_system::Config>::AccountId,
+>>::NegativeImbalance;
+
+pub struct EverythingToTheTreasury<R>(PhantomData<R>);
+
+impl<R> OnUnbalanced<NegativeImbalance<R>> for EverythingToTheTreasury<R>
+where
+	R: pallet_balances::Config + pallet_treasury::Config,
+	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
+{
+	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance<R>>) {
+		use pallet_treasury::Pallet as Treasury;
+
+		if let Some(fees) = fees_then_tips.next() {
+			<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(fees);
+			if let Some(tips) = fees_then_tips.next() {
+				<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(tips);
+			}
+		}
+	}
+}
+
 /// Implements the weight types for a runtime.
 /// It expects the passed runtime constants to contain a `weights` module.
 /// The generated weight types were formerly part of the common
 /// runtime but are now runtime dependant.
 #[macro_export]
 macro_rules! impl_runtime_weights {
-	($runtime:ident) => {
+	($runtime:ident, $maximum_block_weight:expr) => {
 		use frame_support::{dispatch::DispatchClass, weights::Weight};
 		use frame_system::limits;
-		// use pallet_transaction_payment::Multiplier;
-		pub use runtime_common::{
-			AVERAGE_ON_INITIALIZE_RATIO, MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO,
-		};
+		pub use runtime_common::{AVERAGE_ON_INITIALIZE_RATIO, NORMAL_DISPATCH_RATIO};
 		use sp_runtime::{FixedPointNumber, Perquintill};
 
 		// Expose the weight from the runtime constants module.
 		pub use $runtime::weights::{
 			BlockExecutionWeight, ExtrinsicBaseWeight, ParityDbWeight, RocksDbWeight,
 		};
+
+		const MAX_BLOCK_WEIGHT: Weight = $maximum_block_weight;
 
 		parameter_types! {
 			/// Block weights base values and limits.
@@ -92,14 +125,14 @@ macro_rules! impl_runtime_weights {
 					weights.base_extrinsic = $runtime::weights::ExtrinsicBaseWeight::get();
 				})
 				.for_class(DispatchClass::Normal, |weights| {
-					weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT);
+					weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT);
 				})
 				.for_class(DispatchClass::Operational, |weights| {
-					weights.max_total = Some(MAXIMUM_BLOCK_WEIGHT);
+					weights.max_total = Some(MAX_BLOCK_WEIGHT);
 					// Operational transactions have an extra reserved space, so that they
-					// are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
+					// are included even if block reached MAX_BLOCK_WEIGHT.
 					weights.reserved = Some(
-						MAXIMUM_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT,
+						MAX_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT,
 					);
 				})
 				.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)

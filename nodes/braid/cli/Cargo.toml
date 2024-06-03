@@ -167,7 +167,7 @@ cli = [
 	"substrate-build-script-utils",
 ]
 rocksdb = ["sc-client-db/rocksdb"]
-# fast-runtime = ["cord-braid-runtime/fast-runtime"]
+
 runtime-benchmarks = [
 	"cord-braid-runtime/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",

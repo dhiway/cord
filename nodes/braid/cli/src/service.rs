@@ -687,7 +687,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 
 	let grandpa_config = sc_consensus_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
-		gossip_duration: std::time::Duration::from_millis(1000),
+		gossip_duration: std::time::Duration::from_millis(333),
 		justification_generation_period: GRANDPA_JUSTIFICATION_PERIOD,
 		name: Some(name),
 		observer_enabled: false,
