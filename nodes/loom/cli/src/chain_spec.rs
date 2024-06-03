@@ -20,7 +20,7 @@
 
 pub mod bootstrap;
 
-use cord_braid_runtime::{Block, SessionKeys};
+use cord_loom_runtime::{Block, SessionKeys};
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
@@ -36,10 +36,10 @@ use sp_std::collections::btree_map::BTreeMap;
 
 type AccountPublic = <Signature as Verify>::Signer;
 
-pub use cord_braid_runtime_constants::{currency::*, time::*};
+pub use cord_loom_runtime_constants::{currency::*, time::*};
 
 const CORD_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
-const DEFAULT_PROTOCOL_ID: &str = "braid";
+const DEFAULT_PROTOCOL_ID: &str = "loom";
 
 /// Node `ChainSpec` extensions.
 ///
@@ -123,8 +123,8 @@ fn member_accounts() -> Vec<AccountId> {
 }
 
 /// Development config.
-fn cord_development_config_genesis() -> serde_json::Value {
-	cord_local_genesis(
+fn loom_development_config_genesis() -> serde_json::Value {
+	loom_local_genesis(
 		vec![get_authority_keys_from_seed("Alice")],
 		vec![(
 			b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
@@ -134,8 +134,8 @@ fn cord_development_config_genesis() -> serde_json::Value {
 	)
 }
 
-fn cord_local_config_genesis() -> serde_json::Value {
-	cord_local_genesis(
+fn loom_local_config_genesis() -> serde_json::Value {
+	loom_local_genesis(
 		vec![
 			get_authority_keys_from_seed("Alice"),
 			get_authority_keys_from_seed("Bob"),
@@ -163,16 +163,16 @@ fn cord_local_config_genesis() -> serde_json::Value {
 	)
 }
 
-pub fn cord_dev_config() -> Result<CordChainSpec, String> {
+pub fn loom_dev_config() -> Result<CordChainSpec, String> {
 	let properties = get_properties("WAY", 12, 29);
 	Ok(CordChainSpec::builder(
-		cord_braid_runtime::WASM_BINARY.ok_or("Cord development wasm not available")?,
+		cord_loom_runtime::WASM_BINARY.ok_or("Cord development wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Braid Dev.")
+	.with_name("Loom Dev.")
 	.with_id("dev")
 	.with_chain_type(ChainType::Development)
-	.with_genesis_config_patch(cord_development_config_genesis())
+	.with_genesis_config_patch(loom_development_config_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -182,16 +182,16 @@ pub fn cord_dev_config() -> Result<CordChainSpec, String> {
 	.build())
 }
 
-pub fn cord_local_config() -> Result<CordChainSpec, String> {
+pub fn loom_local_config() -> Result<CordChainSpec, String> {
 	let properties = get_properties("WAY", 12, 29);
 	Ok(CordChainSpec::builder(
-		cord_braid_runtime::WASM_BINARY.ok_or("Cord development wasm not available")?,
+		cord_loom_runtime::WASM_BINARY.ok_or("Cord development wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Braid Local Testnet")
+	.with_name("Loom Local Testnet")
 	.with_id("local")
 	.with_chain_type(ChainType::Local)
-	.with_genesis_config_patch(cord_local_config_genesis())
+	.with_genesis_config_patch(loom_local_config_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -201,7 +201,7 @@ pub fn cord_local_config() -> Result<CordChainSpec, String> {
 	.build())
 }
 
-fn cord_local_genesis(
+fn loom_local_genesis(
 	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
@@ -237,7 +237,7 @@ fn cord_local_genesis(
 				.collect::<Vec<_>>(),
 		},
 		"babe":  {
-			"epochConfig": Some(cord_braid_runtime::BABE_GENESIS_EPOCH_CONFIG),
+			"epochConfig": Some(cord_loom_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
 		"sudo": { "key": Some(root_key) },
 	})

@@ -14,6 +14,10 @@ members = [
 	"nodes/braid/rpc",
 	"nodes/braid/inspect",
 	"nodes/braid/testing",
+	"nodes/loom/cli",
+	"nodes/loom/rpc",
+	"nodes/loom/inspect",
+	"nodes/loom/testing",
 	"pallets/*",
 	"primitives/*",
 	"runtimes/common",
@@ -33,7 +37,7 @@ members = [
 	"test-utils/braid/service",
 
 ]
-default-members = ["nodes/braid/cli"]
+default-members = ["nodes/braid/cli", "nodes/loom/cli"]
 
 [workspace.dependencies]
 # crates.io dependencies
@@ -90,8 +94,6 @@ cord-primitives = { path = "primitives/cord", default-features = false }
 network-membership = { path = "primitives/network-membership", default-features = false }
 cord-braid-runtime = { path = "runtimes/braid", default-features = false }
 cord-braid-runtime-constants = { path = "runtimes/braid/constants", default-features = false }
-cord-loom-runtime = { path = "runtimes/loom", default-features = false }
-cord-loom-runtime-constants = { path = "runtimes/loom/constants", default-features = false }
 cord-runtime-common = { path = "runtimes/common", default-features = false }
 cord-braid-node-cli = { path = "nodes/braid/cli", default-features = false }
 cord-braid-node-inspect = { path = "nodes/braid/inspect", default-features = false }
@@ -104,6 +106,19 @@ cord-braid-test-client = { path = "test-utils/braid/client", default-features = 
 cord-braid-test-runtime-client = { path = "test-utils/braid/runtime/client", default-features = false }
 cord-braid-test-runtime-transaction-pool = { path = "test-utils/braid/runtime/transaction-pool", default-features = false }
 cord-braid-cli-test-utils = { path = "test-utils/braid/cli", default-features = false }
+cord-loom-runtime = { path = "runtimes/loom", default-features = false }
+cord-loom-runtime-constants = { path = "runtimes/loom/constants", default-features = false }
+cord-loom-node-cli = { path = "nodes/loom/cli", default-features = false }
+cord-loom-node-inspect = { path = "nodes/loom/inspect", default-features = false }
+cord-loom-node-rpc = { path = "nodes/loom/rpc", default-features = false }
+cord-loom-node-testing = { path = "nodes/loom/testing", default-features = false }
+cord-loom-test-utils = { path = "test-utils/loom", default-features = false }
+cord-loom-service-test = { path = "test-utils/loom/service", default-features = false }
+cord-loom-test-runtime = { path = "test-utils/loom/runtime", default-features = false }
+cord-loom-test-client = { path = "test-utils/loom/client", default-features = false }
+cord-loom-test-runtime-client = { path = "test-utils/loom/runtime/client", default-features = false }
+cord-loom-test-runtime-transaction-pool = { path = "test-utils/loom/runtime/transaction-pool", default-features = false }
+cord-loom-cli-test-utils = { path = "test-utils/loom/cli", default-features = false }
 cord-utilities = { path = "utilities", default-features = false }
 pallet-membership = { path = 'pallets/membership/', default-features = false }
 pallet-did = { path = 'pallets/did', default-features = false }
@@ -219,6 +234,7 @@ pallet-session = { git = "https://github.com/dhiway/substrate-sdk", default-feat
 pallet-sudo = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-timestamp = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-transaction-payment = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-transaction-payment-rpc = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-treasury = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-utility = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
