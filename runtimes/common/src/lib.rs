@@ -71,10 +71,6 @@ pub type SlowAdjustingFeeUpdate<R> = TargetedFeeAdjustment<
 	MaximumMultiplier,
 >;
 
-// type NegativeImbalance = <Balances as Currency<AccountId>>::NegativeImbalance;
-
-// pub struct EverythingToTheTreasury;
-
 pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
 	<T as frame_system::Config>::AccountId,
 >>::NegativeImbalance;

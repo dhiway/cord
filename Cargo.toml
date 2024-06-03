@@ -21,8 +21,8 @@ members = [
 	"runtimes/common/authorities",
 	"runtimes/braid/",
 	"runtimes/braid/constants",
-	# "runtimes/loom/",
-	# "runtimes/loom/constants",
+	"runtimes/loom/",
+	"runtimes/loom/constants",
 	"utilities",
 	"test-utils/braid",
 	"test-utils/braid/cli",
@@ -90,8 +90,8 @@ cord-primitives = { path = "primitives/cord", default-features = false }
 network-membership = { path = "primitives/network-membership", default-features = false }
 cord-braid-runtime = { path = "runtimes/braid", default-features = false }
 cord-braid-runtime-constants = { path = "runtimes/braid/constants", default-features = false }
-# cord-loom-runtime = { path = "runtimes/loom", default-features = false }
-# cord-loom-runtime-constants = { path = "runtimes/loom/constants", default-features = false }
+cord-loom-runtime = { path = "runtimes/loom", default-features = false }
+cord-loom-runtime-constants = { path = "runtimes/loom/constants", default-features = false }
 cord-runtime-common = { path = "runtimes/common", default-features = false }
 cord-braid-node-cli = { path = "nodes/braid/cli", default-features = false }
 cord-braid-node-inspect = { path = "nodes/braid/inspect", default-features = false }
