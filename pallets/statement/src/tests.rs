@@ -1027,6 +1027,59 @@ fn updating_a_registered_statement_again_should_fail() {
 }
 
 #[test]
+fn removing_nonexistent_presentation_should_fail() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let capacity = 5u64;
+	let statement = [77u8; 32];
+	let statement_digest = <Test as frame_system::Config>::Hashing::hash(&statement[..]);
+	let presentation_digest = <Test as frame_system::Config>::Hashing::hash(&[99u8; 32][..]);
+
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+
+	let statement_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&statement_digest.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let statement_id: StatementIdOf = generate_statement_id::<Test>(&statement_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+
+		assert_ok!(Statement::register(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			statement_digest,
+			authorization_id.clone(),
+			None
+		));
+
+		assert_err!(
+			Statement::remove_presentation(
+				DoubleOrigin(author, creator).into(),
+				statement_id,
+				presentation_digest,
+				authorization_id,
+			),
+			Error::<Test>::PresentationNotFound
+		);
+	});
+}
+
+#[test]
 fn bulk_registering_statements_with_same_digest_should_fail() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;

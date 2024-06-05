@@ -17,10 +17,10 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 32.0.0
-//! DATE: 2024-03-18 (Y/M/D)
-//! HOSTNAME: `smohan-dev-host`, CPU: `AMD EPYC 7B12`
+//! DATE: 2024-05-17 (Y/M/D)
+//! HOSTNAME: `cord-benchmark-16gb`, CPU: `AMD EPYC 7B13`
 //!
-//! SHORT-NAME: `extrinsic`, LONG-NAME: `ExtrinsicBase`, RUNTIME: `Cord Ignite`
+//! SHORT-NAME: `extrinsic`, LONG-NAME: `ExtrinsicBase`, RUNTIME: `Braid`
 //! WARMUPS: `10`, REPEAT: `100`
 //! WEIGHT-PATH: `runtime/constants/src/weights/`
 //! WEIGHT-METRIC: `Average`, WEIGHT-MUL: `1.0`, WEIGHT-ADD: `0`
@@ -44,17 +44,17 @@ parameter_types! {
 	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 65_979, 67_447
-	///   Average:  66_458
-	///   Median:   66_382
-	///   Std-Dev:  298.31
+	///   Min, Max: 65_786, 68_620
+	///   Average:  67_354
+	///   Median:   67_433
+	///   Std-Dev:  640.72
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 67_405
-	///   95th: 66_932
-	///   75th: 66_621
+	///   99th: 68_559
+	///   95th: 68_225
+	///   75th: 67_848
 	pub const ExtrinsicBaseWeight: Weight =
-		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(66_458), 0);
+		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(67_354), 0);
 }
 
 #[cfg(test)]

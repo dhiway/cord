@@ -17,10 +17,10 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! THIS FILE WAS AUTO-GENERATED USING THE SUBSTRATE BENCHMARK CLI VERSION 32.0.0
-//! DATE: 2024-03-18 (Y/M/D)
-//! HOSTNAME: `smohan-dev-host`, CPU: `AMD EPYC 7B12`
+//! DATE: 2024-05-17 (Y/M/D)
+//! HOSTNAME: `cord-benchmark-16gb`, CPU: `AMD EPYC 7B13`
 //!
-//! SHORT-NAME: `block`, LONG-NAME: `BlockExecution`, RUNTIME: `Cord Ignite`
+//! SHORT-NAME: `block`, LONG-NAME: `BlockExecution`, RUNTIME: `Braid`
 //! WARMUPS: `10`, REPEAT: `100`
 //! WEIGHT-PATH: `runtime/constants/src/weights/`
 //! WEIGHT-METRIC: `Average`, WEIGHT-MUL: `1.0`, WEIGHT-ADD: `0`
@@ -44,17 +44,17 @@ parameter_types! {
 	/// Calculated by multiplying the *Average* with `1.0` and adding `0`.
 	///
 	/// Stats nanoseconds:
-	///   Min, Max: 167_930, 203_430
-	///   Average:  174_105
-	///   Median:   170_930
-	///   Std-Dev:  7107.41
+	///   Min, Max: 199_750, 250_751
+	///   Average:  207_714
+	///   Median:   203_451
+	///   Std-Dev:  9928.66
 	///
 	/// Percentiles nanoseconds:
-	///   99th: 197_440
-	///   95th: 190_230
-	///   75th: 177_669
+	///   99th: 249_270
+	///   95th: 225_570
+	///   75th: 209_410
 	pub const BlockExecutionWeight: Weight =
-		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(174_105), 0);
+		Weight::from_parts(WEIGHT_REF_TIME_PER_NANOS.saturating_mul(207_714), 0);
 }
 
 #[cfg(test)]
