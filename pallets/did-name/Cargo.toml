@@ -15,41 +15,29 @@ workspace = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dev-dependencies]
-cord-utilities = { package = "cord-utilities", path = "../../utilities", features = [
-	"mock",
-] }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", features = [
-	"std",
-], branch = "release-v1.10.0" }
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", features = [
-	"std",
-], branch = "release-v1.10.0" }
-sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", features = [
-	"std",
-], branch = "release-v1.10.0" }
+cord-utilities = { features = ["mock"], workspace = true }
+sp-core = { features = ["std"], workspace = true }
+sp-io = { features = ["std"], workspace = true }
+sp-keystore = { features = ["std"], workspace = true }
 
 [dependencies]
 # External dependencies
-codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
-	"derive",
-] }
-scale-info = { version = "2.11.1", default-features = false, features = [
-	"derive",
-] }
+codec = { features = ["derive"], workspace = true }
+scale-info = { features = ["derive"], workspace = true }
 
 # Internal dependencies
-cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
+cord-utilities = { workspace = true }
 
 # Substrate dependencies
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { optional = true, workspace = true }
 
 # Benchmarking dependencies
-frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
+frame-benchmarking = { optional = true, workspace = true }
+sp-io = { optional = true, workspace = true }
 
 [features]
 default = ["std"]

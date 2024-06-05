@@ -12,27 +12,22 @@ repository.workspace = true
 workspace = true
 
 [dev-dependencies]
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
-maplit = "1.0.2"
+sp-io = { workspace = true }
+maplit = { workspace = true }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
-	"derive",
-] }
-scale-info = { version = "2.11.1", default-features = false, features = [
-	"derive",
-] }
-serde = { version = "1.0.197", default-features = false, optional = true }
-network-membership = { package = "network-membership", path = "../../primitives/network-membership", default-features = false }
+codec = { features = ["derive"], workspace = true }
+scale-info = { features = ["derive"], workspace = true }
+serde = { workspace = true }
+network-membership = { workspace = true }
 
 # Substrate dependencies
-frame-system = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, optional = true, branch = "release-v1.10.0" }
-
-frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
+frame-system = { workspace = true }
+frame-support = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { optional = true, workspace = true }
+frame-benchmarking = { optional = true, workspace = true }
 
 [features]
 default = ['std']
@@ -51,7 +46,6 @@ std = [
 	"sp-runtime/std",
 	"sp-core/std",
 	"sp-std/std",
-	"serde",
-	# "log/std",
+	"serde/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

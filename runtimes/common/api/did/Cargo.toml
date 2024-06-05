@@ -1,0 +1,38 @@
+[package]
+name = "pallet-did-runtime-api"
+description = "Runtime APIs for dealing with DIDs."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# External dependencies
+codec = { features = ["derive"], workspace = true }
+scale-info = { features = ["derive"], workspace = true }
+
+# Internal dependencies
+pallet-did = { workspace = true }
+
+# Substrate
+sp-api = { workspace = true }
+sp-std = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+	"frame-support/std",
+	"frame-system/std",
+	"codec/std",
+	"sp-api/std",
+	"sp-std/std",
+	"scale-info/std",
+	"pallet-did/std",
+]
