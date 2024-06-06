@@ -798,6 +798,7 @@ impl pallet_network_score::Config for Runtime {
 parameter_types! {
 	pub const MaxEncodedValueLength: u32 = 1_024;
 	pub const MaxAssetDistribution: u32 = u32::MAX;
+	pub const MaxMetaPairLength: u32 = 5;
 }
 
 impl pallet_asset::Config for Runtime {
@@ -806,6 +807,7 @@ impl pallet_asset::Config for Runtime {
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type MaxEncodedValueLength = MaxEncodedValueLength;
 	type MaxAssetDistribution = MaxAssetDistribution;
+	type MaxMetaPairLength = MaxMetaPairLength;
 	type WeightInfo = weights::pallet_asset::WeightInfo<Runtime>;
 }
 

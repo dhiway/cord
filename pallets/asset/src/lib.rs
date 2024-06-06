@@ -72,6 +72,9 @@ pub mod pallet {
 	pub type AssetTagOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 	pub type AssetMetadataOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
 
+	pub type AssetKeyOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
+	pub type AssetValueOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedValueLength>;
+
 	pub type AssetInputEntryOf<T> =
 		AssetInputEntry<AssetDescriptionOf<T>, AssetTypeOf, AssetTagOf<T>, AssetMetadataOf<T>>;
 
@@ -127,6 +130,9 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type MaxAssetDistribution: Get<u32>;
+
+		#[pallet::constant]
+		type MaxMetaPairLength: Get<u32>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -184,6 +190,17 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type AssetLookup<T> =
 		StorageMap<_, Blake2_128Concat, EntryHashOf<T>, AssetIdOf, OptionQuery>;
+
+	#[pallet::storage]
+	pub type AssetMeta<T> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		AssetIdOf,
+		Blake2_128Concat,
+		AssetKeyOf<T>,
+		AssetValueOf<T>,
+		OptionQuery,
+	>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -308,6 +325,9 @@ pub mod pallet {
 			entry: AssetIssuanceEntryOf<T>,
 			digest: EntryHashOf<T>,
 			authorization: AuthorizationIdOf,
+			meta: Option<
+				BoundedVec<(AssetKeyOf<T>, AssetValueOf<T>), <T as Config>::MaxMetaPairLength>,
+			>,
 		) -> DispatchResult {
 			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
@@ -319,6 +339,11 @@ pub mod pallet {
 			let asset = <Assets<T>>::get(&entry.asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
 
 			ensure!(asset.asset_issuer == issuer, Error::<T>::UnauthorizedOperation);
+
+			// ensure!(
+			// 	meta.as_ref().map_or(true, |m| m.len() <= T::MaxMetaPairLength as usize),
+			// 	Error::<T>::UnauthorizedOperation
+			// );
 
 			ensure!(AssetStatusOf::ACTIVE == asset.asset_status, Error::<T>::AssetNotActive);
 
@@ -356,6 +381,12 @@ pub mod pallet {
 				dist.try_push(instance_id.clone())
 					.map_err(|_| Error::<T>::DistributionLimitExceeded)
 			})?;
+
+			if let Some(meta) = meta {
+				for (key, value) in meta.iter() {
+					<AssetMeta<T>>::insert(&entry.asset_id, &key, &value);
+				}
+			}
 
 			<AssetLookup<T>>::insert(digest, &entry.asset_id);
 

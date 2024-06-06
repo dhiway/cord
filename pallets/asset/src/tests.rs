@@ -158,7 +158,8 @@ fn asset_issue_should_succeed() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			issue_entry.clone(),
 			issue_entry_digest,
-			authorization_id
+			authorization_id,
+			None
 		));
 	});
 }
