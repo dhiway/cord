@@ -17,10 +17,10 @@
 //! Polkadot CLI library.
 
 #![allow(missing_docs)]
-use crate::command::{chain_setup::BootstrapChainCmd, gen_key::KeySubcommand};
+use crate::command::gen_key::KeySubcommand;
 
 use clap::Parser;
-use std::path::PathBuf;
+// use std::path::PathBuf;
 
 #[allow(missing_docs)]
 #[derive(Debug, Parser)]
@@ -32,9 +32,8 @@ pub enum Subcommand {
 	)]
 	Inspect(cord_node_inspect::cli::InspectCmd),
 
-	/// Bootstrap a custom configuration
-	BootstrapChain(BootstrapChainCmd),
-
+	// /// Bootstrap a custom configuration
+	// BootstrapChain(BootstrapChainCmd),
 	/// Key management cli utilities
 	#[command(subcommand)]
 	Key(KeySubcommand),
@@ -75,10 +74,6 @@ pub enum Subcommand {
 	#[command(subcommand)]
 	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
 
-	/// Key management CLI utilities
-	#[command(subcommand)]
-	Key(sc_cli::KeySubcommand),
-
 	/// Db meta columns information.
 	ChainInfo(sc_cli::ChainInfoCmd),
 }
@@ -92,7 +87,7 @@ pub struct Cli {
 
 	#[allow(missing_docs)]
 	#[clap(flatten)]
-	pub run: RunCmd,
+	pub run: sc_cli::RunCmd,
 
 	/// Force using Braid runtime.
 	#[arg(long = "force-braid")]

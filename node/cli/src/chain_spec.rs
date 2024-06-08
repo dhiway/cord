@@ -17,6 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! CORD chain configurations.
+#![allow(missing_docs)]
 
 pub mod bootstrap;
 
@@ -31,33 +32,29 @@ use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 type AccountPublic = <Signature as Verify>::Signer;
+use sc_telemetry::TelemetryEndpoints;
 
 #[cfg(feature = "braid-native")]
-use cord_braid_runtime as braid;
-#[cfg(feature = "braid-native")]
-pub use cord_braid_runtime_constants::{currency::*, time::*};
+pub use cord_braid_runtime_constants::currency::WAY as BRAID_UNITS;
 #[cfg(feature = "loom-native")]
-use cord_loom_runtime as loom;
-#[cfg(feature = "loom-native")]
-pub use cord_loom_runtime_constants::{currency::*, time::*};
-#[cfg(any(feature = "braid-native", feature = "loom-native"))]
-use telemetry::TelemetryEndpoints;
+pub use cord_braid_runtime_constants::currency::WAY as LOOM_UNITS;
+#[cfg(feature = "weave-native")]
+pub use cord_braid_runtime_constants::currency::WAY;
+
 #[cfg(any(feature = "braid-native", feature = "loom-native", feature = "weave-native"))]
 const CORD_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
+
 #[cfg(feature = "braid-native")]
-const DEFAULT_PROTOCOL_ID: &str = "braid";
+use cord_braid_runtime::SessionKeys as BraidSessionKeys;
 #[cfg(feature = "loom-native")]
-const DEFAULT_PROTOCOL_ID: &str = "loom";
-#[cfg(feature = "loom-native")]
-use cord_braid_runtime::{Block, SessionKeys};
-#[cfg(feature = "loom-native")]
-use cord_loom_runtime::{Block, SessionKeys};
-#[cfg(any(feature = "braid-native", feature = "loom-native", feature = "weave-native"))]
-use sc_telemetry::TelemetryEndpoints;
+use cord_loom_runtime::SessionKeys as LoomSessionKeys;
+#[cfg(feature = "weave-native")]
+use cord_loom_runtime::SessionKeys as WeaveSessionKeys;
+
 #[cfg(any(feature = "braid-native", feature = "loom-native"))]
 use sp_std::collections::btree_map::BTreeMap;
-#[cfg(any(feature = "braid-native", feature = "loom-native", feature = "weave-native"))]
-const ENDOWMENT: Balance = 10_000_000 * WAY;
+
+const DEFAULT_PROTOCOL_ID: &str = "cord";
 
 /// Node `ChainSpec` extensions.
 ///
@@ -97,7 +94,7 @@ pub type LoomChainSpec = GenericChainSpec;
 
 /// The `ChainSpec` parameterized for the weave runtime.
 #[cfg(feature = "weave-native")]
-pub type WeaveChainSpec = service::GenericChainSpec<(), Extensions>;
+pub type WeaveChainSpec = sc_service::GenericChainSpec<(), Extensions>;
 
 /// The `ChainSpec` parameterized for the weave runtime.
 // Dummy chain spec, but that is fine when we don't have the native runtime.
@@ -108,14 +105,34 @@ pub type WeaveChainSpec = GenericChainSpec;
 // 	WeaveChainSpec::from_json_bytes(&include_bytes!("../chain-specs/weave.json")[..])
 // }
 
-#[cfg(any(feature = "braid-native", feature = "loom-native", feature = "weave-native"))]
-fn session_keys(
+#[cfg(feature = "braid-native")]
+fn braid_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
-) -> SessionKeys {
-	SessionKeys { babe, grandpa, im_online, authority_discovery }
+) -> BraidSessionKeys {
+	BraidSessionKeys { babe, grandpa, im_online, authority_discovery }
+}
+
+#[cfg(feature = "loom-native")]
+fn loom_session_keys(
+	babe: BabeId,
+	grandpa: GrandpaId,
+	im_online: ImOnlineId,
+	authority_discovery: AuthorityDiscoveryId,
+) -> LoomSessionKeys {
+	LoomSessionKeys { babe, grandpa, im_online, authority_discovery }
+}
+
+#[cfg(feature = "weave-native")]
+fn weave_session_keys(
+	babe: BabeId,
+	grandpa: GrandpaId,
+	im_online: ImOnlineId,
+	authority_discovery: AuthorityDiscoveryId,
+) -> WeaveSessionKeys {
+	WeaveSessionKeys { babe, grandpa, im_online, authority_discovery }
 }
 
 /// Helper function to generate a crypto pair from seed
@@ -222,7 +239,7 @@ pub fn braid_development_config() -> Result<BraidChainSpec, String> {
 		Default::default(),
 	)
 	.with_name("Braid Dev.")
-	.with_id("dev")
+	.with_id("braid-dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(braid_development_config_genesis())
 	.with_telemetry_endpoints(
@@ -260,6 +277,8 @@ fn braid_local_genesis(
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
 ) -> serde_json::Value {
+	const ENDOWMENT: Balance = 10_000_000 * BRAID_UNITS;
+
 	serde_json::json!( {
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
@@ -283,7 +302,7 @@ fn braid_local_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						session_keys(
+						braid_session_keys(
 							x.1.clone(),
 							x.2.clone(),
 							x.3.clone(),
@@ -350,7 +369,7 @@ pub fn loom_development_config() -> Result<LoomChainSpec, String> {
 		Default::default(),
 	)
 	.with_name("Loom Dev.")
-	.with_id("dev")
+	.with_id("loom-dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(loom_development_config_genesis())
 	.with_telemetry_endpoints(
@@ -388,6 +407,8 @@ fn loom_local_genesis(
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
 ) -> serde_json::Value {
+	const ENDOWMENT: Balance = 10_000_000 * LOOM_UNITS;
+
 	serde_json::json!( {
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
@@ -411,7 +432,7 @@ fn loom_local_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						session_keys(
+						loom_session_keys(
 							x.1.clone(),
 							x.2.clone(),
 							x.3.clone(),
@@ -478,7 +499,7 @@ pub fn weave_development_config() -> Result<WeaveChainSpec, String> {
 		Default::default(),
 	)
 	.with_name("Weave Dev.")
-	.with_id("dev")
+	.with_id("weave-dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(weave_development_config_genesis())
 	.with_telemetry_endpoints(
@@ -511,11 +532,13 @@ pub fn weave_local_config() -> Result<WeaveChainSpec, String> {
 }
 
 #[cfg(feature = "weave-native")]
-fn loom_local_genesis(
+fn weave_local_genesis(
 	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
 ) -> serde_json::Value {
+	const ENDOWMENT: Balance = 10_000_000 * WAY;
+
 	serde_json::json!( {
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
@@ -539,7 +562,7 @@ fn loom_local_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						session_keys(
+						weave_session_keys(
 							x.1.clone(),
 							x.2.clone(),
 							x.3.clone(),

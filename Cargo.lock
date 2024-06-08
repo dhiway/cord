@@ -1363,6 +1363,109 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
+name = "cord-braid-runtime"
+version = "0.9.3"
+dependencies = [
+ "authority-membership",
+ "cord-braid-runtime-constants",
+ "cord-identifier",
+ "cord-primitives",
+ "cord-runtime-common",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-metadata-hash-extension",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
+ "hex-literal",
+ "log",
+ "network-membership",
+ "pallet-asset-conversion",
+ "pallet-asset-rate",
+ "pallet-assets",
+ "pallet-assets-runtime-api",
+ "pallet-authority-discovery",
+ "pallet-authorship",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-chain-space",
+ "pallet-collective",
+ "pallet-contracts",
+ "pallet-did",
+ "pallet-did-name",
+ "pallet-did-runtime-api",
+ "pallet-grandpa",
+ "pallet-identity",
+ "pallet-im-online",
+ "pallet-indices",
+ "pallet-insecure-randomness-collective-flip",
+ "pallet-membership",
+ "pallet-multisig",
+ "pallet-network-membership",
+ "pallet-network-score",
+ "pallet-nft-fractionalization",
+ "pallet-nfts",
+ "pallet-nfts-runtime-api",
+ "pallet-node-authorization",
+ "pallet-offences",
+ "pallet-parameters",
+ "pallet-preimage",
+ "pallet-remark",
+ "pallet-runtime-upgrade",
+ "pallet-scheduler",
+ "pallet-schema",
+ "pallet-session",
+ "pallet-session-benchmarking",
+ "pallet-statement",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-weight-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
+ "parity-scale-codec",
+ "primitive-types",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-authority-discovery",
+ "sp-block-builder",
+ "sp-consensus-babe",
+ "sp-consensus-grandpa",
+ "sp-core",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-io",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-staking",
+ "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
+ "sp-storage 19.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
+ "sp-transaction-pool",
+ "sp-version",
+ "static_assertions",
+ "substrate-wasm-builder",
+]
+
+[[package]]
+name = "cord-braid-runtime-constants"
+version = "0.9.3"
+dependencies = [
+ "cord-primitives",
+ "cord-runtime-common",
+ "frame-support",
+ "smallvec",
+ "sp-core",
+ "sp-runtime",
+ "sp-weights",
+]
+
+[[package]]
 name = "cord-identifier"
 version = "0.9.3"
 dependencies = [
@@ -1528,12 +1631,16 @@ dependencies = [
  "bitvec",
  "clap",
  "clap_complete",
+ "cord-braid-runtime",
+ "cord-braid-runtime-constants",
  "cord-loom-runtime",
  "cord-loom-runtime-constants",
  "cord-node-inspect",
  "cord-node-rpc",
  "cord-primitives",
  "cord-runtime-common",
+ "cord-weave-runtime",
+ "cord-weave-runtime-constants",
  "env_logger 0.11.3",
  "frame-benchmarking",
  "frame-benchmarking-cli",
@@ -1547,13 +1654,20 @@ dependencies = [
  "kvdb",
  "kvdb-rocksdb",
  "log",
+ "network-membership",
  "nix 0.26.4",
+ "pallet-asset-conversion",
+ "pallet-assets-runtime-api",
  "pallet-babe",
  "pallet-balances",
+ "pallet-contracts",
+ "pallet-did-runtime-api",
  "pallet-im-online",
+ "pallet-network-membership",
  "pallet-root-testing",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-weight-runtime-api",
  "parity-db",
  "parity-scale-codec",
  "regex",
@@ -1722,6 +1836,109 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
+ "sp-weights",
+]
+
+[[package]]
+name = "cord-weave-runtime"
+version = "0.9.3"
+dependencies = [
+ "authority-membership",
+ "cord-identifier",
+ "cord-primitives",
+ "cord-runtime-common",
+ "cord-weave-runtime-constants",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-metadata-hash-extension",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
+ "hex-literal",
+ "log",
+ "network-membership",
+ "pallet-asset-conversion",
+ "pallet-asset-rate",
+ "pallet-assets",
+ "pallet-assets-runtime-api",
+ "pallet-authority-discovery",
+ "pallet-authorship",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-chain-space",
+ "pallet-collective",
+ "pallet-contracts",
+ "pallet-did",
+ "pallet-did-name",
+ "pallet-did-runtime-api",
+ "pallet-grandpa",
+ "pallet-identity",
+ "pallet-im-online",
+ "pallet-indices",
+ "pallet-insecure-randomness-collective-flip",
+ "pallet-membership",
+ "pallet-multisig",
+ "pallet-network-membership",
+ "pallet-network-score",
+ "pallet-nft-fractionalization",
+ "pallet-nfts",
+ "pallet-nfts-runtime-api",
+ "pallet-node-authorization",
+ "pallet-offences",
+ "pallet-parameters",
+ "pallet-preimage",
+ "pallet-remark",
+ "pallet-runtime-upgrade",
+ "pallet-scheduler",
+ "pallet-schema",
+ "pallet-session",
+ "pallet-session-benchmarking",
+ "pallet-statement",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-weight-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
+ "parity-scale-codec",
+ "primitive-types",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-authority-discovery",
+ "sp-block-builder",
+ "sp-consensus-babe",
+ "sp-consensus-grandpa",
+ "sp-core",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-io",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-staking",
+ "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
+ "sp-storage 19.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
+ "sp-transaction-pool",
+ "sp-version",
+ "static_assertions",
+ "substrate-wasm-builder",
+]
+
+[[package]]
+name = "cord-weave-runtime-constants"
+version = "0.9.3"
+dependencies = [
+ "cord-primitives",
+ "cord-runtime-common",
+ "frame-support",
+ "smallvec",
+ "sp-core",
+ "sp-runtime",
  "sp-weights",
 ]
 
@@ -9830,7 +10047,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#48d875d0e60c6d5e4c0c901582cc8edfb76f2f42"
+source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -9892,7 +10109,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#48d875d0e60c6d5e4c0c901582cc8edfb76f2f42"
+source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -9912,7 +10129,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#48d875d0e60c6d5e4c0c901582cc8edfb76f2f42"
+source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
 dependencies = [
  "environmental",
  "parity-scale-codec",
@@ -10098,7 +10315,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#48d875d0e60c6d5e4c0c901582cc8edfb76f2f42"
+source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -10130,7 +10347,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#48d875d0e60c6d5e4c0c901582cc8edfb76f2f42"
+source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
 dependencies = [
  "Inflector",
  "expander",
@@ -10219,7 +10436,7 @@ source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0#737
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#48d875d0e60c6d5e4c0c901582cc8edfb76f2f42"
+source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
 
 [[package]]
 name = "sp-storage"
@@ -10236,7 +10453,7 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#48d875d0e60c6d5e4c0c901582cc8edfb76f2f42"
+source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -10271,7 +10488,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#48d875d0e60c6d5e4c0c901582cc8edfb76f2f42"
+source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
 dependencies = [
  "parity-scale-codec",
  "tracing",
@@ -10368,7 +10585,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#48d875d0e60c6d5e4c0c901582cc8edfb76f2f42"
+source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
 dependencies = [
  "impl-trait-for-tuples",
  "log",
@@ -11493,9 +11710,9 @@ checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
 
 [[package]]
 name = "utf8parse"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
+checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "valuable"

@@ -11,10 +11,6 @@ license = "GPL-3.0"
 resolver = "2"
 
 members = [
-	# "nodes/braid/cli",
-	# "nodes/braid/rpc",
-	# "nodes/braid/inspect",
-	# "nodes/braid/testing",
 	"node/cli",
 	"node/rpc",
 	"node/inspect",
@@ -24,10 +20,12 @@ members = [
 	"runtimes/common",
 	"runtimes/common/api/*",
 	"runtimes/common/authorities",
-	# "runtimes/braid/",
-	# "runtimes/braid/constants",
+	"runtimes/braid/",
+	"runtimes/braid/constants",
 	"runtimes/loom/",
 	"runtimes/loom/constants",
+	"runtimes/weave/",
+	"runtimes/weave/constants",
 	"utilities",
 	# "test-utils/braid",
 	# "test-utils/braid/cli",
@@ -92,6 +90,7 @@ kvdb-rocksdb = { version = "0.19.0", default-features = false }
 parity-db = { version = "0.4.12", default-features = false }
 env_logger = { version = "0.11", default-features = false }
 serial_test = { version = "2.0.0", default-features = false }
+environmental = { version = "1.1.4", default-features = false }
 
 # local dependencies
 authority-membership = { path = "runtimes/common/authorities", default-features = false }
@@ -99,22 +98,13 @@ identifier = { package = "cord-identifier", path = "primitives/identifier", defa
 cord-node-cli = { path = "node/cli", default-features = false }
 cord-primitives = { path = "primitives/cord", default-features = false }
 network-membership = { path = "primitives/network-membership", default-features = false }
-# cord-braid-runtime = { path = "runtimes/braid", default-features = false }
-# cord-braid-runtime-constants = { path = "runtimes/braid/constants", default-features = false }
+cord-braid-runtime = { path = "runtimes/braid", default-features = false }
+cord-braid-runtime-constants = { path = "runtimes/braid/constants", default-features = false }
 cord-runtime-common = { path = "runtimes/common", default-features = false }
-# cord-braid-node-cli = { path = "nodes/braid/cli", default-features = false }
-# cord-braid-node-inspect = { path = "nodes/braid/inspect", default-features = false }
-# cord-braid-node-rpc = { path = "nodes/braid/rpc", default-features = false }
-# cord-braid-node-testing = { path = "nodes/braid/testing", default-features = false }
-# cord-braid-test-utils = { path = "test-utils/braid", default-features = false }
-# cord-braid-service-test = { path = "test-utils/braid/service", default-features = false }
-# cord-braid-test-runtime = { path = "test-utils/braid/runtime", default-features = false }
-# cord-braid-test-client = { path = "test-utils/braid/client", default-features = false }
-# cord-braid-test-runtime-client = { path = "test-utils/braid/runtime/client", default-features = false }
-# cord-braid-test-runtime-transaction-pool = { path = "test-utils/braid/runtime/transaction-pool", default-features = false }
-# cord-braid-cli-test-utils = { path = "test-utils/braid/cli", default-features = false }
 cord-loom-runtime = { path = "runtimes/loom", default-features = false }
 cord-loom-runtime-constants = { path = "runtimes/loom/constants", default-features = false }
+cord-weave-runtime = { path = "runtimes/weave", default-features = false }
+cord-weave-runtime-constants = { path = "runtimes/weave/constants", default-features = false }
 cord-node-service = { path = "node/service", default-features = false }
 cord-node-inspect = { path = "node/inspect", default-features = false }
 cord-node-rpc = { path = "node/rpc", default-features = false }

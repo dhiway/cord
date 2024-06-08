@@ -18,20 +18,16 @@
 
 //! Service and ServiceFactory implementation. Specialized wrapper over
 //! substrate service.
-
+#![allow(missing_docs)]
 #![deny(unused_results)]
 
 use crate::cli::Cli;
-pub mod benchmarking;
-pub mod chain_spec;
-mod fake_runtime_api;
 
 #[cfg(feature = "full-node")]
 use {
 	sc_client_api::BlockBackend,
-	sc_consensus_grandpa::{self, FinalityProofProvider as GrandpaFinalityProofProvider},
+	sc_consensus_grandpa::{self},
 	sc_transaction_pool_api::OffchainTransactionPoolFactory,
-	sp_core::traits::SpawnNamed,
 };
 
 #[cfg(feature = "full-node")]
@@ -42,18 +38,17 @@ pub use {
 	sp_consensus_babe::BabeApi,
 };
 
-use prometheus_endpoint::Registry;
-#[cfg(feature = "full-node")]
-use sc_service::KeystoreContainer;
-
 use sc_service::RpcHandlers;
 use sc_telemetry::TelemetryWorker;
-use std::{collections::HashMap, path::Path, path::PathBuf, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 #[cfg(feature = "full-node")]
-use sc_telemetry::{Telemetry, TelemetryWorkerHandle};
+use sc_telemetry::Telemetry;
 
-pub use chain_spec::{BraidChainSpec, GenericChainSpec, LoomChainSpec};
+pub use crate::{
+	chain_spec::{BraidChainSpec, GenericChainSpec, LoomChainSpec, WeaveChainSpec},
+	fake_runtime_api::{GetLastTimestamp, RuntimeApi},
+};
 pub use cord_primitives::Block;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 use sc_client_api::Backend as BackendT;
@@ -72,45 +67,20 @@ pub use sp_runtime::{
 	traits::{self as runtime_traits, BlakeTwo256, Block as BlockT, Header as HeaderT, NumberFor},
 };
 
-// use codec::Encode;
-use frame_system_rpc_runtime_api::AccountNonceApi;
 use futures::prelude::*;
 use sc_consensus_babe::{self, SlotProportion};
 use sc_network::{
 	event::Event, service::traits::NetworkService, NetworkBackend, NetworkEventStream,
 };
 use sc_network_sync::{strategy::warp::WarpSyncParams, SyncingService};
-// use sc_service::RpcHandlers;
+pub use sp_runtime::{OpaqueExtrinsic, SaturatedConversion};
 
-// use sc_telemetry::{Telemetry, TelemetryWorker};
-// use sc_transaction_pool_api::OffchainTransactionPoolFactory;
-// pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi};
-// pub use sp_authority_discovery::AuthorityDiscoveryApi;
-// pub use sp_blockchain::{HeaderBackend, HeaderMetadata};
-// pub use sp_consensus::{Proposal, SelectChain};
-// pub use sp_consensus_babe::BabeApi;
-use sp_core::crypto::Pair;
-pub use sp_runtime::{
-	// generic,
-	// traits::{self as runtime_traits, BlakeTwo256, Block as BlockT, Header as HeaderT, NumberFor},
-	OpaqueExtrinsic,
-	SaturatedConversion,
-};
-
+#[cfg(feature = "braid-native")]
+pub use {cord_braid_runtime, cord_braid_runtime_constants};
 #[cfg(feature = "loom-native")]
 pub use {cord_loom_runtime, cord_loom_runtime_constants};
-
-pub use fake_runtime_api::{GetLastTimestamp, RuntimeApi};
-
-#[cfg(feature = "full-node")]
-pub type FullBackend = sc_service::TFullBackend<Block>;
-
-#[cfg(feature = "full-node")]
-pub type FullClient = sc_service::TFullClient<
-	Block,
-	RuntimeApi,
-	WasmExecutor<(sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions)>,
->;
+#[cfg(feature = "weave-native")]
+pub use {cord_weave_runtime, cord_weave_runtime_constants};
 
 /// The minimum period of blocks on which justifications will be
 /// imported and generated.
@@ -266,7 +236,7 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 		self.id().starts_with("weave")
 	}
 	fn is_dev(&self) -> bool {
-		self.id().ends_with("dev")
+		self.id().starts_with("--dev") || self.id().ends_with("dev")
 	}
 	fn identify_chain(&self) -> Chain {
 		if self.is_braid() {
@@ -281,10 +251,19 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 	}
 }
 
+/// The full client type definition.
+#[cfg(feature = "full-node")]
+pub type FullClient = sc_service::TFullClient<
+	Block,
+	RuntimeApi,
+	WasmExecutor<(sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions)>,
+>;
+#[cfg(feature = "full-node")]
+type FullBackend = sc_service::TFullBackend<Block>;
 #[cfg(feature = "full-node")]
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 #[cfg(feature = "full-node")]
-type FullGrandpaBlockImport<ChainSelection = FullSelectChain> =
+type FullGrandpaBlockImport =
 	sc_consensus_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
 
 /// The transaction pool type defintion.
@@ -494,7 +473,6 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 		&sc_consensus_babe::BabeLink<Block>,
 	),
 ) -> Result<NewFullBase, ServiceError> {
-	let is_offchain_indexing_enabled = config.offchain_worker.indexing_enabled;
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;
 	let backoff_authoring_blocks = if config.chain_spec.is_braid()
@@ -505,9 +483,9 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 		None
 	} else {
 		let mut backoff = sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default();
-
-		backoff.max_interval = 10;
-
+		if config.chain_spec.is_dev() {
+			backoff.max_interval = 10;
+		}
 		Some(backoff)
 	};
 	let name = config.network.node_name.clone();
@@ -781,14 +759,14 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 
 #[cfg(feature = "full-node")]
 pub trait RuntimeConfig {
-	fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError>;
+	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError>;
 }
 
 #[cfg(feature = "full-node")]
 pub struct BraidRuntime;
 #[cfg(feature = "full-node")]
 impl RuntimeConfig for BraidRuntime {
-	fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
+	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
 		let database_path = config.database.path().map(Path::to_path_buf);
 		let task_manager = match config.network.network_backend {
 			sc_network::config::NetworkBackendType::Libp2p => {
@@ -828,7 +806,7 @@ impl RuntimeConfig for BraidRuntime {
 pub struct LoomRuntime;
 #[cfg(feature = "full-node")]
 impl RuntimeConfig for LoomRuntime {
-	fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
+	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
 		let database_path = config.database.path().map(Path::to_path_buf);
 		let task_manager = match config.network.network_backend {
 			sc_network::config::NetworkBackendType::Libp2p => {
@@ -868,7 +846,7 @@ impl RuntimeConfig for LoomRuntime {
 pub struct WeaveRuntime;
 #[cfg(feature = "full-node")]
 impl RuntimeConfig for WeaveRuntime {
-	fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
+	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
 		let database_path = config.database.path().map(Path::to_path_buf);
 		let task_manager = match config.network.network_backend {
 			sc_network::config::NetworkBackendType::Libp2p => {
