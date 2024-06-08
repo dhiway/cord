@@ -1,3 +1,4 @@
+
 [workspace.package]
 version = "0.9.3"
 authors = ['Dhiway Networks <info@dhiway.com>']
@@ -10,40 +11,41 @@ license = "GPL-3.0"
 resolver = "2"
 
 members = [
-	"nodes/braid/cli",
-	"nodes/braid/rpc",
-	"nodes/braid/inspect",
-	"nodes/braid/testing",
-	"nodes/loom/cli",
-	"nodes/loom/rpc",
-	"nodes/loom/inspect",
-	"nodes/loom/testing",
+	# "nodes/braid/cli",
+	# "nodes/braid/rpc",
+	# "nodes/braid/inspect",
+	# "nodes/braid/testing",
+	"node/cli",
+	"node/rpc",
+	"node/inspect",
+	"node/testing",
 	"pallets/*",
 	"primitives/*",
 	"runtimes/common",
 	"runtimes/common/api/*",
 	"runtimes/common/authorities",
-	"runtimes/braid/",
-	"runtimes/braid/constants",
+	# "runtimes/braid/",
+	# "runtimes/braid/constants",
 	"runtimes/loom/",
 	"runtimes/loom/constants",
 	"utilities",
-	"test-utils/braid",
-	"test-utils/braid/cli",
-	"test-utils/braid/client",
-	"test-utils/braid/runtime",
-	"test-utils/braid/runtime/client",
-	"test-utils/braid/runtime/transaction-pool",
-	"test-utils/braid/service",
+	# "test-utils/braid",
+	# "test-utils/braid/cli",
+	# "test-utils/braid/client",
+	# "test-utils/braid/runtime",
+	# "test-utils/braid/runtime/client",
+	# "test-utils/braid/runtime/transaction-pool",
+	# "test-utils/braid/service",
 
 ]
-default-members = ["nodes/braid/cli", "nodes/loom/cli"]
+default-members = ["node/cli"]
 
 [workspace.dependencies]
 # crates.io dependencies
 codec = { package = "parity-scale-codec", version = "3.6.12", default-features = false }
 scale-info = { version = "2.11.1", default-features = false }
 static_assertions = { version = "1.1.0", default-features = false }
+bitvec = { version = "1.0.1", default-features = false }
 smallvec = { version = "1.8.0", default-features = false }
 hex-literal = { version = "0.4.1", default-features = false }
 libsecp256k1 = { version = "0.7.0", default-features = false }
@@ -57,6 +59,7 @@ syn = { version = "2.0.50", default-features = false }
 thiserror = { version = "1.0.48", default-features = false }
 quote = { version = "1.0.33", default-features = false }
 array-bytes = { version = "6.2.2", default-features = false }
+cfg-if = { version = "1.0", default-features = false }
 clap = { version = "4.5.3" }
 clap_complete = { version = "4.0.2" }
 jsonrpsee = { version = "0.22", default-features = false }
@@ -65,6 +68,7 @@ hex = { version = "0.4.3", default-features = false }
 toml = { version = "0.7.3" }
 tempfile = { version = "3.1.0", default-features = false }
 assert_cmd = { version = "2.0.4", default-features = false }
+assert_matches = { version = "1.5.0", default-features = false }
 nix = { version = "0.26.1", default-features = false }
 regex = { version = "1.5.5", default-features = false }
 soketto = { version = "0.7.1", default-features = false }
@@ -86,39 +90,42 @@ blake2-rfc = { version = "0.2.18", default-features = false }
 kvdb = { version = "0.13.0", default-features = false }
 kvdb-rocksdb = { version = "0.19.0", default-features = false }
 parity-db = { version = "0.4.12", default-features = false }
+env_logger = { version = "0.11", default-features = false }
+serial_test = { version = "2.0.0", default-features = false }
 
 # local dependencies
 authority-membership = { path = "runtimes/common/authorities", default-features = false }
 identifier = { package = "cord-identifier", path = "primitives/identifier", default-features = false }
+cord-node-cli = { path = "node/cli", default-features = false }
 cord-primitives = { path = "primitives/cord", default-features = false }
 network-membership = { path = "primitives/network-membership", default-features = false }
-cord-braid-runtime = { path = "runtimes/braid", default-features = false }
-cord-braid-runtime-constants = { path = "runtimes/braid/constants", default-features = false }
+# cord-braid-runtime = { path = "runtimes/braid", default-features = false }
+# cord-braid-runtime-constants = { path = "runtimes/braid/constants", default-features = false }
 cord-runtime-common = { path = "runtimes/common", default-features = false }
-cord-braid-node-cli = { path = "nodes/braid/cli", default-features = false }
-cord-braid-node-inspect = { path = "nodes/braid/inspect", default-features = false }
-cord-braid-node-rpc = { path = "nodes/braid/rpc", default-features = false }
-cord-braid-node-testing = { path = "nodes/braid/testing", default-features = false }
-cord-braid-test-utils = { path = "test-utils/braid", default-features = false }
-cord-braid-service-test = { path = "test-utils/braid/service", default-features = false }
-cord-braid-test-runtime = { path = "test-utils/braid/runtime", default-features = false }
-cord-braid-test-client = { path = "test-utils/braid/client", default-features = false }
-cord-braid-test-runtime-client = { path = "test-utils/braid/runtime/client", default-features = false }
-cord-braid-test-runtime-transaction-pool = { path = "test-utils/braid/runtime/transaction-pool", default-features = false }
-cord-braid-cli-test-utils = { path = "test-utils/braid/cli", default-features = false }
+# cord-braid-node-cli = { path = "nodes/braid/cli", default-features = false }
+# cord-braid-node-inspect = { path = "nodes/braid/inspect", default-features = false }
+# cord-braid-node-rpc = { path = "nodes/braid/rpc", default-features = false }
+# cord-braid-node-testing = { path = "nodes/braid/testing", default-features = false }
+# cord-braid-test-utils = { path = "test-utils/braid", default-features = false }
+# cord-braid-service-test = { path = "test-utils/braid/service", default-features = false }
+# cord-braid-test-runtime = { path = "test-utils/braid/runtime", default-features = false }
+# cord-braid-test-client = { path = "test-utils/braid/client", default-features = false }
+# cord-braid-test-runtime-client = { path = "test-utils/braid/runtime/client", default-features = false }
+# cord-braid-test-runtime-transaction-pool = { path = "test-utils/braid/runtime/transaction-pool", default-features = false }
+# cord-braid-cli-test-utils = { path = "test-utils/braid/cli", default-features = false }
 cord-loom-runtime = { path = "runtimes/loom", default-features = false }
 cord-loom-runtime-constants = { path = "runtimes/loom/constants", default-features = false }
-cord-loom-node-cli = { path = "nodes/loom/cli", default-features = false }
-cord-loom-node-inspect = { path = "nodes/loom/inspect", default-features = false }
-cord-loom-node-rpc = { path = "nodes/loom/rpc", default-features = false }
-cord-loom-node-testing = { path = "nodes/loom/testing", default-features = false }
-cord-loom-test-utils = { path = "test-utils/loom", default-features = false }
-cord-loom-service-test = { path = "test-utils/loom/service", default-features = false }
-cord-loom-test-runtime = { path = "test-utils/loom/runtime", default-features = false }
-cord-loom-test-client = { path = "test-utils/loom/client", default-features = false }
-cord-loom-test-runtime-client = { path = "test-utils/loom/runtime/client", default-features = false }
-cord-loom-test-runtime-transaction-pool = { path = "test-utils/loom/runtime/transaction-pool", default-features = false }
-cord-loom-cli-test-utils = { path = "test-utils/loom/cli", default-features = false }
+cord-node-service = { path = "node/service", default-features = false }
+cord-node-inspect = { path = "node/inspect", default-features = false }
+cord-node-rpc = { path = "node/rpc", default-features = false }
+cord-node-testing = { path = "node/testing", default-features = false }
+# cord-loom-test-utils = { path = "test-utils/loom", default-features = false }
+# cord-loom-service-test = { path = "test-utils/loom/service", default-features = false }
+# cord-loom-test-runtime = { path = "test-utils/loom/runtime", default-features = false }
+# cord-loom-test-client = { path = "test-utils/loom/client", default-features = false }
+# cord-loom-test-runtime-client = { path = "test-utils/loom/runtime/client", default-features = false }
+# cord-loom-test-runtime-transaction-pool = { path = "test-utils/loom/runtime/transaction-pool", default-features = false }
+# cord-loom-cli-test-utils = { path = "test-utils/loom/cli", default-features = false }
 cord-utilities = { path = "utilities", default-features = false }
 pallet-membership = { path = 'pallets/membership/', default-features = false }
 pallet-did = { path = 'pallets/did', default-features = false }
@@ -133,7 +140,7 @@ pallet-offences = { path = 'pallets/offences', default-features = false }
 pallet-node-authorization = { path = "pallets/node-authorization", default-features = false }
 pallet-network-score = { path = 'pallets/network-score', default-features = false }
 pallet-session-benchmarking = { path = 'pallets/session-benchmarking', default-features = false }
-pallet-asset = { path = 'pallets/asset', default-features = false }
+pallet-assets-runtime-api = { path = "runtimes/common/api/assets", default-features = false }
 pallet-did-runtime-api = { path = "runtimes/common/api/did", default-features = false }
 pallet-transaction-weight-runtime-api = { path = "runtimes/common/api/weight", default-features = false }
 
@@ -162,6 +169,7 @@ sp-core = { git = "https://github.com/dhiway/substrate-sdk", default-features = 
 sp-consensus = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 sp-consensus-aura = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 sp-consensus-babe = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+sp-consensus-beefy = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 sp-consensus-grandpa = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 sp-externalities = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 sp-genesis-builder = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
@@ -185,6 +193,7 @@ sp-tracing = { git = "https://github.com/dhiway/substrate-sdk", default-features
 sp-rpc = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 sp-crypto-hashing = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 sp-transaction-storage-proof = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+sp-maybe-compressed-blob = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 
 sc-block-builder = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 sc-cli = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
@@ -219,14 +228,21 @@ sc-keystore = { git = "https://github.com/dhiway/substrate-sdk", default-feature
 sc-executor-common = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 
 pallet-authorship = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-asset-conversion = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-asset-rate = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-assets = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-authority-discovery = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-babe = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-balances = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-contracts = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-collective = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-grandpa = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-im-online = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-indices = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-multisig = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-nfts = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-nfts-runtime-api = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-nft-fractionalization = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-preimage = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-remark = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-scheduler = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
@@ -237,12 +253,15 @@ pallet-transaction-payment = { git = "https://github.com/dhiway/substrate-sdk", 
 pallet-transaction-payment-rpc = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-treasury = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-parameters = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-utility = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+pallet-insecure-randomness-collective-flip = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 pallet-root-testing = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 
 # Build deps
 substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 substrate-build-script-utils = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
+substrate-prometheus-endpoint = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.12.0" }
 
 [workspace.lints.rust]
 suspicious_double_ref_op = { level = "allow", priority = 2 }
