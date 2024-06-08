@@ -22,11 +22,11 @@ assert_cmd = { workspace = true }
 nix = { workspace = true }
 regex = { workspace = true }
 tokio = { features = ["full"], workspace = true }
-cord-loom-node-cli = { workspace = true }
+cord-node-cli = { workspace = true }
 cord-primitives = { workspace = true }
 sc-cli = { workspace = true }
 sc-service = { workspace = true }
 futures = { workspace = true }
 
 [features]
-try-runtime = ["cord-loom-node-cli/try-runtime"]
+try-runtime = ["cord-node-cli/try-runtime"]

@@ -50,10 +50,10 @@ pallet-offences = { workspace = true }
 pallet-node-authorization = { workspace = true }
 pallet-network-score = { workspace = true }
 pallet-session-benchmarking = { workspace = true }
-pallet-asset = { workspace = true }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { workspace = true }
+pallet-assets-runtime-api = { workspace = true }
 pallet-transaction-weight-runtime-api = { workspace = true }
 
 # Substrate
@@ -76,15 +76,22 @@ sp-block-builder = { workspace = true }
 sp-genesis-builder = { workspace = true }
 
 pallet-authority-discovery = { workspace = true }
+pallet-assets = { workspace = true }
+pallet-asset-conversion = { workspace = true }
+pallet-asset-rate = { workspace = true }
 pallet-authorship = { workspace = true }
 pallet-babe = { workspace = true }
 pallet-balances = { workspace = true }
+pallet-contracts = { workspace = true }
 pallet-collective = { workspace = true }
 frame-executive = { workspace = true }
 pallet-grandpa = { workspace = true }
 pallet-im-online = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-multisig = { workspace = true }
+pallet-nfts = { workspace = true }
+pallet-nfts-runtime-api = { workspace = true }
+pallet-nft-fractionalization = { workspace = true }
 pallet-preimage = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-session = { features = ["historical"], workspace = true }
@@ -98,8 +105,11 @@ frame-system-rpc-runtime-api = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-remark = { workspace = true }
+pallet-parameters = { workspace = true }
+pallet-insecure-randomness-collective-flip = { workspace = true }
 hex-literal = { workspace = true, optional = true }
 
+frame-metadata-hash-extension = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 frame-system-benchmarking = { workspace = true, optional = true }
 frame-try-runtime = { workspace = true, optional = true }
@@ -134,23 +144,33 @@ std = [
 	"frame-support/std",
 	"frame-benchmarking/std",
 	"frame-executive/std",
+	"frame-metadata-hash-extension/std",
+	"pallet-asset-conversion/std",
+	"pallet-asset-rate/std",
+	"pallet-assets/std",
 	"pallet-authority-discovery/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
 	"pallet-collective/std",
+	"pallet-contracts/std",
 	"pallet-grandpa/std",
 	"pallet-identity/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
+	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-membership/std",
 	"pallet-multisig/std",
+	"pallet-nft-fractionalization/std",
+	"pallet-nfts-runtime-api/std",
+	"pallet-nfts/std",
 	"pallet-offences/std",
+	"pallet-parameters/std",
 	"pallet-preimage/std",
 	"pallet-scheduler/std",
 	"pallet-session-benchmarking/std",
 	"pallet-session/std",
-	"pallet-transaction-payment/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
+	"pallet-transaction-payment/std",
 	"pallet-treasury/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
@@ -163,9 +183,9 @@ std = [
 	"pallet-chain-space/std",
 	"pallet-statement/std",
 	"pallet-network-score/std",
-	"pallet-asset/std",
 	"pallet-network-membership/std",
 	"pallet-runtime-upgrade/std",
+	"pallet-assets-runtime-api/std",
 	"pallet-did-runtime-api/std",
 	"pallet-node-authorization/std",
 	"pallet-transaction-weight-runtime-api/std",
@@ -190,9 +210,13 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"sp-staking/runtime-benchmarks",
+	"pallet-asset-conversion/runtime-benchmarks",
+	"pallet-asset-rate/runtime-benchmarks",
+	"pallet-assets/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
+	"pallet-contracts/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
 	"pallet-identity/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
@@ -200,6 +224,7 @@ runtime-benchmarks = [
 	"pallet-membership/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-offences/runtime-benchmarks",
+	"pallet-parameters/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-session-benchmarking/runtime-benchmarks",
@@ -217,7 +242,6 @@ runtime-benchmarks = [
 	"hex-literal",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-network-score/runtime-benchmarks",
-	"pallet-asset/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -225,16 +249,23 @@ try-runtime = [
 	"frame-try-runtime",
 	"frame-system/try-runtime",
 	"frame-support/try-runtime",
+	"pallet-asset-conversion/try-runtime",
+	"pallet-asset-rate/try-runtime",
+	"pallet-assets/try-runtime",
 	"pallet-authority-discovery/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
 	"pallet-collective/try-runtime",
+	"pallet-contracts/try-runtime",
 	"pallet-grandpa/try-runtime",
 	"pallet-identity/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
+	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-membership/try-runtime",
 	"pallet-multisig/try-runtime",
+	"pallet-nft-fractionalization/try-runtime",
+	"pallet-nfts/try-runtime",
 	"pallet-offences/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-scheduler/try-runtime",
@@ -252,7 +283,6 @@ try-runtime = [
 	"pallet-did/try-runtime",
 	"pallet-did-name/try-runtime",
 	"pallet-network-score/try-runtime",
-	"pallet-asset/try-runtime",
 	"pallet-node-authorization/try-runtime",
 	"pallet-network-membership/try-runtime",
 	"pallet-runtime-upgrade/try-runtime",
@@ -262,13 +292,13 @@ try-runtime = [
 	"identifier/try-runtime",
 ]
 
+# Enable the metadata hash generation in the wasm builder.
+metadata-hash = ["substrate-wasm-builder/metadata-hash"]
+
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
 fast-runtime = []
-
-# When enabled, the runtime API will not be build.
-disable-runtime-api = []
 
 # A feature that should be enabled when the runtime should be build for on-chain
 # deployment. This will disable stuff that shouldn't be part of the on-chain wasm
 # to make it smaller like logging for example.
-on-chain-release-build = ["sp-api/disable-logging"]
+on-chain-release-build = ["metadata-hash", "sp-api/disable-logging"]

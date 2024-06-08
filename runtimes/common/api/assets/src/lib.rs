@@ -1,7 +1,9 @@
 // This file is part of CORD – https://cord.network
 
+// Copyright (C) 2019-2023 BOTLabs GmbH.
 // Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Adapted to meet the requirements of the CORD project.
 
 // CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,28 +18,21 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! A list of the different weight modules for our runtime.
+//! Runtime API definition for assets.
 
-pub mod frame_system;
-pub mod pallet_babe;
-pub mod pallet_balances;
-pub mod pallet_chain_space;
-pub mod pallet_collective;
-pub mod pallet_did;
-pub mod pallet_did_name;
-pub mod pallet_identity;
-pub mod pallet_im_online;
-pub mod pallet_indices;
-pub mod pallet_membership;
-pub mod pallet_multisig;
-pub mod pallet_network_membership;
-pub mod pallet_network_score;
-pub mod pallet_preimage;
-pub mod pallet_remark;
-pub mod pallet_scheduler;
-pub mod pallet_schema;
-pub mod pallet_session;
-pub mod pallet_statement;
-pub mod pallet_sudo;
-pub mod pallet_timestamp;
-pub mod pallet_utility;
+#![cfg_attr(not(feature = "std"), no_std)]
+
+use codec::Codec;
+use sp_std::vec::Vec;
+
+sp_api::decl_runtime_apis! {
+	pub trait AssetsApi<AccountId, AssetBalance, AssetId>
+	where
+		AccountId: Codec,
+		AssetBalance: Codec,
+		AssetId: Codec,
+	{
+		/// Returns the list of `AssetId`s and corresponding balance that an `AccountId` has.
+		fn account_balances(account: AccountId) -> Vec<(AssetId, AssetBalance)>;
+	}
+}
