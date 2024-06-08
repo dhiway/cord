@@ -1619,7 +1619,7 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	impl assets_api::AssetsApi<
+	impl pallet_assets_runtime_api::AssetsApi<
 		Block,
 		AccountId,
 		Balance,

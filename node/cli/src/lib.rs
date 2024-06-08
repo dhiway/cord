@@ -18,21 +18,16 @@
 
 #![warn(missing_docs)]
 
-#[cfg(feature = "cli")]
-mod benchmarking;
+pub mod benchmarking;
 pub mod chain_spec;
+pub mod fake_runtime_api;
+pub mod service;
 
 #[cfg(feature = "cli")]
 mod cli;
 
 #[cfg(feature = "cli")]
-mod error;
-
-#[cfg(feature = "cli")]
 mod command;
-
-pub mod fake_runtime_api;
-pub mod service;
 
 #[cfg(feature = "service")]
 pub use service::{self, Block, CoreApi, IdentifyVariant, ProvideRuntimeApi, TFullClient};

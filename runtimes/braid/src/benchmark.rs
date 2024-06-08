@@ -1,9 +1,7 @@
 // This file is part of CORD – https://cord.network
 
-// Copyright (C) 2019-2023 BOTLabs GmbH.
 // Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Adapted to meet the requirements of the CORD project.
 
 // CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,26 +20,11 @@ use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 
-#[derive(Encode, Decode, TypeInfo, Eq, PartialEq)]
-pub struct ServiceEndpoint<Id, Type, Url> {
-	pub id: Id,
-	pub service_types: Vec<Type>,
-	pub urls: Vec<Url>,
-}
+#[derive(Clone, Copy, Default, Debug, Encode, Decode, PartialEq, Eq, TypeInfo)]
+pub struct DummySignature;
 
-impl<T: pallet_did::Config> From<pallet_did::service_endpoints::DidEndpoint<T>>
-	for ServiceEndpoint<Vec<u8>, Vec<u8>, Vec<u8>>
-{
-	fn from(runtime_endpoint: pallet_did::service_endpoints::DidEndpoint<T>) -> Self {
-		ServiceEndpoint {
-			id: runtime_endpoint.id.into_inner(),
-			service_types: runtime_endpoint
-				.service_types
-				.into_inner()
-				.into_iter()
-				.map(|v| v.into_inner())
-				.collect(),
-			urls: runtime_endpoint.urls.into_inner().into_iter().map(|v| v.into_inner()).collect(),
-		}
+impl<A> From<(A, Vec<u8>)> for DummySignature {
+	fn from(_: (A, Vec<u8>)) -> Self {
+		DummySignature
 	}
 }

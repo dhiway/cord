@@ -20,9 +20,11 @@
 //!
 //! These are used to provide a type that implements these runtime APIs without requiring to import
 //! the native runtimes.
+#![allow(missing_docs)]
 
-use cord_primitives::{AccountId, Balance, Block, BlockNumber};
+use cord_primitives::{AccountId, Balance, Block, Nonce};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
+pub use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 
 use sp_core::OpaqueMetadata;
@@ -33,7 +35,7 @@ use sp_runtime::{
 };
 use sp_version::RuntimeVersion;
 use sp_weights::Weight;
-use std::collections::BTreeMap;
+
 sp_api::decl_runtime_apis! {
 	/// This runtime API is only implemented for the test runtime!
 	pub trait GetLastTimestamp {
@@ -187,119 +189,8 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-
 	impl frame_system_rpc_runtime_api::AccountNonceApi<Block, AccountId, Nonce> for Runtime {
 		fn account_nonce(_: AccountId) -> Nonce {
-			unimplemented!()
-		}
-	}
-
-	impl assets_api::AssetsApi<
-		Block,
-		AccountId,
-		Balance,
-		u32,
-	> for Runtime
-	{
-		fn account_balances(account: AccountId) -> Vec<(u32, Balance)> {
-			unimplemented!()
-		}
-	}
-
-	impl pallet_contracts::ContractsApi<Block, AccountId, Balance, BlockNumber, Hash, EventRecord> for Runtime
-	{
-		fn call(
-			origin: AccountId,
-			dest: AccountId,
-			value: Balance,
-			gas_limit: Option<Weight>,
-			storage_deposit_limit: Option<Balance>,
-			input_data: Vec<u8>,
-		) -> pallet_contracts::ContractExecResult<Balance, EventRecord> {
-			unimplemented!()
-		}
-
-		fn instantiate(
-			origin: AccountId,
-			value: Balance,
-			gas_limit: Option<Weight>,
-			storage_deposit_limit: Option<Balance>,
-			code: pallet_contracts::Code<Hash>,
-			data: Vec<u8>,
-			salt: Vec<u8>,
-		) -> pallet_contracts::ContractInstantiateResult<AccountId, Balance, EventRecord>
-		{
-			unimplemented!()
-		}
-
-		fn upload_code(
-			origin: AccountId,
-			code: Vec<u8>,
-			storage_deposit_limit: Option<Balance>,
-			determinism: pallet_contracts::Determinism,
-		) -> pallet_contracts::CodeUploadResult<Hash, Balance>
-		{
-			unimplemented!()
-		}
-
-		fn get_storage(
-			address: AccountId,
-			key: Vec<u8>,
-		) -> pallet_contracts::GetStorageResult {
-			unimplemented!()
-		}
-	}
-
-	impl pallet_did_runtime_api::DidApi<
-		Block,
-		DidIdentifier,
-		AccountId,
-		Hash,
-		BlockNumber
-	> for Runtime {
-		fn query(did: DidIdentifier) -> Option<
-			pallet_did_runtime_api::RawDidLinkedInfo<
-				DidIdentifier,
-				AccountId,
-				Hash,
-				BlockNumber
-			>
-		> {
-			unimplemented!()
-		}
-		fn query_by_name(name: Vec<u8>) -> Option<pallet_did_runtime_api::RawDidLinkedInfo<
-				DidIdentifier,
-				AccountId,
-				Hash,
-				BlockNumber
-			>
-		> {
-			unimplemented!()
-		}
-	}
-
-	impl pallet_transaction_weight_runtime_api::TransactionWeightApi<Block> for Runtime {
-		fn query_weight_info(uxt: <Block as BlockT>::Extrinsic) -> RuntimeDispatchWeightInfo {
-			unimplemented!()
-		}
-	}
-
-
-	impl pallet_asset_conversion::AssetConversionApi<
-		Block,
-		Balance,
-		NativeOrWithId<u32>
-	> for Runtime
-	{
-		fn quote_price_exact_tokens_for_tokens(asset1: NativeOrWithId<u32>, asset2: NativeOrWithId<u32>, amount: Balance, include_fee: bool) -> Option<Balance> {
-			unimplemented!()
-		}
-
-		fn quote_price_tokens_for_exact_tokens(asset1: NativeOrWithId<u32>, asset2: NativeOrWithId<u32>, amount: Balance, include_fee: bool) -> Option<Balance> {
-			unimplemented!()
-		}
-
-		fn get_reserves(asset1: NativeOrWithId<u32>, asset2: NativeOrWithId<u32>) -> Option<(Balance, Balance)> {
 			unimplemented!()
 		}
 	}
