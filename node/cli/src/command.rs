@@ -1,30 +1,25 @@
-// Copyright (C) Parity Technologies (UK) Ltd.
-// This file is part of Polkadot.
+// This file is part of CORD – https://cord.network
 
-// Polkadot is free software: you can redistribute it and/or modify
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Polkadot is distributed in the hope that it will be useful,
+// CORD is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 #![allow(missing_docs)]
 
 pub mod chain_setup;
 pub mod gen_key;
-
-// use service::{
-// 	self as cord_service,
-// 	benchmarking::{benchmark_inherent_data, RemarkBuilder, TransferKeepAliveBuilder},
-// 	cli::{Cli, Subcommand},
-// 	HeaderBackend, IdentifyVariant,
-// };
 
 use crate::{
 	benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder},
@@ -89,8 +84,11 @@ impl SubstrateCli for Cli {
 			id
 		};
 		Ok(match id {
+			#[cfg(feature = "braid-native")]
 			"braid" => Box::new(chain_spec::braid_development_config()?),
+			#[cfg(feature = "loom-native")]
 			"loom" => Box::new(chain_spec::loom_development_config()?),
+			#[cfg(feature = "weave-native")]
 			"weave" => Box::new(chain_spec::weave_development_config()?),
 			#[cfg(feature = "braid-native")]
 			"dev" | "braid-dev" => Box::new(chain_spec::braid_development_config()?),

@@ -236,7 +236,7 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 		self.id().starts_with("weave")
 	}
 	fn is_dev(&self) -> bool {
-		self.id().starts_with("--dev") || self.id().ends_with("dev")
+		self.id().ends_with("dev")
 	}
 	fn identify_chain(&self) -> Chain {
 		if self.is_braid() {
