@@ -27,7 +27,6 @@ pub mod currency {
 
 	/// The existential deposit.
 	pub const EXISTENTIAL_DEPOSIT: Balance = 100 * MILLI_UNITS;
-
 	pub const UNITS: Balance = 1_000_000_000_000; // 10^12 precision
 
 	pub const MILLI_UNITS: Balance = UNITS / 1_000; // 10^9 precision
@@ -48,7 +47,7 @@ pub mod time {
 	// NOTE: Currently it is not possible to change the slot duration after the chain has started.
 	//       Attempting to do so will brick block production.
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(4 * HOURS, MINUTES);
+	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(30 * MINUTES, MINUTES);
 
 	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
@@ -136,6 +135,6 @@ mod tests {
 		// `ExtrinsicBaseWeight` should cost 1/10 of a UNIT
 		let x = WeightToFee::weight_to_fee(&ExtrinsicBaseWeight::get());
 		let y = UNITS / 10;
-		assert!(x.max(y) - x.min(y) < MILLIUNITS);
+		assert!(x.max(y) - x.min(y) < MILLI_UNITS);
 	}
 }

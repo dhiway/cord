@@ -37,7 +37,7 @@ use sc_telemetry::TelemetryEndpoints;
 #[cfg(feature = "braid-native")]
 pub use cord_braid_runtime_constants::currency::UNITS as BRAID_UNITS;
 #[cfg(feature = "loom-native")]
-pub use cord_loom_runtime_constants::currency::WAY as LOOM_UNITS;
+pub use cord_loom_runtime_constants::currency::UNITS as LOOM_UNITS;
 #[cfg(feature = "weave-native")]
 pub use cord_weave_runtime_constants::currency::WAY;
 
@@ -363,7 +363,7 @@ fn loom_local_config_genesis() -> serde_json::Value {
 
 #[cfg(feature = "loom-native")]
 pub fn loom_development_config() -> Result<LoomChainSpec, String> {
-	let properties = get_properties("WAY", 12, 29);
+	let properties = get_properties("UNITS", 12, 4926);
 	Ok(LoomChainSpec::builder(
 		cord_loom_runtime::WASM_BINARY.ok_or("Loom development wasm not available")?,
 		Default::default(),
@@ -383,7 +383,7 @@ pub fn loom_development_config() -> Result<LoomChainSpec, String> {
 
 #[cfg(feature = "loom-native")]
 pub fn loom_local_config() -> Result<LoomChainSpec, String> {
-	let properties = get_properties("WAY", 12, 29);
+	let properties = get_properties("UNITS", 12, 4926);
 	Ok(LoomChainSpec::builder(
 		cord_loom_runtime::WASM_BINARY.ok_or("Loom wasm not available")?,
 		Default::default(),
