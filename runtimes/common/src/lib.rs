@@ -43,7 +43,7 @@ pub enum Ss58AddressFormatPrefix {
 	Loom = 4926,
 	/// Default for Weave
 	Weave = 29,
-	/// Default value for unknown chains
+	/// Default for unknown chains
 	Default = 42,
 }
 

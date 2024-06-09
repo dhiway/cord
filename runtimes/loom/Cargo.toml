@@ -89,9 +89,6 @@ pallet-grandpa = { workspace = true }
 pallet-im-online = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-multisig = { workspace = true }
-pallet-nfts = { workspace = true }
-pallet-nfts-runtime-api = { workspace = true }
-pallet-nft-fractionalization = { workspace = true }
 pallet-preimage = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-session = { features = ["historical"], workspace = true }
@@ -160,9 +157,6 @@ std = [
 	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-membership/std",
 	"pallet-multisig/std",
-	"pallet-nft-fractionalization/std",
-	"pallet-nfts-runtime-api/std",
-	"pallet-nfts/std",
 	"pallet-offences/std",
 	"pallet-parameters/std",
 	"pallet-preimage/std",
@@ -264,8 +258,6 @@ try-runtime = [
 	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-membership/try-runtime",
 	"pallet-multisig/try-runtime",
-	"pallet-nft-fractionalization/try-runtime",
-	"pallet-nfts/try-runtime",
 	"pallet-offences/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-scheduler/try-runtime",

@@ -1403,9 +1403,6 @@ dependencies = [
  "pallet-multisig",
  "pallet-network-membership",
  "pallet-network-score",
- "pallet-nft-fractionalization",
- "pallet-nfts",
- "pallet-nfts-runtime-api",
  "pallet-node-authorization",
  "pallet-offences",
  "pallet-parameters",
@@ -1557,9 +1554,6 @@ dependencies = [
  "pallet-multisig",
  "pallet-network-membership",
  "pallet-network-score",
- "pallet-nft-fractionalization",
- "pallet-nfts",
- "pallet-nfts-runtime-api",
  "pallet-node-authorization",
  "pallet-offences",
  "pallet-parameters",
@@ -1879,9 +1873,6 @@ dependencies = [
  "pallet-multisig",
  "pallet-network-membership",
  "pallet-network-score",
- "pallet-nft-fractionalization",
- "pallet-nfts",
- "pallet-nfts-runtime-api",
  "pallet-node-authorization",
  "pallet-offences",
  "pallet-parameters",
@@ -6319,52 +6310,6 @@ dependencies = [
  "sp-io",
  "sp-keystore",
  "sp-runtime",
- "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
-]
-
-[[package]]
-name = "pallet-nft-fractionalization"
-version = "10.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0#7377777053f9c9c3c5eff4bcdfc965a56fa52e63"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-assets",
- "pallet-nfts",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
- "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
-]
-
-[[package]]
-name = "pallet-nfts"
-version = "22.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0#7377777053f9c9c3c5eff4bcdfc965a56fa52e63"
-dependencies = [
- "enumflags2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
-]
-
-[[package]]
-name = "pallet-nfts-runtime-api"
-version = "14.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0#7377777053f9c9c3c5eff4bcdfc965a56fa52e63"
-dependencies = [
- "pallet-nfts",
- "parity-scale-codec",
- "sp-api",
  "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
 ]
 

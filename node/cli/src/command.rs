@@ -34,6 +34,7 @@ use cord_service::{new_partial, FullClient};
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
 use sc_cli::{Result, SubstrateCli};
 use sc_service::PartialComponents;
+use sp_core::crypto::Ss58AddressFormat;
 use sp_keyring::Sr25519Keyring;
 use std::sync::Arc;
 
@@ -141,7 +142,11 @@ fn set_default_ss58_version(spec: &Box<dyn cord_service::ChainSpec>) {
 	} else if spec.is_braid() {
 		Ss58AddressFormatPrefix::Braid.into()
 	} else {
-		Ss58AddressFormatPrefix::Default.into()
+		spec.properties()
+			.get("ss58Format")
+			.and_then(|v| v.as_u64())
+			.map(|v| Ss58AddressFormat::custom(v as u16))
+			.unwrap_or_else(|| Ss58AddressFormatPrefix::Default.into())
 	};
 
 	sp_core::crypto::set_default_ss58_version(ss58_version);

@@ -22,7 +22,6 @@
 
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
-pub mod entities;
 
 pub use cord_primitives::{AccountId, Signature};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Moment, Nonce};
@@ -41,20 +40,15 @@ use frame_support::{
 	ord_parameter_types, parameter_types,
 	traits::{
 		fungible::{HoldConsideration, NativeFromLeft, NativeOrWithId, UnionOf},
-		tokens::{imbalance::ResolveAssetTo, nonfungibles_v2::Inspect},
+		tokens::imbalance::ResolveAssetTo,
 		AsEnsureOriginWithArg, ConstBool, ConstU128, ConstU32, Contains, EitherOfDiverse,
 		EnsureOriginWithArg, KeyOwnerProofSystem, LinearStoragePrice, Nothing, PrivilegeCmp,
 	},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, ConstantMultiplier},
-	BoundedVec, PalletId,
+	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy, EnsureWithSuccess};
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
-use pallet_nfts::PalletFeatures;
-
-#[cfg(feature = "runtime-benchmarks")]
-use frame_system::EnsureSigned;
-
 use pallet_identity::legacy::IdentityInfo;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
@@ -172,7 +166,7 @@ type EnsureRootOrCommitteeApproval = EitherOfDiverse<
 
 parameter_types! {
    pub const Version: RuntimeVersion = VERSION;
-   pub const SS58Prefix: u8 = 29;
+   pub const SS58Prefix: u16 = 4926;
 }
 
 #[derive_impl(frame_system::config_preludes::SolochainDefaultConfig)]
@@ -327,7 +321,7 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * MILLIUNITS;
+	pub const TransactionByteFee: Balance = 10 * MICRO_UNITS;
 	/// This value increases the priority of `Operational` transactions by adding
 	/// a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
 	pub const OperationalFeeMultiplier: u8 = 5;
@@ -395,11 +389,11 @@ impl pallet_session::historical::Config for Runtime {
 }
 
 parameter_types! {
-	pub const AssetDeposit: Balance = 100 * WAY;
-	pub const ApprovalDeposit: Balance = 1 * WAY;
+	pub const AssetDeposit: Balance = 10 * MILLI_UNITS;
+	pub const ApprovalDeposit: Balance = 5 * MILLI_UNITS;
 	pub const StringLimit: u32 = 50;
-	pub const MetadataDepositBase: Balance = 10 * WAY;
-	pub const MetadataDepositPerByte: Balance = 1 * WAY;
+	pub const MetadataDepositBase: Balance = 10 * MILLI_UNITS;
+	pub const MetadataDepositPerByte: Balance = 1 * MICRO_UNITS;
 }
 
 impl pallet_assets::Config<Instance1> for Runtime {
@@ -409,9 +403,9 @@ impl pallet_assets::Config<Instance1> for Runtime {
 	type AssetIdParameter = codec::Compact<u32>;
 	type Currency = Balances;
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
-	type ForceOrigin = EnsureRoot<AccountId>;
+	type ForceOrigin = MoreThanHalfCouncil;
 	type AssetDeposit = AssetDeposit;
-	type AssetAccountDeposit = ConstU128<WAY>;
+	type AssetAccountDeposit = ConstU128<UNITS>;
 	type MetadataDepositBase = MetadataDepositBase;
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type ApprovalDeposit = ApprovalDeposit;
@@ -438,7 +432,7 @@ impl pallet_assets::Config<Instance2> for Runtime {
 	type CreateOrigin = AsEnsureOriginWithArg<EnsureSignedBy<AssetConversionOrigin, AccountId>>;
 	type ForceOrigin = EnsureRoot<AccountId>;
 	type AssetDeposit = AssetDeposit;
-	type AssetAccountDeposit = ConstU128<WAY>;
+	type AssetAccountDeposit = ConstU128<UNITS>;
 	type MetadataDepositBase = MetadataDepositBase;
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type ApprovalDeposit = ApprovalDeposit;
@@ -454,7 +448,7 @@ impl pallet_assets::Config<Instance2> for Runtime {
 
 parameter_types! {
 	pub const AssetConversionPalletId: PalletId = PalletId(*b"py/ascon");
-	pub const PoolSetupFee: Balance = 1 * WAY; // should be more or equal to the existential deposit
+	pub const PoolSetupFee: Balance = 10 * UNITS; // should be more or equal to the existential deposit
 	pub const MintMinLiquidity: Balance = 100;  // 100 is good enough when the main currency has 10-12 decimals.
 	pub const LiquidityWithdrawalFee: Permill = Permill::from_percent(0);
 	pub const Native: NativeOrWithId<u32> = NativeOrWithId::Native;
@@ -496,81 +490,15 @@ impl pallet_asset_conversion::Config for Runtime {
 }
 
 impl pallet_asset_rate::Config for Runtime {
-	type CreateOrigin = EnsureRoot<AccountId>;
-	type RemoveOrigin = EnsureRoot<AccountId>;
-	type UpdateOrigin = EnsureRoot<AccountId>;
+	type CreateOrigin = MoreThanHalfCouncil;
+	type RemoveOrigin = MoreThanHalfCouncil;
+	type UpdateOrigin = MoreThanHalfCouncil;
 	type Currency = Balances;
 	type AssetKind = u32;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = pallet_asset_rate::weights::SubstrateWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
-}
-
-parameter_types! {
-	pub const NftFractionalizationPalletId: PalletId = PalletId(*b"fraction");
-	pub NewAssetSymbol: BoundedVec<u8, StringLimit> = (*b"FRAC").to_vec().try_into().unwrap();
-	pub NewAssetName: BoundedVec<u8, StringLimit> = (*b"Frac").to_vec().try_into().unwrap();
-}
-
-impl pallet_nft_fractionalization::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Deposit = AssetDeposit;
-	type Currency = Balances;
-	type NewAssetSymbol = NewAssetSymbol;
-	type NewAssetName = NewAssetName;
-	type StringLimit = StringLimit;
-	type NftCollectionId = <Self as pallet_nfts::Config>::CollectionId;
-	type NftId = <Self as pallet_nfts::Config>::ItemId;
-	type AssetBalance = <Self as pallet_balances::Config>::Balance;
-	type AssetId = <Self as pallet_assets::Config<Instance1>>::AssetId;
-	type Assets = Assets;
-	type Nfts = Nfts;
-	type PalletId = NftFractionalizationPalletId;
-	type WeightInfo = pallet_nft_fractionalization::weights::SubstrateWeight<Runtime>;
-	type RuntimeHoldReason = RuntimeHoldReason;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
-}
-
-parameter_types! {
-	pub Features: PalletFeatures = PalletFeatures::all_enabled();
-	pub const MaxAttributesPerCall: u32 = 10;
-	pub const CollectionDeposit: Balance = 100 * WAY;
-	pub const ItemDeposit: Balance = 1 * WAY;
-	pub const ApprovalsLimit: u32 = 20;
-	pub const ItemAttributesApprovalsLimit: u32 = 20;
-	pub const MaxTips: u32 = 10;
-	pub const MaxDeadlineDuration: BlockNumber = 12 * 30 * DAYS;
-}
-
-impl pallet_nfts::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type CollectionId = u32;
-	type ItemId = u32;
-	type Currency = Balances;
-	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
-	type CollectionDeposit = CollectionDeposit;
-	type ItemDeposit = ItemDeposit;
-	type MetadataDepositBase = MetadataDepositBase;
-	type AttributeDepositBase = MetadataDepositBase;
-	type DepositPerByte = MetadataDepositPerByte;
-	type StringLimit = ConstU32<256>;
-	type KeyLimit = ConstU32<64>;
-	type ValueLimit = ConstU32<256>;
-	type ApprovalsLimit = ApprovalsLimit;
-	type ItemAttributesApprovalsLimit = ItemAttributesApprovalsLimit;
-	type MaxTips = MaxTips;
-	type MaxDeadlineDuration = MaxDeadlineDuration;
-	type MaxAttributesPerCall = MaxAttributesPerCall;
-	type Features = Features;
-	type OffchainSignature = Signature;
-	type OffchainPublic = <Signature as Verify>::Signer;
-	type WeightInfo = pallet_nfts::weights::SubstrateWeight<Runtime>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type Helper = ();
-	type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
-	type Locker = ();
 }
 
 parameter_types! {
@@ -660,13 +588,13 @@ impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
 parameter_types! {
 	pub TreasuryAccount: AccountId = Treasury::account_id();
 	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = 5 * WAY;
+	pub const ProposalBondMinimum: Balance = 5 * UNITS;
 	pub const SpendPeriod: BlockNumber = 1 * DAYS;
 	pub const Burn: Permill = Permill::from_percent(50);
 	pub const TipCountdown: BlockNumber = 1 * DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(20);
-	pub const TipReportDepositBase: Balance = 1 * WAY;
-	pub const DataDepositPerByte: Balance = 2 * MILLIUNITS;
+	pub const TipReportDepositBase: Balance = 1 * UNITS;
+	pub const DataDepositPerByte: Balance = 2 * MILLI_UNITS;
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const MaximumReasonLength: u32 = 300;
 	pub const MaxApprovals: u32 = 100;
@@ -844,13 +772,15 @@ pub mod dynamic_params {
 	#[dynamic_pallet_params]
 	#[codec(index = 0)]
 	pub mod storage {
+		use cord_loom_runtime_constants::currency::MILLI_UNITS;
+
 		/// Configures the base deposit of storing some data.
 		#[codec(index = 0)]
-		pub static BaseDeposit: Balance = 1 * WAY;
+		pub static BaseDeposit: Balance = 1 * UNITS;
 
 		/// Configures the per-byte deposit of storing some data.
 		#[codec(index = 1)]
-		pub static ByteDeposit: Balance = 1 * MILLIUNITS;
+		pub static ByteDeposit: Balance = 1 * MILLI_UNITS;
 	}
 
 	#[dynamic_pallet_params]
@@ -872,7 +802,7 @@ impl Default for RuntimeParameters {
 	fn default() -> Self {
 		RuntimeParameters::Storage(dynamic_params::storage::Parameters::BaseDeposit(
 			dynamic_params::storage::BaseDeposit,
-			Some(1 * WAY),
+			Some(1 * UNITS),
 		))
 	}
 }
@@ -1264,12 +1194,6 @@ mod runtime {
 	pub type Remark = pallet_remark;
 
 	#[runtime::pallet_index(60)]
-	pub type Nfts = pallet_nfts;
-
-	#[runtime::pallet_index(61)]
-	pub type NftFractionalization = pallet_nft_fractionalization;
-
-	#[runtime::pallet_index(62)]
 	pub type Parameters = pallet_parameters;
 
 	#[runtime::pallet_index(255)]
@@ -1436,8 +1360,6 @@ mod benches {
 		[pallet_indices, Indices]
 		[pallet_membership, TechnicalMembership]
 		[pallet_multisig, Multisig]
-		[pallet_nfts, Nfts]
-		[pallet_nft_fractionalization, NftFractionalization]
 		[pallet_preimage, Preimage]
 		[pallet_parameters, Parameters]
 		[pallet_remark, Remark]
@@ -1799,50 +1721,6 @@ sp_api::impl_runtime_apis! {
 		}
 		fn query_length_to_fee(length: u32) -> Balance {
 			TransactionPayment::length_to_fee(length)
-		}
-	}
-
-	impl pallet_nfts_runtime_api::NftsApi<Block, AccountId, u32, u32> for Runtime {
-		fn owner(collection: u32, item: u32) -> Option<AccountId> {
-			<Nfts as Inspect<AccountId>>::owner(&collection, &item)
-		}
-
-		fn collection_owner(collection: u32) -> Option<AccountId> {
-			<Nfts as Inspect<AccountId>>::collection_owner(&collection)
-		}
-
-		fn attribute(
-			collection: u32,
-			item: u32,
-			key: Vec<u8>,
-		) -> Option<Vec<u8>> {
-			<Nfts as Inspect<AccountId>>::attribute(&collection, &item, &key)
-		}
-
-		fn custom_attribute(
-			account: AccountId,
-			collection: u32,
-			item: u32,
-			key: Vec<u8>,
-		) -> Option<Vec<u8>> {
-			<Nfts as Inspect<AccountId>>::custom_attribute(
-				&account,
-				&collection,
-				&item,
-				&key,
-			)
-		}
-
-		fn system_attribute(
-			collection: u32,
-			item: Option<u32>,
-			key: Vec<u8>,
-		) -> Option<Vec<u8>> {
-			<Nfts as Inspect<AccountId>>::system_attribute(&collection, item.as_ref(), &key)
-		}
-
-		fn collection_attribute(collection: u32, key: Vec<u8>) -> Option<Vec<u8>> {
-			<Nfts as Inspect<AccountId>>::collection_attribute(&collection, &key)
 		}
 	}
 
