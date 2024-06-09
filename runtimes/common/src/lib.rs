@@ -1,24 +1,26 @@
-// Copyright (C) Parity Technologies (UK) Ltd.
-// This file is part of Polkadot.
+// This file is part of CORD – https://cord.network
 
-// Polkadot is free software: you can redistribute it and/or modify
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Polkadot is distributed in the hope that it will be useful,
+// CORD is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! Common runtime code for the Relay Chain, e.g. Rococo, Westend, Polkadot, Kusama ...
+//! Common runtime code
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use cord_primitives::{Balance, BlockNumber};
+use cord_primitives::{AccountId, Balance, BlockNumber};
 use frame_support::parameter_types;
 use frame_support::traits::{Currency, OnUnbalanced};
 
@@ -29,8 +31,27 @@ use static_assertions::const_assert;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
-pub use sp_runtime::traits::Bounded;
+use sp_core::crypto::Ss58AddressFormat;
+pub use sp_runtime::traits::{Bounded, Get};
 use sp_std::marker::PhantomData;
+
+#[derive(Debug, Clone, Copy)]
+pub enum Ss58AddressFormatPrefix {
+	/// Default for Braid
+	Braid = 3893,
+	/// Default for Loom
+	Loom = 4926,
+	/// Default for Weave
+	Weave = 29,
+	/// Default value for unknown chains
+	Default = 42,
+}
+
+impl From<Ss58AddressFormatPrefix> for Ss58AddressFormat {
+	fn from(prefix: Ss58AddressFormatPrefix) -> Self {
+		Ss58AddressFormat::custom(prefix as u16)
+	}
+}
 
 /// We assume that an on-initialize consumes 1% of the weight on average, hence a single extrinsic
 /// will not be allowed to consume more than `AvailableBlockRatio - 1%`.
@@ -90,6 +111,22 @@ where
 			if let Some(tips) = fees_then_tips.next() {
 				<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(tips);
 			}
+		}
+	}
+}
+
+pub struct EverythingToAuthor<R>(sp_std::marker::PhantomData<R>);
+
+impl<R> OnUnbalanced<NegativeImbalance<R>> for EverythingToAuthor<R>
+where
+	R: pallet_balances::Config + pallet_authorship::Config,
+	<R as frame_system::Config>::AccountId: From<AccountId>,
+	<R as frame_system::Config>::AccountId: Into<AccountId>,
+	<R as pallet_balances::Config>::Balance: Into<u128>,
+{
+	fn on_nonzero_unbalanced(amount: NegativeImbalance<R>) {
+		if let Some(author) = <pallet_authorship::Pallet<R>>::author() {
+			<pallet_balances::Pallet<R>>::resolve_creating(&author, amount);
 		}
 	}
 }

@@ -35,11 +35,11 @@ type AccountPublic = <Signature as Verify>::Signer;
 use sc_telemetry::TelemetryEndpoints;
 
 #[cfg(feature = "braid-native")]
-pub use cord_braid_runtime_constants::currency::WAY as BRAID_UNITS;
+pub use cord_braid_runtime_constants::currency::UNITS as BRAID_UNITS;
 #[cfg(feature = "loom-native")]
-pub use cord_braid_runtime_constants::currency::WAY as LOOM_UNITS;
+pub use cord_loom_runtime_constants::currency::WAY as LOOM_UNITS;
 #[cfg(feature = "weave-native")]
-pub use cord_braid_runtime_constants::currency::WAY;
+pub use cord_weave_runtime_constants::currency::WAY;
 
 #[cfg(any(feature = "braid-native", feature = "loom-native", feature = "weave-native"))]
 const CORD_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
@@ -233,7 +233,7 @@ fn braid_local_config_genesis() -> serde_json::Value {
 
 #[cfg(feature = "braid-native")]
 pub fn braid_development_config() -> Result<BraidChainSpec, String> {
-	let properties = get_properties("WAY", 12, 29);
+	let properties = get_properties("UNITS", 12, 3893);
 	Ok(BraidChainSpec::builder(
 		cord_braid_runtime::WASM_BINARY.ok_or("Braid development wasm not available")?,
 		Default::default(),
@@ -253,7 +253,7 @@ pub fn braid_development_config() -> Result<BraidChainSpec, String> {
 
 #[cfg(feature = "braid-native")]
 pub fn braid_local_config() -> Result<BraidChainSpec, String> {
-	let properties = get_properties("WAY", 12, 29);
+	let properties = get_properties("UNITS", 12, 3893);
 	Ok(BraidChainSpec::builder(
 		cord_braid_runtime::WASM_BINARY.ok_or("Braid wasm not available")?,
 		Default::default(),

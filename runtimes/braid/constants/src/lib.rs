@@ -26,15 +26,16 @@ pub mod currency {
 	use cord_primitives::Balance;
 
 	/// The existential deposit.
-	pub const EXISTENTIAL_DEPOSIT: Balance = 100 * UNITS;
+	pub const EXISTENTIAL_DEPOSIT: Balance = 100 * MILLI_UNITS;
 
-	pub const WAY: Balance = 1_000_000_000_000;
-	pub const UNITS: Balance = WAY / 100;
-	pub const MILLIUNITS: Balance = UNITS / 100;
-	pub const NANOUNITS: Balance = MILLIUNITS / 100;
+	pub const UNITS: Balance = 1_000_000_000_000; // 10^12 precision
+
+	pub const MILLI_UNITS: Balance = UNITS / 1_000; // 10^9 precision
+	pub const MICRO_UNITS: Balance = UNITS / 1_000_000; // 10^6 precision
+	pub const NANO_UNITS: Balance = UNITS / 1_000_000_000; // 10^3 precision
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * 100 * UNITS + (bytes as Balance) * 100 * MILLIUNITS
+		items as Balance * 100 * UNITS + (bytes as Balance) * 100 * MILLI_UNITS
 	}
 }
 
@@ -107,7 +108,7 @@ pub mod fee {
 #[cfg(test)]
 mod tests {
 	use super::{
-		currency::{MILLIUNITS, UNITS},
+		currency::{MILLI_UNITS, UNITS},
 		fee::WeightToFee,
 	};
 	use crate::weights::ExtrinsicBaseWeight;

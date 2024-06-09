@@ -29,6 +29,7 @@ use crate::{
 };
 
 use cord_primitives::Block;
+use cord_runtime_common::Ss58AddressFormatPrefix;
 use cord_service::{new_partial, FullClient};
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
 use sc_cli::{Result, SubstrateCli};
@@ -132,6 +133,20 @@ impl SubstrateCli for Cli {
 	}
 }
 
+fn set_default_ss58_version(spec: &Box<dyn cord_service::ChainSpec>) {
+	let ss58_version = if spec.is_weave() {
+		Ss58AddressFormatPrefix::Weave.into()
+	} else if spec.is_loom() {
+		Ss58AddressFormatPrefix::Loom.into()
+	} else if spec.is_braid() {
+		Ss58AddressFormatPrefix::Braid.into()
+	} else {
+		Ss58AddressFormatPrefix::Default.into()
+	};
+
+	sp_core::crypto::set_default_ss58_version(ss58_version);
+}
+
 /// Parse command line arguments into service configuration.
 pub fn run() -> Result<()> {
 	let cli: Cli = Cli::from_args();
@@ -140,6 +155,8 @@ pub fn run() -> Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
+				let chain_spec = config.chain_spec.cloned_box();
+				set_default_ss58_version(&chain_spec);
 				cord_service::new_full(config, cli).map_err(sc_cli::Error::Service)
 			})
 		},
