@@ -178,7 +178,7 @@ sc-storage-monitor = { workspace = true }
 [features]
 default = [
 	"cli",
-	"db",
+	"rocksdb",
 	"full-node",
 	"braid-native",
 	"loom-native",
@@ -197,7 +197,7 @@ cli = [
 	"substrate-build-script-utils",
 ]
 
-db = ["sc-service/rocksdb"]
+rocksdb = ["sc-service/rocksdb"]
 
 # Configure the native runtimes to use.
 braid-native = [
