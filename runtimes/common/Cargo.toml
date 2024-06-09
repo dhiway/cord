@@ -20,6 +20,7 @@ sp-staking = { features = ["serde"], workspace = true }
 sp-core = { features = ["serde"], workspace = true }
 sp-std = { workspace = true }
 
+pallet-authorship = { workspace = true }
 pallet-balances = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
@@ -46,6 +47,7 @@ std = [
 	"frame-system/std",
 	"frame-benchmarking?/std",
 	"log/std",
+	"pallet-authorship/std",
 	"pallet-balances/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment/std",

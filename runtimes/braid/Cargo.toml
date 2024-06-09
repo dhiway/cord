@@ -37,7 +37,6 @@ network-membership = { workspace = true }
 cord-braid-runtime-constants = { workspace = true, optional = true }
 cord-runtime-common = { workspace = true }
 
-pallet-membership = { workspace = true }
 pallet-did = { workspace = true }
 pallet-did-name = { workspace = true }
 pallet-schema = { workspace = true }
@@ -83,7 +82,6 @@ pallet-authorship = { workspace = true }
 pallet-babe = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-contracts = { workspace = true }
-pallet-collective = { workspace = true }
 frame-executive = { workspace = true }
 pallet-grandpa = { workspace = true }
 pallet-im-online = { workspace = true }
@@ -92,12 +90,10 @@ pallet-multisig = { workspace = true }
 pallet-nfts = { workspace = true }
 pallet-nfts-runtime-api = { workspace = true }
 pallet-nft-fractionalization = { workspace = true }
-pallet-preimage = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-session = { features = ["historical"], workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
-pallet-treasury = { workspace = true }
 pallet-sudo = { workspace = true }
 frame-support = { features = ["experimental", "tuples-96"], workspace = true }
 frame-system = { workspace = true }
@@ -151,27 +147,23 @@ std = [
 	"pallet-authority-discovery/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
-	"pallet-collective/std",
 	"pallet-contracts/std",
 	"pallet-grandpa/std",
 	"pallet-identity/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
 	"pallet-insecure-randomness-collective-flip/std",
-	"pallet-membership/std",
 	"pallet-multisig/std",
 	"pallet-nft-fractionalization/std",
 	"pallet-nfts-runtime-api/std",
 	"pallet-nfts/std",
 	"pallet-offences/std",
 	"pallet-parameters/std",
-	"pallet-preimage/std",
 	"pallet-scheduler/std",
 	"pallet-session-benchmarking/std",
 	"pallet-session/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
-	"pallet-treasury/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-utility/std",
@@ -215,23 +207,19 @@ runtime-benchmarks = [
 	"pallet-assets/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
-	"pallet-collective/runtime-benchmarks",
 	"pallet-contracts/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
 	"pallet-identity/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
-	"pallet-membership/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-offences/runtime-benchmarks",
 	"pallet-parameters/runtime-benchmarks",
-	"pallet-preimage/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-session-benchmarking/runtime-benchmarks",
 	"pallet-session/try-runtime",
 	"pallet-remark/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
-	"pallet-treasury/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
 	"pallet-did/runtime-benchmarks",
 	"pallet-did-name/runtime-benchmarks",
@@ -255,26 +243,22 @@ try-runtime = [
 	"pallet-authority-discovery/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
-	"pallet-collective/try-runtime",
 	"pallet-contracts/try-runtime",
 	"pallet-grandpa/try-runtime",
 	"pallet-identity/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",
-	"pallet-membership/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-nft-fractionalization/try-runtime",
 	"pallet-nfts/try-runtime",
 	"pallet-offences/try-runtime",
-	"pallet-preimage/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session-benchmarking/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
-	"pallet-treasury/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-babe/try-runtime",
 	"pallet-schema/try-runtime",
