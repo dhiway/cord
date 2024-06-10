@@ -75,15 +75,20 @@ impl SubstrateCli for Cli {
 	}
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+		let incoming_id = id;
+
 		let id = if id == "" {
 			let n = get_exec_name().unwrap_or_default();
-			["cord", "braid", "loom", "weave"]
+			["braid", "loom", "weave"]
 				.iter()
 				.cloned()
 				.find(|&chain| n.starts_with(chain))
 				.unwrap_or("braid")
 		} else {
-			id
+			match id {
+				"braid_dev_node" | "loom_dev_node" | "weave_dev_node" => "dev",
+				_ => id,
+			}
 		};
 		Ok(match id {
 			#[cfg(feature = "braid-native")]
@@ -93,7 +98,13 @@ impl SubstrateCli for Cli {
 			#[cfg(feature = "weave-native")]
 			"weave" => Box::new(chain_spec::weave_development_config()?),
 			#[cfg(feature = "braid-native")]
-			"dev" | "braid-dev" => Box::new(chain_spec::braid_development_config()?),
+			"dev" | "cord" => match incoming_id {
+				"braid_dev_node" => Box::new(chain_spec::braid_development_config()?),
+				"loom_dev_node" => Box::new(chain_spec::loom_development_config()?),
+				"weave_dev_node" => Box::new(chain_spec::weave_development_config()?),
+				_ => Box::new(chain_spec::braid_development_config()?),
+			},
+			"braid-dev" => Box::new(chain_spec::braid_development_config()?),
 			#[cfg(feature = "loom-native")]
 			"loom-dev" => Box::new(chain_spec::loom_development_config()?),
 			#[cfg(feature = "weave-native")]
@@ -154,7 +165,7 @@ fn set_default_ss58_version(spec: &Box<dyn cord_service::ChainSpec>) {
 
 /// Parse command line arguments into service configuration.
 pub fn run() -> Result<()> {
-	let cli: Cli = Cli::from_args();
+	let mut cli: Cli = Cli::from_args();
 
 	match &cli.subcommand {
 		None => {
@@ -162,6 +173,39 @@ pub fn run() -> Result<()> {
 			runner.run_node_until_exit(|config| async move {
 				let chain_spec = config.chain_spec.cloned_box();
 				set_default_ss58_version(&chain_spec);
+				cord_service::new_full(config, cli).map_err(sc_cli::Error::Service)
+			})
+		},
+		Some(Subcommand::Braid { dev: _ }) => {
+			let id = "braid_dev_node";
+			cli.run.shared_params.dev = true;
+			let runner = cli.create_runner(&cli.run)?;
+			runner.run_node_until_exit(|mut config| async move {
+				let chain_spec = cli.load_spec(id)?;
+				config.chain_spec = chain_spec;
+				set_default_ss58_version(&config.chain_spec);
+				cord_service::new_full(config, cli).map_err(sc_cli::Error::Service)
+			})
+		},
+		Some(Subcommand::Loom { dev: _ }) => {
+			let id = "loom_dev_node";
+			cli.run.shared_params.dev = true;
+			let runner = cli.create_runner(&cli.run)?;
+			runner.run_node_until_exit(|mut config| async move {
+				let chain_spec = cli.load_spec(id)?;
+				config.chain_spec = chain_spec;
+				set_default_ss58_version(&config.chain_spec);
+				cord_service::new_full(config, cli).map_err(sc_cli::Error::Service)
+			})
+		},
+		Some(Subcommand::Weave { dev: _ }) => {
+			let id = "weave_dev_node";
+			cli.run.shared_params.dev = true;
+			let runner = cli.create_runner(&cli.run)?;
+			runner.run_node_until_exit(|mut config| async move {
+				let chain_spec = cli.load_spec(id)?;
+				config.chain_spec = chain_spec;
+				set_default_ss58_version(&config.chain_spec);
 				cord_service::new_full(config, cli).map_err(sc_cli::Error::Service)
 			})
 		},
