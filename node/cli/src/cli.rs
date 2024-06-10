@@ -77,6 +77,24 @@ pub enum Subcommand {
 
 	/// Db meta columns information.
 	ChainInfo(sc_cli::ChainInfoCmd),
+
+	/// Start Braid development node
+	Braid {
+		#[clap(long = "dev", required = true, help = "Run the Braid node in development mode")]
+		dev: bool,
+	},
+
+	/// Start Loom development node
+	Loom {
+		#[clap(long = "dev", required = true, help = "Run the Loom node in development mode")]
+		dev: bool,
+	},
+
+	/// Start Weave development node
+	Weave {
+		#[clap(long = "dev", required = true, help = "Run the Weave node in development mode")]
+		dev: bool,
+	},
 }
 
 #[allow(missing_docs)]
@@ -89,14 +107,6 @@ pub struct Cli {
 	#[allow(missing_docs)]
 	#[clap(flatten)]
 	pub run: sc_cli::RunCmd,
-
-	/// Force using Braid runtime.
-	#[arg(long = "force-braid")]
-	pub force_braid: bool,
-
-	/// Force using Loom runtime.
-	#[arg(long = "force-loom")]
-	pub force_loom: bool,
 
 	#[arg(long)]
 	pub no_hardware_benchmarks: bool,
