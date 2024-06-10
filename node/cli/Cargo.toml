@@ -34,6 +34,7 @@ jsonrpsee = { features = ["server"], workspace = true }
 futures = { workspace = true }
 log = { workspace = true, default-features = true }
 hex = { workspace = true }
+toml = { workspace = true }
 kvdb = { workspace = true }
 kvdb-rocksdb = { workspace = true, optional = true, default-features = true }
 parity-db = { workspace = true, optional = true }
