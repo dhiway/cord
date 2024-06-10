@@ -563,12 +563,12 @@ impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
 
 parameter_types! {
 	pub TreasuryAccount: AccountId = Treasury::account_id();
-	pub const ProposalBond: Permill = Permill::from_percent(5);
+	pub const ProposalBond: Permill = Permill::from_percent(2);
 	pub const ProposalBondMinimum: Balance = 5 * UNITS;
-	pub const SpendPeriod: BlockNumber = 1 * DAYS;
-	pub const Burn: Permill = Permill::from_percent(50);
+	pub const SpendPeriod: BlockNumber = 7 * DAYS;
+	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TipCountdown: BlockNumber = 1 * DAYS;
-	pub const TipFindersFee: Percent = Percent::from_percent(20);
+	pub const TipFindersFee: Percent = Percent::from_percent(10);
 	pub const TipReportDepositBase: Balance = 1 * UNITS;
 	pub const DataDepositPerByte: Balance = 2 * MILLI_UNITS;
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
