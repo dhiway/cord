@@ -42,7 +42,6 @@ std = [
 	"scale-info/std",
 	"frame-system/std",
 	"frame-benchmarking?/std",
-	"network-membership/std",
 	"sp-runtime/std",
 	"sp-core/std",
 	"sp-std/std",
