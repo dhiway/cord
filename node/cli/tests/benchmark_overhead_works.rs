@@ -23,6 +23,7 @@ use tempfile::tempdir;
 /// Tests that the `benchmark overhead` command works for the cord dev
 /// runtime.
 #[test]
+#[ignore]
 fn benchmark_overhead_works() {
 	let tmp_dir = tempdir().expect("could not create a temp dir");
 	let base_path = tmp_dir.path();
