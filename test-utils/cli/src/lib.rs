@@ -25,8 +25,8 @@ use nix::{
 	unistd::Pid,
 };
 use regex::Regex;
+use sp_rpc::{list::ListOrValue, number::NumberOrHex};
 use std::{
-	env,
 	io::{BufRead, BufReader, Read},
 	ops::{Deref, DerefMut},
 	path::{Path, PathBuf},
@@ -35,20 +35,54 @@ use std::{
 };
 use tokio::io::{AsyncBufReadExt, AsyncRead};
 
-/// Starts a new CORD node in development mode with a temporary chain.
+/// Similar to [`crate::start_node`] spawns a node, but works in environments
+/// where the cord binary is not accessible with
+/// `cargo_bin("braid")`, and allows customising the args passed in.
 ///
-/// This function creates a new CORD node using the `cord` binary.
+/// Helpful if you need a Cord dev node running in the background of a
+/// project external to `cord`.
+///
+/// The downside compared to using [`crate::start_node`] is that this method is
+/// blocking rather than returning a [`Child`]. Therefore, you may want to call
+/// this method inside a new thread.
+///
+/// # Example
+/// ```ignore
+/// // Spawn a dev node.
+/// let _ = std::thread::spawn(move || {
+///     match common::start_node_inline(vec!["--dev", "--rpc-port=12345"]) {
+///         Ok(_) => {}
+///         Err(e) => {
+///             panic!("Node exited with error: {}", e);
+///         }
+///     }
+/// });
+/// ```
+pub fn start_node_inline(args: Vec<&str>) -> Result<(), sc_service::error::Error> {
+	use sc_cli::SubstrateCli;
+
+	// Prepend the args with some dummy value because the first arg is skipped.
+	let cli_call = std::iter::once("braid").chain(args);
+	let cli = cord_node_cli::Cli::from_iter(cli_call);
+	let runner = cli.create_runner(&cli.run).unwrap();
+	runner
+		.run_node_until_exit(|config| async move { cord_node_cli::service::new_full(config, cli) })
+}
+
+/// Starts a new Cord node in development mode with a temporary chain.
+///
+/// This function creates a new Cord node using the `cord` binary.
 /// It configures the node to run in development mode (`--dev`) with a temporary
-/// chain (`--tmp`), sets the WebSocket port to 45789 (`--rpc-port=45789`).
+/// chain (`--tmp`), sets the WebSocket port to 45789 (`--ws-port=45789`).
 ///
 /// # Returns
 ///
-/// A [`Child`] process representing the spawned Substrate node.
+/// A [`Child`] process representing the spawned Cord node.
 ///
 /// # Panics
 ///
-/// This function will panic if the `cord` binary is not found or if the node
-/// fails to start.
+/// This function will panic if the `cord` binary is not found or if the
+/// node fails to start.
 ///
 /// # Examples
 ///
@@ -56,13 +90,13 @@ use tokio::io::{AsyncBufReadExt, AsyncRead};
 /// use my_crate::start_node;
 ///
 /// let child = start_node();
-/// // Interact with the CORD node using the WebSocket port 45789.
+/// // Interact with the Cord node using the WebSocket port 45789.
 /// // When done, the node will be killed when the `child` is dropped.
 /// ```
 ///
 /// [`Child`]: std::process::Child
 pub fn start_node() -> Child {
-	Command::new(cargo_bin("braid"))
+	Command::new(cargo_bin("cord"))
 		.stdout(process::Stdio::piped())
 		.stderr(process::Stdio::piped())
 		.args(["--dev", "--tmp", "--rpc-port=45789", "--no-hardware-benchmarks"])
@@ -76,7 +110,7 @@ pub fn start_node() -> Child {
 /// root workspace directory. It then runs the `cargo b` command in the root
 /// directory with the specified arguments.
 ///
-/// This can be useful for building the `cord` binary with a desired set of
+/// This can be useful for building the Cord binary with a desired set of
 /// features prior to using the binary in a CLI test.
 ///
 /// # Arguments
@@ -96,21 +130,25 @@ pub fn start_node() -> Child {
 /// # Examples
 ///
 /// ```ignore
-/// build_cord(&["--features=try-runtime"]);
+/// build_substrate(&["--features=try-runtime"]);
 /// ```
-pub fn build_cord(args: &[&str]) {
+pub fn build_substrate(args: &[&str]) {
+	let is_release_build = !cfg!(build_type = "debug");
+
 	// Get the root workspace directory from the CARGO_MANIFEST_DIR environment
 	// variable
-	let manifest_dir = env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
-	let root_dir = std::path::Path::new(&manifest_dir)
-		.parent()
-		.expect("Failed to find root workspace directory");
-	let output = Command::new("cargo")
-		.arg("build")
+	let mut cmd = Command::new("cargo");
+
+	cmd.arg("build").arg("-p=staging-node-cli");
+
+	if is_release_build {
+		cmd.arg("--release");
+	}
+
+	let output = cmd
 		.args(args)
-		.current_dir(root_dir)
 		.output()
-		.unwrap_or_else(|_| panic!("Failed to execute 'cargo b' with args {:?}'", args));
+		.expect(format!("Failed to execute 'cargo b' with args {:?}'", args).as_str());
 
 	if !output.status.success() {
 		panic!(
@@ -162,8 +200,9 @@ where
 {
 	let mut stdio_reader = tokio::io::BufReader::new(stream).lines();
 	while let Ok(Some(line)) = stdio_reader.next_line().await {
-		if re.find(line.as_str()).is_some() {
-			return Ok(());
+		match re.find(line.as_str()) {
+			Some(_) => return Ok(()),
+			None => (),
 		}
 	}
 	Err(String::from("Stream closed without any lines matching the regex."))
@@ -179,7 +218,8 @@ pub async fn wait_n_finalized_blocks(n: usize, url: &str) {
 	use substrate_rpc_client::{ws_client, ChainApi};
 
 	let mut built_blocks = std::collections::HashSet::new();
-	let mut interval = tokio::time::interval(Duration::from_secs(2));
+	let block_duration = Duration::from_secs(2);
+	let mut interval = tokio::time::interval(block_duration);
 	let rpc = ws_client(url).await.unwrap();
 
 	loop {
@@ -196,7 +236,7 @@ pub async fn wait_n_finalized_blocks(n: usize, url: &str) {
 /// Run the node for a while (3 blocks)
 pub async fn run_node_for_a_while(base_path: &Path, args: &[&str]) {
 	run_with_timeout(Duration::from_secs(60 * 10), async move {
-		let mut cmd = Command::new(cargo_bin("braid"))
+		let mut cmd = Command::new(cargo_bin("cord"))
 			.stdout(process::Stdio::piped())
 			.stderr(process::Stdio::piped())
 			.args(args)
@@ -220,6 +260,26 @@ pub async fn run_node_for_a_while(base_path: &Path, args: &[&str]) {
 		child.stop();
 	})
 	.await
+}
+
+pub async fn block_hash(block_number: u64, url: &str) -> Result<Hash, String> {
+	use substrate_rpc_client::{ws_client, ChainApi};
+
+	let rpc = ws_client(url).await.unwrap();
+
+	let result = ChainApi::<(), Hash, Header, ()>::block_hash(
+		&rpc,
+		Some(ListOrValue::Value(NumberOrHex::Number(block_number))),
+	)
+	.await
+	.map_err(|_| "Couldn't get block hash".to_string())?;
+
+	match result {
+		ListOrValue::Value(maybe_block_hash) if maybe_block_hash.is_some() => {
+			Ok(maybe_block_hash.unwrap())
+		},
+		_ => Err("Couldn't get block hash".to_string()),
+	}
 }
 
 pub struct KillChildOnDrop(pub Child);
@@ -282,7 +342,7 @@ pub fn extract_info_from_output(read: impl Read + Send) -> (NodeInfo, String) {
 		.find_map(|line| {
 			let line = line.expect("failed to obtain next line while extracting node info");
 			data.push_str(&line);
-			data.push('\n');
+			data.push_str("\n");
 
 			// does the line contain our port (we expect this specific output from
 			// substrate).

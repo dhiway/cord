@@ -1,5 +1,5 @@
 [package]
-name = "cord-loom-test-runtime"
+name = "cord-test-runtime"
 version = "0.9.3-dev"
 authors.workspace = true
 edition.workspace = true
@@ -60,7 +60,7 @@ sc-block-builder = { workspace = true }
 sc-executor = { workspace = true }
 sc-executor-common = { workspace = true }
 sp-consensus = { workspace = true }
-cord-loom-test-runtime-client = { workspace = true }
+cord-test-runtime-client = { workspace = true }
 sp-tracing = { workspace = true }
 json-patch = { workspace = true }
 serde = { features = ["alloc", "derive"], workspace = true }

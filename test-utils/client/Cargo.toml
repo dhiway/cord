@@ -1,5 +1,5 @@
 [package]
-name = "cord-loom-test-client"
+name = "cord-test-client"
 description = "Client testing utilities"
 version = "0.9.3-dev"
 authors.workspace = true

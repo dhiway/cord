@@ -1,6 +1,6 @@
 [package]
-name = "cord-loom-test-utils"
-description = "CORD Braid testing utilities"
+name = "cord-test-utils"
+description = "CORD Node testing utilities"
 version = "0.9.3-dev"
 authors.workspace = true
 edition.workspace = true
@@ -23,3 +23,7 @@ regex = { workspace = true }
 tokio = { features = ["full"], workspace = true }
 cord-primitives = { workspace = true }
 futures = { workspace = true }
+
+[dev-dependencies]
+trybuild = { workspace = true, features = ["diff"] }
+sc-service = { workspace = true }

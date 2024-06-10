@@ -445,6 +445,18 @@ fn loom_local_genesis(
 		"babe":  {
 			"epochConfig": Some(cord_loom_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
+		"councilMembership":  {
+			"members": initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
+		},
+		"technicalMembership":  {
+			"members": initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
+		},
 		"sudo": { "key": Some(root_key) },
 	})
 }

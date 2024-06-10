@@ -19,11 +19,11 @@
 //! Utilities to build a `TestClient` for `cord-test-runtime`.
 
 /// Re-export test-client utilities.
-pub use cord_loom_test_client::*;
+pub use cord_test_client::*;
 use sp_runtime::BuildStorage;
 
 /// Call executor for `cord-test-runtime` `TestClient`.
-use cord_loom_node_cli::service::RuntimeExecutor;
+use cord_node_cli::service::RuntimeExecutor;
 
 /// Default backend type.
 pub type Backend = sc_client_db::Backend<cord_primitives::Block>;
@@ -40,7 +40,7 @@ pub type Client = client::Client<
 #[derive(Default)]
 pub struct GenesisParameters;
 
-impl cord_loom_test_client::GenesisInit for GenesisParameters {
+impl cord_test_client::GenesisInit for GenesisParameters {
 	fn genesis_storage(&self) -> Storage {
 		let mut storage = crate::genesis::config().build_storage().unwrap();
 		storage.top.insert(
@@ -61,7 +61,7 @@ pub trait TestClientBuilderExt: Sized {
 }
 
 impl TestClientBuilderExt
-	for cord_loom_test_client::TestClientBuilder<
+	for cord_test_client::TestClientBuilder<
 		cord_primitives::Block,
 		client::LocalCallExecutor<cord_primitives::Block, Backend, RuntimeExecutor>,
 		Backend,

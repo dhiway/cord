@@ -353,41 +353,24 @@ parameter_types! {
 }
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::pallet::Config for Runtime {
-	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = RuntimeBlockWeights;
-	type BlockLength = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
 	type Nonce = Nonce;
-	type Hash = H256;
-	type Hashing = Hashing;
 	type AccountId = AccountId;
 	type Lookup = sp_runtime::traits::IdentityLookup<Self::AccountId>;
 	type Block = Block;
-	type RuntimeEvent = RuntimeEvent;
-	type BlockHashCount = ConstU64<2400>;
-	type DbWeight = ();
-	type Version = ();
-	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<Balance>;
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
-	type SystemWeightInfo = ();
-	type SS58Prefix = ();
-	type OnSetCode = ();
-	type MaxConsumers = ConstU32<16>;
 }
 
 pub mod currency {
 	use crate::Balance;
-	pub const WAY: Balance = 1_000_000_000_000;
-	pub const UNITS: Balance = WAY / 100;
-	pub const MILLIUNITS: Balance = UNITS / 100;
-	pub const NANOUNITS: Balance = MILLIUNITS / 100;
+	pub const UNITS: Balance = 1_000_000_000_000; // 10^12 precision
+	pub const MILLI_UNITS: Balance = UNITS / 1_000; // 10^9 precision
+	pub const MICRO_UNITS: Balance = UNITS / 1_000_000; // 10^6 precision
+	pub const NANO_UNITS: Balance = UNITS / 1_000_000_000; // 10^3 precision
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = currency::WAY;
+	pub const ExistentialDeposit: Balance = currency::UNITS;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
 	// This number may need to be adjusted in the future if this assumption no longer holds true.
 	pub const MaxLocks: u32 = 50;
@@ -498,16 +481,17 @@ impl_runtime_apis! {
 
 	impl sp_api::Metadata<Block> for Runtime {
 		fn metadata() -> OpaqueMetadata {
-			unimplemented!()
+			OpaqueMetadata::new(Runtime::metadata().into())
 		}
 
-		fn metadata_at_version(_version: u32) -> Option<OpaqueMetadata> {
-			unimplemented!()
+		fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+			Runtime::metadata_at_version(version)
 		}
 		fn metadata_versions() -> alloc::vec::Vec<u32> {
-			unimplemented!()
+			Runtime::metadata_versions()
 		}
 	}
+
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(
@@ -638,7 +622,7 @@ impl_runtime_apis! {
 		 * Currently type resolution is failing to fulfill above.
 		 */
 		fn authorities() -> Vec<AuraId> {
-			CordTest::authorities().into_iter().map(AuraId::from).collect()
+			CordTest::authorities().into_iter().map(|auth| AuraId::from(auth)).collect()
 		}
 	}
 
@@ -750,9 +734,9 @@ impl_runtime_apis! {
 
 						json!({
 							"balances": {
-								"balances": endowed_accounts.into_iter().map(|k| (k, 10 * currency::WAY)).collect::<Vec<_>>(),
+								"balances": endowed_accounts.into_iter().map(|k| (k, 10 * currency::UNITS)).collect::<Vec<_>>(),
 							},
-							"substrateTest": {
+							"cordTest": {
 								"authorities": [
 									AccountKeyring::Alice.public().to_ss58check(),
 									AccountKeyring::Ferdie.public().to_ss58check()
@@ -923,6 +907,7 @@ pub mod storage_key_generator {
 		expected_keys.extend(literals.into_iter().map(hex));
 
 		let balances_map_keys = (0..16_usize)
+			.into_iter()
 			.map(|i| AccountKeyring::numeric(i).public().to_vec())
 			.chain(vec![
 				AccountKeyring::Alice.public().to_vec(),
@@ -1061,7 +1046,7 @@ pub mod storage_key_generator {
 mod tests {
 	use super::*;
 	use codec::Encode;
-	use cord_loom_test_runtime_client::{
+	use cord_test_runtime_client::{
 		prelude::*, runtime::TestAPI, DefaultTestClientBuilderExt, TestClientBuilder,
 	};
 	use frame_support::dispatch::DispatchInfo;
@@ -1151,7 +1136,7 @@ mod tests {
 		genesismap::GenesisStorageBuilder::new(
 			vec![AccountKeyring::One.public(), AccountKeyring::Two.public()],
 			vec![AccountKeyring::One.into(), AccountKeyring::Two.into()],
-			1000 * currency::WAY,
+			1000 * currency::UNITS,
 		)
 		.build()
 		.into()
@@ -1371,7 +1356,7 @@ mod tests {
 			f("foobar", r#"{"foo":"bar"}"#);
 			f(
 				"staging",
-				r#"{"balances":{"balances":[["5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",10000000000000],["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",10000000000000]]},"substrateTest":{"authorities":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","5CiPPseXPECbkjWCa6MnjNokrgYjMqmKndv2rSnekmSK2DjL"]}}"#,
+				r#"{"balances":{"balances":[["5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",10000000000000],["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",10000000000000]]},"cordTest":{"authorities":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","5CiPPseXPECbkjWCa6MnjNokrgYjMqmKndv2rSnekmSK2DjL"]}}"#,
 			);
 		}
 

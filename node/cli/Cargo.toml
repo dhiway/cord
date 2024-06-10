@@ -137,7 +137,7 @@ sc-client-db = { workspace = true }
 sc-consensus = { workspace = true }
 sc-consensus-babe = { workspace = true }
 sc-consensus-epochs = { workspace = true }
-# cord-loom-service-test = { workspace = true }
+cord-service-test = { workspace = true }
 sp-tracing = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-crypto-hashing = { workspace = true }
@@ -148,9 +148,9 @@ regex = { workspace = true }
 soketto = { workspace = true }
 tokio = { features = ["macros", "parking_lot", "time"], workspace = true }
 tokio-util = { features = ["compat"], workspace = true }
-# cord-loom-cli-test-utils = { workspace = true }
+cord-cli-test-utils = { workspace = true }
 frame-support = { workspace = true }
-# cord-loom-node-testing = { workspace = true }
+cord-node-testing = { workspace = true }
 pallet-balances = { workspace = true }
 sp-application-crypto = { workspace = true }
 pallet-root-testing = { workspace = true }
@@ -224,5 +224,5 @@ try-runtime = [
 	"pallet-root-testing/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"sp-runtime/try-runtime",
-	# "cord-loom-cli-test-utils/try-runtime",
+	"cord-cli-test-utils/try-runtime",
 ]

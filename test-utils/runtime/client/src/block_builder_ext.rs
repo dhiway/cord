@@ -18,7 +18,7 @@
 
 //! Block Builder extensions for tests.
 
-use cord_loom_test_runtime::*;
+use cord_test_runtime::*;
 use sc_block_builder::BlockBuilderApi;
 use sp_api::{ApiExt, ProvideRuntimeApi};
 
@@ -27,7 +27,7 @@ pub trait BlockBuilderExt {
 	/// Add transfer extrinsic to the block.
 	fn push_transfer(
 		&mut self,
-		transfer: cord_loom_test_runtime::Transfer,
+		transfer: cord_test_runtime::Transfer,
 	) -> Result<(), sp_blockchain::Error>;
 
 	/// Add unsigned storage change extrinsic to the block.
@@ -44,16 +44,16 @@ pub trait BlockBuilderExt {
 	) -> Result<(), sp_blockchain::Error>;
 }
 
-impl<'a, A> BlockBuilderExt for sc_block_builder::BlockBuilder<'a, cord_loom_test_runtime::Block, A>
+impl<'a, A> BlockBuilderExt for sc_block_builder::BlockBuilder<'a, cord_test_runtime::Block, A>
 where
-	A: ProvideRuntimeApi<cord_loom_test_runtime::Block>
-		+ sp_api::CallApiAt<cord_loom_test_runtime::Block>
+	A: ProvideRuntimeApi<cord_test_runtime::Block>
+		+ sp_api::CallApiAt<cord_test_runtime::Block>
 		+ 'a,
-	A::Api: BlockBuilderApi<cord_loom_test_runtime::Block> + ApiExt<cord_loom_test_runtime::Block>,
+	A::Api: BlockBuilderApi<cord_test_runtime::Block> + ApiExt<cord_test_runtime::Block>,
 {
 	fn push_transfer(
 		&mut self,
-		transfer: cord_loom_test_runtime::Transfer,
+		transfer: cord_test_runtime::Transfer,
 	) -> Result<(), sp_blockchain::Error> {
 		self.push(transfer.into_unchecked_extrinsic())
 	}

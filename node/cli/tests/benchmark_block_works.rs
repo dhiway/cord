@@ -23,7 +23,7 @@ use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 use tempfile::tempdir;
 
-use cord_loom_cli_test_utils as common;
+use cord_cli_test_utils as common;
 
 /// `benchmark block` works for the dev runtime using the wasm executor.
 #[tokio::test]
@@ -33,7 +33,7 @@ async fn benchmark_block_works() {
 	common::run_node_for_a_while(base_dir.path(), &["--dev", "--no-hardware-benchmarks"]).await;
 
 	// Invoke `benchmark block` with all options to make sure that they are valid.
-	let status = Command::new(cargo_bin("loom"))
+	let status = Command::new(cargo_bin("cord"))
 		.args(["benchmark", "block", "--dev"])
 		.arg("-d")
 		.arg(base_dir.path())

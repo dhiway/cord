@@ -23,7 +23,7 @@ use std::process::Command;
 /// runtime.
 #[test]
 fn benchmark_machine_works() {
-	let status = Command::new(cargo_bin("loom"))
+	let status = Command::new(cargo_bin("cord"))
 		.args(["benchmark", "machine", "--dev"])
 		.args([
 			"--verify-duration",
@@ -49,7 +49,7 @@ fn benchmark_machine_works() {
 #[test]
 #[cfg(debug_assertions)]
 fn benchmark_machine_fails_with_slow_hardware() {
-	let output = Command::new(cargo_bin("loom"))
+	let output = Command::new(cargo_bin("cord"))
 		.args(["benchmark", "machine", "--dev"])
 		.args([
 			"--verify-duration",
