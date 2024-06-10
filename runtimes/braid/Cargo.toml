@@ -102,7 +102,6 @@ pallet-parameters = { workspace = true }
 pallet-insecure-randomness-collective-flip = { workspace = true }
 hex-literal = { workspace = true, optional = true }
 
-frame-metadata-hash-extension = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 frame-system-benchmarking = { workspace = true, optional = true }
 frame-try-runtime = { workspace = true, optional = true }
@@ -137,7 +136,6 @@ std = [
 	"frame-support/std",
 	"frame-benchmarking/std",
 	"frame-executive/std",
-	"frame-metadata-hash-extension/std",
 	"pallet-asset-conversion/std",
 	"pallet-asset-rate/std",
 	"pallet-assets/std",
@@ -268,8 +266,6 @@ try-runtime = [
 	"identifier/try-runtime",
 ]
 
-# Enable the metadata hash generation in the wasm builder.
-metadata-hash = ["substrate-wasm-builder/metadata-hash"]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
 fast-runtime = []
@@ -277,4 +273,4 @@ fast-runtime = []
 # A feature that should be enabled when the runtime should be build for on-chain
 # deployment. This will disable stuff that shouldn't be part of the on-chain wasm
 # to make it smaller like logging for example.
-on-chain-release-build = ["metadata-hash", "sp-api/disable-logging"]
+on-chain-release-build = ["sp-api/disable-logging"]
