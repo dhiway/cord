@@ -34,7 +34,6 @@ use pallet_transaction_payment::{CurrencyAdapter, FeeDetails, RuntimeDispatchInf
 
 use frame_support::{
 	derive_impl,
-	dynamic_params::{dynamic_pallet_params, dynamic_params},
 	genesis_builder_helper::{build_state, get_preset},
 	instances::{Instance1, Instance2},
 	ord_parameter_types, parameter_types,
@@ -42,13 +41,14 @@ use frame_support::{
 		fungible::{HoldConsideration, NativeFromLeft, NativeOrWithId, UnionOf},
 		tokens::imbalance::ResolveAssetTo,
 		AsEnsureOriginWithArg, ConstBool, ConstU128, ConstU32, Contains, EitherOfDiverse,
-		EnsureOriginWithArg, KeyOwnerProofSystem, LinearStoragePrice, Nothing, PrivilegeCmp,
+		KeyOwnerProofSystem, LinearStoragePrice, PrivilegeCmp,
 	},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, ConstantMultiplier},
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy, EnsureWithSuccess};
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
+pub use pallet_balances::Call as BalancesCall;
 use pallet_identity::legacy::IdentityInfo;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
@@ -74,8 +74,6 @@ use sp_version::RuntimeVersion;
 
 #[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
-#[cfg(any(feature = "std", test))]
-pub use pallet_balances::Call as BalancesCall;
 #[cfg(any(feature = "std", test))]
 pub use pallet_sudo::Call as SudoCall;
 #[cfg(any(feature = "std", test))]
@@ -233,8 +231,8 @@ impl pallet_scheduler::Config for Runtime {
 
 parameter_types! {
 	pub const PreimageMaxSize: u32 = 4096 * 1024;
-	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
-	pub const PreimageByteDeposit: Balance = deposit(0, 1);
+	pub const PreimageBaseDeposit: Balance = 1 * UNITS;
+	pub const PreimageByteDeposit: Balance = 1 * NANO_UNITS;
 	pub const PreimageHoldReason: RuntimeHoldReason = RuntimeHoldReason::Preimage(pallet_preimage::HoldReason::Preimage);
 
 }
@@ -248,11 +246,7 @@ impl pallet_preimage::Config for Runtime {
 		AccountId,
 		Balances,
 		PreimageHoldReason,
-		LinearStoragePrice<
-			dynamic_params::storage::BaseDeposit,
-			dynamic_params::storage::ByteDeposit,
-			Balance,
-		>,
+		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
 	>;
 }
 
@@ -415,8 +409,6 @@ impl pallet_assets::Config<Instance1> for Runtime {
 	type CallbackHandle = ();
 	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 	type RemoveItemsLimit = ConstU32<1000>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
 }
 
 ord_parameter_types! {
@@ -442,8 +434,6 @@ impl pallet_assets::Config<Instance2> for Runtime {
 	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 	type RemoveItemsLimit = ConstU32<1000>;
 	type CallbackHandle = ();
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
 }
 
 parameter_types! {
@@ -485,20 +475,6 @@ impl pallet_asset_conversion::Config for Runtime {
 	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Runtime>;
 	type MaxSwapPathLength = ConstU32<4>;
 	type MintMinLiquidity = MintMinLiquidity;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
-}
-
-impl pallet_asset_rate::Config for Runtime {
-	type CreateOrigin = MoreThanHalfCouncil;
-	type RemoveOrigin = MoreThanHalfCouncil;
-	type UpdateOrigin = MoreThanHalfCouncil;
-	type Currency = Balances;
-	type AssetKind = u32;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_asset_rate::weights::SubstrateWeight<Runtime>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
 }
 
 parameter_types! {
@@ -625,8 +601,6 @@ impl pallet_treasury::Config for Runtime {
 	type Paymaster = frame_support::traits::tokens::pay::PayFromAccount<Balances, TreasuryAccount>;
 	type BalanceConverter = frame_support::traits::tokens::UnityAssetBalanceConversion;
 	type PayoutPeriod = SpendPayoutPeriod;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
 }
 
 impl pallet_offences::Config for Runtime {
@@ -760,83 +734,6 @@ impl pallet_multisig::Config for Runtime {
 	type DepositFactor = DepositFactor;
 	type MaxSignatories = MaxSignatories;
 	type WeightInfo = weights::pallet_multisig::WeightInfo<Runtime>;
-}
-
-/// Dynamic parameters that can be changed at runtime through the
-/// `pallet_parameters::set_parameter`.
-#[dynamic_params(RuntimeParameters, pallet_parameters::Parameters::<Runtime>)]
-pub mod dynamic_params {
-	use super::*;
-
-	#[dynamic_pallet_params]
-	#[codec(index = 0)]
-	pub mod storage {
-		use cord_loom_runtime_constants::currency::MILLI_UNITS;
-
-		/// Configures the base deposit of storing some data.
-		#[codec(index = 0)]
-		pub static BaseDeposit: Balance = 1 * UNITS;
-
-		/// Configures the per-byte deposit of storing some data.
-		#[codec(index = 1)]
-		pub static ByteDeposit: Balance = 1 * MILLI_UNITS;
-	}
-
-	#[dynamic_pallet_params]
-	#[codec(index = 1)]
-	pub mod contracts {
-		#[codec(index = 0)]
-		pub static DepositPerItem: Balance = deposit(1, 0);
-
-		#[codec(index = 1)]
-		pub static DepositPerByte: Balance = deposit(0, 1);
-
-		#[codec(index = 2)]
-		pub static DefaultDepositLimit: Balance = deposit(1024, 1024 * 1024);
-	}
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-impl Default for RuntimeParameters {
-	fn default() -> Self {
-		RuntimeParameters::Storage(dynamic_params::storage::Parameters::BaseDeposit(
-			dynamic_params::storage::BaseDeposit,
-			Some(1 * UNITS),
-		))
-	}
-}
-
-pub struct DynamicParametersManagerOrigin;
-impl EnsureOriginWithArg<RuntimeOrigin, RuntimeParametersKey> for DynamicParametersManagerOrigin {
-	type Success = ();
-
-	fn try_origin(
-		origin: RuntimeOrigin,
-		key: &RuntimeParametersKey,
-	) -> Result<Self::Success, RuntimeOrigin> {
-		match key {
-			RuntimeParametersKey::Storage(_) => {
-				frame_system::ensure_root(origin.clone()).map_err(|_| origin)?;
-				return Ok(());
-			},
-			RuntimeParametersKey::Contracts(_) => {
-				frame_system::ensure_root(origin.clone()).map_err(|_| origin)?;
-				return Ok(());
-			},
-		}
-	}
-
-	#[cfg(feature = "runtime-benchmarks")]
-	fn try_successful_origin(_key: &RuntimeParametersKey) -> Result<RuntimeOrigin, ()> {
-		Ok(RuntimeOrigin::root())
-	}
-}
-
-impl pallet_parameters::Config for Runtime {
-	type RuntimeParameters = RuntimeParameters;
-	type RuntimeEvent = RuntimeEvent;
-	type AdminOrigin = DynamicParametersManagerOrigin;
-	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -1013,9 +910,31 @@ impl pallet_network_score::Config for Runtime {
 
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
+pub enum AllowBalancesCall {}
+
+impl frame_support::traits::Contains<RuntimeCall> for AllowBalancesCall {
+	fn contains(call: &RuntimeCall) -> bool {
+		matches!(call, RuntimeCall::Balances(BalancesCall::transfer_allow_death { .. }))
+	}
+}
+
+fn schedule<T: pallet_contracts::Config>() -> pallet_contracts::Schedule<T> {
+	pallet_contracts::Schedule {
+		limits: pallet_contracts::Limits {
+			runtime_memory: 1024 * 1024 * 1024,
+			..Default::default()
+		},
+		..Default::default()
+	}
+}
+
 parameter_types! {
-	pub Schedule: pallet_contracts::Schedule<Runtime> = Default::default();
-	pub CodeHashLockupDepositPercent: Perbill = Perbill::from_percent(30);
+	pub const DepositPerItem: Balance = deposit(1, 0);
+	pub const DepositPerByte: Balance = deposit(0, 1);
+	pub Schedule: pallet_contracts::Schedule<Runtime> = schedule::<Runtime>();
+	pub const DefaultDepositLimit: Balance = deposit(1024, 1024 * 1024);
+	pub const CodeHashLockupDepositPercent: Perbill = Perbill::from_percent(20);
+	pub const MaxDelegateDependencies: u32 = 32;
 }
 
 impl pallet_contracts::Config for Runtime {
@@ -1024,33 +943,30 @@ impl pallet_contracts::Config for Runtime {
 	type Currency = Balances;
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
-	type CallFilter = Nothing;
-	type DepositPerItem = dynamic_params::contracts::DepositPerItem;
-	type DepositPerByte = dynamic_params::contracts::DepositPerByte;
-	type DefaultDepositLimit = dynamic_params::contracts::DefaultDepositLimit;
-	type CallStack = [pallet_contracts::Frame<Self>; 5];
+	type CallFilter = AllowBalancesCall;
+	type DepositPerItem = DepositPerItem;
+	type DepositPerByte = DepositPerByte;
+	type CallStack = [pallet_contracts::Frame<Self>; 23];
 	type WeightPrice = pallet_transaction_payment::Pallet<Self>;
 	type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
 	type ChainExtension = ();
 	type Schedule = Schedule;
 	type AddressGenerator = pallet_contracts::DefaultAddressGenerator;
-	type MaxCodeLen = ConstU32<{ 123 * 1024 }>;
+	type MaxCodeLen = ConstU32<{ 128 * 1024 }>;
+	type DefaultDepositLimit = DefaultDepositLimit;
 	type MaxStorageKeyLen = ConstU32<128>;
-	type UnsafeUnstableInterface = ConstBool<false>;
+	type MaxDebugBufferLen = ConstU32<{ 2 * 1024 * 1024 }>;
+	type UnsafeUnstableInterface = ConstBool<true>;
+	type CodeHashLockupDepositPercent = CodeHashLockupDepositPercent;
+	type MaxDelegateDependencies = MaxDelegateDependencies;
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type Environment = ();
+	type Debug = ();
+	type ApiVersion = ();
+	type Migrations = ();
+	type Xcm = ();
 	type UploadOrigin = EnsureSigned<Self::AccountId>;
 	type InstantiateOrigin = EnsureSigned<Self::AccountId>;
-	type MaxDebugBufferLen = ConstU32<{ 2 * 1024 * 1024 }>;
-	type RuntimeHoldReason = RuntimeHoldReason;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type Migrations = ();
-	#[cfg(feature = "runtime-benchmarks")]
-	type Migrations = pallet_contracts::migration::codegen::BenchMigrations;
-	type MaxDelegateDependencies = ConstU32<32>;
-	type CodeHashLockupDepositPercent = CodeHashLockupDepositPercent;
-	type Debug = ();
-	type Environment = ();
-	type ApiVersion = ();
-	type Xcm = ();
 }
 
 #[frame_support::runtime]
@@ -1101,9 +1017,6 @@ mod runtime {
 
 	#[runtime::pallet_index(10)]
 	pub type Treasury = pallet_treasury;
-
-	#[runtime::pallet_index(11)]
-	pub type AssetRate = pallet_asset_rate;
 
 	#[runtime::pallet_index(12)]
 	pub type RandomnessCollectiveFlip = pallet_insecure_randomness_collective_flip;
@@ -1191,9 +1104,6 @@ mod runtime {
 
 	#[runtime::pallet_index(59)]
 	pub type Remark = pallet_remark;
-
-	#[runtime::pallet_index(60)]
-	pub type Parameters = pallet_parameters;
 
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo;
@@ -1346,7 +1256,6 @@ type EventRecord = frame_system::EventRecord<
 mod benches {
 	frame_benchmarking::define_benchmarks!(
 		[frame_benchmarking, BaselineBench::<Runtime>]
-		[pallet_assets, Assets]
 		[pallet_babe, Babe]
 		[pallet_balances, Balances]
 		[pallet_collective, Council]
@@ -1359,13 +1268,11 @@ mod benches {
 		[pallet_membership, TechnicalMembership]
 		[pallet_multisig, Multisig]
 		[pallet_preimage, Preimage]
-		[pallet_parameters, Parameters]
 		[pallet_remark, Remark]
 		[pallet_scheduler, Scheduler]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
-		[pallet_treasury, Treasury]
-		[pallet_asset_rate, AssetRate]
+		// [pallet_treasury, Treasury]
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
 		[pallet_statement, Statement]
@@ -1375,7 +1282,6 @@ mod benches {
 		[pallet_network_membership, NetworkMembership]
 		[pallet_network_score, NetworkScore]
 		[pallet_sudo, Sudo]
-		[pallet_asset_conversion, AssetConversion]
 	);
 }
 

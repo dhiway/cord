@@ -37,7 +37,7 @@ use tokio::io::{AsyncBufReadExt, AsyncRead};
 
 /// Similar to [`crate::start_node`] spawns a node, but works in environments
 /// where the cord binary is not accessible with
-/// `cargo_bin("braid")`, and allows customising the args passed in.
+/// `cargo_bin("cord")`, and allows customising the args passed in.
 ///
 /// Helpful if you need a Cord dev node running in the background of a
 /// project external to `cord`.
@@ -62,7 +62,7 @@ pub fn start_node_inline(args: Vec<&str>) -> Result<(), sc_service::error::Error
 	use sc_cli::SubstrateCli;
 
 	// Prepend the args with some dummy value because the first arg is skipped.
-	let cli_call = std::iter::once("braid").chain(args);
+	let cli_call = std::iter::once("cord").chain(args);
 	let cli = cord_node_cli::Cli::from_iter(cli_call);
 	let runner = cli.create_runner(&cli.run).unwrap();
 	runner
@@ -130,16 +130,16 @@ pub fn start_node() -> Child {
 /// # Examples
 ///
 /// ```ignore
-/// build_substrate(&["--features=try-runtime"]);
+/// build_cord(&["--features=try-runtime"]);
 /// ```
-pub fn build_substrate(args: &[&str]) {
+pub fn build_cord(args: &[&str]) {
 	let is_release_build = !cfg!(build_type = "debug");
 
 	// Get the root workspace directory from the CARGO_MANIFEST_DIR environment
 	// variable
 	let mut cmd = Command::new("cargo");
 
-	cmd.arg("build").arg("-p=staging-node-cli");
+	cmd.arg("build").arg("-p=cord-node-cli");
 
 	if is_release_build {
 		cmd.arg("--release");

@@ -29,7 +29,7 @@ pub mod currency {
 	pub const EXISTENTIAL_DEPOSIT: Balance = 100 * UNITS;
 
 	pub const WAY: Balance = 1_000_000_000_000;
-	pub const UNITS: Balance = WAY / 100;
+	pub const UNITS: Balance = WAY / 10;
 	pub const MILLIUNITS: Balance = UNITS / 100;
 	pub const NANOUNITS: Balance = MILLIUNITS / 100;
 
@@ -77,6 +77,8 @@ pub mod fee {
 	/// The block saturation level. Fees will be updates based on this value.
 	pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
 
+	/// Cost of every transaction byte.
+	pub const TRANSACTION_BYTE_FEE: Balance = 10 * super::currency::MILLIUNITS;
 	/// Handles converting a weight scalar to a fee value, based on the scale
 	/// and granularity of the node's balance type.
 	///
@@ -92,8 +94,8 @@ pub mod fee {
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-			let p = super::currency::UNITS;
-			let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
+			let p = super::currency::WAY / 10;
+			let q = Balance::from(ExtrinsicBaseWeight::get().ref_time());
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
 				negative: false,

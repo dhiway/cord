@@ -77,7 +77,6 @@ sp-genesis-builder = { workspace = true }
 pallet-authority-discovery = { workspace = true }
 pallet-assets = { workspace = true }
 pallet-asset-conversion = { workspace = true }
-pallet-asset-rate = { workspace = true }
 pallet-authorship = { workspace = true }
 pallet-babe = { workspace = true }
 pallet-balances = { workspace = true }
@@ -98,7 +97,6 @@ frame-system-rpc-runtime-api = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-remark = { workspace = true }
-pallet-parameters = { workspace = true }
 pallet-insecure-randomness-collective-flip = { workspace = true }
 hex-literal = { workspace = true, optional = true }
 
@@ -137,7 +135,6 @@ std = [
 	"frame-benchmarking/std",
 	"frame-executive/std",
 	"pallet-asset-conversion/std",
-	"pallet-asset-rate/std",
 	"pallet-assets/std",
 	"pallet-authority-discovery/std",
 	"pallet-authorship/std",
@@ -150,7 +147,6 @@ std = [
 	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-multisig/std",
 	"pallet-offences/std",
-	"pallet-parameters/std",
 	"pallet-scheduler/std",
 	"pallet-session-benchmarking/std",
 	"pallet-session/std",
@@ -194,9 +190,6 @@ runtime-benchmarks = [
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"sp-staking/runtime-benchmarks",
-	"pallet-asset-conversion/runtime-benchmarks",
-	"pallet-asset-rate/runtime-benchmarks",
-	"pallet-assets/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-contracts/runtime-benchmarks",
@@ -206,7 +199,6 @@ runtime-benchmarks = [
 	"pallet-indices/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-offences/runtime-benchmarks",
-	"pallet-parameters/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-session-benchmarking/runtime-benchmarks",
 	"pallet-session/try-runtime",
@@ -230,7 +222,6 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"frame-support/try-runtime",
 	"pallet-asset-conversion/try-runtime",
-	"pallet-asset-rate/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-authority-discovery/try-runtime",
 	"pallet-authorship/try-runtime",
