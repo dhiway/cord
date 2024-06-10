@@ -52,7 +52,7 @@ pub struct GenesisStorageBuilder {
 }
 
 impl Default for GenesisStorageBuilder {
-	/// Creates a builder with default settings for `cord_braid_test_runtime`.
+	/// Creates a builder with default settings for `cord_test_runtime`.
 	fn default() -> Self {
 		Self::new(
 			vec![

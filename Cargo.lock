@@ -1388,7 +1388,6 @@ dependencies = [
  "log",
  "network-membership",
  "pallet-asset-conversion",
- "pallet-asset-rate",
  "pallet-assets",
  "pallet-assets-runtime-api",
  "pallet-authority-discovery",
@@ -1410,7 +1409,6 @@ dependencies = [
  "pallet-network-score",
  "pallet-node-authorization",
  "pallet-offences",
- "pallet-parameters",
  "pallet-remark",
  "pallet-runtime-upgrade",
  "pallet-scheduler",
@@ -1518,7 +1516,6 @@ dependencies = [
  "log",
  "network-membership",
  "pallet-asset-conversion",
- "pallet-asset-rate",
  "pallet-assets",
  "pallet-assets-runtime-api",
  "pallet-authority-discovery",
@@ -1542,7 +1539,6 @@ dependencies = [
  "pallet-network-score",
  "pallet-node-authorization",
  "pallet-offences",
- "pallet-parameters",
  "pallet-preimage",
  "pallet-remark",
  "pallet-runtime-upgrade",
@@ -2036,7 +2032,6 @@ dependencies = [
  "log",
  "network-membership",
  "pallet-asset-conversion",
- "pallet-asset-rate",
  "pallet-assets",
  "pallet-assets-runtime-api",
  "pallet-authority-discovery",
@@ -2060,7 +2055,6 @@ dependencies = [
  "pallet-network-score",
  "pallet-node-authorization",
  "pallet-offences",
- "pallet-parameters",
  "pallet-preimage",
  "pallet-remark",
  "pallet-runtime-upgrade",
@@ -6100,21 +6094,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-asset-rate"
-version = "7.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0#7377777053f9c9c3c5eff4bcdfc965a56fa52e63"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-runtime",
- "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
-]
-
-[[package]]
 name = "pallet-assets"
 version = "29.1.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0#7377777053f9c9c3c5eff4bcdfc965a56fa52e63"
@@ -6547,24 +6526,6 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
- "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
-]
-
-[[package]]
-name = "pallet-parameters"
-version = "0.1.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0#7377777053f9c9c3c5eff4bcdfc965a56fa52e63"
-dependencies = [
- "docify",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "paste",
- "scale-info",
- "serde",
- "sp-core",
- "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
 ]
 
