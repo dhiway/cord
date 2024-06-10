@@ -95,7 +95,6 @@ sc-rpc = { workspace = true }
 
 # frame dependencies
 frame-benchmarking = { workspace = true }
-frame-metadata-hash-extension = { workspace = true, optional = true }
 frame-system = { workspace = true }
 frame-support = { workspace = true }
 frame-system-rpc-runtime-api = { workspace = true }
@@ -171,7 +170,6 @@ clap_complete = { workspace = true, optional = true }
 cord-node-inspect = { workspace = true, optional = true }
 frame-benchmarking-cli = { workspace = true, optional = true }
 substrate-build-script-utils = { workspace = true, optional = true }
-sc-cli = { workspace = true, optional = true }
 pallet-balances = { workspace = true }
 sc-storage-monitor = { workspace = true }
 
@@ -200,24 +198,9 @@ cli = [
 rocksdb = ["sc-service/rocksdb"]
 
 # Configure the native runtimes to use.
-braid-native = [
-	"bitvec",
-	"frame-metadata-hash-extension",
-	"cord-braid-runtime",
-	"cord-braid-runtime-constants",
-]
-loom-native = [
-	"bitvec",
-	"frame-metadata-hash-extension",
-	"cord-loom-runtime",
-	"cord-loom-runtime-constants",
-]
-weave-native = [
-	"bitvec",
-	"frame-metadata-hash-extension",
-	"cord-weave-runtime",
-	"cord-weave-runtime-constants",
-]
+braid-native = ["bitvec", "cord-braid-runtime", "cord-braid-runtime-constants"]
+loom-native = ["bitvec", "cord-loom-runtime", "cord-loom-runtime-constants"]
+weave-native = ["bitvec", "cord-weave-runtime", "cord-weave-runtime-constants"]
 
 runtime-benchmarks = [
 	"cord-loom-runtime/runtime-benchmarks",
