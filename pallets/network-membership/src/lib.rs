@@ -20,7 +20,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod weights;
-
 use codec::{Decode, Encode};
 use frame_support::dispatch::DispatchInfo;
 pub use pallet::*;
@@ -109,6 +108,9 @@ pub mod pallet {
 	pub(crate) type MembershipBlacklist<T: Config> =
 		StorageMap<_, Blake2_128Concat, CordAccountOf<T>, ()>;
 
+	#[pallet::storage]
+	pub type NetworkPermission<T> = StorageValue<_, bool, ValueQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -157,11 +159,14 @@ pub mod pallet {
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
 		pub members: BTreeMap<T::AccountId, bool>,
+		pub permissioned: bool,
 	}
 
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
+			NetworkPermission::<T>::put(&self.permissioned);
+
 			for (member, expires) in &self.members {
 				Pallet::<T>::add_member_and_schedule_expiry(member, *expires)
 			}
@@ -314,6 +319,12 @@ impl<T: Config> Pallet<T> {
 	pub fn is_member(member: &CordAccountOf<T>) -> bool {
 		Members::<T>::contains_key(member)
 	}
+
+	/// check if the network is permissioned
+	pub fn is_permissioned() -> bool {
+		NetworkPermission::<T>::get()
+	}
+
 	// Query the data that we know about the weight of a given `call`.
 	///
 	/// All dispatchables must be annotated with weight. This function always
@@ -339,6 +350,12 @@ impl<T: Config> sp_runtime::traits::IsMember<T::AccountId> for Pallet<T> {
 impl<T: Config> network_membership::traits::MembersCount for Pallet<T> {
 	fn members_count() -> u32 {
 		Members::<T>::count()
+	}
+}
+
+impl<T: Config> network_membership::traits::IsPermissioned for Pallet<T> {
+	fn is_permissioned() -> bool {
+		Self::is_permissioned()
 	}
 }
 

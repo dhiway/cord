@@ -25,3 +25,7 @@ pub trait IsMember<MemberId> {
 pub trait MembersCount {
 	fn members_count() -> u32;
 }
+
+pub trait IsPermissioned {
+	fn is_permissioned() -> bool;
+}
