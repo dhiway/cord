@@ -235,7 +235,6 @@ fn braid_sign_call(
 			(),
 			(),
 			(),
-			None,
 		),
 	);
 
@@ -290,7 +289,6 @@ fn loom_sign_call(
 			(),
 			(),
 			(),
-			None,
 		),
 	);
 
@@ -345,7 +343,6 @@ fn weave_sign_call(
 			(),
 			(),
 			(),
-			None,
 		),
 	);
 
