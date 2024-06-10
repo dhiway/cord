@@ -20,7 +20,7 @@ use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 use tempfile::tempdir;
 
-use cord_loom_cli_test_utils as common;
+use cord_cli_test_utils as common;
 
 #[tokio::test]
 #[cfg(unix)]
@@ -29,7 +29,7 @@ async fn purge_chain_works() {
 
 	common::run_node_for_a_while(base_path.path(), &["--dev", "--no-hardware-benchmarks"]).await;
 
-	let status = Command::new(cargo_bin("loom"))
+	let status = Command::new(cargo_bin("cord"))
 		.args(["purge-chain", "--dev", "-d"])
 		.arg(base_path.path())
 		.arg("-y")
@@ -38,6 +38,6 @@ async fn purge_chain_works() {
 	assert!(status.success());
 
 	// Make sure that the `dev` chain folder exists, but the `db` is deleted.
-	assert!(base_path.path().join("chains/dev/").exists());
-	assert!(!base_path.path().join("chains/dev/db/full").exists());
+	assert!(base_path.path().join("chains/loom-dev/").exists());
+	assert!(!base_path.path().join("chains/loom-dev/db/full").exists());
 }

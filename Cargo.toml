@@ -27,13 +27,13 @@ members = [
 	"runtimes/weave/",
 	"runtimes/weave/constants",
 	"utilities",
-	# "test-utils/braid",
-	# "test-utils/braid/cli",
-	# "test-utils/braid/client",
-	# "test-utils/braid/runtime",
-	# "test-utils/braid/runtime/client",
-	# "test-utils/braid/runtime/transaction-pool",
-	# "test-utils/braid/service",
+	"test-utils",
+	"test-utils/cli",
+	"test-utils/client",
+	"test-utils/runtime",
+	"test-utils/runtime/client",
+	"test-utils/runtime/transaction-pool",
+	"test-utils/service",
 
 ]
 default-members = ["node/cli"]
@@ -91,6 +91,7 @@ parity-db = { version = "0.4.12", default-features = false }
 env_logger = { version = "0.11", default-features = false }
 serial_test = { version = "2.0.0", default-features = false }
 environmental = { version = "1.1.4", default-features = false }
+trybuild = { version = "1.0.88", default-features = false }
 
 # local dependencies
 authority-membership = { path = "runtimes/common/authorities", default-features = false }
@@ -109,13 +110,13 @@ cord-node-service = { path = "node/service", default-features = false }
 cord-node-inspect = { path = "node/inspect", default-features = false }
 cord-node-rpc = { path = "node/rpc", default-features = false }
 cord-node-testing = { path = "node/testing", default-features = false }
-# cord-loom-test-utils = { path = "test-utils/loom", default-features = false }
-# cord-loom-service-test = { path = "test-utils/loom/service", default-features = false }
-# cord-loom-test-runtime = { path = "test-utils/loom/runtime", default-features = false }
-# cord-loom-test-client = { path = "test-utils/loom/client", default-features = false }
-# cord-loom-test-runtime-client = { path = "test-utils/loom/runtime/client", default-features = false }
-# cord-loom-test-runtime-transaction-pool = { path = "test-utils/loom/runtime/transaction-pool", default-features = false }
-# cord-loom-cli-test-utils = { path = "test-utils/loom/cli", default-features = false }
+cord-test-utils = { path = "test-utils", default-features = false }
+cord-service-test = { path = "test-utils/service", default-features = false }
+cord-test-runtime = { path = "test-utils/runtime", default-features = false }
+cord-test-client = { path = "test-utils/client", default-features = false }
+cord-test-runtime-client = { path = "test-utils/runtime/client", default-features = false }
+cord-test-runtime-transaction-pool = { path = "test-utils/runtime/transaction-pool", default-features = false }
+cord-cli-test-utils = { path = "test-utils/cli", default-features = false }
 cord-utilities = { path = "utilities", default-features = false }
 pallet-membership = { path = 'pallets/membership/', default-features = false }
 pallet-did = { path = 'pallets/did', default-features = false }

@@ -35,12 +35,12 @@ use sp_runtime::{
 };
 use sp_state_machine::TestExternalities as CoreTestExternalities;
 
-use cord_loom_node_cli::service::RuntimeExecutor;
-use cord_loom_node_testing::keyring::*;
 use cord_loom_runtime::{
 	Block, BuildStorage, CheckedExtrinsic, Header, Runtime, UncheckedExtrinsic,
 };
 use cord_loom_runtime_constants::currency::*;
+use cord_node_cli::service::RuntimeExecutor;
+use cord_node_testing::keyring::*;
 use cord_primitives::{BlockNumber, Hash};
 use sp_externalities::Externalities;
 pub const TEST_KEY_TYPE_ID: KeyTypeId = KeyTypeId(*b"test");
@@ -83,11 +83,11 @@ pub const TRANSACTION_VERSION: u32 = cord_loom_runtime::VERSION.transaction_vers
 pub type TestExternalities<H> = CoreTestExternalities<H>;
 
 pub fn sign(xt: CheckedExtrinsic) -> UncheckedExtrinsic {
-	cord_loom_node_testing::keyring::sign(xt, SPEC_VERSION, TRANSACTION_VERSION, GENESIS_HASH)
+	cord_node_testing::keyring::sign(xt, SPEC_VERSION, TRANSACTION_VERSION, GENESIS_HASH)
 }
 
 pub fn default_transfer_call() -> pallet_balances::Call<Runtime> {
-	pallet_balances::Call::<Runtime>::transfer_allow_death { dest: bob().into(), value: 69 * WAY }
+	pallet_balances::Call::<Runtime>::transfer_allow_death { dest: bob().into(), value: 69 * UNITS }
 }
 
 pub fn from_block_number(n: u32) -> Header {
@@ -119,7 +119,7 @@ pub fn executor_call(
 pub fn new_test_ext(code: &[u8]) -> TestExternalities<BlakeTwo256> {
 	TestExternalities::new_with_code(
 		code,
-		cord_loom_node_testing::genesis::config().build_storage().unwrap(),
+		cord_node_testing::genesis::config().build_storage().unwrap(),
 	)
 }
 

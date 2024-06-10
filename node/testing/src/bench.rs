@@ -37,7 +37,7 @@ use cord_loom_runtime::{
 	AccountId, BalancesCall, CheckedExtrinsic, MinimumPeriod, RuntimeCall, Signature, SystemCall,
 	UncheckedExtrinsic,
 };
-use cord_loom_runtime_constants::currency::WAY;
+use cord_loom_runtime_constants::currency::UNITS;
 use cord_primitives::Block;
 use futures::executor;
 use sc_block_builder::BlockBuilderBuilder;
@@ -69,8 +69,8 @@ pub struct BenchKeyring {
 
 #[derive(Clone)]
 enum BenchPair {
-	Sr25519(Box<sr25519::Pair>),
-	Ed25519(Box<ed25519::Pair>),
+	Sr25519(sr25519::Pair),
+	Ed25519(ed25519::Pair),
 }
 
 impl BenchPair {
@@ -311,7 +311,7 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 							dest: sp_runtime::MultiAddress::Id(receiver),
 							// Transfer so that ending balance would be 1 less than existential
 							// deposit so that we kill the sender account.
-							value: 100 * WAY - (cord_loom_runtime::ExistentialDeposit::get() - 1),
+							value: 100 * UNITS - (cord_loom_runtime::ExistentialDeposit::get() - 1),
 						})
 					},
 					BlockType::Noop => {
@@ -532,12 +532,12 @@ impl BenchKeyring {
 					let pair =
 						sr25519::Pair::from_string(&seed, None).expect("failed to generate pair");
 					let account_id = AccountPublic::from(pair.public()).into_account();
-					(account_id, BenchPair::Sr25519(Box::new(pair)))
+					(account_id, BenchPair::Sr25519(pair))
 				},
 				KeyTypes::Ed25519 => {
 					let pair = ed25519::Pair::from_seed(&blake2_256(seed.as_bytes()));
 					let account_id = AccountPublic::from(pair.public()).into_account();
-					(account_id, BenchPair::Ed25519(Box::new(pair)))
+					(account_id, BenchPair::Ed25519(pair))
 				},
 			};
 			accounts.insert(account_id, pair);

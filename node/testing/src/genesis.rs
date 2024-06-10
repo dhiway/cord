@@ -20,8 +20,8 @@
 
 use crate::keyring::*;
 use cord_loom_runtime::{
-	AccountId, AuthorityMembershipConfig, BalancesConfig, IndicesConfig, NetworkMembershipConfig,
-	NodeAuthorizationConfig, RuntimeGenesisConfig, SessionConfig,
+	AccountId, AssetsConfig, AuthorityMembershipConfig, BalancesConfig, IndicesConfig,
+	NetworkMembershipConfig, NodeAuthorizationConfig, RuntimeGenesisConfig, SessionConfig,
 };
 use cord_loom_runtime_constants::currency::*;
 use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
@@ -36,15 +36,15 @@ pub fn config() -> RuntimeGenesisConfig {
 /// endowed accounts.
 pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
 	let mut endowed = vec![
-		(alice(), 111 * WAY),
-		(bob(), 100 * WAY),
-		(charlie(), 100_000_000 * WAY),
-		(dave(), 111 * WAY),
-		(eve(), 101 * WAY),
-		(ferdie(), 100 * WAY),
+		(alice(), 111 * UNITS),
+		(bob(), 100 * UNITS),
+		(charlie(), 100_000_000 * UNITS),
+		(dave(), 111 * UNITS),
+		(eve(), 101 * UNITS),
+		(ferdie(), 100 * UNITS),
 	];
 
-	endowed.extend(extra_endowed.into_iter().map(|endowed| (endowed, 100 * WAY)));
+	endowed.extend(extra_endowed.into_iter().map(|endowed| (endowed, 100 * UNITS)));
 
 	let members = vec![alice(), bob(), charlie()];
 
@@ -77,6 +77,7 @@ pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
 				),
 			],
 		},
+		assets: AssetsConfig { assets: vec![(9, alice(), true, 1)], ..Default::default() },
 		..Default::default()
 	}
 }

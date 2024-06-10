@@ -1,5 +1,5 @@
 [package]
-name = "cord-loom-node-testing"
+name = "cord-node-testing"
 description = "Test utilities for CORD Loom node."
 version = "0.9.3-dev"
 authors.workspace = true
@@ -42,7 +42,7 @@ sp-std = { workspace = true }
 sp-keyring = { workspace = true }
 sp-runtime = { workspace = true }
 sp-timestamp = { workspace = true }
-# cord-loom-test-client = { workspace = true }
+cord-test-client = { workspace = true }
 pallet-network-membership = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 cord-loom-runtime-constants = { workspace = true }

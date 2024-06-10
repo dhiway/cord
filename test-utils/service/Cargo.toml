@@ -1,5 +1,5 @@
 [package]
-name = "cord-loom-service-test"
+name = "cord-service-test"
 version = "0.9.3-dev"
 authors.workspace = true
 edition.workspace = true
@@ -43,5 +43,5 @@ sp-storage = { workspace = true }
 sp-tracing = { workspace = true }
 sp-trie = { workspace = true }
 sp-io = { workspace = true }
-cord-loom-test-runtime = { workspace = true }
-cord-loom-test-runtime-client = { workspace = true }
+cord-test-runtime = { workspace = true }
+cord-test-runtime-client = { workspace = true }

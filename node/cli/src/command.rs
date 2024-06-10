@@ -102,7 +102,7 @@ impl SubstrateCli for Cli {
 				"braid_dev_node" => Box::new(chain_spec::braid_development_config()?),
 				"loom_dev_node" => Box::new(chain_spec::loom_development_config()?),
 				"weave_dev_node" => Box::new(chain_spec::weave_development_config()?),
-				_ => Box::new(chain_spec::braid_development_config()?),
+				_ => Box::new(chain_spec::loom_development_config()?),
 			},
 			"braid-dev" => Box::new(chain_spec::braid_development_config()?),
 			#[cfg(feature = "loom-native")]

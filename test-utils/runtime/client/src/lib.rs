@@ -24,14 +24,14 @@ pub mod trait_tests;
 
 mod block_builder_ext;
 
-pub use cord_loom_test_client::*;
-pub use cord_loom_test_runtime as runtime;
+pub use cord_test_client::*;
+pub use cord_test_runtime as runtime;
 pub use sc_consensus::LongestChain;
 use std::sync::Arc;
 
 pub use self::block_builder_ext::BlockBuilderExt;
 
-use cord_loom_test_runtime::genesismap::GenesisStorageBuilder;
+use cord_test_runtime::genesismap::GenesisStorageBuilder;
 use sp_core::storage::ChildInfo;
 
 /// A prelude to import in tests.
@@ -50,11 +50,11 @@ pub mod prelude {
 }
 
 /// Test client database backend.
-pub type Backend = cord_loom_test_client::Backend<cord_loom_test_runtime::Block>;
+pub type Backend = cord_test_client::Backend<cord_test_runtime::Block>;
 
 /// Test client executor.
 pub type ExecutorDispatch =
-	client::LocalCallExecutor<cord_loom_test_runtime::Block, Backend, WasmExecutor>;
+	client::LocalCallExecutor<cord_test_runtime::Block, Backend, WasmExecutor>;
 
 /// Parameters of test-client builder with test-runtime.
 #[derive(Default)]
@@ -87,19 +87,15 @@ impl GenesisInit for GenesisParameters {
 }
 
 /// A `TestClient` with `test-runtime` builder.
-pub type TestClientBuilder<E, B> = cord_loom_test_client::TestClientBuilder<
-	cord_loom_test_runtime::Block,
-	E,
-	B,
-	GenesisParameters,
->;
+pub type TestClientBuilder<E, B> =
+	cord_test_client::TestClientBuilder<cord_test_runtime::Block, E, B, GenesisParameters>;
 
 /// Test client type with `LocalExecutorDispatch` and generic Backend.
 pub type Client<B> = client::Client<
 	B,
-	client::LocalCallExecutor<cord_loom_test_runtime::Block, B, WasmExecutor>,
-	cord_loom_test_runtime::Block,
-	cord_loom_test_runtime::RuntimeApi,
+	client::LocalCallExecutor<cord_test_runtime::Block, B, WasmExecutor>,
+	cord_test_runtime::Block,
+	cord_test_runtime::RuntimeApi,
 >;
 
 /// A test client with default backend.
@@ -176,16 +172,16 @@ pub trait TestClientBuilderExt<B>: Sized {
 	/// Build the test client and longest chain selector.
 	fn build_with_longest_chain(
 		self,
-	) -> (Client<B>, sc_consensus::LongestChain<B, cord_loom_test_runtime::Block>);
+	) -> (Client<B>, sc_consensus::LongestChain<B, cord_test_runtime::Block>);
 
 	/// Build the test client and the backend.
 	fn build_with_backend(self) -> (Client<B>, Arc<B>);
 }
 
 impl<B> TestClientBuilderExt<B>
-	for TestClientBuilder<client::LocalCallExecutor<cord_loom_test_runtime::Block, B, WasmExecutor>, B>
+	for TestClientBuilder<client::LocalCallExecutor<cord_test_runtime::Block, B, WasmExecutor>, B>
 where
-	B: sc_client_api::backend::Backend<cord_loom_test_runtime::Block> + 'static,
+	B: sc_client_api::backend::Backend<cord_test_runtime::Block> + 'static,
 {
 	fn genesis_init_mut(&mut self) -> &mut GenesisParameters {
 		Self::genesis_init_mut(self)
@@ -193,7 +189,7 @@ where
 
 	fn build_with_longest_chain(
 		self,
-	) -> (Client<B>, sc_consensus::LongestChain<B, cord_loom_test_runtime::Block>) {
+	) -> (Client<B>, sc_consensus::LongestChain<B, cord_test_runtime::Block>) {
 		self.build_with_native_executor(None)
 	}
 

@@ -21,7 +21,7 @@
 //! See [`TestApi`] for more information.
 
 use codec::Encode;
-use cord_braid_test_runtime_client::{
+use cord_test_runtime_client::{
 	runtime::{
 		AccountId, Block, BlockNumber, Extrinsic, ExtrinsicBuilder, Hash, Header, Nonce, Transfer,
 		TransferData,

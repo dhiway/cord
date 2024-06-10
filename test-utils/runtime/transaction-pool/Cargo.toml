@@ -1,5 +1,5 @@
 [package]
-name = "cord-loom-test-runtime-transaction-pool"
+name = "cord-test-runtime-transaction-pool"
 version = "0.9.3-dev"
 authors.workspace = true
 edition.workspace = true
@@ -23,4 +23,4 @@ sc-transaction-pool = { workspace = true }
 sc-transaction-pool-api = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-runtime = { workspace = true }
-cord-loom-test-runtime-client = { workspace = true }
+cord-test-runtime-client = { workspace = true }

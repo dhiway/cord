@@ -731,6 +731,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
 name = "base64ct"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1458,6 +1464,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "cord-cli-test-utils"
+version = "0.9.3-dev"
+dependencies = [
+ "assert_cmd",
+ "cord-node-cli",
+ "cord-primitives",
+ "futures",
+ "nix 0.26.4",
+ "regex",
+ "sc-cli",
+ "sc-service",
+ "sp-rpc",
+ "substrate-rpc-client",
+ "tokio",
+]
+
+[[package]]
 name = "cord-identifier"
 version = "0.9.3"
 dependencies = [
@@ -1473,41 +1496,6 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
-]
-
-[[package]]
-name = "cord-loom-node-testing"
-version = "0.9.3-dev"
-dependencies = [
- "cord-loom-runtime",
- "cord-loom-runtime-constants",
- "cord-node-cli",
- "cord-primitives",
- "frame-system",
- "fs_extra",
- "futures",
- "log",
- "pallet-network-membership",
- "pallet-transaction-payment",
- "parity-scale-codec",
- "sc-block-builder",
- "sc-client-api",
- "sc-client-db",
- "sc-consensus",
- "sc-executor",
- "sc-service",
- "sp-api",
- "sp-block-builder",
- "sp-blockchain",
- "sp-consensus",
- "sp-core",
- "sp-inherents",
- "sp-io",
- "sp-keyring",
- "sp-runtime",
- "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
- "sp-timestamp",
- "tempfile",
 ]
 
 [[package]]
@@ -1621,12 +1609,15 @@ dependencies = [
  "clap_complete",
  "cord-braid-runtime",
  "cord-braid-runtime-constants",
+ "cord-cli-test-utils",
  "cord-loom-runtime",
  "cord-loom-runtime-constants",
  "cord-node-inspect",
  "cord-node-rpc",
+ "cord-node-testing",
  "cord-primitives",
  "cord-runtime-common",
+ "cord-service-test",
  "cord-weave-runtime",
  "cord-weave-runtime-constants",
  "env_logger 0.11.3",
@@ -1773,6 +1764,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "cord-node-testing"
+version = "0.9.3-dev"
+dependencies = [
+ "cord-loom-runtime",
+ "cord-loom-runtime-constants",
+ "cord-node-cli",
+ "cord-primitives",
+ "cord-test-client",
+ "frame-system",
+ "fs_extra",
+ "futures",
+ "log",
+ "pallet-network-membership",
+ "pallet-transaction-payment",
+ "parity-scale-codec",
+ "sc-block-builder",
+ "sc-client-api",
+ "sc-client-db",
+ "sc-consensus",
+ "sc-executor",
+ "sc-service",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-inherents",
+ "sp-io",
+ "sp-keyring",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
+ "sp-timestamp",
+ "tempfile",
+]
+
+[[package]]
 name = "cord-primitives"
 version = "0.9.3"
 dependencies = [
@@ -1809,6 +1836,168 @@ dependencies = [
  "sp-staking",
  "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
  "static_assertions",
+]
+
+[[package]]
+name = "cord-service-test"
+version = "0.9.3-dev"
+dependencies = [
+ "array-bytes",
+ "async-channel",
+ "cord-test-runtime",
+ "cord-test-runtime-client",
+ "fdlimit",
+ "futures",
+ "log",
+ "parity-scale-codec",
+ "parking_lot 0.12.3",
+ "sc-block-builder",
+ "sc-client-api",
+ "sc-client-db",
+ "sc-consensus",
+ "sc-executor",
+ "sc-network",
+ "sc-network-sync",
+ "sc-service",
+ "sc-transaction-pool-api",
+ "sp-api",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-state-machine",
+ "sp-storage 19.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
+ "sp-tracing 16.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
+ "sp-trie",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "cord-test-client"
+version = "0.9.3-dev"
+dependencies = [
+ "array-bytes",
+ "async-trait",
+ "futures",
+ "parity-scale-codec",
+ "sc-client-api",
+ "sc-client-db",
+ "sc-consensus",
+ "sc-executor",
+ "sc-offchain",
+ "sc-service",
+ "serde",
+ "serde_json",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-keyring",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-state-machine",
+ "tokio",
+]
+
+[[package]]
+name = "cord-test-runtime"
+version = "0.9.3-dev"
+dependencies = [
+ "array-bytes",
+ "cord-test-runtime-client",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "frame-system-rpc-runtime-api",
+ "futures",
+ "hex-literal",
+ "json-patch",
+ "log",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "sc-block-builder",
+ "sc-chain-spec",
+ "sc-executor",
+ "sc-executor-common",
+ "sc-service",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-application-crypto",
+ "sp-block-builder",
+ "sp-consensus",
+ "sp-consensus-aura",
+ "sp-consensus-babe",
+ "sp-consensus-grandpa",
+ "sp-core",
+ "sp-crypto-hashing",
+ "sp-externalities 0.25.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-io",
+ "sp-keyring",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-state-machine",
+ "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
+ "sp-tracing 16.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
+ "sp-transaction-pool",
+ "sp-trie",
+ "sp-version",
+ "substrate-wasm-builder",
+ "trie-db",
+]
+
+[[package]]
+name = "cord-test-runtime-client"
+version = "0.9.3-dev"
+dependencies = [
+ "cord-test-client",
+ "cord-test-runtime",
+ "futures",
+ "sc-block-builder",
+ "sc-client-api",
+ "sc-consensus",
+ "sp-api",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-runtime",
+]
+
+[[package]]
+name = "cord-test-runtime-transaction-pool"
+version = "0.9.3-dev"
+dependencies = [
+ "cord-test-runtime-client",
+ "futures",
+ "parity-scale-codec",
+ "parking_lot 0.12.3",
+ "sc-transaction-pool",
+ "sc-transaction-pool-api",
+ "sp-blockchain",
+ "sp-runtime",
+ "thiserror",
+]
+
+[[package]]
+name = "cord-test-utils"
+version = "0.9.3-dev"
+dependencies = [
+ "assert_cmd",
+ "cord-primitives",
+ "futures",
+ "nix 0.26.4",
+ "regex",
+ "sc-service",
+ "substrate-rpc-client",
+ "tokio",
+ "trybuild",
 ]
 
 [[package]]
@@ -3872,9 +4061,9 @@ dependencies = [
  "hyper",
  "log",
  "rustls 0.21.12",
- "rustls-native-certs",
+ "rustls-native-certs 0.6.3",
  "tokio",
- "tokio-rustls",
+ "tokio-rustls 0.24.1",
 ]
 
 [[package]]
@@ -4177,6 +4366,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "json-patch"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec9ad60d674508f3ca8f380a928cfe7b096bc729c4e2dbfe3852bc45da3ab30b"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "jsonrpsee"
 version = "0.22.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4186,8 +4386,30 @@ dependencies = [
  "jsonrpsee-proc-macros",
  "jsonrpsee-server",
  "jsonrpsee-types",
+ "jsonrpsee-ws-client",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "jsonrpsee-client-transport"
+version = "0.22.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4978087a58c3ab02efc5b07c5e5e2803024536106fd5506f558db172c889b3aa"
+dependencies = [
+ "futures-util",
+ "http",
+ "jsonrpsee-core",
+ "pin-project",
+ "rustls-native-certs 0.7.0",
+ "rustls-pki-types",
+ "soketto",
+ "thiserror",
+ "tokio",
+ "tokio-rustls 0.25.0",
+ "tokio-util",
+ "tracing",
+ "url",
 ]
 
 [[package]]
@@ -4199,16 +4421,19 @@ dependencies = [
  "anyhow",
  "async-trait",
  "beef",
+ "futures-timer",
  "futures-util",
  "hyper",
  "jsonrpsee-types",
  "parking_lot 0.12.3",
+ "pin-project",
  "rand 0.8.5",
  "rustc-hash",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
+ "tokio-stream",
  "tracing",
 ]
 
@@ -4260,6 +4485,19 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "jsonrpsee-ws-client"
+version = "0.22.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58b9db2dfd5bb1194b0ce921504df9ceae210a345bc2f6c5a61432089bbab070"
+dependencies = [
+ "http",
+ "jsonrpsee-client-transport",
+ "jsonrpsee-core",
+ "jsonrpsee-types",
+ "url",
 ]
 
 [[package]]
@@ -7998,8 +8236,22 @@ checksum = "3f56a14d1f48b391359b22f731fd4bd7e43c97f3c50eee276f3aa09c94784d3e"
 dependencies = [
  "log",
  "ring 0.17.8",
- "rustls-webpki",
+ "rustls-webpki 0.101.7",
  "sct",
+]
+
+[[package]]
+name = "rustls"
+version = "0.22.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf4ef73721ac7bcd79b2b315da7779d8fc09718c6b3d2d1b2d94850eb8c18432"
+dependencies = [
+ "log",
+ "ring 0.17.8",
+ "rustls-pki-types",
+ "rustls-webpki 0.102.4",
+ "subtle 2.5.0",
+ "zeroize",
 ]
 
 [[package]]
@@ -8009,7 +8261,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9aace74cb666635c918e9c12bc0d348266037aa8eb599b5cba565709a8dff00"
 dependencies = [
  "openssl-probe",
- "rustls-pemfile",
+ "rustls-pemfile 1.0.4",
+ "schannel",
+ "security-framework",
+]
+
+[[package]]
+name = "rustls-native-certs"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f1fb85efa936c42c6d5fc28d2629bb51e4b2f4b8a5211e297d599cc5a093792"
+dependencies = [
+ "openssl-probe",
+ "rustls-pemfile 2.1.2",
+ "rustls-pki-types",
  "schannel",
  "security-framework",
 ]
@@ -8024,12 +8289,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustls-pemfile"
+version = "2.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29993a25686778eb88d4189742cd713c9bce943bc54251a33509dc63cbacf73d"
+dependencies = [
+ "base64 0.22.1",
+ "rustls-pki-types",
+]
+
+[[package]]
+name = "rustls-pki-types"
+version = "1.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "976295e77ce332211c0d24d92c0e83e50f5c5f046d11082cea19f3df13a3562d"
+
+[[package]]
 name = "rustls-webpki"
 version = "0.101.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b6275d1ee7a1cd780b64aca7726599a1dbc893b1e64144529e55c3c2f745765"
 dependencies = [
  "ring 0.17.8",
+ "untrusted 0.9.0",
+]
+
+[[package]]
+name = "rustls-webpki"
+version = "0.102.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff448f7e92e913c4b7d4c6d8e4540a1724b319b4152b8aef6d4cf8339712b33e"
+dependencies = [
+ "ring 0.17.8",
+ "rustls-pki-types",
  "untrusted 0.9.0",
 ]
 
@@ -9832,6 +10124,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp-consensus-aura"
+version = "0.32.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0#7377777053f9c9c3c5eff4bcdfc965a56fa52e63"
+dependencies = [
+ "async-trait",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-application-crypto",
+ "sp-consensus-slots",
+ "sp-inherents",
+ "sp-runtime",
+ "sp-timestamp",
+]
+
+[[package]]
 name = "sp-consensus-babe"
 version = "0.32.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0#7377777053f9c9c3c5eff4bcdfc965a56fa52e63"
@@ -9927,7 +10235,7 @@ dependencies = [
 [[package]]
 name = "sp-crypto-ec-utils"
 version = "0.10.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
+source = "git+https://github.com/paritytech/polkadot-sdk#cdb297b15ad9c1d952c0501afaf6b764e5fd147c"
 dependencies = [
  "ark-bls12-377",
  "ark-bls12-377-ext",
@@ -9989,7 +10297,7 @@ dependencies = [
 [[package]]
 name = "sp-debug-derive"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
+source = "git+https://github.com/paritytech/polkadot-sdk#cdb297b15ad9c1d952c0501afaf6b764e5fd147c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10009,7 +10317,7 @@ dependencies = [
 [[package]]
 name = "sp-externalities"
 version = "0.25.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
+source = "git+https://github.com/paritytech/polkadot-sdk#cdb297b15ad9c1d952c0501afaf6b764e5fd147c"
 dependencies = [
  "environmental",
  "parity-scale-codec",
@@ -10195,7 +10503,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface"
 version = "24.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
+source = "git+https://github.com/paritytech/polkadot-sdk#cdb297b15ad9c1d952c0501afaf6b764e5fd147c"
 dependencies = [
  "bytes",
  "impl-trait-for-tuples",
@@ -10227,7 +10535,7 @@ dependencies = [
 [[package]]
 name = "sp-runtime-interface-proc-macro"
 version = "17.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
+source = "git+https://github.com/paritytech/polkadot-sdk#cdb297b15ad9c1d952c0501afaf6b764e5fd147c"
 dependencies = [
  "Inflector",
  "expander",
@@ -10316,7 +10624,7 @@ source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0#737
 [[package]]
 name = "sp-std"
 version = "14.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
+source = "git+https://github.com/paritytech/polkadot-sdk#cdb297b15ad9c1d952c0501afaf6b764e5fd147c"
 
 [[package]]
 name = "sp-storage"
@@ -10333,7 +10641,7 @@ dependencies = [
 [[package]]
 name = "sp-storage"
 version = "19.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
+source = "git+https://github.com/paritytech/polkadot-sdk#cdb297b15ad9c1d952c0501afaf6b764e5fd147c"
 dependencies = [
  "impl-serde",
  "parity-scale-codec",
@@ -10368,7 +10676,7 @@ dependencies = [
 [[package]]
 name = "sp-tracing"
 version = "16.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
+source = "git+https://github.com/paritytech/polkadot-sdk#cdb297b15ad9c1d952c0501afaf6b764e5fd147c"
 dependencies = [
  "parity-scale-codec",
  "tracing",
@@ -10465,7 +10773,7 @@ dependencies = [
 [[package]]
 name = "sp-wasm-interface"
 version = "20.0.0"
-source = "git+https://github.com/paritytech/polkadot-sdk#07cfcf0b3c9df971c673162b9d16cb5c17fbe97d"
+source = "git+https://github.com/paritytech/polkadot-sdk#cdb297b15ad9c1d952c0501afaf6b764e5fd147c"
 dependencies = [
  "impl-trait-for-tuples",
  "log",
@@ -10759,6 +11067,19 @@ dependencies = [
  "prometheus",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "substrate-rpc-client"
+version = "0.33.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0#7377777053f9c9c3c5eff4bcdfc965a56fa52e63"
+dependencies = [
+ "async-trait",
+ "jsonrpsee",
+ "log",
+ "sc-rpc-api",
+ "serde",
+ "sp-runtime",
 ]
 
 [[package]]
@@ -11075,6 +11396,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-rustls"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "775e0c0f0adb3a2f22a00c4745d728b479985fc15ee7ca6a2608388c5569860f"
+dependencies = [
+ "rustls 0.22.4",
+ "rustls-pki-types",
+ "tokio",
+]
+
+[[package]]
 name = "tokio-stream"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11095,9 +11427,9 @@ dependencies = [
  "futures-util",
  "log",
  "rustls 0.21.12",
- "rustls-native-certs",
+ "rustls-native-certs 0.6.3",
  "tokio",
- "tokio-rustls",
+ "tokio-rustls 0.24.1",
  "tungstenite",
 ]
 

@@ -19,7 +19,7 @@
 #![cfg(unix)]
 
 use assert_cmd::cargo::cargo_bin;
-use cord_loom_cli_test_utils as common;
+use cord_cli_test_utils as common;
 use regex::Regex;
 use std::{fs, path::PathBuf, process::Command};
 use tempfile::{tempdir, TempDir};
@@ -96,7 +96,7 @@ impl<'a> ExportImportRevertExecutor<'a> {
 		};
 
 		// Running the command and capturing the output.
-		let output = Command::new(cargo_bin("loom"))
+		let output = Command::new(cargo_bin("cord"))
 			.args(&arguments)
 			.arg(base_path)
 			.arg(self.exported_blocks_file)
@@ -160,7 +160,7 @@ impl<'a> ExportImportRevertExecutor<'a> {
 
 	/// Runs the `revert` command.
 	fn run_revert(&self) {
-		let output = Command::new(cargo_bin("loom"))
+		let output = Command::new(cargo_bin("cord"))
 			.args(["revert", "--dev", "-d"])
 			.arg(self.base_path.path())
 			.output()
