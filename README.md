@@ -53,10 +53,6 @@ After starting your local CORD blockchain node, this tutorial will guide you on 
 
 By following these steps, you'll gain hands-on experience with the foundational elements of CORD, setting you on the path to becoming a proficient blockchain developer.
 
----
-
-This version provides better context and clarity for users getting started with the CORD framework.
-
 ### Prerequisites
 
 Before you begin, ensure you have the [necessary packages](/docs/installation.md) to locally run CORD.
