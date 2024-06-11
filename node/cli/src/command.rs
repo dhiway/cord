@@ -83,7 +83,7 @@ impl SubstrateCli for Cli {
 				.iter()
 				.cloned()
 				.find(|&chain| n.starts_with(chain))
-				.unwrap_or("braid")
+				.unwrap_or("weave")
 		} else {
 			match id {
 				"braid_dev_node" | "loom_dev_node" | "weave_dev_node" => "dev",
@@ -92,11 +92,11 @@ impl SubstrateCli for Cli {
 		};
 		Ok(match id {
 			#[cfg(feature = "braid-native")]
-			"braid" => Box::new(chain_spec::braid_development_config()?),
+			"braid" | "braid-local" => Box::new(chain_spec::braid_local_config()?),
 			#[cfg(feature = "loom-native")]
-			"loom" => Box::new(chain_spec::loom_development_config()?),
+			"loom" | "loom-local" => Box::new(chain_spec::loom_local_config()?),
 			#[cfg(feature = "weave-native")]
-			"weave" => Box::new(chain_spec::weave_development_config()?),
+			"weave" | "weave-local" => Box::new(chain_spec::weave_local_config()?),
 			#[cfg(feature = "braid-native")]
 			"dev" | "cord" => match incoming_id {
 				"braid_dev_node" => Box::new(chain_spec::braid_development_config()?),
@@ -109,14 +109,10 @@ impl SubstrateCli for Cli {
 			"loom-dev" => Box::new(chain_spec::loom_development_config()?),
 			#[cfg(feature = "weave-native")]
 			"weave-dev" => Box::new(chain_spec::weave_development_config()?),
-			#[cfg(feature = "braid-native")]
-			"braid-local" => Box::new(chain_spec::braid_local_config()?),
 			#[cfg(not(feature = "braid-native"))]
 			name if name.starts_with("braid-") && !name.ends_with(".json") => {
 				Err(format!("`{}` only supported with `braid-native` feature enabled.", name))?
 			},
-			#[cfg(feature = "loom-native")]
-			"loom-local" => Box::new(chain_spec::loom_local_config()?),
 			#[cfg(not(feature = "loom-native"))]
 			name if name.starts_with("loom-") && !name.ends_with(".json") => {
 				Err(format!("`{}` only supported with `loom-native` feature enabled.", name))?
