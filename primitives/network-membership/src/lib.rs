@@ -21,8 +21,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::type_complexity)]
 
-pub mod traits;
-
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
@@ -49,4 +47,14 @@ pub enum Event<AccountId = ()> {
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct MemberData<BlockNumber: Decode + Encode + TypeInfo> {
 	pub expire_on: BlockNumber,
+}
+
+/// Determine if a `MemberId` is a valid member.
+pub trait IsMember<MemberId> {
+	/// Is the given `MemberId` a valid member?
+	fn is_member(member_id: &MemberId) -> bool;
+}
+
+pub trait MembersCount {
+	fn members_count() -> u32;
 }

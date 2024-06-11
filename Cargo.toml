@@ -119,6 +119,7 @@ cord-test-runtime-transaction-pool = { path = "test-utils/runtime/transaction-po
 cord-cli-test-utils = { path = "test-utils/cli", default-features = false }
 cord-utilities = { path = "utilities", default-features = false }
 pallet-membership = { path = 'pallets/membership/', default-features = false }
+pallet-config = { path = 'pallets/config/', default-features = false }
 pallet-did = { path = 'pallets/did', default-features = false }
 pallet-did-name = { path = 'pallets/did-name', default-features = false }
 pallet-schema = { path = 'pallets/schema', default-features = false }

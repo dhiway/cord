@@ -19,7 +19,7 @@ use crate::{mock::*, Error, Event, MemberData, Members};
 
 use frame_support::{assert_err, assert_ok, error::BadOrigin};
 use frame_system::RawOrigin;
-use network_membership::traits::*;
+use network_membership::MembersCount;
 
 #[test]
 fn test_genesis_build() {
