@@ -22,37 +22,6 @@ The first step in becoming a blockchain developer with CORD is to learn how to c
 
 The CORD repository provides everything you need to set up a fully functional single-node blockchain that you can run locally in your development environment. This setup includes several predefined components—such as user accounts, assets, smart-contracts, governance, identifiers, statements, chain-space—allowing you to experiment with common tasks right away. You can build and run the node as-is to produce blocks and facilitate transactions immediately.
 
-### Steps to Get Started
-
-1. **Clone the Repository**:
-
-   ```sh
-   git clone https://github.com/dhiway/cord.git
-   cd cord
-   ```
-
-2. **Build CORD in Release Mode**:
-
-   ```sh
-   cargo build --release
-   ```
-
-   This will create the production binary in the `target/release` directory.
-
-3. **Run a Single Node Local CORD Network**:
-
-   Start the node in development mode:
-
-   ```bash
-   ./target/release/cord --dev
-   ```
-
-   The `--dev` option specifies that the node runs in development mode, using a predefined development chain specification. This ensures the node runs in a clean state every time it is restarted.
-
-After starting your local CORD blockchain node, this tutorial will guide you on how to use the CORD front-end to view blockchain activity and submit transactions.
-
-By following these steps, you'll gain hands-on experience with the foundational elements of CORD, setting you on the path to becoming a proficient blockchain developer.
-
 ### Prerequisites
 
 Before you begin, ensure you have the [necessary packages](/docs/installation.md) to locally run CORD.
