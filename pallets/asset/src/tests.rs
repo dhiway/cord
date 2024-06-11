@@ -138,8 +138,6 @@ fn asset_issue_should_succeed() {
 
 	let issue_entry_digest =
 		<Test as frame_system::Config>::Hashing::hash(&[&issue_entry.encode()[..]].concat()[..]);
-
-
 }
 
 #[test]
@@ -333,7 +331,7 @@ fn asset_vc_transfer_should_succeed() {
 			&creator.encode()[..],
 			&issue_entry_digest.encode()[..],
 		]
-			.concat()[..],
+		.concat()[..],
 	);
 
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
@@ -439,7 +437,7 @@ fn asset_vc_status_change_should_succeed() {
 			&creator.encode()[..],
 			&issue_entry_digest.encode()[..],
 		]
-			.concat()[..],
+		.concat()[..],
 	);
 
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
@@ -537,7 +535,7 @@ fn changing_status_of_asset_instance_with_same_status_should_fail() {
 			&creator.encode()[..],
 			&issue_entry_digest.encode()[..],
 		]
-			.concat()[..],
+		.concat()[..],
 	);
 
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
@@ -639,7 +637,7 @@ fn changing_status_of_vc_asset_instance_with_same_status_should_fail() {
 			&creator.encode()[..],
 			&issue_entry_digest.encode()[..],
 		]
-			.concat()[..],
+		.concat()[..],
 	);
 
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
@@ -855,7 +853,6 @@ fn changing_status_of_vc_asset_with_same_status_should_fail() {
 	});
 }
 
-
 #[test]
 fn asset_over_issuance_should_not_succeed() {
 	let creator = DID_00;
@@ -996,7 +993,7 @@ fn asset_vc_status_change_should_not_succeed() {
 			&creator.encode()[..],
 			&issue_entry_digest.encode()[..],
 		]
-			.concat()[..],
+		.concat()[..],
 	);
 
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
