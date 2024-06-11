@@ -40,7 +40,7 @@ pub mod pallet {
 
 	// Stores the network configuration type
 	#[pallet::storage]
-	pub type NetworkPermission<T> = StorageValue<_, bool, ValueQuery>;
+	pub type NetworkPermissioned<T> = StorageValue<_, bool, ValueQuery>;
 
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
@@ -52,7 +52,7 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			NetworkPermission::<T>::put(&self.permissioned);
+			NetworkPermissioned::<T>::put(&self.permissioned);
 		}
 	}
 }
@@ -60,7 +60,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
 	/// check if the network is permissioned
 	pub fn is_permissioned() -> bool {
-		NetworkPermission::<T>::get()
+		NetworkPermissioned::<T>::get()
 	}
 }
 

@@ -125,7 +125,7 @@ pub type SpaceAuthorizationOf<T> = SpaceAuthorization<SpaceIdOf, SpaceCreatorOf<
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	pub use cord_primitives::StatusOf;
+	pub use cord_primitives::{IsPermissioned, StatusOf};
 	use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
@@ -144,6 +144,7 @@ pub mod pallet {
 		type OriginSuccess: CallSources<AccountIdOf<Self>, SpaceCreatorOf<Self>>;
 		type SpaceCreatorId: Parameter + MaxEncodedLen;
 		type ChainSpaceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type NetworkPermission: IsPermissioned;
 
 		#[pallet::constant]
 		type MaxSpaceDelegates: Get<u32>;
@@ -261,6 +262,8 @@ pub mod pallet {
 		CapacityLimitExceeded,
 		/// The new capacity value is lower than the current usage
 		CapacityLessThanUsage,
+		/// Capacity value missing
+		CapacityValueMissing,
 		/// Type capacity overflow
 		TypeCapacityOverflow,
 	}
@@ -549,6 +552,8 @@ pub mod pallet {
 				},
 			);
 
+			let approved = !T::NetworkPermission::is_permissioned();
+
 			<Spaces<T>>::insert(
 				&identifier,
 				SpaceDetailsOf::<T> {
@@ -557,7 +562,7 @@ pub mod pallet {
 					txn_capacity: 0,
 					txn_reserve: 0,
 					txn_count: 0,
-					approved: false,
+					approved,
 					archive: false,
 					parent: identifier.clone(),
 				},
@@ -799,18 +804,18 @@ pub mod pallet {
 
 				// Ensure the new capacity is greater than the current usage
 				ensure!(
-					(parent_details.txn_capacity >=
-						(parent_details.txn_count +
-							parent_details.txn_reserve + new_txn_capacity -
-							space_details.txn_capacity)),
+					(parent_details.txn_capacity
+						>= (parent_details.txn_count
+							+ parent_details.txn_reserve + new_txn_capacity
+							- space_details.txn_capacity)),
 					Error::<T>::CapacityLessThanUsage
 				);
 
 				<Spaces<T>>::insert(
 					&space_details.parent.clone(),
 					SpaceDetailsOf::<T> {
-						txn_reserve: parent_details.txn_reserve - space_details.txn_capacity +
-							new_txn_capacity,
+						txn_reserve: parent_details.txn_reserve - space_details.txn_capacity
+							+ new_txn_capacity,
 						..parent_details.clone()
 					},
 				);
@@ -993,7 +998,7 @@ pub mod pallet {
 		pub fn subspace_create(
 			origin: OriginFor<T>,
 			space_code: SpaceCodeOf<T>,
-			count: u64,
+			count: Option<u64>,
 			space_id: SpaceIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
@@ -1003,11 +1008,21 @@ pub mod pallet {
 			ensure!(space_details.approved, Error::<T>::SpaceNotApproved);
 			ensure!(space_details.creator == creator.clone(), Error::<T>::UnauthorizedOperation);
 
+			// Check if the network is permissioned
+			let is_permissioned = T::NetworkPermission::is_permissioned();
+
+			// Ensure count is provided for permissioned networks, else set default for permissionless
+			let count = match count {
+				Some(value) => value,
+				None if is_permissioned => return Err(Error::<T>::CapacityValueMissing.into()),
+				None => 0,
+			};
+
 			// Ensure the new capacity is greater than the current usage
 			ensure!(
-				count <=
-					(space_details.txn_capacity -
-						(space_details.txn_count + space_details.txn_reserve)),
+				count
+					<= (space_details.txn_capacity
+						- (space_details.txn_count + space_details.txn_reserve)),
 				Error::<T>::CapacityLimitExceeded
 			);
 
@@ -1139,17 +1154,17 @@ pub mod pallet {
 
 			// Ensure the new capacity is greater than the current usage
 			ensure!(
-				(parent_details.txn_capacity >=
-					(parent_details.txn_count + parent_details.txn_reserve + new_txn_capacity -
-						space_details.txn_capacity)),
+				(parent_details.txn_capacity
+					>= (parent_details.txn_count + parent_details.txn_reserve + new_txn_capacity
+						- space_details.txn_capacity)),
 				Error::<T>::CapacityLessThanUsage
 			);
 
 			<Spaces<T>>::insert(
 				&space_details.parent.clone(),
 				SpaceDetailsOf::<T> {
-					txn_reserve: parent_details.txn_reserve - space_details.txn_capacity +
-						new_txn_capacity,
+					txn_reserve: parent_details.txn_reserve - space_details.txn_capacity
+						+ new_txn_capacity,
 					..parent_details.clone()
 				},
 			);
