@@ -979,7 +979,7 @@ fn asset_vc_status_change_should_not_succeed() {
 	let issue_entry = AssetIssuanceEntryOf::<Test> {
 		asset_id: asset_id.clone(),
 		asset_owner: creator.clone(),
-		asset_issuance_qty: Some(20),
+		asset_issuance_qty: Some(25),
 	};
 
 	let issue_entry_digest =
