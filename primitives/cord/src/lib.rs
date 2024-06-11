@@ -96,3 +96,8 @@ pub type NodeId = Vec<u8>;
 
 /// Authorship perios
 pub const AUTHORSHIP_PERIOD: u32 = 20;
+
+/// Trait definition for network type
+pub trait IsPermissioned {
+	fn is_permissioned() -> bool;
+}

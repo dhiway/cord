@@ -1395,6 +1395,7 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-chain-space",
+ "pallet-config",
  "pallet-contracts",
  "pallet-did",
  "pallet-did-name",
@@ -1524,6 +1525,7 @@ dependencies = [
  "pallet-balances",
  "pallet-chain-space",
  "pallet-collective",
+ "pallet-config",
  "pallet-contracts",
  "pallet-did",
  "pallet-did-name",
@@ -1634,6 +1636,7 @@ dependencies = [
  "pallet-assets-runtime-api",
  "pallet-babe",
  "pallet-balances",
+ "pallet-config",
  "pallet-contracts",
  "pallet-did-runtime-api",
  "pallet-im-online",
@@ -2041,6 +2044,7 @@ dependencies = [
  "pallet-balances",
  "pallet-chain-space",
  "pallet-collective",
+ "pallet-config",
  "pallet-contracts",
  "pallet-did",
  "pallet-did-name",
@@ -6222,6 +6226,23 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.12.0)",
+]
+
+[[package]]
+name = "pallet-config"
+version = "0.9.3"
+dependencies = [
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "maplit",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

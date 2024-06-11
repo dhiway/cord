@@ -29,8 +29,8 @@ pub mod currency {
 	pub const EXISTENTIAL_DEPOSIT: Balance = 100 * UNITS;
 
 	pub const WAY: Balance = 1_000_000_000_000;
-	pub const UNITS: Balance = WAY / 10;
-	pub const MILLIUNITS: Balance = UNITS / 100;
+	pub const UNITS: Balance = WAY;
+	pub const MILLIUNITS: Balance = UNITS / 1_000;
 	pub const NANOUNITS: Balance = MILLIUNITS / 100;
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {

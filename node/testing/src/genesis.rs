@@ -21,7 +21,8 @@
 use crate::keyring::*;
 use cord_loom_runtime::{
 	AccountId, AssetsConfig, AuthorityMembershipConfig, BalancesConfig, IndicesConfig,
-	NetworkMembershipConfig, NodeAuthorizationConfig, RuntimeGenesisConfig, SessionConfig,
+	NetworkMembershipConfig, NetworkParametersConfig, NodeAuthorizationConfig,
+	RuntimeGenesisConfig, SessionConfig,
 };
 use cord_loom_runtime_constants::currency::*;
 use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
@@ -51,6 +52,10 @@ pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
 	RuntimeGenesisConfig {
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig { balances: endowed },
+		network_parameters: NetworkParametersConfig {
+			permissioned: true,
+			_marker: Default::default(),
+		},
 		node_authorization: NodeAuthorizationConfig {
 			nodes: vec![
 				(b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(), alice()),

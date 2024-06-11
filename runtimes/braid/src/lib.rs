@@ -767,6 +767,7 @@ impl pallet_network_score::Config for Runtime {
 	type WeightInfo = weights::pallet_network_score::WeightInfo<Runtime>;
 }
 
+impl pallet_config::Config for Runtime {}
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
 pub enum AllowBalancesCall {}
@@ -945,6 +946,9 @@ mod runtime {
 
 	#[runtime::pallet_index(59)]
 	pub type Remark = pallet_remark;
+
+	#[runtime::pallet_index(60)]
+	pub type NetworkParameters = pallet_config;
 
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo;

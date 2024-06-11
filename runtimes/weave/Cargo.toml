@@ -41,6 +41,7 @@ pallet-membership = { workspace = true }
 pallet-did = { workspace = true }
 pallet-did-name = { workspace = true }
 pallet-schema = { workspace = true }
+pallet-config = { workspace = true }
 pallet-chain-space = { workspace = true }
 pallet-statement = { workspace = true }
 pallet-network-membership = { workspace = true }
@@ -143,6 +144,7 @@ std = [
 	"pallet-authority-discovery/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
+	"pallet-config/std",
 	"pallet-collective/std",
 	"pallet-contracts/std",
 	"pallet-grandpa/std",

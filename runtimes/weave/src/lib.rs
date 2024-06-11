@@ -409,8 +409,6 @@ impl pallet_assets::Config<Instance1> for Runtime {
 	type CallbackHandle = ();
 	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 	type RemoveItemsLimit = ConstU32<1000>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = ();
 }
 
 ord_parameter_types! {
@@ -910,6 +908,7 @@ impl pallet_network_score::Config for Runtime {
 	type WeightInfo = weights::pallet_network_score::WeightInfo<Runtime>;
 }
 
+impl pallet_config::Config for Runtime {}
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
 pub enum AllowBalancesCall {}
@@ -1106,6 +1105,9 @@ mod runtime {
 
 	#[runtime::pallet_index(59)]
 	pub type Remark = pallet_remark;
+
+	#[runtime::pallet_index(60)]
+	pub type NetworkParameters = pallet_config;
 
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo;

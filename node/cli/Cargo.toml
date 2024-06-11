@@ -122,6 +122,7 @@ cord-node-rpc = { workspace = true }
 cord-braid-runtime-constants = { workspace = true, optional = true }
 cord-loom-runtime-constants = { workspace = true, optional = true }
 cord-weave-runtime-constants = { workspace = true, optional = true }
+pallet-config = { workspace = true }
 pallet-network-membership = { workspace = true }
 
 # CLI-specific dependencies

@@ -283,12 +283,12 @@ fn braid_local_genesis(
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
+		"networkParameters": {"permissioned": true},
 		"nodeAuthorization":  {
 			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},
 		"networkMembership":  {
 			"members": member_accounts().into_iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
-		"permmissioned": true,
 		},
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
@@ -414,12 +414,12 @@ fn loom_local_genesis(
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
+		"networkParameters": {"permissioned": true},
 		"nodeAuthorization":  {
 			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},
 		"networkMembership":  {
 			"members": member_accounts().into_iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
-		"permmissioned": true,
 		},
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
@@ -557,12 +557,12 @@ fn weave_local_genesis(
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
+		"networkParameters": {"permissioned": true},
 		"nodeAuthorization":  {
 			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},
 		"networkMembership":  {
 			"members": member_accounts().into_iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
-		"permmissioned": true,
 		},
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
