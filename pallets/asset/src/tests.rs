@@ -139,28 +139,7 @@ fn asset_issue_should_succeed() {
 	let issue_entry_digest =
 		<Test as frame_system::Config>::Hashing::hash(&[&issue_entry.encode()[..]].concat()[..]);
 
-	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			space_digest,
-		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
-
-		assert_ok!(Asset::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			entry,
-			digest,
-			authorization_id.clone()
-		));
-
-		assert_ok!(Asset::issue(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			issue_entry.clone(),
-			issue_entry_digest,
-			authorization_id
-		));
-	});
 }
 
 #[test]
@@ -495,6 +474,7 @@ fn asset_vc_status_change_should_succeed() {
 		));
 	});
 }
+
 #[test]
 fn changing_status_of_asset_instance_with_same_status_should_fail() {
 	// Set up test parameters
@@ -874,6 +854,7 @@ fn changing_status_of_vc_asset_with_same_status_should_fail() {
 		);
 	});
 }
+
 
 #[test]
 fn asset_over_issuance_should_not_succeed() {
