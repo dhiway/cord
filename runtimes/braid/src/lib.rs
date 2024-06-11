@@ -728,6 +728,7 @@ impl pallet_chain_space::Config for Runtime {
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
 	type ChainSpaceOrigin = EnsureRoot<AccountId>;
+	type NetworkPermission = NetworkParameters;
 	type MaxSpaceDelegates = MaxSpaceDelegates;
 	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
 }
