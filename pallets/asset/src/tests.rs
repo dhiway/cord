@@ -956,7 +956,7 @@ fn asset_over_issuance_should_not_succeed() {
 }
 
 #[test]
-fn asset_vc_status_change_should_not_succeed() {
+fn asset_over_issuance_vc_status_change_should_not_succeed() {
 	let creator = DID_00;
 	let author = ACCOUNT_00;
 
