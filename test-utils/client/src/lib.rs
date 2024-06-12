@@ -252,7 +252,8 @@ impl<Block: BlockT, D, Backend, G: GenesisInit>
 		client::LocalCallExecutor<Block, Backend, NativeElseWasmExecutor<D>>,
 		Backend,
 		G,
-	> where
+	>
+where
 	D: sc_executor::NativeExecutionDispatch,
 {
 	/// Build the test client with the given native executor.

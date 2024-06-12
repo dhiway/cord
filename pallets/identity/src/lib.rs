@@ -1137,8 +1137,8 @@ impl<T: Config> Pallet<T> {
 				(
 					valid &&
 						(cur_char.is_ascii_lowercase() ||
-							cur_char.is_ascii_digit() || cur_char == b'.') &&
-						!(last_char == Some(b'.') && cur_char == b'.'),
+							cur_char.is_ascii_digit() ||
+							cur_char == b'.') && !(last_char == Some(b'.') && cur_char == b'.'),
 					Some(cur_char),
 				)
 			})

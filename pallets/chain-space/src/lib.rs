@@ -801,8 +801,8 @@ pub mod pallet {
 				ensure!(
 					(parent_details.txn_capacity >=
 						(parent_details.txn_count +
-							parent_details.txn_reserve + new_txn_capacity -
-							space_details.txn_capacity)),
+							parent_details.txn_reserve +
+							new_txn_capacity - space_details.txn_capacity)),
 					Error::<T>::CapacityLessThanUsage
 				);
 

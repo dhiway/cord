@@ -210,7 +210,8 @@ impl<B> TestClientBuilderExt<B>
 			NativeElseWasmExecutor<LocalExecutorDispatch>,
 		>,
 		B,
-	> where
+	>
+where
 	B: sc_client_api::backend::Backend<cord_test_runtime::Block> + 'static,
 {
 	fn genesis_init_mut(&mut self) -> &mut GenesisParameters {
