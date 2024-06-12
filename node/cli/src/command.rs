@@ -86,7 +86,7 @@ impl SubstrateCli for Cli {
 				.unwrap_or("weave")
 		} else {
 			match id {
-				"braid_dev_node" | "loom_dev_node" | "weave_dev_node" => "dev",
+				"dev-node-braid" | "dev-node-loom" | "dev-node-weave" => "dev",
 				_ => id,
 			}
 		};
@@ -98,11 +98,11 @@ impl SubstrateCli for Cli {
 			#[cfg(feature = "weave-native")]
 			"weave" | "weave-local" => Box::new(chain_spec::weave_local_config()?),
 			#[cfg(feature = "braid-native")]
-			"dev" | "cord" => match incoming_id {
-				"braid_dev_node" => Box::new(chain_spec::braid_development_config()?),
-				"loom_dev_node" => Box::new(chain_spec::loom_development_config()?),
-				"weave_dev_node" => Box::new(chain_spec::weave_development_config()?),
-				_ => Box::new(chain_spec::loom_development_config()?),
+			"dev" => match incoming_id {
+				"dev-node-braid" => Box::new(chain_spec::braid_development_config()?),
+				"dev-node-loom" => Box::new(chain_spec::loom_development_config()?),
+				"dev-node-weave" => Box::new(chain_spec::weave_development_config()?),
+				"dev" | _ => Box::new(chain_spec::loom_development_config()?),
 			},
 			"braid-dev" => Box::new(chain_spec::braid_development_config()?),
 			#[cfg(feature = "loom-native")]
@@ -173,7 +173,7 @@ pub fn run() -> Result<()> {
 			})
 		},
 		Some(Subcommand::Braid { dev: _ }) => {
-			let id = "braid_dev_node";
+			let id = "dev-node-braid";
 			cli.run.shared_params.dev = true;
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|mut config| async move {
@@ -184,7 +184,7 @@ pub fn run() -> Result<()> {
 			})
 		},
 		Some(Subcommand::Loom { dev: _ }) => {
-			let id = "loom_dev_node";
+			let id = "dev-node-loom";
 			cli.run.shared_params.dev = true;
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|mut config| async move {
@@ -195,7 +195,7 @@ pub fn run() -> Result<()> {
 			})
 		},
 		Some(Subcommand::Weave { dev: _ }) => {
-			let id = "weave_dev_node";
+			let id = "dev-node-weave";
 			cli.run.shared_params.dev = true;
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|mut config| async move {
