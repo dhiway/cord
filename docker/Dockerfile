@@ -50,11 +50,10 @@ RUN set -x && \
     fi
 
 # Build
-ARG chain="cord"
 RUN set -x && \
     cat /root/dynenv && \
     . /root/dynenv && \
-    cargo build --locked $CARGO_OPTIONS $CARGO_PROFILE --target "$RUST_ARCH_TRIPLET" && \
+    cargo build --locked $CARGO_OPTIONS --profile $CARGO_PROFILE --target "$RUST_ARCH_TRIPLET" && \
     mkdir -p build/bin && \
     mv target/$RUST_ARCH_TRIPLET/$TARGET_FOLDER/cord build/bin/
 
