@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-chain-space'
-description = 'Manage Chain Spaces'
+description = 'Manage Chain Spaces.'
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -64,4 +64,10 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 ]
-try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime"]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"identifier/try-runtime",
+	"cord-utilities/try-runtime",
+	"sp-runtime/try-runtime"
+]

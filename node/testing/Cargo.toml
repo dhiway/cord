@@ -1,6 +1,6 @@
 [package]
 name = "cord-node-testing"
-description = "Test utilities for CORD Loom node."
+description = "Test utilities for CORD node."
 version = "0.9.3-dev"
 authors.workspace = true
 edition.workspace = true

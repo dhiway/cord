@@ -57,8 +57,8 @@ pub use sc_executor::NativeExecutionDispatch;
 use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
 pub use sc_service::{
 	config::{DatabaseSource, PrometheusConfig},
-	ChainSpec, Configuration, Error as ServiceError, PruningMode, Role, RuntimeGenesis,
-	TFullBackend, TFullCallExecutor, TFullClient, TaskManager, TransactionPoolOptions,
+	ChainSpec, Configuration, Error as ServiceError, PruningMode, Role, TFullBackend,
+	TFullCallExecutor, TFullClient, TaskManager, TransactionPoolOptions,
 };
 pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi};
 pub use sp_consensus::{Proposal, SelectChain};

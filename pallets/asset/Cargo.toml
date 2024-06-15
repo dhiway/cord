@@ -45,6 +45,7 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"cord-utilities/runtime-benchmarks",
+	"pallet-chain-space/runtime-benchmarks"
 ]
 std = [
 	"codec/std",
@@ -60,9 +61,13 @@ std = [
 	"sp-io/std",
 	"sp-std/std",
 	"pallet-chain-space/std",
+	"sp-keystore?/std"
 ]
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"cord-utilities/try-runtime",
+	"identifier/try-runtime",
+	"pallet-chain-space/try-runtime",
+	"sp-runtime/try-runtime"
 ]

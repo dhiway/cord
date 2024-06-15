@@ -1,5 +1,6 @@
 [package]
 name = "cord-loom-runtime-constants"
+description = "Loom runtime constants."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

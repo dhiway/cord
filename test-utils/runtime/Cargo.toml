@@ -111,6 +111,9 @@ std = [
 	"sp-version/std",
 	"substrate-wasm-builder",
 	"trie-db/std",
+	"futures/std",
+	"sp-crypto-hashing/std",
+	"sp-std/std"
 ]
 # Special feature to disable logging
 disable-logging = ["sp-api/disable-logging"]

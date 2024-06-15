@@ -57,5 +57,13 @@ std = [
 	"sp-runtime/std",
 	"sp-core/std",
 	"sp-std/std",
+	"cord-utilities/std",
+	"sp-io?/std",
+	"sp-keystore/std"
 ]
-try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime"]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"cord-utilities/try-runtime",
+	"sp-runtime/try-runtime"
+]

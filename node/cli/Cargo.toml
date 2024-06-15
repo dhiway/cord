@@ -1,5 +1,6 @@
 [package]
 name = 'cord-node-cli'
+description = "Generic CORD node implementation in Rust."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -215,6 +216,15 @@ runtime-benchmarks = [
 	"pallet-im-online/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"cord-braid-runtime?/runtime-benchmarks",
+	"cord-runtime-common/runtime-benchmarks",
+	"cord-weave-runtime?/runtime-benchmarks",
+	"pallet-asset-conversion/runtime-benchmarks",
+	"pallet-babe/runtime-benchmarks",
+	"pallet-config/runtime-benchmarks",
+	"pallet-contracts/runtime-benchmarks",
+	"pallet-network-membership/runtime-benchmarks",
+	"sc-client-db/runtime-benchmarks"
 ]
 # Enable features that allow the runtime to be tried and debugged.
 try-runtime = [
@@ -227,4 +237,12 @@ try-runtime = [
 	"pallet-transaction-payment/try-runtime",
 	"sp-runtime/try-runtime",
 	"cord-cli-test-utils/try-runtime",
+	"cord-braid-runtime?/try-runtime",
+	"cord-runtime-common/try-runtime",
+	"cord-weave-runtime?/try-runtime",
+	"pallet-asset-conversion/try-runtime",
+	"pallet-babe/try-runtime",
+	"pallet-config/try-runtime",
+	"pallet-contracts/try-runtime",
+	"pallet-network-membership/try-runtime"
 ]

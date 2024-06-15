@@ -1,5 +1,6 @@
 [package]
 name = 'cord-node-inspect'
+description = "CORD node block inspection tool."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
