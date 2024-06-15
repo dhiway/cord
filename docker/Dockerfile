@@ -84,7 +84,7 @@ LABEL description="CORD Blockchain Node"
 RUN useradd -m -d /data -u 1000 cord
 
 # Install
-COPY --from=builder /root/build/cord /usr/local/bin
+COPY --from=build /root/build/cord /usr/local/bin
 
 # unclutter and minimize the attack surface
 # check if executable works in this container
