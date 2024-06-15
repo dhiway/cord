@@ -66,10 +66,10 @@ LABEL description="Cord: a platform for digital trust."
 USER 1000:1000
 
 # Install
-COPY --from=builder /build/cord /cord
+COPY --from=builder /build/cord /usr/bin/cord
 
 # Configuration
 EXPOSE 30333 9933 9944 9615
 VOLUME ["/data"]
 
-ENTRYPOINT ["/cord"]
+ENTRYPOINT ["/usr/bin/cord"]
