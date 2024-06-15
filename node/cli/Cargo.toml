@@ -43,30 +43,30 @@ bitvec = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 # Substrate primitives
-sp-authority-discovery = { workspace = true }
+sp-authority-discovery = { features = ["std"], workspace = true }
 sp-consensus = { workspace = true }
-sp-consensus-babe = { workspace = true }
-sp-consensus-grandpa = { workspace = true }
-sp-inherents = { workspace = true }
-sp-api = { workspace = true }
-sp-block-builder = { workspace = true }
+sp-consensus-babe = { features = ["std"], workspace = true }
+sp-consensus-grandpa = { features = ["std"], workspace = true }
+sp-inherents = { features = ["std"], workspace = true }
+sp-api = { features = ["std"], workspace = true }
+sp-block-builder = { features = ["std"], workspace = true }
 sp-blockchain = { workspace = true }
-sp-core = { workspace = true }
-sp-io = { workspace = true }
-sp-keystore = { workspace = true }
-sp-offchain = { workspace = true }
-sp-runtime = { workspace = true }
-sp-session = { workspace = true }
-sp-storage = { workspace = true }
-sp-transaction-pool = { workspace = true }
-sp-timestamp = { workspace = true }
-sp-state-machine = { workspace = true }
-sp-weights = { workspace = true }
-sp-genesis-builder = { workspace = true }
-sp-version = { workspace = true }
-sp-transaction-storage-proof = { workspace = true }
-sp-keyring = { workspace = true }
-sp-std = { workspace = true }
+sp-core = { features = ["std"], workspace = true }
+sp-io = { features = ["std"], workspace = true }
+sp-keystore = { features = ["std"], workspace = true }
+sp-offchain = { features = ["std"], workspace = true }
+sp-runtime = { features = ["std"], workspace = true }
+sp-session = { features = ["std"], workspace = true }
+sp-storage = { features = ["std"], workspace = true }
+sp-transaction-pool = { features = ["std"], workspace = true }
+sp-timestamp = { features = ["std"], workspace = true }
+sp-state-machine = { features = ["std"], workspace = true }
+sp-weights = { features = ["std"], workspace = true }
+sp-genesis-builder = { features = ["std"], workspace = true }
+sp-version = { features = ["std"], workspace = true }
+sp-transaction-storage-proof = { features = ["std"], workspace = true }
+sp-keyring = { features = ["std"], workspace = true }
+sp-std = { features = ["std"], workspace = true }
 sp-maybe-compressed-blob = { workspace = true }
 
 # Substrate Client dependencies
@@ -96,10 +96,10 @@ sc-storage-monitor = { workspace = true }
 sc-rpc = { workspace = true }
 
 # frame dependencies
-frame-benchmarking = { workspace = true }
-frame-system = { workspace = true }
-frame-support = { workspace = true }
-frame-system-rpc-runtime-api = { workspace = true }
+frame-benchmarking = { features = ["std"], workspace = true }
+frame-system = { features = ["std"], workspace = true }
+frame-support = { features = ["std"], workspace = true }
+frame-system-rpc-runtime-api = { features = ["std"], workspace = true }
 pallet-babe = { features = ["std"], workspace = true }
 pallet-im-online = { features = ["std"], workspace = true }
 pallet-transaction-payment = { workspace = true }
@@ -116,15 +116,21 @@ cord-braid-runtime = { workspace = true, features = ["std"], optional = true }
 cord-loom-runtime = { workspace = true, features = ["std"], optional = true }
 cord-weave-runtime = { workspace = true, features = ["std"], optional = true }
 cord-runtime-common = { workspace = true }
-cord-primitives = { workspace = true }
-network-membership = { workspace = true }
+cord-primitives = { features = ["std"], workspace = true }
+network-membership = { features = ["std"], workspace = true }
 cord-node-inspect = { workspace = true }
 cord-node-rpc = { workspace = true }
-cord-braid-runtime-constants = { workspace = true, optional = true }
-cord-loom-runtime-constants = { workspace = true, optional = true }
-cord-weave-runtime-constants = { workspace = true, optional = true }
-pallet-config = { workspace = true }
-pallet-network-membership = { workspace = true }
+cord-braid-runtime-constants = { features = [
+	"std",
+], workspace = true, optional = true }
+cord-loom-runtime-constants = { features = [
+	"std",
+], workspace = true, optional = true }
+cord-weave-runtime-constants = { features = [
+	"std",
+], workspace = true, optional = true }
+pallet-config = { features = ["std"], workspace = true }
+pallet-network-membership = { features = ["std"], workspace = true }
 
 # CLI-specific dependencies
 sc-cli = { workspace = true, optional = true }
@@ -224,7 +230,7 @@ runtime-benchmarks = [
 	"pallet-config/runtime-benchmarks",
 	"pallet-contracts/runtime-benchmarks",
 	"pallet-network-membership/runtime-benchmarks",
-	"sc-client-db/runtime-benchmarks"
+	"sc-client-db/runtime-benchmarks",
 ]
 # Enable features that allow the runtime to be tried and debugged.
 try-runtime = [
@@ -244,5 +250,5 @@ try-runtime = [
 	"pallet-babe/try-runtime",
 	"pallet-config/try-runtime",
 	"pallet-contracts/try-runtime",
-	"pallet-network-membership/try-runtime"
+	"pallet-network-membership/try-runtime",
 ]
