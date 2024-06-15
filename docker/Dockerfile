@@ -1,10 +1,7 @@
-# Workaround for https://github.com/containers/buildah/issues/4742
-FROM debian:bullseye-slim as target
-
-LABEL maintainer="engineering@dhiway.com"
-
+# ------------------------------------------------------------------------------
 # Build Stage
-FROM --platform=$BUILDPLATFORM rust:1-bullseye as build
+# ------------------------------------------------------------------------------
+FROM --platform=$BUILDPLATFORM rust:1-bullseye as builder
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
 ARG CARGO_PROFILE=release
@@ -55,28 +52,23 @@ RUN set -x && \
     . /root/dynenv && \
     cargo build --locked $CARGO_OPTIONS --profile $CARGO_PROFILE --target "$RUST_ARCH_TRIPLET" && \
     mkdir -p build/bin && \
-    mv target/$RUST_ARCH_TRIPLET/$TARGET_FOLDER/cord build/bin/
+    mv target/$RUST_ARCH_TRIPLET/$CARGO_PROFILE/cord build/bin/
 
-#
+# ------------------------------------------------------------------------------
 # Final Stage
-#
-FROM debian:bullseye-slim
+# ------------------------------------------------------------------------------
+FROM gcr.io/distroless/base-nossl-debian12
 LABEL maintainer="engineering@dhiway.com"
 LABEL description="CORD Blockchain Node"
 
 # Create cord user
-RUN useradd -m -d /data -u 1000 cord
+USER 1000:1000
 
 # Install
-COPY --from=build /build/bin/cord /usr/local/bin
+COPY --from=builder /build/bin/cord /usr/local/bin
 
-# unclutter and minimize the attack surface
 # check if executable works in this container
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates && \
-    apt-get clean && rm -rf /var/lib/apt/lists/* && \
-    rm -rf /usr/bin /usr/sbin && \
-    /usr/local/bin/cord --version
+RUN /usr/local/bin/cord --version
 
 # Configuration
 EXPOSE 30333 9933 9944 9615
