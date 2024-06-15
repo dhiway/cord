@@ -7,7 +7,7 @@ LABEL maintainer="engineering@dhiway.com"
 FROM --platform=$BUILDPLATFORM rust:1-bullseye as build
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
-ARG PROFILE
+ARG BUILDPROFILE
 
 RUN echo "DEBIAN_ARCH_TRIPLET='$(dpkg-architecture -A${TARGETPLATFORM#linux/} -qDEB_TARGET_MULTIARCH)'" >>/root/dynenv
 RUN . /root/dynenv && \
@@ -59,7 +59,7 @@ ARG chain="cord"
 RUN set -x && \
     cat /root/dynenv && \
     . /root/dynenv && \
-    cargo build --locked $CARGO_OPTIONS $PROFILE --target "$RUST_ARCH_TRIPLET" && \
+    cargo build --locked $CARGO_OPTIONS $BUILDPROFILE --target "$RUST_ARCH_TRIPLET" && \
     mkdir -p build && \
     mv target/$RUST_ARCH_TRIPLET/$TARGET_FOLDER/cord build/ && \
 
