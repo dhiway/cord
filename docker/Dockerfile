@@ -58,7 +58,7 @@ RUN set -x && \
 # ------------------------------------------------------------------------------
 # Final Stage
 # ------------------------------------------------------------------------------
-FROM gcr.io/distroless/base-nossl-debian12 as runtime
+FROM gcr.io/distroless/cc-debian12 as runtime
 LABEL maintainer="engineering@dhiway.com"
 LABEL description="Cord: a platform for digital trust."
 
