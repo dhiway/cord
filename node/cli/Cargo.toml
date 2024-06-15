@@ -41,6 +41,9 @@ kvdb-rocksdb = { workspace = true, optional = true, default-features = true }
 parity-db = { workspace = true, optional = true }
 bitvec = { workspace = true, optional = true }
 thiserror = { workspace = true }
+tikv-jemallocator = { workspace = true, optional = true, features = [
+	"unprefixed_malloc_on_supported_platforms",
+] }
 
 # Substrate primitives
 sp-authority-discovery = { features = ["std"], workspace = true }
@@ -135,6 +138,11 @@ pallet-network-membership = { features = ["std"], workspace = true }
 # CLI-specific dependencies
 sc-cli = { workspace = true, optional = true }
 frame-benchmarking-cli = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tikv-jemallocator = { workspace = true, features = [
+	"unprefixed_malloc_on_supported_platforms",
+] }
 
 [dev-dependencies]
 env_logger = { workspace = true }
