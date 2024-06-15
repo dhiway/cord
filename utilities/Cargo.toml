@@ -48,5 +48,11 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"sp-weights/std",
+	"log/std",
+	"serde?/std"
 ]
-try-runtime = ["frame-support/try-runtime"]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"sp-runtime/try-runtime"
+]

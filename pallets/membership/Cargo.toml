@@ -1,6 +1,6 @@
 [package]
 name = "pallet-membership"
-description = "FRAME membership management pallet - modified to support CORD governance"
+description = "FRAME membership management pallet - modified to support CORD governance."
 authors = [
 	"Parity Technologies <admin@parity.io>",
 	"Dhiway Networks <info@dhiway.com>",
@@ -49,5 +49,11 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"pallet-network-membership/runtime-benchmarks"
 ]
-try-runtime = ["frame-support/try-runtime"]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-network-membership/try-runtime",
+	"sp-runtime/try-runtime"
+]

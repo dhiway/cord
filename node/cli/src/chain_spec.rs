@@ -72,11 +72,11 @@ pub struct Extensions {
 }
 
 // Generic chain spec, in case when we don't have the native runtime.
-pub type GenericChainSpec = sc_service::GenericChainSpec<(), Extensions>;
+pub type GenericChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The `ChainSpec` parameterized for the braid runtime.
 #[cfg(feature = "braid-native")]
-pub type BraidChainSpec = sc_service::GenericChainSpec<(), Extensions>;
+pub type BraidChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The `ChainSpec` parameterized for the braid runtime.
 // Dummy chain spec, but that is fine when we don't have the native runtime.
@@ -85,7 +85,7 @@ pub type BraidChainSpec = GenericChainSpec;
 
 /// The `ChainSpec` parameterized for the loom runtime.
 #[cfg(feature = "loom-native")]
-pub type LoomChainSpec = sc_service::GenericChainSpec<(), Extensions>;
+pub type LoomChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The `ChainSpec` parameterized for loom runtime.
 // Dummy chain spec, but that is fine when we don't have the native runtime.
@@ -94,7 +94,7 @@ pub type LoomChainSpec = GenericChainSpec;
 
 /// The `ChainSpec` parameterized for the weave runtime.
 #[cfg(feature = "weave-native")]
-pub type WeaveChainSpec = sc_service::GenericChainSpec<(), Extensions>;
+pub type WeaveChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The `ChainSpec` parameterized for the weave runtime.
 // Dummy chain spec, but that is fine when we don't have the native runtime.

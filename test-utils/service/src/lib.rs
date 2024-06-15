@@ -31,7 +31,7 @@ use sc_service::{
 	client::Client,
 	config::{BasePath, DatabaseSource, KeystoreConfig, RpcBatchRequestConfig},
 	BlocksPruning, ChainSpecExtension, Configuration, Error, GenericChainSpec, Role,
-	RuntimeGenesis, SpawnTaskHandle, TaskManager,
+	SpawnTaskHandle, TaskManager,
 };
 use sc_transaction_pool_api::TransactionPool;
 use sp_blockchain::HeaderBackend;
@@ -46,19 +46,19 @@ mod client;
 /// Maximum duration of single wait call.
 const MAX_WAIT_TIME: Duration = Duration::from_secs(60 * 3);
 
-struct TestNet<G, E, F, U> {
+struct TestNet<E, F, U> {
 	runtime: Runtime,
 	authority_nodes: Vec<(usize, F, U, MultiaddrWithPeerId)>,
 	full_nodes: Vec<(usize, F, U, MultiaddrWithPeerId)>,
-	chain_spec: GenericChainSpec<G, E>,
+	chain_spec: GenericChainSpec<E>,
 	base_port: u16,
 	nodes: usize,
 }
 
-impl<G, E, F, U> Drop for TestNet<G, E, F, U> {
+impl<E, F, U> Drop for TestNet<E, F, U> {
 	fn drop(&mut self) {
-		// Drop the nodes before dropping the runtime, as the runtime otherwise waits
-		// for all futures to be ended and we run into a dead lock.
+		// Drop the nodes before dropping the runtime, as the runtime otherwise waits for all
+		// futures to be ended and we run into a dead lock.
 		self.full_nodes.drain(..);
 		self.authority_nodes.drain(..);
 	}
@@ -71,7 +71,6 @@ pub trait TestNetNode: Clone + Future<Output = Result<(), Error>> + Send + 'stat
 	type RuntimeApi: Send + Sync;
 	type TransactionPool: TransactionPool<Block = Self::Block>;
 
-	#[allow(clippy::type_complexity)]
 	fn client(&self) -> Arc<Client<Self::Backend, Self::Executor, Self::Block, Self::RuntimeApi>>;
 	fn transaction_pool(&self) -> Arc<Self::TransactionPool>;
 	fn network(&self) -> Arc<dyn sc_network::service::traits::NetworkService>;
@@ -163,7 +162,7 @@ where
 	}
 }
 
-impl<G, E, F, U> TestNet<G, E, F, U>
+impl<E, F, U> TestNet<E, F, U>
 where
 	F: Clone + Send + 'static,
 	U: Clone + Send + 'static,
@@ -179,7 +178,7 @@ where
 				interval.tick().await;
 
 				if full_nodes.iter().all(|(id, service, _, _)| full_predicate(*id, service)) {
-					break;
+					break
 				}
 			}
 		};
@@ -194,12 +193,9 @@ where
 	}
 }
 
-fn node_config<
-	G: RuntimeGenesis + 'static,
-	E: ChainSpecExtension + Clone + 'static + Send + Sync,
->(
+fn node_config<E: ChainSpecExtension + Clone + 'static + Send + Sync>(
 	index: usize,
-	spec: &GenericChainSpec<G, E>,
+	spec: &GenericChainSpec<E>,
 	role: Role,
 	tokio_handle: tokio::runtime::Handle,
 	key_seed: Option<String>,
@@ -273,19 +269,18 @@ fn node_config<
 	}
 }
 
-impl<G, E, F, U> TestNet<G, E, F, U>
+impl<E, F, U> TestNet<E, F, U>
 where
 	F: TestNetNode,
 	E: ChainSpecExtension + Clone + 'static + Send + Sync,
-	G: RuntimeGenesis + 'static,
 {
 	fn new(
 		temp: &TempDir,
-		spec: GenericChainSpec<G, E>,
+		spec: GenericChainSpec<E>,
 		full: impl Iterator<Item = impl FnOnce(Configuration) -> Result<(F, U), Error>>,
 		authorities: impl Iterator<Item = (String, impl FnOnce(Configuration) -> Result<(F, U), Error>)>,
 		base_port: u16,
-	) -> TestNet<G, E, F, U> {
+	) -> TestNet<E, F, U> {
 		sp_tracing::try_init_simple();
 		fdlimit::raise_fd_limit().unwrap();
 		let runtime = Runtime::new().expect("Error creating tokio runtime");
@@ -366,10 +361,9 @@ fn tempdir_with_prefix(prefix: &str) -> TempDir {
 		.expect("Error creating test dir")
 }
 
-pub fn connectivity<G, E, Fb, F>(spec: GenericChainSpec<G, E>, full_builder: Fb)
+pub fn connectivity<E, Fb, F>(spec: GenericChainSpec<E>, full_builder: Fb)
 where
 	E: ChainSpecExtension + Clone + 'static + Send + Sync,
-	G: RuntimeGenesis + 'static,
 	Fb: Fn(Configuration) -> Result<F, Error>,
 	F: TestNetNode,
 {
@@ -443,8 +437,8 @@ where
 	}
 }
 
-pub fn sync<G, E, Fb, F, B, ExF, U>(
-	spec: GenericChainSpec<G, E>,
+pub fn sync<E, Fb, F, B, ExF, U>(
+	spec: GenericChainSpec<E>,
 	full_builder: Fb,
 	mut make_block_and_import: B,
 	mut extrinsic_factory: ExF,
@@ -455,13 +449,10 @@ pub fn sync<G, E, Fb, F, B, ExF, U>(
 	ExF: FnMut(&F, &U) -> <F::Block as BlockT>::Extrinsic,
 	U: Clone + Send + 'static,
 	E: ChainSpecExtension + Clone + 'static + Send + Sync,
-	G: RuntimeGenesis + 'static,
 {
 	const NUM_FULL_NODES: usize = 10;
 	const NUM_BLOCKS: usize = 512;
 	let temp = tempdir_with_prefix("substrate-sync-test");
-
-	#[allow(clippy::redundant_closure)]
 	let mut network = TestNet::new(
 		&temp,
 		spec,
@@ -516,15 +507,14 @@ pub fn sync<G, E, Fb, F, B, ExF, U>(
 	network.run_until_all_full(|_index, service| service.transaction_pool().ready().count() == 1);
 }
 
-pub fn consensus<G, E, Fb, F>(
-	spec: GenericChainSpec<G, E>,
+pub fn consensus<E, Fb, F>(
+	spec: GenericChainSpec<E>,
 	full_builder: Fb,
 	authorities: impl IntoIterator<Item = String>,
 ) where
 	Fb: Fn(Configuration) -> Result<F, Error>,
 	F: TestNetNode,
 	E: ChainSpecExtension + Clone + 'static + Send + Sync,
-	G: RuntimeGenesis + 'static,
 {
 	const NUM_FULL_NODES: usize = 10;
 	const NUM_BLOCKS: usize = 10; // 10 * 2 sec block production time = ~20 seconds

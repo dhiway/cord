@@ -88,6 +88,7 @@ impl pallet_chain_space::Config for Test {
 	type SpaceCreatorId = SubjectId;
 	type MaxSpaceDelegates = MaxSpaceDelegates;
 	type ChainSpaceOrigin = EnsureRoot<AccountId>;
+	type NetworkPermission = true;
 	type WeightInfo = ();
 }
 

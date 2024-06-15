@@ -47,10 +47,14 @@ std = [
 	"sp-std/std",
 	"sp-keystore/std",
 	"bs58/std",
+	"blake2-rfc/std",
+	"cord-utilities/std",
+	"sp-core?/std"
 ]
 
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"cord-utilities/try-runtime",
+	"sp-runtime/try-runtime"
 ]

@@ -59,12 +59,23 @@ std = [
 	"sp-runtime/std",
 	"sp-staking/std",
 	"sp-std/std",
+	"frame-support-test/std",
+	"libsecp256k1/std",
+	"pallet-babe/std",
+	"serde_json/std",
+	"sp-keyring/std",
+	"sp-keystore/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
+	"pallet-babe/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
+	"pallet-timestamp/runtime-benchmarks",
+	"pallet-treasury/runtime-benchmarks",
+	"sp-staking/runtime-benchmarks"
 ]
 try-runtime = [
 	"frame-support-test/try-runtime",
@@ -74,4 +85,7 @@ try-runtime = [
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"sp-runtime/try-runtime",
+	"pallet-authorship/try-runtime",
+	"pallet-babe/try-runtime",
+	"pallet-treasury/try-runtime"
 ]

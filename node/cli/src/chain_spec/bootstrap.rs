@@ -58,7 +58,7 @@ impl ChainParams {
 }
 
 /// Specialized `ChainSpec`.
-pub type CordChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
+pub type CordChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 fn session_keys(
 	babe: BabeId,

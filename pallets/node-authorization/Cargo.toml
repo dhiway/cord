@@ -1,6 +1,6 @@
 [package]
 name = "pallet-node-authorization"
-description = "FRAME pallet for node authorization"
+description = "FRAME pallet for node authorization."
 authors = [
 	"Parity Technologies <admin@parity.io>",
 	'Dhiway Networks <info@dhiway.com>',
@@ -46,4 +46,8 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 ]
-try-runtime = ["frame-support/try-runtime"]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"sp-runtime/try-runtime"
+]

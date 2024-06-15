@@ -1,5 +1,6 @@
 [package]
 name = 'authority-membership'
+description = "Authority manager implementation."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -52,6 +53,8 @@ std = [
 	'pallet-session/std',
 	'pallet-offences/std',
 	'log/std',
+	"serde/std",
+	"sp-io/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -61,7 +64,14 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"sp-staking/runtime-benchmarks",
 	"sp-staking/runtime-benchmarks",
-
+	"pallet-network-membership/runtime-benchmarks"
 ]
 
-try-runtime = ['frame-support/try-runtime']
+try-runtime = [
+	'frame-support/try-runtime',
+	"frame-system/try-runtime",
+	"pallet-network-membership/try-runtime",
+	"pallet-offences/try-runtime",
+	"pallet-session/try-runtime",
+	"sp-runtime/try-runtime"
+]

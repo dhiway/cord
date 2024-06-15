@@ -1,5 +1,6 @@
 [package]
 name = 'cord-node-rpc'
+description = "CORD node RPC methods."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

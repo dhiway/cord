@@ -1,5 +1,6 @@
 [package]
 name = 'cord-loom-runtime'
+description = "Loom runtime implementation."
 version.workspace = true
 authors.workspace = true
 build = 'build.rs'
@@ -192,6 +193,9 @@ std = [
 	"sp-storage/std",
 	"cord-loom-runtime-constants/std",
 	"substrate-wasm-builder",
+	"frame-try-runtime?/std",
+	"primitive-types/std",
+	"sp-io/std"
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -227,6 +231,12 @@ runtime-benchmarks = [
 	"hex-literal",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-network-score/runtime-benchmarks",
+	"authority-membership/runtime-benchmarks",
+	"cord-runtime-common/runtime-benchmarks",
+	"pallet-asset-conversion/runtime-benchmarks",
+	"pallet-assets/runtime-benchmarks",
+	"pallet-config/runtime-benchmarks",
+	"pallet-treasury/runtime-benchmarks"
 ]
 
 try-runtime = [
@@ -272,6 +282,9 @@ try-runtime = [
 	"cord-runtime-common/try-runtime",
 	"authority-membership/try-runtime",
 	"identifier/try-runtime",
+	"frame-try-runtime/try-runtime",
+	"pallet-config/try-runtime",
+	"sp-runtime/try-runtime"
 ]
 
 
