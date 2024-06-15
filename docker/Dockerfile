@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# Build Stage -current
+# Build Stage
 # ------------------------------------------------------------------------------
 FROM --platform=$BUILDPLATFORM rust:1-bullseye as builder
 ARG BUILDPLATFORM
@@ -51,23 +51,20 @@ RUN set -x && \
   . /root/dynenv && \
   cargo build --locked $CARGO_OPTIONS --profile $CARGO_PROFILE --target "$RUST_ARCH_TRIPLET" && \
   mkdir -p build/bin && \
-  mv target/$RUST_ARCH_TRIPLET/$CARGO_PROFILE/cord /build/bin/
+  mv target/$RUST_ARCH_TRIPLET/$CARGO_PROFILE/cord /build/
 
 # ------------------------------------------------------------------------------
 # Final Stage
 # ------------------------------------------------------------------------------
 FROM gcr.io/distroless/base-nossl-debian12 as runtime
 LABEL maintainer="engineering@dhiway.com"
-LABEL description="CORD Blockchain Node"
+LABEL description="Cord: a platform for digital trust."
 
 # Create cord user
 USER 1000:1000
 
 # Install
-COPY --from=builder /build/bin/cord /usr/local/bin
-
-# check if executable works in this container
-RUN /usr/local/bin/cord --version
+COPY --from=builder /build/cord /usr/local/bin
 
 # Configuration
 EXPOSE 30333 9933 9944 9615

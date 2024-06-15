@@ -13,7 +13,7 @@ jobs:
     env:
       REGISTRY: docker.io
       USERNAME: dhiway
-      IMAGE_NAME: ${{ github.event.repository.name }}-multiarch-test
+      IMAGE_NAME: ${{ github.event.repository.name }}
       COMMIT_SHA: ${{ github.sha }}
 
     steps:
@@ -37,6 +37,7 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/release*" ]]; then
             echo "BUILD_PROFILE=production" >> $GITHUB_ENV
+            echo "LATEST_TAG=true" >> $GITHUB_ENV
           else
             echo "BUILD_PROFILE=release" >> $GITHUB_ENV
           fi
@@ -50,14 +51,21 @@ jobs:
             --build-arg BUILDPROFILE=${{ env.BUILD_PROFILE }} \
             --tag ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:$DOCKER_BRANCH \
             --tag ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.COMMIT_SHA }} \
-            --tag ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:latest \
             --file docker/Dockerfile \
             --push \
             .
 
-          - name: Verify Image Tags
-          run: |
-            echo "Docker Image Tags:"
-            echo " - ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:$DOCKER_BRANCH"
-            echo " - ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.COMMIT_SHA }}"
-            echo " - ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:latest"
+          if [[ "${{ env.LATEST_TAG }}" == "true" ]]; then
+            docker buildx imagetools create \
+              --tag ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.RELEASE_IMAGE_NAME }}:latest \
+              ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.RELEASE_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          fi
+
+        - name: Verify Image Tags
+        run: |
+          echo "Docker Image Tags:"
+          echo " - ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:$DOCKER_BRANCH"
+          echo " - ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.COMMIT_SHA }}"
+          if [[ "${{ env.LATEST_TAG }}" == "true" ]]; then
+            echo " - ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.RELEASE_IMAGE_NAME }}:latest"
+          fi
