@@ -1,5 +1,5 @@
 # Workaround for https://github.com/containers/buildah/issues/4742
-FROM rust:1-bullseye as target
+FROM debian:bullseye-slim as target
 
 LABEL maintainer="engineering@dhiway.com"
 
@@ -7,7 +7,7 @@ LABEL maintainer="engineering@dhiway.com"
 FROM --platform=$BUILDPLATFORM rust:1-bullseye as build
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
-ARG BUILDPROFILE
+ARG CARGO_PROFILE=release
 
 RUN echo "DEBIAN_ARCH_TRIPLET='$(dpkg-architecture -A${TARGETPLATFORM#linux/} -qDEB_TARGET_MULTIARCH)'" >>/root/dynenv
 RUN . /root/dynenv && \
@@ -31,21 +31,16 @@ RUN apt-get update && \
 
 # Add support for cross-compilation
 RUN dpkg --add-architecture armhf && \
+    dpkg --add-architecture arm64 && \
     apt-get update && apt-get install -y \
     gcc-arm-linux-gnueabihf \
     g++-arm-linux-gnueabihf \
-    libssl-dev:arm-linux-gnueabihf
+    gcc-aarch64-linux-gnu \
+    g++-aarch64-linux-gnu \
+    libssl-dev:armhf \
+    libssl-dev:arm64
 
-# build cord
-ARG debug=0
-RUN if [ "$debug" = 0 ]; then \
-        echo "CARGO_OPTIONS=--release" >>/root/dynenv && \
-        echo "TARGET_FOLDER=release" >>/root/dynenv; \
-    else \
-        echo "TARGET_FOLDER=debug" >>/root/dynenv; \
-    fi
-
-# Configure cross-build environment if need be
+# Configure cross-build environment
 RUN set -x && \
     if [ "$TARGETPLATFORM" != "$BUILDPLATFORM" ]; then \
         . /root/dynenv && \
@@ -59,19 +54,9 @@ ARG chain="cord"
 RUN set -x && \
     cat /root/dynenv && \
     . /root/dynenv && \
-    cargo build --locked $CARGO_OPTIONS $BUILDPROFILE --target "$RUST_ARCH_TRIPLET" && \
-    mkdir -p build && \
-    mv target/$RUST_ARCH_TRIPLET/$TARGET_FOLDER/cord build/ && \
-
-# Conditional installation of cross-compilation tools
-RUN if [ "$target" = "aarch64-unknown-linux-gnu" ]; then \
-  apt-get install -y \
-    gcc-aarch64-linux-gnu \
-    binutils-aarch64-linux-gnu \
-    g++-aarch64-linux-gnu && \
-  echo "export CC=aarch64-linux-gnu-gcc" >> /build/dynenv && \
-  echo "export CXX=aarch64-linux-gnu-g++" >> /build/dynenv; \
-  fi
+    cargo build --locked $CARGO_OPTIONS $CARGO_PROFILE --target "$RUST_ARCH_TRIPLET" && \
+    mkdir -p build/bin && \
+    mv target/$RUST_ARCH_TRIPLET/$TARGET_FOLDER/cord build/bin/
 
 #
 # Final Stage
@@ -84,7 +69,7 @@ LABEL description="CORD Blockchain Node"
 RUN useradd -m -d /data -u 1000 cord
 
 # Install
-COPY --from=build /root/build/cord /usr/local/bin
+COPY --from=build /build/bin/cord /usr/local/bin
 
 # unclutter and minimize the attack surface
 # check if executable works in this container
@@ -95,7 +80,6 @@ RUN apt-get update && \
     /usr/local/bin/cord --version
 
 # Configuration
-# p2p, telemetry, rpc, prometheus
 EXPOSE 30333 9933 9944 9615
 VOLUME ["/data"]
 USER cord
