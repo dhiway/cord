@@ -24,7 +24,9 @@ RUN apt-get update && \
   git \
   curl \
   libssl-dev \
-  build-essential
+  build-essential \
+  gcc-multilib \
+  g++-multilib
 
 # Add support for cross-compilation
 RUN dpkg --add-architecture armhf && \
