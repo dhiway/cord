@@ -61,7 +61,7 @@ jobs:
               ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.RELEASE_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           fi
 
-        - name: Verify Image Tags
+      - name: Verify Image Tags
         run: |
           echo "Docker Image Tags:"
           echo " - ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:$DOCKER_BRANCH"
