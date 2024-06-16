@@ -57,7 +57,8 @@ RUN set -x && \
   mv target/$RUST_ARCH_TRIPLET/$CARGO_PROFILE/cord /build/
 
 # Gather all linked libraries
-RUN ldd /build/cord | grep "=> /" | awk '{print $3}' | xargs -I '{}' cp -v '{}' /build/lib/
+RUN mkdir -p /build/lib && \
+  ldd /build/cord | grep "=> /" | awk '{print $3}' | xargs -I '{}' cp -v '{}' /build/lib/
 
 # ------------------------------------------------------------------------------
 # Final Stage

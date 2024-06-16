@@ -5,6 +5,8 @@ on:
     branches:
       - develop
       - release-v[0-9]+.[0-9]+.[0-9]+*
+  schedule:
+    - cron: '00 03 * * 0'  # Runs every Sunday at 3 AM UTC
 
 jobs:
   build_and_push:
