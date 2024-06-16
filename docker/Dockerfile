@@ -26,7 +26,8 @@ RUN apt-get update && \
   libssl-dev \
   build-essential \
   gcc-multilib \
-  g++-multilib
+  g++-multilib \
+  zlib1g-dev
 
 # Add support for cross-compilation
 RUN dpkg --add-architecture armhf && \
@@ -55,6 +56,9 @@ RUN set -x && \
   mkdir -p build/bin && \
   mv target/$RUST_ARCH_TRIPLET/$CARGO_PROFILE/cord /build/
 
+# Gather all linked libraries
+RUN ldd /build/cord | grep "=> /" | awk '{print $3}' | xargs -I '{}' cp -v '{}' /build/lib/
+
 # ------------------------------------------------------------------------------
 # Final Stage
 # ------------------------------------------------------------------------------
@@ -62,11 +66,15 @@ FROM gcr.io/distroless/cc-debian12 as runtime
 LABEL maintainer="engineering@dhiway.com"
 LABEL description="Cord: a platform for digital trust."
 
-# Create cord user
-USER 1000:1000
-
 # Install
 COPY --from=builder /build/cord /usr/bin/cord
+COPY --from=builder /build/lib /lib/
+
+# Verify that the binary works
+RUN ["/usr/bin/cord", "--version"]
+
+# Create cord user
+USER 1000:1000
 
 # Configuration
 EXPOSE 30333 9933 9944 9615
