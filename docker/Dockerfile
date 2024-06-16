@@ -5,6 +5,7 @@ FROM --platform=$BUILDPLATFORM rust:1-bullseye as builder
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
 ARG CARGO_PROFILE=release
+ARG RELEASE_BRANCH=false
 
 RUN echo "DEBIAN_ARCH_TRIPLET='$(dpkg-architecture -A${TARGETPLATFORM#linux/} -qDEB_TARGET_MULTIARCH)'" >> /root/dynenv
 RUN . /root/dynenv && \
@@ -52,8 +53,12 @@ RUN set -x && \
 # Build
 RUN set -x && \
   . /root/dynenv && \
-  cargo build --locked $CARGO_OPTIONS --profile $CARGO_PROFILE --target "$RUST_ARCH_TRIPLET" && \
-  mkdir -p build/bin && \
+  if [ "$RELEASE_BRANCH" = "true" ]; then \
+  cargo build --locked $CARGO_OPTIONS --profile $CARGO_PROFILE --features on-chain-release-build --target "$RUST_ARCH_TRIPLET"; \
+  else \
+  cargo build --locked $CARGO_OPTIONS --profile $CARGO_PROFILE --target "$RUST_ARCH_TRIPLET"; \
+  fi && \
+  mkdir -p /build/bin && \
   mv target/$RUST_ARCH_TRIPLET/$CARGO_PROFILE/cord /build/
 
 # Gather all linked libraries

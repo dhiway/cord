@@ -6,7 +6,7 @@ on:
       - develop
       - release-v[0-9]+.[0-9]+.[0-9]+*
   schedule:
-    - cron: '00 03 * * 0'  # Runs every Sunday at 3 AM UTC
+    - cron: "00 03 * * 0" # Runs every Sunday at 3 AM UTC
 
 jobs:
   build_and_push:
@@ -39,9 +39,11 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/release*" ]]; then
             echo "BUILD_PROFILE=production" >> $GITHUB_ENV
+            echo "RELEASE_BRANCH=true" >> $GITHUB_ENV
             echo "LATEST_TAG=true" >> $GITHUB_ENV
           else
             echo "BUILD_PROFILE=release" >> $GITHUB_ENV
+            echo "RELEASE_BRANCH=false" >> $GITHUB_ENV
           fi
 
       - name: Build and Push to Docker Hub
@@ -50,7 +52,8 @@ jobs:
           DOCKER_BRANCH=${{ github.ref_name }}
 
           docker buildx build --platform linux/amd64,linux/arm64 \
-            --build-arg BUILDPROFILE=${{ env.BUILD_PROFILE }} \
+            --build-arg CARGO_PROFILE=${{ env.BUILD_PROFILE }} \
+            --build-arg RELEASE_BRANCH=${{ env.RELEASE_BRANCH }} \
             --tag ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:$DOCKER_BRANCH \
             --tag ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.COMMIT_SHA }} \
             --file docker/Dockerfile \
@@ -63,7 +66,7 @@ jobs:
               ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.RELEASE_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           fi
 
-        - name: Verify Image Tags
+      - name: Verify Image Tags
         run: |
           echo "Docker Image Tags:"
           echo " - ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:$DOCKER_BRANCH"
