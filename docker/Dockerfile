@@ -24,7 +24,10 @@ RUN apt-get update && \
   git \
   curl \
   libssl-dev \
-  build-essential
+  build-essential \
+  gcc-multilib \
+  g++-multilib \
+  zlib1g-dev
 
 # Add support for cross-compilation
 RUN dpkg --add-architecture armhf && \
@@ -49,25 +52,33 @@ RUN set -x && \
 # Build
 RUN set -x && \
   . /root/dynenv && \
-  cargo build --locked $CARGO_OPTIONS --profile $CARGO_PROFILE --target "$RUST_ARCH_TRIPLET" && \
-  mkdir -p build/bin && \
+  cargo build --locked $CARGO_OPTIONS --profile $CARGO_PROFILE --target "$RUST_ARCH_TRIPLET"; \
+  mkdir -p /build/bin && \
   mv target/$RUST_ARCH_TRIPLET/$CARGO_PROFILE/cord /build/
+
+# Gather all linked libraries
+RUN mkdir -p /build/lib && \
+  ldd /build/cord | grep "=> /" | awk '{print $3}' | xargs -I '{}' cp -v '{}' /build/lib/
 
 # ------------------------------------------------------------------------------
 # Final Stage
 # ------------------------------------------------------------------------------
-FROM gcr.io/distroless/base-nossl-debian12 as runtime
+FROM gcr.io/distroless/cc-debian12 as runtime
 LABEL maintainer="engineering@dhiway.com"
 LABEL description="Cord: a platform for digital trust."
 
+# Install
+COPY --from=builder /build/cord /usr/bin/cord
+COPY --from=builder /build/lib /lib/
+
+# Verify that the binary works
+RUN ["/usr/bin/cord", "--version"]
+
 # Create cord user
 USER 1000:1000
-
-# Install
-COPY --from=builder /build/cord /usr/local/bin
 
 # Configuration
 EXPOSE 30333 9933 9944 9615
 VOLUME ["/data"]
 
-ENTRYPOINT ["/usr/local/bin/cord"]
+ENTRYPOINT ["/usr/bin/cord"]

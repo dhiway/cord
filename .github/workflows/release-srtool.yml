@@ -20,7 +20,7 @@ on:
         value: ${{ jobs.find-runtimes.outputs.runtime }}
 
   schedule:
-    - cron: "00 02 * * 1" # 2AM weekly on monday
+    - cron: "00 02 * * 0" # Runs every Sunday at 2 AM UTC
 
   workflow_dispatch:
 
