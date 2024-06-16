@@ -193,14 +193,14 @@ sc-storage-monitor = { workspace = true }
 [features]
 default = [
 	"cli",
-	"rocksdb",
+	"db",
 	"full-node",
 	"braid-native",
 	"loom-native",
 	"weave-native",
 ]
 
-full-node = ["kvdb-rocksdb", "parity-db"]
+full-node = ["parity-db"]
 
 cli = [
 	"cord-node-inspect",
@@ -212,7 +212,12 @@ cli = [
 	"substrate-build-script-utils",
 ]
 
-rocksdb = ["sc-service/rocksdb"]
+db = [
+	"sc-service/rocksdb",
+	"sc-client-db/rocksdb",
+	"frame-benchmarking-cli/rocksdb",
+	"kvdb-rocksdb",
+]
 
 # Configure the native runtimes to use.
 braid-native = ["bitvec", "cord-braid-runtime", "cord-braid-runtime-constants"]
