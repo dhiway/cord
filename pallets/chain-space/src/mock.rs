@@ -19,6 +19,7 @@
 use crate as pallet_chain_space;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{derive_impl, parameter_types};
+use pallet_chain_space::IsPermissioned;
 
 use frame_system::EnsureRoot;
 use sp_runtime::{
@@ -65,6 +66,13 @@ parameter_types! {
 	pub const MaxSpaceDelegates: u32 = 5u32;
 }
 
+pub struct NetworkPermission;
+impl IsPermissioned for NetworkPermission {
+	fn is_permissioned() -> bool {
+		true
+	}
+}
+
 impl pallet_chain_space::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
@@ -72,6 +80,7 @@ impl pallet_chain_space::Config for Test {
 	type SpaceCreatorId = SubjectId;
 	type MaxSpaceDelegates = MaxSpaceDelegates;
 	type ChainSpaceOrigin = EnsureRoot<AccountId>;
+	type NetworkPermission = NetworkPermission;
 	type WeightInfo = ();
 }
 

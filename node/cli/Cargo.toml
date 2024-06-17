@@ -172,6 +172,8 @@ pallet-balances = { workspace = true }
 sp-application-crypto = { workspace = true }
 pallet-root-testing = { workspace = true }
 pallet-transaction-payment = { workspace = true }
+pallet-timestamp = { workspace = true }
+pallet-sudo = { workspace = true }
 sp-consensus-babe = { workspace = true }
 sp-externalities = { workspace = true }
 sp-keyring = { workspace = true }

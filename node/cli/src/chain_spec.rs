@@ -239,7 +239,7 @@ pub fn braid_development_config() -> Result<BraidChainSpec, String> {
 		Default::default(),
 	)
 	.with_name("Development")
-	.with_id("braid-dev-node")
+	.with_id("braid-dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(braid_development_config_genesis())
 	.with_telemetry_endpoints(
@@ -370,7 +370,7 @@ pub fn loom_development_config() -> Result<LoomChainSpec, String> {
 		Default::default(),
 	)
 	.with_name("Development")
-	.with_id("loom-dev-node")
+	.with_id("loom-dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(loom_development_config_genesis())
 	.with_telemetry_endpoints(
@@ -513,7 +513,7 @@ pub fn weave_development_config() -> Result<WeaveChainSpec, String> {
 		Default::default(),
 	)
 	.with_name("Development")
-	.with_id("weave-dev-node")
+	.with_id("weave-dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(weave_development_config_genesis())
 	.with_telemetry_endpoints(
