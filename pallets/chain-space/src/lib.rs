@@ -806,16 +806,16 @@ pub mod pallet {
 				ensure!(
 					(parent_details.txn_capacity >=
 						(parent_details.txn_count +
-							parent_details.txn_reserve +
-							new_txn_capacity - space_details.txn_capacity)),
+							parent_details.txn_reserve + new_txn_capacity -
+							space_details.txn_capacity)),
 					Error::<T>::CapacityLessThanUsage
 				);
 
 				<Spaces<T>>::insert(
 					&space_details.parent.clone(),
 					SpaceDetailsOf::<T> {
-						txn_reserve: parent_details.txn_reserve - space_details.txn_capacity
-							+ new_txn_capacity,
+						txn_reserve: parent_details.txn_reserve - space_details.txn_capacity +
+							new_txn_capacity,
 						..parent_details.clone()
 					},
 				);
@@ -1011,7 +1011,8 @@ pub mod pallet {
 			// Check if the network is permissioned
 			let is_permissioned = T::NetworkPermission::is_permissioned();
 
-			// Ensure count is provided for permissioned networks, else set default for permissionless
+			// Ensure count is provided for permissioned networks, else set default for
+			// permissionless
 			let count = match count {
 				Some(value) => value,
 				None if is_permissioned => return Err(Error::<T>::CapacityValueMissing.into()),
@@ -1020,9 +1021,9 @@ pub mod pallet {
 
 			// Ensure the new capacity is greater than the current usage
 			ensure!(
-				count
-					<= (space_details.txn_capacity
-						- (space_details.txn_count + space_details.txn_reserve)),
+				count <=
+					(space_details.txn_capacity -
+						(space_details.txn_count + space_details.txn_reserve)),
 				Error::<T>::CapacityLimitExceeded
 			);
 
@@ -1154,17 +1155,17 @@ pub mod pallet {
 
 			// Ensure the new capacity is greater than the current usage
 			ensure!(
-				(parent_details.txn_capacity
-					>= (parent_details.txn_count + parent_details.txn_reserve + new_txn_capacity
-						- space_details.txn_capacity)),
+				(parent_details.txn_capacity >=
+					(parent_details.txn_count + parent_details.txn_reserve + new_txn_capacity -
+						space_details.txn_capacity)),
 				Error::<T>::CapacityLessThanUsage
 			);
 
 			<Spaces<T>>::insert(
 				&space_details.parent.clone(),
 				SpaceDetailsOf::<T> {
-					txn_reserve: parent_details.txn_reserve - space_details.txn_capacity
-						+ new_txn_capacity,
+					txn_reserve: parent_details.txn_reserve - space_details.txn_capacity +
+						new_txn_capacity,
 					..parent_details.clone()
 				},
 			);

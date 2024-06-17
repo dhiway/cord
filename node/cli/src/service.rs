@@ -475,9 +475,9 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 ) -> Result<NewFullBase, ServiceError> {
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks = if config.chain_spec.is_braid()
-		|| config.chain_spec.is_loom()
-		|| config.chain_spec.is_weave()
+	let backoff_authoring_blocks = if config.chain_spec.is_braid() ||
+		config.chain_spec.is_loom() ||
+		config.chain_spec.is_weave()
 	{
 		// the block authoring backoff is disabled on production networks
 		None

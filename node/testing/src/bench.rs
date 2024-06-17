@@ -300,12 +300,11 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 					signed_extra(0, cord_loom_runtime::ExistentialDeposit::get() + 1),
 				)),
 				function: match self.content.block_type {
-					BlockType::RandomTransfersKeepAlive => {
+					BlockType::RandomTransfersKeepAlive =>
 						RuntimeCall::Balances(BalancesCall::transfer_keep_alive {
 							dest: sp_runtime::MultiAddress::Id(receiver),
 							value: cord_loom_runtime::ExistentialDeposit::get() + 1,
-						})
-					},
+						}),
 					BlockType::RandomTransfersReaping => {
 						RuntimeCall::Balances(BalancesCall::transfer_allow_death {
 							dest: sp_runtime::MultiAddress::Id(receiver),
@@ -314,9 +313,8 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 							value: 100 * UNITS - (cord_loom_runtime::ExistentialDeposit::get() - 1),
 						})
 					},
-					BlockType::Noop => {
-						RuntimeCall::System(SystemCall::remark { remark: Vec::new() })
-					},
+					BlockType::Noop =>
+						RuntimeCall::System(SystemCall::remark { remark: Vec::new() }),
 				},
 			},
 			self.runtime_version.spec_version,

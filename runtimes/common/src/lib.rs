@@ -21,8 +21,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use cord_primitives::{AccountId, Balance, BlockNumber};
-use frame_support::parameter_types;
-use frame_support::traits::{Currency, OnUnbalanced};
+use frame_support::{
+	parameter_types,
+	traits::{Currency, OnUnbalanced},
+};
 
 use frame_system::limits;
 use sp_runtime::{FixedPointNumber, Perbill, Perquintill};
