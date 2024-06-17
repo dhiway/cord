@@ -96,6 +96,7 @@ pallet-session = { features = ["historical"], workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-treasury = { workspace = true }
+pallet-root-testing = { workspace = true }
 pallet-sudo = { workspace = true }
 frame-support = { features = ["experimental", "tuples-96"], workspace = true }
 frame-system = { workspace = true }
@@ -195,7 +196,7 @@ std = [
 	"substrate-wasm-builder",
 	"frame-try-runtime?/std",
 	"primitive-types/std",
-	"sp-io/std"
+	"sp-io/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -236,7 +237,7 @@ runtime-benchmarks = [
 	"pallet-asset-conversion/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-config/runtime-benchmarks",
-	"pallet-treasury/runtime-benchmarks"
+	"pallet-treasury/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -284,7 +285,7 @@ try-runtime = [
 	"identifier/try-runtime",
 	"frame-try-runtime/try-runtime",
 	"pallet-config/try-runtime",
-	"sp-runtime/try-runtime"
+	"sp-runtime/try-runtime",
 ]
 
 

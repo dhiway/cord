@@ -409,6 +409,8 @@ impl pallet_assets::Config<Instance1> for Runtime {
 	type CallbackHandle = ();
 	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 	type RemoveItemsLimit = ConstU32<1000>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 ord_parameter_types! {
@@ -434,6 +436,8 @@ impl pallet_assets::Config<Instance2> for Runtime {
 	type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 	type RemoveItemsLimit = ConstU32<1000>;
 	type CallbackHandle = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 parameter_types! {
@@ -475,6 +479,8 @@ impl pallet_asset_conversion::Config for Runtime {
 	type WeightInfo = pallet_asset_conversion::weights::SubstrateWeight<Runtime>;
 	type MaxSwapPathLength = ConstU32<4>;
 	type MintMinLiquidity = MintMinLiquidity;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 parameter_types! {
@@ -601,6 +607,8 @@ impl pallet_treasury::Config for Runtime {
 	type Paymaster = frame_support::traits::tokens::pay::PayFromAccount<Balances, TreasuryAccount>;
 	type BalanceConverter = frame_support::traits::tokens::UnityAssetBalanceConversion;
 	type PayoutPeriod = SpendPayoutPeriod;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 impl pallet_offences::Config for Runtime {
@@ -911,6 +919,9 @@ impl pallet_network_score::Config for Runtime {
 
 impl pallet_config::Config for Runtime {}
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
+impl pallet_root_testing::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+}
 
 pub enum AllowBalancesCall {}
 
@@ -1109,6 +1120,9 @@ mod runtime {
 
 	#[runtime::pallet_index(60)]
 	pub type NetworkParameters = pallet_config;
+
+	#[runtime::pallet_index(254)]
+	pub type RootTesting = pallet_root_testing;
 
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo;

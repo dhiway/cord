@@ -27,7 +27,6 @@ benchmarks! {
 		where_clause {
 			where
 			<T as Config>::EnsureOrigin: GenerateBenchmarkOrigin<T::RuntimeOrigin, T::AccountId, T::SpaceCreatorId>,
-			// T::ChainSpaceOrigin: EnsureOrigin<T::RuntimeOrigin>,
 		}
 		add_delegate {
 			let caller: T::AccountId = account("caller", 0, SEED);
@@ -415,7 +414,7 @@ benchmarks! {
 			 Pallet::<T>::create(origin.clone(), space_digest )?;
 			 Pallet::<T>::approve(RawOrigin::Root.into(), space_id.clone(), capacity )?;
 
-		 }: _<T::RuntimeOrigin>(origin, subspace_digest, 10u64, space_id.clone())
+		 }: _<T::RuntimeOrigin>(origin, subspace_digest, Some(10u64), space_id.clone())
 		 verify {
 			 assert_last_event::<T>(Event::Create { space: subspace_id, creator: did, authorization: authorization_id }.into());
 		 }
