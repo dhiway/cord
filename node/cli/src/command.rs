@@ -102,7 +102,8 @@ impl SubstrateCli for Cli {
 				"dev-node-braid" => Box::new(chain_spec::braid_development_config()?),
 				"dev-node-loom" => Box::new(chain_spec::loom_development_config()?),
 				"dev-node-weave" => Box::new(chain_spec::weave_development_config()?),
-				"dev" | _ => Box::new(chain_spec::loom_development_config()?),
+				"dev" => Box::new(chain_spec::loom_development_config()?),
+				_ => Box::new(chain_spec::loom_development_config()?),
 			},
 			"braid-dev" => Box::new(chain_spec::braid_development_config()?),
 			#[cfg(feature = "loom-native")]
@@ -110,11 +111,13 @@ impl SubstrateCli for Cli {
 			#[cfg(feature = "weave-native")]
 			"weave-dev" => Box::new(chain_spec::weave_development_config()?),
 			#[cfg(not(feature = "braid-native"))]
-			name if name.starts_with("braid-") && !name.ends_with(".json") =>
-				Err(format!("`{}` only supported with `braid-native` feature enabled.", name))?,
+			name if name.starts_with("braid-") && !name.ends_with(".json") => {
+				Err(format!("`{}` only supported with `braid-native` feature enabled.", name))?
+			},
 			#[cfg(not(feature = "loom-native"))]
-			name if name.starts_with("loom-") && !name.ends_with(".json") =>
-				Err(format!("`{}` only supported with `loom-native` feature enabled.", name))?,
+			name if name.starts_with("loom-") && !name.ends_with(".json") => {
+				Err(format!("`{}` only supported with `loom-native` feature enabled.", name))?
+			},
 			// "weave" => Box::new(chain_spec::weave_config()?),
 			path => {
 				let path = std::path::PathBuf::from(path);
