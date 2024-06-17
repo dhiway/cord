@@ -804,10 +804,10 @@ pub mod pallet {
 
 				// Ensure the new capacity is greater than the current usage
 				ensure!(
-					(parent_details.txn_capacity
-						>= (parent_details.txn_count
-							+ parent_details.txn_reserve + new_txn_capacity
-							- space_details.txn_capacity)),
+					(parent_details.txn_capacity >=
+						(parent_details.txn_count +
+							parent_details.txn_reserve +
+							new_txn_capacity - space_details.txn_capacity)),
 					Error::<T>::CapacityLessThanUsage
 				);
 
