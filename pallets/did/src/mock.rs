@@ -19,6 +19,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate as pallet_did;
+use pallet_chain_space::IsPermissioned;
 use codec::{Decode, Encode};
 use cord_utilities::mock::*;
 use frame_support::{derive_impl, parameter_types};
@@ -134,6 +135,14 @@ parameter_types! {
 	pub const MaxSpaceDelegates: u32 = 5u32;
 }
 
+/* For test/mock/bench env assume it is a permissioned chain */
+pub struct TestIsPermissioned;
+impl IsPermissioned for TestIsPermissioned {
+	fn is_permissioned() -> bool {
+		true
+	}
+}
+
 impl pallet_chain_space::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
@@ -141,6 +150,7 @@ impl pallet_chain_space::Config for Test {
 	type SpaceCreatorId = SubjectId;
 	type MaxSpaceDelegates = MaxSpaceDelegates;
 	type ChainSpaceOrigin = EnsureRoot<AccountId>;
+	type NetworkPermission = TestIsPermissioned;
 	type WeightInfo = ();
 }
 

@@ -18,6 +18,7 @@
 
 use super::*;
 use crate as pallet_score;
+use pallet_chain_space::IsPermissioned;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{derive_impl, parameter_types, traits::ConstU64};
 use frame_system::EnsureRoot;
@@ -83,6 +84,14 @@ parameter_types! {
 	pub const MaxSpaceDelegates: u32 = 5u32;
 }
 
+/* For test/mock/bench env assume it is a permissioned chain */
+pub struct TestIsPermissioned;
+impl IsPermissioned for TestIsPermissioned {
+	fn is_permissioned() -> bool {
+		true
+	}
+}
+
 impl pallet_chain_space::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
@@ -90,6 +99,7 @@ impl pallet_chain_space::Config for Test {
 	type SpaceCreatorId = SubjectId;
 	type MaxSpaceDelegates = MaxSpaceDelegates;
 	type ChainSpaceOrigin = EnsureRoot<AccountId>;
+	type NetworkPermission = TestIsPermissioned;
 	type WeightInfo = ();
 }
 
