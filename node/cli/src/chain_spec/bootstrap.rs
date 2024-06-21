@@ -18,8 +18,14 @@
 
 //! CORD custom chain configurations.
 
-pub use cord_loom_runtime::RuntimeGenesisConfig;
-use cord_loom_runtime::SessionKeys;
+pub use cord_braid_runtime::RuntimeGenesisConfig as BraidRuntimeGenesisConfig;
+pub use cord_loom_runtime::RuntimeGenesisConfig as LoomRuntimeGenesisConfig;
+pub use cord_weave_runtime::RuntimeGenesisConfig as WeaveRuntimeGenesisConfig;
+
+use cord_braid_runtime::SessionKeys as BraidSessionKeys;
+use cord_loom_runtime::SessionKeys as LoomSessionKeys;
+use cord_weave_runtime::SessionKeys as WeaveSessionKeys;
+
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_consensus_grandpa::AuthorityId as GrandpaId;
@@ -31,7 +37,9 @@ use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::crypto::UncheckedInto;
 use sp_std::collections::btree_map::BTreeMap;
 
-pub use cord_loom_runtime_constants::{currency::*, time::*};
+pub use cord_braid_runtime_constants::currency::UNITS as BRAID_UNITS;
+pub use cord_loom_runtime_constants::currency::UNITS as LOOM_UNITS;
+pub use cord_weave_runtime_constants::currency::WAY;
 
 use crate::chain_spec::{get_properties, Extensions, CORD_TELEMETRY_URL, DEFAULT_PROTOCOL_ID};
 
@@ -39,6 +47,7 @@ use crate::chain_spec::{get_properties, Extensions, CORD_TELEMETRY_URL, DEFAULT_
 pub struct ChainParams {
 	pub chain_name: String,
 	pub chain_type: ChainType,
+	pub runtime_type: String,
 	pub authorities: Vec<Vec<String>>,
 	pub well_known_nodes: Vec<Vec<String>>,
 	pub network_members: Vec<String>,
@@ -55,22 +64,47 @@ impl ChainParams {
 	pub fn chain_name(&self) -> &str {
 		&self.chain_name
 	}
+
+	pub fn runtime_type(&self) -> &str {
+		&self.runtime_type
+	}
 }
 
 /// Specialized `ChainSpec`.
 pub type CordChainSpec = sc_service::GenericChainSpec<Extensions>;
 
-fn session_keys(
+pub const BRAID_ENDOWMENT: Balance = 10_000_000 * BRAID_UNITS;
+pub const LOOOM_ENDOWMENT: Balance = 10_000_000 * LOOM_UNITS;
+pub const WEAVE_ENDOWMENT: Balance = 10_000_000 * WAY;
+
+fn braid_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
-) -> SessionKeys {
-	SessionKeys { babe, grandpa, im_online, authority_discovery }
+) -> BraidSessionKeys {
+	BraidSessionKeys { babe, grandpa, im_online, authority_discovery }
 }
 
-/// Custom config.
-fn cord_custom_config_genesis(config: ChainParams) -> serde_json::Value {
+fn loom_session_keys(
+	babe: BabeId,
+	grandpa: GrandpaId,
+	im_online: ImOnlineId,
+	authority_discovery: AuthorityDiscoveryId,
+) -> LoomSessionKeys {
+	LoomSessionKeys { babe, grandpa, im_online, authority_discovery }
+}
+
+fn weave_session_keys(
+	babe: BabeId,
+	grandpa: GrandpaId,
+	im_online: ImOnlineId,
+	authority_discovery: AuthorityDiscoveryId,
+) -> WeaveSessionKeys {
+	WeaveSessionKeys { babe, grandpa, im_online, authority_discovery }
+}
+
+fn cord_braid_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 	let initial_network_members: Vec<AccountId> =
 		config.network_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
 
@@ -99,61 +133,182 @@ fn cord_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 			})
 			.collect();
 
-	let initial_council_members: Vec<AccountId> =
-		config.council_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
-
-	let initial_tech_committee_members: Vec<AccountId> = config
-		.tech_committee_members
-		.iter()
-		.map(array_bytes::hex_n_into_unchecked)
-		.collect();
-
 	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
-	cord_custom_genesis(
+	cord_braid_custom_genesis(
 		initial_network_members,
 		initial_well_known_nodes,
 		initial_authorities,
-		initial_council_members,
-		initial_tech_committee_members,
 		initial_sudo_key,
 	)
 }
 
-pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> {
-	let properties = get_properties("WAY", 12, 29);
-	let chain_name = String::from(config.chain_name());
-	let chain_type = config.chain_type();
-	Ok(CordChainSpec::builder(
-		cord_loom_runtime::WASM_BINARY.ok_or("Cord development wasm not available")?,
-		Default::default(),
+fn cord_loom_custom_config_genesis(config: ChainParams) -> serde_json::Value {
+	let initial_network_members: Vec<AccountId> =
+		config.network_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
+
+	let initial_well_known_nodes: Vec<(NodeId, AccountId)> = config
+		.well_known_nodes
+		.iter()
+		.map(|node| {
+			let node_id = node[0].as_bytes().to_vec();
+			let account = array_bytes::hex_n_into_unchecked(&node[1]);
+			(node_id, account)
+		})
+		.collect();
+
+	let initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)> =
+		config
+			.authorities
+			.iter()
+			.map(|auth| {
+				(
+					array_bytes::hex_n_into_unchecked(&auth[0]),
+					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+					array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
+					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				)
+			})
+			.collect();
+
+	/* Disable initial council members, tech committee members for now */
+	// let initial_council_members: Vec<AccountId> =
+	// 	config.council_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
+
+	// let initial_tech_committee_members: Vec<AccountId> = config
+	// 	.tech_committee_members
+	// 	.iter()
+	// 	.map(array_bytes::hex_n_into_unchecked)
+	// 	.collect();
+
+	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
+	cord_loom_custom_genesis(
+		initial_network_members,
+		initial_well_known_nodes,
+		initial_authorities,
+		initial_sudo_key,
 	)
-	.with_name(&chain_name)
-	.with_id("crdcc")
-	.with_chain_type(chain_type)
-	.with_genesis_config_patch(cord_custom_config_genesis(config.clone()))
-	.with_telemetry_endpoints(
-		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
-			.expect("Cord telemetry url is valid; qed"),
-	)
-	.with_protocol_id(DEFAULT_PROTOCOL_ID)
-	.with_properties(properties)
-	.build())
 }
 
-fn cord_custom_genesis(
-	network_members: Vec<AccountId>,
-	well_known_nodes: Vec<(NodeId, AccountId)>,
+fn cord_weave_custom_config_genesis(config: ChainParams) -> serde_json::Value {
+	let initial_network_members: Vec<AccountId> =
+		config.network_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
+
+	let initial_well_known_nodes: Vec<(NodeId, AccountId)> = config
+		.well_known_nodes
+		.iter()
+		.map(|node| {
+			let node_id = node[0].as_bytes().to_vec();
+			let account = array_bytes::hex_n_into_unchecked(&node[1]);
+			(node_id, account)
+		})
+		.collect();
+
+	let initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)> =
+		config
+			.authorities
+			.iter()
+			.map(|auth| {
+				(
+					array_bytes::hex_n_into_unchecked(&auth[0]),
+					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+					array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
+					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				)
+			})
+			.collect();
+
+	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
+	cord_weave_custom_genesis(
+		initial_network_members,
+		initial_well_known_nodes,
+		initial_authorities,
+		initial_sudo_key,
+	)
+}
+pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> {
+	let chain_name = String::from(config.chain_name());
+	let chain_type = config.chain_type();
+	let runtime_type = config.runtime_type.to_lowercase();
+
+	if runtime_type == "braid" {
+		let properties = get_properties("UNITS", 12, 3893);
+		Ok(CordChainSpec::builder(
+			cord_braid_runtime::WASM_BINARY.ok_or("Braid wasm not available")?,
+			Default::default(),
+		)
+		.with_name(&chain_name)
+		.with_id("cord-braid-custom")
+		.with_chain_type(chain_type)
+		.with_genesis_config_patch(cord_braid_custom_config_genesis(config.clone()))
+		.with_telemetry_endpoints(
+			TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
+				.expect("Cord telemetry url is valid; qed"),
+		)
+		.with_protocol_id(DEFAULT_PROTOCOL_ID)
+		.with_properties(properties)
+		.build())
+	} else if runtime_type == "loom" {
+		let properties = get_properties("UNITS", 12, 4926);
+		Ok(CordChainSpec::builder(
+			cord_loom_runtime::WASM_BINARY.ok_or("Loom wasm not available")?,
+			Default::default(),
+		)
+		.with_name(&chain_name)
+		.with_id("cord-loom-custom")
+		.with_chain_type(chain_type)
+		.with_genesis_config_patch(cord_loom_custom_config_genesis(config.clone()))
+		.with_telemetry_endpoints(
+			TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
+				.expect("Cord telemetry url is valid; qed"),
+		)
+		.with_protocol_id(DEFAULT_PROTOCOL_ID)
+		.with_properties(properties)
+		.build())
+	} else if runtime_type == "weave" {
+		let properties = get_properties("WAY", 12, 29);
+		Ok(CordChainSpec::builder(
+			cord_weave_runtime::WASM_BINARY.ok_or("Weave development wasm not available")?,
+			Default::default(),
+		)
+		.with_name(&chain_name)
+		.with_id("cord-weave-custom")
+		.with_chain_type(chain_type)
+		.with_genesis_config_patch(cord_weave_custom_config_genesis(config.clone()))
+		.with_telemetry_endpoints(
+			TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
+				.expect("Cord telemetry url is valid; qed"),
+		)
+		.with_protocol_id(DEFAULT_PROTOCOL_ID)
+		.with_properties(properties)
+		.build())
+	} else {
+		Err(format!(
+			"Invalid runtime_type: {}. Supported types are 'braid', 'loom', & 'weave'.",
+			runtime_type
+		))
+	}
+}
+
+fn cord_braid_custom_genesis(
+	initial_network_members: Vec<AccountId>,
+	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
-	council_members: Vec<AccountId>,
-	tech_committee_members: Vec<AccountId>,
-	sudo_key: AccountId,
+	root_key: AccountId,
 ) -> serde_json::Value {
+	const ENDOWMENT: Balance = 10_000_000 * BRAID_UNITS;
+
 	serde_json::json!( {
+		"balances": {
+			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
+		},
+		"networkParameters": {"permissioned": true},
 		"nodeAuthorization":  {
-			"nodes": well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
+			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},
 		"networkMembership":  {
-			"members": network_members.iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
+			"members": initial_network_members.iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
 		},
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
@@ -168,7 +323,56 @@ fn cord_custom_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						session_keys(
+						braid_session_keys(
+							x.1.clone(),
+							x.2.clone(),
+							x.3.clone(),
+							x.4.clone(),
+						),
+					)
+				})
+				.collect::<Vec<_>>(),
+		},
+		"babe":  {
+			"epochConfig": Some(cord_loom_runtime::BABE_GENESIS_EPOCH_CONFIG),
+		},
+		"sudo": { "key": Some(root_key) },
+	})
+}
+
+fn cord_loom_custom_genesis(
+	initial_network_members: Vec<AccountId>,
+	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
+	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
+	root_key: AccountId,
+) -> serde_json::Value {
+	const ENDOWMENT: Balance = 10_000_000 * LOOM_UNITS;
+
+	serde_json::json!( {
+		"balances": {
+			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
+		},
+		"networkParameters": {"permissioned": true},
+		"nodeAuthorization":  {
+			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
+		},
+		"networkMembership":  {
+			"members": initial_network_members.iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
+		},
+		"authorityMembership":  {
+			"initialAuthorities": initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
+		},
+		"session":  {
+			"keys": initial_authorities
+				.iter()
+				.map(|x| {
+					(
+						x.0.clone(),
+						x.0.clone(),
+						loom_session_keys(
 							x.1.clone(),
 							x.2.clone(),
 							x.3.clone(),
@@ -182,11 +386,66 @@ fn cord_custom_genesis(
 			"epochConfig": Some(cord_loom_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
 		"councilMembership":  {
-			"members": council_members.to_vec(),
+			"members": initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
 		},
 		"technicalMembership":  {
-			"members": tech_committee_members.to_vec(),
+			"members": initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
 		},
-		"sudo": { "key": Some(sudo_key) },
+		"sudo": { "key": Some(root_key) },
+	})
+}
+
+fn cord_weave_custom_genesis(
+	initial_network_members: Vec<AccountId>,
+	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
+	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
+	root_key: AccountId,
+) -> serde_json::Value {
+	const ENDOWMENT: Balance = 10_000_000 * WAY;
+
+	serde_json::json!( {
+		"balances": {
+			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
+		},
+		"networkParameters": {"permissioned": false},
+		"nodeAuthorization":  {
+			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
+		},
+		"networkMembership":  {
+			"members": initial_network_members.iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
+		},
+		"authorityMembership":  {
+			"initialAuthorities": initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
+		},
+		"session":  {
+			"keys": initial_authorities
+				.iter()
+				.map(|x| {
+					(
+						x.0.clone(),
+						x.0.clone(),
+						weave_session_keys(
+							x.1.clone(),
+							x.2.clone(),
+							x.3.clone(),
+							x.4.clone(),
+						),
+					)
+				})
+				.collect::<Vec<_>>(),
+		},
+		"babe":  {
+			"epochConfig": Some(cord_loom_runtime::BABE_GENESIS_EPOCH_CONFIG),
+		},
+		"sudo": { "key": Some(root_key) },
 	})
 }
