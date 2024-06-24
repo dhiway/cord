@@ -277,3 +277,30 @@ fn test_renew_membership_again_should_fail() {
 		assert_eq!(NetworkMembership::members_count(), 1);
 	});
 }
+
+#[test]
+fn test_revoke_membership_with_wrong_account_id_should_fail() {
+	new_test_ext().execute_with(|| {
+		run_to_block(1);
+
+		assert!(NetworkMembership::is_member(&AccountId::new([11u8; 32])));
+
+		assert_ok!(NetworkMembership::nominate(
+			RawOrigin::Root.into(),
+			AccountId::new([13u8; 32]),
+			true
+		));
+
+		System::assert_has_event(RuntimeEvent::NetworkMembership(Event::MembershipAcquired {
+			member: AccountId::new([13u8; 32]),
+		}));
+
+		assert_eq!(NetworkMembership::members_count(), 2);
+
+		run_to_block(2);
+		assert_err!(
+			NetworkMembership::revoke(RawOrigin::Root.into(), AccountId::new([15u8; 32]),),
+			Error::<Test>::MembershipNotFound
+		);
+	});
+}
