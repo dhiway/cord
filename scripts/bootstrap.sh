@@ -9,7 +9,7 @@ function usage() {
   echo "  -n, --num-nodes       Number of authorised nodes in the network"
   echo "  -a, --num-authorities Number of authorities (validators)"
   echo "  -s, --SECRET          Secret key or seed for generating new accounts"
-  echo "  -r, --runtime-type    Choose one of chain runtimes from braid, loom and weave. Default is braid."
+  echo "  -r, --runtime-type    Choose one of chain runtimes from braid, loom and weave. Default is loom."
   echo "  -o, --output-directory Directory where output files will be saved (default is current directory)"
   echo ""
   echo "Description:"
@@ -27,7 +27,7 @@ NUM_AUTHORITIES=3
 # Don't use accounts generated with this secret in production
 SECRET="0xf32255f569d8b1a12086dfd194653a5377fafcb67345753987741ec5542920ce"
 OUTPUT_DIR="."
-RUNTIME_TYPE="braid"
+RUNTIME_TYPE="loom"
 
 while getopts "m:n:a:s:r:o:" flag; do
   case "${flag}" in

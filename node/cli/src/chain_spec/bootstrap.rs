@@ -71,7 +71,11 @@ impl ChainParams {
 }
 
 /// Specialized `ChainSpec`.
+/// Todo: Fix individual chainspec
 pub type CordChainSpec = sc_service::GenericChainSpec<Extensions>;
+// pub type BraidChainSpec = sc_service::GenericChainSpec<BraidRuntimeGenesisConfig, Extensions>;
+// pub type LoomChainSpec = sc_service::GenericChainSpec<LoomRuntimeGenesisConfig, Extensions>;
+// pub type WeaveChainSpec = sc_service::GenericChainSpec<WeaveRuntimeGenesisConfig, Extensions>;
 
 pub const BRAID_ENDOWMENT: Balance = 10_000_000 * BRAID_UNITS;
 pub const LOOOM_ENDOWMENT: Balance = 10_000_000 * LOOM_UNITS;
@@ -171,16 +175,6 @@ fn cord_loom_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 			})
 			.collect();
 
-	/* Disable initial council members, tech committee members for now */
-	// let initial_council_members: Vec<AccountId> =
-	// 	config.council_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
-
-	// let initial_tech_committee_members: Vec<AccountId> = config
-	// 	.tech_committee_members
-	// 	.iter()
-	// 	.map(array_bytes::hex_n_into_unchecked)
-	// 	.collect();
-
 	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
 	cord_loom_custom_genesis(
 		initial_network_members,
@@ -232,6 +226,7 @@ pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> 
 	let chain_type = config.chain_type();
 	let runtime_type = config.runtime_type.to_lowercase();
 
+	/* 'id' must start with either `braid', 'loom' or 'weave' for config to run */
 	if runtime_type == "braid" {
 		let properties = get_properties("UNITS", 12, 3893);
 		Ok(CordChainSpec::builder(
@@ -239,7 +234,7 @@ pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> 
 			Default::default(),
 		)
 		.with_name(&chain_name)
-		.with_id("cord-braid-custom")
+		.with_id("braid-cord-custom")
 		.with_chain_type(chain_type)
 		.with_genesis_config_patch(cord_braid_custom_config_genesis(config.clone()))
 		.with_telemetry_endpoints(
@@ -256,7 +251,7 @@ pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> 
 			Default::default(),
 		)
 		.with_name(&chain_name)
-		.with_id("cord-loom-custom")
+		.with_id("loom-cord-custom")
 		.with_chain_type(chain_type)
 		.with_genesis_config_patch(cord_loom_custom_config_genesis(config.clone()))
 		.with_telemetry_endpoints(
@@ -273,7 +268,7 @@ pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> 
 			Default::default(),
 		)
 		.with_name(&chain_name)
-		.with_id("cord-weave-custom")
+		.with_id("weave-cord-custom")
 		.with_chain_type(chain_type)
 		.with_genesis_config_patch(cord_weave_custom_config_genesis(config.clone()))
 		.with_telemetry_endpoints(
@@ -334,7 +329,7 @@ fn cord_braid_custom_genesis(
 				.collect::<Vec<_>>(),
 		},
 		"babe":  {
-			"epochConfig": Some(cord_loom_runtime::BABE_GENESIS_EPOCH_CONFIG),
+			"epochConfig": Some(cord_braid_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
 		"sudo": { "key": Some(root_key) },
 	})

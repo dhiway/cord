@@ -213,16 +213,8 @@ pub fn run() -> Result<()> {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
 		},
-<<<<<<< Updated upstream
-=======
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
 		Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
-		Some(Subcommand::Sign(cmd)) => cmd.run(),
-		Some(Subcommand::Verify(cmd)) => cmd.run(),
-		Some(Subcommand::Vanity(cmd)) => cmd.run(),
->>>>>>> Stashed changes
-		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
-		// Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
 		Some(Subcommand::Sign(cmd)) => cmd.run(),
 		Some(Subcommand::Verify(cmd)) => cmd.run(),
 		Some(Subcommand::Vanity(cmd)) => cmd.run(),

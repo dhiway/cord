@@ -29,8 +29,6 @@ use crate::chain_spec::{
 	ChainType,
 };
 
-//use chain_spec::bootstrap::{cord_custom_config, ChainParams, ChainType};
-
 #[derive(Debug, Deserialize)]
 pub struct ChainConfigParams {
 	pub chain_name: String,
