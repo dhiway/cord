@@ -180,12 +180,15 @@ pub mod pallet {
 		SpaceIdOf,
 		AccountIdOf<T>,
 		EntryTypeOf,
-		<T as timestamp::Config>::Moment,
+		<T as pallet_timestamp::Config>::Moment,
 	>;
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_chain_space::Config + identifier::Config + timestamp::Config
+		frame_system::Config
+		+ pallet_chain_space::Config
+		+ identifier::Config
+		+ pallet_timestamp::Config
 	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
@@ -829,6 +832,6 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn get_current_time() -> T::Moment {
-		timestamp::Pallet::<T>::get()
+		pallet_timestamp::Pallet::<T>::get()
 	}
 }

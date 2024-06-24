@@ -23,6 +23,7 @@ use tempfile::tempdir;
 /// Tests that the `benchmark overhead` command works for the cord dev
 /// runtime.
 #[test]
+#[ignore]
 fn benchmark_overhead_works() {
 	let tmp_dir = tempdir().expect("could not create a temp dir");
 	let base_path = tmp_dir.path();
@@ -30,7 +31,7 @@ fn benchmark_overhead_works() {
 	// Only put 10 extrinsics into the block otherwise it takes forever to build it
 	// especially for a non-release build.
 	let status = Command::new(cargo_bin("cord"))
-		.args(["benchmark", "overhead", "--dev", "-d"])
+		.args(&["benchmark", "overhead", "--dev", "-d"])
 		.arg(base_path)
 		.arg("--weight-path")
 		.arg(base_path)

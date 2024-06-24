@@ -1,11 +1,13 @@
-name: docker
+name: Multi-Arch Docker Build
 
 on:
   push:
     branches:
       - develop
-      - "release*"
-
+      - release-v[0-9]+.[0-9]+.[0-9]+*
+  schedule:
+    - cron: "00 03 * * 0" # Runs every Sunday at 3 AM UTC
+    
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
@@ -13,21 +15,21 @@ jobs:
     env:
       REGISTRY: docker.io
       USERNAME: dhiway
-      IMAGE_NAME: ${{ github.event.repository.name }}-multiarch-test
+      IMAGE_NAME: ${{ github.event.repository.name }}
       COMMIT_SHA: ${{ github.sha }}
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v2
 
       - name: Login to DockerHub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ env.USERNAME }}
@@ -37,28 +39,35 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/release*" ]]; then
             echo "BUILD_PROFILE=production" >> $GITHUB_ENV
+            echo "LATEST_TAG=true" >> $GITHUB_ENV
           else
             echo "BUILD_PROFILE=release" >> $GITHUB_ENV
           fi
 
       - name: Build and Push to Docker Hub
         run: |
-          # Get the branch name
-          DOCKER_BRANCH=${{ github.ref }}
-          DOCKER_BRANCH=${DOCKER_BRANCH/refs\/heads\//}
-
           docker buildx create --use
-          docker buildx build --no-cache --file docker/Dockerfile --tag ${{ env.IMAGE_NAME}}:$DOCKER_BRANCH --platform linux/amd64,linux/arm64 --build-arg profile=${{ env.BUILD_PROFILE }} --push .
+          DOCKER_BRANCH=${{ github.ref_name }}
 
-          docker tag \
-          ${{ env.IMAGE_NAME}}:$DOCKER_BRANCH \
-          ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME}}:${{ env.COMMIT_SHA}} \
-          && docker tag \
-          ${{ env.IMAGE_NAME}}:$DOCKER_BRANCH \
-          ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME}}:$DOCKER_BRANCH \
-          && docker tag \
-          ${{ env.IMAGE_NAME}}:$DOCKER_BRANCH \
-          ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME}}:latest
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            --build-arg CARGO_PROFILE=${{ env.BUILD_PROFILE }} \
+            --tag ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:$DOCKER_BRANCH \
+            --tag ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.COMMIT_SHA }} \
+            --file docker/Dockerfile \
+            --push \
+            .
 
-          docker push ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME}}:$DOCKER_BRANCH
-          docker push ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME}}:latest
+          if [[ "${{ env.LATEST_TAG }}" == "true" ]]; then
+            docker buildx imagetools create \
+              --tag ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.RELEASE_IMAGE_NAME }}:latest \
+              ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.RELEASE_IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          fi
+
+      - name: Verify Image Tags
+        run: |
+          echo "Docker Image Tags:"
+          echo " - ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:$DOCKER_BRANCH"
+          echo " - ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.COMMIT_SHA }}"
+          if [[ "${{ env.LATEST_TAG }}" == "true" ]]; then
+            echo " - ${{ env.REGISTRY }}/${{ env.USERNAME }}/${{ env.RELEASE_IMAGE_NAME }}:latest"
+          fi

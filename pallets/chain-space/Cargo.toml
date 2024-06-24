@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-chain-space'
-description = 'Manage Chain Spaces'
+description = 'Manage Chain Spaces.'
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -15,39 +15,29 @@ workspace = true
 targets = ['x86_64-unknown-linux-gnu']
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", features = [
-	"std",
-] }
-sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", features = [
-	"std",
-] }
-cord-utilities = { package = "cord-utilities", path = "../../utilities", features = [
-	"mock",
-] }
+sp-core = { features = ["std"], workspace = true }
+sp-keystore = { features = ["std"], workspace = true }
+cord-utilities = { features = ["mock"], workspace = true }
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.6.1", default-features = false, features = [
-	"derive",
-] }
-scale-info = { version = "2.11.1", default-features = false, features = [
-	"derive",
-] }
-bitflags = { version = "1.3.2", default-features = false }
+codec = { features = ["derive"], workspace = true }
+scale-info = { features = ["derive"], workspace = true }
+bitflags = { workspace = true }
 
 # Internal dependencies
-cord-primitives = { package = "cord-primitives", path = "../../primitives/cord", default-features = false }
-cord-utilities = { package = "cord-utilities", path = "../../utilities", default-features = false }
-identifier = { package = "cord-identifier", path = "../../primitives/identifier", default-features = false }
+cord-primitives = { workspace = true }
+cord-utilities = { workspace = true }
+identifier = { workspace = true }
 
 # Substrate dependencies
-frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-frame-system = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
-sp-keystore = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false, optional = true }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0", default-features = false }
+frame-benchmarking = { optional = true, workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-core = { optional = true, workspace = true }
+sp-io = { optional = true, workspace = true }
+sp-keystore = { optional = true, workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
 
 
 [features]
@@ -74,4 +64,10 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 ]
-try-runtime = ["frame-support/try-runtime", "frame-system/try-runtime"]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"identifier/try-runtime",
+	"cord-utilities/try-runtime",
+	"sp-runtime/try-runtime"
+]

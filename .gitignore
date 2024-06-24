@@ -30,5 +30,6 @@ release-artifacts
 release.json
 rls*.log
 runtime/wasm/target/
+runtimes/wasm/target/
 target/
 data/

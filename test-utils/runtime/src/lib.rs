@@ -36,7 +36,7 @@ use codec::{Decode, Encode};
 use frame_support::{
 	construct_runtime, derive_impl,
 	dispatch::DispatchClass,
-	genesis_builder_helper::{build_config, create_default_config},
+	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
 	traits::{ConstU32, ConstU64},
 	weights::{
@@ -49,8 +49,20 @@ use frame_system::{
 	CheckNonce, CheckWeight,
 };
 use scale_info::TypeInfo;
-use sp_application_crypto::{ecdsa, ed25519, sr25519, RuntimeAppPublic};
+use serde_json::json;
+use sp_api::{decl_runtime_apis, impl_runtime_apis};
+use sp_application_crypto::{ecdsa, ed25519, sr25519, RuntimeAppPublic, Ss58Codec};
+pub use sp_core::hash::H256;
 use sp_core::{OpaqueMetadata, RuntimeDebug};
+use sp_genesis_builder::PresetId;
+use sp_inherents::{CheckInherentsResult, InherentData};
+use sp_keyring::AccountKeyring;
+use sp_runtime::{
+	create_runtime_str, impl_opaque_keys,
+	traits::{BlakeTwo256, Block as BlockT, DispatchInfoOf, NumberFor, Verify},
+	transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError},
+	ApplyExtrinsicResult, ExtrinsicInclusionMode, Perbill,
+};
 use sp_std::prelude::*;
 use sp_trie::{
 	trie_types::{TrieDBBuilder, TrieDBMutBuilderV1},
@@ -58,15 +70,6 @@ use sp_trie::{
 };
 use trie_db::{Trie, TrieMut};
 
-use sp_api::{decl_runtime_apis, impl_runtime_apis};
-pub use sp_core::hash::H256;
-use sp_inherents::{CheckInherentsResult, InherentData};
-use sp_runtime::{
-	create_runtime_str, impl_opaque_keys,
-	traits::{BlakeTwo256, Block as BlockT, DispatchInfoOf, NumberFor, Verify},
-	transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError},
-	ApplyExtrinsicResult, ExtrinsicInclusionMode, Perbill,
-};
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -78,8 +81,6 @@ pub use pallet_balances::Call as BalancesCall;
 pub type AuraId = sp_consensus_aura::sr25519::AuthorityId;
 #[cfg(feature = "std")]
 pub use extrinsic::{ExtrinsicBuilder, Transfer};
-
-//use crate::cord_test_pallet::Authorities;
 
 const LOG_TARGET: &str = "cord-test-runtime";
 
@@ -96,7 +97,7 @@ pub mod wasm_binary_logging_disabled {
 #[cfg(feature = "std")]
 pub fn wasm_binary_unwrap() -> &'static [u8] {
 	WASM_BINARY.expect(
-		"Development wasm binary is not available. Testing is only supported with the flag \
+		"Development wasm binary is not available. Testing is only supported with the flag
 		 disabled.",
 	)
 }
@@ -105,7 +106,7 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 #[cfg(feature = "std")]
 pub fn wasm_binary_logging_disabled_unwrap() -> &'static [u8] {
 	wasm_binary_logging_disabled::WASM_BINARY.expect(
-		"Development wasm binary is not available. Testing is only supported with the flag \
+		"Development wasm binary is not available. Testing is only supported with the flag
 		 disabled.",
 	)
 }
@@ -351,41 +352,24 @@ parameter_types! {
 }
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::pallet::Config for Runtime {
-	type BaseCallFilter = frame_support::traits::Everything;
 	type BlockWeights = RuntimeBlockWeights;
-	type BlockLength = ();
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
 	type Nonce = Nonce;
-	type Hash = H256;
-	type Hashing = Hashing;
 	type AccountId = AccountId;
 	type Lookup = sp_runtime::traits::IdentityLookup<Self::AccountId>;
 	type Block = Block;
-	type RuntimeEvent = RuntimeEvent;
-	type BlockHashCount = ConstU64<2400>;
-	type DbWeight = ();
-	type Version = ();
-	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<Balance>;
-	type OnNewAccount = ();
-	type OnKilledAccount = ();
-	type SystemWeightInfo = ();
-	type SS58Prefix = ();
-	type OnSetCode = ();
-	type MaxConsumers = ConstU32<16>;
 }
 
 pub mod currency {
 	use crate::Balance;
-	pub const WAY: Balance = 1_000_000_000_000;
-	pub const UNITS: Balance = WAY / 100;
-	pub const MILLIUNITS: Balance = UNITS / 100;
-	pub const NANOUNITS: Balance = MILLIUNITS / 100;
+	pub const UNITS: Balance = 1_000_000_000_000; // 10^12 precision
+	pub const MILLI_UNITS: Balance = UNITS / 1_000; // 10^9 precision
+	pub const MICRO_UNITS: Balance = UNITS / 1_000_000; // 10^6 precision
+	pub const NANO_UNITS: Balance = UNITS / 1_000_000_000; // 10^3 precision
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = currency::WAY;
+	pub const ExistentialDeposit: Balance = currency::UNITS;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
 	// This number may need to be adjusted in the future if this assumption no longer holds true.
 	pub const MaxLocks: u32 = 50;
@@ -496,16 +480,17 @@ impl_runtime_apis! {
 
 	impl sp_api::Metadata<Block> for Runtime {
 		fn metadata() -> OpaqueMetadata {
-			unimplemented!()
+			OpaqueMetadata::new(Runtime::metadata().into())
 		}
 
-		fn metadata_at_version(_version: u32) -> Option<OpaqueMetadata> {
-			unimplemented!()
+		fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+			Runtime::metadata_at_version(version)
 		}
 		fn metadata_versions() -> alloc::vec::Vec<u32> {
-			unimplemented!()
+			Runtime::metadata_versions()
 		}
 	}
+
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(
@@ -636,7 +621,7 @@ impl_runtime_apis! {
 		 * Currently type resolution is failing to fulfill above.
 		 */
 		fn authorities() -> Vec<AuraId> {
-			CordTest::authorities().into_iter().map(AuraId::from).collect()
+			CordTest::authorities().into_iter().map(|auth| AuraId::from(auth)).collect()
 		}
 	}
 
@@ -734,12 +719,41 @@ impl_runtime_apis! {
 	}
 
 	impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
-		fn create_default_config() -> Vec<u8> {
-			create_default_config::<RuntimeGenesisConfig>()
+		fn build_state(config: Vec<u8>) -> sp_genesis_builder::Result {
+			build_state::<RuntimeGenesisConfig>(config)
+		}
+		fn get_preset(name: &Option<PresetId>) -> Option<Vec<u8>> {
+			get_preset::<RuntimeGenesisConfig>(name, |name| {
+				let patch = match name.try_into() {
+					Ok("staging") => {
+						let endowed_accounts: Vec<AccountId> = vec![
+							AccountKeyring::Bob.public().into(),
+							AccountKeyring::Charlie.public().into(),
+						];
+
+						json!({
+							"balances": {
+								"balances": endowed_accounts.into_iter().map(|k| (k, 10 * currency::UNITS)).collect::<Vec<_>>(),
+							},
+							"cordTest": {
+								"authorities": [
+									AccountKeyring::Alice.public().to_ss58check(),
+									AccountKeyring::Ferdie.public().to_ss58check()
+								],
+							}
+						})
+					},
+					Ok("foobar") => json!({"foo":"bar"}),
+					_ => return None,
+				};
+				Some(serde_json::to_string(&patch)
+					.expect("serialization to json is expected to work. qed.")
+					.into_bytes())
+			})
 		}
 
-		fn build_config(config: Vec<u8>) -> sp_genesis_builder::Result {
-			build_config::<RuntimeGenesisConfig>(config)
+		fn preset_names() -> Vec<PresetId> {
+			vec![PresetId::from("foobar"), PresetId::from("staging")]
 		}
 	}
 }
@@ -845,7 +859,6 @@ fn test_witness(proof: StorageProof, root: crate::Hash) {
 pub mod storage_key_generator {
 	use super::*;
 	use sp_core::Pair;
-	use sp_keyring::AccountKeyring;
 
 	/// Generate hex string without prefix
 	pub(super) fn hex<T>(x: T) -> String
@@ -893,6 +906,7 @@ pub mod storage_key_generator {
 		expected_keys.extend(literals.into_iter().map(hex));
 
 		let balances_map_keys = (0..16_usize)
+			.into_iter()
 			.map(|i| AccountKeyring::numeric(i).public().to_vec())
 			.chain(vec![
 				AccountKeyring::Alice.public().to_vec(),
@@ -1039,7 +1053,6 @@ mod tests {
 	use sp_api::{ApiExt, ProvideRuntimeApi};
 	use sp_consensus::BlockOrigin;
 	use sp_core::{storage::well_known_keys::HEAP_PAGES, traits::CallContext};
-	use sp_keyring::AccountKeyring;
 	use sp_runtime::{
 		traits::{Hash as _, SignedExtension},
 		transaction_validity::{InvalidTransaction, ValidTransaction},
@@ -1122,7 +1135,7 @@ mod tests {
 		genesismap::GenesisStorageBuilder::new(
 			vec![AccountKeyring::One.public(), AccountKeyring::Two.public()],
 			vec![AccountKeyring::One.into(), AccountKeyring::Two.into()],
-			1000 * currency::WAY,
+			1000 * currency::UNITS,
 		)
 		.build()
 		.into()
@@ -1187,7 +1200,7 @@ mod tests {
 	fn check_substrate_check_signed_extension_works() {
 		sp_tracing::try_init_simple();
 		new_test_ext().execute_with(|| {
-			let x = sp_keyring::AccountKeyring::Alice.into();
+			let x = AccountKeyring::Alice.into();
 			let info = DispatchInfo::default();
 			let len = 0_usize;
 			assert_eq!(
@@ -1252,7 +1265,7 @@ mod tests {
 			let default_minimal_json = r#"{"system":{},"babe":{"authorities":[],"epochConfig":{"c": [ 3, 10 ],"allowed_slots":"PrimaryAndSecondaryPlainSlots"}},"cordTest":{"authorities":[]},"balances":{"balances":[]}}"#;
 			let mut t = BasicExternalities::new_empty();
 
-			executor_call(&mut t, "GenesisBuilder_build_config", &default_minimal_json.encode())
+			executor_call(&mut t, "GenesisBuilder_build_state", &default_minimal_json.encode())
 				.unwrap();
 
 			let mut keys = t.into_storages().top.keys().cloned().map(hex).collect::<Vec<String>>();
@@ -1300,12 +1313,50 @@ mod tests {
 		fn default_config_as_json_works() {
 			sp_tracing::try_init_simple();
 			let mut t = BasicExternalities::new_empty();
-			let r = executor_call(&mut t, "GenesisBuilder_create_default_config", &vec![]).unwrap();
-			let r = Vec::<u8>::decode(&mut &r[..]).unwrap();
+			let r = executor_call(&mut t, "GenesisBuilder_get_preset", &None::<&PresetId>.encode())
+				.unwrap();
+			let r = Option::<Vec<u8>>::decode(&mut &r[..])
+				.unwrap()
+				.expect("default config is there");
 			let json = String::from_utf8(r.into()).expect("returned value is json. qed.");
 
 			let expected = r#"{"system":{},"babe":{"authorities":[],"epochConfig":{"c":[1,4],"allowed_slots":"PrimaryAndSecondaryVRFSlots"}},"cordTest":{"authorities":[]},"balances":{"balances":[]}}"#;
 			assert_eq!(expected.to_string(), json);
+		}
+		#[test]
+		fn preset_names_listing_works() {
+			sp_tracing::try_init_simple();
+			let mut t = BasicExternalities::new_empty();
+			let r = executor_call(&mut t, "GenesisBuilder_preset_names", &vec![]).unwrap();
+			let r = Vec::<PresetId>::decode(&mut &r[..]).unwrap();
+			assert_eq!(r, vec![PresetId::from("foobar"), PresetId::from("staging"),]);
+			log::info!("r: {:#?}", r);
+		}
+
+		#[test]
+		fn named_config_works() {
+			sp_tracing::try_init_simple();
+			let f = |cfg_name: &str, expected: &str| {
+				let mut t = BasicExternalities::new_empty();
+				let name = cfg_name.to_string();
+				let r = executor_call(
+					&mut t,
+					"GenesisBuilder_get_preset",
+					&Some(name.as_bytes()).encode(),
+				)
+				.unwrap();
+				let r = Option::<Vec<u8>>::decode(&mut &r[..]).unwrap();
+				let json =
+					String::from_utf8(r.unwrap().into()).expect("returned value is json. qed.");
+				log::info!("json: {:#?}", json);
+				assert_eq!(expected.to_string(), json);
+			};
+
+			f("foobar", r#"{"foo":"bar"}"#);
+			f(
+				"staging",
+				r#"{"balances":{"balances":[["5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",10000000000000],["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",10000000000000]]},"cordTest":{"authorities":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","5CiPPseXPECbkjWCa6MnjNokrgYjMqmKndv2rSnekmSK2DjL"]}}"#,
+			);
 		}
 
 		#[test]
@@ -1314,7 +1365,7 @@ mod tests {
 			let j = include_str!("../res/default_genesis_config.json");
 
 			let mut t = BasicExternalities::new_empty();
-			let r = executor_call(&mut t, "GenesisBuilder_build_config", &j.encode()).unwrap();
+			let r = executor_call(&mut t, "GenesisBuilder_build_state", &j.encode()).unwrap();
 			let r = BuildResult::decode(&mut &r[..]);
 			assert!(r.is_ok());
 
@@ -1333,7 +1384,7 @@ mod tests {
 			sp_tracing::try_init_simple();
 			let j = include_str!("../res/default_genesis_config_invalid.json");
 			let mut t = BasicExternalities::new_empty();
-			let r = executor_call(&mut t, "GenesisBuilder_build_config", &j.encode()).unwrap();
+			let r = executor_call(&mut t, "GenesisBuilder_build_state", &j.encode()).unwrap();
 			let r = BuildResult::decode(&mut &r[..]).unwrap();
 			log::info!("result: {:#?}", r);
 			assert_eq!(r, Err(
@@ -1348,7 +1399,7 @@ mod tests {
 			sp_tracing::try_init_simple();
 			let j = include_str!("../res/default_genesis_config_invalid_2.json");
 			let mut t = BasicExternalities::new_empty();
-			let r = executor_call(&mut t, "GenesisBuilder_build_config", &j.encode()).unwrap();
+			let r = executor_call(&mut t, "GenesisBuilder_build_state", &j.encode()).unwrap();
 			let r = BuildResult::decode(&mut &r[..]).unwrap();
 			assert_eq!(r, Err(
 				sp_runtime::RuntimeString::Owned(
@@ -1363,7 +1414,7 @@ mod tests {
 			let j = include_str!("../res/default_genesis_config_incomplete.json");
 
 			let mut t = BasicExternalities::new_empty();
-			let r = executor_call(&mut t, "GenesisBuilder_build_config", &j.encode()).unwrap();
+			let r = executor_call(&mut t, "GenesisBuilder_build_state", &j.encode()).unwrap();
 			let r =
 				core::result::Result::<(), sp_runtime::RuntimeString>::decode(&mut &r[..]).unwrap();
 			assert_eq!(
@@ -1398,8 +1449,11 @@ mod tests {
 			sp_tracing::try_init_simple();
 
 			let mut t = BasicExternalities::new_empty();
-			let r = executor_call(&mut t, "GenesisBuilder_create_default_config", &vec![]).unwrap();
-			let r = Vec::<u8>::decode(&mut &r[..]).unwrap();
+			let r = executor_call(&mut t, "GenesisBuilder_get_preset", &None::<&PresetId>.encode())
+				.unwrap();
+			let r = Option::<Vec<u8>>::decode(&mut &r[..])
+				.unwrap()
+				.expect("default config is there");
 			let mut default_config: serde_json::Value =
 				serde_json::from_slice(&r[..]).expect("returned value is json. qed.");
 
@@ -1428,7 +1482,7 @@ mod tests {
 			let mut t = BasicExternalities::new_empty();
 			executor_call(
 				&mut t,
-				"GenesisBuilder_build_config",
+				"GenesisBuilder_build_state",
 				&default_config.to_string().encode(),
 			)
 			.unwrap();
@@ -1446,8 +1500,8 @@ mod tests {
 			let authority_key_vec =
 				Vec::<sp_core::sr25519::Public>::decode(&mut &value[..]).unwrap();
 			assert_eq!(authority_key_vec.len(), 2);
-			assert_eq!(authority_key_vec[0], sp_keyring::AccountKeyring::Ferdie.public());
-			assert_eq!(authority_key_vec[1], sp_keyring::AccountKeyring::Alice.public());
+			assert_eq!(authority_key_vec[0], AccountKeyring::Ferdie.public());
+			assert_eq!(authority_key_vec[1], AccountKeyring::Alice.public());
 
 			//Babe|Authorities
 			let value: Vec<u8> = get_from_storage(

@@ -19,8 +19,8 @@
 //! Test accounts.
 
 use codec::Encode;
-use cord_runtime::{CheckedExtrinsic, SessionKeys, SignedExtra, UncheckedExtrinsic};
-use node_primitives::{AccountId, Balance, Nonce};
+use cord_loom_runtime::{CheckedExtrinsic, SessionKeys, SignedExtra, UncheckedExtrinsic};
+use cord_primitives::{AccountId, Balance, Nonce};
 use sp_keyring::{AccountKeyring, Ed25519Keyring, Sr25519Keyring};
 use sp_runtime::generic::Era;
 
@@ -68,7 +68,7 @@ pub fn to_session_keys(
 }
 
 /// Returns transaction extra.
-pub fn signed_extra(nonce: Nonce, _extra_fee: Balance) -> SignedExtra {
+pub fn signed_extra(nonce: Nonce, extra_fee: Balance) -> SignedExtra {
 	(
 		pallet_network_membership::CheckNetworkMembership::new(),
 		frame_system::CheckNonZeroSender::new(),
@@ -78,6 +78,7 @@ pub fn signed_extra(nonce: Nonce, _extra_fee: Balance) -> SignedExtra {
 		frame_system::CheckEra::from(Era::mortal(256, 0)),
 		frame_system::CheckNonce::from(nonce),
 		frame_system::CheckWeight::new(),
+		pallet_transaction_payment::ChargeTransactionPayment::from(extra_fee),
 	)
 }
 

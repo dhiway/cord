@@ -18,9 +18,9 @@
 
 //! CORD custom chain configurations.
 
+pub use cord_loom_runtime::RuntimeGenesisConfig;
+use cord_loom_runtime::SessionKeys;
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
-pub use cord_runtime::RuntimeGenesisConfig;
-use cord_runtime::SessionKeys;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_consensus_grandpa::AuthorityId as GrandpaId;
 use sc_service::ChainType;
@@ -31,7 +31,7 @@ use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::crypto::UncheckedInto;
 use sp_std::collections::btree_map::BTreeMap;
 
-pub use cord_runtime_constants::{currency::*, time::*};
+pub use cord_loom_runtime_constants::{currency::*, time::*};
 
 use crate::chain_spec::{get_properties, Extensions, CORD_TELEMETRY_URL, DEFAULT_PROTOCOL_ID};
 
@@ -58,7 +58,7 @@ impl ChainParams {
 }
 
 /// Specialized `ChainSpec`.
-pub type CordChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
+pub type CordChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 fn session_keys(
 	babe: BabeId,
@@ -124,7 +124,7 @@ pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> 
 	let chain_name = String::from(config.chain_name());
 	let chain_type = config.chain_type();
 	Ok(CordChainSpec::builder(
-		cord_runtime::WASM_BINARY.ok_or("Cord development wasm not available")?,
+		cord_loom_runtime::WASM_BINARY.ok_or("Cord development wasm not available")?,
 		Default::default(),
 	)
 	.with_name(&chain_name)
@@ -179,7 +179,7 @@ fn cord_custom_genesis(
 				.collect::<Vec<_>>(),
 		},
 		"babe":  {
-			"epochConfig": Some(cord_runtime::BABE_GENESIS_EPOCH_CONFIG),
+			"epochConfig": Some(cord_loom_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
 		"councilMembership":  {
 			"members": council_members.to_vec(),
