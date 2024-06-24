@@ -43,38 +43,18 @@ pub mod prelude {
 	};
 	// Client structs
 	pub use super::{
-		Backend, ExecutorDispatch, LocalExecutorDispatch, NativeElseWasmExecutor, TestClient,
-		TestClientBuilder, WasmExecutionMethod,
+		Backend, ExecutorDispatch, TestClient, TestClientBuilder, WasmExecutionMethod,
 	};
 	// Keyring
 	pub use super::{AccountKeyring, Sr25519Keyring};
-}
-
-/// A unit struct which implements `NativeExecutionDispatch` feeding in the
-/// hard-coded runtime.
-pub struct LocalExecutorDispatch;
-
-impl sc_executor::NativeExecutionDispatch for LocalExecutorDispatch {
-	type ExtendHostFunctions = ();
-
-	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		cord_test_runtime::api::dispatch(method, data)
-	}
-
-	fn native_version() -> sc_executor::NativeVersion {
-		cord_test_runtime::native_version()
-	}
 }
 
 /// Test client database backend.
 pub type Backend = cord_test_client::Backend<cord_test_runtime::Block>;
 
 /// Test client executor.
-pub type ExecutorDispatch = client::LocalCallExecutor<
-	cord_test_runtime::Block,
-	Backend,
-	NativeElseWasmExecutor<LocalExecutorDispatch>,
->;
+pub type ExecutorDispatch =
+	client::LocalCallExecutor<cord_test_runtime::Block, Backend, WasmExecutor>;
 
 /// Parameters of test-client builder with test-runtime.
 #[derive(Default)]
@@ -113,11 +93,7 @@ pub type TestClientBuilder<E, B> =
 /// Test client type with `LocalExecutorDispatch` and generic Backend.
 pub type Client<B> = client::Client<
 	B,
-	client::LocalCallExecutor<
-		cord_test_runtime::Block,
-		B,
-		NativeElseWasmExecutor<LocalExecutorDispatch>,
-	>,
+	client::LocalCallExecutor<cord_test_runtime::Block, B, WasmExecutor>,
 	cord_test_runtime::Block,
 	cord_test_runtime::RuntimeApi,
 >;
@@ -203,14 +179,7 @@ pub trait TestClientBuilderExt<B>: Sized {
 }
 
 impl<B> TestClientBuilderExt<B>
-	for TestClientBuilder<
-		client::LocalCallExecutor<
-			cord_test_runtime::Block,
-			B,
-			NativeElseWasmExecutor<LocalExecutorDispatch>,
-		>,
-		B,
-	>
+	for TestClientBuilder<client::LocalCallExecutor<cord_test_runtime::Block, B, WasmExecutor>, B>
 where
 	B: sc_client_api::backend::Backend<cord_test_runtime::Block> + 'static,
 {
@@ -236,6 +205,7 @@ pub fn new() -> Client<Backend> {
 }
 
 /// Create a new native executor.
-pub fn new_native_or_wasm_executor() -> NativeElseWasmExecutor<LocalExecutorDispatch> {
-	NativeElseWasmExecutor::new_with_wasm_executor(WasmExecutor::builder().build())
+#[deprecated(note = "Switch to `WasmExecutor:default()`.")]
+pub fn new_native_or_wasm_executor() -> WasmExecutor {
+	WasmExecutor::default()
 }

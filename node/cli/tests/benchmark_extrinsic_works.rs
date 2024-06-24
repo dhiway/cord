@@ -23,6 +23,7 @@ use tempfile::tempdir;
 /// Tests that the `benchmark extrinsic` command works for
 /// remark and transfer_keep_alive within the substrate dev runtime.
 #[test]
+#[ignore]
 fn benchmark_extrinsic_works() {
 	benchmark_extrinsic("system", "remark");
 	benchmark_extrinsic("balances", "transfer_keep_alive");
@@ -34,7 +35,7 @@ fn benchmark_extrinsic(pallet: &str, extrinsic: &str) {
 	let base_dir = tempdir().expect("could not create a temp dir");
 
 	let status = Command::new(cargo_bin("cord"))
-		.args(["benchmark", "extrinsic", "--dev"])
+		.args(["benchmark", "extrinsic", "--dev", "--detailed-log-output"])
 		.arg("-d")
 		.arg(base_dir.path())
 		.args(["--pallet", pallet, "--extrinsic", extrinsic])

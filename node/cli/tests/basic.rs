@@ -35,11 +35,13 @@ use sp_runtime::{
 };
 use sp_state_machine::TestExternalities as CoreTestExternalities;
 
+use cord_loom_runtime::{
+	Block, BuildStorage, CheckedExtrinsic, Header, Runtime, UncheckedExtrinsic,
+};
+use cord_loom_runtime_constants::currency::*;
 use cord_node_cli::service::RuntimeExecutor;
 use cord_node_testing::keyring::*;
 use cord_primitives::{BlockNumber, Hash};
-use cord_runtime::{Block, BuildStorage, CheckedExtrinsic, Header, Runtime, UncheckedExtrinsic};
-use cord_runtime_constants::currency::*;
 use sp_externalities::Externalities;
 pub const TEST_KEY_TYPE_ID: KeyTypeId = KeyTypeId(*b"test");
 
@@ -66,7 +68,7 @@ impl AppCrypto<MultiSigner, MultiSignature> for TestAuthorityId {
 /// tree-shaking thus making the binary slimmer. There is a convention to use
 /// compact version of the runtime as canonical.
 pub fn compact_code_unwrap() -> &'static [u8] {
-	cord_runtime::WASM_BINARY.expect(
+	cord_loom_runtime::WASM_BINARY.expect(
 		"Development wasm binary is not available. Testing is only supported with the flag \
 		 disabled.",
 	)
@@ -74,9 +76,9 @@ pub fn compact_code_unwrap() -> &'static [u8] {
 
 pub const GENESIS_HASH: [u8; 32] = [69u8; 32];
 
-pub const SPEC_VERSION: u32 = cord_runtime::VERSION.spec_version;
+pub const SPEC_VERSION: u32 = cord_loom_runtime::VERSION.spec_version;
 
-pub const TRANSACTION_VERSION: u32 = cord_runtime::VERSION.transaction_version;
+pub const TRANSACTION_VERSION: u32 = cord_loom_runtime::VERSION.transaction_version;
 
 pub type TestExternalities<H> = CoreTestExternalities<H>;
 
@@ -85,7 +87,7 @@ pub fn sign(xt: CheckedExtrinsic) -> UncheckedExtrinsic {
 }
 
 pub fn default_transfer_call() -> pallet_balances::Call<Runtime> {
-	pallet_balances::Call::<Runtime>::transfer_allow_death { dest: bob().into(), value: 69 * WAY }
+	pallet_balances::Call::<Runtime>::transfer_allow_death { dest: bob().into(), value: 69 * UNITS }
 }
 
 pub fn from_block_number(n: u32) -> Header {

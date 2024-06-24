@@ -18,8 +18,7 @@
 
 #![cfg(test)]
 
-use crate as pallet_offences;
-use crate::{Config, SlashStrategy};
+use crate::{self as pallet_offences, Config, SlashStrategy};
 use codec::Encode;
 use frame_support::{derive_impl, parameter_types, weights::Weight};
 use sp_runtime::{BuildStorage, Perbill};

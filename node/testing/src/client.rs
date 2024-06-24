@@ -23,17 +23,17 @@ pub use cord_test_client::*;
 use sp_runtime::BuildStorage;
 
 /// Call executor for `cord-test-runtime` `TestClient`.
-use node_cli::service::RuntimeExecutor;
+use cord_node_cli::service::RuntimeExecutor;
 
 /// Default backend type.
-pub type Backend = sc_client_db::Backend<node_primitives::Block>;
+pub type Backend = sc_client_db::Backend<cord_primitives::Block>;
 
 /// Test client type.
 pub type Client = client::Client<
 	Backend,
-	client::LocalCallExecutor<node_primitives::Block, Backend, RuntimeExecutor>,
-	node_primitives::Block,
-	cord_runtime::RuntimeApi,
+	client::LocalCallExecutor<cord_primitives::Block, Backend, RuntimeExecutor>,
+	cord_primitives::Block,
+	cord_loom_runtime::RuntimeApi,
 >;
 
 /// Genesis configuration parameters for `TestClient`.
@@ -45,7 +45,7 @@ impl cord_test_client::GenesisInit for GenesisParameters {
 		let mut storage = crate::genesis::config().build_storage().unwrap();
 		storage.top.insert(
 			sp_core::storage::well_known_keys::CODE.to_vec(),
-			cord_runtime::wasm_binary_unwrap().into(),
+			cord_loom_runtime::wasm_binary_unwrap().into(),
 		);
 		storage
 	}
@@ -62,8 +62,8 @@ pub trait TestClientBuilderExt: Sized {
 
 impl TestClientBuilderExt
 	for cord_test_client::TestClientBuilder<
-		node_primitives::Block,
-		client::LocalCallExecutor<node_primitives::Block, Backend, RuntimeExecutor>,
+		cord_primitives::Block,
+		client::LocalCallExecutor<cord_primitives::Block, Backend, RuntimeExecutor>,
 		Backend,
 		GenesisParameters,
 	>

@@ -19,22 +19,19 @@ workspace = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.6.1", features = [
-	"derive",
-], default-features = false }
-scale-info = { version = "2.11.1", default-features = false, features = [
-	"derive",
-] }
-frame-system = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
-frame-support = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
-sp-runtime = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
-sp-std = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
-sp-staking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.10.0" }
+codec = { features = ["derive"], workspace = true }
+scale-info = { features = ["derive"], workspace = true }
+
+frame-system = { workspace = true }
+frame-support = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+sp-staking = { workspace = true }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
-sp-io = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.10.0" }
+sp-core = { workspace = true }
+sp-io = { workspace = true }
 
 [features]
 default = ["std"]
@@ -46,6 +43,17 @@ std = [
 	"sp-runtime/std",
 	"sp-staking/std",
 	"sp-std/std",
+	"sp-core/std",
+	"sp-io/std"
 ]
-runtime-benchmarks = []
-try-runtime = ["frame-support/try-runtime"]
+runtime-benchmarks = [
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"sp-staking/runtime-benchmarks"
+]
+try-runtime = [
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"sp-runtime/try-runtime"
+]
