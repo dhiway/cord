@@ -615,7 +615,7 @@ fn asset_vc_create_duplicate_should_fail() {
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
-			asset_qty.clone(),
+			asset_qty,
 			digest,
 			authorization_id.clone()
 		));
