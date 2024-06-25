@@ -29,12 +29,11 @@ use crate::chain_spec::{
 	ChainType,
 };
 
-// use chain_spec::bootstrap::{cord_custom_config, ChainParams, ChainType};
-
 #[derive(Debug, Deserialize)]
 pub struct ChainConfigParams {
 	pub chain_name: String,
 	pub chain_type: String,
+	pub runtime_type: String,
 	pub authorities: Vec<Vec<String>>,
 	pub well_known_nodes: Vec<Vec<String>>,
 	pub network_members: Vec<Vec<String>>,
@@ -81,6 +80,17 @@ impl BootstrapChainCmd {
 
 		let chain_type = chain_type?;
 
+		let runtime_type =
+			if ["braid", "loom", "weave"].contains(&config.runtime_type.to_lowercase().as_str()) {
+				config.runtime_type.to_lowercase()
+			} else {
+				return Err(format!(
+					"Invalid runtime_type: {}. Supported types are 'braid', 'loom', 'weave'.",
+					config.runtime_type
+				)
+				.into());
+			};
+
 		let initial_members: Vec<String> =
 			config.network_members.iter().map(|net| net[1].clone()).collect();
 
@@ -121,6 +131,7 @@ impl BootstrapChainCmd {
 		let chain_params = ChainParams {
 			chain_name,
 			chain_type,
+			runtime_type,
 			authorities: initial_authorities,
 			well_known_nodes: initial_well_known_nodes,
 			network_members: initial_members,

@@ -23,6 +23,8 @@ use crate::command::gen_key::KeySubcommand;
 
 use clap::Parser;
 
+use crate::chain_setup::BootstrapChainCmd;
+
 #[allow(missing_docs)]
 #[derive(Debug, Parser)]
 pub enum Subcommand {
@@ -33,8 +35,9 @@ pub enum Subcommand {
 	)]
 	Inspect(cord_node_inspect::cli::InspectCmd),
 
-	// /// Bootstrap a custom configuration
-	// BootstrapChain(BootstrapChainCmd),
+	/// Bootstrap a custom configuration
+	BootstrapChain(BootstrapChainCmd),
+
 	/// Key management cli utilities
 	#[command(subcommand)]
 	Key(KeySubcommand),

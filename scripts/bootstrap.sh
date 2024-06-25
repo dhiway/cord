@@ -9,6 +9,7 @@ function usage() {
   echo "  -n, --num-nodes       Number of authorised nodes in the network"
   echo "  -a, --num-authorities Number of authorities (validators)"
   echo "  -s, --SECRET          Secret key or seed for generating new accounts"
+  echo "  -r, --runtime-type    Choose one of chain runtimes from braid, loom and weave. Default is loom."
   echo "  -o, --output-directory Directory where output files will be saved (default is current directory)"
   echo ""
   echo "Description:"
@@ -26,17 +27,26 @@ NUM_AUTHORITIES=3
 # Don't use accounts generated with this secret in production
 SECRET="0xf32255f569d8b1a12086dfd194653a5377fafcb67345753987741ec5542920ce"
 OUTPUT_DIR="."
+RUNTIME_TYPE="loom"
 
-while getopts "m:n:a:s:o:" flag; do
+while getopts "m:n:a:s:r:o:" flag; do
   case "${flag}" in
   m) NUM_MEMBERS=${OPTARG} ;;
   n) NUM_NODES=${OPTARG} ;;
   a) NUM_AUTHORITIES=${OPTARG} ;;
   s) SECRET=${OPTARG} ;;
+  r) 
+    if [[ "${OPTARG}" == "braid" || "${OPTARG}" == "weave" || "${OPTARG}" == "loom" ]]; then
+      RUNTIME_TYPE=${OPTARG}
+    else
+      echo "Invalid runtime type. Choose one of 'braid, weave, loom'."
+      exit 1
+    fi
+    ;;
   o) OUTPUT_DIR=${OPTARG} ;;
   *)
     usage
-    exit
+    exit 1
     ;;
   esac
 done
@@ -55,6 +65,7 @@ echo "
 " >>$CONFIG_FILE
 echo "chain_name = \"CORD Custom Chain\"" >>$CONFIG_FILE
 echo "chain_type = \"local\"" >>$CONFIG_FILE
+echo "runtime_type = \"${RUNTIME_TYPE}\"" >>$CONFIG_FILE
 echo "" >>$CONFIG_FILE
 
 # Initialize Accounts files

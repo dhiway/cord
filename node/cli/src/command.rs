@@ -214,7 +214,7 @@ pub fn run() -> Result<()> {
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
 		},
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
-		// Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
+		Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
 		Some(Subcommand::Sign(cmd)) => cmd.run(),
 		Some(Subcommand::Verify(cmd)) => cmd.run(),
 		Some(Subcommand::Vanity(cmd)) => cmd.run(),
