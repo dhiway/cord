@@ -18,110 +18,69 @@
 
 //! Service and ServiceFactory implementation. Specialized wrapper over
 //! substrate service.
-
+#![allow(missing_docs)]
 #![deny(unused_results)]
 
 use crate::cli::Cli;
-use codec::Encode;
-pub use cord_primitives::Block;
-pub use cord_runtime::RuntimeApi;
-use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
-use frame_system_rpc_runtime_api::AccountNonceApi;
-use futures::prelude::*;
-pub use sc_client_api::AuxStore;
-use sc_client_api::{Backend as BackendT, BlockBackend};
-use sc_consensus_babe::{self, SlotProportion};
-use sc_network::{event::Event, NetworkEventStream, NetworkService};
-use sc_network_sync::{strategy::warp::WarpSyncParams, SyncingService};
+
+#[cfg(feature = "full-node")]
+use {
+	sc_client_api::BlockBackend,
+	sc_consensus_grandpa::{self},
+	sc_transaction_pool_api::OffchainTransactionPoolFactory,
+};
+
+#[cfg(feature = "full-node")]
+pub use {
+	sc_client_api::AuxStore,
+	sp_authority_discovery::AuthorityDiscoveryApi,
+	sp_blockchain::{HeaderBackend, HeaderMetadata},
+	sp_consensus_babe::BabeApi,
+};
+
 use sc_service::RpcHandlers;
+use sc_telemetry::TelemetryWorker;
+use std::{path::Path, sync::Arc};
+
+#[cfg(feature = "full-node")]
+use sc_telemetry::Telemetry;
+
+pub use crate::{
+	chain_spec::{BraidChainSpec, GenericChainSpec, LoomChainSpec, WeaveChainSpec},
+	fake_runtime_api::{GetLastTimestamp, RuntimeApi},
+};
+pub use cord_primitives::Block;
+use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
+use sc_client_api::Backend as BackendT;
+pub use sc_consensus::{BlockImport, LongestChain};
+pub use sc_executor::NativeExecutionDispatch;
+use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
 pub use sc_service::{
 	config::{DatabaseSource, PrometheusConfig},
-	ChainSpec, Configuration, Error as ServiceError, PruningMode, Role, RuntimeGenesis,
-	TFullBackend, TFullCallExecutor, TFullClient, TaskManager, TransactionPoolOptions,
+	ChainSpec, Configuration, Error as ServiceError, PruningMode, Role, TFullBackend,
+	TFullCallExecutor, TFullClient, TaskManager, TransactionPoolOptions,
 };
-use sc_telemetry::{Telemetry, TelemetryWorker};
-use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi};
-pub use sp_authority_discovery::AuthorityDiscoveryApi;
-pub use sp_blockchain::{HeaderBackend, HeaderMetadata};
 pub use sp_consensus::{Proposal, SelectChain};
-pub use sp_consensus_babe::BabeApi;
-use sp_core::crypto::Pair;
 pub use sp_runtime::{
 	generic,
 	traits::{self as runtime_traits, BlakeTwo256, Block as BlockT, Header as HeaderT, NumberFor},
-	OpaqueExtrinsic, SaturatedConversion,
 };
-use std::{path::Path, sync::Arc};
 
-/// Host functions required for runtime and  node.
-#[cfg(not(feature = "runtime-benchmarks"))]
-pub type HostFunctions = sp_io::SubstrateHostFunctions;
+use futures::prelude::*;
+use sc_consensus_babe::{self, SlotProportion};
+use sc_network::{
+	event::Event, service::traits::NetworkService, NetworkBackend, NetworkEventStream,
+};
+use sc_network_sync::{strategy::warp::WarpSyncParams, SyncingService};
+pub use sp_runtime::{OpaqueExtrinsic, SaturatedConversion};
 
-/// Host functions required for runtime and  node.
-#[cfg(feature = "runtime-benchmarks")]
-pub type HostFunctions =
-	(sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions);
-
-/// A specialized `WasmExecutor` intended to use with CORD node. It
-/// provides all required HostFunctions.
-pub type RuntimeExecutor = sc_executor::WasmExecutor<HostFunctions>;
-
-/// Identifies the variant of the chain.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Chain {
-	/// Cord.
-	Cord,
-	/// Unknown chain?
-	Unknown,
-}
-
-pub trait IdentifyVariant {
-	/// Returns `true` if this is a configuration for Cord network.
-	fn is_cord(&self) -> bool;
-	/// Returns `true` if this is a configuration for Cord local network.
-	fn is_cord_local(&self) -> bool;
-	/// Returns `true` if this is a configuration for Cord staging network.
-	fn is_cord_staging(&self) -> bool;
-	/// Returns true if this configuration is for a development network.
-	fn is_dev(&self) -> bool;
-
-	/// Identifies the variant of the chain.
-	fn identify_chain(&self) -> Chain;
-}
-
-impl IdentifyVariant for Box<dyn ChainSpec> {
-	fn is_cord(&self) -> bool {
-		self.id().to_lowercase() == "cord" || self.id().to_lowercase() == "braid"
-	}
-	fn is_cord_local(&self) -> bool {
-		self.id().to_lowercase().ends_with("local")
-	}
-	fn is_cord_staging(&self) -> bool {
-		self.id().to_lowercase().ends_with("staging")
-	}
-	fn is_dev(&self) -> bool {
-		self.id().ends_with("dev")
-	}
-	fn identify_chain(&self) -> Chain {
-		if self.is_cord() || self.is_cord_local() || self.is_cord_local() || self.is_cord_staging()
-		{
-			Chain::Cord
-		} else {
-			Chain::Unknown
-		}
-	}
-}
-
-/// The full client type definition.
-pub type FullClient = sc_service::TFullClient<Block, RuntimeApi, RuntimeExecutor>;
-type FullBackend = sc_service::TFullBackend<Block>;
-type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
-type FullGrandpaBlockImport =
-	sc_consensus_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
-
-/// The transaction pool type defintion.
-pub type TransactionPool = sc_transaction_pool::FullPool<Block, FullClient>;
+#[cfg(feature = "braid-native")]
+pub use {cord_braid_runtime, cord_braid_runtime_constants};
+#[cfg(feature = "loom-native")]
+pub use {cord_loom_runtime, cord_loom_runtime_constants};
+#[cfg(feature = "weave-native")]
+pub use {cord_weave_runtime, cord_weave_runtime_constants};
 
 /// The minimum period of blocks on which justifications will be
 /// imported and generated.
@@ -191,84 +150,128 @@ where
 	}
 }
 
-/// Fetch the nonce of the given `account` from the chain state.
-///
-/// Note: Should only be used for tests.
-pub fn fetch_nonce(client: &FullClient, account: sp_core::sr25519::Pair) -> u32 {
-	let best_hash = client.chain_info().best_hash;
-	client
-		.runtime_api()
-		.account_nonce(best_hash, account.public().into())
-		.expect("Fetching account nonce works; qed")
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+	#[error(transparent)]
+	Io(#[from] std::io::Error),
+
+	#[error(transparent)]
+	AddrFormatInvalid(#[from] std::net::AddrParseError),
+
+	#[error(transparent)]
+	Sub(#[from] ServiceError),
+
+	#[error(transparent)]
+	Blockchain(#[from] sp_blockchain::Error),
+
+	#[error(transparent)]
+	Consensus(#[from] sp_consensus::Error),
+
+	#[error(transparent)]
+	Prometheus(#[from] substrate_prometheus_endpoint::PrometheusError),
+
+	#[error(transparent)]
+	Telemetry(#[from] sc_telemetry::Error),
+
+	#[cfg(feature = "full-node")]
+	#[error("Creating a custom database is required for validators")]
+	DatabasePathRequired,
+
+	#[cfg(feature = "full-node")]
+	#[error("Expected at least one of braid, loom or weave runtime feature")]
+	NoRuntime,
 }
 
-/// Create a transaction using the given `call`.
-///
-/// The transaction will be signed by `sender`. If `nonce` is `None` it will be
-/// fetched from the state of the best block.
-///
-/// Note: Should only be used for tests.
-pub fn create_extrinsic(
-	client: &FullClient,
-	sender: sp_core::sr25519::Pair,
-	function: impl Into<cord_runtime::RuntimeCall>,
-	nonce: Option<u32>,
-) -> cord_runtime::UncheckedExtrinsic {
-	let function = function.into();
-	let genesis_hash = client.block_hash(0).ok().flatten().expect(
-		"Genesis block
-exists; qed",
-	);
-	let best_hash = client.chain_info().best_hash;
-	let best_block = client.chain_info().best_number;
-	let nonce = nonce.unwrap_or_else(|| fetch_nonce(client, sender.clone()));
+/// Host functions required for runtime and  node.
+#[cfg(not(feature = "runtime-benchmarks"))]
+pub type HostFunctions = sp_io::SubstrateHostFunctions;
 
-	let period = cord_runtime::BlockHashCount::get()
-		.checked_next_power_of_two()
-		.map(|c| c / 2)
-		.unwrap_or(2) as u64;
-	let _tip = 0;
-	let extra: cord_runtime::SignedExtra = (
-		pallet_network_membership::CheckNetworkMembership::<cord_runtime::Runtime>::new(),
-		frame_system::CheckNonZeroSender::<cord_runtime::Runtime>::new(),
-		frame_system::CheckSpecVersion::<cord_runtime::Runtime>::new(),
-		frame_system::CheckTxVersion::<cord_runtime::Runtime>::new(),
-		frame_system::CheckGenesis::<cord_runtime::Runtime>::new(),
-		frame_system::CheckMortality::<cord_runtime::Runtime>::from(generic::Era::mortal(
-			period,
-			best_block.saturated_into(),
-		)),
-		frame_system::CheckNonce::<cord_runtime::Runtime>::from(nonce),
-		frame_system::CheckWeight::<cord_runtime::Runtime>::new(),
-	);
+/// Host functions required for runtime and  node.
+#[cfg(feature = "runtime-benchmarks")]
+pub type HostFunctions =
+	(sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions);
 
-	let raw_payload = cord_runtime::SignedPayload::from_raw(
-		function.clone(),
-		extra.clone(),
-		(
-			(),
-			(),
-			cord_runtime::VERSION.spec_version,
-			cord_runtime::VERSION.transaction_version,
-			genesis_hash,
-			best_hash,
-			(),
-			(),
-		),
-	);
-	let signature = raw_payload.using_encoded(|e| sender.sign(e));
+/// A specialized `WasmExecutor` intended to use with CORD node. It
+/// provides all required HostFunctions.
+pub type RuntimeExecutor = sc_executor::WasmExecutor<HostFunctions>;
 
-	cord_runtime::UncheckedExtrinsic::new_signed(
-		function,
-		sp_runtime::AccountId32::from(sender.public()).into(),
-		cord_runtime::Signature::Sr25519(signature),
-		extra,
-	)
+/// Identifies the variant of the chain.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Chain {
+	/// Braid
+	Braid,
+	/// Loom.
+	Loom,
+	/// Weave
+	Weave,
+	/// Unknown chain?
+	Unknown,
 }
+
+pub trait IdentifyVariant {
+	/// Returns `true` if this is a configuration for braid network.
+	fn is_braid(&self) -> bool;
+
+	/// Returns `true` if this is a configuration for loom network.
+	fn is_loom(&self) -> bool;
+
+	/// Returns `true` if this is a configuration for weave network.
+	fn is_weave(&self) -> bool;
+
+	/// Returns true if this configuration is for a development network.
+	fn is_dev(&self) -> bool;
+
+	/// Identifies the variant of the chain.
+	fn identify_chain(&self) -> Chain;
+}
+
+impl IdentifyVariant for Box<dyn ChainSpec> {
+	fn is_braid(&self) -> bool {
+		self.id().starts_with("braid")
+	}
+	fn is_loom(&self) -> bool {
+		self.id().starts_with("loom")
+	}
+	fn is_weave(&self) -> bool {
+		self.id().starts_with("weave")
+	}
+	fn is_dev(&self) -> bool {
+		self.id().ends_with("dev")
+	}
+	fn identify_chain(&self) -> Chain {
+		if self.is_braid() {
+			Chain::Braid
+		} else if self.is_loom() {
+			Chain::Loom
+		} else if self.is_weave() {
+			Chain::Weave
+		} else {
+			Chain::Unknown
+		}
+	}
+}
+
+/// The full client type definition.
+#[cfg(feature = "full-node")]
+pub type FullClient = sc_service::TFullClient<
+	Block,
+	RuntimeApi,
+	WasmExecutor<(sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions)>,
+>;
+#[cfg(feature = "full-node")]
+type FullBackend = sc_service::TFullBackend<Block>;
+#[cfg(feature = "full-node")]
+type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
+#[cfg(feature = "full-node")]
+type FullGrandpaBlockImport =
+	sc_consensus_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
+
+/// The transaction pool type defintion.
+pub type TransactionPool = sc_transaction_pool::FullPool<Block, FullClient>;
 
 /// Creates PartialComponents for a node.
 /// Enables chain operations for cases when full node is unnecessary.
-#[allow(clippy::type_complexity)]
+#[cfg(feature = "full-node")]
 pub fn new_partial(
 	config: &Configuration,
 ) -> Result<
@@ -280,9 +283,9 @@ pub fn new_partial(
 		sc_transaction_pool::FullPool<Block, FullClient>,
 		(
 			impl Fn(
-				cord_rpc::DenyUnsafe,
-				sc_rpc::SubscriptionTaskExecutor,
-			) -> Result<jsonrpsee::RpcModule<()>, sc_service::Error>,
+				cord_node_rpc::DenyUnsafe,
+				cord_node_rpc::SubscriptionTaskExecutor,
+			) -> Result<cord_node_rpc::RpcExtension, sc_service::Error>,
 			(
 				sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
 				sc_consensus_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
@@ -305,7 +308,19 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
-	let executor = sc_service::new_wasm_executor(config);
+	let heap_pages = config
+		.default_heap_pages
+		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static { extra_pages: h as _ });
+
+	let executor = WasmExecutor::builder()
+		.with_execution_method(config.wasm_method)
+		.with_onchain_heap_alloc_strategy(heap_pages)
+		.with_offchain_heap_alloc_strategy(heap_pages)
+		.with_max_runtime_instances(config.max_runtime_instances)
+		.with_runtime_cache_size(config.runtime_cache_size)
+		.build();
+
+	// let executor = sc_service::new_wasm_executor(config);
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
@@ -313,6 +328,7 @@ pub fn new_partial(
 			telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
 			executor,
 		)?;
+
 	let client = Arc::new(client);
 
 	let telemetry = telemetry.map(|(worker, telemetry)| {
@@ -392,17 +408,17 @@ pub fn new_partial(
 
 		let rpc_backend = backend.clone();
 		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
-			let deps = cord_rpc::FullDeps {
+			let deps = cord_node_rpc::FullDeps {
 				client: client.clone(),
 				pool: pool.clone(),
 				select_chain: select_chain.clone(),
 				chain_spec: chain_spec.cloned_box(),
 				deny_unsafe,
-				babe: cord_rpc::BabeDeps {
+				babe: cord_node_rpc::BabeDeps {
 					keystore: keystore.clone(),
 					babe_worker_handle: babe_worker_handle.clone(),
 				},
-				grandpa: cord_rpc::GrandpaDeps {
+				grandpa: cord_node_rpc::GrandpaDeps {
 					shared_voter_state: shared_voter_state.clone(),
 					shared_authority_set: shared_authority_set.clone(),
 					justification_stream: justification_stream.clone(),
@@ -412,7 +428,7 @@ pub fn new_partial(
 				backend: rpc_backend.clone(),
 			};
 
-			cord_rpc::create_full(deps).map_err(Into::into)
+			cord_node_rpc::create_full(deps).map_err(Into::into)
 		};
 
 		(rpc_extensions_builder, shared_voter_state2)
@@ -431,13 +447,15 @@ pub fn new_partial(
 }
 
 /// Result of [`new_full_base`].
+#[cfg(feature = "full-node")]
+
 pub struct NewFullBase {
 	/// The task manager of the node.
 	pub task_manager: TaskManager,
 	/// The client instance of the node.
 	pub client: Arc<FullClient>,
 	/// The networking service of the node.
-	pub network: Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
+	pub network: Arc<dyn NetworkService>,
 	/// The syncing service of the node.
 	pub sync: Arc<SyncingService<Block>>,
 	/// The transaction pool of the node.
@@ -447,7 +465,7 @@ pub struct NewFullBase {
 }
 
 /// Creates a full service from the configuration.
-pub fn new_full_base(
+pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	config: Configuration,
 	disable_hardware_benchmarks: bool,
 	with_startup_data: impl FnOnce(
@@ -457,21 +475,17 @@ pub fn new_full_base(
 ) -> Result<NewFullBase, ServiceError> {
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks = if config.chain_spec.is_cord() {
+	let backoff_authoring_blocks = if config.chain_spec.is_braid() ||
+		config.chain_spec.is_loom() ||
+		config.chain_spec.is_weave()
+	{
 		// the block authoring backoff is disabled on production networks
 		None
 	} else {
 		let mut backoff = sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default();
-
-		if config.chain_spec.is_cord_local() ||
-			config.chain_spec.is_cord_staging() ||
-			config.chain_spec.is_dev()
-		{
-			// on testnets that are in flux, finality has stalled
-			// sometimes due to operational issues.
+		if config.chain_spec.is_dev() {
 			backoff.max_interval = 10;
 		}
-
 		Some(backoff)
 	};
 	let name = config.network.node_name.clone();
@@ -497,16 +511,25 @@ pub fn new_full_base(
 		other: (rpc_builder, import_setup, rpc_setup, mut telemetry),
 	} = new_partial(&config)?;
 
+	let metrics = N::register_notification_metrics(
+		config.prometheus_config.as_ref().map(|cfg| &cfg.registry),
+	);
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
 	let auth_disc_public_addresses = config.network.public_addresses.clone();
-	let mut net_config = sc_network::config::FullNetworkConfiguration::new(&config.network);
+	let mut net_config =
+		sc_network::config::FullNetworkConfiguration::<_, _, N>::new(&config.network);
 	let genesis_hash = client.block_hash(0).ok().flatten().expect("Genesis block exists; qed");
+	let peer_store_handle = net_config.peer_store_handle();
 
 	let grandpa_protocol_name =
 		sc_consensus_grandpa::protocol_standard_name(&genesis_hash, &config.chain_spec);
 	let (grandpa_protocol_config, grandpa_notification_service) =
-		sc_consensus_grandpa::grandpa_peers_set_config(grandpa_protocol_name.clone());
+		sc_consensus_grandpa::grandpa_peers_set_config::<_, N>(
+			grandpa_protocol_name.clone(),
+			metrics.clone(),
+			Arc::clone(&peer_store_handle),
+		);
 	net_config.add_notification_protocol(grandpa_protocol_config);
 
 	let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
@@ -526,6 +549,7 @@ pub fn new_full_base(
 			block_announce_validator_builder: None,
 			warp_sync_params: Some(WarpSyncParams::WithProvider(warp_sync)),
 			block_relay: None,
+			metrics,
 		})?;
 
 	let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
@@ -643,7 +667,7 @@ pub fn new_full_base(
 					..Default::default()
 				},
 				client.clone(),
-				network.clone(),
+				Arc::new(network.clone()),
 				Box::pin(dht_event_stream),
 				authority_discovery_role,
 				prometheus_registry.clone(),
@@ -662,7 +686,7 @@ pub fn new_full_base(
 
 	let grandpa_config = sc_consensus_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
-		gossip_duration: std::time::Duration::from_millis(1000),
+		gossip_duration: std::time::Duration::from_millis(333),
 		justification_generation_period: GRANDPA_JUSTIFICATION_PERIOD,
 		name: Some(name),
 		observer_enabled: false,
@@ -712,7 +736,7 @@ pub fn new_full_base(
 				transaction_pool: Some(OffchainTransactionPoolFactory::new(
 					transaction_pool.clone(),
 				)),
-				network_provider: network.clone(),
+				network_provider: Arc::new(network.clone()),
 				is_validator: role.is_authority(),
 				enable_http_requests: true,
 				custom_extensions: move |_| vec![],
@@ -733,20 +757,144 @@ pub fn new_full_base(
 	})
 }
 
-/// Builds a new service for a full client.
-pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
-	let database_path = config.database.path().map(Path::to_path_buf);
-	let task_manager = new_full_base(config, cli.no_hardware_benchmarks, |_, _| ())
-		.map(|NewFullBase { task_manager, .. }| task_manager)?;
+#[cfg(feature = "full-node")]
+pub trait RuntimeConfig {
+	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError>;
+}
 
-	if let Some(database_path) = database_path {
-		sc_storage_monitor::StorageMonitorService::try_spawn(
-			cli.storage_monitor,
-			database_path,
-			&task_manager.spawn_essential_handle(),
-		)
-		.map_err(|e| ServiceError::Application(e.into()))?;
+#[cfg(feature = "full-node")]
+pub struct BraidRuntime;
+#[cfg(feature = "full-node")]
+impl RuntimeConfig for BraidRuntime {
+	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
+		let database_path = config.database.path().map(Path::to_path_buf);
+		let task_manager = match config.network.network_backend {
+			sc_network::config::NetworkBackendType::Libp2p => {
+				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
+					config,
+					cli.no_hardware_benchmarks,
+					|_, _| (),
+				)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+				task_manager
+			},
+			sc_network::config::NetworkBackendType::Litep2p => {
+				let task_manager = new_full_base::<sc_network::Litep2pNetworkBackend>(
+					config,
+					cli.no_hardware_benchmarks,
+					|_, _| (),
+				)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+				task_manager
+			},
+		};
+
+		if let Some(database_path) = database_path {
+			sc_storage_monitor::StorageMonitorService::try_spawn(
+				cli.storage_monitor,
+				database_path,
+				&task_manager.spawn_essential_handle(),
+			)
+			.map_err(|e| ServiceError::Application(e.into()))?;
+		}
+
+		Ok(task_manager)
 	}
+}
 
-	Ok(task_manager)
+#[cfg(feature = "full-node")]
+pub struct LoomRuntime;
+#[cfg(feature = "full-node")]
+impl RuntimeConfig for LoomRuntime {
+	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
+		let database_path = config.database.path().map(Path::to_path_buf);
+		let task_manager = match config.network.network_backend {
+			sc_network::config::NetworkBackendType::Libp2p => {
+				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
+					config,
+					cli.no_hardware_benchmarks,
+					|_, _| (),
+				)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+				task_manager
+			},
+			sc_network::config::NetworkBackendType::Litep2p => {
+				let task_manager = new_full_base::<sc_network::Litep2pNetworkBackend>(
+					config,
+					cli.no_hardware_benchmarks,
+					|_, _| (),
+				)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+				task_manager
+			},
+		};
+
+		if let Some(database_path) = database_path {
+			sc_storage_monitor::StorageMonitorService::try_spawn(
+				cli.storage_monitor,
+				database_path,
+				&task_manager.spawn_essential_handle(),
+			)
+			.map_err(|e| ServiceError::Application(e.into()))?;
+		}
+
+		Ok(task_manager)
+	}
+}
+
+#[cfg(feature = "full-node")]
+pub struct WeaveRuntime;
+#[cfg(feature = "full-node")]
+impl RuntimeConfig for WeaveRuntime {
+	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
+		let database_path = config.database.path().map(Path::to_path_buf);
+		let task_manager = match config.network.network_backend {
+			sc_network::config::NetworkBackendType::Libp2p => {
+				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
+					config,
+					cli.no_hardware_benchmarks,
+					|_, _| (),
+				)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+				task_manager
+			},
+			sc_network::config::NetworkBackendType::Litep2p => {
+				let task_manager = new_full_base::<sc_network::Litep2pNetworkBackend>(
+					config,
+					cli.no_hardware_benchmarks,
+					|_, _| (),
+				)
+				.map(|NewFullBase { task_manager, .. }| task_manager)?;
+				task_manager
+			},
+		};
+
+		if let Some(database_path) = database_path {
+			sc_storage_monitor::StorageMonitorService::try_spawn(
+				cli.storage_monitor,
+				database_path,
+				&task_manager.spawn_essential_handle(),
+			)
+			.map_err(|e| ServiceError::Application(e.into()))?;
+		}
+
+		Ok(task_manager)
+	}
+}
+
+pub fn select_runtime(config: &Configuration) -> Box<dyn RuntimeConfig> {
+	if config.chain_spec.is_braid() {
+		Box::new(BraidRuntime)
+	} else if config.chain_spec.is_loom() {
+		Box::new(LoomRuntime)
+	} else if config.chain_spec.is_weave() {
+		Box::new(WeaveRuntime)
+	} else {
+		panic!("Unsupported runtime");
+	}
+}
+
+pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
+	let runtime = select_runtime(&config);
+	runtime.new_full(config, cli)
 }

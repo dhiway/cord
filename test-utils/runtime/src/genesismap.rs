@@ -69,7 +69,7 @@ impl Default for GenesisStorageBuilder {
 					AccountKeyring::Charlie.into(),
 				])
 				.collect(),
-			1000 * currency::WAY,
+			1000 * currency::UNITS,
 		)
 	}
 }

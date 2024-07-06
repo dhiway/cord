@@ -19,11 +19,11 @@
 #![cfg(unix)]
 
 use assert_cmd::cargo::cargo_bin;
+use cord_primitives::{Hash, Header};
 use nix::{
 	sys::signal::{kill, Signal, Signal::SIGINT},
 	unistd::Pid,
 };
-use node_primitives::{Hash, Header};
 use regex::Regex;
 use sp_rpc::{list::ListOrValue, number::NumberOrHex};
 use std::{
@@ -63,9 +63,10 @@ pub fn start_node_inline(args: Vec<&str>) -> Result<(), sc_service::error::Error
 
 	// Prepend the args with some dummy value because the first arg is skipped.
 	let cli_call = std::iter::once("cord").chain(args);
-	let cli = node_cli::Cli::from_iter(cli_call);
+	let cli = cord_node_cli::Cli::from_iter(cli_call);
 	let runner = cli.create_runner(&cli.run).unwrap();
-	runner.run_node_until_exit(|config| async move { node_cli::service::new_full(config, cli) })
+	runner
+		.run_node_until_exit(|config| async move { cord_node_cli::service::new_full(config, cli) })
 }
 
 /// Starts a new Cord node in development mode with a temporary chain.
@@ -129,16 +130,16 @@ pub fn start_node() -> Child {
 /// # Examples
 ///
 /// ```ignore
-/// build_substrate(&["--features=try-runtime"]);
+/// build_cord(&["--features=try-runtime"]);
 /// ```
-pub fn build_substrate(args: &[&str]) {
+pub fn build_cord(args: &[&str]) {
 	let is_release_build = !cfg!(build_type = "debug");
 
 	// Get the root workspace directory from the CARGO_MANIFEST_DIR environment
 	// variable
 	let mut cmd = Command::new("cargo");
 
-	cmd.arg("build").arg("-p=staging-node-cli");
+	cmd.arg("build").arg("-p=cord-node-cli");
 
 	if is_release_build {
 		cmd.arg("--release");
@@ -147,7 +148,7 @@ pub fn build_substrate(args: &[&str]) {
 	let output = cmd
 		.args(args)
 		.output()
-		.unwrap_or_else(|_| panic!("Failed to execute 'cargo b' with args {:?}'", args));
+		.expect(format!("Failed to execute 'cargo b' with args {:?}'", args).as_str());
 
 	if !output.status.success() {
 		panic!(
@@ -199,8 +200,9 @@ where
 {
 	let mut stdio_reader = tokio::io::BufReader::new(stream).lines();
 	while let Ok(Some(line)) = stdio_reader.next_line().await {
-		if re.find(line.as_str()).is_some() {
-			return Ok(());
+		match re.find(line.as_str()) {
+			Some(_) => return Ok(()),
+			None => (),
 		}
 	}
 	Err(String::from("Stream closed without any lines matching the regex."))
@@ -339,7 +341,7 @@ pub fn extract_info_from_output(read: impl Read + Send) -> (NodeInfo, String) {
 		.find_map(|line| {
 			let line = line.expect("failed to obtain next line while extracting node info");
 			data.push_str(&line);
-			data.push('\n');
+			data.push_str("\n");
 
 			// does the line contain our port (we expect this specific output from
 			// substrate).

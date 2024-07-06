@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+#![allow(missing_docs)]
+
 pub mod chain_setup;
 pub mod gen_key;
 
@@ -23,17 +25,25 @@ use crate::{
 	benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder},
 	chain_spec,
 	cli::{Cli, Subcommand},
-	service::{self as cord_service, IdentifyVariant},
+	service::{self as cord_service, IdentifyVariant, RuntimeApi},
 };
 
 use cord_primitives::Block;
-use cord_runtime::{ExistentialDeposit, RuntimeApi};
+use cord_runtime_common::Ss58AddressFormatPrefix;
 use cord_service::{new_partial, FullClient};
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
 use sc_cli::{Result, SubstrateCli};
 use sc_service::PartialComponents;
+use sp_core::crypto::Ss58AddressFormat;
 use sp_keyring::Sr25519Keyring;
 use std::sync::Arc;
+
+fn get_exec_name() -> Option<String> {
+	std::env::current_exe()
+		.ok()
+		.and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
+		.and_then(|s| s.into_string().ok())
+}
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -60,37 +70,137 @@ impl SubstrateCli for Cli {
 		2019
 	}
 
+	fn executable_name() -> String {
+		"cord".into()
+	}
+
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-		let spec = match id {
-			"cord" | "braid" | "" => Box::new(chain_spec::cord_local_config()?),
-			"dev" | "braid-dev" => Box::new(chain_spec::cord_dev_config()?),
-			"local" | "braid-local" => Box::new(chain_spec::cord_local_config()?),
+		let incoming_id = id;
+
+		let id = if id == "" {
+			let n = get_exec_name().unwrap_or_default();
+			["braid", "loom", "weave"]
+				.iter()
+				.cloned()
+				.find(|&chain| n.starts_with(chain))
+				.unwrap_or("weave")
+		} else {
+			match id {
+				"dev-node-braid" | "dev-node-loom" | "dev-node-weave" => "dev",
+				_ => id,
+			}
+		};
+		Ok(match id {
+			#[cfg(feature = "braid-native")]
+			"braid" | "braid-local" => Box::new(chain_spec::braid_local_config()?),
+			#[cfg(feature = "loom-native")]
+			"loom" | "loom-local" => Box::new(chain_spec::loom_local_config()?),
+			#[cfg(feature = "weave-native")]
+			"weave" | "weave-local" => Box::new(chain_spec::weave_local_config()?),
+			#[cfg(feature = "braid-native")]
+			"dev" => match incoming_id {
+				"dev-node-braid" => Box::new(chain_spec::braid_development_config()?),
+				"dev-node-loom" => Box::new(chain_spec::loom_development_config()?),
+				"dev-node-weave" => Box::new(chain_spec::weave_development_config()?),
+				"dev" => Box::new(chain_spec::loom_development_config()?),
+				_ => Box::new(chain_spec::loom_development_config()?),
+			},
+			"braid-dev" => Box::new(chain_spec::braid_development_config()?),
+			#[cfg(feature = "loom-native")]
+			"loom-dev" => Box::new(chain_spec::loom_development_config()?),
+			#[cfg(feature = "weave-native")]
+			"weave-dev" => Box::new(chain_spec::weave_development_config()?),
+			#[cfg(not(feature = "braid-native"))]
+			name if name.starts_with("braid-") && !name.ends_with(".json") =>
+				Err(format!("`{}` only supported with `braid-native` feature enabled.", name))?,
+			#[cfg(not(feature = "loom-native"))]
+			name if name.starts_with("loom-") && !name.ends_with(".json") =>
+				Err(format!("`{}` only supported with `loom-native` feature enabled.", name))?,
+			// "weave" => Box::new(chain_spec::weave_config()?),
 			path => {
 				let path = std::path::PathBuf::from(path);
-				let chain_spec = Box::new(chain_spec::CordChainSpec::from_json_file(path.clone())?)
-					as Box<dyn sc_service::ChainSpec>;
-				if chain_spec.is_cord() ||
-					chain_spec.is_cord_local() ||
-					chain_spec.is_cord_staging()
-				{
-					Box::new(chain_spec::CordChainSpec::from_json_file(path)?)
+
+				let chain_spec =
+					Box::new(cord_service::GenericChainSpec::from_json_file(path.clone())?)
+						as Box<dyn cord_service::ChainSpec>;
+
+				// When the file name starts with the name of one of the known
+				// chains, we use the chain spec for the specific chain.
+				if chain_spec.is_braid() {
+					Box::new(cord_service::BraidChainSpec::from_json_file(path)?)
+				} else if chain_spec.is_loom() {
+					Box::new(cord_service::LoomChainSpec::from_json_file(path)?)
+				} else if chain_spec.is_weave() {
+					Box::new(cord_service::WeaveChainSpec::from_json_file(path)?)
 				} else {
 					chain_spec
 				}
 			},
-		};
-		Ok(spec)
+		})
 	}
+}
+
+fn set_default_ss58_version(spec: &Box<dyn cord_service::ChainSpec>) {
+	let ss58_version = if spec.is_weave() {
+		Ss58AddressFormatPrefix::Weave.into()
+	} else if spec.is_loom() {
+		Ss58AddressFormatPrefix::Loom.into()
+	} else if spec.is_braid() {
+		Ss58AddressFormatPrefix::Braid.into()
+	} else {
+		spec.properties()
+			.get("ss58Format")
+			.and_then(|v| v.as_u64())
+			.map(|v| Ss58AddressFormat::custom(v as u16))
+			.unwrap_or_else(|| Ss58AddressFormatPrefix::Default.into())
+	};
+
+	sp_core::crypto::set_default_ss58_version(ss58_version);
 }
 
 /// Parse command line arguments into service configuration.
 pub fn run() -> Result<()> {
-	let cli: Cli = Cli::from_args();
+	let mut cli: Cli = Cli::from_args();
 
 	match &cli.subcommand {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
+				let chain_spec = config.chain_spec.cloned_box();
+				set_default_ss58_version(&chain_spec);
+				cord_service::new_full(config, cli).map_err(sc_cli::Error::Service)
+			})
+		},
+		Some(Subcommand::Braid { dev: _ }) => {
+			let id = "dev-node-braid";
+			cli.run.shared_params.dev = true;
+			let runner = cli.create_runner(&cli.run)?;
+			runner.run_node_until_exit(|mut config| async move {
+				let chain_spec = cli.load_spec(id)?;
+				config.chain_spec = chain_spec;
+				set_default_ss58_version(&config.chain_spec);
+				cord_service::new_full(config, cli).map_err(sc_cli::Error::Service)
+			})
+		},
+		Some(Subcommand::Loom { dev: _ }) => {
+			let id = "dev-node-loom";
+			cli.run.shared_params.dev = true;
+			let runner = cli.create_runner(&cli.run)?;
+			runner.run_node_until_exit(|mut config| async move {
+				let chain_spec = cli.load_spec(id)?;
+				config.chain_spec = chain_spec;
+				set_default_ss58_version(&config.chain_spec);
+				cord_service::new_full(config, cli).map_err(sc_cli::Error::Service)
+			})
+		},
+		Some(Subcommand::Weave { dev: _ }) => {
+			let id = "dev-node-weave";
+			cli.run.shared_params.dev = true;
+			let runner = cli.create_runner(&cli.run)?;
+			runner.run_node_until_exit(|mut config| async move {
+				let chain_spec = cli.load_spec(id)?;
+				config.chain_spec = chain_spec;
+				set_default_ss58_version(&config.chain_spec);
 				cord_service::new_full(config, cli).map_err(sc_cli::Error::Service)
 			})
 		},
@@ -99,15 +209,15 @@ pub fn run() -> Result<()> {
 
 			runner.sync_run(|config| cmd.run::<Block, RuntimeApi>(config))
 		},
+		Some(Subcommand::BuildSpec(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
+		},
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
 		Some(Subcommand::BootstrapChain(cmd)) => cmd.run(),
 		Some(Subcommand::Sign(cmd)) => cmd.run(),
 		Some(Subcommand::Verify(cmd)) => cmd.run(),
 		Some(Subcommand::Vanity(cmd)) => cmd.run(),
-		Some(Subcommand::BuildSpec(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
-			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
-		},
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
@@ -167,10 +277,9 @@ pub fn run() -> Result<()> {
 								"Runtime benchmarking wasn't enabled when building the node. \
 							You can enable it with `--features runtime-benchmarks`."
 									.into(),
-							);
+							)
 						}
-						cmd.run::<sp_runtime::traits::HashingFor<cord_service::Block>, ()>(config)
-						// cmd.run::<Block, ()>(config)
+						cmd.run_with_spec::<sp_runtime::traits::HashingFor<cord_service::Block>, ()>(Some(config.chain_spec))
 					},
 					BenchmarkCmd::Block(cmd) => {
 						// ensure that we keep the task manager alive
@@ -194,7 +303,7 @@ pub fn run() -> Result<()> {
 					BenchmarkCmd::Overhead(cmd) => {
 						// ensure that we keep the task manager alive
 						let partial = new_partial(&config)?;
-						let ext_builder = RemarkBuilder::new(partial.client.clone());
+						let ext_builder = RemarkBuilder::new(partial.client.clone(),config.chain_spec.identify_chain());
 
 						cmd.run(
 							config,
@@ -209,11 +318,11 @@ pub fn run() -> Result<()> {
 						let partial = cord_service::new_partial(&config)?;
 						// Register the *Remark* and *TKA* builders.
 						let ext_factory = ExtrinsicFactory(vec![
-							Box::new(RemarkBuilder::new(partial.client.clone())),
+							Box::new(RemarkBuilder::new(partial.client.clone(),config.chain_spec.identify_chain())),
 							Box::new(TransferKeepAliveBuilder::new(
 								partial.client.clone(),
 								Sr25519Keyring::Alice.to_account_id(),
-								ExistentialDeposit::get(),
+								config.chain_spec.identify_chain(),
 							)),
 						]);
 
@@ -224,17 +333,12 @@ pub fn run() -> Result<()> {
 							&ext_factory,
 						)
 					},
-					BenchmarkCmd::Machine(cmd) =>
-						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()),
+					BenchmarkCmd::Machine(cmd) => {
+						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())
+					},
 				}
 			})
 		},
-		#[cfg(feature = "try-runtime")]
-		Some(Subcommand::TryRuntime) => Err(try_runtime_cli::DEPRECATION_NOTICE.to_owned().into()),
-		#[cfg(not(feature = "try-runtime"))]
-		Some(Subcommand::TryRuntime) => Err("TryRuntime wasn't enabled when building the node. \
-                You can enable it with `--features try-runtime`."
-			.into()),
 		Some(Subcommand::ChainInfo(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run::<Block>(&config))

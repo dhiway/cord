@@ -20,7 +20,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod weights;
-
 use codec::{Decode, Encode};
 use frame_support::dispatch::DispatchInfo;
 pub use pallet::*;
@@ -35,7 +34,6 @@ pub mod benchmarking;
 pub mod tests;
 
 use frame_support::{dispatch::GetDispatchInfo, traits::Get};
-// use network_membership::MemberData;
 use sp_runtime::{
 	traits::{DispatchInfoOf, Dispatchable, SignedExtension, Zero},
 	transaction_validity::{
@@ -314,6 +312,7 @@ impl<T: Config> Pallet<T> {
 	pub fn is_member(member: &CordAccountOf<T>) -> bool {
 		Members::<T>::contains_key(member)
 	}
+
 	// Query the data that we know about the weight of a given `call`.
 	///
 	/// All dispatchables must be annotated with weight. This function always
@@ -336,7 +335,7 @@ impl<T: Config> sp_runtime::traits::IsMember<T::AccountId> for Pallet<T> {
 	}
 }
 
-impl<T: Config> network_membership::traits::MembersCount for Pallet<T> {
+impl<T: Config> network_membership::MembersCount for Pallet<T> {
 	fn members_count() -> u32 {
 		Members::<T>::count()
 	}

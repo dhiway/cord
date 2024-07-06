@@ -19,18 +19,17 @@
 use async_channel::TryRecvError;
 use cord_test_runtime::TestAPI;
 use cord_test_runtime_client::{
-	new_native_or_wasm_executor,
-	prelude::*,
 	runtime::{
-		currency::WAY,
+		currency::UNITS,
 		genesismap::{insert_genesis_block, GenesisStorageBuilder},
 		Block, BlockNumber, Digest, Hash, Header, RuntimeApi, Transfer,
 	},
 	AccountKeyring, BlockBuilderExt, ClientBlockImportExt, ClientExt, DefaultTestClientBuilderExt,
 	Sr25519Keyring, TestClientBuilder, TestClientBuilderExt,
 };
+
+use codec::{Decode, Encode, Joiner};
 use futures::executor::block_on;
-use parity_scale_codec::{Decode, Encode, Joiner};
 use sc_block_builder::BlockBuilderBuilder;
 use sc_client_api::{
 	in_mem, BlockBackend, BlockchainEvents, ExecutorProvider, FinalityNotifications, HeaderBackend,
@@ -40,6 +39,7 @@ use sc_client_db::{Backend, BlocksPruning, DatabaseSettings, DatabaseSource, Pru
 use sc_consensus::{
 	BlockCheckParams, BlockImport, BlockImportParams, ForkChoiceStrategy, ImportResult,
 };
+use sc_executor::WasmExecutor;
 use sc_service::client::{new_in_mem, Client, LocalCallExecutor};
 use sp_api::ProvideRuntimeApi;
 use sp_consensus::{BlockOrigin, Error as ConsensusError, SelectChain};
@@ -79,7 +79,7 @@ fn construct_block(
 	StateMachine::new(
 		backend,
 		&mut overlay,
-		&new_native_or_wasm_executor(),
+		&WasmExecutor::default(),
 		"Core_initialize_block",
 		&header.encode(),
 		&mut Default::default(),
@@ -93,7 +93,7 @@ fn construct_block(
 		StateMachine::new(
 			backend,
 			&mut overlay,
-			&new_native_or_wasm_executor(),
+			&WasmExecutor::default(),
 			"BlockBuilder_apply_extrinsic",
 			&tx.encode(),
 			&mut Default::default(),
@@ -107,7 +107,7 @@ fn construct_block(
 	let ret_data = StateMachine::new(
 		backend,
 		&mut overlay,
-		&new_native_or_wasm_executor(),
+		&WasmExecutor::default(),
 		"BlockBuilder_finalize_block",
 		&[],
 		&mut Default::default(),
@@ -129,7 +129,7 @@ fn block1(genesis_hash: Hash, backend: &InMemoryBackend<BlakeTwo256>) -> Vec<u8>
 		vec![Transfer {
 			from: AccountKeyring::One.into(),
 			to: AccountKeyring::Two.into(),
-			amount: 69 * WAY,
+			amount: 69 * UNITS,
 			nonce: 0,
 		}],
 	)
@@ -158,9 +158,9 @@ fn finality_notification_check(
 #[test]
 fn construct_genesis_should_work_with_native() {
 	let mut storage = GenesisStorageBuilder::new(
-		vec![Sr25519Keyring::One.public(), Sr25519Keyring::Two.public()],
+		vec![Sr25519Keyring::One.public().into(), Sr25519Keyring::Two.public().into()],
 		vec![AccountKeyring::One.into(), AccountKeyring::Two.into()],
-		1000 * WAY,
+		1000 * UNITS,
 	)
 	.build();
 	let genesis_hash = insert_genesis_block(&mut storage);
@@ -175,7 +175,7 @@ fn construct_genesis_should_work_with_native() {
 	let _ = StateMachine::new(
 		&backend,
 		&mut overlay,
-		&new_native_or_wasm_executor(),
+		&WasmExecutor::default(),
 		"Core_execute_block",
 		&b1data,
 		&mut Default::default(),
@@ -189,9 +189,9 @@ fn construct_genesis_should_work_with_native() {
 #[test]
 fn construct_genesis_should_work_with_wasm() {
 	let mut storage = GenesisStorageBuilder::new(
-		vec![Sr25519Keyring::One.public(), Sr25519Keyring::Two.public()],
+		vec![Sr25519Keyring::One.public().into(), Sr25519Keyring::Two.public().into()],
 		vec![AccountKeyring::One.into(), AccountKeyring::Two.into()],
-		1000 * WAY,
+		1000 * UNITS,
 	)
 	.build();
 	let genesis_hash = insert_genesis_block(&mut storage);
@@ -206,7 +206,7 @@ fn construct_genesis_should_work_with_wasm() {
 	let _ = StateMachine::new(
 		&backend,
 		&mut overlay,
-		&new_native_or_wasm_executor(),
+		&WasmExecutor::default(),
 		"Core_execute_block",
 		&b1data,
 		&mut Default::default(),
@@ -226,7 +226,7 @@ fn client_initializes_from_genesis_ok() {
 			.runtime_api()
 			.balance_of(client.chain_info().best_hash, AccountKeyring::Alice.into())
 			.unwrap(),
-		1000 * WAY
+		1000 * UNITS
 	);
 	assert_eq!(
 		client
@@ -269,7 +269,7 @@ fn block_builder_works_with_transactions() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: 42 * WAY,
+			amount: 42 * UNITS,
 			nonce: 0,
 		})
 		.unwrap();
@@ -304,14 +304,14 @@ fn block_builder_works_with_transactions() {
 			.runtime_api()
 			.balance_of(client.chain_info().best_hash, AccountKeyring::Alice.into())
 			.unwrap(),
-		958 * WAY
+		958 * UNITS
 	);
 	assert_eq!(
 		client
 			.runtime_api()
 			.balance_of(client.chain_info().best_hash, AccountKeyring::Ferdie.into())
 			.unwrap(),
-		42 * WAY
+		42 * UNITS
 	);
 }
 
@@ -328,7 +328,7 @@ fn block_builder_does_not_include_invalid() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: 42 * WAY,
+			amount: 42 * UNITS,
 			nonce: 0,
 		})
 		.unwrap();
@@ -337,7 +337,7 @@ fn block_builder_does_not_include_invalid() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: 30 * WAY,
+			amount: 30 * UNITS,
 			nonce: 0,
 		})
 		.is_err());
@@ -495,7 +495,7 @@ fn uncles_with_multiple_forks() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: 41 * WAY,
+			amount: 41 * UNITS,
 			nonce: 0,
 		})
 		.unwrap();
@@ -536,7 +536,7 @@ fn uncles_with_multiple_forks() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: WAY,
+			amount: UNITS,
 			nonce: 1,
 		})
 		.unwrap();
@@ -555,7 +555,7 @@ fn uncles_with_multiple_forks() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: WAY,
+			amount: UNITS,
 			nonce: 0,
 		})
 		.unwrap();
@@ -698,7 +698,7 @@ fn finality_target_on_longest_chain_with_multiple_forks() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: 41 * WAY,
+			amount: 41 * UNITS,
 			nonce: 0,
 		})
 		.unwrap();
@@ -740,7 +740,7 @@ fn finality_target_on_longest_chain_with_multiple_forks() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: WAY,
+			amount: UNITS,
 			nonce: 1,
 		})
 		.unwrap();
@@ -760,7 +760,7 @@ fn finality_target_on_longest_chain_with_multiple_forks() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: WAY,
+			amount: UNITS,
 			nonce: 0,
 		})
 		.unwrap();
@@ -993,7 +993,7 @@ fn finality_target_with_best_not_on_longest_chain() {
 		.push_transfer(Transfer {
 			from: AccountKeyring::Alice.into(),
 			to: AccountKeyring::Ferdie.into(),
-			amount: 41 * WAY,
+			amount: 41 * UNITS,
 			nonce: 0,
 		})
 		.unwrap();
@@ -1145,7 +1145,7 @@ fn importing_diverged_finalized_block_should_trigger_reorg() {
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
-		amount: WAY,
+		amount: UNITS,
 		nonce: 0,
 	})
 	.unwrap();
@@ -1206,7 +1206,7 @@ fn finalizing_diverged_block_should_trigger_reorg() {
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
-		amount: WAY,
+		amount: UNITS,
 		nonce: 0,
 	})
 	.unwrap();
@@ -1258,8 +1258,8 @@ fn finalizing_diverged_block_should_trigger_reorg() {
 
 	ClientExt::finalize_block(&client, b3.hash(), None).unwrap();
 
-	finality_notification_check(&mut finality_notifications, &[b1.hash()], &[]);
-	finality_notification_check(&mut finality_notifications, &[b2.hash(), b3.hash()], &[a2.hash()]);
+	finality_notification_check(&mut finality_notifications, &[b1.hash()], &[a2.hash()]);
+	finality_notification_check(&mut finality_notifications, &[b2.hash(), b3.hash()], &[]);
 	assert!(matches!(finality_notifications.try_recv().unwrap_err(), TryRecvError::Empty));
 }
 
@@ -1340,7 +1340,7 @@ fn finality_notifications_content() {
 	c1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
-		amount: 2 * WAY,
+		amount: 2 * UNITS,
 		nonce: 0,
 	})
 	.unwrap();
@@ -1357,7 +1357,7 @@ fn finality_notifications_content() {
 	d3.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
-		amount: 2 * WAY,
+		amount: 2 * UNITS,
 		nonce: 0,
 	})
 	.unwrap();
@@ -1380,8 +1380,12 @@ fn finality_notifications_content() {
 	// Import and finalize D4
 	block_on(client.import_as_final(BlockOrigin::Own, d4.clone())).unwrap();
 
-	finality_notification_check(&mut finality_notifications, &[a1.hash(), a2.hash()], &[c1.hash()]);
-	finality_notification_check(&mut finality_notifications, &[d3.hash(), d4.hash()], &[b2.hash()]);
+	finality_notification_check(
+		&mut finality_notifications,
+		&[a1.hash(), a2.hash()],
+		&[c1.hash(), b2.hash()],
+	);
+	finality_notification_check(&mut finality_notifications, &[d3.hash(), d4.hash()], &[a3.hash()]);
 	assert!(matches!(finality_notifications.try_recv().unwrap_err(), TryRecvError::Empty));
 }
 
@@ -1435,7 +1439,7 @@ fn state_reverted_on_reorg() {
 	a1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Bob.into(),
-		amount: 10 * WAY,
+		amount: 10 * UNITS,
 		nonce: 0,
 	})
 	.unwrap();
@@ -1450,7 +1454,7 @@ fn state_reverted_on_reorg() {
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
-		amount: 50 * WAY,
+		amount: 50 * UNITS,
 		nonce: 0,
 	})
 	.unwrap();
@@ -1458,7 +1462,7 @@ fn state_reverted_on_reorg() {
 	// Reorg to B1
 	block_on(client.import_as_best(BlockOrigin::Own, b1.clone())).unwrap();
 
-	assert_eq!(950 * WAY, current_balance(&client));
+	assert_eq!(950 * UNITS, current_balance(&client));
 	let mut a2 = BlockBuilderBuilder::new(&client)
 		.on_parent_block(a1.hash())
 		.with_parent_block_number(1)
@@ -1467,14 +1471,14 @@ fn state_reverted_on_reorg() {
 	a2.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Charlie.into(),
-		amount: 10 * WAY,
+		amount: 10 * UNITS,
 		nonce: 1,
 	})
 	.unwrap();
 	let a2 = a2.build().unwrap().block;
 	// Re-org to A2
 	block_on(client.import_as_best(BlockOrigin::Own, a2)).unwrap();
-	assert_eq!(980 * WAY, current_balance(&client));
+	assert_eq!(980 * UNITS, current_balance(&client));
 }
 
 #[test]
@@ -1537,7 +1541,7 @@ fn doesnt_import_blocks_that_revert_finality() {
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
-		amount: WAY,
+		amount: 1 * UNITS,
 		nonce: 0,
 	})
 	.unwrap();
@@ -1587,7 +1591,7 @@ fn doesnt_import_blocks_that_revert_finality() {
 	c1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
-		amount: 2 * WAY,
+		amount: 2 * UNITS,
 		nonce: 0,
 	})
 	.unwrap();
@@ -1610,9 +1614,9 @@ fn doesnt_import_blocks_that_revert_finality() {
 	block_on(client.import(BlockOrigin::Own, a3.clone())).unwrap();
 	ClientExt::finalize_block(&client, a3.hash(), None).unwrap();
 
-	finality_notification_check(&mut finality_notifications, &[a1.hash(), a2.hash()], &[]);
+	finality_notification_check(&mut finality_notifications, &[a1.hash(), a2.hash()], &[b2.hash()]);
 
-	finality_notification_check(&mut finality_notifications, &[a3.hash()], &[b2.hash()]);
+	finality_notification_check(&mut finality_notifications, &[a3.hash()], &[]);
 
 	assert!(matches!(finality_notifications.try_recv().unwrap_err(), TryRecvError::Empty));
 }
@@ -1934,7 +1938,7 @@ fn storage_keys_prefix_and_start_key_works() {
 	let res: Vec<_> = client
 		.storage_keys(block_hash, Some(&prefix), None)
 		.unwrap()
-		.map(|x| array_bytes::bytes2hex("", x.0))
+		.map(|x| array_bytes::bytes2hex("", &x.0))
 		.collect();
 	assert_eq!(
 		res,
@@ -1952,7 +1956,7 @@ fn storage_keys_prefix_and_start_key_works() {
 			Some(&StorageKey(array_bytes::hex2bytes_unchecked("3a636f6465"))),
 		)
 		.unwrap()
-		.map(|x| array_bytes::bytes2hex("", x.0))
+		.map(|x| array_bytes::bytes2hex("", &x.0))
 		.collect();
 	assert_eq!(res, ["3a65787472696e7369635f696e646578",]);
 
@@ -1997,7 +2001,7 @@ fn storage_keys_works() {
 		.storage_keys(block_hash, Some(&prefix), None)
 		.unwrap()
 		.take(19)
-		.map(|x| array_bytes::bytes2hex("", x.0))
+		.map(|x| array_bytes::bytes2hex("", &x.0))
 		.collect();
 
 	assert_eq!(res, expected_keys[0..19],);
@@ -2007,7 +2011,7 @@ fn storage_keys_works() {
 		.storage_keys(block_hash, Some(&prefix), Some(&StorageKey("".into())))
 		.unwrap()
 		.take(19)
-		.map(|x| array_bytes::bytes2hex("", x.0))
+		.map(|x| array_bytes::bytes2hex("", &x.0))
 		.collect();
 	assert_eq!(res, expected_keys[0..19],);
 
@@ -2020,7 +2024,7 @@ fn storage_keys_works() {
 		)
 		.unwrap()
 		.take(8)
-		.map(|x| array_bytes::bytes2hex("", x.0))
+		.map(|x| array_bytes::bytes2hex("", &x.0))
 		.collect();
 	assert_eq!(
 		res,
@@ -2041,7 +2045,7 @@ fn storage_keys_works() {
 		)
 		.unwrap()
 		.take(7)
-		.map(|x| array_bytes::bytes2hex("", x.0))
+		.map(|x| array_bytes::bytes2hex("", &x.0))
 		.collect();
 	assert_eq!(
 		res,
@@ -2062,7 +2066,7 @@ fn storage_keys_works() {
 		)
 		.unwrap()
 		.take(8)
-		.map(|x| array_bytes::bytes2hex("", x.0))
+		.map(|x| array_bytes::bytes2hex("", &x.0))
 		.collect();
 	assert_eq!(
 		res,
@@ -2080,7 +2084,7 @@ fn cleans_up_closed_notification_sinks_on_block_import() {
 	use cord_test_runtime_client::GenesisInit;
 
 	let backend = Arc::new(sc_client_api::in_mem::Backend::new());
-	let executor = new_native_or_wasm_executor();
+	let executor = WasmExecutor::default();
 	let client_config = sc_service::ClientConfig::default();
 
 	let genesis_block_builder = sc_service::GenesisBlockBuilder::new(
@@ -2107,11 +2111,7 @@ fn cleans_up_closed_notification_sinks_on_block_import() {
 
 	type TestClient = Client<
 		in_mem::Backend<Block>,
-		LocalCallExecutor<
-			Block,
-			in_mem::Backend<Block>,
-			sc_executor::NativeElseWasmExecutor<LocalExecutorDispatch>,
-		>,
+		LocalCallExecutor<Block, in_mem::Backend<Block>, WasmExecutor>,
 		Block,
 		RuntimeApi,
 	>;
@@ -2204,7 +2204,7 @@ fn reorg_triggers_a_notification_even_for_sources_that_should_not_trigger_notifi
 	b1.push_transfer(Transfer {
 		from: AccountKeyring::Alice.into(),
 		to: AccountKeyring::Ferdie.into(),
-		amount: WAY,
+		amount: UNITS,
 		nonce: 0,
 	})
 	.unwrap();

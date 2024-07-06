@@ -23,7 +23,7 @@ use std::process::Command;
 /// `benchmark pallet` works for the different combinations of `steps` and
 /// `repeat`.
 #[test]
-#[ignore]
+// #[ignore]
 fn benchmark_pallet_works() {
 	// Some invalid combinations:
 	benchmark_pallet(0, 10, false);

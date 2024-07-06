@@ -1,0 +1,29 @@
+[package]
+name = "cord-braid-runtime-constants"
+description = "Braid runtime constants."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+smallvec = { workspace = true }
+frame-support = { workspace = true }
+cord-primitives = { workspace = true }
+cord-runtime-common = { workspace = true }
+sp-runtime = { workspace = true }
+sp-weights = { workspace = true }
+sp-core = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+	"frame-support/std",
+	"cord-primitives/std",
+	"cord-runtime-common/std",
+	"sp-core/std",
+	"sp-runtime/std",
+	"sp-weights/std",
+]

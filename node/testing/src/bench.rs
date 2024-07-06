@@ -33,13 +33,13 @@ use crate::{
 	keyring::*,
 };
 use codec::{Decode, Encode};
-use cord_runtime::{
+use cord_loom_runtime::{
 	AccountId, BalancesCall, CheckedExtrinsic, MinimumPeriod, RuntimeCall, Signature, SystemCall,
 	UncheckedExtrinsic,
 };
-use cord_runtime_constants::currency::WAY;
+use cord_loom_runtime_constants::currency::UNITS;
+use cord_primitives::Block;
 use futures::executor;
-use node_primitives::Block;
 use sc_block_builder::BlockBuilderBuilder;
 use sc_client_api::{execution_extensions::ExecutionExtensions, UsageProvider};
 use sc_client_db::PruningMode;
@@ -69,8 +69,8 @@ pub struct BenchKeyring {
 
 #[derive(Clone)]
 enum BenchPair {
-	Sr25519(Box<sr25519::Pair>),
-	Ed25519(Box<ed25519::Pair>),
+	Sr25519(sr25519::Pair),
+	Ed25519(ed25519::Pair),
 }
 
 impl BenchPair {
@@ -264,7 +264,7 @@ pub struct BlockContentIterator<'a> {
 	iteration: usize,
 	content: BlockContent,
 	runtime_version: sc_executor::RuntimeVersion,
-	genesis_hash: node_primitives::Hash,
+	genesis_hash: cord_primitives::Hash,
 	keyring: &'a BenchKeyring,
 }
 
@@ -297,20 +297,20 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 			CheckedExtrinsic {
 				signed: Some((
 					sender,
-					signed_extra(0, cord_runtime::ExistentialDeposit::get() + 1),
+					signed_extra(0, cord_loom_runtime::ExistentialDeposit::get() + 1),
 				)),
 				function: match self.content.block_type {
 					BlockType::RandomTransfersKeepAlive =>
 						RuntimeCall::Balances(BalancesCall::transfer_keep_alive {
 							dest: sp_runtime::MultiAddress::Id(receiver),
-							value: cord_runtime::ExistentialDeposit::get() + 1,
+							value: cord_loom_runtime::ExistentialDeposit::get() + 1,
 						}),
 					BlockType::RandomTransfersReaping => {
 						RuntimeCall::Balances(BalancesCall::transfer_allow_death {
 							dest: sp_runtime::MultiAddress::Id(receiver),
 							// Transfer so that ending balance would be 1 less than existential
 							// deposit so that we kill the sender account.
-							value: 100 * WAY - (cord_runtime::ExistentialDeposit::get() - 1),
+							value: 100 * UNITS - (cord_loom_runtime::ExistentialDeposit::get() - 1),
 						})
 					},
 					BlockType::Noop =>
@@ -530,12 +530,12 @@ impl BenchKeyring {
 					let pair =
 						sr25519::Pair::from_string(&seed, None).expect("failed to generate pair");
 					let account_id = AccountPublic::from(pair.public()).into_account();
-					(account_id, BenchPair::Sr25519(Box::new(pair)))
+					(account_id, BenchPair::Sr25519(pair))
 				},
 				KeyTypes::Ed25519 => {
 					let pair = ed25519::Pair::from_seed(&blake2_256(seed.as_bytes()));
 					let account_id = AccountPublic::from(pair.public()).into_account();
-					(account_id, BenchPair::Ed25519(Box::new(pair)))
+					(account_id, BenchPair::Ed25519(pair))
 				},
 			};
 			accounts.insert(account_id, pair);
@@ -590,7 +590,7 @@ impl BenchKeyring {
 	}
 
 	/// Generate genesis with accounts from this keyring endowed with some
-	/// balance and cord_runtime code blob.
+	/// balance and cord_loom_runtime code blob.
 	pub fn as_storage_builder(&self) -> &dyn sp_runtime::BuildStorage {
 		self
 	}
@@ -600,7 +600,7 @@ impl sp_runtime::BuildStorage for BenchKeyring {
 	fn assimilate_storage(&self, storage: &mut sp_core::storage::Storage) -> Result<(), String> {
 		storage.top.insert(
 			sp_core::storage::well_known_keys::CODE.to_vec(),
-			cord_runtime::wasm_binary_unwrap().into(),
+			cord_loom_runtime::wasm_binary_unwrap().into(),
 		);
 		crate::genesis::config_endowed(self.collect_account_ids()).assimilate_storage(storage)
 	}

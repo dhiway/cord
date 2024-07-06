@@ -16,19 +16,29 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-#[cfg(feature = "cli")]
-mod benchmarking;
+//! CORD CLI library.
+
+#![warn(missing_docs)]
+
+pub mod benchmarking;
 pub mod chain_spec;
+pub mod fake_runtime_api;
+pub mod service;
 
 #[cfg(feature = "cli")]
 mod cli;
 
 #[cfg(feature = "cli")]
 mod command;
-pub mod service;
+
+#[cfg(feature = "service")]
+pub use service::{self, Block, CoreApi, IdentifyVariant, ProvideRuntimeApi, TFullClient};
 
 #[cfg(feature = "cli")]
 pub use cli::*;
 
 #[cfg(feature = "cli")]
 pub use command::*;
+
+#[cfg(feature = "cli")]
+pub use sc_cli::{Error, Result};

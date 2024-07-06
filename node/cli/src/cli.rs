@@ -16,57 +16,24 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+//! CORD CLI library.
+
 #![allow(missing_docs)]
-use crate::command::{chain_setup::BootstrapChainCmd, gen_key::KeySubcommand};
+use crate::command::gen_key::KeySubcommand;
 
-#[derive(Debug, clap::Parser)]
-pub struct Cli {
-	/// Possible subcommand with parameters.
-	#[command(subcommand)]
-	pub subcommand: Option<Subcommand>,
+use clap::Parser;
 
-	#[allow(missing_docs)]
-	#[clap(flatten)]
-	pub run: sc_cli::RunCmd,
+use crate::chain_setup::BootstrapChainCmd;
 
-	// #[allow(missing_docs)]
-	// #[clap(flatten)]
-	// pub mixnet_params: sc_cli::MixnetParams,
-	/// Disable automatic hardware benchmarks.
-	///
-	/// By default these benchmarks are automatically ran at startup and measure
-	/// the CPU speed, the memory bandwidth and the disk speed.
-	///
-	/// The results are then printed out in the logs, and also sent as part of
-	/// telemetry, if telemetry is enabled.
-	#[arg(long)]
-	pub no_hardware_benchmarks: bool,
-
-	#[allow(missing_docs)]
-	#[clap(flatten)]
-	pub storage_monitor: sc_storage_monitor::StorageMonitorParams,
-}
-
-/// Possible subcommands of the main binary.
-#[allow(clippy::large_enum_variant)]
-#[derive(Debug, clap::Subcommand)]
+#[allow(missing_docs)]
+#[derive(Debug, Parser)]
 pub enum Subcommand {
 	/// The custom inspect subcommmand for decoding blocks and extrinsics.
 	#[command(
 		name = "inspect",
 		about = "Decode given block or extrinsic using current native runtime."
 	)]
-	Inspect(cord_inspect::cli::InspectCmd),
-
-	/// Sub-commands concerned with benchmarking.
-	/// The pallet benchmarking moved to the `pallet` sub-command.
-	#[command(subcommand)]
-	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
-
-	/// Try-runtime has migrated to a standalone CLI
-	/// (<https://github.com/paritytech/try-runtime-cli>). The subcommand exists as a stub and
-	/// deprecation notice. It will be removed entirely some time after January 2024.
-	TryRuntime,
+	Inspect(cord_node_inspect::cli::InspectCmd),
 
 	/// Bootstrap a custom configuration
 	BootstrapChain(BootstrapChainCmd),
@@ -75,7 +42,10 @@ pub enum Subcommand {
 	#[command(subcommand)]
 	Key(KeySubcommand),
 
-	/// Verify a signature for a message, provided on STDIN, with a given
+	/// Build a chain specification.
+	BuildSpec(sc_cli::BuildSpecCmd),
+
+	// Verify a signature for a message, provided on STDIN, with a given
 	/// (public or secret) key.
 	Verify(sc_cli::VerifyCmd),
 
@@ -84,9 +54,6 @@ pub enum Subcommand {
 
 	/// Sign a message, with a given (secret) key.
 	Sign(sc_cli::SignCmd),
-
-	/// Build a chain specification.
-	BuildSpec(sc_cli::BuildSpecCmd),
 
 	/// Validate blocks.
 	CheckBlock(sc_cli::CheckBlockCmd),
@@ -106,6 +73,48 @@ pub enum Subcommand {
 	/// Revert the chain to a previous state.
 	Revert(sc_cli::RevertCmd),
 
+	/// Sub-commands concerned with benchmarking.
+	/// The pallet benchmarking moved to the `pallet` sub-command.
+	#[command(subcommand)]
+	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+
 	/// Db meta columns information.
 	ChainInfo(sc_cli::ChainInfoCmd),
+
+	/// Start Braid development node
+	Braid {
+		#[clap(long = "dev", required = true, help = "Run the Braid node in development mode")]
+		dev: bool,
+	},
+
+	/// Start Loom development node
+	Loom {
+		#[clap(long = "dev", required = true, help = "Run the Loom node in development mode")]
+		dev: bool,
+	},
+
+	/// Start Weave development node
+	Weave {
+		#[clap(long = "dev", required = true, help = "Run the Weave node in development mode")]
+		dev: bool,
+	},
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Parser)]
+pub struct Cli {
+	/// Possible subcommand with parameters.
+	#[command(subcommand)]
+	pub subcommand: Option<Subcommand>,
+
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	pub run: sc_cli::RunCmd,
+
+	#[arg(long)]
+	pub no_hardware_benchmarks: bool,
+
+	#[allow(missing_docs)]
+	#[clap(flatten)]
+	pub storage_monitor: sc_storage_monitor::StorageMonitorParams,
 }
