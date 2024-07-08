@@ -774,6 +774,20 @@ impl pallet_network_score::Config for Runtime {
 	type WeightInfo = weights::pallet_network_score::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	// Set Max Raw Data Value to 1.00 MB/ 1_048_576 Bytes.
+	pub const MaxRawDataValueLength: u32 = 1_048_576;
+}
+
+impl pallet_store::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+	type MaxEncodedValueLength = ConstU32<128>;
+	type MaxRawDataValueLength = MaxRawDataValueLength;
+	type WeightInfo = ();
+}
+
 impl pallet_config::Config for Runtime {}
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 
@@ -957,6 +971,9 @@ mod runtime {
 	#[runtime::pallet_index(60)]
 	pub type NetworkParameters = pallet_config;
 
+	#[runtime::pallet_index(61)]
+	pub type Store = pallet_store;
+
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo;
 }
@@ -1003,6 +1020,9 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::NetworkScore { .. } => {
+				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
+			},
+			RuntimeCall::Store { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegate { .. }) => {
