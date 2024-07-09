@@ -86,6 +86,10 @@ pub mod pallet {
 	pub type Store<T> =
 		StorageMap<_, Blake2_128Concat, StoreEntryIdOf<T>, StoreEntryOf<T>, OptionQuery>;
 
+	#[pallet::storage]
+	pub type Digests<T> =
+		StorageMap<_, Blake2_128Concat, EntryHashOf<T>, DigestLatestStateOf, OptionQuery>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -195,6 +199,8 @@ pub mod pallet {
 				},
 			);
 
+			<Digests<T>>::insert(&digest, DigestLatestStateOf::TRUE);
+
 			Self::deposit_event(Event::StoreEntryAdded { identifier, creator, digest });
 
 			Ok(())
@@ -260,6 +266,14 @@ pub mod pallet {
 			ensure!(store_entry.digest != digest, Error::<T>::EntryDigestAlreadyAnchored);
 
 			let block_number = frame_system::Pallet::<T>::block_number();
+
+			/* If old digest exists, update the latest state to False */
+			if Digests::<T>::contains_key(&store_entry.digest) {
+				Digests::<T>::insert(&store_entry.digest, DigestLatestStateOf::FALSE);
+			}
+
+			/* Insert the new digest with the latest state set to True */
+			Digests::<T>::insert(&digest, DigestLatestStateOf::TRUE);
 
 			<Store<T>>::insert(
 				&identifier,

@@ -53,3 +53,11 @@ pub enum StoreEntryStateOf {
 	ACTIVE,
 	INACTIVE,
 }
+
+#[derive(
+	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+)]
+pub enum DigestLatestStateOf {
+	TRUE,
+	FALSE,
+}

@@ -173,6 +173,7 @@ std = [
 	"pallet-did-runtime-api/std",
 	"pallet-node-authorization/std",
 	"pallet-transaction-weight-runtime-api/std",
+	"pallet-store/std",
 	"sp-runtime/std",
 	"sp-staking/std",
 	"frame-system/std",
