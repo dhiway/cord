@@ -133,6 +133,10 @@ pub mod pallet {
 		StatementDigestOf<T>,
 		SpaceIdOf,
 	>;
+	/// Type for the custom Selective Data Key
+	pub type SelectiveDataKeyOf<T> = BoundedVec<u8, <T as Config>::MaxSelectiveDataKeyLength>;
+	/// Type for the custom Selective Data Value
+	pub type SelectiveDataValueOf<T> = <T as frame_system::Config>::Hash;
 
 	#[pallet::config]
 	pub trait Config:
@@ -150,6 +154,12 @@ pub mod pallet {
 		/// Maximum removals per call
 		#[pallet::constant]
 		type MaxRemoveEntries: Get<u16>;
+		/// Maximum selective data key length
+		#[pallet::constant]
+		type MaxSelectiveDataKeyLength: Get<u32>;
+		/// Maximum selective data entries
+		#[pallet::constant]
+		type MaxSelectiveDataEntries: Get<u32>;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -217,6 +227,20 @@ pub mod pallet {
 		Twox64Concat,
 		SpaceIdOf,
 		StatementIdOf,
+		OptionQuery,
+	>;
+
+	/// Storage for Selective Data Digests.
+	/// It maps from a statement identifier and,
+	/// custom Selective Data Key with Selective Data Value present as digest.
+	#[pallet::storage]
+	pub type SelectiveDataDigestEntries<T> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		StatementIdOf,
+		Twox64Concat,
+		SelectiveDataKeyOf<T>,
+		SelectiveDataValueOf<T>,
 		OptionQuery,
 	>;
 
@@ -370,6 +394,7 @@ pub mod pallet {
 		/// - `digest`: The digest of the statement, serving as a unique identifier.
 		/// - `authorization`: The authorization ID, verifying the creator's delegation status.
 		/// - `schema_id`: An optional schema identifier to be associated with the statement.
+		/// - `selective_data`: An optional selective data which consists of custom key-pairs.
 		///
 		/// # Returns
 		/// A `DispatchResult` indicating the success or failure of the
@@ -393,6 +418,12 @@ pub mod pallet {
 			digest: StatementDigestOf<T>,
 			authorization: AuthorizationIdOf,
 			schema_id: Option<SchemaIdOf>,
+			selective_data: Option<
+				BoundedVec<
+					(SelectiveDataKeyOf<T>, SelectiveDataValueOf<T>),
+					<T as Config>::MaxSelectiveDataEntries,
+				>,
+			>,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
@@ -429,6 +460,13 @@ pub mod pallet {
 
 			<Entries<T>>::insert(&identifier, digest, creator.clone());
 			<IdentifierLookup<T>>::insert(digest, &space_id, &identifier);
+
+			/* Add the selective data digest metadata into chain storage */
+			if let Some(selective_data) = selective_data {
+				for (key, value) in selective_data.iter() {
+					<SelectiveDataDigestEntries<T>>::insert(&identifier, &key, &value);
+				}
+			}
 
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
 
