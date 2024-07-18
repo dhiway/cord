@@ -28,7 +28,6 @@ identifier = { workspace = true }
 pallet-chain-space = { workspace = true }
 pallet-schema = { workspace = true }
 
-
 # Substrate dependencies
 frame-benchmarking = { optional = true, workspace = true }
 frame-support = { workspace = true }

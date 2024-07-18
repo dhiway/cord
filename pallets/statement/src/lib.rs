@@ -289,13 +289,19 @@ pub mod pallet {
 		},
 		/// A statement batch has been processed.
 		/// \[successful count, failed count, failed indices,
-		/// controller]
+		/// controller\]
 		RegisterBatch {
 			successful: u32,
 			failed: u32,
 			indices: Vec<u16>,
 			author: StatementCreatorOf<T>,
 		},
+		/// A statement selective data has been updated.
+		/// \[identifier, controller\]
+		SelectiveDataUpdated { identifier: StatementIdOf, author: StatementCreatorOf<T> },
+		/// A statement selective data has been removed.
+		/// \[identifier, controller\]
+		SelectiveDataRemoved { identifier: StatementIdOf, author: StatementCreatorOf<T> },
 	}
 
 	#[pallet::error]
@@ -360,6 +366,14 @@ pub mod pallet {
 		PresentationNotFound,
 		/// Statement digest already present on the chain.
 		StatementDigestAlreadyAnchored,
+		/// Selective data digest entry not found for the `statement_id`,
+		SelectiveDataDigestEntryNotFound,
+		/// Selective data key not found in the valid list of keys,
+		SelectiveDataKeyNotFound,
+		/// Selective Data Removal cannot have both optional parameter activated,
+		SelectiveDataConflictingParameters,
+		/// Selective Data Removal requires one parameter activated,
+		InvalidSelectiveDataRemoveParameters,
 	}
 
 	#[pallet::call]
@@ -505,6 +519,7 @@ pub mod pallet {
 		/// - `statement_id`: The identifier of the statement to be updated.
 		/// - `new_statement_digest`: The new digest to replace the existing one for the statement.
 		/// - `authorization`: The authorization ID, verifying the updater's delegation status.
+		/// 	- `selective_data`: The optional new set of `selective_data` which is to be updated.
 		///
 		/// # Returns
 		/// A `DispatchResult` indicating the success or failure of the update
@@ -528,6 +543,12 @@ pub mod pallet {
 			statement_id: StatementIdOf,
 			new_statement_digest: StatementDigestOf<T>,
 			authorization: AuthorizationIdOf,
+			selective_data: Option<
+				BoundedVec<
+					(SelectiveDataKeyOf<T>, SelectiveDataValueOf<T>),
+					<T as Config>::MaxSelectiveDataEntries,
+				>,
+			>,
 		) -> DispatchResult {
 			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
@@ -569,6 +590,13 @@ pub mod pallet {
 				&statement_id,
 				StatementDetailsOf::<T> { digest: new_statement_digest, ..statement_details },
 			);
+
+			/* Update the selective data digest metadata into chain storage */
+			if let Some(selective_data) = selective_data {
+				for (key, value) in selective_data.iter() {
+					<SelectiveDataDigestEntries<T>>::insert(&statement_id, &key, &value);
+				}
+			}
 
 			Self::update_activity(&statement_id, CallTypeOf::Update).map_err(<Error<T>>::from)?;
 
@@ -1155,6 +1183,179 @@ pub mod pallet {
 			Self::deposit_event(Event::PresentationRemoved {
 				identifier: statement_id,
 				digest: presentation_digest,
+				author: remover,
+			});
+
+			Ok(())
+		}
+
+		/// Updates the selective data for a particular statement identifier
+		///
+		///	This funciton allows for updation of selective data for the given
+		///	`statement_id`. The function validates the `authorization` of the caller
+		/// within the chain space before proceeding with the updation.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the dispatch call, which should be a signed message from the
+		///   creator.
+		/// - `statement_id`: The identifier of the statement associated with the selective data.
+		/// - `selective_data`: The new set of `selective_data` which is to be updated.
+		/// - `authorization`: The authorization identifier that the updater must have to perform
+		///   the updation.
+		///
+		/// # Errors
+		/// - Returns `StatementNotFound` if the `statement_id` does not correspond to any existing
+		///   statement.
+		/// - Returns `UnauthorizedOperation` if the operation is not authorized within the
+		///   associated space.
+		///
+		/// # Events
+		/// - Emits `SelectiveDataUpdated` upon the successful removal of the presentation.
+		#[pallet::call_index(8)]
+		#[pallet::weight({0})]
+		pub fn update_selective_data(
+			origin: OriginFor<T>,
+			statement_id: StatementIdOf,
+			selective_data: BoundedVec<
+				(SelectiveDataKeyOf<T>, SelectiveDataValueOf<T>),
+				<T as Config>::MaxSelectiveDataEntries,
+			>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&updater,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			let statement_details =
+				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
+
+			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
+
+			/* Update the existing selective data */
+			for (key, value) in selective_data.iter() {
+				<SelectiveDataDigestEntries<T>>::insert(&statement_id, key, value);
+			}
+
+			Self::update_activity(&statement_id, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
+
+			Self::deposit_event(Event::SelectiveDataUpdated {
+				identifier: statement_id,
+				author: updater,
+			});
+
+			Ok(())
+		}
+
+		/// Removes the selective data for a particular statement identifier
+		///
+		///	This funciton allows for removal of selective data for the given
+		///	`statement_id`. The function validates the `authorization` of the caller
+		/// within the chain space before proceeding with the removal.
+		/// The function takes optional parameter `remove_all` & `keys_to_remove`,
+		/// which allows to remove all valid existing selective data keys and list of valid
+		/// valid existing selective data keys respectively.
+		/// Important to note is both should be used interchangeably.
+		/// Meaning only one f
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the dispatch call, which should be a signed message from the
+		///   creator.
+		/// - `statement_id`: The identifier of the statement associated with the selective data.
+		/// - `authorization`: The authorization identifier that the updater must have to perform
+		///   the updation.
+		///
+		/// # Errors
+		/// - Returns `StatementNotFound` if the `statement_id` does not correspond to any existing
+		///   statement.
+		/// - Returns `UnauthorizedOperation` if the operation is not authorized within the
+		///   associated space.
+		/// - Returns `SelectiveDataNotFound` if the selective data digest entry does not exist on
+		///   chain.
+		/// - Returns `SelectiveDataKeyNotFound` if the selective data key is invalid
+		///
+		/// # Events
+		/// - Emits `SelectiveDataRemoved` upon the successful removal of the presentation.
+		#[pallet::call_index(9)]
+		#[pallet::weight({0})]
+		pub fn remove_selective_data(
+			origin: OriginFor<T>,
+			statement_id: StatementIdOf,
+			remove_all: Option<bool>,
+			keys_to_remove: Option<BoundedVec<SelectiveDataKeyOf<T>, T::MaxSelectiveDataEntries>>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let remover = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
+
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&remover,
+			)
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			/* Set `remove_all` to true if the parameter is not activated */
+			let remove_all = remove_all.unwrap_or(false);
+
+			let keys_to_remove = keys_to_remove.unwrap_or_default();
+
+			/* Ensure that both `remove_all` and `keys_to_remove` are not active simultaneously */
+			ensure!(
+				!(remove_all && !keys_to_remove.is_empty()),
+				Error::<T>::SelectiveDataConflictingParameters
+			);
+
+			/* Ensure that at least `remove_all` is TRUE or `keys_to_remove` has at least one key */
+			ensure!(
+				remove_all || !keys_to_remove.is_empty(),
+				Error::<T>::InvalidSelectiveDataRemoveParameters
+			);
+
+			let statement_details =
+				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
+
+			ensure!(statement_details.space == space_id, Error::<T>::UnauthorizedOperation);
+
+			/* Error out if no selective data digest entry exists for the `statement_id` */
+			let mut selective_data_entries_iter =
+				<SelectiveDataDigestEntries<T>>::iter_prefix(&statement_id);
+			if selective_data_entries_iter.next().is_none() {
+				return Err(Error::<T>::SelectiveDataDigestEntryNotFound.into());
+			}
+
+			/* List of valid selective data keys */
+			let valid_keys: Vec<_> = <SelectiveDataDigestEntries<T>>::iter_prefix(&statement_id)
+				.map(|(key, _)| key)
+				.collect();
+
+			/* Ensure all `keys_to_remove` are valid */
+			for key in &keys_to_remove {
+				if !valid_keys.contains(&key) {
+					return Err(Error::<T>::SelectiveDataKeyNotFound.into());
+				}
+			}
+
+			/* If `remove_all` is enabled entire `SelectiveDataDigestEntries` is cleared */
+			/* Else remove list of valid keys given by author */
+			if remove_all {
+				for key in valid_keys {
+					<SelectiveDataDigestEntries<T>>::remove(&statement_id, key);
+				}
+			} else {
+				for key in &keys_to_remove {
+					<SelectiveDataDigestEntries<T>>::remove(&statement_id, key);
+				}
+			}
+
+			pallet_chain_space::Pallet::<T>::decrement_usage(&space_id)
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
+
+			Self::update_activity(&statement_id, CallTypeOf::Genesis).map_err(<Error<T>>::from)?;
+
+			Self::deposit_event(Event::SelectiveDataRemoved {
+				identifier: statement_id,
 				author: remover,
 			});
 
