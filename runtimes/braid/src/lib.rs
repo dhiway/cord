@@ -742,7 +742,7 @@ impl pallet_chain_space::Config for Runtime {
 parameter_types! {
 	pub const MaxDigestsPerBatch: u16 = 1_000;
 	pub const MaxRemoveEntries: u16 = 1_000;
-	pub const MaxSelectiveDataKeyLength: u32 = 100;
+	pub const MaxSelectiveDataKeyLength: u32 = 64;
 	pub const MaxSelectiveDataEntries: u32 = 25;
 }
 
