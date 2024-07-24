@@ -45,6 +45,7 @@ pallet-schema = { workspace = true }
 pallet-config = { workspace = true }
 pallet-chain-space = { workspace = true }
 pallet-statement = { workspace = true }
+pallet-use-once = { workspace = true }
 pallet-network-membership = { workspace = true }
 pallet-runtime-upgrade = { workspace = true }
 pallet-identity = { workspace = true }
@@ -174,6 +175,7 @@ std = [
 	"pallet-schema/std",
 	"pallet-chain-space/std",
 	"pallet-statement/std",
+	"pallet-use-once/std",
 	"pallet-network-score/std",
 	"pallet-network-membership/std",
 	"pallet-runtime-upgrade/std",
@@ -227,6 +229,7 @@ runtime-benchmarks = [
 	"pallet-did-name/runtime-benchmarks",
 	"pallet-schema/runtime-benchmarks",
 	"pallet-statement/runtime-benchmarks",
+	"pallet-use-once/runtime-benchmarks",
 	"pallet-chain-space/runtime-benchmarks",
 	"pallet-network-membership/runtime-benchmarks",
 	"hex-literal",
@@ -273,6 +276,7 @@ try-runtime = [
 	"pallet-schema/try-runtime",
 	"pallet-chain-space/try-runtime",
 	"pallet-statement/try-runtime",
+	"pallet-use-once/try-runtime",
 	"pallet-did/try-runtime",
 	"pallet-did-name/try-runtime",
 	"pallet-network-score/try-runtime",
