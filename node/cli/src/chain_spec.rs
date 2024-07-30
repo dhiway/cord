@@ -238,7 +238,7 @@ pub fn braid_development_config() -> Result<BraidChainSpec, String> {
 		cord_braid_runtime::WASM_BINARY.ok_or("Braid development wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Development")
+	.with_name("Braid Development")
 	.with_id("braid-dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(braid_development_config_genesis())
@@ -369,7 +369,7 @@ pub fn loom_development_config() -> Result<LoomChainSpec, String> {
 		cord_loom_runtime::WASM_BINARY.ok_or("Loom development wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Development")
+	.with_name("Loom Development")
 	.with_id("loom-dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(loom_development_config_genesis())
@@ -512,7 +512,7 @@ pub fn weave_development_config() -> Result<WeaveChainSpec, String> {
 		cord_weave_runtime::WASM_BINARY.ok_or("Weave development wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Development")
+	.with_name("Weave Development")
 	.with_id("weave-dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(weave_development_config_genesis())
