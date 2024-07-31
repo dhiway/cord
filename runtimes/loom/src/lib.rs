@@ -67,6 +67,11 @@ use sp_runtime::{
 };
 use sp_staking::SessionIndex;
 use sp_std::{cmp::Ordering, prelude::*};
+use pallet_evm::{
+	Account as EVMAccount, EnsureAddressNever, EnsureAddressRoot,
+	FeeCalculator, GasWeightMapping, IdentityAddressMapping,
+	OnChargeEVMTransaction as OnChargeEVMTransactionT, Runner,
+};
 
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
@@ -982,6 +987,21 @@ impl pallet_contracts::Config for Runtime {
 	type InstantiateOrigin = EnsureSigned<Self::AccountId>;
 }
 
+impl pallet_evm::Config for Runtime {
+	type FeeCalculator = TransactionPaymentConfig;
+	type GasWeightMapping = pallet_evm::FixedGasWeightMapping<Self>;
+	type WeightPerGas = Self::WeightPerGas;
+	type CallOrigin = EnsureAddressRoot<AccountId>;
+	type WithdrawOrigin = EnsureAddressNever<AccountId>;
+	type AddressMapping = IdentityAddressMapping;
+	type Currency = Balances;
+	type RuntimeEvent = RuntimeEvent;
+	type Runner = pallet_evm::runner::stack::Runner<Self>;
+	type PrecompilesValue = Self::PrecompilesValue;
+	type BlockGasLimit = Self::BlockGasLimit;
+	type OnCreate = ();
+}
+
 #[frame_support::runtime]
 mod runtime {
 	#[runtime::runtime]
@@ -1301,6 +1321,7 @@ mod benches {
 		[pallet_network_membership, NetworkMembership]
 		[pallet_network_score, NetworkScore]
 		[pallet_sudo, Sudo]
+		[pallet_evm, EVM]
 	);
 }
 
