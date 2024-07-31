@@ -52,6 +52,7 @@ pallet-offences = { workspace = true }
 pallet-node-authorization = { workspace = true }
 pallet-network-score = { workspace = true }
 pallet-session-benchmarking = { workspace = true }
+pallet-evm = { workspace = true }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { workspace = true }
@@ -181,6 +182,7 @@ std = [
 	"pallet-did-runtime-api/std",
 	"pallet-node-authorization/std",
 	"pallet-transaction-weight-runtime-api/std",
+	"pallet-evm/std",
 	"sp-runtime/std",
 	"sp-staking/std",
 	"frame-system/std",
@@ -238,6 +240,7 @@ runtime-benchmarks = [
 	"pallet-assets/runtime-benchmarks",
 	"pallet-config/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
+	"pallet-evm/runtime-benchmarks"
 ]
 
 try-runtime = [
@@ -286,6 +289,7 @@ try-runtime = [
 	"frame-try-runtime/try-runtime",
 	"pallet-config/try-runtime",
 	"sp-runtime/try-runtime",
+	"pallet-evm/try-runtime"
 ]
 
 

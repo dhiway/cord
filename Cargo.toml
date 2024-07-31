@@ -259,6 +259,7 @@ pallet-treasury = { git = "https://github.com/dhiway/substrate-sdk", default-fea
 pallet-utility = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.13.0" }
 pallet-insecure-randomness-collective-flip = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.13.0" }
 pallet-root-testing = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.13.0" }
+pallet-evm = {git = "https://github.com/polkadot-evm/frontier", default-features = false, branch = "polkadot-v0.9.43"}
 
 # Build deps
 substrate-wasm-builder = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.13.0" }
