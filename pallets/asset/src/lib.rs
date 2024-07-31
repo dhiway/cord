@@ -247,7 +247,7 @@ pub mod pallet {
 		/// Asset is in same status as asked for
 		AssetInSameState,
 	}
-
+	
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
@@ -300,6 +300,34 @@ pub mod pallet {
 
 			Ok(())
 		}
+/// Creates a new asset entry within a specified space.
+///
+/// This function is responsible for creating a new asset entry in the blockchain.
+/// It verifies the caller's authorization, validates the asset entry, and then 
+/// generates a unique identifier for the asset. If all checks pass, it records the
+/// asset entry in the storage and emits a creation event.
+///
+/// # Parameters
+/// - `origin`: The origin of the call, which must be signed by the creator.
+/// - `entry`: The details of the asset being created, including quantity, value, and type.
+/// - `digest`: The hash of the entry data.
+/// - `authorization`: The authorization ID used to validate the creation.
+///
+/// # Returns
+/// Returns `Ok(())` if the asset was successfully created, or an `Err` with an appropriate 
+/// error if the operation fails.
+///
+/// # Errors
+/// - `InvalidAssetValue`: If the asset quantity or value is non-positive.
+/// - `InvalidAssetType`: If the asset type is invalid.
+/// - `InvalidIdentifierLength`: If the generated identifier is of invalid length.
+/// - `AssetIdAlreadyExists`: If an asset with the generated identifier already exists.
+/// - Propagates errors from `pallet_chain_space::Pallet::ensure_authorization_origin` and 
+/// `Self::update_activity` if they fail.
+///
+/// # Events
+/// - `Event::Create`: Emitted when an asset is successfully created.
+
 
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::issue())]
