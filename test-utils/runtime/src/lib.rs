@@ -28,7 +28,6 @@ pub mod extrinsic;
 #[cfg(feature = "std")]
 pub mod genesismap;
 
-use alloc::boxed::Box;
 #[cfg(not(feature = "std"))]
 use alloc::{vec, vec::Vec};
 

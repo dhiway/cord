@@ -41,7 +41,7 @@ use frame_support::{
 		fungible::{NativeFromLeft, NativeOrWithId, UnionOf},
 		tokens::imbalance::ResolveAssetTo,
 		AsEnsureOriginWithArg, ConstBool, ConstU128, ConstU32, Contains, KeyOwnerProofSystem,
-		PrivilegeCmp,
+		PrivilegeCmp, VariantCountOf,
 	},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, ConstantMultiplier},
 	PalletId,
@@ -274,7 +274,7 @@ impl pallet_balances::Config for Runtime {
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
 	type FreezeIdentifier = RuntimeFreezeReason;
-	type MaxFreezes = ConstU32<1>;
+	type MaxFreezes = VariantCountOf<RuntimeFreezeReason>;
 	type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
 }
 
@@ -823,6 +823,7 @@ impl pallet_contracts::Config for Runtime {
 	type DefaultDepositLimit = DefaultDepositLimit;
 	type MaxStorageKeyLen = ConstU32<128>;
 	type MaxDebugBufferLen = ConstU32<{ 2 * 1024 * 1024 }>;
+	type MaxTransientStorageSize = ConstU32<{ 1 * 1024 * 1024 }>;
 	type UnsafeUnstableInterface = ConstBool<true>;
 	type CodeHashLockupDepositPercent = CodeHashLockupDepositPercent;
 	type MaxDelegateDependencies = MaxDelegateDependencies;
