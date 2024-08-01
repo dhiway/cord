@@ -783,6 +783,20 @@ impl pallet_network_membership::Config for Runtime {
 	type WeightInfo = weights::pallet_network_membership::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const MaxSupportedOptionalStates: u32 = 10;
+	pub const MaxRegistryEntries: u32 = 25;
+	pub const MaxEncodedInputLength: u32 = 32;
+}
+
+impl pallet_dedir::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxSupportedOptionalStates = MaxSupportedOptionalStates;
+	type MaxRegistryEntries = MaxRegistryEntries;
+	type MaxEncodedInputLength = MaxEncodedInputLength;
+	type WeightInfo = ();
+}
+
 impl identifier::Config for Runtime {
 	type MaxEventsHistory = MaxEventsHistory;
 }
@@ -1117,6 +1131,9 @@ mod runtime {
 
 	#[runtime::pallet_index(60)]
 	pub type NetworkParameters = pallet_config;
+
+	#[runtime::pallet_index(61)]
+	pub type DeDir = pallet_dedir;
 
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo;

@@ -505,6 +505,20 @@ impl pallet_identity::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MaxSupportedOptionalStates: u32 = 10;
+	pub const MaxEncodedInputLength: u32 = 32;
+	pub const MaxRegistryEntries: u32 = 25;
+}
+
+impl pallet_dedir::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxSupportedOptionalStates = MaxSupportedOptionalStates;
+	type MaxRegistryEntries = MaxRegistryEntries;
+	type MaxEncodedInputLength = MaxEncodedInputLength;
+	type WeightInfo = ();
+}
+
+parameter_types! {
 	pub MotionDuration: BlockNumber = prod_or_fast!(3 * DAYS, 2 * MINUTES, "CORD_MOTION_DURATION");
 	pub const MaxProposals: u32 = 100;
 	pub const MaxMembers: u32 = 50;
@@ -1120,6 +1134,9 @@ mod runtime {
 
 	#[runtime::pallet_index(60)]
 	pub type NetworkParameters = pallet_config;
+
+	#[runtime::pallet_index(61)]
+	pub type DeDir = pallet_dedir;
 
 	#[runtime::pallet_index(254)]
 	pub type RootTesting = pallet_root_testing;

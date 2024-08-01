@@ -1,8 +1,7 @@
 [package]
-name = "pallet-identity"
-description = "FRAME membership management pallet - modified to support CORD governance"
+name = "pallet-dedir"
+description = "Decentralized Directory Management"
 authors = [
-	"Parity Technologies <admin@parity.io>",
 	"Dhiway Networks <info@dhiway.com>",
 ]
 version.workspace = true

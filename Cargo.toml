@@ -27,6 +27,7 @@ members = [
 	"pallets/runtime-upgrade",
 	"pallets/session-benchmarking",
 	"pallets/statement",
+	"pallets/dedir",
 	"primitives/cord",
 	"primitives/identifier",
 	"primitives/network-membership",
@@ -141,6 +142,7 @@ pallet-did-name = { path = 'pallets/did-name', default-features = false }
 pallet-schema = { path = 'pallets/schema', default-features = false }
 pallet-chain-space = { path = 'pallets/chain-space', default-features = false }
 pallet-statement = { path = 'pallets/statement', default-features = false }
+pallet-dedir = { path = 'pallets/dedir', default-features = false }
 pallet-network-membership = { path = 'pallets/network-membership', default-features = false }
 pallet-runtime-upgrade = { path = 'pallets/runtime-upgrade', default-features = false }
 pallet-identity = { path = 'pallets/identity', default-features = false }
