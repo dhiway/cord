@@ -1397,6 +1397,7 @@ dependencies = [
  "pallet-chain-space",
  "pallet-config",
  "pallet-contracts",
+ "pallet-dedir",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
@@ -1527,6 +1528,7 @@ dependencies = [
  "pallet-collective",
  "pallet-config",
  "pallet-contracts",
+ "pallet-dedir",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
@@ -2050,6 +2052,7 @@ dependencies = [
  "pallet-collective",
  "pallet-config",
  "pallet-contracts",
+ "pallet-dedir",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
@@ -6452,6 +6455,24 @@ dependencies = [
  "paste",
  "polkavm-derive",
  "scale-info",
+]
+
+[[package]]
+name = "pallet-dedir"
+version = "0.9.3"
+dependencies = [
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.13.0)",
 ]
 
 [[package]]
