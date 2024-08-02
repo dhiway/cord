@@ -411,6 +411,36 @@ pub mod pallet {
 
 			Ok(())
 		}
+/// Issues new instances of an existing asset.
+///
+/// This function is responsible for issuing new instances of an existing asset.
+/// It verifies the caller's authorization and ensures the asset is active and has
+/// sufficient quantity for issuance. If all checks pass, it generates a unique
+/// identifier for each new asset instance, records the issuance in the storage,
+/// and emits an issuance event.
+///
+/// # Parameters
+/// - `origin`: The origin of the call, which must be signed by the issuer.
+/// - `entry`: The details of the asset issuance, including asset ID, owner, and issuance quantity.
+/// - `digest`: The hash of the entry data.
+/// - `authorization`: The authorization ID used to validate the issuance.
+///
+/// # Returns
+/// Returns `Ok(())` if the asset instances were successfully issued, or an `Err` with an appropriate 
+/// error if the operation fails.
+///
+/// # Errors
+/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
+/// - `UnauthorizedOperation`: If the caller is not the issuer of the asset.
+/// - `AssetNotActive`: If the asset is not active.
+/// - `OverIssuanceLimit`: If the issuance quantity exceeds the asset's total quantity.
+/// - `InvalidIdentifierLength`: If the generated identifier is of invalid length.
+/// - `DistributionLimitExceeded`: If the distribution limit is exceeded.
+/// - Propagates errors from `pallet_chain_space::Pallet::ensure_authorization_origin` and 
+/// `Self::update_activity` if they fail.
+///
+/// # Events
+/// - `Event::Issue`: Emitted when asset instances are successfully issued.
 
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::transfer())]
