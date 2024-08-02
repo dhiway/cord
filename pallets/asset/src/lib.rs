@@ -835,6 +835,31 @@ pub mod pallet {
 			Ok(())
 		}
 
+/// Transfers ownership of a VC (Verifiable Credential) asset instance.
+///
+/// This function facilitates the transfer of ownership of a VC asset instance. It verifies that 
+/// the caller is the current owner of the asset instance, checks the asset and instance status, 
+/// and updates the ownership record in storage. If all checks pass, it emits a transfer event.
+///
+/// # Parameters
+/// - `origin`: The origin of the call, which must be signed by the current owner of the asset instance.
+/// - `entry`: The details of the asset transfer entry, including the asset ID, instance ID, current owner, and new owner.
+/// - `digest`: The hash of the entry data.
+///
+/// # Returns
+/// Returns `Ok(())` if the asset instance ownership was successfully transferred, or an `Err` 
+/// with an appropriate error if the operation fails.
+///
+/// # Errors
+/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
+/// - `AssetInstanceNotFound`: If the asset instance with the given ID does not exist.
+/// - `UnauthorizedOperation`: If the caller is not the current owner of the asset instance.
+/// - `AssetNotActive`: If the asset is not in an active state.
+/// - `InstanceNotActive`: If the asset instance is not in an active state.
+/// - Propagates errors from `Self::update_activity` if it fails.
+///
+/// # Events
+/// - `Event::Transfer`: Emitted when a VC asset instance is successfully transferred.
 		#[pallet::call_index(7)]
 		#[pallet::weight({0})]
 		pub fn vc_status_change(
