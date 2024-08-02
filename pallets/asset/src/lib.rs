@@ -912,6 +912,36 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+/// Changes the status of a VC (Verifiable Credential) asset or asset instance.
+///
+/// This function allows the issuer of an asset to change the status of either the entire asset 
+/// or a specific asset instance. It checks that the caller is the issuer of the asset, verifies 
+/// the new status, and updates the status in storage. If the status change is successful, an 
+/// event is emitted.
+///
+/// # Parameters
+/// - `origin`: The origin of the call, which must be signed by the issuer of the asset.
+/// - `asset_id`: The identifier of the asset whose status is being changed.
+/// - `instance_id`: An optional identifier of the specific asset instance whose status is being changed. 
+///   If `None`, the status of the entire asset is changed.
+/// - `new_status`: The new status to be assigned to the asset or asset instance.
+///
+/// # Returns
+/// Returns `Ok(())` if the status was successfully changed, or an `Err` with an appropriate error 
+/// if the operation fails.
+///
+/// # Errors
+/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
+/// - `UnauthorizedOperation`: If the caller is not the issuer of the asset.
+/// - `InvalidAssetStatus`: If the provided status is not a valid status type.
+/// - `AssetInstanceNotFound`: If the specific asset instance does not exist.
+/// - `AssetInSameState`: If the asset or asset instance is already in the provided status.
+/// - Propagates errors from `Self::update_activity` if it fails.
+///
+/// # Events
+/// - `Event::StatusChange`: Emitted when the status of an asset or asset instance is successfully changed.
+		
 	}
 }
 
