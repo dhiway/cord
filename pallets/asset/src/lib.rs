@@ -756,6 +756,34 @@ pub mod pallet {
 			Ok(())
 		}
 
+/// Issues a new instance of a VC (Verifiable Credential) asset.
+///
+/// This function is responsible for issuing a new instance of a VC asset. It verifies the caller's 
+/// authorization, ensures the provided issuance quantity is valid, and then records the new 
+/// asset instance in storage. If all checks pass, it emits an issuance event.
+///
+/// # Parameters
+/// - `origin`: The origin of the call, which must be signed by the issuer.
+/// - `entry`: The details of the asset issuance entry, including the asset ID, owner, and issuance quantity.
+/// - `digest`: The hash of the entry data.
+/// - `authorization`: The authorization ID used to validate the issuance.
+///
+/// # Returns
+/// Returns `Ok(())` if the asset instance was successfully issued, or an `Err` with an appropriate 
+/// error if the operation fails.
+///
+/// # Errors
+/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
+/// - `UnauthorizedOperation`: If the caller is not the issuer of the asset.
+/// - `AssetNotActive`: If the asset is not in an active state.
+/// - `OverIssuanceLimit`: If the issuance quantity exceeds the asset's available quantity.
+/// - `InvalidIdentifierLength`: If the generated identifier length is invalid.
+/// - `DistributionLimitExceeded`: If the distribution limit is exceeded.
+/// - Propagates errors from `Self::update_activity` if it fails.
+///
+/// # Events
+/// - `Event::Issue`: Emitted when a VC asset instance is successfully issued.
+
 		#[pallet::call_index(6)]
 		#[pallet::weight({0})]
 		pub fn vc_transfer(
