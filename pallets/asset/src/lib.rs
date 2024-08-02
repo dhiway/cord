@@ -491,7 +491,33 @@ pub mod pallet {
 
 			Ok(())
 		}
-
+/// Transfers ownership of an asset instance.
+///
+/// This function is responsible for transferring ownership of a specific asset instance.
+/// It verifies the caller's authorization, ensures the asset and its instance are active,
+/// and then updates the ownership record. If all checks pass, it records the transfer
+/// in the storage and emits a transfer event.
+///
+/// # Parameters
+/// - `origin`: The origin of the call, which must be signed by the current owner.
+/// - `entry`: The details of the asset transfer, including asset ID, instance ID, current owner, and new owner.
+/// - `_digest`: The hash of the entry data (unused in this function).
+///
+/// # Returns
+/// Returns `Ok(())` if the asset instance was successfully transferred, or an `Err` with an appropriate 
+/// error if the operation fails.
+///
+/// # Errors
+/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
+/// - `AssetInstanceNotFound`: If the asset instance with the given ID does not exist.
+/// - `UnauthorizedOperation`: If the caller or the specified current owner is not the owner of the asset instance.
+/// - `AssetNotActive`: If the asset is not active.
+/// - `InstanceNotActive`: If the asset instance is not active.
+/// - Propagates errors from `Self::update_activity` if it fails.
+///
+/// # Events
+/// - `Event::Transfer`: Emitted when an asset instance is successfully transferred.
+		
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::status_change())]
 		pub fn status_change(
@@ -544,6 +570,32 @@ pub mod pallet {
 
 			Ok(())
 		}
+/// Changes the status of an asset or an asset instance.
+///
+/// This function is responsible for changing the status of an asset or a specific asset instance.
+/// It verifies the caller's authorization, ensures the new status is valid, and then updates the
+/// status in storage. If all checks pass, it records the status change and emits a status change event.
+///
+/// # Parameters
+/// - `origin`: The origin of the call, which must be signed by the issuer.
+/// - `asset_id`: The identifier of the asset whose status is being changed.
+/// - `instance_id`: An optional identifier of the specific asset instance whose status is being changed.
+/// - `new_status`: The new status to be assigned to the asset or asset instance.
+///
+/// # Returns
+/// Returns `Ok(())` if the status was successfully changed, or an `Err` with an appropriate 
+/// error if the operation fails.
+///
+/// # Errors
+/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
+/// - `AssetInstanceNotFound`: If the asset instance with the given ID does not exist (if `instance_id` is provided).
+/// - `UnauthorizedOperation`: If the caller is not the issuer of the asset.
+/// - `InvalidAssetStatus`: If the new status is invalid.
+/// - `AssetInSameState`: If the new status is the same as the current status.
+/// - Propagates errors from `Self::update_activity` if it fails.
+///
+/// # Events
+/// - `Event::StatusChange`: Emitted when the status of an asset or asset instance is successfully changed.
 
 		// TODO: Set actual weights
 		#[pallet::call_index(4)]
