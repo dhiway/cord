@@ -649,6 +649,31 @@ pub mod pallet {
 			Ok(())
 		}
 
+/// Creates a new VC (Verifiable Credential) asset.
+///
+/// This function is responsible for creating a new VC asset. It verifies the caller's authorization,
+/// ensures the provided asset quantity is valid, and then records the new asset in storage.
+/// If all checks pass, it emits a creation event.
+///
+/// # Parameters
+/// - `origin`: The origin of the call, which must be signed by the creator.
+/// - `asset_qty`: The quantity of the asset to be created.
+/// - `digest`: The hash of the entry data.
+/// - `authorization`: The authorization ID used to validate the creation.
+///
+/// # Returns
+/// Returns `Ok(())` if the asset was successfully created, or an `Err` with an appropriate 
+/// error if the operation fails.
+///
+/// # Errors
+/// - `InvalidAssetQty`: If the provided asset quantity is zero or negative.
+/// - `InvalidIdentifierLength`: If the generated identifier length is invalid.
+/// - `AssetIdAlreadyExists`: If an asset with the generated identifier already exists.
+/// - Propagates errors from `Self::update_activity` if it fails.
+///
+/// # Events
+/// - `Event::Create`: Emitted when a VC asset is successfully created.
+
 		#[pallet::call_index(5)]
 		#[pallet::weight({0})]
 		pub fn vc_issue(
