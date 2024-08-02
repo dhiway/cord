@@ -257,7 +257,6 @@ try-runtime = [
 	"pallet-root-testing/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"sp-runtime/try-runtime",
-	"cord-cli-test-utils/try-runtime",
 	"cord-braid-runtime?/try-runtime",
 	"cord-runtime-common/try-runtime",
 	"cord-weave-runtime?/try-runtime",

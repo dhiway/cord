@@ -16,7 +16,7 @@
 // limitations under the License.
 
 //! Runtime API definition for transaction weight information.
-
+#![warn(unused_extern_crates)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet_network_membership::RuntimeDispatchWeightInfo;
