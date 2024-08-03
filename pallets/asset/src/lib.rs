@@ -247,11 +247,38 @@ pub mod pallet {
 		/// Asset is in same status as asked for
 		AssetInSameState,
 	}
-	
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::create())]
+		/// Creates a new asset entry within a specified space.
+		///
+		/// This function is responsible for creating a new asset entry in the blockchain.
+		/// It verifies the caller's authorization, validates the asset entry, and then
+		/// generates a unique identifier for the asset. If all checks pass, it records the
+		/// asset entry in the storage and emits a creation event.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the call, which must be signed by the creator.
+		/// - `entry`: The details of the asset being created, including quantity, value, and type.
+		/// - `digest`: The hash of the entry data.
+		/// - `authorization`: The authorization ID used to validate the creation.
+		///
+		/// # Returns
+		/// Returns `Ok(())` if the asset was successfully created, or an `Err` with an appropriate
+		/// error if the operation fails.
+		///
+		/// # Errors
+		/// - `InvalidAssetValue`: If the asset quantity or value is non-positive.
+		/// - `InvalidAssetType`: If the asset type is invalid.
+		/// - `InvalidIdentifierLength`: If the generated identifier is of invalid length.
+		/// - `AssetIdAlreadyExists`: If an asset with the generated identifier already exists.
+		/// - Propagates errors from `pallet_chain_space::Pallet::ensure_authorization_origin` and
+		/// `Self::update_activity` if they fail.
+		///
+		/// # Events
+		/// - `Event::Create`: Emitted when an asset is successfully created.
 		pub fn create(
 			origin: OriginFor<T>,
 			entry: AssetInputEntryOf<T>,
@@ -300,35 +327,38 @@ pub mod pallet {
 
 			Ok(())
 		}
-/// Creates a new asset entry within a specified space.
-///
-/// This function is responsible for creating a new asset entry in the blockchain.
-/// It verifies the caller's authorization, validates the asset entry, and then 
-/// generates a unique identifier for the asset. If all checks pass, it records the
-/// asset entry in the storage and emits a creation event.
-///
-/// # Parameters
-/// - `origin`: The origin of the call, which must be signed by the creator.
-/// - `entry`: The details of the asset being created, including quantity, value, and type.
-/// - `digest`: The hash of the entry data.
-/// - `authorization`: The authorization ID used to validate the creation.
-///
-/// # Returns
-/// Returns `Ok(())` if the asset was successfully created, or an `Err` with an appropriate 
-/// error if the operation fails.
-///
-/// # Errors
-/// - `InvalidAssetValue`: If the asset quantity or value is non-positive.
-/// - `InvalidAssetType`: If the asset type is invalid.
-/// - `InvalidIdentifierLength`: If the generated identifier is of invalid length.
-/// - `AssetIdAlreadyExists`: If an asset with the generated identifier already exists.
-/// - Propagates errors from `pallet_chain_space::Pallet::ensure_authorization_origin` and 
-/// `Self::update_activity` if they fail.
-///
-/// # Events
-/// - `Event::Create`: Emitted when an asset is successfully created.
 
-
+		/// Issues new instances of an existing asset.
+		///
+		/// This function is responsible for issuing new instances of an existing asset.
+		/// It verifies the caller's authorization and ensures the asset is active and has
+		/// sufficient quantity for issuance. If all checks pass, it generates a unique
+		/// identifier for each new asset instance, records the issuance in the storage,
+		/// and emits an issuance event.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the call, which must be signed by the issuer.
+		/// - `entry`: The details of the asset issuance, including asset ID, owner, and issuance
+		///   quantity.
+		/// - `digest`: The hash of the entry data.
+		/// - `authorization`: The authorization ID used to validate the issuance.
+		///
+		/// # Returns
+		/// Returns `Ok(())` if the asset instances were successfully issued, or an `Err` with an
+		/// appropriate error if the operation fails.
+		///
+		/// # Errors
+		/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
+		/// - `UnauthorizedOperation`: If the caller is not the issuer of the asset.
+		/// - `AssetNotActive`: If the asset is not active.
+		/// - `OverIssuanceLimit`: If the issuance quantity exceeds the asset's total quantity.
+		/// - `InvalidIdentifierLength`: If the generated identifier is of invalid length.
+		/// - `DistributionLimitExceeded`: If the distribution limit is exceeded.
+		/// - Propagates errors from `pallet_chain_space::Pallet::ensure_authorization_origin` and
+		/// `Self::update_activity` if they fail.
+		///
+		/// # Events
+		/// - `Event::Issue`: Emitted when asset instances are successfully issued.
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::issue())]
 		pub fn issue(
@@ -411,37 +441,35 @@ pub mod pallet {
 
 			Ok(())
 		}
-/// Issues new instances of an existing asset.
-///
-/// This function is responsible for issuing new instances of an existing asset.
-/// It verifies the caller's authorization and ensures the asset is active and has
-/// sufficient quantity for issuance. If all checks pass, it generates a unique
-/// identifier for each new asset instance, records the issuance in the storage,
-/// and emits an issuance event.
-///
-/// # Parameters
-/// - `origin`: The origin of the call, which must be signed by the issuer.
-/// - `entry`: The details of the asset issuance, including asset ID, owner, and issuance quantity.
-/// - `digest`: The hash of the entry data.
-/// - `authorization`: The authorization ID used to validate the issuance.
-///
-/// # Returns
-/// Returns `Ok(())` if the asset instances were successfully issued, or an `Err` with an appropriate 
-/// error if the operation fails.
-///
-/// # Errors
-/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
-/// - `UnauthorizedOperation`: If the caller is not the issuer of the asset.
-/// - `AssetNotActive`: If the asset is not active.
-/// - `OverIssuanceLimit`: If the issuance quantity exceeds the asset's total quantity.
-/// - `InvalidIdentifierLength`: If the generated identifier is of invalid length.
-/// - `DistributionLimitExceeded`: If the distribution limit is exceeded.
-/// - Propagates errors from `pallet_chain_space::Pallet::ensure_authorization_origin` and 
-/// `Self::update_activity` if they fail.
-///
-/// # Events
-/// - `Event::Issue`: Emitted when asset instances are successfully issued.
 
+		/// Transfers ownership of an asset instance.
+		///
+		/// This function is responsible for transferring ownership of a specific asset instance.
+		/// It verifies the caller's authorization, ensures the asset and its instance are active,
+		/// and then updates the ownership record. If all checks pass, it records the transfer
+		/// in the storage and emits a transfer event.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the call, which must be signed by the current owner.
+		/// - `entry`: The details of the asset transfer, including asset ID, instance ID, current
+		///   owner, and new owner.
+		/// - `_digest`: The hash of the entry data (unused in this function).
+		///
+		/// # Returns
+		/// Returns `Ok(())` if the asset instance was successfully transferred, or an `Err` with an
+		/// appropriate error if the operation fails.
+		///
+		/// # Errors
+		/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
+		/// - `AssetInstanceNotFound`: If the asset instance with the given ID does not exist.
+		/// - `UnauthorizedOperation`: If the caller or the specified current owner is not the owner
+		///   of the asset instance.
+		/// - `AssetNotActive`: If the asset is not active.
+		/// - `InstanceNotActive`: If the asset instance is not active.
+		/// - Propagates errors from `Self::update_activity` if it fails.
+		///
+		/// # Events
+		/// - `Event::Transfer`: Emitted when an asset instance is successfully transferred.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::transfer())]
 		pub fn transfer(
@@ -491,33 +519,37 @@ pub mod pallet {
 
 			Ok(())
 		}
-/// Transfers ownership of an asset instance.
-///
-/// This function is responsible for transferring ownership of a specific asset instance.
-/// It verifies the caller's authorization, ensures the asset and its instance are active,
-/// and then updates the ownership record. If all checks pass, it records the transfer
-/// in the storage and emits a transfer event.
-///
-/// # Parameters
-/// - `origin`: The origin of the call, which must be signed by the current owner.
-/// - `entry`: The details of the asset transfer, including asset ID, instance ID, current owner, and new owner.
-/// - `_digest`: The hash of the entry data (unused in this function).
-///
-/// # Returns
-/// Returns `Ok(())` if the asset instance was successfully transferred, or an `Err` with an appropriate 
-/// error if the operation fails.
-///
-/// # Errors
-/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
-/// - `AssetInstanceNotFound`: If the asset instance with the given ID does not exist.
-/// - `UnauthorizedOperation`: If the caller or the specified current owner is not the owner of the asset instance.
-/// - `AssetNotActive`: If the asset is not active.
-/// - `InstanceNotActive`: If the asset instance is not active.
-/// - Propagates errors from `Self::update_activity` if it fails.
-///
-/// # Events
-/// - `Event::Transfer`: Emitted when an asset instance is successfully transferred.
-		
+
+		/// Changes the status of an asset or an asset instance.
+		///
+		/// This function is responsible for changing the status of an asset or a specific asset
+		/// instance. It verifies the caller's authorization, ensures the new status is valid, and
+		/// then updates the status in storage. If all checks pass, it records the status change
+		/// and emits a status change event.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the call, which must be signed by the issuer.
+		/// - `asset_id`: The identifier of the asset whose status is being changed.
+		/// - `instance_id`: An optional identifier of the specific asset instance whose status is
+		///   being changed.
+		/// - `new_status`: The new status to be assigned to the asset or asset instance.
+		///
+		/// # Returns
+		/// Returns `Ok(())` if the status was successfully changed, or an `Err` with an appropriate
+		/// error if the operation fails.
+		///
+		/// # Errors
+		/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
+		/// - `AssetInstanceNotFound`: If the asset instance with the given ID does not exist (if
+		///   `instance_id` is provided).
+		/// - `UnauthorizedOperation`: If the caller is not the issuer of the asset.
+		/// - `InvalidAssetStatus`: If the new status is invalid.
+		/// - `AssetInSameState`: If the new status is the same as the current status.
+		/// - Propagates errors from `Self::update_activity` if it fails.
+		///
+		/// # Events
+		/// - `Event::StatusChange`: Emitted when the status of an asset or asset instance is
+		///   successfully changed.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::status_change())]
 		pub fn status_change(
@@ -570,33 +602,31 @@ pub mod pallet {
 
 			Ok(())
 		}
-/// Changes the status of an asset or an asset instance.
-///
-/// This function is responsible for changing the status of an asset or a specific asset instance.
-/// It verifies the caller's authorization, ensures the new status is valid, and then updates the
-/// status in storage. If all checks pass, it records the status change and emits a status change event.
-///
-/// # Parameters
-/// - `origin`: The origin of the call, which must be signed by the issuer.
-/// - `asset_id`: The identifier of the asset whose status is being changed.
-/// - `instance_id`: An optional identifier of the specific asset instance whose status is being changed.
-/// - `new_status`: The new status to be assigned to the asset or asset instance.
-///
-/// # Returns
-/// Returns `Ok(())` if the status was successfully changed, or an `Err` with an appropriate 
-/// error if the operation fails.
-///
-/// # Errors
-/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
-/// - `AssetInstanceNotFound`: If the asset instance with the given ID does not exist (if `instance_id` is provided).
-/// - `UnauthorizedOperation`: If the caller is not the issuer of the asset.
-/// - `InvalidAssetStatus`: If the new status is invalid.
-/// - `AssetInSameState`: If the new status is the same as the current status.
-/// - Propagates errors from `Self::update_activity` if it fails.
-///
-/// # Events
-/// - `Event::StatusChange`: Emitted when the status of an asset or asset instance is successfully changed.
 
+		/// Creates a new VC (Verifiable Credential) asset.
+		///
+		/// This function is responsible for creating a new VC asset. It verifies the caller's
+		/// authorization, ensures the provided asset quantity is valid, and then records the new
+		/// asset in storage. If all checks pass, it emits a creation event.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the call, which must be signed by the creator.
+		/// - `asset_qty`: The quantity of the asset to be created.
+		/// - `digest`: The hash of the entry data.
+		/// - `authorization`: The authorization ID used to validate the creation.
+		///
+		/// # Returns
+		/// Returns `Ok(())` if the asset was successfully created, or an `Err` with an appropriate
+		/// error if the operation fails.
+		///
+		/// # Errors
+		/// - `InvalidAssetQty`: If the provided asset quantity is zero or negative.
+		/// - `InvalidIdentifierLength`: If the generated identifier length is invalid.
+		/// - `AssetIdAlreadyExists`: If an asset with the generated identifier already exists.
+		/// - Propagates errors from `Self::update_activity` if it fails.
+		///
+		/// # Events
+		/// - `Event::Create`: Emitted when a VC asset is successfully created.
 		// TODO: Set actual weights
 		#[pallet::call_index(4)]
 		#[pallet::weight({0})]
@@ -649,31 +679,35 @@ pub mod pallet {
 			Ok(())
 		}
 
-/// Creates a new VC (Verifiable Credential) asset.
-///
-/// This function is responsible for creating a new VC asset. It verifies the caller's authorization,
-/// ensures the provided asset quantity is valid, and then records the new asset in storage.
-/// If all checks pass, it emits a creation event.
-///
-/// # Parameters
-/// - `origin`: The origin of the call, which must be signed by the creator.
-/// - `asset_qty`: The quantity of the asset to be created.
-/// - `digest`: The hash of the entry data.
-/// - `authorization`: The authorization ID used to validate the creation.
-///
-/// # Returns
-/// Returns `Ok(())` if the asset was successfully created, or an `Err` with an appropriate 
-/// error if the operation fails.
-///
-/// # Errors
-/// - `InvalidAssetQty`: If the provided asset quantity is zero or negative.
-/// - `InvalidIdentifierLength`: If the generated identifier length is invalid.
-/// - `AssetIdAlreadyExists`: If an asset with the generated identifier already exists.
-/// - Propagates errors from `Self::update_activity` if it fails.
-///
-/// # Events
-/// - `Event::Create`: Emitted when a VC asset is successfully created.
-
+		/// Issues a new instance of a VC (Verifiable Credential) asset.
+		///
+		/// This function is responsible for issuing a new instance of a VC asset. It verifies the
+		/// caller's authorization, ensures the provided issuance quantity is valid, and then
+		/// records the new asset instance in storage. If all checks pass, it emits an issuance
+		/// event.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the call, which must be signed by the issuer.
+		/// - `entry`: The details of the asset issuance entry, including the asset ID, owner, and
+		///   issuance quantity.
+		/// - `digest`: The hash of the entry data.
+		/// - `authorization`: The authorization ID used to validate the issuance.
+		///
+		/// # Returns
+		/// Returns `Ok(())` if the asset instance was successfully issued, or an `Err` with an
+		/// appropriate error if the operation fails.
+		///
+		/// # Errors
+		/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
+		/// - `UnauthorizedOperation`: If the caller is not the issuer of the asset.
+		/// - `AssetNotActive`: If the asset is not in an active state.
+		/// - `OverIssuanceLimit`: If the issuance quantity exceeds the asset's available quantity.
+		/// - `InvalidIdentifierLength`: If the generated identifier length is invalid.
+		/// - `DistributionLimitExceeded`: If the distribution limit is exceeded.
+		/// - Propagates errors from `Self::update_activity` if it fails.
+		///
+		/// # Events
+		/// - `Event::Issue`: Emitted when a VC asset instance is successfully issued.
 		#[pallet::call_index(5)]
 		#[pallet::weight({0})]
 		pub fn vc_issue(
@@ -756,34 +790,34 @@ pub mod pallet {
 			Ok(())
 		}
 
-/// Issues a new instance of a VC (Verifiable Credential) asset.
-///
-/// This function is responsible for issuing a new instance of a VC asset. It verifies the caller's 
-/// authorization, ensures the provided issuance quantity is valid, and then records the new 
-/// asset instance in storage. If all checks pass, it emits an issuance event.
-///
-/// # Parameters
-/// - `origin`: The origin of the call, which must be signed by the issuer.
-/// - `entry`: The details of the asset issuance entry, including the asset ID, owner, and issuance quantity.
-/// - `digest`: The hash of the entry data.
-/// - `authorization`: The authorization ID used to validate the issuance.
-///
-/// # Returns
-/// Returns `Ok(())` if the asset instance was successfully issued, or an `Err` with an appropriate 
-/// error if the operation fails.
-///
-/// # Errors
-/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
-/// - `UnauthorizedOperation`: If the caller is not the issuer of the asset.
-/// - `AssetNotActive`: If the asset is not in an active state.
-/// - `OverIssuanceLimit`: If the issuance quantity exceeds the asset's available quantity.
-/// - `InvalidIdentifierLength`: If the generated identifier length is invalid.
-/// - `DistributionLimitExceeded`: If the distribution limit is exceeded.
-/// - Propagates errors from `Self::update_activity` if it fails.
-///
-/// # Events
-/// - `Event::Issue`: Emitted when a VC asset instance is successfully issued.
-
+		/// Transfers ownership of a VC (Verifiable Credential) asset instance.
+		///
+		/// This function facilitates the transfer of ownership of a VC asset instance. It verifies
+		/// that the caller is the current owner of the asset instance, checks the asset and
+		/// instance status, and updates the ownership record in storage. If all checks pass, it
+		/// emits a transfer event.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the call, which must be signed by the current owner of the
+		///   asset instance.
+		/// - `entry`: The details of the asset transfer entry, including the asset ID, instance ID,
+		///   current owner, and new owner.
+		/// - `digest`: The hash of the entry data.
+		///
+		/// # Returns
+		/// Returns `Ok(())` if the asset instance ownership was successfully transferred, or an
+		/// `Err` with an appropriate error if the operation fails.
+		///
+		/// # Errors
+		/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
+		/// - `AssetInstanceNotFound`: If the asset instance with the given ID does not exist.
+		/// - `UnauthorizedOperation`: If the caller is not the current owner of the asset instance.
+		/// - `AssetNotActive`: If the asset is not in an active state.
+		/// - `InstanceNotActive`: If the asset instance is not in an active state.
+		/// - Propagates errors from `Self::update_activity` if it fails.
+		///
+		/// # Events
+		/// - `Event::Transfer`: Emitted when a VC asset instance is successfully transferred.
 		#[pallet::call_index(6)]
 		#[pallet::weight({0})]
 		pub fn vc_transfer(
@@ -835,31 +869,35 @@ pub mod pallet {
 			Ok(())
 		}
 
-/// Transfers ownership of a VC (Verifiable Credential) asset instance.
-///
-/// This function facilitates the transfer of ownership of a VC asset instance. It verifies that 
-/// the caller is the current owner of the asset instance, checks the asset and instance status, 
-/// and updates the ownership record in storage. If all checks pass, it emits a transfer event.
-///
-/// # Parameters
-/// - `origin`: The origin of the call, which must be signed by the current owner of the asset instance.
-/// - `entry`: The details of the asset transfer entry, including the asset ID, instance ID, current owner, and new owner.
-/// - `digest`: The hash of the entry data.
-///
-/// # Returns
-/// Returns `Ok(())` if the asset instance ownership was successfully transferred, or an `Err` 
-/// with an appropriate error if the operation fails.
-///
-/// # Errors
-/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
-/// - `AssetInstanceNotFound`: If the asset instance with the given ID does not exist.
-/// - `UnauthorizedOperation`: If the caller is not the current owner of the asset instance.
-/// - `AssetNotActive`: If the asset is not in an active state.
-/// - `InstanceNotActive`: If the asset instance is not in an active state.
-/// - Propagates errors from `Self::update_activity` if it fails.
-///
-/// # Events
-/// - `Event::Transfer`: Emitted when a VC asset instance is successfully transferred.
+		/// Changes the status of a VC (Verifiable Credential) asset or asset instance.
+		///
+		/// This function allows the issuer of an asset to change the status of either the entire
+		/// asset or a specific asset instance. It checks that the caller is the issuer of the
+		/// asset, verifies the new status, and updates the status in storage. If the status
+		/// change is successful, an event is emitted.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the call, which must be signed by the issuer of the asset.
+		/// - `asset_id`: The identifier of the asset whose status is being changed.
+		/// - `instance_id`: An optional identifier of the specific asset instance whose status is
+		///   being changed. If `None`, the status of the entire asset is changed.
+		/// - `new_status`: The new status to be assigned to the asset or asset instance.
+		///
+		/// # Returns
+		/// Returns `Ok(())` if the status was successfully changed, or an `Err` with an appropriate
+		/// error if the operation fails.
+		///
+		/// # Errors
+		/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
+		/// - `UnauthorizedOperation`: If the caller is not the issuer of the asset.
+		/// - `InvalidAssetStatus`: If the provided status is not a valid status type.
+		/// - `AssetInstanceNotFound`: If the specific asset instance does not exist.
+		/// - `AssetInSameState`: If the asset or asset instance is already in the provided status.
+		/// - Propagates errors from `Self::update_activity` if it fails.
+		///
+		/// # Events
+		/// - `Event::StatusChange`: Emitted when the status of an asset or asset instance is
+		///   successfully changed.
 		#[pallet::call_index(7)]
 		#[pallet::weight({0})]
 		pub fn vc_status_change(
@@ -912,36 +950,6 @@ pub mod pallet {
 
 			Ok(())
 		}
-
-/// Changes the status of a VC (Verifiable Credential) asset or asset instance.
-///
-/// This function allows the issuer of an asset to change the status of either the entire asset 
-/// or a specific asset instance. It checks that the caller is the issuer of the asset, verifies 
-/// the new status, and updates the status in storage. If the status change is successful, an 
-/// event is emitted.
-///
-/// # Parameters
-/// - `origin`: The origin of the call, which must be signed by the issuer of the asset.
-/// - `asset_id`: The identifier of the asset whose status is being changed.
-/// - `instance_id`: An optional identifier of the specific asset instance whose status is being changed. 
-///   If `None`, the status of the entire asset is changed.
-/// - `new_status`: The new status to be assigned to the asset or asset instance.
-///
-/// # Returns
-/// Returns `Ok(())` if the status was successfully changed, or an `Err` with an appropriate error 
-/// if the operation fails.
-///
-/// # Errors
-/// - `AssetIdNotFound`: If the asset with the given ID does not exist.
-/// - `UnauthorizedOperation`: If the caller is not the issuer of the asset.
-/// - `InvalidAssetStatus`: If the provided status is not a valid status type.
-/// - `AssetInstanceNotFound`: If the specific asset instance does not exist.
-/// - `AssetInSameState`: If the asset or asset instance is already in the provided status.
-/// - Propagates errors from `Self::update_activity` if it fails.
-///
-/// # Events
-/// - `Event::StatusChange`: Emitted when the status of an asset or asset instance is successfully changed.
-		
 	}
 }
 
