@@ -453,3 +453,23 @@ fn adding_already_connected_connection_should_fail() {
 		);
 	});
 }
+
+
+#[test]
+fn test_peer_id_too_long() {
+	new_test_ext().execute_with(|| {
+		const MAX_PEER_ID_LENGTH: usize = 32;
+		let long_input = "a".repeat(MAX_PEER_ID_LENGTH + 1);
+		let node_id = long_input.as_bytes().to_vec();
+		let owner = 1u64;
+
+		assert_noop!(
+			Pallet::<Test>::add_well_known_node(
+				RuntimeOrigin::signed(10),
+				node_id,
+				owner,
+			),
+			Error::<Test>::PeerIdTooLong
+		);
+	});
+}
