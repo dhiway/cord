@@ -454,7 +454,6 @@ fn adding_already_connected_connection_should_fail() {
 	});
 }
 
-
 #[test]
 fn test_peer_id_too_long() {
 	new_test_ext().execute_with(|| {
@@ -464,11 +463,7 @@ fn test_peer_id_too_long() {
 		let owner = 1u64;
 
 		assert_noop!(
-			Pallet::<Test>::add_well_known_node(
-				RuntimeOrigin::signed(10),
-				node_id,
-				owner,
-			),
+			Pallet::<Test>::add_well_known_node(RuntimeOrigin::signed(10), node_id, owner,),
 			Error::<Test>::PeerIdTooLong
 		);
 	});
