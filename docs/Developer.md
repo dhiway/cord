@@ -57,6 +57,7 @@ cargo check --package pallet-did-name
 cargo check --package pallet-network-membership
 cargo check --package pallet-chain-space
 cargo check --package pallet-statement
+cargo check --package pallet-use-once
 cargo check --package pallet-network-score
 ```
 
@@ -70,6 +71,7 @@ cargo test --package pallet-did-name
 cargo test --package pallet-network-membership
 cargo test --package pallet-chain-space
 cargo test --package pallet-statement
+cargo test --package pallet-use-once
 cargo test --package pallet-network-score
 ```
 
