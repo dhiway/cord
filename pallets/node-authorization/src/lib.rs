@@ -481,7 +481,7 @@ impl<T: Config> Pallet<T> {
 	fn generate_peer_id(node_identity: &NodeId) -> Result<PeerId, Error<T>> {
 		let encoded = sp_std::str::from_utf8(node_identity).map_err(|_| Error::<T>::InvalidUtf8)?;
 		let decoded = bs58::decode(encoded)
-			.into_vec() 
+			.into_vec()
 			.map_err(|_| Error::<T>::InvalidNodeIdentifier)?;
 
 		let node = PeerId(decoded);
