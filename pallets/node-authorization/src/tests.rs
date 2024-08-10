@@ -471,7 +471,6 @@ fn test_peer_id_too_long() {
 
 		// Decode to check the resulting PeerId length
 		let decoded_bytes = bs58::decode(&long_encoded_string).into_vec().unwrap();
-		println!("Decoded length: {}", decoded_bytes.len()); // Ensure this is > 128 bytes
 
 		// Check if NodeId length itself exceeds the maximum length
 		if node_id.len() > MAX_NODE_ID_LENGTH {
