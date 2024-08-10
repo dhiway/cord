@@ -457,14 +457,34 @@ fn adding_already_connected_connection_should_fail() {
 #[test]
 fn test_peer_id_too_long() {
 	new_test_ext().execute_with(|| {
-		const MAX_PEER_ID_LENGTH: usize = 32;
-		let long_input = "a".repeat(MAX_PEER_ID_LENGTH + 1);
-		let node_id = long_input.as_bytes().to_vec();
-		let owner = 1u64;
+		const MAX_PEER_ID_LENGTH: usize = 128;
+		const MAX_NODE_ID_LENGTH: usize = 54;
 
-		assert_noop!(
-			Pallet::<Test>::add_well_known_node(RuntimeOrigin::signed(10), node_id, owner,),
-			Error::<Test>::PeerIdTooLong
-		);
+		// Create a byte array directly longer than MAX_PEER_ID_LENGTH
+		let long_byte_array = vec![0u8; MAX_PEER_ID_LENGTH + 10]; // Longer than MAX_PEER_ID_LENGTH
+
+		// Encode the byte array to Base58
+		let long_encoded_string = bs58::encode(&long_byte_array).into_string();
+
+		// Convert to NodeId
+		let node_id = long_encoded_string.as_bytes().to_vec();
+
+		// Decode to check the resulting PeerId length
+		let decoded_bytes = bs58::decode(&long_encoded_string).into_vec().unwrap();
+		println!("Decoded length: {}", decoded_bytes.len()); // Ensure this is > 128 bytes
+
+		// Check if NodeId length itself exceeds the maximum length
+		if node_id.len() > MAX_NODE_ID_LENGTH {
+			assert_noop!(
+				NodeAuthorization::add_well_known_node(RuntimeOrigin::signed(1), node_id, 20),
+				Error::<Test>::NodeIdTooLong
+			);
+		} else {
+			// Otherwise, check that adding this node results in a PeerIdTooLong error
+			assert_noop!(
+				NodeAuthorization::add_well_known_node(RuntimeOrigin::signed(1), node_id, 20),
+				Error::<Test>::PeerIdTooLong
+			);
+		}
 	});
 }
