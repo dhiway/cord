@@ -38,23 +38,23 @@ sp-keystore = { optional = true, workspace = true }
 [features]
 default = ['std']
 std = [
-	"codec/std",
-	"scale-info/std",
-	"frame-support/std",
-	"frame-system/std",
-	"sp-runtime/std",
-	"sp-io/std",
-	"sp-std/std",
-	"sp-keystore/std",
-	"bs58/std",
-	"blake2-rfc/std",
-	"cord-utilities/std",
-	"sp-core?/std"
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-io/std",
+    "sp-std/std",
+    "sp-keystore/std",
+    "bs58/std",
+    "blake2-rfc/std",
+    "cord-utilities/std",
+    "sp-core?/std",
 ]
 
 try-runtime = [
-	"frame-support/try-runtime",
-	"frame-system/try-runtime",
-	"cord-utilities/try-runtime",
-	"sp-runtime/try-runtime"
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+    "cord-utilities/try-runtime",
+    "sp-runtime/try-runtime",
 ]
