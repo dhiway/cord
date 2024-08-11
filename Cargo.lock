@@ -2168,7 +2168,7 @@ dependencies = [
 
 [[package]]
 name = "cord-loom-node-cli"
-version = "17.0.0"
+version = "0.9.3"
 dependencies = [
  "cfg-if",
  "clap 4.5.11",
@@ -2198,7 +2198,7 @@ dependencies = [
 
 [[package]]
 name = "cord-loom-rpc"
-version = "17.0.0"
+version = "0.9.3"
 dependencies = [
  "jsonrpsee",
  "mmr-rpc",
@@ -2232,7 +2232,7 @@ dependencies = [
 
 [[package]]
 name = "cord-loom-service"
-version = "17.0.0"
+version = "0.9.3"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -2358,7 +2358,7 @@ dependencies = [
 
 [[package]]
 name = "cord-loom-test-runtime"
-version = "17.0.0"
+version = "0.9.3"
 dependencies = [
  "binary-merkle-tree 15.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cord-loom-test-runtime-constants",

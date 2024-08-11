@@ -350,8 +350,8 @@ impl pallet_beefy::Config for Runtime {
 	type MaxAuthorities = MaxAuthorities;
 	type MaxNominators = MaxNominators;
 	type MaxSetIdSessionEntries = BeefySetIdSessionEntries;
-	type OnNewValidatorSet = BeefyMmrLeaf;
-	type AncestryHelper = BeefyMmrLeaf;
+	type OnNewValidatorSet = MmrLeaf;
+	type AncestryHelper = MmrLeaf;
 	type WeightInfo = ();
 	type KeyOwnerProof = <Historical as KeyOwnerProofSystem<(KeyTypeId, BeefyId)>>::Proof;
 	type EquivocationReportSystem =
@@ -766,17 +766,6 @@ impl pallet_staking::Config for Runtime {
 	type WeightInfo = weights::pallet_staking::WeightInfo<Runtime>;
 }
 
-// impl pallet_fast_unstake::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type Currency = Balances;
-// 	type BatchSize = frame_support::traits::ConstU32<64>;
-// 	type Deposit = frame_support::traits::ConstU128<{ MILLI * 100 }>;
-// 	type ControlOrigin = EnsureRoot<AccountId>;
-// 	type Staking = Staking;
-// 	type MaxErasToCheckPerBlock = ConstU32<1>;
-// 	type WeightInfo = weights::pallet_fast_unstake::WeightInfo<Runtime>;
-// }
-
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
 	pub const ProposalBondMinimum: Balance = 100 * UNITS;
@@ -829,45 +818,6 @@ impl pallet_treasury::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = polkadot_runtime_common::impls::benchmarks::TreasuryArguments;
 }
-
-// parameter_types! {
-// 	pub const BountyDepositBase: Balance = 100 * MILLI;
-// 	pub const BountyDepositPayoutDelay: BlockNumber = 0;
-// 	pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
-// 	pub const MaximumReasonLength: u32 = 16384;
-// 	pub const CuratorDepositMultiplier: Permill = Permill::from_percent(50);
-// 	pub const CuratorDepositMin: Balance = 10 * MILLI;
-// 	pub const CuratorDepositMax: Balance = 500 * MILLI;
-// 	pub const BountyValueMinimum: Balance = 200 * MILLI;
-// }
-
-// impl pallet_bounties::Config for Runtime {
-// 	type BountyDepositBase = BountyDepositBase;
-// 	type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
-// 	type BountyUpdatePeriod = BountyUpdatePeriod;
-// 	type CuratorDepositMultiplier = CuratorDepositMultiplier;
-// 	type CuratorDepositMin = CuratorDepositMin;
-// 	type CuratorDepositMax = CuratorDepositMax;
-// 	type BountyValueMinimum = BountyValueMinimum;
-// 	type ChildBountyManager = ChildBounties;
-// 	type DataDepositPerByte = DataDepositPerByte;
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type MaximumReasonLength = MaximumReasonLength;
-// 	type OnSlash = Treasury;
-// 	type WeightInfo = weights::pallet_bounties::WeightInfo<Runtime>;
-// }
-
-// parameter_types! {
-// 	pub const MaxActiveChildBountyCount: u32 = 100;
-// 	pub const ChildBountyValueMinimum: Balance = BountyValueMinimum::get() / 10;
-// }
-
-// impl pallet_child_bounties::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type MaxActiveChildBountyCount = MaxActiveChildBountyCount;
-// 	type ChildBountyValueMinimum = ChildBountyValueMinimum;
-// 	type WeightInfo = weights::pallet_child_bounties::WeightInfo<Runtime>;
-// }
 
 impl pallet_offences::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -969,36 +919,6 @@ parameter_types! {
 	pub const ParathreadDeposit: Balance = 500 * UNITS;
 	pub const MaxRetries: u32 = 3;
 }
-
-// parameter_types! {
-// 	pub Prefix: &'static [u8] = b"Pay DOTs to the Polkadot account:";
-// }
-
-// impl claims::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type VestingSchedule = Vesting;
-// 	type Prefix = Prefix;
-// 	/// Only Root can move a claim.
-// 	type MoveClaimOrigin = EnsureRoot<AccountId>;
-// 	type WeightInfo = weights::polkadot_runtime_common_claims::WeightInfo<Runtime>;
-// }
-
-// parameter_types! {
-// 	pub const MinVestedTransfer: Balance = UNITS;
-// 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
-// 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
-// }
-
-// impl pallet_vesting::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type Currency = Balances;
-// 	type BlockNumberToBalance = ConvertInto;
-// 	type MinVestedTransfer = MinVestedTransfer;
-// 	type WeightInfo = weights::pallet_vesting::WeightInfo<Runtime>;
-// 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
-// 	type BlockNumberProvider = System;
-// 	const MAX_VESTING_SCHEDULES: u32 = 28;
-// }
 
 impl pallet_utility::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -1553,6 +1473,13 @@ impl pallet_asset_rate::Config for Runtime {
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = polkadot_runtime_common::impls::benchmarks::AssetRateArguments;
 }
+
+impl pallet_sudo::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type WeightInfo = ();
+}
+
 /// Notify the `coretime` pallet when a lease swap occurs.
 pub struct SwapLeases;
 impl OnSwap for SwapLeases {
@@ -1594,25 +1521,13 @@ construct_runtime! {
 		Referenda: pallet_referenda = 21,
 		Origins: pallet_custom_origins = 22,
 		Whitelist: pallet_whitelist = 23,
-
-		// // Claims. Usable initially.
-		// Claims: claims = 24,
-		// // Vesting. Usable initially, but removed once all vesting is finished.
-		// // Vesting: pallet_vesting = 25,
-		// Cunning utilities. Usable initially.
 		Utility: pallet_utility = 26,
-
-		// Identity: pallet_identity = 28, (removed post 1.2.8)
 
 		// Proxy module. Late addition.
 		Proxy: pallet_proxy = 29,
 
 		// Multisig dispatch. Late addition.
 		Multisig: pallet_multisig = 30,
-
-		// // Bounties modules.
-		// Bounties: pallet_bounties = 34,
-		// ChildBounties: pallet_child_bounties = 38,
 
 		// Election pallet. Only works with staking, but placed here to maintain indices.
 		ElectionProviderMultiPhase: pallet_election_provider_multi_phase = 36,
@@ -1622,9 +1537,6 @@ construct_runtime! {
 
 		// Nomination pools: extension to staking.
 		NominationPools: pallet_nomination_pools = 39,
-
-		// Fast unstake pallet: extension to staking.
-		// FastUnstake: pallet_fast_unstake = 40,
 
 		// Parachains pallets. Start indices at 50 to leave room.
 		ParachainsOrigin: parachains_origin = 50,
@@ -1668,7 +1580,10 @@ construct_runtime! {
 		// MMR leaf construction must be after session in order to have a leaf's next_auth_set
 		// refer to block<N>. See issue #160 for details.
 		Mmr: pallet_mmr = 201,
-		BeefyMmrLeaf: pallet_beefy_mmr = 202,
+		MmrLeaf: pallet_beefy_mmr = 202,
+
+		// Sudo
+		Sudo: pallet_sudo = 250
 	}
 }
 
@@ -2175,11 +2090,11 @@ sp_api::impl_runtime_apis! {
 
 	impl pallet_beefy_mmr::BeefyMmrApi<Block, Hash> for RuntimeApi {
 		fn authority_set_proof() -> sp_consensus_beefy::mmr::BeefyAuthoritySet<Hash> {
-			BeefyMmrLeaf::authority_set_proof()
+			MmrLeaf::authority_set_proof()
 		}
 
 		fn next_authority_set_proof() -> sp_consensus_beefy::mmr::BeefyNextAuthoritySet<Hash> {
-			BeefyMmrLeaf::next_authority_set_proof()
+			MmrLeaf::next_authority_set_proof()
 		}
 	}
 
