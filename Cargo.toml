@@ -11,47 +11,44 @@ license = "GPL-3.0"
 resolver = "2"
 
 members = [
-	"node/cli",
-	"node/rpc",
-	"node/inspect",
-	"node/testing",
-	"pallets/asset",
-	"pallets/chain-space",
-	"pallets/did",
-	"pallets/did-name",
-	"pallets/identity",
-	"pallets/network-membership",
-	"pallets/network-score",
-	"pallets/node-authorization",
-	"pallets/offences",
-	"pallets/runtime-upgrade",
-	"pallets/session-benchmarking",
-	"pallets/statement",
-	"primitives/cord",
-	"primitives/identifier",
-	"primitives/network-membership",
-	"runtimes/common",
-	"runtimes/common/api/assets",
-	"runtimes/common/api/did",
-	"runtimes/common/api/weight",
-	"runtimes/common/authorities",
-	"runtimes/braid/",
-	"runtimes/braid/constants",
-	"runtimes/loom/",
-	"runtimes/loom/constants",
-	"runtimes/weave/",
-	"runtimes/weave/constants",
-	"utilities",
-	"test-utils",
-	"test-utils/cli",
-	"test-utils/client",
-	"test-utils/runtime",
-	"test-utils/runtime/client",
-	"test-utils/runtime/transaction-pool",
-	"test-utils/service",
-
+    "braid/node/cli",
+    "braid/node/rpc",
+    "braid/node/inspect",
+    "braid/node/testing",
+    "pallets/asset",
+    "pallets/chain-space",
+    "pallets/did",
+    "pallets/did-name",
+    "pallets/identity",
+    "pallets/network-membership",
+    "pallets/network-score",
+    "pallets/node-authorization",
+    "pallets/offences",
+    "pallets/runtime-upgrade",
+    "pallets/session-benchmarking",
+    "pallets/statement",
+    "primitives/cord",
+    "primitives/identifier",
+    "primitives/network-membership",
+    "braid/runtimes/common",
+    "braid/runtimes/common/api/assets",
+    "braid/runtimes/common/api/did",
+    "braid/runtimes/common/api/weight",
+    "braid/runtimes/common/authorities",
+    "braid/runtimes/base",
+    "braid/runtimes/base/constants",
+    "braid/runtimes/plus",
+    "braid/runtimes/plus/constants",
+    "utilities",
+    "braid/test-utils",
+    "braid/test-utils/cli",
+    "braid/test-utils/client",
+    "braid/test-utils/runtime",
+    "braid/test-utils/runtime/client",
+    "braid/test-utils/runtime/transaction-pool",
+    "braid/test-utils/service",
 ]
-default-members = ["node/cli"]
+default-members = ["braid/node/cli"]
 
 [workspace.dependencies]
 # crates.io dependencies
@@ -111,30 +108,28 @@ trybuild = { version = "1.0.88", default-features = false }
 tikv-jemallocator = { version = "0.5.0", default-features = false }
 
 # local dependencies
-authority-membership = { path = "runtimes/common/authorities", default-features = false }
+authority-membership = { path = "braid/runtimes/common/authorities", default-features = false }
 identifier = { package = "cord-identifier", path = "primitives/identifier", default-features = false }
-cord-node-cli = { path = "node/cli", default-features = false }
-cord-primitives = { path = "primitives/cord", default-features = false }
 network-membership = { path = "primitives/network-membership", default-features = false }
-cord-braid-runtime = { path = "runtimes/braid", default-features = false }
-cord-braid-runtime-constants = { path = "runtimes/braid/constants", default-features = false }
-cord-runtime-common = { path = "runtimes/common", default-features = false }
-cord-loom-runtime = { path = "runtimes/loom", default-features = false }
-cord-loom-runtime-constants = { path = "runtimes/loom/constants", default-features = false }
-cord-weave-runtime = { path = "runtimes/weave", default-features = false }
-cord-weave-runtime-constants = { path = "runtimes/weave/constants", default-features = false }
-cord-node-service = { path = "node/service", default-features = false }
-cord-node-inspect = { path = "node/inspect", default-features = false }
-cord-node-rpc = { path = "node/rpc", default-features = false }
-cord-node-testing = { path = "node/testing", default-features = false }
-cord-test-utils = { path = "test-utils", default-features = false }
-cord-service-test = { path = "test-utils/service", default-features = false }
-cord-test-runtime = { path = "test-utils/runtime", default-features = false }
-cord-test-client = { path = "test-utils/client", default-features = false }
-cord-test-runtime-client = { path = "test-utils/runtime/client", default-features = false }
-cord-test-runtime-transaction-pool = { path = "test-utils/runtime/transaction-pool", default-features = false }
-cord-cli-test-utils = { path = "test-utils/cli", default-features = false }
+cord-primitives = { path = "primitives/cord", default-features = false }
 cord-utilities = { path = "utilities", default-features = false }
+cord-braid-node-cli = { path = "braid/node/cli", default-features = false }
+cord-braid-base-runtime = { path = "braid/runtimes/base", default-features = false }
+cord-braid-base-runtime-constants = { path = "braid/runtimes/base/constants", default-features = false }
+cord-braid-runtime-common = { path = "braid/runtimes/common", default-features = false }
+cord-braid-plus-runtime = { path = "braid/runtimes/plus", default-features = false }
+cord-braid-plus-runtime-constants = { path = "braid/runtimes/plus/constants", default-features = false }
+cord-braid-node-service = { path = "braid/node/service", default-features = false }
+cord-braid-node-inspect = { path = "braid/node/inspect", default-features = false }
+cord-braid-node-rpc = { path = "braid/node/rpc", default-features = false }
+cord-braid-node-testing = { path = "braid/node/testing", default-features = false }
+cord-braid-test-utils = { path = "braid/test-utils", default-features = false }
+cord-braid-service-test = { path = "braid/test-utils/service", default-features = false }
+cord-braid-test-runtime = { path = "braid/test-utils/runtime", default-features = false }
+cord-braid-test-client = { path = "braid/test-utils/client", default-features = false }
+cord-braid-test-runtime-client = { path = "braid/test-utils/runtime/client", default-features = false }
+cord-braid-test-runtime-transaction-pool = { path = "braid/test-utils/runtime/transaction-pool", default-features = false }
+cord-braid-cli-test-utils = { path = "braid/test-utils/cli", default-features = false }
 pallet-membership = { path = 'pallets/membership/', default-features = false }
 pallet-config = { path = 'pallets/config/', default-features = false }
 pallet-did = { path = 'pallets/did', default-features = false }
@@ -149,9 +144,9 @@ pallet-offences = { path = 'pallets/offences', default-features = false }
 pallet-node-authorization = { path = "pallets/node-authorization", default-features = false }
 pallet-network-score = { path = 'pallets/network-score', default-features = false }
 pallet-session-benchmarking = { path = 'pallets/session-benchmarking', default-features = false }
-pallet-assets-runtime-api = { path = "runtimes/common/api/assets", default-features = false }
-pallet-did-runtime-api = { path = "runtimes/common/api/did", default-features = false }
-pallet-transaction-weight-runtime-api = { path = "runtimes/common/api/weight", default-features = false }
+pallet-assets-runtime-api = { path = "braid/runtimes/common/api/assets", default-features = false }
+pallet-did-runtime-api = { path = "braid/runtimes/common/api/did", default-features = false }
+pallet-transaction-weight-runtime-api = { path = "braid/runtimes/common/api/weight", default-features = false }
 
 # substrate dependencies
 frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.15.0" }
