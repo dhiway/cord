@@ -145,12 +145,12 @@ cord-braid-test-client = { path = "braid/test-utils/client", default-features = 
 cord-braid-test-runtime-client = { path = "braid/test-utils/runtime/client", default-features = false }
 cord-braid-test-runtime-transaction-pool = { path = "braid/test-utils/runtime/transaction-pool", default-features = false }
 cord-braid-cli-test-utils = { path = "braid/test-utils/cli", default-features = false }
-cord-loom-node-cli = { path = "loom/cli", default-features = false, version = "17.0.0" }
-cord-loom-rpc = { path = "loom/rpc", default-features = false, version = "17.0.0" }
-cord-loom-service = { path = "loom/node/service", default-features = false, version = "17.0.0" }
-cord-loom-test-runtime = { path = "loom/runtime", version = "17.0.0" }
-cord-loom-test-runtime-constants = { path = "loom/runtime/constants", default-features = false, version = "16.0.0" }
-cord-weave-node-cli = { path = "weave/node", default-features = false, version = "17.0.0" }
+cord-loom-node-cli = { path = "loom/cli", default-features = false }
+cord-loom-rpc = { path = "loom/rpc", default-features = false }
+cord-loom-service = { path = "loom/node/service", default-features = false }
+cord-loom-test-runtime = { path = "loom/runtime" }
+cord-loom-test-runtime-constants = { path = "loom/runtime/constants", default-features = false }
+cord-weave-node-cli = { path = "weave/node", default-features = false }
 cord-weave-test-runtime = { path = "weave/runtime", default-features = false }
 
 pallet-config = { path = 'pallets/config/', default-features = false }

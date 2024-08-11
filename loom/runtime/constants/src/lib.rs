@@ -137,7 +137,7 @@ pub mod system_parachain {
 }
 
 /// Westend Treasury pallet instance.
-pub const TREASURY_PALLET_ID: u8 = 18;
+pub const TREASURY_PALLET_ID: u8 = 19;
 
 #[cfg(test)]
 mod tests {

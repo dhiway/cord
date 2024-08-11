@@ -283,6 +283,7 @@ try-runtime = [
     "pallet-scheduler/try-runtime",
     "pallet-session/try-runtime",
     "pallet-staking/try-runtime",
+    "pallet-sudo/try-runtime",
     "pallet-state-trie-migration/try-runtime",
     "pallet-timestamp/try-runtime",
     "pallet-transaction-payment/try-runtime",
