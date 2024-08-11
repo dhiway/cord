@@ -63,10 +63,11 @@ pub fn start_node_inline(args: Vec<&str>) -> Result<(), sc_service::error::Error
 
 	// Prepend the args with some dummy value because the first arg is skipped.
 	let cli_call = std::iter::once("cord").chain(args);
-	let cli = cord_node_cli::Cli::from_iter(cli_call);
+	let cli = cord_braid_node_cli::Cli::from_iter(cli_call);
 	let runner = cli.create_runner(&cli.run).unwrap();
-	runner
-		.run_node_until_exit(|config| async move { cord_node_cli::service::new_full(config, cli) })
+	runner.run_node_until_exit(|config| async move {
+		cord_braid_node_cli::service::new_full(config, cli)
+	})
 }
 
 /// Starts a new Cord node in development mode with a temporary chain.
@@ -275,8 +276,9 @@ pub async fn block_hash(block_number: u64, url: &str) -> Result<Hash, String> {
 	.map_err(|_| "Couldn't get block hash".to_string())?;
 
 	match result {
-		ListOrValue::Value(maybe_block_hash) if maybe_block_hash.is_some() =>
-			Ok(maybe_block_hash.unwrap()),
+		ListOrValue::Value(maybe_block_hash) if maybe_block_hash.is_some() => {
+			Ok(maybe_block_hash.unwrap())
+		},
 		_ => Err("Couldn't get block hash".to_string()),
 	}
 }

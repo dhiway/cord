@@ -35,12 +35,12 @@ use sp_runtime::{
 };
 use sp_state_machine::TestExternalities as CoreTestExternalities;
 
-use cord_loom_runtime::{
+use cord_braid_node_cli::service::RuntimeExecutor;
+use cord_braid_node_testing::keyring::*;
+use cord_braid_plus_runtime::{
 	Block, BuildStorage, CheckedExtrinsic, Header, Runtime, UncheckedExtrinsic,
 };
-use cord_loom_runtime_constants::currency::*;
-use cord_node_cli::service::RuntimeExecutor;
-use cord_node_testing::keyring::*;
+use cord_braid_plus_runtime_constants::currency::*;
 use cord_primitives::{BlockNumber, Hash};
 use sp_externalities::Externalities;
 pub const TEST_KEY_TYPE_ID: KeyTypeId = KeyTypeId(*b"test");
@@ -68,7 +68,7 @@ impl AppCrypto<MultiSigner, MultiSignature> for TestAuthorityId {
 /// tree-shaking thus making the binary slimmer. There is a convention to use
 /// compact version of the runtime as canonical.
 pub fn compact_code_unwrap() -> &'static [u8] {
-	cord_loom_runtime::WASM_BINARY.expect(
+	cord_braid_plus_runtime::WASM_BINARY.expect(
 		"Development wasm binary is not available. Testing is only supported with the flag \
 		 disabled.",
 	)
@@ -76,14 +76,14 @@ pub fn compact_code_unwrap() -> &'static [u8] {
 
 pub const GENESIS_HASH: [u8; 32] = [69u8; 32];
 
-pub const SPEC_VERSION: u32 = cord_loom_runtime::VERSION.spec_version;
+pub const SPEC_VERSION: u32 = cord_braid_plus_runtime::VERSION.spec_version;
 
-pub const TRANSACTION_VERSION: u32 = cord_loom_runtime::VERSION.transaction_version;
+pub const TRANSACTION_VERSION: u32 = cord_braid_plus_runtime::VERSION.transaction_version;
 
 pub type TestExternalities<H> = CoreTestExternalities<H>;
 
 pub fn sign(xt: CheckedExtrinsic) -> UncheckedExtrinsic {
-	cord_node_testing::keyring::sign(xt, SPEC_VERSION, TRANSACTION_VERSION, GENESIS_HASH)
+	cord_braid_node_testing::keyring::sign(xt, SPEC_VERSION, TRANSACTION_VERSION, GENESIS_HASH)
 }
 
 pub fn default_transfer_call() -> pallet_balances::Call<Runtime> {
@@ -119,7 +119,7 @@ pub fn executor_call(
 pub fn new_test_ext(code: &[u8]) -> TestExternalities<BlakeTwo256> {
 	TestExternalities::new_with_code(
 		code,
-		cord_node_testing::genesis::config().build_storage().unwrap(),
+		cord_braid_node_testing::genesis::config().build_storage().unwrap(),
 	)
 }
 

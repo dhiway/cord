@@ -297,13 +297,13 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 			CheckedExtrinsic {
 				signed: Some((
 					sender,
-					signed_extra(0, cord_loom_runtime::ExistentialDeposit::get() + 1),
+					signed_extra(0, cord_braid_plus_runtime::ExistentialDeposit::get() + 1),
 				)),
 				function: match self.content.block_type {
 					BlockType::RandomTransfersKeepAlive => {
 						RuntimeCall::Balances(BalancesCall::transfer_keep_alive {
 							dest: sp_runtime::MultiAddress::Id(receiver),
-							value: cord_loom_runtime::ExistentialDeposit::get() + 1,
+							value: cord_braid_plus_runtime::ExistentialDeposit::get() + 1,
 						})
 					},
 					BlockType::RandomTransfersReaping => {
@@ -311,7 +311,8 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 							dest: sp_runtime::MultiAddress::Id(receiver),
 							// Transfer so that ending balance would be 1 less than existential
 							// deposit so that we kill the sender account.
-							value: 100 * UNITS - (cord_loom_runtime::ExistentialDeposit::get() - 1),
+							value: 100 * UNITS
+								- (cord_braid_plus_runtime::ExistentialDeposit::get() - 1),
 						})
 					},
 					BlockType::Noop => {
@@ -592,7 +593,7 @@ impl BenchKeyring {
 	}
 
 	/// Generate genesis with accounts from this keyring endowed with some
-	/// balance and cord_loom_runtime code blob.
+	/// balance and cord_braid_plus_runtime code blob.
 	pub fn as_storage_builder(&self) -> &dyn sp_runtime::BuildStorage {
 		self
 	}
@@ -602,7 +603,7 @@ impl sp_runtime::BuildStorage for BenchKeyring {
 	fn assimilate_storage(&self, storage: &mut sp_core::storage::Storage) -> Result<(), String> {
 		storage.top.insert(
 			sp_core::storage::well_known_keys::CODE.to_vec(),
-			cord_loom_runtime::wasm_binary_unwrap().into(),
+			cord_braid_plus_runtime::wasm_binary_unwrap().into(),
 		);
 		crate::genesis::config_endowed(self.collect_account_ids()).assimilate_storage(storage)
 	}

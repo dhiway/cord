@@ -20,7 +20,7 @@ use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 use tempfile::tempdir;
 
-use cord_cli_test_utils as common;
+use cord_braid_cli_test_utils as common;
 
 #[tokio::test]
 #[cfg(unix)]
@@ -38,6 +38,6 @@ async fn purge_chain_works() {
 	assert!(status.success());
 
 	// Make sure that the `dev` chain folder exists, but the `db` is deleted.
-	assert!(base_path.path().join("chains/loom-dev/").exists());
-	assert!(!base_path.path().join("chains/loom-dev/db/full").exists());
+	assert!(base_path.path().join("chains/braid-plus-dev/").exists());
+	assert!(!base_path.path().join("chains/braid-plus-dev/db/full").exists());
 }

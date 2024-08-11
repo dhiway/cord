@@ -26,7 +26,7 @@ use std::sync::Arc;
 use crate::{
 	AccountKeyring, BlockBuilderExt, ClientBlockImportExt, TestClientBuilder, TestClientBuilderExt,
 };
-use cord_test_runtime::Transfer;
+use cord_braid_test_runtime::Transfer;
 use futures::executor::block_on;
 use sc_block_builder::BlockBuilderBuilder;
 use sc_client_api::{
@@ -39,7 +39,7 @@ use sp_runtime::traits::Block as BlockT;
 /// helper to test the `leaves` implementation for various backends
 pub fn test_leaves_for_backend<B: 'static>(backend: Arc<B>)
 where
-	B: backend::Backend<cord_test_runtime::Block>,
+	B: backend::Backend<cord_braid_test_runtime::Block>,
 {
 	// block tree:
 	// G -> A1 -> A2 -> A3 -> A4 -> A5
@@ -217,7 +217,7 @@ where
 /// helper to test the `children` implementation for various backends
 pub fn test_children_for_backend<B: 'static>(backend: Arc<B>)
 where
-	B: backend::LocalBackend<cord_test_runtime::Block>,
+	B: backend::LocalBackend<cord_braid_test_runtime::Block>,
 {
 	// block tree:
 	// G -> A1 -> A2 -> A3 -> A4 -> A5
@@ -390,7 +390,7 @@ where
 
 pub fn test_blockchain_query_by_number_gets_canonical<B: 'static>(backend: Arc<B>)
 where
-	B: backend::LocalBackend<cord_test_runtime::Block>,
+	B: backend::LocalBackend<cord_braid_test_runtime::Block>,
 {
 	// block tree:
 	// G -> A1 -> A2 -> A3 -> A4 -> A5
