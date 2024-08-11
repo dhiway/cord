@@ -43,6 +43,5 @@ sp-keyring = { workspace = true }
 sp-runtime = { workspace = true }
 sp-timestamp = { workspace = true }
 cord-braid-test-client = { workspace = true }
-pallet-network-membership = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 cord-braid-plus-runtime-constants = { workspace = true }

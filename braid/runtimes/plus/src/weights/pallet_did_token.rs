@@ -48,7 +48,7 @@ use core::marker::PhantomData;
 
 /// Weight functions for `pallet_statement`.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_statement::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> pallet_did_token::WeightInfo for WeightInfo<T> {
 	/// Storage: `ChainSpace::Authorizations` (r:1 w:0)
 	/// Proof: `ChainSpace::Authorizations` (`max_values`: None, `max_size`: Some(184), added: 2659, mode: `MaxEncodedLen`)
 	/// Storage: `ChainSpace::Spaces` (r:1 w:1)

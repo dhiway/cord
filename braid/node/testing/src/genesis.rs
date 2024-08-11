@@ -21,12 +21,10 @@
 use crate::keyring::*;
 use cord_braid_plus_runtime::{
 	AccountId, AssetsConfig, AuthorityMembershipConfig, BalancesConfig, IndicesConfig,
-	NetworkMembershipConfig, NetworkParametersConfig, NodeAuthorizationConfig,
-	RuntimeGenesisConfig, SessionConfig,
+	NetworkParametersConfig, NodeAuthorizationConfig, RuntimeGenesisConfig, SessionConfig,
 };
 use cord_braid_plus_runtime_constants::currency::*;
 use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
-use sp_std::collections::btree_map::BTreeMap;
 
 /// Create genesis runtime configuration for tests.
 pub fn config() -> RuntimeGenesisConfig {
@@ -63,12 +61,6 @@ pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
 				(b"12D3KooWJvyP3VJYymTqG7eH4PM5rN4T2agk5cdNCfNymAqwqcvZ".to_vec(), charlie()),
 				(b"12D3KooWPHWFrfaJzxPnqnAYAoRUyAHHKqACmEycGTVmeVhQYuZN".to_vec(), dave()),
 			],
-		},
-		network_membership: NetworkMembershipConfig {
-			members: members
-				.iter()
-				.map(|member| (member.clone(), false))
-				.collect::<BTreeMap<_, _>>(),
 		},
 		authority_membership: AuthorityMembershipConfig { initial_authorities: members },
 		session: SessionConfig {

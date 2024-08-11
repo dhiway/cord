@@ -1,6 +1,6 @@
 [package]
-name = 'pallet-statement'
-description = 'Manage Statement Entries.'
+name = 'pallet-did-token'
+description = 'Manage DID owned data token entries.'
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -28,7 +28,6 @@ identifier = { workspace = true }
 pallet-chain-space = { workspace = true }
 pallet-schema = { workspace = true }
 
-
 # Substrate dependencies
 frame-benchmarking = { optional = true, workspace = true }
 frame-support = { workspace = true }
@@ -42,38 +41,38 @@ sp-keystore = { optional = true, workspace = true }
 [features]
 default = ['std']
 runtime-benchmarks = [
-	"frame-benchmarking/runtime-benchmarks",
-	"frame-support/runtime-benchmarks",
-	"frame-system/runtime-benchmarks",
-	"sp-runtime/runtime-benchmarks",
-	"cord-utilities/runtime-benchmarks",
-	"pallet-chain-space/runtime-benchmarks",
-	"pallet-schema/runtime-benchmarks"
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+    "cord-utilities/runtime-benchmarks",
+    "pallet-chain-space/runtime-benchmarks",
+    "pallet-schema/runtime-benchmarks",
 ]
 std = [
-	"codec/std",
-	"scale-info/std",
-	"identifier/std",
-	"frame-support/std",
-	"frame-system/std",
-	"frame-benchmarking?/std",
-	"cord-primitives/std",
-	"cord-utilities/std",
-	"sp-runtime/std",
-	"sp-io/std",
-	"sp-std/std",
-	"sp-keystore/std",
-	"pallet-chain-space/std",
-	"pallet-schema/std",
-	"sp-core?/std"
+    "codec/std",
+    "scale-info/std",
+    "identifier/std",
+    "frame-support/std",
+    "frame-system/std",
+    "frame-benchmarking?/std",
+    "cord-primitives/std",
+    "cord-utilities/std",
+    "sp-runtime/std",
+    "sp-io/std",
+    "sp-std/std",
+    "sp-keystore/std",
+    "pallet-chain-space/std",
+    "pallet-schema/std",
+    "sp-core?/std",
 ]
 
 try-runtime = [
-	"frame-support/try-runtime",
-	"frame-system/try-runtime",
-	"cord-utilities/try-runtime",
-	"identifier/try-runtime",
-	"pallet-chain-space/try-runtime",
-	"pallet-schema/try-runtime",
-	"sp-runtime/try-runtime"
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+    "cord-utilities/try-runtime",
+    "identifier/try-runtime",
+    "pallet-chain-space/try-runtime",
+    "pallet-schema/try-runtime",
+    "sp-runtime/try-runtime",
 ]

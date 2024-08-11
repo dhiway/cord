@@ -23,13 +23,13 @@ use sp_state_machine::BasicExternalities;
 use std::collections::BTreeMap;
 
 use frame_system::{pallet_prelude::BlockNumberFor, EnsureRoot};
-use pallet_offences::{traits::OnOffenceHandler, SlashStrategy};
+use pallet_cord_offences::{traits::OnOffenceHandler, SlashStrategy};
 use pallet_session::ShouldEndSession;
 use sp_core::crypto::key_types::DUMMY;
 use sp_runtime::{
 	impl_opaque_keys,
 	testing::UintAuthorityId,
-	traits::{ConvertInto, IsMember, OpaqueKeys},
+	traits::{ConvertInto, OpaqueKeys},
 	BuildStorage, KeyTypeId,
 };
 use sp_staking::offence::OffenceDetails;
@@ -54,7 +54,6 @@ frame_support::construct_runtime!(
 	pub enum Test {
 		System: frame_system,
 		Session: pallet_session,
-		NetworkMembership: pallet_network_membership,
 		AuthorityMembership: cord_authority_membership,
 	}
 );
@@ -107,14 +106,6 @@ parameter_types! {
 	pub const MaxMembersPerBlock: u32 = 5;
 }
 
-impl pallet_network_membership::Config for Test {
-	type NetworkMembershipOrigin = EnsureRoot<u64>;
-	type RuntimeEvent = RuntimeEvent;
-	type MembershipPeriod = MembershipPeriod;
-	type MaxMembersPerBlock = MaxMembersPerBlock;
-	type WeightInfo = ();
-}
-
 pub struct FullIdentificationOfImpl;
 impl sp_runtime::traits::Convert<AccountId, Option<()>> for FullIdentificationOfImpl {
 	fn convert(_: AccountId) -> Option<()> {
@@ -126,27 +117,10 @@ impl pallet_session::historical::Config for Test {
 	type FullIdentificationOf = FullIdentificationOfImpl;
 }
 
-pub struct TestIsNetworkMember;
-#[cfg(not(feature = "runtime-benchmarks"))]
-impl IsMember<u64> for TestIsNetworkMember {
-	fn is_member(member_id: &u64) -> bool {
-		member_id % 3 == 0
-	}
-}
-
-#[cfg(feature = "runtime-benchmarks")]
-impl IsMember<<Test as frame_system::Config>::AccountId> for TestIsNetworkMember {
-	fn is_member(_account_id: &<Test as frame_system::Config>::AccountId) -> bool {
-		// For benchmarking, assume all generated accounts are members
-		true
-	}
-}
-
 impl cord_authority_membership::Config for Test {
 	type AuthorityMembershipOrigin = EnsureRoot<u64>;
 	type RuntimeEvent = RuntimeEvent;
 	type MinAuthorities = ConstU32<1>;
-	type IsMember = TestIsNetworkMember;
 }
 
 parameter_types! {
