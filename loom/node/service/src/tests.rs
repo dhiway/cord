@@ -1,18 +1,20 @@
-// Copyright (C) Parity Technologies (UK) Ltd.
-// This file is part of Polkadot.
+// This file is part of CORD – https://cord.network
 
-// Polkadot is free software: you can redistribute it and/or modify
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Polkadot is distributed in the hope that it will be useful,
+// CORD is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use super::{relay_chain_selection::*, *};
 
@@ -161,7 +163,7 @@ impl TestChainStorage {
 
 		while let Some(block) = self.blocks_by_hash.get(&block_hash) {
 			if minimum_block_number >= block.number {
-				break
+				break;
 			}
 			if !self.approved_blocks.contains(&block_hash) {
 				highest_approved_ancestor = None;
@@ -193,7 +195,7 @@ impl TestChainStorage {
 		highest_approved_block_hash: Hash,
 	) -> Option<Hash> {
 		if self.disputed_blocks.is_empty() {
-			return Some(highest_approved_block_hash)
+			return Some(highest_approved_block_hash);
 		}
 
 		let mut undisputed_chain = Some(highest_approved_block_hash);
@@ -204,7 +206,7 @@ impl TestChainStorage {
 				undisputed_chain = Some(*next);
 			}
 			if block.number() == &base_blocknumber {
-				break
+				break;
 			}
 			block_hash = *next;
 		}
@@ -360,7 +362,7 @@ async fn test_skeleton(
 	);
 
 	if best_chain_containing_block.is_none() {
-		return
+		return;
 	}
 
 	gum::trace!("approved ancestor response: {:?}", undisputed_chain);

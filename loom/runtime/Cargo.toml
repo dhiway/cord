@@ -1,11 +1,11 @@
 [package]
 name = "cord-loom-test-runtime"
-build = "build.rs"
-version = "17.0.0"
 description = "Loom Relay Chain Test runtime."
+version.workspace = true
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
+build = "build.rs"
 
 [lints]
 workspace = true

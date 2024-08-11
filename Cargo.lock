@@ -2495,7 +2495,7 @@ dependencies = [
 
 [[package]]
 name = "cord-weave-node-cli"
-version = "0.1.0"
+version = "0.9.3"
 dependencies = [
  "clap 4.5.11",
  "color-print",
