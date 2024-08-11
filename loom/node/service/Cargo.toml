@@ -1,10 +1,10 @@
 [package]
 name = "cord-loom-service"
-version = "17.0.0"
+description = "Utils to tie different components together and allow instantiation of a node."
+version.workspace = true
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Utils to tie different components together and allow instantiation of a node."
 
 [lints]
 workspace = true

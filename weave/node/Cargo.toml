@@ -1,7 +1,7 @@
 [package]
 name = "cord-weave-node-cli"
-description = "A weave node built with Substrate and Cumulus, part of Polkadot Sdk."
-version = "0.1.0"
+description = "A weave node built with Substrate and Cumulus."
+version.workspace = true
 license.workspace = true
 authors.workspace = true
 homepage.workspace = true
