@@ -50,8 +50,10 @@ members = [
     "loom/node/service",
     "loom/rpc",
     "loom/runtime",
+    "weave/runtime",
+    "weave/node",
 ]
-default-members = ["braid/node/cli", "loom"]
+default-members = ["braid/node/cli", "loom", "weave/node"]
 
 [workspace.dependencies]
 # crates.io dependencies
@@ -148,6 +150,8 @@ cord-loom-rpc = { path = "loom/rpc", default-features = false, version = "17.0.0
 cord-loom-service = { path = "loom/node/service", default-features = false, version = "17.0.0" }
 cord-loom-test-runtime = { path = "loom/runtime", version = "17.0.0" }
 cord-loom-test-runtime-constants = { path = "loom/runtime/constants", default-features = false, version = "16.0.0" }
+cord-weave-node-cli = { path = "weave/node", default-features = false, version = "17.0.0" }
+cord-weave-test-runtime = { path = "weave/runtime", default-features = false }
 
 pallet-config = { path = 'pallets/config/', default-features = false }
 pallet-did = { path = 'pallets/did', default-features = false }

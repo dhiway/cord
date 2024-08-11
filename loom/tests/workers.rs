@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
 
-use cord_loom_cli::NODE_VERSION;
+use cord_loom_node_cli::NODE_VERSION;
 use std::process::Command;
 
 const PREPARE_WORKER_EXE: &str = env!("CARGO_BIN_EXE_loom-prepare-worker");
