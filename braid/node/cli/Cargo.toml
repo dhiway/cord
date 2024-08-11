@@ -109,7 +109,7 @@ pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-contracts = { features = ["std"], workspace = true }
 pallet-did-runtime-api = { features = ["std"], workspace = true }
-pallet-transaction-weight-runtime-api = { features = ["std"], workspace = true }
+# pallet-transaction-weight-runtime-api = { features = ["std"], workspace = true }
 pallet-assets-runtime-api = { features = ["std"], workspace = true }
 pallet-asset-conversion = { features = ["std"], workspace = true }
 substrate-prometheus-endpoint = { workspace = true }
@@ -123,7 +123,6 @@ cord-braid-plus-runtime = { workspace = true, features = [
 ], optional = true }
 cord-braid-runtime-common = { workspace = true }
 cord-primitives = { features = ["std"], workspace = true }
-network-membership = { features = ["std"], workspace = true }
 cord-braid-node-inspect = { workspace = true }
 cord-braid-node-rpc = { workspace = true }
 cord-braid-base-runtime-constants = { features = [
@@ -133,7 +132,6 @@ cord-braid-plus-runtime-constants = { features = [
     "std",
 ], workspace = true, optional = true }
 pallet-config = { features = ["std"], workspace = true }
-pallet-network-membership = { features = ["std"], workspace = true }
 
 # CLI-specific dependencies
 sc-cli = { workspace = true, optional = true }
@@ -243,7 +241,6 @@ runtime-benchmarks = [
     "pallet-babe/runtime-benchmarks",
     "pallet-config/runtime-benchmarks",
     "pallet-contracts/runtime-benchmarks",
-    "pallet-network-membership/runtime-benchmarks",
     "sc-client-db/runtime-benchmarks",
 ]
 # Enable features that allow the runtime to be tried and debugged.
@@ -262,5 +259,4 @@ try-runtime = [
     "pallet-babe/try-runtime",
     "pallet-config/try-runtime",
     "pallet-contracts/try-runtime",
-    "pallet-network-membership/try-runtime",
 ]

@@ -27,7 +27,7 @@
 
 use super::pallet::*;
 use frame_support::{pallet_prelude::Weight, traits::Get};
-use pallet_offences::{traits::OnOffenceHandler, SlashStrategy};
+use pallet_cord_offences::{traits::OnOffenceHandler, SlashStrategy};
 use sp_runtime::traits::Convert;
 use sp_staking::{offence::OffenceDetails, SessionIndex};
 
@@ -55,7 +55,7 @@ where
 		};
 
 		match strategy {
-			SlashStrategy::BlackList =>
+			SlashStrategy::BlackList => {
 				for offender in offenders {
 					BlackList::<T>::mutate(|blacklist| {
 						if let Some(member) = T::ValidatorIdOf::convert(offender.offender.0.clone())
@@ -68,14 +68,16 @@ where
 							add_db_reads_writes(2, 1);
 						}
 					})
-				},
-			SlashStrategy::Disconnect =>
+				}
+			},
+			SlashStrategy::Disconnect => {
 				for offender in offenders {
 					if let Some(member) = T::ValidatorIdOf::convert(offender.offender.0.clone()) {
 						Self::mark_for_disconnect(member);
 						add_db_reads_writes(1, 1);
 					}
-				},
+				}
+			},
 		}
 		consumed_weight
 	}

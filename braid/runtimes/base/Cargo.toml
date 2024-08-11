@@ -34,7 +34,6 @@ primitive-types = { features = [
 authority-membership = { workspace = true }
 cord-primitives = { workspace = true }
 identifier = { workspace = true }
-network-membership = { workspace = true }
 cord-braid-base-runtime-constants = { workspace = true, optional = true }
 cord-braid-runtime-common = { workspace = true }
 
@@ -43,11 +42,10 @@ pallet-did-name = { workspace = true }
 pallet-schema = { workspace = true }
 pallet-config = { workspace = true }
 pallet-chain-space = { workspace = true }
-pallet-statement = { workspace = true }
-pallet-network-membership = { workspace = true }
+pallet-did-token = { workspace = true }
 pallet-runtime-upgrade = { workspace = true }
 pallet-identity = { workspace = true }
-pallet-offences = { workspace = true }
+pallet-cord-offences = { workspace = true }
 pallet-node-authorization = { workspace = true }
 pallet-network-score = { workspace = true }
 pallet-session-benchmarking = { workspace = true }
@@ -55,7 +53,6 @@ pallet-session-benchmarking = { workspace = true }
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { workspace = true }
 pallet-assets-runtime-api = { workspace = true }
-pallet-transaction-weight-runtime-api = { workspace = true }
 
 # Substrate
 sp-authority-discovery = { features = ["serde"], workspace = true }
@@ -118,7 +115,6 @@ std = [
     "sp-authority-discovery/std",
     "cord-primitives/std",
     "cord-braid-runtime-common/std",
-    "network-membership/std",
     "authority-membership/std",
     "frame-system-benchmarking?/std",
     "codec/std",
@@ -149,7 +145,7 @@ std = [
     "pallet-indices/std",
     "pallet-insecure-randomness-collective-flip/std",
     "pallet-multisig/std",
-    "pallet-offences/std",
+    "pallet-cord-offences/std",
     "pallet-scheduler/std",
     "pallet-session-benchmarking/std",
     "pallet-session/std",
@@ -164,14 +160,12 @@ std = [
     "pallet-did-name/std",
     "pallet-schema/std",
     "pallet-chain-space/std",
-    "pallet-statement/std",
+    "pallet-did-token/std",
     "pallet-network-score/std",
-    "pallet-network-membership/std",
     "pallet-runtime-upgrade/std",
     "pallet-assets-runtime-api/std",
     "pallet-did-runtime-api/std",
     "pallet-node-authorization/std",
-    "pallet-transaction-weight-runtime-api/std",
     "sp-runtime/std",
     "sp-staking/std",
     "frame-system/std",
@@ -204,7 +198,7 @@ runtime-benchmarks = [
     "pallet-im-online/runtime-benchmarks",
     "pallet-indices/runtime-benchmarks",
     "pallet-multisig/runtime-benchmarks",
-    "pallet-offences/runtime-benchmarks",
+    "pallet-cord-offences/runtime-benchmarks",
     "pallet-scheduler/runtime-benchmarks",
     "pallet-session-benchmarking/runtime-benchmarks",
     "pallet-session/try-runtime",
@@ -214,9 +208,8 @@ runtime-benchmarks = [
     "pallet-did/runtime-benchmarks",
     "pallet-did-name/runtime-benchmarks",
     "pallet-schema/runtime-benchmarks",
-    "pallet-statement/runtime-benchmarks",
+    "pallet-did-token/runtime-benchmarks",
     "pallet-chain-space/runtime-benchmarks",
-    "pallet-network-membership/runtime-benchmarks",
     "hex-literal",
     "pallet-sudo/runtime-benchmarks",
     "pallet-network-score/runtime-benchmarks",
@@ -244,9 +237,8 @@ try-runtime = [
     "pallet-indices/try-runtime",
     "pallet-insecure-randomness-collective-flip/try-runtime",
     "pallet-multisig/try-runtime",
-    "pallet-offences/try-runtime",
+    "pallet-cord-offences/try-runtime",
     "pallet-scheduler/try-runtime",
-    "pallet-session-benchmarking/try-runtime",
     "pallet-session/try-runtime",
     "pallet-sudo/try-runtime",
     "pallet-timestamp/try-runtime",
@@ -255,12 +247,11 @@ try-runtime = [
     "pallet-babe/try-runtime",
     "pallet-schema/try-runtime",
     "pallet-chain-space/try-runtime",
-    "pallet-statement/try-runtime",
+    "pallet-did-token/try-runtime",
     "pallet-did/try-runtime",
     "pallet-did-name/try-runtime",
     "pallet-network-score/try-runtime",
     "pallet-node-authorization/try-runtime",
-    "pallet-network-membership/try-runtime",
     "pallet-runtime-upgrade/try-runtime",
     "pallet-remark/try-runtime",
     "cord-braid-runtime-common/try-runtime",

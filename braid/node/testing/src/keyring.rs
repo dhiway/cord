@@ -70,7 +70,6 @@ pub fn to_session_keys(
 /// Returns transaction extra.
 pub fn signed_extra(nonce: Nonce, extra_fee: Balance) -> SignedExtra {
 	(
-		pallet_network_membership::CheckNetworkMembership::new(),
 		frame_system::CheckNonZeroSender::new(),
 		frame_system::CheckSpecVersion::new(),
 		frame_system::CheckTxVersion::new(),

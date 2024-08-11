@@ -88,11 +88,9 @@ use runtime_common::{EverythingToTheTreasury, SlowAdjustingFeeUpdate};
 mod weights;
 // CORD Pallets
 pub use authority_membership;
-pub use pallet_network_membership;
 pub mod benchmark;
 pub use benchmark::DummySignature;
 pub use pallet_assets_runtime_api as assets_api;
-use pallet_network_membership::RuntimeDispatchWeightInfo;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -117,7 +115,7 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("plus"),
-	impl_name: create_runtime_str!("dhiway-cord-braid"),
+	impl_name: create_runtime_str!("cord-braid-plus"),
 	authoring_version: 0,
 	spec_version: 9300,
 	impl_version: 0,
@@ -527,7 +525,6 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 
 impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type IsMember = NetworkMembership;
 	type AddOrigin = MoreThanHalfCouncil;
 	type RemoveOrigin = MoreThanHalfCouncil;
 	type SwapOrigin = MoreThanHalfCouncil;
@@ -555,7 +552,6 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 
 impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type IsMember = NetworkMembership;
 	type AddOrigin = MoreThanHalfCouncil;
 	type RemoveOrigin = MoreThanHalfCouncil;
 	type SwapOrigin = MoreThanHalfCouncil;
@@ -606,7 +602,7 @@ impl pallet_treasury::Config for Runtime {
 	type BenchmarkHelper = ();
 }
 
-impl pallet_offences::Config for Runtime {
+impl pallet_cord_offences::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
 	type OnOffenceHandler = AuthorityMembership;
@@ -676,7 +672,6 @@ where
 			// so the actual block number is `n`.
 			.saturating_sub(1);
 		let extra: SignedExtra = (
-			pallet_network_membership::CheckNetworkMembership::<Runtime>::new(),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
@@ -744,7 +739,6 @@ parameter_types! {
 }
 impl authority_membership::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type IsMember = NetworkMembership;
 	type MinAuthorities = ConstU32<3>;
 	type AuthorityMembershipOrigin = MoreThanHalfCouncil;
 }
@@ -768,14 +762,6 @@ parameter_types! {
 	pub const MembershipPeriod: BlockNumber = YEAR;
 	pub const MaxMembersPerBlock: u32 = 1_000;
 	pub const MaxEventsHistory: u32 = u32::MAX;
-}
-
-impl pallet_network_membership::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type NetworkMembershipOrigin = MoreThanHalfCouncil;
-	type MembershipPeriod = MembershipPeriod;
-	type MaxMembersPerBlock = MaxMembersPerBlock;
-	type WeightInfo = weights::pallet_network_membership::WeightInfo<Runtime>;
 }
 
 impl identifier::Config for Runtime {
@@ -882,11 +868,11 @@ parameter_types! {
 	pub const MaxRemoveEntries: u16 = 1_000;
 }
 
-impl pallet_statement::Config for Runtime {
+impl pallet_did_token::Config for Runtime {
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_statement::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_did_token::WeightInfo<Runtime>;
 	type MaxDigestsPerBatch = MaxDigestsPerBatch;
 	type MaxRemoveEntries = MaxRemoveEntries;
 }
@@ -1052,7 +1038,7 @@ mod runtime {
 	pub type AuthorityDiscovery = pallet_authority_discovery;
 
 	#[runtime::pallet_index(28)]
-	pub type Offences = pallet_offences;
+	pub type Offences = pallet_cord_offences;
 
 	#[runtime::pallet_index(29)]
 	pub type Historical = pallet_session_historical;
@@ -1087,9 +1073,6 @@ mod runtime {
 	#[runtime::pallet_index(50)]
 	pub type Identifier = identifier;
 
-	#[runtime::pallet_index(51)]
-	pub type NetworkMembership = pallet_network_membership;
-
 	#[runtime::pallet_index(52)]
 	pub type Did = pallet_did;
 
@@ -1100,7 +1083,7 @@ mod runtime {
 	pub type ChainSpace = pallet_chain_space;
 
 	#[runtime::pallet_index(55)]
-	pub type Statement = pallet_statement;
+	pub type DidToken = pallet_did_token;
 
 	#[runtime::pallet_index(56)]
 	pub type DidName = pallet_did_name;
@@ -1162,7 +1145,7 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::Schema { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::Statement { .. } => {
+			RuntimeCall::DidToken { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::NetworkScore { .. } => {
@@ -1234,7 +1217,6 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The `SignedExtension` to the basic transaction logic.
 pub type SignedExtra = (
-	pallet_network_membership::CheckNetworkMembership<Runtime>,
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
@@ -1277,7 +1259,6 @@ mod benches {
 		[pallet_contracts, Contracts]
 		[pallet_grandpa, Grandpa]
 		[pallet_identity, Identity]
-		[pallet_session, SessionBench::<Runtime>]
 		[pallet_im_online, ImOnline]
 		[pallet_indices, Indices]
 		[pallet_membership, TechnicalMembership]
@@ -1290,11 +1271,10 @@ mod benches {
 		// [pallet_treasury, Treasury]
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
-		[pallet_statement, Statement]
+		[pallet_did_token, DidToken]
 		[pallet_chain_space, ChainSpace]
 		[pallet_did, Did]
 		[pallet_did_name, DidName]
-		[pallet_network_membership, NetworkMembership]
 		[pallet_network_score, NetworkScore]
 		[pallet_sudo, Sudo]
 	);
@@ -1599,13 +1579,6 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_transaction_weight_runtime_api::TransactionWeightApi<Block> for Runtime {
-		fn query_weight_info(uxt: <Block as BlockT>::Extrinsic) -> RuntimeDispatchWeightInfo {
-			NetworkMembership::query_weight_info(uxt)
-		}
-	}
-
-
 	impl pallet_asset_conversion::AssetConversionApi<
 		Block,
 		Balance,
@@ -1684,7 +1657,6 @@ sp_api::impl_runtime_apis! {
 			use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 
-			use pallet_session_benchmarking::Pallet as SessionBench;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use baseline::Pallet as BaselineBench;
 
@@ -1705,11 +1677,9 @@ sp_api::impl_runtime_apis! {
 			use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch };
 			use sp_storage::TrackedStorageKey;
 
-			use pallet_session_benchmarking::Pallet as SessionBench;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use baseline::Pallet as BaselineBench;
 
-			impl pallet_session_benchmarking::Config for Runtime {}
 			impl frame_system_benchmarking::Config for Runtime {}
 			impl baseline::Config for Runtime {}
 

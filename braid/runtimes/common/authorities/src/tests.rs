@@ -112,7 +112,7 @@ fn test_add_and_remove_an_authority_member() {
 	new_test_ext(3).execute_with(|| {
 		run_to_block(1);
 
-		assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 12, true));
+		// assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 12, true));
 		assert_noop!(AuthorityMembership::nominate(RuntimeOrigin::signed(5), 12), BadOrigin);
 		assert_ok!(Session::set_keys(
 			RuntimeOrigin::signed(12),
@@ -148,7 +148,7 @@ fn test_go_online_with_a_removed_authority_member() {
 	new_test_ext(3).execute_with(|| {
 		run_to_block(1);
 
-		assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 12, true));
+		// assert_ok!(NetworkMembership::nominate(RuntimeOrigin::root(), 12, true));
 		assert_noop!(AuthorityMembership::nominate(RuntimeOrigin::signed(5), 12), BadOrigin);
 		assert_ok!(Session::set_keys(
 			RuntimeOrigin::signed(12),
@@ -183,11 +183,11 @@ fn test_offence_disconnect() {
 
 		on_offence(
 			&[OffenceDetails { offender: (9, ()), reporters: vec![] }],
-			pallet_offences::SlashStrategy::Disconnect,
+			pallet_cord_offences::SlashStrategy::Disconnect,
 		);
 		on_offence(
 			&[OffenceDetails { offender: (3, ()), reporters: vec![] }],
-			pallet_offences::SlashStrategy::Disconnect,
+			pallet_cord_offences::SlashStrategy::Disconnect,
 		);
 
 		// Verify state
@@ -220,7 +220,7 @@ fn test_offence_disconnect() {
 		run_to_block(35);
 		on_offence(
 			&[OffenceDetails { offender: (3, ()), reporters: vec![] }],
-			pallet_offences::SlashStrategy::Disconnect,
+			pallet_cord_offences::SlashStrategy::Disconnect,
 		);
 
 		assert_eq!(IncomingAuthorities::<Test>::get(), EMPTY);
@@ -240,7 +240,7 @@ fn test_offence_black_list() {
 
 		on_offence(
 			&[OffenceDetails { offender: (9, ()), reporters: vec![] }],
-			pallet_offences::SlashStrategy::BlackList,
+			pallet_cord_offences::SlashStrategy::BlackList,
 		);
 
 		// Verify state
@@ -269,7 +269,7 @@ fn test_offence_black_list_prevent_from_going_online() {
 
 		on_offence(
 			&[OffenceDetails { offender: (9, ()), reporters: vec![] }],
-			pallet_offences::SlashStrategy::BlackList,
+			pallet_cord_offences::SlashStrategy::BlackList,
 		);
 
 		// Verify state

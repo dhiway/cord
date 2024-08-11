@@ -35,9 +35,9 @@ type AccountPublic = <Signature as Verify>::Signer;
 use sc_telemetry::TelemetryEndpoints;
 
 #[cfg(feature = "braid-base-native")]
-pub use cord_braid_base_runtime_constants::currency::UNITS as BRAID_UNITS;
+pub use cord_braid_base_runtime_constants::currency::UNITS as BASE_UNITS;
 #[cfg(feature = "braid-plus-native")]
-pub use cord_braid_plus_runtime_constants::currency::UNITS as LOOM_UNITS;
+pub use cord_braid_plus_runtime_constants::currency::UNITS as PLUS_UNITS;
 
 #[cfg(any(feature = "braid-base-native", feature = "braid-plus-native"))]
 const CORD_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
@@ -46,9 +46,6 @@ const CORD_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
 use cord_braid_base_runtime::SessionKeys as BraidBaseSessionKeys;
 #[cfg(feature = "braid-plus-native")]
 use cord_braid_plus_runtime::SessionKeys as BraidPlusSessionKeys;
-
-#[cfg(any(feature = "braid-base-native", feature = "braid-plus-native"))]
-use sp_std::collections::btree_map::BTreeMap;
 
 const DEFAULT_PROTOCOL_ID: &str = "cord";
 
@@ -154,14 +151,6 @@ pub fn get_authority_keys(
 	)
 }
 
-fn member_accounts() -> Vec<AccountId> {
-	vec![
-		(get_account_id_from_seed::<sr25519::Public>("Alice")),
-		(get_account_id_from_seed::<sr25519::Public>("Bob")),
-		(get_account_id_from_seed::<sr25519::Public>("Charlie")),
-	]
-}
-
 #[cfg(feature = "braid-base-native")]
 fn braid_base_development_config_genesis() -> serde_json::Value {
 	braid_base_local_genesis(
@@ -250,7 +239,7 @@ fn braid_base_local_genesis(
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
 ) -> serde_json::Value {
-	const ENDOWMENT: Balance = 10_000_000 * BRAID_UNITS;
+	const ENDOWMENT: Balance = 50_000_000 * BASE_UNITS;
 
 	serde_json::json!( {
 		"balances": {
@@ -259,9 +248,6 @@ fn braid_base_local_genesis(
 		"networkParameters": {"permissioned": true},
 		"nodeAuthorization":  {
 			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
-		},
-		"networkMembership":  {
-			"members": member_accounts().into_iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
 		},
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
@@ -381,7 +367,7 @@ fn braid_plus_local_genesis(
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
 ) -> serde_json::Value {
-	const ENDOWMENT: Balance = 10_000_000 * LOOM_UNITS;
+	const ENDOWMENT: Balance = 50_000_000 * PLUS_UNITS;
 
 	serde_json::json!( {
 		"balances": {
@@ -390,9 +376,6 @@ fn braid_plus_local_genesis(
 		"networkParameters": {"permissioned": true},
 		"nodeAuthorization":  {
 			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
-		},
-		"networkMembership":  {
-			"members": member_accounts().into_iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
 		},
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities

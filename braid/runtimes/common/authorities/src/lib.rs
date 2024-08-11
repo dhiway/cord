@@ -39,7 +39,7 @@ type Session<T> = pallet_session::Pallet<T>;
 pub mod pallet {
 	use super::*;
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::{Convert, IsMember};
+	use sp_runtime::traits::Convert;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
@@ -56,7 +56,6 @@ pub mod pallet {
 	{
 		/// The overreaching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-		type IsMember: IsMember<Self::AccountId>;
 		#[pallet::constant]
 		type MinAuthorities: Get<u32>;
 		/// Privileged origin that can add or remove validators.
@@ -149,10 +148,6 @@ pub mod pallet {
 		#[pallet::weight({200_000})]
 		pub fn nominate(origin: OriginFor<T>, candidate: T::AccountId) -> DispatchResult {
 			T::AuthorityMembershipOrigin::ensure_origin(origin)?;
-
-			if !T::IsMember::is_member(&candidate) {
-				return Err(Error::<T>::NetworkMembershipNotFound.into());
-			}
 
 			let member = T::ValidatorIdOf::convert(candidate.clone())
 				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
