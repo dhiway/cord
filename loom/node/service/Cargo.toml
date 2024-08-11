@@ -1,6 +1,5 @@
 [package]
 name = "cord-loom-service"
-rust-version = "1.60"
 version = "17.0.0"
 authors.workspace = true
 edition.workspace = true
@@ -156,8 +155,6 @@ polkadot-primitives.workspace = true
 polkadot-primitives.default-features = true
 polkadot-node-primitives.workspace = true
 polkadot-node-primitives.default-features = true
-polkadot-rpc.workspace = true
-polkadot-rpc.default-features = true
 polkadot-node-subsystem.workspace = true
 polkadot-node-subsystem.default-features = true
 polkadot-node-subsystem-util.workspace = true
@@ -168,10 +165,10 @@ polkadot-runtime-parachains.workspace = true
 polkadot-runtime-parachains.default-features = true
 polkadot-node-network-protocol.workspace = true
 polkadot-node-network-protocol.default-features = true
-cord-loom-runtime-constants = { optional = true, workspace = true, default-features = true }
-# westend-runtime-constants = { optional = true, workspace = true, default-features = true }
-# westend-runtime = { optional = true, workspace = true }
-cord-loom-runtime = { optional = true, workspace = true }
+cord-loom-rpc.workspace = true
+cord-loom-rpc.default-features = true
+cord-loom-test-runtime-constants = { optional = true, workspace = true, default-features = true }
+cord-loom-test-runtime = { optional = true, workspace = true }
 polkadot-approval-distribution = { optional = true, workspace = true, default-features = true }
 polkadot-availability-bitfield-distribution = { optional = true, workspace = true, default-features = true }
 polkadot-availability-distribution = { optional = true, workspace = true, default-features = true }
@@ -243,25 +240,16 @@ full-node = [
 ]
 
 # # Configure the native runtimes to use.
-# westend-native = [
-#     "bitvec",
-#     "frame-metadata-hash-extension",
-#     "westend-runtime",
-#     "westend-runtime-constants",
-# ]
 loom-native = [
     "bitvec",
     "frame-metadata-hash-extension",
-    "cord-loom-runtime",
-    "cord-loom-runtime-constants",
+    "cord-loom-test-runtime",
+    "cord-loom-test-runtime-constants",
 ]
 
 # Generate the metadata hash needed for CheckMetadataHash
 # in the test runtimes.
-metadata-hash = [
-    "cord-loom-runtime?/metadata-hash",
-    # "westend-runtime?/metadata-hash",
-]
+metadata-hash = ["cord-loom-test-runtime?/metadata-hash"]
 
 runtime-benchmarks = [
     "frame-benchmarking-cli/runtime-benchmarks",
@@ -273,11 +261,10 @@ runtime-benchmarks = [
     "polkadot-parachain-primitives/runtime-benchmarks",
     "polkadot-primitives/runtime-benchmarks",
     "polkadot-runtime-parachains/runtime-benchmarks",
-    "cord-loom-runtime?/runtime-benchmarks",
+    "cord-loom-test-runtime?/runtime-benchmarks",
     "sc-client-db/runtime-benchmarks",
     "sc-service/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
-    # "westend-runtime?/runtime-benchmarks",
     "xcm-runtime-apis/runtime-benchmarks",
 ]
 try-runtime = [
@@ -287,15 +274,13 @@ try-runtime = [
     "pallet-staking/try-runtime",
     "pallet-transaction-payment/try-runtime",
     "polkadot-runtime-parachains/try-runtime",
-    "cord-loom-runtime?/try-runtime",
+    "cord-loom-test-runtime?/try-runtime",
     "sp-runtime/try-runtime",
-    # "westend-runtime?/try-runtime",
 ]
-fast-runtime = ["cord-loom-runtime?/fast-runtime"]
+fast-runtime = ["cord-loom-test-runtime?/fast-runtime"]
 
 malus = ["full-node"]
 runtime-metrics = [
     "polkadot-runtime-parachains/runtime-metrics",
-    "cord-loom-runtime?/runtime-metrics",
-    # "westend-runtime?/runtime-metrics",
+    "cord-loom-test-runtime?/runtime-metrics",
 ]

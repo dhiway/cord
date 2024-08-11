@@ -177,6 +177,6 @@ fn check_whitelist() {
 fn check_treasury_pallet_id() {
 	assert_eq!(
 		<Treasury as frame_support::traits::PalletInfoAccess>::index() as u8,
-		cord_loom_runtime_constants::TREASURY_PALLET_ID
+		cord_loom_test_runtime_constants::TREASURY_PALLET_ID
 	);
 }

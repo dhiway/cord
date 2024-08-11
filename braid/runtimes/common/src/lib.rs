@@ -33,25 +33,8 @@ use static_assertions::const_assert;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
-use sp_core::crypto::Ss58AddressFormat;
 pub use sp_runtime::traits::{Bounded, Get};
 use sp_std::marker::PhantomData;
-
-#[derive(Debug, Clone, Copy)]
-pub enum Ss58AddressFormatPrefix {
-	/// Default for Braid
-	Base = 3893,
-	/// Default for Loom
-	Plus = 4926,
-	/// Default for unknown chains
-	Default = 42,
-}
-
-impl From<Ss58AddressFormatPrefix> for Ss58AddressFormat {
-	fn from(prefix: Ss58AddressFormatPrefix) -> Self {
-		Ss58AddressFormat::custom(prefix as u16)
-	}
-}
 
 /// We assume that an on-initialize consumes 1% of the weight on average, hence a single extrinsic
 /// will not be allowed to consume more than `AvailableBlockRatio - 1%`.

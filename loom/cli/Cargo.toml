@@ -1,5 +1,5 @@
 [package]
-name = "cord-loom-cli"
+name = "cord-loom-node-cli"
 description = "CORD Relay-chain Client Node"
 version = "17.0.0"
 authors.workspace = true
@@ -25,6 +25,7 @@ thiserror = { workspace = true }
 futures = { workspace = true }
 pyroscope = { optional = true, workspace = true }
 pyroscope_pprofrs = { optional = true, workspace = true }
+cord-primitives = { features = ["std"], workspace = true }
 cord-loom-service = { optional = true, workspace = true }
 sp-core.workspace = true
 sp-core.default-features = true

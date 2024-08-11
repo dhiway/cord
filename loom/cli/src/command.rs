@@ -20,10 +20,10 @@ use cord_loom_service::{
 	benchmarking::{benchmark_inherent_data, RemarkBuilder, TransferKeepAliveBuilder},
 	HeaderBackend, IdentifyVariant,
 };
+use cord_primitives::Ss58AddressFormatPrefix;
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
 use futures::future::TryFutureExt;
 use sc_cli::SubstrateCli;
-use sp_core::crypto::Ss58AddressFormatRegistry;
 use sp_keyring::Sr25519Keyring;
 use std::net::ToSocketAddrs;
 
@@ -54,7 +54,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn support_url() -> String {
-		"https://github.com/dhiway/cord-loom/issues/new".into()
+		"https://github.com/dhiway/cord/issues/new".into()
 	}
 
 	fn copyright_start_year() -> i32 {
@@ -88,7 +88,7 @@ impl SubstrateCli for Cli {
 }
 
 fn set_default_ss58_version(_spec: &Box<dyn cord_loom_service::ChainSpec>) {
-	let ss58_version = Ss58AddressFormatRegistry::PolkadotAccount.into();
+	let ss58_version = Ss58AddressFormatPrefix::Loom.into();
 
 	sp_core::crypto::set_default_ss58_version(ss58_version);
 }

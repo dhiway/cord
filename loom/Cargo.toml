@@ -13,9 +13,7 @@ path = "src/bin/prepare-worker.rs"
 [package]
 name = "cord-loom"
 description = "Implementation of a CORD Loom node in Rust based on the Substrate and Polkadot framework."
-license = "GPL-3.0-only"
-rust-version = "1.64.0"
-readme = "README.md"
+license.workspace = true
 authors.workspace = true
 edition.workspace = true
 version = "16.0.0"
@@ -29,7 +27,7 @@ color-eyre = { workspace = true }
 tikv-jemallocator = { optional = true, features = [
     "unprefixed_malloc_on_supported_platforms",
 ], workspace = true }
-cord-loom-cli = { features = [
+cord-loom-node-cli = { features = [
     "loom-native",
 ], workspace = true, default-features = true }
 polkadot-node-core-pvf.workspace = true
@@ -64,11 +62,11 @@ substrate-build-script-utils.default-features = true
 maintenance = { status = "actively-developed" }
 
 [features]
-runtime-benchmarks = ["cord-loom-cli/runtime-benchmarks"]
-try-runtime = ["cord-loom-cli/try-runtime"]
-fast-runtime = ["cord-loom-cli/fast-runtime"]
-runtime-metrics = ["cord-loom-cli/runtime-metrics"]
-pyroscope = ["cord-loom-cli/pyroscope"]
+runtime-benchmarks = ["cord-loom-node-cli/runtime-benchmarks"]
+try-runtime = ["cord-loom-node-cli/try-runtime"]
+fast-runtime = ["cord-loom-node-cli/fast-runtime"]
+runtime-metrics = ["cord-loom-node-cli/runtime-metrics"]
+pyroscope = ["cord-loom-node-cli/pyroscope"]
 jemalloc-allocator = [
     "dep:tikv-jemallocator",
     "polkadot-node-core-pvf-prepare-worker/jemalloc-allocator",
@@ -77,5 +75,4 @@ jemalloc-allocator = [
 ]
 
 # Generate the metadata hash needed for CheckMetadataHash
-# in the builtin test runtimes (westend and rococo).
-metadata-hash = ["cord-loom-cli/metadata-hash"]
+metadata-hash = ["cord-loom-node-cli/metadata-hash"]

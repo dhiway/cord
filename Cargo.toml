@@ -45,13 +45,13 @@ members = [
     "braid/test-utils/runtime/client",
     "braid/test-utils/runtime/transaction-pool",
     "braid/test-utils/service",
-    # "loom",
-    # "loom/cli",
-    # "loom/node/service",
-    # "loom/rpc",
-    # "loom/runtime",
+    "loom",
+    "loom/cli",
+    "loom/node/service",
+    "loom/rpc",
+    "loom/runtime",
 ]
-default-members = ["braid/node/cli"]
+default-members = ["braid/node/cli", "loom"]
 
 [workspace.dependencies]
 # crates.io dependencies
@@ -143,11 +143,11 @@ cord-braid-test-client = { path = "braid/test-utils/client", default-features = 
 cord-braid-test-runtime-client = { path = "braid/test-utils/runtime/client", default-features = false }
 cord-braid-test-runtime-transaction-pool = { path = "braid/test-utils/runtime/transaction-pool", default-features = false }
 cord-braid-cli-test-utils = { path = "braid/test-utils/cli", default-features = false }
-cord-loom-node-cli = { path = "relay/cli", default-features = false, version = "17.0.0" }
-cord-loom-node--rpc = { path = "relay/rpc", default-features = false, version = "17.0.0" }
-cord-loom-service = { path = "relay/node/service", default-features = false, version = "17.0.0" }
-cord-loom-test-runtime = { path = "relay/runtime", version = "17.0.0" }
-cord-loom-test-runtime-constants = { path = "relay/runtime/constants", default-features = false, version = "16.0.0" }
+cord-loom-node-cli = { path = "loom/cli", default-features = false, version = "17.0.0" }
+cord-loom-rpc = { path = "loom/rpc", default-features = false, version = "17.0.0" }
+cord-loom-service = { path = "loom/node/service", default-features = false, version = "17.0.0" }
+cord-loom-test-runtime = { path = "loom/runtime", version = "17.0.0" }
+cord-loom-test-runtime-constants = { path = "loom/runtime/constants", default-features = false, version = "16.0.0" }
 
 pallet-config = { path = 'pallets/config/', default-features = false }
 pallet-did = { path = 'pallets/did', default-features = false }

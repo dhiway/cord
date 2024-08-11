@@ -444,9 +444,9 @@ fn new_partial<ChainSelection>(
 		sc_transaction_pool::FullPool<Block, FullClient>,
 		(
 			impl Fn(
-				polkadot_rpc::DenyUnsafe,
-				polkadot_rpc::SubscriptionTaskExecutor,
-			) -> Result<polkadot_rpc::RpcExtension, SubstrateServiceError>,
+				cord_loom_rpc::DenyUnsafe,
+				cord_loom_rpc::SubscriptionTaskExecutor,
+			) -> Result<cord_loom_rpc::RpcExtension, SubstrateServiceError>,
 			(
 				sc_consensus_babe::BabeBlockImport<
 					Block,
@@ -548,26 +548,26 @@ where
 		let backend = backend.clone();
 
 		move |deny_unsafe,
-		      subscription_executor: polkadot_rpc::SubscriptionTaskExecutor|
-		      -> Result<polkadot_rpc::RpcExtension, sc_service::Error> {
-			let deps = polkadot_rpc::FullDeps {
+		      subscription_executor: cord_loom_rpc::SubscriptionTaskExecutor|
+		      -> Result<cord_loom_rpc::RpcExtension, sc_service::Error> {
+			let deps = cord_loom_rpc::FullDeps {
 				client: client.clone(),
 				pool: transaction_pool.clone(),
 				select_chain: select_chain.clone(),
 				chain_spec: chain_spec.cloned_box(),
 				deny_unsafe,
-				babe: polkadot_rpc::BabeDeps {
+				babe: cord_loom_rpc::BabeDeps {
 					babe_worker_handle: babe_worker_handle.clone(),
 					keystore: keystore.clone(),
 				},
-				grandpa: polkadot_rpc::GrandpaDeps {
+				grandpa: cord_loom_rpc::GrandpaDeps {
 					shared_voter_state: shared_voter_state.clone(),
 					shared_authority_set: shared_authority_set.clone(),
 					justification_stream: justification_stream.clone(),
 					subscription_executor: subscription_executor.clone(),
 					finality_provider: finality_proof_provider.clone(),
 				},
-				beefy: polkadot_rpc::BeefyDeps::<ecdsa_crypto::AuthorityId> {
+				beefy: cord_loom_rpc::BeefyDeps::<ecdsa_crypto::AuthorityId> {
 					beefy_finality_proof_stream: beefy_rpc_links.from_voter_justif_stream.clone(),
 					beefy_best_block_stream: beefy_rpc_links.from_voter_best_beefy_stream.clone(),
 					subscription_executor,
@@ -575,7 +575,7 @@ where
 				backend: backend.clone(),
 			};
 
-			polkadot_rpc::create_full(deps).map_err(Into::into)
+			cord_loom_rpc::create_full(deps).map_err(Into::into)
 		}
 	};
 
@@ -748,7 +748,7 @@ pub fn new_full<
 	let overseer_connector = OverseerConnector::default();
 	let overseer_handle = Handle::new(overseer_connector.handle());
 
-	let chain_spec = config.chain_spec.cloned_box();
+	let _chain_spec = config.chain_spec.cloned_box();
 
 	let keystore = basics.keystore_container.local_keystore();
 	let auth_or_collator = role.is_authority() || is_parachain_node.is_collator();

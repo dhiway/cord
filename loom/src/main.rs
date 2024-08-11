@@ -28,6 +28,6 @@ static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 fn main() -> eyre::Result<()> {
 	color_eyre::install()?;
-	cord_loom_cli::run()?;
+	cord_loom_node_cli::run()?;
 	Ok(())
 }
