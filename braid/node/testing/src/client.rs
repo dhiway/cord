@@ -33,7 +33,7 @@ pub type Client = client::Client<
 	Backend,
 	client::LocalCallExecutor<cord_primitives::Block, Backend, RuntimeExecutor>,
 	cord_primitives::Block,
-	cord_loom_runtime::RuntimeApi,
+	cord_braid_plus_runtime::RuntimeApi,
 >;
 
 /// Genesis configuration parameters for `TestClient`.
@@ -45,7 +45,7 @@ impl cord_braid_test_client::GenesisInit for GenesisParameters {
 		let mut storage = crate::genesis::config().build_storage().unwrap();
 		storage.top.insert(
 			sp_core::storage::well_known_keys::CODE.to_vec(),
-			cord_loom_runtime::wasm_binary_unwrap().into(),
+			cord_braid_plus_runtime::wasm_binary_unwrap().into(),
 		);
 		storage
 	}

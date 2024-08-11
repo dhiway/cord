@@ -32,8 +32,8 @@ fn build_spec_works() {
 	assert!(output.status.success());
 
 	// Make sure that the `dev` chain folder exists, but the `db` doesn't
-	assert!(base_path.path().join("chains/loom-dev/").exists());
-	assert!(!base_path.path().join("chains/loom-dev/db").exists());
+	assert!(base_path.path().join("chains/braid-plus-dev/").exists());
+	assert!(!base_path.path().join("chains/braid-plus-dev/db").exists());
 
 	let _value: serde_json::Value = serde_json::from_slice(output.stdout.as_slice()).unwrap();
 }

@@ -19,7 +19,7 @@
 #![cfg(unix)]
 
 use assert_cmd::cargo::cargo_bin;
-use cord_cli_test_utils as common;
+use cord_braid_cli_test_utils as common;
 use regex::Regex;
 use std::{fs, path::PathBuf, process::Command};
 use tempfile::{tempdir, TempDir};
