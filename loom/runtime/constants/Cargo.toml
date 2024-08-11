@@ -1,5 +1,5 @@
 [package]
-name = "cord-loom-runtime-constants"
+name = "cord-loom-test-runtime-constants"
 version = "16.0.0"
 description = "Constants used throughout the CORD Loom network."
 authors.workspace = true

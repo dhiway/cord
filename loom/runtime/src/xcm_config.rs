@@ -21,7 +21,7 @@ use super::{
 	GeneralAdmin, ParaId, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, StakingAdmin,
 	TransactionByteFee, Treasurer, Treasury, WeightToFee, XcmPallet,
 };
-use cord_loom_runtime_constants::{currency::MILLI, system_parachain::*};
+use cord_loom_test_runtime_constants::{currency::MILLI, system_parachain::*};
 use frame_support::{
 	parameter_types,
 	traits::{Contains, Equals, Everything, Nothing},

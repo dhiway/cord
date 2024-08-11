@@ -17,7 +17,7 @@
 //! Genesis configs presets for the Polkadot runtime
 
 use crate::*;
-use cord_loom_runtime_constants::currency::UNITS as ARC;
+use cord_loom_test_runtime_constants::currency::UNITS as ARC;
 use pallet_staking::{Forcing, StakerStatus};
 use polkadot_primitives::{AccountPublic, AssignmentId, AsyncBackingParams};
 use polkadot_runtime_parachains::configuration::HostConfiguration;

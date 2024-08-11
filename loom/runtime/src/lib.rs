@@ -122,7 +122,7 @@ pub use pallet_timestamp::Call as TimestampCall;
 pub use sp_runtime::BuildStorage;
 
 /// Constant values used within the runtime.
-use cord_loom_runtime_constants::{
+use cord_loom_test_runtime_constants::{
 	currency::*, fee::*, system_parachain, time::*, TREASURY_PALLET_ID,
 };
 
@@ -143,7 +143,7 @@ pub mod xcm_config;
 
 pub const LOG_TARGET: &str = "runtime::loom";
 
-impl_runtime_weights!(cord_loom_runtime_constants);
+impl_runtime_weights!(cord_loom_test_runtime_constants);
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -418,7 +418,7 @@ impl pallet_beefy_mmr::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = cord_loom_runtime_constants::fee::TRANSACTION_BYTE_FEE;
+	pub const TransactionByteFee: Balance = cord_loom_test_runtime_constants::fee::TRANSACTION_BYTE_FEE;
 	/// This value increases the priority of `Operational` transactions by adding
 	/// a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
 	pub const OperationalFeeMultiplier: u8 = 5;
@@ -2473,7 +2473,7 @@ sp_api::impl_runtime_apis! {
 					TokenLocation::get(),
 					ExistentialDeposit::get()
 				).into());
-				pub AssetHubParaId: ParaId = cord_loom_runtime_constants::system_parachain::ASSET_HUB_ID.into();
+				pub AssetHubParaId: ParaId = cord_loom_test_runtime_constants::system_parachain::ASSET_HUB_ID.into();
 				pub const RandomParaId: ParaId = ParaId::new(43211234);
 			}
 

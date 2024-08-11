@@ -28,9 +28,8 @@ use crate::{
 	service::{self as cord_braid_service, IdentifyVariant, RuntimeApi},
 };
 
-use cord_braid_runtime_common::Ss58AddressFormatPrefix;
 use cord_braid_service::{new_partial, FullClient};
-use cord_primitives::Block;
+use cord_primitives::{Block, Ss58AddressFormatPrefix};
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
 use sc_cli::{Result, SubstrateCli};
 use sc_service::PartialComponents;

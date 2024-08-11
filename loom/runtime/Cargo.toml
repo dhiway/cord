@@ -1,8 +1,8 @@
 [package]
-name = "cord-loom-runtime"
+name = "cord-loom-test-runtime"
 build = "build.rs"
 version = "17.0.0"
-description = "Loom Relay Chain runtime."
+description = "Loom Relay Chain Test runtime."
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -46,13 +46,10 @@ pallet-bags-list = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-beefy = { workspace = true }
 pallet-beefy-mmr = { workspace = true }
-# pallet-bounties = { workspace = true }
-# pallet-child-bounties = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-conviction-voting = { workspace = true }
 pallet-election-provider-multi-phase = { workspace = true }
-# pallet-fast-unstake = { workspace = true }
 frame-executive = { workspace = true }
 frame-metadata-hash-extension = { workspace = true }
 pallet-grandpa = { workspace = true }
@@ -77,11 +74,10 @@ pallet-staking-runtime-api = { workspace = true }
 pallet-state-trie-migration = { workspace = true }
 frame-system = { workspace = true }
 frame-system-rpc-runtime-api = { workspace = true }
-cord-loom-runtime-constants = { workspace = true }
+cord-loom-test-runtime-constants = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-treasury = { workspace = true }
 pallet-whitelist = { workspace = true }
-# pallet-vesting = { workspace = true }
 pallet-utility = { workspace = true }
 frame-election-provider-support = { workspace = true }
 pallet-xcm = { workspace = true }
@@ -143,12 +139,9 @@ std = [
     "pallet-balances/std",
     "pallet-beefy-mmr/std",
     "pallet-beefy/std",
-    # "pallet-bounties/std",
-    # "pallet-child-bounties/std",
     "pallet-conviction-voting/std",
     "pallet-election-provider-multi-phase/std",
     "pallet-election-provider-support-benchmarking?/std",
-    # "pallet-fast-unstake/std",
     "pallet-grandpa/std",
     "pallet-im-online/std",
     "pallet-indices/std",
@@ -176,14 +169,13 @@ std = [
     "pallet-transaction-payment/std",
     "pallet-treasury/std",
     "pallet-utility/std",
-    # "pallet-vesting/std",
     "pallet-whitelist/std",
     "pallet-xcm-benchmarks?/std",
     "pallet-xcm/std",
     "polkadot-primitives/std",
     "polkadot-runtime-common/std",
     "polkadot-runtime-parachains/std",
-    "cord-loom-runtime-constants/std",
+    "cord-loom-test-runtime-constants/std",
     "scale-info/std",
     "serde_json/std",
     "sp-api/std",
@@ -224,12 +216,9 @@ runtime-benchmarks = [
     "pallet-babe/runtime-benchmarks",
     "pallet-bags-list/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",
-    # "pallet-bounties/runtime-benchmarks",
-    # "pallet-child-bounties/runtime-benchmarks",
     "pallet-conviction-voting/runtime-benchmarks",
     "pallet-election-provider-multi-phase/runtime-benchmarks",
     "pallet-election-provider-support-benchmarking/runtime-benchmarks",
-    # "pallet-fast-unstake/runtime-benchmarks",
     "pallet-grandpa/runtime-benchmarks",
     "pallet-im-online/runtime-benchmarks",
     "pallet-indices/runtime-benchmarks",
@@ -251,7 +240,6 @@ runtime-benchmarks = [
     "pallet-timestamp/runtime-benchmarks",
     "pallet-treasury/runtime-benchmarks",
     "pallet-utility/runtime-benchmarks",
-    # "pallet-vesting/runtime-benchmarks",
     "pallet-whitelist/runtime-benchmarks",
     "pallet-xcm-benchmarks/runtime-benchmarks",
     "pallet-xcm/runtime-benchmarks",
@@ -279,11 +267,8 @@ try-runtime = [
     "pallet-balances/try-runtime",
     "pallet-beefy-mmr/try-runtime",
     "pallet-beefy/try-runtime",
-    # "pallet-bounties/try-runtime",
-    # "pallet-child-bounties/try-runtime",
     "pallet-conviction-voting/try-runtime",
     "pallet-election-provider-multi-phase/try-runtime",
-    # "pallet-fast-unstake/try-runtime",
     "pallet-grandpa/try-runtime",
     "pallet-im-online/try-runtime",
     "pallet-indices/try-runtime",
@@ -303,7 +288,6 @@ try-runtime = [
     "pallet-transaction-payment/try-runtime",
     "pallet-treasury/try-runtime",
     "pallet-utility/try-runtime",
-    # "pallet-vesting/try-runtime",
     "pallet-whitelist/try-runtime",
     "pallet-xcm/try-runtime",
     "polkadot-runtime-common/try-runtime",

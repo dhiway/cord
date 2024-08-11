@@ -37,7 +37,7 @@ macro_rules! identify_chain {
 			Chain::Loom => {
 				#[cfg(feature = "loom-native")]
 				{
-					use cord_loom_runtime as runtime;
+					use cord_loom_test_runtime as runtime;
 
 					let call = $generic_code;
 
@@ -161,7 +161,7 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
 
 #[cfg(feature = "loom-native")]
 fn loom_sign_call(
-	call: cord_loom_runtime::RuntimeCall,
+	call: cord_loom_test_runtime::RuntimeCall,
 	nonce: u32,
 	current_block: u64,
 	period: u64,
@@ -169,7 +169,7 @@ fn loom_sign_call(
 	acc: sp_core::sr25519::Pair,
 ) -> OpaqueExtrinsic {
 	use codec::Encode;
-	use cord_loom_runtime as runtime;
+	use cord_loom_test_runtime as runtime;
 	use sp_core::Pair;
 
 	let extra: runtime::SignedExtra = (

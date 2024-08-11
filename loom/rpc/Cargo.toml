@@ -1,10 +1,10 @@
 [package]
-name = "polkadot-rpc"
+name = "cord-loom-rpc"
 version = "17.0.0"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Polkadot specific RPC functionality. (polkadot v1.15.0)"
+description = "Loom specific RPC functionality."
 
 [lints]
 workspace = true
