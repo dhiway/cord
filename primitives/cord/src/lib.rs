@@ -33,7 +33,7 @@ use sp_std::vec::Vec;
 /// relatively rare.
 ///
 /// The associated worker binaries should use the same version as the node that spawns them.
-pub const NODE_VERSION: &'static str = "1.15.0";
+pub const NODE_VERSION: &'static str = "0.9.3";
 
 /// An index to a block.
 pub type BlockNumber = u32;
