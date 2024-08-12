@@ -55,7 +55,7 @@ where
 		};
 
 		match strategy {
-			SlashStrategy::BlackList => {
+			SlashStrategy::BlackList =>
 				for offender in offenders {
 					BlackList::<T>::mutate(|blacklist| {
 						if let Some(member) = T::ValidatorIdOf::convert(offender.offender.0.clone())
@@ -68,16 +68,14 @@ where
 							add_db_reads_writes(2, 1);
 						}
 					})
-				}
-			},
-			SlashStrategy::Disconnect => {
+				},
+			SlashStrategy::Disconnect =>
 				for offender in offenders {
 					if let Some(member) = T::ValidatorIdOf::convert(offender.offender.0.clone()) {
 						Self::mark_for_disconnect(member);
 						add_db_reads_writes(1, 1);
 					}
-				}
-			},
+				},
 		}
 		consumed_weight
 	}

@@ -26,8 +26,7 @@ use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 
 #[cfg(feature = "loom-native")]
 use cord_loom_test_runtime as loom;
-use sc_chain_spec::ChainSpecExtension;
-use sc_chain_spec::{ChainType, Properties};
+use sc_chain_spec::{ChainSpecExtension, ChainType, Properties};
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_core::{sr25519, Pair, Public};

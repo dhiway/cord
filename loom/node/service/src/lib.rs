@@ -730,8 +730,8 @@ pub fn new_full<
 		let mut backoff = sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default();
 
 		if config.chain_spec.is_dev() {
-			// On the dev and testnet networks, finality might be in flux, so it's important not to slow down
-			// block production too much.
+			// On the dev and testnet networks, finality might be in flux, so it's important not to
+			// slow down block production too much.
 			backoff.max_interval = 10;
 		}
 
@@ -1393,12 +1393,10 @@ pub fn build_full<OverseerGenerator: OverseerGen>(
 		});
 
 	match config.network.network_backend {
-		sc_network::config::NetworkBackendType::Libp2p => {
-			new_full::<_, sc_network::NetworkWorker<Block, Hash>>(config, params)
-		},
-		sc_network::config::NetworkBackendType::Litep2p => {
-			new_full::<_, sc_network::Litep2pNetworkBackend>(config, params)
-		},
+		sc_network::config::NetworkBackendType::Libp2p =>
+			new_full::<_, sc_network::NetworkWorker<Block, Hash>>(config, params),
+		sc_network::config::NetworkBackendType::Litep2p =>
+			new_full::<_, sc_network::Litep2pNetworkBackend>(config, params),
 	}
 }
 

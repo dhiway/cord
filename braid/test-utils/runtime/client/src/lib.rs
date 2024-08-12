@@ -183,7 +183,10 @@ pub trait TestClientBuilderExt<B>: Sized {
 }
 
 impl<B> TestClientBuilderExt<B>
-	for TestClientBuilder<client::LocalCallExecutor<cord_braid_test_runtime::Block, B, WasmExecutor>, B>
+	for TestClientBuilder<
+		client::LocalCallExecutor<cord_braid_test_runtime::Block, B, WasmExecutor>,
+		B,
+	>
 where
 	B: sc_client_api::backend::Backend<cord_braid_test_runtime::Block> + 'static,
 {
