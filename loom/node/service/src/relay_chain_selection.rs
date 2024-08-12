@@ -253,9 +253,8 @@ where
 	fn block_header(&self, hash: Hash) -> Result<PolkadotHeader, ConsensusError> {
 		match HeaderProvider::header(self.backend.header_provider(), hash) {
 			Ok(Some(header)) => Ok(header),
-			Ok(None) => {
-				Err(ConsensusError::ChainLookup(format!("Missing header with hash {:?}", hash,)))
-			},
+			Ok(None) =>
+				Err(ConsensusError::ChainLookup(format!("Missing header with hash {:?}", hash,))),
 			Err(e) => Err(ConsensusError::ChainLookup(format!(
 				"Lookup failed for header with hash {:?}: {:?}",
 				hash, e,
@@ -266,9 +265,8 @@ where
 	fn block_number(&self, hash: Hash) -> Result<BlockNumber, ConsensusError> {
 		match HeaderProvider::number(self.backend.header_provider(), hash) {
 			Ok(Some(number)) => Ok(number),
-			Ok(None) => {
-				Err(ConsensusError::ChainLookup(format!("Missing number with hash {:?}", hash,)))
-			},
+			Ok(None) =>
+				Err(ConsensusError::ChainLookup(format!("Missing number with hash {:?}", hash,))),
 			Err(e) => Err(ConsensusError::ChainLookup(format!(
 				"Lookup failed for number with hash {:?}: {:?}",
 				hash, e,
@@ -466,9 +464,8 @@ where
 			{
 				// No approved ancestors means target hash is maximal vote.
 				None => (target_hash, target_number, Vec::new()),
-				Some(HighestApprovedAncestorBlock { number, hash, descriptions }) => {
-					(hash, number, descriptions)
-				},
+				Some(HighestApprovedAncestorBlock { number, hash, descriptions }) =>
+					(hash, number, descriptions),
 			}
 		};
 
@@ -499,8 +496,8 @@ where
 
 		let (lag, subchain_head) = {
 			// Prevent sending flawed data to the dispute-coordinator.
-			if Some(subchain_block_descriptions.len() as _)
-				!= subchain_number.checked_sub(target_number)
+			if Some(subchain_block_descriptions.len() as _) !=
+				subchain_number.checked_sub(target_number)
 			{
 				gum::error!(
 					LOG_TARGET,

@@ -45,8 +45,8 @@ where
 			V3 { location, asset_id } => (location.try_into()?, asset_id.try_into()?),
 			V4 { location, asset_id } => (location, asset_id),
 		};
-		if asset_id.0.contains_parents_only(1)
-			&& IsChildSystemParachain::<ParaId>::contains(&location)
+		if asset_id.0.contains_parents_only(1) &&
+			IsChildSystemParachain::<ParaId>::contains(&location)
 		{
 			Ok(balance)
 		} else {

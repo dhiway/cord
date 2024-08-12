@@ -1055,20 +1055,20 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			),
 			ProxyType::Governance => matches!(
 				c,
-				RuntimeCall::Treasury(..)
-					| RuntimeCall::Utility(..)
-					| RuntimeCall::ConvictionVoting(..)
-					| RuntimeCall::Referenda(..)
-					| RuntimeCall::Whitelist(..)
+				RuntimeCall::Treasury(..) |
+					RuntimeCall::Utility(..) |
+					RuntimeCall::ConvictionVoting(..) |
+					RuntimeCall::Referenda(..) |
+					RuntimeCall::Whitelist(..)
 			),
 			ProxyType::Staking => {
 				matches!(
 					c,
-					RuntimeCall::Staking(..)
-						| RuntimeCall::Session(..)
-						| RuntimeCall::Utility(..)
-						| RuntimeCall::VoterList(..)
-						| RuntimeCall::NominationPools(..)
+					RuntimeCall::Staking(..) |
+						RuntimeCall::Session(..) |
+						RuntimeCall::Utility(..) |
+						RuntimeCall::VoterList(..) |
+						RuntimeCall::NominationPools(..)
 				)
 			},
 			ProxyType::NominationPools => {
@@ -1079,10 +1079,10 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			},
 			ProxyType::Auction => matches!(
 				c,
-				RuntimeCall::Auctions(..)
-					| RuntimeCall::Crowdloan(..)
-					| RuntimeCall::Registrar(..)
-					| RuntimeCall::Slots(..)
+				RuntimeCall::Auctions(..) |
+					RuntimeCall::Crowdloan(..) |
+					RuntimeCall::Registrar(..) |
+					RuntimeCall::Slots(..)
 			),
 		}
 	}

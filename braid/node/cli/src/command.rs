@@ -100,13 +100,11 @@ impl SubstrateCli for Cli {
 				_ => Box::new(chain_spec::braid_plus_development_config()?),
 			},
 			#[cfg(not(feature = "braid-base-native"))]
-			name if name.starts_with("base-") && !name.ends_with(".json") => {
-				Err(format!("`{}` only supported with `braid-base-native` feature enabled.", name))?
-			},
+			name if name.starts_with("base-") && !name.ends_with(".json") =>
+				Err(format!("`{}` only supported with `braid-base-native` feature enabled.", name))?,
 			#[cfg(not(feature = "braid-plus-native"))]
-			name if name.starts_with("plus-") && !name.ends_with(".json") => {
-				Err(format!("`{}` only supported with `braid-plus-native` feature enabled.", name))?
-			},
+			name if name.starts_with("plus-") && !name.ends_with(".json") =>
+				Err(format!("`{}` only supported with `braid-plus-native` feature enabled.", name))?,
 			// "weave" => Box::new(chain_spec::weave_config()?),
 			path => {
 				let path = std::path::PathBuf::from(path);
