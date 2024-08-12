@@ -53,7 +53,7 @@ members = [
     "weave/runtime",
     "weave/node",
 ]
-default-members = ["braid/node/cli", "loom", "weave/node"]
+default-members = ["braid/node/cli"]
 
 [workspace.dependencies]
 # crates.io dependencies
