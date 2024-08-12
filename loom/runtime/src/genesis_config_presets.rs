@@ -153,7 +153,7 @@ fn cord_loom_testnet_genesis(
 ) -> serde_json::Value {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 
-	const ENDOWMENT: u128 = 1_000_000 * ARC;
+	const ENDOWMENT: u128 = 50_000_000 * ARC;
 	const STASH: u128 = 1_000 * ARC;
 
 	serde_json::json!({

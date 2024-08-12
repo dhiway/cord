@@ -18,8 +18,6 @@
 
 //! Loom service. Specialized wrapper over substrate service.
 
-#![deny(unused_results)]
-
 pub mod benchmarking;
 pub mod chain_spec;
 mod fake_runtime_api;

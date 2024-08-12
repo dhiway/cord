@@ -18,7 +18,6 @@
 
 //! Loom chain configurations.
 
-// use pallet_staking::Forcing;
 use polkadot_primitives::{AccountId, AccountPublic, AssignmentId, ValidatorId};
 use sc_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -28,9 +27,7 @@ use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 #[cfg(feature = "loom-native")]
 use cord_loom_test_runtime as loom;
 use sc_chain_spec::ChainSpecExtension;
-#[cfg(feature = "loom-native")]
-use sc_chain_spec::ChainType;
-#[cfg(feature = "loom-native")]
+use sc_chain_spec::{ChainType, Properties};
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_core::{sr25519, Pair, Public};
@@ -57,6 +54,7 @@ pub struct Extensions {
 	pub light_sync_state: sc_sync_state_rpc::LightSyncStateExtension,
 }
 
+// TODO - enable this for production
 // Generic chain spec, in case when we don't have the native runtime.
 pub type GenericChainSpec = sc_service::GenericChainSpec<Extensions>;
 
@@ -69,6 +67,7 @@ pub type LoomChainSpec = sc_service::GenericChainSpec<Extensions>;
 #[cfg(not(feature = "loom-native"))]
 pub type LoomChainSpec = GenericChainSpec;
 
+// TODO - enable this for production
 // pub fn cord_releay_config() -> Result<GenericChainSpec, String> {
 // 	GenericChainSpec::from_json_bytes(&include_bytes!("../chain-specs/loom.json")[..])
 // }
@@ -86,6 +85,16 @@ where
 	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
 {
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
+}
+
+/// Helper function to set properties
+pub fn get_properties(symbol: &str, decimals: u32, ss58format: u32) -> Properties {
+	let mut properties = Properties::new();
+	properties.insert("tokenSymbol".into(), symbol.into());
+	properties.insert("tokenDecimals".into(), decimals.into());
+	properties.insert("ss58Format".into(), ss58format.into());
+
+	properties
 }
 
 /// Helper function to generate stash, controller and session key from seed
@@ -123,6 +132,7 @@ pub fn get_authority_keys_from_seed_no_beefy(
 /// Loom development config (single validator Alice)
 #[cfg(feature = "loom-native")]
 pub fn loom_development_config() -> Result<LoomChainSpec, String> {
+	let properties = get_properties("ORU", 12, 29);
 	Ok(LoomChainSpec::builder(
 		loom::WASM_BINARY.ok_or("CORD Loom development wasm not available")?,
 		Default::default(),
@@ -136,12 +146,14 @@ pub fn loom_development_config() -> Result<LoomChainSpec, String> {
 			.expect("Loom Development telemetry url is valid; qed"),
 	)
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
+	.with_properties(properties)
 	.build())
 }
 
 /// Loom local testnet config (multivalidator Alice + Bob)
 #[cfg(feature = "loom-native")]
 pub fn loom_local_testnet_config() -> Result<LoomChainSpec, String> {
+	let properties = get_properties("ORU", 12, 29);
 	Ok(LoomChainSpec::builder(
 		loom::WASM_BINARY.ok_or("CORD Loom development wasm not available")?,
 		Default::default(),
@@ -155,5 +167,6 @@ pub fn loom_local_testnet_config() -> Result<LoomChainSpec, String> {
 			.expect("Loom Development telemetry url is valid; qed"),
 	)
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
+	.with_properties(properties)
 	.build())
 }
