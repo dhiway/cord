@@ -1,29 +1,27 @@
-// This file is part of CORD – https://cord.network
+// Copyright (C) Parity Technologies (UK) Ltd.
+// This file is part of Polkadot.
 
-// Copyright (C) Dhiway Networks Pvt. Ltd.
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-// CORD is free software: you can redistribute it and/or modify
+// Polkadot is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// CORD is distributed in the hope that it will be useful,
+// Polkadot is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+// along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
 
-//! XCM configurations for Loom.
+//! XCM configuration for Polkadot.
 
 use super::{
 	parachains_origin, AccountId, AllPalletsWithSystem, Balances, Dmp, FellowshipAdmin,
 	GeneralAdmin, ParaId, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, StakingAdmin,
 	TransactionByteFee, Treasurer, Treasury, WeightToFee, XcmPallet,
 };
-use cord_loom_test_runtime_constants::{currency::MILLI, system_parachain::*};
+use cord_loom_runtime_constants::{currency::MILLI, system_parachain::*};
 use frame_support::{
 	parameter_types,
 	traits::{Contains, Equals, Everything, Nothing},
@@ -49,19 +47,17 @@ use xcm_builder::{
 
 parameter_types! {
 	pub const RootLocation: Location = Here.into_location();
-	/// The location of the ARC token, from the context of this chain. Since this token is native to this
+	/// The location of the DOT token, from the context of this chain. Since this token is native to this
 	/// chain, we make it synonymous with it and thus it is the `Here` location, which means "equivalent to
 	/// the context".
 	pub const TokenLocation: Location = Here.into_location();
-	/// The Kusama network ID. This is named.
-	pub const ThisNetwork: NetworkId = CordLoom;
-	/// Our XCM location ancestry - i.e. our location within the Consensus Universe.
-	///
-	/// Since Loom is a top-level relay-chain with its own consensus, it's just our network ID.
-	pub UniversalLocation: InteriorLocation = ThisNetwork::get().into();
-	/// The check account, which holds any native assets that have been teleported out and not back in (yet).
+	/// The Polkadot network ID. This is named.
+	pub const ThisNetwork: NetworkId = NetworkId::CordLoom;
+	/// Our location in the universe of consensus systems.
+	pub UniversalLocation: InteriorLocation = [GlobalConsensus(ThisNetwork::get())].into();
+	/// The Checking Account, which holds any native assets that have been teleported out and not back in (yet).
 	pub CheckAccount: AccountId = XcmPallet::check_account();
-	/// The check account that is allowed to mint assets locally.
+	/// The Checking Account along with the indication that the local chain is able to mint tokens.
 	pub LocalCheckAccount: (AccountId, MintLocation) = (CheckAccount::get(), MintLocation::Local);
 	/// Account of the treasury pallet.
 	pub TreasuryAccount: AccountId = Treasury::account_id();
@@ -78,8 +74,8 @@ pub type SovereignAccountOf = (
 	HashedDescription<AccountId, DescribeFamily<DescribeAllTerminal>>,
 );
 
-/// Our asset transactor. This is what allows us to interest with the runtime facilities from the
-/// point of view of XCM-only concepts like `Location` and `Asset`.
+/// Our asset transactor. This is what allows us to interact with the runtime assets from the point
+/// of view of XCM-only concepts like `Location` and `Asset`.
 ///
 /// Ours is only aware of the Balances pallet, which is mapped to `TokenLocation`.
 pub type LocalAssetTransactor = FungibleAdapter<
@@ -87,7 +83,7 @@ pub type LocalAssetTransactor = FungibleAdapter<
 	Balances,
 	// Use this currency when it is a fungible asset matching the given location or name:
 	IsConcrete<TokenLocation>,
-	// We can convert the Locations with our converter above:
+	// We can convert the Location`s with our converter above:
 	SovereignAccountOf,
 	// Our chain's account ID type (we can't get away without mentioning it explicitly):
 	AccountId,
@@ -135,30 +131,22 @@ pub type XcmRouter = WithUniqueTopic<(
 )>;
 
 parameter_types! {
-		pub const Arc: AssetFilter = Wild(AllOf { fun: WildFungible, id: AssetId(TokenLocation::get()) });
-		pub AssetHubLocation: Location = Parachain(ASSET_HUB_ID).into_location();
-		pub ArcForAssetHub: (AssetFilter, Location) = (Arc::get(), AssetHubLocation::get());
-		pub CollectivesLocation: Location = Parachain(COLLECTIVES_ID).into_location();
-		pub ArcForCollectives: (AssetFilter, Location) = (Arc::get(), CollectivesLocation::get());
-		pub People: Location = Parachain(PEOPLE_ID).into_location();
-		pub ArcForPeople: (AssetFilter, Location) = (Arc::get(), People::get());
-		pub Broker: Location = Parachain(BROKER_ID).into_location();
-		pub ArcForBroker: (AssetFilter, Location) = (Arc::get(), Broker::get());
-		pub const MaxAssetsIntoHolding: u32 = 64;
+	pub const Unt: AssetFilter = Wild(AllOf { fun: WildFungible, id: AssetId(TokenLocation::get()) });
+	pub AssetHubLocation: Location = Parachain(ASSET_HUB_ID).into_location();
+	pub UntForAssetHub: (AssetFilter, Location) = (Unt::get(), AssetHubLocation::get());
+	pub CoretimeLocation: Location = Parachain(BROKER_ID).into_location();
+	pub UntForCoretime: (AssetFilter, Location) = (Unt::get(), CoretimeLocation::get());
+	pub const MaxAssetsIntoHolding: u32 = 64;
 }
 
-/// Polkadot Relay recognizes/respects AssetHub, Collectives, and BridgeHub chains as teleporters.
-pub type TrustedTeleporters = (
-	xcm_builder::Case<ArcForAssetHub>,
-	xcm_builder::Case<ArcForCollectives>,
-	xcm_builder::Case<ArcForPeople>,
-	xcm_builder::Case<ArcForBroker>,
-);
+/// Polkadot Relay recognizes/respects System Parachains as teleporters.
+pub type TrustedTeleporters =
+	(xcm_builder::Case<UntForAssetHub>, xcm_builder::Case<UntForCoretime>);
 
 pub struct OnlyParachains;
 impl Contains<Location> for OnlyParachains {
-	fn contains(location: &Location) -> bool {
-		matches!(location.unpack(), (0, [Parachain(_)]))
+	fn contains(loc: &Location) -> bool {
+		matches!(loc.unpack(), (0, [Parachain(_)]))
 	}
 }
 
@@ -179,10 +167,10 @@ pub type Barrier = TrailingSetTopicAsId<(
 		(
 			// If the message is one that immediately attempts to pay for execution, then allow it.
 			AllowTopLevelPaidExecutionFrom<Everything>,
-			// Subscriptions for version tracking are OK.
-			AllowSubscriptionsFrom<OnlyParachains>,
 			// Messages from system parachains need not pay for execution.
 			AllowExplicitUnpaidExecutionFrom<IsChildSystemParachain<ParaId>>,
+			// Subscriptions for version tracking are OK.
+			AllowSubscriptionsFrom<OnlyParachains>,
 		),
 		UniversalLocation,
 		ConstU32<8>,
@@ -241,7 +229,7 @@ parameter_types! {
 	pub const GeneralAdminBodyId: BodyId = BodyId::Administration;
 	// StakingAdmin pluralistic body.
 	pub const StakingAdminBodyId: BodyId = BodyId::Defense;
-	// Fellows pluralistic body.
+	// FellowshipAdmin pluralistic body.
 	pub const FellowshipAdminBodyId: BodyId = BodyId::Technical;
 	// `Treasurer` pluralistic body.
 	pub const TreasurerBodyId: BodyId = BodyId::Treasury;
@@ -251,8 +239,10 @@ parameter_types! {
 pub type GeneralAdminToPlurality =
 	OriginToPluralityVoice<RuntimeOrigin, GeneralAdmin, GeneralAdminBodyId>;
 
+/// Type to convert an `Origin` type value into a `Location` value which represents an interior
 /// location of this chain.
 pub type LocalOriginToLocation = (
+	GeneralAdminToPlurality,
 	// And a usual Signed origin to be used in XCM as a corresponding AccountId32
 	SignedToAccountId32<RuntimeOrigin, AccountId, ThisNetwork>,
 );
@@ -270,7 +260,7 @@ pub type TreasurerToPlurality = OriginToPluralityVoice<RuntimeOrigin, Treasurer,
 
 /// Type to convert a pallet `Origin` type value into a `Location` value which represents an
 /// interior location of this chain for a destination chain.
-pub type LocalPalletOrSignedOriginToLocation = (
+pub type LocalPalletOriginToLocation = (
 	// GeneralAdmin origin to be used in XCM as a corresponding Plurality `Location` value.
 	GeneralAdminToPlurality,
 	// StakingAdmin origin to be used in XCM as a corresponding Plurality `Location` value.
@@ -279,16 +269,13 @@ pub type LocalPalletOrSignedOriginToLocation = (
 	FellowshipAdminToPlurality,
 	// `Treasurer` origin to be used in XCM as a corresponding Plurality `Location` value.
 	TreasurerToPlurality,
-	// And a usual Signed origin to be used in XCM as a corresponding AccountId32
-	SignedToAccountId32<RuntimeOrigin, AccountId, ThisNetwork>,
 );
 
 impl pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	// This is basically safe to enable for everyone (safe the possibility of someone spamming the
-	// parachain if they're willing to pay the ARC to send from the Relay-chain).
-	type SendXcmOrigin =
-		xcm_builder::EnsureXcmOrigin<RuntimeOrigin, LocalPalletOrSignedOriginToLocation>;
+	// We only allow the root, the general admin, the fellowship admin and the staking admin to send
+	// messages.
+	type SendXcmOrigin = xcm_builder::EnsureXcmOrigin<RuntimeOrigin, LocalPalletOriginToLocation>;
 	type XcmRouter = XcmRouter;
 	// Anyone can execute XCM messages locally.
 	type ExecuteXcmOrigin = xcm_builder::EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
@@ -315,4 +302,46 @@ impl pallet_xcm::Config for Runtime {
 	type RemoteLockConsumerIdentifier = ();
 	type WeightInfo = crate::weights::pallet_xcm::WeightInfo<Runtime>;
 	type AdminOrigin = EnsureRoot<AccountId>;
+}
+
+#[test]
+fn loom_liquid_staking_xcm_has_sane_weight_upper_limit() {
+	use codec::Decode;
+	use frame_support::dispatch::GetDispatchInfo;
+	use xcm::VersionedXcm;
+	use xcm_executor::traits::WeightBounds;
+
+	// should be [WithdrawAsset, BuyExecution, Transact, RefundSurplus, DepositAsset]
+	let blob = hex_literal::hex!("02140004000000000700e40b540213000000000700e40b54020006010700c817a804341801000006010b00c490bf4302140d010003ffffffff000100411f");
+	#[allow(deprecated)] // `xcm::v2` is deprecated
+	let Ok(VersionedXcm::V2(old_xcm_v2)) = VersionedXcm::<super::RuntimeCall>::decode(&mut &blob[..]) else {
+		panic!("can't decode XCM blob")
+	};
+	let old_xcm_v3: xcm::v3::Xcm<super::RuntimeCall> =
+		old_xcm_v2.try_into().expect("conversion from v2 to v3 works");
+	let mut xcm: Xcm<super::RuntimeCall> =
+		old_xcm_v3.try_into().expect("conversion from v3 to latest works");
+	let weight = <XcmConfig as xcm_executor::Config>::Weigher::weight(&mut xcm)
+		.expect("weighing XCM failed");
+
+	// Test that the weigher gives us a sensible weight but don't exactly hard-code it, otherwise it
+	// will be out of date after each re-run.
+	assert!(weight.all_lte(Weight::from_parts(30_313_281_000, 72_722)));
+
+	let Some(Transact { require_weight_at_most, call, .. }) =
+		xcm.inner_mut().iter_mut().find(|inst| matches!(inst, Transact { .. }))
+	else {
+		panic!("no Transact instruction found")
+	};
+	// should be pallet_utility.as_derivative { index: 0, call: pallet_staking::bond_extra {
+	// max_additional: 2490000000000 } }
+	let message_call = call.take_decoded().expect("can't decode Transact call");
+	let call_weight = message_call.get_dispatch_info().weight;
+	// Ensure that the Transact instruction is giving a sensible `require_weight_at_most` value
+	assert!(
+		call_weight.all_lte(*require_weight_at_most),
+		"call weight ({:?}) was not less than or equal to require_weight_at_most ({:?})",
+		call_weight,
+		require_weight_at_most
+	);
 }

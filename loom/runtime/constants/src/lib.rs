@@ -1,43 +1,39 @@
-// This file is part of CORD – https://cord.network
+// Copyright (C) Parity Technologies (UK) Ltd.
+// This file is part of Polkadot.
 
-// Copyright (C) Dhiway Networks Pvt. Ltd.
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-// CORD is free software: you can redistribute it and/or modify
+// Polkadot is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// CORD is distributed in the hope that it will be useful,
+// Polkadot is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+// along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod weights;
+
+pub use self::currency::UNITS;
 
 /// Money matters.
 pub mod currency {
 	use polkadot_primitives::Balance;
 
 	/// The existential deposit.
-	pub const EXISTENTIAL_DEPOSIT: Balance = MILLI;
+	pub const EXISTENTIAL_DEPOSIT: Balance = 100 * MILLI;
 
 	pub const UNITS: Balance = 1_000_000_000_000;
 	pub const GIGA: Balance = UNITS * 1_000; // 1_000_000_000_000_000
 	pub const MILLI: Balance = UNITS / 100; // 10_000_000_000
 	pub const MICRO: Balance = MILLI / 1_000; // 1_000_000
 
-	pub const SUPPLY_FACTOR: Balance = 100;
-	pub const STORAGE_BYTE_FEE: Balance = 100 * MICRO * SUPPLY_FACTOR;
-	pub const STORAGE_ITEM_FEE: Balance = 100 * MILLI * SUPPLY_FACTOR;
-
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * STORAGE_ITEM_FEE + (bytes as Balance) * STORAGE_BYTE_FEE
+		items as Balance * 20 * UNITS + (bytes as Balance) * 100 * MICRO
 	}
 }
 
@@ -45,10 +41,9 @@ pub mod currency {
 pub mod time {
 	use polkadot_primitives::{BlockNumber, Moment};
 	use polkadot_runtime_common::prod_or_fast;
-
 	pub const MILLISECS_PER_BLOCK: Moment = 6000;
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(4 * HOURS, 2 * MINUTES);
+	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(4 * HOURS, MINUTES);
 
 	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
@@ -59,7 +54,7 @@ pub mod time {
 	// 1 in 4 blocks (on average, not counting collisions) will be primary babe blocks.
 	// The choice of is done in accordance to the slot duration and expected target
 	// block time, for safely resisting network delays of maximum two seconds.
-	// <https://research.web3.foundation/Polkadot/protocols/block-production/Babe#6-practical-results>
+	// <https://research.web3.foundation/en/latest/polkadot/BABE/Babe/#6-practical-results>
 	pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
 }
 
@@ -76,14 +71,14 @@ pub mod fee {
 	/// The block saturation level. Fees will be updates based on this value.
 	pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
 
-	/// Cost of every transaction byte at the relay chain.
+	/// Cost of every transaction byte at Polkadot relay chain.
 	pub const TRANSACTION_BYTE_FEE: Balance = 10 * super::currency::MICRO;
 
 	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
 	/// node's balance type.
 	///
 	/// This should typically create a mapping between the following ranges:
-	///   - [0,` MAXIMUM_BLOCK_WEIGHT`]
+	///   - [0, `MAXIMUM_BLOCK_WEIGHT`]
 	///   - [Balance::min, Balance::max]
 	///
 	/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
@@ -106,27 +101,39 @@ pub mod fee {
 	}
 }
 
+/// XCM protocol related constants.
+pub mod xcm {
+	/// Pluralistic bodies existing within the consensus.
+	pub mod body {
+		// Preallocated for the Root body.
+		#[allow(dead_code)]
+		const ROOT_INDEX: u32 = 0;
+		// The bodies corresponding to the Loom OpenGov Origins.
+		pub const FELLOWSHIP_ADMIN_INDEX: u32 = 1;
+		// The body corresponding to the Treasurer OpenGov track.
+		#[deprecated = "Will be removed after August 2024; Use `xcm::latest::BodyId::Treasury` \
+			instead"]
+		pub const TREASURER_INDEX: u32 = 2;
+	}
+}
+
 /// System Parachains.
 pub mod system_parachain {
 	use polkadot_primitives::Id;
 	use xcm_builder::IsChildSystemParachain;
 
-	/// Network's Asset Hub parachain ID.
+	/// Asset Hub parachain ID.
 	pub const ASSET_HUB_ID: u32 = 1000;
-	/// Collectives parachain ID.
-	pub const COLLECTIVES_ID: u32 = 1001;
-	/// People Chain parachain ID.
-	pub const PEOPLE_ID: u32 = 1002;
-	/// Brokerage parachain ID.
-	pub const BROKER_ID: u32 = 1003;
+	/// Coretime Chain ID.
+	pub const BROKER_ID: u32 = 1001;
 
-	/// All system parachains of Loom.
+	// System parachains from Loom point of view.
 	pub type SystemParachains = IsChildSystemParachain<Id>;
 
 	/// Coretime constants
 	pub mod coretime {
 		/// Coretime timeslice period in blocks
-		/// WARNING: This constant is used accross chains, so additional care should be taken
+		/// WARNING: This constant is used across chains, so additional care should be taken
 		/// when changing it.
 		#[cfg(feature = "fast-runtime")]
 		pub const TIMESLICE_PERIOD: u32 = 20;
@@ -135,7 +142,7 @@ pub mod system_parachain {
 	}
 }
 
-/// Westend Treasury pallet instance.
+/// Loom Treasury pallet instance.
 pub const TREASURY_PALLET_ID: u8 = 19;
 
 #[cfg(test)]
@@ -151,7 +158,7 @@ mod tests {
 	#[test]
 	// Test that the fee for `MAXIMUM_BLOCK_WEIGHT` of weight has sane bounds.
 	fn full_block_fee_is_correct() {
-		// A full block should cost between 10 and 100 UNITS.
+		// A full block should cost between 10 and 100 DOLLARS.
 		let full_block = WeightToFee::weight_to_fee(&MAXIMUM_BLOCK_WEIGHT);
 		assert!(full_block >= 10 * UNITS);
 		assert!(full_block <= 100 * UNITS);
@@ -160,7 +167,7 @@ mod tests {
 	#[test]
 	// This function tests that the fee for `ExtrinsicBaseWeight` of weight is correct
 	fn extrinsic_base_fee_is_correct() {
-		// `ExtrinsicBaseWeight` should cost 1/10 of a MILLI
+		// `ExtrinsicBaseWeight` should cost 1/10 of a CENT
 		println!("Base: {}", ExtrinsicBaseWeight::get());
 		let x = WeightToFee::weight_to_fee(&ExtrinsicBaseWeight::get());
 		let y = MILLI / 10;

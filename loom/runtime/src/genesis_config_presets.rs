@@ -1,25 +1,23 @@
-// This file is part of CORD – https://cord.network
+// Copyright (C) Parity Technologies (UK) Ltd.
+// This file is part of Polkadot.
 
-// Copyright (C) Dhiway Networks Pvt. Ltd.
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-// CORD is free software: you can redistribute it and/or modify
+// Polkadot is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// CORD is distributed in the hope that it will be useful,
+// Polkadot is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+// along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Genesis configs presets for the Loom runtime
+//! Genesis configs presets for the Polkadot runtime
 
 use crate::*;
-use cord_loom_test_runtime_constants::currency::UNITS as ARC;
+use cord_loom_runtime_constants::currency::UNITS as UNT;
 use pallet_staking::{Forcing, StakerStatus};
 use polkadot_primitives::{AccountPublic, AssignmentId, AsyncBackingParams};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
@@ -153,8 +151,8 @@ fn cord_loom_testnet_genesis(
 ) -> serde_json::Value {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 
-	const ENDOWMENT: u128 = 50_000_000 * ARC;
-	const STASH: u128 = 1_000 * ARC;
+	const ENDOWMENT: u128 = 50_000_000 * UNT;
+	const STASH: u128 = 1_000 * UNT;
 
 	serde_json::json!({
 		"balances": {

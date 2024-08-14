@@ -1,68 +1,42 @@
-// This file is part of CORD – https://cord.network
+// Copyright (C) Parity Technologies (UK) Ltd.
+// This file is part of Polkadot.
 
-// Copyright (C) Dhiway Networks Pvt. Ltd.
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-// CORD is free software: you can redistribute it and/or modify
+// Polkadot is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// CORD is distributed in the hope that it will be useful,
+// Polkadot is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+// along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::*;
-use core::marker::PhantomData;
-use frame_support::traits::{tokens::ConversionFromAssetBalance, Contains};
-use polkadot_primitives::Id as ParaId;
-use xcm_builder::IsChildSystemParachain;
+use frame_support::traits::{fungible::Credit, tokens::imbalance::ResolveTo, OnUnbalanced};
+use pallet_treasury::TreasuryAccountId;
 
-// TODO: replace by types from polkadot-sdk https://github.com/paritytech/polkadot-sdk/pull/3659
-/// Determines if the given `asset_kind` is a native asset. If it is, returns the balance without
-/// conversion; otherwise, delegates to the implementation specified by `I`.
-///
-/// Example where the `asset_kind` represents the native asset:
-/// - location: (1, Parachain(1000)), // location of a Sibling Parachain;
-/// - asset_id: (1, Here), // the asset id in the context of `asset_kind.location`;
-pub struct NativeOnSystemParachain<I>(PhantomData<I>);
-impl<I> ConversionFromAssetBalance<Balance, VersionedLocatableAsset, Balance>
-	for NativeOnSystemParachain<I>
+pub struct DealWithFees<R>(core::marker::PhantomData<R>);
+impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for DealWithFees<R>
 where
-	I: ConversionFromAssetBalance<Balance, VersionedLocatableAsset, Balance>,
+	R: pallet_balances::Config + pallet_authorship::Config + pallet_treasury::Config,
+	<R as frame_system::Config>::AccountId: From<polkadot_primitives::AccountId>,
+	<R as frame_system::Config>::AccountId: Into<polkadot_primitives::AccountId>,
 {
-	type Error = ();
-	fn from_asset_balance(
-		balance: Balance,
-		asset_kind: VersionedLocatableAsset,
-	) -> Result<Balance, Self::Error> {
-		use VersionedLocatableAsset::*;
-		let (location, asset_id) = match asset_kind.clone() {
-			V3 { location, asset_id } => (location.try_into()?, asset_id.try_into()?),
-			V4 { location, asset_id } => (location, asset_id),
-		};
-		if asset_id.0.contains_parents_only(1) &&
-			IsChildSystemParachain::<ParaId>::contains(&location)
-		{
-			Ok(balance)
-		} else {
-			I::from_asset_balance(balance, asset_kind).map_err(|_| ())
+	fn on_unbalanceds<B>(
+		fees_then_tips: impl Iterator<Item = Credit<R::AccountId, pallet_balances::Pallet<R>>>,
+	) {
+		for credit in fees_then_tips {
+			// Directly send each credit (fees or tips) to the treasury
+			ResolveTo::<TreasuryAccountId<R>, pallet_balances::Pallet<R>>::on_unbalanced(credit);
 		}
-	}
-	#[cfg(feature = "runtime-benchmarks")]
-	fn ensure_successful(asset_kind: VersionedLocatableAsset) {
-		I::ensure_successful(asset_kind)
 	}
 }
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarks {
-	use super::{xcm_config::CheckAccount, ExistentialDeposit};
-	use crate::Balances;
+	use crate::{xcm_config::CheckAccount, Balances, ExistentialDeposit};
 	use frame_support::{
 		dispatch::RawOrigin,
 		traits::{Currency, EnsureOrigin},

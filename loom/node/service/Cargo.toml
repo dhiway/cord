@@ -167,8 +167,8 @@ polkadot-node-network-protocol.workspace = true
 polkadot-node-network-protocol.default-features = true
 cord-loom-rpc.workspace = true
 cord-loom-rpc.default-features = true
-cord-loom-test-runtime-constants = { optional = true, workspace = true, default-features = true }
-cord-loom-test-runtime = { optional = true, workspace = true }
+cord-loom-runtime-constants = { optional = true, workspace = true, default-features = true }
+cord-loom-runtime = { optional = true, workspace = true }
 polkadot-approval-distribution = { optional = true, workspace = true, default-features = true }
 polkadot-availability-bitfield-distribution = { optional = true, workspace = true, default-features = true }
 polkadot-availability-distribution = { optional = true, workspace = true, default-features = true }
@@ -212,75 +212,75 @@ default = ["db", "full-node"]
 db = ["sc-service/rocksdb"]
 
 full-node = [
-    "kvdb-rocksdb",
-    "parity-db",
-    "polkadot-approval-distribution",
-    "polkadot-availability-bitfield-distribution",
-    "polkadot-availability-distribution",
-    "polkadot-availability-recovery",
-    "polkadot-collator-protocol",
-    "polkadot-dispute-distribution",
-    "polkadot-gossip-support",
-    "polkadot-network-bridge",
-    "polkadot-node-collation-generation",
-    "polkadot-node-core-approval-voting",
-    "polkadot-node-core-av-store",
-    "polkadot-node-core-backing",
-    "polkadot-node-core-bitfield-signing",
-    "polkadot-node-core-candidate-validation",
-    "polkadot-node-core-chain-api",
-    "polkadot-node-core-chain-selection",
-    "polkadot-node-core-dispute-coordinator",
-    "polkadot-node-core-prospective-parachains",
-    "polkadot-node-core-provisioner",
-    "polkadot-node-core-pvf",
-    "polkadot-node-core-pvf-checker",
-    "polkadot-node-core-runtime-api",
-    "polkadot-statement-distribution",
+	"kvdb-rocksdb",
+	"parity-db",
+	"polkadot-approval-distribution",
+	"polkadot-availability-bitfield-distribution",
+	"polkadot-availability-distribution",
+	"polkadot-availability-recovery",
+	"polkadot-collator-protocol",
+	"polkadot-dispute-distribution",
+	"polkadot-gossip-support",
+	"polkadot-network-bridge",
+	"polkadot-node-collation-generation",
+	"polkadot-node-core-approval-voting",
+	"polkadot-node-core-av-store",
+	"polkadot-node-core-backing",
+	"polkadot-node-core-bitfield-signing",
+	"polkadot-node-core-candidate-validation",
+	"polkadot-node-core-chain-api",
+	"polkadot-node-core-chain-selection",
+	"polkadot-node-core-dispute-coordinator",
+	"polkadot-node-core-prospective-parachains",
+	"polkadot-node-core-provisioner",
+	"polkadot-node-core-pvf",
+	"polkadot-node-core-pvf-checker",
+	"polkadot-node-core-runtime-api",
+	"polkadot-statement-distribution",
 ]
 
 # # Configure the native runtimes to use.
 loom-native = [
-    "bitvec",
-    "frame-metadata-hash-extension",
-    "cord-loom-test-runtime",
-    "cord-loom-test-runtime-constants",
+	"bitvec",
+	"frame-metadata-hash-extension",
+	"cord-loom-runtime",
+	"cord-loom-runtime-constants",
 ]
 
 # Generate the metadata hash needed for CheckMetadataHash
 # in the test runtimes.
-metadata-hash = ["cord-loom-test-runtime?/metadata-hash"]
+metadata-hash = ["cord-loom-runtime?/metadata-hash"]
 
 runtime-benchmarks = [
-    "frame-benchmarking-cli/runtime-benchmarks",
-    "frame-benchmarking/runtime-benchmarks",
-    "frame-support/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
-    "pallet-babe/runtime-benchmarks",
-    "pallet-staking/runtime-benchmarks",
-    "polkadot-parachain-primitives/runtime-benchmarks",
-    "polkadot-primitives/runtime-benchmarks",
-    "polkadot-runtime-parachains/runtime-benchmarks",
-    "cord-loom-test-runtime?/runtime-benchmarks",
-    "sc-client-db/runtime-benchmarks",
-    "sc-service/runtime-benchmarks",
-    "sp-runtime/runtime-benchmarks",
-    "xcm-runtime-apis/runtime-benchmarks",
+	"frame-benchmarking-cli/runtime-benchmarks",
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"pallet-babe/runtime-benchmarks",
+	"pallet-staking/runtime-benchmarks",
+	"polkadot-parachain-primitives/runtime-benchmarks",
+	"polkadot-primitives/runtime-benchmarks",
+	"polkadot-runtime-parachains/runtime-benchmarks",
+	"cord-loom-runtime?/runtime-benchmarks",
+	"sc-client-db/runtime-benchmarks",
+	"sc-service/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"xcm-runtime-apis/runtime-benchmarks",
 ]
 try-runtime = [
-    "frame-support/try-runtime",
-    "frame-system/try-runtime",
-    "pallet-babe/try-runtime",
-    "pallet-staking/try-runtime",
-    "pallet-transaction-payment/try-runtime",
-    "polkadot-runtime-parachains/try-runtime",
-    "cord-loom-test-runtime?/try-runtime",
-    "sp-runtime/try-runtime",
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"pallet-babe/try-runtime",
+	"pallet-staking/try-runtime",
+	"pallet-transaction-payment/try-runtime",
+	"polkadot-runtime-parachains/try-runtime",
+	"cord-loom-runtime?/try-runtime",
+	"sp-runtime/try-runtime",
 ]
-fast-runtime = ["cord-loom-test-runtime?/fast-runtime"]
+fast-runtime = ["cord-loom-runtime?/fast-runtime"]
 
 malus = ["full-node"]
 runtime-metrics = [
-    "polkadot-runtime-parachains/runtime-metrics",
-    "cord-loom-test-runtime?/runtime-metrics",
+	"polkadot-runtime-parachains/runtime-metrics",
+	"cord-loom-runtime?/runtime-metrics",
 ]
