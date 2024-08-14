@@ -1,13 +1,10 @@
 [package]
-name = "cord-loom-test-runtime-constants"
-version = "16.0.0"
-description = "Constants used throughout the CORD Loom network."
+name = "cord-loom-runtime-constants"
+repository.workspace = true
+version.workspace = true
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
-
-[lints]
-workspace = true
 
 [dependencies]
 smallvec = { workspace = true }
@@ -24,11 +21,12 @@ xcm-builder = { workspace = true }
 [features]
 default = ["std"]
 std = [
-    "frame-support/std",
-    "polkadot-primitives/std",
-    "polkadot-runtime-common/std",
-    "sp-core/std",
-    "sp-runtime/std",
-    "sp-weights/std",
-    "xcm-builder/std",
+	"frame-support/std",
+	"polkadot-primitives/std",
+	"polkadot-runtime-common/std",
+	"sp-core/std",
+	"sp-runtime/std",
+	"sp-weights/std",
+	"xcm-builder/std",
 ]
+fast-runtime = []

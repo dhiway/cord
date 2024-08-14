@@ -1,32 +1,31 @@
-// This file is part of CORD – https://cord.network
+// Copyright (C) Parity Technologies (UK) Ltd.
+// This file is part of Polkadot.
 
-// Copyright (C) Dhiway Networks Pvt. Ltd.
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-// CORD is free software: you can redistribute it and/or modify
+// Polkadot is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// CORD is distributed in the hope that it will be useful,
+// Polkadot is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+// along with Polkadot.  If not, see <http://www.gnu.org/licenses/>.
 
-//! The Loom test runtime. This can be compiled with `#[no_std]`, ready for Wasm.
+//! The Polkadot runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-// `#[frame_support::runtime]!` does a lot of recursion and requires us to increase the limit.
+// `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "512"]
 
 use pallet_transaction_payment::FungibleAdapter;
 use polkadot_runtime_common::{
 	auctions, crowdloan, impl_runtime_weights,
 	impls::{
-		DealWithFees, LocatableAssetConverter, VersionedLocatableAsset, VersionedLocationConverter,
+		ContainsParts as ContainsLocationParts, LocatableAssetConverter, VersionedLocatableAsset,
+		VersionedLocationConverter,
 	},
 	paras_registrar, prod_or_fast, slots,
 	traits::OnSwap,
@@ -59,9 +58,9 @@ use frame_support::{
 	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
 	traits::{
-		fungible::HoldConsideration, ConstU32, EitherOf, EitherOfDiverse, Everything, Get,
-		InstanceFilter, KeyOwnerProofSystem, LinearStoragePrice, PrivilegeCmp, ProcessMessage,
-		ProcessMessageError,
+		fungible::HoldConsideration, tokens::UnityOrOuterConversion, ConstU32, ConstU8, EitherOf,
+		EitherOfDiverse, Everything, FromContains, Get, InstanceFilter, KeyOwnerProofSystem,
+		LinearStoragePrice, PrivilegeCmp, ProcessMessage, ProcessMessageError,
 	},
 	weights::{
 		constants::{WEIGHT_PROOF_SIZE_PER_KB, WEIGHT_REF_TIME_PER_MICROS},
@@ -124,7 +123,7 @@ pub use pallet_timestamp::Call as TimestampCall;
 pub use sp_runtime::BuildStorage;
 
 /// Constant values used within the runtime.
-use cord_loom_test_runtime_constants::{
+use cord_loom_runtime_constants::{
 	currency::*, fee::*, system_parachain, time::*, TREASURY_PALLET_ID,
 };
 
@@ -141,23 +140,25 @@ use governance::{
 	Treasurer, TreasurySpender,
 };
 pub mod impls;
+use impls::DealWithFees;
 pub mod xcm_config;
 
 pub const LOG_TARGET: &str = "runtime::loom";
 
-impl_runtime_weights!(cord_loom_test_runtime_constants);
+impl_runtime_weights!(cord_loom_runtime_constants);
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-/// Runtime version (Loom).
+// Polkadot version identifier;
+/// Runtime version (Polkadot).
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("loom"),
-	impl_name: create_runtime_str!("cord-loom"),
+	impl_name: create_runtime_str!("dw-cord-loom"),
 	authoring_version: 0,
-	spec_version: 1_015_000,
+	spec_version: 1_000_000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 26,
@@ -179,7 +180,7 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
-	pub const SS58Prefix: u8 = 0;
+	pub const SS58Prefix: u8 = 29;
 }
 
 impl frame_system::Config for Runtime {
@@ -215,7 +216,7 @@ impl frame_system::Config for Runtime {
 }
 
 parameter_types! {
-	pub MaximumSchedulerWeight: frame_support::weights::Weight = Perbill::from_percent(80) *
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
 		BlockWeights::get().max_block;
 	pub const MaxScheduledPerBlock: u32 = 50;
 	pub const NoPreimagePostponement: Option<u32> = Some(10);
@@ -308,7 +309,7 @@ impl pallet_babe::Config for Runtime {
 }
 
 parameter_types! {
-	pub const IndexDeposit: Balance = 100 * MILLI;
+	pub const IndexDeposit: Balance = 10 * UNITS;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -420,7 +421,7 @@ impl pallet_beefy_mmr::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = cord_loom_test_runtime_constants::fee::TRANSACTION_BYTE_FEE;
+	pub const TransactionByteFee: Balance = cord_loom_runtime_constants::fee::TRANSACTION_BYTE_FEE;
 	/// This value increases the priority of `Operational` transactions by adding
 	/// a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
 	pub const OperationalFeeMultiplier: u8 = 5;
@@ -668,7 +669,7 @@ parameter_types! {
 /// ```
 ///
 /// See <https://forum.polkadot.network/t/adjusting-polkadots-ideal-staking-rate-calculation/3897>.
-fn polkadot_era_payout(
+fn loom_era_payout(
 	total_staked: Balance,
 	total_stakable: Balance,
 	max_annual_inflation: Perquintill,
@@ -725,7 +726,7 @@ impl pallet_staking::EraPayout<Balance> for EraPayout {
 		const MAX_ANNUAL_INFLATION: Perquintill = Perquintill::from_percent(10);
 		const MILLISECONDS_PER_YEAR: u64 = 1000 * 3600 * 24 * 36525 / 100;
 
-		polkadot_era_payout(
+		loom_era_payout(
 			total_staked,
 			total_issuance,
 			MAX_ANNUAL_INFLATION,
@@ -740,8 +741,6 @@ impl pallet_staking::Config for Runtime {
 	type CurrencyBalance = Balance;
 	type UnixTime = Timestamp;
 	type CurrencyToVote = CurrencyToVote;
-	type ElectionProvider = ElectionProviderMultiPhase;
-	type GenesisElectionProvider = onchain::OnChainExecution<OnChainSeqPhragmen>;
 	type RewardRemainder = Treasury;
 	type RuntimeEvent = RuntimeEvent;
 	type Slash = Treasury;
@@ -752,30 +751,43 @@ impl pallet_staking::Config for Runtime {
 	type AdminOrigin = EitherOf<EnsureRoot<Self::AccountId>, StakingAdmin>;
 	type SessionInterface = Self;
 	type EraPayout = EraPayout;
-	type NextNewSession = Session;
 	type MaxExposurePageSize = MaxExposurePageSize;
+	type NextNewSession = Session;
+	type ElectionProvider = ElectionProviderMultiPhase;
+	type GenesisElectionProvider = onchain::OnChainExecution<OnChainSeqPhragmen>;
 	type VoterList = VoterList;
 	type TargetList = UseValidatorsMap<Self>;
 	type NominationsQuota = pallet_staking::FixedNominationsQuota<{ MaxNominations::get() }>;
 	type MaxUnlockingChunks = frame_support::traits::ConstU32<32>;
 	type HistoryDepth = frame_support::traits::ConstU32<84>;
-	type MaxControllersInDeprecationBatch = ConstU32<5169>;
+	type MaxControllersInDeprecationBatch = ConstU32<5314>;
 	type BenchmarkingConfig = polkadot_runtime_common::StakingBenchmarkingConfig;
 	type EventListeners = NominationPools;
 	type DisablingStrategy = pallet_staking::UpToLimitDisablingStrategy;
 	type WeightInfo = weights::pallet_staking::WeightInfo<Runtime>;
 }
 
+impl pallet_fast_unstake::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type BatchSize = frame_support::traits::ConstU32<16>;
+	type Deposit = frame_support::traits::ConstU128<{ UNITS }>;
+	type ControlOrigin = EnsureRoot<AccountId>;
+	type Staking = Staking;
+	type MaxErasToCheckPerBlock = ConstU32<1>;
+	type WeightInfo = weights::pallet_fast_unstake::WeightInfo<Runtime>;
+}
+
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
 	pub const ProposalBondMinimum: Balance = 100 * UNITS;
 	pub const ProposalBondMaximum: Balance = 500 * UNITS;
-	pub const SpendPeriod: BlockNumber = 5 * DAYS;
-	pub const Burn: Permill = Permill::from_perthousand(1);
+	pub const SpendPeriod: BlockNumber = 24 * DAYS;
+	pub const Burn: Permill = Permill::from_percent(1);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
-	pub const PayoutSpendPeriod: BlockNumber = 10 * DAYS;
+	pub const PayoutSpendPeriod: BlockNumber = 30 * DAYS;
 	// The asset's interior location for the paying account. This is the Treasury
-	// pallet instance (which sits at index 18).
+	// pallet instance (which sits at index 19).
 	pub TreasuryInteriorLocation: InteriorLocation = PalletInstance(TREASURY_PALLET_ID).into();
 
 	pub const TipCountdown: BlockNumber = DAYS;
@@ -786,6 +798,8 @@ parameter_types! {
 	pub const MaxAuthorities: u32 = 100_000;
 	pub const MaxKeys: u32 = 10_000;
 	pub const MaxPeerInHeartbeats: u32 = 10_000;
+	pub const RootSpendOriginMaxAmount: Balance = Balance::MAX;
+	pub const CouncilSpendOriginMaxAmount: Balance = Balance::MAX;
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -796,9 +810,9 @@ impl pallet_treasury::Config for Runtime {
 	type SpendPeriod = SpendPeriod;
 	type Burn = Burn;
 	type BurnDestination = ();
+	type SpendFunds = ();
 	type MaxApprovals = MaxApprovals;
 	type WeightInfo = weights::pallet_treasury::WeightInfo<Runtime>;
-	type SpendFunds = ();
 	type SpendOrigin = TreasurySpender;
 	type AssetKind = VersionedLocatableAsset;
 	type Beneficiary = VersionedLocation;
@@ -813,7 +827,15 @@ impl pallet_treasury::Config for Runtime {
 		LocatableAssetConverter,
 		VersionedLocationConverter,
 	>;
-	type BalanceConverter = impls::NativeOnSystemParachain<AssetRate>;
+	type BalanceConverter = UnityOrOuterConversion<
+		ContainsLocationParts<
+			FromContains<
+				xcm_builder::IsChildSystemParachain<ParaId>,
+				xcm_builder::IsParentsOnly<ConstU8<1>>,
+			>,
+		>,
+		AssetRate,
+	>;
 	type PayoutPeriod = PayoutSpendPeriod;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = polkadot_runtime_common::impls::benchmarks::TreasuryArguments;
@@ -852,7 +874,7 @@ impl pallet_grandpa::Config for Runtime {
 		pallet_grandpa::EquivocationReportSystem<Self, Offences, Historical, ReportLongevity>;
 }
 
-/// Submits transaction with the node's public and signature type. Adheres to the signed extension
+/// Submits a transaction with the node's public and signature type. Adheres to the signed extension
 /// format of the chain.
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 where
@@ -891,7 +913,7 @@ where
 		);
 		let raw_payload = SignedPayload::new(call, extra)
 			.map_err(|e| {
-				log::warn!("Unable to create signed payload: {:?}", e);
+				log::warn!(target: LOG_TARGET, "Unable to create signed payload: {:?}", e);
 			})
 			.ok()?;
 		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
@@ -1039,6 +1061,8 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::Treasury(..) |
 				RuntimeCall::ConvictionVoting(..) |
 				RuntimeCall::Referenda(..) |
+				RuntimeCall::FellowshipCollective(..) |
+				RuntimeCall::FellowshipReferenda(..) |
 				RuntimeCall::Whitelist(..) |
 				RuntimeCall::Utility(..) |
 				RuntimeCall::Proxy(..) |
@@ -1051,24 +1075,28 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::Slots(..) |
 				RuntimeCall::Auctions(..) | // Specifically omitting the entire XCM Pallet
 				RuntimeCall::VoterList(..) |
-				RuntimeCall::NominationPools(..)
+				RuntimeCall::NominationPools(..) |
+				RuntimeCall::FastUnstake(..)
 			),
 			ProxyType::Governance => matches!(
 				c,
-				RuntimeCall::Treasury(..) |
-					RuntimeCall::Utility(..) |
-					RuntimeCall::ConvictionVoting(..) |
-					RuntimeCall::Referenda(..) |
-					RuntimeCall::Whitelist(..)
+				RuntimeCall::Treasury(..)
+					| RuntimeCall::Utility(..)
+					| RuntimeCall::ConvictionVoting(..)
+					| RuntimeCall::Referenda(..)
+					| RuntimeCall::FellowshipCollective(..)
+					| RuntimeCall::FellowshipReferenda(..)
+					| RuntimeCall::Whitelist(..)
 			),
 			ProxyType::Staking => {
 				matches!(
 					c,
-					RuntimeCall::Staking(..) |
-						RuntimeCall::Session(..) |
-						RuntimeCall::Utility(..) |
-						RuntimeCall::VoterList(..) |
-						RuntimeCall::NominationPools(..)
+					RuntimeCall::Staking(..)
+						| RuntimeCall::Session(..)
+						| RuntimeCall::Utility(..)
+						| RuntimeCall::FastUnstake(..)
+						| RuntimeCall::VoterList(..)
+						| RuntimeCall::NominationPools(..)
 				)
 			},
 			ProxyType::NominationPools => {
@@ -1079,10 +1107,10 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			},
 			ProxyType::Auction => matches!(
 				c,
-				RuntimeCall::Auctions(..) |
-					RuntimeCall::Crowdloan(..) |
-					RuntimeCall::Registrar(..) |
-					RuntimeCall::Slots(..)
+				RuntimeCall::Auctions(..)
+					| RuntimeCall::Crowdloan(..)
+					| RuntimeCall::Registrar(..)
+					| RuntimeCall::Slots(..)
 			),
 		}
 	}
@@ -1331,13 +1359,13 @@ impl paras_registrar::Config for Runtime {
 
 parameter_types! {
 	// 12 weeks = 3 months per lease period -> 8 lease periods ~ 2 years
-	pub LeasePeriod: BlockNumber = prod_or_fast!(12 * WEEKS, 12 * WEEKS, "DOT_LEASE_PERIOD");
+	pub LeasePeriod: BlockNumber = prod_or_fast!(12 * WEEKS, 12 * WEEKS, "LOOM_LEASE_PERIOD");
 	// Polkadot Genesis was on May 26, 2020.
 	// Target Parachain Onboarding Date: Dec 15, 2021.
 	// Difference is 568 days.
 	// We want a lease period to start on the target onboarding date.
 	// 568 % (12 * 7) = 64 day offset
-	pub LeaseOffset: BlockNumber = prod_or_fast!(64 * DAYS, 0, "DOT_LEASE_OFFSET");
+	pub LeaseOffset: BlockNumber = prod_or_fast!(64 * DAYS, 0, "LOOM_LEASE_OFFSET");
 }
 
 impl slots::Config for Runtime {
@@ -1448,20 +1476,6 @@ parameter_types! {
 	pub const MigrationMaxKeyLen: u32 = 512;
 }
 
-impl pallet_state_trie_migration::Config for Runtime {
-	type RuntimeHoldReason = RuntimeHoldReason;
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type SignedDepositPerItem = MigrationSignedDepositPerItem;
-	type SignedDepositBase = MigrationSignedDepositBase;
-	type ControlOrigin = EnsureRoot<AccountId>;
-	type SignedFilter = frame_support::traits::NeverEnsureOrigin<AccountId>;
-
-	// Use same weights as substrate ones.
-	type WeightInfo = pallet_state_trie_migration::weights::SubstrateWeight<Runtime>;
-	type MaxKeyLen = MigrationMaxKeyLen;
-}
-
 impl pallet_asset_rate::Config for Runtime {
 	type WeightInfo = weights::pallet_asset_rate::WeightInfo<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
@@ -1487,6 +1501,7 @@ impl OnSwap for SwapLeases {
 		coretime::Pallet::<Runtime>::on_legacy_lease_swap(one, other);
 	}
 }
+
 construct_runtime! {
 	pub enum Runtime
 	{
@@ -1519,9 +1534,14 @@ construct_runtime! {
 		Treasury: pallet_treasury = 19,
 		ConvictionVoting: pallet_conviction_voting = 20,
 		Referenda: pallet_referenda = 21,
-		Origins: pallet_custom_origins = 22,
-		Whitelist: pallet_whitelist = 23,
+		FellowshipCollective: pallet_ranked_collective::<Instance1> = 22,
+		FellowshipReferenda: pallet_referenda::<Instance2> = 23,
+		Origins: pallet_custom_origins = 24,
+		Whitelist: pallet_whitelist = 25,
+
 		Utility: pallet_utility = 26,
+
+		// Identity: pallet_identity = 28, (removed post 1.2.8)
 
 		// Proxy module. Late addition.
 		Proxy: pallet_proxy = 29,
@@ -1537,6 +1557,9 @@ construct_runtime! {
 
 		// Nomination pools: extension to staking.
 		NominationPools: pallet_nomination_pools = 39,
+
+		// Fast unstake pallet: extension to staking.
+		FastUnstake: pallet_fast_unstake = 40,
 
 		// Parachains pallets. Start indices at 50 to leave room.
 		ParachainsOrigin: parachains_origin = 50,
@@ -1563,8 +1586,8 @@ construct_runtime! {
 		Crowdloan: crowdloan = 73,
 		Coretime: coretime = 74,
 
-		// State trie migration pallet, only temporary.
-		StateTrieMigration: pallet_state_trie_migration = 98,
+		// // State trie migration pallet, only temporary.
+		// StateTrieMigration: pallet_state_trie_migration = 98,
 
 		// Pallet for sending XCM.
 		XcmPallet: pallet_xcm = 99,
@@ -1610,6 +1633,18 @@ pub type SignedExtra = (
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
+pub struct NominationPoolsMigrationV4OldPallet;
+impl Get<Perbill> for NominationPoolsMigrationV4OldPallet {
+	fn get() -> Perbill {
+		Perbill::zero()
+	}
+}
+
+parameter_types! {
+	pub const IdentityPalletName: &'static str = "Identity";
+	pub const IdentityMigratorPalletName: &'static str = "IdentityMigrator";
+}
+
 /// All migrations that will run on the next runtime upgrade.
 ///
 /// This contains the combined migrations of the last 10 releases. It allows to skip runtime
@@ -1619,29 +1654,15 @@ pub type Migrations = (migrations::Unreleased, migrations::Permanent);
 /// The runtime migrations per release.
 #[allow(deprecated, missing_docs)]
 pub mod migrations {
-	use polkadot_runtime_common::traits::Leaser;
 
 	use super::*;
-
-	pub struct GetLegacyLeaseImpl;
-	impl coretime::migration::GetLegacyLease<BlockNumber> for GetLegacyLeaseImpl {
-		fn get_parachain_lease_in_blocks(para: ParaId) -> Option<BlockNumber> {
-			let now = frame_system::Pallet::<Runtime>::block_number();
-			let lease = slots::Leases::<Runtime>::get(para);
-			if lease.is_empty() {
-				return None;
-			}
-			let (index, _) =
-				<slots::Pallet<Runtime> as Leaser<BlockNumber>>::lease_period_index(now)?;
-			Some(index.saturating_add(lease.len() as u32).saturating_mul(LeasePeriod::get()))
-		}
-	}
 
 	/// Unreleased migrations. Add new ones here:
 	pub type Unreleased = (
 		parachains_configuration::migration::v12::MigrateToV12<Runtime>,
-		parachains_inclusion::migration::MigrateToV1<Runtime>,
 		pallet_staking::migrations::v15::MigrateV14ToV15<Runtime>,
+		parachains_inclusion::migration::MigrateToV1<Runtime>,
+		parachains_assigner_on_demand::migration::MigrateV0ToV1<Runtime>,
 	);
 
 	/// Migrations/checks that do not need to be versioned and can run on every update.
@@ -1660,6 +1681,7 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 	Migrations,
 >;
+
 /// The payload being signed in transactions.
 pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
 
@@ -1668,7 +1690,6 @@ mod benches {
 	frame_benchmarking::define_benchmarks!(
 		// Polkadot
 		[polkadot_runtime_common::auctions, Auctions]
-		// [polkadot_runtime_common::claims, Claims]
 		[polkadot_runtime_common::crowdloan, Crowdloan]
 		[polkadot_runtime_common::slots, Slots]
 		[polkadot_runtime_common::paras_registrar, Registrar]
@@ -1686,11 +1707,9 @@ mod benches {
 		[pallet_bags_list, VoterList]
 		[pallet_balances, Balances]
 		[frame_benchmarking::baseline, Baseline::<Runtime>]
-		// [pallet_bounties, Bounties]
-		// [pallet_child_bounties, ChildBounties]
 		[pallet_election_provider_multi_phase, ElectionProviderMultiPhase]
 		[frame_election_provider_support, ElectionProviderBench::<Runtime>]
-		// [pallet_fast_unstake, FastUnstake]
+		[pallet_fast_unstake, FastUnstake]
 		[pallet_indices, Indices]
 		[pallet_message_queue, MessageQueue]
 		[pallet_multisig, Multisig]
@@ -1698,6 +1717,7 @@ mod benches {
 		[pallet_offences, OffencesBench::<Runtime>]
 		[pallet_preimage, Preimage]
 		[pallet_proxy, Proxy]
+		[pallet_ranked_collective, FellowshipCollective]
 		[pallet_scheduler, Scheduler]
 		[pallet_session, SessionBench::<Runtime>]
 		[pallet_staking, Staking]
@@ -1705,9 +1725,9 @@ mod benches {
 		[pallet_timestamp, Timestamp]
 		[pallet_treasury, Treasury]
 		[pallet_utility, Utility]
-		// [pallet_vesting, Vesting]
 		[pallet_conviction_voting, ConvictionVoting]
 		[pallet_referenda, Referenda]
+		[pallet_referenda, FellowshipReferenda]
 		[pallet_whitelist, Whitelist]
 		[pallet_asset_rate, AssetRate]
 		// XCM
@@ -2029,6 +2049,7 @@ sp_api::impl_runtime_apis! {
 			)
 		}
 
+
 		fn generate_key_ownership_proof(
 			_set_id: sp_consensus_beefy::ValidatorSetId,
 			authority_id: BeefyId,
@@ -2316,7 +2337,7 @@ sp_api::impl_runtime_apis! {
 	#[cfg(feature = "try-runtime")]
 	impl frame_try_runtime::TryRuntime<Block> for Runtime {
 		fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
-			log::info!(target: LOG_TARGET, "try-runtime::on_runtime_upgrade polkadot.");
+			log::info!(target: LOG_TARGET, "try-runtime::on_runtime_upgrade loom.");
 			let weight = Executive::try_runtime_upgrade(checks).unwrap();
 			(weight, BlockWeights::get().max_block)
 		}
@@ -2390,7 +2411,7 @@ sp_api::impl_runtime_apis! {
 					TokenLocation::get(),
 					ExistentialDeposit::get()
 				).into());
-				pub AssetHubParaId: ParaId = cord_loom_test_runtime_constants::system_parachain::ASSET_HUB_ID.into();
+				pub AssetHubParaId: ParaId = polkadot_runtime_constants::system_parachain::ASSET_HUB_ID.into();
 				pub const RandomParaId: ParaId = ParaId::new(43211234);
 			}
 
@@ -2568,5 +2589,468 @@ sp_api::impl_runtime_apis! {
 
 			Ok(batches)
 		}
+	}
+}
+
+#[cfg(test)]
+mod test_fees {
+	use super::*;
+	use frame_support::{dispatch::GetDispatchInfo, weights::WeightToFee as WeightToFeeT};
+	use polkadot_runtime_common::MinimumMultiplier;
+	use separator::Separatable;
+	use sp_keyring::Sr25519Keyring::{Alice, Charlie};
+	use sp_runtime::{assert_eq_error_rate, MultiAddress, MultiSignature};
+
+	#[test]
+	fn payout_weight_portion() {
+		use pallet_staking::WeightInfo;
+		let payout_weight =
+			<Runtime as pallet_staking::Config>::WeightInfo::payout_stakers_alive_staked(
+				MaxNominators::get(),
+			)
+			.ref_time() as f64;
+		let block_weight = BlockWeights::get().max_block.ref_time() as f64;
+
+		println!(
+			"a full payout takes {:.2} of the block weight [{} / {}]",
+			payout_weight / block_weight,
+			payout_weight,
+			block_weight
+		);
+		assert!(payout_weight * 2f64 < block_weight);
+	}
+
+	#[test]
+	fn block_cost() {
+		let max_block_weight = BlockWeights::get().max_block;
+		let raw_fee = WeightToFee::weight_to_fee(&max_block_weight);
+
+		let fee_with_multiplier = |m: Multiplier| {
+			println!(
+				"Full Block weight == {} // multiplier: {:?} // WeightToFee(full_block) == {} plank",
+				max_block_weight,
+				m,
+				m.saturating_mul_int(raw_fee).separated_string(),
+			);
+		};
+		fee_with_multiplier(MinimumMultiplier::get());
+		fee_with_multiplier(Multiplier::from_rational(1, 2));
+		fee_with_multiplier(Multiplier::from_u32(1));
+		fee_with_multiplier(Multiplier::from_u32(2));
+	}
+
+	#[test]
+	fn transfer_cost_min_multiplier() {
+		let min_multiplier = MinimumMultiplier::get();
+		let call = pallet_balances::Call::<Runtime>::transfer_keep_alive {
+			dest: Charlie.to_account_id().into(),
+			value: Default::default(),
+		};
+		let info = call.get_dispatch_info();
+		println!("call = {:?} / info = {:?}", call, info);
+		// convert to runtime call.
+		let call = RuntimeCall::Balances(call);
+		let extra: SignedExtra = (
+			frame_system::CheckNonZeroSender::<Runtime>::new(),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckMortality::<Runtime>::from(generic::Era::immortal()),
+			frame_system::CheckNonce::<Runtime>::from(1),
+			frame_system::CheckWeight::<Runtime>::new(),
+			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0),
+			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+		);
+		let uxt = UncheckedExtrinsic {
+			function: call,
+			signature: Some((
+				MultiAddress::Id(Alice.to_account_id()),
+				MultiSignature::Sr25519(Alice.sign(b"foo")),
+				extra,
+			)),
+		};
+		let len = uxt.encoded_size();
+
+		let mut ext = sp_io::TestExternalities::new_empty();
+		let mut test_with_multiplier = |m: Multiplier| {
+			ext.execute_with(|| {
+				pallet_transaction_payment::NextFeeMultiplier::<Runtime>::put(m);
+				let fee = TransactionPayment::query_fee_details(uxt.clone(), len as u32);
+				println!(
+					"multiplier = {:?} // fee details = {:?} // final fee = {:?}",
+					pallet_transaction_payment::NextFeeMultiplier::<Runtime>::get(),
+					fee,
+					fee.final_fee().separated_string(),
+				);
+			});
+		};
+
+		test_with_multiplier(min_multiplier);
+		test_with_multiplier(Multiplier::saturating_from_rational(1u128, 1u128));
+		test_with_multiplier(Multiplier::saturating_from_rational(1u128, 1_0u128));
+		test_with_multiplier(Multiplier::saturating_from_rational(1u128, 1_00u128));
+		test_with_multiplier(Multiplier::saturating_from_rational(1u128, 1_000u128));
+		test_with_multiplier(Multiplier::saturating_from_rational(1u128, 1_000_000u128));
+		test_with_multiplier(Multiplier::saturating_from_rational(1u128, 1_000_000_000u128));
+	}
+
+	#[test]
+	fn nominator_limit() {
+		use pallet_election_provider_multi_phase::WeightInfo;
+		// starting point of the nominators.
+		let target_voters: u32 = 50_000;
+
+		// assuming we want around 5k candidates and 1k active validators. (March 31, 2021)
+		let all_targets: u32 = 5_000;
+		let desired: u32 = 1_000;
+		let weight_with = |active| {
+			<Runtime as pallet_election_provider_multi_phase::Config>::WeightInfo::submit_unsigned(
+				active,
+				all_targets,
+				active,
+				desired,
+			)
+		};
+
+		let mut active = target_voters;
+		while weight_with(active).all_lte(OffchainSolutionWeightLimit::get())
+			|| active == target_voters
+		{
+			active += 1;
+		}
+
+		println!("can support {} nominators to yield a weight of {}", active, weight_with(active));
+		assert!(active > target_voters, "we need to reevaluate the weight of the election system");
+	}
+
+	#[test]
+	fn signed_deposit_is_sensible() {
+		// ensure this number does not change, or that it is checked after each change.
+		// a 1 MB solution should take (40 + 10) DOTs of deposit.
+		let deposit = SignedFixedDeposit::get() + (SignedDepositByte::get() * 1024 * 1024);
+		assert_eq_error_rate!(deposit, 50 * UNITS, UNITS);
+	}
+}
+
+#[cfg(test)]
+mod test {
+	use std::collections::HashSet;
+
+	use super::*;
+	use frame_support::traits::WhitelistedStorageKeys;
+	use scale_info::TypeInfo;
+	use sp_core::hexdisplay::HexDisplay;
+
+	#[test]
+	fn call_size() {
+		RuntimeCall::assert_size_under(256);
+	}
+
+	#[test]
+	fn check_whitelist() {
+		let whitelist: HashSet<String> = AllPalletsWithSystem::whitelisted_storage_keys()
+			.iter()
+			.map(|e| HexDisplay::from(&e.key).to_string())
+			.collect();
+
+		// Block number
+		assert!(
+			whitelist.contains("26aa394eea5630e07c48ae0c9558cef702a5c1b19ab7a04f536c519aca4983ac")
+		);
+		// Total issuance
+		assert!(
+			whitelist.contains("c2261276cc9d1f8598ea4b6a74b15c2f57c875e4cff74148e4628f264b974c80")
+		);
+		// Execution phase
+		assert!(
+			whitelist.contains("26aa394eea5630e07c48ae0c9558cef7ff553b5a9862a516939d82b3d3d8661a")
+		);
+		// Event count
+		assert!(
+			whitelist.contains("26aa394eea5630e07c48ae0c9558cef70a98fdbe9ce6c55837576c60c7af3850")
+		);
+		// System events
+		assert!(
+			whitelist.contains("26aa394eea5630e07c48ae0c9558cef780d41e5e16056765bc8461851072c9d7")
+		);
+		// XcmPallet VersionDiscoveryQueue
+		assert!(
+			whitelist.contains("1405f2411d0af5a7ff397e7c9dc68d194a222ba0333561192e474c59ed8e30e1")
+		);
+		// XcmPallet SafeXcmVersion
+		assert!(
+			whitelist.contains("1405f2411d0af5a7ff397e7c9dc68d196323ae84c43568be0d1394d5d0d522c4")
+		);
+	}
+
+	#[test]
+	fn check_treasury_pallet_id() {
+		assert_eq!(
+			<Treasury as frame_support::traits::PalletInfoAccess>::index() as u8,
+			polkadot_runtime_constants::TREASURY_PALLET_ID
+		);
+	}
+
+	#[test]
+	fn ensure_xcm_metadata_is_correct() {
+		let path = xcm::VersionedXcm::<()>::type_info().path;
+		// Ensure that the name doesn't include `staging` (from the pallet name)
+		assert_eq!(vec!["xcm", "VersionedXcm"], path.segments);
+	}
+}
+
+#[cfg(test)]
+mod multiplier_tests {
+	use super::*;
+	use frame_support::{
+		dispatch::DispatchInfo,
+		traits::{OnFinalize, PalletInfoAccess},
+	};
+	use polkadot_runtime_common::{MinimumMultiplier, TargetBlockFullness};
+	use separator::Separatable;
+	use sp_runtime::traits::Convert;
+
+	fn run_with_system_weight<F>(w: Weight, mut assertions: F)
+	where
+		F: FnMut(),
+	{
+		let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
+			.unwrap()
+			.into();
+		t.execute_with(|| {
+			System::set_block_consumed_resources(w, 0);
+			assertions()
+		});
+	}
+
+	#[test]
+	fn multiplier_can_grow_from_zero() {
+		let minimum_multiplier = MinimumMultiplier::get();
+		let target = TargetBlockFullness::get()
+			* BlockWeights::get().get(DispatchClass::Normal).max_total.unwrap();
+		// if the min is too small, then this will not change, and we are doomed forever.
+		// the weight is 1/100th bigger than target.
+		run_with_system_weight(target.saturating_mul(101) / 100, || {
+			let next = SlowAdjustingFeeUpdate::<Runtime>::convert(minimum_multiplier);
+			assert!(next > minimum_multiplier, "{:?} !>= {:?}", next, minimum_multiplier);
+		})
+	}
+
+	#[test]
+	fn fast_unstake_estimate() {
+		use pallet_fast_unstake::WeightInfo;
+		let block_time = BlockWeights::get().max_block.ref_time() as f32;
+		let on_idle = weights::pallet_fast_unstake::WeightInfo::<Runtime>::on_idle_check(
+			300,
+			<Runtime as pallet_fast_unstake::Config>::BatchSize::get(),
+		)
+		.ref_time() as f32;
+		println!("ratio of block weight for full batch fast-unstake {}", on_idle / block_time);
+		assert!(on_idle / block_time <= 0.5f32)
+	}
+
+	#[test]
+	fn treasury_pallet_index_is_correct() {
+		assert_eq!(TREASURY_PALLET_ID, <Treasury as PalletInfoAccess>::index() as u8);
+	}
+
+	#[test]
+	#[ignore]
+	fn multiplier_growth_simulator() {
+		// assume the multiplier is initially set to its minimum. We update it with values twice the
+		//target (target is 25%, thus 50%) and we see at which point it reaches 1.
+		let mut multiplier = MinimumMultiplier::get();
+		let block_weight = BlockWeights::get().get(DispatchClass::Normal).max_total.unwrap();
+		let mut blocks = 0;
+		let mut fees_paid = 0;
+
+		frame_system::Pallet::<Runtime>::set_block_consumed_resources(Weight::MAX, 0);
+		let info = DispatchInfo { weight: Weight::MAX, ..Default::default() };
+
+		let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
+			.unwrap()
+			.into();
+		// set the minimum
+		t.execute_with(|| {
+			pallet_transaction_payment::NextFeeMultiplier::<Runtime>::set(MinimumMultiplier::get());
+		});
+
+		while multiplier <= Multiplier::from_u32(1) {
+			t.execute_with(|| {
+				// imagine this tx was called.
+				let fee = TransactionPayment::compute_fee(0, &info, 0);
+				fees_paid += fee;
+
+				// this will update the multiplier.
+				System::set_block_consumed_resources(block_weight, 0);
+				TransactionPayment::on_finalize(1);
+				let next = TransactionPayment::next_fee_multiplier();
+
+				assert!(next > multiplier, "{:?} !>= {:?}", next, multiplier);
+				multiplier = next;
+
+				println!(
+					"block = {} / multiplier {:?} / fee = {:?} / fess so far {:?}",
+					blocks,
+					multiplier,
+					fee.separated_string(),
+					fees_paid.separated_string()
+				);
+			});
+			blocks += 1;
+		}
+	}
+
+	#[test]
+	#[ignore]
+	fn multiplier_cool_down_simulator() {
+		// assume the multiplier is initially set to its minimum. We update it with values twice the
+		//target (target is 25%, thus 50%) and we see at which point it reaches 1.
+		let mut multiplier = Multiplier::from_u32(2);
+		let mut blocks = 0;
+
+		let mut t: sp_io::TestExternalities = frame_system::GenesisConfig::<Runtime>::default()
+			.build_storage()
+			.unwrap()
+			.into();
+		// set the minimum
+		t.execute_with(|| {
+			pallet_transaction_payment::NextFeeMultiplier::<Runtime>::set(multiplier);
+		});
+
+		while multiplier > Multiplier::from_u32(0) {
+			t.execute_with(|| {
+				// this will update the multiplier.
+				TransactionPayment::on_finalize(1);
+				let next = TransactionPayment::next_fee_multiplier();
+
+				assert!(next < multiplier, "{:?} !>= {:?}", next, multiplier);
+				multiplier = next;
+
+				println!("block = {} / multiplier {:?}", blocks, multiplier);
+			});
+			blocks += 1;
+		}
+	}
+}
+
+#[cfg(all(test, feature = "try-runtime"))]
+#[ignore]
+mod remote_tests {
+	use super::*;
+	use frame_try_runtime::{runtime_decl_for_try_runtime::TryRuntime, UpgradeCheckSelect};
+	use remote_externalities::{
+		Builder, Mode, OfflineConfig, OnlineConfig, RemoteExternalities, SnapshotConfig, Transport,
+	};
+	use std::env::var;
+
+	async fn remote_ext_test_setup() -> RemoteExternalities<Block> {
+		let transport: Transport =
+			var("WS").unwrap_or("wss://rpc.loom.cord.network:443".to_string()).into();
+		let maybe_state_snapshot: Option<SnapshotConfig> = var("SNAP").map(|s| s.into()).ok();
+		Builder::<Block>::default()
+			.mode(if let Some(state_snapshot) = maybe_state_snapshot {
+				Mode::OfflineOrElseOnline(
+					OfflineConfig { state_snapshot: state_snapshot.clone() },
+					OnlineConfig {
+						transport,
+						state_snapshot: Some(state_snapshot),
+						..Default::default()
+					},
+				)
+			} else {
+				Mode::Online(OnlineConfig { transport, ..Default::default() })
+			})
+			.build()
+			.await
+			.unwrap()
+	}
+
+	#[tokio::test]
+	async fn dispatch_all_proposals() {
+		if var("RUN_OPENGOV_TEST").is_err() {
+			return;
+		}
+
+		sp_tracing::try_init_simple();
+		let mut ext = remote_ext_test_setup().await;
+		ext.execute_with(|| {
+			type Ref = pallet_referenda::ReferendumInfoOf<Runtime, ()>;
+			type RefStatus = pallet_referenda::ReferendumStatusOf<Runtime, ()>;
+			use sp_runtime::traits::Dispatchable;
+			let all_refs: Vec<(u32, RefStatus)> =
+				pallet_referenda::ReferendumInfoFor::<Runtime>::iter()
+					.filter_map(|(idx, reff): (_, Ref)| {
+						if let Ref::Ongoing(ref_status) = reff {
+							Some((idx, ref_status))
+						} else {
+							None
+						}
+					})
+					.collect::<Vec<_>>();
+
+			for (ref_index, referenda) in all_refs {
+				log::info!(target: LOG_TARGET, "🚀 executing referenda #{}", ref_index);
+				let RefStatus { origin, proposal, .. } = referenda;
+				// we do more or less what the scheduler will do under the hood, as best as we can
+				// imitate:
+				let (call, _len) = match <
+					<Runtime as pallet_scheduler::Config>::Preimages
+					as
+					frame_support::traits::QueryPreimage
+				>::peek(&proposal) {
+					Ok(x) => x,
+					Err(e) => {
+						log::error!(target: LOG_TARGET, "failed to get preimage: {:?}", e);
+						continue;
+					}
+				};
+
+				let dispatch_result = call.dispatch(origin.clone().into());
+				log::info!(target: LOG_TARGET, "outcome of dispatch with origin {:?}: {:?}", origin, dispatch_result);
+			}
+		});
+	}
+
+	#[tokio::test]
+	async fn run_migrations() {
+		if var("RUN_MIGRATION_TESTS").is_err() {
+			return;
+		}
+
+		sp_tracing::try_init_simple();
+		let mut ext = remote_ext_test_setup().await;
+		ext.execute_with(|| Runtime::on_runtime_upgrade(UpgradeCheckSelect::PreAndPost));
+	}
+
+	#[tokio::test]
+	#[ignore = "this test is meant to be executed manually"]
+	async fn try_fast_unstake_all() {
+		sp_tracing::try_init_simple();
+		let transport: Transport =
+			var("WS").unwrap_or("wss://rpc.loom.cord.network:443".to_string()).into();
+		let maybe_state_snapshot: Option<SnapshotConfig> = var("SNAP").map(|s| s.into()).ok();
+		let mut ext = Builder::<Block>::default()
+			.mode(if let Some(state_snapshot) = maybe_state_snapshot {
+				Mode::OfflineOrElseOnline(
+					OfflineConfig { state_snapshot: state_snapshot.clone() },
+					OnlineConfig {
+						transport,
+						state_snapshot: Some(state_snapshot),
+						..Default::default()
+					},
+				)
+			} else {
+				Mode::Online(OnlineConfig { transport, ..Default::default() })
+			})
+			.build()
+			.await
+			.unwrap();
+		ext.execute_with(|| {
+			pallet_fast_unstake::ErasToCheckPerBlock::<Runtime>::put(1);
+			polkadot_runtime_common::try_runtime::migrate_all_inactive_nominators::<Runtime>()
+		});
 	}
 }

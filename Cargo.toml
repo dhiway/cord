@@ -11,47 +11,47 @@ license = "GPL-3.0"
 resolver = "2"
 
 members = [
-    "braid/node/cli",
-    "braid/node/rpc",
-    "braid/node/inspect",
-    "braid/node/testing",
-    "pallets/asset",
-    "pallets/chain-space",
-    "pallets/did",
-    "pallets/did-name",
-    "pallets/did-token",
-    "pallets/identity",
-    "pallets/network-score",
-    "pallets/node-authorization",
-    "pallets/offences",
-    "pallets/runtime-upgrade",
-    "pallets/session-benchmarking",
-    "primitives/cord",
-    "primitives/identifier",
-    "primitives/network-membership",
-    "braid/runtimes/common",
-    "braid/runtimes/common/api/assets",
-    "braid/runtimes/common/api/did",
-    "braid/runtimes/common/authorities",
-    "braid/runtimes/base",
-    "braid/runtimes/base/constants",
-    "braid/runtimes/plus",
-    "braid/runtimes/plus/constants",
-    "utilities",
-    "braid/test-utils",
-    "braid/test-utils/cli",
-    "braid/test-utils/client",
-    "braid/test-utils/runtime",
-    "braid/test-utils/runtime/client",
-    "braid/test-utils/runtime/transaction-pool",
-    "braid/test-utils/service",
-    "loom",
-    "loom/cli",
-    "loom/node/service",
-    "loom/rpc",
-    "loom/runtime",
-    "weave/runtime",
-    "weave/node",
+	"braid/node/cli",
+	"braid/node/rpc",
+	"braid/node/inspect",
+	"braid/node/testing",
+	"pallets/asset",
+	"pallets/chain-space",
+	"pallets/did",
+	"pallets/did-name",
+	"pallets/did-token",
+	"pallets/identity",
+	"pallets/network-score",
+	"pallets/node-authorization",
+	"pallets/offences",
+	"pallets/runtime-upgrade",
+	"pallets/session-benchmarking",
+	"primitives/cord",
+	"primitives/identifier",
+	"primitives/network-membership",
+	"braid/runtimes/common",
+	"braid/runtimes/common/api/assets",
+	"braid/runtimes/common/api/did",
+	"braid/runtimes/common/authorities",
+	"braid/runtimes/base",
+	"braid/runtimes/base/constants",
+	"braid/runtimes/plus",
+	"braid/runtimes/plus/constants",
+	"utilities",
+	"braid/test-utils",
+	"braid/test-utils/cli",
+	"braid/test-utils/client",
+	"braid/test-utils/runtime",
+	"braid/test-utils/runtime/client",
+	"braid/test-utils/runtime/transaction-pool",
+	"braid/test-utils/service",
+	"loom",
+	"loom/cli",
+	"loom/node/service",
+	"loom/rpc",
+	"loom/runtime",
+	"weave/runtime",
+	"weave/node",
 ]
 default-members = ["braid/node/cli"]
 
@@ -148,8 +148,10 @@ cord-braid-cli-test-utils = { path = "braid/test-utils/cli", default-features = 
 cord-loom-node-cli = { path = "loom/cli", default-features = false }
 cord-loom-rpc = { path = "loom/rpc", default-features = false }
 cord-loom-service = { path = "loom/node/service", default-features = false }
-cord-loom-test-runtime = { path = "loom/runtime" }
-cord-loom-test-runtime-constants = { path = "loom/runtime/constants", default-features = false }
+cord-loom-runtime = { path = "loom/runtime" }
+cord-loom-runtime-constants = { path = "loom/runtime/constants", default-features = false }
+# cord-loom-test-runtime = { path = "loom/runtime/test" }
+# cord-loom-test-runtime-constants = { path = "loom/runtime/test/constants", default-features = false }
 cord-weave-node-cli = { path = "weave/node", default-features = false }
 cord-weave-test-runtime = { path = "weave/runtime", default-features = false }
 
@@ -170,7 +172,9 @@ pallet-assets-runtime-api = { path = "braid/runtimes/common/api/assets", default
 pallet-did-runtime-api = { path = "braid/runtimes/common/api/did", default-features = false }
 
 # substrate dependencies
-
+# authority-discovery-primitives = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "sp-authority-discovery", version = "34.0.0" }
+# babe-primitives = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "sp-consensus-babe", version = "0.40.0" }
+# beefy-primitives = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "sp-consensus-beefy", version = "22.0.0" }
 finality-grandpa = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.16.2" }
 fork-tree = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "13.0.0" }
 frame = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "polkadot-sdk-frame", version = "0.6.0" }
@@ -230,6 +234,7 @@ pallet-democracy = { git = "https://github.com/dhiway/substrate-sdk", default-fe
 pallet-election-provider-multi-phase = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "36.0.0" }
 pallet-election-provider-support-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "36.0.0" }
 pallet-elections-phragmen = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "38.0.0" }
+pallet-fast-unstake = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "36.0.0" }
 pallet-grandpa = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "37.0.0" }
 pallet-im-online = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "36.0.0" }
 pallet-indices = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "37.0.0" }
@@ -353,6 +358,7 @@ polkadot-test-runtime = { git = "https://github.com/dhiway/substrate-sdk", branc
 polkadot-test-service = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-sdk-v1.15.0", version = "1.0.0" }
 prometheus-endpoint = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "substrate-prometheus-endpoint", version = "0.17.0" }
 remote-externalities = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "frame-remote-externalities", version = "0.45.0" }
+# runtime-parachains = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "polkadot-runtime-parachains", version = "16.0.0" }
 
 sc-allocator = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "29.0.0" }
 sc-authority-discovery = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.44.0" }
