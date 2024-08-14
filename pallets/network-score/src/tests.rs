@@ -589,3 +589,80 @@ fn reference_identifier_not_debit_test() {
 		);
 	});
 }
+
+#[test]
+fn rating_identifier_not_found_test() {
+	let creator = DID_00.clone();
+	let author = ACCOUNT_00.clone();
+	let message_id = BoundedVec::try_from([82u8; 10].to_vec()).unwrap();
+	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
+	let entry = RatingInputEntryOf::<Test> {
+		entity_id,
+		provider_id,
+		total_encoded_rating: 250u64,
+		count_of_txn: 7u64,
+		rating_type: RatingTypeOf::Overall,
+		provider_did: creator.clone(),
+	};
+	let entry_digest =
+		<Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: AuthorizationIdOf =
+		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
+			.unwrap();
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[
+			&entry_digest.encode()[..],
+			&entry.entity_id.encode()[..],
+			&message_id.encode()[..],
+			&space_id.encode()[..],
+			&creator.clone().encode()[..],
+		]
+		.concat()[..],
+	);
+
+	let identifier =
+		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating).unwrap();
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+
+		assert_ok!(Score::register_rating(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			entry.clone(),
+			entry_digest,
+			message_id.clone(),
+			authorization_id.clone(),
+		));
+
+		<MessageIdentifiers<Test>>::remove(message_id.clone(), creator.clone());
+		<RatingEntries<Test>>::remove(identifier.clone());
+
+		assert_err!(
+			Score::revoke_rating(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				identifier,
+				message_id.clone(),
+				entry_digest,
+				authorization_id.clone(),
+			),
+			Error::<Test>::RatingIdentifierNotFound
+		);
+	});
+}
