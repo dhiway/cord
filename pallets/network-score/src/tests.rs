@@ -632,7 +632,8 @@ fn rating_identifier_not_found_test() {
 	);
 
 	let identifier =
-		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating).unwrap();
+		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating)
+			.unwrap();
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
