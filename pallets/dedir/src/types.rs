@@ -27,7 +27,20 @@ use scale_info::{
 	Path, Type, TypeInfo,
 };
 use sp_runtime::RuntimeDebug;
-use sp_std::{iter::once, prelude::*, str};
+use sp_std::{iter::once, prelude::*};
+
+#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+pub enum RegistrySupportedStateOf {
+	DRAFT,
+	ACTIVE,
+	REVOKED,
+}
+
+impl RegistrySupportedStateOf {
+	pub fn is_valid_state(&self) -> bool {
+		matches!(self, Self::DRAFT | Self::ACTIVE | Self::REVOKED)
+	}
+}
 
 /// Either underlying data blob if it is at most 32 bytes, or a hash of it. If
 /// the data is greater than 32-bytes then it will be truncated when encoding.
@@ -189,6 +202,7 @@ pub struct Registry<
 	RegistryKeyIdOf,
 	//MaxRegistryEntries: Get<u32>,
 	RegistrySupportedTypeOf,
+	RegistryHashOf,
 > {
 	/// Type of Registry Entry
 	pub entries: BoundedVec<
@@ -196,57 +210,38 @@ pub struct Registry<
 		//MaxRegistryEntries,
 		ConstU32<25>,
 	>,
-	/// Type of Supported States
-	pub supported_states: BoundedVec<BoundedVec<u8, ConstU32<32>>, ConstU32<10>>,
+	pub digest: RegistryHashOf,
 }
 
 #[derive(Encode, Decode, Clone, Default, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct RegistryEntry<RegistryEntryKeyIdOf, Data, EntryHashOf, RegistryIdOf, RegistryStateOf> {
+pub struct RegistryEntry<
+	RegistryEntryKeyIdOf,
+	Data,
+	RegistryEntryHashOf,
+	RegistryIdOf,
+	RegistrySupportedStateOf,
+> {
 	/// Type of Entries
 	pub entries: BoundedVec<(RegistryEntryKeyIdOf, Data), ConstU32<25>>,
 	/// Type of Digest
-	pub digest: EntryHashOf,
+	pub digest: RegistryEntryHashOf,
 	/// Type of Registry Identifier
 	pub registry_id: RegistryIdOf,
 	/// Type of Current State of Registry Entry
-	pub current_state: RegistryStateOf,
+	pub current_state: RegistrySupportedStateOf,
 }
 
-impl<RegistryKeyIdOf, RegistrySupportedTypeOf> Registry<RegistryKeyIdOf, RegistrySupportedTypeOf> {
-	pub fn new() -> Self {
-		let default_states = vec![
-			BoundedVec::try_from(b"ACTIVE".to_vec()).unwrap(),
-			BoundedVec::try_from(b"INACTIVE".to_vec()).unwrap(),
-			BoundedVec::try_from(b"REVOKED".to_vec()).unwrap(),
-		];
-		Registry {
-			entries: BoundedVec::default(),
-			supported_states: BoundedVec::try_from(default_states).unwrap(),
-		}
-	}
-
-	/* Add additional states to supported-states list.
-	 * Storage Overflow happens when states length breaches upper bound.
-	 */
-	pub fn add_supported_states(
-		&mut self,
-		new_states: BoundedVec<BoundedVec<u8, ConstU32<32>>, ConstU32<10>>,
-	) -> Result<(), ()> {
-		for state in new_states {
-			// Convert state to uppercase
-			let state_str = str::from_utf8(&state).map_err(|_| ())?;
-			let upper_state_str = state_str.to_ascii_uppercase();
-			let upper_state = upper_state_str.into_bytes();
-
-			// Create a BoundedVec from the uppercase state
-			let bounded_state = BoundedVec::try_from(upper_state).map_err(|_| ())?;
-			if self.supported_states.try_push(bounded_state).is_err() {
-				return Err(());
-			}
-		}
-		Ok(())
-	}
-}
+// impl<RegistryKeyIdOf,
+// 	 RegistrySupportedTypeOf,
+// 	 RegistryHashOf
+// > Registry <RegistryKeyIdOf, RegistrySupportedTypeOf, RegistryHashOf,
+// > {
+// 	pub fn new() -> Self {
+// 		Registry {
+// 			entries: BoundedVec::default(),
+// 		}
+// 	}
+// }
 
 #[cfg(test)]
 mod tests {

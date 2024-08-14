@@ -43,6 +43,7 @@ pub enum IdentifierType {
 	Asset,
 	AssetInstance,
 	Rating,
+	DeDir,
 }
 
 impl IdentifierType {
@@ -55,6 +56,7 @@ impl IdentifierType {
 	const IDENT_ASSET: u16 = 2348;
 	const IDENT_RATING: u16 = 6077;
 	const IDENT_ASSET_INSTANCE: u16 = 11380;
+	const IDENT_DEDIR: u16 = 9274;
 
 	fn ident_value(&self) -> u16 {
 		match self {
@@ -67,6 +69,7 @@ impl IdentifierType {
 			IdentifierType::Asset => Self::IDENT_ASSET,
 			IdentifierType::AssetInstance => Self::IDENT_ASSET_INSTANCE,
 			IdentifierType::Rating => Self::IDENT_RATING,
+			IdentifierType::DeDir => Self::IDENT_DEDIR,
 		}
 	}
 	fn from_u16(value: u16) -> Option<Self> {
@@ -80,6 +83,7 @@ impl IdentifierType {
 			2348 => Some(IdentifierType::Asset),
 			6077 => Some(IdentifierType::AssetInstance),
 			11380 => Some(IdentifierType::Rating),
+			9274 => Some(IdentifierType::DeDir),
 			_ => None,
 		}
 	}
@@ -148,6 +152,10 @@ impl CordIdentifierType for Ss58Identifier {
 }
 
 impl Ss58Identifier {
+	pub fn as_bytes(&self) -> &[u8] {
+		&self.0
+	}
+
 	/// Generate Blake2b Hash
 	pub fn ss58hash(data: &[u8]) -> Blake2bResult {
 		let mut context = Blake2b::new(64);

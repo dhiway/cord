@@ -512,7 +512,6 @@ parameter_types! {
 
 impl pallet_dedir::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type MaxSupportedOptionalStates = MaxSupportedOptionalStates;
 	type MaxRegistryEntries = MaxRegistryEntries;
 	type MaxEncodedInputLength = MaxEncodedInputLength;
 	type WeightInfo = ();

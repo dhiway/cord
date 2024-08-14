@@ -80,4 +80,5 @@ pub enum IdentifierTypeOf {
 	Statement,
 	Schema,
 	Template,
+	DeDir,
 }
