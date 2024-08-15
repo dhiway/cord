@@ -79,7 +79,8 @@ fn register_statement_should_succeed() {
 			DoubleOrigin(author, creator).into(),
 			statement_digest,
 			authorization_id,
-			Some(schema_id)
+			Some(schema_id),
+			None
 		));
 	});
 }
@@ -117,7 +118,8 @@ fn trying_to_register_statement_to_a_non_existent_space_should_fail() {
 				DoubleOrigin(author, delegate).into(),
 				statement_digest,
 				authorization_id,
-				Some(schema_id)
+				Some(schema_id),
+				None
 			),
 			pallet_chain_space::Error::<Test>::AuthorizationNotFound
 		);
@@ -172,7 +174,8 @@ fn trying_to_register_statement_by_a_non_delegate_should_fail() {
 				DoubleOrigin(author, delegate).into(),
 				statement_digest,
 				authorization_id,
-				Some(schema_id)
+				Some(schema_id),
+				None
 			),
 			pallet_chain_space::Error::<Test>::UnauthorizedOperation
 		);
@@ -234,7 +237,8 @@ fn updating_a_registered_statement_should_succeed() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
-			Some(schema_id)
+			Some(schema_id),
+			None
 		));
 
 		assert_ok!(Statement::update(
@@ -242,6 +246,7 @@ fn updating_a_registered_statement_should_succeed() {
 			statement_id.clone(),
 			new_statement_digest,
 			authorization_id,
+			None
 		));
 
 		let revoked_statements = RevocationList::<Test>::get(statement_id, statement_digest)
@@ -318,7 +323,8 @@ fn updating_a_registered_statement_by_a_space_delegate_should_succeed() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
-			Some(schema_id)
+			Some(schema_id),
+			None
 		));
 
 		assert_ok!(Statement::update(
@@ -326,6 +332,7 @@ fn updating_a_registered_statement_by_a_space_delegate_should_succeed() {
 			statement_id,
 			new_statement_digest,
 			delegate_authorization_id,
+			None
 		));
 	});
 }
@@ -390,7 +397,8 @@ fn trying_to_update_a_registered_statement_by_a_non_space_delegate_should_fail()
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
-			Some(schema_id)
+			Some(schema_id),
+			None
 		));
 
 		assert_err!(
@@ -399,6 +407,7 @@ fn trying_to_update_a_registered_statement_by_a_non_space_delegate_should_fail()
 				statement_id,
 				new_statement_digest,
 				delegate_authorization_id,
+				None
 			),
 			pallet_chain_space::Error::<Test>::AuthorizationNotFound
 		);
@@ -459,7 +468,8 @@ fn trying_to_update_a_non_registered_statement_should_fail() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			new_statement_digest,
 			authorization_id.clone(),
-			Some(schema_id)
+			Some(schema_id),
+			None
 		));
 
 		assert_err!(
@@ -468,6 +478,7 @@ fn trying_to_update_a_non_registered_statement_should_fail() {
 				statement_id,
 				statement_digest,
 				authorization_id,
+				None
 			),
 			Error::<Test>::StatementNotFound
 		);
@@ -527,7 +538,8 @@ fn revoking_a_registered_statement_should_succeed() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
-			Some(schema_id)
+			Some(schema_id),
+			None
 		));
 
 		assert_ok!(Statement::revoke(
@@ -623,7 +635,8 @@ fn revoking_a_registered_statement_by_a_non_delegate_should_fail() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
-			Some(schema_id)
+			Some(schema_id),
+			None
 		));
 
 		assert_err!(
@@ -690,7 +703,8 @@ fn restoring_a_revoked_statement_should_succeed() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
-			Some(schema_id)
+			Some(schema_id),
+			None
 		));
 
 		assert_ok!(Statement::revoke(
@@ -766,7 +780,8 @@ fn trying_to_restore_a_non_revoked_statement_should_fail() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
-			Some(schema_id)
+			Some(schema_id),
+			None
 		));
 
 		assert_err!(
@@ -860,7 +875,8 @@ fn trying_to_restore_a_revoked_statement_by_a_non_delegate_should_fail() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
-			Some(schema_id)
+			Some(schema_id),
+			None
 		));
 
 		assert_ok!(Statement::revoke(
@@ -934,7 +950,8 @@ fn registering_a_statement_again_should_fail() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
-			Some(schema_id.clone())
+			Some(schema_id.clone()),
+			None
 		));
 
 		assert_err!(
@@ -942,7 +959,8 @@ fn registering_a_statement_again_should_fail() {
 				DoubleOrigin(author, creator).into(),
 				statement_digest,
 				authorization_id,
-				Some(schema_id)
+				Some(schema_id),
+				None
 			),
 			Error::<Test>::StatementAlreadyAnchored
 		);
@@ -1004,7 +1022,8 @@ fn updating_a_registered_statement_again_should_fail() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
-			Some(schema_id)
+			Some(schema_id),
+			None
 		));
 
 		assert_ok!(Statement::update(
@@ -1012,6 +1031,7 @@ fn updating_a_registered_statement_again_should_fail() {
 			statement_id.clone(),
 			new_statement_digest,
 			authorization_id.clone(),
+			None
 		));
 
 		assert_err!(
@@ -1020,6 +1040,7 @@ fn updating_a_registered_statement_again_should_fail() {
 				statement_id,
 				new_statement_digest,
 				authorization_id,
+				None
 			),
 			Error::<Test>::StatementDigestAlreadyAnchored
 		);
@@ -1064,6 +1085,7 @@ fn removing_nonexistent_presentation_should_fail() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
+			None,
 			None
 		));
 
@@ -1130,7 +1152,8 @@ fn bulk_registering_statements_with_same_digest_should_fail() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digests[0],
 			authorization_id.clone(),
-			Some(schema_id.clone())
+			Some(schema_id.clone()),
+			None
 		));
 
 		assert_err!(
@@ -1199,7 +1222,8 @@ fn trying_to_update_or_revoke_or_add_presentation_for_revoked_statement_should_f
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
-			Some(schema_id)
+			Some(schema_id),
+			None
 		));
 
 		// Revoke the statement
@@ -1216,6 +1240,7 @@ fn trying_to_update_or_revoke_or_add_presentation_for_revoked_statement_should_f
 				statement_id.clone(),
 				new_statement_digest,
 				authorization_id.clone(),
+				None
 			),
 			Error::<Test>::StatementRevoked
 		);
@@ -1282,6 +1307,7 @@ fn nonexistent_presentation_should_fail() {
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
+			None,
 			None
 		));
 
