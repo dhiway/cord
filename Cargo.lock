@@ -470,6 +470,57 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
 
 [[package]]
+name = "asset-test-utils"
+version = "17.0.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
+dependencies = [
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-core",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-collator-selection",
+ "pallet-session",
+ "pallet-timestamp",
+ "pallet-xcm",
+ "pallet-xcm-bridge-hub-router",
+ "parachains-common",
+ "parachains-runtimes-test-utils",
+ "parity-scale-codec",
+ "sp-io",
+ "sp-runtime",
+ "staging-parachain-info",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "staging-xcm-executor",
+ "substrate-wasm-builder",
+]
+
+[[package]]
+name = "assets-common"
+version = "0.17.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
+dependencies = [
+ "cumulus-primitives-core",
+ "frame-support",
+ "impl-trait-for-tuples",
+ "log",
+ "pallet-asset-conversion",
+ "pallet-xcm",
+ "parachains-common",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-runtime",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "staging-xcm-executor",
+ "substrate-wasm-builder",
+]
+
+[[package]]
 name = "async-channel"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2498,6 +2549,165 @@ dependencies = [
 ]
 
 [[package]]
+name = "cord-weave-asset-hub-primitives"
+version = "0.9.3"
+dependencies = [
+ "cord-weave-system-parachains-constants",
+ "frame-support",
+ "sp-std",
+ "staging-xcm",
+]
+
+[[package]]
+name = "cord-weave-asset-hub-runtime"
+version = "0.9.3"
+dependencies = [
+ "asset-test-utils",
+ "assets-common",
+ "cord-loom-runtime-constants",
+ "cord-weave-asset-hub-primitives",
+ "cord-weave-system-parachains-constants",
+ "cumulus-pallet-aura-ext",
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-session-benchmarking",
+ "cumulus-pallet-xcm",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-aura",
+ "cumulus-primitives-core",
+ "cumulus-primitives-utility",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-metadata-hash-extension",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
+ "hex-literal",
+ "log",
+ "pallet-asset-conversion",
+ "pallet-asset-conversion-tx-payment",
+ "pallet-assets",
+ "pallet-aura",
+ "pallet-authorship",
+ "pallet-balances",
+ "pallet-collator-selection",
+ "pallet-message-queue",
+ "pallet-multisig",
+ "pallet-nfts",
+ "pallet-nfts-runtime-api",
+ "pallet-proxy",
+ "pallet-session",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-uniques",
+ "pallet-utility",
+ "pallet-vesting",
+ "pallet-xcm",
+ "pallet-xcm-benchmarks",
+ "parachains-common",
+ "parachains-runtimes-test-utils",
+ "parity-scale-codec",
+ "polkadot-core-primitives",
+ "polkadot-parachain-primitives",
+ "polkadot-runtime-common",
+ "primitive-types",
+ "scale-info",
+ "serde_json",
+ "sp-api",
+ "sp-block-builder",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-io",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-std",
+ "sp-storage",
+ "sp-transaction-pool",
+ "sp-version",
+ "sp-weights",
+ "staging-parachain-info",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "staging-xcm-executor",
+ "substrate-wasm-builder",
+ "xcm-runtime-apis",
+]
+
+[[package]]
+name = "cord-weave-coretime-runtime"
+version = "0.9.3"
+dependencies = [
+ "cord-loom-runtime-constants",
+ "cord-weave-system-parachains-constants",
+ "cumulus-pallet-aura-ext",
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-session-benchmarking",
+ "cumulus-pallet-xcm",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-aura",
+ "cumulus-primitives-core",
+ "cumulus-primitives-utility",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-metadata-hash-extension",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
+ "hex-literal",
+ "log",
+ "pallet-aura",
+ "pallet-authorship",
+ "pallet-balances",
+ "pallet-broker",
+ "pallet-collator-selection",
+ "pallet-message-queue",
+ "pallet-multisig",
+ "pallet-proxy",
+ "pallet-session",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-utility",
+ "pallet-xcm",
+ "pallet-xcm-benchmarks",
+ "parachains-common",
+ "parachains-runtimes-test-utils",
+ "parity-scale-codec",
+ "polkadot-core-primitives",
+ "polkadot-parachain-primitives",
+ "polkadot-runtime-common",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-block-builder",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-std",
+ "sp-storage",
+ "sp-transaction-pool",
+ "sp-version",
+ "staging-parachain-info",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "staging-xcm-executor",
+ "substrate-wasm-builder",
+ "xcm-runtime-apis",
+]
+
+[[package]]
 name = "cord-weave-node-cli"
 version = "0.9.3"
 dependencies = [
@@ -2554,6 +2764,22 @@ dependencies = [
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
+]
+
+[[package]]
+name = "cord-weave-system-parachains-constants"
+version = "0.9.3"
+dependencies = [
+ "cord-loom-runtime-constants",
+ "frame-support",
+ "parachains-common",
+ "polkadot-core-primitives",
+ "polkadot-primitives",
+ "smallvec",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+ "staging-xcm",
 ]
 
 [[package]]
@@ -3514,9 +3740,9 @@ dependencies = [
 
 [[package]]
 name = "cxx"
-version = "1.0.124"
+version = "1.0.126"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "273dcfd3acd4e1e276af13ed2a43eea7001318823e7a726a6b3ed39b4acc0b82"
+checksum = "3c4eae4b7fc8dcb0032eb3b1beee46b38d371cdeaf2d0c64b9944f6f69ad7755"
 dependencies = [
  "cc",
  "cxxbridge-flags",
@@ -3526,9 +3752,9 @@ dependencies = [
 
 [[package]]
 name = "cxx-build"
-version = "1.0.124"
+version = "1.0.126"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8b2766fbd92be34e9ed143898fce6c572dc009de39506ed6903e5a05b68914e"
+checksum = "6c822bf7fb755d97328d6c337120b6f843678178751cba33c9da25cf522272e0"
 dependencies = [
  "cc",
  "codespan-reporting",
@@ -3541,15 +3767,15 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-flags"
-version = "1.0.124"
+version = "1.0.126"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "839fcd5e43464614ffaa989eaf1c139ef1f0c51672a1ed08023307fa1b909ccd"
+checksum = "719d6197dc016c88744aff3c0d0340a01ecce12e8939fc282e7c8f583ee64bc6"
 
 [[package]]
 name = "cxxbridge-macro"
-version = "1.0.124"
+version = "1.0.126"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b2c1c1776b986979be68bb2285da855f8d8a35851a769fca8740df7c3d07877"
+checksum = "35de3b547387863c8f82013c4f79f1c2162edee956383e4089e1d04c18c4f16c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5690,11 +5916,11 @@ checksum = "8f518f335dce6725a761382244631d86cf0ccb2863413590b31338feb467f9c3"
 
 [[package]]
 name = "is-terminal"
-version = "0.4.12"
+version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f23ff5ef2b80d608d61efee834934d862cd92461afc0560dedf493e4c033738b"
+checksum = "261f68e344040fbd0edea105bef17c66edf46f984ddb1115b775ce31be948f4b"
 dependencies = [
- "hermit-abi 0.3.9",
+ "hermit-abi 0.4.0",
  "libc",
  "windows-sys 0.52.0",
 ]
@@ -7787,6 +8013,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-asset-conversion-tx-payment"
+version = "19.0.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-asset-conversion",
+ "pallet-transaction-payment",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-asset-rate"
 version = "16.0.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
@@ -8499,6 +8739,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-nfts"
+version = "31.0.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
+dependencies = [
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-nfts-runtime-api"
+version = "23.0.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
+dependencies = [
+ "pallet-nfts",
+ "parity-scale-codec",
+ "sp-api",
+]
+
+[[package]]
 name = "pallet-node-authorization"
 version = "0.9.3"
 dependencies = [
@@ -8960,6 +9227,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-uniques"
+version = "37.0.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-utility"
 version = "37.0.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
@@ -9044,6 +9325,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-xcm-bridge-hub-router"
+version = "0.14.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
+dependencies = [
+ "bp-xcm-bridge-hub-router",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-runtime",
+ "sp-std",
+ "staging-xcm",
+ "staging-xcm-builder",
+]
+
+[[package]]
 name = "parachains-common"
 version = "17.0.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
@@ -9067,6 +9367,36 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+ "staging-parachain-info",
+ "staging-xcm",
+ "staging-xcm-executor",
+ "substrate-wasm-builder",
+]
+
+[[package]]
+name = "parachains-runtimes-test-utils"
+version = "16.0.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
+dependencies = [
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-core",
+ "cumulus-primitives-parachain-inherent",
+ "cumulus-test-relay-sproof-builder",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-collator-selection",
+ "pallet-session",
+ "pallet-timestamp",
+ "pallet-xcm",
+ "parity-scale-codec",
+ "polkadot-parachain-primitives",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-tracing",
  "staging-parachain-info",
  "staging-xcm",
  "staging-xcm-executor",
