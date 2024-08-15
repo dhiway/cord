@@ -116,6 +116,7 @@ fn default_parachains_host_configuration() -> HostConfiguration<polkadot_primiti
 		zeroth_delay_tranche_width: 0,
 		minimum_validation_upgrade_delay: 5,
 		scheduler_params: polkadot_primitives::vstaging::SchedulerParams {
+			lookahead: 2,
 			group_rotation_frequency: 20,
 			paras_availability_period: 4,
 			..Default::default()
@@ -124,7 +125,7 @@ fn default_parachains_host_configuration() -> HostConfiguration<polkadot_primiti
 		minimum_backing_votes: 1,
 		node_features: NodeFeatures::EMPTY,
 		async_backing_params: AsyncBackingParams {
-			max_candidate_depth: 2,
+			max_candidate_depth: 3,
 			allowed_ancestry_len: 2,
 		},
 		executor_params: Default::default(),
@@ -146,7 +147,7 @@ fn cord_loom_testnet_genesis(
 		AuthorityDiscoveryId,
 		BeefyId,
 	)>,
-	_root_key: AccountId,
+	root_key: AccountId,
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> serde_json::Value {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
@@ -194,6 +195,7 @@ fn cord_loom_testnet_genesis(
 		"configuration": {
 			"config": default_parachains_host_configuration(),
 		},
+		"sudo": { "key": Some(root_key) },
 	})
 }
 

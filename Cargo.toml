@@ -50,7 +50,11 @@ members = [
 	"loom/node/service",
 	"loom/rpc",
 	"loom/runtime",
+	# "weave/constants",
 	"weave/runtime",
+	"weave/runtime/constants",
+	"weave/runtime/coretime",
+	"weave/runtime/asset-hub",
 	"weave/node",
 ]
 default-members = ["braid/node/cli"]
@@ -153,6 +157,10 @@ cord-loom-runtime-constants = { path = "loom/runtime/constants", default-feature
 # cord-loom-test-runtime = { path = "loom/runtime/test" }
 # cord-loom-test-runtime-constants = { path = "loom/runtime/test/constants", default-features = false }
 cord-weave-node-cli = { path = "weave/node", default-features = false }
+cord-weave-system-parachains-constants = { path = "weave/runtime/constants", default-features = false }
+cord-weave-asset-hub-primitives = { path = "weave/runtime/asset-hub/primitives", default-features = false }
+cord-weave-asset-hub-runtime = { path = "weave/runtime/asset-hub", default-features = false }
+cord-weave-coretime-runtime = { path = "weave/runtime/coretime", default-features = false }
 cord-weave-test-runtime = { path = "weave/runtime", default-features = false }
 
 pallet-config = { path = 'pallets/config/', default-features = false }
@@ -306,6 +314,16 @@ cumulus-primitives-storage-weight-reclaim = { git = "https://github.com/dhiway/s
 cumulus-primitives-utility = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.16.0" }
 parachain-info = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.16.0", package = "staging-parachain-info" }
 parachains-common = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "17.0.0" }
+
+parachains-runtimes-test-utils = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-sdk-v1.15.0", version = "16.0.0" }
+asset-test-utils = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-sdk-v1.15.0", version = "17.0.0" }
+assets-common = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.17.0" }
+pallet-asset-conversion-tx-payment = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "19.0.0" }
+pallet-nfts = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "31.0.0" }
+pallet-nfts-runtime-api = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "23.0.0" }
+pallet-uniques = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "37.0.0" }
+# pallet-xcm-bridge-hub-router = { version = "0.13.0", default-features = false }
+# snowbridge-router-primitives = { version = "0.14.0", default-features = false }
 
 polkadot-approval-distribution = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "17.0.0" }
 polkadot-availability-bitfield-distribution = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "17.0.0" }
