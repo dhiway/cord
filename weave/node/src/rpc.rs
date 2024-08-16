@@ -1,74 +1,99 @@
-// This file is part of CORD – https://cord.network
+// Copyright (C) Parity Technologies (UK) Ltd.
+// This file is part of Cumulus.
 
-// Copyright (C) Dhiway Networks Pvt. Ltd.
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-// CORD is free software: you can redistribute it and/or modify
+// Cumulus is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// CORD is distributed in the hope that it will be useful,
+// Cumulus is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+// along with Cumulus.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A collection of node-specific RPC methods.
-//! Substrate provides the `sc-rpc` crate, which defines the core RPC layer
-//! used by Substrate nodes. This file extends those RPC definitions with
-//! capabilities that are specific to weave's runtime configuration.
+//! Parachain-specific RPCs implementation.
 
 #![warn(missing_docs)]
 
-use std::sync::Arc;
-
-use cord_weave_test_runtime::{opaque::Block, AccountId, Balance, Nonce};
-
-pub use sc_rpc::DenyUnsafe;
-use sc_transaction_pool_api::TransactionPool;
-use sp_api::ProvideRuntimeApi;
-use sp_block_builder::BlockBuilder;
-use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
+use crate::{
+	common::ConstructNodeRuntimeApi,
+	service::{ParachainBackend, ParachainClient},
+};
+use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
+use parachains_common::{AccountId, Balance, Block, Nonce};
+use sc_rpc::{
+	dev::{Dev, DevApiServer},
+	DenyUnsafe,
+};
+use std::{marker::PhantomData, sync::Arc};
+use substrate_frame_rpc_system::{System, SystemApiServer};
+use substrate_state_trie_migration_rpc::{StateMigration, StateMigrationApiServer};
 
 /// A type representing all RPC extensions.
 pub type RpcExtension = jsonrpsee::RpcModule<()>;
 
-/// Full client dependencies
-pub struct FullDeps<C, P> {
-	/// The client instance to use.
-	pub client: Arc<C>,
-	/// Transaction pool instance.
-	pub pool: Arc<P>,
-	/// Whether to deny unsafe calls
-	pub deny_unsafe: DenyUnsafe,
+pub(crate) trait BuildRpcExtensions<Client, Backend, Pool> {
+	fn build_rpc_extensions(
+		deny_unsafe: DenyUnsafe,
+		client: Arc<Client>,
+		backend: Arc<Backend>,
+		pool: Arc<Pool>,
+	) -> sc_service::error::Result<RpcExtension>;
 }
 
-/// Instantiate all RPC extensions.
-pub fn create_full<C, P>(
-	deps: FullDeps<C, P>,
-) -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>>
+pub(crate) struct BuildEmptyRpcExtensions<RuntimeApi>(PhantomData<RuntimeApi>);
+
+impl<RuntimeApi>
+	BuildRpcExtensions<
+		ParachainClient<RuntimeApi>,
+		ParachainBackend,
+		sc_transaction_pool::FullPool<Block, ParachainClient<RuntimeApi>>,
+	> for BuildEmptyRpcExtensions<RuntimeApi>
 where
-	C: ProvideRuntimeApi<Block>
-		+ HeaderBackend<Block>
-		+ HeaderMetadata<Block, Error = BlockChainError>
-		+ Send
-		+ Sync
-		+ 'static,
-	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
-	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>,
-	C::Api: BlockBuilder<Block>,
-	P: TransactionPool + Sync + Send + 'static,
+	RuntimeApi: ConstructNodeRuntimeApi<Block, ParachainClient<RuntimeApi>> + Send + Sync + 'static,
 {
-	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
-	use substrate_frame_rpc_system::{System, SystemApiServer};
+	fn build_rpc_extensions(
+		_deny_unsafe: DenyUnsafe,
+		_client: Arc<ParachainClient<RuntimeApi>>,
+		_backend: Arc<ParachainBackend>,
+		_pool: Arc<sc_transaction_pool::FullPool<Block, ParachainClient<RuntimeApi>>>,
+	) -> sc_service::error::Result<RpcExtension> {
+		Ok(RpcExtension::new(()))
+	}
+}
 
-	let mut module = RpcExtension::new(());
-	let FullDeps { client, pool, deny_unsafe } = deps;
+pub(crate) struct BuildParachainRpcExtensions<RuntimeApi>(PhantomData<RuntimeApi>);
 
-	module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
-	module.merge(TransactionPayment::new(client).into_rpc())?;
-	Ok(module)
+impl<RuntimeApi>
+	BuildRpcExtensions<
+		ParachainClient<RuntimeApi>,
+		ParachainBackend,
+		sc_transaction_pool::FullPool<Block, ParachainClient<RuntimeApi>>,
+	> for BuildParachainRpcExtensions<RuntimeApi>
+where
+	RuntimeApi: ConstructNodeRuntimeApi<Block, ParachainClient<RuntimeApi>> + Send + Sync + 'static,
+	RuntimeApi::RuntimeApi: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
+		+ substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>,
+{
+	fn build_rpc_extensions(
+		deny_unsafe: DenyUnsafe,
+		client: Arc<ParachainClient<RuntimeApi>>,
+		backend: Arc<ParachainBackend>,
+		pool: Arc<sc_transaction_pool::FullPool<Block, ParachainClient<RuntimeApi>>>,
+	) -> sc_service::error::Result<RpcExtension> {
+		let build = || -> Result<RpcExtension, Box<dyn std::error::Error + Send + Sync>> {
+			let mut module = RpcExtension::new(());
+
+			module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
+			module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
+			module.merge(StateMigration::new(client.clone(), backend, deny_unsafe).into_rpc())?;
+			module.merge(Dev::new(client, deny_unsafe).into_rpc())?;
+
+			Ok(module)
+		};
+		build().map_err(Into::into)
+	}
 }

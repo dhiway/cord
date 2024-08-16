@@ -33,7 +33,7 @@ pub use cord_loom_service::{
 };
 
 #[cfg(feature = "malus")]
-pub use polkadot_service::overseer::validator_overseer_builder;
+pub use cord_loom_service::overseer::validator_overseer_builder;
 
 #[cfg(feature = "cli")]
 pub use cli::*;

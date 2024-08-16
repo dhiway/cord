@@ -11,51 +11,52 @@ license = "GPL-3.0"
 resolver = "2"
 
 members = [
-	"braid/node/cli",
-	"braid/node/rpc",
-	"braid/node/inspect",
-	"braid/node/testing",
-	"pallets/asset",
-	"pallets/chain-space",
-	"pallets/did",
-	"pallets/did-name",
-	"pallets/did-token",
-	"pallets/identity",
-	"pallets/network-score",
-	"pallets/node-authorization",
-	"pallets/offences",
-	"pallets/runtime-upgrade",
-	"pallets/session-benchmarking",
-	"primitives/cord",
-	"primitives/identifier",
-	"primitives/network-membership",
-	"braid/runtimes/common",
-	"braid/runtimes/common/api/assets",
-	"braid/runtimes/common/api/did",
-	"braid/runtimes/common/authorities",
-	"braid/runtimes/base",
-	"braid/runtimes/base/constants",
-	"braid/runtimes/plus",
-	"braid/runtimes/plus/constants",
-	"utilities",
-	"braid/test-utils",
-	"braid/test-utils/cli",
-	"braid/test-utils/client",
-	"braid/test-utils/runtime",
-	"braid/test-utils/runtime/client",
-	"braid/test-utils/runtime/transaction-pool",
-	"braid/test-utils/service",
-	"loom",
-	"loom/cli",
-	"loom/node/service",
-	"loom/rpc",
-	"loom/runtime",
-	# "weave/constants",
-	"weave/runtime",
-	"weave/runtime/constants",
-	"weave/runtime/coretime",
-	"weave/runtime/asset-hub",
-	"weave/node",
+    "braid/node/cli",
+    "braid/node/rpc",
+    "braid/node/inspect",
+    "braid/node/testing",
+    "pallets/asset",
+    "pallets/chain-space",
+    "pallets/did",
+    "pallets/did-name",
+    "pallets/did-token",
+    "pallets/identity",
+    "pallets/network-score",
+    "pallets/node-authorization",
+    "pallets/offences",
+    "pallets/runtime-upgrade",
+    "pallets/session-benchmarking",
+    "primitives/cord",
+    "primitives/identifier",
+    "primitives/network-membership",
+    "braid/runtimes/common",
+    "braid/runtimes/common/api/assets",
+    "braid/runtimes/common/api/did",
+    "braid/runtimes/common/authorities",
+    "braid/runtimes/base",
+    "braid/runtimes/base/constants",
+    "braid/runtimes/plus",
+    "braid/runtimes/plus/constants",
+    "utilities",
+    "braid/test-utils",
+    "braid/test-utils/cli",
+    "braid/test-utils/client",
+    "braid/test-utils/runtime",
+    "braid/test-utils/runtime/client",
+    "braid/test-utils/runtime/transaction-pool",
+    "braid/test-utils/service",
+    "loom",
+    "loom/cli",
+    "loom/node/service",
+    "loom/rpc",
+    "loom/runtime",
+    # "weave/constants",
+    # "weave/runtime",
+    "weave/runtime/constants",
+    "weave/runtime/coretime",
+    "weave/runtime/asset-hub",
+    # "weave/runtime/parachain",
+    "weave/node",
 ]
 default-members = ["braid/node/cli"]
 
@@ -126,6 +127,7 @@ pyroscope = { version = "0.5.7" }
 pyroscope_pprofrs = { version = "0.2.7" }
 schnellru = { version = "0.2.1" }
 separator = { version = "0.4.1" }
+wait-timeout = { version = "0.2" }
 
 # local dependencies
 authority-membership = { path = "braid/runtimes/common/authorities", default-features = false }
@@ -161,7 +163,7 @@ cord-weave-system-parachains-constants = { path = "weave/runtime/constants", def
 cord-weave-asset-hub-primitives = { path = "weave/runtime/asset-hub/primitives", default-features = false }
 cord-weave-asset-hub-runtime = { path = "weave/runtime/asset-hub", default-features = false }
 cord-weave-coretime-runtime = { path = "weave/runtime/coretime", default-features = false }
-cord-weave-test-runtime = { path = "weave/runtime", default-features = false }
+# cord-weave-parachain-runtime = { path = "weave/runtime/parachain", default-features = false }
 
 pallet-config = { path = 'pallets/config/', default-features = false }
 pallet-did = { path = 'pallets/did', default-features = false }
@@ -301,6 +303,8 @@ cumulus-client-consensus-aura = { git = "https://github.com/dhiway/substrate-sdk
 cumulus-client-consensus-common = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.17.0" }
 cumulus-client-consensus-proposer = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.15.0" }
 cumulus-client-service = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.17.0" }
+cumulus-client-consensus-relay-chain = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.17.0" }
+cumulus-client-parachain-inherent = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.11.0" }
 cumulus-primitives-core = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.15.0" }
 cumulus-primitives-parachain-inherent = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.15.0" }
 cumulus-relay-chain-interface = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.17.0" }

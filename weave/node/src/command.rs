@@ -1,45 +1,147 @@
-// This file is part of CORD – https://cord.network
+// Copyright (C) Parity Technologies (UK) Ltd.
+// This file is part of Cumulus.
 
-// Copyright (C) Dhiway Networks Pvt. Ltd.
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-// CORD is free software: you can redistribute it and/or modify
+// Cumulus is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// CORD is distributed in the hope that it will be useful,
+// Cumulus is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+// along with Cumulus.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::net::SocketAddr;
-
-use cord_weave_test_runtime::Block;
+#[cfg(feature = "runtime-benchmarks")]
+use crate::service::Block;
+use crate::{
+	chain_spec,
+	chain_spec::{AssetHubLoomChainSpec, GenericChainSpec},
+	cli::{Cli, RelayChainCli, Subcommand},
+	common::NodeExtraArgs,
+	fake_runtime_api::{
+		asset_hub_loom_aura::RuntimeApi as AssetHubLoomRuntimeApi,
+		aura::RuntimeApi as AuraRuntimeApi,
+	},
+	service::{new_aura_node_spec, DynNodeSpec, ShellNode},
+};
+#[cfg(feature = "runtime-benchmarks")]
 use cumulus_client_service::storage_proof_size::HostFunctions as ReclaimHostFunctions;
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
 use log::info;
+use parachains_common::{AssetHubPolkadotAuraId, AuraId};
 use sc_cli::{
 	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
 	NetworkParams, Result, SharedParams, SubstrateCli,
 };
 use sc_service::config::{BasePath, PrometheusConfig};
+use sp_runtime::traits::AccountIdConversion;
+#[cfg(feature = "runtime-benchmarks")]
+use sp_runtime::traits::HashingFor;
+use std::{net::SocketAddr, path::PathBuf};
 
-use crate::{
-	chain_spec,
-	cli::{Cli, RelayChainCli, Subcommand},
-	service::new_partial,
-};
+/// The choice of consensus for the parachain omni-node.
+#[derive(PartialEq, Eq, Debug, Default)]
+pub enum Consensus {
+	/// Aura consensus.
+	#[default]
+	Aura,
+	/// Use the relay chain consensus.
+	// TODO: atm this is just a demonstration, not really reach-able. We can add it to the CLI,
+	// env, or the chain spec. Or, just don't, and when we properly refactor this mess we will
+	// re-introduce it.
+	#[allow(unused)]
+	Relay,
+}
+
+/// Helper enum that is used for better distinction of different parachain/runtime configuration
+/// (it is based/calculated on ChainSpec's ID attribute)
+#[derive(Debug, PartialEq)]
+enum Runtime {
+	Omni(Consensus),
+	AssetHub,
+	Coretime(chain_spec::coretime::CoretimeRuntimeType),
+}
+
+trait RuntimeResolver {
+	fn runtime(&self) -> Result<Runtime>;
+}
+
+impl RuntimeResolver for dyn ChainSpec {
+	fn runtime(&self) -> Result<Runtime> {
+		Ok(runtime(self.id()))
+	}
+}
+
+/// Implementation, that can resolve [`Runtime`] from any json configuration file
+impl RuntimeResolver for PathBuf {
+	fn runtime(&self) -> Result<Runtime> {
+		#[derive(Debug, serde::Deserialize)]
+		struct EmptyChainSpecWithId {
+			id: String,
+		}
+
+		let file = std::fs::File::open(self)?;
+		let reader = std::io::BufReader::new(file);
+		let chain_spec: EmptyChainSpecWithId =
+			serde_json::from_reader(reader).map_err(|e| sc_cli::Error::Application(Box::new(e)))?;
+
+		Ok(runtime(&chain_spec.id))
+	}
+}
+
+fn runtime(id: &str) -> Runtime {
+	let id = id.replace('_', "-");
+	// let (_, id, para_id) = extract_parachain_id(&id);
+
+	if id.starts_with("loom-asset-hub") | id.starts_with("asset-hub-loom") {
+		Runtime::AssetHub
+	} else if id.starts_with(chain_spec::coretime::CoretimeRuntimeType::ID_PREFIX) {
+		Runtime::Coretime(
+			id.parse::<chain_spec::coretime::CoretimeRuntimeType>().expect("Invalid value"),
+		)
+	} else {
+		log::warn!(
+			"No specific runtime was recognized for ChainSpec's id: '{}', \
+			so Runtime::Omni(Consensus::Aura) will be used",
+			id
+		);
+		Runtime::Omni(Consensus::Aura)
+	}
+}
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
+	// let (id, _, para_id) = extract_parachain_id(id);
 	Ok(match id {
-		"dev" => Box::new(chain_spec::development_config()),
-		"" | "local" => Box::new(chain_spec::local_testnet_config()),
-		path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+		// -- Asset Hub
+		"loom-asset-hub-dev" => {
+			Box::new(chain_spec::asset_hub::asset_hub_loom_development_config()) as Box<_>
+		},
+		"loom-asset-hub-local" => {
+			Box::new(chain_spec::asset_hub::asset_hub_loom_local_testnet_config())
+		},
+		// -- Coretime
+		coretime_like_id
+			if coretime_like_id
+				.starts_with(chain_spec::coretime::CoretimeRuntimeType::ID_PREFIX) =>
+		{
+			coretime_like_id
+				.parse::<chain_spec::coretime::CoretimeRuntimeType>()
+				.expect("invalid value")
+				.load_config()?
+		},
+
+		// // -- Fallback (generic chainspec)
+		// "" => {
+		// 	log::warn!("No ChainSpec.id specified, so using default one, based on weave-test-runtime runtime");
+		// 	Box::new(chain_spec::test_runtime::weave_test_parachain_local_config())
+		// },
+
+		// -- Loading a specific spec from disk
+		path => Box::new(GenericChainSpec::from_json_file(path.into())?),
 	})
 }
 
@@ -53,7 +155,15 @@ impl SubstrateCli for Cli {
 	}
 
 	fn description() -> String {
-		env!("CARGO_PKG_DESCRIPTION").into()
+		format!(
+			"The command-line arguments provided first will be passed to the parachain node, \n\
+			and the arguments provided after -- will be passed to the relay chain node. \n\
+			\n\
+			Example: \n\
+			\n\
+			{} [parachain-args] -- [relay-chain-args]",
+			Self::executable_name()
+		)
 	}
 
 	fn author() -> String {
@@ -68,50 +178,54 @@ impl SubstrateCli for Cli {
 		2019
 	}
 
-	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		load_spec(id)
 	}
 }
 
 impl SubstrateCli for RelayChainCli {
 	fn impl_name() -> String {
-		"Dhiway CORD Weave".into()
+		Cli::impl_name()
 	}
 
 	fn impl_version() -> String {
-		env!("SUBSTRATE_CLI_IMPL_VERSION").into()
+		Cli::impl_version()
 	}
 
 	fn description() -> String {
-		env!("CARGO_PKG_DESCRIPTION").into()
+		Cli::description()
 	}
 
 	fn author() -> String {
-		env!("CARGO_PKG_AUTHORS").into()
+		Cli::author()
 	}
 
 	fn support_url() -> String {
-		"https://github.com/dhiway/cord/issues/new".into()
+		Cli::support_url()
 	}
 
 	fn copyright_start_year() -> i32 {
-		2019
+		Cli::copyright_start_year()
 	}
 
-	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		cord_loom_node_cli::Cli::from_iter([RelayChainCli::executable_name()].iter()).load_spec(id)
 	}
 }
 
-macro_rules! construct_async_run {
-	(|$components:ident, $cli:ident, $cmd:ident, $config:ident| $( $code:tt )* ) => {{
-		let runner = $cli.create_runner($cmd)?;
-		runner.async_run(|$config| {
-			let $components = new_partial(&$config)?;
-			let task_manager = $components.task_manager;
-			{ $( $code )* }.map(|v| (v, task_manager))
-		})
-	}}
+fn new_node_spec(
+	config: &sc_service::Configuration,
+	extra_args: NodeExtraArgs,
+) -> std::result::Result<Box<dyn DynNodeSpec>, sc_cli::Error> {
+	Ok(match config.chain_spec.runtime()? {
+		Runtime::AssetHub | Runtime::Coretime(_) => {
+			new_aura_node_spec::<AuraRuntimeApi, AuraId>(extra_args)
+		},
+		Runtime::Omni(consensus) => match consensus {
+			Consensus::Aura => new_aura_node_spec::<AuraRuntimeApi, AuraId>(extra_args),
+			Consensus::Relay => Box::new(ShellNode),
+		},
+	})
 }
 
 /// Parse command line arguments into service configuration.
@@ -124,39 +238,46 @@ pub fn run() -> Result<()> {
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
 		},
 		Some(Subcommand::CheckBlock(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config| {
-				Ok(cmd.run(components.client, components.import_queue))
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let node = new_node_spec(&config, cli.node_extra_args())?;
+				node.prepare_check_block_cmd(config, cmd)
 			})
 		},
 		Some(Subcommand::ExportBlocks(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config| {
-				Ok(cmd.run(components.client, config.database))
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let node = new_node_spec(&config, cli.node_extra_args())?;
+				node.prepare_export_blocks_cmd(config, cmd)
 			})
 		},
 		Some(Subcommand::ExportState(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config| {
-				Ok(cmd.run(components.client, config.chain_spec))
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let node = new_node_spec(&config, cli.node_extra_args())?;
+				node.prepare_export_state_cmd(config, cmd)
 			})
 		},
 		Some(Subcommand::ImportBlocks(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config| {
-				Ok(cmd.run(components.client, components.import_queue))
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let node = new_node_spec(&config, cli.node_extra_args())?;
+				node.prepare_import_blocks_cmd(config, cmd)
 			})
 		},
 		Some(Subcommand::Revert(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config| {
-				Ok(cmd.run(components.client, components.backend, None))
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let node = new_node_spec(&config, cli.node_extra_args())?;
+				node.prepare_revert_cmd(config, cmd)
 			})
 		},
 		Some(Subcommand::PurgeChain(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
+			let cord_loom_node_cli =
+				RelayChainCli::new(runner.config(), cli.relay_chain_args.iter());
 
 			runner.sync_run(|config| {
-				let cord_loom_node_cli = RelayChainCli::new(
-					&config,
-					[RelayChainCli::executable_name()].iter().chain(cli.relay_chain_args.iter()),
-				);
-
 				let cord_loom_config = SubstrateCli::create_configuration(
 					&cord_loom_node_cli,
 					&cord_loom_node_cli,
@@ -170,9 +291,8 @@ pub fn run() -> Result<()> {
 		Some(Subcommand::ExportGenesisHead(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| {
-				let partials = new_partial(&config)?;
-
-				cmd.run(partials.client)
+				let node = new_node_spec(&config, cli.node_extra_args())?;
+				node.run_export_genesis_head_cmd(config, cmd)
 			})
 		},
 		Some(Subcommand::ExportGenesisWasm(cmd)) => {
@@ -184,43 +304,39 @@ pub fn run() -> Result<()> {
 		},
 		Some(Subcommand::Benchmark(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
+
 			// Switch on the concrete benchmark sub-command-
 			match cmd {
-				BenchmarkCmd::Pallet(cmd) =>
-					if cfg!(feature = "runtime-benchmarks") {
-						runner.sync_run(|config| cmd.run_with_spec::<sp_runtime::traits::HashingFor<Block>, ReclaimHostFunctions>(Some(config.chain_spec)))
-					} else {
-						Err("Benchmarking wasn't enabled when building the node. \
-					You can enable it with `--features runtime-benchmarks`."
-							.into())
-					},
-				BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
-					let partials = new_partial(&config)?;
-					cmd.run(partials.client)
+				#[cfg(feature = "runtime-benchmarks")]
+				BenchmarkCmd::Pallet(cmd) => runner.sync_run(|config| {
+					cmd.run_with_spec::<HashingFor<Block>, ReclaimHostFunctions>(Some(
+						config.chain_spec,
+					))
 				}),
-				#[cfg(not(feature = "runtime-benchmarks"))]
-				BenchmarkCmd::Storage(_) => Err(sc_cli::Error::Input(
-					"Compile with --features=runtime-benchmarks \
-						to enable storage benchmarks."
-						.into(),
-				)),
+				BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
+					let node = new_node_spec(&config, cli.node_extra_args())?;
+					node.run_benchmark_block_cmd(config, cmd)
+				}),
 				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
-					let partials = new_partial(&config)?;
-					let db = partials.backend.expose_db();
-					let storage = partials.backend.expose_storage();
-					cmd.run(config, partials.client.clone(), db, storage)
+					let node = new_node_spec(&config, cli.node_extra_args())?;
+					node.run_benchmark_storage_cmd(config, cmd)
 				}),
-				BenchmarkCmd::Machine(cmd) =>
-					runner.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())),
-				// NOTE: this allows the Client to leniently implement
-				// new benchmark commands without requiring a companion MR.
+				BenchmarkCmd::Machine(cmd) => {
+					runner.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()))
+				},
 				#[allow(unreachable_patterns)]
-				_ => Err("Benchmarking sub-command unsupported".into()),
+				_ => Err("Benchmarking sub-command unsupported or compilation feature missing. \
+					Make sure to compile with --features=runtime-benchmarks \
+					to enable all supported benchmarks."
+					.into()),
 			}
 		},
+		Some(Subcommand::Key(cmd)) => Ok(cmd.run(&cli)?),
 		None => {
 			let runner = cli.create_runner(&cli.run.normalize())?;
+			let cord_loom_node_cli =
+				RelayChainCli::new(runner.config(), cli.relay_chain_args.iter());
 			let collator_options = cli.run.collator_options();
 
 			runner.run_node_until_exit(|config| async move {
@@ -233,14 +349,14 @@ pub fn run() -> Result<()> {
 
 				let para_id = chain_spec::Extensions::try_get(&*config.chain_spec)
 					.map(|e| e.para_id)
-					.ok_or("Could not find parachain ID in chain-spec.")?;
-
-				let cord_loom_node_cli = RelayChainCli::new(
-					&config,
-					[RelayChainCli::executable_name()].iter().chain(cli.relay_chain_args.iter()),
-				);
+					.ok_or("Could not find parachain extension in chain-spec.")?;
 
 				let id = ParaId::from(para_id);
+
+				let parachain_account =
+					AccountIdConversion::<polkadot_primitives::AccountId>::into_account_truncating(
+						&id,
+					);
 
 				let tokio_handle = config.tokio_handle.clone();
 				let cord_loom_config = SubstrateCli::create_configuration(
@@ -250,21 +366,38 @@ pub fn run() -> Result<()> {
 				)
 				.map_err(|err| format!("Relay chain argument error: {}", err))?;
 
-				info!("Is collating: {}", if config.role.is_authority() { "yes" } else { "no" });
+				info!("🪪 Parachain id: {:?}", id);
+				info!("🧾 Parachain Account: {}", parachain_account);
+				info!("✍️ Is collating: {}", if config.role.is_authority() { "yes" } else { "no" });
 
-				crate::service::start_parachain_node(
+				start_node(
 					config,
 					cord_loom_config,
 					collator_options,
 					id,
+					cli.node_extra_args(),
 					hwbench,
 				)
 				.await
-				.map(|r| r.0)
-				.map_err(Into::into)
 			})
 		},
 	}
+}
+
+#[sc_tracing::logging::prefix_logs_with("Parachain")]
+async fn start_node(
+	config: sc_service::Configuration,
+	cord_loom_config: sc_service::Configuration,
+	collator_options: cumulus_client_cli::CollatorOptions,
+	id: ParaId,
+	extra_args: NodeExtraArgs,
+	hwbench: Option<sc_sysinfo::HwBench>,
+) -> Result<sc_service::TaskManager> {
+	let node_spec = new_node_spec(&config, extra_args)?;
+	node_spec
+		.start_node(config, cord_loom_config, collator_options, id, hwbench)
+		.await
+		.map_err(Into::into)
 }
 
 impl DefaultConfigurationValues for RelayChainCli {
@@ -327,7 +460,7 @@ impl CliConfiguration<Self> for RelayChainCli {
 	where
 		F: FnOnce(&mut sc_cli::LoggerBuilder, &sc_service::Configuration),
 	{
-		unreachable!("CordLoomCli is never initialized; qed");
+		unreachable!("LoomCli is never initialized; qed");
 	}
 
 	fn chain_id(&self, is_dev: bool) -> Result<String> {
@@ -389,5 +522,74 @@ impl CliConfiguration<Self> for RelayChainCli {
 
 	fn node_name(&self) -> Result<String> {
 		self.base.base.node_name()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use crate::{
+		chain_spec::{get_account_id_from_seed, get_from_seed},
+		command::{Consensus, Runtime, RuntimeResolver},
+	};
+	use sc_chain_spec::{ChainSpec, ChainSpecExtension, ChainSpecGroup, ChainType, Extension};
+	use serde::{Deserialize, Serialize};
+	use sp_core::sr25519;
+	use std::path::PathBuf;
+	use tempfile::TempDir;
+
+	#[derive(
+		Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension, Default,
+	)]
+	#[serde(deny_unknown_fields)]
+	pub struct Extensions1 {
+		pub attribute1: String,
+		pub attribute2: u32,
+	}
+
+	#[derive(
+		Debug, Clone, PartialEq, Serialize, Deserialize, ChainSpecGroup, ChainSpecExtension, Default,
+	)]
+	#[serde(deny_unknown_fields)]
+	pub struct Extensions2 {
+		pub attribute_x: String,
+		pub attribute_y: String,
+		pub attribute_z: u32,
+	}
+
+	fn store_configuration(dir: &TempDir, spec: &dyn ChainSpec) -> PathBuf {
+		let raw_output = true;
+		let json = sc_service::chain_ops::build_spec(spec, raw_output)
+			.expect("Failed to build json string");
+		let mut cfg_file_path = dir.path().to_path_buf();
+		cfg_file_path.push(spec.id());
+		cfg_file_path.set_extension("json");
+		std::fs::write(&cfg_file_path, json).expect("Failed to write to json file");
+		cfg_file_path
+	}
+
+	pub type DummyChainSpec<E> = sc_service::GenericChainSpec<E>;
+
+	pub fn create_default_with_extensions<E: Extension>(
+		id: &str,
+		extension: E,
+	) -> DummyChainSpec<E> {
+		DummyChainSpec::builder(
+			cord_weave_test_runtime::WASM_BINARY
+				.expect("WASM binary was not built, please build it!"),
+			extension,
+		)
+		.with_name("Dummy local testnet")
+		.with_id(id)
+		.with_chain_type(ChainType::Local)
+		.with_genesis_config_patch(crate::chain_spec::test_runtime::testnet_genesis(
+			get_account_id_from_seed::<sr25519::Public>("Alice"),
+			vec![
+				get_from_seed::<rococo_parachain_runtime::AuraId>("Alice"),
+				get_from_seed::<rococo_parachain_runtime::AuraId>("Bob"),
+			],
+			vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+			1000.into(),
+		))
+		.build()
 	}
 }
