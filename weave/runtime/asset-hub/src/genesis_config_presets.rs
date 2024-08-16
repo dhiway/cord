@@ -76,7 +76,7 @@ pub fn asset_hub_loom_local_testnet_genesis(para_id: ParaId) -> serde_json::Valu
 	)
 }
 
-fn asset_hub_loom_development_genesis(para_id: ParaId) -> serde_json::Value {
+pub fn asset_hub_loom_development_genesis(para_id: ParaId) -> serde_json::Value {
 	asset_hub_loom_local_testnet_genesis(para_id)
 }
 

@@ -2598,6 +2598,7 @@ dependencies = [
  "pallet-nfts-runtime-api",
  "pallet-proxy",
  "pallet-session",
+ "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
@@ -2711,26 +2712,41 @@ dependencies = [
 name = "cord-weave-node-cli"
 version = "0.9.3"
 dependencies = [
+ "assert_cmd",
+ "async-trait",
  "clap 4.5.15",
  "color-print",
  "cord-loom-node-cli",
- "cord-weave-test-runtime",
+ "cord-loom-service",
+ "cord-weave-asset-hub-runtime",
+ "cord-weave-coretime-runtime",
+ "cord-weave-system-parachains-constants",
  "cumulus-client-cli",
  "cumulus-client-collator",
  "cumulus-client-consensus-aura",
  "cumulus-client-consensus-common",
  "cumulus-client-consensus-proposer",
+ "cumulus-client-consensus-relay-chain",
+ "cumulus-client-parachain-inherent",
  "cumulus-client-service",
+ "cumulus-primitives-aura",
  "cumulus-primitives-core",
- "cumulus-primitives-parachain-inherent",
  "cumulus-relay-chain-interface",
  "docify",
  "frame-benchmarking",
  "frame-benchmarking-cli",
+ "frame-support",
+ "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
  "futures",
+ "hex-literal",
  "jsonrpsee",
  "log",
+ "nix 0.28.0",
+ "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "parachains-common",
  "parity-scale-codec",
  "polkadot-primitives",
  "sc-basic-authorship",
@@ -2741,7 +2757,6 @@ dependencies = [
  "sc-executor",
  "sc-network",
  "sc-network-sync",
- "sc-offchain",
  "sc-rpc",
  "sc-service",
  "sc-sysinfo",
@@ -2756,14 +2771,26 @@ dependencies = [
  "sp-blockchain",
  "sp-consensus-aura",
  "sp-core",
+ "sp-genesis-builder",
+ "sp-inherents",
  "sp-io",
  "sp-keystore",
+ "sp-offchain",
  "sp-runtime",
+ "sp-session",
+ "sp-std",
  "sp-timestamp",
+ "sp-tracing",
+ "sp-transaction-pool",
+ "sp-version",
  "staging-xcm",
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
+ "substrate-state-trie-migration-rpc",
+ "tempfile",
+ "tokio",
+ "wait-timeout",
 ]
 
 [[package]]
@@ -2780,68 +2807,6 @@ dependencies = [
  "sp-runtime",
  "sp-std",
  "staging-xcm",
-]
-
-[[package]]
-name = "cord-weave-test-runtime"
-version = "0.9.3"
-dependencies = [
- "async-trait",
- "clap 4.5.15",
- "color-print",
- "cumulus-pallet-aura-ext",
- "cumulus-pallet-parachain-system",
- "cumulus-pallet-session-benchmarking",
- "cumulus-pallet-xcm",
- "cumulus-pallet-xcmp-queue",
- "cumulus-primitives-aura",
- "cumulus-primitives-core",
- "cumulus-primitives-storage-weight-reclaim",
- "cumulus-primitives-utility",
- "docify",
- "frame-benchmarking",
- "frame-executive",
- "frame-metadata-hash-extension",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "frame-try-runtime",
- "hex-literal",
- "log",
- "pallet-aura",
- "pallet-authorship",
- "pallet-balances",
- "pallet-collator-selection",
- "pallet-message-queue",
- "pallet-session",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-xcm",
- "parachains-common",
- "parity-scale-codec",
- "polkadot-parachain-primitives",
- "polkadot-runtime-common",
- "scale-info",
- "smallvec",
- "sp-api",
- "sp-block-builder",
- "sp-consensus-aura",
- "sp-core",
- "sp-genesis-builder",
- "sp-inherents",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-transaction-pool",
- "sp-version",
- "staging-parachain-info",
- "staging-xcm",
- "staging-xcm-builder",
- "staging-xcm-executor",
- "substrate-wasm-builder",
 ]
 
 [[package]]
@@ -3251,6 +3216,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "cumulus-client-consensus-relay-chain"
+version = "0.17.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
+dependencies = [
+ "async-trait",
+ "cumulus-client-consensus-common",
+ "cumulus-primitives-core",
+ "cumulus-relay-chain-interface",
+ "futures",
+ "parking_lot 0.12.3",
+ "sc-consensus",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-consensus",
+ "sp-core",
+ "sp-inherents",
+ "sp-runtime",
+ "substrate-prometheus-endpoint",
+ "tracing",
+]
+
+[[package]]
 name = "cumulus-client-network"
 version = "0.17.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
@@ -3531,22 +3519,6 @@ dependencies = [
  "sp-externalities",
  "sp-runtime-interface",
  "sp-trie",
-]
-
-[[package]]
-name = "cumulus-primitives-storage-weight-reclaim"
-version = "7.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.0#4df7280a94911f8b0e0a72d082cdd5f03c7e908c"
-dependencies = [
- "cumulus-primitives-core",
- "cumulus-primitives-proof-size-hostfunction",
- "docify",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
 ]
 
 [[package]]

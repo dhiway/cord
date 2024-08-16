@@ -19,4 +19,4 @@ id = 1000
 [parachains.collator]
 name = "charlie"
 ws_port = 9988
-command = "cord-weave"
+command = "weave"

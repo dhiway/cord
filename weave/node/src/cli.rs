@@ -1,27 +1,31 @@
-// This file is part of CORD – https://cord.network
+// Copyright (C) Parity Technologies (UK) Ltd.
+// This file is part of Cumulus.
 
-// Copyright (C) Dhiway Networks Pvt. Ltd.
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-// CORD is free software: you can redistribute it and/or modify
+// Cumulus is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// CORD is distributed in the hope that it will be useful,
+// Cumulus is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+// along with Cumulus.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::common::NodeExtraArgs;
+use clap::{Command, CommandFactory, FromArgMatches};
+use sc_cli::SubstrateCli;
 use std::path::PathBuf;
 
 /// Sub-commands supported by the collator.
-#[allow(clippy::large_enum_variant)]
 #[derive(Debug, clap::Subcommand)]
 pub enum Subcommand {
+	/// Key management CLI utilities
+	#[command(subcommand)]
+	Key(sc_cli::KeySubcommand),
+
 	/// Build a chain specification.
 	BuildSpec(sc_cli::BuildSpecCmd),
 
@@ -43,9 +47,7 @@ pub enum Subcommand {
 	/// Remove the whole chain.
 	PurgeChain(cumulus_client_cli::PurgeChainCmd),
 
-	/// Export the genesis head data of the parachain.
-	///
-	/// Head data is the encoded block header.
+	/// Export the genesis state of the parachain.
 	#[command(alias = "export-genesis-state")]
 	ExportGenesisHead(cumulus_client_cli::ExportGenesisHeadCommand),
 
@@ -58,31 +60,25 @@ pub enum Subcommand {
 	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
 }
 
-const AFTER_HELP_EXAMPLE: &str = color_print::cstr!(
-	r#"<bold><underline>Examples:</></>
-   <bold>cord-weave build-spec --disable-default-bootnode > plain-weavechain-chainspec.json</>
-           Export a chainspec for a local testnet in json format.
-   <bold>cored-weave --chain plain-weavechain-chainspec.json --tmp -- --chain loom-local</>
-           Launch a full node with chain specification loaded from plain-weavechain-chainspec.json.
-   <bold>cord-weave</>
-           Launch a full node with default weavechain <italic>local-testnet</> and relay chain <italic>loom-local</>.
-   <bold>cord-weave --collator</>
-           Launch a collator with default weavechain <italic>local-testnet</> and relay chain <italic>loom-local</>.
- "#
-);
 #[derive(Debug, clap::Parser)]
 #[command(
 	propagate_version = true,
 	args_conflicts_with_subcommands = true,
-	subcommand_negates_reqs = true
+	subcommand_negates_reqs = true,
+	after_help = crate::examples(Self::executable_name())
 )]
-#[clap(after_help = AFTER_HELP_EXAMPLE)]
 pub struct Cli {
 	#[command(subcommand)]
 	pub subcommand: Option<Subcommand>,
 
 	#[command(flatten)]
 	pub run: cumulus_client_cli::RunCmd,
+
+	/// EXPERIMENTAL: Use slot-based collator which can handle elastic scaling.
+	///
+	/// Use with care, this flag is unstable and subject to change.
+	#[arg(long)]
+	pub experimental_use_slot_based: bool,
 
 	/// Disable automatic hardware benchmarks.
 	///
@@ -99,6 +95,12 @@ pub struct Cli {
 	pub relay_chain_args: Vec<String>,
 }
 
+impl Cli {
+	pub(crate) fn node_extra_args(&self) -> NodeExtraArgs {
+		NodeExtraArgs { use_slot_based_consensus: self.experimental_use_slot_based }
+	}
+}
+
 #[derive(Debug)]
 pub struct RelayChainCli {
 	/// The actual relay chain cli object.
@@ -112,18 +114,32 @@ pub struct RelayChainCli {
 }
 
 impl RelayChainCli {
-	/// Parse the relay chain CLI parameters using the para chain `Configuration`.
+	fn loom_cmd() -> Command {
+		let help_template = color_print::cformat!(
+			"The arguments that are passed to the relay chain node. \n\
+			\n\
+			<bold><underline>RELAY_CHAIN_ARGS:</></> \n\
+			{{options}}",
+		);
+
+		cord_loom_node_cli::RunCmd::command()
+			.no_binary_name(true)
+			.help_template(help_template)
+	}
+
+	/// Parse the relay chain CLI parameters using the parachain `Configuration`.
 	pub fn new<'a>(
 		para_config: &sc_service::Configuration,
 		relay_chain_args: impl Iterator<Item = &'a String>,
 	) -> Self {
+		let loom_cmd = Self::loom_cmd();
+		let matches = loom_cmd.get_matches_from(relay_chain_args);
+		let base = FromArgMatches::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+
 		let extension = crate::chain_spec::Extensions::try_get(&*para_config.chain_spec);
 		let chain_id = extension.map(|e| e.relay_chain.clone());
-		let base_path = para_config.base_path.path().join("cord-loom");
-		Self {
-			base_path: Some(base_path),
-			chain_id,
-			base: clap::Parser::parse_from(relay_chain_args),
-		}
+
+		let base_path = para_config.base_path.path().join("loom");
+		Self { base, chain_id, base_path: Some(base_path) }
 	}
 }

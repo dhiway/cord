@@ -22,14 +22,15 @@ xcm = { workspace = true }
 
 [features]
 default = ["std"]
+no_std = []
 std = [
-	"frame-support/std",
-	"cord-loom-runtime-constants/std",
-	"parachains-common/std",
-	"polkadot-core-primitives/std",
-	"polkadot-primitives/std",
-	"sp-core/std",
-	"sp-runtime/std",
-	"sp-std/std",
-	"xcm/std",
+    "frame-support/std",
+    "cord-loom-runtime-constants/std",
+    "parachains-common/std",
+    "polkadot-core-primitives/std",
+    "polkadot-primitives/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "xcm/std",
 ]
