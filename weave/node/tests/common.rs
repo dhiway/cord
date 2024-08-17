@@ -1,18 +1,20 @@
-// Copyright (C) Parity Technologies (UK) Ltd.
-// This file is part of Substrate.
+// This file is part of CORD – https://cord.network
 
-// Substrate is free software: you can redistribute it and/or modify
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Substrate is distributed in the hope that it will be useful,
+// CORD is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Cumulus.  If not, see <http://www.gnu.org/licenses/>.
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg(unix)]
 
@@ -43,7 +45,7 @@ pub fn wait_for(child: &mut Child, secs: u64) -> Result<ExitStatus, ()> {
 			let result = wait_timeout::ChildExt::wait_timeout(child, Duration::from_secs(secs - 5))
 				.map_err(|_| ())?;
 			if let Some(exit_status) = result {
-				return Ok(exit_status)
+				return Ok(exit_status);
 			}
 		}
 		eprintln!("Took too long to exit (> {} seconds). Killing...", secs);
@@ -56,7 +58,7 @@ pub fn wait_for(child: &mut Child, secs: u64) -> Result<ExitStatus, ()> {
 /// Run the node for a while (till the RPC is up + 30 secs)
 /// TODO: needs to be revisited to hit the RPC
 pub async fn run_node_for_a_while(base_path: &Path, args: &[&str], signal: Signal) {
-	let mut cmd = Command::new(cargo_bin("polkadot-parachain"))
+	let mut cmd = Command::new(cargo_bin("loom"))
 		.stdout(process::Stdio::piped())
 		.stderr(process::Stdio::piped())
 		.arg("-d")

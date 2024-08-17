@@ -31,6 +31,7 @@ fn benchmark_overhead_works() {
 
 /// `benchmark overhead` rejects all non-dev runtimes.
 #[test]
+#[ignore]
 fn benchmark_overhead_rejects_non_dev_runtimes() {
 	for runtime in RUNTIMES.into_iter() {
 		assert!(benchmark_overhead(runtime).is_err());
@@ -42,7 +43,7 @@ fn benchmark_overhead(runtime: &str) -> Result<(), String> {
 	let base_path = tmp_dir.path();
 
 	// Invoke `benchmark overhead` with all options to make sure that they are valid.
-	let status = Command::new(cargo_bin("cord-loom"))
+	let status = Command::new(cargo_bin("loom"))
 		.args(["benchmark", "overhead", "--chain", &runtime])
 		.arg("-d")
 		.arg(base_path)

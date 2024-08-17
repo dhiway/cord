@@ -38,16 +38,15 @@ name = "bob"
 validator = true
 command = "./target/release/weave"
 args = ["-lparachain=debug"]
-ws_port = 9999
 
-# [[parachains]]
-# id = 1001
-# chain = "cord-weave-coretime-dev"
-# cumulus_based = true
+[[parachains]]
+id = 1001
+chain = "loom-coretime-local"
+cumulus_based = true
 
-# # run alice as parachain collator
-# [[parachains.collators]]
-# name = "alice"
-# validator = true
-# command = "./target/release/weave"
-# args = ["-lparachain=debug, --force-authoring"]
+# run alice as parachain collator
+[[parachains.collators]]
+name = "alice"
+validator = true
+command = "./target/release/weave"
+args = ["-lparachain=debug"]

@@ -1,5 +1,5 @@
 [[bin]]
-name = "cord-loom"
+name = "loom"
 path = "src/main.rs"
 
 [[bin]]
@@ -17,7 +17,7 @@ license.workspace = true
 authors.workspace = true
 edition.workspace = true
 version = "16.0.0"
-default-run = "cord-loom"
+default-run = "loom"
 
 [lints]
 workspace = true

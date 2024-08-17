@@ -1,17 +1,20 @@
-// Copyright (C) Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
+// This file is part of CORD – https://cord.network
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::*;
 
@@ -65,7 +68,7 @@ pub mod tx_payment {
 			_tip: Self::Balance,
 		) -> Result<Self::LiquidityInfo, TransactionValidityError> {
 			if fee.is_zero() {
-				return Ok(None)
+				return Ok(None);
 			}
 
 			match F::withdraw(
@@ -191,7 +194,7 @@ pub mod tx_payment {
 				Err((credit_in, _)) => {
 					// The swap should not error since the price quote was successful.
 					let _ = T::Assets::resolve(who, credit_in).defensive();
-					return Err(InvalidTransaction::Payment.into())
+					return Err(InvalidTransaction::Payment.into());
 				},
 			};
 
@@ -216,8 +219,8 @@ pub mod tx_payment {
 			};
 			// Try to refund if the fee paid is more than the corrected fee and the account was not
 			// removed by the dispatched function.
-			let (fee, fee_in_asset) = if fee_paid.peek() > corrected_fee &&
-				!T::Assets::total_balance(asset_id.clone(), who).is_zero()
+			let (fee, fee_in_asset) = if fee_paid.peek() > corrected_fee
+				&& !T::Assets::total_balance(asset_id.clone(), who).is_zero()
 			{
 				let refund_amount = fee_paid.peek().saturating_sub(corrected_fee);
 				// Check if the refund amount can be swapped back into the asset used by `who` for
@@ -267,8 +270,9 @@ pub mod tx_payment {
 						// The error should not occur since swap was quoted before.
 						Err((refund, _)) => {
 							match T::Assets::settle(who, debt, Preservation::Expendable) {
-								Ok(dust) =>
-									ensure!(dust.peek().is_zero(), InvalidTransaction::Payment),
+								Ok(dust) => {
+									ensure!(dust.peek().is_zero(), InvalidTransaction::Payment)
+								},
 								// The error should not occur as the `debt` was just withdrawn
 								// above.
 								Err(_) => return Err(InvalidTransaction::Payment.into()),

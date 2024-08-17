@@ -39,7 +39,7 @@ fn benchmark_storage_works() {
 
 /// Invoke the `benchmark storage` sub-command.
 fn benchmark_storage(db: &str, base_path: &Path) -> ExitStatus {
-	Command::new(cargo_bin("cord-loom"))
+	Command::new(cargo_bin("loom"))
 		.args(["benchmark", "storage", "--dev"])
 		.arg("--db")
 		.arg(db)

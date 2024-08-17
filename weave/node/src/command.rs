@@ -1,30 +1,29 @@
-// Copyright (C) Parity Technologies (UK) Ltd.
-// This file is part of Cumulus.
+// This file is part of CORD – https://cord.network
 
-// Cumulus is free software: you can redistribute it and/or modify
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Cumulus is distributed in the hope that it will be useful,
+// CORD is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Cumulus.  If not, see <http://www.gnu.org/licenses/>.
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 #[cfg(feature = "runtime-benchmarks")]
 use crate::service::Block;
 use crate::{
 	chain_spec,
-	chain_spec::{AssetHubLoomChainSpec, GenericChainSpec},
+	chain_spec::GenericChainSpec,
 	cli::{Cli, RelayChainCli, Subcommand},
 	common::NodeExtraArgs,
-	fake_runtime_api::{
-		asset_hub_loom_aura::RuntimeApi as AssetHubLoomRuntimeApi,
-		aura::RuntimeApi as AuraRuntimeApi,
-	},
+	fake_runtime_api::aura::RuntimeApi as AuraRuntimeApi,
 	service::{new_aura_node_spec, DynNodeSpec, ShellNode},
 };
 #[cfg(feature = "runtime-benchmarks")]
@@ -32,7 +31,7 @@ use cumulus_client_service::storage_proof_size::HostFunctions as ReclaimHostFunc
 use cumulus_primitives_core::ParaId;
 use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
 use log::info;
-use parachains_common::{AssetHubPolkadotAuraId, AuraId};
+use parachains_common::AuraId;
 use sc_cli::{
 	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
 	NetworkParams, Result, SharedParams, SubstrateCli,
@@ -63,7 +62,7 @@ pub enum Consensus {
 enum Runtime {
 	Omni(Consensus),
 	AssetHub,
-	Coretime(chain_spec::coretime::CoretimeRuntimeType),
+	Coretime,
 }
 
 trait RuntimeResolver {
@@ -95,14 +94,11 @@ impl RuntimeResolver for PathBuf {
 
 fn runtime(id: &str) -> Runtime {
 	let id = id.replace('_', "-");
-	// let (_, id, para_id) = extract_parachain_id(&id);
 
 	if id.starts_with("loom-asset-hub") | id.starts_with("asset-hub-loom") {
 		Runtime::AssetHub
-	} else if id.starts_with(chain_spec::coretime::CoretimeRuntimeType::ID_PREFIX) {
-		Runtime::Coretime(
-			id.parse::<chain_spec::coretime::CoretimeRuntimeType>().expect("Invalid value"),
-		)
+	} else if id.starts_with("loom-asset-hub") | id.starts_with("asset-hub-loom") {
+		Runtime::Coretime
 	} else {
 		log::warn!(
 			"No specific runtime was recognized for ChainSpec's id: '{}', \
@@ -114,7 +110,6 @@ fn runtime(id: &str) -> Runtime {
 }
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
-	// let (id, _, para_id) = extract_parachain_id(id);
 	Ok(match id {
 		// -- Asset Hub
 		"loom-asset-hub-dev" => {
@@ -124,22 +119,12 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 			Box::new(chain_spec::asset_hub::asset_hub_loom_local_testnet_config())
 		},
 		// -- Coretime
-		coretime_like_id
-			if coretime_like_id
-				.starts_with(chain_spec::coretime::CoretimeRuntimeType::ID_PREFIX) =>
-		{
-			coretime_like_id
-				.parse::<chain_spec::coretime::CoretimeRuntimeType>()
-				.expect("invalid value")
-				.load_config()?
+		"loom-coretime-dev" => {
+			Box::new(chain_spec::coretime::coretime_loom_development_config()) as Box<_>
 		},
-
-		// // -- Fallback (generic chainspec)
-		// "" => {
-		// 	log::warn!("No ChainSpec.id specified, so using default one, based on weave-test-runtime runtime");
-		// 	Box::new(chain_spec::test_runtime::weave_test_parachain_local_config())
-		// },
-
+		"loom-coretime-local" => {
+			Box::new(chain_spec::coretime::coretime_loom_local_testnet_config())
+		},
 		// -- Loading a specific spec from disk
 		path => Box::new(GenericChainSpec::from_json_file(path.into())?),
 	})
@@ -218,7 +203,7 @@ fn new_node_spec(
 	extra_args: NodeExtraArgs,
 ) -> std::result::Result<Box<dyn DynNodeSpec>, sc_cli::Error> {
 	Ok(match config.chain_spec.runtime()? {
-		Runtime::AssetHub | Runtime::Coretime(_) => {
+		Runtime::AssetHub | Runtime::Coretime => {
 			new_aura_node_spec::<AuraRuntimeApi, AuraId>(extra_args)
 		},
 		Runtime::Omni(consensus) => match consensus {
@@ -528,8 +513,11 @@ impl CliConfiguration<Self> for RelayChainCli {
 #[cfg(test)]
 mod tests {
 	use crate::{
-		chain_spec::{get_account_id_from_seed, get_from_seed},
+		// chain_spec::{get_account_id_from_seed, get_from_seed},
 		command::{Consensus, Runtime, RuntimeResolver},
+	};
+	use cord_weave_system_parachains_constants::genesis_presets::{
+		get_account_id_from_seed, get_from_seed,
 	};
 	use sc_chain_spec::{ChainSpec, ChainSpecExtension, ChainSpecGroup, ChainType, Extension};
 	use serde::{Deserialize, Serialize};
@@ -574,22 +562,27 @@ mod tests {
 		extension: E,
 	) -> DummyChainSpec<E> {
 		DummyChainSpec::builder(
-			cord_weave_test_runtime::WASM_BINARY
+			cord_weave_asset_hub_runtime::WASM_BINARY
 				.expect("WASM binary was not built, please build it!"),
 			extension,
 		)
 		.with_name("Dummy local testnet")
 		.with_id(id)
 		.with_chain_type(ChainType::Local)
-		.with_genesis_config_patch(crate::chain_spec::test_runtime::testnet_genesis(
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			vec![
-				get_from_seed::<rococo_parachain_runtime::AuraId>("Alice"),
-				get_from_seed::<rococo_parachain_runtime::AuraId>("Bob"),
-			],
-			vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-			1000.into(),
-		))
+		.with_genesis_config_patch(
+			cord_weave_asset_hub_runtime::genesis_config_presets::asset_hub_loom_development_genesis(
+				1000.into(),
+			),
+		)
+		// .with_genesis_config_patch(crate::chain_spec::asset_hub::testnet_genesis(
+		// 	get_account_id_from_seed::<sr25519::Public>("Alice"),
+		// 	vec![
+		// 		get_from_seed::<rococo_parachain_runtime::AuraId>("Alice"),
+		// 		get_from_seed::<rococo_parachain_runtime::AuraId>("Bob"),
+		// 	],
+		// 	vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+		// 	1000.into(),
+		// ))
 		.build()
 	}
 }
