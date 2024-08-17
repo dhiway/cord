@@ -55,7 +55,7 @@ async fn benchmark_block_works() {
 
 /// Builds a chain with one block for the given runtime and base path.
 async fn build_chain(runtime: &str, base_path: &Path) {
-	let mut cmd = Command::new(cargo_bin("cord-loom"))
+	let mut cmd = Command::new(cargo_bin("loom"))
 		.stdout(process::Stdio::piped())
 		.stderr(process::Stdio::piped())
 		.args([
@@ -83,7 +83,7 @@ async fn build_chain(runtime: &str, base_path: &Path) {
 /// Benchmarks the given block with the wasm executor.
 fn benchmark_block(runtime: &str, base_path: &Path, block: u32) -> Result<(), String> {
 	// Invoke `benchmark block` with all options to make sure that they are valid.
-	let status = Command::new(cargo_bin("cord-loom"))
+	let status = Command::new(cargo_bin("loom"))
 		.args(["benchmark", "block", "--chain", runtime])
 		.arg("-d")
 		.arg(base_path)

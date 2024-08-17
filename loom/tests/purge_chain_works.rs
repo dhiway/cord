@@ -35,7 +35,7 @@ async fn purge_chain_rocksdb_works() {
 	run_with_timeout(Duration::from_secs(10 * 60), async move {
 		let tmpdir = tempdir().expect("could not create temp dir");
 
-		let mut cmd = Command::new(cargo_bin("cord-loom"))
+		let mut cmd = Command::new(cargo_bin("loom"))
 			.stdout(process::Stdio::piped())
 			.stderr(process::Stdio::piped())
 			.args(["--dev", "-d"])
@@ -59,7 +59,7 @@ async fn purge_chain_rocksdb_works() {
 		assert!(tmpdir.path().join("chains/loom_dev/db/full").exists());
 
 		// Purge chain
-		let status = Command::new(cargo_bin("cord-loom"))
+		let status = Command::new(cargo_bin("loom"))
 			.args(["purge-chain", "--dev", "-d"])
 			.arg(tmpdir.path())
 			.arg("-y")
@@ -79,7 +79,7 @@ async fn purge_chain_paritydb_works() {
 	run_with_timeout(Duration::from_secs(10 * 60), async move {
 		let tmpdir = tempdir().expect("could not create temp dir");
 
-		let mut cmd = Command::new(cargo_bin("cord-loom"))
+		let mut cmd = Command::new(cargo_bin("loom"))
 			.stdout(process::Stdio::piped())
 			.stderr(process::Stdio::piped())
 			.args(["--dev", "-d"])
@@ -103,7 +103,7 @@ async fn purge_chain_paritydb_works() {
 		assert!(tmpdir.path().join("chains/loom_dev/paritydb/full").exists());
 
 		// Purge chain
-		let status = Command::new(cargo_bin("cord-loom"))
+		let status = Command::new(cargo_bin("loom"))
 			.args(["purge-chain", "--dev", "-d"])
 			.arg(tmpdir.path())
 			.arg("--database")

@@ -64,17 +64,19 @@ impl SubstrateCli for Cli {
 	}
 
 	fn executable_name() -> String {
-		"cord-loom".into()
+		"loom".into()
 	}
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-		let id = if id.is_empty() { "cord-loom" } else { id };
+		let id = if id.is_empty() { "loom" } else { id };
 
 		Ok(match id {
-			"dev" | "loom-dev" =>
-				Box::new(cord_loom_service::chain_spec::loom_development_config()?),
-			"loom" | "loom-local" | "loom-local-testnet" =>
-				Box::new(cord_loom_service::chain_spec::loom_local_testnet_config()?),
+			"dev" | "loom-dev" => {
+				Box::new(cord_loom_service::chain_spec::loom_development_config()?)
+			},
+			"loom" | "loom-local" | "loom-local-testnet" => {
+				Box::new(cord_loom_service::chain_spec::loom_local_testnet_config()?)
+			},
 			path => {
 				let path = std::path::PathBuf::from(path);
 				let chain_spec =
@@ -206,7 +208,7 @@ pub fn run() -> Result<()> {
 		// The pyroscope agent requires a `http://` prefix, so we just do that.
 		let agent = pyroscope::PyroscopeAgent::builder(
 			"http://".to_owned() + address.to_string().as_str(),
-			"cord-loom".to_owned(),
+			"loom".to_owned(),
 		)
 		.backend(pprof_backend(PprofConfig::new().sample_rate(113)))
 		.build()?;
@@ -316,13 +318,14 @@ pub fn run() -> Result<()> {
 
 			match cmd {
 				#[cfg(not(feature = "runtime-benchmarks"))]
-				BenchmarkCmd::Storage(_) =>
+				BenchmarkCmd::Storage(_) => {
 					return Err(sc_cli::Error::Input(
 						"Compile with --features=runtime-benchmarks \
 						to enable storage benchmarks."
 							.into(),
 					)
-					.into()),
+					.into())
+				},
 				#[cfg(feature = "runtime-benchmarks")]
 				BenchmarkCmd::Storage(cmd) => runner.sync_run(|mut config| {
 					let (client, backend, _, _) =
@@ -338,7 +341,7 @@ pub fn run() -> Result<()> {
 					cmd.run(client.clone()).map_err(Error::SubstrateCli)
 				}),
 				// These commands are very similar and can be handled in nearly the same way.
-				BenchmarkCmd::Extrinsic(_) | BenchmarkCmd::Overhead(_) =>
+				BenchmarkCmd::Extrinsic(_) | BenchmarkCmd::Overhead(_) => {
 					runner.sync_run(|mut config| {
 						let (client, _, _, _) =
 							cord_loom_service::new_chain_ops(&mut config, None)?;
@@ -375,7 +378,8 @@ pub fn run() -> Result<()> {
 								.map_err(Error::SubstrateCli),
 							_ => unreachable!("Ensured by the outside match; qed"),
 						}
-					}),
+					})
+				},
 				BenchmarkCmd::Pallet(cmd) => {
 					set_default_ss58_version(chain_spec);
 

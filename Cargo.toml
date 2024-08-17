@@ -50,12 +50,9 @@ members = [
     "loom/node/service",
     "loom/rpc",
     "loom/runtime",
-    # "weave/constants",
-    # "weave/runtime",
     "weave/runtime/constants",
     "weave/runtime/coretime",
     "weave/runtime/asset-hub",
-    # "weave/runtime/parachain",
     "weave/node",
 ]
 default-members = ["braid/node/cli"]
@@ -156,14 +153,11 @@ cord-loom-rpc = { path = "loom/rpc", default-features = false }
 cord-loom-service = { path = "loom/node/service", default-features = false }
 cord-loom-runtime = { path = "loom/runtime" }
 cord-loom-runtime-constants = { path = "loom/runtime/constants", default-features = false }
-# cord-loom-test-runtime = { path = "loom/runtime/test" }
-# cord-loom-test-runtime-constants = { path = "loom/runtime/test/constants", default-features = false }
 cord-weave-node-cli = { path = "weave/node", default-features = false }
 cord-weave-system-parachains-constants = { path = "weave/runtime/constants", default-features = false }
 cord-weave-asset-hub-primitives = { path = "weave/runtime/asset-hub/primitives", default-features = false }
 cord-weave-asset-hub-runtime = { path = "weave/runtime/asset-hub", default-features = false }
 cord-weave-coretime-runtime = { path = "weave/runtime/coretime", default-features = false }
-# cord-weave-parachain-runtime = { path = "weave/runtime/parachain", default-features = false }
 
 pallet-config = { path = 'pallets/config/', default-features = false }
 pallet-did = { path = 'pallets/did', default-features = false }
@@ -180,9 +174,6 @@ pallet-assets-runtime-api = { path = "braid/runtimes/common/api/assets", default
 pallet-did-runtime-api = { path = "braid/runtimes/common/api/did", default-features = false }
 
 # substrate dependencies
-# authority-discovery-primitives = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "sp-authority-discovery", version = "34.0.0" }
-# babe-primitives = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "sp-consensus-babe", version = "0.40.0" }
-# beefy-primitives = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "sp-consensus-beefy", version = "22.0.0" }
 finality-grandpa = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.16.2" }
 fork-tree = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "13.0.0" }
 frame = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "polkadot-sdk-frame", version = "0.6.0" }
@@ -293,7 +284,6 @@ pallet-xcm = { git = "https://github.com/dhiway/substrate-sdk", default-features
 pallet-xcm-benchmarks = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "16.0.0" }
 
 substrate-prometheus-endpoint = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0" }
-# sp-cli = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0" }
 
 cumulus-client-cli = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.17.0" }
 cumulus-client-collator = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.17.0" }
@@ -324,8 +314,6 @@ pallet-asset-conversion-tx-payment = { git = "https://github.com/dhiway/substrat
 pallet-nfts = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "31.0.0" }
 pallet-nfts-runtime-api = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "23.0.0" }
 pallet-uniques = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "37.0.0" }
-# pallet-xcm-bridge-hub-router = { version = "0.13.0", default-features = false }
-# snowbridge-router-primitives = { version = "0.14.0", default-features = false }
 
 polkadot-approval-distribution = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "17.0.0" }
 polkadot-availability-bitfield-distribution = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "17.0.0" }
@@ -378,7 +366,6 @@ polkadot-test-runtime = { git = "https://github.com/dhiway/substrate-sdk", branc
 polkadot-test-service = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-sdk-v1.15.0", version = "1.0.0" }
 prometheus-endpoint = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "substrate-prometheus-endpoint", version = "0.17.0" }
 remote-externalities = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "frame-remote-externalities", version = "0.45.0" }
-# runtime-parachains = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", package = "polkadot-runtime-parachains", version = "16.0.0" }
 
 sc-allocator = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "29.0.0" }
 sc-authority-discovery = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.0", version = "0.44.0" }

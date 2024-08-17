@@ -1,29 +1,25 @@
-// Copyright (C) Parity Technologies (UK) Ltd.
-// SPDX-License-Identifier: Apache-2.0
+// This file is part of CORD – https://cord.network
 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// 	http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
 
-//! # Asset Hub Polkadot Runtime
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
+//! # Asset Hub Runtime
 //!
-//! Asset Hub Polkadot is a parachain that provides an interface to create, manage, and use assets.
+//! Asset Hub is a parachain that provides an interface to create, manage, and use assets.
 //! Assets may be fungible or non-fungible.
-//!
-//! ## Renaming
-//!
-//! This chain was originally known as "Statemint". You may see references to Statemint, Statemine,
-//! and Westmint throughout the codebase. These are synonymous with "Asset Hub Polkadot, Kusama, and
-//! Westend", respectively.
-//!
 //! ## Assets
 //!
 //! - Fungibles: Configuration of `pallet-assets`.
@@ -1363,7 +1359,7 @@ impl_runtime_apis! {
 			use pallet_xcm::benchmarking::Pallet as PalletXcmExtrinsiscsBenchmark;
 			use frame_system_benchmarking::Pallet as SystemBench;
 			use cumulus_pallet_session_benchmarking::Pallet as SessionBench;
-			use pallet_xcm_bridge_hub_router::benchmarking::Pallet as XcmBridgeHubRouterBench;
+			// use pallet_xcm_bridge_hub_router::benchmarking::Pallet as XcmBridgeHubRouterBench;
 
 			// This is defined once again in dispatch_benchmark, because list_benchmarks!
 			// and add_benchmarks! are macros exported by define_benchmarks! macros and those types
@@ -1379,7 +1375,7 @@ impl_runtime_apis! {
 			type Foreign = pallet_assets::Pallet::<Runtime, ForeignAssetsInstance>;
 			type Pool = pallet_assets::Pallet::<Runtime, PoolAssetsInstance>;
 
-			type ToKusama = XcmBridgeHubRouterBench<Runtime>;
+			// type ToKusama = XcmBridgeHubRouterBench<Runtime>;
 
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
@@ -1395,7 +1391,7 @@ impl_runtime_apis! {
 			use sp_storage::TrackedStorageKey;
 			use xcm::latest::prelude::{
 				Asset, Fungible, Here, InteriorLocation, Junction, Junction::*, Location, NetworkId,
-				NonFungible, Parent, ParentThen, Response, XCM_VERSION, Assets as XcmAssets,
+				NonFungible, Parent, ParentThen, Response,  Assets as XcmAssets,
 			};
 
 			use frame_system_benchmarking::Pallet as SystemBench;
@@ -1564,13 +1560,7 @@ impl_runtime_apis! {
 					Asset { fun: Fungible(UNITS), id: AssetId(UntLocation::get()) },
 				));
 				pub const CheckedAccount: Option<(AccountId, xcm_builder::MintLocation)> = None;
-				// AssetHubPolkadot trusts AssetHubKusama as reserve for KSMs
-				pub TrustedReserve: Option<(Location, Asset)> = Some(
-					(
-						xcm_config::bridging::to_kusama::AssetHubKusama::get(),
-						Asset::from((xcm_config::bridging::to_kusama::KsmLocation::get(), 1000000000000 as u128))
-					)
-				);
+				pub const TrustedReserve: Option<(Location, Asset)> = None;
 			}
 
 			impl pallet_xcm_benchmarks::fungible::Config for Runtime {
@@ -1579,8 +1569,7 @@ impl_runtime_apis! {
 				type CheckedAccount = CheckedAccount;
 				type TrustedTeleporter = TrustedTeleporter;
 				type TrustedReserve = TrustedReserve;
-
-				fn get_asset() -> Asset {
+				 fn get_asset() -> Asset {
 					Asset {
 						id: AssetId(UntLocation::get()),
 						fun: Fungible(UNITS),
@@ -1601,8 +1590,7 @@ impl_runtime_apis! {
 				}
 
 				fn universal_alias() -> Result<(Location, Junction), BenchmarkError> {
-					xcm_config::bridging::BridgingBenchmarksHelper::prepare_universal_alias()
-					.ok_or(BenchmarkError::Skip)
+					todo!()
 				}
 
 				fn transact_origin_and_runtime_call() -> Result<(Location, RuntimeCall), BenchmarkError> {
@@ -1641,10 +1629,10 @@ impl_runtime_apis! {
 				}
 			}
 
-			use pallet_xcm_bridge_hub_router::benchmarking::{
-				Pallet as XcmBridgeHubRouterBench,
-				Config as XcmBridgeHubRouterConfig,
-			};
+			// use pallet_xcm_bridge_hub_router::benchmarking::{
+			// 	Pallet as XcmBridgeHubRouterBench,
+			// 	Config as XcmBridgeHubRouterConfig,
+			// };
 
 
 			type XcmBalances = pallet_xcm_benchmarks::fungible::Pallet::<Runtime>;
@@ -1654,7 +1642,7 @@ impl_runtime_apis! {
 			type Foreign = pallet_assets::Pallet::<Runtime, ForeignAssetsInstance>;
 			type Pool = pallet_assets::Pallet::<Runtime, PoolAssetsInstance>;
 
-			type ToKusama = XcmBridgeHubRouterBench<Runtime, ToKusamaXcmRouterInstance>;
+			// type ToKusama = XcmBridgeHubRouterBench<Runtime, ToKusamaXcmRouterInstance>;
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -1688,7 +1676,7 @@ cumulus_pallet_parachain_system::register_validate_block! {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use cord_weave_system_parachains_constants::polkadot::fee;
+	use cord_weave_system_parachains_constants::loom::fee;
 	use sp_runtime::traits::Zero;
 	use sp_weights::WeightToFee;
 
@@ -1714,17 +1702,17 @@ mod tests {
 			base + weights::pallet_balances::WeightInfo::<Runtime>::transfer_allow_death();
 
 		let fee: Balance = fee::WeightToFee::weight_to_fee(&transfer);
-		assert!(fee <= MILLI, "{} MILLIMILLI should be at most 1000", fee / MILLIMILLI);
+		assert!(fee <= MILLI, "{} MILLI should be at most 1000", fee / MILLI);
 	}
 
 	/// Weight is being charged for both dimensions.
 	#[test]
 	fn weight_charged_for_both_components() {
-		let fee: Balance = fee::WeightToFee::weight_to_fee(&Weight::from_parts(20_000, 0));
+		let fee: Balance = fee::WeightToFee::weight_to_fee(&Weight::from_parts(10_000, 0));
 		assert!(!fee.is_zero(), "Charges for ref time");
 
-		let fee: Balance = fee::WeightToFee::weight_to_fee(&Weight::from_parts(0, 20_000));
-		assert_eq!(fee, MILLI, "20kb maps to CENT");
+		let fee: Balance = fee::WeightToFee::weight_to_fee(&Weight::from_parts(0, 10_000));
+		assert_eq!(fee, MILLI, "10kb maps to MILLI");
 	}
 
 	/// Filling up a block by proof size is at most 30 times more expensive than ref time.
@@ -1745,17 +1733,9 @@ mod tests {
 	}
 
 	#[test]
-	fn test_transasction_byte_fee_is_one_twentieth_of_relay() {
-		let relay_tbf = polkadot_runtime_constants::fee::TRANSACTION_BYTE_FEE;
+	fn test_transasction_byte_fee_is_one_tenth_of_relay() {
+		let relay_tbf = cord_loom_runtime_constants::fee::TRANSACTION_BYTE_FEE;
 		let parachain_tbf = TransactionByteFee::get();
-		assert_eq!(relay_tbf / 20, parachain_tbf);
-	}
-
-	#[test]
-	fn create_foreign_asset_deposit_is_equal_to_asset_hub_foreign_asset_pallet_deposit() {
-		assert_eq!(
-			bp_asset_hub_polkadot::CreateForeignAssetDeposit::get(),
-			ForeignAssetsAssetDeposit::get()
-		);
+		assert_eq!(relay_tbf / 10, parachain_tbf);
 	}
 }

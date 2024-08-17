@@ -26,7 +26,7 @@ async fn running_the_node_works_and_can_be_interrupted() {
 
 	let base_dir = tempdir().expect("could not create a temp dir");
 
-	let args = &["--", "--chain=rococo-local"];
+	let args = &["--", "--chain=loom-local"];
 
 	common::run_node_for_a_while(base_dir.path(), args, SIGINT).await;
 	common::run_node_for_a_while(base_dir.path(), args, SIGTERM).await;

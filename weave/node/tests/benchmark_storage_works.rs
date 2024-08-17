@@ -1,18 +1,20 @@
-// Copyright (C) Parity Technologies (UK) Ltd.
-// This file is part of Substrate.
+// This file is part of CORD – https://cord.network
 
-// Substrate is free software: you can redistribute it and/or modify
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Substrate is distributed in the hope that it will be useful,
+// CORD is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Cumulus.  If not, see <http://www.gnu.org/licenses/>.
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg(feature = "runtime-benchmarks")]
 
@@ -24,7 +26,7 @@ use std::{
 use tempfile::tempdir;
 
 /// The runtimes that this command supports.
-static RUNTIMES: [&str; 1] = ["asset-hub-westend"];
+static RUNTIMES: [&str; 1] = ["loom-asset-hub"];
 
 /// The `benchmark storage` command works for the dev runtimes.
 #[test]
@@ -46,7 +48,7 @@ fn benchmark_storage_works() {
 
 /// Invoke the `benchmark storage` sub-command for the given database and runtime.
 fn benchmark_storage(db: &str, runtime: &str, base_path: &Path) -> ExitStatus {
-	Command::new(cargo_bin("polkadot-parachain"))
+	Command::new(cargo_bin("loom"))
 		.args(["benchmark", "storage", "--chain", runtime])
 		.arg("--db")
 		.arg(db)
