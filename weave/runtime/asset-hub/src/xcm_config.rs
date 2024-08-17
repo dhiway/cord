@@ -477,12 +477,14 @@ impl pallet_assets::BenchmarkHelper<xcm::v3::Location> for XcmBenchmarkHelper {
 // 	parameter_types! {
 // 		/// Base price of every Polkadot -> Kusama message. Can be adjusted via
 // 		/// governance `set_storage` call.
-// 		pub storage XcmBridgeHubRouterBaseFee: Balance = bp_bridge_hub_polkadot::estimate_polkadot_to_kusama_message_fee(
+// 		pub storage XcmBridgeHubRouterBaseFee: Balance =
+// bp_bridge_hub_polkadot::estimate_polkadot_to_kusama_message_fee(
 // 			bp_bridge_hub_kusama::BridgeHubKusamaBaseDeliveryFeeInKsms::get()
 // 		);
 // 		/// Price of every byte of the Polkadot -> Kusama message. Can be adjusted via
 // 		/// governance `set_storage` call.
-// 		pub storage XcmBridgeHubRouterByteFee: Balance = bp_bridge_hub_polkadot::estimate_polkadot_to_kusama_byte_fee();
+// 		pub storage XcmBridgeHubRouterByteFee: Balance =
+// bp_bridge_hub_polkadot::estimate_polkadot_to_kusama_byte_fee();
 
 // 		pub SiblingBridgeHubParaId: u32 = bp_bridge_hub_polkadot::BRIDGE_HUB_POLKADOT_PARACHAIN_ID;
 // 		pub SiblingBridgeHub: Location = Location::new(1, Parachain(SiblingBridgeHubParaId::get()));
@@ -526,13 +528,13 @@ impl pallet_assets::BenchmarkHelper<xcm::v3::Location> for XcmBenchmarkHelper {
 // 			);
 
 // 			/// Set up exporters configuration.
-// 			/// `Option<Asset>` represents static "base fee" which is used for total delivery fee calculation.
-// 			pub BridgeTable: sp_std::vec::Vec<NetworkExportTableItem> = sp_std::vec![
+// 			/// `Option<Asset>` represents static "base fee" which is used for total delivery fee
+// calculation. 			pub BridgeTable: sp_std::vec::Vec<NetworkExportTableItem> = sp_std::vec![
 // 				NetworkExportTableItem::new(
 // 					KusamaNetwork::get(),
 // 					Some(sp_std::vec![
-// 						AssetHubKusama::get().interior.split_global().expect("invalid configuration for AssetHubPolkadot").1,
-// 					]),
+// 						AssetHubKusama::get().interior.split_global().expect("invalid configuration for
+// AssetHubPolkadot").1, 					]),
 // 					SiblingBridgeHub::get(),
 // 					// base delivery fee to local `BridgeHub`
 // 					Some((
@@ -589,8 +591,8 @@ impl pallet_assets::BenchmarkHelper<xcm::v3::Location> for XcmBenchmarkHelper {
 // 			);
 
 // 			/// Set up exporters configuration.
-// 			/// `Option<MultiAsset>` represents static "base fee" which is used for total delivery fee calculation.
-// 			pub BridgeTable: sp_std::vec::Vec<NetworkExportTableItem> = sp_std::vec![
+// 			/// `Option<MultiAsset>` represents static "base fee" which is used for total delivery fee
+// calculation. 			pub BridgeTable: sp_std::vec::Vec<NetworkExportTableItem> = sp_std::vec![
 // 				NetworkExportTableItem::new(
 // 					EthereumNetwork::get(),
 // 					Some(sp_std::vec![Junctions::Here]),
@@ -605,8 +607,8 @@ impl pallet_assets::BenchmarkHelper<xcm::v3::Location> for XcmBenchmarkHelper {
 // 			/// Universal aliases
 // 			pub UniversalAliases: BTreeSet<(Location, Junction)> = BTreeSet::from_iter(
 // 				sp_std::vec![
-// 					(SiblingBridgeHubWithEthereumInboundQueueInstance::get(), GlobalConsensus(EthereumNetwork::get())),
-// 				]
+// 					(SiblingBridgeHubWithEthereumInboundQueueInstance::get(),
+// GlobalConsensus(EthereumNetwork::get())), 				]
 // 			);
 // 		}
 

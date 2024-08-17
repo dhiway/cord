@@ -219,8 +219,8 @@ pub mod tx_payment {
 			};
 			// Try to refund if the fee paid is more than the corrected fee and the account was not
 			// removed by the dispatched function.
-			let (fee, fee_in_asset) = if fee_paid.peek() > corrected_fee
-				&& !T::Assets::total_balance(asset_id.clone(), who).is_zero()
+			let (fee, fee_in_asset) = if fee_paid.peek() > corrected_fee &&
+				!T::Assets::total_balance(asset_id.clone(), who).is_zero()
 			{
 				let refund_amount = fee_paid.peek().saturating_sub(corrected_fee);
 				// Check if the refund amount can be swapped back into the asset used by `who` for

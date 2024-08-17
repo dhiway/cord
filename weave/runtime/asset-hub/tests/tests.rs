@@ -29,8 +29,8 @@ use cord_weave_asset_hub_runtime::{
 	ForeignAssetsInstance, ParachainSystem, Runtime, RuntimeEvent, SessionKeys,
 	TrustBackedAssetsInstance, XcmpQueue, SLOT_DURATION,
 };
-use cord_weave_system_parachains_constants::{
-	loom::consensus::RELAY_CHAIN_SLOT_DURATION_MILLIS, loom::fee::WeightToFee,
+use cord_weave_system_parachains_constants::loom::{
+	consensus::RELAY_CHAIN_SLOT_DURATION_MILLIS, fee::WeightToFee,
 };
 use frame_support::{assert_ok, traits::fungibles::InspectEnumerable};
 use parachains_common::{AccountId, AssetIdForTrustBackedAssets, AuraId, Balance};
