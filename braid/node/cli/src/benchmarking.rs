@@ -124,7 +124,7 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for RemarkBuilder {
 		// We apply the extrinsic directly, so let's take some random period.
 		let period = 128;
 		let genesis = self.client.usage_info().chain.best_hash;
-		let signer = Sr25519Keyring::Bob.pair();
+		let signer = Sr25519Keyring::Alice.pair();
 		let current_block = 0;
 
 		identify_chain! {
@@ -169,7 +169,7 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
 	}
 
 	fn build(&self, nonce: u32) -> std::result::Result<OpaqueExtrinsic, &'static str> {
-		let signer = Sr25519Keyring::Bob.pair();
+		let signer = Sr25519Keyring::Alice.pair();
 		// We apply the extrinsic directly, so let's take some random period.
 		let period = 128;
 		let genesis = self.client.usage_info().chain.best_hash;

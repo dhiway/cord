@@ -1082,23 +1082,23 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			),
 			ProxyType::Governance => matches!(
 				c,
-				RuntimeCall::Treasury(..) |
-					RuntimeCall::Utility(..) |
-					RuntimeCall::ConvictionVoting(..) |
-					RuntimeCall::Referenda(..) |
-					RuntimeCall::FellowshipCollective(..) |
-					RuntimeCall::FellowshipReferenda(..) |
-					RuntimeCall::Whitelist(..)
+				RuntimeCall::Treasury(..)
+					| RuntimeCall::Utility(..)
+					| RuntimeCall::ConvictionVoting(..)
+					| RuntimeCall::Referenda(..)
+					| RuntimeCall::FellowshipCollective(..)
+					| RuntimeCall::FellowshipReferenda(..)
+					| RuntimeCall::Whitelist(..)
 			),
 			ProxyType::Staking => {
 				matches!(
 					c,
-					RuntimeCall::Staking(..) |
-						RuntimeCall::Session(..) |
-						RuntimeCall::Utility(..) |
-						RuntimeCall::FastUnstake(..) |
-						RuntimeCall::VoterList(..) |
-						RuntimeCall::NominationPools(..)
+					RuntimeCall::Staking(..)
+						| RuntimeCall::Session(..)
+						| RuntimeCall::Utility(..)
+						| RuntimeCall::FastUnstake(..)
+						| RuntimeCall::VoterList(..)
+						| RuntimeCall::NominationPools(..)
 				)
 			},
 			ProxyType::NominationPools => {
@@ -1109,10 +1109,10 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			},
 			ProxyType::Auction => matches!(
 				c,
-				RuntimeCall::Auctions(..) |
-					RuntimeCall::Crowdloan(..) |
-					RuntimeCall::Registrar(..) |
-					RuntimeCall::Slots(..)
+				RuntimeCall::Auctions(..)
+					| RuntimeCall::Crowdloan(..)
+					| RuntimeCall::Registrar(..)
+					| RuntimeCall::Slots(..)
 			),
 		}
 	}
@@ -2715,8 +2715,8 @@ mod test_fees {
 		};
 
 		let mut active = target_voters;
-		while weight_with(active).all_lte(OffchainSolutionWeightLimit::get()) ||
-			active == target_voters
+		while weight_with(active).all_lte(OffchainSolutionWeightLimit::get())
+			|| active == target_voters
 		{
 			active += 1;
 		}
@@ -2829,8 +2829,8 @@ mod multiplier_tests {
 	#[test]
 	fn multiplier_can_grow_from_zero() {
 		let minimum_multiplier = MinimumMultiplier::get();
-		let target = TargetBlockFullness::get() *
-			BlockWeights::get().get(DispatchClass::Normal).max_total.unwrap();
+		let target = TargetBlockFullness::get()
+			* BlockWeights::get().get(DispatchClass::Normal).max_total.unwrap();
 		// if the min is too small, then this will not change, and we are doomed forever.
 		// the weight is 1/100th bigger than target.
 		run_with_system_weight(target.saturating_mul(101) / 100, || {
@@ -2935,124 +2935,5 @@ mod multiplier_tests {
 			});
 			blocks += 1;
 		}
-	}
-}
-
-#[cfg(all(test, feature = "try-runtime"))]
-#[ignore]
-mod remote_tests {
-	use super::*;
-	use frame_try_runtime::{runtime_decl_for_try_runtime::TryRuntime, UpgradeCheckSelect};
-	use remote_externalities::{
-		Builder, Mode, OfflineConfig, OnlineConfig, RemoteExternalities, SnapshotConfig, Transport,
-	};
-	use std::env::var;
-
-	async fn remote_ext_test_setup() -> RemoteExternalities<Block> {
-		let transport: Transport =
-			var("WS").unwrap_or("wss://rpc.loom.cord.network:443".to_string()).into();
-		let maybe_state_snapshot: Option<SnapshotConfig> = var("SNAP").map(|s| s.into()).ok();
-		Builder::<Block>::default()
-			.mode(if let Some(state_snapshot) = maybe_state_snapshot {
-				Mode::OfflineOrElseOnline(
-					OfflineConfig { state_snapshot: state_snapshot.clone() },
-					OnlineConfig {
-						transport,
-						state_snapshot: Some(state_snapshot),
-						..Default::default()
-					},
-				)
-			} else {
-				Mode::Online(OnlineConfig { transport, ..Default::default() })
-			})
-			.build()
-			.await
-			.unwrap()
-	}
-
-	#[tokio::test]
-	async fn dispatch_all_proposals() {
-		if var("RUN_OPENGOV_TEST").is_err() {
-			return;
-		}
-
-		sp_tracing::try_init_simple();
-		let mut ext = remote_ext_test_setup().await;
-		ext.execute_with(|| {
-			type Ref = pallet_referenda::ReferendumInfoOf<Runtime, ()>;
-			type RefStatus = pallet_referenda::ReferendumStatusOf<Runtime, ()>;
-			use sp_runtime::traits::Dispatchable;
-			let all_refs: Vec<(u32, RefStatus)> =
-				pallet_referenda::ReferendumInfoFor::<Runtime>::iter()
-					.filter_map(|(idx, reff): (_, Ref)| {
-						if let Ref::Ongoing(ref_status) = reff {
-							Some((idx, ref_status))
-						} else {
-							None
-						}
-					})
-					.collect::<Vec<_>>();
-
-			for (ref_index, referenda) in all_refs {
-				log::info!(target: LOG_TARGET, "🚀 executing referenda #{}", ref_index);
-				let RefStatus { origin, proposal, .. } = referenda;
-				// we do more or less what the scheduler will do under the hood, as best as we can
-				// imitate:
-				let (call, _len) = match <
-					<Runtime as pallet_scheduler::Config>::Preimages
-					as
-					frame_support::traits::QueryPreimage
-				>::peek(&proposal) {
-					Ok(x) => x,
-					Err(e) => {
-						log::error!(target: LOG_TARGET, "failed to get preimage: {:?}", e);
-						continue;
-					}
-				};
-
-				let dispatch_result = call.dispatch(origin.clone().into());
-				log::info!(target: LOG_TARGET, "outcome of dispatch with origin {:?}: {:?}", origin, dispatch_result);
-			}
-		});
-	}
-
-	#[tokio::test]
-	async fn run_migrations() {
-		if var("RUN_MIGRATION_TESTS").is_err() {
-			return;
-		}
-
-		sp_tracing::try_init_simple();
-		let mut ext = remote_ext_test_setup().await;
-		ext.execute_with(|| Runtime::on_runtime_upgrade(UpgradeCheckSelect::PreAndPost));
-	}
-
-	#[tokio::test]
-	#[ignore = "this test is meant to be executed manually"]
-	async fn try_fast_unstake_all() {
-		sp_tracing::try_init_simple();
-		let transport: Transport =
-			var("WS").unwrap_or("wss://rpc.loom.cord.network:443".to_string()).into();
-		let maybe_state_snapshot: Option<SnapshotConfig> = var("SNAP").map(|s| s.into()).ok();
-		let mut ext = Builder::<Block>::default()
-			.mode(if let Some(state_snapshot) = maybe_state_snapshot {
-				Mode::OfflineOrElseOnline(
-					OfflineConfig { state_snapshot: state_snapshot.clone() },
-					OnlineConfig {
-						transport,
-						state_snapshot: Some(state_snapshot),
-						..Default::default()
-					},
-				)
-			} else {
-				Mode::Online(OnlineConfig { transport, ..Default::default() })
-			})
-			.build()
-			.await
-			.unwrap();
-		ext.execute_with(|| {
-			pallet_fast_unstake::ErasToCheckPerBlock::<Runtime>::put(1);
-			polkadot_runtime_common::try_runtime::migrate_all_inactive_nominators::<Runtime>()
-		});
 	}
 }

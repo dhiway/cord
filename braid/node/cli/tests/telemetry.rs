@@ -19,9 +19,10 @@
 use assert_cmd::cargo::cargo_bin;
 use std::{process, time::Duration};
 
+mod common;
 use crate::common::KillChildOnDrop;
 
-use cord_braid_cli_test_utils as common;
+// use cord_braid_cli_test_utils as common;
 pub mod websocket_server;
 
 #[tokio::test]

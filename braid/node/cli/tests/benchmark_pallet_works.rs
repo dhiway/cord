@@ -20,23 +20,29 @@
 use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 
+// use std::process::Command;
+static RUNTIMES: &[&str] = &["base", "plus"];
+
 /// `benchmark pallet` works for the different combinations of `steps` and
 /// `repeat`.
 #[test]
-// #[ignore]
 fn benchmark_pallet_works() {
-	// Some invalid combinations:
-	benchmark_pallet(0, 10, false);
-	benchmark_pallet(1, 10, false);
-	// ... and some valid:
-	benchmark_pallet(2, 1, true);
-	benchmark_pallet(50, 20, true);
-	benchmark_pallet(20, 50, true);
+	for runtime in RUNTIMES {
+		let runtime = format!("dev-braid-{}", runtime);
+
+		// Some invalid combinations:
+		benchmark_pallet(&runtime, 0, 10, false);
+		benchmark_pallet(&runtime, 1, 10, false);
+		// ... and some valid:
+		benchmark_pallet(&runtime, 2, 1, true);
+		benchmark_pallet(&runtime, 50, 20, true);
+		benchmark_pallet(&runtime, 20, 50, true);
+	}
 }
 
-fn benchmark_pallet(steps: u32, repeat: u32, should_work: bool) {
+fn benchmark_pallet(runtime: &str, steps: u32, repeat: u32, should_work: bool) {
 	let status = Command::new(cargo_bin("cord"))
-		.args(["benchmark", "pallet", "--dev"])
+		.args(["benchmark", "pallet", "--chain", runtime])
 		// Use the `addition` benchmark since is the fastest.
 		.args(["--pallet", "frame-benchmarking", "--extrinsic", "addition"])
 		.args(["--steps", &format!("{}", steps), "--repeat", &format!("{}", repeat)])

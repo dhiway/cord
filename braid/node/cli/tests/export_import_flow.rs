@@ -19,10 +19,11 @@
 #![cfg(unix)]
 
 use assert_cmd::cargo::cargo_bin;
-use cord_braid_cli_test_utils as common;
+// use cord_braid_cli_test_utils as common;
 use regex::Regex;
 use std::{fs, path::PathBuf, process::Command};
 use tempfile::{tempdir, TempDir};
+mod common;
 
 fn contains_error(logged_output: &str) -> bool {
 	logged_output.contains("Error")

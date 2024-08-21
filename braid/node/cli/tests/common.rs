@@ -15,178 +15,215 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-
-use codec::{Decode, Encode};
-use frame_support::Hashable;
-use frame_system::offchain::AppCrypto;
-use sc_executor::error::Result;
-use sp_consensus_babe::{
-	digests::{PreDigest, SecondaryPlainPreDigest},
-	Slot, BABE_ENGINE_ID,
+#[allow(unused_imports)]
+use cord_primitives::{Hash, Header};
+use std::{
+	io::{BufRead, BufReader, Read},
+	ops::{Deref, DerefMut},
+	path::{Path, PathBuf},
+	process::{self, Child, Command},
+	time::Duration,
 };
-use sp_core::{
-	crypto::KeyTypeId,
-	sr25519::Signature,
-	traits::{CallContext, CodeExecutor, RuntimeCode},
+use substrate_rpc_client::{ws_client, ChainApi};
+
+use assert_cmd::cargo::cargo_bin;
+use nix::{
+	sys::signal::{kill, Signal, Signal::SIGINT},
+	unistd::Pid,
 };
-use sp_runtime::{
-	traits::{BlakeTwo256, Header as HeaderT},
-	ApplyExtrinsicResult, Digest, DigestItem, MultiSignature, MultiSigner,
-};
-use sp_state_machine::TestExternalities as CoreTestExternalities;
+use regex::Regex;
 
-use cord_braid_node_testing::keyring::*;
-use cord_braid_plus_runtime::{
-	Block, BuildStorage, CheckedExtrinsic, Header, Runtime, UncheckedExtrinsic,
-};
-use cord_braid_plus_runtime_constants::currency::*;
-use cord_primitives::{BlockNumber, Hash};
+/// Read the WS address from the output.
+///
+/// This is hack to get the actual bound sockaddr because
+/// polkadot assigns a random port if the specified port was already bound.
+///
+/// You must call
+/// `Command::new("cmd").stdout(process::Stdio::piped()).stderr(process::Stdio::piped())`
+/// for this to work.
+#[allow(dead_code)]
+pub fn find_ws_url_from_output(read: impl Read + Send) -> (String, String) {
+	let mut data = String::new();
 
-use cord_braid_node_cli::service::RuntimeExecutor;
-use sp_externalities::Externalities;
+	let ws_url = BufReader::new(read)
+		.lines()
+		.find_map(|line| {
+			let line = line.expect("failed to obtain next line from stdout for port discovery");
 
-pub const TEST_KEY_TYPE_ID: KeyTypeId = KeyTypeId(*b"test");
+			data.push_str(&line);
 
-pub mod sr25519 {
-	mod app_sr25519 {
-		use super::super::TEST_KEY_TYPE_ID;
-		use sp_application_crypto::{app_crypto, sr25519};
-		app_crypto!(sr25519, TEST_KEY_TYPE_ID);
+			// does the line contain our port (we expect this specific output from substrate).
+			let sock_addr = match line.split_once("Running JSON-RPC server: addr=") {
+				None => return None,
+				Some((_, after)) => after.split_once(',').unwrap().0,
+			};
+
+			Some(format!("ws://{}", sock_addr))
+		})
+		.unwrap_or_else(|| panic!("Could not find address in process output:\n{}", &data));
+	(ws_url, data)
+}
+
+/// Run the given `future` and panic if the `timeout` is hit.
+pub async fn run_with_timeout(timeout: Duration, future: impl futures::Future<Output = ()>) {
+	tokio::time::timeout(timeout, future).await.expect("Hit timeout");
+}
+
+/// Wait for at least n blocks to be finalized from a specified node
+#[allow(dead_code)]
+pub async fn wait_n_finalized_blocks(n: usize, url: &str) {
+	// use substrate_rpc_client::{ws_client, ChainApi};
+
+	let mut built_blocks = std::collections::HashSet::new();
+	let block_duration = Duration::from_secs(2);
+	let mut interval = tokio::time::interval(block_duration);
+	let rpc = ws_client(url).await.unwrap();
+
+	loop {
+		if let Ok(block) = ChainApi::<(), Hash, Header, ()>::finalized_head(&rpc).await {
+			built_blocks.insert(block);
+			if built_blocks.len() > n {
+				break;
+			}
+		};
+		interval.tick().await;
+	}
+}
+
+/// Run the node for a while (3 blocks)
+#[allow(dead_code)]
+pub async fn run_node_for_a_while(base_path: &Path, args: &[&str]) {
+	run_with_timeout(Duration::from_secs(60 * 10), async move {
+		let mut cmd = Command::new(cargo_bin("cord"))
+			.stdout(process::Stdio::piped())
+			.stderr(process::Stdio::piped())
+			.args(args)
+			.arg("-d")
+			.arg(base_path)
+			.spawn()
+			.unwrap();
+
+		let stderr = cmd.stderr.take().unwrap();
+
+		let mut child = KillChildOnDrop(cmd);
+
+		let ws_url = extract_info_from_output(stderr).0.ws_url;
+
+		// Let it produce some blocks.
+		wait_n_finalized_blocks(3, &ws_url).await;
+
+		child.assert_still_running();
+
+		// Stop the process
+		child.stop();
+	})
+	.await
+}
+
+pub struct KillChildOnDrop(pub Child);
+
+impl KillChildOnDrop {
+	/// Stop the child and wait until it is finished.
+	///
+	/// Asserts if the exit status isn't success.
+	pub fn stop(&mut self) {
+		self.stop_with_signal(SIGINT);
 	}
 
-	pub type AuthorityId = app_sr25519::Public;
-}
-
-pub struct TestAuthorityId;
-impl AppCrypto<MultiSigner, MultiSignature> for TestAuthorityId {
-	type RuntimeAppPublic = sr25519::AuthorityId;
-	type GenericSignature = Signature;
-	type GenericPublic = sp_core::sr25519::Public;
-}
-
-/// The wasm runtime code.
-///
-/// `compact` since it is after post-processing with wasm-gc which performs
-/// tree-shaking thus making the binary slimmer. There is a convention to use
-/// compact version of the runtime as canonical.
-pub fn compact_code_unwrap() -> &'static [u8] {
-	cord_braid_plus_runtime::WASM_BINARY.expect(
-		"Development wasm binary is not available. Testing is only supported with the flag \
-		 disabled.",
-	)
-}
-
-pub const GENESIS_HASH: [u8; 32] = [69u8; 32];
-
-pub const SPEC_VERSION: u32 = cord_braid_plus_runtime::VERSION.spec_version;
-
-pub const TRANSACTION_VERSION: u32 = cord_braid_plus_runtime::VERSION.transaction_version;
-
-pub type TestExternalities<H> = CoreTestExternalities<H>;
-
-pub fn sign(xt: CheckedExtrinsic) -> UncheckedExtrinsic {
-	cord_braid_node_testing::keyring::sign(xt, SPEC_VERSION, TRANSACTION_VERSION, GENESIS_HASH)
-}
-
-pub fn default_transfer_call() -> pallet_balances::Call<Runtime> {
-	pallet_balances::Call::<Runtime>::transfer_allow_death { dest: bob().into(), value: 69 * UNITS }
-}
-
-pub fn from_block_number(n: u32) -> Header {
-	Header::new(n, Default::default(), Default::default(), [69; 32].into(), Default::default())
-}
-
-pub fn executor() -> RuntimeExecutor {
-	RuntimeExecutor::builder().build()
-}
-
-pub fn executor_call(
-	t: &mut TestExternalities<BlakeTwo256>,
-	method: &str,
-	data: &[u8],
-) -> (Result<Vec<u8>>, bool) {
-	let mut t = t.ext();
-
-	let code = t.storage(sp_core::storage::well_known_keys::CODE).unwrap();
-	let heap_pages = t.storage(sp_core::storage::well_known_keys::HEAP_PAGES);
-	let runtime_code = RuntimeCode {
-		code_fetcher: &sp_core::traits::WrappedRuntimeCode(code.as_slice().into()),
-		hash: sp_crypto_hashing::blake2_256(&code).to_vec(),
-		heap_pages: heap_pages.and_then(|hp| Decode::decode(&mut &hp[..]).ok()),
-	};
-	sp_tracing::try_init_simple();
-	executor().call(&mut t, &runtime_code, method, data, CallContext::Onchain)
-}
-
-pub fn new_test_ext(code: &[u8]) -> TestExternalities<BlakeTwo256> {
-	TestExternalities::new_with_code(
-		code,
-		cord_braid_node_testing::genesis::config().build_storage().unwrap(),
-	)
-}
-
-/// Construct a fake block.
-///
-/// `extrinsics` must be a list of valid extrinsics, i.e. none of the extrinsics
-/// for example can report `ExhaustResources`. Otherwise, this function panics.
-pub fn construct_block(
-	env: &mut TestExternalities<BlakeTwo256>,
-	number: BlockNumber,
-	parent_hash: Hash,
-	extrinsics: Vec<CheckedExtrinsic>,
-	babe_slot: Slot,
-) -> (Vec<u8>, Hash) {
-	use sp_trie::{LayoutV1 as Layout, TrieConfiguration};
-
-	// sign extrinsics.
-	let extrinsics = extrinsics.into_iter().map(sign).collect::<Vec<_>>();
-
-	// calculate the header fields that we can.
-	let extrinsics_root =
-		Layout::<BlakeTwo256>::ordered_trie_root(extrinsics.iter().map(Encode::encode))
-			.to_fixed_bytes()
-			.into();
-
-	let header = Header {
-		parent_hash,
-		number,
-		extrinsics_root,
-		state_root: Default::default(),
-		digest: Digest {
-			logs: vec![DigestItem::PreRuntime(
-				BABE_ENGINE_ID,
-				PreDigest::SecondaryPlain(SecondaryPlainPreDigest {
-					slot: babe_slot,
-					authority_index: 42,
-				})
-				.encode(),
-			)],
-		},
-	};
-
-	// execute the block to get the real header.
-	executor_call(env, "Core_initialize_block", &header.encode()).0.unwrap();
-
-	for extrinsic in extrinsics.iter() {
-		// Try to apply the `extrinsic`. It should be valid, in the sense that it passes
-		// all pre-inclusion checks.
-		let r = executor_call(env, "BlockBuilder_apply_extrinsic", &extrinsic.encode())
-			.0
-			.expect("application of an extrinsic failed");
-
-		match ApplyExtrinsicResult::decode(&mut &r[..])
-			.expect("apply result deserialization failed")
-		{
-			Ok(_) => {},
-			Err(e) => panic!("Applying extrinsic failed: {:?}", e),
-		}
+	/// Same as [`Self::stop`] but takes the `signal` that is sent to stop the
+	/// child.
+	pub fn stop_with_signal(&mut self, signal: Signal) {
+		kill(Pid::from_raw(self.id().try_into().unwrap()), signal).unwrap();
+		assert!(self.wait().unwrap().success());
 	}
 
-	let header = Header::decode(
-		&mut &executor_call(env, "BlockBuilder_finalize_block", &[0u8; 0]).0.unwrap()[..],
-	)
-	.unwrap();
+	/// Asserts that the child is still running.
+	pub fn assert_still_running(&mut self) {
+		assert!(self.try_wait().unwrap().is_none(), "the process should still be running");
+	}
+}
 
-	let hash = header.blake2_256();
-	(Block { header, extrinsics }.encode(), hash.into())
+impl Drop for KillChildOnDrop {
+	fn drop(&mut self) {
+		let _ = self.0.kill();
+	}
+}
+
+impl Deref for KillChildOnDrop {
+	type Target = Child;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+impl DerefMut for KillChildOnDrop {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.0
+	}
+}
+
+/// Information extracted from a running node.
+#[allow(dead_code)]
+pub struct NodeInfo {
+	pub ws_url: String,
+	pub db_path: PathBuf,
+}
+
+/// Extract [`NodeInfo`] from a running node by parsing its output.
+///
+/// Returns the [`NodeInfo`] and all the read data.
+#[allow(dead_code)]
+pub fn extract_info_from_output(read: impl Read + Send) -> (NodeInfo, String) {
+	let mut data = String::new();
+
+	let ws_url = BufReader::new(read)
+		.lines()
+		.find_map(|line| {
+			let line = line.expect("failed to obtain next line while extracting node info");
+			data.push_str(&line);
+			data.push_str("\n");
+
+			// does the line contain our port (we expect this specific output from
+			// substrate).
+			let sock_addr = match line.split_once("Running JSON-RPC server: addr=") {
+				None => return None,
+				Some((_, after)) => after.split_once(',').unwrap().0,
+			};
+
+			Some(format!("ws://{}", sock_addr))
+		})
+		.unwrap_or_else(|| {
+			eprintln!("Observed node output:\n{}", data);
+			panic!("We should get a WebSocket address")
+		});
+
+	// Database path is printed before the ws url!
+	let re = Regex::new(r"Database: .+ at (\S+)").unwrap();
+	let db_path = PathBuf::from(re.captures(data.as_str()).unwrap().get(1).unwrap().as_str());
+
+	(NodeInfo { ws_url, db_path }, data)
+}
+
+#[allow(dead_code)]
+pub fn start_node() -> Child {
+	Command::new(cargo_bin("cord"))
+		.stdout(process::Stdio::piped())
+		.stderr(process::Stdio::piped())
+		.args(&["--dev", "--tmp", "--rpc-port=45789", "--no-hardware-benchmarks"])
+		.spawn()
+		.unwrap()
+}
+
+#[allow(dead_code)]
+pub fn start_node_inline(args: Vec<&str>) -> Result<(), sc_service::error::Error> {
+	use sc_cli::SubstrateCli;
+
+	// Prepend the args with some dummy value because the first arg is skipped.
+	let cli_call = std::iter::once("cord").chain(args);
+	let cli = cord_braid_node_cli::Cli::from_iter(cli_call);
+	let runner = cli.create_runner(&cli.run).unwrap();
+	runner.run_node_until_exit(|config| async move {
+		cord_braid_node_cli::service::new_full(config, cli)
+	})
 }
