@@ -112,19 +112,15 @@ fn runtime(id: &str) -> Runtime {
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	Ok(match id {
 		// -- Asset Hub
-		"loom-asset-hub-dev" => {
-			Box::new(chain_spec::asset_hub::asset_hub_loom_development_config()) as Box<_>
-		},
-		"loom-asset-hub-local" => {
-			Box::new(chain_spec::asset_hub::asset_hub_loom_local_testnet_config())
-		},
+		"loom-asset-hub-dev" =>
+			Box::new(chain_spec::asset_hub::asset_hub_loom_development_config()) as Box<_>,
+		"loom-asset-hub-local" =>
+			Box::new(chain_spec::asset_hub::asset_hub_loom_local_testnet_config()),
 		// -- Coretime
-		"loom-coretime-dev" => {
-			Box::new(chain_spec::coretime::coretime_loom_development_config()) as Box<_>
-		},
-		"loom-coretime-local" => {
-			Box::new(chain_spec::coretime::coretime_loom_local_testnet_config())
-		},
+		"loom-coretime-dev" =>
+			Box::new(chain_spec::coretime::coretime_loom_development_config()) as Box<_>,
+		"loom-coretime-local" =>
+			Box::new(chain_spec::coretime::coretime_loom_local_testnet_config()),
 		// -- Loading a specific spec from disk
 		path => Box::new(GenericChainSpec::from_json_file(path.into())?),
 	})
@@ -203,9 +199,8 @@ fn new_node_spec(
 	extra_args: NodeExtraArgs,
 ) -> std::result::Result<Box<dyn DynNodeSpec>, sc_cli::Error> {
 	Ok(match config.chain_spec.runtime()? {
-		Runtime::AssetHub | Runtime::Coretime => {
-			new_aura_node_spec::<AuraRuntimeApi, AuraId>(extra_args)
-		},
+		Runtime::AssetHub | Runtime::Coretime =>
+			new_aura_node_spec::<AuraRuntimeApi, AuraId>(extra_args),
 		Runtime::Omni(consensus) => match consensus {
 			Consensus::Aura => new_aura_node_spec::<AuraRuntimeApi, AuraId>(extra_args),
 			Consensus::Relay => Box::new(ShellNode),
@@ -307,9 +302,8 @@ pub fn run() -> Result<()> {
 					let node = new_node_spec(&config, cli.node_extra_args())?;
 					node.run_benchmark_storage_cmd(config, cmd)
 				}),
-				BenchmarkCmd::Machine(cmd) => {
-					runner.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()))
-				},
+				BenchmarkCmd::Machine(cmd) =>
+					runner.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())),
 				#[allow(unreachable_patterns)]
 				_ => Err("Benchmarking sub-command unsupported or compilation feature missing. \
 					Make sure to compile with --features=runtime-benchmarks \
