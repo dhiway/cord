@@ -21,8 +21,9 @@
 use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 use tempfile::tempdir;
+mod common;
 
-use cord_braid_cli_test_utils as common;
+// use cord_braid_cli_test_utils as common;
 
 #[tokio::test]
 async fn inspect_works() {

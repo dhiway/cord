@@ -100,7 +100,7 @@ pub fn start_node() -> Child {
 	Command::new(cargo_bin("cord"))
 		.stdout(process::Stdio::piped())
 		.stderr(process::Stdio::piped())
-		.args(["--dev", "--tmp", "--rpc-port=45789", "--no-hardware-benchmarks"])
+		.args(&["--dev", "--tmp", "--rpc-port=45789", "--no-hardware-benchmarks"])
 		.spawn()
 		.unwrap()
 }
@@ -140,7 +140,7 @@ pub fn build_cord(args: &[&str]) {
 	// variable
 	let mut cmd = Command::new("cargo");
 
-	cmd.arg("build").arg("-p=cord-node-cli");
+	cmd.arg("build").arg("-p=cord-braid-node-cli");
 
 	if is_release_build {
 		cmd.arg("--release");
@@ -276,8 +276,9 @@ pub async fn block_hash(block_number: u64, url: &str) -> Result<Hash, String> {
 	.map_err(|_| "Couldn't get block hash".to_string())?;
 
 	match result {
-		ListOrValue::Value(maybe_block_hash) if maybe_block_hash.is_some() =>
-			Ok(maybe_block_hash.unwrap()),
+		ListOrValue::Value(maybe_block_hash) if maybe_block_hash.is_some() => {
+			Ok(maybe_block_hash.unwrap())
+		},
 		_ => Err("Couldn't get block hash".to_string()),
 	}
 }

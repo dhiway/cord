@@ -25,8 +25,9 @@ use std::{
 };
 
 use tempfile::tempdir;
+mod common;
 
-use cord_braid_cli_test_utils as common;
+// use cord_braid_cli_test_utils as common;
 
 #[tokio::test]
 async fn running_the_node_works_and_can_be_interrupted() {

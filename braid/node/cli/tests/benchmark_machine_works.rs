@@ -19,28 +19,34 @@
 use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 
+static RUNTIMES: &[&str] = &["base", "plus"];
+
 /// Tests that the `benchmark machine` command works for the cord dev
 /// runtime.
 #[test]
 fn benchmark_machine_works() {
-	let status = Command::new(cargo_bin("cord"))
-		.args(["benchmark", "machine", "--dev"])
-		.args([
-			"--verify-duration",
-			"0.1",
-			"--disk-duration",
-			"0.1",
-			"--memory-duration",
-			"0.1",
-			"--hash-duration",
-			"0.1",
-		])
-		// Make it succeed.
-		.args(["--allow-fail"])
-		.status()
-		.unwrap();
+	for runtime in RUNTIMES {
+		let runtime = format!("dev-braid-{}", runtime);
 
-	assert!(status.success());
+		let status = Command::new(cargo_bin("cord"))
+			.args(["benchmark", "machine", "--chain", &runtime])
+			.args([
+				"--verify-duration",
+				"0.1",
+				"--disk-duration",
+				"0.1",
+				"--memory-duration",
+				"0.1",
+				"--hash-duration",
+				"0.1",
+			])
+			// Make it succeed.
+			.args(["--allow-fail"])
+			.status()
+			.unwrap();
+
+		assert!(status.success());
+	}
 }
 
 /// Test that the hardware does not meet the requirements.
@@ -49,26 +55,30 @@ fn benchmark_machine_works() {
 #[test]
 #[cfg(debug_assertions)]
 fn benchmark_machine_fails_with_slow_hardware() {
-	let output = Command::new(cargo_bin("cord"))
-		.args(["benchmark", "machine", "--dev"])
-		.args([
-			"--verify-duration",
-			"1.0",
-			"--disk-duration",
-			"2",
-			"--hash-duration",
-			"1.0",
-			"--memory-duration",
-			"1.0",
-			"--tolerance",
-			"0",
-		])
-		.output()
-		.unwrap();
+	for runtime in RUNTIMES {
+		let runtime = format!("dev-braid-{}", runtime);
 
-	// Command should have failed.
-	assert!(!output.status.success());
-	// An `UnmetRequirement` error should have been printed.
-	let log = String::from_utf8_lossy(&output.stderr).to_string();
-	assert!(log.contains("UnmetRequirement"));
+		let output = Command::new(cargo_bin("cord"))
+			.args(["benchmark", "machine", "--chain", &runtime])
+			.args([
+				"--verify-duration",
+				"1.0",
+				"--disk-duration",
+				"2",
+				"--hash-duration",
+				"1.0",
+				"--memory-duration",
+				"1.0",
+				"--tolerance",
+				"0",
+			])
+			.output()
+			.unwrap();
+
+		// Command should have failed.
+		assert!(!output.status.success());
+		// An `UnmetRequirement` error should have been printed.
+		let log = String::from_utf8_lossy(&output.stderr).to_string();
+		assert!(log.contains("UnmetRequirement"));
+	}
 }

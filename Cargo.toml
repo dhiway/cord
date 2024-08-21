@@ -14,7 +14,6 @@ members = [
     "braid/node/cli",
     "braid/node/rpc",
     "braid/node/inspect",
-    "braid/node/testing",
     "pallets/asset",
     "pallets/chain-space",
     "pallets/did",
@@ -38,13 +37,6 @@ members = [
     "braid/runtimes/plus",
     "braid/runtimes/plus/constants",
     "utilities",
-    "braid/test-utils",
-    "braid/test-utils/cli",
-    "braid/test-utils/client",
-    "braid/test-utils/runtime",
-    "braid/test-utils/runtime/client",
-    "braid/test-utils/runtime/transaction-pool",
-    "braid/test-utils/service",
     "loom",
     "loom/cli",
     "loom/node/service",
@@ -140,14 +132,6 @@ cord-braid-plus-runtime-constants = { path = "braid/runtimes/plus/constants", de
 cord-braid-node-service = { path = "braid/node/service", default-features = false }
 cord-braid-node-inspect = { path = "braid/node/inspect", default-features = false }
 cord-braid-node-rpc = { path = "braid/node/rpc", default-features = false }
-cord-braid-node-testing = { path = "braid/node/testing", default-features = false }
-cord-braid-test-utils = { path = "braid/test-utils", default-features = false }
-cord-braid-service-test = { path = "braid/test-utils/service", default-features = false }
-cord-braid-test-runtime = { path = "braid/test-utils/runtime", default-features = false }
-cord-braid-test-client = { path = "braid/test-utils/client", default-features = false }
-cord-braid-test-runtime-client = { path = "braid/test-utils/runtime/client", default-features = false }
-cord-braid-test-runtime-transaction-pool = { path = "braid/test-utils/runtime/transaction-pool", default-features = false }
-cord-braid-cli-test-utils = { path = "braid/test-utils/cli", default-features = false }
 cord-loom-node-cli = { path = "loom/cli", default-features = false }
 cord-loom-rpc = { path = "loom/rpc", default-features = false }
 cord-loom-service = { path = "loom/node/service", default-features = false }

@@ -17,33 +17,35 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use assert_cmd::cargo::cargo_bin;
-use std::process::Command;
-use tempfile::tempdir;
+use std::{process::Command, result::Result};
 
-/// Tests that the `benchmark extrinsic` command works for
-/// remark and transfer_keep_alive within the substrate dev runtime.
+static RUNTIMES: &[&str] = &["base", "plus"];
+
+static EXTRINSICS: [(&str, &str); 2] = [("system", "remark"), ("balances", "transfer_keep_alive")];
+
+/// `benchmark extrinsic` works for all dev runtimes and some extrinsics.
 #[test]
-#[ignore]
 fn benchmark_extrinsic_works() {
-	benchmark_extrinsic("system", "remark");
-	benchmark_extrinsic("balances", "transfer_keep_alive");
+	for runtime in RUNTIMES {
+		for (pallet, extrinsic) in EXTRINSICS {
+			let runtime = format!("dev-braid-{}", runtime);
+			assert!(benchmark_extrinsic(&runtime, pallet, extrinsic).is_ok());
+		}
+	}
 }
 
-/// Checks that the `benchmark extrinsic` command works for the given pallet and
-/// extrinsic.
-fn benchmark_extrinsic(pallet: &str, extrinsic: &str) {
-	let base_dir = tempdir().expect("could not create a temp dir");
-
+fn benchmark_extrinsic(runtime: &str, pallet: &str, extrinsic: &str) -> Result<(), String> {
 	let status = Command::new(cargo_bin("cord"))
-		.args(["benchmark", "extrinsic", "--dev", "--detailed-log-output"])
-		.arg("-d")
-		.arg(base_dir.path())
+		.args(["benchmark", "extrinsic", "--chain", runtime])
 		.args(["--pallet", pallet, "--extrinsic", extrinsic])
 		// Run with low repeats for faster execution.
-		.args(["--warmup=10", "--repeat=10", "--max-ext-per-block=10"])
-		.args(["--wasm-execution=compiled"])
+		.args(["--repeat=1", "--warmup=1", "--max-ext-per-block=1"])
 		.status()
-		.unwrap();
+		.map_err(|e| format!("command failed: {:?}", e))?;
 
-	assert!(status.success());
+	if !status.success() {
+		return Err("Command failed".into());
+	}
+
+	Ok(())
 }

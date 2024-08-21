@@ -17,33 +17,45 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use assert_cmd::cargo::cargo_bin;
-use std::process::Command;
+use std::{process::Command, result::Result};
 use tempfile::tempdir;
 
-/// Tests that the `benchmark overhead` command works for the cord dev
-/// runtime.
+static RUNTIMES: &[&str] = &["base", "plus"];
+
+/// `benchmark overhead` works for all dev runtimes.
 #[test]
-#[ignore]
 fn benchmark_overhead_works() {
+	for runtime in RUNTIMES {
+		let runtime = format!("dev-braid-{}", runtime);
+		assert!(benchmark_overhead(&runtime).is_ok());
+	}
+}
+
+fn benchmark_overhead(runtime: &str) -> Result<(), String> {
 	let tmp_dir = tempdir().expect("could not create a temp dir");
 	let base_path = tmp_dir.path();
 
-	// Only put 10 extrinsics into the block otherwise it takes forever to build it
-	// especially for a non-release build.
+	// Invoke `benchmark overhead` with all options to make sure that they are valid.
 	let status = Command::new(cargo_bin("cord"))
-		.args(&["benchmark", "overhead", "--dev", "-d"])
+		.args(["benchmark", "overhead", "--chain", &runtime])
+		.arg("-d")
 		.arg(base_path)
 		.arg("--weight-path")
 		.arg(base_path)
-		.args(["--warmup", "10", "--repeat", "10"])
+		.args(["--warmup", "5", "--repeat", "5"])
 		.args(["--add", "100", "--mul", "1.2", "--metric", "p75"])
-		.args(["--max-ext-per-block", "10"])
-		.args(["--wasm-execution=compiled"])
+		// Only put 5 extrinsics into the block otherwise it takes forever to build it
+		// especially for a non-release builds.
+		.args(["--max-ext-per-block", "5"])
 		.status()
-		.unwrap();
-	assert!(status.success());
+		.map_err(|e| format!("command failed: {:?}", e))?;
+
+	if !status.success() {
+		return Err("Command failed".into());
+	}
 
 	// Weight files have been created.
 	assert!(base_path.join("block_weights.rs").exists());
 	assert!(base_path.join("extrinsic_weights.rs").exists());
+	Ok(())
 }
