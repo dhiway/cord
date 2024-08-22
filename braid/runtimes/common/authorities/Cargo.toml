@@ -1,0 +1,73 @@
+[package]
+name = 'authority-membership'
+description = "Authority manager implementation."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dependencies]
+codec = { features = ["derive"], workspace = true }
+scale-info = { features = ["derive"], workspace = true }
+pallet-cord-offences = { workspace = true }
+log = { workspace = true }
+
+# Substrate dependencies
+frame-system = { workspace = true }
+frame-support = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+sp-core = { workspace = true }
+sp-staking = { workspace = true }
+pallet-session = { features = ["historical"], workspace = true }
+sp-state-machine = { workspace = true }
+frame-benchmarking = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde = { workspace = true }
+sp-io = { workspace = true }
+
+[features]
+default = ['std']
+std = [
+    'codec/std',
+    'scale-info/std',
+    "frame-benchmarking?/std",
+    'frame-system/std',
+    'frame-support/std',
+    'sp-runtime/std',
+    'sp-std/std',
+    'sp-core/std',
+    'sp-staking/std',
+    "sp-state-machine/std",
+    'pallet-session/std',
+    'pallet-cord-offences/std',
+    'log/std',
+    "serde/std",
+    "sp-io/std",
+]
+runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "pallet-cord-offences/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+    "sp-staking/runtime-benchmarks",
+    "sp-staking/runtime-benchmarks",
+]
+
+try-runtime = [
+    'frame-support/try-runtime',
+    "frame-system/try-runtime",
+    "pallet-cord-offences/try-runtime",
+    "pallet-session/try-runtime",
+    "sp-runtime/try-runtime",
+]

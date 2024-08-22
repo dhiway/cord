@@ -1,0 +1,78 @@
+[[bin]]
+name = "loom"
+path = "src/main.rs"
+
+[[bin]]
+name = "loom-execute-worker"
+path = "src/bin/execute-worker.rs"
+
+[[bin]]
+name = "loom-prepare-worker"
+path = "src/bin/prepare-worker.rs"
+
+[package]
+name = "cord-loom"
+description = "Implementation of a CORD Loom node in Rust based on the Substrate and Polkadot framework."
+license.workspace = true
+authors.workspace = true
+edition.workspace = true
+version = "16.0.0"
+default-run = "loom"
+
+[lints]
+workspace = true
+
+[dependencies]
+color-eyre = { workspace = true }
+tikv-jemallocator = { optional = true, features = [
+    "unprefixed_malloc_on_supported_platforms",
+], workspace = true }
+cord-loom-node-cli = { features = [
+    "loom-native",
+], workspace = true, default-features = true }
+polkadot-node-core-pvf.workspace = true
+polkadot-node-core-pvf.default-features = true
+polkadot-node-core-pvf-prepare-worker.workspace = true
+polkadot-node-core-pvf-prepare-worker.default-features = true
+polkadot-overseer.workspace = true
+polkadot-overseer.default-features = true
+polkadot-node-core-pvf-common.workspace = true
+polkadot-node-core-pvf-common.default-features = true
+polkadot-node-core-pvf-execute-worker.workspace = true
+polkadot-node-core-pvf-execute-worker.default-features = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tikv-jemallocator = { version = "0.5.0", features = [
+    "unprefixed_malloc_on_supported_platforms",
+] }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+nix = { features = ["signal"], workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, default-features = true }
+substrate-rpc-client = { workspace = true, default-features = true }
+polkadot-core-primitives = { workspace = true, default-features = true }
+
+[build-dependencies]
+substrate-build-script-utils.workspace = true
+substrate-build-script-utils.default-features = true
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[features]
+runtime-benchmarks = ["cord-loom-node-cli/runtime-benchmarks"]
+try-runtime = ["cord-loom-node-cli/try-runtime"]
+fast-runtime = ["cord-loom-node-cli/fast-runtime"]
+runtime-metrics = ["cord-loom-node-cli/runtime-metrics"]
+pyroscope = ["cord-loom-node-cli/pyroscope"]
+jemalloc-allocator = [
+    "dep:tikv-jemallocator",
+    "polkadot-node-core-pvf-prepare-worker/jemalloc-allocator",
+    "polkadot-node-core-pvf/jemalloc-allocator",
+    "polkadot-overseer/jemalloc-allocator",
+]
+
+# Generate the metadata hash needed for CheckMetadataHash
+metadata-hash = ["cord-loom-node-cli/metadata-hash"]

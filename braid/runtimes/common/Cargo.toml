@@ -1,0 +1,91 @@
+[package]
+name = "cord-braid-runtime-common"
+description = "Pallets and constants used in CORD Braid Chains."
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+codec = { features = ["derive"], workspace = true }
+scale-info = { features = ["derive"], workspace = true }
+log = { workspace = true }
+static_assertions = { workspace = true }
+
+sp-runtime = { features = ["serde"], workspace = true }
+sp-staking = { features = ["serde"], workspace = true }
+sp-core = { features = ["serde"], workspace = true }
+sp-std = { workspace = true }
+
+pallet-authorship = { workspace = true }
+pallet-balances = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+pallet-timestamp = { workspace = true }
+pallet-transaction-payment = { workspace = true }
+pallet-treasury = { workspace = true }
+cord-primitives = { workspace = true }
+frame-benchmarking = { workspace = true, optional = true }
+
+[dev-dependencies]
+hex-literal = { workspace = true }
+frame-support-test = { workspace = true }
+pallet-babe = { workspace = true }
+sp-keystore = { workspace = true }
+sp-keyring = { workspace = true }
+serde_json = { workspace = true }
+libsecp256k1 = { workspace = true }
+
+[features]
+default = ["std"]
+no_std = []
+std = [
+    "frame-support/std",
+    "frame-system/std",
+    "frame-benchmarking?/std",
+    "log/std",
+    "pallet-authorship/std",
+    "pallet-balances/std",
+    "pallet-timestamp/std",
+    "pallet-transaction-payment/std",
+    "pallet-treasury/std",
+    "codec/std",
+    "cord-primitives/std",
+    "scale-info/std",
+    "sp-core/std",
+    "sp-runtime/std",
+    "sp-staking/std",
+    "sp-std/std",
+    "frame-support-test/std",
+    "libsecp256k1/std",
+    "pallet-babe/std",
+    "serde_json/std",
+    "sp-keyring/std",
+    "sp-keystore/std",
+]
+runtime-benchmarks = [
+    "frame-benchmarking/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+    "pallet-babe/runtime-benchmarks",
+    "pallet-balances/runtime-benchmarks",
+    "pallet-timestamp/runtime-benchmarks",
+    "pallet-treasury/runtime-benchmarks",
+    "sp-staking/runtime-benchmarks",
+]
+try-runtime = [
+    "frame-support-test/try-runtime",
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+    "pallet-balances/try-runtime",
+    "pallet-timestamp/try-runtime",
+    "pallet-transaction-payment/try-runtime",
+    "sp-runtime/try-runtime",
+    "pallet-authorship/try-runtime",
+    "pallet-babe/try-runtime",
+    "pallet-treasury/try-runtime",
+]
