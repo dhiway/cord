@@ -33,6 +33,9 @@
 //! * `create_registry` - Create a registry, with states supported and entry types.
 //! * `create_registry_entry` - Create a registry entry for the created registry.
 //! * `registry_entry_status_change` - Change the status of the registry entry.
+//! * `add_delegate` - Add a account as a delegate with specific permission.
+//! * `remove_delegate` - Add a existing account from authorized delegates list.
+//! * `update_delegate_permission` - Update the permission of an existing delegate.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -52,7 +55,8 @@ use sp_runtime::traits::Hash;
 
 pub use frame_system::WeightInfo;
 pub use types::{
-	Data, Entry, Registry, RegistryEntry, RegistrySupportedStateOf, RegistrySupportedTypeOf,
+	Data, DelegateInfo, Delegates, Entry, Permissions, Registry, RegistryEntry,
+	RegistrySupportedStateOf, RegistrySupportedTypeOf,
 };
 
 #[frame_support::pallet]
@@ -71,14 +75,18 @@ pub mod pallet {
 	pub type RegistryEntryIdOf = Ss58Identifier;
 	pub type RegistryStateOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedInputLength>;
 	pub type RegistryKeyIdOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedInputLength>;
+	pub type MaxRegistryEntriesOf<T> = <T as crate::Config>::MaxRegistryEntries;
 
-	// pub type EntryOf<T> = Entry<
-	//     RegistryKeyIdOf<T>,
-	//     RegistrySupportedTypeOf
-	// >;
-	// pub type RegistryOf<T> = BoundedVec<
-	//     EntryOf<T>, <T as Config>::MaxRegistryEntries
-	// >;
+	pub type OwnerOf<T> = <T as frame_system::Config>::AccountId;
+	pub type DelegateOf<T> = <T as frame_system::Config>::AccountId;
+
+	pub type RegistryOf<T> =
+		BoundedVec<Entry<RegistryKeyIdOf<T>, RegistrySupportedTypeOf>, MaxRegistryEntriesOf<T>>;
+
+	pub type RegistryEntryOf<T> = BoundedVec<(RegistryKeyIdOf<T>, Data), MaxRegistryEntriesOf<T>>;
+
+	pub type DelegateEntryOf<T> =
+		BoundedVec<DelegateInfo<DelegateOf<T>, Permissions>, MaxRegistryEntriesOf<T>>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -112,7 +120,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		RegistryIdOf,
-		Registry<RegistryKeyIdOf<T>, RegistrySupportedTypeOf, RegistryHashOf<T>>,
+		Registry<RegistryOf<T>, RegistryHashOf<T>, OwnerOf<T>>,
 		OptionQuery,
 	>;
 
@@ -126,8 +134,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		RegistryEntryIdOf,
 		RegistryEntry<
-			RegistryKeyIdOf<T>,
-			Data,
+			RegistryEntryOf<T>,
 			RegistryEntryHashOf<T>,
 			RegistryIdOf,
 			RegistrySupportedStateOf,
@@ -135,12 +142,20 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	/// Single Storage Map to hold the details of Delegate
+	/// information for a Registry.
+	#[pallet::storage]
+	pub type DelegatesList<T: Config> =
+		StorageMap<_, Blake2_128Concat, RegistryIdOf, Delegates<DelegateEntryOf<T>>, OptionQuery>;
+
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Invalid Identifer Length
 		InvalidIdentifierLength,
 		/// Identifier Invalid or Not of DeDir Type
 		InvalidDeDirIdentifier,
+		/// Account has no valid authorization
+		UnauthorizedOperation,
 		/// Registry Identifier Already Exists
 		RegistryIdAlreadyExists,
 		/// Registry Identifier Does Not Exists
@@ -165,6 +180,32 @@ pub mod pallet {
 		InvalidState,
 		/// State Deemed Inavlid While Conversion To MaxEncodedInputLength
 		StateConversionError,
+		/// Max Delegates Storage Upper Bound Breached
+		MaxDelegatesStorageOverflow,
+		/// Delegates List not found for Registry Id
+		DelegatesListNotFound,
+		/// Registry Owner cannot be removed from Delegates List
+		CannotRemoveRegistryOwnerAsDelegate,
+		/// Delegate not found in DelegatesList
+		DelegateNotFound,
+		/// Invalid Permission
+		InvalidPermission,
+		/// Admin is unauthorized from removing another Admin
+		AdminCannotRemoveAnotherAdmin,
+		/// Delegate is unauthorized from Delegate Operations.
+		DelegateCannotRemoveAccounts,
+		/// Delegate already exists with same permissions.
+		DelegateWithSamePermissionExists,
+		/// Registry Owner Permissions cannot be updated.
+		CannotUpdateOwnerPermission,
+		/// Delegator cannot be removed.
+		DelegatorCannotBeRemoved,
+		/// Delegator cannot be added.
+		DelegatorCannotBeAdded,
+		/// Delegator cannot be updated.
+		DelegatorCannotBeUpdated,
+		/// Delegate alreay exists.
+		DelegateAlreadyAdded,
 	}
 
 	#[pallet::event]
@@ -187,6 +228,24 @@ pub mod pallet {
 			registry_id: RegistryIdOf,
 			registry_entry_id: RegistryEntryIdOf,
 			new_state: RegistrySupportedStateOf,
+		},
+		/// A new Delegate has been added to the Registry.
+		RegistryDelegateAdded {
+			delegator: T::AccountId,
+			registry_id: RegistryIdOf,
+			delegate: DelegateOf<T>,
+			permission: Permissions,
+		},
+		RegistryDelegateRemoved {
+			delegator: T::AccountId,
+			registry_id: RegistryIdOf,
+			delegate: DelegateOf<T>,
+		},
+		RegistryDelegatePermissionUpdated {
+			delegator: T::AccountId,
+			registry_id: RegistryIdOf,
+			delegate: DelegateOf<T>,
+			new_permission: Permissions,
 		},
 	}
 
@@ -234,8 +293,9 @@ pub mod pallet {
 			/* TODO: Move the logic of creation of identifier to SDK.
 			 * Only the validation of the identifier remains on chain.
 			 */
-			let id_digest =
-				<T as frame_system::Config>::Hashing::hash(&[&creator.encode()[..]].concat()[..]);
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&creator.encode()[..], &digest.encode()[..]].concat()[..],
+			);
 			let registry_id =
 				Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::DeDir)
 					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
@@ -251,7 +311,8 @@ pub mod pallet {
 				Error::<T>::RegistryIdAlreadyExists
 			);
 
-			let mut registry = Registry { entries: BoundedVec::default(), digest };
+			let mut registry =
+				Registry { entries: BoundedVec::default(), digest, owner: creator.clone() };
 
 			/* Ensure Registry attributes does not overflow */
 			if let Some(attrs) = attrs {
@@ -264,6 +325,23 @@ pub mod pallet {
 			}
 
 			Registries::<T>::insert(&registry_id, registry);
+
+			let mut delegates = Delegates { entries: BoundedVec::default() };
+
+			/* Set `delegator` to `None` for owner */
+			if delegates
+				.entries
+				.try_push(DelegateInfo {
+					delegate: creator.clone(),
+					permission: Permissions::OWNER,
+					delegator: None,
+				})
+				.is_err()
+			{
+				return Err(Error::<T>::MaxDelegatesStorageOverflow.into());
+			};
+
+			DelegatesList::<T>::insert(&registry_id, delegates);
 
 			Self::deposit_event(Event::CreatedRegistry { creator, registry_id });
 
@@ -325,8 +403,24 @@ pub mod pallet {
 			let registry =
 				Registries::<T>::get(&registry_id).ok_or(Error::<T>::RegistryIdDoesNotExist)?;
 
+			/* Ensure that registry_entry is created from authorized account */
+			let delegates =
+				DelegatesList::<T>::get(&registry_id).ok_or(Error::<T>::DelegatesListNotFound)?;
+
+			/* Ensure there exists a valid_delegate */
+			ensure!(
+				Self::is_valid_delegate(
+					&delegates.entries,
+					&creator,
+					&[Permissions::OWNER, Permissions::ADMIN, Permissions::DELEGATE]
+				),
+				Error::<T>::UnauthorizedOperation
+			);
+
+			// TODO:
+			// Move registry_entry_id management to SDK.
 			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&registry_id.encode()[..], &digest.encode()[..]].concat()[..] //, &uuid.as_bytes()[..]].concat()[..],
+				&[&registry_id.encode()[..], &digest.encode()[..]].concat()[..],
 			);
 			let registry_entry_id =
 				Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::DeDir)
@@ -454,6 +548,19 @@ pub mod pallet {
 			let mut registry_entry = RegistryEntries::<T>::get(&registry_id, &registry_entry_id)
 				.ok_or(Error::<T>::RegistryEntryIdDoesNotExist)?;
 
+			/* Ensure that registry state updation happens from authorized account */
+			let delegates =
+				DelegatesList::<T>::get(&registry_id).ok_or(Error::<T>::DelegatesListNotFound)?;
+
+			ensure!(
+				Self::is_valid_delegate(
+					&delegates.entries,
+					&who,
+					&[Permissions::OWNER, Permissions::ADMIN, Permissions::DELEGATE]
+				),
+				Error::<T>::UnauthorizedOperation
+			);
+
 			/* Ensure given `new_state` is part of supported states enum */
 			ensure!(new_state.is_valid_state(), Error::<T>::StateNotSupported);
 
@@ -465,6 +572,407 @@ pub mod pallet {
 				registry_id,
 				registry_entry_id,
 				new_state,
+			});
+
+			Ok(())
+		}
+
+		/// Add a Delegate to a Registry.
+		///
+		/// This function allows a user to add a delegate with a specified permission to an
+		/// existing registry. The function ensures that the addition complies with the rules
+		/// governing delegate permissions and authorization.
+		///
+		/// # Rules for Adding a Delegate:
+		///
+		/// - **Registry Existence:** The registry identified by `registry_id` must exist. If the
+		///   registry does not exist, the function will return an error.
+		///
+		/// - **Unique Delegator and Delegate:** The delegate being added cannot be the same as the
+		///   delegator initiating the operation. This ensures that a user cannot delegate
+		///   permissions to themselves.
+		///
+		/// - **Owner Permission Constraint:** The `OWNER` permission cannot be assigned to any
+		///   delegate. This prevents multiple delegates from having `OWNER` permissions within the
+		///   same registry.
+		///
+		/// - **Authorization Requirements:** Only delegates with `OWNER` or `ADMIN` permissions can
+		///   add new delegates. Delegates with `DELEGATE` permissions are not authorized to add
+		///   other delegates.
+		///
+		/// - **Existing Delegate Check:** The function checks whether the delegate already exists
+		///   in the registry. If the delegate is already listed, the operation will return an
+		///   error. This also ensures that an existing `OWNER` cannot be added with a different
+		///   permission.
+		///
+		/// - **Storage Overflow Handling:** If the addition of the new delegate exceeds the maximum
+		///   allowed storage, an error will be returned.
+		///
+		/// # Arguments
+		/// * `origin` - The origin of the call, which should be a signed user in most cases.
+		/// * `registry_id` - The registry identifier associated with an existing registry.
+		/// * `delegate` - The account to be added as a delegate.
+		/// * `permission` - The permission to be assigned to the delegate. Valid permissions are
+		///   `ADMIN` and `DELEGATE`.
+		///
+		/// # Errors
+		/// Returns `Error::<T>::RegistryIdDoesNotExist` if the registry identifier does not exist.
+		/// Returns `Error::<T>::DelegatorCannotBeAdded` if the delegate and delegator are the same.
+		/// Returns `Error::<T>::InvalidPermission` if an attempt is made to assign the `OWNER`
+		/// permission. Returns `Error::<T>::DelegatesListNotFound` if the list of delegates for
+		/// the registry cannot be found. Returns `Error::<T>::UnauthorizedOperation` if the
+		/// origin does not have sufficient permissions to add a delegate.
+		/// Returns `Error::<T>::DelegateAlreadyAdded` if the delegate already exists in the
+		/// registry. Returns `Error::<T>::MaxDelegatesStorageOverflow` if the addition of the new
+		/// delegate exceeds the maximum allowed storage.
+		///
+		/// # Events
+		/// Emits `RegistryDelegateAdded` when a new delegate is successfully added to the registry.
+		///
+		/// # Example
+		/// ```
+		/// add_delegate(origin, registry_id, delegate, permission)?;
+		/// ```
+		#[pallet::call_index(3)]
+		#[pallet::weight({0})]
+		pub fn add_delegate(
+			origin: OriginFor<T>,
+			registry_id: RegistryIdOf,
+			delegate: DelegateOf<T>,
+			permission: Permissions,
+		) -> DispatchResult {
+			let delegator = ensure_signed(origin)?;
+
+			/* Ensure RegistryId exists */
+			let _registry =
+				Registries::<T>::get(&registry_id).ok_or(Error::<T>::RegistryIdDoesNotExist)?;
+
+			/* Ensure delegator and delegate are not same */
+			ensure!(delegate != delegator, Error::<T>::DelegatorCannotBeAdded);
+
+			/* Ensure OWNER permission is not assigned */
+			ensure!(!matches!(permission, Permissions::OWNER), Error::<T>::InvalidPermission);
+
+			/* Ensure that registry_entry is created from authorized account */
+			let mut delegates =
+				DelegatesList::<T>::get(&registry_id).ok_or(Error::<T>::DelegatesListNotFound)?;
+
+			/* Ensure there exists a valid_delegate with
+			 * OWNER or ADMIN permissions to add a delegate.
+			 */
+			ensure!(
+				Self::is_valid_delegate(
+					&delegates.entries,
+					&delegator,
+					&[Permissions::OWNER, Permissions::ADMIN]
+				),
+				Error::<T>::UnauthorizedOperation
+			);
+
+			/* Check if the delegate already exists */
+			/* As a side-effect it also prevents a existing OWNER getting added with different
+			 * permission */
+			let existing_entry = delegates.entries.iter().find(|d| d.delegate == delegate);
+			if existing_entry.is_some() {
+				return Err(Error::<T>::DelegateAlreadyAdded.into());
+			}
+
+			if delegates
+				.entries
+				.try_push(DelegateInfo {
+					delegate: delegate.clone(),
+					permission: permission.clone(),
+					delegator: Some(delegator.clone()),
+				})
+				.is_err()
+			{
+				return Err(Error::<T>::MaxDelegatesStorageOverflow.into());
+			}
+
+			DelegatesList::<T>::insert(&registry_id, delegates);
+
+			Self::deposit_event(Event::RegistryDelegateAdded {
+				delegator: delegator.clone(),
+				registry_id,
+				delegate,
+				permission,
+			});
+
+			Ok(())
+		}
+
+		/// Remove a Delegate from the Registry.
+		///
+		/// This function allows an authorized user to remove a delegate from a registry.
+		/// The operation is subject to specific rules based on the permission level of the
+		/// user initiating the request and the delegate being removed.
+		///
+		/// # Rules for Removing a Delegate:
+		///
+		/// **Ownership Constraints:**
+		/// - **OWNER Cannot Be Removed:** The OWNER of a registry cannot be removed as a delegate.
+		///   This ensures the integrity and stability of the registry by maintaining a consistent
+		///   owner.
+		///
+		/// **Authorization Requirements:**
+		/// - **Authorized Users:** Only users with OWNER or ADMIN permissions are allowed to
+		///   perform the removal operation. DELEGATE-level users do not have the authority to
+		///   remove any accounts.
+		/// - **Admin Removal Constraints:** An ADMIN cannot remove another ADMIN. This restriction
+		///   ensures that ADMIN users cannot interfere with each other's permissions.
+		///
+		/// **Delegator-Delegate Relationship:**
+		/// - **Self-Removal Restriction:** The delegator (user initiating the removal) cannot be
+		///   the same as the delegate being removed. This prevents users from accidentally or
+		///   maliciously removing themselves.
+		///
+		/// **Permission Enforcement:**
+		/// - **OWNER Authority:** The OWNER has the authority to remove any other permissioned
+		///   accounts (i.e., ADMINs or DELEGATEs).
+		/// - **ADMIN Restrictions:** ADMINs are restricted from removing other ADMINs, ensuring a
+		///   balanced distribution of power within the registry.
+		/// - **DELEGATE Limitations:** DELEGATE-level users cannot remove any accounts, regardless
+		///   of their permissions.
+		///
+		/// # Arguments
+		/// * `origin` - The origin of the call, which should be a signed user.
+		/// * `registry_id` - The identifier of the registry from which the delegate should be
+		///   removed.
+		/// * `delegate` - The account identifier of the delegate to be removed.
+		///
+		/// # Errors
+		/// Returns `Error::<T>::RegistryIdDoesNotExist` if the registry identifier does not exist.
+		/// Returns `Error::<T>::DelegatorCannotBeRemoved` if the delegator attempts to remove
+		/// themselves. Returns `Error::<T>::DelegatesListNotFound` if the delegate list for the
+		/// given registry does not exist.
+		/// Returns `Error::<T>::CannotRemoveRegistryOwnerAsDelegate` if an attempt is made to
+		/// remove the OWNER. Returns `Error::<T>::AdminCannotRemoveAnotherAdmin` if an ADMIN
+		/// attempts to remove another ADMIN. Returns `Error::<T>::DelegateCannotRemoveAccounts`
+		/// if a DELEGATE attempts to remove any account. Returns `Error::<T>::DelegateNotFound`
+		/// if the delegate to be removed is not found in the registry.
+		///
+		/// # Events
+		/// Emits `RegistryDelegateRemoved` when a delegate is successfully removed from the
+		/// registry.
+		///
+		/// # Example
+		/// ```
+		/// remove_delegate(origin, registry_id, delegate)?;
+		/// ```
+		#[pallet::call_index(4)]
+		#[pallet::weight({0})]
+		pub fn remove_delegate(
+			origin: OriginFor<T>,
+			registry_id: RegistryIdOf,
+			delegate: DelegateOf<T>,
+		) -> DispatchResult {
+			let delegator = ensure_signed(origin)?;
+
+			/* Ensure RegistryId exists */
+			let _registry =
+				Registries::<T>::get(&registry_id).ok_or(Error::<T>::RegistryIdDoesNotExist)?;
+
+			ensure!(delegator != delegate, Error::<T>::DelegatorCannotBeRemoved);
+
+			/* Ensure that registry_entry is created from authorized account */
+			let mut delegates =
+				DelegatesList::<T>::get(&registry_id).ok_or(Error::<T>::DelegatesListNotFound)?;
+
+			let mut delegator_permission = None;
+			let mut delegate_index = None;
+
+			for (i, entry) in delegates.entries.iter().enumerate() {
+				if entry.delegate == delegator {
+					delegator_permission = Some(entry.permission.clone());
+				}
+				if entry.delegate == delegate {
+					delegate_index = Some(i);
+				}
+			}
+
+			/* Ensure the delegator has the required permissions of being either OWNER/ADNIN */
+			ensure!(
+				delegator_permission
+					.clone()
+					.map_or(false, |perm| matches!(perm, Permissions::OWNER | Permissions::ADMIN)),
+				Error::<T>::UnauthorizedOperation
+			);
+
+			/* Ensure that the delegate to be removed is found */
+			if let Some(index) = delegate_index {
+				/* Ensure OWNER cannot be removed */
+				if delegates.entries[index].delegator.is_none() {
+					return Err(Error::<T>::CannotRemoveRegistryOwnerAsDelegate.into());
+				}
+
+				/* Ensure that permissions are correctly enforced
+				 * OWNER can remove any other permissioned accounts
+				 * ADMIN cannot remove another ADMIN
+				 * DELEGATE cannot remove any accounts
+				 */
+				match delegator_permission.unwrap() {
+					Permissions::OWNER => {},
+					Permissions::ADMIN => {
+						ensure!(
+							delegates.entries[index].permission != Permissions::ADMIN,
+							Error::<T>::AdminCannotRemoveAnotherAdmin
+						);
+					},
+					Permissions::DELEGATE => {
+						return Err(Error::<T>::DelegateCannotRemoveAccounts.into());
+					},
+				}
+
+				delegates.entries.remove(index);
+				DelegatesList::<T>::insert(&registry_id, delegates);
+
+				Self::deposit_event(Event::RegistryDelegateRemoved {
+					delegator: delegator.clone(),
+					registry_id,
+					delegate,
+				});
+			} else {
+				return Err(Error::<T>::DelegateNotFound.into());
+			}
+
+			Ok(())
+		}
+
+		/// Update the permissions of an existing Delegate.
+		///
+		/// This function allows a user to submit a change of permission request for an
+		/// existing Delegate. The permission of the Registry is updated with the `new_permission`
+		/// which is part of the existing supported Permissions List.
+		///
+		/// # Rules for Updating Permissions of a Delegate:
+		///
+		/// **Existence of Delegate:**
+		/// - The delegate whose permission is to be updated must already exist in the registry.
+		///
+		/// **Permission Constraints:**
+		/// - **No Ownership Updates:** Permissions of type OWNER cannot be assigned to any
+		///   delegate. This ensures that only one OWNER exists for a given registry.
+		/// - **Valid Permission Levels:** The new permission must be either ADMIN or DELEGATE.
+		///   Assigning OWNER is not permitted.
+		///
+		/// **Authorization Requirements:**
+		/// - **Authorized Users:** The update operation can only be performed by users with OWNER
+		///   or ADMIN permissions. DELEGATE-level users are not authorized to perform this
+		///   operation.
+		/// - **Admin Downgrades:** If the new permission is DELEGATE, only an OWNER can downgrade
+		///   an ADMIN to DELEGATE. An ADMIN cannot perform this downgrade.
+		///
+		/// **Delegator Restrictions:**
+		/// - **Same User Update:** The delegator cannot be the same as the delegate whose
+		///   permission is being updated.
+		/// - **Permission Upgrade:** ADMIN users are allowed to upgrade a delegate to ADMIN or
+		///   DELEGATE, but cannot downgrade an ADMIN to DELEGATE unless performed by an OWNER.
+		///
+		/// # Arguments
+		/// * `origin` - The origin of the call, which should be a signed user.
+		/// * `registry_id` - The Registry Identifier associated with an existing Registry.
+		/// * `delegate` - The account for which the permission update should take place.
+		/// * `new_permission` - The `new_permission` to which the `delegate` should be updated.
+		///
+		/// # Errors
+		/// Returns `Error::<T>::RegistryIdDoesNotExist` if the registry identifier does not exist.
+		/// Returns `Error::<T>::DelegatorCannotBeUpdated` if the delegate and delegator are the
+		/// same. Returns `Error::<T>::InvalidPermission` if the `new_permission` is not a valid
+		/// permission. Returns `Error::<T>::DelegatesListNotFound` if the DelegateList does not
+		/// exist for the given RegistryId.
+		/// Returns `Error::<T>::DelegateNotFound` if the given `delegate` does not exist.
+		/// Returns `Error::<T>::UnauthorizedOperation` if the given operation is not valid.
+		/// Returns `Error::<T>::CannotUpdateOwnerPermission` if the owner's permission is attempted
+		/// to be changed.
+		/// Returns `Error::<T>::DelegateWithSamePermissionExists` if the given `delegate` already
+		/// exists with the same `new_permission`.
+		///
+		/// # Events
+		/// Emits `RegistryDelegatePermissionUpdated` when a Registry Delegate Permission is
+		/// updated.
+		///
+		/// # Example
+		/// ```
+		/// update_delegate_permission(origin, registry_id, delegate, new_permission)?;
+		/// ```
+		#[pallet::call_index(5)]
+		#[pallet::weight({0})]
+		pub fn update_delegate_permission(
+			origin: OriginFor<T>,
+			registry_id: RegistryIdOf,
+			delegate: DelegateOf<T>,
+			new_permission: Permissions,
+		) -> DispatchResult {
+			let delegator = ensure_signed(origin)?;
+
+			/* Ensure RegistryId exists */
+			let _registry =
+				Registries::<T>::get(&registry_id).ok_or(Error::<T>::RegistryIdDoesNotExist)?;
+
+			ensure!(delegator != delegate, Error::<T>::DelegatorCannotBeUpdated);
+
+			/* Ensure that new_permission is not OWNER */
+			ensure!(
+				matches!(new_permission, Permissions::ADMIN | Permissions::DELEGATE),
+				Error::<T>::InvalidPermission
+			);
+
+			/* Ensure that registry_entry is created from authorized account */
+			let mut delegates =
+				DelegatesList::<T>::get(&registry_id).ok_or(Error::<T>::DelegatesListNotFound)?;
+
+			/* Ensure that the delegate already exists */
+			let delegate_index = delegates
+				.entries
+				.iter()
+				.position(|d| d.delegate == delegate)
+				.ok_or(Error::<T>::DelegateNotFound)?;
+
+			/* Ensure the delegator is either an OWNER or an ADMIN */
+			let delegator_permission = delegates
+				.entries
+				.iter()
+				.find(|d| d.delegate == delegator)
+				.map(|d| d.permission.clone())
+				.ok_or(Error::<T>::UnauthorizedOperation)?;
+
+			ensure!(
+				matches!(delegator_permission, Permissions::OWNER | Permissions::ADMIN),
+				Error::<T>::UnauthorizedOperation
+			);
+
+			let delegate_entry = &delegates.entries[delegate_index];
+
+			/* Ensure that the delegate is not the OWNER */
+			ensure!(
+				delegate_entry.permission != Permissions::OWNER,
+				Error::<T>::CannotUpdateOwnerPermission
+			);
+
+			/* Ensure Delegate with same permission does not already exist */
+			ensure!(
+				delegate_entry.permission != new_permission,
+				Error::<T>::DelegateWithSamePermissionExists
+			);
+
+			/* Ensure only an OWNER can downgrade an ADMIN to DELEGATE */
+			if matches!(new_permission, Permissions::DELEGATE) {
+				if matches!(delegate_entry.permission, Permissions::ADMIN) &&
+					delegator_permission != Permissions::OWNER
+				{
+					return Err(Error::<T>::UnauthorizedOperation.into());
+				}
+			}
+
+			delegates.entries[delegate_index].permission = new_permission.clone();
+
+			DelegatesList::<T>::insert(&registry_id, delegates);
+
+			Self::deposit_event(Event::RegistryDelegatePermissionUpdated {
+				delegator: delegator.clone(),
+				registry_id,
+				delegate,
+				new_permission,
 			});
 
 			Ok(())
@@ -490,5 +998,19 @@ impl<T: Config> Pallet<T> {
 				false
 			},
 		}
+	}
+
+	/// Method to check if there exists a valid delegate
+	pub fn is_valid_delegate(
+		delegates: &DelegateEntryOf<T>,
+		creator: &OwnerOf<T>,
+		permissions: &[Permissions],
+	) -> bool {
+		for entry in delegates.iter() {
+			if entry.delegate == *creator && permissions.contains(&entry.permission) {
+				return true;
+			}
+		}
+		false
 	}
 }

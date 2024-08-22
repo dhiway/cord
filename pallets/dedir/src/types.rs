@@ -198,31 +198,21 @@ pub struct Entry<RegistryKeyIdOf, RegistrySupportedTypeOf> {
 }
 
 #[derive(Encode, Decode, Clone, Default, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub struct Registry<
-	RegistryKeyIdOf,
-	//MaxRegistryEntries: Get<u32>,
-	RegistrySupportedTypeOf,
-	RegistryHashOf,
-> {
-	/// Type of Registry Entry
-	pub entries: BoundedVec<
-		Entry<RegistryKeyIdOf, RegistrySupportedTypeOf>,
-		//MaxRegistryEntries,
-		ConstU32<25>,
-	>,
+pub struct Registry<RegistryOf, RegistryHashOf, OwnerOf> {
+	pub entries: RegistryOf,
+	pub owner: OwnerOf,
 	pub digest: RegistryHashOf,
 }
 
 #[derive(Encode, Decode, Clone, Default, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct RegistryEntry<
-	RegistryEntryKeyIdOf,
-	Data,
+	RegistryEntryOf,
 	RegistryEntryHashOf,
 	RegistryIdOf,
 	RegistrySupportedStateOf,
 > {
 	/// Type of Entries
-	pub entries: BoundedVec<(RegistryEntryKeyIdOf, Data), ConstU32<25>>,
+	pub entries: RegistryEntryOf,
 	/// Type of Digest
 	pub digest: RegistryEntryHashOf,
 	/// Type of Registry Identifier
@@ -231,17 +221,32 @@ pub struct RegistryEntry<
 	pub current_state: RegistrySupportedStateOf,
 }
 
-// impl<RegistryKeyIdOf,
-// 	 RegistrySupportedTypeOf,
-// 	 RegistryHashOf
-// > Registry <RegistryKeyIdOf, RegistrySupportedTypeOf, RegistryHashOf,
-// > {
-// 	pub fn new() -> Self {
-// 		Registry {
-// 			entries: BoundedVec::default(),
-// 		}
-// 	}
-// }
+/// The `Permissions` enum defines the levels of access control available for an account within a
+/// registry.
+///
+/// - `DELEGATE`: Grants permission to manage registry entries.
+/// - `ADMIN`: Extends `DELEGATE` permissions, allowing the management of delegates in addition to
+///   managing registry entries.
+/// - `OWNER`: The creator or owner of the registry. This permission level encompasses the full
+///   range of management capabilities, including the permissions of both `DELEGATE` and `ADMIN`.
+#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+pub enum Permissions {
+	OWNER,
+	ADMIN,
+	DELEGATE,
+}
+
+#[derive(Encode, Decode, Clone, Default, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct DelegateInfo<DelegateOf, Permissions> {
+	pub delegate: DelegateOf,
+	pub permission: Permissions,
+	pub delegator: Option<DelegateOf>,
+}
+
+#[derive(Encode, Decode, Clone, Default, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+pub struct Delegates<DelegateEntryOf> {
+	pub entries: DelegateEntryOf,
+}
 
 #[cfg(test)]
 mod tests {
