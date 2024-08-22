@@ -112,15 +112,19 @@ fn runtime(id: &str) -> Runtime {
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	Ok(match id {
 		// -- Asset Hub
-		"loom-asset-hub-dev" =>
-			Box::new(chain_spec::asset_hub::asset_hub_loom_development_config()) as Box<_>,
-		"loom-asset-hub-local" =>
-			Box::new(chain_spec::asset_hub::asset_hub_loom_local_testnet_config()),
+		"loom-asset-hub-dev" => {
+			Box::new(chain_spec::asset_hub::asset_hub_loom_development_config()) as Box<_>
+		},
+		"loom-asset-hub-local" => {
+			Box::new(chain_spec::asset_hub::asset_hub_loom_local_testnet_config())
+		},
 		// -- Coretime
-		"loom-coretime-dev" =>
-			Box::new(chain_spec::coretime::coretime_loom_development_config()) as Box<_>,
-		"loom-coretime-local" =>
-			Box::new(chain_spec::coretime::coretime_loom_local_testnet_config()),
+		"loom-coretime-dev" => {
+			Box::new(chain_spec::coretime::coretime_loom_development_config()) as Box<_>
+		},
+		"loom-coretime-local" => {
+			Box::new(chain_spec::coretime::coretime_loom_local_testnet_config())
+		},
 		// -- Loading a specific spec from disk
 		path => Box::new(GenericChainSpec::from_json_file(path.into())?),
 	})
@@ -199,8 +203,9 @@ fn new_node_spec(
 	extra_args: NodeExtraArgs,
 ) -> std::result::Result<Box<dyn DynNodeSpec>, sc_cli::Error> {
 	Ok(match config.chain_spec.runtime()? {
-		Runtime::AssetHub | Runtime::Coretime =>
-			new_aura_node_spec::<AuraRuntimeApi, AuraId>(extra_args),
+		Runtime::AssetHub | Runtime::Coretime => {
+			new_aura_node_spec::<AuraRuntimeApi, AuraId>(extra_args)
+		},
 		Runtime::Omni(consensus) => match consensus {
 			Consensus::Aura => new_aura_node_spec::<AuraRuntimeApi, AuraId>(extra_args),
 			Consensus::Relay => Box::new(ShellNode),
@@ -302,8 +307,9 @@ pub fn run() -> Result<()> {
 					let node = new_node_spec(&config, cli.node_extra_args())?;
 					node.run_benchmark_storage_cmd(config, cmd)
 				}),
-				BenchmarkCmd::Machine(cmd) =>
-					runner.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())),
+				BenchmarkCmd::Machine(cmd) => {
+					runner.sync_run(|config| cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()))
+				},
 				#[allow(unreachable_patterns)]
 				_ => Err("Benchmarking sub-command unsupported or compilation feature missing. \
 					Make sure to compile with --features=runtime-benchmarks \
@@ -506,16 +512,12 @@ impl CliConfiguration<Self> for RelayChainCli {
 
 #[cfg(test)]
 mod tests {
-	// use crate::{
-	// 	// chain_spec::{get_account_id_from_seed, get_from_seed},
-	// 	command::{Consensus, Runtime, RuntimeResolver},
+	// use cord_weave_system_parachains_constants::genesis_presets::{
+	// 	get_account_id_from_seed, get_from_seed,
 	// };
-	use cord_weave_system_parachains_constants::genesis_presets::{
-		get_account_id_from_seed, get_from_seed,
-	};
 	use sc_chain_spec::{ChainSpec, ChainSpecExtension, ChainSpecGroup, ChainType, Extension};
 	use serde::{Deserialize, Serialize};
-	use sp_core::sr25519;
+	// use sp_core::sr25519;
 	use std::path::PathBuf;
 	use tempfile::TempDir;
 
@@ -538,6 +540,7 @@ mod tests {
 		pub attribute_z: u32,
 	}
 
+	#[allow(dead_code)]
 	fn store_configuration(dir: &TempDir, spec: &dyn ChainSpec) -> PathBuf {
 		let raw_output = true;
 		let json = sc_service::chain_ops::build_spec(spec, raw_output)
@@ -549,8 +552,10 @@ mod tests {
 		cfg_file_path
 	}
 
+	#[allow(dead_code)]
 	pub type DummyChainSpec<E> = sc_service::GenericChainSpec<E>;
 
+	#[allow(dead_code)]
 	pub fn create_default_with_extensions<E: Extension>(
 		id: &str,
 		extension: E,
@@ -568,15 +573,6 @@ mod tests {
 				1000.into(),
 			),
 		)
-		// .with_genesis_config_patch(crate::chain_spec::asset_hub::testnet_genesis(
-		// 	get_account_id_from_seed::<sr25519::Public>("Alice"),
-		// 	vec![
-		// 		get_from_seed::<rococo_parachain_runtime::AuraId>("Alice"),
-		// 		get_from_seed::<rococo_parachain_runtime::AuraId>("Bob"),
-		// 	],
-		// 	vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-		// 	1000.into(),
-		// ))
 		.build()
 	}
 }
