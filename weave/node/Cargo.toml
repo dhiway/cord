@@ -31,8 +31,6 @@ cord-weave-asset-hub-runtime.workspace = true
 cord-weave-asset-hub-runtime.default-features = true
 cord-weave-coretime-runtime.workspace = true
 cord-weave-coretime-runtime.default-features = true
-# cord-weave-parachain-runtime.workspace = true
-# cord-weave-parachain-runtime.default-features = true
 jsonrpsee = { features = ["server"], workspace = true }
 parachains-common.workspace = true
 parachains-common.default-features = true
@@ -168,7 +166,6 @@ default = []
 runtime-benchmarks = [
     "cord-weave-asset-hub-runtime/runtime-benchmarks",
     "cord-weave-coretime-runtime/runtime-benchmarks",
-    # "cord-weave-parachain-runtime/runtime-benchmarks",
     "cumulus-primitives-core/runtime-benchmarks",
     "frame-benchmarking-cli/runtime-benchmarks",
     "frame-benchmarking/runtime-benchmarks",
@@ -183,7 +180,6 @@ runtime-benchmarks = [
 try-runtime = [
     "cord-weave-asset-hub-runtime/try-runtime",
     "cord-weave-coretime-runtime/try-runtime",
-    # "cord-weave-parachain-runtime/try-runtime",
     "frame-support/try-runtime",
     "frame-try-runtime/try-runtime",
     "pallet-transaction-payment/try-runtime",
