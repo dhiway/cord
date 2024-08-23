@@ -1281,6 +1281,7 @@ dependencies = [
  "pallet-session",
  "pallet-session-benchmarking",
  "pallet-statement",
+ "pallet-store",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
@@ -1414,6 +1415,7 @@ dependencies = [
  "pallet-session",
  "pallet-session-benchmarking",
  "pallet-statement",
+ "pallet-store",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
@@ -1936,6 +1938,7 @@ dependencies = [
  "pallet-session",
  "pallet-session-benchmarking",
  "pallet-statement",
+ "pallet-store",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
@@ -6668,6 +6671,26 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-store"
+version = "0.9.3"
+dependencies = [
+ "cord-identifier",
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-chain-space",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/dhiway/substrate-sdk?branch=release-v1.13.0)",
 ]
 
 [[package]]
