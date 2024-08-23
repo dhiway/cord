@@ -30,7 +30,7 @@
 //!
 //! ### Dispatchable Functions
 //!
-//! * `create_registry` - Create a registry, with states supported and entry types.
+//! * `create_registry` - Create a registry, with blob and digest.
 //! * `create_registry_entry` - Create a registry entry for the created registry.
 //! * `registry_entry_state_change` - Change the status of the registry entry.
 //! * `add_delegate` - Add a account as a delegate with specific permission.
@@ -259,7 +259,7 @@ pub mod pallet {
 		///
 		/// This function allows a user to submit a new create registry request.
 		/// The Registry is created along with various metadata, including the
-		/// attributes, creator and other data.
+		/// blob, digest.
 		///
 		/// # Arguments
 		/// * `origin` - The origin of the call, which should be a signed user in most cases.
@@ -352,8 +352,7 @@ pub mod pallet {
 		/// This function allows a user to submit a new create registry entry request
 		/// for a existing Registry.
 		/// The Registry Entry is created along with various metadata, including the
-		/// attributes with the Registry Entry Key and its associated type-data,
-		/// current-state of the registry-entry and other information.
+		/// blob, digest, and the state of the Registry Entry.
 		///
 		/// # Arguments
 		/// * `origin` - The origin of the call, which should be a signed user in most cases.
