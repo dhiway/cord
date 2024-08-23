@@ -1135,6 +1135,9 @@ mod runtime {
 	#[runtime::pallet_index(60)]
 	pub type NetworkParameters = pallet_config;
 
+	#[runtime::pallet_index(61)]
+	pub type DeDir = pallet_dedir;
+
 	#[runtime::pallet_index(254)]
 	pub type RootTesting = pallet_root_testing;
 
