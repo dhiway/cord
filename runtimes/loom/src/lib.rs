@@ -505,6 +505,20 @@ impl pallet_identity::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MaxRegistryDelegates: u32 = 25;
+	pub const MaxEncodedInputLength: u32 = 32;
+	pub const MaxRegistryBlobSize: u32 = 16 * 1024; // 16KB in bytes
+}
+
+impl pallet_dedir::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxRegistryBlobSize = MaxRegistryBlobSize;
+	type MaxRegistryDelegates = MaxRegistryDelegates;
+	type MaxEncodedInputLength = MaxEncodedInputLength;
+	type WeightInfo = ();
+}
+
+parameter_types! {
 	pub MotionDuration: BlockNumber = prod_or_fast!(3 * DAYS, 2 * MINUTES, "CORD_MOTION_DURATION");
 	pub const MaxProposals: u32 = 100;
 	pub const MaxMembers: u32 = 50;
