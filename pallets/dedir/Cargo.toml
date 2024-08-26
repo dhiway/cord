@@ -30,6 +30,7 @@ identifier = { workspace = true }
 cord-utilities = { features = ["mock"], workspace = true }
 log = { workspace = true }
 serde_json = { workspace = true }
+bitflags = { workspace = true }
 
 frame-benchmarking = { optional = true, workspace = true }
 

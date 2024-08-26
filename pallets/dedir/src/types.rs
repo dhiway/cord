@@ -26,6 +26,8 @@ use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
 
+use bitflags::bitflags;
+
 #[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 pub enum RegistrySupportedStateOf {
 	DRAFT,
@@ -71,25 +73,28 @@ pub struct RegistryEntry<
 	pub current_state: RegistrySupportedStateOf,
 }
 
-/// The `Permissions` enum defines the levels of access control available for an account within a
-/// registry.
-///
-/// - `DELEGATE`: Grants permission to manage registry entries.
-/// - `ADMIN`: Extends `DELEGATE` permissions, allowing the management of delegates in addition to
-///   managing registry entries.
-/// - `OWNER`: The creator or owner of the registry. This permission level encompasses the full
-///   range of management capabilities, including the permissions of both `DELEGATE` and `ADMIN`.
-#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub enum Permissions {
-	OWNER,
-	ADMIN,
-	DELEGATE,
+/* The `Permissions` enum defines the levels of access control available for an account within a
+ * registry.
+ *
+ * - `DELEGATE`: Grants permission to manage registry entries.
+ * - `ADMIN`: Extends `DELEGATE` permissions, allowing the management of delegates in addition to
+ *   managing registry entries.
+ * - `OWNER`: The creator or owner of the registry. This permission level encompasses the full
+ *   range of management capabilities, including the permissions of both `DELEGATE` and `ADMIN`.
+ */
+bitflags! {
+	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
+	pub struct Permissions: u32 {
+		const DELEGATE = 0b0000_0001;
+		const ADMIN = 0b0000_0010;
+		const OWNER = 0b0000_0100;
+	}
 }
 
 #[derive(Encode, Decode, Clone, Default, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 pub struct DelegateInfo<DelegateOf, Permissions> {
 	pub delegate: DelegateOf,
-	pub permission: Permissions,
+	pub permissions: Permissions,
 	pub delegator: Option<DelegateOf>,
 }
 

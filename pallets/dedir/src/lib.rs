@@ -190,8 +190,6 @@ pub mod pallet {
 		AdminCannotRemoveAnotherAdmin,
 		/// Delegate is unauthorized from Delegate Operations.
 		DelegateCannotRemoveAccounts,
-		/// Delegate already exists with same permissions.
-		DelegateWithSamePermissionExists,
 		/// Registry Owner Permissions cannot be updated.
 		CannotUpdateOwnerPermission,
 		/// Delegator cannot be removed.
@@ -200,6 +198,8 @@ pub mod pallet {
 		DelegatorCannotBeAdded,
 		/// Delegator cannot be updated.
 		DelegatorCannotBeUpdated,
+		/// Delegate already exists with same permission.
+		DelegateAlreadyExistsWithSamePermission,
 		/// Delegate alreay exists.
 		DelegateAlreadyAdded,
 		/// Blob and Digest Does not match.
@@ -332,7 +332,7 @@ pub mod pallet {
 				.entries
 				.try_push(DelegateInfo {
 					delegate: creator.clone(),
-					permission: Permissions::OWNER,
+					permissions: Permissions::OWNER,
 					delegator: None,
 				})
 				.is_err()
@@ -362,7 +362,7 @@ pub mod pallet {
 		/// * `digest` - The digest to be bound to the Registry Entry.
 		/// * `blob` - (Optional) Bounded Vector of Blob which is derived from same file as digest.
 		/// * `state` - (Optional) Valid registry state for the registry entry to be associated
-		///   with.
+		///   with. By default it shall be set to DRAFT.
 		///
 		/// # Errors
 		/// Returns `Error::<T>::RegistryIdDoesNotExists` if the registry identifier
@@ -400,12 +400,10 @@ pub mod pallet {
 				DelegatesList::<T>::get(&registry_id).ok_or(Error::<T>::DelegatesListNotFound)?;
 
 			/* Ensure there exists a valid_delegate */
+			let permitted_permissions =
+				Permissions::OWNER | Permissions::ADMIN | Permissions::DELEGATE;
 			ensure!(
-				Self::is_valid_delegate(
-					&delegates.entries,
-					&creator,
-					&[Permissions::OWNER, Permissions::ADMIN, Permissions::DELEGATE]
-				),
+				Self::is_valid_delegate(&delegates.entries, &creator, permitted_permissions,),
 				Error::<T>::UnauthorizedOperation
 			);
 
@@ -521,12 +519,10 @@ pub mod pallet {
 			let delegates =
 				DelegatesList::<T>::get(&registry_id).ok_or(Error::<T>::DelegatesListNotFound)?;
 
+			let permitted_permissions =
+				Permissions::OWNER | Permissions::ADMIN | Permissions::DELEGATE;
 			ensure!(
-				Self::is_valid_delegate(
-					&delegates.entries,
-					&who,
-					&[Permissions::OWNER, Permissions::ADMIN, Permissions::DELEGATE]
-				),
+				Self::is_valid_delegate(&delegates.entries, &who, permitted_permissions,),
 				Error::<T>::UnauthorizedOperation
 			);
 
@@ -570,9 +566,9 @@ pub mod pallet {
 		///   other delegates.
 		///
 		/// - **Existing Delegate Check:** The function checks whether the delegate already exists
-		///   in the registry. If the delegate is already listed, the operation will return an
-		///   error. This also ensures that an existing `OWNER` cannot be added with a different
-		///   permission.
+		///   in the registry. If the delegate is already listed with same permission, the operation
+		///   will return an error. If the delegate is same but with different permission, the
+		///   permission bits shall be overlapped as union.
 		///
 		/// - **Storage Overflow Handling:** If the addition of the new delegate exceeds the maximum
 		///   allowed storage, an error will be returned.
@@ -620,7 +616,7 @@ pub mod pallet {
 			ensure!(delegate != delegator, Error::<T>::DelegatorCannotBeAdded);
 
 			/* Ensure OWNER permission is not assigned */
-			ensure!(!matches!(permission, Permissions::OWNER), Error::<T>::InvalidPermission);
+			ensure!(!permission.intersects(Permissions::OWNER), Error::<T>::InvalidPermission);
 
 			/* Ensure that registry_entry is created from authorized account */
 			let mut delegates =
@@ -633,29 +629,30 @@ pub mod pallet {
 				Self::is_valid_delegate(
 					&delegates.entries,
 					&delegator,
-					&[Permissions::OWNER, Permissions::ADMIN]
+					Permissions::OWNER | Permissions::ADMIN
 				),
 				Error::<T>::UnauthorizedOperation
 			);
 
-			/* Check if the delegate already exists */
-			/* As a side-effect it also prevents a existing OWNER getting added with different
-			 * permission */
-			let existing_entry = delegates.entries.iter().find(|d| d.delegate == delegate);
-			if existing_entry.is_some() {
-				return Err(Error::<T>::DelegateAlreadyAdded.into());
-			}
-
-			if delegates
-				.entries
-				.try_push(DelegateInfo {
-					delegate: delegate.clone(),
-					permission: permission.clone(),
-					delegator: Some(delegator.clone()),
-				})
-				.is_err()
+			/* Handle avoidance of mulitple entries with same `delegate`.
+			 * Overlap the `Permissions` bits if there exists a same `delegate` entry
+			 */
+			if let Some(existing_entry) =
+				delegates.entries.iter_mut().find(|d| d.delegate == delegate)
 			{
-				return Err(Error::<T>::MaxDelegatesStorageOverflow.into());
+				if existing_entry.permissions.intersects(permission) {
+					return Err(Error::<T>::DelegateAlreadyExistsWithSamePermission.into());
+				}
+				existing_entry.permissions |= permission;
+			} else {
+				delegates
+					.entries
+					.try_push(DelegateInfo {
+						delegate: delegate.clone(),
+						permissions: permission,
+						delegator: Some(delegator.clone()),
+					})
+					.map_err(|_| Error::<T>::MaxDelegatesStorageOverflow)?;
 			}
 
 			DelegatesList::<T>::insert(&registry_id, delegates);
@@ -752,43 +749,48 @@ pub mod pallet {
 
 			for (i, entry) in delegates.entries.iter().enumerate() {
 				if entry.delegate == delegator {
-					delegator_permission = Some(entry.permission.clone());
+					delegator_permission = Some(entry.permissions);
 				}
 				if entry.delegate == delegate {
 					delegate_index = Some(i);
 				}
 			}
 
-			/* Ensure the delegator has the required permissions of being either OWNER/ADNIN */
+			/* Ensure the delegator has the required permissions of being either OWNER/ADMIN */
 			ensure!(
-				delegator_permission
-					.clone()
-					.map_or(false, |perm| matches!(perm, Permissions::OWNER | Permissions::ADMIN)),
+				delegator_permission.map_or(false, |perm| {
+					perm.intersects(Permissions::OWNER | Permissions::ADMIN)
+				}),
 				Error::<T>::UnauthorizedOperation
 			);
 
 			/* Ensure that the delegate to be removed is found */
 			if let Some(index) = delegate_index {
-				/* Ensure OWNER cannot be removed */
+				/* Ensure OWNER cannot be removed, assuming there exists one owner per registry */
 				if delegates.entries[index].delegator.is_none() {
 					return Err(Error::<T>::CannotRemoveRegistryOwnerAsDelegate.into());
 				}
 
-				/* Ensure that permissions are correctly enforced
-				 * OWNER can remove any other permissioned accounts
-				 * ADMIN cannot remove another ADMIN
-				 * DELEGATE cannot remove any accounts
+				/* Ensure that permissions are correctly enforced:
+				 * OWNER can remove any other permissioned accounts.
+				 * ADMIN cannot remove another ADMIN.
+				 * DELEGATE cannot remove any accounts.
 				 */
 				match delegator_permission.unwrap() {
-					Permissions::OWNER => {},
-					Permissions::ADMIN => {
+					// OWNER can remove any accounts, no additional checks required
+					permission if permission.intersects(Permissions::OWNER) => {},
+
+					permission if permission.intersects(Permissions::ADMIN) => {
 						ensure!(
-							delegates.entries[index].permission != Permissions::ADMIN,
+							!delegates.entries[index].permissions.intersects(Permissions::ADMIN),
 							Error::<T>::AdminCannotRemoveAnotherAdmin
 						);
 					},
-					Permissions::DELEGATE => {
+					permission if permission.intersects(Permissions::DELEGATE) => {
 						return Err(Error::<T>::DelegateCannotRemoveAccounts.into());
+					},
+					_ => {
+						return Err(Error::<T>::InvalidPermission.into());
 					},
 				}
 
@@ -841,7 +843,8 @@ pub mod pallet {
 		/// * `origin` - The origin of the call, which should be a signed user.
 		/// * `registry_id` - The Registry Identifier associated with an existing Registry.
 		/// * `delegate` - The account for which the permission update should take place.
-		/// * `new_permission` - The `new_permission` to which the `delegate` should be updated.
+		/// * `new_permission` - The `new_permission` to which the `delegate` should be updated. The
+		///   valid permissions are `ADMIN` and `DELEGATE`.
 		///
 		/// # Errors
 		/// Returns `Error::<T>::RegistryIdDoesNotExist` if the registry identifier does not exist.
@@ -853,8 +856,8 @@ pub mod pallet {
 		/// Returns `Error::<T>::UnauthorizedOperation` if the given operation is not valid.
 		/// Returns `Error::<T>::CannotUpdateOwnerPermission` if the owner's permission is attempted
 		/// to be changed.
-		/// Returns `Error::<T>::DelegateWithSamePermissionExists` if the given `delegate` already
-		/// exists with the same `new_permission`.
+		/// Returns `Error::<T>::DelegateAlreadyExistsWithSamePermission` if the given `delegate`
+		/// already exists with the same `new_permission`.
 		///
 		/// # Events
 		/// Emits `RegistryDelegatePermissionUpdated` when a Registry Delegate Permission is
@@ -902,7 +905,7 @@ pub mod pallet {
 				.entries
 				.iter()
 				.find(|d| d.delegate == delegator)
-				.map(|d| d.permission.clone())
+				.map(|d| d.permissions)
 				.ok_or(Error::<T>::UnauthorizedOperation)?;
 
 			ensure!(
@@ -913,27 +916,24 @@ pub mod pallet {
 			let delegate_entry = &delegates.entries[delegate_index];
 
 			/* Ensure that the delegate is not the OWNER */
-			ensure!(
-				delegate_entry.permission != Permissions::OWNER,
-				Error::<T>::CannotUpdateOwnerPermission
-			);
+			ensure!(!new_permission.intersects(Permissions::OWNER), Error::<T>::InvalidPermission);
 
 			/* Ensure Delegate with same permission does not already exist */
 			ensure!(
-				delegate_entry.permission != new_permission,
-				Error::<T>::DelegateWithSamePermissionExists
+				!delegate_entry.permissions.intersects(new_permission),
+				Error::<T>::DelegateAlreadyExistsWithSamePermission
 			);
 
 			/* Ensure only an OWNER can downgrade an ADMIN to DELEGATE */
-			if matches!(new_permission, Permissions::DELEGATE) {
-				if matches!(delegate_entry.permission, Permissions::ADMIN) &&
-					delegator_permission != Permissions::OWNER
+			if new_permission.intersects(Permissions::DELEGATE) {
+				if delegate_entry.permissions.intersects(Permissions::ADMIN) &&
+					!delegator_permission.intersects(Permissions::OWNER)
 				{
 					return Err(Error::<T>::UnauthorizedOperation.into());
 				}
 			}
 
-			delegates.entries[delegate_index].permission = new_permission.clone();
+			delegates.entries[delegate_index].permissions = new_permission;
 
 			DelegatesList::<T>::insert(&registry_id, delegates);
 
@@ -973,11 +973,19 @@ impl<T: Config> Pallet<T> {
 	pub fn is_valid_delegate(
 		delegates: &DelegateEntryOf<T>,
 		creator: &OwnerOf<T>,
-		permissions: &[Permissions],
+		required_permissions: Permissions,
 	) -> bool {
 		for entry in delegates.iter() {
-			if entry.delegate == *creator && permissions.contains(&entry.permission) {
-				return true;
+			if entry.delegate == *creator {
+				log::debug!(
+					"Delegate: {:?}, Entry Permissions: {:?}, Required Permissions: {:?}",
+					entry.delegate,
+					entry.permissions.bits(),
+					required_permissions.bits()
+				);
+				if entry.permissions.intersects(required_permissions) {
+					return true;
+				}
 			}
 		}
 		false

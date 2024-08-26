@@ -109,7 +109,7 @@ fn create_registry_should_work() {
 			.unwrap()
 			.entries
 			.iter()
-			.any(|d| d.delegate == creator && d.permission == Permissions::OWNER));
+			.any(|d| d.delegate == creator && d.permissions == Permissions::OWNER));
 
 		/* Check for successfull event emission of CreatedRegistry */
 		System::assert_last_event(
@@ -436,7 +436,7 @@ fn add_delegate_should_work() {
 			frame_system::RawOrigin::Signed(delegator.clone()).into(),
 			registry_id.clone(),
 			delegate.clone(),
-			permission.clone(),
+			permission,
 		));
 
 		/* Check if the delegate was added successfully */
@@ -447,7 +447,7 @@ fn add_delegate_should_work() {
 		assert!(delegates
 			.entries
 			.iter()
-			.any(|d| d.delegate == delegate && d.permission == permission));
+			.any(|d| d.delegate == delegate && d.permissions == permission));
 
 		/* Check for successfull event emission of RegistryDelegateAdded */
 		System::assert_last_event(
@@ -455,7 +455,7 @@ fn add_delegate_should_work() {
 				delegator: delegator.clone(),
 				registry_id: registry_id.clone(),
 				delegate: delegate.clone(),
-				permission: permission.clone(),
+				permission,
 			}
 			.into(),
 		);
@@ -522,7 +522,7 @@ fn remove_delegate_should_work() {
 			frame_system::RawOrigin::Signed(delegator.clone()).into(),
 			registry_id.clone(),
 			delegate.clone(),
-			permission.clone(),
+			permission,
 		));
 
 		/* Test for removal of delegate */
@@ -613,7 +613,7 @@ fn update_delegate_permission_should_work() {
 			frame_system::RawOrigin::Signed(delegator.clone()).into(),
 			registry_id.clone(),
 			delegate.clone(),
-			permission.clone(),
+			permission,
 		));
 
 		/* Test for addition of a delegate */
@@ -621,7 +621,7 @@ fn update_delegate_permission_should_work() {
 			frame_system::RawOrigin::Signed(delegator.clone()).into(),
 			registry_id.clone(),
 			delegate.clone(),
-			new_permission.clone(),
+			new_permission,
 		));
 
 		/* Check if the delegate was added successfully */
@@ -633,7 +633,7 @@ fn update_delegate_permission_should_work() {
 		assert!(delegates
 			.entries
 			.iter()
-			.any(|d| d.delegate == delegate && d.permission == new_permission));
+			.any(|d| d.delegate == delegate && d.permissions == new_permission));
 
 		/* Check for successfull event emission of RegistryDelegateAdded */
 		System::assert_last_event(
@@ -641,7 +641,7 @@ fn update_delegate_permission_should_work() {
 				delegator: delegator.clone(),
 				registry_id: registry_id.clone(),
 				delegate: delegate.clone(),
-				new_permission: new_permission.clone(),
+				new_permission,
 			}
 			.into(),
 		);

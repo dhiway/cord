@@ -152,10 +152,6 @@ impl CordIdentifierType for Ss58Identifier {
 }
 
 impl Ss58Identifier {
-	pub fn as_bytes(&self) -> &[u8] {
-		&self.0
-	}
-
 	/// Generate Blake2b Hash
 	pub fn ss58hash(data: &[u8]) -> Blake2bResult {
 		let mut context = Blake2b::new(64);
