@@ -616,7 +616,7 @@ pub mod pallet {
 			ensure!(delegate != delegator, Error::<T>::DelegatorCannotBeAdded);
 
 			/* Ensure OWNER permission is not assigned */
-			ensure!(!permission.intersects(Permissions::OWNER), Error::<T>::InvalidPermission);
+			ensure!(!permission.contains(Permissions::OWNER), Error::<T>::InvalidPermission);
 
 			/* Ensure that registry_entry is created from authorized account */
 			let mut delegates =
@@ -640,6 +640,13 @@ pub mod pallet {
 			if let Some(existing_entry) =
 				delegates.entries.iter_mut().find(|d| d.delegate == delegate)
 			{
+				// TODO:
+				// Revisit should there be a strict check or mild check.
+				// Example scenario:
+				// Already there exists a delegate with `DELEGATE` permission.
+				// If the same delegate is being added again with `ADMIN | DELEGATE` permission,
+				// then should we allow the permissions to added or throw error that `DELEGATE`
+				// permission already exists.
 				if existing_entry.permissions.intersects(permission) {
 					return Err(Error::<T>::DelegateAlreadyExistsWithSamePermission.into());
 				}
@@ -778,15 +785,15 @@ pub mod pallet {
 				 */
 				match delegator_permission.unwrap() {
 					// OWNER can remove any accounts, no additional checks required
-					permission if permission.intersects(Permissions::OWNER) => {},
+					permission if permission.contains(Permissions::OWNER) => {},
 
-					permission if permission.intersects(Permissions::ADMIN) => {
+					permission if permission.contains(Permissions::ADMIN) => {
 						ensure!(
-							!delegates.entries[index].permissions.intersects(Permissions::ADMIN),
+							!delegates.entries[index].permissions.contains(Permissions::ADMIN),
 							Error::<T>::AdminCannotRemoveAnotherAdmin
 						);
 					},
-					permission if permission.intersects(Permissions::DELEGATE) => {
+					permission if permission.contains(Permissions::DELEGATE) => {
 						return Err(Error::<T>::DelegateCannotRemoveAccounts.into());
 					},
 					_ => {
@@ -916,18 +923,18 @@ pub mod pallet {
 			let delegate_entry = &delegates.entries[delegate_index];
 
 			/* Ensure that the delegate is not the OWNER */
-			ensure!(!new_permission.intersects(Permissions::OWNER), Error::<T>::InvalidPermission);
+			ensure!(!new_permission.contains(Permissions::OWNER), Error::<T>::InvalidPermission);
 
 			/* Ensure Delegate with same permission does not already exist */
 			ensure!(
-				!delegate_entry.permissions.intersects(new_permission),
+				!delegate_entry.permissions.contains(new_permission),
 				Error::<T>::DelegateAlreadyExistsWithSamePermission
 			);
 
 			/* Ensure only an OWNER can downgrade an ADMIN to DELEGATE */
-			if new_permission.intersects(Permissions::DELEGATE) {
-				if delegate_entry.permissions.intersects(Permissions::ADMIN) &&
-					!delegator_permission.intersects(Permissions::OWNER)
+			if new_permission.contains(Permissions::DELEGATE) {
+				if delegate_entry.permissions.contains(Permissions::ADMIN) &&
+					!delegator_permission.contains(Permissions::OWNER)
 				{
 					return Err(Error::<T>::UnauthorizedOperation.into());
 				}
@@ -983,7 +990,7 @@ impl<T: Config> Pallet<T> {
 					entry.permissions.bits(),
 					required_permissions.bits()
 				);
-				if entry.permissions.intersects(required_permissions) {
+				if required_permissions.contains(entry.permissions) {
 					return true;
 				}
 			}
