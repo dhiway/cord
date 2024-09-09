@@ -72,7 +72,7 @@ impl IdentifierType {
 			IdentifierType::AssetInstance => Self::IDENT_ASSET_INSTANCE,
 			IdentifierType::Rating => Self::IDENT_RATING,
 			IdentifierType::Registries => Self::IDENT_REGISTRIES,
-			IdentifierType::Entries=> Self::IDENT_ENTRIES,
+			IdentifierType::Entries => Self::IDENT_ENTRIES,
 		}
 	}
 	fn from_u16(value: u16) -> Option<Self> {
