@@ -80,4 +80,6 @@ pub enum IdentifierTypeOf {
 	Statement,
 	Schema,
 	Template,
+	Registries,
+	Entries,
 }
