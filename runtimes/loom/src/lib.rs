@@ -505,6 +505,31 @@ impl pallet_identity::Config for Runtime {
 }
 
 parameter_types! {
+	pub const MaxRegistryDelegates: u32 = 100;
+	pub const MaxEncodedInputLength: u32 = 32;
+	pub const MaxRegistryBlobSize: u32 = 4 * 1024; // 4KB in bytes
+}
+
+impl pallet_registries::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxRegistryBlobSize = MaxRegistryBlobSize;
+	type MaxRegistryDelegates = MaxRegistryDelegates;
+	type MaxEncodedInputLength = MaxEncodedInputLength;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const MaxRegistryEntryBlobSize: u32 = 4 * 1024; // 4KB in bytes
+}
+
+impl pallet_entries::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxEncodedInputLength = MaxEncodedInputLength;
+	type MaxRegistryEntryBlobSize = MaxRegistryEntryBlobSize;
+	type WeightInfo = ();
+}
+
+parameter_types! {
 	pub MotionDuration: BlockNumber = prod_or_fast!(3 * DAYS, 2 * MINUTES, "CORD_MOTION_DURATION");
 	pub const MaxProposals: u32 = 100;
 	pub const MaxMembers: u32 = 50;
@@ -1116,6 +1141,12 @@ mod runtime {
 
 	#[runtime::pallet_index(60)]
 	pub type NetworkParameters = pallet_config;
+
+	#[runtime::pallet_index(61)]
+	pub type Registries = pallet_registries;
+
+	#[runtime::pallet_index(62)]
+	pub type Entries = pallet_entries;
 
 	#[runtime::pallet_index(254)]
 	pub type RootTesting = pallet_root_testing;

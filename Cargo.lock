@@ -1261,9 +1261,11 @@ dependencies = [
  "pallet-chain-space",
  "pallet-config",
  "pallet-contracts",
+ "pallet-dedir",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
+ "pallet-entries",
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
@@ -1391,9 +1393,11 @@ dependencies = [
  "pallet-collective",
  "pallet-config",
  "pallet-contracts",
+ "pallet-dedir",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
+ "pallet-entries",
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
@@ -1914,9 +1918,11 @@ dependencies = [
  "pallet-collective",
  "pallet-config",
  "pallet-contracts",
+ "pallet-dedir",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
+ "pallet-entries",
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
@@ -6282,6 +6288,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-dedir"
+version = "0.9.3"
+dependencies = [
+ "bitflags 1.3.2",
+ "cord-identifier",
+ "cord-utilities",
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-did"
 version = "0.9.3"
 dependencies = [
@@ -6330,6 +6358,28 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-api",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-entries"
+version = "0.9.3"
+dependencies = [
+ "cord-identifier",
+ "cord-utilities",
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-dedir",
+ "parity-scale-codec",
+ "scale-info",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
  "sp-std",
 ]
 
