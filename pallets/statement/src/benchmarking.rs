@@ -62,7 +62,7 @@ benchmarks! {
 		let identifier = generate_statement_id::<T>(&id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
@@ -103,7 +103,7 @@ benchmarks! {
 		let identifier = generate_statement_id::<T>(&statement_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
@@ -146,7 +146,7 @@ benchmarks! {
 		let identifier = generate_statement_id::<T>(&statement_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
@@ -187,7 +187,7 @@ benchmarks! {
 		let identifier = generate_statement_id::<T>(&statement_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
@@ -229,7 +229,7 @@ benchmarks! {
 		let identifier = generate_statement_id::<T>(&statement_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
@@ -271,7 +271,7 @@ benchmarks! {
 		let statement_digest2 = <T as frame_system::Config>::Hashing::hash(&statement2[..]);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
@@ -308,7 +308,7 @@ benchmarks! {
 		let identifier = generate_statement_id::<T>(&statement_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);
@@ -349,7 +349,7 @@ benchmarks! {
 		let identifier = generate_statement_id::<T>(&statement_id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 		);
 
 		let authorization_id: Ss58Identifier = generate_authorization_id::<T>(&auth_digest);

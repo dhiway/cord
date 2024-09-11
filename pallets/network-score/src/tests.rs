@@ -64,7 +64,7 @@ fn check_successful_rating_creation() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
@@ -118,7 +118,7 @@ fn check_duplicate_message_id() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
@@ -185,7 +185,7 @@ fn revise_rating_with_entry_entity_mismatch_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
@@ -268,7 +268,7 @@ fn register_rating_with_existing_rating_identifier_should_fail() {
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
@@ -333,7 +333,7 @@ fn revoke_rating_with_existing_rating_identifier_should_fail() {
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
@@ -424,7 +424,7 @@ fn revise_rating_with_existing_rating_identifier_should_fail() {
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
@@ -536,7 +536,7 @@ fn reference_identifier_not_debit_test() {
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
@@ -614,7 +614,7 @@ fn rating_identifier_not_found_test() {
 	);
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: AuthorizationIdOf =
 		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)

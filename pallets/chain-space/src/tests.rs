@@ -37,7 +37,7 @@ fn add_delegate_should_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -74,7 +74,7 @@ fn add_admin_delegate_should_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -111,7 +111,7 @@ fn add_admin_delegate_should_fail_if_admin_delegate_already_exists() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -158,7 +158,7 @@ fn add_delegator_should_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -195,7 +195,7 @@ fn add_delegator_should_fail_if_delegator_already_exists() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -241,7 +241,7 @@ fn add_delegate_should_fail_if_space_is_not_created() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -274,7 +274,7 @@ fn add_admin_delegate_should_fail_if_space_is_not_created() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -307,7 +307,7 @@ fn add_delegator_should_fail_if_space_is_not_created() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -341,7 +341,7 @@ fn add_delegate_should_fail_if_the_regisrty_is_archived() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -385,7 +385,7 @@ fn add_delegate_should_fail_if_the_space_is_not_approved() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -423,7 +423,7 @@ fn add_delegate_should_fail_if_a_non_delegate_tries_to_add() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -462,7 +462,7 @@ fn add_delegate_should_fail_if_the_space_capacity_is_full() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -506,7 +506,7 @@ fn add_delegate_should_fail_if_delegate_already_exists() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -628,10 +628,11 @@ fn archiving_a_space_should_succeed() {
 
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	let delegate = DID_01;
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
@@ -649,7 +650,7 @@ fn archiving_a_space_should_succeed() {
 			Space::add_delegate(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
 				space_id,
-				SubjectId(AccountId32::new([1u8; 32])),
+				delegate,
 				authorization_id,
 			),
 			Error::<Test>::ArchivedSpace
@@ -669,7 +670,7 @@ fn archiving_a_non_exixtent_space_should_fail() {
 
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -695,10 +696,11 @@ fn restoring_an_archived_a_space_should_succeed() {
 
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	let delegate = DID_01;
 
 	new_test_ext().execute_with(|| {
 		assert_ok!(Space::create(
@@ -721,7 +723,7 @@ fn restoring_an_archived_a_space_should_succeed() {
 		assert_ok!(Space::add_delegate(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_id,
-			SubjectId(AccountId32::new([1u8; 32])),
+			delegate,
 			authorization_id,
 		));
 	});
@@ -740,7 +742,7 @@ fn restoring_an_non_archived_a_space_should_fail() {
 
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
 	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
@@ -1103,8 +1105,8 @@ fn add_delegate_should_fail_if_space_delegates_limit_exceeded() {
 			space_digest,
 		));
 
-		// Add the maximum number of delegates to the space
-		for delegate_count in 0..4 {
+		// Add the maximum number of delegates to the space (1 + 4)
+		for delegate_count in 2..6 {
 			assert_ok!(Space::space_delegate_addition(
 				space_id.clone(),
 				SubjectId(AccountId32::new([delegate_count; 32])),
@@ -1118,11 +1120,131 @@ fn add_delegate_should_fail_if_space_delegates_limit_exceeded() {
 		assert_err!(
 			Space::space_delegate_addition(
 				space_id.clone(),
-				SubjectId(AccountId32::new([4u8; 32])),
+				SubjectId(AccountId32::new([6u8; 32])),
 				creator.clone(),
 				Permissions::all(),
 			),
 			Error::<Test>::SpaceDelegatesLimitExceeded
+		);
+	});
+}
+
+#[test]
+fn add_delegate_should_fail_for_space_creator_delegating_themselves() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		// Addding the Delegate same as the Creator should fail.
+		assert_err!(
+			Space::add_delegate(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id,
+				creator.clone(),
+				authorization_id,
+			),
+			Error::<Test>::DelegateAlreadyAdded
+		);
+	});
+}
+
+#[test]
+fn add_admin_delegate_should_fail_for_space_creator_delegating_themselves() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		// Adding the Admin Delegate who is the Creator of the Space should fail.
+		assert_err!(
+			Space::add_admin_delegate(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id,
+				creator.clone(),
+				authorization_id,
+			),
+			Error::<Test>::DelegateAlreadyAdded
+		);
+	});
+}
+
+#[test]
+fn add_delegator_should_fail_for_space_creator_delegating_themselves() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 3u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+
+		// Adding the `delegator` who is the Creator of the Space should fail.
+		assert_err!(
+			Space::add_delegator(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id,
+				creator.clone(),
+				authorization_id,
+			),
+			Error::<Test>::DelegateAlreadyAdded
 		);
 	});
 }
