@@ -314,3 +314,82 @@ fn test_schema_lookup() {
 		}
 	});
 }
+
+// This test case ensures that the creation of a schema with invalid indentifier length.
+// fails with the InvalidIdentifierLength error.
+#[test]
+fn creating_schema_with_invalid_identifier_length_should_fail() {
+	new_test_ext().execute_with(|| {
+		let creator = DID_00;
+		let author = ACCOUNT_00;
+		let capacity = 3u64;
+
+		let raw_space = [2u8; 256].to_vec();
+		let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+		let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+			&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+		);
+		let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+		let raw_schema = [2u8; 256].to_vec();
+		let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema).expect(
+			"Test Schema should fit into the expected input length of for the test runtime.",
+		);
+		let digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+		let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
+			&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		);
+		let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
+		let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+			&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		);
+		let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
+		// Using encoded spaces to manipulate the length of the identifier
+		// These vectors represent different attempts to create identifiers of varying lengths
+		let space1 = [2u8; 1].to_vec();
+		let space2 = [2u8; 50].to_vec();
+		// Assume space3's length is appropriate for a successful case, included for contrast
+		let space3 = [2u8; 30].to_vec();
+
+		// Convert these spaces into BoundedVecs to simulate different tx_schema inputs
+		// Adjust these examples based on the specific conditions that trigger
+		// InvalidIdentifierLength in your implementation
+		let tx_schema_space1: InputSchemaOf<Test> =
+			BoundedVec::try_from(space1).expect("Should be within bounds");
+		let tx_schema_space2: InputSchemaOf<Test> =
+			BoundedVec::try_from(space2).expect("Should be within bounds");
+		let tx_schema_space3: InputSchemaOf<Test> =
+			BoundedVec::try_from(space3).expect("Should be within bounds");
+
+		// Testing with tx_schema that leads to an identifier too short
+		assert_noop!(
+			Schema::create(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				tx_schema_space1.clone(),
+				authorization_id.clone()
+			),
+			Error::<Test>::InvalidIdentifierLength
+		);
+
+		// Testing with tx_schema that leads to an identifier too long
+		assert_noop!(
+			Schema::create(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				tx_schema_space2.clone(),
+				authorization_id.clone()
+			),
+			Error::<Test>::InvalidIdentifierLength
+		);
+
+		// For contrast, testing with a tx_schema expected to succeed
+		// This should not trigger the InvalidIdentifierLength, hence not using assert_noop!
+		// assert_ok! is used here to illustrate a successful case, not for testing
+		// InvalidIdentifierLength
+		assert_ok!(Schema::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			tx_schema_space3.clone(),
+			authorization_id.clone()
+		));
+	});
+}
