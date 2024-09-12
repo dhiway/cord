@@ -525,8 +525,10 @@ pub mod pallet {
 			// Construct the authorization_id from the provided parameters.
 			// Id Digest = concat (H(<scale_encoded_space_identifier>,
 			// <scale_encoded_creator_identifier> ))
-			let auth_id_digest =
-				T::Hashing::hash(&[&identifier.encode()[..], &creator.encode()[..]].concat()[..]);
+			let auth_id_digest = T::Hashing::hash(
+				&[&identifier.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()
+					[..],
+			);
 
 			let authorization_id = Ss58Identifier::create_identifier(
 				&auth_id_digest.encode(),
@@ -1042,8 +1044,10 @@ pub mod pallet {
 			// Construct the authorization_id from the provided parameters.
 			// Id Digest = concat (H(<scale_encoded_space_identifier>,
 			// <scale_encoded_creator_identifier> ))
-			let auth_id_digest =
-				T::Hashing::hash(&[&identifier.encode()[..], &creator.encode()[..]].concat()[..]);
+			let auth_id_digest = T::Hashing::hash(
+				&[&identifier.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()
+					[..],
+			);
 
 			let authorization_id = Ss58Identifier::create_identifier(
 				&auth_id_digest.encode(),
