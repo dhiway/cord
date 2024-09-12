@@ -57,7 +57,7 @@ fn register_statement_should_succeed() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -107,7 +107,7 @@ fn trying_to_register_statement_to_a_non_existent_space_should_fail() {
 	);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -149,7 +149,7 @@ fn trying_to_register_statement_by_a_non_delegate_should_fail() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -206,7 +206,7 @@ fn updating_a_registered_statement_should_succeed() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -278,7 +278,7 @@ fn updating_a_registered_statement_by_a_space_delegate_should_succeed() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -357,7 +357,7 @@ fn trying_to_update_a_registered_statement_by_a_non_space_delegate_should_fail()
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -431,7 +431,7 @@ fn trying_to_update_a_non_registered_statement_should_fail() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -499,7 +499,7 @@ fn revoking_a_registered_statement_should_succeed() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -577,7 +577,7 @@ fn revoking_a_registered_statement_by_a_non_delegate_should_fail() {
 	let new_space_id: SpaceIdOf = generate_space_id::<Test>(&new_space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -588,7 +588,7 @@ fn revoking_a_registered_statement_by_a_non_delegate_should_fail() {
 	let statement_id: StatementIdOf = generate_statement_id::<Test>(&statement_id_digest);
 
 	let delegate_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&new_space_id.encode()[..], &delegate.encode()[..]].concat()[..],
+		&[&new_space_id.encode()[..], &delegate.encode()[..], &delegate.encode()[..]].concat()[..],
 	);
 	let delegate_authorization_id = generate_authorization_id::<Test>(&delegate_id_digest);
 
@@ -662,7 +662,7 @@ fn restoring_a_revoked_statement_should_succeed() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -738,7 +738,7 @@ fn trying_to_restore_a_non_revoked_statement_should_fail() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -814,7 +814,7 @@ fn trying_to_restore_a_revoked_statement_by_a_non_delegate_should_fail() {
 	let new_space_id: SpaceIdOf = generate_space_id::<Test>(&new_space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -825,7 +825,7 @@ fn trying_to_restore_a_revoked_statement_by_a_non_delegate_should_fail() {
 	let statement_id: StatementIdOf = generate_statement_id::<Test>(&statement_id_digest);
 
 	let delegate_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&new_space_id.encode()[..], &delegate.encode()[..]].concat()[..],
+		&[&new_space_id.encode()[..], &delegate.encode()[..], &delegate.encode()[..]].concat()[..],
 	);
 	let delegate_authorization_id = generate_authorization_id::<Test>(&delegate_id_digest);
 
@@ -905,7 +905,7 @@ fn registering_a_statement_again_should_fail() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -976,7 +976,7 @@ fn updating_a_registered_statement_again_should_fail() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -1043,7 +1043,7 @@ fn removing_nonexistent_presentation_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -1108,7 +1108,7 @@ fn bulk_registering_statements_with_same_digest_should_fail() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -1171,7 +1171,7 @@ fn trying_to_update_or_revoke_or_add_presentation_for_revoked_statement_should_f
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -1261,7 +1261,7 @@ fn nonexistent_presentation_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 

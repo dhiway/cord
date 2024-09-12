@@ -48,7 +48,7 @@ fn asset_create_should_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -101,7 +101,7 @@ fn asset_create_duplicate_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -164,7 +164,7 @@ fn asset_issue_should_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -240,7 +240,7 @@ fn asset_overissuance_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -328,7 +328,7 @@ fn asset_transfer_should_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -434,7 +434,7 @@ fn asset_status_change_should_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -530,7 +530,7 @@ fn asset_vc_create_should_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -583,7 +583,7 @@ fn asset_vc_create_duplicate_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -646,7 +646,7 @@ fn asset_vc_issue_should_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -722,7 +722,7 @@ fn asset_vc_overissuance_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -810,7 +810,7 @@ fn asset_vc_transfer_should_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -916,7 +916,7 @@ fn asset_vc_status_change_should_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -1014,7 +1014,7 @@ fn changing_status_of_asset_instance_with_same_status_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -1116,7 +1116,7 @@ fn changing_status_of_vc_asset_instance_with_same_status_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -1217,7 +1217,7 @@ fn changing_status_of_asset_with_same_status_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -1306,7 +1306,7 @@ fn changing_status_of_vc_asset_with_same_status_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -1392,7 +1392,7 @@ fn asset_over_issuance_should_not_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -1472,7 +1472,7 @@ fn asset_over_issuance_vc_status_change_should_not_succeed() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -1576,7 +1576,7 @@ fn asset_id_not_found_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -1721,7 +1721,7 @@ fn asset_instance_not_found_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -1835,7 +1835,7 @@ fn asset_vc_instance_not_found_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -1947,7 +1947,7 @@ fn asset_not_active_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -2035,7 +2035,7 @@ fn asset_instance_not_active_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -2152,7 +2152,7 @@ fn asset_vc_instance_not_active_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -2266,7 +2266,7 @@ fn asset_issue_with_wrong_asset_id_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 	let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
@@ -2344,7 +2344,7 @@ fn asset_transfer_with_wrong_asset_id_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 	let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
@@ -2454,7 +2454,7 @@ fn asset_status_change_with_wrong_asset_id_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 	let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
@@ -2555,7 +2555,7 @@ fn asset_vc_issue_with_wrong_asset_id_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -2635,7 +2635,7 @@ fn asset_vc_transfer_with_wrong_asset_id_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
@@ -2750,7 +2750,7 @@ fn asset_vc_status_change_with_wrong_asset_id_should_fail() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
