@@ -740,7 +740,7 @@ fn reference_identifier_not_found_test() {
 				entry_digest,
 				authorization_id.clone(),
 			),
-			Error::<Test>::ReferenceIdentifierNotFound 
+			Error::<Test>::ReferenceIdentifierNotFound
 		);
 	});
 }
