@@ -710,7 +710,7 @@ fn reference_identifier_not_found_test() {
 	);
 
 	// Create a dummy or invalid reference identifier for testing
-	let non_existent_ref_id =
+	let identifier =
 		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating)
 			.unwrap();
 
@@ -740,7 +740,7 @@ fn reference_identifier_not_found_test() {
 				entry_digest,
 				authorization_id.clone(),
 			),
-			Error::<Test>::ReferenceIdentifierNotFound // Update to match the actual expected error
+			Error::<Test>::ReferenceIdentifierNotFound 
 		);
 	});
 }
