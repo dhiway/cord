@@ -710,7 +710,7 @@ fn reference_identifier_not_found_test() {
 	);
 
 	// Create a dummy or invalid reference identifier for testing
-	let identifier =
+	let non_existent_ref_id =
 		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating)
 			.unwrap();
 
@@ -733,14 +733,15 @@ fn reference_identifier_not_found_test() {
 
 		// Check for the correct error type
 		assert_err!(
-			Score::revoke_rating(
+			Score::revise_rating(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
-				identifier,
-				message_id.clone(),
+				entry.clone(),
 				entry_digest,
+				message_id.clone(),
+				non_existent_ref_id,
 				authorization_id.clone(),
 			),
-			Error::<Test>::ReferenceIdentifierNotFound
+			Error::<Test>::ReferenceNotDebitIdentifier
 		);
 	});
 }
