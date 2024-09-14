@@ -733,15 +733,14 @@ fn reference_identifier_not_found_test() {
 
 		// Check for the correct error type
 		assert_err!(
-			Score::revise_rating(
+			Score::revoke_rating(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
-				entry.clone(),
-				entry_digest,
+				identifier,
 				message_id.clone(),
-				non_existent_ref_id, // using non-existent reference ID
+				entry_digest,
 				authorization_id.clone(),
 			),
-			Error::<Test>::ReferenceNotDebitIdentifier // Update to match the actual expected error
+			Error::<Test>::ReferenceIdentifierNotFound // Update to match the actual expected error
 		);
 	});
 }
