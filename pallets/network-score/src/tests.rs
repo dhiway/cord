@@ -92,6 +92,66 @@ fn check_successful_rating_creation() {
 }
 
 #[test]
+fn register_rating_with_invalid_data_should_fail() {
+	let creator = DID_00.clone();
+	let author = ACCOUNT_00.clone();
+
+	let invalid_message_id = BoundedVec::try_from([0u8; 0].to_vec()).unwrap(); // Invalid message ID (empty)
+	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
+	let invalid_entry = RatingInputEntryOf::<Test> {
+		entity_id,
+		provider_id,
+		total_encoded_rating: 0u64, // Invalid rating (0 value)
+		count_of_txn: 0u64, // Invalid transaction count (0)
+		rating_type: RatingTypeOf::Overall,
+		provider_did: creator.clone(),
+	};
+	let entry_digest =
+		<Test as frame_system::Config>::Hashing::hash(&[&invalid_entry.encode()[..]].concat()[..]);
+
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: AuthorizationIdOf =
+		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
+			.unwrap();
+
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+
+		// Create space
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest
+		));
+
+		// Approve space
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+
+		// Try registering rating with invalid data
+		assert_err!(
+			Score::register_rating(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				invalid_entry.clone(),
+				entry_digest,
+				invalid_message_id.clone(),
+				authorization_id.clone()
+			),
+			Error::<Test>::InvalidRatingValue
+		);
+	});
+}
+
+
+#[test]
 fn check_duplicate_message_id() {
 	let creator = DID_00.clone();
 	let author = ACCOUNT_00.clone();
@@ -667,3 +727,4 @@ fn rating_identifier_not_found_test() {
 		);
 	});
 }
+
