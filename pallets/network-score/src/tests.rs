@@ -670,102 +670,94 @@ fn rating_identifier_not_found_test() {
 
 #[test]
 fn reference_identifier_not_found_test() {
+	let creator = DID_00.clone();
+	let author = ACCOUNT_00.clone();
+	let message_id = BoundedVec::try_from([82u8; 10].to_vec()).unwrap();
+	let message_id_revise = BoundedVec::try_from([75u8; 10].to_vec()).unwrap();
+	let message_id_revoke = BoundedVec::try_from([84u8; 10].to_vec()).unwrap();
+	let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
+	let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
 
-    let creator = DID_00.clone();
-    let author = ACCOUNT_00.clone();
-    let message_id = BoundedVec::try_from([82u8; 10].to_vec()).unwrap();
-    let message_id_revise = BoundedVec::try_from([75u8; 10].to_vec()).unwrap();
-    let message_id_revoke = BoundedVec::try_from([84u8; 10].to_vec()).unwrap();
-    let entity_id = BoundedVec::try_from([73u8; 10].to_vec()).unwrap();
-    let provider_id = BoundedVec::try_from([74u8; 10].to_vec()).unwrap();
-    
-    let entry = RatingInputEntryOf::<Test> {
-        entity_id: entity_id.clone(),
-        provider_id: provider_id.clone(),
-        total_encoded_rating: 250u64,
-        count_of_txn: 7u64,
-        rating_type: RatingTypeOf::Overall,
-        provider_did: creator.clone(),
-    };
-    
-    let entry_digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
+	let entry = RatingInputEntryOf::<Test> {
+		entity_id: entity_id.clone(),
+		provider_id: provider_id.clone(),
+		total_encoded_rating: 250u64,
+		count_of_txn: 7u64,
+		rating_type: RatingTypeOf::Overall,
+		provider_did: creator.clone(),
+	};
 
-    let raw_space = [2u8; 256].to_vec();
-    let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
-    let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
-        &[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
-    );
-    let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
-    let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-        &[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
-    );
-    let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
-        &auth_digest.encode()[..],
-        IdentifierType::Authorization
-    ).unwrap();
-    
-    let id_digest = <Test as frame_system::Config>::Hashing::hash(
-        &[
-            &entry_digest.encode()[..],
-            &entry.entity_id.encode()[..],
-            &message_id.encode()[..],
-            &space_id.encode()[..],
-            &creator.encode()[..],
-        ]
-        .concat()[..],
-    );
-    let identifier = Ss58Identifier::create_identifier(
-        &(id_digest).encode()[..],
-        IdentifierType::Rating
-    ).unwrap();
+	let entry_digest =
+		<Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
 
-    new_test_ext().execute_with(|| {
-        System::set_block_number(1);
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let authorization_id: AuthorizationIdOf =
+		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
+			.unwrap();
 
-       
-        assert_ok!(Space::create(
-            DoubleOrigin(author.clone(), creator.clone()).into(),
-            space_digest
-        ));
-        assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 5u64));
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[
+			&entry_digest.encode()[..],
+			&entry.entity_id.encode()[..],
+			&message_id.encode()[..],
+			&space_id.encode()[..],
+			&creator.encode()[..],
+		]
+		.concat()[..],
+	);
+	let identifier =
+		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Rating)
+			.unwrap();
 
-        
-        assert_ok!(Score::register_rating(
-            DoubleOrigin(author.clone(), creator.clone()).into(),
-            entry.clone(),
-            entry_digest,
-            message_id.clone(),
-            authorization_id.clone(),
-        ));
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
 
-        
-        assert_ok!(Score::revoke_rating(
-            DoubleOrigin(author.clone(), creator.clone()).into(),
-            identifier.clone(),
-            message_id_revoke.clone(),
-            entry_digest,
-            authorization_id.clone(),
-        ));
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 5u64));
 
-        // Remove the identifier from the system to ensure it's not found
+		assert_ok!(Score::register_rating(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			entry.clone(),
+			entry_digest,
+			message_id.clone(),
+			authorization_id.clone(),
+		));
 
-        // Try revising rating with the removed identifier
-        let result = Score::revise_rating(
-            DoubleOrigin(author.clone(), creator.clone()).into(),
-            entry.clone(),
-            entry_digest,
-            message_id_revise.clone(),
-            identifier.clone(),
-            authorization_id.clone(),
-        );
+		assert_ok!(Score::revoke_rating(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			identifier.clone(),
+			message_id_revoke.clone(),
+			entry_digest,
+			authorization_id.clone(),
+		));
 
-        // Print debug info
-        println!("Revise rating result: {:?}", result);
+		// Remove the identifier from the system to ensure it's not found
 
-        // Check for the correct error
-        assert_err!(
-            result,
-            Error::<Test>::ReferenceNotDebitIdentifier
-        );
-    });
+		// Try revising rating with the removed identifier
+		let result = Score::revise_rating(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			entry.clone(),
+			entry_digest,
+			message_id_revise.clone(),
+			identifier.clone(),
+			authorization_id.clone(),
+		);
+
+		// Print debug info
+		println!("Revise rating result: {:?}", result);
+
+		// Check for the correct error
+		assert_err!(result, Error::<Test>::ReferenceNotDebitIdentifier);
+	});
 }
