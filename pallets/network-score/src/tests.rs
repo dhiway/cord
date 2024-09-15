@@ -720,44 +720,54 @@ fn reference_identifier_not_found_test() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		assert_ok!(Space::create(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			space_digest
-		));
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 5u64));
+		  // Create a space
+		  assert_ok!(Space::create(
+            DoubleOrigin(author.clone(), creator.clone()).into(),
+            space_digest
+        ));
+        assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 5u64));
 
-		assert_ok!(Score::register_rating(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			entry.clone(),
-			entry_digest,
-			message_id.clone(),
-			authorization_id.clone(),
-		));
+		// Register the rating entry once
+        assert_ok!(Score::register_rating(
+            DoubleOrigin(author.clone(), creator.clone()).into(),
+            entry.clone(),
+            entry_digest,
+            message_id.clone(),
+            authorization_id.clone(),
+        ));
+	
+        assert_ok!(Score::revoke_rating(
+            DoubleOrigin(author.clone(), creator.clone()).into(),
+            identifier.clone(),
+            message_id_revoke.clone(),
+            entry_digest,
+            authorization_id.clone()
+        ));
 
-		assert_ok!(Score::revoke_rating(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			identifier.clone(),
-			message_id_revoke.clone(),
-			entry_digest,
-			authorization_id.clone(),
-		));
 
-		// Remove the identifier from the system to ensure it's not found
+		 // Remove the rating entry manually to simulate a missing reference
+		 <RatingEntries<Test>>::remove(identifier.clone());
+		 
 
-		// Try revising rating with the removed identifier
-		let result = Score::revise_rating(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			entry.clone(),
-			entry_digest,
-			message_id_revise.clone(),
-			identifier.clone(),
-			authorization_id.clone(),
-		);
+		// Try to revise the rating again (this should now trigger `ReferenceIdentifierNotFound`)
+		
+		assert_err!(
+            Score::revise_rating(
+                DoubleOrigin(author.clone(), creator.clone()).into(),
+                entry.clone(),
+                entry_digest,
+                message_id_revise.clone(),
+                identifier.clone(),
+                authorization_id.clone(),
+            ),
+            Error::<Test>::ReferenceIdentifierNotFound
+        );
 
-		// Print debug info
-		println!("Revise rating result: {:?}", result);
+		 // Remove the rating entry to simulate a missing reference
+		 <MessageIdentifiers<Test>>::remove(message_id_revise.clone(), creator.clone());
+		//  <RatingEntries<Test>>::remove(identifier_add.clone());
+		
 
-		// Check for the correct error
-		assert_err!(result, Error::<Test>::ReferenceNotDebitIdentifier);
+
 	});
 }
