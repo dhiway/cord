@@ -1,5 +1,5 @@
 [relaychain]
-default_command = "./target/release/cord-loom"
+default_command = "./target/release/loom"
 default_args = ["-lparachain=debug"]
 chain = "loom-local"
 

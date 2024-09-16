@@ -1,6 +1,6 @@
 
 [relaychain]
-default_command = "cord-loom"
+default_command = "loom"
 chain = "loom-local"
 
 [[relaychain.nodes]]
