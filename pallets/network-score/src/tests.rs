@@ -103,7 +103,7 @@ fn register_rating_with_invalid_data_should_fail() {
 		entity_id,
 		provider_id,
 		total_encoded_rating: 0u64, // Invalid rating (0 value)
-		count_of_txn: 0u64, // Invalid transaction count (0)
+		count_of_txn: 0u64,         // Invalid transaction count (0)
 		rating_type: RatingTypeOf::Overall,
 		provider_did: creator.clone(),
 	};
@@ -149,7 +149,6 @@ fn register_rating_with_invalid_data_should_fail() {
 		);
 	});
 }
-
 
 #[test]
 fn check_duplicate_message_id() {
@@ -727,4 +726,3 @@ fn rating_identifier_not_found_test() {
 		);
 	});
 }
-
