@@ -626,42 +626,40 @@ pub mod pallet {
 			let tx_authors = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let provider = tx_authors.subject();
 			let creator = tx_authors.sender();
-		
+
 			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&provider,
 			)
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
-		
+
 			ensure!(
 				entry.total_encoded_rating > 0 &&
-				entry.count_of_txn > 0 &&
-				entry.total_encoded_rating <= entry.count_of_txn * T::MaxRatingValue::get() as u64,
+					entry.count_of_txn > 0 &&
+					entry.total_encoded_rating <=
+						entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
-		
+
 			ensure!(entry.rating_type.is_valid_rating_type(), Error::<T>::InvalidRatingType);
-		
-			// Check if the reference identifier exists
+
 			let rating_details = <RatingEntries<T>>::get(&debit_ref_id)
 				.ok_or(Error::<T>::ReferenceIdentifierNotFound)?;
-		
-			// Ensure the entity ID and space ID match
+
 			ensure!(entry.entity_id == rating_details.entry.entity_id, Error::<T>::EntityMismatch);
 			ensure!(space_id == rating_details.space, Error::<T>::SpaceMismatch);
-		
-			// Ensure the reference identifier is of the correct type
+
 			let stored_entry_type: EntryTypeOf = rating_details.entry_type;
 			ensure!(
 				EntryTypeOf::Debit == stored_entry_type,
 				Error::<T>::ReferenceNotDebitIdentifier
 			);
-		
+
 			ensure!(
 				!<MessageIdentifiers<T>>::contains_key(&message_id, &provider),
 				Error::<T>::MessageIdAlreadyExists
 			);
-		
+
 			let provider_did = entry.provider_did.clone();
 			let entity_id = entry.entity_id.clone();
 			// Id Digest = concat (H(<scale_encoded_digest>, (<scale_encoded_entity_id>),
@@ -677,23 +675,23 @@ pub mod pallet {
 				]
 				.concat()[..],
 			);
-		
+
 			let identifier = Ss58Identifier::create_identifier(
 				&(id_digest).encode()[..],
 				IdentifierType::Rating,
 			)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
-		
+
 			ensure!(
 				!<RatingEntries<T>>::contains_key(&identifier),
 				Error::<T>::RatingIdentifierAlreadyAdded
 			);
-		
+
 			Self::aggregate_score(&entry, EntryTypeOf::Credit)?;
 			let entity = rating_details.entry.entity_id.clone();
 			let reference_id_option = rating_details.reference_id;
 			let created_at = Self::get_current_time();
-		
+
 			<RatingEntries<T>>::insert(
 				&identifier,
 				RatingEntryOf::<T> {
@@ -707,9 +705,9 @@ pub mod pallet {
 					created_at,
 				},
 			);
-		
+
 			<MessageIdentifiers<T>>::insert(message_id, &provider_did, &identifier);
-		
+
 			Self::update_activity(&identifier, CallTypeOf::Genesis).map_err(Error::<T>::from)?;
 			if let Some(reference_id) = reference_id_option {
 				Self::update_activity(&reference_id, CallTypeOf::Credit)
@@ -721,10 +719,10 @@ pub mod pallet {
 				provider: provider_did,
 				creator,
 			});
-		
+
 			Ok(())
 		}
-		}
+	}
 }
 
 impl<T: Config> Pallet<T> {
