@@ -150,6 +150,7 @@ pub mod pallet {
 	}
 
 	#[pallet::error]
+	#[derive(PartialEq)]
 	pub enum Error<T> {
 		/// The Node identifier is too long.
 		NodeIdTooLong,

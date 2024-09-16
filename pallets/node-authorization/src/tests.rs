@@ -22,7 +22,7 @@
 
 use super::*;
 use crate::mock::*;
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, assert_err};
 use sp_runtime::traits::BadOrigin;
 
 #[test]
@@ -452,4 +452,11 @@ fn adding_already_connected_connection_should_fail() {
 			Error::<Test>::AlreadyConnected
 		);
 	});
+}
+
+#[test]
+fn test_generate_peer_id_invalid_utf8() {
+	let invalid_node_id: NodeId = vec![0xFF, 0xFE, 0xFD];
+	let result = Pallet::<Test>::generate_peer_id(&invalid_node_id);
+	assert_noop!(result, Error::<Test>::InvalidUtf8);
 }
