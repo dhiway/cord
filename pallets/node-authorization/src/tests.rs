@@ -457,6 +457,5 @@ fn adding_already_connected_connection_should_fail() {
 #[test]
 fn test_generate_peer_id_invalid_utf8() {
 	let invalid_node_id: NodeId = vec![0xFF, 0xFE, 0xFD];
-	let result = Pallet::<Test>::generate_peer_id(&invalid_node_id);
-	assert_noop!(result, Error::<Test>::InvalidUtf8);
+	assert_err!(NodeAuthorization::generate_peer_id(&invalid_node_id), Error::<Test>::InvalidUtf8);
 }
