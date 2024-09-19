@@ -25,7 +25,7 @@
 //! The Entries pallet which is part of the `DeDir (Decentralized Directory)` aims to implement a
 //! decentralized version of a Registry Entry (record). Enabling creation, updation of entries in a
 //! decentralized manner. Thereby enabling trust and transperency of Registries utilizing CORD
-//! blockchain.
+//! blockchain. Registry & Delegation management is handled by the Registries Pallet.
 //!
 //! ## Interface
 //!
@@ -33,8 +33,8 @@
 //!
 //! * `create` - Creates a new Registry Entry.
 //! * `update` - Updates a existing Registry Entry.
-//! * `update_state` - Updates the state of a existing Registry Entry.
-
+//! * `revoke` - Revokes a existing Registry Entry.
+//! * `reinstate` - Reinstates a existing Registry Entry.
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod types;
@@ -51,16 +51,20 @@ use frame_support::{
 	traits::{Get, StorageVersion},
 	BoundedVec,
 };
+use sp_runtime::traits::{Hash, UniqueSaturatedInto};
+
+use identifier::{
+	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
+	EventEntryOf,
+};
 
 pub use pallet::*;
 use sp_std::{prelude::*, str};
 
-//use sp_runtime::traits::Hash;
-
 pub use frame_system::WeightInfo;
-pub use types::{RegistryEntryDetails, RegistryEntrySupportedStateOf};
+pub use types::RegistryEntryDetails;
 
-//use codec::Encode;
+pub use cord_primitives::StatusOf;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -71,26 +75,31 @@ pub mod pallet {
 		CordIdentifierType, IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier,
 	};
 
+	/// Type of the Authorization
+	pub type AuthorizationIdOf = Ss58Identifier;
+	/// Type of the Registry Entry Digest
 	pub type RegistryEntryHashOf<T> = <T as frame_system::Config>::Hash;
-
+	/// Type of the Registry Identifier
 	pub type RegistryIdOf = Ss58Identifier;
+	/// Type of the Resgistry Entry Identifier
 	pub type RegistryEntryIdOf = Ss58Identifier;
-
+	/// Type of the Maximum size of Registry Entry Blob
 	pub type MaxRegistryEntryBlobSizeOf<T> = <T as crate::Config>::MaxRegistryEntryBlobSize;
-
+	/// Type of the Registry Entry Creator
 	pub type CreatorOf<T> = <T as frame_system::Config>::AccountId;
-
+	/// Type of the Registry Entry Blob
 	pub type RegistryEntryBlobOf<T> = BoundedVec<u8, MaxRegistryEntryBlobSizeOf<T>>;
 
-	pub type RegistryEntryDetailsOf<T> = RegistryEntryDetails<
-		RegistryEntryHashOf<T>,
-		RegistryEntrySupportedStateOf,
-		CreatorOf<T>,
-		RegistryIdOf,
-	>;
+	/// Type of the Registry Entry Details.
+	/// Consists of Entry status, creator, registry id.
+	pub type RegistryEntryDetailsOf<T> =
+		RegistryEntryDetails<RegistryEntryHashOf<T>, StatusOf, CreatorOf<T>, RegistryIdOf>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_registries::Config {
+	pub trait Config:
+		frame_system::Config + pallet_registries::Config + identifier::Config
+	{
+		//pub trait Config: frame_system::Config + pallet_registries::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -112,6 +121,9 @@ pub mod pallet {
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+
 	/// Storage for Registry Entries.
 	/// It maps Registry Entry Identifier to Registry Entry Details.
 	#[pallet::storage]
@@ -127,15 +139,11 @@ pub mod pallet {
 		/// Account has no valid authorization
 		UnauthorizedOperation,
 		/// Registry Entry Identifier Already Exists
-		RegistryEntryIdAlreadyExists,
+		RegistryEntryIdentifierAlreadyExists,
 		/// Registry Entry Identifier Does Not Exists
-		RegistryEntryIdDoesNotExist,
-		/// State Not Found In Declared Registry
-		StateNotSupported,
-		/// Blob and Digest Does not match.
-		BlobDoesNotMatchDigest,
-		/// Registry Entry Already exists in same state.
-		RegistryEntryAlreadyInSameState,
+		RegistryEntryIdentifierDoesNotExist,
+		/// Registry Entry has not been revoked.
+		RegistryEntryNotRevoked,
 	}
 
 	#[pallet::event]
@@ -149,17 +157,17 @@ pub mod pallet {
 			registry_entry_id: RegistryEntryIdOf,
 		},
 
-		/// A existing registry entry state has been updated.
-		/// \[who, registry_entry_identifier, new_state\]
-		RegistryEntryStateChanged {
-			who: T::AccountId,
-			registry_entry_id: RegistryEntryIdOf,
-			new_state: RegistryEntrySupportedStateOf,
-		},
-
 		/// A existing registry entry has been updated.
 		/// \[updater, registry_entry_identifier\]
 		RegistryEntryUpdated { updater: T::AccountId, registry_entry_id: RegistryEntryIdOf },
+
+		/// A existing registry entry has been revoked.
+		/// \[updater, registry_entry_identifier\]
+		RegistryEntryRevoked { updater: T::AccountId, registry_entry_id: RegistryEntryIdOf },
+
+		/// A existing registry entry has been reinstated.
+		/// \[updater, registry_enrtry_identifier\]
+		RegistryEntryReinstated { updater: T::AccountId, registry_entry_id: RegistryEntryIdOf },
 	}
 
 	#[pallet::call]
@@ -167,33 +175,28 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Creates a new Registry Entry within a specified Registry.
 		///
-		/// This function allows a user to create a new entry within an existing Registry. The entry
-		/// is identified by the provided `registry_entry_id`, which is derived and managed
-		/// externally. The function verifies that the caller is authorized to add an entry to the
-		/// Registry and ensures that the entry does not already exist. If valid, the entry is
-		/// stored along with the associated data (`digest`, optional `blob`, and optional
-		/// `state`).
+		/// This function allows a user to create a new entry within an existing Registry.
+		/// The function verifies that the caller is authorized to create an entry within the
+		/// specified Registry, ensures that the entry does not already exist.
+		///
 		///
 		/// # Arguments
 		/// * `origin` - The origin of the call, which must be a signed account (creator of the
 		///   entry).
-		/// * `registry_id` - The unique identifier for the Registry in which the new entry will be
-		///   created.
-		/// * `registry_entry_id` - The unique identifier for the new Registry entry. Must not
-		///   already exist.
+		/// * `registry_entry_id` - A unique id as registry entry identifier.
+		/// * `authorization` - The authorization identifier that links the creator to the Registry.
 		/// * `digest` - The hash value or digest of the content associated with the Registry entry.
-		/// * `blob` - (Optional) Additional data associated with the Registry entry.
-		/// * `state` - (Optional) The initial state of the Registry entry. Defaults to `ACTIVE` if
-		///   not provided.
+		/// * `blob` - (Optional) Additional data associated with the Registry entry, provided as an
+		///   optional field.
 		///
 		/// # Errors
 		/// This function returns an error in the following cases:
 		/// * `UnauthorizedOperation` - If the caller does not have permission to create entries
 		///   within the Registry.
-		/// * `RegistryEntryIdAlreadyExists` - If the `registry_entry_id` already exists in the
-		///   storage.
-		/// * `InvalidRegistryEntryIdentifier` - If the `registry_entry_id` is not a valid SS58
-		///   identifier or not of type `RegistryEntry`.
+		/// * `RegistryEntryIdentifierAlreadyExists` - If the `registry_entry_id` already exists in
+		///   the storage.
+		/// * `InvalidIdentifierLength` - If the `registry_entry_id` generated from the hash exceeds
+		///   the expected length for identifiers.
 		///
 		/// # Events
 		/// Emits the `Event::RegistryEntryCreated` event upon successful creation of a new Registry
@@ -201,66 +204,68 @@ pub mod pallet {
 		/// of the new entry.
 		///
 		/// # Example
-		/// ```
-		/// create(origin, registry_id, registry_entry_id, digest, Some(blob), Some(state))?;
+		/// ```rust
+		/// create(origin, registry_entry_id, authorization, digest, Some(blob))?;
 		/// ```
 		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
 		pub fn create(
 			origin: OriginFor<T>,
-			registry_id: RegistryIdOf,
-			registry_entry_id: RegistryEntryIdOf,
+			_registry_entry_id: RegistryEntryIdOf,
+			authorization: AuthorizationIdOf,
 			digest: RegistryEntryHashOf<T>,
 			_blob: Option<RegistryEntryBlobOf<T>>,
-			state: Option<RegistryEntrySupportedStateOf>,
 		) -> DispatchResult {
 			let creator = ensure_signed(origin)?;
 
-			let registry = pallet_registries::Pallet::<T>::ensure_valid_registry_id(&registry_id)
-				.map_err(<pallet_registries::Error<T>>::from)?;
+			let registry_id = pallet_registries::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&creator,
+			)
+			.map_err(<pallet_registries::Error<T>>::from)?;
 
-			/* Ensure `creator` is either a OWNER/ADMIN/DELEGATE of the Registry */
-			let is_delegate_authorized =
-				pallet_registries::Pallet::<T>::ensure_delegate_authorization(&registry, &creator);
-			ensure!(is_delegate_authorized, Error::<T>::UnauthorizedOperation,);
-
+			// TODO:
 			/* Identifier Management will happen at SDK.
 			 * It is to be constructed as below.
 			 */
-			// let mut id_digest = <T as frame_system::Config>::Hashing::hash(
-			// 		&[&registry_id.encode()[..], &digest.encode()[..]].concat()[..],
-			// 	);
-			// if blob.is_some() {
-			// 	id_digest = <T as frame_system::Config>::Hashing::hash(
-			// 		&[&registry_id.encode()[..], &digest.encode()[..],
-			// &blob.encode()[..]].concat()[..], 	);
-			// }
-			// let registry_entry_id =
-			// 	Ss58Identifier::create_identifier(&(id_digest).encode()[..],
-			// IdentifierType::Registries) 		.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			// Id Digest = concat (H(<scale_encoded_statement_digest>,
+			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&digest.encode()[..], &registry_id.encode()[..], &creator.encode()[..]].concat()
+					[..],
+			);
+
+			let registry_entry_id = Ss58Identifier::create_identifier(
+				&(id_digest).encode()[..],
+				IdentifierType::Entries,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			/* Ensure that the registry_entry_id does not already exist */
 			ensure!(
 				!RegistryEntries::<T>::contains_key(&registry_entry_id),
-				Error::<T>::RegistryEntryIdAlreadyExists
+				Error::<T>::RegistryEntryIdentifierAlreadyExists
 			);
 
-			/* Ensure that registry_id is of valid ss58 format,
-			 * and also the type matches to be of `Registry`
-			 */
-			ensure!(
-				Self::is_valid_ss58_format(&registry_entry_id),
-				Error::<T>::InvalidRegistryEntryIdentifier
-			);
-
+			// TODO: Validate incoming `registry_entry_id` from SDK.
+			// /* Ensure that registry_id is of valid ss58 format,
+			//  * and also the type matches to be of `Registry`
+			//  */
+			// ensure!(
+			// 	Self::is_valid_ss58_format(&registry_entry_id),
+			// 	Error::<T>::InvalidRegistryEntryIdentifier
+			// );
 			let registry_entry = RegistryEntryDetails {
 				digest,
-				state: state.unwrap_or(RegistryEntrySupportedStateOf::ACTIVE),
+				revoked: false,
 				creator: creator.clone(),
 				registry_id: registry_id.clone(),
 			};
 
 			RegistryEntries::<T>::insert(&registry_entry_id, registry_entry);
+
+			Self::update_activity(&registry_entry_id, CallTypeOf::Genesis)
+				.map_err(<Error<T>>::from)?;
 
 			Self::deposit_event(Event::RegistryEntryCreated {
 				creator,
@@ -271,185 +276,181 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Updates an existing Registry Entry with new metadata or state.
+		/// Updates an existing Registry Entry with new metadata.
 		///
 		/// This function allows an authorized user to update the metadata (such as the `digest` or
-		/// `blob`) or the `state` of an existing Registry Entry. The user must have the necessary
-		/// permissions to perform this operation, which includes being either the creator of the
-		/// entry or a delegate with OWNER or ADMIN permissions in the Registry.
+		/// optional `blob`) of an existing Registry Entry. The user must have the necessary
+		/// permissions to perform this operation.
+		///
 		///
 		/// # Arguments
 		/// * `origin` - The origin of the call, which must be a signed account (updater).
 		/// * `registry_entry_id` - The unique identifier of the Registry Entry to be updated.
+		/// * `authorization` - The authorization identifier that links the updater to the Registry.
 		/// * `digest` - The new hash value or digest to be associated with the Registry Entry.
 		/// * `blob` - (Optional) New additional data to be associated with the Registry Entry.
-		/// * `state` - (Optional) The new state of the Registry Entry.
 		///
 		/// # Errors
 		/// This function returns an error in the following cases:
 		/// * `UnauthorizedOperation` - If the caller does not have permission to update the
 		///   Registry Entry.
-		/// * `RegistryEntryIdDoesNotExist` - If the specified `registry_entry_id` does not exist.
-		/// * `StateNotSupported` - If the provided `state` is invalid.
+		/// * `RegistryEntryIdentifierDoesNotExist` - If the specified `registry_entry_id` does not
+		///   exist.
+		/// * `StateNotSupported` - If an unsupported state is provided.
 		///
 		/// # Events
 		/// Emits the `Event::RegistryEntryUpdated` event upon successful update of the Registry
 		/// Entry. This event includes the `updater` and the `registry_entry_id`.
 		///
 		/// # Example
-		/// ```
-		/// update(origin, registry_entry_id, digest, Some(blob), Some(state))?;
+		/// ```rust
+		/// update(origin, registry_entry_id, authorization, digest, Some(blob))?;
 		/// ```
 		#[pallet::call_index(1)]
 		#[pallet::weight({0})]
 		pub fn update(
 			origin: OriginFor<T>,
 			registry_entry_id: RegistryEntryIdOf,
+			authorization: AuthorizationIdOf,
 			digest: RegistryEntryHashOf<T>,
-			blob: Option<RegistryEntryBlobOf<T>>,
-			state: Option<RegistryEntrySupportedStateOf>,
+			_blob: Option<RegistryEntryBlobOf<T>>,
 		) -> DispatchResult {
 			let updater = ensure_signed(origin)?;
+			let registry_id = pallet_registries::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&updater,
+			)
+			.map_err(<pallet_registries::Error<T>>::from)?;
 
-			/* Ensure RegistryEntry exists */
 			let mut entry = RegistryEntries::<T>::get(&registry_entry_id)
-				.ok_or(Error::<T>::RegistryEntryIdDoesNotExist)?;
+				.ok_or(Error::<T>::RegistryEntryIdentifierDoesNotExist)?;
 
-			let registry =
-				pallet_registries::Pallet::<T>::ensure_valid_registry_id(&entry.registry_id)
-					.map_err(<pallet_registries::Error<T>>::from)?;
-
-			let is_owner_or_admin =
-				pallet_registries::Pallet::<T>::ensure_owner_or_admin_authorization(
-					&registry, &updater,
-				);
-
-			let is_authorized = is_owner_or_admin || entry.creator == updater;
-
-			/* Ensure the account is either a OWNER/ADMIN or
-			 * the creator of the Registry Entry.
-			 */
-			ensure!(is_authorized, Error::<T>::UnauthorizedOperation,);
-
-			// TODO: Should the updater mandatorily part of the `delegates` list?
-			// /* Ensure the `updater` is part of the delegate list */
-			// let is_part_of_delegate_list = registry.delegates.iter().any(|delegate_info|
-			// delegate_info.delegate == updater); /* Check if the updater is either:
-			// * 1. An OWNER/ADMIN and part of the delegate list, OR
-			// * 2. The creator of the registry entry and part of the delegate list.
-			// */
-			// let is_authorized = (is_owner_or_admin && is_part_of_delegate_list) ||
-			//     (entry.creator == updater && is_part_of_delegate_list);
+			ensure!(entry.registry_id == registry_id, Error::<T>::UnauthorizedOperation);
 
 			entry.digest = digest;
 
-			if let Some(_new_blob) = blob {
-				/* TODO:
-				 * Handle blob updates..
-				 */
-			}
-
-			if let Some(new_state) = state {
-				// TODO:
-				// Is there a need to check for state already exists in same state?
-				ensure!(new_state.is_valid_state(), Error::<T>::StateNotSupported);
-				entry.state = new_state;
-			}
-
 			RegistryEntries::<T>::insert(&registry_entry_id, entry);
 
-			/* Emit an event for successful entry state update */
+			Self::update_activity(&registry_entry_id, CallTypeOf::Update)
+				.map_err(<Error<T>>::from)?;
+
 			Self::deposit_event(Event::RegistryEntryUpdated { updater, registry_entry_id });
 
 			Ok(())
 		}
 
-		/// Updates the state of an existing Registry Entry.
+		/// Revokes an existing Registry Entry.
 		///
-		/// This function allows an authorized user to update the state of an existing
-		/// Registry Entry. The user must either be the creator of the entry or a account
-		/// with OWNER or ADMIN permissions in the associated Registry.
+		/// This function allows an authorized user to revoke an existing Registry Entry, marking it
+		/// as no longer valid. The revocation can only be performed by the account with
+		/// appropriate permissions.
 		///
 		/// # Arguments
-		/// * `origin` - The origin of the call, which must be a signed account (the updater).
-		/// * `registry_entry_id` - The unique identifier of the Registry Entry to update.
-		/// * `new_state` - The new state to be assigned to the Registry Entry. Must be one of the
-		///   supported states.
+		/// * `origin` - The origin of the call, which must be a signed account (updater).
+		/// * `registry_entry_id` - The unique identifier of the Registry Entry to be revoked.
+		/// * `authorization` - The authorization identifier that links the updater to the Registry.
 		///
 		/// # Errors
-		/// This function will return an error in the following cases:
-		/// * `RegistryEntryIdDoesNotExist` - If the specified `registry_entry_id` does not exist.
-		/// * `StateNotSupported` - If the `new_state` is not part of the supported states.
-		/// * `UnauthorizedOperation` - If the caller is not authorized to update the Registry
-		///   Entry.
-		/// * `RegistryEntryAlreadyInSameState` - If the new state is the same as the current state
-		///   of the entry.
+		/// This function returns an error in the following cases:
+		/// * `UnauthorizedOperation` - If the caller does not have permission to revoke the
+		///   Registry Entry.
+		/// * `RegistryEntryIdentifierDoesNotExist` - If the specified `registry_entry_id` does not
+		///   exist.
 		///
 		/// # Events
-		/// Emits the `Event::RegistryEntryStateChanged` event upon successful update of the
-		/// Registry Entry's state. This event includes the `who` (updater), the
-		/// `registry_entry_id`, and the `new_state`.
+		/// Emits the `Event::RegistryEntryRevoked` event upon successful revocation of the Registry
+		/// Entry. This event includes the `updater` and the `registry_entry_id`.
 		///
 		/// # Example
-		/// ```
-		/// update_state(origin, registry_entry_id, new_state)?;
+		/// ```rust
+		/// revoke(origin, registry_entry_id, authorization)?;
 		/// ```
 		#[pallet::call_index(2)]
 		#[pallet::weight({0})]
-		pub fn update_state(
+		pub fn revoke(
 			origin: OriginFor<T>,
 			registry_entry_id: RegistryEntryIdOf,
-			new_state: RegistryEntrySupportedStateOf,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let updater = ensure_signed(origin)?;
+			let registry_id = pallet_registries::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&updater,
+			)
+			.map_err(<pallet_registries::Error<T>>::from)?;
 
-			/* Ensure RegistryEntry exists */
 			let mut entry = RegistryEntries::<T>::get(&registry_entry_id)
-				.ok_or(Error::<T>::RegistryEntryIdDoesNotExist)?;
+				.ok_or(Error::<T>::RegistryEntryIdentifierDoesNotExist)?;
 
-			/* Ensure given `new_state` is part of supported states enum */
-			ensure!(new_state.is_valid_state(), Error::<T>::StateNotSupported);
+			ensure!(entry.registry_id == registry_id, Error::<T>::UnauthorizedOperation);
 
-			if entry.state == new_state {
-				return Err(Error::<T>::RegistryEntryAlreadyInSameState.into());
-			}
+			entry.revoked = true;
 
-			let registry =
-				pallet_registries::Pallet::<T>::ensure_valid_registry_id(&entry.registry_id)
-					.map_err(<pallet_registries::Error<T>>::from)?;
-
-			let is_owner_or_admin =
-				pallet_registries::Pallet::<T>::ensure_owner_or_admin_authorization(
-					&registry, &who,
-				);
-
-			let is_authorized = is_owner_or_admin || entry.creator == who;
-
-			/* Ensure the account is either a OWNER/ADMIN or
-			 * the creator of the Registry Entry.
-			 */
-			ensure!(is_authorized, Error::<T>::UnauthorizedOperation,);
-
-			// TODO: Should the updater mandatorily part of the `delegates` list?
-			// /* Ensure the `updater` is part of the delegate list */
-			// let is_part_of_delegate_list = registry.delegates.iter().any(|delegate_info|
-			// delegate_info.delegate == updater); /* Check if the updater is either:
-			// * 1. An OWNER/ADMIN and part of the delegate list, OR
-			// * 2. The creator of the registry entry and part of the delegate list.
-			// */
-			// let is_authorized = (is_owner_or_admin && is_part_of_delegate_list) ||
-			//     (entry.creator == updater && is_part_of_delegate_list);
-
-			/* Update the state */
-			entry.state = new_state.clone();
 			RegistryEntries::<T>::insert(&registry_entry_id, entry);
 
-			/* Emit an event for successful entry state update */
-			Self::deposit_event(Event::RegistryEntryStateChanged {
-				who,
-				registry_entry_id,
-				new_state,
-			});
+			Self::update_activity(&registry_entry_id, CallTypeOf::Revoke)
+				.map_err(<Error<T>>::from)?;
+
+			Self::deposit_event(Event::RegistryEntryRevoked { updater, registry_entry_id });
+
+			Ok(())
+		}
+
+		/// Reinstates an revoked existing Registry Entry.
+		///
+		/// This function allows an authorized user to reinstates revoked an existing Registry
+		/// Entry, marking it active again. The revocation can only be performed by the account
+		/// with appropriate permissions
+		///
+		/// # Arguments
+		/// * `origin` - The origin of the call, which must be a signed account (updater).
+		/// * `registry_entry_id` - The unique identifier of the Registry Entry to be reinstated.
+		/// * `authorization` - The authorization identifier that links the updater to the Registry.
+		///
+		/// # Errors
+		/// This function returns an error in the following cases:
+		/// * `UnauthorizedOperation` - If the caller does not have permission to revoke the
+		///   Registry Entry.
+		/// * `RegistryEntryIdentifierDoesNotExist` - If the specified `registry_entry_id` does not
+		///   exist.
+		///
+		/// # Events
+		/// Emits the `Event::RegistryEntryReinstated` event upon Registry Entry successfully
+		/// reinstated. This event includes the `updater` and the `registry_entry_id`.
+		///
+		/// # Example
+		/// ```rust
+		/// reinstate(origin, registry_entry_id, authorization)?;
+		/// ```
+		#[pallet::call_index(3)]
+		#[pallet::weight({0})]
+		pub fn reinstate(
+			origin: OriginFor<T>,
+			registry_entry_id: RegistryEntryIdOf,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let updater = ensure_signed(origin)?;
+			let registry_id = pallet_registries::Pallet::<T>::ensure_authorization_origin(
+				&authorization,
+				&updater,
+			)
+			.map_err(<pallet_registries::Error<T>>::from)?;
+
+			let mut entry = RegistryEntries::<T>::get(&registry_entry_id)
+				.ok_or(Error::<T>::RegistryEntryIdentifierDoesNotExist)?;
+
+			ensure!(entry.registry_id == registry_id, Error::<T>::UnauthorizedOperation);
+
+			ensure!(entry.revoked, Error::<T>::RegistryEntryNotRevoked);
+
+			entry.revoked = false;
+
+			RegistryEntries::<T>::insert(&registry_entry_id, entry);
+
+			Self::update_activity(&registry_entry_id, CallTypeOf::Reinstate)
+				.map_err(<Error<T>>::from)?;
+
+			Self::deposit_event(Event::RegistryEntryReinstated { updater, registry_entry_id });
 
 			Ok(())
 		}
@@ -476,13 +477,63 @@ impl<T: Config> Pallet<T> {
 		}
 	}
 
-	// /// Method to check if blob matches the given digest
-	// pub fn does_blob_matches_digest(blob: &RegistryEntryBlobOf<T>, digest:
-	// &RegistryEntryHashOf<T>) -> bool { 	let blob_digest = <T as
-	// frame_system::Config>::Hashing::hash(&blob.encode()[..]);
+	/// Updates the global timeline with a new activity event for a registry entry.
+	/// This function is called whenever a significant action is performed on a
+	/// registry entry, ensuring that all such activities are logged with a timestamp
+	/// for future reference and accountability.
+	///
+	/// An `EventEntryOf` struct is created, encapsulating the type of action
+	/// (`tx_action`) and the `Timepoint` of the event, which is obtained by
+	/// calling the `timepoint` function. This entry is then passed to the
+	/// `update_timeline` function of the `identifier` pallet, which integrates
+	/// it into the global timeline.
+	///
+	/// # Parameters
+	/// - `tx_id`: The identifier of the registry entry that the activity pertains to.
+	/// - `tx_action`: The type of action taken on the registry entry, encapsulated within
+	///   `CallTypeOf`.
+	///
+	/// # Returns
+	/// Returns `Ok(())` after successfully updating the timeline. If any errors
+	/// occur within the `update_timeline` function, they are not captured here
+	/// and the function will still return `Ok(())`.
+	///
+	/// # Usage
+	/// This function is not intended to be called directly by external entities
+	/// but is invoked internally within the pallet's logic whenever a
+	/// statement's status is altered.
+	pub fn update_activity(
+		tx_id: &RegistryEntryIdOf,
+		tx_action: CallTypeOf,
+	) -> Result<(), Error<T>> {
+		let tx_moment = Self::timepoint();
 
-	// 	log::info!("digest: {:?}, blob_digest: {:?}, blob: {:?}", *digest, blob_digest, blob);
+		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
+		let _ =
+			IdentifierTimeline::update_timeline::<T>(tx_id, IdentifierTypeOf::Entries, tx_entry);
+		Ok(())
+	}
 
-	// 	blob_digest == *digest
-	// }
+	/// Retrieves the current timepoint.
+	///
+	/// This function returns a `Timepoint` structure containing the current
+	/// block number and extrinsic index. It is typically used in conjunction
+	/// with `update_activity` to record when an event occurred.
+	///
+	/// # Returns
+	/// - `Timepoint`: A structure containing the current block number and extrinsic index.
+	pub fn timepoint() -> Timepoint {
+		Timepoint {
+			height: frame_system::Pallet::<T>::block_number().unique_saturated_into(),
+			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
+		}
+	}
 }
+
+// TODO:
+// Check if more checks are required for `update`, `revoke` & `reinstate`.
+// Right now ensure_authorization_origin() is being done similar to statements.
+// Should there be a check if the account is either a account or the creator of the entry.
+// Ex: Check for is_admin = pallet_registries::<T>::ensure_admin_authorization_origin()
+//     And check for the creator of the entry.
+// It should only be allowed when `is_allowed = is_admin || is_creator`.

@@ -22,33 +22,15 @@
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
 
-#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub enum RegistryEntrySupportedStateOf {
-	ACTIVE,
-	REVOKED,
-}
-
-impl RegistryEntrySupportedStateOf {
-	pub fn is_valid_state(&self) -> bool {
-		matches!(self, Self::ACTIVE | Self::REVOKED)
-	}
-}
-
 #[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub struct RegistryEntryDetails<
-	RegistryEntryHashOf,
-	RegistryEntrySupportedStateOf,
-	CreatorOf,
-	RegistryIdOf,
-> {
+pub struct RegistryEntryDetails<RegistryEntryHashOf, StatusOf, CreatorOf, RegistryIdOf> {
 	/// Type of Registry Entry Digest.
 	pub digest: RegistryEntryHashOf,
-	/// Type of Registry Entry State.
-	pub state: RegistryEntrySupportedStateOf,
+	/// Type of Registry Entry Revoked state.
+	pub revoked: StatusOf,
 	/// Type of Registry Entry Creator.
 	pub creator: CreatorOf,
 	/// Type of Reistry Entry Identifier.

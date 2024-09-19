@@ -67,6 +67,7 @@ pub enum CallTypeOf {
 	Debit,
 	Credit,
 	Issue,
+	Reinstate,
 }
 /// Defining the identifier target types.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
@@ -82,4 +83,5 @@ pub enum IdentifierTypeOf {
 	Template,
 	Registries,
 	Entries,
+	RegistryAuthorization,
 }
