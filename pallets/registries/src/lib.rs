@@ -17,32 +17,77 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 //
 
-//! # Registries Pallet - Part of `DeDir (Decentralized Directory)`.
+//! # Registries Pallet
 //!
+//! The Registries pallet provides a framework for creating and managing
+//! isolated registries within the CORD blockchain that can be governed and
+//! moderated with a fine-grained permission system. It allows for the creation,
+//! changing the status of the registry, as well as the management of delegates
+//! within these registry.
 //!
 //! ## Overview
 //!
-//! The Registries pallet which is part of the `DeDir (Decentralized Directory)` aims to implement a
-//! decentralized version of a Registry. Enabling creation, updation of registries, delegation
-//! management in a decentralized manner. Thereby enabling trust and transperency of Registries
-//! utilizing CORD blockchain.
+//! The Registry pallet allows for the creation of distinct registry on the CORD
+//! blockchain, each with its own set of rules and governance. These registry can
+//! be used to manage different ecosystems or communities within the larger
+//! blockchain environment. Registry are created with a unique identifier and can
+//! be managed by appointed delegates.
 //!
 //! ## Interface
 //!
-//! ### Dispatchable Functions
+//! The pallet provides dispatchable functions for registry management:
 //!
-//! * `create` - Create a new Registry.
-//! * `update` - Update the existing Registry.
-//! * `update_state` - Change the state of the Registry.
-//! * `add_owner_delegate` - Add a account as part of delegates with `OWNER` permission.
-//! * `add_admin_delegate` - Add a account as part of delegates with `ADMIN` permission.
-//! * `add_delegate` - Add a account as part of delegates with `DELEGATE` permission.
-//! * `remove_admin_delegate` - Remove `ADMIN` permission for a account.
-//! * `remove_delegate` - Remove `DELEGATE` permission for a account.
+//! - `create`: Initializes a new registry with a unique identifier.
+//! - `update`: Updates the existing registry with newer data.
+//! - `revoke`: Marks a registry as revoked, effectively changing it to revoked status.
+//! - `reinstate`: Changes the status of the registry, returning it to active status.
+//! - `archive`: Marks a registry as archived, effectively changing it to archived status.
+//! - `restore`: Changes the status of the registry, returning it to non-archival status.
+//! - `add_delegate`: Adds a delegate to a registry, granting them specific permissions.
+//! - `add_admin_delegate`: Adds an admin delegate to a registry, granting them administrative
+//!   permissions.
+//! - `add_audit_delegate`: Adds an audit delegate to a registry, granting them audit permissions.
+//! - `remove_delegate`: Removes a delegate from a registry, revoking their permissions.
+//!
+//!
+//! ## Permissions
+//!
+//! The pallet uses a permissions system to manage the actions that delegates
+//! can perform within a registry. Permissions are granular and can be assigned to
+//! different roles, such as an admin or a regular delegate.
+//!
+//! ## Data Privacy
+//!
+//! The Registries pallet is designed with data privacy as a core consideration.
+//! It does not directly store any personal or sensitive information on-chain.
+//! Instead, it manages references to off-chain data, ensuring that the
+//! blockchain layer remains compliant with data privacy regulations. Users and
+//! developers are responsible for ensuring that the off-chain data handling
+//! processes adhere to the applicable laws and standards.
+//!
+//! ## Usage
+//!
+//! The Registries pallet can be used by other pallets ex. Entries pallet to create
+//! compartmentalized and governed sections of the blockchain. This is
+//! particularly useful for applications that require distinct governance models
+//! or privacy settings within a shared ecosystem.
+//!
+//! ## Governance Integration
+//!
+//! The Registries pallet is integrated with on-chain governance pallets to
+//! allow registry administrators and delegates to propose changes, vote on
+//! initiatives, or manage the registry in accordance with the collective decisions
+//! of its members.
+//!
+//! ## Examples
+//!
+//! - Creating a new registry for a community-driven project.
+//! - Archiving, Restoring a registry that is to be stashed for a while.
+//! - Revoking, Re-instating a registry that is no longer active or has violated terms of use.
+//! - Adding delegates to a registry to ensure ongoing compliance with governance standards.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-
-mod types;
+#![allow(clippy::unused_unit)]
 
 #[cfg(any(feature = "mock", test))]
 pub mod mock;
@@ -50,63 +95,62 @@ pub mod mock;
 #[cfg(test)]
 mod tests;
 
-use frame_support::{
-	ensure,
-	pallet_prelude::DispatchResult,
-	traits::{Get, StorageVersion},
-	BoundedVec,
+use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
+pub mod types;
+pub use crate::{pallet::*, types::*};
+use codec::Encode;
+use identifier::{
+	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
+	EventEntryOf,
 };
+use sp_runtime::traits::{Hash, UniqueSaturatedInto};
 
-pub use pallet::*;
-use sp_std::{prelude::*, str};
-
-pub use frame_system::WeightInfo;
-pub use types::{DelegateInfo, Permissions, RegistryDetails, RegistrySupportedStateOf};
-
-//use sp_runtime::traits::Hash;
-//use codec::Encode;
+/// Authorization Identifier
+pub type AuthorizationIdOf = Ss58Identifier;
+/// Type of the Registry Id
+pub type RegistryIdOf = Ss58Identifier;
+/// Tyoe of the Registry Digest
+pub type RegistryHashOf<T> = <T as frame_system::Config>::Hash;
+/// Type of the Registry Creator
+pub type RegistryCreatorOf<T> = <T as frame_system::Config>::AccountId;
+/// Type of the Registry Template Id
+pub type TemplateIdOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedInputLength>;
+/// Type of the Schema Id
+pub type SchemaIdOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedInputLength>;
+/// Type of Maximum allowed size of the Registry Blob
+pub type MaxRegistryBlobSizeOf<T> = <T as crate::Config>::MaxRegistryBlobSize;
+/// Type of Registry Blob
+pub type RegistryBlobOf<T> = BoundedVec<u8, MaxRegistryBlobSizeOf<T>>;
+/// Type of the Registry Authorization Details
+pub type RegistryAuthorizationOf<T> =
+	RegistryAuthorization<RegistryIdOf, RegistryCreatorOf<T>, Permissions>;
+/// Type of Registry Details
+pub type RegistryDetailsOf<T> = RegistryDetails<RegistryCreatorOf<T>, StatusOf, RegistryHashOf<T>>;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+	pub use cord_primitives::{IsPermissioned, StatusOf};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
+	pub use frame_system::WeightInfo;
 	pub use identifier::{
 		CordIdentifierType, IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier,
 	};
 
-	pub type RegistryHashOf<T> = <T as frame_system::Config>::Hash;
-
-	pub type RegistryIdOf = Ss58Identifier;
-	pub type TemplateIdOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedInputLength>;
-	pub type MaxDelegatesOf<T> = <T as crate::Config>::MaxRegistryDelegates;
-
-	pub type MaxRegistryBlobSizeOf<T> = <T as crate::Config>::MaxRegistryBlobSize;
-
-	pub type DelegateOf<T> = <T as frame_system::Config>::AccountId;
-
-	pub type DelegateEntryOf<T> =
-		BoundedVec<DelegateInfo<DelegateOf<T>, Permissions>, MaxDelegatesOf<T>>;
-
-	pub type RegistryBlobOf<T> = BoundedVec<u8, MaxRegistryBlobSizeOf<T>>;
-
-	pub type RegistryDetailsOf<T> =
-		RegistryDetails<RegistryHashOf<T>, RegistrySupportedStateOf, DelegateEntryOf<T>>;
+	/// The current storage version.
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
-		/// The overarching event type.
+	pub trait Config: frame_system::Config + identifier::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// The maximum number of bytes in size a Registry Blob can hold.
-		#[pallet::constant]
-		type MaxRegistryBlobSize: Get<u32>;
-
-		/// The maximum number of `Delegates` can be part of a Registry.
 		#[pallet::constant]
 		type MaxRegistryDelegates: Get<u32>;
 
-		/// The maximum encoded length available for naming.
+		#[pallet::constant]
+		type MaxRegistryBlobSize: Get<u32>;
+
 		#[pallet::constant]
 		type MaxEncodedInputLength: Get<u32>;
 
@@ -114,790 +158,783 @@ pub mod pallet {
 		type WeightInfo: WeightInfo;
 	}
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
-
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
-	/// Storage for Registries
-	/// Maps Registry Identifier to its RegistryDetails
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+
+	/// Registry information stored on chain.
+	/// It maps from an identifier to its details.
 	#[pallet::storage]
-	pub type Registry<T: Config> = StorageMap<
+	pub type RegistryInfo<T> =
+		StorageMap<_, Blake2_128Concat, RegistryIdOf, RegistryDetailsOf<T>, OptionQuery>;
+
+	/// Registry authorizations stored on-chain.
+	/// It maps from an identifier to delegates.
+	#[pallet::storage]
+	pub type Authorizations<T> =
+		StorageMap<_, Blake2_128Concat, AuthorizationIdOf, RegistryAuthorizationOf<T>, OptionQuery>;
+
+	/// Registry delegates stored on chain.
+	/// It maps from an identifier to a  bounded vec of delegates and
+	/// permissions.
+	#[pallet::storage]
+	pub(super) type Delegates<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		RegistryIdOf,
-		RegistryDetails<RegistryHashOf<T>, RegistrySupportedStateOf, DelegateEntryOf<T>>,
-		OptionQuery,
+		BoundedVec<RegistryCreatorOf<T>, T::MaxRegistryDelegates>,
+		ValueQuery,
 	>;
-
-	#[pallet::error]
-	pub enum Error<T> {
-		/// Invalid Identifer Length
-		InvalidIdentifierLength,
-		/// Identifier Invalid or Not of Registry Type
-		InvalidRegistryIdentifier,
-		/// Account has no valid authorization
-		UnauthorizedOperation,
-		/// Registry Identifier Already Exists
-		RegistryIdAlreadyExists,
-		/// Registry Identifier Does Not Exists
-		RegistryIdDoesNotExist,
-		/// State Not Found In Declared Registry
-		StateNotSupported,
-		/// Max Delegates Storage Upper Bound Breached
-		MaxDelegatesStorageOverflow,
-		/// Delegate not found in DelegatesList
-		DelegateNotFound,
-		/// Blob and Digest Does not match.
-		BlobDoesNotMatchDigest,
-		/// Registry Already exists in same state.
-		RegistryAlreadyInSameState,
-		/// Delegate already has OWNER Permission.
-		DelegateAlreadyHasOwnerPermission,
-		/// Delegate already has ADMIN Permission.
-		DelegateAlreadyHasAdminPermission,
-		/// Delegate already has DELEGATE Permission.
-		DelegateAlreadyHasPermission,
-		/// Delegate to be removed does not have ADMIN Permission.
-		DelegateDoesNotHaveAdminPermission,
-		/// Delegate to be removed does not have DELEGATE Permission.
-		DelegatePermissionDoesNotExist,
-	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
+		/// A new registry authorization has been added.
+		/// \[registry identifier, authorization,  delegate\]
+		Authorization {
+			registry_id: RegistryIdOf,
+			authorization: AuthorizationIdOf,
+			delegate: RegistryCreatorOf<T>,
+		},
+		/// A registry authorization has been removed.
+		/// \[registry identifier, authorization, ]
+		Deauthorization { registry_id: RegistryIdOf, authorization: AuthorizationIdOf },
 		/// A new registry has been created.
-		///
-		/// \[creator, registry identifier\]
-		RegistryCreated { creator: T::AccountId, registry_id: RegistryIdOf },
-
-		/// A registry has been updated.
-		///
-		/// \[updater, registry identifier\]
-		RegistryUpdated { updater: T::AccountId, registry_id: RegistryIdOf },
-
-		/// The state of a registry has been changed.
-		///
-		/// \[who, registry identifier, new state\]
-		RegistryStateChanged {
-			who: T::AccountId,
+		/// \[registry identifier, creator, authorization\]
+		Create {
 			registry_id: RegistryIdOf,
-			new_state: RegistrySupportedStateOf,
+			creator: RegistryCreatorOf<T>,
+			authorization: AuthorizationIdOf,
 		},
-
-		/// An OWNER delegate has been added to a registry.
-		///
-		/// \[delegator, registry identifier, delegate\]
-		RegistryOwnerDelegateAdded {
-			delegator: T::AccountId,
+		/// A registry has been revoked.
+		/// \[registry identifier, authority\]
+		Revoke { registry_id: RegistryIdOf, authority: RegistryCreatorOf<T> },
+		/// A registry has been reinstated.
+		/// \[registry identifier,  authority\]
+		Reinstate { registry_id: RegistryIdOf, authority: RegistryCreatorOf<T> },
+		/// A existing registry has been updated.
+		/// \[registry identifier, updater, authorization\]
+		Update {
 			registry_id: RegistryIdOf,
-			delegate: DelegateOf<T>,
+			updater: RegistryCreatorOf<T>,
+			authorization: AuthorizationIdOf,
 		},
+		/// A registry has been archived.
+		/// \[registry identifier,  authority\]
+		Archive { registry_id: RegistryIdOf, authority: RegistryCreatorOf<T> },
+		/// A registry has been restored.
+		/// \[registry identifier, authority\]
+		Restore { registry_id: RegistryIdOf, authority: RegistryCreatorOf<T> },
+	}
 
-		/// An ADMIN delegate has been added to a registry.
-		///
-		/// \[delegator, registry identifier, delegate\]
-		RegistryAdminDelegateAdded {
-			delegator: T::AccountId,
-			registry_id: RegistryIdOf,
-			delegate: DelegateOf<T>,
-		},
-
-		/// A DELEGATE has been added to a registry.
-		///
-		/// \[delegator, registry identifier, delegate\]
-		RegistryDelegateAdded {
-			delegator: T::AccountId,
-			registry_id: RegistryIdOf,
-			delegate: DelegateOf<T>,
-		},
-
-		/// An ADMIN delegate has been removed from a registry.
-		///
-		/// \[remover, registry identifier, delegate\]
-		RegistryAdminDelegateRemoved {
-			remover: T::AccountId,
-			registry_id: RegistryIdOf,
-			delegate: DelegateOf<T>,
-		},
-
-		/// A DELEGATE has been removed from a registry.
-		///
-		/// \[remover, registry identifier, delegate\]
-		RegistryDelegateRemoved {
-			remover: T::AccountId,
-			registry_id: RegistryIdOf,
-			delegate: DelegateOf<T>,
-		},
+	#[pallet::error]
+	#[derive(PartialEq)]
+	pub enum Error<T> {
+		/// Registry identifier is not unique
+		RegistryAlreadyAnchored,
+		/// Registry identifier not found
+		RegistryNotFound,
+		/// Only when the author is not the controller or delegate.
+		UnauthorizedOperation,
+		/// Invalid Identifier
+		InvalidIdentifier,
+		/// Invalid Identifier Length
+		InvalidIdentifierLength,
+		/// Registry delegation limit exceeded
+		RegistryDelegatesLimitExceeded,
+		/// Authority already added
+		DelegateAlreadyAdded,
+		/// Authorization Id not found
+		AuthorizationNotFound,
+		/// Delegate not found.
+		DelegateNotFound,
+		/// Registry not revoked.
+		RegistryNotRevoked,
+		/// Registry already revoked
+		RegistryAlreadyRevoked,
+		/// Registry revoked.
+		RegistryRevoked,
+		/// Registry not archived.
+		RegistryNotArchived,
+		/// Registry already arhived.
+		RegistryAlreadyArchived,
+		/// Registry not archived.
+		RegistryArchived,
 	}
 
 	#[pallet::call]
-	/// Registries pallet declaration.
 	impl<T: Config> Pallet<T> {
-		/// Creates a new Registry with the specified parameters.
+		/// Adds a delegate with permission to assert new entries to a registry.
 		///
-		/// This function allows a user to submit a request to create a new Registry.
-		/// The Registry is initialized with various metadata including the `digest`,
-		/// `blob`, and `state`. The creator of the Registry is automatically granted
-		/// OWNER permissions.
+		/// The `ASSERT` permission enables a delegate to add and sign new entries
+		/// within the specified registry. This function is used to grant this
+		/// permission to a delegate, provided that the caller has sufficient
+		/// authorization, typically as an admin of the registry.
 		///
-		/// # Arguments
-		/// * `origin` - The origin of the call, which should be a signed user.
-		/// * `registry_id` - The SS58-encoded identifier for the Registry. This must be a valid
-		///   SS58 identifier of type `Registry`.
-		/// * `digest` - The hash value to be associated with the Registry.
-		/// * `_template_id` - (Optional) An identifier for the template to be used for the
-		///   Registry.
-		/// * `blob` - (Optional) A Bounded Vector of data associated with the Registry, which could
-		///   be derived from the same file as the `digest`.
-		/// * `state` - (Optional) The state of the Registry. If not provided, defaults to `ACTIVE`.
-		///
-		/// # Errors
-		/// Returns `Error::<T>::InvalidRegistryIdentifier` if the provided `registry_id` is not
-		/// in a valid SS58 format or does not match the expected type.
-		/// Returns `Error::<T>::RegistryIdAlreadyExists` if a Registry with the same `registry_id`
-		/// already exists in the storage.
-		/// Returns `Error::<T>::StateNotSupported` if the provided `state` is invalid.
-		///
-		/// # Events
-		/// Emits `Event::RegistryCreated` when a new Registry is created successfully. This event
-		/// includes the `creator` of the Registry and the `registry_id`.
-		///
-		/// # Example
-		/// ```
-		/// create(origin, registry_id, None, Some(digest), Some(blob), Some(state))?;
-		/// ```
-		#[pallet::call_index(0)]
-		#[pallet::weight({0})]
-		pub fn create(
-			origin: OriginFor<T>,
-			registry_id: RegistryIdOf,
-			digest: RegistryHashOf<T>,
-			_template_id: Option<TemplateIdOf<T>>,
-			blob: Option<RegistryBlobOf<T>>,
-			state: Option<RegistrySupportedStateOf>,
-		) -> DispatchResult {
-			let creator = ensure_signed(origin)?;
-
-			/* Identifier Management will happen at SDK.
-			 * It is to be constructed as below.
-			 */
-			// let mut id_digest = <T as frame_system::Config>::Hashing::hash(
-			// 		&[&creator.encode()[..], &digest.encode()[..]].concat()[..],
-			// 	);
-			// if blob.is_some() {
-			// 	id_digest = <T as frame_system::Config>::Hashing::hash(
-			// 		&[&creator.encode()[..], &digest.encode()[..], &blob.encode()[..]].concat()[..],
-			// 	);
-			// }
-			// let registry_id =
-			// 	Ss58Identifier::create_identifier(&(id_digest).encode()[..],
-			// IdentifierType::Registries) 		.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
-
-			/* Ensure that registry_id is of valid ss58 format,
-			 * and also the type matches to be of `Registry`
-			 */
-			ensure!(
-				Self::is_valid_ss58_format(&registry_id),
-				Error::<T>::InvalidRegistryIdentifier
-			);
-
-			/* Ensure that the registry_id does not already exist */
-			ensure!(
-				!Registry::<T>::contains_key(&registry_id),
-				Error::<T>::RegistryIdAlreadyExists
-			);
-
-			if let Some(_local_blob) = blob {
-				/* TODO:
-				 * Handle blob. Should it be matched against digest.
-				 */
-			}
-
-			/* Set default state to `ACTIVE`. If state is passed, ensure it is valid. */
-			let registry_state = if let Some(local_state) = state {
-				ensure!(local_state.is_valid_state(), Error::<T>::StateNotSupported);
-				local_state
-			} else {
-				RegistrySupportedStateOf::ACTIVE
-			};
-
-			let mut registry: RegistryDetails<
-				RegistryHashOf<T>,
-				RegistrySupportedStateOf,
-				DelegateEntryOf<T>,
-			> = RegistryDetails {
-				digest,
-				state: registry_state.clone(),
-				delegates: BoundedVec::default(),
-			};
-
-			/* Registry creator will be the first OWNER */
-			let delegate_info =
-				DelegateInfo { delegate: creator.clone(), permissions: Permissions::OWNER };
-
-			if registry.delegates.try_push(delegate_info).is_err() {
-				return Err(Error::<T>::MaxDelegatesStorageOverflow.into());
-			}
-
-			Registry::<T>::insert(&registry_id, registry);
-
-			Self::deposit_event(Event::RegistryCreated { creator, registry_id });
-
-			Ok(())
-		}
-
-		/// Updates the state of an existing Registry.
-		///
-		/// This function allows a user to update the state of a Registry identified by
-		/// `registry_id`. The new state is validated to ensure it is supported, and the operation
-		/// is only permitted for authorized accounts with OWNER or ADMIN permissions. If the new
-		/// state is the same as the current state, the function will return an error.
-		///
-		/// # Arguments
-		/// * `origin` - The origin of the call, which should be a signed user.
-		/// * `registry_id` - The SS58-encoded identifier of the Registry whose state is to be
-		///   updated.
-		/// * `new_state` - The new state to set for the Registry. This must be a valid supported
-		///   state.
-		///
-		/// # Errors
-		/// Returns `Error::<T>::RegistryIdDoesNotExist` if the `registry_id` does not exist in
-		/// storage. Returns `Error::<T>::StateNotSupported` if the `new_state` is not a valid
-		/// supported state. Returns `Error::<T>::RegistryAlreadyInSameState` if the Registry is
-		/// already in the provided `new_state`.
-		/// Returns `Error::<T>::UnauthorizedOperation` if the caller does not have the necessary
-		/// OWNER or ADMIN permissions to perform the state update.
-		///
-		/// # Events
-		/// Emits `Event::RegistryStateChanged` when the Registry state is successfully updated.
-		/// This event includes the `who` (the updater), the `registry_id`, and the `new_state`.
-		///
-		/// # Example
-		/// ```
-		/// update_state(origin, registry_id, new_state)?;
-		/// ```
-		#[pallet::call_index(1)]
-		#[pallet::weight({0})]
-		pub fn update_state(
-			origin: OriginFor<T>,
-			registry_id: RegistryIdOf,
-			new_state: RegistrySupportedStateOf,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			let mut registry =
-				Registry::<T>::get(&registry_id).ok_or(Error::<T>::RegistryIdDoesNotExist)?;
-
-			/* Ensure given `new_state` is a valid supported state */
-			ensure!(new_state.is_valid_state(), Error::<T>::StateNotSupported);
-
-			if registry.state == new_state {
-				return Err(Error::<T>::RegistryAlreadyInSameState.into());
-			}
-
-			/* Ensure that the registry state update happens from an authorized OWNER/ADMIN
-			 * account */
-			let is_authorized = Self::ensure_owner_or_admin_authorization(&registry, &who);
-			ensure!(is_authorized, Error::<T>::UnauthorizedOperation);
-
-			registry.state = new_state.clone();
-			Registry::<T>::insert(&registry_id, registry);
-
-			Self::deposit_event(Event::RegistryStateChanged { who, registry_id, new_state });
-
-			Ok(())
-		}
-
-		/// Updates the details of an existing Registry.
-		///
-		/// This function allows a user to update various attributes of a Registry identified by
-		/// `registry_id`. It supports updating the `digest`, `blob`, and `state` of the Registry.
-		/// The update operation is only allowed for accounts with OWNER or ADMIN permissions. If
-		/// the new state is provided, it must be a valid supported state.
-		///
-		/// # Arguments
-		/// * `origin` - The origin of the call, which should be a signed user.
-		/// * `registry_id` - The SS58-encoded identifier of the Registry to be updated.
-		/// * `digest` - The new digest to set for the Registry. If provided, it replaces the
-		///   current digest.
-		/// * `blob` - (Optional) The new blob data to be associated with the Registry.
-		/// * `state` - (Optional) The new state to set for the Registry. If provided, it must be a
-		///   valid supported state.
-		///
-		/// # Errors
-		/// Returns `Error::<T>::RegistryIdDoesNotExist` if the `registry_id` does not exist in
-		/// storage. Returns `Error::<T>::UnauthorizedOperation` if the caller does not have the
-		/// necessary OWNER or ADMIN permissions to perform the update.
-		/// Returns `Error::<T>::StateNotSupported` if the `new_state` is not a valid supported
-		/// state.
-		///
-		/// # Events
-		/// Emits `Event::RegistryUpdated` when the Registry is successfully updated. This event
-		/// includes the `updater` (the caller) and the `registry_id`.
-		///
-		/// # Example
-		/// ```
-		/// update(origin, registry_id, new_digest, Some(new_blob), Some(new_state))?;
-		/// ```
-		#[pallet::call_index(2)]
-		#[pallet::weight({0})]
-		// TODO:
-		// Should `template_id` be allowed to be upadted for a Registry.
-		pub fn update(
-			origin: OriginFor<T>,
-			registry_id: RegistryIdOf,
-			digest: RegistryHashOf<T>,
-			blob: Option<RegistryBlobOf<T>>,
-			state: Option<RegistrySupportedStateOf>,
-		) -> DispatchResult {
-			let updater = ensure_signed(origin)?;
-
-			let mut registry =
-				Registry::<T>::get(&registry_id).ok_or(Error::<T>::RegistryIdDoesNotExist)?;
-
-			/* Ensure account is authorized with OWNER/ ADMIN permissions */
-			let is_authorized = Self::ensure_owner_or_admin_authorization(&registry, &updater);
-			ensure!(is_authorized, Error::<T>::UnauthorizedOperation);
-
-			registry.digest = digest;
-
-			if let Some(_new_blob) = blob {
-				/* TODO:
-				 * Handle blob updates. Should it be matched against digest.
-				 */
-			}
-
-			if let Some(new_state) = state {
-				ensure!(new_state.is_valid_state(), Error::<T>::StateNotSupported);
-				registry.state = new_state;
-			}
-
-			Registry::<T>::insert(&registry_id, registry);
-
-			Self::deposit_event(Event::RegistryUpdated { updater, registry_id });
-
-			Ok(())
-		}
-
-		/// Adds a new delegate with OWNER permission to the specified registry.
-		///
-		/// The origin of this call must be a delegate with OWNER permission for the registry. The
-		/// function will update the permissions of an existing delegate or add a new delegate
-		/// with OWNER permissions depending of delegate's existence in the list.
+		/// The function checks that the caller is authorized (as an admin) to add
+		/// a delegate with `ASSERT` permissions to the registry. If the caller's
+		/// authorization is verified, the delegate is added using the internal
+		/// `registry_delegate_addition` function.
 		///
 		/// # Parameters
-		/// - `origin`: The account making the call. Must be signed and authorized as an OWNER for
-		///   the registry.
-		/// - `registry_id`: The identifier of the registry to which the delegate is being added.
-		/// - `delegate`: The account ID of the delegate to be added or updated.
-		///
-		/// # Errors
-		/// - `RegistryIdDoesNotExist`: The specified `registry_id` does not exist in the storage.
-		/// - `UnauthorizedOperation`: The caller does not have OWNER permission for the registry.
-		/// - `DelegateAlreadyHasOwnerPermission`: The specified `delegate` already has OWNER
-		///   permission in the registry.
-		/// - `MaxDelegatesStorageOverflow`: The storage for delegates has reached its maximum
-		///   capacity.
-		///
-		/// # Success
-		/// - If the delegate already exists but does not have OWNER permission, their permissions
-		///   are updated to include OWNER.
-		/// - If the delegate does not exist, they are added to the Registry `delegates` list with
-		///   OWNER permission.
-		///
-		/// # Event
-		/// - `RegistryOwnerDelegateAdded`: Emitted when a delegate is successfully added or updated
-		///   with OWNER permission.
-		///
-		/// # Example
-		/// ```rust
-		/// let result = add_owner_delegate(origin, registry_id, delegate);
-		/// ```
-
-		#[pallet::call_index(3)]
-		#[pallet::weight({0})]
-		pub fn add_owner_delegate(
-			origin: OriginFor<T>,
-			registry_id: RegistryIdOf,
-			delegate: DelegateOf<T>,
-		) -> DispatchResult {
-			let delegator = ensure_signed(origin)?;
-
-			let mut registry =
-				Registry::<T>::get(&registry_id).ok_or(Error::<T>::RegistryIdDoesNotExist)?;
-
-			/* Ensure account is authorized with OWNER permission */
-			let is_delegator_owner = Self::ensure_owner_authorization(&registry, &delegator);
-			ensure!(is_delegator_owner, Error::<T>::UnauthorizedOperation);
-
-			/* Search for the delegate in the list. If found with OWNER permission, return an
-			 * error. Otherwise, update the permissions to include OWNER.
-			 * If the delegate is not found, append them to the list with OWNER permission as a
-			 * new delegate.
-			 */
-			if let Some(delegate_info) =
-				registry.delegates.iter_mut().find(|info| info.delegate == delegate)
-			{
-				if delegate_info.permissions.contains(Permissions::OWNER) {
-					return Err(Error::<T>::DelegateAlreadyHasOwnerPermission.into());
-				}
-
-				delegate_info.permissions.insert(Permissions::OWNER);
-			} else {
-				let new_delegate =
-					DelegateInfo { delegate: delegate.clone(), permissions: Permissions::OWNER };
-
-				if registry.delegates.try_push(new_delegate).is_err() {
-					return Err(Error::<T>::MaxDelegatesStorageOverflow.into());
-				}
-			}
-
-			Registry::<T>::insert(&registry_id, registry);
-
-			Self::deposit_event(Event::RegistryOwnerDelegateAdded {
-				delegator,
-				registry_id,
-				delegate,
-			});
-
-			Ok(())
-		}
-
-		/// Adds a new delegate with ADMIN permission to the specified registry.
-		///
-		/// The origin of this call must be a signed account with OWNER permission for the registry.
-		/// The function will update the permissions of an existing delegate or add a new delegate
-		/// with ADMIN permissions, depending on the existence of the delegate in the list.
-		///
-		/// # Parameters
-		/// - `origin`: The account making the call. Must be signed and authorized as an OWNER for
-		///   the registry.
-		/// - `registry_id`: The identifier of the registry to which the delegate is being added.
-		/// - `delegate`: The account ID of the delegate to be added or updated.
-		///
-		/// # Errors
-		/// - `RegistryIdDoesNotExist`: The specified `registry_id` does not exist in the storage.
-		/// - `UnauthorizedOperation`: The caller does not have OWNER permission for the registry.
-		/// - `DelegateAlreadyHasAdminPermission`: The specified `delegate` already has ADMIN
-		///   permission in the registry.
-		/// - `MaxDelegatesStorageOverflow`: The storage for delegates has reached its maximum
-		///   capacity.
-		///
-		/// # Success
-		/// - If the delegate already exists but does not have ADMIN permission, their permissions
-		///   are updated to include ADMIN.
-		/// - If the delegate does not exist, they are added to the registry with ADMIN permission.
-		///
-		/// # Event
-		/// - `RegistryAdminDelegateAdded`: Emitted when a delegate is successfully added or updated
-		///   with ADMIN permission.
-		///
-		/// # Example
-		/// ```rust
-		/// let result = add_admin_delegate(origin, registry_id, delegate);
-		/// ```
-		#[pallet::call_index(4)]
-		#[pallet::weight({0})]
-		pub fn add_admin_delegate(
-			origin: OriginFor<T>,
-			registry_id: RegistryIdOf,
-			delegate: DelegateOf<T>,
-		) -> DispatchResult {
-			let delegator = ensure_signed(origin)?;
-
-			let mut registry =
-				Registry::<T>::get(&registry_id).ok_or(Error::<T>::RegistryIdDoesNotExist)?;
-
-			/* Ensure account is authorized with OWNER permission */
-			let is_delegator_owner = Self::ensure_owner_authorization(&registry, &delegator);
-			ensure!(is_delegator_owner, Error::<T>::UnauthorizedOperation);
-
-			/* Search for the delegate in the list. If found with ADMIN permission, return an
-			 * error. Otherwise, update the permissions to include ADMIN.
-			 * If the delegate is not found, append them to the list with ADMIN permission as a
-			 * new delegate.
-			 */
-			if let Some(delegate_info) =
-				registry.delegates.iter_mut().find(|d| d.delegate == delegate)
-			{
-				if delegate_info.permissions.contains(Permissions::ADMIN) {
-					return Err(Error::<T>::DelegateAlreadyHasAdminPermission.into());
-				}
-				delegate_info.permissions.insert(Permissions::ADMIN);
-			} else {
-				let new_delegate =
-					DelegateInfo { delegate: delegate.clone(), permissions: Permissions::ADMIN };
-
-				if registry.delegates.try_push(new_delegate).is_err() {
-					return Err(Error::<T>::MaxDelegatesStorageOverflow.into());
-				}
-			}
-
-			Registry::<T>::insert(&registry_id, registry);
-
-			Self::deposit_event(Event::RegistryAdminDelegateAdded {
-				delegator,
-				registry_id,
-				delegate,
-			});
-
-			Ok(())
-		}
-
-		/// Adds a new delegate with DELEGATE permission to the specified registry.
-		///
-		/// The origin of this call must be a signed account with either OWNER or ADMIN permission
-		/// for the registry. The function will update the permissions of an existing delegate or
-		/// add a new delegate with DELEGATE permissions, depending on the existence of the
-		/// delegate in the list.
-		///
-		/// # Parameters
-		/// - `origin`: The account making the call. Must be signed and authorized as OWNER or ADMIN
-		///   for the registry.
-		/// - `registry_id`: The identifier of the registry to which the delegate is being added.
-		/// - `delegate`: The account ID of the delegate to be added or updated.
-		///
-		/// # Errors
-		/// - `RegistryIdDoesNotExist`: The specified `registry_id` does not exist in the storage.
-		/// - `UnauthorizedOperation`: The caller does not have OWNER or ADMIN permission for the
-		///   registry.
-		/// - `DelegateAlreadyHasPermission`: The specified `delegate` already has DELEGATE
-		///   permission in the registry.
-		/// - `MaxDelegatesStorageOverflow`: The storage for delegates has reached its maximum
-		///   capacity.
-		///
-		/// # Success
-		/// - If the delegate already exists but does not have DELEGATE permission, their
-		///   permissions are updated to include DELEGATE.
-		/// - If the delegate does not exist, they are added to the registry with DELEGATE
+		/// - `origin`: The origin of the call, which must be signed by an admin of the registry.
+		/// - `registry_id`: The unique identifier of the registry to which the delegate is being
+		///   added.
+		/// - `delegate`: The account identifier of the delegate being granted the `ASSERT`
 		///   permission.
+		/// - `authorization`: The authorization ID used to validate the caller's permission to add
+		///   a delegate.
 		///
-		/// # Event
-		/// - `RegistryDelegateAdded`: Emitted when a delegate is successfully added or updated with
-		///   DELEGATE permission.
+		/// # Returns
+		/// Returns `Ok(())` if the delegate is successfully added with `ASSERT`
+		/// permissions, or an `Err` if the operation fails due to authorization issues
+		/// or internal errors during delegate addition.
 		///
-		/// # Example
-		/// ```rust
-		/// let result = add_delegate(origin, registry_id, delegate);
-		/// ```
-		#[pallet::call_index(5)]
+		/// # Errors
+		/// - `UnauthorizedOperation`: If the caller does not have the necessary admin permissions
+		///   for the registry.
+		/// - Propagates errors from `registry_delegate_addition` if the addition fails.
+		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
 		pub fn add_delegate(
 			origin: OriginFor<T>,
 			registry_id: RegistryIdOf,
-			delegate: DelegateOf<T>,
+			delegate: RegistryCreatorOf<T>,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let delegator = ensure_signed(origin)?;
+			let creator = ensure_signed(origin)?;
 
-			let mut registry =
-				Registry::<T>::get(&registry_id).ok_or(Error::<T>::RegistryIdDoesNotExist)?;
+			let auth_registry_id =
+				Self::ensure_authorization_delegator_origin(&authorization, &creator)?;
+			ensure!(auth_registry_id == registry_id, Error::<T>::UnauthorizedOperation);
 
-			/* Ensure account is authorized with OWNER/ ADMIN permission */
-			let is_authorized = Self::ensure_owner_or_admin_authorization(&registry, &delegator);
-			ensure!(is_authorized, Error::<T>::UnauthorizedOperation);
-
-			/* Search for the delegate in the list. If found with DELEGATE permission, return an
-			 * error. Otherwise, update the permissions to include DELEGATE.
-			 * If the delegate is not found, append them to the list with DELEGATE permission as
-			 * a new delegate.
-			 */
-			if let Some(delegate_info) =
-				registry.delegates.iter_mut().find(|d| d.delegate == delegate)
-			{
-				if delegate_info.permissions.contains(Permissions::DELEGATE) {
-					return Err(Error::<T>::DelegateAlreadyHasPermission.into());
-				}
-				delegate_info.permissions.insert(Permissions::DELEGATE);
-			} else {
-				let new_delegate =
-					DelegateInfo { delegate: delegate.clone(), permissions: Permissions::DELEGATE };
-
-				if registry.delegates.try_push(new_delegate).is_err() {
-					return Err(Error::<T>::MaxDelegatesStorageOverflow.into());
-				}
-			}
-
-			Registry::<T>::insert(&registry_id, registry);
-
-			Self::deposit_event(Event::RegistryDelegateAdded { delegator, registry_id, delegate });
+			let permissions = Permissions::ASSERT;
+			Self::registry_delegate_addition(auth_registry_id, delegate, creator, permissions)?;
 
 			Ok(())
 		}
 
-		/// Removes the ADMIN permission from a delegate in the specified registry.
+		/// Adds an administrative delegate to a registry.
 		///
-		/// The origin of this call must be a signed account with OWNER permission for the registry.
-		/// The function will update the permissions of the specified delegate by removing their
-		/// ADMIN permission. If the delegate has no other permissions, they will be removed from
-		/// the registry's delegate list.
+		/// This function grants the `ADMIN` permission to a specified delegate,
+		/// allowing the delegate to manage other delegates and modify registry
+		/// configurations. Only existing registry administrators can invoke this
+		/// function to add another admin delegate.
+		///
+		/// The function ensures that the caller has sufficient administrative
+		/// privileges in the registry and that the `registry_id` matches the
+		/// authorization. If the checks pass, the delegate is added with `ADMIN`
+		/// permissions using the internal `registry_delegate_addition` function.
 		///
 		/// # Parameters
-		/// - `origin`: The account making the call. Must be signed and authorized as OWNER for the
-		///   registry.
-		/// - `registry_id`: The identifier of the registry from which the delegate's ADMIN
-		///   permission is being removed.
-		/// - `delegate`: The account ID of the delegate whose ADMIN permission is to be removed.
+		/// - `origin`: The origin of the call, which must be signed by an existing administrator of
+		///   the registry.
+		/// - `registry_id`: The unique identifier of the registry to which the admin delegate is
+		///   being added.
+		/// - `delegate`: The account identifier of the delegate being granted admin permissions.
+		/// - `authorization`: The authorization ID used to validate the caller's permission to add
+		///   an admin delegate to the specified registry.
+		///
+		/// # Returns
+		/// Returns `Ok(())` if the admin delegate is successfully added, or an `Err`
+		/// if the operation fails, such as when the caller lacks the necessary
+		/// permissions or if there's an internal error during delegate addition.
 		///
 		/// # Errors
-		/// - `RegistryIdDoesNotExist`: The specified `registry_id` does not exist in the storage.
-		/// - `UnauthorizedOperation`: The caller does not have OWNER permission for the registry.
-		/// - `DelegateDoesNotHaveAdminPermission`: The specified `delegate` does not have ADMIN
-		///   permission, so it cannot be removed.
-		/// - `DelegateNotFound`: The specified `delegate` does not exist in the list of delegates.
-		///
-		/// # Success
-		/// - Removes the ADMIN permission from the specified delegate, leaving other permissions
-		///   intact.
-		/// - If the delegate has no remaining permissions, they are removed from the delegate list.
-		///
-		/// # Event
-		/// - `RegistryAdminDelegateRemoved`: Emitted when a delegate's ADMIN permission is
-		///   successfully removed, or if the delegate is removed from the list.
-		///
-		/// # Example
-		/// ```rust
-		/// let result = remove_admin_delegate(origin, registry_id, delegate);
-		/// ```
-		#[pallet::call_index(6)]
+		/// - `UnauthorizedOperation`: If the caller does not have admin permissions in the
+		///   registry.
+		/// - Propagates errors from `registry_delegate_addition` if delegate addition fails.
+		#[pallet::call_index(1)]
 		#[pallet::weight({0})]
-		pub fn remove_admin_delegate(
+		pub fn add_admin_delegate(
 			origin: OriginFor<T>,
 			registry_id: RegistryIdOf,
-			delegate: DelegateOf<T>,
+			delegate: RegistryCreatorOf<T>,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let remover = ensure_signed(origin)?;
+			let creator = ensure_signed(origin)?;
 
-			let mut registry =
-				Registry::<T>::get(&registry_id).ok_or(Error::<T>::RegistryIdDoesNotExist)?;
+			let auth_registry_id =
+				Self::ensure_authorization_admin_origin(&authorization, &creator)?;
 
-			/* Ensure account is authorized with OWNER permission */
-			let is_owner = Self::ensure_owner_authorization(&registry, &remover);
-			ensure!(is_owner, Error::<T>::UnauthorizedOperation);
+			ensure!(auth_registry_id == registry_id, Error::<T>::UnauthorizedOperation);
 
-			/*
-			 * Search the delegate list and modify the permissions of the matching delegate.
-			 * Ensure the delegate possesses ADMIN permission, otherwise return an error.
-			 * Remove only the ADMIN permission, leaving other permissions intact.
-			 * If the delegate has no remaining permissions, remove them from the list.
-			 */
-			let mut delegate_found = false;
-			for delegate_info in registry.delegates.iter_mut() {
-				if delegate_info.delegate == delegate {
-					delegate_found = true;
+			let permissions = Permissions::ADMIN;
+			Self::registry_delegate_addition(auth_registry_id, delegate, creator, permissions)?;
 
-					ensure!(
-						delegate_info.permissions.contains(Permissions::ADMIN),
-						Error::<T>::DelegateDoesNotHaveAdminPermission
-					);
+			Ok(())
+		}
 
-					delegate_info.permissions.remove(Permissions::ADMIN);
+		/// Adds an audit delegate to a registry.
+		///
+		/// The `AUDIT` permission allows the delegate to perform oversight and
+		/// compliance checks within the registry. This function is used to grant
+		/// these audit privileges to a delegate. It checks that the caller has the
+		/// necessary administrative rights to add an audit delegate to the registry.
+		///
+		/// If the caller is authorized, the delegate is added with the `AUDIT`
+		/// permission using the internal `registry_delegate_addition` function.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the call, which must be signed by an existing administrator of
+		///   the registry.
+		/// - `registry_id`: The unique identifier of the registry to which the audit delegate is
+		///   being added.
+		/// - `delegate`: The account identifier of the delegate being granted audit permissions.
+		/// - `authorization`: The authorization ID used to validate the caller's permission to add
+		///   the audit delegate.
+		///
+		/// # Returns
+		/// Returns `Ok(())` if the audit delegate is successfully added, or an `Err`
+		/// if the operation fails due to authorization issues or internal errors
+		/// during delegate addition.
+		///
+		/// # Errors
+		/// - `UnauthorizedOperation`: If the caller does not have the necessary admin permissions
+		///   for the registry.
+		/// - Propagates errors from `registry_delegate_addition` if delegate addition fails.
+		#[pallet::call_index(2)]
+		#[pallet::weight({0})]
+		pub fn add_delegator(
+			origin: OriginFor<T>,
+			registry_id: RegistryIdOf,
+			delegate: RegistryCreatorOf<T>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = ensure_signed(origin)?;
 
-					if delegate_info.permissions.is_empty() {
-						registry.delegates.retain(|d| d.delegate != delegate);
-					}
-					break;
-				}
+			let auth_registry_id =
+				Self::ensure_authorization_admin_origin(&authorization, &creator)?;
+
+			ensure!(auth_registry_id == registry_id, Error::<T>::UnauthorizedOperation);
+
+			let permissions = Permissions::DELEGATE;
+			Self::registry_delegate_addition(auth_registry_id, delegate, creator, permissions)?;
+
+			Ok(())
+		}
+
+		/// Removes a delegate from a specified registry.
+		///
+		/// This function removes an existing delegate from a registry, identified
+		/// by the `registry_id` and the delegate's `remove_authorization` ID.
+		/// It ensures that the registry exists, is not archived or revoked, and that
+		/// the provided authorization corresponds to a delegate in the registry.
+		/// Additionally, it verifies that the caller has the authority (admin rights)
+		/// to remove the delegate.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the call, which must be signed by an admin of the registry.
+		/// - `registry_id`: The unique identifier of the registry from which the delegate is being
+		///   removed.
+		/// - `remove_authorization`: The authorization ID of the delegate to be removed.
+		/// - `authorization`: The authorization ID validating the caller’s permission to perform
+		///   the removal.
+		///
+		/// # Returns
+		/// - `DispatchResult`: Returns `Ok(())` if the delegate was successfully removed, or an
+		///   error (`DispatchError`) if any of the checks fail.
+		///
+		/// # Errors
+		/// - `AuthorizationNotFound`: If the provided `remove_authorization` does not exist.
+		/// - `UnauthorizedOperation`: If the origin is not authorized to remove a delegate from the
+		///   registry.
+		/// - `RegistryNotFound`: If the specified `registry_id` does not correspond to an existing
+		///   registry.
+		/// - `RegistryArchived`: If the registry is archived and no longer active.
+		/// - `RegistryRevoked`: If the registry has been revoked.
+		/// - `DelegateNotFound`: If the delegate specified by `remove_authorization` is not found
+		///   in the registry.
+		///
+		/// # Events
+		/// - `Deauthorization`: Emitted when a delegate is successfully removed from the registry.
+		///   The event includes the registry ID and the authorization ID of the removed delegate.
+		#[pallet::call_index(3)]
+		#[pallet::weight({0})]
+		pub fn remove_delegate(
+			origin: OriginFor<T>,
+			registry_id: RegistryIdOf,
+			remove_authorization: AuthorizationIdOf,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = ensure_signed(origin)?;
+			let auth_registry_id =
+				Self::ensure_authorization_admin_remove_origin(&authorization, &creator)?;
+
+			// Ensure remover does not de-delagate themselves &
+			// remover has valid authoirzation for this particular registry-id.
+			ensure!(authorization != remove_authorization, Error::<T>::UnauthorizedOperation);
+			ensure!(auth_registry_id == registry_id, Error::<T>::UnauthorizedOperation);
+
+			// Ensure the authorization exists and retrieve its details.
+			let authorization_details = Authorizations::<T>::get(&remove_authorization)
+				.ok_or(Error::<T>::AuthorizationNotFound)?;
+
+			let mut delegates = Delegates::<T>::get(&registry_id);
+			if let Some(index) = delegates.iter().position(|d| d == &authorization_details.delegate)
+			{
+				delegates.remove(index);
+				Delegates::<T>::insert(&registry_id, delegates);
+
+				Authorizations::<T>::remove(&remove_authorization);
+
+				Self::update_activity(
+					&registry_id,
+					IdentifierTypeOf::RegistryAuthorization,
+					CallTypeOf::Deauthorization,
+				)?;
+
+				Self::deposit_event(Event::Deauthorization {
+					registry_id,
+					authorization: remove_authorization,
+				});
+
+				Ok(())
+			} else {
+				Err(Error::<T>::DelegateNotFound.into())
 			}
+		}
 
-			/* Ensure the delegate is found in the Delegates list */
-			ensure!(delegate_found, Error::<T>::DelegateNotFound);
+		/// Creates a new registry with a unique identifier based on the provided
+		/// registry digest and the creator's identity.
+		///
+		/// This function generates a unique identifier for the registry by hashing
+		/// the encoded digest of the registry and the creator's identifier. It ensures that the
+		/// generated registry identifier is not already in use. An authorization
+		/// ID is also created for the new registry, which is used to manage
+		/// delegations. The creator is automatically added as a delegate with
+		/// full permissions.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the transaction, signed by the creator.
+		/// - `registry_id`: A unique code created to identify the registry.
+		/// - `digest`: The digest representing the registry data to be created.
+		/// - `blob`: Optional metadata or data associated with the registry.
+		///
+		/// # Returns
+		/// - `DispatchResult`: Returns `Ok(())` if the registry is successfully created, or an
+		///   error (`DispatchError`) if:
+		///   - The generated registry identifier is already in use.
+		///   - The generated authorization ID has an invalid length.
+		///   - The registry exceeds the allowed delegate limit.
+		///
+		/// # Errors
+		/// - `InvalidIdentifierLength`: If the generated identifiers for the registry or
+		///   authorization have invalid lengths.
+		/// - `RegistryAlreadyAnchored`: If the registry identifier already exists.
+		/// - `RegistryDelegatesLimitExceeded`: If the registry exceeds the maximum number of
+		///   allowed delegates.
+		///
+		/// # Events
+		/// - `Create`: Emitted when a new registry is successfully created. It includes the
+		///   registry identifier, the creator's identifier, and the authorization ID.
+		#[pallet::call_index(4)]
+		#[pallet::weight({0})]
+		pub fn create(
+			origin: OriginFor<T>,
+			_registry_id: RegistryIdOf,
+			digest: RegistryHashOf<T>,
+			_schema_id: Option<SchemaIdOf<T>>,
+			_blob: Option<RegistryBlobOf<T>>,
+		) -> DispatchResult {
+			let creator = ensure_signed(origin)?;
 
-			Registry::<T>::insert(&registry_id, registry);
+			// TODO: Create the identifier at SDK level & validate at chain level.
+			// Id Digest = concat (H(<scale_encoded_registry_input_digest>,
+			// <scale_encoded_creator_identifier>))
+			let id_digest = <T as frame_system::Config>::Hashing::hash(
+				&[&digest.encode()[..], &creator.encode()[..]].concat()[..],
+			);
 
-			Self::deposit_event(Event::RegistryAdminDelegateRemoved {
-				remover,
-				registry_id,
-				delegate,
+			// /* Ensure that registry_id is of valid ss58 format,
+			//  * and also the type matches to be of `Registries`.
+			//  */
+			// ensure!(
+			// 	Self::is_valid_ss58_format(&registry_id),
+			// 	Error::<T>::InvalidRegistryIdentifier
+			// );
+
+			let identifier = Ss58Identifier::create_identifier(
+				&id_digest.encode()[..],
+				IdentifierType::Registries,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+			ensure!(
+				!<RegistryInfo<T>>::contains_key(&identifier),
+				Error::<T>::RegistryAlreadyAnchored
+			);
+
+			// Construct the authorization_id from the provided parameters.
+			// Id Digest = concat (H(<scale_encoded_registry_identifier>,
+			// <scale_encoded_creator_identifier> ))
+			let auth_id_digest = T::Hashing::hash(
+				&[&identifier.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()
+					[..],
+			);
+
+			let authorization_id = Ss58Identifier::create_identifier(
+				&auth_id_digest.encode(),
+				IdentifierType::RegistryAuthorization,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+			let mut delegates: BoundedVec<RegistryCreatorOf<T>, T::MaxRegistryDelegates> =
+				BoundedVec::default();
+			delegates
+				.try_push(creator.clone())
+				.map_err(|_| Error::<T>::RegistryDelegatesLimitExceeded)?;
+
+			Delegates::<T>::insert(&identifier, delegates);
+
+			Authorizations::<T>::insert(
+				&authorization_id,
+				RegistryAuthorizationOf::<T> {
+					registry_id: identifier.clone(),
+					delegate: creator.clone(),
+					permissions: Permissions::all(),
+					delegator: creator.clone(),
+				},
+			);
+
+			<RegistryInfo<T>>::insert(
+				&identifier,
+				RegistryDetailsOf::<T> {
+					creator: creator.clone(),
+					revoked: false,
+					archived: false,
+					digest,
+				},
+			);
+
+			Self::update_activity(&identifier, IdentifierTypeOf::Registries, CallTypeOf::Genesis)
+				.map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::Create {
+				registry_id: identifier,
+				creator,
+				authorization: authorization_id,
 			});
 
 			Ok(())
 		}
 
-		/// Removes the DELEGATE permission from a delegate in the specified registry.
+		/// Revokes a registry, marking it as no longer active.
 		///
-		/// The origin of this call must be a signed account with OWNER or ADMIN permission for the
-		/// registry. The function updates the permissions of the specified delegate by removing
-		/// their DELEGATE permission. If the delegate has no other permissions, they are removed
-		/// from the registry's delegate list.
+		/// This function marks a registry as revoked based on the provided registry
+		/// ID. It checks that the registry exists, is not already revoked, and
+		/// ensures that the caller has the authority to revoke the registry, as
+		/// indicated by the provided authorization ID.
 		///
 		/// # Parameters
-		/// - `origin`: The account making the call. Must be signed and authorized as OWNER or ADMIN
-		///   for the registry.
-		/// - `registry_id`: The identifier of the registry from which the delegate's DELEGATE
-		///   permission is being removed.
-		/// - `delegate`: The account ID of the delegate whose DELEGATE permission is to be removed.
+		/// - `origin`: The origin of the transaction, which must be signed by the creator or an
+		///   admin with the appropriate authority.
+		/// - `registry_id`: The identifier of the registry to be revoked.
+		/// - `authorization`: An identifier for the authorization being used to validate the
+		///   revocation.
+		///
+		/// # Returns
+		/// - `DispatchResult`: Returns `Ok(())` if the registry is successfully revoked, or an
+		///   error (`DispatchError`) if:
+		///   - The registry does not exist.
+		///   - The registry is already revoked.
+		///   - The caller does not have the authority to revoke the registry.
 		///
 		/// # Errors
-		/// - `RegistryIdDoesNotExist`: The specified `registry_id` does not exist in the storage.
-		/// - `UnauthorizedOperation`: The caller does not have OWNER or ADMIN permission for the
+		/// - `RegistryNotFound`: If the specified registry ID does not correspond to an existing
 		///   registry.
-		/// - `DelegatePermissionDoesNotExist`: The specified `delegate` does not have DELEGATE
-		///   permission, so it cannot be removed.
-		/// - `DelegateNotFound`: The specified `delegate` does not exist in the list of delegates.
+		/// - `RegistryAlreadyRevoked`: If the registry has already been revoked.
+		/// - `UnauthorizedOperation`: If the caller is not authorized to revoke the registry.
 		///
-		/// # Success
-		/// - Removes the DELEGATE permission from the specified delegate, leaving other permissions
-		///   intact.
-		/// - If the delegate has no remaining permissions, they are removed from the delegate list.
-		///
-		/// # Event
-		/// - `RegistryDelegateRemoved`: Emitted when a delegate's DELEGATE permission is
-		///   successfully removed, or if the delegate is removed from the list.
-		///
-		/// # Example
-		/// ```rust
-		/// let result = remove_delegate(origin, registry_id, delegate);
-		/// ```
-		#[pallet::call_index(7)]
+		/// # Events
+		/// - `Revoke`: Emitted when a registry is successfully revoked. It includes the registry ID
+		///   and the authority who performed the revocation.
+		#[pallet::call_index(6)]
 		#[pallet::weight({0})]
-		pub fn remove_delegate(
+		pub fn revoke(
 			origin: OriginFor<T>,
 			registry_id: RegistryIdOf,
-			delegate: DelegateOf<T>,
+			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let remover = ensure_signed(origin)?;
+			let creator = ensure_signed(origin)?;
+
+			let auth_registry_id =
+				Self::ensure_authorization_admin_origin(&authorization, &creator)?;
+
+			ensure!(auth_registry_id == registry_id, Error::<T>::UnauthorizedOperation);
+
+			let registry_details =
+				RegistryInfo::<T>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
+
+			ensure!(!registry_details.revoked, Error::<T>::RegistryAlreadyRevoked);
+
+			<RegistryInfo<T>>::insert(
+				&registry_id,
+				RegistryDetailsOf::<T> { revoked: true, ..registry_details },
+			);
+
+			Self::update_activity(&registry_id, IdentifierTypeOf::Registries, CallTypeOf::Revoke)
+				.map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::Revoke { registry_id, authority: creator });
+
+			Ok(())
+		}
+
+		/// Reinstates a revoked registry, making it active again.
+		///
+		/// This function changes the status of a previously revoked registry to active
+		/// based on the provided registry ID. It checks that the registry exists, is
+		/// currently revoked, and ensures that the caller has the authority to reinstate
+		/// the registry as indicated by the provided authorization ID.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the transaction, which must be signed by the creator or an
+		///   admin with the appropriate authority.
+		/// - `registry_id`: The identifier of the registry to be reinstated.
+		/// - `authorization`: An identifier for the authorization being used to validate the
+		///   reinstatement.
+		///
+		/// # Returns
+		/// - `DispatchResult`: Returns `Ok(())` if the registry is successfully reinstated, or an
+		///   error (`DispatchError`) if:
+		///   - The registry does not exist.
+		///   - The registry is not revoked.
+		///   - The caller does not have the authority to reinstate the registry.
+		///
+		/// # Errors
+		/// - `RegistryNotFound`: If the specified registry ID does not correspond to an existing
+		///   registry.
+		/// - `RegistryNotRevoked`: If the registry is not currently revoked.
+		/// - `UnauthorizedOperation`: If the caller is not authorized to reinstate the registry.
+		///
+		/// # Events
+		/// - `Reinstate`: Emitted when a registry is successfully reinstated. It includes the
+		///   registry ID and the authority who performed the reinstatement.
+		#[pallet::call_index(7)]
+		#[pallet::weight({0})]
+		pub fn reinstate(
+			origin: OriginFor<T>,
+			registry_id: RegistryIdOf,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = ensure_signed(origin)?;
+
+			let auth_registry_id =
+				Self::ensure_authorization_reinstate_origin(&authorization, &creator)?;
+
+			ensure!(auth_registry_id == registry_id, Error::<T>::UnauthorizedOperation);
+
+			let registry_details =
+				RegistryInfo::<T>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
+
+			ensure!(registry_details.revoked, Error::<T>::RegistryNotRevoked);
+
+			<RegistryInfo<T>>::insert(
+				&registry_id,
+				RegistryDetailsOf::<T> { revoked: false, ..registry_details },
+			);
+
+			Self::update_activity(
+				&registry_id,
+				IdentifierTypeOf::Registries,
+				CallTypeOf::Reinstate,
+			)
+			.map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::Reinstate { registry_id, authority: creator });
+
+			Ok(())
+		}
+
+		/// Updates the digest and optional blob of a registry.
+		///
+		/// This function allows the creator or an admin with the appropriate authority
+		/// to update the digest and optionally the blob of an existing registry. It checks
+		/// that the registry exists, ensures that the caller has the necessary authorization,
+		/// and updates the registry with the new digest and blob (if provided).
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the transaction, which must be signed by the creator or an
+		///   admin with the appropriate authority.
+		/// - `registry_id`: The identifier of the registry to be updated.
+		/// - `digest`: The new digest (hash) to be assigned to the registry.
+		/// - `blob`: An optional new blob (data) to be assigned to the registry. If `None`, the
+		///   existing blob remains unchanged.
+		/// - `authorization`: An identifier for the authorization being used to validate the
+		///   update.
+		///
+		/// # Returns
+		/// - `DispatchResult`: Returns `Ok(())` if the registry is successfully updated, or an
+		///   error (`DispatchError`) if:
+		///   - The registry does not exist.
+		///   - The caller does not have the authority to update the registry.
+		///
+		/// # Errors
+		/// - `RegistryNotFound`: If the specified registry ID does not correspond to an existing
+		///   registry.
+		/// - `UnauthorizedOperation`: If the caller is not authorized to update the registry.
+		///
+		/// # Events
+		/// - `Update`: Emitted when a registry is successfully updated. It includes the registry
+		///   ID, the updater, and the authorization used.
+		#[pallet::call_index(8)]
+		#[pallet::weight({0})]
+		pub fn update(
+			origin: OriginFor<T>,
+			registry_id: RegistryIdOf,
+			digest: RegistryHashOf<T>,
+			_blob: Option<RegistryBlobOf<T>>,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = ensure_signed(origin)?;
 
 			let mut registry =
-				Registry::<T>::get(&registry_id).ok_or(Error::<T>::RegistryIdDoesNotExist)?;
+				RegistryInfo::<T>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
 
-			/* Ensure account is authorized with OWNER/ ADMIN permission */
-			let is_authorized = Self::ensure_owner_or_admin_authorization(&registry, &remover);
-			ensure!(is_authorized, Error::<T>::UnauthorizedOperation);
+			let auth_registry_id =
+				Self::ensure_authorization_admin_origin(&authorization, &creator)?;
+			ensure!(auth_registry_id == registry_id, Error::<T>::UnauthorizedOperation);
 
-			/*
-			 * Search the delegate list and modify the permissions of the matching delegate.
-			 * Ensure the delegate possesses DELEGATE permission, otherwise return an error.
-			 * Remove only the DELEGATE permission, leaving other permissions intact.
-			 * If the delegate has no remaining permissions, remove them from the list.
-			 */
-			let mut delegate_found = false;
-			for delegate_info in registry.delegates.iter_mut() {
-				if delegate_info.delegate == delegate {
-					delegate_found = true;
+			registry.digest = digest;
 
-					ensure!(
-						delegate_info.permissions.contains(Permissions::DELEGATE),
-						Error::<T>::DelegatePermissionDoesNotExist
-					);
+			<RegistryInfo<T>>::insert(&registry_id, registry);
 
-					delegate_info.permissions.remove(Permissions::DELEGATE);
+			Self::update_activity(&registry_id, IdentifierTypeOf::Registries, CallTypeOf::Update)
+				.map_err(Error::<T>::from)?;
 
-					if delegate_info.permissions.is_empty() {
-						registry.delegates.retain(|d| d.delegate != delegate);
-					}
-					break;
-				}
-			}
+			Self::deposit_event(Event::Update {
+				registry_id: registry_id.clone(),
+				updater: creator,
+				authorization,
+			});
 
-			/* Ensure the delegate is found on Delegates list */
-			ensure!(delegate_found, Error::<T>::DelegateNotFound);
+			Ok(())
+		}
 
-			Registry::<T>::insert(&registry_id, registry);
+		/// Archives a registry, marking it as inactive.
+		///
+		/// This function allows the creator or an admin with the appropriate authority
+		/// to archive an existing registry. It checks that the registry exists, is not already
+		/// archived, and ensures that the caller has the necessary authorization to perform the
+		/// archival.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the transaction, which must be signed by the creator or an
+		///   admin with the appropriate authority.
+		/// - `registry_id`: The identifier of the registry to be archived.
+		/// - `authorization`: An identifier for the authorization being used to validate the
+		///   archival.
+		///
+		/// # Returns
+		/// - `DispatchResult`: Returns `Ok(())` if the registry is successfully archived, or an
+		///   error (`DispatchError`) if:
+		///   - The registry does not exist.
+		///   - The registry is already archived.
+		///   - The caller does not have the authority to archive the registry.
+		///
+		/// # Errors
+		/// - `RegistryNotFound`: If the specified registry ID does not correspond to an existing
+		///   registry.
+		/// - `RegistryAlreadyArchived`: If the registry is already archived.
+		/// - `UnauthorizedOperation`: If the caller is not authorized to archive the registry.
+		///
+		/// # Events
+		/// - `Archive`: Emitted when a registry is successfully archived. It includes the registry
+		///   ID and the authority who performed the archival.
+		#[pallet::call_index(9)]
+		#[pallet::weight({0})]
+		pub fn archive(
+			origin: OriginFor<T>,
+			registry_id: RegistryIdOf,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = ensure_signed(origin)?;
 
-			Self::deposit_event(Event::RegistryDelegateRemoved { remover, registry_id, delegate });
+			let auth_registry_id =
+				Self::ensure_authorization_admin_origin(&authorization, &creator)?;
+
+			ensure!(auth_registry_id == registry_id, Error::<T>::UnauthorizedOperation);
+
+			let registry_details =
+				RegistryInfo::<T>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
+
+			ensure!(!registry_details.archived, Error::<T>::RegistryAlreadyArchived);
+
+			<RegistryInfo<T>>::insert(
+				&registry_id,
+				RegistryDetailsOf::<T> { archived: true, ..registry_details },
+			);
+
+			Self::update_activity(&registry_id, IdentifierTypeOf::Registries, CallTypeOf::Archive)
+				.map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::Archive { registry_id, authority: creator });
+
+			Ok(())
+		}
+
+		/// Restores an archived registry, making it active again.
+		///
+		/// This function allows the creator or an admin with the appropriate authority
+		/// to restore an archived registry. It checks that the registry exists, is currently
+		/// archived, and ensures that the caller has the necessary authorization to perform the
+		/// restoration.
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the transaction, which must be signed by the creator or an
+		///   admin with the appropriate authority.
+		/// - `registry_id`: The identifier of the registry to be restored.
+		/// - `authorization`: An identifier for the authorization being used to validate the
+		///   restoration.
+		///
+		/// # Returns
+		/// - `DispatchResult`: Returns `Ok(())` if the registry is successfully restored, or an
+		///   error (`DispatchError`) if:
+		///   - The registry does not exist.
+		///   - The registry is not archived.
+		///   - The caller does not have the authority to restore the registry.
+		///
+		/// # Errors
+		/// - `RegistryNotFound`: If the specified registry ID does not correspond to an existing
+		///   registry.
+		/// - `RegistryNotArchived`: If the registry is not currently archived.
+		/// - `UnauthorizedOperation`: If the caller is not authorized to restore the registry.
+		///
+		/// # Events
+		/// - `Restore`: Emitted when a registry is successfully restored. It includes the registry
+		///   ID and the authority who performed the restoration.
+		#[pallet::call_index(10)]
+		#[pallet::weight({0})]
+		pub fn restore(
+			origin: OriginFor<T>,
+			registry_id: RegistryIdOf,
+			authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = ensure_signed(origin)?;
+
+			let auth_registry_id =
+				Self::ensure_authorization_restore_origin(&authorization, &creator)?;
+
+			ensure!(auth_registry_id == registry_id, Error::<T>::UnauthorizedOperation);
+
+			let registry_details =
+				RegistryInfo::<T>::get(&registry_id).ok_or(Error::<T>::RegistryNotFound)?;
+
+			ensure!(registry_details.archived, Error::<T>::RegistryNotArchived);
+
+			<RegistryInfo<T>>::insert(
+				&registry_id,
+				RegistryDetailsOf::<T> { archived: false, ..registry_details },
+			);
+
+			Self::update_activity(&registry_id, IdentifierTypeOf::Registries, CallTypeOf::Restore)
+				.map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::Restore { registry_id, authority: creator });
 
 			Ok(())
 		}
@@ -905,70 +942,307 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// Method to check if the `registry_id` is a valid one.
-	/// Returns the registry on success.
-	pub fn ensure_valid_registry_id(
+	/// Adds a delegate to a registry with specified permissions.
+	///
+	/// This function will add a new delegate to a registry, given the registry's ID,
+	/// the delegate's information, and the required permissions. It constructs
+	/// an authorization ID based on the registry ID, delegate, and creator,
+	/// ensuring that the delegate is not already added. It also checks that the
+	/// registry is not archived and is not revoked.
+	fn registry_delegate_addition(
+		registry_id: RegistryIdOf,
+		delegate: RegistryCreatorOf<T>,
+		creator: RegistryCreatorOf<T>,
+		permissions: Permissions,
+	) -> Result<(), Error<T>> {
+		// Id Digest = concat (H(<scale_encoded_registry_identifier>,
+		// <scale_encoded_creator_identifier>, <scale_encoded_delegate_identifier>))
+		let id_digest = T::Hashing::hash(
+			&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
+		);
+
+		let delegate_authorization_id = Ss58Identifier::create_identifier(
+			&id_digest.encode(),
+			IdentifierType::RegistryAuthorization,
+		)
+		.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+		ensure!(
+			!Authorizations::<T>::contains_key(&delegate_authorization_id),
+			Error::<T>::DelegateAlreadyAdded
+		);
+
+		let mut delegates = Delegates::<T>::get(&registry_id);
+		delegates
+			.try_push(delegate.clone())
+			.map_err(|_| Error::<T>::RegistryDelegatesLimitExceeded)?;
+		Delegates::<T>::insert(&registry_id, delegates);
+
+		Authorizations::<T>::insert(
+			&delegate_authorization_id,
+			RegistryAuthorizationOf::<T> {
+				registry_id: registry_id.clone(),
+				delegate: delegate.clone(),
+				permissions,
+				delegator: creator,
+			},
+		);
+
+		Self::update_activity(
+			&registry_id,
+			IdentifierTypeOf::RegistryAuthorization,
+			CallTypeOf::Authorization,
+		)
+		.map_err(Error::<T>::from)?;
+
+		Self::deposit_event(Event::Authorization {
+			registry_id,
+			authorization: delegate_authorization_id,
+			delegate,
+		});
+
+		Ok(())
+	}
+
+	/// Checks if a given entity is a delegate for the specified registry.
+	///
+	/// This function retrieves the list of delegates for a registry and determines
+	/// whether the specified delegate is among them. It is a read-only
+	/// operation and does not modify the state.
+	pub fn is_a_delegate(tx_id: &RegistryIdOf, delegate: RegistryCreatorOf<T>) -> bool {
+		<Delegates<T>>::get(tx_id).iter().any(|d| d == &delegate)
+	}
+
+	/// Verifies if a given delegate has a specific authorization.
+	///
+	/// This function checks if the provided delegate is associated with the
+	/// given authorization ID and has the 'ASSERT' permission.
+	pub fn ensure_authorization_origin(
+		authorization_id: &AuthorizationIdOf,
+		delegate: &RegistryCreatorOf<T>,
+	) -> Result<RegistryIdOf, Error<T>> {
+		let d =
+			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
+
+		ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
+
+		Self::validate_registry_for_transaction(&d.registry_id)?;
+
+		ensure!(d.permissions.contains(Permissions::ASSERT), Error::<T>::UnauthorizedOperation);
+
+		Ok(d.registry_id)
+	}
+
+	/// Verifies if a given delegate has a specific authorization.
+	///
+	/// This function checks if the provided delegate is associated with the
+	/// given authorization ID and has the 'ADMIN' permission.
+	/// This asserts for delegates authorization has the permission to reinstate.
+	pub fn ensure_authorization_reinstate_origin(
+		authorization_id: &AuthorizationIdOf,
+		delegate: &RegistryCreatorOf<T>,
+	) -> Result<RegistryIdOf, Error<T>> {
+		let d =
+			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
+
+		ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
+
+		Self::validate_registry_for_reinstate_transaction(&d.registry_id)?;
+
+		ensure!(d.permissions.contains(Permissions::ADMIN), Error::<T>::UnauthorizedOperation);
+		// ensure!(d.permissions.contains(Permissions::ASSERT), Error::<T>::UnauthorizedOperation);
+
+		Ok(d.registry_id)
+	}
+
+	/// Verifies if a given delegate has a specific authorization.
+	///
+	/// This function checks if the provided delegate is associated with the
+	/// given authorization ID and has the 'ADMIN' permission.
+	/// This asserts for delegates authorization has the permission to restore.
+	pub fn ensure_authorization_restore_origin(
+		authorization_id: &AuthorizationIdOf,
+		delegate: &RegistryCreatorOf<T>,
+	) -> Result<RegistryIdOf, Error<T>> {
+		let d =
+			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
+
+		ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
+
+		Self::validate_registry_for_restore_transaction(&d.registry_id)?;
+
+		ensure!(d.permissions.contains(Permissions::ADMIN), Error::<T>::UnauthorizedOperation);
+		// ensure!(d.permissions.contains(Permissions::ASSERT), Error::<T>::UnauthorizedOperation);
+
+		Ok(d.registry_id)
+	}
+
+	/// Checks if a given delegate is an admin for the registry associated with the
+	/// authorization ID.
+	///
+	/// This function verifies whether the specified delegate is the admin of
+	/// the registry by checking the 'ADMIN' permission within the authorization
+	/// tied to the provided authorization ID.
+	pub fn ensure_authorization_admin_origin(
+		authorization_id: &AuthorizationIdOf,
+		delegate: &RegistryCreatorOf<T>,
+	) -> Result<RegistryIdOf, Error<T>> {
+		let d =
+			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
+
+		ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
+
+		Self::validate_registry_for_transaction(&d.registry_id)?;
+
+		ensure!(d.permissions.contains(Permissions::ADMIN), Error::<T>::UnauthorizedOperation);
+
+		Ok(d.registry_id)
+	}
+
+	/// Ensures that the given delegate is authorized to perform an audit
+	/// operation on a registry.
+	///
+	/// This function checks whether the provided `authorization_id` corresponds
+	/// to an existing authorization and whether the delegate associated with
+	/// that authorization is allowed to perform audit operations. It also
+	/// increments usage and validates the registry for transactions.
+	pub fn ensure_authorization_delegator_origin(
+		authorization_id: &AuthorizationIdOf,
+		delegate: &RegistryCreatorOf<T>,
+	) -> Result<RegistryIdOf, Error<T>> {
+		let d =
+			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
+
+		ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
+
+		Self::validate_registry_for_transaction(&d.registry_id)?;
+
+		ensure!(
+			d.permissions.contains(Permissions::DELEGATE | Permissions::ADMIN),
+			Error::<T>::UnauthorizedOperation
+		);
+
+		Ok(d.registry_id)
+	}
+
+	/// Checks if a given delegate is an admin for the registry associated with the
+	/// authorization ID.
+	///
+	/// This function verifies whether the specified delegate is the admin of
+	/// the registry by checking the 'ADMIN' permission within the authorization
+	/// tied to the provided authorization ID.
+	pub fn ensure_authorization_admin_remove_origin(
+		authorization_id: &AuthorizationIdOf,
+		delegate: &RegistryCreatorOf<T>,
+	) -> Result<RegistryIdOf, Error<T>> {
+		let d =
+			<Authorizations<T>>::get(authorization_id).ok_or(Error::<T>::AuthorizationNotFound)?;
+
+		ensure!(d.delegate == *delegate, Error::<T>::UnauthorizedOperation);
+
+		Self::validate_registry_for_transaction(&d.registry_id)?;
+
+		ensure!(d.permissions.contains(Permissions::ADMIN), Error::<T>::UnauthorizedOperation);
+
+		Ok(d.registry_id)
+	}
+
+	/// Validates that a registry is eligible for a new transaction.
+	///
+	/// This function ensures that a registry is not archived, is not revoked.
+	/// It is a critical check that enforces the integrity and
+	/// constraints of registry usage on the chain.
+	pub fn validate_registry_for_transaction(registry_id: &RegistryIdOf) -> Result<(), Error<T>> {
+		let registry_details =
+			RegistryInfo::<T>::get(registry_id).ok_or(Error::<T>::RegistryNotFound)?;
+
+		// Ensure the Registry is not `archived`.
+		if registry_details.archived {
+			return Err(Error::<T>::RegistryArchived);
+		}
+
+		// Ensure the Registry is not `revoked`.
+		if registry_details.revoked {
+			return Err(Error::<T>::RegistryRevoked);
+		}
+
+		Ok(())
+	}
+
+	/// Validates a registry for restore transactions.
+	///
+	/// This function checks that the specified registry exists.
+	/// It is designed to be called before,
+	/// performing any administrative actions on a registry to ensure
+	/// that the registry is in a proper state for such transactions.
+	pub fn validate_registry_for_restore_transaction(
 		registry_id: &RegistryIdOf,
-	) -> Result<RegistryDetailsOf<T>, Error<T>> {
-		let registry =
-			Registry::<T>::get(&registry_id).ok_or(Error::<T>::RegistryIdDoesNotExist)?;
+	) -> Result<(), Error<T>> {
+		let registry_details =
+			RegistryInfo::<T>::get(registry_id).ok_or(Error::<T>::RegistryNotFound)?;
 
-		Ok(registry)
+		// Ensure the Registry is `archived`.
+		if !registry_details.archived {
+			return Err(Error::<T>::RegistryNotArchived);
+		}
+
+		Ok(())
 	}
 
-	/// Method to check if the `delegate` has either one of OWNER/ADMIN/DELEGATE permissions &
-	/// is part of the `delegates` list.
-	pub fn ensure_delegate_authorization(
-		registry: &RegistryDetailsOf<T>,
-		delegate: &DelegateOf<T>,
-	) -> bool {
-		let is_authorized = registry.delegates.iter().any(|delegate_info| {
-			delegate_info.delegate == *delegate &&
-				delegate_info
-					.permissions
-					.intersects(Permissions::OWNER | Permissions::ADMIN | Permissions::DELEGATE)
-		});
+	/// Validates a registry for reinstate transactions.
+	///
+	/// This function checks that the specified registry exists.
+	/// It is designed to be called before performing any administrative
+	/// actions on a registry to ensure either the registry is in a proper state for such
+	/// transactions.
+	pub fn validate_registry_for_reinstate_transaction(
+		registry_id: &RegistryIdOf,
+	) -> Result<(), Error<T>> {
+		let registry_details =
+			RegistryInfo::<T>::get(registry_id).ok_or(Error::<T>::RegistryNotFound)?;
 
-		if is_authorized {
-			return true
+		// Ensure the Registry is `revoked`.
+		if !registry_details.revoked {
+			return Err(Error::<T>::RegistryNotRevoked);
 		}
-		return false
+
+		Ok(())
 	}
 
-	/// Method to check if the `delegate` is authorized with either one of OWNER/ADMIN permission.
-	pub fn ensure_owner_or_admin_authorization(
-		registry: &RegistryDetailsOf<T>,
-		delegate: &DelegateOf<T>,
-	) -> bool {
-		let is_authorized = registry.delegates.iter().any(|delegate_info| {
-			delegate_info.delegate == *delegate &&
-				delegate_info.permissions.intersects(Permissions::OWNER | Permissions::ADMIN)
-		});
+	/// Updates the global timeline with a new activity event for a registry.
+	///
+	/// This function is an internal mechanism that logs each significant change
+	/// to a registry on the global timeline. It is automatically called by the
+	/// system whenever an update to a registry occurs, capturing the type of
+	/// activity and the precise time at which it happened. This automated
+	/// tracking is crucial for maintaining a consistent and auditable record of
+	/// all registry-related activities.
+	pub fn update_activity(
+		tx_id: &RegistryIdOf,
+		tx_type: IdentifierTypeOf,
+		tx_action: CallTypeOf,
+	) -> Result<(), Error<T>> {
+		let tx_moment = Self::timepoint();
 
-		if is_authorized {
-			return true
-		}
-		return false
+		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
+		let _ = IdentifierTimeline::update_timeline::<T>(tx_id, tx_type, tx_entry);
+		Ok(())
 	}
 
-	/// Method to check if the `delegate` is authorized with OWNER permission.
-	pub fn ensure_owner_authorization(
-		registry: &RegistryDetailsOf<T>,
-		delegate: &DelegateOf<T>,
-	) -> bool {
-		let is_authorized = registry.delegates.iter().any(|delegate_info| {
-			delegate_info.delegate == *delegate &&
-				delegate_info.permissions.contains(Permissions::OWNER)
-		});
-
-		if is_authorized {
-			return true
+	/// Retrieves the current timepoint.
+	///
+	/// This function returns a `Timepoint` structure containing the current
+	/// block number and extrinsic index. It is typically used in conjunction
+	/// with `update_activity` to record when an event occurred.
+	pub fn timepoint() -> Timepoint {
+		Timepoint {
+			height: frame_system::Pallet::<T>::block_number().unique_saturated_into(),
+			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
 		}
-		return false
 	}
 
 	/// Method to check if the input identifier calculated from sdk
-	/// is actually a valid SS58 Identifier Format and of valid type `DeDir`.
+	/// is actually a valid SS58 Identifier Format and of valid type `Registries`.
 	pub fn is_valid_ss58_format(identifier: &Ss58Identifier) -> bool {
 		match identifier.get_type() {
 			Ok(id_type) =>
@@ -985,13 +1259,8 @@ impl<T: Config> Pallet<T> {
 			},
 		}
 	}
-
-	// /// Method to check if blob matches the given digest
-	// pub fn does_blob_matches_digest(blob: &RegistryBlobOf<T>, digest: &RegistryHashOf<T>) -> bool
-	// { 	let blob_digest = <T as frame_system::Config>::Hashing::hash(&blob.encode()[..]);
-
-	// 	log::info!("digest: {:?}, blob_digest: {:?}, blob: {:?}", *digest, blob_digest, blob);
-
-	// 	blob_digest == *digest
-	// }
 }
+
+// TODO:
+// Check permission required for `restore` & `reinstate`. Currently ASSERT is being checked.
+// In chainspace implementation it requires ASSERT permission for `restore`.

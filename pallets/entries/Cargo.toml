@@ -27,6 +27,7 @@ sp-std = { workspace = true }
 sp-io = { workspace = true }
 sp-core = { workspace = true }
 identifier = { workspace = true }
+cord-primitives = { workspace = true }
 cord-utilities = { features = ["mock"], workspace = true }
 log = { workspace = true }
 serde_json = { workspace = true }
@@ -37,16 +38,20 @@ pallet-registries = { workspace = true }
 [dev-dependencies]
 sp-core = { workspace = true }
 cord-utilities = { workspace = true }
-identifier = { workspace = true }
 sp-keystore = { workspace = true }
 serde_json = { workspace = true }
 pallet-registries = { workspace = true }
+
+cord-primitives = { workspace = true }
+identifier = { workspace = true }
 
 [features]
 default = ["std"]
 
 std = [
 	"codec/std",
+	"identifier/std",
+	"cord-primitives/std",
 	"enumflags2/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
@@ -75,6 +80,7 @@ try-runtime = [
 	"cord-utilities/try-runtime",
 	"identifier/try-runtime",
 	"sp-runtime/try-runtime",
+	"identifier/try-runtime",
 ]
 
 # Disable doctest when running `cargo test` 

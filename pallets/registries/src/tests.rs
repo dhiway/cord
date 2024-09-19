@@ -1,784 +1,1065 @@
-// This file is part of CORD – https://cord.network
-
-// Copyright (C) Dhiway Networks Pvt. Ltd.
-// SPDX-License-Identifier: GPL-3.0-or-later
-
-// CORD is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// CORD is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with CORD. If not, see <https://www.gnu.org/licenses/>.
-
 use super::*;
 use crate::mock::*;
 use codec::Encode;
-use frame_support::{assert_ok, BoundedVec};
-use serde_json::json;
+use frame_support::{assert_err, assert_ok};
 use sp_runtime::traits::Hash;
 use sp_std::prelude::*;
 
-/// Generates a Registry ID
-pub fn generate_registry_id<T: Config>(id_digest: &RegistryHashOf<T>) -> RegistryIdOf {
-	let registry_id: RegistryIdOf =
-		Ss58Identifier::create_identifier(&(id_digest).encode()[..], IdentifierType::Registries)
-			.expect("Registry Identifier creation failed.");
+pub fn generate_registry_id<T: Config>(digest: &RegistryHashOf<T>) -> RegistryIdOf {
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Registries).unwrap()
+}
 
-	registry_id
+pub fn generate_authorization_id<T: Config>(digest: &RegistryHashOf<T>) -> AuthorizationIdOf {
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::RegistryAuthorization)
+		.unwrap()
 }
 
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
 pub(crate) const ACCOUNT_01: AccountId = AccountId::new([2u8; 32]);
-//pub(crate) const ACCOUNT_02: AccountId = AccountId::new([3u8; 32]);
+pub(crate) const ACCOUNT_02: AccountId = AccountId::new([3u8; 32]);
+
+// TODO:
+// Add tests for SchemaId.
+// Right now None is being pased.
+// Fix: Remove pallet-chain-space dependency from pallet-schema &
+// make it account based.
 
 #[test]
-fn create_registry_should_work() {
+fn add_delegate_should_succeed() {
 	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
 
-	let json_object = json!({
-		"name": "String",
-		"age": "Number",
-		"email": "String",
-		"isActive": "Boolean",
-		"address": {
-			"street": "String",
-			"city": "String",
-			"zipcode": "Number"
-		},
-		"phoneNumbers": [
-			"Number",
-			"Number"
-		],
-	});
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
 
-	let json_string = serde_json::to_string(&json_object).expect("Failed to serialize JSON");
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
 
-	let raw_bytes = json_string.as_bytes().to_vec();
-
-	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_bytes.clone()).expect(
-		"Test Blob should fit into the expected input length of BLOB for the test runtime.",
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-
-	let digest: RegistryHashOf<Test> =
-		<Test as frame_system::Config>::Hashing::hash(&raw_bytes.encode()[..]);
-
-	// If blob exists, add it to the identifier
-	let mut id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&creator.encode()[..], &digest.encode()[..]].concat()[..],
-	);
-	if !blob.is_empty() {
-		id_digest = <Test as frame_system::Config>::Hashing::hash(
-			&[&creator.encode()[..], &digest.encode()[..], &blob.encode()[..]].concat()[..],
-		);
-	}
 
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
-	let state = RegistrySupportedStateOf::ACTIVE;
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
 	new_test_ext().execute_with(|| {
-		/* Test creation of a Registry */
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
-			digest,
-			None, // No template ID
-			Some(blob.clone()),
-			Some(state.clone()),
+			registry_digest,
+			None,
+			Some(blob)
 		));
 
-		/* Check if the Registry was created */
-		assert!(Registry::<Test>::contains_key(registry_id.clone()));
-		let registry = Registry::<Test>::get(registry_id.clone()).unwrap();
-
-		/* Check for values stored are correct */
-		assert_eq!(registry.digest, digest);
-		assert_eq!(registry.state, state);
-		assert_eq!(registry.delegates.len(), 1); // Only the creator should be added as delegate
-
-		/* Check that the creator has OWNER permission */
-		assert!(registry
-			.delegates
-			.iter()
-			.any(|d| d.delegate == creator && d.permissions == Permissions::OWNER));
-
-		/* Check for successful event emission of RegistryCreated */
-		System::assert_last_event(
-			Event::RegistryCreated { creator: creator.clone(), registry_id: registry_id.clone() }
-				.into(),
-		);
-	});
-}
-
-#[test]
-fn update_registry_state_should_work() {
-	let creator = ACCOUNT_00;
-	let admin = ACCOUNT_01;
-
-	let json_object = json!({
-		"name": "String",
-		"age": "Number",
-		"email": "String",
-		"isActive": "Boolean",
-		"address": {
-			"street": "String",
-			"city": "String",
-			"zipcode": "Number"
-		},
-		"phoneNumbers": [
-			"Number",
-			"Number"
-		],
-	});
-
-	let json_string = serde_json::to_string(&json_object).expect("Failed to serialize JSON");
-
-	let raw_bytes = json_string.as_bytes().to_vec();
-
-	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_bytes.clone()).expect(
-		"Test Blob should fit into the expected input length of BLOB for the test runtime.",
-	);
-
-	let digest: RegistryHashOf<Test> =
-		<Test as frame_system::Config>::Hashing::hash(&raw_bytes.encode()[..]);
-
-	// If blob exists, add it to the identifier
-	let mut id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&creator.encode()[..], &digest.encode()[..]].concat()[..],
-	);
-	if !blob.is_empty() {
-		id_digest = <Test as frame_system::Config>::Hashing::hash(
-			&[&creator.encode()[..], &digest.encode()[..], &blob.encode()[..]].concat()[..],
-		);
-	}
-
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-
-	let state = RegistrySupportedStateOf::ACTIVE;
-
-	new_test_ext().execute_with(|| {
-		/* Test creation of a Registry */
-		assert_ok!(Registries::create(
-			frame_system::RawOrigin::Signed(creator.clone()).into(),
-			registry_id.clone(),
-			digest,
-			None, // No template ID
-			Some(blob.clone()),
-			Some(state.clone()),
-		));
-
-		let mut new_state = RegistrySupportedStateOf::REVOKED;
-
-		/* Test updation of state for a Registry */
-		assert_ok!(Registries::update_state(
-			frame_system::RawOrigin::Signed(creator.clone()).into(),
-			registry_id.clone(),
-			new_state.clone(),
-		));
-
-		/* Verify the registry state has been updated */
-		let registry = Registry::<Test>::get(registry_id.clone()).unwrap();
-		assert_eq!(registry.state, new_state);
-
-		/* Add a admin delegate and test updation of Registry State */
-		assert_ok!(Registries::add_admin_delegate(
-			frame_system::RawOrigin::Signed(creator.clone()).into(),
-			registry_id.clone(),
-			admin.clone()
-		));
-
-		new_state = RegistrySupportedStateOf::ACTIVE;
-		assert_ok!(Registries::update_state(
-			frame_system::RawOrigin::Signed(admin.clone()).into(),
-			registry_id.clone(),
-			new_state.clone(),
-		));
-
-		/* Verify the registry state has been updated back to ACTIVE */
-		let registry = Registry::<Test>::get(registry_id.clone()).unwrap();
-		assert_eq!(registry.state, new_state);
-
-		/* Check successful event emission */
-		System::assert_last_event(
-			Event::RegistryStateChanged {
-				who: admin.clone(),
-				registry_id: registry_id.clone(),
-				new_state: new_state.clone(),
-			}
-			.into(),
-		);
-	});
-}
-
-#[test]
-fn update_registry_should_work() {
-	let creator = ACCOUNT_00;
-	let admin = ACCOUNT_01;
-
-	let json_object = json!({
-		"name": "String",
-		"age": "Number",
-		"email": "String",
-		"isActive": "Boolean",
-		"address": {
-			"street": "String",
-			"city": "String",
-			"zipcode": "Number"
-		},
-		"phoneNumbers": [
-			"Number",
-			"Number"
-		],
-	});
-
-	let json_string = serde_json::to_string(&json_object).expect("Failed to serialize JSON");
-
-	let raw_bytes = json_string.as_bytes().to_vec();
-
-	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_bytes.clone()).expect(
-		"Test Blob should fit into the expected input length of BLOB for the test runtime.",
-	);
-
-	let digest: RegistryHashOf<Test> =
-		<Test as frame_system::Config>::Hashing::hash(&raw_bytes.encode()[..]);
-
-	// If blob exists, add it to the identifier
-	let mut id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&creator.encode()[..], &digest.encode()[..]].concat()[..],
-	);
-	if !blob.is_empty() {
-		id_digest = <Test as frame_system::Config>::Hashing::hash(
-			&[&creator.encode()[..], &digest.encode()[..], &blob.encode()[..]].concat()[..],
-		);
-	}
-
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-
-	let state = RegistrySupportedStateOf::ACTIVE;
-
-	new_test_ext().execute_with(|| {
-		/* Test creation of a Registry */
-		assert_ok!(Registries::create(
-			frame_system::RawOrigin::Signed(creator.clone()).into(),
-			registry_id.clone(),
-			digest,
-			None, // No template ID
-			Some(blob.clone()),
-			Some(state.clone()),
-		));
-
-		let updated_json_object = json!({
-			"firstName": "String",
-			"lastName": "String",
-			"age": "Number",
-			"email": "String",
-			"isActive": "Boolean",
-			"address": {
-				"street": "String",
-				"city": "String",
-				"zipcode": "Number"
-			},
-			"phoneNumbers": [
-				"Number",
-				"Number"
-			],
-		});
-
-		let updated_json_string =
-			serde_json::to_string(&updated_json_object).expect("Failed to serialize JSON");
-
-		let updated_raw_bytes = updated_json_string.as_bytes().to_vec();
-
-		let updated_blob: RegistryBlobOf<Test> = BoundedVec::try_from(updated_raw_bytes.clone())
-			.expect(
-				"Test Blob should fit into the expected input length of BLOB for the test runtime.",
-			);
-
-		let updated_digest: RegistryHashOf<Test> =
-			<Test as frame_system::Config>::Hashing::hash(&updated_raw_bytes.encode()[..]);
-
-		let updated_state = RegistrySupportedStateOf::REVOKED;
-
-		/* Update registry by OWNER Permissioned account */
-		assert_ok!(Registries::update(
-			frame_system::RawOrigin::Signed(creator.clone()).into(),
-			registry_id.clone(),
-			updated_digest,
-			Some(updated_blob.clone()),
-			Some(updated_state.clone()),
-		));
-
-		/* Verify the registry updated by the OWNER */
-		let registry = Registry::<Test>::get(registry_id.clone()).unwrap();
-		assert_eq!(registry.digest, updated_digest);
-		assert_eq!(registry.state, updated_state);
-
-		/* Add a admin delegate and test updation of Registry */
-		assert_ok!(Registries::add_admin_delegate(
-			frame_system::RawOrigin::Signed(creator.clone()).into(),
-			registry_id.clone(),
-			admin.clone()
-		));
-
-		/* Update the Registry from a ADMIN permissioned account */
-		assert_ok!(Registries::update(
-			frame_system::RawOrigin::Signed(admin.clone()).into(),
-			registry_id.clone(),
-			digest,
-			Some(blob.clone()),
-			Some(state.clone()),
-		));
-
-		/* Verify the registry updated by the ADMIN */
-		let registry = Registry::<Test>::get(registry_id.clone()).unwrap();
-		assert_eq!(registry.digest, digest);
-		assert_eq!(registry.state, state);
-
-		/* Check successful event emission */
-		System::assert_last_event(
-			Event::RegistryUpdated { updater: admin.clone(), registry_id: registry_id.clone() }
-				.into(),
-		);
-	});
-}
-
-#[test]
-fn add_owner_delegate_should_work() {
-	let creator = ACCOUNT_00;
-	let new_owner = ACCOUNT_01;
-
-	let json_object = json!({
-		"name": "String",
-		"age": "Number",
-		"email": "String",
-		"isActive": "Boolean",
-		"address": {
-			"street": "String",
-			"city": "String",
-			"zipcode": "Number"
-		},
-		"phoneNumbers": [
-			"Number",
-			"Number"
-		],
-	});
-
-	let json_string = serde_json::to_string(&json_object).expect("Failed to serialize JSON");
-
-	let raw_bytes = json_string.as_bytes().to_vec();
-
-	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_bytes.clone()).expect(
-		"Test Blob should fit into the expected input length of BLOB for the test runtime.",
-	);
-
-	let digest: RegistryHashOf<Test> =
-		<Test as frame_system::Config>::Hashing::hash(&raw_bytes.encode()[..]);
-
-	// If blob exists, add it to the identifier
-	let mut id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&creator.encode()[..], &digest.encode()[..]].concat()[..],
-	);
-	if !blob.is_empty() {
-		id_digest = <Test as frame_system::Config>::Hashing::hash(
-			&[&creator.encode()[..], &digest.encode()[..], &blob.encode()[..]].concat()[..],
-		);
-	}
-
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-
-	let state = RegistrySupportedStateOf::ACTIVE;
-
-	new_test_ext().execute_with(|| {
-		/* Test creation of a Registry */
-		assert_ok!(Registries::create(
-			frame_system::RawOrigin::Signed(creator.clone()).into(),
-			registry_id.clone(),
-			digest,
-			None, // No template ID
-			Some(blob.clone()),
-			Some(state.clone()),
-		));
-
-		/* Test addition of a OWNER delegate */
-		assert_ok!(Registries::add_owner_delegate(
-			frame_system::RawOrigin::Signed(creator.clone()).into(),
-			registry_id.clone(),
-			new_owner.clone(),
-		));
-
-		/* Verify the registry state has been updated back to ACTIVE */
-		let registry = Registry::<Test>::get(registry_id.clone()).unwrap();
-		let delegate_info = registry
-			.delegates
-			.iter()
-			.find(|info| info.delegate == new_owner.clone())
-			.unwrap();
-		assert!(delegate_info.permissions.contains(Permissions::OWNER));
-
-		/* Check successful event emission */
-		System::assert_last_event(
-			Event::RegistryOwnerDelegateAdded {
-				delegator: creator.clone(),
-				registry_id: registry_id.clone(),
-				delegate: new_owner.clone(),
-			}
-			.into(),
-		);
-	});
-}
-
-#[test]
-fn add_admin_delegate_should_work() {
-	let creator = ACCOUNT_00;
-	let new_admin = ACCOUNT_01;
-
-	let json_object = json!({
-		"name": "String",
-		"age": "Number",
-		"email": "String",
-		"isActive": "Boolean",
-		"address": {
-			"street": "String",
-			"city": "String",
-			"zipcode": "Number"
-		},
-		"phoneNumbers": [
-			"Number",
-			"Number"
-		],
-	});
-
-	let json_string = serde_json::to_string(&json_object).expect("Failed to serialize JSON");
-
-	let raw_bytes = json_string.as_bytes().to_vec();
-
-	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_bytes.clone()).expect(
-		"Test Blob should fit into the expected input length of BLOB for the test runtime.",
-	);
-
-	let digest: RegistryHashOf<Test> =
-		<Test as frame_system::Config>::Hashing::hash(&raw_bytes.encode()[..]);
-
-	// If blob exists, add it to the identifier
-	let mut id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&creator.encode()[..], &digest.encode()[..]].concat()[..],
-	);
-	if !blob.is_empty() {
-		id_digest = <Test as frame_system::Config>::Hashing::hash(
-			&[&creator.encode()[..], &digest.encode()[..], &blob.encode()[..]].concat()[..],
-		);
-	}
-
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-
-	let state = RegistrySupportedStateOf::ACTIVE;
-
-	new_test_ext().execute_with(|| {
-		/* Test creation of a Registry */
-		assert_ok!(Registries::create(
-			frame_system::RawOrigin::Signed(creator.clone()).into(),
-			registry_id.clone(),
-			digest,
-			None, // No template ID
-			Some(blob.clone()),
-			Some(state.clone()),
-		));
-
-		/* Test addition of a ADMIN delegate */
-		assert_ok!(Registries::add_admin_delegate(
-			frame_system::RawOrigin::Signed(creator.clone()).into(),
-			registry_id.clone(),
-			new_admin.clone(),
-		));
-
-		/* Verify the registry state has been updated back to ACTIVE */
-		let registry = Registry::<Test>::get(registry_id.clone()).unwrap();
-		let delegate_info = registry
-			.delegates
-			.iter()
-			.find(|info| info.delegate == new_admin.clone())
-			.unwrap();
-		assert!(delegate_info.permissions.contains(Permissions::ADMIN));
-
-		/* Check successful event emission */
-		System::assert_last_event(
-			Event::RegistryAdminDelegateAdded {
-				delegator: creator.clone(),
-				registry_id: registry_id.clone(),
-				delegate: new_admin.clone(),
-			}
-			.into(),
-		);
-	});
-}
-
-#[test]
-fn add_delegate_should_work() {
-	let creator = ACCOUNT_00;
-	let new_delegate = ACCOUNT_01;
-
-	let json_object = json!({
-		"name": "String",
-		"age": "Number",
-		"email": "String",
-		"isActive": "Boolean",
-		"address": {
-			"street": "String",
-			"city": "String",
-			"zipcode": "Number"
-		},
-		"phoneNumbers": [
-			"Number",
-			"Number"
-		],
-	});
-
-	let json_string = serde_json::to_string(&json_object).expect("Failed to serialize JSON");
-
-	let raw_bytes = json_string.as_bytes().to_vec();
-
-	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_bytes.clone()).expect(
-		"Test Blob should fit into the expected input length of BLOB for the test runtime.",
-	);
-
-	let digest: RegistryHashOf<Test> =
-		<Test as frame_system::Config>::Hashing::hash(&raw_bytes.encode()[..]);
-
-	// If blob exists, add it to the identifier
-	let mut id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&creator.encode()[..], &digest.encode()[..]].concat()[..],
-	);
-	if !blob.is_empty() {
-		id_digest = <Test as frame_system::Config>::Hashing::hash(
-			&[&creator.encode()[..], &digest.encode()[..], &blob.encode()[..]].concat()[..],
-		);
-	}
-
-	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
-
-	let state = RegistrySupportedStateOf::ACTIVE;
-
-	new_test_ext().execute_with(|| {
-		/* Test creation of a Registry */
-		assert_ok!(Registries::create(
-			frame_system::RawOrigin::Signed(creator.clone()).into(),
-			registry_id.clone(),
-			digest,
-			None, // No template ID
-			Some(blob.clone()),
-			Some(state.clone()),
-		));
-
-		/* Test addition of a delegate with `DELEGATE` permission */
+		//Admin should be able to add the delegate
 		assert_ok!(Registries::add_delegate(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
-			new_delegate.clone(),
+			delegate.clone(),
+			authorization_id.clone(),
 		));
-
-		/* Verify the registry state has been updated back to ACTIVE */
-		let registry = Registry::<Test>::get(registry_id.clone()).unwrap();
-		let delegate_info = registry
-			.delegates
-			.iter()
-			.find(|info| info.delegate == new_delegate.clone())
-			.unwrap();
-		assert!(delegate_info.permissions.contains(Permissions::DELEGATE));
-
-		/* Check successful event emission */
-		System::assert_last_event(
-			Event::RegistryDelegateAdded {
-				delegator: creator.clone(),
-				registry_id: registry_id.clone(),
-				delegate: new_delegate.clone(),
-			}
-			.into(),
-		);
 	});
 }
 
 #[test]
-fn remove_admin_delegate_should_work() {
+fn add_admin_delegate_should_succeed() {
 	let creator = ACCOUNT_00;
-	let new_admin = ACCOUNT_01;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
 
-	let json_object = json!({
-		"name": "String",
-		"age": "Number",
-		"email": "String",
-		"isActive": "Boolean",
-		"address": {
-			"street": "String",
-			"city": "String",
-			"zipcode": "Number"
-		},
-		"phoneNumbers": [
-			"Number",
-			"Number"
-		],
-	});
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
 
-	let json_string = serde_json::to_string(&json_object).expect("Failed to serialize JSON");
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
 
-	let raw_bytes = json_string.as_bytes().to_vec();
-
-	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_bytes.clone()).expect(
-		"Test Blob should fit into the expected input length of BLOB for the test runtime.",
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-
-	let digest: RegistryHashOf<Test> =
-		<Test as frame_system::Config>::Hashing::hash(&raw_bytes.encode()[..]);
-
-	// If blob exists, add it to the identifier
-	let mut id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&creator.encode()[..], &digest.encode()[..]].concat()[..],
-	);
-	if !blob.is_empty() {
-		id_digest = <Test as frame_system::Config>::Hashing::hash(
-			&[&creator.encode()[..], &digest.encode()[..], &blob.encode()[..]].concat()[..],
-		);
-	}
 
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
-	let state = RegistrySupportedStateOf::ACTIVE;
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
 	new_test_ext().execute_with(|| {
-		/* Test creation of a Registry */
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
-			digest,
-			None, // No template ID
-			Some(blob.clone()),
-			Some(state.clone()),
+			registry_digest,
+			None,
+			Some(blob)
 		));
 
-		/* Test addition of a delegate with `ADMIN` permission */
+		//Admin should be able to add the delegate
+		assert_ok!(Registries::add_admin_delegate(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id,
+			delegate,
+			authorization_id,
+		));
+	});
+}
+
+#[test]
+fn add_admin_delegate_should_fail_if_admin_delegate_already_exists() {
+	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob)
+		));
+
+		//Admin should be able to add the delegate
 		assert_ok!(Registries::add_admin_delegate(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
-			new_admin.clone(),
+			delegate.clone(),
+			authorization_id.clone(),
 		));
 
-		/* Test removal of a delegate with `ADMIN` permission */
-		assert_ok!(Registries::remove_admin_delegate(
-			frame_system::RawOrigin::Signed(creator.clone()).into(),
-			registry_id.clone(),
-			new_admin.clone(),
-		));
-
-		/* Verify that the delegate no longer has the ADMIN permission */
-		let registry = Registry::<Test>::get(registry_id.clone()).unwrap();
-		let delegate_info =
-			registry.delegates.iter().find(|info| info.delegate == new_admin.clone());
-
-		/* Assert that the delegate no longer exists in the registry */
-		assert!(delegate_info.is_none());
-
-		/* Check successful event emission */
-		System::assert_last_event(
-			Event::RegistryAdminDelegateRemoved {
-				remover: creator.clone(),
-				registry_id: registry_id.clone(),
-				delegate: new_admin.clone(),
-			}
-			.into(),
+		assert_err!(
+			Registries::add_admin_delegate(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id,
+				delegate,
+				authorization_id,
+			),
+			Error::<Test>::DelegateAlreadyAdded
 		);
 	});
 }
 
 #[test]
-fn remove_delegate_should_work() {
+fn add_delegator_should_succeed() {
 	let creator = ACCOUNT_00;
-	let new_delegate = ACCOUNT_01;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
 
-	let json_object = json!({
-		"name": "String",
-		"age": "Number",
-		"email": "String",
-		"isActive": "Boolean",
-		"address": {
-			"street": "String",
-			"city": "String",
-			"zipcode": "Number"
-		},
-		"phoneNumbers": [
-			"Number",
-			"Number"
-		],
-	});
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
 
-	let json_string = serde_json::to_string(&json_object).expect("Failed to serialize JSON");
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
 
-	let raw_bytes = json_string.as_bytes().to_vec();
-
-	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_bytes.clone()).expect(
-		"Test Blob should fit into the expected input length of BLOB for the test runtime.",
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-
-	let digest: RegistryHashOf<Test> =
-		<Test as frame_system::Config>::Hashing::hash(&raw_bytes.encode()[..]);
-
-	// If blob exists, add it to the identifier
-	let mut id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&creator.encode()[..], &digest.encode()[..]].concat()[..],
-	);
-	if !blob.is_empty() {
-		id_digest = <Test as frame_system::Config>::Hashing::hash(
-			&[&creator.encode()[..], &digest.encode()[..], &blob.encode()[..]].concat()[..],
-		);
-	}
 
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
-	let state = RegistrySupportedStateOf::ACTIVE;
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
 	new_test_ext().execute_with(|| {
-		/* Test creation of a Registry */
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
-			digest,
-			None, // No template ID
-			Some(blob.clone()),
-			Some(state.clone()),
+			registry_digest,
+			None,
+			Some(blob)
 		));
 
-		/* Test addition of a delegate with `DELEGATE` permission */
+		assert_ok!(Registries::add_delegator(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id,
+			delegate,
+			authorization_id,
+		));
+	});
+}
+
+#[test]
+fn add_delegator_should_fail_if_delegator_already_exists() {
+	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob)
+		));
+
+		assert_ok!(Registries::add_delegator(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			delegate.clone(),
+			authorization_id.clone(),
+		));
+
+		assert_err!(
+			Registries::add_delegator(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id,
+				delegate,
+				authorization_id,
+			),
+			Error::<Test>::DelegateAlreadyAdded
+		);
+	});
+}
+
+#[test]
+fn add_delegate_should_fail_if_registries_is_not_created() {
+	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	new_test_ext().execute_with(|| {
+		//Should throw Error if registry is not created or found
+		assert_err!(
+			Registries::add_delegate(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id,
+				delegate,
+				authorization_id,
+			),
+			Error::<Test>::AuthorizationNotFound
+		);
+	});
+}
+
+#[test]
+fn add_admin_delegate_should_fail_if_registries_is_not_created() {
+	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	new_test_ext().execute_with(|| {
+		//Should throw Error if registry is not created or found
+		assert_err!(
+			Registries::add_admin_delegate(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id,
+				delegate,
+				authorization_id,
+			),
+			Error::<Test>::AuthorizationNotFound
+		);
+	});
+}
+
+#[test]
+fn add_delegator_should_fail_if_registries_is_not_created() {
+	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+	new_test_ext().execute_with(|| {
+		//Should throw Error if registry is not created or found
+		assert_err!(
+			Registries::add_delegator(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id,
+				delegate,
+				authorization_id,
+			),
+			Error::<Test>::AuthorizationNotFound
+		);
+	});
+}
+
+#[test]
+fn add_delegate_should_fail_if_the_regisrty_is_revoked() {
+	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob)
+		));
+
+		assert_ok!(Registries::revoke(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			authorization_id.clone(),
+		));
+
+		assert_err!(
+			Registries::add_delegate(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id,
+				delegate,
+				authorization_id,
+			),
+			Error::<Test>::RegistryRevoked
+		);
+	});
+}
+
+#[test]
+fn add_delegate_should_fail_if_a_non_delegate_tries_to_add() {
+	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let creator1 = ACCOUNT_02;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob)
+		));
+
+		assert_err!(
+			Registries::add_delegate(
+				frame_system::RawOrigin::Signed(creator1.clone()).into(),
+				registry_id,
+				delegate,
+				authorization_id,
+			),
+			Error::<Test>::UnauthorizedOperation
+		);
+	});
+}
+
+#[test]
+fn add_delegate_should_fail_if_delegate_already_exists() {
+	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob)
+		));
+
 		assert_ok!(Registries::add_delegate(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
-			new_delegate.clone(),
+			delegate.clone(),
+			authorization_id.clone(),
 		));
 
-		/* Test removal of a delegate with `DELEGATE` permission */
+		assert_err!(
+			Registries::add_delegate(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id.clone(),
+				delegate.clone(),
+				authorization_id.clone(),
+			),
+			Error::<Test>::DelegateAlreadyAdded
+		);
+	});
+}
+
+#[test]
+fn creating_a_new_registries_should_succeed() {
+	let creator = ACCOUNT_00;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob),
+		));
+	});
+}
+
+#[test]
+fn creating_a_duplicate_registries_should_fail() {
+	let creator = ACCOUNT_00;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob.clone()),
+		));
+
+		assert_err!(
+			Registries::create(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id.clone(),
+				registry_digest,
+				None,
+				Some(blob),
+			),
+			Error::<Test>::RegistryAlreadyAnchored
+		);
+	});
+}
+
+#[test]
+fn revoking_a_registry_should_succeed() {
+	let creator = ACCOUNT_00;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob.clone()),
+		));
+
+		assert_ok!(Registries::revoke(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			authorization_id.clone(),
+		));
+	});
+}
+
+#[test]
+fn reinstating_an_revoked_a_registry_should_succeed() {
+	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob.clone()),
+		));
+
+		assert_ok!(Registries::revoke(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			authorization_id.clone(),
+		));
+
+		assert_ok!(Registries::reinstate(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			authorization_id.clone(),
+		));
+
+		assert_ok!(Registries::add_delegate(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			delegate.clone(),
+			authorization_id.clone(),
+		));
+	});
+}
+
+#[test]
+fn reinstating_an_non_revoked_a_registry_should_fail() {
+	let creator = ACCOUNT_00;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob.clone()),
+		));
+
+		assert_err!(
+			Registries::reinstate(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id.clone(),
+				authorization_id.clone(),
+			),
+			Error::<Test>::RegistryNotRevoked
+		);
+	});
+}
+
+#[test]
+fn archiving_a_registry_should_succeed() {
+	let creator = ACCOUNT_00;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob.clone()),
+		));
+
+		assert_ok!(Registries::archive(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			authorization_id.clone(),
+		));
+	});
+}
+
+#[test]
+fn restoring_an_archived_a_registry_should_succeed() {
+	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob.clone()),
+		));
+
+		assert_ok!(Registries::archive(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			authorization_id.clone(),
+		));
+
+		assert_ok!(Registries::restore(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			authorization_id.clone(),
+		));
+
+		assert_ok!(Registries::add_delegate(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			delegate.clone(),
+			authorization_id.clone(),
+		));
+	});
+}
+
+#[test]
+fn restoring_an_non_archived_a_registry_should_fail() {
+	let creator = ACCOUNT_00;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob.clone()),
+		));
+
+		assert_err!(
+			Registries::restore(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id.clone(),
+				authorization_id.clone(),
+			),
+			Error::<Test>::RegistryNotArchived
+		);
+	});
+}
+
+#[test]
+fn add_delegate_should_fail_if_registry_delegates_limit_exceeded() {
+	let creator = ACCOUNT_00;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		// Create the Registries
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob.clone()),
+		));
+
+		// Add the maximum number of delegates to the Registries
+		for delegate_count in 2..6 {
+			assert_ok!(Registries::registry_delegate_addition(
+				registry_id.clone(),
+				AccountId::new([delegate_count; 32]),
+				creator.clone(),
+				Permissions::all(),
+			));
+		}
+
+		// Attempt to add one more delegate, which should exceed the limit and result in the
+		// expected error
+		assert_err!(
+			Registries::registry_delegate_addition(
+				registry_id.clone(),
+				AccountId::new([6u8; 32]),
+				creator.clone(),
+				Permissions::all(),
+			),
+			Error::<Test>::RegistryDelegatesLimitExceeded
+		);
+	});
+}
+
+#[test]
+fn remove_delegate_should_succeed() {
+	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	let delegate_auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let delegate_authorization_id: AuthorizationIdOf =
+		generate_authorization_id::<Test>(&delegate_auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob.clone()),
+		));
+
+		assert_ok!(Registries::add_delegate(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			delegate.clone(),
+			authorization_id.clone(),
+		));
+
 		assert_ok!(Registries::remove_delegate(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
-			new_delegate.clone(),
+			delegate_authorization_id,
+			authorization_id.clone(),
+		));
+	});
+}
+
+#[test]
+fn remove_delegate_should_fail_for_creator_removing_themselves() {
+	let creator = ACCOUNT_00;
+	let delegate = ACCOUNT_01;
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(blob.clone()),
 		));
 
-		/* Verify that the delegate no longer has the ADMIN permission */
-		let registry = Registry::<Test>::get(registry_id.clone()).unwrap();
-		let delegate_info =
-			registry.delegates.iter().find(|info| info.delegate == new_delegate.clone());
+		assert_ok!(Registries::add_delegate(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			delegate.clone(),
+			authorization_id.clone(),
+		));
 
-		/* Assert that the delegate no longer exists in the registry */
-		assert!(delegate_info.is_none());
+		assert_err!(
+			Registries::remove_delegate(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id.clone(),
+				authorization_id.clone(),
+				authorization_id.clone(),
+			),
+			Error::<Test>::UnauthorizedOperation
+		);
+	});
+}
 
-		/* Check successful event emission */
+#[test]
+fn update_registry_should_succeed() {
+	let creator = ACCOUNT_00;
+	let registry = [2u8; 256].to_vec();
+	let new_digest =
+		<Test as frame_system::Config>::Hashing::hash(&[3u8; 256].to_vec().encode()[..]);
+
+	let raw_blob = [2u8; 256].to_vec();
+	let initial_blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob.clone())
+		.expect("Test Blob should fit into the expected input length of for the test runtime.");
+
+	let new_raw_blob = [4u8; 256].to_vec();
+	let new_blob: RegistryBlobOf<Test> = BoundedVec::try_from(new_raw_blob.clone())
+		.expect("New Test Blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			None,
+			Some(initial_blob),
+		));
+
+		assert_ok!(Registries::update(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			new_digest,
+			Some(new_blob.clone()),
+			authorization_id.clone(),
+		));
+
+		let updated_registry =
+			RegistryInfo::<Test>::get(&registry_id).expect("Registry should exist");
+		assert_eq!(updated_registry.digest, new_digest);
+
 		System::assert_last_event(
-			Event::RegistryDelegateRemoved {
-				remover: creator.clone(),
+			Event::Update {
 				registry_id: registry_id.clone(),
-				delegate: new_delegate.clone(),
+				updater: creator,
+				authorization: authorization_id,
 			}
 			.into(),
 		);

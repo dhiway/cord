@@ -63,16 +63,16 @@ impl mock_origin::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxRegistryDelegates: u32 = 25;
-	pub const MaxEncodedInputLength: u32 = 32;
-	pub const MaxRegistryBlobSize: u32 = 16 * 1024; // 16KB in bytes
+	pub const MaxRegistryBlobSize: u32 = 4 * 1024;
+	pub const MaxRegistryDelegates: u32 = 5;
+	pub const MaxEncodedInputLength: u32 = 30;
 }
 
 impl pallet_registries::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type MaxRegistryBlobSize = MaxRegistryBlobSize;
 	type MaxRegistryDelegates = MaxRegistryDelegates;
 	type MaxEncodedInputLength = MaxEncodedInputLength;
+	type MaxRegistryBlobSize = MaxRegistryBlobSize;
 	type WeightInfo = ();
 }
 

@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use super::*;
 use crate as pallet_registries;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{derive_impl, parameter_types};
@@ -34,9 +33,9 @@ pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 frame_support::construct_runtime!(
 	pub enum Test {
 		System: frame_system,
+		Registries: pallet_registries,
 		Identifier: identifier,
 		MockOrigin: mock_origin,
-		Registries: pallet_registries,
 	}
 );
 
@@ -61,16 +60,20 @@ impl mock_origin::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxRegistryDelegates: u32 = 25;
-	pub const MaxEncodedInputLength: u32 = 32;
-	pub const MaxRegistryBlobSize: u32 = 16 * 1024; // 16KB in bytes
+	#[derive(Debug, Clone)]
+	pub const MaxRegistryDelegates: u32 = 5u32;
+}
+
+parameter_types! {
+	pub const MaxRegistryBlobSize: u32 = 4 * 1024;
+	pub const MaxEncodedInputLength: u32 = 30;
 }
 
 impl pallet_registries::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type MaxRegistryBlobSize = MaxRegistryBlobSize;
 	type MaxRegistryDelegates = MaxRegistryDelegates;
 	type MaxEncodedInputLength = MaxEncodedInputLength;
+	type MaxRegistryBlobSize = MaxRegistryBlobSize;
 	type WeightInfo = ();
 }
 
@@ -80,10 +83,6 @@ parameter_types! {
 
 impl identifier::Config for Test {
 	type MaxEventsHistory = MaxEventsHistory;
-}
-
-parameter_types! {
-	storage SpaceEvents: u32 = 0;
 }
 
 #[allow(dead_code)]

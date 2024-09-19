@@ -1261,7 +1261,6 @@ dependencies = [
  "pallet-chain-space",
  "pallet-config",
  "pallet-contracts",
- "pallet-dedir",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
@@ -1276,6 +1275,7 @@ dependencies = [
  "pallet-network-score",
  "pallet-node-authorization",
  "pallet-offences",
+ "pallet-registries",
  "pallet-remark",
  "pallet-runtime-upgrade",
  "pallet-scheduler",
@@ -1393,7 +1393,6 @@ dependencies = [
  "pallet-collective",
  "pallet-config",
  "pallet-contracts",
- "pallet-dedir",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
@@ -1410,6 +1409,7 @@ dependencies = [
  "pallet-node-authorization",
  "pallet-offences",
  "pallet-preimage",
+ "pallet-registries",
  "pallet-remark",
  "pallet-root-testing",
  "pallet-runtime-upgrade",
@@ -1918,7 +1918,6 @@ dependencies = [
  "pallet-collective",
  "pallet-config",
  "pallet-contracts",
- "pallet-dedir",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
@@ -1935,6 +1934,7 @@ dependencies = [
  "pallet-node-authorization",
  "pallet-offences",
  "pallet-preimage",
+ "pallet-registries",
  "pallet-remark",
  "pallet-runtime-upgrade",
  "pallet-scheduler",
@@ -6288,28 +6288,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-dedir"
-version = "0.9.3"
-dependencies = [
- "bitflags 1.3.2",
- "cord-identifier",
- "cord-utilities",
- "enumflags2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "serde_json",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-did"
 version = "0.9.3"
 dependencies = [
@@ -6366,13 +6344,14 @@ name = "pallet-entries"
 version = "0.9.3"
 dependencies = [
  "cord-identifier",
+ "cord-primitives",
  "cord-utilities",
  "enumflags2",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
- "pallet-dedir",
+ "pallet-registries",
  "parity-scale-codec",
  "scale-info",
  "serde_json",
@@ -6585,6 +6564,27 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-registries"
+version = "0.9.3"
+dependencies = [
+ "bitflags 1.3.2",
+ "cord-identifier",
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

@@ -469,20 +469,6 @@ impl pallet_identity::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxRegistryDelegates: u32 = 100;
-	pub const MaxEncodedInputLength: u32 = 32;
-	pub const MaxRegistryBlobSize: u32 = 4 * 1024; // 4KB in bytes
-}
-
-impl pallet_registries::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type MaxRegistryBlobSize = MaxRegistryBlobSize;
-	type MaxRegistryDelegates = MaxRegistryDelegates;
-	type MaxEncodedInputLength = MaxEncodedInputLength;
-	type WeightInfo = ();
-}
-
-parameter_types! {
 	pub const MaxRegistryEntryBlobSize: u32 = 4 * 1024; // 4KB in bytes
 }
 
@@ -762,6 +748,20 @@ impl pallet_chain_space::Config for Runtime {
 	type NetworkPermission = NetworkParameters;
 	type MaxSpaceDelegates = MaxSpaceDelegates;
 	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub const MaxRegistryBlobSize: u32 = 4 * 1024;
+	pub const MaxEncodedInputLength: u32 = 30;
+	pub const MaxRegistryDelegates: u32 = 10_000;
+}
+
+impl pallet_registries::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxRegistryDelegates = MaxRegistryDelegates;
+	type MaxRegistryBlobSize = MaxRegistryBlobSize;
+	type MaxEncodedInputLength = MaxEncodedInputLength;
+	type WeightInfo = ();
 }
 
 parameter_types! {
