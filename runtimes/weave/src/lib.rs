@@ -778,6 +778,17 @@ impl pallet_network_membership::Config for Runtime {
 	type WeightInfo = weights::pallet_network_membership::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const MaxRegistryEntryBlobSize: u32 = 4 * 1024; // 4KB in bytes
+}
+
+impl pallet_entries::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxEncodedInputLength = MaxEncodedInputLength;
+	type MaxRegistryEntryBlobSize = MaxRegistryEntryBlobSize;
+	type WeightInfo = ();
+}
+
 impl identifier::Config for Runtime {
 	type MaxEventsHistory = MaxEventsHistory;
 }
@@ -875,6 +886,20 @@ impl pallet_chain_space::Config for Runtime {
 	type NetworkPermission = NetworkParameters;
 	type MaxSpaceDelegates = MaxSpaceDelegates;
 	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub const MaxRegistryBlobSize: u32 = 4 * 1024;
+	pub const MaxEncodedInputLength: u32 = 30;
+	pub const MaxRegistryDelegates: u32 = 10_000;
+}
+
+impl pallet_registries::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxRegistryDelegates = MaxRegistryDelegates;
+	type MaxRegistryBlobSize = MaxRegistryBlobSize;
+	type MaxEncodedInputLength = MaxEncodedInputLength;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -1113,6 +1138,12 @@ mod runtime {
 
 	#[runtime::pallet_index(60)]
 	pub type NetworkParameters = pallet_config;
+
+	#[runtime::pallet_index(61)]
+	pub type Registries = pallet_registries;
+
+	#[runtime::pallet_index(62)]
+	pub type Entries = pallet_entries;
 
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo;

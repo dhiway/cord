@@ -1,0 +1,22 @@
+
+[relaychain]
+default_command = "loom"
+chain = "loom-local"
+
+[[relaychain.nodes]]
+name = "alice"
+validator = true
+ws_port = 9944
+
+[[relaychain.nodes]]
+name = "bob"
+validator = true
+ws_port = 9955
+
+[[parachains]]
+id = 1000
+
+[parachains.collator]
+name = "charlie"
+ws_port = 9988
+command = "weave"

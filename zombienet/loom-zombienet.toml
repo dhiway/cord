@@ -1,0 +1,52 @@
+[relaychain]
+default_command = "./target/release/loom"
+default_args = ["-lparachain=debug"]
+chain = "loom-local"
+
+[[relaychain.nodes]]
+name = "alice"
+validator = true
+ws_port = 9944
+
+[[relaychain.nodes]]
+name = "bob"
+validator = true
+
+[[relaychain.nodes]]
+name = "charlie"
+validator = true
+
+[[relaychain.nodes]]
+name = "dave"
+validator = true
+
+[[parachains]]
+id = 1000
+chain = "loom-asset-hub-local"
+cumulus_based = true
+
+# run alice as parachain collator
+[[parachains.collators]]
+name = "alice"
+validator = true
+command = "./target/release/weave"
+args = ["-lparachain=debug"]
+
+# run bob as parachain collator
+[[parachains.collators]]
+name = "bob"
+validator = true
+command = "./target/release/weave"
+args = ["-lparachain=debug"]
+
+[[parachains]]
+id = 1001
+chain = "loom-coretime-local"
+cumulus_based = true
+
+# run alice as parachain collator
+[[parachains.collators]]
+name = "alice"
+validator = true
+command = "./target/release/weave"
+args = ["-lparachain=debug"]
