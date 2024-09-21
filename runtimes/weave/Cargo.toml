@@ -1,6 +1,6 @@
 [package]
-name = 'cord-braid-plus-runtime'
-description = "Braid Plus runtime implementation."
+name = 'cord-weave-runtime'
+description = "Weave runtime implementation."
 version.workspace = true
 authors.workspace = true
 build = 'build.rs'
@@ -34,8 +34,9 @@ primitive-types = { features = [
 authority-membership = { workspace = true }
 cord-primitives = { workspace = true }
 identifier = { workspace = true }
-cord-braid-plus-runtime-constants = { workspace = true }
-cord-braid-runtime-common = { workspace = true }
+network-membership = { workspace = true }
+cord-weave-runtime-constants = { workspace = true }
+cord-runtime-common = { workspace = true }
 
 pallet-membership = { workspace = true }
 pallet-did = { workspace = true }
@@ -43,10 +44,11 @@ pallet-did-name = { workspace = true }
 pallet-schema = { workspace = true }
 pallet-config = { workspace = true }
 pallet-chain-space = { workspace = true }
-pallet-did-token = { workspace = true }
+pallet-statement = { workspace = true }
+pallet-network-membership = { workspace = true }
 pallet-runtime-upgrade = { workspace = true }
 pallet-identity = { workspace = true }
-pallet-cord-offences = { workspace = true }
+pallet-offences = { workspace = true }
 pallet-node-authorization = { workspace = true }
 pallet-network-score = { workspace = true }
 pallet-session-benchmarking = { workspace = true }
@@ -56,6 +58,7 @@ pallet-entries = { workspace = true }
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { workspace = true }
 pallet-assets-runtime-api = { workspace = true }
+pallet-transaction-weight-runtime-api = { workspace = true }
 
 # Substrate
 sp-authority-discovery = { features = ["serde"], workspace = true }
@@ -95,7 +98,6 @@ pallet-session = { features = ["historical"], workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-treasury = { workspace = true }
-pallet-root-testing = { workspace = true }
 pallet-sudo = { workspace = true }
 frame-support = { features = ["experimental", "tuples-96"], workspace = true }
 frame-system = { workspace = true }
@@ -121,7 +123,8 @@ default = ['std']
 std = [
 	"sp-authority-discovery/std",
 	"cord-primitives/std",
-	"cord-braid-runtime-common/std",
+	"cord-runtime-common/std",
+	"network-membership/std",
 	"authority-membership/std",
 	"frame-system-benchmarking?/std",
 	"codec/std",
@@ -154,7 +157,7 @@ std = [
 	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-membership/std",
 	"pallet-multisig/std",
-	"pallet-cord-offences/std",
+	"pallet-offences/std",
 	"pallet-preimage/std",
 	"pallet-scheduler/std",
 	"pallet-session-benchmarking/std",
@@ -171,19 +174,14 @@ std = [
 	"pallet-did-name/std",
 	"pallet-schema/std",
 	"pallet-chain-space/std",
-	"pallet-did-token/std",
+	"pallet-statement/std",
 	"pallet-network-score/std",
+	"pallet-network-membership/std",
 	"pallet-runtime-upgrade/std",
-	"pallet-root-testing/std",
 	"pallet-assets-runtime-api/std",
 	"pallet-did-runtime-api/std",
 	"pallet-node-authorization/std",
-<<<<<<< HEAD:braid/runtimes/plus/Cargo.toml
-=======
-	"pallet-registries/std",
-	"pallet-entries/std",
 	"pallet-transaction-weight-runtime-api/std",
->>>>>>> e892577 (dedir: Add Registries & Entries  (#504)):runtimes/loom/Cargo.toml
 	"sp-runtime/std",
 	"sp-staking/std",
 	"frame-system/std",
@@ -195,11 +193,13 @@ std = [
 	"sp-genesis-builder/std",
 	"sp-session/std",
 	"sp-storage/std",
-	"cord-braid-plus-runtime-constants/std",
+	"cord-weave-runtime-constants/std",
 	"substrate-wasm-builder",
 	"frame-try-runtime?/std",
 	"primitive-types/std",
 	"sp-io/std",
+	"pallet-registries/std",
+	"pallet-entries/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -218,7 +218,7 @@ runtime-benchmarks = [
 	"pallet-indices/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
-	"pallet-cord-offences/runtime-benchmarks",
+	"pallet-offences/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-session-benchmarking/runtime-benchmarks",
@@ -229,13 +229,14 @@ runtime-benchmarks = [
 	"pallet-did/runtime-benchmarks",
 	"pallet-did-name/runtime-benchmarks",
 	"pallet-schema/runtime-benchmarks",
-	"pallet-did-token/runtime-benchmarks",
+	"pallet-statement/runtime-benchmarks",
 	"pallet-chain-space/runtime-benchmarks",
+	"pallet-network-membership/runtime-benchmarks",
 	"hex-literal",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-network-score/runtime-benchmarks",
 	"authority-membership/runtime-benchmarks",
-	"cord-braid-runtime-common/runtime-benchmarks",
+	"cord-runtime-common/runtime-benchmarks",
 	"pallet-asset-conversion/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
 	"pallet-config/runtime-benchmarks",
@@ -261,10 +262,10 @@ try-runtime = [
 	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-membership/try-runtime",
 	"pallet-multisig/try-runtime",
-	"pallet-cord-offences/try-runtime",
+	"pallet-offences/try-runtime",
 	"pallet-preimage/try-runtime",
-	"pallet-root-testing/try-runtime",
 	"pallet-scheduler/try-runtime",
+	"pallet-session-benchmarking/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
@@ -274,27 +275,23 @@ try-runtime = [
 	"pallet-babe/try-runtime",
 	"pallet-schema/try-runtime",
 	"pallet-chain-space/try-runtime",
-	"pallet-did-token/try-runtime",
+	"pallet-statement/try-runtime",
 	"pallet-did/try-runtime",
 	"pallet-did-name/try-runtime",
 	"pallet-network-score/try-runtime",
 	"pallet-node-authorization/try-runtime",
+	"pallet-network-membership/try-runtime",
 	"pallet-runtime-upgrade/try-runtime",
 	"pallet-remark/try-runtime",
-<<<<<<< HEAD:braid/runtimes/plus/Cargo.toml
-	"cord-braid-runtime-common/try-runtime",
-=======
-	"pallet-registries/try-runtime",
-	"pallet-entries/try-runtime",
 	"cord-runtime-common/try-runtime",
->>>>>>> e892577 (dedir: Add Registries & Entries  (#504)):runtimes/loom/Cargo.toml
 	"authority-membership/try-runtime",
 	"identifier/try-runtime",
 	"frame-try-runtime/try-runtime",
 	"pallet-config/try-runtime",
 	"sp-runtime/try-runtime",
+	"pallet-registries/try-runtime",
+	"pallet-entries/try-runtime",
 ]
-
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
 fast-runtime = []

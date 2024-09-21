@@ -19,10 +19,12 @@ members = [
     "pallets/did",
     "pallets/did-name",
     "pallets/did-token",
+    "pallets/entries",
     "pallets/identity",
     "pallets/network-score",
     "pallets/node-authorization",
     "pallets/offences",
+    "pallets/registries",
     "pallets/runtime-upgrade",
     "pallets/session-benchmarking",
     "primitives/cord",
@@ -154,8 +156,10 @@ pallet-identity = { path = 'pallets/identity', default-features = false }
 pallet-cord-offences = { path = 'pallets/offences', default-features = false }
 pallet-node-authorization = { path = "pallets/node-authorization", default-features = false }
 pallet-network-score = { path = 'pallets/network-score', default-features = false }
-pallet-assets-runtime-api = { path = "braid/runtimes/common/api/assets", default-features = false }
-pallet-did-runtime-api = { path = "braid/runtimes/common/api/did", default-features = false }
+pallet-assets-runtime-api = { path = "runtimes/common/api/assets", default-features = false }
+pallet-did-runtime-api = { path = "runtimes/common/api/did", default-features = false }
+pallet-registries = { path = "pallets/registries", default-features = false }
+pallet-entries = { path = "pallets/entries", default-features = false }
 
 # substrate dependencies
 finality-grandpa = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-sdk-v1.15.2", version = "0.16.2" }

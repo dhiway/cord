@@ -1615,7 +1615,11 @@ dependencies = [
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
+<<<<<<< HEAD
  "pallet-did-token",
+=======
+ "pallet-entries",
+>>>>>>> e892577 (dedir: Add Registries & Entries  (#504))
  "pallet-grandpa",
  "pallet-identity 0.9.3",
  "pallet-im-online",
@@ -1624,6 +1628,11 @@ dependencies = [
  "pallet-multisig",
  "pallet-network-score",
  "pallet-node-authorization",
+<<<<<<< HEAD
+=======
+ "pallet-offences",
+ "pallet-registries",
+>>>>>>> e892577 (dedir: Add Registries & Entries  (#504))
  "pallet-remark",
  "pallet-runtime-upgrade",
  "pallet-scheduler",
@@ -1675,7 +1684,147 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "cord-braid-node-cli"
+=======
+name = "cord-cli-test-utils"
+version = "0.9.3-dev"
+dependencies = [
+ "assert_cmd",
+ "cord-node-cli",
+ "cord-primitives",
+ "futures",
+ "nix 0.28.0",
+ "regex",
+ "sc-cli",
+ "sc-service",
+ "sp-rpc",
+ "substrate-rpc-client",
+ "tokio",
+]
+
+[[package]]
+name = "cord-identifier"
+version = "0.9.3"
+dependencies = [
+ "blake2-rfc",
+ "bs58 0.5.1",
+ "cord-utilities",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "cord-loom-runtime"
+version = "0.9.3"
+dependencies = [
+ "authority-membership",
+ "cord-identifier",
+ "cord-loom-runtime-constants",
+ "cord-primitives",
+ "cord-runtime-common",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
+ "hex-literal",
+ "log",
+ "network-membership",
+ "pallet-asset-conversion",
+ "pallet-assets",
+ "pallet-assets-runtime-api",
+ "pallet-authority-discovery",
+ "pallet-authorship",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-chain-space",
+ "pallet-collective",
+ "pallet-config",
+ "pallet-contracts",
+ "pallet-did",
+ "pallet-did-name",
+ "pallet-did-runtime-api",
+ "pallet-entries",
+ "pallet-grandpa",
+ "pallet-identity",
+ "pallet-im-online",
+ "pallet-indices",
+ "pallet-insecure-randomness-collective-flip",
+ "pallet-membership",
+ "pallet-multisig",
+ "pallet-network-membership",
+ "pallet-network-score",
+ "pallet-node-authorization",
+ "pallet-offences",
+ "pallet-preimage",
+ "pallet-registries",
+ "pallet-remark",
+ "pallet-root-testing",
+ "pallet-runtime-upgrade",
+ "pallet-scheduler",
+ "pallet-schema",
+ "pallet-session",
+ "pallet-session-benchmarking",
+ "pallet-statement",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-transaction-weight-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
+ "parity-scale-codec",
+ "primitive-types",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-authority-discovery",
+ "sp-block-builder",
+ "sp-consensus-babe",
+ "sp-consensus-grandpa",
+ "sp-core",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-io",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-staking",
+ "sp-std",
+ "sp-storage",
+ "sp-transaction-pool",
+ "sp-version",
+ "static_assertions",
+ "substrate-wasm-builder",
+]
+
+[[package]]
+name = "cord-loom-runtime-constants"
+version = "0.9.3"
+dependencies = [
+ "cord-primitives",
+ "cord-runtime-common",
+ "frame-support",
+ "smallvec",
+ "sp-core",
+ "sp-runtime",
+ "sp-weights",
+]
+
+[[package]]
+name = "cord-node-cli"
+>>>>>>> e892577 (dedir: Add Registries & Entries  (#504))
 version = "0.9.3"
 dependencies = [
  "array-bytes",
@@ -1872,7 +2021,11 @@ dependencies = [
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
+<<<<<<< HEAD
  "pallet-did-token",
+=======
+ "pallet-entries",
+>>>>>>> e892577 (dedir: Add Registries & Entries  (#504))
  "pallet-grandpa",
  "pallet-identity 0.9.3",
  "pallet-im-online",
@@ -1883,6 +2036,7 @@ dependencies = [
  "pallet-network-score",
  "pallet-node-authorization",
  "pallet-preimage",
+ "pallet-registries",
  "pallet-remark",
  "pallet-root-testing",
  "pallet-runtime-upgrade",
@@ -8216,12 +8370,17 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "pallet-did-token"
+=======
+name = "pallet-entries"
+>>>>>>> e892577 (dedir: Add Registries & Entries  (#504))
 version = "0.9.3"
 dependencies = [
  "cord-identifier",
  "cord-primitives",
  "cord-utilities",
+<<<<<<< HEAD
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -8229,6 +8388,17 @@ dependencies = [
  "pallet-schema",
  "parity-scale-codec",
  "scale-info",
+=======
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-registries",
+ "parity-scale-codec",
+ "scale-info",
+ "serde_json",
+>>>>>>> e892577 (dedir: Add Registries & Entries  (#504))
  "sp-core",
  "sp-io",
  "sp-keystore",
@@ -8237,6 +8407,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "pallet-election-provider-multi-phase"
 version = "36.0.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.2#78c1eec4e83c4cc699a9707e8c103669bae3c618"
@@ -8290,6 +8461,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> e892577 (dedir: Add Registries & Entries  (#504))
 name = "pallet-grandpa"
 version = "37.0.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.2#78c1eec4e83c4cc699a9707e8c103669bae3c618"
@@ -8628,6 +8801,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "pallet-proxy"
 version = "37.0.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.15.2#78c1eec4e83c4cc699a9707e8c103669bae3c618"
@@ -8675,6 +8849,26 @@ dependencies = [
  "sp-arithmetic",
  "sp-io",
  "sp-runtime",
+=======
+name = "pallet-registries"
+version = "0.9.3"
+dependencies = [
+ "bitflags 1.3.2",
+ "cord-identifier",
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+>>>>>>> e892577 (dedir: Add Registries & Entries  (#504))
 ]
 
 [[package]]
