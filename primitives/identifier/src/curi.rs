@@ -43,6 +43,9 @@ pub enum IdentifierType {
 	Asset,
 	AssetInstance,
 	Rating,
+	Registries,
+	Entries,
+	RegistryAuthorization,
 }
 
 impl IdentifierType {
@@ -55,6 +58,9 @@ impl IdentifierType {
 	const IDENT_ASSET: u16 = 2348;
 	const IDENT_RATING: u16 = 6077;
 	const IDENT_ASSET_INSTANCE: u16 = 11380;
+	const IDENT_REGISTRIES: u16 = 9274;
+	const IDENT_ENTRIES: u16 = 9944;
+	const IDENT_REGISTRYAUTH: u16 = 10001;
 
 	fn ident_value(&self) -> u16 {
 		match self {
@@ -67,6 +73,9 @@ impl IdentifierType {
 			IdentifierType::Asset => Self::IDENT_ASSET,
 			IdentifierType::AssetInstance => Self::IDENT_ASSET_INSTANCE,
 			IdentifierType::Rating => Self::IDENT_RATING,
+			IdentifierType::Registries => Self::IDENT_REGISTRIES,
+			IdentifierType::Entries => Self::IDENT_ENTRIES,
+			IdentifierType::RegistryAuthorization => Self::IDENT_REGISTRYAUTH,
 		}
 	}
 	fn from_u16(value: u16) -> Option<Self> {
@@ -80,6 +89,9 @@ impl IdentifierType {
 			2348 => Some(IdentifierType::Asset),
 			6077 => Some(IdentifierType::AssetInstance),
 			11380 => Some(IdentifierType::Rating),
+			9274 => Some(IdentifierType::Registries),
+			9944 => Some(IdentifierType::Entries),
+			10001 => Some(IdentifierType::RegistryAuthorization),
 			_ => None,
 		}
 	}

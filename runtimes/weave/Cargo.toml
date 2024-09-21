@@ -52,6 +52,8 @@ pallet-offences = { workspace = true }
 pallet-node-authorization = { workspace = true }
 pallet-network-score = { workspace = true }
 pallet-session-benchmarking = { workspace = true }
+pallet-registries = { workspace = true }
+pallet-entries = { workspace = true }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { workspace = true }
@@ -196,6 +198,8 @@ std = [
 	"frame-try-runtime?/std",
 	"primitive-types/std",
 	"sp-io/std",
+	"pallet-registries/std",
+	"pallet-entries/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -285,6 +289,8 @@ try-runtime = [
 	"frame-try-runtime/try-runtime",
 	"pallet-config/try-runtime",
 	"sp-runtime/try-runtime",
+	"pallet-registries/try-runtime",
+	"pallet-entries/try-runtime",
 ]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
