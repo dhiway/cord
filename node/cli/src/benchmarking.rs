@@ -316,7 +316,7 @@ fn weave_sign_call(
 	use sp_core::Pair;
 
 	let extra: runtime::SignedExtra = (
-		pallet_network_membership::CheckNetworkMembership::<runtime::Runtime>::new(),
+		//pallet_network_membership::CheckNetworkMembership::<runtime::Runtime>::new(),
 		frame_system::CheckNonZeroSender::<runtime::Runtime>::new(),
 		frame_system::CheckSpecVersion::<runtime::Runtime>::new(),
 		frame_system::CheckTxVersion::<runtime::Runtime>::new(),
@@ -334,7 +334,6 @@ fn weave_sign_call(
 		call.clone(),
 		extra.clone(),
 		(
-			(),
 			(),
 			runtime::VERSION.spec_version,
 			runtime::VERSION.transaction_version,

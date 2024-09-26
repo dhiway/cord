@@ -676,7 +676,7 @@ where
 			// so the actual block number is `n`.
 			.saturating_sub(1);
 		let extra: SignedExtra = (
-			pallet_network_membership::CheckNetworkMembership::<Runtime>::new(),
+			//pallet_network_membership::CheckNetworkMembership::<Runtime>::new(),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
@@ -1259,7 +1259,7 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The `SignedExtension` to the basic transaction logic.
 pub type SignedExtra = (
-	pallet_network_membership::CheckNetworkMembership<Runtime>,
+	//pallet_network_membership::CheckNetworkMembership<Runtime>,
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
