@@ -42,7 +42,7 @@ benchmarks! {
 			let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+				&[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			);
 			let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
@@ -78,7 +78,7 @@ benchmarks! {
 			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+				 &[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
@@ -112,7 +112,7 @@ benchmarks! {
 			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+				 &[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
@@ -147,7 +147,7 @@ benchmarks! {
 			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+				 &[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
@@ -181,7 +181,7 @@ benchmarks! {
 			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+				 &[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
@@ -205,7 +205,7 @@ benchmarks! {
 			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+				 &[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
@@ -232,7 +232,7 @@ benchmarks! {
 			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+				 &[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
@@ -259,7 +259,7 @@ benchmarks! {
 			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+				 &[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
@@ -288,7 +288,7 @@ benchmarks! {
 			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+				 &[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
@@ -316,7 +316,7 @@ benchmarks! {
 			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+				 &[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
@@ -343,7 +343,7 @@ benchmarks! {
 			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+				 &[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
@@ -370,7 +370,7 @@ benchmarks! {
 			 let space_id: SpaceIdOf = generate_space_id::<T>(&id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+				 &[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 
@@ -405,7 +405,7 @@ benchmarks! {
 			 let subspace_id: SpaceIdOf = generate_space_id::<T>(&sub_id_digest);
 
 			 let auth_id_digest = <T as frame_system::Config>::Hashing::hash(
-				 &[&subspace_id.encode()[..], &did.encode()[..]].concat()[..],
+				 &[&subspace_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 			 );
 			 let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_id_digest);
 

@@ -126,7 +126,7 @@ fn check_successful_schema_creation() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -177,7 +177,7 @@ fn check_duplicate_schema_creation() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -220,7 +220,7 @@ fn check_empty_schema_creation() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
@@ -266,7 +266,7 @@ fn test_schema_lookup() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&space_id.encode()[..], &creator.encode()[..]].concat()[..],
+		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 

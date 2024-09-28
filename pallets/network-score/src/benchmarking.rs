@@ -77,7 +77,7 @@ benchmarks! {
 		);
 		let space_id: SpaceIdOf = generate_space_id::<T>(&space_id_digest);
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did1.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did1.encode()[..], &did1.encode()[..]].concat()[..],
 		);
 		let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_digest);
 
@@ -139,7 +139,7 @@ benchmarks! {
 		let identifier_revoke = generate_rating_id::<T>(&id_digest);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did1.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did1.encode()[..], &did1.encode()[..]].concat()[..],
 		);
 		let authorization_id: AuthorizationIdOf =
 			generate_authorization_id::<T>(&auth_digest);
@@ -215,7 +215,7 @@ benchmarks! {
 		let identifier_revise = generate_rating_id::<T>(&id_digest_revise);
 
 		let auth_digest = <T as frame_system::Config>::Hashing::hash(
-			&[&space_id.encode()[..], &did.encode()[..]].concat()[..],
+			&[&space_id.encode()[..], &did.encode()[..], &did.encode()[..]].concat()[..],
 		);
 		let authorization_id: AuthorizationIdOf = generate_authorization_id::<T>(&auth_digest);
 
