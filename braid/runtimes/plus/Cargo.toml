@@ -178,13 +178,8 @@ std = [
 	"pallet-assets-runtime-api/std",
 	"pallet-did-runtime-api/std",
 	"pallet-node-authorization/std",
-<<<<<<< HEAD:braid/runtimes/plus/Cargo.toml
-=======
 	"pallet-registries/std",
 	"pallet-entries/std",
-	"pallet-transaction-weight-runtime-api/std",
->>>>>>> e892577 (dedir: Add Registries & Entries  (#504)):runtimes/loom/Cargo.toml
-	"sp-runtime/std",
 	"sp-staking/std",
 	"frame-system/std",
 	"frame-system-rpc-runtime-api/std",
@@ -281,13 +276,10 @@ try-runtime = [
 	"pallet-node-authorization/try-runtime",
 	"pallet-runtime-upgrade/try-runtime",
 	"pallet-remark/try-runtime",
-<<<<<<< HEAD:braid/runtimes/plus/Cargo.toml
 	"cord-braid-runtime-common/try-runtime",
-=======
 	"pallet-registries/try-runtime",
 	"pallet-entries/try-runtime",
-	"cord-runtime-common/try-runtime",
->>>>>>> e892577 (dedir: Add Registries & Entries  (#504)):runtimes/loom/Cargo.toml
+	"cord-braid-runtime-common/try-runtime",
 	"authority-membership/try-runtime",
 	"identifier/try-runtime",
 	"frame-try-runtime/try-runtime",

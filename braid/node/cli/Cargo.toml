@@ -42,25 +42,25 @@ parity-db = { workspace = true, optional = true }
 bitvec = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tikv-jemallocator = { workspace = true, optional = true, features = [
-    "unprefixed_malloc_on_supported_platforms",
+	"unprefixed_malloc_on_supported_platforms",
 ] }
 # rand = { workspace = true, default-features = true }
 
 # Substrate primitives
 sp-authority-discovery = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 sp-consensus = { workspace = true, default-features = true }
 sp-consensus-babe = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 sp-consensus-grandpa = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 sp-inherents = { features = ["std"], workspace = true, default-features = true }
 sp-api = { features = ["std"], workspace = true, default-features = true }
 sp-block-builder = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 sp-blockchain = { workspace = true, default-features = true }
 sp-core = { features = ["std"], workspace = true, default-features = true }
@@ -71,19 +71,19 @@ sp-runtime = { features = ["std"], workspace = true, default-features = true }
 sp-session = { features = ["std"], workspace = true, default-features = true }
 sp-storage = { features = ["std"], workspace = true, default-features = true }
 sp-transaction-pool = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 sp-timestamp = { features = ["std"], workspace = true, default-features = true }
 sp-state-machine = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 sp-weights = { features = ["std"], workspace = true, default-features = true }
 sp-genesis-builder = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 sp-version = { features = ["std"], workspace = true, default-features = true }
 sp-transaction-storage-proof = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 sp-keyring = { features = ["std"], workspace = true, default-features = true }
 sp-std = { features = ["std"], workspace = true, default-features = true }
@@ -119,52 +119,52 @@ sp-rpc = { workspace = true, default-features = true }
 
 # frame dependencies
 frame-benchmarking = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 frame-system = { features = ["std"], workspace = true, default-features = true }
 frame-support = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 frame-system-rpc-runtime-api = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 pallet-babe = { features = ["std"], workspace = true, default-features = true }
 pallet-im-online = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 pallet-transaction-payment = { workspace = true, default-features = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true, default-features = true }
 pallet-contracts = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 pallet-did-runtime-api = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 # pallet-transaction-weight-runtime-api = { features = ["std"], workspace = true }
 pallet-assets-runtime-api = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
 pallet-asset-conversion = { features = [
-    "std",
+	"std",
 ], workspace = true, default-features = true }
-substrate-prometheus-endpoint = { workspace = true, default-features = true }
+prometheus-endpoint = { workspace = true, default-features = true }
 
 # cord-specific dependencies
 cord-braid-base-runtime = { workspace = true, features = [
-    "std",
+	"std",
 ], optional = true }
 cord-braid-plus-runtime = { workspace = true, features = [
-    "std",
+	"std",
 ], optional = true }
 cord-braid-runtime-common = { workspace = true }
 cord-primitives = { features = ["std"], workspace = true }
 cord-braid-node-inspect = { workspace = true }
 cord-braid-node-rpc = { workspace = true }
 cord-braid-base-runtime-constants = { features = [
-    "std",
+	"std",
 ], workspace = true, optional = true }
 cord-braid-plus-runtime-constants = { features = [
-    "std",
+	"std",
 ], workspace = true, optional = true }
 pallet-config = { features = ["std"], workspace = true }
 
@@ -174,7 +174,7 @@ frame-benchmarking-cli = { workspace = true, default-features = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tikv-jemallocator = { workspace = true, features = [
-    "unprefixed_malloc_on_supported_platforms",
+	"unprefixed_malloc_on_supported_platforms",
 ] }
 
 [dev-dependencies]
@@ -196,9 +196,9 @@ nix = { features = ["signal"], workspace = true }
 regex = { workspace = true }
 soketto = { workspace = true }
 tokio = { features = [
-    "macros",
-    "parking_lot",
-    "time",
+	"macros",
+	"parking_lot",
+	"time",
 ], workspace = true, default-features = true }
 tokio-util = { features = ["compat"], workspace = true }
 frame-support = { workspace = true }
@@ -214,8 +214,8 @@ sp-keyring = { workspace = true, default-features = true }
 sp-runtime = { workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }
 scale-info = { features = [
-    "derive",
-    "serde",
+	"derive",
+	"serde",
 ], workspace = true, default-features = true }
 sp-trie = { workspace = true, default-features = true }
 sp-state-machine = { workspace = true, default-features = true }
@@ -235,67 +235,67 @@ default = ["cli", "db", "full-node", "braid-base-native", "braid-plus-native"]
 full-node = ["parity-db"]
 
 cli = [
-    "cord-braid-node-inspect",
-    "sc-cli",
-    "frame-benchmarking-cli",
-    "sc-service/rocksdb",
-    "clap",
-    "clap_complete",
-    "substrate-build-script-utils",
+	"cord-braid-node-inspect",
+	"sc-cli",
+	"frame-benchmarking-cli",
+	"sc-service/rocksdb",
+	"clap",
+	"clap_complete",
+	"substrate-build-script-utils",
 ]
 
 db = [
-    "sc-service/rocksdb",
-    "sc-client-db/rocksdb",
-    "frame-benchmarking-cli/rocksdb",
-    "kvdb-rocksdb",
+	"sc-service/rocksdb",
+	"sc-client-db/rocksdb",
+	"frame-benchmarking-cli/rocksdb",
+	"kvdb-rocksdb",
 ]
 
 # Configure the native runtimes to use.
 braid-base-native = [
-    "bitvec",
-    "cord-braid-base-runtime",
-    "cord-braid-base-runtime-constants",
+	"bitvec",
+	"cord-braid-base-runtime",
+	"cord-braid-base-runtime-constants",
 ]
 braid-plus-native = [
-    "bitvec",
-    "cord-braid-plus-runtime",
-    "cord-braid-plus-runtime-constants",
+	"bitvec",
+	"cord-braid-plus-runtime",
+	"cord-braid-plus-runtime-constants",
 ]
 
 runtime-benchmarks = [
-    "cord-braid-plus-runtime/runtime-benchmarks",
-    "frame-benchmarking-cli/runtime-benchmarks",
-    "frame-benchmarking/runtime-benchmarks",
-    "frame-support/runtime-benchmarks",
-    "frame-system/runtime-benchmarks",
-    "cord-braid-node-inspect?/runtime-benchmarks",
-    "pallet-balances/runtime-benchmarks",
-    "pallet-im-online/runtime-benchmarks",
-    "sc-service/runtime-benchmarks",
-    "sp-runtime/runtime-benchmarks",
-    "cord-braid-base-runtime?/runtime-benchmarks",
-    "cord-braid-runtime-common/runtime-benchmarks",
-    "pallet-asset-conversion/runtime-benchmarks",
-    "pallet-babe/runtime-benchmarks",
-    "pallet-config/runtime-benchmarks",
-    "pallet-contracts/runtime-benchmarks",
-    "sc-client-db/runtime-benchmarks",
+	"cord-braid-plus-runtime/runtime-benchmarks",
+	"frame-benchmarking-cli/runtime-benchmarks",
+	"frame-benchmarking/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"cord-braid-node-inspect?/runtime-benchmarks",
+	"pallet-balances/runtime-benchmarks",
+	"pallet-im-online/runtime-benchmarks",
+	"sc-service/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"cord-braid-base-runtime?/runtime-benchmarks",
+	"cord-braid-runtime-common/runtime-benchmarks",
+	"pallet-asset-conversion/runtime-benchmarks",
+	"pallet-babe/runtime-benchmarks",
+	"pallet-config/runtime-benchmarks",
+	"pallet-contracts/runtime-benchmarks",
+	"sc-client-db/runtime-benchmarks",
 ]
 # Enable features that allow the runtime to be tried and debugged.
 try-runtime = [
-    "frame-support/try-runtime",
-    "frame-system/try-runtime",
-    "cord-braid-plus-runtime/try-runtime",
-    "pallet-balances/try-runtime",
-    "pallet-im-online/try-runtime",
-    "pallet-root-testing/try-runtime",
-    "pallet-transaction-payment/try-runtime",
-    "sp-runtime/try-runtime",
-    "cord-braid-base-runtime?/try-runtime",
-    "cord-braid-runtime-common/try-runtime",
-    "pallet-asset-conversion/try-runtime",
-    "pallet-babe/try-runtime",
-    "pallet-config/try-runtime",
-    "pallet-contracts/try-runtime",
+	"frame-support/try-runtime",
+	"frame-system/try-runtime",
+	"cord-braid-plus-runtime/try-runtime",
+	"pallet-balances/try-runtime",
+	"pallet-im-online/try-runtime",
+	"pallet-root-testing/try-runtime",
+	"pallet-transaction-payment/try-runtime",
+	"sp-runtime/try-runtime",
+	"cord-braid-base-runtime?/try-runtime",
+	"cord-braid-runtime-common/try-runtime",
+	"pallet-asset-conversion/try-runtime",
+	"pallet-babe/try-runtime",
+	"pallet-config/try-runtime",
+	"pallet-contracts/try-runtime",
 ]

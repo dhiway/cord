@@ -24,7 +24,7 @@ fn main() {
 #[cfg(all(feature = "std", feature = "metadata-hash"))]
 fn main() {
 	substrate_wasm_builder::WasmBuilder::init_with_defaults()
-		.enable_metadata_hash("DOT", 10)
+		.enable_metadata_hash("UNT", 12)
 		.build()
 }
 

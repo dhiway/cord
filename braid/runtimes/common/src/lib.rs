@@ -23,18 +23,24 @@
 use cord_primitives::{AccountId, Balance, BlockNumber};
 use frame_support::{
 	parameter_types,
-	traits::{Currency, OnUnbalanced},
+	traits::{
+		// fungible::{Balanced, Credit},
+		Currency,
+		OnUnbalanced,
+	},
 };
+// use pallet_treasury::TreasuryAccountId;
 
 use frame_system::limits;
 use sp_runtime::{FixedPointNumber, Perbill, Perquintill};
 use static_assertions::const_assert;
 
+// use crate::{Balances, NegativeImbalance};
+
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 pub use sp_runtime::traits::{Bounded, Get};
-use sp_std::marker::PhantomData;
 
 /// We assume that an on-initialize consumes 1% of the weight on average, hence a single extrinsic
 /// will not be allowed to consume more than `AvailableBlockRatio - 1%`.
@@ -79,26 +85,66 @@ pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
 	<T as frame_system::Config>::AccountId,
 >>::NegativeImbalance;
 
-pub struct EverythingToTheTreasury<R>(PhantomData<R>);
+// /// Logic for the author to get a portion of fees.
+// pub struct ToAuthor<R>(core::marker::PhantomData<R>);
+// impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for ToAuthor<R>
+// where
+// 	R: pallet_balances::Config + pallet_authorship::Config,
+// 	<R as frame_system::Config>::AccountId: From<cord_primitives::AccountId>,
+// 	<R as frame_system::Config>::AccountId: Into<cord_primitives::AccountId>,
+// {
+// 	fn on_nonzero_unbalanced(
+// 		amount: Credit<<R as frame_system::Config>::AccountId, pallet_balances::Pallet<R>>,
+// 	) {
+// 		if let Some(author) = <pallet_authorship::Pallet<R>>::author() {
+// 			let _ = <pallet_balances::Pallet<R>>::resolve(&author, amount);
+// 		}
+// 	}
+// }
 
-impl<R> OnUnbalanced<NegativeImbalance<R>> for EverythingToTheTreasury<R>
-where
-	R: pallet_balances::Config + pallet_treasury::Config,
-	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
-{
-	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance<R>>) {
-		use pallet_treasury::Pallet as Treasury;
+// pub struct DealWithFees<R>(core::marker::PhantomData<R>);
+// impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for DealWithFees<R>
+// where
+// 	R: pallet_balances::Config + pallet_authorship::Config + pallet_treasury::Config,
+// 	<R as frame_system::Config>::AccountId: From<cord_primitives::AccountId>,
+// 	<R as frame_system::Config>::AccountId: Into<cord_primitives::AccountId>,
+// {
+// 	fn on_unbalanceds(
+// 		mut fees_then_tips: impl Iterator<Item = Credit<R::AccountId, pallet_balances::Pallet<R>>>,
+// 	) {
+// 		if let Some(fees) = fees_then_tips.next() {
+// 			// for fees, 80% to treasury, 20% to author
+// 			let mut split = fees.ration(80, 20);
+// 			if let Some(tips) = fees_then_tips.next() {
+// 				// for tips, if any, 100% to author
+// 				tips.merge_into(&mut split.1);
+// 			}
+// 			ResolveTo::<TreasuryAccountId<R>, pallet_balances::Pallet<R>>::on_unbalanced(split.0);
+// 			<ToAuthor<R> as OnUnbalanced<_>>::on_unbalanced(split.1);
+// 		}
+// 	}
+// }
 
-		if let Some(fees) = fees_then_tips.next() {
-			<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(fees);
-			if let Some(tips) = fees_then_tips.next() {
-				<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(tips);
-			}
-		}
-	}
-}
+// pub struct EverythingToTheTreasury<R>(core::marker::PhantomData<R>);
 
-pub struct EverythingToAuthor<R>(sp_std::marker::PhantomData<R>);
+// impl<R> OnUnbalanced<NegativeImbalance<R>> for EverythingToTheTreasury<R>
+// where
+// 	R: pallet_balances::Config + pallet_treasury::Config,
+// 	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
+// {
+// 	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance<R>>) {
+// 		use pallet_treasury::Pallet as Treasury;
+
+// 		if let Some(fees) = fees_then_tips.next() {
+// 			<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(fees);
+// 			if let Some(tips) = fees_then_tips.next() {
+// 				<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(tips);
+// 			}
+// 		}
+// 	}
+// }
+
+pub struct EverythingToAuthor<R>(core::marker::PhantomData<R>);
 
 impl<R> OnUnbalanced<NegativeImbalance<R>> for EverythingToAuthor<R>
 where
@@ -109,7 +155,7 @@ where
 {
 	fn on_nonzero_unbalanced(amount: NegativeImbalance<R>) {
 		if let Some(author) = <pallet_authorship::Pallet<R>>::author() {
-			<pallet_balances::Pallet<R>>::resolve_creating(&author, amount);
+			let _ = <pallet_balances::Pallet<R>>::resolve_creating(&author, amount);
 		}
 	}
 }

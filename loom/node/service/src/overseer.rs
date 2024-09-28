@@ -22,7 +22,7 @@ use polkadot_overseer::{DummySubsystem, InitializedOverseerBuilder, SubsystemErr
 use sp_core::traits::SpawnNamed;
 
 use polkadot_availability_distribution::IncomingRequestReceivers;
-use polkadot_node_core_approval_voting::Config as ApprovalVotingConfig;
+use polkadot_node_core_approval_voting::{Config as ApprovalVotingConfig, RealAssignmentCriteria};
 use polkadot_node_core_av_store::Config as AvailabilityConfig;
 use polkadot_node_core_candidate_validation::Config as CandidateValidationConfig;
 use polkadot_node_core_chain_selection::Config as ChainSelectionConfig;
@@ -277,6 +277,7 @@ where
 		))
 		.candidate_validation(CandidateValidationSubsystem::with_config(
 			candidate_validation_config,
+			keystore.clone(),
 			Metrics::register(registry)?, // candidate-validation metrics
 			Metrics::register(registry)?, // validation host metrics
 		))
@@ -285,10 +286,11 @@ where
 		.collation_generation(CollationGenerationSubsystem::new(Metrics::register(registry)?))
 		.collator_protocol({
 			let side = match is_parachain_node {
-				IsParachainNode::Collator(_) | IsParachainNode::FullNode =>
+				IsParachainNode::Collator(_) | IsParachainNode::FullNode => {
 					return Err(Error::Overseer(SubsystemError::Context(
 						"build validator overseer for parachain node".to_owned(),
-					))),
+					)))
+				},
 				IsParachainNode::No => ProtocolSide::Validator {
 					keystore: keystore.clone(),
 					eviction_policy: Default::default(),
@@ -310,7 +312,11 @@ where
 			Metrics::register(registry)?,
 			rand::rngs::StdRng::from_entropy(),
 		))
-		.approval_distribution(ApprovalDistributionSubsystem::new(Metrics::register(registry)?))
+		.approval_distribution(ApprovalDistributionSubsystem::new(
+			Metrics::register(registry)?,
+			approval_voting_config.slot_duration_millis,
+			Arc::new(RealAssignmentCriteria {}),
+		))
 		.approval_voting(ApprovalVotingSubsystem::with_config(
 			approval_voting_config,
 			parachains_db.clone(),
@@ -453,10 +459,11 @@ where
 		.collation_generation(CollationGenerationSubsystem::new(Metrics::register(registry)?))
 		.collator_protocol({
 			let side = match is_parachain_node {
-				IsParachainNode::No =>
+				IsParachainNode::No => {
 					return Err(Error::Overseer(SubsystemError::Context(
 						"build parachain node overseer for validator".to_owned(),
-					))),
+					)))
+				},
 				IsParachainNode::Collator(collator_pair) => ProtocolSide::Collator {
 					peer_id: network_service.local_peer_id(),
 					collator_pair,

@@ -83,7 +83,7 @@ pub use sp_runtime::BuildStorage;
 /// Constant values used within the runtime.
 use cord_braid_plus_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 use cord_braid_runtime_common as runtime_common;
-use runtime_common::{EverythingToTheTreasury, SlowAdjustingFeeUpdate};
+use runtime_common::{EverythingToAuthor, SlowAdjustingFeeUpdate};
 
 // Weights used in the runtime.
 mod weights;
@@ -325,7 +325,7 @@ parameter_types! {
 #[allow(deprecated)]
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = CurrencyAdapter<Balances, EverythingToTheTreasury<Runtime>>;
+	type OnChargeTransaction = CurrencyAdapter<Balances, EverythingToAuthor<Runtime>>;
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;

@@ -466,9 +466,6 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
-<<<<<<< HEAD:braid/runtimes/base/src/lib.rs
-impl pallet_cord_offences::Config for Runtime {
-=======
 parameter_types! {
 	pub const MaxRegistryEntryBlobSize: u32 = 4 * 1024; // 4KB in bytes
 }
@@ -480,8 +477,7 @@ impl pallet_entries::Config for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_offences::Config for Runtime {
->>>>>>> e892577 (dedir: Add Registries & Entries  (#504)):runtimes/braid/src/lib.rs
+impl pallet_cord_offences::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
 	type OnOffenceHandler = AuthorityMembership;

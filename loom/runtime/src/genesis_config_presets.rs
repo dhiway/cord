@@ -18,13 +18,17 @@
 
 //! Genesis configs presets for the CORD Loom runtime
 
-use crate::*;
+use crate::{
+	BabeConfig, BalancesConfig, ConfigurationConfig, RegistrarConfig, RuntimeGenesisConfig,
+	SessionConfig, SessionKeys, SudoConfig, BABE_GENESIS_EPOCH_CONFIG,
+};
 use cord_loom_runtime_constants::currency::UNITS as UNT;
 use pallet_staking::{Forcing, StakerStatus};
 use polkadot_primitives::{AccountPublic, AssignmentId, AsyncBackingParams};
 use polkadot_runtime_parachains::configuration::HostConfiguration;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::{sr25519, Pair, Public};
+use sp_genesis_builder::PresetId;
 use sp_runtime::{traits::IdentifyAccount, Perbill};
 #[cfg(not(feature = "std"))]
 use sp_std::alloc::format;
@@ -58,6 +62,14 @@ fn get_authority_keys_from_seed(
 	AuthorityDiscoveryId,
 	BeefyId,
 ) {
+	let keys = get_authority_keys_from_seed_no_beefy(seed);
+	(keys.0, keys.1, keys.2, keys.3, keys.4, keys.5, keys.6, get_from_seed::<BeefyId>(seed))
+}
+
+/// Helper function to generate stash, controller and session key from seed
+fn get_authority_keys_from_seed_no_beefy(
+	seed: &str,
+) -> (AccountId, AccountId, BabeId, GrandpaId, ValidatorId, AssignmentId, AuthorityDiscoveryId) {
 	(
 		get_account_id_from_seed::<sr25519::Public>(&format!("{}//stash", seed)),
 		get_account_id_from_seed::<sr25519::Public>(seed),
@@ -66,12 +78,11 @@ fn get_authority_keys_from_seed(
 		get_from_seed::<ValidatorId>(seed),
 		get_from_seed::<AssignmentId>(seed),
 		get_from_seed::<AuthorityDiscoveryId>(seed),
-		get_from_seed::<BeefyId>(seed),
 	)
 }
 
 fn testnet_accounts() -> Vec<AccountId> {
-	vec![
+	Vec::from([
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		get_account_id_from_seed::<sr25519::Public>("Bob"),
 		get_account_id_from_seed::<sr25519::Public>("Charlie"),
@@ -84,7 +95,18 @@ fn testnet_accounts() -> Vec<AccountId> {
 		get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
 		get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 		get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-	]
+	])
+}
+
+fn cord_loom_session_keys(
+	babe: BabeId,
+	grandpa: GrandpaId,
+	para_validator: ValidatorId,
+	para_assignment: AssignmentId,
+	authority_discovery: AuthorityDiscoveryId,
+	beefy: BeefyId,
+) -> SessionKeys {
+	SessionKeys { babe, grandpa, para_validator, para_assignment, authority_discovery, beefy }
 }
 
 fn default_parachains_host_configuration() -> HostConfiguration<polkadot_primitives::BlockNumber> {
@@ -117,27 +139,24 @@ fn default_parachains_host_configuration() -> HostConfiguration<polkadot_primiti
 		relay_vrf_modulo_samples: 2,
 		zeroth_delay_tranche_width: 0,
 		minimum_validation_upgrade_delay: 5,
+		async_backing_params: AsyncBackingParams {
+			max_candidate_depth: 3,
+			allowed_ancestry_len: 2,
+		},
+		node_features: bitvec::vec::BitVec::from_element(
+			1u8 << (FeatureIndex::ElasticScalingMVP as usize)
+				| 1u8 << (FeatureIndex::EnableAssignmentsV2 as usize),
+		),
 		scheduler_params: polkadot_primitives::vstaging::SchedulerParams {
 			lookahead: 2,
 			group_rotation_frequency: 20,
 			paras_availability_period: 4,
 			..Default::default()
 		},
-		dispute_post_conclusion_acceptance_period: 100u32,
-		minimum_backing_votes: 1,
-		node_features: NodeFeatures::EMPTY,
-		async_backing_params: AsyncBackingParams {
-			max_candidate_depth: 3,
-			allowed_ancestry_len: 2,
-		},
-		executor_params: Default::default(),
-		max_validators: None,
-		pvf_voting_ttl: 2,
-		approval_voting_params: ApprovalVotingParams { max_approval_coalesce_count: 1 },
+		..Default::default()
 	}
 }
 
-#[allow(clippy::type_complexity)]
 fn cord_loom_testnet_genesis(
 	initial_authorities: Vec<(
 		AccountId,
@@ -157,18 +176,18 @@ fn cord_loom_testnet_genesis(
 	const ENDOWMENT: u128 = 50_000_000 * UNT;
 	const STASH: u128 = 1_000 * UNT;
 
-	serde_json::json!({
-		"balances": {
-			"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
+	let config = RuntimeGenesisConfig {
+		balances: BalancesConfig {
+			balances: endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"session": {
-			"keys": initial_authorities
+		session: SessionConfig {
+			keys: initial_authorities
 				.iter()
 				.map(|x| {
 					(
 						x.0.clone(),
 						x.0.clone(),
-						cord_loom_session_keys(
+						loom_session_keys(
 							x.2.clone(),
 							x.3.clone(),
 							x.4.clone(),
@@ -179,26 +198,31 @@ fn cord_loom_testnet_genesis(
 					)
 				})
 				.collect::<Vec<_>>(),
+			..Default::default()
 		},
-		"staking": {
-			"minimumValidatorCount": 1,
-			"validatorCount": initial_authorities.len() as u32,
-			"stakers": initial_authorities
+		staking: StakingConfig {
+			minimum_validator_count: 1,
+			validator_count: initial_authorities.len() as u32,
+			stakers: initial_authorities
 				.iter()
 				.map(|x| (x.0.clone(), x.0.clone(), STASH, StakerStatus::<AccountId>::Validator))
 				.collect::<Vec<_>>(),
-			"invulnerables": initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
-			"forceEra": Forcing::NotForcing,
-			"slashRewardFraction": Perbill::from_percent(10),
+			invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			force_era: Forcing::NotForcing,
+			slash_reward_fraction: Perbill::from_percent(10),
+			..Default::default()
 		},
-		"babe": {
-			"epochConfig": Some(BABE_GENESIS_EPOCH_CONFIG),
+		babe: BabeConfig { epoch_config: BABE_GENESIS_EPOCH_CONFIG, ..Default::default() },
+		sudo: SudoConfig { key: Some(root_key) },
+		configuration: ConfigurationConfig { config: default_parachains_host_configuration() },
+		registrar: RegistrarConfig {
+			next_free_para_id: polkadot_primitives::LOWEST_PUBLIC_ID,
+			..Default::default()
 		},
-		"configuration": {
-			"config": default_parachains_host_configuration(),
-		},
-		"sudo": { "key": Some(root_key) },
-	})
+		..Default::default()
+	};
+
+	serde_json::to_value(config).expect("Could not build genesis config.")
 }
 
 fn cord_loom_session_keys(
@@ -229,10 +253,10 @@ pub fn cord_loom_development_config_genesis() -> serde_json::Value {
 }
 
 /// Provides the JSON representation of predefined genesis config for given `id`.
-pub fn get_preset(id: &sp_genesis_builder::PresetId) -> Option<sp_std::vec::Vec<u8>> {
+pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 	let patch = match id.try_into() {
-		Ok("development") => cord_loom_development_config_genesis(),
-		Ok("local_testnet") => cord_loom_local_testnet_genesis(),
+		Ok(sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET) => cord_loom_local_testnet_genesis(),
+		Ok(sp_genesis_builder::DEV_RUNTIME_PRESET) => cord_loom_development_config_genesis(),
 		_ => return None,
 	};
 	Some(
@@ -240,6 +264,13 @@ pub fn get_preset(id: &sp_genesis_builder::PresetId) -> Option<sp_std::vec::Vec<
 			.expect("serialization to json is expected to work. qed.")
 			.into_bytes(),
 	)
+}
+/// List of supported presets.
+pub fn preset_names() -> Vec<PresetId> {
+	vec![
+		PresetId::from(sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET),
+		PresetId::from(sp_genesis_builder::DEV_RUNTIME_PRESET),
+	]
 }
 
 #[cfg(test)]
