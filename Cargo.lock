@@ -6578,6 +6578,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "pallet-schema-accounts",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

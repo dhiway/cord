@@ -24,6 +24,7 @@ codec = { features = ["derive"], workspace = true }
 scale-info = { features = ["derive"], workspace = true }
 bitflags = { workspace = true }
 log = { workspace = true }
+pallet-schema-accounts = { workspace = true }
 
 # Internal dependencies
 cord-primitives = { workspace = true }
@@ -63,6 +64,7 @@ std = [
 	"sp-keystore/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"pallet-schema-accounts/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -70,6 +72,7 @@ try-runtime = [
 	"identifier/try-runtime",
 	"cord-utilities/try-runtime",
 	"sp-runtime/try-runtime",
+	"pallet-schema-accounts/std",
 ]
 
 # Disable doctest when running `cargo test` 
