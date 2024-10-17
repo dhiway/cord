@@ -1280,6 +1280,7 @@ dependencies = [
  "pallet-runtime-upgrade",
  "pallet-scheduler",
  "pallet-schema",
+ "pallet-schema-accounts",
  "pallet-session",
  "pallet-session-benchmarking",
  "pallet-statement",
@@ -1415,6 +1416,7 @@ dependencies = [
  "pallet-runtime-upgrade",
  "pallet-scheduler",
  "pallet-schema",
+ "pallet-schema-accounts",
  "pallet-session",
  "pallet-session-benchmarking",
  "pallet-statement",
@@ -1939,6 +1941,7 @@ dependencies = [
  "pallet-runtime-upgrade",
  "pallet-scheduler",
  "pallet-schema",
+ "pallet-schema-accounts",
  "pallet-session",
  "pallet-session-benchmarking",
  "pallet-statement",
@@ -6657,6 +6660,26 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-chain-space",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-schema-accounts"
+version = "0.9.3"
+dependencies = [
+ "cord-identifier",
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

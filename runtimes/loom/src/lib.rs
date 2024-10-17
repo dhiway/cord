@@ -873,6 +873,12 @@ impl pallet_schema::Config for Runtime {
 	type WeightInfo = weights::pallet_schema::WeightInfo<Runtime>;
 }
 
+impl pallet_schema_accounts::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
+	type WeightInfo = ();
+}
+
 parameter_types! {
 	pub const MaxSpaceDelegates: u32 = 10_000;
 }
@@ -1147,6 +1153,9 @@ mod runtime {
 
 	#[runtime::pallet_index(62)]
 	pub type Entries = pallet_entries;
+
+	#[runtime::pallet_index(63)]
+	pub type SchemaAccounts = pallet_schema_accounts;
 
 	#[runtime::pallet_index(254)]
 	pub type RootTesting = pallet_root_testing;
