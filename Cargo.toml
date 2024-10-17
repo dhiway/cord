@@ -1,6 +1,6 @@
 
 [workspace.package]
-version = "0.9.3"
+version = "0.9.4"
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = "2021"
 homepage = "https://cord.network"
