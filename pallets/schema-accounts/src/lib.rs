@@ -158,11 +158,8 @@ pub mod pallet {
 				Error::<T>::MaxEncodedSchemaLimitExceeded
 			);
 
-			// Id Digest = concat (H(<scale_encoded_schema_input>,
-			// <scale_encoded_creator_identifier>))
-			let id_digest = <T as frame_system::Config>::Hashing::hash(
-				&[&tx_schema.encode()[..], &creator.encode()[..]].concat()[..],
-			);
+			// Id Digest = H(<scale_encoded_schema_input>)
+			let id_digest = <T as frame_system::Config>::Hashing::hash(&tx_schema.encode()[..]);
 
 			let identifier = Ss58Identifier::create_identifier(
 				&(id_digest).encode()[..],

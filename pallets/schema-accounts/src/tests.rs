@@ -98,9 +98,7 @@ fn check_successful_schema_creation() {
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
 	let digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -197,9 +195,7 @@ fn test_schema_lookup() {
 		for schema in schemas {
 			let digest: SchemaHashOf<Test> =
 				<Test as frame_system::Config>::Hashing::hash(&schema[..]);
-			let id_digest = <Test as frame_system::Config>::Hashing::hash(
-				&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-			);
+			let id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 			let schema_id: SchemaIdOf = generate_schema_id::<Test>(&id_digest);
 
 			let stored_schema = Schemas::<Test>::get(&schema_id)
