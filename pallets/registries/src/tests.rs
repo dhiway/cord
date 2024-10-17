@@ -2,8 +2,8 @@ use super::*;
 use crate::mock::*;
 use codec::Encode;
 use frame_support::{assert_err, assert_ok};
-use sp_runtime::traits::Hash;
 use pallet_schema_accounts::{InputSchemaOf, SchemaHashOf};
+use sp_runtime::traits::Hash;
 use sp_std::prelude::*;
 
 pub fn generate_registry_id<T: Config>(digest: &RegistryHashOf<T>) -> RegistryIdOf {
