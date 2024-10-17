@@ -64,7 +64,7 @@ parameter_types! {
 	pub const MaxEncodedSchemaLength: u32 = 15_360;
 }
 
-impl pallet_schema_accounts::Config for Test{
+impl pallet_schema_accounts::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 	type WeightInfo = ();

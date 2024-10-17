@@ -62,7 +62,6 @@ impl Default for Permissions {
 	}
 }
 
-
 /// Details of an on-chain registry.
 ///
 /// This struct stores metadata about a registry, including information about
@@ -79,11 +78,10 @@ impl Default for Permissions {
 pub struct RegistryDetails<RegistryCreatorOf, StatusOf, RegistryHashOf, SchemaIdOf> {
 	pub creator: RegistryCreatorOf,
 	pub revoked: StatusOf,
-	pub archived: StatusOf, 
+	pub archived: StatusOf,
 	pub digest: RegistryHashOf,
 	pub schema_id: Option<SchemaIdOf>,
 }
-
 
 /// Authorization details for a registry delegate.
 ///

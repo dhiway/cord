@@ -125,7 +125,8 @@ pub type RegistryBlobOf<T> = BoundedVec<u8, MaxRegistryBlobSizeOf<T>>;
 pub type RegistryAuthorizationOf<T> =
 	RegistryAuthorization<RegistryIdOf, RegistryCreatorOf<T>, Permissions>;
 /// Type of Registry Details
-pub type RegistryDetailsOf<T> = RegistryDetails<RegistryCreatorOf<T>, StatusOf, RegistryHashOf<T>, SchemaIdOf>;
+pub type RegistryDetailsOf<T> =
+	RegistryDetails<RegistryCreatorOf<T>, StatusOf, RegistryHashOf<T>, SchemaIdOf>;
 
 #[frame_support::pallet]
 pub mod pallet {
