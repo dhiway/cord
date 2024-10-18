@@ -37,6 +37,7 @@ frame_support::construct_runtime!(
 		System: frame_system,
 		Identifier: identifier,
 		MockOrigin: mock_origin,
+		SchemaAccounts: pallet_schema_accounts,
 		Registries: pallet_registries,
 		Entries: pallet_entries,
 	}
@@ -60,6 +61,16 @@ impl mock_origin::Config for Test {
 	type RuntimeOrigin = RuntimeOrigin;
 	type AccountId = AccountId;
 	type SubjectId = SubjectId;
+}
+
+parameter_types! {
+	pub const MaxEncodedSchemaLength: u32 = 15_360;
+}
+
+impl pallet_schema_accounts::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
+	type WeightInfo = ();
 }
 
 parameter_types! {

@@ -48,12 +48,11 @@ fn add_delegate_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -99,12 +98,11 @@ fn add_admin_delegate_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -150,12 +148,11 @@ fn add_admin_delegate_should_fail_if_admin_delegate_already_exists() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -211,12 +208,11 @@ fn add_delegator_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -261,12 +257,11 @@ fn add_delegator_should_fail_if_delegator_already_exists() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -420,12 +415,11 @@ fn add_delegate_should_fail_if_the_regisrty_is_revoked() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -480,12 +474,11 @@ fn add_delegate_should_fail_if_a_non_delegate_tries_to_add() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -533,12 +526,11 @@ fn add_delegate_should_fail_if_delegate_already_exists() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -586,12 +578,11 @@ fn creating_a_new_registries_should_succeed() {
 
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -622,12 +613,11 @@ fn creating_a_duplicate_registries_should_fail() {
 
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -675,12 +665,11 @@ fn revoking_a_registry_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -724,12 +713,11 @@ fn reinstating_an_revoked_a_registry_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -785,12 +773,11 @@ fn reinstating_an_non_revoked_a_registry_should_fail() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -836,12 +823,11 @@ fn archiving_a_registry_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -885,12 +871,11 @@ fn restoring_an_archived_a_registry_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -946,12 +931,11 @@ fn restoring_an_non_archived_a_registry_should_fail() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -991,12 +975,11 @@ fn add_delegate_should_fail_if_registry_delegates_limit_exceeded() {
 
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -1064,12 +1047,11 @@ fn remove_delegate_should_succeed() {
 	let delegate_authorization_id: AuthorizationIdOf =
 		generate_authorization_id::<Test>(&delegate_auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -1121,12 +1103,11 @@ fn remove_delegate_should_fail_for_creator_removing_themselves() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
@@ -1186,12 +1167,11 @@ fn update_registry_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
-	let raw_schema = [11u8; 256].to_vec();
+	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
 		.expect("Test Schema should fit into the expected input length of for the test runtime.");
-	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
-		&[&schema.encode()[..], &creator.encode()[..]].concat()[..],
-	);
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
