@@ -314,3 +314,30 @@ fn test_schema_lookup() {
 		}
 	});
 }
+
+#[test]
+fn test_max_encoded_schema_limit_exceeded_create() {
+	// Arrange
+	let mut mock_storage = MockStorage::new();
+
+	// Act
+	let large_schema_data = vec![0u8; <Test as frame_system::Config>::MaxEncodedSchemaLength + 1];
+	let result =
+		Schema::create(Origin::signed(DID_00), large_schema_data.clone(), Default::default());
+
+	// Assert
+	assert_eq!(result.err().unwrap(), Error::<Test>::MaxEncodedSchemaLimitExceeded,);
+}
+
+#[test]
+fn test_max_encoded_schema_limit_exceeded_edge_case() {
+	// Arrange (similar to above)
+
+	// Act
+	let almost_large_data = vec![0u8; <Test as frame_system::Config>::MaxEncodedSchemaLength - 1];
+	let result =
+		Schema::create(Origin::signed(DID_00), almost_large_data.clone(), Default::default());
+
+	// Assert
+	assert!(result.is_ok()); // Should not exceed limit
+}
