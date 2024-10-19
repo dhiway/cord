@@ -54,6 +54,7 @@ pallet-network-score = { workspace = true }
 pallet-session-benchmarking = { workspace = true }
 pallet-registries = { workspace = true }
 pallet-entries = { workspace = true }
+pallet-schema-accounts = { workspace = true }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { workspace = true }
@@ -200,6 +201,7 @@ std = [
 	"sp-io/std",
 	"pallet-registries/std",
 	"pallet-entries/std",
+	"pallet-schema-accounts/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -291,6 +293,7 @@ try-runtime = [
 	"sp-runtime/try-runtime",
 	"pallet-registries/try-runtime",
 	"pallet-entries/try-runtime",
+	"pallet-schema-accounts/try-runtime",
 ]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.

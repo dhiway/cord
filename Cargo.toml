@@ -1,6 +1,6 @@
 
 [workspace.package]
-version = "0.9.3"
+version = "0.9.3-1"
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = "2021"
 homepage = "https://cord.network"
@@ -154,6 +154,8 @@ pallet-did-runtime-api = { path = "runtimes/common/api/did", default-features = 
 pallet-transaction-weight-runtime-api = { path = "runtimes/common/api/weight", default-features = false }
 pallet-registries = { path = "pallets/registries", default-features = false }
 pallet-entries = { path = "pallets/entries", default-features = false }
+pallet-schema-accounts = { path = "pallets/schema-accounts", default-features = false }
+
 
 # substrate dependencies
 frame-benchmarking = { git = "https://github.com/dhiway/substrate-sdk", default-features = false, branch = "release-v1.15.0" }

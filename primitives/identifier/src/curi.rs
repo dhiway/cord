@@ -46,6 +46,7 @@ pub enum IdentifierType {
 	Registries,
 	Entries,
 	RegistryAuthorization,
+	SchemaAccounts,
 }
 
 impl IdentifierType {
@@ -61,6 +62,7 @@ impl IdentifierType {
 	const IDENT_REGISTRIES: u16 = 9274;
 	const IDENT_ENTRIES: u16 = 9944;
 	const IDENT_REGISTRYAUTH: u16 = 10001;
+	const IDENT_SCHEMA_ACCOUNTS: u16 = 10501;
 
 	fn ident_value(&self) -> u16 {
 		match self {
@@ -76,6 +78,7 @@ impl IdentifierType {
 			IdentifierType::Registries => Self::IDENT_REGISTRIES,
 			IdentifierType::Entries => Self::IDENT_ENTRIES,
 			IdentifierType::RegistryAuthorization => Self::IDENT_REGISTRYAUTH,
+			IdentifierType::SchemaAccounts => Self::IDENT_SCHEMA_ACCOUNTS,
 		}
 	}
 	fn from_u16(value: u16) -> Option<Self> {
@@ -92,6 +95,7 @@ impl IdentifierType {
 			9274 => Some(IdentifierType::Registries),
 			9944 => Some(IdentifierType::Entries),
 			10001 => Some(IdentifierType::RegistryAuthorization),
+			10501 => Some(IdentifierType::SchemaAccounts),
 			_ => None,
 		}
 	}
