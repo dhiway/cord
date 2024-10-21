@@ -64,27 +64,23 @@ impl Default for Permissions {
 
 /// Details of an on-chain registry.
 ///
-/// This structure holds metadata about a registry, including its identifier,
-/// creator, capacity, and current usage. It also tracks the revoke and
-/// archival status of the registry.
+/// This struct stores metadata about a registry, including information about
+/// its creator, status, and linkage to a schema. It helps in tracking the
+/// governance and operational state of the registry.
 ///
-/// ## Fields
-///
-/// - `code`: The unique code or identifier for the registry.
-/// - `creator`: The account or entity that created the registry.
-/// - `txn_capacity`: The maximum allowed transactions within the registry. A value of zero denotes
-///   unlimited capacity.
-/// - `txn_count`: The current usage of the registry's capacity.
-/// - `approved`: Indicates whether the registry has been approved by the appropriate governance
-///   body.
-/// - `archive`: Indicates whether the registry is currently archived.
+/// # Fields
+/// - `creator`: The account or entity responsible for creating the registry.
+/// - `revoked`: Status indicating if the registry has been revoked.
+/// - `archived`: Flag showing whether the registry is archived.
+/// - `digest`: A hash representing unique content or metadata of the registry.
+/// - `schema_id`: (Optional) Identifier linking the registry to a specific schema.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct RegistryDetails<RegistryCreatorOf, StatusOf, RegistryHashOf> {
+pub struct RegistryDetails<RegistryCreatorOf, StatusOf, RegistryHashOf, SchemaIdOf> {
 	pub creator: RegistryCreatorOf,
 	pub revoked: StatusOf,
-	pub archived: StatusOf, /* Only at the registry level. (If it is archived, revoked dont
-	                         * allow entry creation) */
+	pub archived: StatusOf,
 	pub digest: RegistryHashOf,
+	pub schema_id: Option<SchemaIdOf>,
 }
 
 /// Authorization details for a registry delegate.

@@ -116,7 +116,7 @@ pub type RegistryCreatorOf<T> = <T as frame_system::Config>::AccountId;
 /// Type of the Registry Template Id
 pub type TemplateIdOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedInputLength>;
 /// Type of the Schema Id
-pub type SchemaIdOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedInputLength>;
+pub type SchemaIdOf = Ss58Identifier;
 /// Type of Maximum allowed size of the Registry Blob
 pub type MaxRegistryBlobSizeOf<T> = <T as crate::Config>::MaxRegistryBlobSize;
 /// Type of Registry Blob
@@ -125,7 +125,8 @@ pub type RegistryBlobOf<T> = BoundedVec<u8, MaxRegistryBlobSizeOf<T>>;
 pub type RegistryAuthorizationOf<T> =
 	RegistryAuthorization<RegistryIdOf, RegistryCreatorOf<T>, Permissions>;
 /// Type of Registry Details
-pub type RegistryDetailsOf<T> = RegistryDetails<RegistryCreatorOf<T>, StatusOf, RegistryHashOf<T>>;
+pub type RegistryDetailsOf<T> =
+	RegistryDetails<RegistryCreatorOf<T>, StatusOf, RegistryHashOf<T>, SchemaIdOf>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -512,7 +513,8 @@ pub mod pallet {
 		/// - `origin`: The origin of the transaction, signed by the creator.
 		/// - `registry_id`: A unique code created to identify the registry.
 		/// - `digest`: The digest representing the registry data to be created.
-		/// - `blob`: Optional metadata or data associated with the registry.
+		/// - `schema_id`: (Optional) A unique code represnting the Schema.
+		/// - `blob`: (Optional) Metadata or data associated with the registry.
 		///
 		/// # Returns
 		/// - `DispatchResult`: Returns `Ok(())` if the registry is successfully created, or an
@@ -537,7 +539,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			_registry_id: RegistryIdOf,
 			digest: RegistryHashOf<T>,
-			_schema_id: Option<SchemaIdOf<T>>,
+			schema_id: Option<SchemaIdOf>,
 			_blob: Option<RegistryBlobOf<T>>,
 		) -> DispatchResult {
 			let creator = ensure_signed(origin)?;
@@ -607,6 +609,7 @@ pub mod pallet {
 					revoked: false,
 					archived: false,
 					digest,
+					schema_id,
 				},
 			);
 

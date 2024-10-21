@@ -2,6 +2,7 @@ use super::*;
 use crate::mock::*;
 use codec::Encode;
 use frame_support::{assert_err, assert_ok};
+use pallet_schema_accounts::{InputSchemaOf, SchemaHashOf};
 use sp_runtime::traits::Hash;
 use sp_std::prelude::*;
 
@@ -14,15 +15,14 @@ pub fn generate_authorization_id<T: Config>(digest: &RegistryHashOf<T>) -> Autho
 		.unwrap()
 }
 
+pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SchemaAccounts)
+		.unwrap()
+}
+
 pub(crate) const ACCOUNT_00: AccountId = AccountId::new([1u8; 32]);
 pub(crate) const ACCOUNT_01: AccountId = AccountId::new([2u8; 32]);
 pub(crate) const ACCOUNT_02: AccountId = AccountId::new([3u8; 32]);
-
-// TODO:
-// Add tests for SchemaId.
-// Right now None is being pased.
-// Fix: Remove pallet-chain-space dependency from pallet-schema &
-// make it account based.
 
 #[test]
 fn add_delegate_should_succeed() {
@@ -48,12 +48,19 @@ fn add_delegate_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob)
 		));
 
@@ -91,12 +98,19 @@ fn add_admin_delegate_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob)
 		));
 
@@ -134,12 +148,19 @@ fn add_admin_delegate_should_fail_if_admin_delegate_already_exists() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob)
 		));
 
@@ -187,12 +208,19 @@ fn add_delegator_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob)
 		));
 
@@ -229,12 +257,19 @@ fn add_delegator_should_fail_if_delegator_already_exists() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob)
 		));
 
@@ -380,12 +415,19 @@ fn add_delegate_should_fail_if_the_regisrty_is_revoked() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob)
 		));
 
@@ -432,12 +474,19 @@ fn add_delegate_should_fail_if_a_non_delegate_tries_to_add() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob)
 		));
 
@@ -477,12 +526,19 @@ fn add_delegate_should_fail_if_delegate_already_exists() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob)
 		));
 
@@ -522,12 +578,19 @@ fn creating_a_new_registries_should_succeed() {
 
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob),
 		));
 	});
@@ -550,12 +613,19 @@ fn creating_a_duplicate_registries_should_fail() {
 
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob.clone()),
 		));
 
@@ -595,12 +665,19 @@ fn revoking_a_registry_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob.clone()),
 		));
 
@@ -636,12 +713,19 @@ fn reinstating_an_revoked_a_registry_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob.clone()),
 		));
 
@@ -689,12 +773,19 @@ fn reinstating_an_non_revoked_a_registry_should_fail() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob.clone()),
 		));
 
@@ -732,12 +823,19 @@ fn archiving_a_registry_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob.clone()),
 		));
 
@@ -773,12 +871,19 @@ fn restoring_an_archived_a_registry_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob.clone()),
 		));
 
@@ -826,12 +931,19 @@ fn restoring_an_non_archived_a_registry_should_fail() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob.clone()),
 		));
 
@@ -863,13 +975,20 @@ fn add_delegate_should_fail_if_registry_delegates_limit_exceeded() {
 
 	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		// Create the Registries
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob.clone()),
 		));
 
@@ -928,12 +1047,19 @@ fn remove_delegate_should_succeed() {
 	let delegate_authorization_id: AuthorizationIdOf =
 		generate_authorization_id::<Test>(&delegate_auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob.clone()),
 		));
 
@@ -977,12 +1103,19 @@ fn remove_delegate_should_fail_for_creator_removing_themselves() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(blob.clone()),
 		));
 
@@ -1034,12 +1167,19 @@ fn update_registry_should_succeed() {
 
 	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
 
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
 	new_test_ext().execute_with(|| {
 		assert_ok!(Registries::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			registry_id.clone(),
 			registry_digest,
-			None,
+			Some(schema_id),
 			Some(initial_blob),
 		));
 
