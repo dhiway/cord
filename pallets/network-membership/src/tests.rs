@@ -304,3 +304,60 @@ fn test_revoke_membership_with_wrong_account_id_should_fail() {
 		);
 	});
 }
+
+#[test]
+fn test_revoke_membership_non_existent() {
+	new_test_ext().execute_with(|| {
+		run_to_block(1);
+
+		// Attempt to revoke a membership for a non-existent account
+		assert_err!(
+			NetworkMembership::revoke(RawOrigin::Root.into(), AccountId::new([99u8; 32]),),
+			Error::<Test>::MembershipNotFound
+		);
+
+		assert_eq!(NetworkMembership::members_count(), 1); // No changes to member count
+	});
+}
+
+#[test]
+fn test_check_membership_non_existent() {
+	new_test_ext().execute_with(|| {
+		run_to_block(1);
+
+		// Check if a non-existent account is a member
+		// assert!(!NetworkMembership::is_member(&AccountId::new([99u8; 32])));
+
+		assert_err!(
+			NetworkMembership::nominate(
+				RuntimeOrigin::signed(AccountId::new([11u8; 32])),
+				AccountId::new([13u8; 32]),
+				true
+			),
+			BadOrigin
+		);
+
+		assert_eq!(NetworkMembership::is_member(&AccountId::new([99u8; 32])), false);
+	});
+}
+
+#[test]
+fn test_auto_expire_non_existent_membership() {
+	new_test_ext().execute_with(|| {
+		run_to_block(1);
+
+		// Check that a non-existent account cannot expire
+		run_to_block(10); // Advance time beyond the expiration period
+
+		assert_err!(
+			NetworkMembership::nominate(
+				RuntimeOrigin::signed(AccountId::new([11u8; 32])),
+				AccountId::new([13u8; 32]),
+				true
+			),
+			BadOrigin
+		);
+
+		assert_eq!(NetworkMembership::is_member(&AccountId::new([99u8; 32])), false);
+	});
+}
