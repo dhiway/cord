@@ -29,6 +29,15 @@ use scale_info::TypeInfo;
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::{BlockNumberProvider, UniqueSaturatedInto};
 
+#[cfg(test)]
+pub mod mock;
+
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarking;
+
+#[cfg(test)]
+mod tests;
+
 const PREFIX: &[u8] = b"CURIV02";
 const INDEX: u16 = 64;
 

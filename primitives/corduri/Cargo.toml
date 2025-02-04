@@ -17,7 +17,7 @@ targets = ['x86_64-unknown-linux-gnu']
 [dev-dependencies]
 sp-core = { features = ["std"], workspace = true }
 sp-keystore = { features = ["std"], workspace = true }
-cord-utilities = { features = ["mock"], workspace = true }
+# cord-utilities = { features = ["mock"], workspace = true }
 
 [dependencies]
 codec = { features = ["derive", "max-encoded-len"], workspace = true }
@@ -34,6 +34,7 @@ cord-primitives = { workspace = true }
 hex = { workspace = true }
 
 # Substrate dependencies
+frame-benchmarking = { optional = true, workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-runtime = { workspace = true }
@@ -48,6 +49,7 @@ default = ['std']
 std = [
 	"codec/std",
 	"cord-primitives/std",
+	"frame-benchmarking/std",
 	"scale-info/std",
 	"frame-support/std",
 	"frame-system/std",
@@ -65,8 +67,15 @@ std = [
 	"sp-runtime-interface/std",
 	"bs58/std",
 	"blake2/std",
-	"cord-utilities/std",
+	# "cord-utilities/std",
 	"sp-core/std",
 	"sp-storage/std",
 	"log/std",
+]
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	# "cord-utilities/runtime-benchmarks",
 ]

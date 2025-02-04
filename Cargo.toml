@@ -16,11 +16,12 @@ members = [
 	"node/inspect",
 	"node/testing",
 	"pallets/asset",
+	"pallets/collection",
 	"pallets/chain-space",
-	"pallets/namespace",
 	"pallets/did",
 	"pallets/did-name",
 	"pallets/identity",
+	"pallets/namespace",
 	"pallets/network-membership",
 	"pallets/network-score",
 	"pallets/node-authorization",
@@ -880,6 +881,7 @@ cord-test-runtime-transaction-pool = { path = "test-utils/runtime/transaction-po
 cord-cli-test-utils = { path = "test-utils/cli", default-features = false }
 cord-utilities = { path = "utilities", default-features = false }
 pallet-council-membership = { path = 'pallets/membership/', default-features = false }
+pallet-collection = { path = 'pallets/collection/', default-features = false }
 pallet-config = { path = 'pallets/config/', default-features = false }
 pallet-did = { path = 'pallets/did', default-features = false }
 pallet-did-name = { path = 'pallets/did-name', default-features = false }
