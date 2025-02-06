@@ -39,6 +39,8 @@ blake2 = { workspace = true }
 cord-primitives = { workspace = true }
 cord-weave-runtime-constants = { workspace = true }
 cord-runtime-common = { workspace = true }
+pallet-collection = { workspace = true }
+pallet-registry = { workspace = true }
 pallet-config = { workspace = true }
 cord-uri = { workspace = true }
 
@@ -204,6 +206,7 @@ std = [
 	"pallet-beefy/std",
 	"pallet-beefy-mmr/std",
 	"pallet-config/std",
+	"pallet-collection/std",
 	"pallet-collective/std",
 	"pallet-contracts/std",
 	"pallet-delegated-staking/std",
@@ -232,6 +235,7 @@ std = [
 	"pallet-paged-list/std",
 	"pallet-preimage/std",
 	"pallet-remark/std",
+	"pallet-registry/std",
 	"pallet-revive/std",
 	"pallet-root-offences/std",
 	"pallet-root-testing/std",
@@ -300,6 +304,7 @@ runtime-benchmarks = [
 	"pallet-babe/runtime-benchmarks",
 	"pallet-beefy-mmr/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
+	"pallet-collection/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-contracts/runtime-benchmarks",
 	"pallet-delegated-staking/runtime-benchmarks",
@@ -324,6 +329,7 @@ runtime-benchmarks = [
 	"pallet-offences/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-remark/runtime-benchmarks",
+	"pallet-registry/runtime-benchmarks",
 	"pallet-revive/runtime-benchmarks",
 	"pallet-safe-mode/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",

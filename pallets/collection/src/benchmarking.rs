@@ -25,7 +25,7 @@ use sp_core::H256;
 use sp_std::prelude::*;
 
 benchmarks! {
-	create_collection {
+	create {
 		let caller: T::AccountId = whitelisted_caller();
 		let origin = RawOrigin::Signed(caller.clone());
 	}: _(origin.into())
@@ -33,7 +33,7 @@ benchmarks! {
 		assert!(Collections::<T>::iter().count() == 1);
 	}
 
-	add_collection_delegate {
+	add_delegate {
 		let caller: T::AccountId = whitelisted_caller();
 		let origin = RawOrigin::Signed(caller.clone());
 
@@ -47,16 +47,16 @@ benchmarks! {
 		let collection_id = <cord_uri::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
 			.map_err(|_| "Identifier build failed")?;
 		Collections::<T>::insert(&collection_id, CollectionDetails { creator: caller.clone(), status: Status::Active });
-		CollectionDelegates::<T>::insert(&collection_id, &caller, Permissions::all());
+		Delegates::<T>::insert(&collection_id, &caller, Permissions::all());
 
 		let delegate: T::AccountId = whitelisted_caller();
 		let permissions = Permissions::all();
 	}: _(origin.into(), collection_id, delegate.clone(), permissions)
 	verify {
-		assert!(CollectionDelegates::<T>::contains_key(&collection_id, &delegate));
+		assert!(Delegates::<T>::contains_key(&collection_id, &delegate));
 	}
 
-	remove_collection_delegate {
+	remove_delegate {
 		let caller: T::AccountId = whitelisted_caller();
 		let origin = RawOrigin::Signed(caller.clone());
 
@@ -70,16 +70,16 @@ benchmarks! {
 		let collection_id = <cord_uri::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
 			.map_err(|_| "Identifier build failed")?;
 		Collections::<T>::insert(&collection_id, CollectionDetails { creator: caller.clone(), status: Status::Active });
-		CollectionDelegates::<T>::insert(&collection_id, &caller, Permissions::all());
+		Delegates::<T>::insert(&collection_id, &caller, Permissions::all());
 
 		let delegate: T::AccountId = whitelisted_caller();
-		CollectionDelegates::<T>::insert(&collection_id, &delegate, Permissions::all());
+		Delegates::<T>::insert(&collection_id, &delegate, Permissions::all());
 	}: _(origin.into(), collection_id, delegate.clone())
 	verify {
-		assert!(!CollectionDelegates::<T>::contains_key(&collection_id, &delegate));
+		assert!(!Delegates::<T>::contains_key(&collection_id, &delegate));
 	}
 
-	archive_collection {
+	archive {
 		let caller: T::AccountId = whitelisted_caller();
 		let origin = RawOrigin::Signed(caller.clone());
 
@@ -93,14 +93,14 @@ benchmarks! {
 		let collection_id = <cord_uri::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
 			.map_err(|_| "Identifier build failed")?;
 		Collections::<T>::insert(&collection_id, CollectionDetails { creator: caller.clone(), status: Status::Active });
-		CollectionDelegates::<T>::insert(&collection_id, &caller, Permissions::all());
+		Delegates::<T>::insert(&collection_id, &caller, Permissions::all());
 	}: _(origin.into(), collection_id)
 	verify {
 		let collection = Collections::<T>::get(&collection_id).unwrap();
 		assert!(collection.status == Status::Archived);
 	}
 
-	restore_collection {
+	restore {
 		let caller: T::AccountId = whitelisted_caller();
 		let origin = RawOrigin::Signed(caller.clone());
 
@@ -114,7 +114,7 @@ benchmarks! {
 		let collection_id = <cord_uri::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
 			.map_err(|_| "Identifier build failed")?;
 		Collections::<T>::insert(&collection_id, CollectionDetails { creator: caller.clone(), status: Status::Active });
-		CollectionDelegates::<T>::insert(&collection_id, &caller, Permissions::all());
+		Delegates::<T>::insert(&collection_id, &caller, Permissions::all());
 		Collections::<T>::mutate(&collection_id, |maybe| {
 			if let Some(ref mut collection) = maybe {
 				collection.status = Status::Archived;
@@ -140,7 +140,7 @@ benchmarks! {
 		let collection_id = <cord_uri::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
 			.map_err(|_| "Identifier build failed")?;
 		Collections::<T>::insert(&collection_id, CollectionDetails { creator: caller.clone(), status: Status::Active });
-		CollectionDelegates::<T>::insert(&collection_id, &caller, Permissions::all());
+		Delegates::<T>::insert(&collection_id, &caller, Permissions::all());
 
 		let registry_id: RegistryIdentifierOf = H256::random().as_fixed_bytes().to_vec().try_into()
 			.map_err(|_| "Registry id generation failed")?;
@@ -163,7 +163,7 @@ benchmarks! {
 		let collection_id = <cord_uri::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
 			.map_err(|_| "Identifier build failed")?;
 		Collections::<T>::insert(&collection_id, CollectionDetails { creator: caller.clone(), status: Status::Active });
-		CollectionDelegates::<T>::insert(&collection_id, &caller, Permissions::all());
+		Delegates::<T>::insert(&collection_id, &caller, Permissions::all());
 
 		let registry_id: RegistryIdentifierOf = H256::random().as_fixed_bytes().to_vec().try_into()
 			.map_err(|_| "Registry id generation failed")?;

@@ -29,14 +29,27 @@ fn get_collection_id() -> CollectionIdentifierOf {
 	Collections::<Test>::iter().next().expect("A collection should exist").0
 }
 
+// Helper: Create a registry and return its identifier.
+fn create_collection() -> CollectionIdentifierOf {
+	let creator: u64 = 1;
+	assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
+	Collections::<Test>::iter().next().expect("Registry should exist").0
+}
+
+/// Helper: Assign delegate permission (without admin) to a given account on a registry.
+fn set_delegate_permission(registry_id: &CollectionIdentifierOf, account: u64) {
+	let delegate_perms = Permissions::from_variants(&[PermissionVariant::Delegate]);
+	Delegates::<Test>::insert(registry_id, &account, delegate_perms);
+}
+
 #[test]
 fn create_collection_should_work() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		assert_eq!(Collections::<Test>::iter().count(), 1);
 		let collection_id = get_collection_id();
-		let perm = CollectionDelegates::<Test>::get(&collection_id, &creator);
+		let perm = Delegates::<Test>::get(&collection_id, &creator);
 		assert!(perm.is_some());
 	});
 }
@@ -45,9 +58,9 @@ fn create_collection_should_work() {
 fn create_collection_should_fail_if_duplicate() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		assert_noop!(
-			Collection::create_collection(RawOrigin::Signed(creator).into()),
+			Collection::create(RawOrigin::Signed(creator).into()),
 			Error::<Test>::CollectionAlreadyExists
 		);
 	});
@@ -58,16 +71,17 @@ fn add_collection_delegate_should_work() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
 		let delegate: u64 = 2;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
-		assert_ok!(Collection::add_collection_delegate(
+		let permission_variants =
+			vec![PermissionVariant::Entry, PermissionVariant::Delegate, PermissionVariant::Admin];
+		assert_ok!(Collection::add_delegate(
 			RawOrigin::Signed(creator).into(),
 			collection_id.clone(),
 			delegate,
-			Permissions::all()
+			permission_variants
 		));
-		let perm = CollectionDelegates::<Test>::get(&collection_id, &delegate);
-		assert!(perm.is_some());
+		assert!(Delegates::<Test>::contains_key(&collection_id, &delegate));
 	});
 }
 
@@ -77,14 +91,16 @@ fn add_collection_delegate_should_fail_for_unauthorized() {
 		let creator: u64 = 1;
 		let non_authorized: u64 = 3;
 		let delegate: u64 = 2;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
+		let permission_variants =
+			vec![PermissionVariant::Entry, PermissionVariant::Delegate, PermissionVariant::Admin];
 		assert_noop!(
-			Collection::add_collection_delegate(
+			Collection::add_delegate(
 				RawOrigin::Signed(non_authorized).into(),
 				collection_id.clone(),
 				delegate,
-				Permissions::all()
+				permission_variants
 			),
 			Error::<Test>::UnauthorizedOperation
 		);
@@ -96,20 +112,22 @@ fn remove_collection_delegate_should_work() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
 		let delegate: u64 = 2;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
-		assert_ok!(Collection::add_collection_delegate(
+		let permission_variants =
+			vec![PermissionVariant::Entry, PermissionVariant::Delegate, PermissionVariant::Admin];
+		assert_ok!(Collection::add_delegate(
 			RawOrigin::Signed(creator).into(),
 			collection_id.clone(),
 			delegate,
-			Permissions::all()
+			permission_variants
 		));
-		assert_ok!(Collection::remove_collection_delegate(
+		assert_ok!(Collection::remove_delegate(
 			RawOrigin::Signed(creator).into(),
 			collection_id.clone(),
 			delegate
 		));
-		assert!(CollectionDelegates::<Test>::get(&collection_id, &delegate).is_none());
+		assert!(Delegates::<Test>::get(&collection_id, &delegate).is_none());
 	});
 }
 
@@ -118,10 +136,10 @@ fn remove_collection_delegate_should_fail_if_delegate_not_found() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
 		let delegate: u64 = 2;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
 		assert_noop!(
-			Collection::remove_collection_delegate(
+			Collection::remove_delegate(
 				RawOrigin::Signed(creator).into(),
 				collection_id.clone(),
 				delegate
@@ -132,15 +150,31 @@ fn remove_collection_delegate_should_fail_if_delegate_not_found() {
 }
 
 #[test]
+fn add_delegate_should_work_with_delegate_permission() {
+	new_test_ext().execute_with(|| {
+		let collection_id = create_collection();
+		let delegate_caller: u64 = 2;
+		set_delegate_permission(&collection_id, delegate_caller);
+
+		let new_delegate: u64 = 3;
+		let permission_variants = vec![PermissionVariant::Entry];
+		assert_ok!(Collection::add_delegate(
+			RawOrigin::Signed(delegate_caller).into(),
+			collection_id.clone(),
+			new_delegate,
+			permission_variants
+		));
+		assert!(Delegates::<Test>::contains_key(&collection_id, &new_delegate));
+	});
+}
+
+#[test]
 fn archive_collection_should_work() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
-		assert_ok!(Collection::archive_collection(
-			RawOrigin::Signed(creator).into(),
-			collection_id.clone()
-		));
+		assert_ok!(Collection::archive(RawOrigin::Signed(creator).into(), collection_id.clone()));
 		let collection = Collections::<Test>::get(&collection_id).unwrap();
 		assert_eq!(collection.status, Status::Archived);
 	});
@@ -151,13 +185,10 @@ fn archive_collection_should_fail_for_unauthorized() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
 		let unauthorized: u64 = 3;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
 		assert_noop!(
-			Collection::archive_collection(
-				RawOrigin::Signed(unauthorized).into(),
-				collection_id.clone()
-			),
+			Collection::archive(RawOrigin::Signed(unauthorized).into(), collection_id.clone()),
 			Error::<Test>::UnauthorizedOperation
 		);
 	});
@@ -167,16 +198,10 @@ fn archive_collection_should_fail_for_unauthorized() {
 fn restore_collection_should_work() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
-		assert_ok!(Collection::archive_collection(
-			RawOrigin::Signed(creator).into(),
-			collection_id.clone()
-		));
-		assert_ok!(Collection::restore_collection(
-			RawOrigin::Signed(creator).into(),
-			collection_id.clone()
-		));
+		assert_ok!(Collection::archive(RawOrigin::Signed(creator).into(), collection_id.clone()));
+		assert_ok!(Collection::restore(RawOrigin::Signed(creator).into(), collection_id.clone()));
 		let collection = Collections::<Test>::get(&collection_id).unwrap();
 		assert_eq!(collection.status, Status::Active);
 	});
@@ -186,13 +211,10 @@ fn restore_collection_should_work() {
 fn restore_collection_should_fail_if_not_archived() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
 		assert_noop!(
-			Collection::restore_collection(
-				RawOrigin::Signed(creator).into(),
-				collection_id.clone()
-			),
+			Collection::restore(RawOrigin::Signed(creator).into(), collection_id.clone()),
 			Error::<Test>::CollectionNotArchived
 		);
 	});
@@ -202,7 +224,7 @@ fn restore_collection_should_fail_if_not_archived() {
 fn add_registry_should_work() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
 		let registry_id: RegistryIdentifierOf =
 			H256::random().as_fixed_bytes().to_vec().try_into().unwrap();
@@ -219,7 +241,7 @@ fn add_registry_should_work() {
 fn add_registry_should_fail_if_duplicate() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
 		let registry_id: RegistryIdentifierOf =
 			H256::random().as_fixed_bytes().to_vec().try_into().unwrap();
@@ -243,7 +265,7 @@ fn add_registry_should_fail_if_duplicate() {
 fn remove_registry_should_work() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
 		let registry_id: RegistryIdentifierOf =
 			H256::random().as_fixed_bytes().to_vec().try_into().unwrap();
@@ -265,7 +287,7 @@ fn remove_registry_should_work() {
 fn remove_registry_should_fail_if_nonexistent() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
-		assert_ok!(Collection::create_collection(RawOrigin::Signed(creator).into()));
+		assert_ok!(Collection::create(RawOrigin::Signed(creator).into()));
 		let collection_id = get_collection_id();
 		let registry_id: RegistryIdentifierOf =
 			H256::random().as_fixed_bytes().to_vec().try_into().unwrap();

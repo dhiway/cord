@@ -24,8 +24,10 @@ use alloc::str;
 use frame_support::{ensure, storage::types::StorageMap};
 pub mod types;
 pub use crate::{pallet::*, types::*};
+use alloc::vec::Vec;
 use codec::Encode;
-use cord_uri::{EntryTypeOf, EventStamp, Identifier, Ss58Identifier};
+use cord_uri::{EntryTypeOf, EventStamp, Identifier, RegistryIdentifierCheck, Ss58Identifier};
+use frame_support::dispatch::DispatchResult;
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::WeightInfo;
 use sp_runtime::traits::{Hash, One, Saturating};
@@ -56,6 +58,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + cord_uri::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+		type Registry: RegistryIdentifierCheck;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -80,7 +83,7 @@ pub mod pallet {
 	/// Stores collection-level delegates (account → permissions). Using a double map
 	/// avoids a bounded collection.
 	#[pallet::storage]
-	pub type CollectionDelegates<T: Config> = StorageDoubleMap<
+	pub type Delegates<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		CollectionIdentifierOf,
@@ -150,27 +153,30 @@ pub mod pallet {
 		/// Add a delegate with given permissions to a collection.
 		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
-		pub fn add_collection_delegate(
+		pub fn add_delegate(
 			origin: OriginFor<T>,
 			collection_id: CollectionIdentifierOf,
 			delegate: CordAccountOf<T>,
-			permissions: Permissions,
+			roles: Vec<PermissionVariant>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(
 				Self::has_permission(
 					&collection_id,
 					&who,
-					Permissions::ADMIN | Permissions::DELEGATE_MANAGEMENT
+					Permissions::ADMIN | Permissions::DELEGATE
 				),
 				Error::<T>::UnauthorizedOperation
 			);
 			ensure!(
-				!CollectionDelegates::<T>::contains_key(&collection_id, &delegate),
+				!Delegates::<T>::contains_key(&collection_id, &delegate),
 				Error::<T>::DelegateAlreadyExists
 			);
 
-			CollectionDelegates::<T>::insert(&collection_id, &delegate, permissions);
+			let permissions = Permissions::from_variants(&roles);
+
+			Self::record_activity(&collection_id, b"DelegateAdded")?;
+			Delegates::<T>::insert(&collection_id, &delegate, permissions);
 			Self::deposit_event(Event::DelegateAdded { collection: collection_id, delegate });
 			Ok(())
 		}
@@ -178,7 +184,7 @@ pub mod pallet {
 		/// Adds an administrative delegate to a namespace.
 		#[pallet::call_index(1)]
 		#[pallet::weight({0})]
-		pub fn remove_collection_delegate(
+		pub fn remove_delegate(
 			origin: OriginFor<T>,
 			collection_id: CollectionIdentifierOf,
 			delegate: CordAccountOf<T>,
@@ -189,11 +195,12 @@ pub mod pallet {
 				Error::<T>::UnauthorizedOperation
 			);
 			ensure!(
-				CollectionDelegates::<T>::contains_key(&collection_id, &delegate),
+				Delegates::<T>::contains_key(&collection_id, &delegate),
 				Error::<T>::DelegateNotFound
 			);
 
-			CollectionDelegates::<T>::remove(&collection_id, &delegate);
+			Self::record_activity(&collection_id, b"DelegateRemoved")?;
+			Delegates::<T>::remove(&collection_id, &delegate);
 			Self::deposit_event(Event::DelegateRemoved { collection: collection_id, delegate });
 			Ok(())
 		}
@@ -201,7 +208,7 @@ pub mod pallet {
 		/// Create a new collection.
 		#[pallet::call_index(2)]
 		#[pallet::weight({10_000})]
-		pub fn create_collection(origin: OriginFor<T>) -> DispatchResult {
+		pub fn create(origin: OriginFor<T>) -> DispatchResult {
 			let creator = ensure_signed(origin)?;
 			let pallet_name = <Self as PalletInfoAccess>::name();
 			let previous_block_hash = <frame_system::Pallet<T>>::block_hash(
@@ -223,17 +230,10 @@ pub mod pallet {
 
 			let details = CollectionDetails { creator: creator.clone(), status: Status::Active };
 
-			let entry: EntryTypeOf = b"CollectionCreated"
-				.to_vec()
-				.try_into()
-				.map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
-			let stamp = EventStamp::current::<T>();
-
-			<cord_uri::Pallet<T> as Identifier>::record_activity(&identifier, entry, stamp)
-				.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
+			Self::record_activity(&identifier, b"CollectionCreated")?;
 
 			Collections::<T>::insert(&identifier, details);
-			CollectionDelegates::<T>::insert(&identifier, &creator, Permissions::all());
+			Delegates::<T>::insert(&identifier, &creator, Permissions::all());
 
 			Self::deposit_event(Event::CollectionCreated { collection: identifier, creator });
 			Ok(())
@@ -242,7 +242,7 @@ pub mod pallet {
 		/// Archive a collection.
 		#[pallet::call_index(3)]
 		#[pallet::weight({10_000})]
-		pub fn archive_collection(
+		pub fn archive(
 			origin: OriginFor<T>,
 			collection_id: CollectionIdentifierOf,
 		) -> DispatchResult {
@@ -260,14 +260,7 @@ pub mod pallet {
 				Ok(())
 			})?;
 
-			let entry: EntryTypeOf = b"CollectionArchived"
-				.to_vec()
-				.try_into()
-				.map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
-			let stamp = EventStamp::current::<T>();
-
-			<cord_uri::Pallet<T> as Identifier>::record_activity(&collection_id, entry, stamp)
-				.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
+			Self::record_activity(&collection_id, b"CollectionArchived")?;
 
 			Self::deposit_event(Event::CollectionArchived {
 				collection: collection_id,
@@ -279,7 +272,7 @@ pub mod pallet {
 		/// Restore a collection.
 		#[pallet::call_index(4)]
 		#[pallet::weight({10_000})]
-		pub fn restore_collection(
+		pub fn restore(
 			origin: OriginFor<T>,
 			collection_id: CollectionIdentifierOf,
 		) -> DispatchResult {
@@ -296,14 +289,7 @@ pub mod pallet {
 				Ok(())
 			})?;
 
-			let entry: EntryTypeOf = b"CollectionRestored"
-				.to_vec()
-				.try_into()
-				.map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
-			let stamp = EventStamp::current::<T>();
-
-			<cord_uri::Pallet<T> as Identifier>::record_activity(&collection_id, entry, stamp)
-				.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
+			Self::record_activity(&collection_id, b"CollectionRestored")?;
 
 			Self::deposit_event(Event::CollectionRestored {
 				collection: collection_id,
@@ -326,12 +312,10 @@ pub mod pallet {
 				Collections::<T>::get(&collection_id).ok_or(Error::<T>::CollectionNotFound)?;
 			ensure!(collection.status == Status::Active, Error::<T>::ArchivedCollection);
 
+			<T as Config>::Registry::ensure_active_registry(&registry_id)?;
+
 			ensure!(
-				Self::has_permission(
-					&collection_id,
-					&who,
-					Permissions::ADMIN | Permissions::REGISTRY_MANAGEMENT
-				),
+				Self::has_permission(&collection_id, &who, Permissions::ADMIN | Permissions::ENTRY),
 				Error::<T>::UnauthorizedOperation
 			);
 
@@ -340,14 +324,7 @@ pub mod pallet {
 				Error::<T>::RegistryAlreadyExists
 			);
 
-			let entry: EntryTypeOf = b"RegistryAdded"
-				.to_vec()
-				.try_into()
-				.map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
-			let stamp = EventStamp::current::<T>();
-
-			<cord_uri::Pallet<T> as Identifier>::record_activity(&collection_id, entry, stamp)
-				.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
+			Self::record_activity(&collection_id, b"RegistryAdded")?;
 
 			CollectionRegistries::<T>::insert(&collection_id, &registry_id, ());
 			Self::deposit_event(Event::RegistryAdded {
@@ -372,11 +349,7 @@ pub mod pallet {
 			ensure!(collection.status == Status::Active, Error::<T>::ArchivedCollection);
 
 			ensure!(
-				Self::has_permission(
-					&collection_id,
-					&who,
-					Permissions::ADMIN | Permissions::REGISTRY_MANAGEMENT
-				),
+				Self::has_permission(&collection_id, &who, Permissions::ADMIN),
 				Error::<T>::UnauthorizedOperation
 			);
 
@@ -385,14 +358,7 @@ pub mod pallet {
 				Error::<T>::RegistryNotFound
 			);
 
-			let entry: EntryTypeOf = b"RegistryRemoved"
-				.to_vec()
-				.try_into()
-				.map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
-			let stamp = EventStamp::current::<T>();
-
-			<cord_uri::Pallet<T> as Identifier>::record_activity(&collection_id, entry, stamp)
-				.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
+			Self::record_activity(&collection_id, b"RegistryRemoved")?;
 
 			CollectionRegistries::<T>::remove(&collection_id, &registry_id);
 			Self::deposit_event(Event::RegistryRemoved {
@@ -411,8 +377,16 @@ impl<T: Config> Pallet<T> {
 		who: &CordAccountOf<T>,
 		required: Permissions,
 	) -> bool {
-		CollectionDelegates::<T>::get(collection_id, who)
-			.unwrap_or_default()
-			.intersects(required)
+		Delegates::<T>::get(collection_id, who).unwrap_or_default().intersects(required)
+	}
+
+	/// Records an activity using a provided event message.
+	pub fn record_activity(identifier: &Ss58Identifier, msg: &[u8]) -> DispatchResult {
+		let entry: EntryTypeOf =
+			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
+		let stamp = EventStamp::current::<T>();
+		<cord_uri::Pallet<T> as Identifier>::record_activity(identifier, entry, stamp)
+			.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
+		Ok(())
 	}
 }

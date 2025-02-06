@@ -2538,6 +2538,7 @@ dependencies = [
  "pallet-balances",
  "pallet-beefy",
  "pallet-beefy-mmr",
+ "pallet-collection",
  "pallet-collective",
  "pallet-config",
  "pallet-contracts",
@@ -2568,6 +2569,7 @@ dependencies = [
  "pallet-offences-benchmarking",
  "pallet-paged-list",
  "pallet-preimage",
+ "pallet-registry",
  "pallet-remark",
  "pallet-revive",
  "pallet-root-offences",
@@ -8493,6 +8495,25 @@ dependencies = [
  "log",
  "pallet-namespace",
  "pallet-schema-accounts",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/dhiway/sdk?branch=master)",
+]
+
+[[package]]
+name = "pallet-registry"
+version = "0.9.5"
+dependencies = [
+ "bitflags 1.3.2",
+ "cord-primitives",
+ "cord-uri",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

@@ -15,11 +15,10 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-
 #![allow(non_camel_case_types)]
 
 use super::*;
-use crate as pallet_collection;
+use crate as pallet_registry;
 use frame_support::{derive_impl, parameter_types};
 use frame_system as system;
 use sp_runtime::BuildStorage;
@@ -29,7 +28,7 @@ type Block = system::mocking::MockBlock<Test>;
 frame_support::construct_runtime!(
 	pub enum Test {
 		System: system,
-		Collection: pallet_collection,
+		Registry: pallet_registry,
 		Identifier: cord_uri,
 	}
 );
@@ -45,18 +44,8 @@ impl frame_system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 }
 
-pub struct DummyRegistry;
-impl cord_uri::RegistryIdentifierCheck for DummyRegistry {
-	fn ensure_active_registry(
-		_registry_id: &Ss58Identifier,
-	) -> frame_support::dispatch::DispatchResult {
-		Ok(())
-	}
-}
-
-impl pallet_collection::Config for Test {
+impl pallet_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type Registry = DummyRegistry;
 	type WeightInfo = ();
 }
 

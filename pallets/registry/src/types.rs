@@ -18,13 +18,15 @@
 
 use bitflags::bitflags;
 use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::traits::ConstU32;
+use frame_support::BoundedVec;
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
 bitflags! {
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
 	pub struct Permissions: u32 {
-		/// Permission to add registries.
+		/// Permission to manage entries.
 		const ENTRY = 0b0000_0001;
 		/// Permission to add delegates.
 		const DELEGATE = 0b0000_0010;
@@ -85,9 +87,18 @@ pub enum Status {
 	Archived,
 }
 
-/// Details for a catalog.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct CollectionDetails<Account, Status> {
+pub struct RegistryDetails<Account, Hash, Status> {
+	/// The account that paid for the transaction.
 	pub creator: Account,
+	/// The transaction hash associated with the document.
+	pub tx_hash: Hash,
+	/// Optionally, the document identifier as a bounded vector.
+	pub doc_id: Option<BoundedVec<u8, ConstU32<64>>>,
+	/// Optionally, the account that created (authored) the document.
+	pub doc_author_id: Option<Account>,
+	/// Optionally, the node identifier as a bounded vector.
+	pub doc_node_id: Option<BoundedVec<u8, ConstU32<64>>>,
+	/// The status of the registry entry.
 	pub status: Status,
 }

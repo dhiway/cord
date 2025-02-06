@@ -369,3 +369,9 @@ impl EventStamp {
 		}
 	}
 }
+
+/// A trait that can be used to ensure that a registry identifier exists and is active..
+pub trait RegistryIdentifierCheck {
+	/// Checks that the registry identified by `registry_id` exists and is active.
+	fn ensure_active_registry(registry_id: &Ss58Identifier) -> DispatchResult;
+}
