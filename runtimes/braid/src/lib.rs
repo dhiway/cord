@@ -476,7 +476,7 @@ impl pallet_entries::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxEncodedInputLength = MaxEncodedInputLength;
 	type MaxRegistryEntryBlobSize = MaxRegistryEntryBlobSize;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_entries::WeightInfo<Runtime>;
 }
 
 impl pallet_offences::Config for Runtime {
@@ -781,7 +781,7 @@ impl pallet_registries::Config for Runtime {
 	type MaxRegistryDelegates = MaxRegistryDelegates;
 	type MaxRegistryBlobSize = MaxRegistryBlobSize;
 	type MaxEncodedInputLength = MaxEncodedInputLength;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_registries::WeightInfo<Runtime>;
 }
 
 parameter_types! {
