@@ -65,7 +65,7 @@ for PALLET in "${PALLETS[@]}"; do
       --wasm-execution=compiled \
       --heap-pages=4096 \
       --header=./HEADER-GPL3 \
-      --output="./runtime/src/weights/${output_file}" 2>&1
+      --output="./runtimes/weave/src/weights/${output_file}" 2>&1
   )
   if [ $? -ne 0 ]; then
     echo "$OUTPUT" >>"$ERR_FILE"
