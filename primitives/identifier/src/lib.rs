@@ -118,3 +118,13 @@ impl<T: Config> IdentifierUpdate<IdentifierOf, IdentifierTypeOf, EventEntryOf, I
 		.map_err(|_| IdentifierError::MaxEventsHistoryExceeded) // Map DispatchError to your custom Error
 	}
 }
+
+impl<T: Config> Pallet<T> {
+	pub fn identifier_exists(id: &IdentifierOf) -> bool {
+		Identifiers::<T>::iter_prefix(id).next().is_some()
+	}
+
+	pub fn identifier_exists_by_type(id: &IdentifierOf, id_type: IdentifierTypeOf) -> bool {
+		Identifiers::<T>::contains_key(id, id_type)
+	}
+}

@@ -1927,6 +1927,7 @@ dependencies = [
  "pallet-did-runtime-api",
  "pallet-entries",
  "pallet-grandpa",
+ "pallet-identifier-runtime-api",
  "pallet-identity",
  "pallet-im-online",
  "pallet-indices",
@@ -6390,6 +6391,20 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
+]
+
+[[package]]
+name = "pallet-identifier-runtime-api"
+version = "0.9.5"
+dependencies = [
+ "cord-identifier",
+ "cord-primitives",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-std",
 ]
 
 [[package]]
