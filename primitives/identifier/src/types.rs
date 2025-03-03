@@ -68,6 +68,7 @@ pub enum CallTypeOf {
 	Credit,
 	Issue,
 	Reinstate,
+	Verify,
 }
 /// Defining the identifier target types.
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
