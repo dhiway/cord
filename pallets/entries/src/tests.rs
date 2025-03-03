@@ -2474,3 +2474,427 @@ fn update_ownership_should_fail_for_updating_themselves() {
 		);
 	});
 }
+
+#[test]
+fn verification_of_registry_entry_identifier_should_succeed() {
+	let admin = ACCOUNT_00;
+	let creator = ACCOUNT_01;
+
+	let namespace = [2u8; 256].to_vec();
+	let namespace_digest = <Test as frame_system::Config>::Hashing::hash(&namespace.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&namespace_digest.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+	let namespace_id: NameSpaceIdOf = generate_namespace_id::<Test>(&id_digest);
+
+	let namespace_auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&namespace_id.encode()[..], &admin.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+	let namespace_authorization_id: NamespaceAuthorizationIdOf =
+		generate_namespace_authorization_id::<Test>(&namespace_auth_id_digest);
+
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &admin.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: RegistryAuthorizationIdOf =
+		generate_authorization_id::<Test>(&auth_id_digest);
+
+	let creator_auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+
+	let creator_authorization_id: RegistryAuthorizationIdOf =
+		generate_authorization_id::<Test>(&creator_auth_id_digest);
+
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
+	new_test_ext().execute_with(|| {
+		/* Test creation of a Namespace */
+		assert_ok!(NameSpace::create(
+			frame_system::RawOrigin::Signed(admin.clone()).into(),
+			namespace_digest,
+			None,
+		));
+
+		/* Test creation of a Registry */
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(admin.clone()).into(),
+			registry_digest,
+			namespace_authorization_id.clone(),
+			Some(schema_id),
+			Some(blob),
+		));
+
+		/* Add Registry Entry `creator` as a delegate */
+		assert_ok!(Registries::add_delegate(
+			frame_system::RawOrigin::Signed(admin.clone()).into(),
+			registry_id.clone(),
+			creator.clone(),
+			namespace_authorization_id.clone(),
+			authorization_id.clone(),
+		));
+
+		/* Assumed JSON for Registry Entry */
+		let registry_entry_json_object = json!({
+			"name": "Alice",
+			"age": 25,
+			"email": "alice@dhiway.com",
+			"isActive": true,
+			"address": {
+				"street": "Koramangala",
+				"city": "Bengaluru",
+				"zipcode": "560001"
+			},
+			"phoneNumbers": [
+				"+91-234787324",
+				"+91-283746823"
+			]
+		});
+
+		let registry_entry_json_string =
+			serde_json::to_string(&registry_entry_json_object).expect("Failed to serialize JSON");
+
+		let registry_entry_raw_bytes = registry_entry_json_string.as_bytes().to_vec();
+
+		let registry_entry_blob: RegistryEntryBlobOf<Test> =
+			BoundedVec::try_from(registry_entry_raw_bytes.clone()).expect(
+				"Test Blob should fit into the expected input length of BLOB for the test runtime.",
+			);
+
+		let registry_entry_digest: RegistryHashOf<Test> =
+			<Test as frame_system::Config>::Hashing::hash(&registry_entry_raw_bytes.encode()[..]);
+
+		let registry_entry_id_digest = <Test as frame_system::Config>::Hashing::hash(
+			&[
+				&registry_entry_digest.encode()[..],
+				&registry_id.encode()[..],
+				&creator.encode()[..],
+			]
+			.concat()[..],
+		);
+
+		let registry_entry_id: RegistryEntryIdOf =
+			generate_registry_entry_id::<Test>(&registry_entry_id_digest);
+
+		assert_ok!(Entries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_entry_id.clone(),
+			creator_authorization_id.clone(),
+			registry_entry_digest,
+			Some(registry_entry_blob.clone()),
+		));
+
+		/* Check if the Entry was created */
+		assert!(RegistryEntries::<Test>::contains_key(registry_entry_id.clone()));
+		let _entry = RegistryEntries::<Test>::get(registry_entry_id.clone()).unwrap();
+
+		/* Check for verification of Registry Entry */
+		assert_ok!(Entries::verify_existence(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_entry_id.clone(),
+		));
+
+		/* Check for successful event emission of RegistryEntryExistenceVerified */
+		System::assert_last_event(
+			Event::RegistryEntryExistenceVerified {
+				verifier: creator.clone(),
+				registry_entry_id: registry_entry_id.clone(),
+				registry_entry_digest,
+			}
+			.into(),
+		);
+	});
+}
+
+#[test]
+fn verification_of_non_existing_registry_entry_identifier_should_fail() {
+	let admin = ACCOUNT_00;
+	let creator = ACCOUNT_01;
+
+	let namespace = [2u8; 256].to_vec();
+	let namespace_digest = <Test as frame_system::Config>::Hashing::hash(&namespace.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&namespace_digest.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+	let namespace_id: NameSpaceIdOf = generate_namespace_id::<Test>(&id_digest);
+
+	let namespace_auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&namespace_id.encode()[..], &admin.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+	let namespace_authorization_id: NamespaceAuthorizationIdOf =
+		generate_namespace_authorization_id::<Test>(&namespace_auth_id_digest);
+
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &admin.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: RegistryAuthorizationIdOf =
+		generate_authorization_id::<Test>(&auth_id_digest);
+
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
+	new_test_ext().execute_with(|| {
+		/* Test creation of a Namespace */
+		assert_ok!(NameSpace::create(
+			frame_system::RawOrigin::Signed(admin.clone()).into(),
+			namespace_digest,
+			None,
+		));
+
+		/* Test creation of a Registry */
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(admin.clone()).into(),
+			registry_digest,
+			namespace_authorization_id.clone(),
+			Some(schema_id),
+			Some(blob),
+		));
+
+		/* Add Registry Entry `creator` as a delegate */
+		assert_ok!(Registries::add_delegate(
+			frame_system::RawOrigin::Signed(admin.clone()).into(),
+			registry_id.clone(),
+			creator.clone(),
+			namespace_authorization_id.clone(),
+			authorization_id.clone(),
+		));
+
+		/* Assumed JSON for Registry Entry */
+		let registry_entry_json_object = json!({
+			"name": "Alice",
+			"age": 25,
+			"email": "alice@dhiway.com",
+			"isActive": true,
+			"address": {
+				"street": "Koramangala",
+				"city": "Bengaluru",
+				"zipcode": "560001"
+			},
+			"phoneNumbers": [
+				"+91-234787324",
+				"+91-283746823"
+			]
+		});
+
+		let registry_entry_json_string =
+			serde_json::to_string(&registry_entry_json_object).expect("Failed to serialize JSON");
+
+		let registry_entry_raw_bytes = registry_entry_json_string.as_bytes().to_vec();
+
+		let registry_entry_digest: RegistryHashOf<Test> =
+			<Test as frame_system::Config>::Hashing::hash(&registry_entry_raw_bytes.encode()[..]);
+
+		let registry_entry_id_digest = <Test as frame_system::Config>::Hashing::hash(
+			&[
+				&registry_entry_digest.encode()[..],
+				&registry_id.encode()[..],
+				&creator.encode()[..],
+			]
+			.concat()[..],
+		);
+
+		let registry_entry_id: RegistryEntryIdOf =
+			generate_registry_entry_id::<Test>(&registry_entry_id_digest);
+
+		/* Operation should fail given identifier does not exist */
+		assert_err!(
+			Entries::verify_existence(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_entry_id.clone(),
+			),
+			Error::<Test>::RegistryEntryIdentifierDoesNotExist
+		);
+	});
+}
+
+#[test]
+fn verification_of_revoked_registry_entry_identifier_should_fail() {
+	let admin = ACCOUNT_00;
+	let creator = ACCOUNT_01;
+
+	let namespace = [2u8; 256].to_vec();
+	let namespace_digest = <Test as frame_system::Config>::Hashing::hash(&namespace.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&namespace_digest.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+	let namespace_id: NameSpaceIdOf = generate_namespace_id::<Test>(&id_digest);
+
+	let namespace_auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&namespace_id.encode()[..], &admin.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+	let namespace_authorization_id: NamespaceAuthorizationIdOf =
+		generate_namespace_authorization_id::<Test>(&namespace_auth_id_digest);
+
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &admin.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: RegistryAuthorizationIdOf =
+		generate_authorization_id::<Test>(&auth_id_digest);
+
+	let creator_auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &admin.encode()[..]].concat()[..],
+	);
+
+	let creator_authorization_id: RegistryAuthorizationIdOf =
+		generate_authorization_id::<Test>(&creator_auth_id_digest);
+
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
+	new_test_ext().execute_with(|| {
+		/* Test creation of a Namespace */
+		assert_ok!(NameSpace::create(
+			frame_system::RawOrigin::Signed(admin.clone()).into(),
+			namespace_digest,
+			None,
+		));
+
+		/* Test creation of a Registry */
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(admin.clone()).into(),
+			registry_digest,
+			namespace_authorization_id.clone(),
+			Some(schema_id),
+			Some(blob),
+		));
+
+		/* Add Registry Entry `creator` as a delegate */
+		assert_ok!(Registries::add_delegate(
+			frame_system::RawOrigin::Signed(admin.clone()).into(),
+			registry_id.clone(),
+			creator.clone(),
+			namespace_authorization_id.clone(),
+			authorization_id.clone(),
+		));
+
+		/* Assumed JSON for Registry Entry */
+		let registry_entry_json_object = json!({
+			"name": "Alice",
+			"age": 25,
+			"email": "alice@dhiway.com",
+			"isActive": true,
+			"address": {
+				"street": "Koramangala",
+				"city": "Bengaluru",
+				"zipcode": "560001"
+			},
+			"phoneNumbers": [
+				"+91-234787324",
+				"+91-283746823"
+			]
+		});
+
+		let registry_entry_json_string =
+			serde_json::to_string(&registry_entry_json_object).expect("Failed to serialize JSON");
+
+		let registry_entry_raw_bytes = registry_entry_json_string.as_bytes().to_vec();
+
+		let registry_entry_blob: RegistryEntryBlobOf<Test> =
+			BoundedVec::try_from(registry_entry_raw_bytes.clone()).expect(
+				"Test Blob should fit into the expected input length of BLOB for the test runtime.",
+			);
+
+		let registry_entry_digest: RegistryHashOf<Test> =
+			<Test as frame_system::Config>::Hashing::hash(&registry_entry_raw_bytes.encode()[..]);
+
+		let registry_entry_id_digest = <Test as frame_system::Config>::Hashing::hash(
+			&[
+				&registry_entry_digest.encode()[..],
+				&registry_id.encode()[..],
+				&creator.encode()[..],
+			]
+			.concat()[..],
+		);
+
+		let registry_entry_id: RegistryEntryIdOf =
+			generate_registry_entry_id::<Test>(&registry_entry_id_digest);
+
+		assert_ok!(Entries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_entry_id.clone(),
+			creator_authorization_id.clone(),
+			registry_entry_digest,
+			Some(registry_entry_blob.clone()),
+		));
+
+		/* Check if the Entry was created */
+		assert!(RegistryEntries::<Test>::contains_key(registry_entry_id.clone()));
+		let _entry = RegistryEntries::<Test>::get(registry_entry_id.clone()).unwrap();
+
+		assert_ok!(Entries::revoke(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_entry_id.clone(),
+			creator_authorization_id.clone(),
+		));
+
+		/* Check for verification of Registry Entry */
+		assert_err!(
+			Entries::verify_existence(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_entry_id.clone(),
+			),
+			Error::<Test>::RegistryEntryRevoked
+		);
+	});
+}

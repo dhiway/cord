@@ -154,6 +154,8 @@ pub mod pallet {
 		RegistryEntryNotRevoked,
 		/// New Registry Entry owner cannot be same as existing owner.
 		NewOwnerCannotBeSameAsExistingOwner,
+		/// Registry Entry has been revoked.
+		RegistryEntryRevoked,
 	}
 
 	#[pallet::event]
@@ -185,6 +187,13 @@ pub mod pallet {
 			updater: T::AccountId,
 			new_owner: T::AccountId,
 			registry_entry_id: RegistryEntryIdOf,
+		},
+
+		/// Existence of registry entry has been verified.
+		RegistryEntryExistenceVerified {
+			verifier: T::AccountId,
+			registry_entry_id: RegistryEntryIdOf,
+			registry_entry_digest: RegistryEntryHashOf<T>,
 		},
 	}
 
@@ -577,6 +586,59 @@ pub mod pallet {
 				updater,
 				new_owner: new_owner.clone(),
 				registry_entry_id,
+			});
+
+			Ok(())
+		}
+
+		/// Verifies the existence of a Registry Entry.
+		///
+		/// This function allows an account to verify the existence of a specific Registry Entry.
+		/// If the entry exists and is not revoked, the latest identifier and digest are returned.
+		///
+		/// # Arguments
+		/// * `origin` - The origin of the call, which must be a signed account (verifier).
+		/// * `registry_entry_id` - The unique identifier of the Registry Entry to verify.
+		///
+		/// # Conditions
+		/// - The Registry Entry must exist.
+		/// - The Registry Entry must not be revoked.
+		///
+		/// # Errors
+		/// This function returns an error in the following cases:
+		/// * `RegistryEntryIdentifierDoesNotExist` - If the specified `registry_entry_id` does not
+		///   exist.
+		/// * `RegistryEntryRevoked` - If the Registry Entry has been revoked.
+		///
+		/// # Events
+		/// Emits the `Event::RegistryEntryExistenceVerified` event upon successful verification.
+		/// This event includes the `verifier`, the `registry_entry_id`, and the
+		/// `registry_entry_digest`.
+		///
+		/// # Example
+		/// ```rust
+		/// verify_existence(origin, registry_entry_id)?;
+		/// ```
+		#[pallet::call_index(5)]
+		#[pallet::weight({0})]
+		pub fn verify_existence(
+			origin: OriginFor<T>,
+			registry_entry_id: RegistryEntryIdOf,
+		) -> DispatchResult {
+			let verifier = ensure_signed(origin)?;
+
+			let entry = RegistryEntries::<T>::get(&registry_entry_id)
+				.ok_or(Error::<T>::RegistryEntryIdentifierDoesNotExist)?;
+
+			ensure!(!entry.revoked, Error::<T>::RegistryEntryRevoked);
+
+			// Self::update_activity(&registry_entry_id, CallTypeOf::Verify)
+			// 	.map_err(<Error<T>>::from)?;
+
+			Self::deposit_event(Event::RegistryEntryExistenceVerified {
+				verifier,
+				registry_entry_id: registry_entry_id.clone(),
+				registry_entry_digest: entry.digest,
 			});
 
 			Ok(())
