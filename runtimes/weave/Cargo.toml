@@ -61,6 +61,7 @@ pallet-schema-accounts = { workspace = true }
 pallet-did-runtime-api = { workspace = true }
 pallet-assets-runtime-api = { workspace = true }
 pallet-transaction-weight-runtime-api = { workspace = true }
+pallet-identifier-runtime-api = { workspace = true }
 
 # Substrate
 sp-authority-discovery = { features = ["serde"], workspace = true }
@@ -204,6 +205,7 @@ std = [
 	"pallet-registries/std",
 	"pallet-entries/std",
 	"pallet-schema-accounts/std",
+	"pallet-identifier-runtime-api/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
