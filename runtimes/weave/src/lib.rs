@@ -94,6 +94,8 @@ pub use benchmark::DummySignature;
 pub use pallet_assets_runtime_api as assets_api;
 use pallet_network_membership::RuntimeDispatchWeightInfo;
 
+use identifier::{IdentifierOf, IdentifierTypeOf};
+
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -1792,6 +1794,16 @@ sp_api::impl_runtime_apis! {
 
 		fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
 			vec![]
+		}
+	}
+
+	impl pallet_identifier_runtime_api::IdentifierApi<Block, IdentifierOf, IdentifierTypeOf> for Runtime {
+		fn identifier_exists(identifier: IdentifierOf) -> bool {
+			Identifier::identifier_exists(&identifier)
+		}
+
+		fn identifier_exists_by_type(identifier: IdentifierOf, identifier_type: IdentifierTypeOf) -> bool {
+			Identifier::identifier_exists_by_type(&identifier, identifier_type)
 		}
 	}
 }
