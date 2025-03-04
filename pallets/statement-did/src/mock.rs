@@ -17,7 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
-use crate as pallet_statement;
+use crate as pallet_statement_did;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{derive_impl, parameter_types};
 use pallet_chain_space::IsPermissioned;
@@ -39,7 +39,7 @@ frame_support::construct_runtime!(
 		Schema:pallet_schema,
 		Space: pallet_chain_space,
 		Identifier: identifier,
-		Statement: pallet_statement,
+		StatementDid: pallet_statement_did,
 		MockOrigin: mock_origin,
 	}
 );

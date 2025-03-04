@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! # Statement Pallet
+//! # Statement Did Pallet
 //!
 //! The Statement Pallet is designed for blockchain systems that need to
 //! reference off-chain data without storing the actual data or recipient
@@ -24,6 +24,7 @@
 //! that serve as references to data stored externally. This approach ensures
 //! data privacy and minimizes on-chain storage requirements while still
 //! leveraging the blockchain for data integrity and provenance.
+//! This pallet uses did on top of substrate account for all operations.
 //!
 //! ## Overview
 //!

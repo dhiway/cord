@@ -1,5 +1,5 @@
 [package]
-name = 'pallet-statement'
+name = 'pallet-statement-did'
 description = 'Manage Statement Entries.'
 version.workspace = true
 authors.workspace = true
