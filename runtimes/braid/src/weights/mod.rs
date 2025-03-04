@@ -36,7 +36,7 @@ pub mod pallet_remark;
 pub mod pallet_scheduler;
 pub mod pallet_schema;
 pub mod pallet_session;
-pub mod pallet_statement;
+pub mod pallet_statement_did;
 pub mod pallet_sudo;
 pub mod pallet_timestamp;
 pub mod pallet_utility;

@@ -75,7 +75,7 @@ fn register_statement_should_succeed() {
 			authorization_id.clone()
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author, creator).into(),
 			statement_digest,
 			authorization_id,
@@ -113,7 +113,7 @@ fn trying_to_register_statement_to_a_non_existent_space_should_fail() {
 
 	new_test_ext().execute_with(|| {
 		assert_err!(
-			Statement::register(
+			StatementDid::register(
 				DoubleOrigin(author, delegate).into(),
 				statement_digest,
 				authorization_id,
@@ -168,7 +168,7 @@ fn trying_to_register_statement_by_a_non_delegate_should_fail() {
 		));
 
 		assert_err!(
-			Statement::register(
+			StatementDid::register(
 				DoubleOrigin(author, delegate).into(),
 				statement_digest,
 				authorization_id,
@@ -230,14 +230,14 @@ fn updating_a_registered_statement_should_succeed() {
 			authorization_id.clone()
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
 			Some(schema_id)
 		));
 
-		assert_ok!(Statement::update(
+		assert_ok!(StatementDid::update(
 			DoubleOrigin(author, creator).into(),
 			statement_id.clone(),
 			new_statement_digest,
@@ -314,14 +314,14 @@ fn updating_a_registered_statement_by_a_space_delegate_should_succeed() {
 			authorization_id.clone(),
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
 			Some(schema_id)
 		));
 
-		assert_ok!(Statement::update(
+		assert_ok!(StatementDid::update(
 			DoubleOrigin(author, delegate).into(),
 			statement_id,
 			new_statement_digest,
@@ -386,7 +386,7 @@ fn trying_to_update_a_registered_statement_by_a_non_space_delegate_should_fail()
 			authorization_id.clone()
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
@@ -394,7 +394,7 @@ fn trying_to_update_a_registered_statement_by_a_non_space_delegate_should_fail()
 		));
 
 		assert_err!(
-			Statement::update(
+			StatementDid::update(
 				DoubleOrigin(author, delegate).into(),
 				statement_id,
 				new_statement_digest,
@@ -455,7 +455,7 @@ fn trying_to_update_a_non_registered_statement_should_fail() {
 			authorization_id.clone()
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			new_statement_digest,
 			authorization_id.clone(),
@@ -463,7 +463,7 @@ fn trying_to_update_a_non_registered_statement_should_fail() {
 		));
 
 		assert_err!(
-			Statement::update(
+			StatementDid::update(
 				DoubleOrigin(author, creator).into(),
 				statement_id,
 				statement_digest,
@@ -523,14 +523,14 @@ fn revoking_a_registered_statement_should_succeed() {
 			authorization_id.clone()
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
 			Some(schema_id)
 		));
 
-		assert_ok!(Statement::revoke(
+		assert_ok!(StatementDid::revoke(
 			DoubleOrigin(author, creator).into(),
 			statement_id.clone(),
 			authorization_id,
@@ -619,7 +619,7 @@ fn revoking_a_registered_statement_by_a_non_delegate_should_fail() {
 			authorization_id.clone(),
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
@@ -627,7 +627,7 @@ fn revoking_a_registered_statement_by_a_non_delegate_should_fail() {
 		));
 
 		assert_err!(
-			Statement::revoke(
+			StatementDid::revoke(
 				DoubleOrigin(author, delegate).into(),
 				statement_id.clone(),
 				delegate_authorization_id,
@@ -686,14 +686,14 @@ fn restoring_a_revoked_statement_should_succeed() {
 			authorization_id.clone()
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
 			Some(schema_id)
 		));
 
-		assert_ok!(Statement::revoke(
+		assert_ok!(StatementDid::revoke(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_id.clone(),
 			authorization_id.clone(),
@@ -705,7 +705,7 @@ fn restoring_a_revoked_statement_should_succeed() {
 
 		assert!(revoked_statements.revoked);
 
-		assert_ok!(Statement::restore(
+		assert_ok!(StatementDid::restore(
 			DoubleOrigin(author, creator).into(),
 			statement_id.clone(),
 			authorization_id,
@@ -762,7 +762,7 @@ fn trying_to_restore_a_non_revoked_statement_should_fail() {
 			authorization_id.clone()
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
@@ -770,7 +770,7 @@ fn trying_to_restore_a_non_revoked_statement_should_fail() {
 		));
 
 		assert_err!(
-			Statement::restore(
+			StatementDid::restore(
 				DoubleOrigin(author, creator).into(),
 				statement_id.clone(),
 				authorization_id,
@@ -856,21 +856,21 @@ fn trying_to_restore_a_revoked_statement_by_a_non_delegate_should_fail() {
 			authorization_id.clone(),
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
 			Some(schema_id)
 		));
 
-		assert_ok!(Statement::revoke(
+		assert_ok!(StatementDid::revoke(
 			DoubleOrigin(author.clone(), creator).into(),
 			statement_id.clone(),
 			authorization_id,
 		));
 
 		assert_err!(
-			Statement::restore(
+			StatementDid::restore(
 				DoubleOrigin(author, delegate).into(),
 				statement_id.clone(),
 				delegate_authorization_id,
@@ -930,7 +930,7 @@ fn registering_a_statement_again_should_fail() {
 			authorization_id.clone(),
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
@@ -938,7 +938,7 @@ fn registering_a_statement_again_should_fail() {
 		));
 
 		assert_err!(
-			Statement::register(
+			StatementDid::register(
 				DoubleOrigin(author, creator).into(),
 				statement_digest,
 				authorization_id,
@@ -1000,14 +1000,14 @@ fn updating_a_registered_statement_again_should_fail() {
 			authorization_id.clone()
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
 			Some(schema_id)
 		));
 
-		assert_ok!(Statement::update(
+		assert_ok!(StatementDid::update(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_id.clone(),
 			new_statement_digest,
@@ -1015,7 +1015,7 @@ fn updating_a_registered_statement_again_should_fail() {
 		));
 
 		assert_err!(
-			Statement::update(
+			StatementDid::update(
 				DoubleOrigin(author, creator).into(),
 				statement_id,
 				new_statement_digest,
@@ -1060,7 +1060,7 @@ fn removing_nonexistent_presentation_should_fail() {
 
 		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
@@ -1068,7 +1068,7 @@ fn removing_nonexistent_presentation_should_fail() {
 		));
 
 		assert_err!(
-			Statement::remove_presentation(
+			StatementDid::remove_presentation(
 				DoubleOrigin(author, creator).into(),
 				statement_id,
 				presentation_digest,
@@ -1126,7 +1126,7 @@ fn bulk_registering_statements_with_same_digest_should_fail() {
 			authorization_id.clone()
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digests[0],
 			authorization_id.clone(),
@@ -1134,7 +1134,7 @@ fn bulk_registering_statements_with_same_digest_should_fail() {
 		));
 
 		assert_err!(
-			Statement::register_batch(
+			StatementDid::register_batch(
 				DoubleOrigin(author, creator).into(),
 				statement_digests,
 				authorization_id,
@@ -1195,7 +1195,7 @@ fn trying_to_update_or_revoke_or_add_presentation_for_revoked_statement_should_f
 			authorization_id.clone()
 		));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
@@ -1203,7 +1203,7 @@ fn trying_to_update_or_revoke_or_add_presentation_for_revoked_statement_should_f
 		));
 
 		// Revoke the statement
-		assert_ok!(Statement::revoke(
+		assert_ok!(StatementDid::revoke(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_id.clone(),
 			authorization_id.clone(),
@@ -1211,7 +1211,7 @@ fn trying_to_update_or_revoke_or_add_presentation_for_revoked_statement_should_f
 
 		// Try to update the revoked statement
 		assert_err!(
-			Statement::update(
+			StatementDid::update(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
 				statement_id.clone(),
 				new_statement_digest,
@@ -1222,7 +1222,7 @@ fn trying_to_update_or_revoke_or_add_presentation_for_revoked_statement_should_f
 
 		// Try to revoke the already revoked statement
 		assert_err!(
-			Statement::revoke(
+			StatementDid::revoke(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
 				statement_id.clone(),
 				authorization_id.clone(),
@@ -1232,7 +1232,7 @@ fn trying_to_update_or_revoke_or_add_presentation_for_revoked_statement_should_f
 
 		// Try to add a presentation for the revoked statement
 		assert_err!(
-			Statement::add_presentation(
+			StatementDid::add_presentation(
 				DoubleOrigin(author, creator).into(),
 				statement_id,
 				statement_digest,
@@ -1278,7 +1278,7 @@ fn nonexistent_presentation_should_fail() {
 
 		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
@@ -1286,7 +1286,7 @@ fn nonexistent_presentation_should_fail() {
 		));
 
 		assert_err!(
-			Statement::remove_presentation(
+			StatementDid::remove_presentation(
 				DoubleOrigin(author, creator).into(),
 				statement_id,
 				presentation_digest,
@@ -1333,13 +1333,13 @@ fn adding_duplicate_presentation_should_fail() {
 
 		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Statement::register(
+		assert_ok!(StatementDid::register(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_digest,
 			authorization_id.clone(),
 			None
 		));
-		assert_ok!(Statement::add_presentation(
+		assert_ok!(StatementDid::add_presentation(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			statement_id.clone(), // Use the generated statement_id
 			presentation_digest,
@@ -1348,7 +1348,7 @@ fn adding_duplicate_presentation_should_fail() {
 		));
 
 		assert_err!(
-			Statement::add_presentation(
+			StatementDid::add_presentation(
 				DoubleOrigin(author, creator).into(),
 				statement_id, // Use the generated statement_id
 				presentation_digest,

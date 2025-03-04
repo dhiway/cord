@@ -1284,7 +1284,7 @@ dependencies = [
  "pallet-schema-accounts",
  "pallet-session",
  "pallet-session-benchmarking",
- "pallet-statement",
+ "pallet-statement-did",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
@@ -1421,7 +1421,7 @@ dependencies = [
  "pallet-schema-accounts",
  "pallet-session",
  "pallet-session-benchmarking",
- "pallet-statement",
+ "pallet-statement-did",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
@@ -1948,7 +1948,7 @@ dependencies = [
  "pallet-schema-accounts",
  "pallet-session",
  "pallet-session-benchmarking",
- "pallet-statement",
+ "pallet-statement-did",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-transaction-payment",
@@ -6765,7 +6765,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-statement"
+name = "pallet-statement-did"
 version = "0.9.5"
 dependencies = [
  "cord-identifier",
