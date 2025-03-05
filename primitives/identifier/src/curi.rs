@@ -34,10 +34,10 @@ const PREFIX: &[u8] = b"CRDIDFR";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IdentifierType {
-	Authorization,
-	Space,
+	AuthorizationDid,
+	SpaceDid,
 	Schema,
-	Statement,
+	StatementDid,
 	Entity,
 	Template,
 	Asset,
@@ -52,10 +52,10 @@ pub enum IdentifierType {
 }
 
 impl IdentifierType {
-	const IDENT_AUTH: u16 = 2092;
-	const IDENT_SPACE: u16 = 3390;
+	const IDENT_AUTH_DID: u16 = 2092;
+	const IDENT_SPACE_DID: u16 = 3390;
 	const IDENT_SCHEMA: u16 = 7366;
-	const IDENT_STATEMENT: u16 = 8902;
+	const IDENT_STATEMENT_DID: u16 = 8902;
 	const IDENT_ENTITY: u16 = 6480;
 	const IDENT_TEMPLATE: u16 = 8911;
 	const IDENT_ASSET: u16 = 2348;
@@ -70,10 +70,10 @@ impl IdentifierType {
 
 	fn ident_value(&self) -> u16 {
 		match self {
-			IdentifierType::Authorization => Self::IDENT_AUTH,
-			IdentifierType::Space => Self::IDENT_SPACE,
+			IdentifierType::AuthorizationDid => Self::IDENT_AUTH_DID,
+			IdentifierType::SpaceDid => Self::IDENT_SPACE_DID,
 			IdentifierType::Schema => Self::IDENT_SCHEMA,
-			IdentifierType::Statement => Self::IDENT_STATEMENT,
+			IdentifierType::StatementDid => Self::IDENT_STATEMENT_DID,
 			IdentifierType::Entity => Self::IDENT_ENTITY,
 			IdentifierType::Template => Self::IDENT_TEMPLATE,
 			IdentifierType::Asset => Self::IDENT_ASSET,
@@ -89,10 +89,10 @@ impl IdentifierType {
 	}
 	fn from_u16(value: u16) -> Option<Self> {
 		match value {
-			2092 => Some(IdentifierType::Authorization),
-			3390 => Some(IdentifierType::Space),
+			2092 => Some(IdentifierType::AuthorizationDid),
+			3390 => Some(IdentifierType::SpaceDid),
 			7366 => Some(IdentifierType::Schema),
-			8902 => Some(IdentifierType::Statement),
+			8902 => Some(IdentifierType::StatementDid),
 			6480 => Some(IdentifierType::Entity),
 			8911 => Some(IdentifierType::Template),
 			2348 => Some(IdentifierType::Asset),

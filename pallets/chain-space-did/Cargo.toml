@@ -1,6 +1,6 @@
 [package]
-name = 'cord-identifier'
-description = 'Manage Identifier State.'
+name = 'pallet-chain-space-did'
+description = 'Manage Chain Spaces Using Did For Operations.'
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -11,7 +11,7 @@ repository.workspace = true
 [lints]
 workspace = true
 
-[[package.metadata.docs.rs]]
+[package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
 [dev-dependencies]
@@ -20,42 +20,54 @@ sp-keystore = { features = ["std"], workspace = true }
 cord-utilities = { features = ["mock"], workspace = true }
 
 [dependencies]
-codec = { features = ["derive", "max-encoded-len"], workspace = true }
+codec = { features = ["derive"], workspace = true }
 scale-info = { features = ["derive"], workspace = true }
+bitflags = { workspace = true }
 
-bs58 = { workspace = true }
-blake2-rfc = { workspace = true }
+# Internal dependencies
+cord-primitives = { workspace = true }
+cord-utilities = { workspace = true }
+identifier = { workspace = true }
 
 # Substrate dependencies
+frame-benchmarking = { optional = true, workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-sp-runtime = { workspace = true }
-sp-std = { workspace = true }
 sp-core = { optional = true, workspace = true }
 sp-io = { optional = true, workspace = true }
 sp-keystore = { optional = true, workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+
 
 [features]
 default = ['std']
-mock = ['std']
+runtime-benchmarks = [
+	"frame-benchmarking/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
+	"frame-support/runtime-benchmarks",
+	"frame-system/runtime-benchmarks",
+	"cord-utilities/runtime-benchmarks",
+]
 std = [
 	"codec/std",
-	"scale-info/std",
+	"identifier/std",
+	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
-	"sp-runtime/std",
-	"sp-io/std",
-	"sp-std/std",
-	"sp-keystore/std",
-	"bs58/std",
-	"blake2-rfc/std",
+	"cord-primitives/std",
 	"cord-utilities/std",
-	"sp-core?/std"
+	"scale-info/std",
+	"sp-core/std",
+	"sp-io/std",
+	"sp-keystore/std",
+	"sp-runtime/std",
+	"sp-std/std",
 ]
-
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
+	"identifier/try-runtime",
 	"cord-utilities/try-runtime",
 	"sp-runtime/try-runtime"
 ]

@@ -745,7 +745,7 @@ parameter_types! {
 	pub const MaxSpaceDelegates: u32 = 10_000;
 }
 
-impl pallet_chain_space::Config for Runtime {
+impl pallet_chain_space_did::Config for Runtime {
 	type SpaceCreatorId = DidIdentifier;
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
@@ -753,7 +753,7 @@ impl pallet_chain_space::Config for Runtime {
 	type ChainSpaceOrigin = EnsureRoot<AccountId>;
 	type NetworkPermission = NetworkParameters;
 	type MaxSpaceDelegates = MaxSpaceDelegates;
-	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_chain_space_did::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -983,7 +983,7 @@ mod runtime {
 	pub type Schema = pallet_schema;
 
 	#[runtime::pallet_index(54)]
-	pub type ChainSpace = pallet_chain_space;
+	pub type ChainSpaceDid = pallet_chain_space_did;
 
 	#[runtime::pallet_index(55)]
 	pub type StatementDid = pallet_statement_did;
@@ -1063,34 +1063,34 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::NetworkScore { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegate { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::add_delegate { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_admin_delegate { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::add_admin_delegate { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegator { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::add_delegator { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::remove_delegate { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::remove_delegate { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::create { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::create { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::archive { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::archive { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::restore { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::restore { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::subspace_create { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::subspace_create { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::update_transaction_capacity { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::update_transaction_capacity { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::ChainSpace(pallet_chain_space::Call::update_transaction_capacity_sub { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::update_transaction_capacity_sub { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {
@@ -1182,7 +1182,7 @@ mod benches {
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
 		[pallet_statement_did, StatementDid]
-		[pallet_chain_space, ChainSpace]
+		[pallet_chain_space_did, ChainSpaceDid]
 		[pallet_did, Did]
 		[pallet_did_name, DidName]
 		[pallet_network_membership, NetworkMembership]
