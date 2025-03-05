@@ -74,8 +74,8 @@ pub enum CallTypeOf {
 #[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub enum IdentifierTypeOf {
 	Asset,
-	Auth,
-	ChainSpace,
+	AuthDid,
+	ChainSpaceDid,
 	Did,
 	Rating,
 	Registry,

@@ -11,16 +11,16 @@ fn creating_a_invalid_identifier_length_should_fail() {
 
 	new_test_ext().execute_with(|| {
 		assert_err!(
-			Ss58Identifier::create_identifier(&(space1).encode()[..], IdentifierType::Space),
+			Ss58Identifier::create_identifier(&(space1).encode()[..], IdentifierType::SpaceDid),
 			IdentifierError::InvalidIdentifierLength
 		);
 		assert_err!(
-			Ss58Identifier::create_identifier(&(space2).encode()[..], IdentifierType::Space),
+			Ss58Identifier::create_identifier(&(space2).encode()[..], IdentifierType::SpaceDid),
 			IdentifierError::InvalidIdentifierLength
 		);
 		assert_ok!(Ss58Identifier::create_identifier(
 			&(space3).encode()[..],
-			IdentifierType::Space
+			IdentifierType::SpaceDid
 		));
 	});
 }

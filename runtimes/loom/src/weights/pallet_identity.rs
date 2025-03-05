@@ -42,11 +42,12 @@
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 #![allow(missing_docs)]
+#![allow(dead_code)]
 
 use frame_support::{traits::Get, weights::Weight};
 use core::marker::PhantomData;
 
-/// Weight functions for `pallet_identity`.
+/// Weight functions for `pallet_identity`
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_identity::WeightInfo for WeightInfo<T> {
 	/// Storage: `Identity::Registrars` (r:1 w:1)
