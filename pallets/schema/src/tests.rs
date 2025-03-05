@@ -79,8 +79,7 @@ where
 ///
 /// This function will panic if the conversion from digest to schema ID fails.
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema)
-		.unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema).unwrap()
 }
 
 // submit_schema_creation_operation
@@ -154,10 +153,7 @@ fn check_empty_schema_creation() {
 	new_test_ext().execute_with(|| {
 		// Author Transaction
 		assert_err!(
-			Schema::create(
-				frame_system::RawOrigin::Signed(creator.clone()).into(),
-				empty_schema,
-			),
+			Schema::create(frame_system::RawOrigin::Signed(creator.clone()).into(), empty_schema,),
 			Error::<Test>::EmptyTransaction
 		);
 	});
