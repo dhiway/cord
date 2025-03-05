@@ -26,7 +26,7 @@ use sp_std::prelude::*;
 
 use pallet_namespace::{NameSpaceCodeOf, NameSpaceIdOf};
 use pallet_registries::{RegistryBlobOf, RegistryHashOf};
-use pallet_schema_accounts::{InputSchemaOf, SchemaHashOf, SchemaIdOf};
+use pallet_schema::{InputSchemaOf, SchemaHashOf, SchemaIdOf};
 
 /// Generates a Registry ID
 pub fn generate_registry_id<T: Config>(id_digest: &RegistryHashOf<T>) -> RegistryIdOf {
@@ -56,7 +56,7 @@ pub fn generate_authorization_id<T: Config>(
 
 /// Generates a Schema ID
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SchemaAccounts)
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema)
 		.unwrap()
 }
 

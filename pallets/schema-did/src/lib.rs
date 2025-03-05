@@ -193,7 +193,7 @@ pub mod pallet {
 
 			let identifier = Ss58Identifier::create_identifier(
 				&(id_digest).encode()[..],
-				IdentifierType::Schema,
+				IdentifierType::SchemaDid,
 			)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 

@@ -7,7 +7,7 @@ use frame_support::sp_runtime::traits::Hash;
 use frame_system::RawOrigin;
 use identifier::{IdentifierType, Ss58Identifier};
 use pallet_namespace::{NameSpaceCodeOf, NameSpaceIdOf};
-use pallet_schema_accounts::{InputSchemaOf, SchemaHashOf};
+use pallet_schema::{InputSchemaOf, SchemaHashOf};
 use sp_std::prelude::*;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
@@ -26,7 +26,7 @@ pub fn generate_authorization_id<T: Config>(
 }
 
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SchemaAccounts)
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema)
 		.unwrap()
 }
 
@@ -50,7 +50,7 @@ benchmarks! {
 		where_clause {
 			where
 				T: pallet_namespace::Config,
-				T: pallet_schema_accounts::Config,
+				T: pallet_schema::Config,
 				T: frame_system::Config,
 		}
 

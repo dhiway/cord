@@ -39,7 +39,7 @@ frame_support::construct_runtime!(
 		Identifier: identifier,
 		MockOrigin: mock_origin,
 		NameSpace: pallet_namespace,
-		SchemaAccounts: pallet_schema_accounts,
+		Schema: pallet_schema,
 		Registries: pallet_registries,
 		Entries: pallet_entries,
 	}
@@ -91,7 +91,7 @@ parameter_types! {
 	pub const MaxEncodedSchemaLength: u32 = 15_360;
 }
 
-impl pallet_schema_accounts::Config for Test {
+impl pallet_schema::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 	type WeightInfo = ();

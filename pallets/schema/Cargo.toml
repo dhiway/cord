@@ -1,5 +1,5 @@
 [package]
-name = 'pallet-schema-accounts'
+name = 'pallet-schema'
 description = 'Account Based To Manage Schemas'
 version.workspace = true
 authors.workspace = true

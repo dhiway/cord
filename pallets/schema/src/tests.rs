@@ -79,7 +79,7 @@ where
 ///
 /// This function will panic if the conversion from digest to schema ID fails.
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SchemaAccounts)
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema)
 		.unwrap()
 }
 
@@ -103,7 +103,7 @@ fn check_successful_schema_creation() {
 
 	new_test_ext().execute_with(|| {
 		// Author Transaction
-		assert_ok!(SchemaAccounts::create(
+		assert_ok!(Schema::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			schema.clone()
 		));
@@ -132,13 +132,13 @@ fn check_duplicate_schema_creation() {
 
 	new_test_ext().execute_with(|| {
 		// Author Transaction
-		assert_ok!(SchemaAccounts::create(
+		assert_ok!(Schema::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			schema.clone(),
 		));
 		// Try Author the same schema again. should fail.
 		assert_err!(
-			SchemaAccounts::create(frame_system::RawOrigin::Signed(creator.clone()).into(), schema),
+			Schema::create(frame_system::RawOrigin::Signed(creator.clone()).into(), schema),
 			Error::<Test>::SchemaAlreadyAnchored
 		);
 	});
@@ -154,7 +154,7 @@ fn check_empty_schema_creation() {
 	new_test_ext().execute_with(|| {
 		// Author Transaction
 		assert_err!(
-			SchemaAccounts::create(
+			Schema::create(
 				frame_system::RawOrigin::Signed(creator.clone()).into(),
 				empty_schema,
 			),
@@ -177,15 +177,15 @@ fn test_schema_lookup() {
 
 	new_test_ext().execute_with(|| {
 		// Create the schemas
-		assert_ok!(SchemaAccounts::create(
+		assert_ok!(Schema::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			schema1.clone()
 		));
-		assert_ok!(SchemaAccounts::create(
+		assert_ok!(Schema::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			schema2.clone()
 		));
-		assert_ok!(SchemaAccounts::create(
+		assert_ok!(Schema::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
 			schema3.clone()
 		));

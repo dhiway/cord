@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate as pallet_schema_accounts;
+use crate as pallet_schema;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{derive_impl, parameter_types};
 use sp_runtime::{
@@ -33,7 +33,7 @@ frame_support::construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
-		SchemaAccounts: pallet_schema_accounts,
+		Schema: pallet_schema,
 		Identifier: identifier,
 		MockOrigin: mock_origin,
 	}
@@ -63,7 +63,7 @@ parameter_types! {
 	pub const MaxEncodedSchemaLength: u32 = 15_360;
 }
 
-impl pallet_schema_accounts::Config for Test {
+impl pallet_schema::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 	type WeightInfo = ();

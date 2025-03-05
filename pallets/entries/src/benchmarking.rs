@@ -8,7 +8,7 @@ use frame_system::RawOrigin;
 use identifier::{IdentifierType, Ss58Identifier};
 use pallet_namespace::{NameSpaceCodeOf, NameSpaceIdOf};
 use pallet_registries::{RegistryBlobOf, RegistryHashOf, RegistryIdOf};
-use pallet_schema_accounts::{InputSchemaOf, SchemaHashOf, SchemaIdOf};
+use pallet_schema::{InputSchemaOf, SchemaHashOf, SchemaIdOf};
 use serde_json::json;
 use sp_std::prelude::*;
 
@@ -28,7 +28,7 @@ pub fn generate_authorization_id<T: Config>(
 }
 
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SchemaAccounts)
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema)
 		.unwrap()
 }
 
@@ -57,7 +57,7 @@ benchmarks! {
 			where
 				T: pallet_namespace::Config,
 				T: pallet_registries::Config,
-				T: pallet_schema_accounts::Config,
+				T: pallet_schema::Config,
 				T: frame_system::Config,
 		}
 

@@ -81,7 +81,7 @@ where
 ///
 /// This function will panic if the conversion from digest to schema ID fails.
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SchemaDid).unwrap()
 }
 
 /// Generates a space ID from a digest.
@@ -118,7 +118,7 @@ fn check_successful_schema_creation() {
 
 	let raw_schema = [2u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+		.expect("Test SchemaDid should fit into the expected input length of for the test runtime.");
 	let digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
 	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -139,7 +139,7 @@ fn check_successful_schema_creation() {
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		// Author Transaction
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id
@@ -147,11 +147,11 @@ fn check_successful_schema_creation() {
 
 		// Storage Checks
 		let stored_schema = Schemas::<Test>::get(&schema_id)
-			.expect("Schema Identifier should be present on chain.");
+			.expect("SchemaDid Identifier should be present on chain.");
 
-		// Verify the Schema has the right owner
+		// Verify the SchemaDid has the right owner
 		assert_eq!(stored_schema.creator, creator);
-		// Verify the Schema digest is mapped correctly
+		// Verify the SchemaDid digest is mapped correctly
 		assert_eq!(stored_schema.digest, digest);
 	});
 }
@@ -167,7 +167,7 @@ fn check_duplicate_schema_creation() {
 	let capacity = 3u64;
 	let raw_schema = [9u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+		.expect("Test SchemaDid should fit into the expected input length of for the test runtime.");
 
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
@@ -190,14 +190,14 @@ fn check_duplicate_schema_creation() {
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		// Author Transaction
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
 		));
 		// Try Author the same schema again. should fail.
 		assert_noop!(
-			Schema::create(DoubleOrigin(author, creator).into(), schema, authorization_id),
+			SchemaDid::create(DoubleOrigin(author, creator).into(), schema, authorization_id),
 			Error::<Test>::SchemaAlreadyAnchored
 		);
 	});
@@ -234,7 +234,7 @@ fn check_empty_schema_creation() {
 
 		// Author Transaction
 		assert_noop!(
-			Schema::create(
+			SchemaDid::create(
 				DoubleOrigin(author.clone(), creator.clone()).into(),
 				empty_schema,
 				authorization_id
@@ -279,17 +279,17 @@ fn test_schema_lookup() {
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
 		// Create the schemas
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema1.clone(),
 			authorization_id.clone()
 		));
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema2.clone(),
 			authorization_id.clone()
 		));
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author, creator.clone()).into(),
 			schema3.clone(),
 			authorization_id
@@ -329,7 +329,7 @@ fn check_schema_not_found() {
 
 	let raw_schema = [3u8; 256].to_vec();
 	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+		.expect("Test SchemaDid should fit into the expected input length of for the test runtime.");
 	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);
@@ -343,6 +343,6 @@ fn check_schema_not_found() {
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_err!(Schema::is_valid(&schema_id), Error::<Test>::SchemaNotFound);
+		assert_err!(SchemaDid::is_valid(&schema_id), Error::<Test>::SchemaNotFound);
 	});
 }

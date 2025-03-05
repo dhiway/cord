@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! # Schema Accounts Pallet
+//! # Schema Pallet
 //!
 //! A account based pallet which enables users to generate Schema Identifier,
 //! store the Schema hash (blake2b as hex string) on chain and
@@ -163,7 +163,7 @@ pub mod pallet {
 
 			let identifier = Ss58Identifier::create_identifier(
 				&(id_digest).encode()[..],
-				IdentifierType::SchemaAccounts,
+				IdentifierType::Schema,
 			)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
@@ -234,7 +234,7 @@ impl<T: Config> Pallet<T> {
 		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
 		let _ = IdentifierTimeline::update_timeline::<T>(
 			tx_id,
-			IdentifierTypeOf::SchemaAccounts,
+			IdentifierTypeOf::Schema,
 			tx_entry,
 		);
 		Ok(())

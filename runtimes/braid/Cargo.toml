@@ -53,7 +53,7 @@ pallet-network-score = { workspace = true }
 pallet-session-benchmarking = { workspace = true }
 pallet-registries = { workspace = true }
 pallet-entries = { workspace = true }
-pallet-schema-accounts = { workspace = true }
+pallet-schema= { workspace = true }
 pallet-namespace = { workspace = true }
 
 # Internal runtime API (with default disabled)
@@ -171,7 +171,7 @@ std = [
 	"pallet-statement-did/std",
 	"pallet-registries/std",
 	"pallet-entries/std",
-	"pallet-schema-accounts/std",
+	"pallet-schema/std",
 	"pallet-namespace/std",
 	"pallet-network-score/std",
 	"pallet-network-membership/std",
@@ -276,7 +276,7 @@ try-runtime = [
 	"pallet-runtime-upgrade/try-runtime",
 	"pallet-remark/try-runtime",
 	"pallet-registries/try-runtime",
-	"pallet-schema-accounts/try-runtime",
+	"pallet-schema/try-runtime",
 	"pallet-entries/try-runtime",
 	"cord-runtime-common/try-runtime",
 	"authority-membership/try-runtime",
