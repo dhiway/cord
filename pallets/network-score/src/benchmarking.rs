@@ -25,13 +25,14 @@ use frame_benchmarking::{account, benchmarks};
 use frame_support::{sp_runtime::traits::Hash, BoundedVec};
 use frame_system::RawOrigin;
 use identifier::{IdentifierType, Ss58Identifier};
-use pallet_chain_space::SpaceCodeOf;
+use pallet_chain_space_did::SpaceCodeOf;
 
 const SEED: u32 = 0;
 const MAX_PAYLOAD_BYTE_LENGTH: u32 = 15 * 1024;
 
 pub fn generate_space_id<T: Config>(other_digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::create_identifier(&(other_digest).encode()[..], IdentifierType::Space).unwrap()
+	Ss58Identifier::create_identifier(&(other_digest).encode()[..], IdentifierType::SpaceDid)
+		.unwrap()
 }
 
 pub fn generate_rating_id<T: Config>(other_digest: &RatingEntryHashOf<T>) -> RatingEntryIdOf {
@@ -39,7 +40,7 @@ pub fn generate_rating_id<T: Config>(other_digest: &RatingEntryHashOf<T>) -> Rat
 }
 
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::AuthorizationDid)
 		.unwrap()
 }
 
@@ -92,8 +93,8 @@ benchmarks! {
 
 		let chain_space_origin = RawOrigin::Root.into();
 
-		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
-		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, 3u64 ).expect("Approval should not fail.");
+		pallet_chain_space_did::Pallet::<T>::create(origin.clone(), space_digest )?;
+		pallet_chain_space_did::Pallet::<T>::approve(chain_space_origin, space_id, 3u64 ).expect("Approval should not fail.");
 
 	}: _<T::RuntimeOrigin>(origin, entry, entry_digest, message_id, authorization_id)
 	verify {
@@ -147,8 +148,8 @@ benchmarks! {
 		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller.clone(), did1.clone());
 		let chain_space_origin = RawOrigin::Root.into();
 
-		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
-		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, 3u64 ).expect("Approval should not fail.");
+		pallet_chain_space_did::Pallet::<T>::create(origin.clone(), space_digest )?;
+		pallet_chain_space_did::Pallet::<T>::approve(chain_space_origin, space_id, 3u64 ).expect("Approval should not fail.");
 
 		let _ = Pallet::<T>::register_rating(origin.clone(), entry, entry_digest, message_id_add, authorization_id.clone());
 	}: _<T::RuntimeOrigin>(origin, identifier_add, message_id_revoke, entry_digest, authorization_id)
@@ -222,8 +223,8 @@ benchmarks! {
 		let origin =  <T as pallet::Config>::EnsureOrigin::generate_origin(caller.clone(), did.clone());
 		let chain_space_origin = RawOrigin::Root.into();
 
-		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
-		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, 10u64 ).expect("Approval should not fail.");
+		pallet_chain_space_did::Pallet::<T>::create(origin.clone(), space_digest )?;
+		pallet_chain_space_did::Pallet::<T>::approve(chain_space_origin, space_id, 10u64 ).expect("Approval should not fail.");
 
 		let _ = Pallet::<T>::register_rating(origin.clone(), entry, entry_digest, message_id_add, authorization_id.clone());
 		let _ = Pallet::<T>::revoke_rating(origin.clone(), identifier_add, message_id_revoke, entry_digest, authorization_id.clone());

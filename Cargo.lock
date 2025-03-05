@@ -1258,7 +1258,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-babe",
  "pallet-balances",
- "pallet-chain-space",
+ "pallet-chain-space-did",
  "pallet-config",
  "pallet-contracts",
  "pallet-did",
@@ -1391,7 +1391,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-babe",
  "pallet-balances",
- "pallet-chain-space",
+ "pallet-chain-space-did",
  "pallet-collective",
  "pallet-config",
  "pallet-contracts",
@@ -1918,7 +1918,7 @@ dependencies = [
  "pallet-authorship",
  "pallet-babe",
  "pallet-balances",
- "pallet-chain-space",
+ "pallet-chain-space-did",
  "pallet-collective",
  "pallet-config",
  "pallet-contracts",
@@ -6063,7 +6063,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-chain-space",
+ "pallet-chain-space-did",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -6187,7 +6187,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-chain-space"
+name = "pallet-chain-space-did"
 version = "0.9.5"
 dependencies = [
  "bitflags 1.3.2",
@@ -6306,7 +6306,7 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-balances",
- "pallet-chain-space",
+ "pallet-chain-space-did",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -6550,7 +6550,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-chain-space",
+ "pallet-chain-space-did",
  "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",
@@ -6701,7 +6701,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-chain-space",
+ "pallet-chain-space-did",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -6774,7 +6774,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-chain-space",
+ "pallet-chain-space-did",
  "pallet-schema",
  "parity-scale-codec",
  "scale-info",

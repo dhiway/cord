@@ -87,7 +87,7 @@ pub mod pallet {
 	/// Type of a CORD account.
 	pub(crate) type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type of a Schema creator.
-	pub type SchemaCreatorOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
+	pub type SchemaCreatorOf<T> = pallet_chain_space_did::SpaceCreatorOf<T>;
 	/// Type for an input schema
 	pub type InputSchemaOf<T> = BoundedVec<u8, <T as Config>::MaxEncodedSchemaLength>;
 	/// Type for a schema entry
@@ -96,7 +96,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_chain_space::Config + identifier::Config
+		frame_system::Config + pallet_chain_space_did::Config + identifier::Config
 	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
@@ -177,11 +177,11 @@ pub mod pallet {
 				Error::<T>::MaxEncodedSchemaLimitExceeded
 			);
 
-			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&creator,
 			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
+			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
 
 			// Id Digest = concat (H(<scale_encoded_schema_input>,
 			// <<scale_encoded_space_identifier>, scale_encoded_creator_identifier>))

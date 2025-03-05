@@ -28,7 +28,7 @@ fluent-uri = { workspace = true }
 # Internal dependencies
 cord-utilities = { workspace = true }
 identifier = { workspace = true }
-pallet-chain-space = { workspace = true }
+pallet-chain-space-did = { workspace = true }
 
 # Substrate dependencies
 codec = { features = ["derive", "max-encoded-len"], workspace = true }
@@ -54,11 +54,11 @@ runtime-benchmarks = [
 	"cord-utilities/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"pallet-balances?/runtime-benchmarks",
-	"pallet-chain-space/runtime-benchmarks"
+	"pallet-chain-space-did/runtime-benchmarks"
 ]
 std = [
 	"codec/std",
-	"pallet-chain-space/std",
+	"pallet-chain-space-did/std",
 	"identifier/std",
 	"frame-support/std",
 	"frame-system/std",
@@ -80,6 +80,6 @@ try-runtime = [
 	"cord-utilities/try-runtime",
 	"identifier/try-runtime",
 	"pallet-balances?/try-runtime",
-	"pallet-chain-space/try-runtime",
+	"pallet-chain-space-did/try-runtime",
 	"sp-runtime/try-runtime"
 ]

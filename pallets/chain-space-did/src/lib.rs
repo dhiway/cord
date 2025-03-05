@@ -25,7 +25,7 @@
 //! approval, and archival of spaces, as well as the management of delegates
 //! within these spaces.
 //! This uses a DID based operation to manage the spaces.
-//! 
+//!
 //! ## Overview
 //!
 //! The ChainSpace pallet allows for the creation of distinct spaces on the CORD
@@ -517,9 +517,11 @@ pub mod pallet {
 				&[&space_code.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let identifier =
-				Ss58Identifier::create_identifier(&id_digest.encode()[..], IdentifierType::SpaceDid)
-					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = Ss58Identifier::create_identifier(
+				&id_digest.encode()[..],
+				IdentifierType::SpaceDid,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
 
@@ -571,8 +573,12 @@ pub mod pallet {
 				},
 			);
 
-			Self::update_activity(&identifier, IdentifierTypeOf::ChainSpaceDid, CallTypeOf::Genesis)
-				.map_err(Error::<T>::from)?;
+			Self::update_activity(
+				&identifier,
+				IdentifierTypeOf::ChainSpaceDid,
+				CallTypeOf::Genesis,
+			)
+			.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Create {
 				space: identifier,
@@ -1036,9 +1042,11 @@ pub mod pallet {
 				&[&space_code.encode()[..], &creator.encode()[..]].concat()[..],
 			);
 
-			let identifier =
-				Ss58Identifier::create_identifier(&id_digest.encode()[..], IdentifierType::SpaceDid)
-					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = Ss58Identifier::create_identifier(
+				&id_digest.encode()[..],
+				IdentifierType::SpaceDid,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!<Spaces<T>>::contains_key(&identifier), Error::<T>::SpaceAlreadyAnchored);
 
@@ -1097,8 +1105,12 @@ pub mod pallet {
 				},
 			);
 
-			Self::update_activity(&identifier, IdentifierTypeOf::ChainSpaceDid, CallTypeOf::Genesis)
-				.map_err(Error::<T>::from)?;
+			Self::update_activity(
+				&identifier,
+				IdentifierTypeOf::ChainSpaceDid,
+				CallTypeOf::Genesis,
+			)
+			.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Create {
 				space: identifier,
@@ -1210,9 +1222,11 @@ impl<T: Config> Pallet<T> {
 			&[&space_id.encode()[..], &delegate.encode()[..], &creator.encode()[..]].concat()[..],
 		);
 
-		let delegate_authorization_id =
-			Ss58Identifier::create_identifier(&id_digest.encode(), IdentifierType::AuthorizationDid)
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+		let delegate_authorization_id = Ss58Identifier::create_identifier(
+			&id_digest.encode(),
+			IdentifierType::AuthorizationDid,
+		)
+		.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 		ensure!(
 			!Authorizations::<T>::contains_key(&delegate_authorization_id),

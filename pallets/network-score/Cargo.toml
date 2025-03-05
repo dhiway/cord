@@ -24,7 +24,7 @@ codec = { features = ["derive"], workspace = true }
 scale-info = { features = ["derive"], workspace = true }
 cord-primitives = { workspace = true }
 cord-utilities = { workspace = true }
-pallet-chain-space = { workspace = true }
+pallet-chain-space-did = { workspace = true }
 identifier = { workspace = true }
 
 # Substrate dependencies
@@ -47,7 +47,7 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"cord-utilities/runtime-benchmarks",
-	"pallet-chain-space/runtime-benchmarks",
+	"pallet-chain-space-did/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks"
 ]
 std = [
@@ -62,7 +62,7 @@ std = [
 	"sp-core/std",
 	"sp-io/std",
 	"sp-std/std",
-	"pallet-chain-space/std",
+	"pallet-chain-space-did/std",
 	"pallet-timestamp/std",
 	"identifier/std",
 	"sp-keystore?/std"
@@ -72,7 +72,7 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"cord-utilities/try-runtime",
 	"identifier/try-runtime",
-	"pallet-chain-space/try-runtime",
+	"pallet-chain-space-did/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"sp-runtime/try-runtime"
 ]

@@ -23,7 +23,7 @@ use codec::{Decode, Encode};
 use cord_utilities::mock::*;
 use frame_support::{derive_impl, parameter_types};
 use frame_system::EnsureRoot;
-use pallet_chain_space::IsPermissioned;
+use pallet_chain_space_did::IsPermissioned;
 use scale_info::TypeInfo;
 use sp_core::{ecdsa, ed25519, sr25519, Pair};
 use sp_runtime::{
@@ -58,7 +58,7 @@ frame_support::construct_runtime!(
 	{
 		Did: pallet_did,
 		System: frame_system,
-		Space: pallet_chain_space,
+		SpaceDid: pallet_chain_space_did,
 		Identifier: identifier,
 		MockOrigin: mock_origin,
 	}
@@ -142,7 +142,7 @@ impl IsPermissioned for NetworkPermission {
 	}
 }
 
-impl pallet_chain_space::Config for Test {
+impl pallet_chain_space_did::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
@@ -254,7 +254,7 @@ pub(crate) fn get_assertion_key_test_input() -> H256 {
 	H256::try_from([1u8; 32]).unwrap()
 }
 pub(crate) fn get_assertion_key_call() -> RuntimeCall {
-	RuntimeCall::Space(pallet_chain_space::Call::create {
+	RuntimeCall::SpaceDid(pallet_chain_space_did::Call::create {
 		space_code: get_assertion_key_test_input(),
 	})
 }
@@ -262,7 +262,7 @@ pub(crate) fn get_authentication_key_test_input() -> H256 {
 	H256::try_from([2u8; 32]).unwrap()
 }
 pub(crate) fn get_authentication_key_call() -> RuntimeCall {
-	RuntimeCall::Space(pallet_chain_space::Call::create {
+	RuntimeCall::SpaceDid(pallet_chain_space_did::Call::create {
 		space_code: get_authentication_key_test_input(),
 	})
 }
@@ -270,7 +270,7 @@ pub(crate) fn get_delegation_key_test_input() -> H256 {
 	H256::try_from([3u8; 32]).unwrap()
 }
 pub(crate) fn get_delegation_key_call() -> RuntimeCall {
-	RuntimeCall::Space(pallet_chain_space::Call::create {
+	RuntimeCall::SpaceDid(pallet_chain_space_did::Call::create {
 		space_code: get_delegation_key_test_input(),
 	})
 }
@@ -278,7 +278,9 @@ pub(crate) fn get_none_key_test_input() -> H256 {
 	H256::try_from([4u8; 32]).unwrap()
 }
 pub(crate) fn get_none_key_call() -> RuntimeCall {
-	RuntimeCall::Space(pallet_chain_space::Call::create { space_code: get_none_key_test_input() })
+	RuntimeCall::SpaceDid(pallet_chain_space_did::Call::create {
+		space_code: get_none_key_test_input(),
+	})
 }
 
 #[cfg(not(feature = "runtime-benchmarks"))]

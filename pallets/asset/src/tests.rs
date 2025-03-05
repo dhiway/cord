@@ -4,18 +4,18 @@ use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_err, assert_ok, BoundedVec};
 use frame_system::RawOrigin;
-use pallet_chain_space::{SpaceCodeOf, SpaceIdOf};
+use pallet_chain_space_did::{SpaceCodeOf, SpaceIdOf};
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
 
 /// Generates a space ID from a digest.
 pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SpaceDid).unwrap()
 }
 
 /// Generates an authorization ID from a digest.
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::AuthorizationDid)
 		.unwrap()
 }
 
@@ -72,12 +72,12 @@ fn asset_create_should_succeed() {
 	let digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -125,12 +125,12 @@ fn asset_create_duplicate_should_fail() {
 	let digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -257,19 +257,19 @@ fn asset_unauthorized_operation_should_fail() {
 		<Test as frame_system::Config>::Hashing::hash(&[&transfer_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), unauthorized_space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), unauthorized_space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -430,12 +430,12 @@ fn asset_issue_should_succeed() {
 		<Test as frame_system::Config>::Hashing::hash(&[&issue_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -506,12 +506,12 @@ fn asset_overissuance_should_fail() {
 		<Test as frame_system::Config>::Hashing::hash(&[&issue_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -617,12 +617,12 @@ fn asset_transfer_should_succeed() {
 		<Test as frame_system::Config>::Hashing::hash(&[&transfer_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -713,12 +713,12 @@ fn asset_status_change_should_succeed() {
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -780,12 +780,12 @@ fn asset_vc_create_should_succeed() {
 	let digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -833,12 +833,12 @@ fn asset_vc_create_duplicate_should_fail() {
 	let digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -912,12 +912,12 @@ fn asset_vc_issue_should_succeed() {
 		<Test as frame_system::Config>::Hashing::hash(&[&issue_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -988,12 +988,12 @@ fn asset_vc_overissuance_should_fail() {
 		<Test as frame_system::Config>::Hashing::hash(&[&issue_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -1099,12 +1099,12 @@ fn asset_vc_transfer_should_succeed() {
 		<Test as frame_system::Config>::Hashing::hash(&[&transfer_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -1195,12 +1195,12 @@ fn asset_vc_status_change_should_succeed() {
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -1294,12 +1294,12 @@ fn changing_status_of_asset_instance_with_same_status_should_fail() {
 
 	new_test_ext().execute_with(|| {
 		// Create space and asset
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -1395,12 +1395,12 @@ fn changing_status_of_vc_asset_instance_with_same_status_should_fail() {
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -1484,12 +1484,12 @@ fn changing_status_of_asset_with_same_status_should_fail() {
 
 	new_test_ext().execute_with(|| {
 		// Create space and asset
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -1572,12 +1572,12 @@ fn changing_status_of_vc_asset_with_same_status_should_fail() {
 		<Test as frame_system::Config>::Hashing::hash(&[&issue_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -1658,12 +1658,12 @@ fn asset_over_issuance_should_not_succeed() {
 		<Test as frame_system::Config>::Hashing::hash(&[&issue_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -1751,12 +1751,12 @@ fn asset_over_issuance_vc_status_change_should_not_succeed() {
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -1865,12 +1865,12 @@ fn asset_id_not_found_should_fail() {
 		<Test as frame_system::Config>::Hashing::hash(&[&transfer_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_err!(
 			Asset::issue(
@@ -2010,12 +2010,12 @@ fn asset_instance_not_found_should_fail() {
 		<Test as frame_system::Config>::Hashing::hash(&[&transfer_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -2124,12 +2124,12 @@ fn asset_vc_instance_not_found_should_fail() {
 		<Test as frame_system::Config>::Hashing::hash(&[&transfer_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -2213,12 +2213,12 @@ fn asset_not_active_should_fail() {
 		<Test as frame_system::Config>::Hashing::hash(&[&issue_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -2324,12 +2324,12 @@ fn asset_instance_not_active_should_fail() {
 		<Test as frame_system::Config>::Hashing::hash(&[&transfer_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -2441,12 +2441,12 @@ fn asset_vc_instance_not_active_should_fail() {
 		<Test as frame_system::Config>::Hashing::hash(&[&transfer_entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -2515,12 +2515,12 @@ fn asset_issue_with_wrong_asset_id_should_fail() {
 	let digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -2621,12 +2621,12 @@ fn asset_transfer_with_wrong_asset_id_should_fail() {
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -2731,12 +2731,12 @@ fn asset_status_change_with_wrong_asset_id_should_fail() {
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -2806,12 +2806,12 @@ fn asset_vc_issue_with_wrong_asset_id_should_fail() {
 	let digest = <Test as frame_system::Config>::Hashing::hash(&[&entry.encode()[..]].concat()[..]);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -2914,12 +2914,12 @@ fn asset_vc_transfer_with_wrong_asset_id_should_fail() {
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -3029,12 +3029,12 @@ fn asset_vc_status_change_with_wrong_asset_id_should_fail() {
 	let instance_id = generate_asset_instance_id::<Test>(&instance_id_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_ok!(Asset::vc_create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -3110,11 +3110,11 @@ fn asset_issue_should_fail_when_distribution_limit_exceeds() {
 
 	new_test_ext().execute_with(|| {
 		// Create and approve space
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 		assert_ok!(Asset::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			entry.clone(),

@@ -38,7 +38,7 @@ use identifier::{
 	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
 	EventEntryOf,
 };
-use pallet_chain_space::AuthorizationIdOf;
+use pallet_chain_space_did::AuthorizationIdOf;
 use sp_runtime::traits::UniqueSaturatedInto;
 
 #[frame_support::pallet]
@@ -62,7 +62,7 @@ pub mod pallet {
 	pub type AssetInstanceIdOf = Ss58Identifier;
 
 	/// Type of a creator identifier.
-	pub type AssetCreatorOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
+	pub type AssetCreatorOf<T> = pallet_chain_space_did::SpaceCreatorOf<T>;
 	/// Type of the identitiy.
 	pub type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	/// Type of Asset quantity.
@@ -114,7 +114,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_chain_space::Config + identifier::Config
+		frame_system::Config + pallet_chain_space_did::Config + identifier::Config
 	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
@@ -274,7 +274,8 @@ pub mod pallet {
 		/// - `InvalidAssetType`: If the asset type is invalid.
 		/// - `InvalidIdentifierLength`: If the generated identifier is of invalid length.
 		/// - `AssetIdAlreadyExists`: If an asset with the generated identifier already exists.
-		/// - Propagates errors from `pallet_chain_space::Pallet::ensure_authorization_origin` and
+		/// - Propagates errors from `pallet_chain_space_did::Pallet::ensure_authorization_origin`
+		///   and
 		/// `Self::update_activity` if they fail.
 		///
 		/// # Events
@@ -286,11 +287,11 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&creator.clone(),
 			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
+			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
 
 			ensure!(entry.asset_qty > 0 && entry.asset_value > 0, Error::<T>::InvalidAssetValue);
 			ensure!(entry.asset_type.is_valid_asset_type(), Error::<T>::InvalidAssetType);
@@ -354,7 +355,8 @@ pub mod pallet {
 		/// - `OverIssuanceLimit`: If the issuance quantity exceeds the asset's total quantity.
 		/// - `InvalidIdentifierLength`: If the generated identifier is of invalid length.
 		/// - `DistributionLimitExceeded`: If the distribution limit is exceeded.
-		/// - Propagates errors from `pallet_chain_space::Pallet::ensure_authorization_origin` and
+		/// - Propagates errors from `pallet_chain_space_did::Pallet::ensure_authorization_origin`
+		///   and
 		/// `Self::update_activity` if they fail.
 		///
 		/// # Events
@@ -368,11 +370,11 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&issuer,
 			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
+			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
 
 			let asset = <Assets<T>>::get(&entry.asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
 
@@ -637,11 +639,11 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&creator.clone(),
 			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
+			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
 
 			ensure!(asset_qty > 0, Error::<T>::InvalidAssetQty);
 
@@ -717,11 +719,11 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
 			let issuer = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&issuer,
 			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
+			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
 
 			let asset = <VCAssets<T>>::get(&entry.asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
 
