@@ -36,7 +36,7 @@ pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 frame_support::construct_runtime!(
 	pub enum Test {
 		System: frame_system,
-		Schema: pallet_schema,
+		SchemaDid: pallet_schema_did,
 		SpaceDid: pallet_chain_space_did,
 		Identifier: identifier,
 		StatementDid: pallet_statement_did,
@@ -107,7 +107,7 @@ parameter_types! {
 	pub const MaxEncodedSchemaLength: u32 = 15_360;
 }
 
-impl pallet_schema::Config for Test {
+impl pallet_schema_did::Config for Test {
 	type SchemaCreatorId = SubjectId;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;

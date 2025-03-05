@@ -25,7 +25,7 @@ scale-info = { features = ["derive"], workspace = true }
 bitflags = { workspace = true }
 log = { workspace = true }
 pallet-namespace = { workspace = true }
-pallet-schema-accounts = { workspace = true }
+pallet-schema = { workspace = true }
 
 # Internal dependencies
 cord-primitives = { workspace = true }
@@ -67,7 +67,7 @@ std = [
 	"sp-runtime/std",
 	"sp-std/std",
 	"pallet-namespace/std",
-	"pallet-schema-accounts/std",
+	"pallet-schema/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -76,7 +76,7 @@ try-runtime = [
 	"cord-utilities/try-runtime",
 	"sp-runtime/try-runtime",
 	"pallet-namespace/std",
-	"pallet-schema-accounts/std",
+	"pallet-schema/std",
 ]
 
 # Disable doctest when running `cargo test` 

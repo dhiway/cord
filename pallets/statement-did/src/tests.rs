@@ -5,7 +5,7 @@ use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_err, assert_ok, BoundedVec};
 use frame_system::RawOrigin;
 use pallet_chain_space_did::SpaceCodeOf;
-use pallet_schema::{InputSchemaOf, SchemaHashOf};
+use pallet_schema_did::{InputSchemaOf, SchemaHashOf};
 use sp_runtime::{traits::Hash, AccountId32};
 
 /// Generates a statement ID from a statement digest.
@@ -15,7 +15,7 @@ pub fn generate_statement_id<T: Config>(digest: &StatementDigestOf<T>) -> Statem
 
 /// Generates a schema ID from a schema digest.
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SchemaDid).unwrap()
 }
 
 /// Generates a space ID from a digest.
@@ -69,7 +69,7 @@ fn register_statement_should_succeed() {
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -161,7 +161,7 @@ fn trying_to_register_statement_by_a_non_delegate_should_fail() {
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -224,7 +224,7 @@ fn updating_a_registered_statement_should_succeed() {
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -301,7 +301,7 @@ fn updating_a_registered_statement_by_a_space_delegate_should_succeed() {
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -380,7 +380,7 @@ fn trying_to_update_a_registered_statement_by_a_non_space_delegate_should_fail()
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -449,7 +449,7 @@ fn trying_to_update_a_non_registered_statement_should_fail() {
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -517,7 +517,7 @@ fn revoking_a_registered_statement_should_succeed() {
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -606,7 +606,7 @@ fn revoking_a_registered_statement_by_a_non_delegate_should_fail() {
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), new_space_id, capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -680,7 +680,7 @@ fn restoring_a_revoked_statement_should_succeed() {
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -756,7 +756,7 @@ fn trying_to_restore_a_non_revoked_statement_should_fail() {
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -843,7 +843,7 @@ fn trying_to_restore_a_revoked_statement_by_a_non_delegate_should_fail() {
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), new_space_id, capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -917,7 +917,7 @@ fn registering_a_statement_again_should_fail() {
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -994,7 +994,7 @@ fn updating_a_registered_statement_again_should_fail() {
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -1120,7 +1120,7 @@ fn bulk_registering_statements_with_same_digest_should_fail() {
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()
@@ -1189,7 +1189,7 @@ fn trying_to_update_or_revoke_or_add_presentation_for_revoked_statement_should_f
 
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
-		assert_ok!(Schema::create(
+		assert_ok!(SchemaDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			schema.clone(),
 			authorization_id.clone()

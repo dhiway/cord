@@ -1280,7 +1280,7 @@ dependencies = [
  "pallet-remark",
  "pallet-runtime-upgrade",
  "pallet-scheduler",
- "pallet-schema-accounts",
+ "pallet-schema",
  "pallet-schema-did",
  "pallet-session",
  "pallet-session-benchmarking",
@@ -1417,7 +1417,7 @@ dependencies = [
  "pallet-root-testing",
  "pallet-runtime-upgrade",
  "pallet-scheduler",
- "pallet-schema-accounts",
+ "pallet-schema",
  "pallet-schema-did",
  "pallet-session",
  "pallet-session-benchmarking",
@@ -1944,7 +1944,7 @@ dependencies = [
  "pallet-remark",
  "pallet-runtime-upgrade",
  "pallet-scheduler",
- "pallet-schema-accounts",
+ "pallet-schema",
  "pallet-schema-did",
  "pallet-session",
  "pallet-session-benchmarking",
@@ -6360,7 +6360,7 @@ dependencies = [
  "log",
  "pallet-namespace",
  "pallet-registries",
- "pallet-schema-accounts",
+ "pallet-schema",
  "parity-scale-codec",
  "scale-info",
  "serde_json",
@@ -6622,7 +6622,7 @@ dependencies = [
  "frame-system",
  "log",
  "pallet-namespace",
- "pallet-schema-accounts",
+ "pallet-schema",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -6691,7 +6691,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-schema-accounts"
+name = "pallet-schema"
 version = "0.9.5"
 dependencies = [
  "cord-identifier",

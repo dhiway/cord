@@ -3,7 +3,7 @@ use crate::mock::*;
 use codec::Encode;
 use frame_support::{assert_err, assert_ok};
 use pallet_namespace::{NameSpaceCodeOf, NameSpaceIdOf};
-use pallet_schema_accounts::{InputSchemaOf, SchemaHashOf};
+use pallet_schema::{InputSchemaOf, SchemaHashOf};
 use sp_runtime::traits::Hash;
 use sp_std::prelude::*;
 
@@ -19,7 +19,7 @@ pub fn generate_authorization_id<T: Config>(
 }
 
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SchemaAccounts)
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema)
 		.unwrap()
 }
 

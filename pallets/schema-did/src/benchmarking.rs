@@ -36,7 +36,7 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 }
 
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SchemaDid).unwrap()
 }
 
 /// Generates a space ID from a digest.

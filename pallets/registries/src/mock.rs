@@ -35,7 +35,7 @@ pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 frame_support::construct_runtime!(
 	pub enum Test {
 		System: frame_system,
-		SchemaAccounts: pallet_schema_accounts,
+		Schema: pallet_schema,
 		NameSpace: pallet_namespace,
 		Registries: pallet_registries,
 		Identifier: identifier,
@@ -89,7 +89,7 @@ impl pallet_namespace::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_schema_accounts::Config for Test {
+impl pallet_schema::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 	type WeightInfo = ();

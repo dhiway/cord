@@ -873,7 +873,7 @@ impl pallet_schema_did::Config for Runtime {
 	type WeightInfo = weights::pallet_schema_did::WeightInfo<Runtime>;
 }
 
-impl pallet_schema_accounts::Config for Runtime {
+impl pallet_schema::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
 	type WeightInfo = ();
@@ -1169,7 +1169,7 @@ mod runtime {
 	pub type Entries = pallet_entries;
 
 	#[runtime::pallet_index(63)]
-	pub type SchemaAccounts = pallet_schema_accounts;
+	pub type Schema = pallet_schema;
 
 	#[runtime::pallet_index(64)]
 	pub type NameSpace = pallet_namespace;

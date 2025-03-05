@@ -36,7 +36,7 @@ const PREFIX: &[u8] = b"CRDIDFR";
 pub enum IdentifierType {
 	AuthorizationDid,
 	SpaceDid,
-	Schema,
+	SchemaDid,
 	StatementDid,
 	Entity,
 	Template,
@@ -46,7 +46,7 @@ pub enum IdentifierType {
 	Registries,
 	Entries,
 	RegistryAuthorization,
-	SchemaAccounts,
+	Schema,
 	NameSpace,
 	NameSpaceAuthorization,
 }
@@ -54,7 +54,7 @@ pub enum IdentifierType {
 impl IdentifierType {
 	const IDENT_AUTH_DID: u16 = 2092;
 	const IDENT_SPACE_DID: u16 = 3390;
-	const IDENT_SCHEMA: u16 = 7366;
+	const IDENT_SCHEMA_DID: u16 = 7366;
 	const IDENT_STATEMENT_DID: u16 = 8902;
 	const IDENT_ENTITY: u16 = 6480;
 	const IDENT_TEMPLATE: u16 = 8911;
@@ -64,7 +64,7 @@ impl IdentifierType {
 	const IDENT_REGISTRIES: u16 = 9274;
 	const IDENT_ENTRIES: u16 = 9944;
 	const IDENT_REGISTRYAUTH: u16 = 10001;
-	const IDENT_SCHEMA_ACCOUNTS: u16 = 10501;
+	const IDENT_SCHEMA: u16 = 10501;
 	const IDENT_NAMESPACE: u16 = 12501;
 	const IDENT_NAMESPACE_AUTH: u16 = 13101;
 
@@ -72,7 +72,7 @@ impl IdentifierType {
 		match self {
 			IdentifierType::AuthorizationDid => Self::IDENT_AUTH_DID,
 			IdentifierType::SpaceDid => Self::IDENT_SPACE_DID,
-			IdentifierType::Schema => Self::IDENT_SCHEMA,
+			IdentifierType::SchemaDid => Self::IDENT_SCHEMA_DID,
 			IdentifierType::StatementDid => Self::IDENT_STATEMENT_DID,
 			IdentifierType::Entity => Self::IDENT_ENTITY,
 			IdentifierType::Template => Self::IDENT_TEMPLATE,
@@ -82,7 +82,7 @@ impl IdentifierType {
 			IdentifierType::Registries => Self::IDENT_REGISTRIES,
 			IdentifierType::Entries => Self::IDENT_ENTRIES,
 			IdentifierType::RegistryAuthorization => Self::IDENT_REGISTRYAUTH,
-			IdentifierType::SchemaAccounts => Self::IDENT_SCHEMA_ACCOUNTS,
+			IdentifierType::Schema => Self::IDENT_SCHEMA,
 			IdentifierType::NameSpace => Self::IDENT_NAMESPACE,
 			IdentifierType::NameSpaceAuthorization => Self::IDENT_NAMESPACE_AUTH,
 		}
@@ -91,7 +91,7 @@ impl IdentifierType {
 		match value {
 			2092 => Some(IdentifierType::AuthorizationDid),
 			3390 => Some(IdentifierType::SpaceDid),
-			7366 => Some(IdentifierType::Schema),
+			7366 => Some(IdentifierType::SchemaDid),
 			8902 => Some(IdentifierType::StatementDid),
 			6480 => Some(IdentifierType::Entity),
 			8911 => Some(IdentifierType::Template),
@@ -101,7 +101,7 @@ impl IdentifierType {
 			9274 => Some(IdentifierType::Registries),
 			9944 => Some(IdentifierType::Entries),
 			10001 => Some(IdentifierType::RegistryAuthorization),
-			10501 => Some(IdentifierType::SchemaAccounts),
+			10501 => Some(IdentifierType::Schema),
 			12501 => Some(IdentifierType::NameSpace),
 			13101 => Some(IdentifierType::NameSpaceAuthorization),
 			_ => None,
