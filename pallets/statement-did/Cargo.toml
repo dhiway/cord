@@ -26,7 +26,7 @@ cord-primitives = { workspace = true }
 cord-utilities = { workspace = true }
 identifier = { workspace = true }
 pallet-chain-space-did = { workspace = true }
-pallet-schema = { workspace = true }
+pallet-schema-did = { workspace = true }
 
 
 # Substrate dependencies
@@ -48,7 +48,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"cord-utilities/runtime-benchmarks",
 	"pallet-chain-space-did/runtime-benchmarks",
-	"pallet-schema/runtime-benchmarks"
+	"pallet-schema-did/runtime-benchmarks"
 ]
 std = [
 	"codec/std",
@@ -64,7 +64,7 @@ std = [
 	"sp-std/std",
 	"sp-keystore/std",
 	"pallet-chain-space-did/std",
-	"pallet-schema/std",
+	"pallet-schema-did/std",
 	"sp-core?/std"
 ]
 
@@ -74,6 +74,6 @@ try-runtime = [
 	"cord-utilities/try-runtime",
 	"identifier/try-runtime",
 	"pallet-chain-space-did/try-runtime",
-	"pallet-schema/try-runtime",
+	"pallet-schema-did/try-runtime",
 	"sp-runtime/try-runtime"
 ]

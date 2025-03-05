@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate as pallet_schema;
+use crate as pallet_schema_did;
 use cord_primitives::IsPermissioned;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{derive_impl, parameter_types};
@@ -35,7 +35,7 @@ frame_support::construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
-		Schema: pallet_schema,
+		SchemaDid: pallet_schema_did,
 		SpaceDid: pallet_chain_space_did,
 		Identifier: identifier,
 		MockOrigin: mock_origin,
@@ -66,7 +66,7 @@ parameter_types! {
 	pub const MaxEncodedSchemaLength: u32 = 15_360;
 }
 
-impl pallet_schema::Config for Test {
+impl pallet_schema_did::Config for Test {
 	type SchemaCreatorId = SubjectId;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;

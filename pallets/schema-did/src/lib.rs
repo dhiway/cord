@@ -16,11 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! # Schema Pallet
+//! # Schema Did Pallet
 //!
 //! A pallet which enables users to generate Schema Identifier,
 //! store the Schema hash (blake2b as hex string) on chain and
 //!  associate it with their account id.
+//! This pallet uses did for all operations.
 //!
 //! - [`Config`]
 //! - [`Call`]
