@@ -1,6 +1,6 @@
 [package]
-name = 'pallet-schema'
-description = 'Manage Schemas'
+name = 'pallet-schema-did'
+description = 'Manage Did Schemas'
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

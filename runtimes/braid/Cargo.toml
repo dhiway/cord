@@ -40,7 +40,7 @@ cord-runtime-common = { workspace = true }
 
 pallet-did = { workspace = true }
 pallet-did-name = { workspace = true }
-pallet-schema = { workspace = true }
+pallet-schema-did = { workspace = true }
 pallet-config = { workspace = true }
 pallet-chain-space-did = { workspace = true }
 pallet-statement-did = { workspace = true }
@@ -166,7 +166,7 @@ std = [
 	"pallet-remark/std",
 	"pallet-did/std",
 	"pallet-did-name/std",
-	"pallet-schema/std",
+	"pallet-schema-did/std",
 	"pallet-chain-space-did/std",
 	"pallet-statement-did/std",
 	"pallet-registries/std",
@@ -221,7 +221,7 @@ runtime-benchmarks = [
 	"pallet-utility/runtime-benchmarks",
 	"pallet-did/runtime-benchmarks",
 	"pallet-did-name/runtime-benchmarks",
-	"pallet-schema/runtime-benchmarks",
+	"pallet-schema-did/runtime-benchmarks",
 	"pallet-statement-did/runtime-benchmarks",
 	"pallet-chain-space-did/runtime-benchmarks",
 	"pallet-namespace/runtime-benchmarks",
@@ -264,7 +264,7 @@ try-runtime = [
 	"pallet-transaction-payment/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-babe/try-runtime",
-	"pallet-schema/try-runtime",
+	"pallet-schema-did/try-runtime",
 	"pallet-chain-space-did/try-runtime",
 	"pallet-namespace/try-runtime",
 	"pallet-statement-did/try-runtime",

@@ -864,13 +864,13 @@ parameter_types! {
 	pub const MaxEncodedSchemaLength: u32 = 15_360;
 }
 
-impl pallet_schema::Config for Runtime {
+impl pallet_schema_did::Config for Runtime {
 	type SchemaCreatorId = DidIdentifier;
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
-	type WeightInfo = weights::pallet_schema::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_schema_did::WeightInfo<Runtime>;
 }
 
 impl pallet_schema_accounts::Config for Runtime {
@@ -1139,7 +1139,7 @@ mod runtime {
 	pub type Did = pallet_did;
 
 	#[runtime::pallet_index(53)]
-	pub type Schema = pallet_schema;
+	pub type SchemaDid = pallet_schema_did;
 
 	#[runtime::pallet_index(54)]
 	pub type ChainSpaceDid = pallet_chain_space_did;
@@ -1216,7 +1216,7 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::DidName { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::Schema { .. } => {
+			RuntimeCall::SchemaDid { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::StatementDid { .. } => {
@@ -1346,7 +1346,7 @@ mod benches {
 		[pallet_timestamp, Timestamp]
 		// [pallet_treasury, Treasury]
 		[pallet_utility, Utility]
-		[pallet_schema, Schema]
+		[pallet_schema_did, SchemaDid]
 		[pallet_statement_did, StatementDid]
 		[pallet_chain_space_did, ChainSpaceDid]
 		[pallet_did, Did]
