@@ -41,12 +41,12 @@ pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
 
 /// Generates a space ID from a digest.
 pub fn generate_space_id<T: Config>(digest: &SchemaHashOf<T>) -> SpaceIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SpaceDid).unwrap()
 }
 
 /// Generates an authorization ID from a digest.
 pub fn generate_authorization_id<T: Config>(digest: &SchemaHashOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::AuthorizationDid)
 		.unwrap()
 }
 
@@ -89,8 +89,8 @@ benchmarks! {
 		let origin =  <T as Config>::EnsureOrigin::generate_origin(caller, did);
 		let chain_space_origin = RawOrigin::Root.into();
 
-		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
-		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
+		pallet_chain_space_did::Pallet::<T>::create(origin.clone(), space_digest )?;
+		pallet_chain_space_did::Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
 
 	}: _<T::RuntimeOrigin>(origin, schema, authorization_id)
 	verify {

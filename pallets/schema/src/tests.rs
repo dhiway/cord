@@ -86,12 +86,12 @@ pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
 
 /// Generates a space ID from a digest.
 pub fn generate_space_id<T: Config>(digest: &SchemaHashOf<T>) -> SpaceIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SpaceDid).unwrap()
 }
 
 /// Generates an authorization ID from a digest.
 pub fn generate_authorization_id<T: Config>(digest: &SchemaHashOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::AuthorizationDid)
 		.unwrap()
 }
 
@@ -131,12 +131,12 @@ fn check_successful_schema_creation() {
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		// Author Transaction
 		assert_ok!(Schema::create(
@@ -182,12 +182,12 @@ fn check_duplicate_schema_creation() {
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		// Author Transaction
 		assert_ok!(Schema::create(
@@ -225,12 +225,12 @@ fn check_empty_schema_creation() {
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		// Author Transaction
 		assert_noop!(
@@ -271,12 +271,12 @@ fn test_schema_lookup() {
 	let authorization_id: Ss58Identifier = generate_authorization_id::<Test>(&auth_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
 		// Create the schemas
 		assert_ok!(Schema::create(
@@ -336,12 +336,12 @@ fn check_schema_not_found() {
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
 
 	new_test_ext().execute_with(|| {
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, capacity));
 
 		assert_err!(Schema::is_valid(&schema_id), Error::<Test>::SchemaNotFound);
 	});

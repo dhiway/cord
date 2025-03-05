@@ -20,7 +20,7 @@ use super::*;
 use crate as pallet_statement_did;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{derive_impl, parameter_types};
-use pallet_chain_space::IsPermissioned;
+use pallet_chain_space_did::IsPermissioned;
 
 use frame_system::EnsureRoot;
 use sp_runtime::{
@@ -36,8 +36,8 @@ pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
 frame_support::construct_runtime!(
 	pub enum Test {
 		System: frame_system,
-		Schema:pallet_schema,
-		Space: pallet_chain_space,
+		Schema: pallet_schema,
+		SpaceDid: pallet_chain_space_did,
 		Identifier: identifier,
 		StatementDid: pallet_statement_did,
 		MockOrigin: mock_origin,
@@ -92,7 +92,7 @@ impl IsPermissioned for NetworkPermission {
 	}
 }
 
-impl pallet_chain_space::Config for Test {
+impl pallet_chain_space_did::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;

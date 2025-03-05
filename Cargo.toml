@@ -16,7 +16,7 @@ members = [
 	"node/inspect",
 	"node/testing",
 	"pallets/asset",
-	"pallets/chain-space",
+	"pallets/chain-space-did",
 	"pallets/namespace",
 	"pallets/did",
 	"pallets/did-name",
@@ -142,7 +142,7 @@ pallet-config = { path = 'pallets/config/', default-features = false }
 pallet-did = { path = 'pallets/did', default-features = false }
 pallet-did-name = { path = 'pallets/did-name', default-features = false }
 pallet-schema = { path = 'pallets/schema', default-features = false }
-pallet-chain-space = { path = 'pallets/chain-space', default-features = false }
+pallet-chain-space-did = { path = 'pallets/chain-space-did', default-features = false }
 pallet-statement-did = { path = 'pallets/statement-did', default-features = false }
 pallet-network-membership = { path = 'pallets/network-membership', default-features = false }
 pallet-runtime-upgrade = { path = 'pallets/runtime-upgrade', default-features = false }

@@ -8,7 +8,7 @@ use frame_support::sp_runtime::traits::Hash;
 use frame_system::RawOrigin;
 
 use identifier::{IdentifierType, Ss58Identifier};
-use pallet_chain_space::{SpaceCodeOf, SpaceIdOf};
+use pallet_chain_space_did::{SpaceCodeOf, SpaceIdOf};
 use sp_runtime::BoundedVec;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
@@ -16,11 +16,11 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 }
 
 pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SpaceDid).unwrap()
 }
 
 pub fn generate_authorization_id<T: Config>(digest: &SpaceCodeOf<T>) -> AuthorizationIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Authorization)
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::AuthorizationDid)
 		.unwrap()
 }
 
@@ -94,8 +94,8 @@ benchmarks! {
 
 			let chain_space_origin = RawOrigin::Root.into();
 
-			pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
-			pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity).expect("Approval should not fail.");
+			pallet_chain_space_did::Pallet::<T>::create(origin.clone(), space_digest )?;
+			pallet_chain_space_did::Pallet::<T>::approve(chain_space_origin, space_id, capacity).expect("Approval should not fail.");
 
 		}: _<T::RuntimeOrigin>(origin, entry, digest, authorization_id)
 		verify {
@@ -171,8 +171,8 @@ benchmarks! {
 
 			let instance_id = generate_asset_instance_id::<T>(&issue_id_digest);
 
-			pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
-			pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity).expect("Approval should not fail.");
+			pallet_chain_space_did::Pallet::<T>::create(origin.clone(), space_digest )?;
+			pallet_chain_space_did::Pallet::<T>::approve(chain_space_origin, space_id, capacity).expect("Approval should not fail.");
 			Pallet::<T>::create(origin.clone(), entry, digest, authorization_id.clone())?;
 
 		}: _<T::RuntimeOrigin>(origin, issue_entry, issue_entry_digest, authorization_id)
@@ -262,8 +262,8 @@ benchmarks! {
 				&[&transfer_entry.encode()[..]].concat()[..],
 			);
 
-			pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
-			pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity).expect("Approval should not fail.");
+			pallet_chain_space_did::Pallet::<T>::create(origin.clone(), space_digest )?;
+			pallet_chain_space_did::Pallet::<T>::approve(chain_space_origin, space_id, capacity).expect("Approval should not fail.");
 			Pallet::<T>::create(origin.clone(), entry, digest, authorization_id.clone())?;
 			Pallet::<T>::issue(origin.clone(), issue_entry, issue_entry_digest, authorization_id)?;
 
@@ -343,8 +343,8 @@ benchmarks! {
 
 			let new_status = AssetStatusOf::EXPIRED;
 
-			pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
-			pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity).expect("Approval should not fail.");
+			pallet_chain_space_did::Pallet::<T>::create(origin.clone(), space_digest )?;
+			pallet_chain_space_did::Pallet::<T>::approve(chain_space_origin, space_id, capacity).expect("Approval should not fail.");
 			Pallet::<T>::create(origin.clone(), entry, digest, authorization_id.clone())?;
 			Pallet::<T>::issue(origin.clone(), issue_entry, issue_entry_digest, authorization_id)?;
 

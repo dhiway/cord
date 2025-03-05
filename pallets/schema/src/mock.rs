@@ -36,7 +36,7 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system,
 		Schema: pallet_schema,
-		Space: pallet_chain_space,
+		SpaceDid: pallet_chain_space_did,
 		Identifier: identifier,
 		MockOrigin: mock_origin,
 	}
@@ -87,7 +87,7 @@ impl IsPermissioned for NetworkPermission {
 	}
 }
 
-impl pallet_chain_space::Config for Test {
+impl pallet_chain_space_did::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;

@@ -147,7 +147,7 @@ pub mod pallet {
 	pub type RatingHashOf<T> = <T as frame_system::Config>::Hash;
 
 	/// Type of a creator identifier.
-	pub type RatingProviderIdOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
+	pub type RatingProviderIdOf<T> = pallet_chain_space_did::SpaceCreatorOf<T>;
 
 	/// Hash of the Rating.
 	pub type RatingEntryHashOf<T> = <T as frame_system::Config>::Hash;
@@ -186,7 +186,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config:
 		frame_system::Config
-		+ pallet_chain_space::Config
+		+ pallet_chain_space_did::Config
 		+ identifier::Config
 		+ pallet_timestamp::Config
 	{
@@ -360,11 +360,11 @@ pub mod pallet {
 			let tx_authors = <T as Config>::EnsureOrigin::ensure_origin(origin)?;
 			let provider = tx_authors.subject();
 			let creator = tx_authors.sender();
-			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&provider,
 			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
+			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
 
 			ensure!(
 				entry.total_encoded_rating > 0 &&
@@ -492,11 +492,11 @@ pub mod pallet {
 			let provider = tx_authors.subject();
 			let creator = tx_authors.sender();
 
-			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&provider,
 			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
+			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
 
 			let rating_details = <RatingEntries<T>>::get(&entry_identifier)
 				.ok_or(Error::<T>::RatingIdentifierNotFound)?;
@@ -627,11 +627,11 @@ pub mod pallet {
 			let provider = tx_authors.subject();
 			let creator = tx_authors.sender();
 
-			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
+			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&provider,
 			)
-			.map_err(<pallet_chain_space::Error<T>>::from)?;
+			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
 
 			ensure!(
 				entry.total_encoded_rating > 0 &&

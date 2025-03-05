@@ -998,7 +998,10 @@ fn revoking_approval_of_a_space_by_non_root_should_fail() {
 		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id.clone(), capacity));
 
 		assert_err!(
-			SpaceDid::approval_revoke(DoubleOrigin(author.clone(), creator.clone()).into(), space_id,),
+			SpaceDid::approval_revoke(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id,
+			),
 			BadOrigin
 		);
 	});
@@ -1079,7 +1082,10 @@ fn restoring_approval_of_a_space_by_non_root_should_fail() {
 		assert_ok!(SpaceDid::approval_revoke(RawOrigin::Root.into(), space_id.clone()));
 
 		assert_err!(
-			SpaceDid::approval_restore(DoubleOrigin(author.clone(), creator.clone()).into(), space_id,),
+			SpaceDid::approval_restore(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				space_id,
+			),
 			BadOrigin
 		);
 	});

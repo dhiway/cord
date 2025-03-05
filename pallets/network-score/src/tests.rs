@@ -22,7 +22,7 @@ use codec::Encode;
 use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_err, assert_ok, BoundedVec};
 use frame_system::RawOrigin;
-use pallet_chain_space::SpaceCodeOf;
+use pallet_chain_space_did::SpaceCodeOf;
 use sp_runtime::{traits::Hash, AccountId32};
 use sp_std::prelude::*;
 
@@ -31,7 +31,7 @@ pub fn generate_rating_id<T: Config>(digest: &RatingEntryHashOf<T>) -> RatingEnt
 }
 
 pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::SpaceDid).unwrap()
 }
 
 pub(crate) const DID_00: SubjectId = SubjectId(AccountId32::new([1u8; 32]));
@@ -66,20 +66,22 @@ fn check_successful_rating_creation() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
+	let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
+		&auth_digest.encode()[..],
+		IdentifierType::AuthorizationDid,
+	)
+	.unwrap();
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 		// Author Transaction
 
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, 3u64));
 
 		assert_ok!(Score::register_rating(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -120,21 +122,23 @@ fn register_rating_with_invalid_data_should_fail() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
+	let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
+		&auth_digest.encode()[..],
+		IdentifierType::AuthorizationDid,
+	)
+	.unwrap();
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
 		// Create space
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
 
 		// Approve space
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, 3u64));
 
 		// Try registering rating with invalid data
 		assert_err!(
@@ -179,9 +183,11 @@ fn revise_rating_with_invalid_values_should_fail() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
+	let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
+		&auth_digest.encode()[..],
+		IdentifierType::AuthorizationDid,
+	)
+	.unwrap();
 
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
@@ -201,12 +207,12 @@ fn revise_rating_with_invalid_values_should_fail() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, 3u64));
 
 		assert_ok!(Score::register_rating(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -268,20 +274,22 @@ fn check_duplicate_message_id() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
+	let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
+		&auth_digest.encode()[..],
+		IdentifierType::AuthorizationDid,
+	)
+	.unwrap();
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 		// Author Transaction
 
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, 3u64));
 
 		// Register the rating entry once
 		assert_ok!(Score::register_rating(
@@ -335,9 +343,11 @@ fn revise_rating_with_entry_entity_mismatch_should_fail() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
+	let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
+		&auth_digest.encode()[..],
+		IdentifierType::AuthorizationDid,
+	)
+	.unwrap();
 
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
@@ -357,12 +367,12 @@ fn revise_rating_with_entry_entity_mismatch_should_fail() {
 		System::set_block_number(1);
 		// Author Transaction
 
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest,
 		));
 
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, 3u64));
 
 		assert_ok!(Score::register_rating(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -418,19 +428,21 @@ fn register_rating_with_existing_rating_identifier_should_fail() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
+	let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
+		&auth_digest.encode()[..],
+		IdentifierType::AuthorizationDid,
+	)
+	.unwrap();
 
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
 		// Create a space
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, 3u64));
 
 		// Register the rating entry once
 		assert_ok!(Score::register_rating(
@@ -483,9 +495,11 @@ fn revoke_rating_with_existing_rating_identifier_should_fail() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
+	let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
+		&auth_digest.encode()[..],
+		IdentifierType::AuthorizationDid,
+	)
+	.unwrap();
 
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
@@ -504,11 +518,11 @@ fn revoke_rating_with_existing_rating_identifier_should_fail() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, 3u64));
 
 		assert_ok!(Score::register_rating(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -574,9 +588,11 @@ fn revise_rating_with_existing_rating_identifier_should_fail() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
+	let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
+		&auth_digest.encode()[..],
+		IdentifierType::AuthorizationDid,
+	)
+	.unwrap();
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
 			&entry_digest.encode()[..],
@@ -608,11 +624,11 @@ fn revise_rating_with_existing_rating_identifier_should_fail() {
 		System::set_block_number(1);
 
 		// Create a space
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 5u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, 5u64));
 
 		// Register the rating entry once
 		assert_ok!(Score::register_rating(
@@ -686,9 +702,11 @@ fn reference_identifier_not_debit_test() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
+	let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
+		&auth_digest.encode()[..],
+		IdentifierType::AuthorizationDid,
+	)
+	.unwrap();
 
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
@@ -708,11 +726,11 @@ fn reference_identifier_not_debit_test() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, 3u64));
 
 		assert_ok!(Score::register_rating(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -764,9 +782,11 @@ fn rating_identifier_not_found_test() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
+	let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
+		&auth_digest.encode()[..],
+		IdentifierType::AuthorizationDid,
+	)
+	.unwrap();
 
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
@@ -786,11 +806,11 @@ fn rating_identifier_not_found_test() {
 	new_test_ext().execute_with(|| {
 		System::set_block_number(1);
 
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, 3u64));
 
 		assert_ok!(Score::register_rating(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -847,9 +867,11 @@ fn reference_identifier_not_found_test() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
+	let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
+		&auth_digest.encode()[..],
+		IdentifierType::AuthorizationDid,
+	)
+	.unwrap();
 
 	let id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[
@@ -869,11 +891,11 @@ fn reference_identifier_not_found_test() {
 		System::set_block_number(1);
 
 		// Create a space
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 5u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, 5u64));
 
 		// Register the rating entry once
 		assert_ok!(Score::register_rating(
@@ -959,9 +981,11 @@ fn revise_rating_with_space_mismatch_should_fail() {
 	let auth_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
 	);
-	let authorization_id: AuthorizationIdOf =
-		Ss58Identifier::create_identifier(&auth_digest.encode()[..], IdentifierType::Authorization)
-			.unwrap();
+	let authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
+		&auth_digest.encode()[..],
+		IdentifierType::AuthorizationDid,
+	)
+	.unwrap();
 
 	// Auth ID for mismatch space
 	let mismatch_auth_digest = <Test as frame_system::Config>::Hashing::hash(
@@ -969,7 +993,7 @@ fn revise_rating_with_space_mismatch_should_fail() {
 	);
 	let mismatch_authorization_id: AuthorizationIdOf = Ss58Identifier::create_identifier(
 		&mismatch_auth_digest.encode()[..],
-		IdentifierType::Authorization,
+		IdentifierType::AuthorizationDid,
 	)
 	.unwrap();
 
@@ -977,11 +1001,11 @@ fn revise_rating_with_space_mismatch_should_fail() {
 		System::set_block_number(1);
 
 		// Create & approve main space
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			space_digest
 		));
-		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, 3u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), space_id, 3u64));
 
 		// Register a 'credit' rating in main space
 		assert_ok!(Score::register_rating(
@@ -993,11 +1017,11 @@ fn revise_rating_with_space_mismatch_should_fail() {
 		));
 
 		// Create & approve mismatch space
-		assert_ok!(Space::create(
+		assert_ok!(SpaceDid::create(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
 			mismatch_space_digest
 		));
-		assert_ok!(Space::approve(RawOrigin::Root.into(), mismatch_space_id, 3u64));
+		assert_ok!(SpaceDid::approve(RawOrigin::Root.into(), mismatch_space_id, 3u64));
 
 		// Revoke the original rating to produce a 'debit' entry
 		let revoke_msg_id = BoundedVec::try_from([80u8; 10].to_vec()).unwrap();

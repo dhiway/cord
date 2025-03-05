@@ -21,7 +21,7 @@ use crate as pallet_score;
 use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{derive_impl, parameter_types, traits::ConstU64};
 use frame_system::EnsureRoot;
-use pallet_chain_space::IsPermissioned;
+use pallet_chain_space_did::IsPermissioned;
 use sp_runtime::{
 	traits::{IdentifyAccount, IdentityLookup, Verify},
 	BuildStorage, MultiSignature,
@@ -36,7 +36,7 @@ frame_support::construct_runtime!(
 	pub enum Test
 	{
 		System: frame_system,
-		Space: pallet_chain_space,
+		SpaceDid: pallet_chain_space_did,
 		Identifier: identifier,
 		Score: pallet_score,
 		TimeStamp: pallet_timestamp,
@@ -91,7 +91,7 @@ impl IsPermissioned for NetworkPermission {
 	}
 }
 
-impl pallet_chain_space::Config for Test {
+impl pallet_chain_space_did::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type EnsureOrigin = mock_origin::EnsureDoubleOrigin<AccountId, SubjectId>;
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
