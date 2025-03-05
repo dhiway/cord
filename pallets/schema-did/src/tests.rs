@@ -117,8 +117,9 @@ fn check_successful_schema_creation() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let raw_schema = [2u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test SchemaDid should fit into the expected input length of for the test runtime.");
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema).expect(
+		"Test SchemaDid should fit into the expected input length of for the test runtime.",
+	);
 	let digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
 	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
@@ -166,8 +167,9 @@ fn check_duplicate_schema_creation() {
 	let author = ACCOUNT_00;
 	let capacity = 3u64;
 	let raw_schema = [9u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test SchemaDid should fit into the expected input length of for the test runtime.");
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema).expect(
+		"Test SchemaDid should fit into the expected input length of for the test runtime.",
+	);
 
 	let raw_space = [2u8; 256].to_vec();
 	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
@@ -328,8 +330,9 @@ fn check_schema_not_found() {
 	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
 	let raw_schema = [3u8; 256].to_vec();
-	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
-		.expect("Test SchemaDid should fit into the expected input length of for the test runtime.");
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema).expect(
+		"Test SchemaDid should fit into the expected input length of for the test runtime.",
+	);
 	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(
 		&[&schema.encode()[..], &space_id.encode()[..], &creator.encode()[..]].concat()[..],
 	);

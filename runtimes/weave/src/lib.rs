@@ -896,6 +896,17 @@ impl pallet_chain_space_did::Config for Runtime {
 	type WeightInfo = weights::pallet_chain_space_did::WeightInfo<Runtime>;
 }
 
+impl pallet_chain_space::Config for Runtime {
+	// type SpaceCreatorId = DidIdentifier;
+	// type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
+	// type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
+	type RuntimeEvent = RuntimeEvent;
+	// type ChainSpaceOrigin = MoreThanHalfCouncil;
+	type NetworkPermission = NetworkParameters;
+	type MaxSpaceDelegates = MaxSpaceDelegates;
+	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
+}
+
 parameter_types! {
 	pub const MaxNameSpaceDelegates: u32 = 10_000;
 	pub const MaxNameSpaceBlobSize: u32 = 4 * 1024;
@@ -1141,7 +1152,7 @@ mod runtime {
 	pub type SchemaDid = pallet_schema_did;
 
 	#[runtime::pallet_index(54)]
-	pub type ChainSpaceDId = pallet_chain_space_did;
+	pub type ChainSpaceDid = pallet_chain_space_did;
 
 	#[runtime::pallet_index(55)]
 	pub type StatementDid = pallet_statement_did;
@@ -1172,6 +1183,9 @@ mod runtime {
 
 	#[runtime::pallet_index(64)]
 	pub type NameSpace = pallet_namespace;
+
+	#[runtime::pallet_index(65)]
+	pub type ChainSpace = pallet_chain_space;
 
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo;
@@ -1221,34 +1235,34 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::NetworkScore { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::ChainSpaceDId(pallet_chain_space_did::Call::add_delegate { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::add_delegate { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
-			RuntimeCall::ChainSpaceDId(pallet_chain_space_did::Call::add_admin_delegate { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::add_admin_delegate { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
-			RuntimeCall::ChainSpaceDId(pallet_chain_space_did::Call::add_delegator { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::add_delegator { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
-			RuntimeCall::ChainSpaceDId(pallet_chain_space_did::Call::remove_delegate { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::remove_delegate { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
 			},
-			RuntimeCall::ChainSpaceDId(pallet_chain_space_did::Call::create { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::create { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::ChainSpaceDId(pallet_chain_space_did::Call::archive { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::archive { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::ChainSpaceDId(pallet_chain_space_did::Call::restore { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::restore { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::ChainSpaceDId(pallet_chain_space_did::Call::subspace_create { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::subspace_create { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::ChainSpaceDId(pallet_chain_space_did::Call::update_transaction_capacity { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::update_transaction_capacity { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::ChainSpaceDId(pallet_chain_space_did::Call::update_transaction_capacity_sub { .. }) => {
+			RuntimeCall::ChainSpaceDid(pallet_chain_space_did::Call::update_transaction_capacity_sub { .. }) => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {
@@ -1344,7 +1358,7 @@ mod benches {
 		[pallet_utility, Utility]
 		[pallet_schema_did, SchemaDid]
 		[pallet_statement_did, StatementDid]
-		[pallet_chain_space_did, ChainSpaceDId]
+		[pallet_chain_space_did, ChainSpaceDid]
 		[pallet_did, Did]
 		[pallet_did_name, DidName]
 		[pallet_network_membership, NetworkMembership]

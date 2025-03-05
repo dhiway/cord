@@ -56,8 +56,7 @@ pub fn generate_authorization_id<T: Config>(
 
 /// Generates a Schema ID
 pub fn generate_schema_id<T: Config>(digest: &SchemaHashOf<T>) -> SchemaIdOf {
-	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema)
-		.unwrap()
+	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Schema).unwrap()
 }
 
 /// Generates a Namespace ID

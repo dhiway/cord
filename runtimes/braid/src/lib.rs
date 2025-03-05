@@ -756,6 +756,13 @@ impl pallet_chain_space_did::Config for Runtime {
 	type WeightInfo = weights::pallet_chain_space_did::WeightInfo<Runtime>;
 }
 
+impl pallet_chain_space::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type NetworkPermission = NetworkParameters;
+	type MaxSpaceDelegates = MaxSpaceDelegates;
+	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
+}
+
 parameter_types! {
 	pub const MaxRegistryBlobSize: u32 = 4 * 1024;
 	pub const MaxEncodedInputLength: u32 = 30;
@@ -1014,6 +1021,9 @@ mod runtime {
 
 	#[runtime::pallet_index(64)]
 	pub type NameSpace = pallet_namespace;
+
+	#[runtime::pallet_index(65)]
+	pub type Space = pallet_chain_space;
 
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo;
