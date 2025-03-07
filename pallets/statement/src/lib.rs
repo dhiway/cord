@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! # Statement Did Pallet
+//! # Statement Pallet
 //!
 //! The Statement Pallet is designed for blockchain systems that need to
 //! reference off-chain data without storing the actual data or recipient
@@ -24,7 +24,6 @@
 //! that serve as references to data stored externally. This approach ensures
 //! data privacy and minimizes on-chain storage requirements while still
 //! leveraging the blockchain for data integrity and provenance.
-//! This pallet uses did on top of substrate account for all operations.
 //!
 //! ## Overview
 //!
@@ -58,7 +57,7 @@
 //!
 //!## Related Modules
 //!
-//! - [`ChainSpace`](../pallet_chain_space_did/index.html): Manages authorization and capacity for
+//! - [`ChainSpace`](../pallet_chain_space/index.html): Manages authorization and capacity for
 //!   statement references.
 //! - [`Identifier`](../identifier/index.html): Logs the timeline of statement activities.
 //!
@@ -72,14 +71,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-#[cfg(feature = "runtime-benchmarks")]
-pub mod benchmarking;
-
 #[cfg(any(feature = "mock", test))]
 pub mod mock;
-
-#[cfg(test)]
-pub mod tests;
 
 use cord_primitives::StatusOf;
 use frame_support::{ensure, storage::types::StorageMap};
@@ -100,7 +93,6 @@ use sp_std::{vec, vec::Vec};
 pub mod pallet {
 
 	use super::*;
-	use cord_utilities::traits::CallSources;
 	use frame_support::pallet_prelude::{OptionQuery, *};
 	use frame_system::pallet_prelude::*;
 	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
@@ -118,7 +110,7 @@ pub mod pallet {
 	/// Authorization Identifier
 	pub type AuthorizationIdOf = Ss58Identifier;
 	/// Type of a creator identifier.
-	pub type StatementCreatorOf<T> = pallet_chain_space_did::SpaceCreatorOf<T>;
+	pub type StatementCreatorOf<T> = pallet_chain_space::SpaceCreatorOf<T>;
 	/// Hash of the statement.
 	pub type StatementDigestOf<T> = <T as frame_system::Config>::Hash;
 	/// Type of the identitiy.
@@ -137,14 +129,10 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + pallet_chain_space_did::Config + identifier::Config
+		frame_system::Config + pallet_chain_space::Config + identifier::Config
 	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-		type EnsureOrigin: EnsureOrigin<
-			<Self as frame_system::Config>::RuntimeOrigin,
-			Success = <Self as Config>::OriginSuccess,
-		>;
-		type OriginSuccess: CallSources<AccountIdOf<Self>, StatementCreatorOf<Self>>;
+
 		/// Maximum entires supported per batch call
 		#[pallet::constant]
 		type MaxDigestsPerBatch: Get<u16>;
@@ -395,12 +383,13 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 			schema_id: Option<SchemaIdOf>,
 		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
+			let creator = ensure_signed(origin)?;
+
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&creator,
 			)
-			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			// Id Digest = concat (H(<scale_encoded_statement_digest>,
 			// <scale_encoded_space_identifier>, <scale_encoded_creator_identifier>))
@@ -410,7 +399,7 @@ pub mod pallet {
 
 			let identifier = Ss58Identifier::create_identifier(
 				&(id_digest).encode()[..],
-				IdentifierType::StatementDid,
+				IdentifierType::Statement,
 			)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
@@ -492,12 +481,13 @@ pub mod pallet {
 			new_statement_digest: StatementDigestOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
+			let updater = ensure_signed(origin)?;
+
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&updater,
 			)
-			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
@@ -600,12 +590,13 @@ pub mod pallet {
 			statement_id: StatementIdOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
+			let updater = ensure_signed(origin)?;
+
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&updater,
 			)
-			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
@@ -684,12 +675,13 @@ pub mod pallet {
 			statement_id: StatementIdOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
+			let updater = ensure_signed(origin)?;
+
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&updater,
 			)
-			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
@@ -768,12 +760,13 @@ pub mod pallet {
 			statement_id: StatementIdOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResultWithPostInfo {
-			let updater = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
+			let updater = ensure_signed(origin)?;
+
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&updater,
 			)
-			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
@@ -798,11 +791,11 @@ pub mod pallet {
 					<RevocationList<T>>::clear_prefix(&statement_id, entries_count as u32, None);
 				let _ = <Entries<T>>::clear_prefix(&statement_id, entries_count as u32, None);
 				<Statements<T>>::remove(&statement_id);
-				pallet_chain_space_did::Pallet::<T>::decrement_usage_entries(
+				pallet_chain_space::Pallet::<T>::decrement_usage_entries(
 					&space_id,
 					entries_count as u16,
 				)
-				.map_err(<pallet_chain_space_did::Error<T>>::from)?;
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 			} else {
 				// Perform a partial removal.
 				for (digest, _) in <Entries<T>>::iter_prefix(&statement_id).take(max_removals) {
@@ -811,11 +804,11 @@ pub mod pallet {
 					<Entries<T>>::remove(&statement_id, digest);
 					removed_count += 1;
 				}
-				pallet_chain_space_did::Pallet::<T>::decrement_usage_entries(
+				pallet_chain_space::Pallet::<T>::decrement_usage_entries(
 					&space_id,
 					removed_count as u16,
 				)
-				.map_err(<pallet_chain_space_did::Error<T>>::from)?;
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 			}
 
 			// Update activity and emit the appropriate event.
@@ -894,12 +887,13 @@ pub mod pallet {
 			authorization: AuthorizationIdOf,
 			schema_id: Option<SchemaIdOf>,
 		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
+			let creator = ensure_signed(origin)?;
+
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&creator,
 			)
-			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
 				digests.len() <= T::MaxDigestsPerBatch::get() as usize,
@@ -922,7 +916,7 @@ pub mod pallet {
 
 				let identifier_result = Ss58Identifier::create_identifier(
 					&(id_digest).encode()[..],
-					IdentifierType::StatementDid,
+					IdentifierType::Statement,
 				);
 
 				match identifier_result {
@@ -962,8 +956,8 @@ pub mod pallet {
 			if digests.len() > 1 {
 				let increment = (digests.len() - 1) as u16;
 
-				pallet_chain_space_did::Pallet::<T>::increment_usage_entries(&space_id, increment)
-					.map_err(<pallet_chain_space_did::Error<T>>::from)?;
+				pallet_chain_space::Pallet::<T>::increment_usage_entries(&space_id, increment)
+					.map_err(<pallet_chain_space::Error<T>>::from)?;
 			}
 
 			Self::deposit_event(Event::RegisterBatch {
@@ -1014,12 +1008,13 @@ pub mod pallet {
 			presentation_type: PresentationTypeOf,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let creator = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
+			let creator = ensure_signed(origin)?;
+
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&creator,
 			)
-			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let statement_details =
 				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
@@ -1095,12 +1090,13 @@ pub mod pallet {
 			presentation_digest: StatementDigestOf<T>,
 			authorization: AuthorizationIdOf,
 		) -> DispatchResult {
-			let remover = <T as Config>::EnsureOrigin::ensure_origin(origin)?.subject();
-			let space_id = pallet_chain_space_did::Pallet::<T>::ensure_authorization_origin(
+			let remover = ensure_signed(origin)?;
+
+			let space_id = pallet_chain_space::Pallet::<T>::ensure_authorization_origin(
 				&authorization,
 				&remover,
 			)
-			.map_err(<pallet_chain_space_did::Error<T>>::from)?;
+			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			let presentation_details = Presentations::<T>::get(&statement_id, presentation_digest)
 				.ok_or(Error::<T>::PresentationNotFound)?;
@@ -1110,8 +1106,8 @@ pub mod pallet {
 			Presentations::<T>::remove(&statement_id, presentation_digest);
 			IdentifierLookup::<T>::remove(presentation_digest, &space_id);
 
-			pallet_chain_space_did::Pallet::<T>::decrement_usage(&space_id)
-				.map_err(<pallet_chain_space_did::Error<T>>::from)?;
+			pallet_chain_space::Pallet::<T>::decrement_usage(&space_id)
+				.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			Self::update_activity(&statement_id, CallTypeOf::PresentationRemoved)?;
 
@@ -1155,11 +1151,8 @@ impl<T: Config> Pallet<T> {
 		let tx_moment = Self::timepoint();
 
 		let tx_entry = EventEntryOf { action: tx_action, location: tx_moment };
-		let _ = IdentifierTimeline::update_timeline::<T>(
-			tx_id,
-			IdentifierTypeOf::StatementDid,
-			tx_entry,
-		);
+		let _ =
+			IdentifierTimeline::update_timeline::<T>(tx_id, IdentifierTypeOf::Statement, tx_entry);
 		Ok(())
 	}
 

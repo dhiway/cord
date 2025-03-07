@@ -447,7 +447,7 @@ pub mod pallet {
 
 				Self::update_activity(
 					&space_id,
-					IdentifierTypeOf::AuthDid,
+					IdentifierTypeOf::Auth,
 					CallTypeOf::Deauthorization,
 				)?;
 
@@ -557,12 +557,8 @@ pub mod pallet {
 				},
 			);
 
-			Self::update_activity(
-				&identifier,
-				IdentifierTypeOf::ChainSpaceDid,
-				CallTypeOf::Genesis,
-			)
-			.map_err(Error::<T>::from)?;
+			Self::update_activity(&identifier, IdentifierTypeOf::ChainSpace, CallTypeOf::Genesis)
+				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Create {
 				space: identifier,
@@ -627,7 +623,7 @@ pub mod pallet {
 				SpaceDetailsOf::<T> { txn_capacity, approved: true, ..space_details },
 			);
 
-			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpaceDid, CallTypeOf::Approved)
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Approved)
 				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Approve { space: space_id });
@@ -687,7 +683,7 @@ pub mod pallet {
 
 			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { archive: true, ..space_details });
 
-			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpaceDid, CallTypeOf::Archive)
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Archive)
 				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Archive { space: space_id, authority: creator });
@@ -746,7 +742,7 @@ pub mod pallet {
 
 			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { archive: false, ..space_details });
 
-			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpaceDid, CallTypeOf::Restore)
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Restore)
 				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Restore { space: space_id, authority: creator });
@@ -822,7 +818,7 @@ pub mod pallet {
 				SpaceDetailsOf::<T> { txn_capacity: new_txn_capacity, ..space_details },
 			);
 
-			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpaceDid, CallTypeOf::Capacity)
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Capacity)
 				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::UpdateCapacity { space: space_id });
@@ -875,7 +871,7 @@ pub mod pallet {
 
 			<Spaces<T>>::insert(&space_id, SpaceDetailsOf::<T> { txn_count: 0, ..space_details });
 
-			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpaceDid, CallTypeOf::Usage)
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Usage)
 				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::ResetUsage { space: space_id });
@@ -919,7 +915,7 @@ pub mod pallet {
 
 			Self::update_activity(
 				&space_id,
-				IdentifierTypeOf::ChainSpaceDid,
+				IdentifierTypeOf::ChainSpace,
 				CallTypeOf::CouncilRevoke,
 			)
 			.map_err(Error::<T>::from)?;
@@ -942,7 +938,7 @@ pub mod pallet {
 
 			Self::update_activity(
 				&space_id,
-				IdentifierTypeOf::ChainSpaceDid,
+				IdentifierTypeOf::ChainSpace,
 				CallTypeOf::CouncilRestore,
 			)
 			.map_err(Error::<T>::from)?;
@@ -1090,12 +1086,8 @@ pub mod pallet {
 				},
 			);
 
-			Self::update_activity(
-				&identifier,
-				IdentifierTypeOf::ChainSpaceDid,
-				CallTypeOf::Genesis,
-			)
-			.map_err(Error::<T>::from)?;
+			Self::update_activity(&identifier, IdentifierTypeOf::ChainSpace, CallTypeOf::Genesis)
+				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Create {
 				space: identifier,
@@ -1178,7 +1170,7 @@ pub mod pallet {
 				SpaceDetailsOf::<T> { txn_capacity: new_txn_capacity, ..space_details },
 			);
 
-			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpaceDid, CallTypeOf::Capacity)
+			Self::update_activity(&space_id, IdentifierTypeOf::ChainSpace, CallTypeOf::Capacity)
 				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::UpdateCapacity { space: space_id });
@@ -1233,7 +1225,7 @@ impl<T: Config> Pallet<T> {
 			},
 		);
 
-		Self::update_activity(&space_id, IdentifierTypeOf::AuthDid, CallTypeOf::Authorization)
+		Self::update_activity(&space_id, IdentifierTypeOf::Auth, CallTypeOf::Authorization)
 			.map_err(Error::<T>::from)?;
 
 		Self::deposit_event(Event::Authorization {

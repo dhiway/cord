@@ -46,6 +46,7 @@ pallet-config = { workspace = true }
 pallet-chain-space-did = { workspace = true }
 pallet-chain-space = { workspace = true }
 pallet-namespace = { workspace = true }
+pallet-statement = { workspace = true }
 pallet-statement-did = { workspace = true }
 pallet-network-membership = { workspace = true }
 pallet-runtime-upgrade = { workspace = true }
@@ -180,6 +181,7 @@ std = [
 	"pallet-chain-space-did/std",
 	"pallet-chain-space/std",
 	"pallet-namespace/std",
+	"pallet-statement/std",
 	"pallet-statement-did/std",
 	"pallet-network-score/std",
 	"pallet-network-membership/std",
@@ -287,6 +289,7 @@ try-runtime = [
 	"pallet-chain-space-did/try-runtime",
 	"pallet-chain-space/try-runtime",
 	"pallet-namespace/try-runtime",
+	"pallet-statement/try-runtime",
 	"pallet-statement-did/try-runtime",
 	"pallet-did/try-runtime",
 	"pallet-did-name/try-runtime",
