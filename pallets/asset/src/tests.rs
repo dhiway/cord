@@ -3164,111 +3164,109 @@ fn asset_issue_should_fail_when_distribution_limit_exceeds() {
 
 #[test]
 fn asset_create_should_fail_for_invalid_asset_value() {
-    let creator = DID_00;
-    let author = ACCOUNT_00;
-    let capacity = 5u64;
-    let raw_space = [2u8; 256].to_vec();
-    let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
-    let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
-        &[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
-    );
-    let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let capacity = 5u64;
+	let raw_space = [2u8; 256].to_vec();
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&raw_space.encode()[..]);
+	let space_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&space_id_digest);
 
-    // Generate an authorization ID using triple concatenation (space_id, creator, creator)
-    let authorization_id = generate_authorization_id::<Test>(&<Test as frame_system::Config>::Hashing::hash(
-        &[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
-    ));
+	// Generate an authorization ID using triple concatenation (space_id, creator, creator)
+	let authorization_id =
+		generate_authorization_id::<Test>(&<Test as frame_system::Config>::Hashing::hash(
+			&[&space_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+		));
 
-    // Common asset fields
-    let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-    let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-    let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
-    let asset_type = AssetTypeOf::MF;
+	// Common asset fields
+	let asset_desc = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_tag = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_meta = BoundedVec::try_from([72u8; 10].to_vec()).unwrap();
+	let asset_type = AssetTypeOf::MF;
 
-    new_test_ext().execute_with(|| {
-        assert_ok!(Space::create(
-            DoubleOrigin(author.clone(), creator.clone()).into(),
-            space_digest,
-        ));
-        assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id, capacity));
 
-        let invalid_value_entry = AssetInputEntryOf::<Test> {
-            asset_desc: asset_desc.clone(),
-            asset_qty: 10, // Valid quantity
-            asset_type: asset_type.clone(),
-            asset_value: u32::MAX.wrapping_add(1), 
-            asset_tag: asset_tag.clone(),
-            asset_meta: asset_meta.clone(),
-        };
-        let digest = <Test as frame_system::Config>::Hashing::hash(&invalid_value_entry.encode());
-        assert_err!(
-            Asset::create(
-                DoubleOrigin(author.clone(), creator.clone()).into(),
-                invalid_value_entry,
-                digest,
-                authorization_id.clone(),
-            ),
-            Error::<Test>::InvalidAssetValue 
-        );
+		let invalid_value_entry = AssetInputEntryOf::<Test> {
+			asset_desc: asset_desc.clone(),
+			asset_qty: 10, // Valid quantity
+			asset_type: asset_type.clone(),
+			asset_value: u32::MAX.wrapping_add(1),
+			asset_tag: asset_tag.clone(),
+			asset_meta: asset_meta.clone(),
+		};
+		let digest = <Test as frame_system::Config>::Hashing::hash(&invalid_value_entry.encode());
+		assert_err!(
+			Asset::create(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				invalid_value_entry,
+				digest,
+				authorization_id.clone(),
+			),
+			Error::<Test>::InvalidAssetValue
+		);
 
-   
-        let invalid_qty_entry = AssetInputEntryOf::<Test> {
-            asset_desc: asset_desc.clone(),
-            asset_qty: 0, 
-            asset_type: asset_type.clone(),
-            asset_value: 10, 
-            asset_tag: asset_tag.clone(),
-            asset_meta: asset_meta.clone(),
-        };
-        let digest = <Test as frame_system::Config>::Hashing::hash(&invalid_qty_entry.encode());
-        assert_err!(
-            Asset::create(
-                DoubleOrigin(author.clone(), creator.clone()).into(),
-                invalid_qty_entry,
-                digest,
-                authorization_id.clone(),
-            ),
-            Error::<Test>::InvalidAssetValue 
-        );
+		let invalid_qty_entry = AssetInputEntryOf::<Test> {
+			asset_desc: asset_desc.clone(),
+			asset_qty: 0,
+			asset_type: asset_type.clone(),
+			asset_value: 10,
+			asset_tag: asset_tag.clone(),
+			asset_meta: asset_meta.clone(),
+		};
+		let digest = <Test as frame_system::Config>::Hashing::hash(&invalid_qty_entry.encode());
+		assert_err!(
+			Asset::create(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				invalid_qty_entry,
+				digest,
+				authorization_id.clone(),
+			),
+			Error::<Test>::InvalidAssetValue
+		);
 
-       
-        let zero_value_entry = AssetInputEntryOf::<Test> {
-            asset_desc: asset_desc.clone(),
-            asset_qty: 10,
-            asset_type: asset_type.clone(),
-            asset_value: 0, 
-            asset_tag: asset_tag.clone(),
-            asset_meta: asset_meta.clone(),
-        };
-        let digest = <Test as frame_system::Config>::Hashing::hash(&zero_value_entry.encode());
-        assert_err!(
-            Asset::create(
-                DoubleOrigin(author.clone(), creator.clone()).into(),
-                zero_value_entry,
-                digest,
-                authorization_id.clone(),
-            ),
-            Error::<Test>::InvalidAssetValue 
-        );
+		let zero_value_entry = AssetInputEntryOf::<Test> {
+			asset_desc: asset_desc.clone(),
+			asset_qty: 10,
+			asset_type: asset_type.clone(),
+			asset_value: 0,
+			asset_tag: asset_tag.clone(),
+			asset_meta: asset_meta.clone(),
+		};
+		let digest = <Test as frame_system::Config>::Hashing::hash(&zero_value_entry.encode());
+		assert_err!(
+			Asset::create(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				zero_value_entry,
+				digest,
+				authorization_id.clone(),
+			),
+			Error::<Test>::InvalidAssetValue
+		);
 
-        
-        let zero_qty_entry = AssetInputEntryOf::<Test> {
-            asset_desc: asset_desc.clone(),
-            asset_qty: 0, 
-            asset_type: asset_type.clone(),
-            asset_value: 10, 
-            asset_tag: asset_tag.clone(),
-            asset_meta: asset_meta.clone(),
-        };
-        let digest = <Test as frame_system::Config>::Hashing::hash(&zero_qty_entry.encode());
-        assert_err!(
-            Asset::create(
-                DoubleOrigin(author.clone(), creator.clone()).into(),
-                zero_qty_entry,
-                digest,
-                authorization_id.clone(),
-            ),
-            Error::<Test>::InvalidAssetValue 
-        );
-    });
+		let zero_qty_entry = AssetInputEntryOf::<Test> {
+			asset_desc: asset_desc.clone(),
+			asset_qty: 0,
+			asset_type: asset_type.clone(),
+			asset_value: 10,
+			asset_tag: asset_tag.clone(),
+			asset_meta: asset_meta.clone(),
+		};
+		let digest = <Test as frame_system::Config>::Hashing::hash(&zero_qty_entry.encode());
+		assert_err!(
+			Asset::create(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				zero_qty_entry,
+				digest,
+				authorization_id.clone(),
+			),
+			Error::<Test>::InvalidAssetValue
+		);
+	});
 }
