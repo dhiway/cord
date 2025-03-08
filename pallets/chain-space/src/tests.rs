@@ -1250,30 +1250,30 @@ fn add_delegator_should_fail_for_space_creator_delegating_themselves() {
 }
 
 #[test]
-    fn creating_space_identifier_with_invalid_input_should_fail() {
-        new_test_ext().execute_with(|| {
-            // An empty byte slice is assumed to be invalid.
-            let bad_input: Vec<u8> = vec![];
-            let result = Ss58Identifier::create_identifier(&bad_input, IdentifierType::Space);
-            assert!(
-                result.is_err(),
-                "Expected failure when creating a space identifier with invalid input"
-            );
-        });
-    }
+fn creating_space_identifier_with_invalid_input_should_fail() {
+	new_test_ext().execute_with(|| {
+		// An empty byte slice is assumed to be invalid.
+		let bad_input: Vec<u8> = vec![];
+		let result = Ss58Identifier::create_identifier(&bad_input, IdentifierType::Space);
+		assert!(
+			result.is_err(),
+			"Expected failure when creating a space identifier with invalid input"
+		);
+	});
+}
 
-    // Test that creating an authorization identifier with an invalid input (empty slice)
-    // returns an error.
+// Test that creating an authorization identifier with an invalid input (empty slice)
+// returns an error.
 
-    #[test]
-    fn creating_authorization_identifier_with_invalid_input_should_fail() {
-        new_test_ext().execute_with(|| {
-            // Use an empty slice to simulate an invalid input.
-            let bad_input: Vec<u8> = vec![];
-            let result = Ss58Identifier::create_identifier(&bad_input, IdentifierType::Authorization);
-            assert!(
-                result.is_err(),
-                "Expected failure when creating an authorization identifier with invalid input"
-            );
-        });
-    }
+#[test]
+fn creating_authorization_identifier_with_invalid_input_should_fail() {
+	new_test_ext().execute_with(|| {
+		// Use an empty slice to simulate an invalid input.
+		let bad_input: Vec<u8> = vec![];
+		let result = Ss58Identifier::create_identifier(&bad_input, IdentifierType::Authorization);
+		assert!(
+			result.is_err(),
+			"Expected failure when creating an authorization identifier with invalid input"
+		);
+	});
+}
