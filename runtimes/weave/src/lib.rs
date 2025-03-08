@@ -949,6 +949,13 @@ impl pallet_statement_did::Config for Runtime {
 	type MaxRemoveEntries = MaxRemoveEntries;
 }
 
+impl pallet_statement::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = weights::pallet_statement::WeightInfo<Runtime>;
+	type MaxDigestsPerBatch = MaxDigestsPerBatch;
+	type MaxRemoveEntries = MaxRemoveEntries;
+}
+
 impl pallet_remark::Config for Runtime {
 	type WeightInfo = weights::pallet_remark::WeightInfo<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
@@ -1186,6 +1193,9 @@ mod runtime {
 
 	#[runtime::pallet_index(65)]
 	pub type ChainSpace = pallet_chain_space;
+
+	#[runtime::pallet_index(66)]
+	pub type Statement = pallet_statement;
 
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo;

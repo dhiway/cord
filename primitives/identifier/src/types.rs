@@ -79,7 +79,7 @@ pub enum IdentifierTypeOf {
 	Did,
 	Rating,
 	Registry,
-	Statement,
+	StatementDid,
 	SchemaDid,
 	Template,
 	Registries,
@@ -88,4 +88,7 @@ pub enum IdentifierTypeOf {
 	Schema,
 	NameSpace,
 	NameSpaceAuthorization,
+	ChainSpace,
+	Auth,
+	Statement,
 }

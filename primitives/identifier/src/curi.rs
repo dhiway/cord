@@ -51,6 +51,7 @@ pub enum IdentifierType {
 	NameSpaceAuthorization,
 	Authorization,
 	Space,
+	Statement,
 }
 
 impl IdentifierType {
@@ -71,6 +72,7 @@ impl IdentifierType {
 	const IDENT_NAMESPACE_AUTH: u16 = 13101;
 	const IDENT_AUTH: u16 = 14201;
 	const IDENT_SPACE: u16 = 14901;
+	const IDENT_STATEMENT: u16 = 15501;
 
 	fn ident_value(&self) -> u16 {
 		match self {
@@ -91,6 +93,7 @@ impl IdentifierType {
 			IdentifierType::NameSpaceAuthorization => Self::IDENT_NAMESPACE_AUTH,
 			IdentifierType::Authorization => Self::IDENT_AUTH,
 			IdentifierType::Space => Self::IDENT_SPACE,
+			IdentifierType::Statement => Self::IDENT_STATEMENT,
 		}
 	}
 	fn from_u16(value: u16) -> Option<Self> {
@@ -112,6 +115,7 @@ impl IdentifierType {
 			13101 => Some(IdentifierType::NameSpaceAuthorization),
 			14201 => Some(IdentifierType::Authorization),
 			14901 => Some(IdentifierType::Space),
+			15501 => Some(IdentifierType::Statement),
 			_ => None,
 		}
 	}

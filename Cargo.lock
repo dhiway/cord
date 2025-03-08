@@ -1285,6 +1285,7 @@ dependencies = [
  "pallet-schema-did",
  "pallet-session",
  "pallet-session-benchmarking",
+ "pallet-statement",
  "pallet-statement-did",
  "pallet-sudo",
  "pallet-timestamp",
@@ -1423,6 +1424,7 @@ dependencies = [
  "pallet-schema-did",
  "pallet-session",
  "pallet-session-benchmarking",
+ "pallet-statement",
  "pallet-statement-did",
  "pallet-sudo",
  "pallet-timestamp",
@@ -1951,6 +1953,7 @@ dependencies = [
  "pallet-schema-did",
  "pallet-session",
  "pallet-session-benchmarking",
+ "pallet-statement",
  "pallet-statement-did",
  "pallet-sudo",
  "pallet-timestamp",
@@ -6783,6 +6786,27 @@ dependencies = [
  "frame-system",
  "pallet-session",
  "parity-scale-codec",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-statement"
+version = "0.9.5"
+dependencies = [
+ "cord-identifier",
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-chain-space",
+ "pallet-schema",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
  "sp-runtime",
  "sp-std",
 ]
