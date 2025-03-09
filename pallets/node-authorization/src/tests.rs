@@ -24,6 +24,7 @@ use super::*;
 use crate::mock::*;
 use frame_support::{assert_err, assert_noop, assert_ok};
 use sp_runtime::traits::BadOrigin;
+use frame_support::traits::Get;
 
 #[test]
 fn check_genesis_well_known_nodes() {
@@ -461,13 +462,31 @@ fn test_generate_peer_id_invalid_utf8() {
 }
 
 #[test]
-fn peer_id_too_long_test() {
-	new_test_ext().execute_with(|| {
-		let node_id: &str = &"nodeid".repeat(32);
+fn node_id_too_long_checks() {
+    new_test_ext().execute_with(|| {
+        let max_len: u32 = <Test as Config>::MaxNodeIdLength::get();
+        let long_string = "a".repeat((max_len + 1) as usize);
+        let oversized_node = test_node(&long_string);
 
-		let node_identity = test_node(&node_id);
-		let testing = NodeAuthorization::generate_peer_id(&node_identity).unwrap();
+        // println!("Testing with NodeId of length: {}", long_string.len());
+        // println!("MaxNodeIdLength is: {}", max_len);
 
-		assert_eq!(test_peer_id_length(testing), Err(Error::<Test>::PeerIdTooLong));
-	})
+        assert_err!(
+            NodeAuthorization::add_well_known_node(
+                RuntimeOrigin::signed(1),
+                oversized_node.clone(),
+                15
+            ),
+            Error::<Test>::NodeIdTooLong
+        );
+        assert_err!(
+            NodeAuthorization::add_connection(
+                RuntimeOrigin::signed(10),
+                oversized_node.clone(),
+                test_node(TEST_NODE_1)
+            ),
+            Error::<Test>::NodeIdTooLong
+        );
+    });
 }
+
