@@ -540,7 +540,7 @@ dependencies = [
 
 [[package]]
 name = "authority-membership"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -1234,7 +1234,7 @@ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "cord-braid-runtime"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "authority-membership",
  "cord-braid-runtime-constants",
@@ -1321,7 +1321,7 @@ dependencies = [
 
 [[package]]
 name = "cord-braid-runtime-constants"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-primitives",
  "cord-runtime-common",
@@ -1351,7 +1351,7 @@ dependencies = [
 
 [[package]]
 name = "cord-identifier"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "blake2-rfc",
  "bs58 0.5.1",
@@ -1369,7 +1369,7 @@ dependencies = [
 
 [[package]]
 name = "cord-loom-runtime"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "authority-membership",
  "cord-identifier",
@@ -1461,7 +1461,7 @@ dependencies = [
 
 [[package]]
 name = "cord-loom-runtime-constants"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-primitives",
  "cord-runtime-common",
@@ -1474,7 +1474,7 @@ dependencies = [
 
 [[package]]
 name = "cord-node-cli"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "array-bytes",
  "assert_cmd",
@@ -1600,7 +1600,7 @@ dependencies = [
 
 [[package]]
 name = "cord-node-inspect"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "clap",
  "parity-scale-codec",
@@ -1616,7 +1616,7 @@ dependencies = [
 
 [[package]]
 name = "cord-node-rpc"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-primitives",
  "jsonrpsee",
@@ -1681,7 +1681,7 @@ dependencies = [
 
 [[package]]
 name = "cord-primitives"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "sp-core",
  "sp-runtime",
@@ -1690,7 +1690,7 @@ dependencies = [
 
 [[package]]
 name = "cord-runtime-common"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
@@ -1882,7 +1882,7 @@ dependencies = [
 
 [[package]]
 name = "cord-utilities"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -1898,7 +1898,7 @@ dependencies = [
 
 [[package]]
 name = "cord-weave-runtime"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "authority-membership",
  "cord-identifier",
@@ -1990,7 +1990,7 @@ dependencies = [
 
 [[package]]
 name = "cord-weave-runtime-constants"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-primitives",
  "cord-runtime-common",
@@ -5754,7 +5754,7 @@ dependencies = [
 
 [[package]]
 name = "network-membership"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -6115,7 +6115,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-assets-runtime-api"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6194,7 +6194,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-chain-space"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "bitflags 1.3.2",
  "cord-identifier",
@@ -6214,7 +6214,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-chain-space-did"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "bitflags 1.3.2",
  "cord-identifier",
@@ -6250,7 +6250,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-config"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-primitives",
  "frame-benchmarking",
@@ -6322,7 +6322,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-did"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-identifier",
  "cord-utilities",
@@ -6344,7 +6344,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-did-name"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-utilities",
  "frame-benchmarking",
@@ -6361,7 +6361,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-did-runtime-api"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6374,7 +6374,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-entries"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-identifier",
  "cord-primitives",
@@ -6421,7 +6421,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-identifier-runtime-api"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-identifier",
  "cord-primitives",
@@ -6435,7 +6435,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-identity"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "enumflags2",
  "frame-benchmarking",
@@ -6500,7 +6500,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-membership"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6530,7 +6530,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-namespace"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "bitflags 1.3.2",
  "cord-identifier",
@@ -6550,7 +6550,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-network-membership"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6568,7 +6568,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-network-score"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-identifier",
  "cord-primitives",
@@ -6589,7 +6589,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-node-authorization"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "bs58 0.5.1",
  "cord-primitives",
@@ -6606,7 +6606,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-offences"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6637,7 +6637,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-registries"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "bitflags 1.3.2",
  "cord-identifier",
@@ -6690,7 +6690,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-runtime-upgrade"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -6718,7 +6718,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-schema"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-identifier",
  "cord-primitives",
@@ -6738,7 +6738,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-schema-did"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-identifier",
  "cord-primitives",
@@ -6780,7 +6780,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-session-benchmarking"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "frame-benchmarking",
  "frame-system",
@@ -6792,7 +6792,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-statement"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-identifier",
  "cord-primitives",
@@ -6813,7 +6813,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-statement-did"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "cord-identifier",
  "cord-primitives",
@@ -6911,7 +6911,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-transaction-weight-runtime-api"
-version = "0.9.5"
+version = "0.9.6"
 dependencies = [
  "frame-support",
  "pallet-network-membership",
