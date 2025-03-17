@@ -6060,7 +6060,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
-name = "pallet-asset"
+name = "pallet-asset-conversion"
+version = "19.0.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.15.0#743dc632fd6115b408376a6e4efe815bd804cd52"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-arithmetic",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-asset-did"
 version = "0.9.3-dev"
 dependencies = [
  "cord-identifier",
@@ -6077,24 +6095,6 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-std",
-]
-
-[[package]]
-name = "pallet-asset-conversion"
-version = "19.0.0"
-source = "git+https://github.com/dhiway/substrate-sdk?branch=release-v1.15.0#743dc632fd6115b408376a6e4efe815bd804cd52"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
 ]
 
 [[package]]

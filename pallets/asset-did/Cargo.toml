@@ -1,6 +1,6 @@
 [package]
-name = "pallet-asset"
-description = "Manage Asset"
+name = "pallet-asset-did"
+description = "Manage Asset using DID account"
 version = "0.9.3-dev"
 authors.workspace = true
 edition.workspace = true

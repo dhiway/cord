@@ -15,7 +15,7 @@ members = [
 	"node/rpc",
 	"node/inspect",
 	"node/testing",
-	"pallets/asset",
+	"pallets/asset-did",
 	"pallets/chain-space-did",
 	"pallets/namespace",
 	"pallets/did",
