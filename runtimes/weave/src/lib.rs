@@ -949,11 +949,18 @@ impl pallet_statement_did::Config for Runtime {
 	type MaxRemoveEntries = MaxRemoveEntries;
 }
 
+parameter_types! {
+	pub const MaxSelectiveDataKeyLength: u32 = 128;
+	pub const MaxSelectiveDataEntries: u32 = 25;
+}
+
 impl pallet_statement::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_statement::WeightInfo<Runtime>;
 	type MaxDigestsPerBatch = MaxDigestsPerBatch;
 	type MaxRemoveEntries = MaxRemoveEntries;
+	type MaxSelectiveDataKeyLength = MaxSelectiveDataKeyLength;
+	type MaxSelectiveDataEntries = MaxSelectiveDataEntries;
 }
 
 impl pallet_remark::Config for Runtime {
