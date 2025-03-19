@@ -42,6 +42,8 @@ cord-runtime-common = { workspace = true }
 pallet-config = { workspace = true }
 cord-uri = { workspace = true }
 
+# Internal runtime API (with default disabled)
+pallet-config-runtime-api = { workspace = true }
 
 # Substrate
 sp-api = { workspace = true }
@@ -204,6 +206,7 @@ std = [
 	"pallet-beefy/std",
 	"pallet-beefy-mmr/std",
 	"pallet-config/std",
+	"pallet-config-runtime-api/std",
 	"pallet-collective/std",
 	"pallet-contracts/std",
 	"pallet-delegated-staking/std",

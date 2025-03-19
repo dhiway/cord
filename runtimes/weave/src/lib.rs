@@ -88,6 +88,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedU128, MultiSignature, MultiSigner, Perbill, Percent, Permill,
 };
+use pallet_config::DataNodeId;
 
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
@@ -2216,6 +2217,16 @@ impl_runtime_apis! {
 
 		fn resolve_pallet(index: u16) -> Option<String> {
 			Identifier::resolve_pallet_name(index).ok()
+		}
+	}
+
+	impl pallet_config_runtime_api::ConfigApi<Block, DataNodeId> for Runtime {
+		fn get_read_nodes_for_a_write_node(
+			write_node_id: &DataNodeId,
+		) -> Vec<DataNodeId> {
+			<pallet_config::Pallet<Runtime> 
+				as pallet_config::StorageNodeInterface>
+					::get_read_nodes_for_a_write_node(write_node_id.clone())
 		}
 	}
 

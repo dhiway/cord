@@ -1,0 +1,40 @@
+[package]
+name = "pallet-config-runtime-api"
+description = "Runtime APIs for dealing with CORD Config"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# External dependencies
+codec = { features = ["derive"], workspace = true }
+scale-info = { features = ["derive"], workspace = true }
+
+# Internal dependencies
+cord-primitives = { workspace = true }
+pallet-config = { workspace = true }
+
+# Substrate
+sp-api = { workspace = true }
+sp-std = { workspace = true }
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+	"frame-support/std",
+	"frame-system/std",
+	"codec/std",
+	"sp-api/std",
+	"sp-std/std",
+	"scale-info/std",
+	"cord-primitives/std",
+	"pallet-config/std",
+]

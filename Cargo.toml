@@ -901,7 +901,7 @@ pallet-entries = { path = "pallets/entries", default-features = false }
 pallet-schema-accounts = { path = "pallets/schema-accounts", default-features = false }
 pallet-meta-tx = { path = "pallets/meta-tx", default-features = false }
 pallet-namespace = { path = 'pallets/namespace', default-features = false }
-
+pallet-config-runtime-api = { path = "runtimes/common/api/config", default-features = false }
 
 [profile.release]
 panic = 'unwind'
