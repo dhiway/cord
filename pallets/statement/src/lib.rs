@@ -289,12 +289,20 @@ pub mod pallet {
 			indices: Vec<u16>,
 			author: StatementCreatorOf<T>,
 		},
+    /// Statement existence has been verified.
+		/// \[statement identifier, digest, controller\]
+		StatementEntryExistenceVerified {
+			verifier: StatementCreatorOf<T>,
+			identifier: StatementIdOf,
+			digest: StatementDigestOf<T>,
+		},
 		/// A statement selective data has been updated.
 		/// \[identifier, controller\]
 		SelectiveDataUpdated { identifier: StatementIdOf, author: StatementCreatorOf<T> },
 		/// A statement selective data has been removed.
 		/// \[identifier, controller\]
 		SelectiveDataRemoved { identifier: StatementIdOf, author: StatementCreatorOf<T> },
+
 	}
 
 	#[pallet::error]
@@ -1190,6 +1198,56 @@ pub mod pallet {
 			Ok(())
 		}
 
+    
+		/// Verifies the existence of a Statement Entry.
+		///
+		/// This function allows an account to verify the existence of a specific Statement Entry.
+		/// If the entry exists and is not revoked, the latest identifier and digest are returned.
+		///
+		/// # Arguments
+		/// * `origin` - The origin of the call, which must be a signed account (verifier).
+		/// * `statement_id` - The unique identifier of the Statement to be verified.
+		///
+		/// # Conditions
+		/// - The Statement Entry must exist.
+		/// - The Statement Entry must not be revoked.
+		///
+		/// # Errors
+		/// This function returns an error in the following cases:
+		/// * `StatementNotFound` - If the specified `statement_id` does not exist.
+		/// * `StatementRevoked` - If the specified `statement_id` has been revoked.
+		///
+		/// # Events
+		/// Emits the `Event::StatementEntryExistenceVerified` event upon successful verification.
+		/// This event includes the `verifier`, the `statement_id`, and the
+		/// `statement_digest`.
+		///
+		/// # Example
+		/// ```rust
+		/// verify_existence(origin, statement_id)?;
+		/// ```
+		#[pallet::call_index(8)]
+		#[pallet::weight({0})]
+		pub fn verify_existence(
+			origin: OriginFor<T>,
+			statement_id: StatementIdOf,
+		) -> DispatchResult {
+			let verifier = ensure_signed(origin)?;
+
+			let statement =
+				<Statements<T>>::get(&statement_id).ok_or(Error::<T>::StatementNotFound)?;
+
+			ensure!(
+				!<RevocationList<T>>::contains_key(&statement_id, statement.digest),
+				Error::<T>::StatementRevoked
+			);
+
+			Self::deposit_event(Event::StatementEntryExistenceVerified {
+				verifier,
+				identifier: statement_id.clone(),
+				digest: statement.digest,
+
+        
 		/// Updates the selective data for a particular statement identifier
 		///
 		///	This funciton allows for updation of selective data for the given
@@ -1212,7 +1270,7 @@ pub mod pallet {
 		///
 		/// # Events
 		/// - Emits `SelectiveDataUpdated` upon the successful removal of the presentation.
-		#[pallet::call_index(8)]
+		#[pallet::call_index(9)]
 		#[pallet::weight({0})]
 		pub fn update_selective_data(
 			origin: OriginFor<T>,
@@ -1279,7 +1337,7 @@ pub mod pallet {
 		///
 		/// # Events
 		/// - Emits `SelectiveDataRemoved` upon the successful removal of the presentation.
-		#[pallet::call_index(9)]
+		#[pallet::call_index(10)]
 		#[pallet::weight({0})]
 		pub fn remove_selective_data(
 			origin: OriginFor<T>,
