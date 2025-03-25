@@ -1246,6 +1246,8 @@ pub mod pallet {
 				verifier,
 				identifier: statement_id.clone(),
 				digest: statement.digest,
+			})
+		}
 
         
 		/// Updates the selective data for a particular statement identifier
