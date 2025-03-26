@@ -289,7 +289,7 @@ pub mod pallet {
 			indices: Vec<u16>,
 			author: StatementCreatorOf<T>,
 		},
-    /// Statement existence has been verified.
+		/// Statement existence has been verified.
 		/// \[statement identifier, digest, controller\]
 		StatementEntryExistenceVerified {
 			verifier: StatementCreatorOf<T>,
@@ -302,7 +302,6 @@ pub mod pallet {
 		/// A statement selective data has been removed.
 		/// \[identifier, controller\]
 		SelectiveDataRemoved { identifier: StatementIdOf, author: StatementCreatorOf<T> },
-
 	}
 
 	#[pallet::error]
@@ -1198,7 +1197,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-    
 		/// Verifies the existence of a Statement Entry.
 		///
 		/// This function allows an account to verify the existence of a specific Statement Entry.
@@ -1246,10 +1244,11 @@ pub mod pallet {
 				verifier,
 				identifier: statement_id.clone(),
 				digest: statement.digest,
-			})
+			});
+
+			Ok(())
 		}
 
-        
 		/// Updates the selective data for a particular statement identifier
 		///
 		///	This funciton allows for updation of selective data for the given
