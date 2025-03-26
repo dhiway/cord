@@ -1246,7 +1246,9 @@ pub mod pallet {
 				verifier,
 				identifier: statement_id.clone(),
 				digest: statement.digest,
-			})
+			});
+
+			Ok(())
 		}
 
         
