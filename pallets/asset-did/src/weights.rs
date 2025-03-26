@@ -35,7 +35,7 @@
 // --extrinsic=*
 // --wasm-execution=compiled
 // --heap-pages=4096
-// --output=./pallets/asset/src/weights.rs
+// --output=./pallets/asset-did/src/weights.rs
 // --header=./HEADER-GPL3
 // --template=./.maintain/frame-weight-template.hbs
 
