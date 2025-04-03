@@ -17,11 +17,26 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 //
 
+//! # Pallet Profile
+//!
+//! The Profle pallet provides a framework for creating and managing
+//! identities within the CORD blockchain that can be persisted and not tied
+//! for a specific account. 
+//! Pallet Profile allows to create identities tied to a unique CORD URI which 
+//! can be watched/subscribed on its activities.
+//! Pallet Profile allows for rotation of keys without losing the data tied with 
+//! account created. 
+//! 
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod types;
 
-use frame_support::{ensure, storage::types::StorageMap, BoundedVec};
+use frame_support::{
+    ensure,
+    storage::types::StorageMap,
+    BoundedVec
+};
 pub use crate::{pallet::*, types::*};
 use codec::Encode;
 use sp_runtime::traits::Hash;
@@ -131,6 +146,8 @@ pub mod pallet {
         InvalidEntryTypeInput,
         /// Rotation must be to new key, not to existing tied account.
         CannotRotateToSameAccount,
+        /// Storage transaction has failed abrubtly.
+        TransactionFailed,
     }
 
     #[pallet::event]
@@ -155,23 +172,23 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Creates a new Profile with associated details.
-		///
+        ///
         /// This extrinsic creates a new Profile to be mapped to a CORD account.
-		/// Also it expects a vector of Data Keys and its values. 
+        /// Also it expects a vector of Data Keys and its values. 
         /// This HashMap is tied to the generated Profile Identifier.
         /// But currently expects the user given Data Keys to start with `pub_` prefix only.
         ///
-		/// # Parameters
-		/// - `origin`: The origin of the call, which must be signed by the creator of the profile.
-		/// - `data`: The data is a vector of a HashMap of the Data Key and associated Data Values.
-		///
-		/// # Returns
-		/// Returns `Ok(())` if the Profile is succesfully been created.
-		/// or an `Err` if the operation fails due to a same profile already existing.
-		///
-		/// # Errors
+        /// # Parameters
+        /// - `origin`: The origin of the call, which must be signed by the creator of the profile.
+        /// - `data`: The data is a vector of a HashMap of the Data Key and associated Data Values.
+        ///
+        /// # Returns
+        /// Returns `Ok(())` if the Profile is succesfully been created.
+        /// or an `Err` if the operation fails due to a same profile already existing.
+        ///
+        /// # Errors
         /// - `InvalidIdentifierLength`: If the newly creted Profile Identifier exceeds limit.
-		/// - `ProfileAlreadyExists`: If the newly created Profile already exists. 
+        /// - `ProfileAlreadyExists`: If the newly created Profile already exists. 
         ///   This happens if a user creates a duplicate profile with the same account key-pair.
         /// - `InvalidKeyPrefix`: If the Profile Data Key starts with anything other than `pub_`.
         #[pallet::call_index(0)]
@@ -181,6 +198,7 @@ pub mod pallet {
             data: Vec<(DataKeyOf<T>, DataValueOf<T>)>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
+
             let digest = T::Hashing::hash(&who.encode());
             let pallet_name = <Self as frame_support::traits::PalletInfoAccess>::name();
             let profile_id = <cord_uri::Pallet<T> as Identifier>::build(&(digest).encode()[..], pallet_name)
@@ -191,42 +209,51 @@ pub mod pallet {
                 Error::<T>::ProfileAlreadyExists
             );
 
-            let profile = ProfileMetadataOf::<T> { latest_key: who.clone() }; 
+            for (key, _) in &data {
+                let key_str = sp_std::str::from_utf8(key.as_slice())
+                    .map_err(|_| Error::<T>::InvalidKeyPrefix)?;
+                ensure!(key_str.starts_with("pub_"), Error::<T>::InvalidKeyPrefix);
+            }
+
+            let profile = ProfileMetadataOf::<T> { latest_key: who.clone() };
             Profiles::<T>::insert(&profile_id, profile);
             AccountProfiles::<T>::insert(&who, &profile_id);
 
             for (key, value) in data {
-                let key_str = sp_std::str::from_utf8(key.as_slice())
-                    .map_err(|_| Error::<T>::InvalidKeyPrefix)?;
-                ensure!(key_str.starts_with("pub_"), Error::<T>::InvalidKeyPrefix);
                 ProfileData::<T>::insert(&profile_id, &key, value);
             }
 
             Self::record_activity(&profile_id, b"ProfileSet")?;
-            Self::deposit_event(Event::ProfileSet { who: who.clone(), identifier: profile_id }); 
+            Self::deposit_event(
+                Event::ProfileSet { 
+                    who: who.clone(), 
+                    identifier: profile_id
+            });
+
             Ok(())
         }
 
+
         /// Rotates the key of an existing Profile.
-		///
+        ///
         /// This extrinsic rotates the key of an existing Profile, identified through its
         /// Profile Identifier. 
         /// This must be signed by the account tied to the Profile only. 
         /// The `new-key` will be the public-key of the CORD/Substarte account tied to the Profile
         /// from here on. So all new operations will require `new-key` based acconut only.
         ///
-		/// # Parameters
-		/// - `origin`: The origin of the call, which must be signed by the owner of the profile.
-		/// - `new_key`: The new_key represnts the public key of the CORD/Substrate account for which 
+        /// # Parameters
+        /// - `origin`: The origin of the call, which must be signed by the owner of the profile.
+        /// - `new_key`: The new_key represnts the public key of the CORD/Substrate account for which 
         ///   The existing Profile Identifier will be tied to from here on. Make Sure this public key 
         ///   exists and accessible before making this call. 
         ///   This is irreversible and will tie all existing Profile Data to new-key based account.
-		///
-		/// # Returns
-		/// Returns `Ok(())` if the Profile is succesfully rotated to new-key.
-		/// or an `Err` if the operation fails due to issues regarding Profile existence.
-		///
-		/// # Errors
+        ///
+        /// # Returns
+        /// Returns `Ok(())` if the Profile is succesfully rotated to new-key.
+        /// or an `Err` if the operation fails due to issues regarding Profile existence.
+        ///
+        /// # Errors
         /// - `ProfileNotFound`: If the Profile does not exist for the signed origin account.
         #[pallet::call_index(1)]
         #[pallet::weight({10_000})]
@@ -246,13 +273,20 @@ pub mod pallet {
             );
 
             profile.latest_key = new_key.clone();
+
             Profiles::<T>::insert(&profile_id, profile);
 
             AccountProfiles::<T>::insert(&new_key, &profile_id);
             AccountProfiles::<T>::remove(&who);
 
             Self::record_activity(&profile_id, b"KeyRotated")?;
-            Self::deposit_event(Event::KeyRotated { who, identifier: profile_id, new_key });
+
+            Self::deposit_event(
+                Event::KeyRotated {
+                    who, 
+                    identifier: profile_id,
+                    new_key
+            });
 
             Ok(())
         }
@@ -273,5 +307,4 @@ impl<T: Config> Pallet<T> {
 }
 
 // TODO:
-// 1. Use with_transactional! for ensuring atomicity between connected stroages.
-// 2. Have a way through runtime constants where we would be able to configure deposits for ops.
+// 1. Have a way through runtime constants where we would be able to configure deposits for ops.

@@ -2569,6 +2569,7 @@ dependencies = [
  "pallet-offences-benchmarking",
  "pallet-paged-list",
  "pallet-preimage",
+ "pallet-profile",
  "pallet-registry",
  "pallet-remark",
  "pallet-revive",
@@ -8469,6 +8470,27 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-profile"
+version = "0.9.5"
+dependencies = [
+ "bitflags 1.3.2",
+ "cord-primitives",
+ "cord-uri",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std 14.0.0 (git+https://github.com/dhiway/sdk?branch=master)",
 ]
 
 [[package]]
