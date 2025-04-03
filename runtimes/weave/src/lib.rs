@@ -1551,6 +1551,18 @@ impl TryFrom<RuntimeCall> for pallet_revive::Call<Runtime> {
 }
 
 parameter_types! {
+	pub const MaxDataKeyLength: u8 = 128;
+	pub const MaxDataValueLength: u32 = 1 * 1024; //1KB
+}
+
+impl pallet_profile::Config for Runtime {
+	type MaxDataKeyLength = MaxDataKeyLength;
+	type MaxDataValueLength = MaxDataValueLength;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
+parameter_types! {
 	pub MbmServiceWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
 }
 
@@ -1760,6 +1772,9 @@ mod runtime {
 	// Experimental EVM Pallet
 	#[runtime::pallet_index(108)]
 	pub type Revive = pallet_revive::Pallet<Runtime>;
+
+	#[runtime::pallet_index(109)]
+	pub type Profile = pallet_profile::Pallet<Runtime>;
 
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo::Pallet<Runtime>;

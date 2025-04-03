@@ -54,7 +54,7 @@ members = [
 	"test-utils/runtime/client",
 	"test-utils/runtime/transaction-pool",
 	"test-utils/service",
-
+	"pallets/profile",
 ]
 default-members = ["node/cli"]
 
@@ -905,7 +905,7 @@ pallet-entries = { path = "pallets/entries", default-features = false }
 pallet-schema-accounts = { path = "pallets/schema-accounts", default-features = false }
 pallet-meta-tx = { path = "pallets/meta-tx", default-features = false }
 pallet-namespace = { path = 'pallets/namespace', default-features = false }
-
+pallet-profile = { path = "pallets/profile", default-features = false }
 
 [profile.release]
 panic = 'unwind'
