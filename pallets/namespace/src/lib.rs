@@ -226,6 +226,13 @@ pub mod pallet {
 			creator: NameSpaceCreatorOf<T>,
 			authorization: AuthorizationIdOf,
 		},
+		/// An existing namespace has been updated.
+		/// \[namespace identifier, updater, namespace authorization\]
+		Update {
+			namespace: NameSpaceIdOf,
+			updater: NameSpaceCreatorOf<T>,
+			authorization: AuthorizationIdOf,
+		},
 		/// A namespace has been archived.
 		/// \[namespace identifier,  authority\]
 		Archive { namespace: NameSpaceIdOf, authority: NameSpaceCreatorOf<T> },
@@ -706,6 +713,67 @@ pub mod pallet {
 				.map_err(Error::<T>::from)?;
 
 			Self::deposit_event(Event::Restore { namespace: namespace_id, authority: creator });
+
+			Ok(())
+		}
+		/// Updates the digest and optional blob of a namesapce.
+		///
+		/// This function allows the creator or an admin with the appropriate authority
+		/// to update the digest and optionally the blob of an existing namesapce. It checks
+		/// that the namesapce exists, ensures that the caller has the necessary authorization,
+		/// and updates the namesapce with the new digest and blob (if provided).
+		///
+		/// # Parameters
+		/// - `origin`: The origin of the transaction, which must be signed by the creator or an
+		///   admin with the appropriate authority.
+		/// - `namespace_id`: The identifier of the namespace to be updated.
+		/// - `digest`: The new digest (hash) to be assigned to the namespace.
+		/// - `blob`: An optional new blob (data) to be assigned to the namespace. If `None`, the
+		///   existing blob remains unchanged.
+		/// - `namespace_authorization`: An identifier for the authorization being used to validate
+		///   the update.
+		///
+		/// # Returns
+		/// - `DispatchResult`: Returns `Ok(())` if the namespace is successfully updated, or an
+		///   error (`DispatchError`) if:
+		///   - The namespace does not exist.
+		///   - The caller does not have the authority to update the namespace.
+		///
+		/// # Errors
+		/// - `NamespaceNotFound`: If the specified namespace ID does not correspond to an existing
+		///   namespace.
+		/// - `UnauthorizedOperation`: If the caller is not authorized to update the namespace.
+		///
+		/// # Events
+		/// - `Update`: Emitted when a namespace is successfully updated. It includes the namespace
+		///   ID, the updater, and the authorization used.
+		#[pallet::call_index(8)]
+		#[pallet::weight({0})]
+		pub fn update(
+			origin: OriginFor<T>,
+			namespace_id: NameSpaceIdOf,
+			digest: NameSpaceHashOf<T>,
+			_blob: Option<NameSpaceBlobOf<T>>,
+			namespace_authorization: AuthorizationIdOf,
+		) -> DispatchResult {
+			let creator = ensure_signed(origin)?;
+
+			let mut namespace_details =
+				NameSpaces::<T>::get(&namespace_id).ok_or(Error::<T>::NameSpaceNotFound)?;
+			ensure!(!namespace_details.archive, Error::<T>::ArchivedNameSpace);
+
+			namespace_details.digest = digest;
+
+			<NameSpaces<T>>::insert(&namespace_id, namespace_details);
+
+			Self::update_activity(&namespace_id, IdentifierTypeOf::NameSpace, CallTypeOf::Update)
+				.map_err(Error::<T>::from)?;
+
+			Self::deposit_event(Event::Update {
+				namespace: namespace_id.clone(),
+				updater: creator,
+				authorization: namespace_authorization,
+			});
 
 			Ok(())
 		}
