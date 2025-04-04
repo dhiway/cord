@@ -1248,3 +1248,38 @@ fn add_delegator_should_fail_for_space_creator_delegating_themselves() {
 		);
 	});
 }
+
+#[test]
+fn validate_space_entries_should_fail_on_type_capacity_overflow() {
+	let creator = DID_00;
+	let author = ACCOUNT_00;
+	let space = [2u8; 256].to_vec();
+	let capacity = 1000u64;
+	let space_digest = <Test as frame_system::Config>::Hashing::hash(&space.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&space_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let space_id: SpaceIdOf = generate_space_id::<Test>(&id_digest);
+
+	new_test_ext().execute_with(|| {
+		assert_ok!(Space::create(
+			DoubleOrigin(author.clone(), creator.clone()).into(),
+			space_digest,
+		));
+		assert_ok!(Space::approve(RawOrigin::Root.into(), space_id.clone(), capacity,));
+
+		<Spaces<Test>>::try_mutate(&space_id, |space_details| {
+			let details = space_details.as_mut().unwrap();
+			details.txn_count = u64::MAX - 5;
+			Ok::<_, Error<Test>>(())
+		})
+		.unwrap();
+
+		assert_err!(
+			Space::validate_space_for_transaction_entries(&space_id, 10),
+			Error::<Test>::TypeCapacityOverflow
+		);
+	});
+}
