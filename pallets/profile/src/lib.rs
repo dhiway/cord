@@ -295,6 +295,22 @@ pub mod pallet {
 
 
 impl<T: Config> Pallet<T> {
+    /// Retrieves the Profile Identifier associated with the account if exists,
+    /// Else returns appropriate errors.
+    pub fn get_profile_id(who: &CreatorOf<T>) -> Result<ProfileIdOf, Error<T>> {
+        let profile_id = AccountProfiles::<T>::get(&who).ok_or(Error::<T>::ProfileNotFound)?;
+        Profiles::<T>::get(&profile_id).ok_or(Error::<T>::ProfileNotFound)?;
+        
+        Ok(profile_id)
+    }
+
+    /// Checks if the given profile exists, else returns appropriate error of `ProfileNotFound`.
+    pub fn does_profile_exists(profile_id: &ProfileIdOf) -> Result<ProfileIdOf, Error<T>> {
+        Profiles::<T>::get(&profile_id).ok_or(Error::<T>::ProfileNotFound)?;
+        
+        Ok(profile_id.clone())
+    }
+
 	/// Records an activity using a provided event message.
 	pub fn record_activity(identifier: &Ss58Identifier, msg: &[u8]) -> DispatchResult {
 		let entry: EntryTypeOf =
