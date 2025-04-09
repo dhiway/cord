@@ -32,6 +32,7 @@ use cord_uri::{EntryTypeOf, EventStamp, Identifier, RegistryIdentifierCheck, Ss5
 use frame_support::dispatch::DispatchResult;
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::WeightInfo;
+use pallet_profile::ProfileIdOf;
 
 #[cfg(test)]
 pub mod mock;
@@ -58,7 +59,7 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + cord_uri::Config {
+	pub trait Config: frame_system::Config + cord_uri::Config + pallet_profile::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -77,18 +78,18 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		RegistryIdentifierOf,
-		RegistryDetails<CordAccountOf<T>, HashOf<T>, Status>,
+		RegistryDetails<HashOf<T>, Status>,
 		OptionQuery,
 	>;
 
-	/// Stores collection-level delegates (account → permissions).
+	/// Stores registry-level delegates (account → permissions).
 	#[pallet::storage]
 	pub type Delegates<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
 		Ss58Identifier,
 		Blake2_128Concat,
-		CordAccountOf<T>,
+		ProfileIdOf,
 		Permissions,
 		OptionQuery,
 	>;
@@ -96,12 +97,36 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		DelegateAdded { identifier: Ss58Identifier, delegate: CordAccountOf<T> },
-		DelegateRemoved { identifier: Ss58Identifier, delegate: CordAccountOf<T> },
-		RegistryCreated { registry: RegistryIdentifierOf, creator: CordAccountOf<T> },
-		RegistryUpdated { registry: RegistryIdentifierOf, authority: CordAccountOf<T> },
-		RegistryArchived { registry: RegistryIdentifierOf, authority: CordAccountOf<T> },
-		RegistryRestored { registry: RegistryIdentifierOf, authority: CordAccountOf<T> },
+		DelegateAdded { 
+			identifier: Ss58Identifier, 
+			delegate: CordAccountOf<T>,
+			delegate_profile_id: ProfileIdOf,
+		},
+		DelegateRemoved { 
+			identifier: Ss58Identifier, 
+			delegate: CordAccountOf<T>,
+			delegate_profile_id: ProfileIdOf,
+		},
+		RegistryCreated { 
+			registry: RegistryIdentifierOf,
+			creator: CordAccountOf<T>,
+			profile_id: ProfileIdOf
+		},
+		RegistryUpdated { 
+			registry: RegistryIdentifierOf, 
+			authority: CordAccountOf<T>,
+			authority_profile_id: ProfileIdOf
+		},
+		RegistryArchived { 
+			registry: RegistryIdentifierOf, 
+			authority: CordAccountOf<T>,
+			authority_profile_id: ProfileIdOf,
+		},
+		RegistryRestored { 
+			registry: RegistryIdentifierOf, 
+			authority: CordAccountOf<T>,
+			authority_profile_id: ProfileIdOf,
+		},
 	}
 
 	#[pallet::error]
@@ -141,8 +166,26 @@ pub mod pallet {
 			roles: Vec<PermissionVariant>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			delegation::add_delegate::<T>(&identifier, &who, &delegate, roles)?;
-			Self::deposit_event(Event::DelegateAdded { identifier, delegate });
+
+			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+			let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&delegate
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+			delegation::add_delegate::<T>(&identifier, &who_profile_id, &delegate_profile_id, roles)?;
+			Self::deposit_event(
+				Event::DelegateAdded { 
+					identifier, 
+					delegate, 
+					delegate_profile_id
+				}
+			);
+			
 			Ok(())
 		}
 
@@ -155,8 +198,26 @@ pub mod pallet {
 			delegate: CordAccountOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			delegation::remove_delegate::<T>(&identifier, &who, &delegate)?;
-			Self::deposit_event(Event::DelegateRemoved { identifier, delegate });
+
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+			let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&delegate
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+			delegation::remove_delegate::<T>(&identifier, &profile_id, &delegate_profile_id)?;
+			Self::deposit_event(
+				Event::DelegateRemoved { 
+					identifier, 
+					delegate, 
+					delegate_profile_id,
+				}
+			);
+
 			Ok(())
 		}
 
@@ -171,34 +232,86 @@ pub mod pallet {
 			doc_node_id: Option<Vec<u8>>,
 		) -> DispatchResult {
 			let creator = ensure_signed(origin)?;
+
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&creator
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+			let doc_author_profile_id = if let Some(author) = doc_author_id.clone() {
+				Some(
+					pallet_profile::Pallet::<T>::get_profile_id(&author)
+						.map_err(<pallet_profile::Error<T>>::from)?
+				)
+			} else {
+				None
+			};
+
 			let registry_id = registry::create_registry::<T>(
 				tx_hash,
 				doc_id,
-				doc_author_id,
+				doc_author_profile_id,
 				doc_node_id,
-				creator.clone(),
+				profile_id.clone(),
 			)?;
-			Self::deposit_event(Event::RegistryCreated { registry: registry_id, creator });
+
+			Self::deposit_event(
+				Event::RegistryCreated { 
+					registry: registry_id, 
+					creator, profile_id,
+				}
+			);
+
 			Ok(())
 		}
 
 		/// Archive registry
 		#[pallet::call_index(3)]
 		#[pallet::weight({10_000})]
-		pub fn archive(origin: OriginFor<T>, registry_id: RegistryIdentifierOf) -> DispatchResult {
+		pub fn archive(
+			origin: OriginFor<T>, 
+			registry_id: RegistryIdentifierOf
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			registry::archive_registry::<T>(&registry_id, who.clone())?;
-			Self::deposit_event(Event::RegistryArchived { registry: registry_id, authority: who });
+
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+			
+			registry::archive_registry::<T>(&registry_id, &profile_id)?;
+			Self::deposit_event(
+				Event::RegistryArchived { 
+					registry: registry_id, 
+					authority: who, 
+					authority_profile_id: profile_id
+				}
+			);
 			Ok(())
 		}
 
 		/// Restore registry
 		#[pallet::call_index(4)]
 		#[pallet::weight({10_000})]
-		pub fn restore(origin: OriginFor<T>, registry_id: RegistryIdentifierOf) -> DispatchResult {
+		pub fn restore(
+			origin: OriginFor<T>, 
+			registry_id: RegistryIdentifierOf
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			registry::restore_registry::<T>(&registry_id, who.clone())?;
-			Self::deposit_event(Event::RegistryRestored { registry: registry_id, authority: who });
+
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+			registry::restore_registry::<T>(&registry_id, profile_id.clone())?;
+			Self::deposit_event(
+				Event::RegistryRestored { 
+					registry: registry_id, 
+					authority: who,
+					authority_profile_id: profile_id,
+				}
+			);
 			Ok(())
 		}
 
@@ -211,15 +324,29 @@ pub mod pallet {
 			new_doc_author_id: CordAccountOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+			let new_doc_author_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&new_doc_author_id
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
 			registry::update_registry_author::<T>(
 				&registry_id,
-				new_doc_author_id.clone(),
-				who.clone(),
+				new_doc_author_profile_id.clone(),
+				who_profile_id.clone(),
 			)?;
+
 			Self::deposit_event(Event::RegistryUpdated {
 				registry: registry_id,
 				authority: new_doc_author_id,
+				authority_profile_id: new_doc_author_profile_id
 			});
+
 			Ok(())
 		}
 
@@ -232,10 +359,27 @@ pub mod pallet {
 			new_creator: CordAccountOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			registry::update_registry_creator::<T>(&registry_id, new_creator.clone(), who.clone())?;
+
+			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+			let new_creator_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&new_creator
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+			registry::update_registry_creator::<T>(
+				&registry_id, 
+				new_creator_profile_id.clone(), 
+				who_profile_id.clone()
+			)?;
+
 			Self::deposit_event(Event::RegistryUpdated {
 				registry: registry_id,
 				authority: new_creator,
+				authority_profile_id: new_creator_profile_id,
 			});
 			Ok(())
 		}
@@ -253,7 +397,7 @@ impl<T: Config> Pallet<T> {
 	/// Checks if the delegate for `who` on the given collection has any of the required permissions.
 	pub fn has_permission(
 		identifier: &Ss58Identifier,
-		who: &CordAccountOf<T>,
+		who: &ProfileIdOf,
 		required: Permissions,
 	) -> bool {
 		Delegates::<T>::get(identifier, who).unwrap_or_default().intersects(required)

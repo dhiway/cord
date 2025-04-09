@@ -16,8 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+use super::*;
 use crate::{
-	pallet::Pallet, CordAccountOf, Delegates, Error, PermissionVariant, Permissions, Ss58Identifier,
+	pallet::Pallet, Delegates, Error, PermissionVariant, Permissions, Ss58Identifier,
 };
 use frame_support::pallet_prelude::*;
 
@@ -25,8 +26,8 @@ use frame_support::pallet_prelude::*;
 /// the caller (`who`) has ADMIN or DELEGATE permissions.
 pub fn add_delegate<T: crate::Config>(
 	identifier: &Ss58Identifier,
-	who: &CordAccountOf<T>,
-	delegate: &CordAccountOf<T>,
+	who: &ProfileIdOf,
+	delegate: &ProfileIdOf,
 	roles: Vec<PermissionVariant>,
 ) -> DispatchResult {
 	ensure!(
@@ -48,8 +49,8 @@ pub fn add_delegate<T: crate::Config>(
 /// has ADMIN permission.
 pub fn remove_delegate<T: crate::Config>(
 	identifier: &Ss58Identifier,
-	who: &CordAccountOf<T>,
-	delegate: &CordAccountOf<T>,
+	who: &ProfileIdOf,
+	delegate: &ProfileIdOf,
 ) -> DispatchResult {
 	ensure!(
 		Pallet::<T>::has_permission(identifier, who, Permissions::ADMIN),

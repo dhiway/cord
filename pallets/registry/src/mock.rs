@@ -30,6 +30,7 @@ frame_support::construct_runtime!(
 		System: system,
 		Registry: pallet_registry,
 		Identifier: cord_uri,
+		Profile: pallet_profile,
 	}
 );
 
@@ -42,6 +43,18 @@ impl frame_system::Config for Test {
 	type Block = Block;
 	type AccountData = ();
 	type SS58Prefix = SS58Prefix;
+}
+
+parameter_types! {
+	pub const MaxDataKeyLength: u8 = 128;
+	pub const MaxDataValueLength: u32 = 1 * 1024; //1KB
+}
+
+impl pallet_profile::Config for Test {
+	type MaxDataKeyLength = MaxDataKeyLength;
+	type MaxDataValueLength = MaxDataValueLength;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 }
 
 impl pallet_registry::Config for Test {
