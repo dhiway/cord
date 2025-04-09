@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+use super::*;
 use alloc::vec::Vec;
 use codec::Encode;
 use frame_support::dispatch::DispatchResult;
@@ -23,7 +24,7 @@ use frame_support::pallet_prelude::*;
 use sp_runtime::traits::Hash;
 
 use crate::{
-	pallet::Pallet, CordAccountOf, Delegates, Error, HashOf, Identifier, Permissions, Registries,
+	pallet::Pallet, Delegates, Error, HashOf, Identifier, Permissions, Registries,
 	RegistryDetails, RegistryIdentifierOf, Status,
 };
 
@@ -40,9 +41,9 @@ pub fn push_option(buf: &mut Vec<u8>, field: Option<&[u8]>) {
 pub fn create_registry<T: crate::Config>(
 	tx_hash: HashOf<T>,
 	doc_id: Option<Vec<u8>>,
-	doc_author_id: Option<CordAccountOf<T>>,
+	doc_author_profile_id: Option<ProfileIdOf>,
 	doc_node_id: Option<Vec<u8>>,
-	creator: CordAccountOf<T>,
+	profile_id: ProfileIdOf,
 ) -> Result<RegistryIdentifierOf, sp_runtime::DispatchError> {
 	let bounded_doc_id = doc_id
 		.map(|v| v.try_into())
@@ -52,7 +53,7 @@ pub fn create_registry<T: crate::Config>(
 		.map(|v| v.try_into())
 		.transpose()
 		.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
-	let encoded_doc_author = doc_author_id.as_ref().map(|author| author.encode());
+	let encoded_doc_author = doc_author_profile_id.as_ref().map(|author| author.encode());
 
 	let mut data = Vec::with_capacity(256);
 	data.extend_from_slice(tx_hash.as_ref());
@@ -67,7 +68,7 @@ pub fn create_registry<T: crate::Config>(
 			.as_ref()
 			.map(|v: &BoundedVec<u8, ConstU32<64>>| v.as_slice()),
 	);
-	data.extend_from_slice(&creator.encode());
+	data.extend_from_slice(&profile_id.encode());
 
 	let digest = T::Hashing::hash(&data);
 	let pallet_name = <crate::pallet::Pallet<T> as frame_support::traits::PalletInfoAccess>::name();
@@ -79,19 +80,20 @@ pub fn create_registry<T: crate::Config>(
 	ensure!(!Registries::<T>::contains_key(&registry_id), Error::<T>::RegistryAlreadyExists);
 
 	let details = RegistryDetails {
-		creator: creator.clone(),
+		profile_id: profile_id.clone(),
 		tx_hash,
 		doc_id: bounded_doc_id,
-		doc_author_id: doc_author_id.clone(),
+		doc_author_profile_id: doc_author_profile_id.clone(),
 		doc_node_id: bounded_doc_node_id,
 		status: Status::Active,
 	};
 
 	Pallet::<T>::record_activity(&registry_id, b"RegistryCreated")?;
 	Registries::<T>::insert(&registry_id, details);
-	Delegates::<T>::insert(&registry_id, &creator, Permissions::all());
-	if let Some(author) = doc_author_id {
-		Delegates::<T>::insert(&registry_id, &author, Permissions::ENTRY);
+	Delegates::<T>::insert(&registry_id, &profile_id, Permissions::all());
+	
+	if let Some(author_profile_id) = doc_author_profile_id {
+		Delegates::<T>::insert(&registry_id, &author_profile_id, Permissions::ENTRY);
 	}
 	Ok(registry_id)
 }
@@ -99,7 +101,7 @@ pub fn create_registry<T: crate::Config>(
 /// Archive a registry.
 pub fn archive_registry<T: crate::Config>(
 	registry_id: &RegistryIdentifierOf,
-	who: CordAccountOf<T>,
+	who: &ProfileIdOf,
 ) -> DispatchResult {
 	Registries::<T>::try_mutate(registry_id, |maybe_registry| -> DispatchResult {
 		let registry = maybe_registry.as_mut().ok_or(Error::<T>::RegistryNotFound)?;
@@ -118,7 +120,7 @@ pub fn archive_registry<T: crate::Config>(
 /// Restore an archived registry.
 pub fn restore_registry<T: crate::Config>(
 	registry_id: &RegistryIdentifierOf,
-	who: CordAccountOf<T>,
+	who: ProfileIdOf,
 ) -> DispatchResult {
 	Registries::<T>::try_mutate(registry_id, |maybe_registry| -> DispatchResult {
 		let registry = maybe_registry.as_mut().ok_or(Error::<T>::RegistryNotFound)?;
@@ -137,8 +139,8 @@ pub fn restore_registry<T: crate::Config>(
 /// Update the document author for a registry.
 pub fn update_registry_author<T: crate::Config>(
 	registry_id: &RegistryIdentifierOf,
-	new_doc_author_id: CordAccountOf<T>,
-	who: CordAccountOf<T>,
+	new_doc_author_profile_id: ProfileIdOf,
+	who: ProfileIdOf,
 ) -> DispatchResult {
 	ensure!(
 		crate::pallet::Pallet::<T>::has_permission(registry_id, &who, Permissions::ADMIN),
@@ -148,13 +150,17 @@ pub fn update_registry_author<T: crate::Config>(
 	let mut registry = Registries::<T>::get(registry_id).ok_or(Error::<T>::RegistryNotFound)?;
 	ensure!(registry.status == Status::Active, Error::<T>::ArchivedRegistry);
 
-	let old_author = registry.doc_author_id.take();
-	registry.doc_author_id = Some(new_doc_author_id.clone());
+	let old_author = registry.doc_author_profile_id.take();
+	registry.doc_author_profile_id = Some(new_doc_author_profile_id.clone());
 
 	Pallet::<T>::record_activity(&registry_id, b"RegistryUpdated")?;
 
 	Registries::<T>::insert(registry_id, registry);
-	Delegates::<T>::insert(registry_id, &new_doc_author_id, Permissions::all());
+
+	// TODO:
+	// Why the permission here is given as Permissions::all() instead of ::ENTRY() 
+	// As it is the case during create?
+	Delegates::<T>::insert(registry_id, &new_doc_author_profile_id, Permissions::all());
 	if let Some(old) = old_author {
 		Delegates::<T>::remove(registry_id, &old);
 	}
@@ -164,8 +170,8 @@ pub fn update_registry_author<T: crate::Config>(
 /// Update registry creator
 pub fn update_registry_creator<T: crate::Config>(
 	registry_id: &RegistryIdentifierOf,
-	new_creator: CordAccountOf<T>,
-	who: CordAccountOf<T>,
+	new_profile_id: ProfileIdOf,
+	who: ProfileIdOf,
 ) -> DispatchResult {
 	Registries::<T>::try_mutate(registry_id, |maybe_registry| -> DispatchResult {
 		let registry = maybe_registry.as_mut().ok_or(Error::<T>::RegistryNotFound)?;
@@ -173,9 +179,13 @@ pub fn update_registry_creator<T: crate::Config>(
 			crate::pallet::Pallet::<T>::has_permission(registry_id, &who, Permissions::ADMIN),
 			Error::<T>::UnauthorizedOperation
 		);
-		registry.creator = new_creator;
+		registry.profile_id = new_profile_id;
 		Ok(())
 	})?;
+
+	// TODO:
+	// Would need to update the chain-state of the DELEGATES as well
+	// Is it required to remove old delegate or continue keeping him from accessing.
 
 	Pallet::<T>::record_activity(&registry_id, b"RegistryCreatorUpdated")?;
 	Ok(())

@@ -26,6 +26,7 @@ bitflags = { workspace = true }
 # Internal dependencies
 cord-primitives = { workspace = true }
 cord-uri = { workspace = true }
+pallet-profile = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { optional = true, workspace = true }
@@ -45,6 +46,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
+	"pallet-profile/runtime-benchmarks",
 ]
 std = [
 	"codec/std",
@@ -59,9 +61,11 @@ std = [
 	"sp-keystore/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"pallet-profile/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"sp-runtime/try-runtime",
+	"pallet-profile/try-runtime",
 ]
