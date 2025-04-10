@@ -400,6 +400,7 @@ impl<T: Config> Pallet<T> {
 		who: &ProfileIdOf,
 		required: Permissions,
 	) -> bool {
+		// TODO: Bug unwrap_or_default() will return true always, since default is ENTRY.
 		Delegates::<T>::get(identifier, who).unwrap_or_default().intersects(required)
 	}
 
@@ -413,6 +414,7 @@ impl<T: Config> Pallet<T> {
 			buf.push(0u8);
 		}
 	}
+
 	/// Records an activity using a provided event message.
 	pub fn record_activity(identifier: &Ss58Identifier, msg: &[u8]) -> DispatchResult {
 		let entry: EntryTypeOf =
@@ -421,6 +423,38 @@ impl<T: Config> Pallet<T> {
 		<cord_uri::Pallet<T> as Identifier>::record_activity(identifier, entry, stamp)
 			.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
 		Ok(())
+	}
+
+	/// Verifies if the given account for a registry has sufficient 
+	/// permissions and the registry is valid for Entry operations.
+	/// Returns Ok(()) only if both conditions pass; fails if either fails.
+	pub fn validate_registry_for_tx(
+		profile_id: &ProfileIdOf,
+		registry_id: &RegistryIdentifierOf
+	) -> DispatchResult {
+		let has_perm = Self::has_permission(registry_id, profile_id, Permissions::ENTRY);
+		
+		let registry_active = Self::inherent_ensure_active_registry(registry_id).is_ok();
+		
+		ensure!(
+			has_perm && registry_active,
+			Error::<T>::UnauthorizedOperation
+		);
+    
+   		Ok(())
+	}
+
+	/// Verifies if the given account Profile for a registry is admin or not.
+	pub fn is_admin(
+		profile_id: &ProfileIdOf,
+		registry_id: &RegistryIdentifierOf
+	) -> bool {
+
+		if Self::has_permission(registry_id, profile_id, Permissions::ADMIN) {
+			return true 
+		}
+
+		false
 	}
 }
 

@@ -90,8 +90,8 @@ pub enum Status {
 
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 pub struct RegistryDetails<Hash, Status> {
-	/// The identity of the account (profile) that paid for the transaction.
-	pub profile_id: ProfileIdOf,
+	/// The identity of the account (profile) that created/ owns the registry.
+	pub creator: ProfileIdOf,
 	/// The transaction hash associated with the document.
 	pub tx_hash: Hash,
 	/// Optionally, the document identifier as a bounded vector.

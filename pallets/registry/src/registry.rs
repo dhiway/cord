@@ -80,7 +80,7 @@ pub fn create_registry<T: crate::Config>(
 	ensure!(!Registries::<T>::contains_key(&registry_id), Error::<T>::RegistryAlreadyExists);
 
 	let details = RegistryDetails {
-		profile_id: profile_id.clone(),
+		creator: profile_id.clone(),
 		tx_hash,
 		doc_id: bounded_doc_id,
 		doc_author_profile_id: doc_author_profile_id.clone(),
@@ -91,10 +91,11 @@ pub fn create_registry<T: crate::Config>(
 	Pallet::<T>::record_activity(&registry_id, b"RegistryCreated")?;
 	Registries::<T>::insert(&registry_id, details);
 	Delegates::<T>::insert(&registry_id, &profile_id, Permissions::all());
-	
+
 	if let Some(author_profile_id) = doc_author_profile_id {
 		Delegates::<T>::insert(&registry_id, &author_profile_id, Permissions::ENTRY);
 	}
+	
 	Ok(registry_id)
 }
 
@@ -179,7 +180,8 @@ pub fn update_registry_creator<T: crate::Config>(
 			crate::pallet::Pallet::<T>::has_permission(registry_id, &who, Permissions::ADMIN),
 			Error::<T>::UnauthorizedOperation
 		);
-		registry.profile_id = new_profile_id;
+
+		registry.creator = new_profile_id;
 		Ok(())
 	})?;
 
