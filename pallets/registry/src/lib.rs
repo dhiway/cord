@@ -164,6 +164,7 @@ pub mod pallet {
 		InvalidEntryTypeInput,
 		/// The activity update operation failed.
 		ActivityUpdateFailed,
+		
 	}
 
 	#[pallet::call]
@@ -394,6 +395,39 @@ pub mod pallet {
 				authority: new_creator,
 				authority_profile_id: new_creator_profile_id,
 			});
+			Ok(())
+		}
+
+		/// Updates the registry hash, optionally accepts a blob.
+		#[pallet::call_index(7)]
+		#[pallet::weight({10_000})]
+		pub fn update_registry_hash(
+			origin: OriginFor<T>, 
+			registry_id: RegistryIdentifierOf,
+			tx_hash: HashOf<T>,
+			_blob: Option<RegistryBlobOf<T>>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+			
+			registry::update_registry_hash::<T>(
+				&registry_id,
+				&profile_id,
+				&tx_hash,
+			)?;
+
+			Self::deposit_event(
+				Event::RegistryUpdated { 
+					registry: registry_id, 
+					authority: who, 
+					authority_profile_id: profile_id
+				}
+			);
+
 			Ok(())
 		}
 	}
