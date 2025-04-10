@@ -1480,19 +1480,23 @@ impl pallet_collection::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const MaxRegistryBlobSize: u32 = 4 * 1024; // 4KB
+}
+
 impl pallet_registry::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type MaxRegistryBlobSize = MaxRegistryBlobSize;
 	type WeightInfo = ();
 }
 
 parameter_types! {
 	pub const MaxEncodedInputLength: u32 = 128;
-	pub const MaxRegistryEntryBlobSize: u32 = 4 * 1024; // 4KB
 }
 
 impl pallet_entry::Config for Runtime {
 	type MaxEncodedInputLength = MaxEncodedInputLength;
-    type MaxRegistryEntryBlobSize = MaxRegistryEntryBlobSize;
+    type MaxRegistryEntryBlobSize = MaxRegistryBlobSize;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
