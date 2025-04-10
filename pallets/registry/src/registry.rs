@@ -99,6 +99,31 @@ pub fn create_registry<T: crate::Config>(
 	Ok(registry_id)
 }
 
+/// Update a existing registry.
+pub fn update_registry_hash<T: crate::Config>(
+	registry_id: &RegistryIdentifierOf,
+	who: &ProfileIdOf,
+	tx_hash: &HashOf<T>,
+) -> DispatchResult {
+	Registries::<T>::try_mutate(registry_id, |maybe_registry| -> DispatchResult {
+		let registry = maybe_registry.as_mut().ok_or(Error::<T>::RegistryNotFound)?;
+
+		ensure!(
+			Pallet::<T>::has_permission(registry_id, &who, Permissions::ADMIN),
+			Error::<T>::UnauthorizedOperation
+		);
+
+		ensure!(registry.status == Status::Active, Error::<T>::ArchivedRegistry);
+
+		registry.tx_hash = *tx_hash;
+
+		Ok(())
+	})?;
+	Pallet::<T>::record_activity(registry_id, b"RegistryHashUpdated")?;
+
+	Ok(())
+}
+
 /// Archive a registry.
 pub fn archive_registry<T: crate::Config>(
 	registry_id: &RegistryIdentifierOf,
@@ -154,7 +179,7 @@ pub fn update_registry_author<T: crate::Config>(
 	let old_author = registry.doc_author_profile_id.take();
 	registry.doc_author_profile_id = Some(new_doc_author_profile_id.clone());
 
-	Pallet::<T>::record_activity(&registry_id, b"RegistryUpdated")?;
+	Pallet::<T>::record_activity(&registry_id, b"RegistryAuthorUpdated")?;
 
 	Registries::<T>::insert(registry_id, registry);
 
