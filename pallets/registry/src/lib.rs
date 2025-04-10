@@ -478,12 +478,16 @@ impl<T: Config> Pallet<T> {
 		profile_id: &ProfileIdOf,
 		registry_id: &RegistryIdentifierOf
 	) -> DispatchResult {
-		let has_perm = Self::has_permission(registry_id, profile_id, Permissions::ENTRY);
+		let has_permission = Self::has_permission(
+			registry_id, 
+			profile_id, 
+			Permissions::ENTRY | Permissions::ADMIN
+		);
 		
 		let registry_active = Self::inherent_ensure_active_registry(registry_id).is_ok();
 		
 		ensure!(
-			has_perm && registry_active,
+			has_permission && registry_active,
 			Error::<T>::UnauthorizedOperation
 		);
     
