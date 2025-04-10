@@ -351,6 +351,7 @@ pub mod pallet {
 
 			ensure!(registry_id == entry.registry_id, Error::<T>::UnauthorizedOperation);
 
+			/* Should be allowed only by the admin of the Registry or Creator of the document */
 			let is_admin =
 				pallet_registry::Pallet::<T>::is_admin(&profile_id, &registry_id);
 
@@ -423,6 +424,14 @@ pub mod pallet {
 
 			ensure!(entry.registry_id == registry_id, Error::<T>::UnauthorizedOperation);
 
+			/* Should be allowed only by the admin of the Registry or Creator of the document */
+			let is_admin =
+				pallet_registry::Pallet::<T>::is_admin(&profile_id, &registry_id);
+
+			let is_creator = entry.creator == profile_id;
+
+			ensure!(is_admin || is_creator, Error::<T>::UnauthorizedOperation);
+
 			entry.revoked = true;
 
 			RegistryEntries::<T>::insert(&registry_entry_id, entry);
@@ -489,6 +498,14 @@ pub mod pallet {
 			ensure!(entry.registry_id == registry_id, Error::<T>::UnauthorizedOperation);
 
 			ensure!(entry.revoked, Error::<T>::RegistryEntryNotRevoked);
+
+			/* Should be allowed only by the admin of the Registry or Creator of the document */
+			let is_admin =
+				pallet_registry::Pallet::<T>::is_admin(&profile_id, &registry_id);
+
+			let is_creator = entry.creator == profile_id;
+
+			ensure!(is_admin || is_creator, Error::<T>::UnauthorizedOperation);
 
 			entry.revoked = false;
 
