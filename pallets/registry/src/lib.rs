@@ -400,8 +400,7 @@ impl<T: Config> Pallet<T> {
 		who: &ProfileIdOf,
 		required: Permissions,
 	) -> bool {
-		// TODO: Bug unwrap_or_default() will return true always, since default is ENTRY.
-		Delegates::<T>::get(identifier, who).unwrap_or_default().intersects(required)
+		Delegates::<T>::get(identifier, who).unwrap_or(Permissions::empty()).intersects(required)
 	}
 
 	/// Helper function to encode an optional field into a byte buffer.
