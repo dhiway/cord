@@ -1485,6 +1485,18 @@ impl pallet_registry::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const MaxEncodedInputLength: u32 = 128;
+	pub const MaxRegistryEntryBlobSize: u32 = 4 * 1024; // 4KB
+}
+
+impl pallet_entry::Config for Runtime {
+	type MaxEncodedInputLength = MaxEncodedInputLength;
+    type MaxRegistryEntryBlobSize = MaxRegistryEntryBlobSize;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
 pub type MetaTxExtension = (
 	pallet_verify_signature::VerifySignature<Runtime>,
 	pallet_meta_tx::MetaTxMarker<Runtime>,
@@ -1744,6 +1756,9 @@ mod runtime {
 
 	#[runtime::pallet_index(72)]
 	pub type Registry = pallet_registry::Pallet<Runtime>;
+
+	#[runtime::pallet_index(73)]
+	pub type Entry = pallet_entry::Pallet<Runtime>;
 
 	#[runtime::pallet_index(80)]
 	pub type NetworkInfo = pallet_config::Pallet<Runtime>;

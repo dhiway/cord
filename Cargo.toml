@@ -55,6 +55,7 @@ members = [
 	"test-utils/runtime/transaction-pool",
 	"test-utils/service",
 	"pallets/profile",
+	"pallets/entry",
 ]
 default-members = ["node/cli"]
 
@@ -891,6 +892,7 @@ pallet-chain-space = { path = 'pallets/chain-space', default-features = false }
 pallet-cord-statement = { path = 'pallets/statement', default-features = false }
 pallet-network-membership = { path = 'pallets/network-membership', default-features = false }
 pallet-registry = { path = 'pallets/registry/', default-features = false }
+pallet-entry = { path = 'pallets/entry', default-features = false }
 pallet-runtime-upgrade = { path = 'pallets/runtime-upgrade', default-features = false }
 pallet-cord-identity = { path = 'pallets/identity', default-features = false }
 pallet-cord-offences = { path = 'pallets/offences', default-features = false }

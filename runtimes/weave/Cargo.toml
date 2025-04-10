@@ -44,6 +44,7 @@ pallet-registry = { workspace = true }
 pallet-config = { workspace = true }
 cord-uri = { workspace = true }
 pallet-profile = { workspace = true }
+pallet-entry = { workspace = true }
 
 # Substrate
 sp-api = { workspace = true }
@@ -290,6 +291,7 @@ std = [
 	"sp-version/std",
 	"substrate-wasm-builder",
 	"pallet-profile/std",
+	"pallet-entry/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -404,6 +406,7 @@ try-runtime = [
 	"pallet-verify-signature/try-runtime",
 	"sp-runtime/try-runtime",
 	"pallet-profile/try-runtime",
+	"pallet-entry/try-runtime",
 ]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
