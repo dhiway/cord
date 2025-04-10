@@ -30,6 +30,7 @@ pub mod types;
 pub use crate::{pallet::*, types::*};
 use cord_uri::{EntryTypeOf, EventStamp, Identifier, RegistryIdentifierCheck, Ss58Identifier};
 use frame_support::dispatch::DispatchResult;
+use frame_support::BoundedVec;
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::WeightInfo;
 use pallet_profile::ProfileIdOf;
@@ -58,9 +59,20 @@ pub mod pallet {
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
+	/// Type of the Maximum size of Registry Blob
+	pub type MaxRegistryBlobSizeOf<T> = <T as crate::Config>::MaxRegistryBlobSize;
+
+	/// Type of Registry Blob
+	pub type RegistryBlobOf<T> = BoundedVec<u8, MaxRegistryBlobSizeOf<T>>;
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config + cord_uri::Config + pallet_profile::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// The maximum number of bytes in size a Registry Blob can hold.
+		#[pallet::constant]
+		type MaxRegistryBlobSize: Get<u32>;
+
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -227,6 +239,7 @@ pub mod pallet {
 		pub fn create(
 			origin: OriginFor<T>,
 			tx_hash: HashOf<T>,
+			_blob: Option<RegistryBlobOf<T>>,
 			doc_id: Option<Vec<u8>>,
 			doc_author_id: Option<CordAccountOf<T>>,
 			doc_node_id: Option<Vec<u8>>,
