@@ -35,12 +35,4 @@ pub struct RegistryEntryDetails<RegistryEntryHashOf, StatusOf, ProfileIdOf, Regi
 	pub creator: ProfileIdOf,
 	/// Type of Reistry Entry Identifier.
 	pub registry_id: RegistryIdentifierOf,
-	// /// Optionally, the document identifier as a bounded vector.
-	// pub doc_id: Option<BoundedVec<u8, ConstU32<64>>>,
-	// /// Optionally, the identity account (profile) that created (authored) the document.
-	// pub doc_author_profile_id: Option<ProfileIdOf>,
-	// /// Optionally, the node identifier as a bounded vector.
-	// pub doc_node_id: Option<BoundedVec<u8, ConstU32<64>>>,
-	// /// Optionally, the document entry identifier as a bounded vector.
-	// pub doc_entry_id: Option<BoundedVec<u8, ConstU32<64>>>,
 }
