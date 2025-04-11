@@ -184,8 +184,7 @@ pub fn update_registry_author<T: crate::Config>(
 	Registries::<T>::insert(registry_id, registry);
 
 	// TODO:
-	// Why the permission here is given as Permissions::all() instead of ::ENTRY() 
-	// As it is the case during create?
+	// Revisit if the permission level has to be ENTRY or all()
 	Delegates::<T>::insert(registry_id, &new_doc_author_profile_id, Permissions::all());
 	if let Some(old) = old_author {
 		Delegates::<T>::remove(registry_id, &old);
@@ -206,13 +205,17 @@ pub fn update_registry_creator<T: crate::Config>(
 			Error::<T>::UnauthorizedOperation
 		);
 
-		registry.creator = new_profile_id;
+		registry.creator = new_profile_id.clone();
+		
 		Ok(())
 	})?;
 
+	Delegates::<T>::insert(registry_id, &new_profile_id, Permissions::all());
+	
 	// TODO:
-	// Would need to update the chain-state of the DELEGATES as well
-	// Is it required to remove old delegate or continue keeping him from accessing.
+	// Currently downgrading the old-creator to ENTRY permission level.
+	// Revisit if he needs to be removed access completely.
+	Delegates::<T>::insert(registry_id, &who, Permissions::ENTRY);
 
 	Pallet::<T>::record_activity(&registry_id, b"RegistryCreatorUpdated")?;
 	Ok(())
