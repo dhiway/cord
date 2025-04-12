@@ -31,6 +31,7 @@ use frame_support::dispatch::DispatchResult;
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::WeightInfo;
 use sp_runtime::traits::{Hash, One, Saturating};
+use pallet_profile::ProfileIdOf;
 
 #[cfg(test)]
 pub mod mock;
@@ -56,7 +57,7 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + cord_uri::Config {
+	pub trait Config: frame_system::Config + cord_uri::Config + pallet_profile::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type Registry: RegistryIdentifierCheck;
 		/// Weight information for extrinsics in this pallet.
@@ -76,7 +77,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		CollectionIdentifierOf,
-		CollectionDetails<CordAccountOf<T>, Status>,
+		CollectionDetails<ProfileIdOf, Status>,
 		OptionQuery,
 	>;
 
@@ -88,7 +89,7 @@ pub mod pallet {
 		Blake2_128Concat,
 		CollectionIdentifierOf,
 		Blake2_128Concat,
-		CordAccountOf<T>,
+		ProfileIdOf,
 		Permissions,
 		OptionQuery,
 	>;
@@ -110,13 +111,39 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		CollectionCreated { collection: CollectionIdentifierOf, creator: CordAccountOf<T> },
-		CollectionArchived { collection: CollectionIdentifierOf, authority: CordAccountOf<T> },
-		CollectionRestored { collection: CollectionIdentifierOf, authority: CordAccountOf<T> },
-		DelegateAdded { collection: CollectionIdentifierOf, delegate: CordAccountOf<T> },
-		DelegateRemoved { collection: CollectionIdentifierOf, delegate: CordAccountOf<T> },
-		RegistryAdded { collection: CollectionIdentifierOf, registry: RegistryIdentifierOf },
-		RegistryRemoved { collection: CollectionIdentifierOf, registry: RegistryIdentifierOf },
+		CollectionCreated { 
+			collection: CollectionIdentifierOf, 
+			creator: CordAccountOf<T>,
+			creator_profile_id: ProfileIdOf,
+		},
+		CollectionArchived { 
+			collection: CollectionIdentifierOf, 
+			authority: CordAccountOf<T>,
+			authority_profile_id: ProfileIdOf,
+		},
+		CollectionRestored { 
+			collection: CollectionIdentifierOf, 
+			authority: CordAccountOf<T>,
+			authority_profile_id: ProfileIdOf,
+		},
+		DelegateAdded { 
+			collection: CollectionIdentifierOf, 
+			delegate: CordAccountOf<T>,
+			delegate_profile_id: ProfileIdOf,
+		},
+		DelegateRemoved { 
+			collection: CollectionIdentifierOf, 
+			delegate: CordAccountOf<T>,
+			delegate_profile_id: ProfileIdOf,
+		},
+		RegistryAdded { 
+			collection: CollectionIdentifierOf, 
+			registry: RegistryIdentifierOf,
+		},
+		RegistryRemoved { 
+			collection: CollectionIdentifierOf, 
+			registry: RegistryIdentifierOf
+		},
 	}
 
 	#[pallet::error]
@@ -152,7 +179,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Add a delegate with given permissions to a collection.
 		#[pallet::call_index(0)]
-		#[pallet::weight({0})]
+		#[pallet::weight({10_000})]
 		pub fn add_delegate(
 			origin: OriginFor<T>,
 			collection_id: CollectionIdentifierOf,
@@ -160,24 +187,40 @@ pub mod pallet {
 			roles: Vec<PermissionVariant>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+			let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&delegate
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
 			ensure!(
 				Self::has_permission(
 					&collection_id,
-					&who,
+					&who_profile_id,
 					Permissions::ADMIN | Permissions::DELEGATE
 				),
 				Error::<T>::UnauthorizedOperation
 			);
 			ensure!(
-				!Delegates::<T>::contains_key(&collection_id, &delegate),
+				!Delegates::<T>::contains_key(&collection_id, &delegate_profile_id),
 				Error::<T>::DelegateAlreadyExists
 			);
 
 			let permissions = Permissions::from_variants(&roles);
 
 			Self::record_activity(&collection_id, b"DelegateAdded")?;
-			Delegates::<T>::insert(&collection_id, &delegate, permissions);
-			Self::deposit_event(Event::DelegateAdded { collection: collection_id, delegate });
+			Delegates::<T>::insert(&collection_id, &delegate_profile_id, permissions);
+			Self::deposit_event(Event::DelegateAdded {
+				collection: collection_id, 
+				delegate,
+				delegate_profile_id,
+			});
+
 			Ok(())
 		}
 
@@ -190,18 +233,34 @@ pub mod pallet {
 			delegate: CordAccountOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+			let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&delegate
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
 			ensure!(
-				Self::has_permission(&collection_id, &who, Permissions::ADMIN),
+				Self::has_permission(&collection_id, &who_profile_id, Permissions::ADMIN),
 				Error::<T>::UnauthorizedOperation
 			);
 			ensure!(
-				Delegates::<T>::contains_key(&collection_id, &delegate),
+				Delegates::<T>::contains_key(&collection_id, &delegate_profile_id),
 				Error::<T>::DelegateNotFound
 			);
 
 			Self::record_activity(&collection_id, b"DelegateRemoved")?;
-			Delegates::<T>::remove(&collection_id, &delegate);
-			Self::deposit_event(Event::DelegateRemoved { collection: collection_id, delegate });
+			Delegates::<T>::remove(&collection_id, &delegate_profile_id);
+			Self::deposit_event(Event::DelegateRemoved { 
+				collection: collection_id, 
+				delegate,
+				delegate_profile_id,
+			});
+			
 			Ok(())
 		}
 
@@ -210,6 +269,12 @@ pub mod pallet {
 		#[pallet::weight({10_000})]
 		pub fn create(origin: OriginFor<T>) -> DispatchResult {
 			let creator = ensure_signed(origin)?;
+
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&creator
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
 			let pallet_name = <Self as PalletInfoAccess>::name();
 			let previous_block_hash = <frame_system::Pallet<T>>::block_hash(
 				<frame_system::Pallet<T>>::block_number().saturating_sub(One::one()),
@@ -228,14 +293,22 @@ pub mod pallet {
 				Error::<T>::CollectionAlreadyExists
 			);
 
-			let details = CollectionDetails { creator: creator.clone(), status: Status::Active };
+			let details = CollectionDetails { 
+				creator: profile_id.clone(), 
+				status: Status::Active
+			};
 
 			Self::record_activity(&identifier, b"CollectionCreated")?;
 
 			Collections::<T>::insert(&identifier, details);
-			Delegates::<T>::insert(&identifier, &creator, Permissions::all());
+			Delegates::<T>::insert(&identifier, &profile_id, Permissions::all());
 
-			Self::deposit_event(Event::CollectionCreated { collection: identifier, creator });
+			Self::deposit_event(Event::CollectionCreated { 
+				collection: identifier, 
+				creator,
+				creator_profile_id: profile_id,
+			});
+
 			Ok(())
 		}
 
@@ -248,15 +321,21 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
 			Collections::<T>::try_mutate(&collection_id, |maybe_collection| -> DispatchResult {
 				let collection = maybe_collection.as_mut().ok_or(Error::<T>::CollectionNotFound)?;
 
 				ensure!(
-					Self::has_permission(&collection_id, &who, Permissions::ADMIN),
+					Self::has_permission(&collection_id, &profile_id, Permissions::ADMIN),
 					Error::<T>::UnauthorizedOperation
 				);
 				ensure!(collection.status == Status::Active, Error::<T>::ArchivedCollection);
 				collection.status = Status::Archived;
+
 				Ok(())
 			})?;
 
@@ -265,7 +344,9 @@ pub mod pallet {
 			Self::deposit_event(Event::CollectionArchived {
 				collection: collection_id,
 				authority: who,
+				authority_profile_id: profile_id,
 			});
+
 			Ok(())
 		}
 
@@ -278,14 +359,20 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
 			Collections::<T>::try_mutate(&collection_id, |maybe_collection| -> DispatchResult {
 				let collection = maybe_collection.as_mut().ok_or(Error::<T>::CollectionNotFound)?;
 				ensure!(
-					Self::has_permission(&collection_id, &who, Permissions::ADMIN),
+					Self::has_permission(&collection_id, &profile_id, Permissions::ADMIN),
 					Error::<T>::UnauthorizedOperation
 				);
 				ensure!(collection.status == Status::Archived, Error::<T>::CollectionNotArchived);
 				collection.status = Status::Active;
+
 				Ok(())
 			})?;
 
@@ -294,7 +381,9 @@ pub mod pallet {
 			Self::deposit_event(Event::CollectionRestored {
 				collection: collection_id,
 				authority: who,
+				authority_profile_id: profile_id,
 			});
+
 			Ok(())
 		}
 
@@ -308,6 +397,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+
 			let collection =
 				Collections::<T>::get(&collection_id).ok_or(Error::<T>::CollectionNotFound)?;
 			ensure!(collection.status == Status::Active, Error::<T>::ArchivedCollection);
@@ -315,7 +410,7 @@ pub mod pallet {
 			<T as Config>::Registry::ensure_active_registry(&registry_id)?;
 
 			ensure!(
-				Self::has_permission(&collection_id, &who, Permissions::ADMIN | Permissions::ENTRY),
+				Self::has_permission(&collection_id, &profile_id, Permissions::ADMIN | Permissions::ENTRY),
 				Error::<T>::UnauthorizedOperation
 			);
 
@@ -331,6 +426,7 @@ pub mod pallet {
 				collection: collection_id,
 				registry: registry_id,
 			});
+
 			Ok(())
 		}
 
@@ -344,12 +440,17 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&who
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
 			let collection =
 				Collections::<T>::get(&collection_id).ok_or(Error::<T>::CollectionNotFound)?;
 			ensure!(collection.status == Status::Active, Error::<T>::ArchivedCollection);
 
 			ensure!(
-				Self::has_permission(&collection_id, &who, Permissions::ADMIN),
+				Self::has_permission(&collection_id, &profile_id, Permissions::ADMIN),
 				Error::<T>::UnauthorizedOperation
 			);
 
@@ -365,6 +466,7 @@ pub mod pallet {
 				collection: collection_id,
 				registry: registry_id,
 			});
+
 			Ok(())
 		}
 	}
@@ -374,9 +476,10 @@ impl<T: Config> Pallet<T> {
 	/// Checks if the delegate for `who` on the given collection has any of the required permissions.
 	pub fn has_permission(
 		collection_id: &CollectionIdentifierOf,
-		who: &CordAccountOf<T>,
+		who: &ProfileIdOf,
 		required: Permissions,
 	) -> bool {
+		// TODO: Fix bug of positive result for non-existent delegate. 
 		Delegates::<T>::get(collection_id, who).unwrap_or_default().intersects(required)
 	}
 
