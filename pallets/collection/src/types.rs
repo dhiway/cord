@@ -87,7 +87,7 @@ pub enum Status {
 
 /// Details for a catalog.
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct CollectionDetails<Account, Status> {
-	pub creator: Account,
+pub struct CollectionDetails<ProfileIdOf, Status> {
+	pub creator: ProfileIdOf,
 	pub status: Status,
 }
