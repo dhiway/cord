@@ -82,8 +82,9 @@ pub type CordChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 // pub const BRAID_ENDOWMENT: Balance = 10_000_000 * BRAID_UNITS;
 // pub const LOOOM_ENDOWMENT: Balance = 10_000_000 * LOOM_UNITS;
-pub const ENDOWMENT: Balance = 10_000_000 * UNITS;
-const STASH: u128 = 100_000 * UNITS;
+
+const ENDOWMENT: u128 = 500_000_000_000 * UNITS;
+const STASH: u128 = 100_000_000 * UNITS;
 
 fn braid_session_keys(
 	babe: BabeId,

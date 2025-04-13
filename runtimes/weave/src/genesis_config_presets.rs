@@ -84,8 +84,9 @@ fn cord_weave_testnet_genesis(
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> serde_json::Value {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
-	const ENDOWMENT: u128 = 500_000_000 * UNITS;
-	const STASH: u128 = 100_000 * UNITS;
+	
+	const ENDOWMENT: u128 = 500_000_000_000 * UNITS;
+	const STASH: u128 = 100_000_000 * UNITS;
 
 	serde_json::json!({
 	"balances": {
