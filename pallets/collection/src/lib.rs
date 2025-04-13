@@ -479,8 +479,7 @@ impl<T: Config> Pallet<T> {
 		who: &ProfileIdOf,
 		required: Permissions,
 	) -> bool {
-		// TODO: Fix bug of positive result for non-existent delegate. 
-		Delegates::<T>::get(collection_id, who).unwrap_or_default().intersects(required)
+		Delegates::<T>::get(collection_id, who).unwrap_or(Permissions::empty()).intersects(required)
 	}
 
 	/// Records an activity using a provided event message.
