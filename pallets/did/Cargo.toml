@@ -22,7 +22,7 @@ sp-keystore = { features = ["std"], workspace = true }
 
 [dependencies]
 # External dependencies
-log = "0.4"
+log = { workspace = true }
 fluent-uri = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 getrandom = { version = "0.2", features = ["js"] }

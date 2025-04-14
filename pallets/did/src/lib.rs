@@ -87,43 +87,7 @@ mod mock;
 #[cfg(any(feature = "runtime-benchmarks", test))]
 mod mock_utils;
 #[cfg(test)]
-mod tests{
-    use super::*;
-    use frame_support::{assert_ok, assert_err};
-    use frame_system::{self as system, pallet_prelude::*};
-    use sp_io::TestExternalities;
-    use pallet_did::{self, Pallet}; // Import your pallet logic
-
-    // Set up the testing environment
-    fn new_test_ext() -> TestExternalities {
-        sp_io::TestExternalities::new_empty()
-    }
-
-    // Define the test for MaxKeyAgreementKeysExceeded
-    #[test]
-    fn test_max_key_agreement_keys_exceeded() {
-        // Retrieve the max key agreement keys from the config
-        let max_keys = <Test as Config>::MaxKeyAgreementKeys::get();
-
-        // Set up a mock DID subject (or create it if necessary)
-        let did_subject = DidIdentifier::from([1u8; 32]);
-
-        // Set up a new encryption key to add
-        let new_key = DidEncryptionKey::X25519([1u8; 32]); // Use a mock key or generate random bytes if needed
- // Create or mock a new key
-
-        // Mock adding key agreement keys up to the max limit
-        for _ in 0..max_keys {
-            assert_ok!(Pallet::<Test>::add_key_agreement_key(Origin::signed(did_subject), new_key.clone()));
-        }
-
-        // Now, try adding one more key and assert that the MaxKeyAgreementKeysExceeded error is triggered
-        assert_err!(
-            Pallet::<Test>::add_key_agreement_key(Origin::signed(did_subject), new_key),
-            Error::<Test>::MaxKeyAgreementKeysExceeded
-        );
-    }
-}
+mod tests;
 
 
 #[cfg(any(feature = "try-runtime", test))]
