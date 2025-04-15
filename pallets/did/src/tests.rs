@@ -2174,7 +2174,7 @@ fn check_tx_block_number_too_low_error() {
 	let mock_did = generate_base_did_details::<Test>(DidVerificationKey::from(auth_key.public()));
 
 	let call_operation = generate_test_did_call(
-		DidVerificationKeyRelationship::Authentication,
+		DidVerificationKeyRelationship::CapabilityInvocation,
 		did.clone(),
 		caller.clone(),
 	);
@@ -2274,20 +2274,20 @@ fn check_verification_key_not_present_call_error() {
 
 #[test]
 fn check_invalid_did_authorization_call() {
-	let auth_key = get_sr25519_authentication_key(&AUTH_SEED_0);
-	let did = get_did_identifier_from_sr25519_key(auth_key.public());
+	let legit_auth_key = get_sr25519_authentication_key(&AUTH_SEED_0);
+	let did = get_did_identifier_from_sr25519_key(legit_auth_key.public());
 	let caller = ACCOUNT_00;
-	let mock_did = generate_base_did_details::<Test>(DidVerificationKey::from(auth_key.public()));
-
-	let call_operation = generate_test_did_call(
-		DidVerificationKeyRelationship::Authentication,
-		did.clone(),
-		caller.clone(),
-	);
-	let signature = auth_key.sign(call_operation.encode().as_ref());
-
+	let mock_did = generate_base_did_details::<Test>(DidVerificationKey::from(legit_auth_key.public()));
 	new_test_ext().execute_with(|| {
 		did::Did::<Test>::insert(did.clone(), mock_did);
+
+		let invalid_auth_key = get_sr25519_authentication_key(&AUTH_SEED_1);
+		let call_operation = generate_test_did_call(
+			DidVerificationKeyRelationship::Authentication,
+			did.clone(),
+			caller.clone(),
+		);
+		let signature = invalid_auth_key.sign(call_operation.encode().as_ref());
 		assert_noop!(
 			Did::submit_did_call(
 				RuntimeOrigin::signed(caller),
@@ -2298,6 +2298,7 @@ fn check_invalid_did_authorization_call() {
 		);
 	});
 }
+
 
 #[test]
 fn check_invalid_signature_format_call_error() {
