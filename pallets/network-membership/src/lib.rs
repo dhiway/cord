@@ -245,7 +245,10 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn add_member_and_schedule_expiry(member: &CordAccountOf<T>, expires: bool) -> Result<(), Error<T>> {
+	fn add_member_and_schedule_expiry(
+		member: &CordAccountOf<T>,
+		expires: bool,
+	) -> Result<(), Error<T>> {
 		if expires {
 			let block_number = frame_system::pallet::Pallet::<T>::block_number();
 			let expire_on = block_number + T::MembershipPeriod::get();
