@@ -127,7 +127,28 @@ pub mod pallet {
 	/// It maps Registry Entry Identifier to Registry Entry Details.
 	#[pallet::storage]
 	pub type RegistryEntries<T: Config> =
-		StorageMap<_, Blake2_128Concat, RegistryEntryIdOf, RegistryEntryDetailsOf<T>, OptionQuery>;
+		StorageMap<
+			_, 
+			Blake2_128Concat, 
+			RegistryEntryIdOf, 
+			RegistryEntryDetailsOf<T>, 
+			OptionQuery
+		>;
+
+	/// Storage to map for Entry hashes to corresponding Registry Identifiers.
+	/// It being a storage double-map will have the Registry Entry Hash and the Registry ID
+	/// as the key, whereas the value resulted is the Registry Entry Identifier.
+    #[pallet::storage]
+    pub type HashToIdentifier<T> = 
+        StorageDoubleMap<
+            _,
+            Blake2_128Concat,
+            RegistryEntryHashOf<T>,
+            Blake2_128Concat,
+            RegistryIdentifierOf,
+			RegistryEntryIdOf,
+            OptionQuery
+        >;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -271,6 +292,8 @@ pub mod pallet {
 
 			RegistryEntries::<T>::insert(&registry_entry_id, registry_entry);
 
+			HashToIdentifier::<T>::insert(&tx_hash, &registry_id, &registry_entry_id);
+
             Self::record_activity(&registry_entry_id, b"RegistryEntryCreated")?;
 
 			Self::deposit_event(Event::RegistryEntryCreated {
@@ -342,6 +365,8 @@ pub mod pallet {
 			entry.tx_hash = tx_hash;
 
 			RegistryEntries::<T>::insert(&registry_entry_id, entry);
+
+			HashToIdentifier::<T>::insert(&tx_hash, &registry_id, &registry_entry_id);
 
             Self::record_activity(&registry_entry_id, b"RegistryEntryUpdated")?;
 
