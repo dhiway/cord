@@ -169,7 +169,26 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Add a delegate with given permissions.
+		/// Adds a delegate with specified permissions to a registry.
+		///
+		/// Assigns permissions (e.g., ENTRY, ADMIN) to a delegate for the given registry. The caller
+		/// must have ADMIN permissions, and both the caller and delegate must have valid profiles.
+		/// The delegate is added via the `delegation::add_delegate` function, and an activity is recorded.
+		///
+		/// # Arguments
+		/// * `origin` - The signed account adding the delegate.
+		/// * `identifier` - The SS58 identifier of the registry.
+		/// * `delegate` - The account ID of the delegate to add.
+		/// * `roles` - A vector of permission variants (e.g., ENTRY, ADMIN).
+		///
+		/// # Errors
+		/// * `UnauthorizedOperation` - If the caller lacks ADMIN permissions.
+		/// * `DelegateAlreadyExists` - If the delegate is already added.
+		/// * `pallet_profile::Error` - If the caller’s or delegate’s profile is invalid.
+		///
+		/// # Events
+		/// * `DelegateAdded` - Emitted with `identifier`, `delegate`, `delegate_profile_id`.
+		/// ```
 		#[pallet::call_index(0)]
 		#[pallet::weight({10_000})]
 		pub fn add_delegate(
@@ -202,7 +221,26 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Removes a delegate
+		/// Removes a delegate from a registry.
+		///
+		/// Revokes all permissions for the specified delegate in the registry. The caller must have
+		/// ADMIN permissions, and both the caller and delegate must have valid profiles. The delegate
+		/// is removed via the `delegation::remove_delegate` function, and an activity is recorded.
+		///
+		/// # Arguments
+		/// * `origin` - The signed account removing the delegate.
+		/// * `identifier` - The SS58 identifier of the registry.
+		/// * `delegate` - The account ID of the delegate to remove.
+		///
+		/// # Errors
+		/// * `UnauthorizedOperation` - If the caller lacks ADMIN permissions.
+		/// * `DelegateNotFound` - If the delegate is not found in the registry.
+		/// * `pallet_profile::Error` - If the caller’s or delegate’s profile is invalid.
+		///
+		/// # Events
+		/// * `DelegateRemoved` - Emitted with `identifier`, `delegate`, `delegate_profile_id`.
+		///
+		/// ```
 		#[pallet::call_index(1)]
 		#[pallet::weight({10_000})]
 		pub fn remove_delegate(
@@ -234,7 +272,30 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Create a new registry.
+		/// Creates a new registry.
+		///
+		/// Initializes a new registry with the provided transaction hash and optional metadata
+		/// (document ID, author, node ID). The creator must have a valid profile. The registry is
+		/// created via the `registry::create_registry` function, assigned a unique SS58 identifier,
+		/// and marked as active.
+		///
+		/// # Arguments
+		/// * `origin` - The signed account creating the registry.
+		/// * `tx_hash` - The hash of the registry’s content.
+		/// * `_blob` - Optional data associated with the registry.
+		/// * `doc_id` - Optional document identifier.
+		/// * `doc_author_id` - Optional account ID of the document author.
+		/// * `doc_node_id` - Optional document node identifier.
+		///
+		/// # Errors
+		/// * `InvalidIdentifierLength` - If the generated registry ID is invalid.
+		/// * `RegistryAlreadyExists` - If a registry with the same ID exists.
+		/// * `pallet_profile::Error` - If the creator’s or author’s profile is invalid.
+		///
+		/// # Events
+		/// * `RegistryCreated` - Emitted with `registry`, `creator`, `profile_id`.
+		///
+		/// ```
 		#[pallet::call_index(2)]
 		#[pallet::weight({10_000})]
 		pub fn create(
@@ -279,7 +340,26 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Archive registry
+		/// Archives a registry.
+		///
+		/// Marks a registry as archived, preventing further operations. The caller must have ADMIN
+		/// permissions and a valid profile. The operation is performed via the `registry::archive_registry`
+		/// function, and an activity is recorded.
+		///
+		/// # Arguments
+		/// * `origin` - The signed account archiving the registry.
+		/// * `registry_id` - The SS58 identifier of the registry.
+		///
+		/// # Errors
+		/// * `UnauthorizedOperation` - If the caller lacks ADMIN permissions.
+		/// * `RegistryNotFound` - If the registry does not exist.
+		/// * `ArchivedRegistry` - If the registry is already archived.
+		/// * `pallet_profile::Error` - If the caller’s profile is invalid.
+		///
+		/// # Events
+		/// * `RegistryArchived` - Emitted with `registry`, `authority`, `authority_profile_id`.
+		///
+		/// ```
 		#[pallet::call_index(3)]
 		#[pallet::weight({10_000})]
 		pub fn archive(
@@ -304,7 +384,26 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Restore registry
+		/// Restores an archived registry.
+		///
+		/// Restores a previously archived registry to active status, allowing operations. The caller
+		/// must have ADMIN permissions and a valid profile. The operation is performed via the
+		/// `registry::restore_registry` function, and an activity is recorded.
+		///
+		/// # Arguments
+		/// * `origin` - The signed account restoring the registry.
+		/// * `registry_id` - The SS58 identifier of the registry.
+		///
+		/// # Errors
+		/// * `UnauthorizedOperation` - If the caller lacks ADMIN permissions.
+		/// * `RegistryNotFound` - If the registry does not exist.
+		/// * `RegistryNotArchived` - If the registry is not archived.
+		/// * `pallet_profile::Error` - If the caller’s profile is invalid.
+		///
+		/// # Events
+		/// * `RegistryRestored` - Emitted with `registry`, `authority`, `authority_profile_id`.
+		///
+		/// ```
 		#[pallet::call_index(4)]
 		#[pallet::weight({10_000})]
 		pub fn restore(
@@ -329,7 +428,26 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Update registry entry author
+		/// Updates the document author of a registry.
+		///
+		/// Changes the document author of the registry to a new account. The caller must have ADMIN
+		/// permissions, and both the caller and new author must have valid profiles. The operation is
+		/// performed via the `registry::update_registry_author` function, and an activity is recorded.
+		///
+		/// # Arguments
+		/// * `origin` - The signed account updating the author.
+		/// * `registry_id` - The SS58 identifier of the registry.
+		/// * `new_doc_author_id` - The account ID of the new document author.
+		///
+		/// # Errors
+		/// * `UnauthorizedOperation` - If the caller lacks ADMIN permissions.
+		/// * `RegistryNotFound` - If the registry does not exist.
+		/// * `pallet_profile::Error` - If the caller’s or new author’s profile is invalid.
+		///
+		/// # Events
+		/// * `RegistryUpdated` - Emitted with `registry`, `authority` (new author), `authority_profile_id`.
+		///
+		/// ```
 		#[pallet::call_index(5)]
 		#[pallet::weight({10_000})]
 		pub fn update_author(
@@ -364,7 +482,26 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Update registry creator
+		/// Updates the creator of a registry.
+		///
+		/// Transfers ownership of the registry to a new account. The caller must have ADMIN
+		/// permissions, and both the caller and new creator must have valid profiles. The operation is
+		/// performed via the `registry::update_registry_creator` function, and an activity is recorded.
+		///
+		/// # Arguments
+		/// * `origin` - The signed account updating the creator.
+		/// * `registry_id` - The SS58 identifier of the registry.
+		/// * `new_creator` - The account ID of the new creator.
+		///
+		/// # Errors
+		/// * `UnauthorizedOperation` - If the caller lacks ADMIN permissions.
+		/// * `RegistryNotFound` - If the registry does not exist.
+		/// * `pallet_profile::Error` - If the caller’s or new creator’s profile is invalid.
+		///
+		/// # Events
+		/// * `RegistryUpdated` - Emitted with `registry`, `authority` (new creator), `authority_profile_id`.
+		///
+		/// ```
 		#[pallet::call_index(6)]
 		#[pallet::weight({10_000})]
 		pub fn update_creator(
@@ -398,7 +535,27 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Updates the registry hash, optionally accepts a blob.
+		/// Updates the transaction hash of a registry.
+		///
+		/// Updates the registry’s transaction hash and optionally its blob. The caller must have ADMIN
+		/// permissions and a valid profile. The operation is performed via the
+		/// `registry::update_registry_hash` function, and an activity is recorded.
+		///
+		/// # Arguments
+		/// * `origin` - The signed account updating the hash.
+		/// * `registry_id` - The SS58 identifier of the registry.
+		/// * `tx_hash` - The new hash of the registry’s content.
+		/// * `_blob` - Optional updated data.
+		///
+		/// # Errors
+		/// * `UnauthorizedOperation` - If the caller lacks ADMIN permissions.
+		/// * `RegistryNotFound` - If the registry does not exist.
+		/// * `pallet_profile::Error` - If the caller’s profile is invalid.
+		///
+		/// # Events
+		/// * `RegistryUpdated` - Emitted with `registry`, `authority`, `authority_profile_id`.
+		///
+		/// ```
 		#[pallet::call_index(7)]
 		#[pallet::weight({10_000})]
 		pub fn update_registry_hash(
