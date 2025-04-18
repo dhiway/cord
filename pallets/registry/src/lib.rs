@@ -32,6 +32,7 @@ use cord_uri::{EntryTypeOf, EventStamp, Identifier, RegistryIdentifierCheck, Ss5
 use frame_support::dispatch::DispatchResult;
 use frame_support::BoundedVec;
 use frame_system::pallet_prelude::BlockNumberFor;
+use frame_support::traits::ConstU32;
 use frame_system::WeightInfo;
 use pallet_profile::ProfileIdOf;
 
@@ -49,6 +50,9 @@ pub type CollectionIdentifierOf = Ss58Identifier;
 pub type RegistryIdentifierOf = Ss58Identifier;
 pub type HashOf<T> = <T as frame_system::Config>::Hash;
 pub(crate) type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
+
+pub type DocIdOf = BoundedVec<u8, ConstU32<64>>;
+pub type DocNodeIdOf = BoundedVec<u8, ConstU32<64>>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -90,7 +94,7 @@ pub mod pallet {
 		_,
 		Blake2_128Concat,
 		RegistryIdentifierOf,
-		RegistryDetails<HashOf<T>, Status>,
+		RegistryDetails<HashOf<T>, Status, DocIdOf, DocNodeIdOf>,
 		OptionQuery,
 	>;
 
@@ -120,6 +124,11 @@ pub mod pallet {
 			delegate_profile_id: ProfileIdOf,
 		},
 		RegistryCreated { 
+			registry: RegistryIdentifierOf,
+			creator: CordAccountOf<T>,
+			profile_id: ProfileIdOf
+		},
+		RegistryStoreCreated { 
 			registry: RegistryIdentifierOf,
 			creator: CordAccountOf<T>,
 			profile_id: ProfileIdOf
@@ -274,18 +283,14 @@ pub mod pallet {
 
 		/// Creates a new registry.
 		///
-		/// Initializes a new registry with the provided transaction hash and optional metadata
-		/// (document ID, author, node ID). The creator must have a valid profile. The registry is
-		/// created via the `registry::create_registry` function, assigned a unique SS58 identifier,
-		/// and marked as active.
+		/// Initializes a new registry with the provided transaction hash and a optional blob.
+		/// The creator must have a valid profile. The registry is created via the `registry::create_registry` 
+		/// function, assigned a unique SS58 identifier, and marked as active.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account creating the registry.
 		/// * `tx_hash` - The hash of the registry’s content.
 		/// * `_blob` - Optional data associated with the registry.
-		/// * `doc_id` - Optional document identifier.
-		/// * `doc_author_id` - Optional account ID of the document author.
-		/// * `doc_node_id` - Optional document node identifier.
 		///
 		/// # Errors
 		/// * `InvalidIdentifierLength` - If the generated registry ID is invalid.
@@ -302,9 +307,6 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			tx_hash: HashOf<T>,
 			_blob: Option<RegistryBlobOf<T>>,
-			doc_id: Option<Vec<u8>>,
-			doc_author_id: Option<CordAccountOf<T>>,
-			doc_node_id: Option<Vec<u8>>,
 		) -> DispatchResult {
 			let creator = ensure_signed(origin)?;
 
@@ -313,16 +315,69 @@ pub mod pallet {
 			)
 			.map_err(<pallet_profile::Error<T>>::from)?;
 
-			let doc_author_profile_id = if let Some(author) = doc_author_id.clone() {
-				Some(
-					pallet_profile::Pallet::<T>::get_profile_id(&author)
-						.map_err(<pallet_profile::Error<T>>::from)?
-				)
-			} else {
-				None
-			};
-
 			let registry_id = registry::create_registry::<T>(
+				tx_hash,
+				profile_id.clone(),
+			)?;
+
+			Self::deposit_event(
+				Event::RegistryCreated { 
+					registry: registry_id, 
+					creator, profile_id,
+				}
+			);
+
+			Ok(())
+		}
+
+
+		/// Creates a new registry store with cyra based credentials.
+		///
+		/// Initializes a new registry store with the provided transaction hash and optional metadata
+		/// (document ID, author, node ID). The creator must have a valid profile. The registry is
+		/// created via the `registry::create_registry_store` function, assigned a unique SS58 identifier,
+		/// and marked as active.
+		///
+		/// The key difference between create and create-store is that create-store is to map the registry
+		/// data present in Cyra into Cord.
+		///
+		/// # Arguments
+		/// * `origin` - The signed account creating the registry.
+		/// * `tx_hash` - The hash of the registry’s content.
+		/// * `_blob` - Data associated with the registry.
+		/// * `doc_id` - Document identifier.
+		/// * `doc_author_id` - Account ID of the document author.
+		/// * `doc_node_id` - Document node identifier.
+		///
+		/// # Errors
+		/// * `InvalidIdentifierLength` - If the generated registry ID is invalid.
+		/// * `RegistryAlreadyExists` - If a registry with the same ID exists.
+		/// * `pallet_profile::Error` - If the creator’s or author’s profile is invalid.
+		///
+		/// # Events
+		/// * `RegistryStoreCreated` - Emitted with `registry`, `creator`, `profile_id`.
+		///
+		/// ```
+		#[pallet::call_index(3)]
+		#[pallet::weight({10_000})]
+		pub fn create_store(
+			origin: OriginFor<T>,
+			tx_hash: HashOf<T>,
+			doc_id: Vec<u8>,
+			doc_author_id: CordAccountOf<T>,
+			doc_node_id: Vec<u8>,
+		) -> DispatchResult {
+			let creator = ensure_signed(origin)?;
+
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
+				&creator
+			)
+			.map_err(<pallet_profile::Error<T>>::from)?;
+
+			let doc_author_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&doc_author_id)
+				.map_err(<pallet_profile::Error<T>>::from)?;
+
+			let registry_id = registry::create_registry_store::<T>(
 				tx_hash,
 				doc_id,
 				doc_author_profile_id,
@@ -331,7 +386,7 @@ pub mod pallet {
 			)?;
 
 			Self::deposit_event(
-				Event::RegistryCreated { 
+				Event::RegistryStoreCreated { 
 					registry: registry_id, 
 					creator, profile_id,
 				}
@@ -360,7 +415,7 @@ pub mod pallet {
 		/// * `RegistryArchived` - Emitted with `registry`, `authority`, `authority_profile_id`.
 		///
 		/// ```
-		#[pallet::call_index(3)]
+		#[pallet::call_index(4)]
 		#[pallet::weight({10_000})]
 		pub fn archive(
 			origin: OriginFor<T>, 
@@ -404,7 +459,7 @@ pub mod pallet {
 		/// * `RegistryRestored` - Emitted with `registry`, `authority`, `authority_profile_id`.
 		///
 		/// ```
-		#[pallet::call_index(4)]
+		#[pallet::call_index(5)]
 		#[pallet::weight({10_000})]
 		pub fn restore(
 			origin: OriginFor<T>, 
@@ -448,7 +503,7 @@ pub mod pallet {
 		/// * `RegistryUpdated` - Emitted with `registry`, `authority` (new author), `authority_profile_id`.
 		///
 		/// ```
-		#[pallet::call_index(5)]
+		#[pallet::call_index(6)]
 		#[pallet::weight({10_000})]
 		pub fn update_author(
 			origin: OriginFor<T>,
@@ -502,7 +557,7 @@ pub mod pallet {
 		/// * `RegistryUpdated` - Emitted with `registry`, `authority` (new creator), `authority_profile_id`.
 		///
 		/// ```
-		#[pallet::call_index(6)]
+		#[pallet::call_index(7)]
 		#[pallet::weight({10_000})]
 		pub fn update_creator(
 			origin: OriginFor<T>,
@@ -556,7 +611,7 @@ pub mod pallet {
 		/// * `RegistryUpdated` - Emitted with `registry`, `authority`, `authority_profile_id`.
 		///
 		/// ```
-		#[pallet::call_index(7)]
+		#[pallet::call_index(8)]
 		#[pallet::weight({10_000})]
 		pub fn update_registry_hash(
 			origin: OriginFor<T>, 

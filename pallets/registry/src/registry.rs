@@ -28,46 +28,15 @@ use crate::{
 	RegistryDetails, RegistryIdentifierOf, Status,
 };
 
-pub fn push_option(buf: &mut Vec<u8>, field: Option<&[u8]>) {
-	if let Some(bytes) = field {
-		buf.push(1u8);
-		buf.extend_from_slice(bytes);
-	} else {
-		buf.push(0u8);
-	}
-}
 
 /// Create a new registry.
 pub fn create_registry<T: crate::Config>(
 	tx_hash: HashOf<T>,
-	doc_id: Option<Vec<u8>>,
-	doc_author_profile_id: Option<ProfileIdOf>,
-	doc_node_id: Option<Vec<u8>>,
 	profile_id: ProfileIdOf,
 ) -> Result<RegistryIdentifierOf, sp_runtime::DispatchError> {
-	let bounded_doc_id = doc_id
-		.map(|v| v.try_into())
-		.transpose()
-		.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
-	let bounded_doc_node_id = doc_node_id
-		.map(|v| v.try_into())
-		.transpose()
-		.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
-	let encoded_doc_author = doc_author_profile_id.as_ref().map(|author| author.encode());
 
 	let mut data = Vec::with_capacity(256);
 	data.extend_from_slice(tx_hash.as_ref());
-	push_option(
-		&mut data,
-		bounded_doc_id.as_ref().map(|v: &BoundedVec<u8, ConstU32<64>>| v.as_slice()),
-	);
-	push_option(&mut data, encoded_doc_author.as_ref().map(|v| v.as_slice()));
-	push_option(
-		&mut data,
-		bounded_doc_node_id
-			.as_ref()
-			.map(|v: &BoundedVec<u8, ConstU32<64>>| v.as_slice()),
-	);
 	data.extend_from_slice(&profile_id.encode());
 
 	let digest = T::Hashing::hash(&data);
@@ -82,22 +51,72 @@ pub fn create_registry<T: crate::Config>(
 	let details = RegistryDetails {
 		creator: profile_id.clone(),
 		tx_hash,
-		doc_id: bounded_doc_id,
-		doc_author_profile_id: doc_author_profile_id.clone(),
-		doc_node_id: bounded_doc_node_id,
+		doc_id: None,
+		doc_author_profile_id: None,
+		doc_node_id: None,
 		status: Status::Active,
 	};
 
 	Pallet::<T>::record_activity(&registry_id, b"RegistryCreated")?;
 	Registries::<T>::insert(&registry_id, details);
 	Delegates::<T>::insert(&registry_id, &profile_id, Permissions::all());
-
-	if let Some(author_profile_id) = doc_author_profile_id {
-		Delegates::<T>::insert(&registry_id, &author_profile_id, Permissions::ENTRY);
-	}
 	
 	Ok(registry_id)
 }
+
+
+/// Create a new registry store.
+pub fn create_registry_store<T: crate::Config>(
+	tx_hash: HashOf<T>,
+	doc_id: Vec<u8>,
+	doc_author_profile_id: ProfileIdOf,
+	doc_node_id: Vec<u8>,
+	profile_id: ProfileIdOf,
+) -> Result<RegistryIdentifierOf, sp_runtime::DispatchError> {
+	let bounded_doc_id: DocIdOf = doc_id
+        .try_into()
+        .map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+    let bounded_doc_node_id: DocNodeIdOf = doc_node_id
+        .try_into()
+        .map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+	let mut data = Vec::with_capacity(256);
+	data.extend_from_slice(tx_hash.as_ref());
+
+	data.extend_from_slice(&bounded_doc_id.encode());
+	data.extend_from_slice(&bounded_doc_node_id.encode());
+
+	data.extend_from_slice(&doc_author_profile_id.encode());
+	data.extend_from_slice(&profile_id.encode());
+
+	let digest = T::Hashing::hash(&data);
+	let pallet_name = <crate::pallet::Pallet<T> as frame_support::traits::PalletInfoAccess>::name();
+
+	let registry_id =
+		<cord_uri::Pallet<T> as Identifier>::build(&(digest).encode()[..], pallet_name)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+
+	ensure!(!Registries::<T>::contains_key(&registry_id), Error::<T>::RegistryAlreadyExists);
+
+	let details = RegistryDetails {
+		creator: profile_id.clone(),
+		tx_hash,
+		doc_id: Some(bounded_doc_id),
+		doc_author_profile_id: Some(doc_author_profile_id.clone()),
+		doc_node_id: Some(bounded_doc_node_id),
+		status: Status::Active,
+	};
+
+	Pallet::<T>::record_activity(&registry_id, b"RegistryStoreCreated")?;
+	Registries::<T>::insert(&registry_id, details);
+	Delegates::<T>::insert(&registry_id, &profile_id, Permissions::all());
+
+	/* Add the doc_author as a delegate for having permission to create entry */
+	Delegates::<T>::insert(&registry_id, &doc_author_profile_id, Permissions::ENTRY);
+	
+	Ok(registry_id)
+}
+
 
 /// Update a existing registry.
 pub fn update_registry_hash<T: crate::Config>(
@@ -162,6 +181,7 @@ pub fn restore_registry<T: crate::Config>(
 	Ok(())
 }
 
+
 /// Update the document author for a registry.
 pub fn update_registry_author<T: crate::Config>(
 	registry_id: &RegistryIdentifierOf,
@@ -191,6 +211,7 @@ pub fn update_registry_author<T: crate::Config>(
 	}
 	Ok(())
 }
+
 
 /// Update registry creator
 pub fn update_registry_creator<T: crate::Config>(

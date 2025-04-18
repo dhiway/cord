@@ -19,8 +19,6 @@
 use super::*;
 use bitflags::bitflags;
 use codec::{Decode, Encode, MaxEncodedLen};
-use frame_support::traits::ConstU32;
-use frame_support::BoundedVec;
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
@@ -89,17 +87,17 @@ pub enum Status {
 }
 
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
-pub struct RegistryDetails<Hash, Status> {
+pub struct RegistryDetails<Hash, Status, DocIdOf, DocNodeIdOf> {
 	/// The identity of the account (profile) that created/ owns the registry.
 	pub creator: ProfileIdOf,
 	/// The transaction hash associated with the document.
 	pub tx_hash: Hash,
 	/// Optionally, the document identifier as a bounded vector.
-	pub doc_id: Option<BoundedVec<u8, ConstU32<64>>>,
+	pub doc_id: Option<DocIdOf>,
 	/// Optionally, the identity account (profile) that created (authored) the document.
 	pub doc_author_profile_id: Option<ProfileIdOf>,
 	/// Optionally, the node identifier as a bounded vector.
-	pub doc_node_id: Option<BoundedVec<u8, ConstU32<64>>>,
+	pub doc_node_id: Option<DocNodeIdOf>,
 	/// The status of the registry entry.
 	pub status: Status,
 }
