@@ -2,7 +2,7 @@
 
 In this document, we are trying to give elaborate understanding of what each of pallet signifies, and how it would keep proofs in them. Idea is to make sure everyone, mainly developers understand how to make sense of the 'Token' and understand how it would be linked to all the other tokens, and their relations.
 
-![image](https://hackmd.io/_uploads/SktR5aoaJg.png)
+![image](./features-image.png)
 
 
 ### Identifier
