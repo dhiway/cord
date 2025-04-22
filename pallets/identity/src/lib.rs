@@ -87,6 +87,7 @@ pub mod legacy;
 mod tests;
 mod types;
 pub mod weights;
+use scale_info::prelude::{boxed::Box, vec::Vec};
 
 use crate::types::{AuthorityPropertiesOf, Suffix, Username};
 use codec::Encode;
@@ -100,7 +101,7 @@ pub use pallet::*;
 use sp_runtime::traits::{
 	AppendZerosInput, Hash, IdentifyAccount, Saturating, StaticLookup, Verify,
 };
-use sp_std::prelude::*;
+
 pub use types::{
 	Data, IdentityInformationProvider, Judgement, RegistrarIndex, RegistrarInfo, Registration,
 };

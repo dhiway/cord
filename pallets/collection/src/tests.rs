@@ -22,7 +22,6 @@ use crate::mock::*;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use sp_core::H256;
-use sp_std::prelude::*;
 
 /// Helper function to extract the collection identifier.
 fn get_collection_id() -> CollectionIdentifierOf {

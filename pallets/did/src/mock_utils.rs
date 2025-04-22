@@ -20,13 +20,13 @@
 
 use frame_support::storage::bounded_btree_set::BoundedBTreeSet;
 use frame_system::pallet_prelude::BlockNumberFor;
+
 use sp_runtime::{AccountId32, SaturatedConversion};
-use sp_std::{
-	collections::btree_set::BTreeSet,
-	convert::{TryFrom, TryInto},
-	vec,
-	vec::Vec,
-};
+
+extern crate alloc;
+
+use alloc::{collections::BTreeSet, vec, vec::Vec};
+use core::convert::{TryFrom, TryInto};
 
 use crate::{
 	did_details::{

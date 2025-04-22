@@ -22,7 +22,9 @@ use codec::Encode;
 use fluent_uri::Uri;
 use scale_info::prelude::format;
 use sp_runtime::traits::Hash;
-use sp_std::vec::Vec;
+
+extern crate alloc;
+use alloc::vec::Vec;
 
 use crate::{did_details::DidPublicKey, AccountIdOf, Config, KeyIdOf};
 // URI base used to test validity of provided service IDs (URI fragments).

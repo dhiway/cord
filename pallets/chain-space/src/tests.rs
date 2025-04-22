@@ -5,7 +5,6 @@ use cord_utilities::mock::{mock_origin::DoubleOrigin, SubjectId};
 use frame_support::{assert_err, assert_ok, error::BadOrigin};
 use frame_system::RawOrigin;
 use sp_runtime::{traits::Hash, AccountId32};
-use sp_std::prelude::*;
 
 pub fn generate_space_id<T: Config>(digest: &SpaceCodeOf<T>) -> SpaceIdOf {
 	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Space).unwrap()

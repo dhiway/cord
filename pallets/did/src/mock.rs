@@ -32,6 +32,9 @@ use sp_runtime::{
 	BuildStorage, MultiSignature, MultiSigner,
 };
 
+extern crate alloc;
+use alloc::sync::Arc;
+
 #[cfg(feature = "runtime-benchmarks")]
 use frame_system::EnsureSigned;
 
@@ -311,7 +314,7 @@ impl DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall {
 	// Always return a System::remark() extrinsic call
 	#[cfg(feature = "runtime-benchmarks")]
 	fn get_call_for_did_call_benchmark() -> Self {
-		RuntimeCall::System(frame_system::Call::remark { remark: sp_std::vec![] })
+		RuntimeCall::System(frame_system::Call::remark { remark: alloc::vec![] })
 	}
 }
 
@@ -344,7 +347,7 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	#[cfg(feature = "runtime-benchmarks")]
 	let keystore = sp_keystore::testing::MemoryKeystore::new();
 	#[cfg(feature = "runtime-benchmarks")]
-	ext.register_extension(sp_keystore::KeystoreExt(sp_std::sync::Arc::new(keystore)));
+	ext.register_extension(sp_keystore::KeystoreExt(Arc::new(keystore)));
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }

@@ -22,7 +22,6 @@ use super::*;
 use frame_benchmarking::v2::*;
 use frame_system::RawOrigin;
 use sp_core::H256;
-use sp_std::prelude::*;
 
 benchmarks! {
 	// Benchmark for registry creation.

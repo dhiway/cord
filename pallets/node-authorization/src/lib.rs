@@ -52,9 +52,12 @@ pub mod weights;
 
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
 use cord_primitives::NodeId;
+use scale_info::prelude::{collections::BTreeSet, vec::Vec};
 use sp_core::OpaquePeerId as PeerId;
 use sp_runtime::traits::StaticLookup;
-use sp_std::{collections::btree_set::BTreeSet, iter::FromIterator, prelude::*};
+
+extern crate alloc;
+use alloc::str;
 
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
@@ -448,7 +451,7 @@ impl<T: Config> Pallet<T> {
 		WellKnownNodes::<T>::put(peer_ids);
 
 		nodes.iter().for_each(|(node_id, who)| {
-			if let Ok(encoded) = sp_std::str::from_utf8(node_id) {
+			if let Ok(encoded) = str::from_utf8(node_id) {
 				if let Ok(node_id_bytes) =
 					frame_support::BoundedVec::try_from(encoded.as_bytes().to_vec())
 				{
@@ -480,7 +483,7 @@ impl<T: Config> Pallet<T> {
 	}
 
 	fn generate_peer_id(node_identity: &NodeId) -> Result<PeerId, Error<T>> {
-		let encoded = sp_std::str::from_utf8(node_identity).map_err(|_| Error::<T>::InvalidUtf8)?;
+		let encoded = str::from_utf8(node_identity).map_err(|_| Error::<T>::InvalidUtf8)?;
 		let decoded = bs58::decode(encoded)
 			.into_vec()
 			.map_err(|_| Error::<T>::InvalidNodeIdentifier)?;

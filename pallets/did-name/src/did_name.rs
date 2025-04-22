@@ -17,14 +17,16 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-
-use sp_std::{fmt::Debug, marker::PhantomData, ops::Deref, vec::Vec};
-
 use crate::{Config, Error};
+use codec::{Decode, Encode, MaxEncodedLen};
+use core::ops::Deref;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{ensure, sp_runtime::SaturatedConversion, traits::Get, BoundedVec};
-use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
+use scale_info::{prelude::vec::Vec, TypeInfo};
+use sp_runtime::{
+	traits::{Debug, PhantomData},
+	RuntimeDebug,
+};
 
 const NAME_SEPARATOR: u8 = b'@';
 const NETWORK_SUFFIX: &[u8] = b"cord";

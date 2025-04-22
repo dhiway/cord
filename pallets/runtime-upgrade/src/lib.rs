@@ -29,7 +29,8 @@ pub use pallet::*;
 pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
-	use sp_std::vec::Vec;
+
+	use scale_info::prelude::vec::Vec;
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]

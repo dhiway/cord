@@ -64,6 +64,7 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 mod extension;
 pub use extension::MetaTxMarker;
+use scale_info::prelude::boxed::Box;
 
 use core::ops::Add;
 use frame_support::{
@@ -77,7 +78,6 @@ use sp_runtime::{
 		AsTransactionAuthorizedOrigin, DispatchTransaction, Dispatchable, TransactionExtension,
 	},
 };
-use sp_std::prelude::*;
 
 /// Meta Transaction type.
 ///

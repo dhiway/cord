@@ -27,6 +27,9 @@ use sp_runtime::{
 	BuildStorage, MultiSignature,
 };
 
+extern crate alloc;
+use alloc::sync::Arc;
+
 type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
@@ -116,7 +119,7 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	#[cfg(feature = "runtime-benchmarks")]
 	let keystore = sp_keystore::testing::MemoryKeystore::new();
 	#[cfg(feature = "runtime-benchmarks")]
-	ext.register_extension(sp_keystore::KeystoreExt(sp_std::sync::Arc::new(keystore)));
+	ext.register_extension(sp_keystore::KeystoreExt(Arc::new(keystore)));
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }

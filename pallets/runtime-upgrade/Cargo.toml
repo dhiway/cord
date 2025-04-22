@@ -21,7 +21,6 @@ scale-info = { features = ["derive"], workspace = true }
 # Substrate dependencies
 frame-system = { workspace = true }
 frame-support = { workspace = true }
-sp-std = { workspace = true }
 
 [features]
 default = ['std']
@@ -29,7 +28,6 @@ std = [
 	'codec/std',
 	'frame-support/std',
 	'frame-system/std',
-	'sp-std/std',
 	'scale-info/std',
 ]
 try-runtime = [

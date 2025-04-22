@@ -32,14 +32,17 @@ use crate::{
 	utils, AccountIdOf, Config, DidAuthorizedCallOperationOf, DidCreationDetailsOf, KeyIdOf,
 	Payload,
 };
-// use frame_system::pallet_prelude::BlockNumberFor;
+
 use scale_info::TypeInfo;
+
+extern crate alloc;
+use alloc::vec::Vec;
+
 use sp_core::{ecdsa, ed25519, sr25519};
 use sp_runtime::{
 	traits::{IdentifyAccount, Verify},
 	MultiSignature, SaturatedConversion,
 };
-use sp_std::{convert::TryInto, vec::Vec};
 
 /// Public verification key that a DID can control.
 #[derive(

@@ -122,7 +122,10 @@ use sp_runtime::{
 	traits::{Dispatchable, Saturating, Zero},
 	SaturatedConversion,
 };
-use sp_std::{boxed::Box, fmt::Debug, prelude::Clone};
+
+extern crate alloc;
+use alloc::boxed::Box;
+use core::{clone::Clone, fmt::Debug};
 
 #[cfg(feature = "runtime-benchmarks")]
 use frame_system::RawOrigin;

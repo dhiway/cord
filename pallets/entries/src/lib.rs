@@ -59,7 +59,9 @@ use identifier::{
 };
 
 pub use pallet::*;
-use sp_std::{prelude::*, str};
+
+extern crate alloc;
+use alloc::str;
 
 pub use frame_system::WeightInfo;
 pub use types::RegistryEntryDetails;

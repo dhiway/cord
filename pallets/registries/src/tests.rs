@@ -5,7 +5,6 @@ use frame_support::{assert_err, assert_ok};
 use pallet_namespace::{NameSpaceCodeOf, NameSpaceIdOf};
 use pallet_schema_accounts::{InputSchemaOf, SchemaHashOf};
 use sp_runtime::traits::Hash;
-use sp_std::prelude::*;
 
 pub fn generate_registry_id<T: Config>(digest: &RegistryHashOf<T>) -> RegistryIdOf {
 	Ss58Identifier::create_identifier(&(digest).encode()[..], IdentifierType::Registries).unwrap()

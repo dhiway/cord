@@ -59,6 +59,9 @@ use sp_runtime::traits::Hash;
 
 pub use pallet::*;
 
+extern crate alloc;
+use alloc::{str, vec::Vec};
+
 pub use frame_system::WeightInfo;
 pub use types::RegistryEntryDetails;
 

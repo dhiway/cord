@@ -37,12 +37,12 @@ mod mock;
 mod tests;
 
 use core::marker::PhantomData;
+use scale_info::prelude::vec::Vec;
 
 use codec::Encode;
 use frame_support::weights::Weight;
 use sp_runtime::traits::Hash;
 use sp_staking::offence::{Kind, Offence, OffenceDetails, OffenceError, ReportOffence};
-use sp_std::prelude::*;
 
 pub use pallet::*;
 

@@ -22,8 +22,7 @@ use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_utilities::traits::CallSources;
 use frame_support::traits::EnsureOrigin;
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
-use sp_std::marker::PhantomData;
+use sp_runtime::{traits::PhantomData, RuntimeDebug};
 
 /// Origin for modules that support DID-based authorization.
 #[derive(

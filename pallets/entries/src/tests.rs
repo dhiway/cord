@@ -22,7 +22,6 @@ use codec::Encode;
 use frame_support::{assert_err, assert_ok, BoundedVec};
 use serde_json::json;
 use sp_runtime::traits::Hash;
-use sp_std::prelude::*;
 
 use pallet_namespace::{NameSpaceCodeOf, NameSpaceIdOf};
 use pallet_registries::{RegistryBlobOf, RegistryHashOf};
