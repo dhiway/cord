@@ -28,10 +28,9 @@ use alloc::vec::Vec;
 use codec::Encode;
 use cord_uri::{EntryTypeOf, EventStamp, Identifier, RegistryIdentifierCheck, Ss58Identifier};
 use frame_support::dispatch::DispatchResult;
-use frame_system::pallet_prelude::BlockNumberFor;
-use frame_system::WeightInfo;
-use sp_runtime::traits::{Hash, One, Saturating};
+use frame_system::{pallet_prelude::BlockNumberFor, WeightInfo};
 use pallet_profile::ProfileIdOf;
+use sp_runtime::traits::{Hash, One, Saturating};
 
 #[cfg(test)]
 pub mod mock;
@@ -111,38 +110,38 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		CollectionCreated { 
-			collection: CollectionIdentifierOf, 
+		CollectionCreated {
+			collection: CollectionIdentifierOf,
 			creator: CordAccountOf<T>,
 			creator_profile_id: ProfileIdOf,
 		},
-		CollectionArchived { 
-			collection: CollectionIdentifierOf, 
+		CollectionArchived {
+			collection: CollectionIdentifierOf,
 			authority: CordAccountOf<T>,
 			authority_profile_id: ProfileIdOf,
 		},
-		CollectionRestored { 
-			collection: CollectionIdentifierOf, 
+		CollectionRestored {
+			collection: CollectionIdentifierOf,
 			authority: CordAccountOf<T>,
 			authority_profile_id: ProfileIdOf,
 		},
-		DelegateAdded { 
-			collection: CollectionIdentifierOf, 
+		DelegateAdded {
+			collection: CollectionIdentifierOf,
 			delegate: CordAccountOf<T>,
 			delegate_profile_id: ProfileIdOf,
 		},
-		DelegateRemoved { 
-			collection: CollectionIdentifierOf, 
+		DelegateRemoved {
+			collection: CollectionIdentifierOf,
 			delegate: CordAccountOf<T>,
 			delegate_profile_id: ProfileIdOf,
 		},
-		RegistryAdded { 
-			collection: CollectionIdentifierOf, 
+		RegistryAdded {
+			collection: CollectionIdentifierOf,
 			registry: RegistryIdentifierOf,
 		},
-		RegistryRemoved { 
-			collection: CollectionIdentifierOf, 
-			registry: RegistryIdentifierOf
+		RegistryRemoved {
+			collection: CollectionIdentifierOf,
+			registry: RegistryIdentifierOf,
 		},
 	}
 
@@ -188,15 +187,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&delegate
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&delegate)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			ensure!(
 				Self::has_permission(
@@ -216,7 +211,7 @@ pub mod pallet {
 			Self::record_activity(&collection_id, b"DelegateAdded")?;
 			Delegates::<T>::insert(&collection_id, &delegate_profile_id, permissions);
 			Self::deposit_event(Event::DelegateAdded {
-				collection: collection_id, 
+				collection: collection_id,
 				delegate,
 				delegate_profile_id,
 			});
@@ -234,15 +229,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&delegate
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&delegate)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			ensure!(
 				Self::has_permission(&collection_id, &who_profile_id, Permissions::ADMIN),
@@ -255,12 +246,12 @@ pub mod pallet {
 
 			Self::record_activity(&collection_id, b"DelegateRemoved")?;
 			Delegates::<T>::remove(&collection_id, &delegate_profile_id);
-			Self::deposit_event(Event::DelegateRemoved { 
-				collection: collection_id, 
+			Self::deposit_event(Event::DelegateRemoved {
+				collection: collection_id,
 				delegate,
 				delegate_profile_id,
 			});
-			
+
 			Ok(())
 		}
 
@@ -270,10 +261,8 @@ pub mod pallet {
 		pub fn create(origin: OriginFor<T>) -> DispatchResult {
 			let creator = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&creator
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&creator)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			let pallet_name = <Self as PalletInfoAccess>::name();
 			let previous_block_hash = <frame_system::Pallet<T>>::block_hash(
@@ -293,18 +282,15 @@ pub mod pallet {
 				Error::<T>::CollectionAlreadyExists
 			);
 
-			let details = CollectionDetails { 
-				creator: profile_id.clone(), 
-				status: Status::Active
-			};
+			let details = CollectionDetails { creator: profile_id.clone(), status: Status::Active };
 
 			Self::record_activity(&identifier, b"CollectionCreated")?;
 
 			Collections::<T>::insert(&identifier, details);
 			Delegates::<T>::insert(&identifier, &profile_id, Permissions::all());
 
-			Self::deposit_event(Event::CollectionCreated { 
-				collection: identifier, 
+			Self::deposit_event(Event::CollectionCreated {
+				collection: identifier,
 				creator,
 				creator_profile_id: profile_id,
 			});
@@ -321,10 +307,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			Collections::<T>::try_mutate(&collection_id, |maybe_collection| -> DispatchResult {
 				let collection = maybe_collection.as_mut().ok_or(Error::<T>::CollectionNotFound)?;
@@ -359,10 +343,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			Collections::<T>::try_mutate(&collection_id, |maybe_collection| -> DispatchResult {
 				let collection = maybe_collection.as_mut().ok_or(Error::<T>::CollectionNotFound)?;
@@ -397,11 +379,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
-
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			let collection =
 				Collections::<T>::get(&collection_id).ok_or(Error::<T>::CollectionNotFound)?;
@@ -410,7 +389,11 @@ pub mod pallet {
 			<T as Config>::Registry::ensure_active_registry(&registry_id)?;
 
 			ensure!(
-				Self::has_permission(&collection_id, &profile_id, Permissions::ADMIN | Permissions::ENTRY),
+				Self::has_permission(
+					&collection_id,
+					&profile_id,
+					Permissions::ADMIN | Permissions::ENTRY
+				),
 				Error::<T>::UnauthorizedOperation
 			);
 
@@ -440,10 +423,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			let collection =
 				Collections::<T>::get(&collection_id).ok_or(Error::<T>::CollectionNotFound)?;
@@ -473,13 +454,16 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	/// Checks if the delegate for `who` on the given collection has any of the required permissions.
+	/// Checks if the delegate for `who` on the given collection has any of the required
+	/// permissions.
 	pub fn has_permission(
 		collection_id: &CollectionIdentifierOf,
 		who: &ProfileIdOf,
 		required: Permissions,
 	) -> bool {
-		Delegates::<T>::get(collection_id, who).unwrap_or(Permissions::empty()).intersects(required)
+		Delegates::<T>::get(collection_id, who)
+			.unwrap_or(Permissions::empty())
+			.intersects(required)
 	}
 
 	/// Records an activity using a provided event message.

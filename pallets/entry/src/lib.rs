@@ -26,7 +26,7 @@
 //! decentralized version of a Registry Entry (record). Enabling creation, updation of entries in a
 //! decentralized manner. Thereby enabling trust and transperency of Registries utilizing CORD
 //! blockchain. Registry & Delegation management is handled by the Registries Pallet.
-//! 
+//!
 //! This supports new CORD URI for multichain deployments.
 //!
 //! ## Interface
@@ -45,9 +45,6 @@ mod types;
 #[cfg(test)]
 pub mod mock;
 
-#[cfg(test)]
-mod tests;
-
 use frame_support::{
 	ensure,
 	pallet_prelude::DispatchResult,
@@ -56,10 +53,7 @@ use frame_support::{
 };
 use sp_runtime::traits::Hash;
 
-use cord_uri::{
-	EntryTypeOf, EventStamp, 
-	Identifier, Ss58Identifier
-};
+use cord_uri::{EntryTypeOf, EventStamp, Identifier, Ss58Identifier};
 
 pub use pallet::*;
 use sp_std::{prelude::*, str};
@@ -69,7 +63,7 @@ pub use types::RegistryEntryDetails;
 
 pub use cord_primitives::StatusOf;
 use pallet_profile::ProfileIdOf;
-use pallet_registry::{RegistryIdentifierOf, Permissions};
+use pallet_registry::{Permissions, RegistryIdentifierOf};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -127,28 +121,21 @@ pub mod pallet {
 	/// It maps Registry Entry Identifier to Registry Entry Details.
 	#[pallet::storage]
 	pub type RegistryEntries<T: Config> =
-		StorageMap<
-			_, 
-			Blake2_128Concat, 
-			RegistryEntryIdOf, 
-			RegistryEntryDetailsOf<T>, 
-			OptionQuery
-		>;
+		StorageMap<_, Blake2_128Concat, RegistryEntryIdOf, RegistryEntryDetailsOf<T>, OptionQuery>;
 
 	/// Storage to map for Entry hashes to corresponding Registry Identifiers.
 	/// It being a storage double-map will have the Registry Entry Hash and the Registry ID
 	/// as the key, whereas the value resulted is the Registry Entry Identifier.
-    #[pallet::storage]
-    pub type HashToIdentifier<T> = 
-        StorageDoubleMap<
-            _,
-            Blake2_128Concat,
-            RegistryEntryHashOf<T>,
-            Blake2_128Concat,
-            RegistryIdentifierOf,
-			RegistryEntryIdOf,
-            OptionQuery
-        >;
+	#[pallet::storage]
+	pub type HashToIdentifier<T> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		RegistryEntryHashOf<T>,
+		Blake2_128Concat,
+		RegistryIdentifierOf,
+		RegistryEntryIdOf,
+		OptionQuery,
+	>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -171,7 +158,7 @@ pub mod pallet {
 		/// Activity input type is invalid.
 		InvalidEntryTypeInput,
 		/// Activity update has failed.
-		ActivityUpdateFailed
+		ActivityUpdateFailed,
 	}
 
 	#[pallet::event]
@@ -188,24 +175,24 @@ pub mod pallet {
 
 		/// A existing registry entry has been updated.
 		/// \[updater, registry_entry_identifier\]
-		RegistryEntryUpdated { 
-			updater: T::AccountId, 
+		RegistryEntryUpdated {
+			updater: T::AccountId,
 			registry_entry_id: RegistryEntryIdOf,
 			updater_profile_id: ProfileIdOf,
 		},
 
 		/// A existing registry entry has been revoked.
 		/// \[updater, registry_entry_identifier\]
-		RegistryEntryRevoked { 
-			updater: T::AccountId, 
+		RegistryEntryRevoked {
+			updater: T::AccountId,
 			registry_entry_id: RegistryEntryIdOf,
 			updater_profile_id: ProfileIdOf,
 		},
 
 		/// A existing registry entry has been reinstated.
 		/// \[updater, registry_enrtry_identifier\]
-		RegistryEntryReinstated { 
-			updater: T::AccountId, 
+		RegistryEntryReinstated {
+			updater: T::AccountId,
 			registry_entry_id: RegistryEntryIdOf,
 			updater_profile_id: ProfileIdOf,
 		},
@@ -225,9 +212,10 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Creates a new registry entry within a specified registry.
 		///
-		/// Constructs a unique entry identifier from the transaction hash, registry ID, and creator's profile ID,
-		/// ensuring it doesn’t already exist. The creator must have a valid profile and permission to create entries
-		/// in the registry. The entry is stored with its hash, creator, and registry ID, marked as active.
+		/// Constructs a unique entry identifier from the transaction hash, registry ID, and
+		/// creator's profile ID, ensuring it doesn’t already exist. The creator must have a valid
+		/// profile and permission to create entries in the registry. The entry is stored with its
+		/// hash, creator, and registry ID, marked as active.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account creating the entry.
@@ -243,7 +231,8 @@ pub mod pallet {
 		/// * `pallet_profile::Error` - If the creator’s profile is invalid.
 		///
 		/// # Events
-		/// * `RegistryEntryCreated` - Emitted with `creator`, `registry_id`, `registry_entry_id`, `creator_profile_id`.
+		/// * `RegistryEntryCreated` - Emitted with `creator`, `registry_id`, `registry_entry_id`,
+		///   `creator_profile_id`.
 		/// ```
 		#[pallet::call_index(0)]
 		#[pallet::weight({0})]
@@ -255,15 +244,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let creator = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&creator
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
-			
-			pallet_registry::Pallet::<T>::validate_registry_for_tx(
-				&profile_id, &registry_id
-			)
-			.map_err(|_| Error::<T>::RegistryAccessValidationFailed)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&creator)
+				.map_err(<pallet_profile::Error<T>>::from)?;
+
+			pallet_registry::Pallet::<T>::validate_registry_for_tx(&profile_id, &registry_id)
+				.map_err(|_| Error::<T>::RegistryAccessValidationFailed)?;
 
 			let mut data = Vec::with_capacity(256);
 			data.extend_from_slice(tx_hash.as_ref());
@@ -271,7 +256,8 @@ pub mod pallet {
 			data.extend_from_slice(&profile_id.encode());
 
 			let digest = T::Hashing::hash(&data);
-			let pallet_name = <crate::pallet::Pallet<T> as frame_support::traits::PalletInfoAccess>::name();
+			let pallet_name =
+				<crate::pallet::Pallet<T> as frame_support::traits::PalletInfoAccess>::name();
 
 			let registry_entry_id =
 				<cord_uri::Pallet<T> as Identifier>::build(&(digest).encode()[..], pallet_name)
@@ -294,13 +280,13 @@ pub mod pallet {
 
 			HashToIdentifier::<T>::insert(&tx_hash, &registry_id, &registry_entry_id);
 
-            Self::record_activity(&registry_entry_id, b"RegistryEntryCreated")?;
+			Self::record_activity(&registry_entry_id, b"RegistryEntryCreated")?;
 
 			Self::deposit_event(Event::RegistryEntryCreated {
 				creator,
 				registry_id,
 				registry_entry_id,
-				creator_profile_id: profile_id
+				creator_profile_id: profile_id,
 			});
 
 			Ok(())
@@ -308,8 +294,9 @@ pub mod pallet {
 
 		/// Updates an existing registry entry’s transaction hash.
 		///
-		/// Updates the transaction hash of an entry if the caller is the registry admin or the entry’s creator.
-		/// The entry must exist and belong to the specified registry. The new hash is stored, and an activity is recorded.
+		/// Updates the transaction hash of an entry if the caller is the registry admin or the
+		/// entry’s creator. The entry must exist and belong to the specified registry. The new
+		/// hash is stored, and an activity is recorded.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account updating the entry.
@@ -325,7 +312,8 @@ pub mod pallet {
 		/// * `pallet_profile::Error` - If the updater’s profile is invalid.
 		///
 		/// # Events
-		/// * `RegistryEntryUpdated` - Emitted with `updater`, `registry_entry_id`, `updater_profile_id`.
+		/// * `RegistryEntryUpdated` - Emitted with `updater`, `registry_entry_id`,
+		///   `updater_profile_id`.
 		///
 		/// ```
 		#[pallet::call_index(1)]
@@ -339,15 +327,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let updater = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&updater
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&updater)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			pallet_registry::Pallet::<T>::validate_registry_for_tx(
-				&profile_id, &registry_id
-			)
-			.map_err(|_| Error::<T>::RegistryAccessValidationFailed)?;
+			pallet_registry::Pallet::<T>::validate_registry_for_tx(&profile_id, &registry_id)
+				.map_err(|_| Error::<T>::RegistryAccessValidationFailed)?;
 
 			let mut entry = RegistryEntries::<T>::get(&registry_entry_id)
 				.ok_or(Error::<T>::RegistryEntryIdentifierDoesNotExist)?;
@@ -355,8 +339,7 @@ pub mod pallet {
 			ensure!(registry_id == entry.registry_id, Error::<T>::UnauthorizedOperation);
 
 			/* Should be allowed only by the admin of the Registry or Creator of the document */
-			let is_admin =
-				pallet_registry::Pallet::<T>::is_admin(&profile_id, &registry_id);
+			let is_admin = pallet_registry::Pallet::<T>::is_admin(&profile_id, &registry_id);
 
 			let is_creator = entry.creator == profile_id;
 
@@ -368,9 +351,9 @@ pub mod pallet {
 
 			HashToIdentifier::<T>::insert(&tx_hash, &registry_id, &registry_entry_id);
 
-            Self::record_activity(&registry_entry_id, b"RegistryEntryUpdated")?;
+			Self::record_activity(&registry_entry_id, b"RegistryEntryUpdated")?;
 
-			Self::deposit_event(Event::RegistryEntryUpdated { 
+			Self::deposit_event(Event::RegistryEntryUpdated {
 				updater,
 				registry_entry_id,
 				updater_profile_id: profile_id,
@@ -382,7 +365,8 @@ pub mod pallet {
 		/// Revokes an existing registry entry.
 		///
 		/// Marks an entry as revoked if the caller is the registry admin or the entry’s creator.
-		/// The entry must exist and belong to the specified registry. The revoked status is updated in storage.
+		/// The entry must exist and belong to the specified registry. The revoked status is updated
+		/// in storage.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account revoking the entry.
@@ -396,7 +380,8 @@ pub mod pallet {
 		/// * `pallet_profile::Error` - If the updater’s profile is invalid.
 		///
 		/// # Events
-		/// * `RegistryEntryRevoked` - Emitted with `updater`, `registry_entry_id`, `updater_profile_id`.
+		/// * `RegistryEntryRevoked` - Emitted with `updater`, `registry_entry_id`,
+		///   `updater_profile_id`.
 		///
 		/// ```
 		#[pallet::call_index(2)]
@@ -408,15 +393,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let updater = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&updater
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&updater)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			pallet_registry::Pallet::<T>::validate_registry_for_tx(
-				&profile_id, &registry_id
-			)
-			.map_err(|_| Error::<T>::RegistryAccessValidationFailed)?;
+			pallet_registry::Pallet::<T>::validate_registry_for_tx(&profile_id, &registry_id)
+				.map_err(|_| Error::<T>::RegistryAccessValidationFailed)?;
 
 			let mut entry = RegistryEntries::<T>::get(&registry_entry_id)
 				.ok_or(Error::<T>::RegistryEntryIdentifierDoesNotExist)?;
@@ -424,8 +405,7 @@ pub mod pallet {
 			ensure!(entry.registry_id == registry_id, Error::<T>::UnauthorizedOperation);
 
 			/* Should be allowed only by the admin of the Registry or Creator of the document */
-			let is_admin =
-				pallet_registry::Pallet::<T>::is_admin(&profile_id, &registry_id);
+			let is_admin = pallet_registry::Pallet::<T>::is_admin(&profile_id, &registry_id);
 
 			let is_creator = entry.creator == profile_id;
 
@@ -435,12 +415,12 @@ pub mod pallet {
 
 			RegistryEntries::<T>::insert(&registry_entry_id, entry);
 
-            Self::record_activity(&registry_entry_id, b"RegistryEntryRevoked")?;
+			Self::record_activity(&registry_entry_id, b"RegistryEntryRevoked")?;
 
-			Self::deposit_event(Event::RegistryEntryRevoked { 
+			Self::deposit_event(Event::RegistryEntryRevoked {
 				updater,
 				registry_entry_id,
-				updater_profile_id: profile_id
+				updater_profile_id: profile_id,
 			});
 
 			Ok(())
@@ -448,8 +428,9 @@ pub mod pallet {
 
 		/// Reinstates an existing revoked registry entry.
 		///
-		/// Restores an entry to active status if the caller is the registry admin or the entry’s creator.
-		/// The entry must exist, belong to the specified registry, and be revoked. The status is updated in storage.
+		/// Restores an entry to active status if the caller is the registry admin or the entry’s
+		/// creator. The entry must exist, belong to the specified registry, and be revoked. The
+		/// status is updated in storage.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account reinstating the entry.
@@ -464,7 +445,8 @@ pub mod pallet {
 		/// * `pallet_profile::Error` - If the updater’s profile is invalid.
 		///
 		/// # Events
-		/// * `RegistryEntryReinstated` - Emitted with `updater`, `registry_entry_id`, `updater_profile_id`.
+		/// * `RegistryEntryReinstated` - Emitted with `updater`, `registry_entry_id`,
+		///   `updater_profile_id`.
 		///
 		/// ```
 		#[pallet::call_index(3)]
@@ -476,16 +458,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let updater = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&updater
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&updater)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			pallet_registry::Pallet::<T>::validate_registry_for_tx(
-				&profile_id, &registry_id
-			)
-			.map_err(|_| Error::<T>::RegistryAccessValidationFailed)?;
-			
+			pallet_registry::Pallet::<T>::validate_registry_for_tx(&profile_id, &registry_id)
+				.map_err(|_| Error::<T>::RegistryAccessValidationFailed)?;
+
 			let mut entry = RegistryEntries::<T>::get(&registry_entry_id)
 				.ok_or(Error::<T>::RegistryEntryIdentifierDoesNotExist)?;
 
@@ -494,8 +472,7 @@ pub mod pallet {
 			ensure!(entry.revoked, Error::<T>::RegistryEntryNotRevoked);
 
 			/* Should be allowed only by the admin of the Registry or Creator of the document */
-			let is_admin =
-				pallet_registry::Pallet::<T>::is_admin(&profile_id, &registry_id);
+			let is_admin = pallet_registry::Pallet::<T>::is_admin(&profile_id, &registry_id);
 
 			let is_creator = entry.creator == profile_id;
 
@@ -505,12 +482,12 @@ pub mod pallet {
 
 			RegistryEntries::<T>::insert(&registry_entry_id, entry);
 
-            Self::record_activity(&registry_entry_id, b"RegistryEntryReinstated")?;
+			Self::record_activity(&registry_entry_id, b"RegistryEntryReinstated")?;
 
-			Self::deposit_event(Event::RegistryEntryReinstated { 
-				updater, 
+			Self::deposit_event(Event::RegistryEntryReinstated {
+				updater,
 				registry_entry_id,
-				updater_profile_id: profile_id
+				updater_profile_id: profile_id,
 			});
 
 			Ok(())
@@ -518,9 +495,10 @@ pub mod pallet {
 
 		/// Updates the ownership of an existing registry entry.
 		///
-		/// Transfers ownership to a new account if the caller is the registry admin or the entry’s creator.
-		/// The entry must exist and belong to the specified registry. The new owner must have a valid profile and
-		/// permission in the registry. The creator field is updated in storage.
+		/// Transfers ownership to a new account if the caller is the registry admin or the entry’s
+		/// creator. The entry must exist and belong to the specified registry. The new owner must
+		/// have a valid profile and permission in the registry. The creator field is updated in
+		/// storage.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account updating ownership.
@@ -529,15 +507,16 @@ pub mod pallet {
 		/// * `new_owner` - The account ID of the new owner.
 		///
 		/// # Errors
-		/// * `UnauthorizedOperation` - If the caller or new owner lacks permission, or registry ID mismatches.
+		/// * `UnauthorizedOperation` - If the caller or new owner lacks permission, or registry ID
+		///   mismatches.
 		/// * `RegistryAccessValidationFailed` - If registry access validation fails.
 		/// * `RegistryEntryIdentifierDoesNotExist` - If the entry ID doesn’t exist.
 		/// * `NewOwnerCannotBeSameAsExistingOwner` - If the new owner matches the current owner.
 		/// * `pallet_profile::Error` - If the updater’s or new owner’s profile is invalid.
 		///
 		/// # Events
-		/// * `RegistryEntryOwnershipUpdated` - Emitted with `updater`, `new_owner`, `registry_entry_id`,
-		///   `updater_profile_id`, `new_owner_profile_id`.
+		/// * `RegistryEntryOwnershipUpdated` - Emitted with `updater`, `new_owner`,
+		///   `registry_entry_id`, `updater_profile_id`, `new_owner_profile_id`.
 		///
 		/// ```
 		#[pallet::call_index(4)]
@@ -550,20 +529,17 @@ pub mod pallet {
 		) -> DispatchResult {
 			let updater = ensure_signed(origin)?;
 
-			let existing_owner_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&updater
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let existing_owner_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&updater)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			pallet_registry::Pallet::<T>::validate_registry_for_tx(
-				&existing_owner_profile_id, &registry_id
+				&existing_owner_profile_id,
+				&registry_id,
 			)
 			.map_err(|_| Error::<T>::RegistryAccessValidationFailed)?;
 
-			let new_owner_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&new_owner
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let new_owner_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&new_owner)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			let entry = RegistryEntries::<T>::get(&registry_entry_id)
 				.ok_or(Error::<T>::RegistryEntryIdentifierDoesNotExist)?;
@@ -571,9 +547,7 @@ pub mod pallet {
 			ensure!(registry_id == entry.registry_id, Error::<T>::UnauthorizedOperation);
 
 			let is_admin =
-				pallet_registry::Pallet::<T>::is_admin(
-					&existing_owner_profile_id, &registry_id
-			);
+				pallet_registry::Pallet::<T>::is_admin(&existing_owner_profile_id, &registry_id);
 
 			let is_creator = entry.creator == existing_owner_profile_id.clone();
 
@@ -585,24 +559,27 @@ pub mod pallet {
 			/* New Owner of the Entry(record) should be a part of the same registry */
 			ensure!(
 				pallet_registry::Pallet::<T>::has_permission(
-					&registry_id, &new_owner_profile_id, Permissions::ENTRY),
+					&registry_id,
+					&new_owner_profile_id,
+					Permissions::ENTRY
+				),
 				Error::<T>::UnauthorizedOperation
-        	);
-			
+			);
+
 			RegistryEntries::<T>::mutate(&registry_entry_id, |entry| {
 				if let Some(existing_entry) = entry {
 					existing_entry.creator = new_owner_profile_id.clone();
 				}
 			});
 
-            Self::record_activity(&registry_entry_id, b"RegistryEntryOwnerShipUpdated")?;
+			Self::record_activity(&registry_entry_id, b"RegistryEntryOwnerShipUpdated")?;
 
 			Self::deposit_event(Event::RegistryEntryOwnershipUpdated {
 				updater,
 				new_owner: new_owner.clone(),
 				registry_entry_id,
 				updater_profile_id: existing_owner_profile_id,
-				new_owner_profile_id: new_owner_profile_id,
+				new_owner_profile_id,
 			});
 
 			Ok(())

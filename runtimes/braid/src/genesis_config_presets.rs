@@ -86,7 +86,7 @@ fn cord_braid_testnet_genesis(
 ) -> serde_json::Value {
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 	const ENDOWMENT: u128 = 500_000_000_000 * UNITS;
-	                
+
 	serde_json::json!( {
 		"balances": {
 			"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),

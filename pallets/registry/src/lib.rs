@@ -29,11 +29,8 @@ use frame_support::{ensure, storage::types::StorageMap};
 pub mod types;
 pub use crate::{pallet::*, types::*};
 use cord_uri::{EntryTypeOf, EventStamp, Identifier, RegistryIdentifierCheck, Ss58Identifier};
-use frame_support::dispatch::DispatchResult;
-use frame_support::BoundedVec;
-use frame_system::pallet_prelude::BlockNumberFor;
-use frame_support::traits::ConstU32;
-use frame_system::WeightInfo;
+use frame_support::{dispatch::DispatchResult, traits::ConstU32, BoundedVec};
+use frame_system::{pallet_prelude::BlockNumberFor, WeightInfo};
 use pallet_profile::ProfileIdOf;
 
 #[cfg(test)]
@@ -113,38 +110,38 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		DelegateAdded { 
-			identifier: Ss58Identifier, 
+		DelegateAdded {
+			identifier: Ss58Identifier,
 			delegate: CordAccountOf<T>,
 			delegate_profile_id: ProfileIdOf,
 		},
-		DelegateRemoved { 
-			identifier: Ss58Identifier, 
+		DelegateRemoved {
+			identifier: Ss58Identifier,
 			delegate: CordAccountOf<T>,
 			delegate_profile_id: ProfileIdOf,
 		},
-		RegistryCreated { 
+		RegistryCreated {
 			registry: RegistryIdentifierOf,
 			creator: CordAccountOf<T>,
-			profile_id: ProfileIdOf
+			profile_id: ProfileIdOf,
 		},
-		RegistryStoreCreated { 
+		RegistryStoreCreated {
 			registry: RegistryIdentifierOf,
 			creator: CordAccountOf<T>,
-			profile_id: ProfileIdOf
+			profile_id: ProfileIdOf,
 		},
-		RegistryUpdated { 
-			registry: RegistryIdentifierOf, 
-			authority: CordAccountOf<T>,
-			authority_profile_id: ProfileIdOf
-		},
-		RegistryArchived { 
-			registry: RegistryIdentifierOf, 
+		RegistryUpdated {
+			registry: RegistryIdentifierOf,
 			authority: CordAccountOf<T>,
 			authority_profile_id: ProfileIdOf,
 		},
-		RegistryRestored { 
-			registry: RegistryIdentifierOf, 
+		RegistryArchived {
+			registry: RegistryIdentifierOf,
+			authority: CordAccountOf<T>,
+			authority_profile_id: ProfileIdOf,
+		},
+		RegistryRestored {
+			registry: RegistryIdentifierOf,
 			authority: CordAccountOf<T>,
 			authority_profile_id: ProfileIdOf,
 		},
@@ -173,16 +170,16 @@ pub mod pallet {
 		InvalidEntryTypeInput,
 		/// The activity update operation failed.
 		ActivityUpdateFailed,
-		
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Adds a delegate with specified permissions to a registry.
 		///
-		/// Assigns permissions (e.g., ENTRY, ADMIN) to a delegate for the given registry. The caller
-		/// must have ADMIN permissions, and both the caller and delegate must have valid profiles.
-		/// The delegate is added via the `delegation::add_delegate` function, and an activity is recorded.
+		/// Assigns permissions (e.g., ENTRY, ADMIN) to a delegate for the given registry. The
+		/// caller must have ADMIN permissions, and both the caller and delegate must have valid
+		/// profiles. The delegate is added via the `delegation::add_delegate` function, and an
+		/// activity is recorded.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account adding the delegate.
@@ -208,33 +205,29 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&delegate
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&delegate)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			delegation::add_delegate::<T>(&identifier, &who_profile_id, &delegate_profile_id, roles)?;
-			Self::deposit_event(
-				Event::DelegateAdded { 
-					identifier, 
-					delegate, 
-					delegate_profile_id
-				}
-			);
-			
+			delegation::add_delegate::<T>(
+				&identifier,
+				&who_profile_id,
+				&delegate_profile_id,
+				roles,
+			)?;
+			Self::deposit_event(Event::DelegateAdded { identifier, delegate, delegate_profile_id });
+
 			Ok(())
 		}
 
 		/// Removes a delegate from a registry.
 		///
 		/// Revokes all permissions for the specified delegate in the registry. The caller must have
-		/// ADMIN permissions, and both the caller and delegate must have valid profiles. The delegate
-		/// is removed via the `delegation::remove_delegate` function, and an activity is recorded.
+		/// ADMIN permissions, and both the caller and delegate must have valid profiles. The
+		/// delegate is removed via the `delegation::remove_delegate` function, and an activity is
+		/// recorded.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account removing the delegate.
@@ -259,24 +252,18 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&delegate
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&delegate)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			delegation::remove_delegate::<T>(&identifier, &profile_id, &delegate_profile_id)?;
-			Self::deposit_event(
-				Event::DelegateRemoved { 
-					identifier, 
-					delegate, 
-					delegate_profile_id,
-				}
-			);
+			Self::deposit_event(Event::DelegateRemoved {
+				identifier,
+				delegate,
+				delegate_profile_id,
+			});
 
 			Ok(())
 		}
@@ -284,8 +271,9 @@ pub mod pallet {
 		/// Creates a new registry.
 		///
 		/// Initializes a new registry with the provided transaction hash and a optional blob.
-		/// The creator must have a valid profile. The registry is created via the `registry::create_registry` 
-		/// function, assigned a unique SS58 identifier, and marked as active.
+		/// The creator must have a valid profile. The registry is created via the
+		/// `registry::create_registry` function, assigned a unique SS58 identifier, and marked as
+		/// active.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account creating the registry.
@@ -310,36 +298,29 @@ pub mod pallet {
 		) -> DispatchResult {
 			let creator = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&creator
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&creator)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			let registry_id = registry::create_registry::<T>(
-				tx_hash,
-				profile_id.clone(),
-			)?;
+			let registry_id = registry::create_registry::<T>(tx_hash, profile_id.clone())?;
 
-			Self::deposit_event(
-				Event::RegistryCreated { 
-					registry: registry_id, 
-					creator, profile_id,
-				}
-			);
+			Self::deposit_event(Event::RegistryCreated {
+				registry: registry_id,
+				creator,
+				profile_id,
+			});
 
 			Ok(())
 		}
 
-
 		/// Creates a new registry store with cyra based credentials.
 		///
-		/// Initializes a new registry store with the provided transaction hash and optional metadata
-		/// (document ID, author, node ID). The creator must have a valid profile. The registry is
-		/// created via the `registry::create_registry_store` function, assigned a unique SS58 identifier,
-		/// and marked as active.
+		/// Initializes a new registry store with the provided transaction hash and optional
+		/// metadata (document ID, author, node ID). The creator must have a valid profile. The
+		/// registry is created via the `registry::create_registry_store` function, assigned a
+		/// unique SS58 identifier, and marked as active.
 		///
-		/// The key difference between create and create-store is that create-store is to map the registry
-		/// data present in Cyra into Cord.
+		/// The key difference between create and create-store is that create-store is to map the
+		/// registry data present in Cyra into Cord.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account creating the registry.
@@ -369,10 +350,8 @@ pub mod pallet {
 		) -> DispatchResult {
 			let creator = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&creator
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&creator)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			let doc_author_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&doc_author_id)
 				.map_err(<pallet_profile::Error<T>>::from)?;
@@ -385,12 +364,11 @@ pub mod pallet {
 				profile_id.clone(),
 			)?;
 
-			Self::deposit_event(
-				Event::RegistryStoreCreated { 
-					registry: registry_id, 
-					creator, profile_id,
-				}
-			);
+			Self::deposit_event(Event::RegistryStoreCreated {
+				registry: registry_id,
+				creator,
+				profile_id,
+			});
 
 			Ok(())
 		}
@@ -398,8 +376,8 @@ pub mod pallet {
 		/// Archives a registry.
 		///
 		/// Marks a registry as archived, preventing further operations. The caller must have ADMIN
-		/// permissions and a valid profile. The operation is performed via the `registry::archive_registry`
-		/// function, and an activity is recorded.
+		/// permissions and a valid profile. The operation is performed via the
+		/// `registry::archive_registry` function, and an activity is recorded.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account archiving the registry.
@@ -417,33 +395,26 @@ pub mod pallet {
 		/// ```
 		#[pallet::call_index(4)]
 		#[pallet::weight({10_000})]
-		pub fn archive(
-			origin: OriginFor<T>, 
-			registry_id: RegistryIdentifierOf
-		) -> DispatchResult {
+		pub fn archive(origin: OriginFor<T>, registry_id: RegistryIdentifierOf) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
-			
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
+
 			registry::archive_registry::<T>(&registry_id, &profile_id)?;
-			Self::deposit_event(
-				Event::RegistryArchived { 
-					registry: registry_id, 
-					authority: who, 
-					authority_profile_id: profile_id
-				}
-			);
+			Self::deposit_event(Event::RegistryArchived {
+				registry: registry_id,
+				authority: who,
+				authority_profile_id: profile_id,
+			});
 			Ok(())
 		}
 
 		/// Restores an archived registry.
 		///
-		/// Restores a previously archived registry to active status, allowing operations. The caller
-		/// must have ADMIN permissions and a valid profile. The operation is performed via the
-		/// `registry::restore_registry` function, and an activity is recorded.
+		/// Restores a previously archived registry to active status, allowing operations. The
+		/// caller must have ADMIN permissions and a valid profile. The operation is performed via
+		/// the `registry::restore_registry` function, and an activity is recorded.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account restoring the registry.
@@ -461,33 +432,27 @@ pub mod pallet {
 		/// ```
 		#[pallet::call_index(5)]
 		#[pallet::weight({10_000})]
-		pub fn restore(
-			origin: OriginFor<T>, 
-			registry_id: RegistryIdentifierOf
-		) -> DispatchResult {
+		pub fn restore(origin: OriginFor<T>, registry_id: RegistryIdentifierOf) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			registry::restore_registry::<T>(&registry_id, profile_id.clone())?;
-			Self::deposit_event(
-				Event::RegistryRestored { 
-					registry: registry_id, 
-					authority: who,
-					authority_profile_id: profile_id,
-				}
-			);
+			Self::deposit_event(Event::RegistryRestored {
+				registry: registry_id,
+				authority: who,
+				authority_profile_id: profile_id,
+			});
 			Ok(())
 		}
 
 		/// Updates the document author of a registry.
 		///
 		/// Changes the document author of the registry to a new account. The caller must have ADMIN
-		/// permissions, and both the caller and new author must have valid profiles. The operation is
-		/// performed via the `registry::update_registry_author` function, and an activity is recorded.
+		/// permissions, and both the caller and new author must have valid profiles. The operation
+		/// is performed via the `registry::update_registry_author` function, and an activity is
+		/// recorded.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account updating the author.
@@ -500,7 +465,8 @@ pub mod pallet {
 		/// * `pallet_profile::Error` - If the caller’s or new author’s profile is invalid.
 		///
 		/// # Events
-		/// * `RegistryUpdated` - Emitted with `registry`, `authority` (new author), `authority_profile_id`.
+		/// * `RegistryUpdated` - Emitted with `registry`, `authority` (new author),
+		///   `authority_profile_id`.
 		///
 		/// ```
 		#[pallet::call_index(6)]
@@ -512,15 +478,12 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			let new_doc_author_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&new_doc_author_id
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let new_doc_author_profile_id =
+				pallet_profile::Pallet::<T>::get_profile_id(&new_doc_author_id)
+					.map_err(<pallet_profile::Error<T>>::from)?;
 
 			registry::update_registry_author::<T>(
 				&registry_id,
@@ -531,7 +494,7 @@ pub mod pallet {
 			Self::deposit_event(Event::RegistryUpdated {
 				registry: registry_id,
 				authority: new_doc_author_id,
-				authority_profile_id: new_doc_author_profile_id
+				authority_profile_id: new_doc_author_profile_id,
 			});
 
 			Ok(())
@@ -540,8 +503,9 @@ pub mod pallet {
 		/// Updates the creator of a registry.
 		///
 		/// Transfers ownership of the registry to a new account. The caller must have ADMIN
-		/// permissions, and both the caller and new creator must have valid profiles. The operation is
-		/// performed via the `registry::update_registry_creator` function, and an activity is recorded.
+		/// permissions, and both the caller and new creator must have valid profiles. The operation
+		/// is performed via the `registry::update_registry_creator` function, and an activity is
+		/// recorded.
 		///
 		/// # Arguments
 		/// * `origin` - The signed account updating the creator.
@@ -554,7 +518,8 @@ pub mod pallet {
 		/// * `pallet_profile::Error` - If the caller’s or new creator’s profile is invalid.
 		///
 		/// # Events
-		/// * `RegistryUpdated` - Emitted with `registry`, `authority` (new creator), `authority_profile_id`.
+		/// * `RegistryUpdated` - Emitted with `registry`, `authority` (new creator),
+		///   `authority_profile_id`.
 		///
 		/// ```
 		#[pallet::call_index(7)]
@@ -566,20 +531,16 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let who_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			let new_creator_profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&new_creator
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
+			let new_creator_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&new_creator)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
 			registry::update_registry_creator::<T>(
-				&registry_id, 
-				new_creator_profile_id.clone(), 
-				who_profile_id.clone()
+				&registry_id,
+				new_creator_profile_id.clone(),
+				who_profile_id.clone(),
 			)?;
 
 			Self::deposit_event(Event::RegistryUpdated {
@@ -592,8 +553,8 @@ pub mod pallet {
 
 		/// Updates the transaction hash of a registry.
 		///
-		/// Updates the registry’s transaction hash and optionally its blob. The caller must have ADMIN
-		/// permissions and a valid profile. The operation is performed via the
+		/// Updates the registry’s transaction hash and optionally its blob. The caller must have
+		/// ADMIN permissions and a valid profile. The operation is performed via the
 		/// `registry::update_registry_hash` function, and an activity is recorded.
 		///
 		/// # Arguments
@@ -614,31 +575,23 @@ pub mod pallet {
 		#[pallet::call_index(8)]
 		#[pallet::weight({10_000})]
 		pub fn update_registry_hash(
-			origin: OriginFor<T>, 
+			origin: OriginFor<T>,
 			registry_id: RegistryIdentifierOf,
 			tx_hash: HashOf<T>,
 			_blob: Option<RegistryBlobOf<T>>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(
-				&who
-			)
-			.map_err(<pallet_profile::Error<T>>::from)?;
-			
-			registry::update_registry_hash::<T>(
-				&registry_id,
-				&profile_id,
-				&tx_hash,
-			)?;
+			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
+				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			Self::deposit_event(
-				Event::RegistryUpdated { 
-					registry: registry_id, 
-					authority: who, 
-					authority_profile_id: profile_id
-				}
-			);
+			registry::update_registry_hash::<T>(&registry_id, &profile_id, &tx_hash)?;
+
+			Self::deposit_event(Event::RegistryUpdated {
+				registry: registry_id,
+				authority: who,
+				authority_profile_id: profile_id,
+			});
 
 			Ok(())
 		}
@@ -653,17 +606,21 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Checks if the delegate for `who` on the given collection has any of the required permissions.
+	/// Checks if the delegate for `who` on the given collection has any of the required
+	/// permissions.
 	pub fn has_permission(
 		identifier: &Ss58Identifier,
 		who: &ProfileIdOf,
 		required: Permissions,
 	) -> bool {
-		Delegates::<T>::get(identifier, who).unwrap_or(Permissions::empty()).intersects(required)
+		Delegates::<T>::get(identifier, who)
+			.unwrap_or(Permissions::empty())
+			.intersects(required)
 	}
 
 	/// Helper function to encode an optional field into a byte buffer.
-	/// Pushes a flag byte (1 if the field is present, 0 if not) followed by the field's bytes if present.
+	/// Pushes a flag byte (1 if the field is present, 0 if not) followed by the field's bytes if
+	/// present.
 	pub fn push_option(buf: &mut Vec<u8>, field: Option<&[u8]>) {
 		if let Some(bytes) = field {
 			buf.push(1u8);
@@ -683,37 +640,27 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
-	/// Verifies if the given account for a registry has sufficient 
+	/// Verifies if the given account for a registry has sufficient
 	/// permissions and the registry is valid for Entry operations.
 	/// Returns Ok(()) only if both conditions pass; fails if either fails.
 	pub fn validate_registry_for_tx(
 		profile_id: &ProfileIdOf,
-		registry_id: &RegistryIdentifierOf
+		registry_id: &RegistryIdentifierOf,
 	) -> DispatchResult {
-		let has_permission = Self::has_permission(
-			registry_id, 
-			profile_id, 
-			Permissions::ENTRY | Permissions::ADMIN
-		);
-		
+		let has_permission =
+			Self::has_permission(registry_id, profile_id, Permissions::ENTRY | Permissions::ADMIN);
+
 		let registry_active = Self::inherent_ensure_active_registry(registry_id).is_ok();
-		
-		ensure!(
-			has_permission && registry_active,
-			Error::<T>::UnauthorizedOperation
-		);
-    
-   		Ok(())
+
+		ensure!(has_permission && registry_active, Error::<T>::UnauthorizedOperation);
+
+		Ok(())
 	}
 
 	/// Verifies if the given account Profile for a registry is admin or not.
-	pub fn is_admin(
-		profile_id: &ProfileIdOf,
-		registry_id: &RegistryIdentifierOf
-	) -> bool {
-
+	pub fn is_admin(profile_id: &ProfileIdOf, registry_id: &RegistryIdentifierOf) -> bool {
 		if Self::has_permission(registry_id, profile_id, Permissions::ADMIN) {
-			return true 
+			return true
 		}
 
 		false

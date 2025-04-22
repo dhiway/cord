@@ -17,9 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
-use crate::{
-	pallet::Pallet, Delegates, Error, PermissionVariant, Permissions, Ss58Identifier,
-};
+use crate::{pallet::Pallet, Delegates, Error, PermissionVariant, Permissions, Ss58Identifier};
 use frame_support::pallet_prelude::*;
 
 /// Adds a delegate with the given permissions, after verifying that

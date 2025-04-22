@@ -33,8 +33,7 @@ use frame_support::{
 	traits::{Get, StorageVersion},
 	BoundedVec,
 };
-use frame_system::pallet_prelude::BlockNumberFor;
-use frame_system::pallet_prelude::*;
+use frame_system::pallet_prelude::{BlockNumberFor, *};
 use sp_runtime::traits::{Hash, Zero};
 
 pub use pallet::*;

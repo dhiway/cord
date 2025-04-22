@@ -25,8 +25,7 @@ use alloc::string::String;
 use codec::{Decode, Encode};
 pub use cord_primitives::{AccountId, AccountPublic, Signature};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Moment, Nonce};
-use cord_uri::Identifier as CordIdentifier;
-use cord_uri::{DecodedIdentifier, Ss58Identifier};
+use cord_uri::{DecodedIdentifier, Identifier as CordIdentifier, Ss58Identifier};
 use frame_election_provider_support::{
 	bounds::ElectionBoundsBuilder, generate_solution_type, onchain, BalancingConfig,
 	SequentialPhragmen,
@@ -53,9 +52,9 @@ use frame_support::{
 	BoundedVec,
 	PalletId,
 };
-use frame_system::limits::BlockWeights as SystemBlockWeights;
 use frame_system::{
-	EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSignedBy, EnsureWithSuccess,
+	limits::BlockWeights as SystemBlockWeights, EnsureRoot, EnsureRootWithSuccess, EnsureSigned,
+	EnsureSignedBy, EnsureWithSuccess,
 };
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
 use pallet_asset_conversion_tx_payment::SwapAssetAdapter;
@@ -75,8 +74,7 @@ use sp_consensus_beefy::{
 	mmr::MmrLeafVersion,
 };
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
-use sp_core::U256;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H160};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H160, U256};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::{
 	curve::PiecewiseLinear,
@@ -687,8 +685,8 @@ impl Get<Option<BalancingConfig>> for OffchainRandomBalancing {
 			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
-					.expect("input is padded with zeroes; qed")
-					% max.saturating_add(1);
+					.expect("input is padded with zeroes; qed") %
+					max.saturating_add(1);
 				random as usize
 			},
 		};
@@ -1496,7 +1494,7 @@ parameter_types! {
 
 impl pallet_entry::Config for Runtime {
 	type MaxEncodedInputLength = MaxEncodedInputLength;
-    type MaxRegistryEntryBlobSize = MaxRegistryBlobSize;
+	type MaxRegistryEntryBlobSize = MaxRegistryBlobSize;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 }
