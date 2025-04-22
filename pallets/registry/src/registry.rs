@@ -19,22 +19,19 @@
 use super::*;
 use alloc::vec::Vec;
 use codec::Encode;
-use frame_support::dispatch::DispatchResult;
-use frame_support::pallet_prelude::*;
+use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 use sp_runtime::traits::Hash;
 
 use crate::{
-	pallet::Pallet, Delegates, Error, HashOf, Identifier, Permissions, Registries,
-	RegistryDetails, RegistryIdentifierOf, Status,
+	pallet::Pallet, Delegates, Error, HashOf, Identifier, Permissions, Registries, RegistryDetails,
+	RegistryIdentifierOf, Status,
 };
-
 
 /// Create a new registry.
 pub fn create_registry<T: crate::Config>(
 	tx_hash: HashOf<T>,
 	profile_id: ProfileIdOf,
 ) -> Result<RegistryIdentifierOf, sp_runtime::DispatchError> {
-
 	let mut data = Vec::with_capacity(256);
 	data.extend_from_slice(tx_hash.as_ref());
 	data.extend_from_slice(&profile_id.encode());
@@ -60,10 +57,9 @@ pub fn create_registry<T: crate::Config>(
 	Pallet::<T>::record_activity(&registry_id, b"RegistryCreated")?;
 	Registries::<T>::insert(&registry_id, details);
 	Delegates::<T>::insert(&registry_id, &profile_id, Permissions::all());
-	
+
 	Ok(registry_id)
 }
-
 
 /// Create a new registry store.
 pub fn create_registry_store<T: crate::Config>(
@@ -73,12 +69,10 @@ pub fn create_registry_store<T: crate::Config>(
 	doc_node_id: Vec<u8>,
 	profile_id: ProfileIdOf,
 ) -> Result<RegistryIdentifierOf, sp_runtime::DispatchError> {
-	let bounded_doc_id: DocIdOf = doc_id
-        .try_into()
-        .map_err(|_| Error::<T>::InvalidIdentifierLength)?;
-    let bounded_doc_node_id: DocNodeIdOf = doc_node_id
-        .try_into()
-        .map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+	let bounded_doc_id: DocIdOf =
+		doc_id.try_into().map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+	let bounded_doc_node_id: DocNodeIdOf =
+		doc_node_id.try_into().map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 	let mut data = Vec::with_capacity(256);
 	data.extend_from_slice(tx_hash.as_ref());
@@ -113,10 +107,9 @@ pub fn create_registry_store<T: crate::Config>(
 
 	/* Add the doc_author as a delegate for having permission to create entry */
 	Delegates::<T>::insert(&registry_id, &doc_author_profile_id, Permissions::ENTRY);
-	
+
 	Ok(registry_id)
 }
-
 
 /// Update a existing registry.
 pub fn update_registry_hash<T: crate::Config>(
@@ -181,7 +174,6 @@ pub fn restore_registry<T: crate::Config>(
 	Ok(())
 }
 
-
 /// Update the document author for a registry.
 pub fn update_registry_author<T: crate::Config>(
 	registry_id: &RegistryIdentifierOf,
@@ -212,7 +204,6 @@ pub fn update_registry_author<T: crate::Config>(
 	Ok(())
 }
 
-
 /// Update registry creator
 pub fn update_registry_creator<T: crate::Config>(
 	registry_id: &RegistryIdentifierOf,
@@ -227,12 +218,12 @@ pub fn update_registry_creator<T: crate::Config>(
 		);
 
 		registry.creator = new_profile_id.clone();
-		
+
 		Ok(())
 	})?;
 
 	Delegates::<T>::insert(registry_id, &new_profile_id, Permissions::all());
-	
+
 	// TODO:
 	// Currently downgrading the old-creator to ENTRY permission level.
 	// Revisit if he needs to be removed access completely.

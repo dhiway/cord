@@ -34,7 +34,9 @@ pub mod benchmarking;
 pub mod tests;
 
 use frame_support::{
-	pallet_prelude::TransactionSource, traits::Get, traits::OriginTrait, DefaultNoBound,
+	pallet_prelude::TransactionSource,
+	traits::{Get, OriginTrait},
+	DefaultNoBound,
 };
 use sp_runtime::{
 	impl_tx_ext_default,

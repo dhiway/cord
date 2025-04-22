@@ -427,7 +427,8 @@ impl<T: Config> Pallet<T> {
 		T::FeeCollector::on_unbalanced(imbalance);
 
 		let genesis_hash = <frame_system::Pallet<T>>::block_hash(BlockNumberFor::<T>::zero());
-		// let reserve_genesis_hash = <T as frame_system::Config>::Hashing::hash(&(&who.encode()[..]));
+		// let reserve_genesis_hash = <T as
+		// frame_system::Config>::Hashing::hash(&(&who.encode()[..]));
 		let reserve_genesis_hash = <T as frame_system::Config>::Hashing::hash(
 			&[&id.encode()[..], &who.encode()[..]].concat()[..],
 		);

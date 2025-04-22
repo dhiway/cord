@@ -16,8 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::mock::*;
-use crate::{Error, Registries, RegistryIdentifierOf, Status};
+use crate::{mock::*, Error, Registries, RegistryIdentifierOf, Status};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use sp_core::H256;

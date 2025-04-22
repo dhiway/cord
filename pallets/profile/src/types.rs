@@ -25,5 +25,5 @@ use sp_std::prelude::*;
 /// Struture to hold the Metadata of the associated Profile
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 pub struct ProfileMetadata<CreatorOf> {
-    pub latest_key: CreatorOf,
+	pub latest_key: CreatorOf,
 }
