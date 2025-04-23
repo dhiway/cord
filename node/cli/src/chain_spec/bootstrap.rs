@@ -225,9 +225,9 @@ fn cord_weave_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 		.iter()
 		.enumerate()
 		.filter_map(|(i, auth)| {
-			if auth.len() != 6 {
+			if auth.len() != 4 {
 				eprintln!(
-					"Authority {} has invalid length: expected 6 keys, got {}",
+					"Authority {} has invalid length: expected 4 keys, got {}",
 					i,
 					auth.len()
 				);
@@ -276,7 +276,7 @@ fn cord_weave_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 				},
 			};
 
-			let im_online_id: ImOnlineId = match array_bytes::hex2array::<_, 32>(&auth[3]) {
+			let im_online_id: ImOnlineId = match array_bytes::hex2array::<_, 32>(&auth[1]) {
 				Ok(bytes) => match sp_core::sr25519::Public::try_from(&bytes[..]) {
 					Ok(pubkey) => pubkey.into(),
 					Err(_) => {
@@ -288,28 +288,28 @@ fn cord_weave_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 					},
 				},
 				Err(e) => {
-					eprintln!("Failed to decode ImOnlineId {}: {:?}", auth[3], e);
+					eprintln!("Failed to decode ImOnlineId {}: {:?}", auth[1], e);
 					return None;
 				},
 			};
 
 			let authority_discovery_id: AuthorityDiscoveryId = match array_bytes::hex2array::<_, 32>(
-				&auth[4],
+				&auth[1],
 			) {
 				Ok(bytes) => match sp_core::sr25519::Public::try_from(&bytes[..]) {
 					Ok(pubkey) => pubkey.into(),
 					Err(_) => {
-						eprintln!("Invalid sr25519 public key for AuthorityDiscoveryId {}: not a valid key", auth[4]);
+						eprintln!("Invalid sr25519 public key for AuthorityDiscoveryId {}: not a valid key", auth[1]);
 						return None;
 					},
 				},
 				Err(e) => {
-					eprintln!("Failed to decode AuthorityDiscoveryId {}: {:?}", auth[4], e);
+					eprintln!("Failed to decode AuthorityDiscoveryId {}: {:?}", auth[1], e);
 					return None;
 				},
 			};
 
-			let beefy_id: BeefyId = match array_bytes::hex2array::<_, 33>(&auth[5]) {
+			let beefy_id: BeefyId = match array_bytes::hex2array::<_, 33>(&auth[3]) {
 				Ok(bytes) => {
 					if bytes[0] != 0x02 && bytes[0] != 0x03 {
 						eprintln!(
@@ -321,13 +321,13 @@ fn cord_weave_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 					match sp_consensus_beefy::ecdsa_crypto::Public::try_from(&bytes[..]) {
 						Ok(pubkey) => pubkey.into(),
 						Err(e) => {
-							eprintln!("Invalid BeefyId ECDSA key format {}: {:?}", auth[5], e);
+							eprintln!("Invalid BeefyId ECDSA key format {}: {:?}", auth[3], e);
 							return None;
 						},
 					}
 				},
 				Err(e) => {
-					eprintln!("Failed to decode BeefyId {}: {:?}", auth[5], e);
+					eprintln!("Failed to decode BeefyId {}: {:?}", auth[3], e);
 					return None;
 				},
 			};
