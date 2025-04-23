@@ -20,6 +20,7 @@ function usage() {
   echo ""
   echo "  The generated configuration is written to 'config.toml' and account details to 'accounts.txt'."
 }
+
 # Defaults
 NUM_MEMBERS=6
 NUM_NODES=5
@@ -123,16 +124,19 @@ get_ss58_address() {
 }
 
 generate_account_details() {
-
   ACCOUNT_DETAILS=$($cord key inspect -n cord ${2:-} ${3:-} "$SECRET//$1")
-
   echo "Account $i" >>$ACCOUNTS_FILE
   echo "${ACCOUNT_DETAILS}" >>$ACCOUNTS_FILE
   echo "" >>$ACCOUNTS_FILE
 }
 
-echo "network_members = [" >>$CONFIG_FILE
+# Function to get public key (hex) for a given scheme
+get_public_key() {
+  PUBLIC_KEY=$($cord key inspect -n cord ${2:-} ${3:-} "$SECRET//$1" | grep "Public key (hex)" | awk '{ print $4 }')
+  echo "\"${PUBLIC_KEY#'0x'}\"," >>$CONFIG_FILE
+}
 
+echo "network_members = [" >>$CONFIG_FILE
 for i in $(seq 1 $NUM_MEMBERS); do
   generate_account_details $i '--scheme Sr25519'
   echo "[" >>$CONFIG_FILE
@@ -140,12 +144,10 @@ for i in $(seq 1 $NUM_MEMBERS); do
   get_account_id $i '--scheme Sr25519'
   echo "  ]," >>$CONFIG_FILE
 done
-
 echo "]" >>$CONFIG_FILE
 echo "" >>$CONFIG_FILE
 
 echo "well_known_nodes = [" >>$CONFIG_FILE
-
 for i in $(seq 1 $NUM_NODES); do
   echo "[" >>$CONFIG_FILE
   get_ss58_address $i '--scheme Sr25519'
@@ -153,22 +155,21 @@ for i in $(seq 1 $NUM_NODES); do
   get_account_id $i '--scheme Sr25519'
   echo "  ]," >>$CONFIG_FILE
 done
-
 echo "]" >>$CONFIG_FILE
 echo "" >>$CONFIG_FILE
 
 echo "authorities = [" >>$CONFIG_FILE
-
 for i in $(seq 1 $NUM_AUTHORITIES); do
   echo "[" >>$CONFIG_FILE
-  get_ss58_address $i '--scheme Sr25519'
-  get_account_id $i '--scheme Sr25519'
-  get_ed_account_id $i '--scheme Ed25519'
+  get_ss58_address $i '--scheme Sr25519'         # auth[0]: SS58 AccountId
+  get_public_key $i '--scheme Sr25519'           # auth[1]: BabeId (sr25519) 
+  get_public_key $i '--scheme Ed25519'           # auth[2]: GrandpaId (ed25519)
+  get_public_key $i '--scheme Sr25519'           # auth[3]: ImOnlineId (sr25519)
+  get_public_key $i '--scheme Sr25519'           # auth[4]: AuthorityDiscoveryId (sr25519)
+  get_public_key $i '--scheme Ecdsa'             # auth[5]: BeefyId (ecdsa)
   echo "]," >>$CONFIG_FILE
 done
-
 echo "]" >>$CONFIG_FILE
-
 echo "" >>$CONFIG_FILE
 
 echo "☃️ Chain configuration has been generated!"
