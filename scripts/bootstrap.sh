@@ -162,11 +162,10 @@ echo "authorities = [" >>$CONFIG_FILE
 for i in $(seq 1 $NUM_AUTHORITIES); do
   echo "[" >>$CONFIG_FILE
   get_ss58_address $i '--scheme Sr25519'         # auth[0]: SS58 AccountId
-  get_public_key $i '--scheme Sr25519'           # auth[1]: BabeId (sr25519) 
+
+  get_public_key $i '--scheme Sr25519'           # auth[1]: BabeId, ImOnlineId, AuthorityDiscoveryId (sr25519) 
   get_public_key $i '--scheme Ed25519'           # auth[2]: GrandpaId (ed25519)
-  get_public_key $i '--scheme Sr25519'           # auth[3]: ImOnlineId (sr25519)
-  get_public_key $i '--scheme Sr25519'           # auth[4]: AuthorityDiscoveryId (sr25519)
-  get_public_key $i '--scheme Ecdsa'             # auth[5]: BeefyId (ecdsa)
+  get_public_key $i '--scheme Ecdsa'             # auth[3]: BeefyId (ecdsa)
   echo "]," >>$CONFIG_FILE
 done
 echo "]" >>$CONFIG_FILE

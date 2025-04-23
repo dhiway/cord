@@ -62,11 +62,11 @@ impl BootstrapChainCmd {
 			std::process::exit(1);
 		}
 
-		// Validate that each authority has exactly 6 keys
+		// Validate that each authority has exactly 4 keys
 		for (i, auth) in config.authorities.iter().enumerate() {
-			if auth.len() != 6 {
+			if auth.len() != 4 {
 				eprintln!(
-					"Error: Authority {} has invalid length: expected 6 keys, got {}",
+					"Error: Authority {} has invalid length: expected 4 keys, got {}",
 					i,
 					auth.len()
 				);
@@ -118,11 +118,9 @@ impl BootstrapChainCmd {
 			.map(|auth| {
 				vec![
 					auth[0].clone(), // SS58 AccountId
-					auth[1].clone(), // BabeId (sr25519)
+					auth[1].clone(), // BabeId, ImOnlineId, AuthorityDiscoveryId (sr25519)
 					auth[2].clone(), // GrandpaId (ed25519)
-					auth[3].clone(), // ImOnlineId (sr25519)
-					auth[4].clone(), // AuthorityDiscoveryId (sr25519)
-					auth[5].clone(), // BeefyId (ecdsa)
+					auth[3].clone(), // BeefyId (ecdsa)
 				]
 			})
 			.collect();
