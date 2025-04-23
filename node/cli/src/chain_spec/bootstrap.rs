@@ -46,6 +46,12 @@ pub use cord_weave_runtime_constants::currency::UNITS;
 
 use crate::chain_spec::{get_properties, Extensions, CORD_TELEMETRY_URL, DEFAULT_PROTOCOL_ID};
 
+use array_bytes::hex2array;
+use sp_core::{
+	crypto::{AccountId32, Ss58Codec},
+	ed25519, sr25519,
+};
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct ChainParams {
 	pub chain_name: String,
@@ -217,21 +223,130 @@ fn cord_weave_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 	)> = config
 		.authorities
 		.iter()
-		.map(|auth| {
-			(
-				array_bytes::hex_n_into_unchecked(&auth[0]),
-				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-				array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
-				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-			)
+		.enumerate()
+		.filter_map(|(i, auth)| {
+			if auth.len() != 6 {
+				eprintln!(
+					"Authority {} has invalid length: expected 6 keys, got {}",
+					i,
+					auth.len()
+				);
+				return None;
+			}
+
+			let account_id: AccountId = match AccountId32::from_ss58check(&auth[0]) {
+				Ok(acc) => acc,
+				Err(e) => {
+					eprintln!("Failed to decode SS58 AccountId {}: {:?}", auth[0], e);
+					return None;
+				},
+			};
+
+			let babe_id: BabeId = match array_bytes::hex2array::<_, 32>(&auth[1]) {
+				Ok(bytes) => match sp_core::sr25519::Public::try_from(&bytes[..]) {
+					Ok(pubkey) => pubkey.into(),
+					Err(_) => {
+						eprintln!(
+							"Invalid sr25519 public key for BabeId {}: not a valid key",
+							auth[1]
+						);
+						return None;
+					},
+				},
+				Err(e) => {
+					eprintln!("Failed to decode BabeId {}: {:?}", auth[1], e);
+					return None;
+				},
+			};
+
+			let grandpa_id: GrandpaId = match array_bytes::hex2array::<_, 32>(&auth[2]) {
+				Ok(bytes) => match sp_core::ed25519::Public::try_from(&bytes[..]) {
+					Ok(pubkey) => pubkey.into(),
+					Err(_) => {
+						eprintln!(
+							"Invalid ed25519 public key for GrandpaId {}: not a valid key",
+							auth[2]
+						);
+						return None;
+					},
+				},
+				Err(e) => {
+					eprintln!("Failed to decode GrandpaId {}: {:?}", auth[2], e);
+					return None;
+				},
+			};
+
+			let im_online_id: ImOnlineId = match array_bytes::hex2array::<_, 32>(&auth[3]) {
+				Ok(bytes) => match sp_core::sr25519::Public::try_from(&bytes[..]) {
+					Ok(pubkey) => pubkey.into(),
+					Err(_) => {
+						eprintln!(
+							"Invalid sr25519 public key for ImOnlineId {}: not a valid key",
+							auth[3]
+						);
+						return None;
+					},
+				},
+				Err(e) => {
+					eprintln!("Failed to decode ImOnlineId {}: {:?}", auth[3], e);
+					return None;
+				},
+			};
+
+			let authority_discovery_id: AuthorityDiscoveryId = match array_bytes::hex2array::<_, 32>(
+				&auth[4],
+			) {
+				Ok(bytes) => match sp_core::sr25519::Public::try_from(&bytes[..]) {
+					Ok(pubkey) => pubkey.into(),
+					Err(_) => {
+						eprintln!("Invalid sr25519 public key for AuthorityDiscoveryId {}: not a valid key", auth[4]);
+						return None;
+					},
+				},
+				Err(e) => {
+					eprintln!("Failed to decode AuthorityDiscoveryId {}: {:?}", auth[4], e);
+					return None;
+				},
+			};
+
+			let beefy_id: BeefyId = match array_bytes::hex2array::<_, 33>(&auth[5]) {
+				Ok(bytes) => {
+					if bytes[0] != 0x02 && bytes[0] != 0x03 {
+						eprintln!(
+							"Invalid BeefyId ECDSA key {}: must start with 0x02 or 0x03",
+							auth[5]
+						);
+						return None;
+					}
+					match sp_consensus_beefy::ecdsa_crypto::Public::try_from(&bytes[..]) {
+						Ok(pubkey) => pubkey.into(),
+						Err(e) => {
+							eprintln!("Invalid BeefyId ECDSA key format {}: {:?}", auth[5], e);
+							return None;
+						},
+					}
+				},
+				Err(e) => {
+					eprintln!("Failed to decode BeefyId {}: {:?}", auth[5], e);
+					return None;
+				},
+			};
+
+			Some((account_id, babe_id, grandpa_id, im_online_id, authority_discovery_id, beefy_id))
 		})
 		.collect();
 
-	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
+	let initial_sudo_key: AccountId = match AccountId32::from_ss58check(&config.sudo_key) {
+		Ok(acc) => acc,
+		Err(e) => {
+			eprintln!("Failed to decode sudo key {}: {:?}", config.sudo_key, e);
+			panic!("Invalid sudo key");
+		},
+	};
+
 	cord_weave_custom_genesis(initial_authorities, initial_sudo_key)
 }
+
 pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> {
 	let chain_name = String::from(config.chain_name());
 	let chain_type = config.chain_type();

@@ -62,6 +62,18 @@ impl BootstrapChainCmd {
 			std::process::exit(1);
 		}
 
+		// Validate that each authority has exactly 6 keys
+		for (i, auth) in config.authorities.iter().enumerate() {
+			if auth.len() != 6 {
+				eprintln!(
+					"Error: Authority {} has invalid length: expected 6 keys, got {}",
+					i,
+					auth.len()
+				);
+				std::process::exit(1);
+			}
+		}
+
 		let chain_name = if config.chain_name.len() <= 64 {
 			config.chain_name.clone()
 		} else {
@@ -103,7 +115,16 @@ impl BootstrapChainCmd {
 		let initial_authorities: Vec<Vec<String>> = config
 			.authorities
 			.iter()
-			.map(|auth| vec![auth[1].clone(), auth[2].clone()])
+			.map(|auth| {
+				vec![
+					auth[0].clone(), // SS58 AccountId
+					auth[1].clone(), // BabeId (sr25519)
+					auth[2].clone(), // GrandpaId (ed25519)
+					auth[3].clone(), // ImOnlineId (sr25519)
+					auth[4].clone(), // AuthorityDiscoveryId (sr25519)
+					auth[5].clone(), // BeefyId (ecdsa)
+				]
+			})
 			.collect();
 
 		let initial_council_members: Vec<String> =
@@ -124,7 +145,7 @@ impl BootstrapChainCmd {
 			config
 				.authorities
 				.get(0)
-				.map(|auth| auth[1].clone())
+				.map(|auth| auth[0].clone())
 				.expect("No authorities provided; cannot set sudo_key")
 		});
 
