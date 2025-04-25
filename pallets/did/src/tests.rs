@@ -2874,3 +2874,33 @@ fn check_invalid_signature_operation_verification() {
 		);
 	});
 }
+
+#[test]
+#[should_panic = "MaxKeyAgreementKeysExceeded"]
+fn check_max_key_agreement_keys_exceeded_did_creation() {
+    let auth_key = get_ed25519_authentication_key(&AUTH_SEED_0);
+    let alice_did = get_did_identifier_from_ed25519_key(auth_key.public());
+    
+    // Generate key agreement keys that exceed the max allowed
+    let key_agreement_keys = get_key_agreement_keys::<Test>(MaxTotalKeyAgreementKeys::get() + 1);  // Exceeding the max
+    
+    let mut details = generate_base_did_creation_details::<Test>(alice_did, ACCOUNT_00);
+    // Trying to add more key agreement keys than allowed
+    assert_noop!(
+        details.add_key_agreement_keys(key_agreement_keys, 0u64),
+        did::Error::<Test>::MaxKeyAgreementKeysExceeded
+    );
+
+    let signature = auth_key.sign(details.encode().as_ref());
+
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Did::create(
+                RuntimeOrigin::signed(ACCOUNT_00),
+                Box::new(details),
+                did::DidSignature::from(signature)
+            ),
+            did::Error::<Test>::MaxKeyAgreementKeysExceeded
+        );
+    });
+}
