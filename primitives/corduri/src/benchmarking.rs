@@ -23,7 +23,6 @@ use crate::pallet;
 use codec::TryFrom;
 use frame_benchmarking::v2::*;
 use frame_support::traits::Get;
-use sp_std::prelude::*;
 
 benchmarks! {
 	get_or_add_pallet_index {

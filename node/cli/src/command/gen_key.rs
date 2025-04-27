@@ -23,7 +23,9 @@ use sc_keystore::LocalKeystore;
 use sc_service::config::{BasePath, KeystoreConfig};
 use sp_core::crypto::{AccountId32, KeyTypeId, SecretString};
 use sp_keystore::{Keystore, KeystorePtr};
-use std::sync::Arc;
+
+extern crate alloc;
+use alloc::sync::Arc;
 
 #[derive(Debug, clap::Subcommand)]
 pub enum KeySubcommand {

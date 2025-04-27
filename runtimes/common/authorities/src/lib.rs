@@ -24,8 +24,8 @@ pub mod impls;
 
 use frame_support::{dispatch::DispatchResult, ensure, pallet_prelude::*, traits::EnsureOrigin};
 pub use pallet::*;
+use scale_info::prelude::{vec, vec::Vec};
 use sp_staking::SessionIndex;
-use sp_std::{vec, vec::Vec};
 
 #[cfg(test)]
 pub mod mock;
@@ -379,7 +379,7 @@ impl<T: Config> pallet_session::historical::SessionManager<T::ValidatorId, T::Fu
 	}
 	fn new_session_genesis(
 		new_index: SessionIndex,
-	) -> Option<sp_std::vec::Vec<(T::ValidatorId, T::FullIdentification)>> {
+	) -> Option<vec::Vec<(T::ValidatorId, T::FullIdentification)>> {
 		<Self as pallet_session::SessionManager<_>>::new_session_genesis(new_index).map(
 			|validators_ids| {
 				validators_ids.into_iter().filter_map(add_full_identification::<T>).collect()

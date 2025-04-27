@@ -21,6 +21,8 @@
 #![recursion_limit = "1024"]
 
 extern crate alloc;
+use alloc::vec::Vec;
+use scale_info::prelude::vec;
 use alloc::{string::String, vec, vec::Vec};
 use codec::Encode;
 

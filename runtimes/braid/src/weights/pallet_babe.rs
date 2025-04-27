@@ -43,6 +43,7 @@
 #![allow(unused_imports)]
 #![allow(missing_docs)]
 
+use scale_info::prelude::marker::PhantomData;
 use frame_support::{
     traits::Get,
     weights::{
@@ -50,7 +51,6 @@ use frame_support::{
         Weight,
     },
 };
-use sp_std::marker::PhantomData;
 
 /// Weight functions for `pallet_babe`.
 pub struct WeightInfo<T>(PhantomData<T>);

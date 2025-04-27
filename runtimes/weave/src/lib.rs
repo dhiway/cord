@@ -32,6 +32,8 @@ use frame_election_provider_support::{
 	bounds::ElectionBoundsBuilder, generate_solution_type, onchain, BalancingConfig,
 	SequentialPhragmen,
 };
+use scale_info::prelude::{vec, vec::Vec};
+
 use frame_support::{
 	derive_impl,
 	genesis_builder_helper::{build_state, get_preset},

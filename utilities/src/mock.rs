@@ -31,7 +31,7 @@ use sp_runtime::AccountId32;
 #[frame_support::pallet]
 #[allow(dead_code)]
 pub mod mock_origin {
-	use sp_std::marker::PhantomData;
+	use scale_info::prelude::marker::PhantomData;
 
 	use codec::{Decode, Encode, MaxEncodedLen};
 	use frame_support::{traits::EnsureOrigin, Parameter};

@@ -19,8 +19,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use codec::{Decode, Encode};
-use scale_info::TypeInfo;
-use sp_std::vec::Vec;
+use scale_info::{prelude::vec::Vec, TypeInfo};
 
 #[derive(Encode, Decode, TypeInfo, Eq, PartialEq)]
 pub struct ServiceEndpoint<Id, Type, Url> {

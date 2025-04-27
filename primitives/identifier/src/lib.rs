@@ -27,14 +27,17 @@ pub use crate::curi::{
 	Ss58Identifier,
 };
 use sp_runtime::BoundedVec;
-use sp_std::{prelude::Clone, str};
+extern crate alloc;
+use alloc::str;
+
 pub mod types;
 pub use crate::types::*;
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
 
+use scale_info::prelude::vec::Vec;
+
 pub use crate::pallet::*;
-use sp_std::vec;
 
 #[cfg(test)]
 pub mod mock;

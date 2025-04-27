@@ -21,8 +21,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Codec, Decode, Encode, MaxEncodedLen};
-use scale_info::TypeInfo;
-use sp_std::vec::Vec;
+use scale_info::{prelude::vec::Vec, TypeInfo};
 
 mod did_details;
 mod service_endpoint;

@@ -22,7 +22,6 @@ use crate::mock::{new_test_ext, Test};
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use frame_support::{assert_err, assert_ok};
-use sp_std::prelude::*;
 
 // Helper function to generate a valid 32-byte digest.
 fn valid_digest() -> [u8; 32] {
