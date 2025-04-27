@@ -1366,3 +1366,56 @@ fn removing_dangling_usernames_should_work() {
 		assert!(AccountOfUsername::<Test>::get::<&Username<Test>>(&username_two_to_sign).is_none());
 	});
 }
+
+#[test]
+fn test_set_username_with_existing_username_should_fail() {
+	new_test_ext().execute_with(|| {
+		let accounts = unfunded_accounts();
+		let authority = accounts[0].clone();
+		let suffix: Vec<u8> = b"test".to_vec();
+		let allocation: u32 = 10;
+		assert_ok!(Identity::add_username_authority(
+			RuntimeOrigin::root(),
+			authority.clone(),
+			suffix.clone(),
+			allocation
+		));
+
+		let (username, username_to_sign) = test_username_of(b"42".to_vec(), suffix);
+		let encoded_username = Encode::encode(&username_to_sign.to_vec());
+		let public = sr25519_generate(0.into(), None);
+		let who_account: AccountIdOf<Test> = MultiSigner::Sr25519(public).into_account().into();
+		let signature =
+			MultiSignature::Sr25519(sr25519_sign(0.into(), &public, &encoded_username).unwrap());
+
+		assert_ok!(Identity::set_username_for(
+			RuntimeOrigin::signed(authority.clone()), // Clone authority correctly
+			who_account.clone(),
+			username.clone(),
+			Some(signature.clone())
+		));
+
+		assert_eq!(
+			IdentityOf::<Test>::get(&who_account),
+			Some((
+				Registration { judgements: Default::default(), info: Default::default() },
+				Some(username_to_sign.clone())
+			))
+		);
+
+		assert_eq!(
+			AccountOfUsername::<Test>::get::<&Username<Test>>(&username_to_sign),
+			Some(who_account.clone()) // Clone who_account correctly
+		);
+
+		assert_err!(
+			Identity::set_username_for(
+				RuntimeOrigin::signed(authority),
+				who_account,
+				username,
+				Some(signature)
+			),
+			Error::<Test>::UsernameTaken
+		);
+	});
+}
