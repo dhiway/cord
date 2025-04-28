@@ -265,7 +265,7 @@ pub mod pallet {
 
 			/* Ensure that the registry_entry_id does not already exist */
 			ensure!(
-				!RegistryEntries::<T>::contains_key(&registry_id),
+				!RegistryEntries::<T>::contains_key(&registry_entry_id),
 				Error::<T>::RegistryEntryIdentifierAlreadyExists
 			);
 
