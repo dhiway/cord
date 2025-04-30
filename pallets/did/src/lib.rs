@@ -89,6 +89,7 @@ mod mock_utils;
 #[cfg(test)]
 mod tests;
 
+
 #[cfg(any(feature = "try-runtime", test))]
 mod try_state;
 
@@ -749,6 +750,11 @@ pub mod pallet {
 			let did_subject = T::EnsureOrigin::ensure_origin(origin)?.subject();
 			let mut did_details = Did::<T>::get(&did_subject).ok_or(Error::<T>::NotFound)?;
 
+    // Check if the max limit for key agreement keys has been exceeded
+			let max_keys = T::MaxNewKeyAgreementKeys::get();  // Get the maximum allowed key agreement keys
+			if did_details.key_agreement_keys.len() >= max_keys as usize {
+				return Err(Error::<T>::MaxKeyAgreementKeysExceeded.into());
+			}
 			log::debug!("Adding new key agreement key {:?} for DID {:?}", &new_key, &did_subject);
 			did_details
 				.add_key_agreement_key(new_key, frame_system::Pallet::<T>::block_number())

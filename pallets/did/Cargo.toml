@@ -24,6 +24,10 @@ sp-keystore = { features = ["std"], workspace = true }
 # External dependencies
 log = { workspace = true }
 fluent-uri = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+getrandom = { version = "0.2", features = ["js"] }
+sp-consensus-aura = { git = "https://github.com/dhiway/substrate-sdk", branch = "release-v1.15.0", features = ["std"] }
+
 
 # Internal dependencies
 cord-utilities = { workspace = true }
