@@ -118,6 +118,12 @@ get_ed_account_id() {
   echo "\"${ACCOUNT#'0x'}\"," >>$CONFIG_FILE
 }
 
+get_ecdsa_account_id() {
+  ACCOUNT_SECRET=$($cord key inspect -n cord --scheme Ecdsa ${3:-} "$SECRET//$1" | grep "Secret seed" | awk '{ print $3 }')
+  ACCOUNT=$($cord key inspect -n cord ${2:-} ${3:-} "$ACCOUNT_SECRET" | grep "Public key (hex)" | awk '{ print $4 }')
+  echo "\"${ACCOUNT#'0x'}\"," >>$CONFIG_FILE
+}
+
 get_ss58_address() {
   ADDRESS=$(generate_address $1 $2)
   echo "\"${ADDRESS}\"," >>$CONFIG_FILE
@@ -128,12 +134,6 @@ generate_account_details() {
   echo "Account $i" >>$ACCOUNTS_FILE
   echo "${ACCOUNT_DETAILS}" >>$ACCOUNTS_FILE
   echo "" >>$ACCOUNTS_FILE
-}
-
-# Function to get public key (hex) for a given scheme
-get_public_key() {
-  PUBLIC_KEY=$($cord key inspect -n cord ${2:-} ${3:-} "$SECRET//$1" | grep "Public key (hex)" | awk '{ print $4 }')
-  echo "\"${PUBLIC_KEY#'0x'}\"," >>$CONFIG_FILE
 }
 
 echo "network_members = [" >>$CONFIG_FILE
@@ -161,11 +161,10 @@ echo "" >>$CONFIG_FILE
 echo "authorities = [" >>$CONFIG_FILE
 for i in $(seq 1 $NUM_AUTHORITIES); do
   echo "[" >>$CONFIG_FILE
-  get_ss58_address $i '--scheme Sr25519'         # auth[0]: SS58 AccountId
-
-  get_public_key $i '--scheme Sr25519'           # auth[1]: BabeId, ImOnlineId, AuthorityDiscoveryId (sr25519) 
-  get_public_key $i '--scheme Ed25519'           # auth[2]: GrandpaId (ed25519)
-  get_public_key $i '--scheme Ecdsa'             # auth[3]: BeefyId (ecdsa)
+  get_ss58_address $i '--scheme Sr25519'
+  get_account_id $i '--scheme Sr25519'
+  get_ed_account_id $i '--scheme Ed25519'
+  get_ecdsa_account_id $i '--scheme Ecdsa'
   echo "]," >>$CONFIG_FILE
 done
 echo "]" >>$CONFIG_FILE

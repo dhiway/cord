@@ -115,14 +115,7 @@ impl BootstrapChainCmd {
 		let initial_authorities: Vec<Vec<String>> = config
 			.authorities
 			.iter()
-			.map(|auth| {
-				vec![
-					auth[0].clone(), // SS58 AccountId
-					auth[1].clone(), // BabeId, ImOnlineId, AuthorityDiscoveryId (sr25519)
-					auth[2].clone(), // GrandpaId (ed25519)
-					auth[3].clone(), // BeefyId (ecdsa)
-				]
-			})
+			.map(|auth| vec![auth[1].clone(), auth[2].clone(), auth[3].clone()])
 			.collect();
 
 		let initial_council_members: Vec<String> =
