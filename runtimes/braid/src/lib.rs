@@ -1326,9 +1326,9 @@ impl_runtime_apis! {
 			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
 
 			Some(identifier_api::DecodedIdentifierApi {
-				network: decoded.network,
-				pallet: decoded.pallet,
-				digest: decoded.digest,
+				nid: decoded.nid,
+				pid: decoded.pid,
+				gen: decoded.gen,
 			})
 		}
 

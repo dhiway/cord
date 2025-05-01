@@ -30,9 +30,9 @@ use scale_info::TypeInfo;
 
 #[derive(Encode, Decode, TypeInfo, PartialEq, Eq)]
 pub struct DecodedIdentifierApi {
-	pub network: u32,
-	pub pallet: u16,
-	pub digest: String,
+	pub nid: u16,
+	pub pid: u16,
+	pub gen: String,
 }
 
 sp_api::decl_runtime_apis! {

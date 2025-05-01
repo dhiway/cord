@@ -22,11 +22,11 @@
 
 extern crate alloc;
 use alloc::{format, string::String, vec, vec::Vec};
+use blake2::{Blake2b512, Digest};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::Id as NetworkId;
 use frame_support::{ensure, pallet_prelude::*, traits::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
-use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::{BlockNumberProvider, UniqueSaturatedInto};
 
 #[cfg(test)]
@@ -95,6 +95,10 @@ pub enum IdentifierError {
 	InvalidIdentifierLength,
 	/// The pallet name exceeds the maximum allowed length.
 	PalletNameTooLong,
+	/// The provided digest length is invalid. Expected 32 bytes.
+	InvalidDigestLength,
+	/// The value is out of the expected range for compact encoding.
+	CompactValueOutOfRange,
 	/// The specified pallet name was not found.
 	PalletNotFound,
 	/// The specified pallet index is invalid.
@@ -232,133 +236,123 @@ pub trait Identifier {
 }
 
 impl Ss58Identifier {
-	fn ss58hash(data: &[u8]) -> Vec<u8> {
-		use blake2::{Blake2b512, Digest};
-
+	/// Compute the ss58 hash: Blake2b512 over PREFIX concatenated with the provided data.
+	pub fn ss58hash(data: &[u8]) -> Vec<u8> {
 		let mut context = Blake2b512::new();
 		context.update(PREFIX);
 		context.update(data);
 		context.finalize().to_vec()
 	}
 
-	pub fn to_encoded<I>(data: I, pid: &u16, nid: &NetworkId) -> Result<Self, IdentifierError>
+	/// Construct an Ss58Identifier from a 32-byte digest, a network id, and a pallet id.
+	/// The resulting identifier is Base58-encoded.
+	pub fn to_encoded<I>(data: I, nid: u16, pid: u16) -> Result<Self, IdentifierError>
 	where
 		I: AsRef<[u8]> + Into<Vec<u8>>,
 	{
-		let ident_type = Self::fetch_ident(nid.inner() as u16, *pid);
-		let ident = Self::compact_encode(ident_type & 0b0011_1111_1111_1111)?;
-		let nid_inner = nid.inner();
-		let p = Self::compact_encode(*pid & 0b0011_1111_1111_1111)?;
+		// Validate the digest length.
+		if data.as_ref().len() != 32 {
+			return Err(IdentifierError::InvalidDigestLength);
+		}
 
-		let mut buffer = Vec::new();
-		buffer.extend(ident);
+		let mut buffer = Self::compact_encode(nid & 0b0011_1111_1111_1111)?;
 		buffer.extend(data.as_ref());
-		buffer.extend(&nid_inner.to_le_bytes());
+		let p = Self::compact_encode(pid & 0b0011_1111_1111_1111)?;
 		buffer.extend(p);
-
 		let checksum = &Self::ss58hash(&buffer)[..2];
 		buffer.extend(checksum);
 
-		let encoded = bs58::encode(&buffer).into_string();
-
 		Ok(Self(
-			Vec::<u8>::from(encoded)
+			Vec::<u8>::from(bs58::encode(&buffer).into_string())
 				.try_into()
 				.map_err(|_| IdentifierError::InvalidIdentifier)?,
 		))
 	}
 
+	/// Decode the Ss58Identifier back into its structured components.
 	pub fn to_decoded(&self) -> Result<DecodedIdentifier, IdentifierError> {
 		let decoded =
 			bs58::decode(&self.0).into_vec().map_err(|_| IdentifierError::InvalidFormat)?;
+
 		ensure!(
-			decoded.len() >= 2 && decoded.len() <= 60,
+			decoded.len() >= 36 && decoded.len() <= 38,
 			IdentifierError::InvalidIdentifierLength
 		);
 
-		let (_ident, mut offset) = Self::compact_decode(&decoded)?;
+		let checksum_start = decoded.len() - 2;
+		let provided_checksum = &decoded[checksum_start..];
+		let expected_checksum = &Self::ss58hash(&decoded[..checksum_start])[..2];
+		ensure!(provided_checksum == expected_checksum, IdentifierError::InvalidChecksum);
 
-		let payload_end = offset + 32; // 32 bytes payload
-		let payload = &decoded[offset..payload_end].to_vec();
-		offset = payload_end;
+		let data = &decoded[..checksum_start];
+		let (nid, mut offset) = Self::compact_decode(data)?;
 
-		let nid_offset = offset + 4;
-		let network_id = u32::from_le_bytes(
-			decoded[offset..nid_offset]
-				.try_into()
-				.map_err(|_| IdentifierError::InvalidNetworkId)?,
-		);
-		offset = nid_offset;
+		ensure!(data.len() >= offset + 32, IdentifierError::InvalidIdentifierLength);
+		let digest = data[offset..offset + 32].to_vec();
+		offset += 32;
 
-		let (pallet_index, _pid_offset) = Self::compact_decode(&decoded[offset..])?;
+		let (pid, _) = Self::compact_decode(&data[offset..])?;
 
-		let checksum = &decoded[decoded.len() - 2..];
-		let expected_checksum = &Self::ss58hash(&decoded[..decoded.len() - 2])[..2];
-		ensure!(checksum == expected_checksum, IdentifierError::InvalidChecksum);
-
-		Ok(DecodedIdentifier {
-			network: network_id,
-			pallet: pallet_index,
-			digest: format!("0x{:02x?}", HexDisplay::from(payload)),
-		})
+		Ok(DecodedIdentifier { nid, pid, gen: format!("0x{}", hex::encode(digest)) })
 	}
 
+	/// Decodes a compact-encoded u16 value from the provided data slice.
+	/// Returns the decoded value and the number of bytes consumed.
 	fn compact_decode(data: &[u8]) -> Result<(u16, usize), IdentifierError> {
+		if data.is_empty() {
+			return Err(IdentifierError::InvalidPrefix);
+		}
 		match data[0] {
 			0..=63 => Ok((data[0] as u16, 1)),
 			64..=127 => {
 				ensure!(data.len() >= 2, IdentifierError::InvalidPrefix);
-				let lower = (data[0] << 2) | (data[1] >> 6);
-				let upper = data[1] & 0b0011_1111;
-				Ok(((lower as u16) | ((upper as u16) << 8), 2))
+				let mid = data[0] & 0b0011_1111;
+				let low = data[1] >> 6;
+				let high = data[1] & 0b0011_1111;
+				let value = ((high as u16) << 8) | ((mid as u16) << 2) | (low as u16);
+				Ok((value, 2))
 			},
 			_ => Err(IdentifierError::InvalidPrefix),
 		}
 	}
 
+	/// Compactly encodes a u16 value into 1 or 2 bytes.
 	fn compact_encode(value: u16) -> Result<Vec<u8>, IdentifierError> {
 		match value {
 			0..=63 => Ok(vec![value as u8]),
 			64..=16_383 => {
 				let first = ((value & 0b0000_0000_1111_1100) as u8) >> 2;
-				let second = ((value >> 8) as u8) | ((value & 0b0000_0000_0000_0011) as u8) << 6;
+				let second = ((value >> 8) as u8) | (((value & 0b0000_0000_0000_0011) as u8) << 6);
 				Ok(vec![first | 0b01000000, second])
 			},
-			_ => Err(IdentifierError::InvalidPrefix),
+			_ => Err(IdentifierError::CompactValueOutOfRange),
 		}
 	}
 
-	fn fetch_ident(nid: u16, pid: u16) -> u16 {
-		let seed = nid as u32 ^ pid as u32;
-		let value = seed.wrapping_mul(1664525).wrapping_add(1013904223);
-
-		if nid == 1000 {
-			// List of values for nid == 1000
-			let options = [10191, 10447, 10959, 10703, 10456, 10200];
-			let index = (value % options.len() as u32) as usize;
-			options[index]
-		} else {
-			// List of values for nid != 1000
-			let options = [2860, 3893, 3390, 3134, 3646, 3390, 4926, 4670, 3902, 4926];
-			let index = (value % options.len() as u32) as usize;
-			options[index]
-		}
+	/// Returns a reference to the underlying bytes of the identifier.
+	pub fn as_bytes(&self) -> &[u8] {
+		self.0.as_slice()
 	}
 }
 
+/// Represents the structured components of an identifier after decoding.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedIdentifier {
-	pub network: u32,
-	pub pallet: u16,
-	pub digest: String,
+	/// Network identifier.
+	pub nid: u16,
+	/// Pallet (or module) identifier.
+	pub pid: u16,
+	/// The digest (genesis hash) in hexadecimal format.
+	pub gen: String,
 }
 
 impl<T: Config> Identifier for Pallet<T> {
 	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, IdentifierError> {
 		let pallet_index = Self::get_or_add_pallet_index(pallet)?;
 		let network_id = Self::get_network_id();
+		let nid = network_id.inner() as u16;
 
-		Ss58Identifier::to_encoded(digest, &pallet_index, &network_id)
+		Ss58Identifier::to_encoded(digest, nid, pallet_index)
 	}
 
 	fn resolve_identifier(
@@ -390,6 +384,18 @@ impl TryFrom<Vec<u8>> for Ss58Identifier {
 	}
 }
 
+impl TryFrom<String> for Ss58Identifier {
+	type Error = IdentifierError;
+
+	fn try_from(value: String) -> Result<Self, Self::Error> {
+		// First wrap the ASCII bytes in a BoundedVec (enforces max length)
+		let ident = Ss58Identifier::try_from(value.into_bytes())?;
+		// Then validate it by attempting to decode (checks format & checksum)
+		ident.to_decoded()?;
+		Ok(ident)
+	}
+}
+
 impl EventStamp {
 	/// Returns the current event stamp from the caller’s runtime context.
 	pub fn current<T: frame_system::Config>() -> Self {
@@ -405,3 +411,99 @@ pub trait RegistryIdentifierCheck {
 	/// Checks that the registry identified by `registry_id` exists and is active.
 	fn ensure_active_registry(registry_id: &Ss58Identifier) -> DispatchResult;
 }
+
+// #[cfg(test)]
+// mod tests {
+// 	use super::*;
+// 	use alloc::vec::Vec;
+// 	use core::convert::TryFrom;
+
+// 	// Helper function to generate a valid 32-byte digest.
+// 	fn valid_digest() -> [u8; 32] {
+// 		[0xAB; 32]
+// 	}
+
+// 	/// Test that an identifier built with valid input can be encoded and decoded correctly.
+// 	#[test]
+// 	fn encode_decode_roundtrip() {
+// 		let digest = valid_digest();
+// 		let nid: u16 = 100;
+// 		let pid: u16 = 5;
+// 		let identifier = Ss58Identifier::to_encoded(digest.clone(), nid, pid)
+// 			.expect("Identifier encoding should succeed");
+// 		let decoded = identifier.to_decoded().expect("Identifier decoding should succeed");
+
+// 		// Verify that the decoded network and pallet identifiers match the input.
+// 		assert_eq!(decoded.nid, nid, "The network id should match");
+// 		assert_eq!(decoded.pid, pid, "The pallet id should match");
+// 		// Verify that the genesis hash (digest) matches.
+// 		assert_eq!(decoded.gen, format!("0x{}", hex::encode(digest)), "The digest should match");
+// 	}
+
+// 	/// Test that creating an identifier with an invalid digest length fails.
+// 	#[test]
+// 	fn fails_invalid_digest_length() {
+// 		let short_digest = vec![0xAB; 31]; // 31 bytes, which is invalid.
+// 		let nid: u16 = 100;
+// 		let pid: u16 = 5;
+// 		let result = Ss58Identifier::to_encoded(short_digest, nid, pid);
+// 		assert!(result.is_err(), "Encoding should fail when digest is not 32 bytes long");
+// 	}
+
+// 	/// Test that an identifier with a tampered checksum fails to decode.
+// 	#[test]
+// 	fn fails_tampered_checksum() {
+// 		let digest = valid_digest();
+// 		let nid: u16 = 100;
+// 		let pid: u16 = 5;
+// 		let identifier = Ss58Identifier::to_encoded(digest, nid, pid)
+// 			.expect("Identifier encoding should succeed");
+
+// 		// Base58-decode the identifier to obtain the raw bytes.
+// 		let mut decoded_bytes =
+// 			bs58::decode(&identifier.0).into_vec().expect("Base58 decoding should succeed");
+// 		// Tamper with the checksum (flip a bit in the last byte).
+// 		let last_index = decoded_bytes.len() - 1;
+// 		decoded_bytes[last_index] ^= 1;
+// 		// Re-encode the tampered bytes.
+// 		let tampered = bs58::encode(&decoded_bytes).into_string();
+// 		// Convert the tampered Base58 string into an identifier.
+// 		let result: Result<Ss58Identifier, _> = tampered.try_into();
+// 		assert!(result.is_err(), "Decoding should fail for an identifier with a tampered checksum");
+// 	}
+
+// 	/// Test conversion from Vec<u8> using the TryFrom implementation.
+// 	#[test]
+// 	fn try_from_vec_success() {
+// 		let digest = valid_digest();
+// 		let nid: u16 = 100;
+// 		let pid: u16 = 5;
+// 		let identifier = Ss58Identifier::to_encoded(digest, nid, pid)
+// 			.expect("Identifier encoding should succeed");
+// 		// Get the raw Base58-encoded vector.
+// 		let raw: Vec<u8> = identifier.0.clone().into();
+// 		let identifier2 =
+// 			Ss58Identifier::try_from(raw).expect("Conversion from Vec<u8> should succeed");
+// 		let decoded = identifier2.to_decoded().expect("Decoding should succeed after conversion");
+// 		assert_eq!(decoded.nid, nid, "Network id should match");
+// 		assert_eq!(decoded.pid, pid, "Pallet id should match");
+// 	}
+
+// 	/// Test conversion from a Base58-encoded String using the TryFrom implementation.
+// 	#[test]
+// 	fn try_from_string_success() {
+// 		let digest = valid_digest();
+// 		let nid: u16 = 100;
+// 		let pid: u16 = 5;
+// 		let identifier = Ss58Identifier::to_encoded(digest, nid, pid)
+// 			.expect("Identifier encoding should succeed");
+// 		// Convert the identifier's inner BoundedVec to a Base58 string.
+// 		let as_string = String::from_utf8(identifier.0.clone().into())
+// 			.expect("Base58 string should be valid UTF-8");
+// 		let identifier2 =
+// 			Ss58Identifier::try_from(as_string).expect("Conversion from String should succeed");
+// 		let decoded = identifier2.to_decoded().expect("Decoding should succeed after conversion");
+// 		assert_eq!(decoded.nid, nid, "Network id should match");
+// 		assert_eq!(decoded.pid, pid, "Pallet id should match");
+// 	}
+// }
