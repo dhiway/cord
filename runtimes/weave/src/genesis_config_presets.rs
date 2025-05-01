@@ -161,14 +161,17 @@ pub fn cord_weave_development_config_genesis() -> serde_json::Value {
 
 /// Provides the names of the predefined genesis configs for this runtime.
 pub fn preset_names() -> Vec<PresetId> {
-	vec![PresetId::from("development"), PresetId::from("local_testnet")]
+	vec![
+		PresetId::from(sp_genesis_builder::DEV_RUNTIME_PRESET),
+		PresetId::from(sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET),
+	]
 }
 
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &sp_genesis_builder::PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
-		"development" => cord_weave_development_config_genesis(),
-		"local_testnet" => cord_weave_local_testnet_genesis(),
+		sp_genesis_builder::DEV_RUNTIME_PRESET => cord_weave_development_config_genesis(),
+		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => cord_weave_local_testnet_genesis(),
 		_ => return None,
 	};
 	Some(

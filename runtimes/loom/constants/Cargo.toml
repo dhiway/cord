@@ -28,3 +28,6 @@ std = [
 	"sp-runtime/std",
 	"sp-weights/std",
 ]
+
+# Set timing constants (e.g. session period) to faster versions to speed up testing.
+fast-runtime = []

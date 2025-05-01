@@ -164,20 +164,8 @@ fn cord_braid_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 
 /* TODO: Refer from weave to update below */
 fn cord_loom_custom_config_genesis(config: ChainParams) -> serde_json::Value {
-	let initial_network_members: Vec<AccountId> =
-		config.network_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
-
-	let initial_well_known_nodes: Vec<(NodeId, AccountId)> = config
-		.well_known_nodes
-		.iter()
-		.map(|node| {
-			let node_id = node[0].as_bytes().to_vec();
-			let account = array_bytes::hex_n_into_unchecked(&node[1]);
-			(node_id, account)
-		})
-		.collect();
-
 	let initial_authorities: Vec<(
+		AccountId,
 		AccountId,
 		BabeId,
 		GrandpaId,
@@ -190,22 +178,18 @@ fn cord_loom_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 		.map(|auth| {
 			(
 				array_bytes::hex_n_into_unchecked(&auth[0]),
+				array_bytes::hex_n_into_unchecked(&auth[0]),
 				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
 				array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
 				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
 				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[2]).unchecked_into(),
 			)
 		})
 		.collect();
 
 	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
-	cord_loom_custom_genesis(
-		initial_network_members,
-		initial_well_known_nodes,
-		initial_authorities,
-		initial_sudo_key,
-	)
+	cord_loom_custom_genesis(initial_authorities, initial_sudo_key)
 }
 
 fn cord_weave_custom_config_genesis(config: ChainParams) -> serde_json::Value {
@@ -320,7 +304,7 @@ fn cord_braid_custom_genesis(
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"networkParameters": {"permissioned": true},
+		"networkInfo": {"permissioned": true, "networkId": 2003},
 		"nodeAuthorization":  {
 			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},
@@ -359,9 +343,8 @@ fn cord_braid_custom_genesis(
 }
 
 fn cord_loom_custom_genesis(
-	initial_network_members: Vec<AccountId>,
-	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	initial_authorities: Vec<(
+		AccountId,
 		AccountId,
 		BabeId,
 		GrandpaId,
@@ -375,13 +358,7 @@ fn cord_loom_custom_genesis(
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"networkParameters": {"permissioned": true},
-		"nodeAuthorization":  {
-			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
-		},
-		"networkMembership":  {
-			"members": initial_network_members.iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
-		},
+		"networkInfo": {"permissioned": false, "networkId": 2002},
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
 				.iter()
@@ -396,11 +373,11 @@ fn cord_loom_custom_genesis(
 						x.0.clone(),
 						x.0.clone(),
 						loom_session_keys(
-							x.1.clone(),
 							x.2.clone(),
 							x.3.clone(),
 							x.4.clone(),
 							x.5.clone(),
+							x.6.clone(),
 						),
 					)
 				})
@@ -441,6 +418,7 @@ fn cord_weave_custom_genesis(
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
+		"networkInfo": {"permissioned": false, "networkId": 2001},
 		"session":  {
 			"keys": initial_authorities
 				.iter()
