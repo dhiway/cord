@@ -1506,9 +1506,9 @@ impl_runtime_apis! {
 			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
 
 			Some(identifier_api::DecodedIdentifierApi {
-				network: decoded.network,
-				pallet: decoded.pallet,
-				digest: decoded.digest,
+				nid: decoded.nid,
+				pid: decoded.pid,
+				gen: decoded.gen,
 			})
 		}
 
@@ -1516,7 +1516,6 @@ impl_runtime_apis! {
 			Identifier::resolve_pallet_name(index).ok()
 		}
 	}
-
 
 	impl pallet_contracts::ContractsApi<Block, AccountId, Balance, BlockNumber, Hash, EventRecord> for Runtime
 	{

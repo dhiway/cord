@@ -19,8 +19,99 @@
 #[cfg(test)]
 use super::*;
 use crate::mock::{new_test_ext, Test};
+use alloc::vec::Vec;
+use core::convert::TryFrom;
 use frame_support::{assert_err, assert_ok};
 use sp_std::prelude::*;
+
+// Helper function to generate a valid 32-byte digest.
+fn valid_digest() -> [u8; 32] {
+	[0xAB; 32]
+}
+
+/// Test that an identifier built with valid input can be encoded and decoded correctly.
+#[test]
+fn encode_decode_roundtrip() {
+	let digest = valid_digest();
+	let nid: u16 = 100;
+	let pid: u16 = 5;
+	let identifier = Ss58Identifier::to_encoded(digest.clone(), nid, pid)
+		.expect("Identifier encoding should succeed");
+	let decoded = identifier.to_decoded().expect("Identifier decoding should succeed");
+
+	// Verify that the decoded network and pallet identifiers match the input.
+	assert_eq!(decoded.nid, nid, "The network id should match");
+	assert_eq!(decoded.pid, pid, "The pallet id should match");
+	// Verify that the genesis hash (digest) matches.
+	assert_eq!(decoded.gen, format!("0x{}", hex::encode(digest)), "The digest should match");
+}
+
+/// Test that creating an identifier with an invalid digest length fails.
+#[test]
+fn fails_invalid_digest_length() {
+	let short_digest = vec![0xAB; 31]; // 31 bytes, which is invalid.
+	let nid: u16 = 100;
+	let pid: u16 = 5;
+	let result = Ss58Identifier::to_encoded(short_digest, nid, pid);
+	assert!(result.is_err(), "Encoding should fail when digest is not 32 bytes long");
+}
+
+/// Test that an identifier with a tampered checksum fails to decode.
+#[test]
+fn fails_tampered_checksum() {
+	let digest = valid_digest();
+	let nid: u16 = 100;
+	let pid: u16 = 5;
+	let identifier =
+		Ss58Identifier::to_encoded(digest, nid, pid).expect("Identifier encoding should succeed");
+
+	// Base58-decode the identifier to obtain the raw bytes.
+	let mut decoded_bytes =
+		bs58::decode(&identifier.0).into_vec().expect("Base58 decoding should succeed");
+	// Tamper with the checksum (flip a bit in the last byte).
+	let last_index = decoded_bytes.len() - 1;
+	decoded_bytes[last_index] ^= 1;
+	// Re-encode the tampered bytes.
+	let tampered = bs58::encode(&decoded_bytes).into_string();
+	// Convert the tampered Base58 string into an identifier.
+	let result: Result<Ss58Identifier, _> = tampered.try_into();
+	assert!(result.is_err(), "Decoding should fail for an identifier with a tampered checksum");
+}
+
+/// Test conversion from Vec<u8> using the TryFrom implementation.
+#[test]
+fn try_from_vec_success() {
+	let digest = valid_digest();
+	let nid: u16 = 100;
+	let pid: u16 = 5;
+	let identifier =
+		Ss58Identifier::to_encoded(digest, nid, pid).expect("Identifier encoding should succeed");
+	// Get the raw Base58-encoded vector.
+	let raw: Vec<u8> = identifier.0.clone().into();
+	let identifier2 =
+		Ss58Identifier::try_from(raw).expect("Conversion from Vec<u8> should succeed");
+	let decoded = identifier2.to_decoded().expect("Decoding should succeed after conversion");
+	assert_eq!(decoded.nid, nid, "Network id should match");
+	assert_eq!(decoded.pid, pid, "Pallet id should match");
+}
+
+/// Test conversion from a Base58-encoded String using the TryFrom implementation.
+#[test]
+fn try_from_string_success() {
+	let digest = valid_digest();
+	let nid: u16 = 100;
+	let pid: u16 = 5;
+	let identifier =
+		Ss58Identifier::to_encoded(digest, nid, pid).expect("Identifier encoding should succeed");
+	// Convert the identifier's inner BoundedVec to a Base58 string.
+	let as_string = String::from_utf8(identifier.0.clone().into())
+		.expect("Base58 string should be valid UTF-8");
+	let identifier2 =
+		Ss58Identifier::try_from(as_string).expect("Conversion from String should succeed");
+	let decoded = identifier2.to_decoded().expect("Decoding should succeed after conversion");
+	assert_eq!(decoded.nid, nid, "Network id should match");
+	assert_eq!(decoded.pid, pid, "Pallet id should match");
+}
 
 /// Test that a valid pallet name can be stored and returns a consistent index.
 #[test]
