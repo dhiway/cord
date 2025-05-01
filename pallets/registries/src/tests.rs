@@ -1763,6 +1763,7 @@ fn add_delegate_should_fail_if_registry_delegates_limit_exceeded() {
 	let delegate_3: AccountId = AccountId::new([4u8; 32]);
 	let delegate_4: AccountId = AccountId::new([5u8; 32]);
 	let delegate_5: AccountId = AccountId::new([6u8; 32]);
+
 	let registry = [2u8; 256].to_vec();
 
 	let namespace = [2u8; 256].to_vec();
@@ -1804,7 +1805,6 @@ fn add_delegate_should_fail_if_registry_delegates_limit_exceeded() {
 	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
 	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
 	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
-
 	new_test_ext().execute_with(|| {
 		assert_ok!(NameSpace::create(
 			frame_system::RawOrigin::Signed(creator.clone()).into(),
