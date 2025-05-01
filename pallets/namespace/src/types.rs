@@ -22,12 +22,12 @@
 //! including permissions, space details, and space authorizations.
 
 use bitflags::bitflags;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
 bitflags! {
-	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
+	#[derive(Encode, Decode,DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
 	pub struct Permissions: u32 {
 		const ASSERT = 0b0000_0001;
 		const DELEGATE = 0b0000_0010;
@@ -73,7 +73,17 @@ impl Default for Permissions {
 /// - `code`: The unique code or identifier for the namespace.
 /// - `creator`: The account or entity that created the namespace.
 /// - `archive`: Indicates whether the namespace is currently archived.
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub struct NameSpaceDetails<NameSpaceHashOf, NameSpaceCreatorOf, StatusOf, RegistryIdOf> {
 	pub digest: NameSpaceHashOf,
 	pub creator: NameSpaceCreatorOf,
@@ -93,7 +103,17 @@ pub struct NameSpaceDetails<NameSpaceHashOf, NameSpaceCreatorOf, StatusOf, Regis
 /// - `delegate`: The entity that has been granted permissions within the namespace.
 /// - `permissions`: The specific permissions granted to the delegate.
 /// - `delegator`: The entity that granted the permissions to the delegates
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub struct NameSpaceAuthorization<NameSpaceIdOf, NameSpaceCreatorOf, Permissions> {
 	pub namespace_id: NameSpaceIdOf,
 	pub delegate: NameSpaceCreatorOf,

@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
@@ -25,7 +25,17 @@ use crate::AssetQtyOf;
 pub type EntryHashOf<T> = <T as frame_system::Config>::Hash;
 
 #[derive(
-	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub struct AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta> {
 	/// type of the asset
@@ -41,14 +51,34 @@ pub struct AssetInputEntry<AssetDescription, AssetTypeOf, AssetTag, AssetMeta> {
 	/// open structure - 1024 bytes max
 	pub asset_meta: AssetMeta,
 }
-#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum AssetTypeOf {
 	ART,
 	BOND,
 	MF,
 }
 
-#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum AssetStatusOf {
 	ACTIVE,
 	INACTIVE,
@@ -68,7 +98,17 @@ impl AssetStatusOf {
 }
 
 #[derive(
-	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub struct AssetEntry<
 	AssetDescription,
@@ -91,7 +131,17 @@ pub struct AssetEntry<
 }
 
 #[derive(
-	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub struct VCAssetEntry<AssetStatusOf, AssetCreatorOf, BlockNumber, EntryHashOf> {
 	/// digest of the input entry
@@ -109,7 +159,17 @@ pub struct VCAssetEntry<AssetStatusOf, AssetCreatorOf, BlockNumber, EntryHashOf>
 }
 
 #[derive(
-	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub struct AssetDistributionEntry<
 	AssetDescription,
@@ -135,7 +195,17 @@ pub struct AssetDistributionEntry<
 }
 
 #[derive(
-	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub struct VCAssetDistributionEntry<
 	AssetStatusOf,
@@ -160,7 +230,17 @@ pub struct VCAssetDistributionEntry<
 }
 
 #[derive(
-	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub struct AssetIssuanceEntry<AssetIdOf, AssetCreatorOf> {
 	/// type of the asset
@@ -172,7 +252,17 @@ pub struct AssetIssuanceEntry<AssetIdOf, AssetCreatorOf> {
 }
 
 #[derive(
-	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub struct AssetTransferEntry<AssetIdOf, AssetInstanceIdOf, AssetCreatorOf> {
 	/// type of the asset

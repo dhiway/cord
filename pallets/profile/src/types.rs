@@ -17,13 +17,23 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 //
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
 
 /// Struture to hold the Metadata of the associated Profile
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub struct ProfileMetadata<CreatorOf> {
 	pub latest_key: CreatorOf,
 }

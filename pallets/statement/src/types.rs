@@ -34,7 +34,7 @@
 //! statement, indicating whether it has been revoked by a particular account.
 
 use crate::*;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
@@ -64,7 +64,17 @@ use sp_runtime::RuntimeDebug;
 /// perform operations like verification or categorization based on these
 /// identifiers.
 #[derive(
-	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
+	Encode,
+	Decode,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	DecodeWithMemTracking,
 )]
 pub struct StatementDetails<StatementDigestOf, SchemaIdOf, SpaceIdOf> {
 	/// The hash of the statement's content, serving as a unique identifier of
@@ -96,7 +106,17 @@ pub struct StatementDetails<StatementDigestOf, SchemaIdOf, SpaceIdOf> {
 /// keeping a record of the revocation status and the responsible party, the
 /// system provides a clear audit trail for the actions taken on statements.
 #[derive(
-	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
+	Encode,
+	Decode,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	DecodeWithMemTracking,
 )]
 pub struct StatementEntryStatus<StatementCreatorOf, StatusOf> {
 	/// The DID identifier for the party responsible for revoking the statement.
@@ -137,7 +157,17 @@ pub struct StatementEntryStatus<StatementCreatorOf, StatusOf> {
 /// each presentation can be authenticated and traced back to its original
 /// statement and space.
 #[derive(
-	Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
+	Encode,
+	Decode,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	DecodeWithMemTracking,
 )]
 pub struct StatementPresentationDetails<
 	StatementCreatorOf,
@@ -162,7 +192,9 @@ pub struct StatementPresentationDetails<
 
 /// Enum representing various file types that could be associated with a
 /// statement's presentation.
-#[derive(Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo)]
+#[derive(
+	Encode, Decode, Clone, Copy, PartialEq, Eq, RuntimeDebug, TypeInfo, DecodeWithMemTracking,
+)]
 pub enum PresentationTypeOf {
 	/// Represents any other file type not explicitly listed.
 	Other,

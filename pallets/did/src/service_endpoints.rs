@@ -19,7 +19,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use crate::{errors::InputError, Config};
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{ensure, traits::Get, BoundedVec};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::SaturatedConversion, RuntimeDebug};
@@ -45,7 +45,17 @@ pub(crate) type ServiceEndpointUrlEntries<T> =
 	BoundedVec<ServiceEndpointUrl<T>, <T as Config>::MaxNumberOfUrlsPerService>;
 
 /// A single service endpoint description.
-#[derive(Clone, Decode, RuntimeDebug, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Clone,
+	Decode,
+	DecodeWithMemTracking,
+	RuntimeDebug,
+	Encode,
+	PartialEq,
+	Eq,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
 pub struct DidEndpoint<T: Config> {

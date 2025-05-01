@@ -18,7 +18,7 @@
 
 use super::*;
 use crate::*;
-use codec::{CompactAs, Decode, Encode, MaxEncodedLen};
+use codec::{CompactAs, Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use networks_registrar::CordAccountOf;
 use scale_info::TypeInfo;
 use sp_core::{RuntimeDebug, TypeId};
@@ -41,6 +41,7 @@ use sp_core::{RuntimeDebug, TypeId};
 	serde::Serialize,
 	serde::Deserialize,
 	TypeInfo,
+	DecodeWithMemTracking,
 )]
 #[cfg_attr(feature = "std", derive(derive_more::Display))]
 pub struct Id(u32);
@@ -124,7 +125,7 @@ impl Id {
 	}
 }
 
-#[derive(Encode, Decode, MaxEncodedLen, PartialEq, Eq, Clone)]
+#[derive(Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, PartialEq, Eq, Clone)]
 pub struct NetworkToken<T: Config>(pub(crate) BoundedVec<u8, ConstU32<142>>, PhantomData<T>);
 
 const PREFIX: &[u8] = b"NIDV01";

@@ -22,7 +22,7 @@ use crate::*;
 
 #[cfg(not(feature = "std"))]
 use alloc::format;
-use alloc::{vec, vec::Vec};
+use alloc::{collections::btree_map::BTreeMap, vec, vec::Vec};
 use cord_braid_runtime_constants::currency::UNITS;
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -33,7 +33,6 @@ use sp_core::{sr25519, Pair, Public};
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
 use sp_runtime::traits::IdentifyAccount;
-use sp_std::collections::btree_map::BTreeMap;
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -183,14 +182,17 @@ pub fn cord_braid_development_config_genesis() -> serde_json::Value {
 
 /// Provides the names of the predefined genesis configs for this runtime.
 pub fn preset_names() -> Vec<PresetId> {
-	vec![PresetId::from("development"), PresetId::from("local_testnet")]
+	vec![
+		PresetId::from(sp_genesis_builder::DEV_RUNTIME_PRESET),
+		PresetId::from(sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET),
+	]
 }
 
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &sp_genesis_builder::PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
-		"development" => cord_braid_development_config_genesis(),
-		"local_testnet" => cord_braid_local_testnet_genesis(),
+		sp_genesis_builder::DEV_RUNTIME_PRESET => cord_braid_development_config_genesis(),
+		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => cord_braid_local_testnet_genesis(),
 		_ => return None,
 	};
 	Some(

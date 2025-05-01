@@ -18,12 +18,12 @@
 
 use super::*;
 use bitflags::bitflags;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
 bitflags! {
-	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
+	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
 	pub struct Permissions: u32 {
 		/// Permission to manage entries.
 		const ENTRY = 0b0000_0001;
@@ -34,7 +34,7 @@ bitflags! {
 	}
 }
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo)]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo, DecodeWithMemTracking)]
 pub enum PermissionVariant {
 	Entry,
 	Delegate,
@@ -86,7 +86,17 @@ pub enum Status {
 	Archived,
 }
 
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+	DecodeWithMemTracking,
+)]
 pub struct RegistryDetails<Hash, Status, DocIdOf, DocNodeIdOf> {
 	/// The identity of the account (profile) that created/ owns the registry.
 	pub creator: ProfileIdOf,

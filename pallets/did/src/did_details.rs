@@ -18,7 +18,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use codec::{Decode, Encode, MaxEncodedLen, WrapperTypeEncode};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen, WrapperTypeEncode};
 use frame_support::{
 	ensure,
 	storage::{bounded_btree_map::BoundedBTreeMap, bounded_btree_set::BoundedBTreeSet},
@@ -43,7 +43,17 @@ use sp_std::{convert::TryInto, vec::Vec};
 
 /// Public verification key that a DID can control.
 #[derive(
-	Clone, Decode, RuntimeDebug, Encode, Eq, Ord, PartialEq, PartialOrd, TypeInfo, MaxEncodedLen,
+	Clone,
+	Decode,
+	DecodeWithMemTracking,
+	RuntimeDebug,
+	Encode,
+	Eq,
+	Ord,
+	PartialEq,
+	PartialOrd,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub enum DidVerificationKey<AccountId> {
 	/// An Ed25519 public key.
@@ -125,6 +135,7 @@ impl<AccountId> From<ecdsa::Public> for DidVerificationKey<AccountId> {
 	Clone,
 	Copy,
 	Decode,
+	DecodeWithMemTracking,
 	RuntimeDebug,
 	Encode,
 	Eq,
@@ -141,7 +152,17 @@ pub enum DidEncryptionKey {
 
 /// A general public key under the control of the DID.
 #[derive(
-	Clone, Decode, RuntimeDebug, Encode, Eq, Ord, PartialEq, PartialOrd, TypeInfo, MaxEncodedLen,
+	Clone,
+	Decode,
+	DecodeWithMemTracking,
+	RuntimeDebug,
+	Encode,
+	Eq,
+	Ord,
+	PartialEq,
+	PartialOrd,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub enum DidPublicKey<AccountId> {
 	/// A verification key, used to generate and verify signatures.
@@ -164,7 +185,18 @@ impl<AccountId> From<DidEncryptionKey> for DidPublicKey<AccountId> {
 
 /// Verification methods a verification key can
 /// fulfil, according to the [DID specification](https://w3c.github.io/did-spec-registries/#verification-relationships).
-#[derive(Clone, Copy, RuntimeDebug, Decode, Encode, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Clone,
+	Copy,
+	RuntimeDebug,
+	Decode,
+	DecodeWithMemTracking,
+	Encode,
+	PartialEq,
+	Eq,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 pub enum DidVerificationKeyRelationship {
 	/// Key used to authenticate all the DID operations.
 	Authentication,
@@ -177,7 +209,7 @@ pub enum DidVerificationKeyRelationship {
 }
 
 /// Types of signatures supported by this pallet.
-#[derive(Clone, Decode, RuntimeDebug, Encode, Eq, PartialEq, TypeInfo)]
+#[derive(Clone, Decode, DecodeWithMemTracking, RuntimeDebug, Encode, Eq, PartialEq, TypeInfo)]
 pub enum DidSignature {
 	/// A Ed25519 signature.
 	Ed25519(ed25519::Signature),
@@ -277,7 +309,17 @@ impl<I: AsRef<[u8; 32]>, AccountId> DidVerifiableIdentifier<AccountId> for I {
 /// It is currently used to keep track of all the past and current
 /// assertion keys a DID might control.
 #[derive(
-	Clone, RuntimeDebug, Decode, Encode, PartialEq, Ord, PartialOrd, Eq, TypeInfo, MaxEncodedLen,
+	Clone,
+	RuntimeDebug,
+	Decode,
+	DecodeWithMemTracking,
+	Encode,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	Eq,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub struct DidPublicKeyDetails<BlockNumber, AccountId> {
 	/// A public key the DID controls.
@@ -287,7 +329,9 @@ pub struct DidPublicKeyDetails<BlockNumber, AccountId> {
 }
 
 /// The details associated to a DID identity.
-#[derive(Clone, Decode, Encode, PartialEq, TypeInfo, MaxEncodedLen, Debug)]
+#[derive(
+	Clone, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo, MaxEncodedLen, Debug,
+)]
 #[scale_info(skip_type_params(T))]
 #[codec(mel_bound())]
 
@@ -356,8 +400,8 @@ impl<T: Config> DidDetails<T> {
 		new_auth_key: DidVerificationKey<AccountIdOf<T>>,
 	) -> Result<Self, DidError> {
 		ensure!(
-			details.new_key_agreement_keys.len() <=
-				<<T as Config>::MaxNewKeyAgreementKeys>::get().saturated_into::<usize>(),
+			details.new_key_agreement_keys.len()
+				<= <<T as Config>::MaxNewKeyAgreementKeys>::get().saturated_into::<usize>(),
 			errors::InputError::MaxKeyAgreementKeysLimitExceeded
 		);
 
@@ -532,10 +576,10 @@ impl<T: Config> DidDetails<T> {
 	/// i.e., authentication, key agreement, assertion, or delegation, is
 	/// referencing it.
 	pub fn remove_key_if_unused(&mut self, key_id: KeyIdOf<T>) {
-		if self.authentication_key != key_id &&
-			self.assertion_key != Some(key_id) &&
-			self.delegation_key != Some(key_id) &&
-			!self.key_agreement_keys.contains(&key_id)
+		if self.authentication_key != key_id
+			&& self.assertion_key != Some(key_id)
+			&& self.delegation_key != Some(key_id)
+			&& !self.key_agreement_keys.contains(&key_id)
 		{
 			self.public_keys.remove(&key_id);
 		}
@@ -583,7 +627,7 @@ pub(crate) type DidPublicKeyMapOf<T> = BoundedBTreeMap<
 >;
 
 /// The details of a new DID to create.
-#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
 pub struct DidCreationDetails<DidIdentifier, AccountId, MaxNewKeyAgreementKeys, DidEndpoint>
 where
 	MaxNewKeyAgreementKeys: Get<u32> + Clone,
@@ -604,7 +648,7 @@ where
 
 /// Errors that might occur while deriving the authorization verification key
 /// relationship.
-#[derive(Clone, RuntimeDebug, Decode, Encode, Eq, PartialEq)]
+#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, Eq, PartialEq)]
 pub enum RelationshipDeriveError {
 	/// The call is not callable by a did origin.
 	NotCallableByDid,
@@ -636,7 +680,7 @@ pub trait DeriveDidCallAuthorizationVerificationKeyRelationship {
 /// A DID operation that wraps other extrinsic calls, allowing those
 /// extrinsic to have a DID origin and perform DID-based authorization upon
 /// their invocation.
-#[derive(Clone, RuntimeDebug, Decode, Encode, PartialEq, TypeInfo)]
+#[derive(Clone, RuntimeDebug, Decode, DecodeWithMemTracking, Encode, PartialEq, TypeInfo)]
 
 pub struct DidAuthorizedCallOperation<DidIdentifier, DidCallable, BlockNumber, AccountId, TxCounter>
 {

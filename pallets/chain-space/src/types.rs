@@ -22,12 +22,12 @@
 //! including permissions, space details, and space authorizations.
 
 use bitflags::bitflags;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
 bitflags! {
-	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
 	pub struct Permissions: u32 {
 		const ASSERT = 0b0000_0001;
 		const DELEGATE = 0b0000_0010;
@@ -77,7 +77,17 @@ impl Default for Permissions {
 /// - `txn_count`: The current usage of the space's capacity.
 /// - `approved`: Indicates whether the space has been approved by the appropriate governance body.
 /// - `archive`: Indicates whether the space is currently archived.
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub struct SpaceDetails<SpaceCodeOf, SpaceCreatorOf, StatusOf, SpaceIdOf> {
 	pub code: SpaceCodeOf,
 	pub creator: SpaceCreatorOf,
@@ -101,7 +111,17 @@ pub struct SpaceDetails<SpaceCodeOf, SpaceCreatorOf, StatusOf, SpaceIdOf> {
 /// - `delegate`: The entity that has been granted permissions within the space.
 /// - `permissions`: The specific permissions granted to the delegate.
 /// - `delegator`: The entity that granted the permissions to the delegates
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub struct SpaceAuthorization<SpaceIdOf, SpaceCreatorOf, Permissions> {
 	pub space_id: SpaceIdOf,
 	pub delegate: SpaceCreatorOf,

@@ -17,7 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use bitflags::bitflags;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
@@ -33,7 +33,7 @@ bitflags! {
 	}
 }
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, TypeInfo)]
+#[derive(Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, Debug, TypeInfo)]
 pub enum PermissionVariant {
 	Entry,
 	Delegate,
@@ -79,14 +79,34 @@ impl From<PermissionVariant> for Permissions {
 }
 
 /// A simple status enum.
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum Status {
 	Active,
 	Archived,
 }
 
 /// Details for a catalog.
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub struct CollectionDetails<ProfileIdOf, Status> {
 	pub creator: ProfileIdOf,
 	pub status: Status,

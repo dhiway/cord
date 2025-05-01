@@ -21,7 +21,7 @@
 //! Identity pallet types.
 
 use super::*;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
 	traits::{ConstU32, Get},
 	BoundedVec, CloneNoBound, PartialEqNoBound, RuntimeDebugNoBound,
@@ -40,7 +40,7 @@ pub type RegistrarIndex = u32;
 /// the data is greater than 32-bytes then it will be truncated when encoding.
 ///
 /// Can also be `None`.
-#[derive(Clone, Eq, PartialEq, RuntimeDebug, MaxEncodedLen)]
+#[derive(Clone, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, DecodeWithMemTracking)]
 pub enum Data {
 	/// No data here.
 	None,
@@ -189,7 +189,18 @@ impl Default for Data {
 
 /// An attestation of a registrar over how accurate some `IdentityInfo` is in
 /// describing an account.
-#[derive(Copy, Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Copy,
+	Clone,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+)]
 pub enum Judgement {
 	/// The default value; no opinion is held.
 	Unknown,
@@ -285,7 +296,17 @@ impl<
 }
 
 /// Information concerning a registrar.
-#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Clone,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+)]
 pub struct RegistrarInfo<
 	AccountId: Encode + Decode + Clone + Debug + Eq + PartialEq,
 	IdField: Encode + Decode + Clone + Debug + Default + Eq + PartialEq + TypeInfo + MaxEncodedLen,
@@ -307,7 +328,9 @@ type Allocation = u32;
 pub(crate) type Suffix<T> = BoundedVec<u8, <T as Config>::MaxSuffixLength>;
 
 /// Properties of a username authority.
-#[derive(Clone, Encode, Decode, MaxEncodedLen, TypeInfo, PartialEq, Debug)]
+#[derive(
+	Clone, Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, TypeInfo, PartialEq, Debug,
+)]
 pub struct AuthorityProperties<Suffix> {
 	/// The suffix added to usernames granted by this authority. Will be appended to usernames; for
 	/// example, a suffix of `wallet` will result in `.wallet` being appended to a user's selected

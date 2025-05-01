@@ -24,7 +24,7 @@
 extern crate alloc;
 use alloc::{str, vec::Vec};
 use bs58;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::{Id as NetworkId, NetworkInfoProvider};
 use cord_uri::{EntryTypeOf, EventStamp, Identifier, Ss58Identifier};
 use fluent_uri::Uri;
@@ -69,7 +69,16 @@ pub mod pallet {
 	}
 
 	#[derive(
-		Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, Default, MaxEncodedLen,
+		Encode,
+		Decode,
+		DecodeWithMemTracking,
+		Clone,
+		PartialEq,
+		Eq,
+		RuntimeDebug,
+		TypeInfo,
+		Default,
+		MaxEncodedLen,
 	)]
 	pub struct NetworkInfo<NetworkName, NetworkEndpoints, NetworkWebSite, NetworkToken, Account> {
 		pub name: NetworkName,
@@ -565,23 +574,21 @@ pub mod pallet {
 
 	impl<T: Config> Pallet<T> {
 		pub(crate) fn validate_rpc_uri(uri: &str) -> bool {
-			match Uri::parse(uri) {
-				Ok(parsed_uri) => {
-					let scheme = parsed_uri.scheme().map(|s| s.as_str());
-					matches!(scheme, Some("ws") | Some("wss"))
-				},
-				Err(_) => false,
-			}
+			Uri::parse(uri)
+				.map(|u| {
+					let scheme = u.scheme().as_str();
+					matches!(scheme, "ws" | "wss")
+				})
+				.unwrap_or(false)
 		}
 
 		pub(crate) fn validate_http_uri(uri: &str) -> bool {
-			match Uri::parse(uri) {
-				Ok(parsed_uri) => {
-					let scheme = parsed_uri.scheme().map(|s| s.as_str());
-					matches!(scheme, Some("http") | Some("https"))
-				},
-				Err(_) => false,
-			}
+			Uri::parse(uri)
+				.map(|u| {
+					let scheme = u.scheme().as_str();
+					matches!(scheme, "http" | "https")
+				})
+				.unwrap_or(false)
 		}
 
 		pub(crate) fn validate_rpc_bounded_uri(uri: &BoundedVec<u8, ConstU32<256>>) -> bool {

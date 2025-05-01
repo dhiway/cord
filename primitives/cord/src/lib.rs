@@ -21,7 +21,7 @@
 
 extern crate alloc;
 use alloc::vec::Vec;
-use codec::{CompactAs, Decode, Encode, MaxEncodedLen};
+use codec::{CompactAs, Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_core::{RuntimeDebug, TypeId};
 use sp_runtime::{
@@ -128,6 +128,7 @@ pub trait IsPermissioned {
 	serde::Serialize,
 	serde::Deserialize,
 	TypeInfo,
+	DecodeWithMemTracking,
 )]
 #[cfg_attr(feature = "std", derive(derive_more::Display))]
 pub struct Id(u32);

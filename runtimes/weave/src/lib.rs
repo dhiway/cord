@@ -21,8 +21,8 @@
 #![recursion_limit = "512"]
 
 extern crate alloc;
-use alloc::string::String;
-use codec::{Decode, Encode};
+use alloc::{string::String, vec, vec::Vec};
+use codec::{Decode, DecodeWithMemTracking, Encode};
 pub use cord_primitives::{AccountId, AccountPublic, Signature};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Moment, Nonce};
 use cord_uri::{DecodedIdentifier, Identifier as CordIdentifier, Ss58Identifier};
@@ -32,7 +32,6 @@ use frame_election_provider_support::{
 };
 use frame_support::{
 	derive_impl,
-	// dispatch::DispatchClass,
 	genesis_builder_helper::{build_state, get_preset},
 	instances::{Instance1, Instance2},
 	ord_parameter_types,
@@ -49,8 +48,7 @@ use frame_support::{
 		InsideBoth, KeyOwnerProofSystem, LinearStoragePrice, Nothing, PrivilegeCmp, VariantCountOf,
 	},
 	weights::ConstantMultiplier,
-	BoundedVec,
-	PalletId,
+	BoundedVec, PalletId,
 };
 use frame_system::{
 	limits::BlockWeights as SystemBlockWeights, EnsureRoot, EnsureRootWithSuccess, EnsureSigned,
@@ -62,7 +60,6 @@ pub use pallet_election_provider_multi_phase::{Call as EPMCall, GeometricDeposit
 use pallet_identity::legacy::IdentityInfo;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_nfts::PalletFeatures;
-use pallet_revive::{evm::runtime::EthExtra, AddressMapper};
 use pallet_session::historical as pallet_session_historical;
 use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
 use pallet_treasury::TreasuryAccountId;
@@ -109,10 +106,10 @@ use cord_runtime_common::{
 /// Constant values used within the runtime.
 use cord_weave_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 
+use core::cmp::Ordering;
 use runtime_common::{DealWithFees, SendFeesToTreasury, SlowAdjustingFeeUpdate};
 use sp_runtime::generic::Era;
 use sp_staking::SessionIndex;
-use sp_std::{cmp::Ordering, prelude::*};
 
 /// Default logging target.
 pub const LOG_TARGET: &str = "runtime::cord-weave";
@@ -382,6 +379,7 @@ impl pallet_scheduler::Config for Runtime {
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type Preimages = Preimage;
 	type WeightInfo = weights::pallet_scheduler::WeightInfo<Runtime>;
+	type BlockNumberProvider = frame_system::Pallet<Runtime>;
 }
 
 parameter_types! {
@@ -530,6 +528,7 @@ impl pallet_session::Config for Runtime {
 	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, Staking>;
 	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
+	type DisablingStrategy = pallet_session::disabling::UpToLimitWithReEnablingDisablingStrategy;
 	type WeightInfo = weights::pallet_session::WeightInfo<Runtime>;
 }
 
@@ -609,7 +608,7 @@ impl pallet_staking::Config for Runtime {
 	type EventListeners = NominationPools;
 	type WeightInfo = weights::pallet_staking::WeightInfo<Runtime>;
 	type BenchmarkingConfig = StakingBenchmarkingConfig;
-	type DisablingStrategy = pallet_staking::UpToLimitWithReEnablingDisablingStrategy;
+	type Filter = Nothing;
 }
 
 impl pallet_fast_unstake::Config for Runtime {
@@ -685,8 +684,8 @@ impl Get<Option<BalancingConfig>> for OffchainRandomBalancing {
 			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
-					.expect("input is padded with zeroes; qed") %
-					max.saturating_add(1);
+					.expect("input is padded with zeroes; qed")
+					% max.saturating_add(1);
 				random as usize
 			},
 		};
@@ -800,6 +799,8 @@ impl pallet_nomination_pools::Config for Runtime {
 	type PalletId = PoolsPalletId;
 	type MaxPointsToBalance = MaxPointsToBalance;
 	type AdminOrigin = EnsureRootOrCouncilApproval;
+	type BlockNumberProvider = System;
+	type Filter = Nothing;
 }
 
 parameter_types! {
@@ -1176,6 +1177,7 @@ impl pallet_assets::Config<Instance1> for Runtime {
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type ApprovalDeposit = ApprovalDeposit;
 	type StringLimit = StringLimit;
+	type Holder = ();
 	type Freezer = ();
 	type Extra = ();
 	type CallbackHandle = ();
@@ -1203,6 +1205,7 @@ impl pallet_assets::Config<Instance2> for Runtime {
 	type MetadataDepositPerByte = MetadataDepositPerByte;
 	type ApprovalDeposit = ApprovalDeposit;
 	type StringLimit = StringLimit;
+	type Holder = ();
 	type Freezer = ();
 	type Extra = ();
 	type WeightInfo = weights::pallet_assets::WeightInfo<Runtime>;
@@ -1528,41 +1531,41 @@ impl pallet_verify_signature::Config for Runtime {
 	type BenchmarkHelper = ();
 }
 
-impl pallet_revive::Config for Runtime {
-	type Time = Timestamp;
-	type Currency = Balances;
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeCall = RuntimeCall;
-	type CallFilter = Nothing;
-	type DepositPerItem = DepositPerItem;
-	type DepositPerByte = DepositPerByte;
-	type WeightPrice = pallet_transaction_payment::Pallet<Self>;
-	type WeightInfo = pallet_revive::weights::SubstrateWeight<Self>;
-	type ChainExtension = ();
-	type AddressMapper = pallet_revive::AccountId32Mapper<Self>;
-	type RuntimeMemory = ConstU32<{ 128 * 1024 * 1024 }>;
-	type PVFMemory = ConstU32<{ 512 * 1024 * 1024 }>;
-	type UnsafeUnstableInterface = ConstBool<false>;
-	type UploadOrigin = EnsureSigned<Self::AccountId>;
-	type InstantiateOrigin = EnsureSigned<Self::AccountId>;
-	type RuntimeHoldReason = RuntimeHoldReason;
-	type CodeHashLockupDepositPercent = CodeHashLockupDepositPercent;
-	type Xcm = ();
-	type ChainId = ConstU64<420_420_421>;
-	type NativeToEthRatio = ConstU32<1_000_000>; // 10^(18 - 12) Eth is 10^18, Native is 10^12.
-	type EthGasEncoder = ();
-}
+// impl pallet_revive::Config for Runtime {
+// 	type Time = Timestamp;
+// 	type Currency = Balances;
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type RuntimeCall = RuntimeCall;
+// 	type CallFilter = Nothing;
+// 	type DepositPerItem = DepositPerItem;
+// 	type DepositPerByte = DepositPerByte;
+// 	type WeightPrice = pallet_transaction_payment::Pallet<Self>;
+// 	type WeightInfo = pallet_revive::weights::SubstrateWeight<Self>;
+// 	type ChainExtension = ();
+// 	type AddressMapper = pallet_revive::AccountId32Mapper<Self>;
+// 	type RuntimeMemory = ConstU32<{ 128 * 1024 * 1024 }>;
+// 	type PVFMemory = ConstU32<{ 512 * 1024 * 1024 }>;
+// 	type UnsafeUnstableInterface = ConstBool<false>;
+// 	type UploadOrigin = EnsureSigned<Self::AccountId>;
+// 	type InstantiateOrigin = EnsureSigned<Self::AccountId>;
+// 	type RuntimeHoldReason = RuntimeHoldReason;
+// 	type CodeHashLockupDepositPercent = CodeHashLockupDepositPercent;
+// 	type Xcm = ();
+// 	type ChainId = ConstU64<420_420_421>;
+// 	type NativeToEthRatio = ConstU32<1_000_000>; // 10^(18 - 12) Eth is 10^18, Native is 10^12.
+// 	type EthGasEncoder = ();
+// }
 
-impl TryFrom<RuntimeCall> for pallet_revive::Call<Runtime> {
-	type Error = ();
+// impl TryFrom<RuntimeCall> for pallet_revive::Call<Runtime> {
+// 	type Error = ();
 
-	fn try_from(value: RuntimeCall) -> Result<Self, Self::Error> {
-		match value {
-			RuntimeCall::Revive(call) => Ok(call),
-			_ => Err(()),
-		}
-	}
-}
+// 	fn try_from(value: RuntimeCall) -> Result<Self, Self::Error> {
+// 		match value {
+// 			RuntimeCall::Revive(call) => Ok(call),
+// 			_ => Err(()),
+// 		}
+// 	}
+// }
 
 parameter_types! {
 	pub const MaxDataKeyLength: u8 = 128;
@@ -1786,9 +1789,9 @@ mod runtime {
 	#[runtime::pallet_index(107)]
 	pub type DelegatedStaking = pallet_delegated_staking::Pallet<Runtime>;
 
-	// Experimental EVM Pallet
-	#[runtime::pallet_index(108)]
-	pub type Revive = pallet_revive::Pallet<Runtime>;
+	// // Experimental EVM Pallet
+	// #[runtime::pallet_index(108)]
+	// pub type Revive = pallet_revive::Pallet<Runtime>;
 
 	#[runtime::pallet_index(109)]
 	pub type Profile = pallet_profile::Pallet<Runtime>;
@@ -1821,34 +1824,36 @@ pub type TxExtension = (
 	frame_system::WeightReclaim<Runtime>,
 );
 
-/// Default extensions applied to Ethereum transactions.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct EthExtraImpl;
+// /// Default extensions applied to Ethereum transactions.
+// #[derive(Clone, PartialEq, Eq, Debug)]
+// pub struct EthExtraImpl;
 
-impl EthExtra for EthExtraImpl {
-	type Config = Runtime;
-	type Extension = TxExtension;
+// impl EthExtra for EthExtraImpl {
+// 	type Config = Runtime;
+// 	type Extension = TxExtension;
 
-	fn get_eth_extension(nonce: u32, tip: Balance) -> Self::Extension {
-		(
-			frame_system::CheckNonZeroSender::<Runtime>::new(),
-			frame_system::CheckSpecVersion::<Runtime>::new(),
-			frame_system::CheckTxVersion::<Runtime>::new(),
-			frame_system::CheckGenesis::<Runtime>::new(),
-			frame_system::CheckMortality::from(generic::Era::Immortal),
-			frame_system::CheckNonce::<Runtime>::from(nonce),
-			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(tip, None),
-			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
-			frame_system::WeightReclaim::<Runtime>::new(),
-		)
-			.into()
-	}
-}
+// 	fn get_eth_extension(nonce: u32, tip: Balance) -> Self::Extension {
+// 		(
+// 			frame_system::CheckNonZeroSender::<Runtime>::new(),
+// 			frame_system::CheckSpecVersion::<Runtime>::new(),
+// 			frame_system::CheckTxVersion::<Runtime>::new(),
+// 			frame_system::CheckGenesis::<Runtime>::new(),
+// 			frame_system::CheckMortality::from(generic::Era::Immortal),
+// 			frame_system::CheckNonce::<Runtime>::from(nonce),
+// 			frame_system::CheckWeight::<Runtime>::new(),
+// 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(tip, None),
+// 			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
+// 			frame_system::WeightReclaim::<Runtime>::new(),
+// 		)
+// 			.into()
+// 	}
+// }
 
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
-	pallet_revive::evm::runtime::UncheckedExtrinsic<Address, Signature, EthExtraImpl>;
+	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, TxExtension>;
+
+// pallet_revive::evm::runtime::UncheckedExtrinsic<Address, Signature, EthExtraImpl>;
 /// Unchecked signature payload type as expected by this runtime.
 pub type UncheckedSignaturePayload =
 	generic::UncheckedSignaturePayload<Address, Signature, TxExtension>;
@@ -2342,100 +2347,100 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_revive::ReviveApi<Block, AccountId, Balance, Nonce, BlockNumber> for Runtime
-	{
-		fn balance(address: H160) -> U256 {
-			Revive::evm_balance(&address)
-		}
+	// impl pallet_revive::ReviveApi<Block, AccountId, Balance, Nonce, BlockNumber> for Runtime
+	// {
+	// 	fn balance(address: H160) -> U256 {
+	// 		Revive::evm_balance(&address)
+	// 	}
 
-		fn block_gas_limit() -> U256 {
-			Revive::evm_block_gas_limit()
-		}
+	// 	fn block_gas_limit() -> U256 {
+	// 		Revive::evm_block_gas_limit()
+	// 	}
 
-		fn nonce(address: H160) -> Nonce {
-			let account = <Runtime as pallet_revive::Config>::AddressMapper::to_account_id(&address);
-			System::account_nonce(account)
-		}
+	// 	fn nonce(address: H160) -> Nonce {
+	// 		let account = <Runtime as pallet_revive::Config>::AddressMapper::to_account_id(&address);
+	// 		System::account_nonce(account)
+	// 	}
 
-		fn eth_transact(tx: pallet_revive::evm::GenericTransaction) -> Result<pallet_revive::EthTransactInfo<Balance>, pallet_revive::EthTransactError>
-		{
-			let blockweights: SystemBlockWeights = <Runtime as frame_system::Config>::BlockWeights::get();
+	// 	fn eth_transact(tx: pallet_revive::evm::GenericTransaction) -> Result<pallet_revive::EthTransactInfo<Balance>, pallet_revive::EthTransactError>
+	// 	{
+	// 		let blockweights: SystemBlockWeights = <Runtime as frame_system::Config>::BlockWeights::get();
 
-			let encoded_size = |pallet_call| {
-				let call = RuntimeCall::Revive(pallet_call);
-				let uxt: UncheckedExtrinsic = sp_runtime::generic::UncheckedExtrinsic::new_bare(call).into();
-				uxt.encoded_size() as u32
-			};
+	// 		let encoded_size = |pallet_call| {
+	// 			let call = RuntimeCall::Revive(pallet_call);
+	// 			let uxt: UncheckedExtrinsic = sp_runtime::generic::UncheckedExtrinsic::new_bare(call).into();
+	// 			uxt.encoded_size() as u32
+	// 		};
 
-			Revive::bare_eth_transact(
-				tx,
-				blockweights.max_block,
-				encoded_size,
-			)
-		}
+	// 		Revive::bare_eth_transact(
+	// 			tx,
+	// 			blockweights.max_block,
+	// 			encoded_size,
+	// 		)
+	// 	}
 
-		fn call(
-			origin: AccountId,
-			dest: H160,
-			value: Balance,
-			gas_limit: Option<Weight>,
-			storage_deposit_limit: Option<Balance>,
-			input_data: Vec<u8>,
-		) -> pallet_revive::ContractResult<pallet_revive::ExecReturnValue, Balance> {
-			Revive::bare_call(
-				RuntimeOrigin::signed(origin),
-				dest,
-				value,
-				gas_limit.unwrap_or(BlockWeights::get().max_block),
-				pallet_revive::DepositLimit::Balance(storage_deposit_limit.unwrap_or(u128::MAX)),
-				input_data,
-			)
-		}
+	// 	fn call(
+	// 		origin: AccountId,
+	// 		dest: H160,
+	// 		value: Balance,
+	// 		gas_limit: Option<Weight>,
+	// 		storage_deposit_limit: Option<Balance>,
+	// 		input_data: Vec<u8>,
+	// 	) -> pallet_revive::ContractResult<pallet_revive::ExecReturnValue, Balance> {
+	// 		Revive::bare_call(
+	// 			RuntimeOrigin::signed(origin),
+	// 			dest,
+	// 			value,
+	// 			gas_limit.unwrap_or(BlockWeights::get().max_block),
+	// 			pallet_revive::DepositLimit::Balance(storage_deposit_limit.unwrap_or(u128::MAX)),
+	// 			input_data,
+	// 		)
+	// 	}
 
-		fn instantiate(
-			origin: AccountId,
-			value: Balance,
-			gas_limit: Option<Weight>,
-			storage_deposit_limit: Option<Balance>,
-			code: pallet_revive::Code,
-			data: Vec<u8>,
-			salt: Option<[u8; 32]>,
-		) -> pallet_revive::ContractResult<pallet_revive::InstantiateReturnValue, Balance>
-		{
-			Revive::bare_instantiate(
-				RuntimeOrigin::signed(origin),
-				value,
-				gas_limit.unwrap_or(BlockWeights::get().max_block),
-				pallet_revive::DepositLimit::Balance(storage_deposit_limit.unwrap_or(u128::MAX)),
-				code,
-				data,
-				salt,
-			)
-		}
+	// 	fn instantiate(
+	// 		origin: AccountId,
+	// 		value: Balance,
+	// 		gas_limit: Option<Weight>,
+	// 		storage_deposit_limit: Option<Balance>,
+	// 		code: pallet_revive::Code,
+	// 		data: Vec<u8>,
+	// 		salt: Option<[u8; 32]>,
+	// 	) -> pallet_revive::ContractResult<pallet_revive::InstantiateReturnValue, Balance>
+	// 	{
+	// 		Revive::bare_instantiate(
+	// 			RuntimeOrigin::signed(origin),
+	// 			value,
+	// 			gas_limit.unwrap_or(BlockWeights::get().max_block),
+	// 			pallet_revive::DepositLimit::Balance(storage_deposit_limit.unwrap_or(u128::MAX)),
+	// 			code,
+	// 			data,
+	// 			salt,
+	// 		)
+	// 	}
 
-		fn upload_code(
-			origin: AccountId,
-			code: Vec<u8>,
-			storage_deposit_limit: Option<Balance>,
-		) -> pallet_revive::CodeUploadResult<Balance>
-		{
-			Revive::bare_upload_code(
-				RuntimeOrigin::signed(origin),
-				code,
-				storage_deposit_limit.unwrap_or(u128::MAX),
-			)
-		}
+	// 	fn upload_code(
+	// 		origin: AccountId,
+	// 		code: Vec<u8>,
+	// 		storage_deposit_limit: Option<Balance>,
+	// 	) -> pallet_revive::CodeUploadResult<Balance>
+	// 	{
+	// 		Revive::bare_upload_code(
+	// 			RuntimeOrigin::signed(origin),
+	// 			code,
+	// 			storage_deposit_limit.unwrap_or(u128::MAX),
+	// 		)
+	// 	}
 
-		fn get_storage(
-			address: H160,
-			key: [u8; 32],
-		) -> pallet_revive::GetStorageResult {
-			Revive::get_storage(
-				address,
-				key
-			)
-		}
-	}
+	// 	fn get_storage(
+	// 		address: H160,
+	// 		key: [u8; 32],
+	// 	) -> pallet_revive::GetStorageResult {
+	// 		Revive::get_storage(
+	// 			address,
+	// 			key
+	// 		)
+	// 	}
+	// }
 
 	impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
 		Block,

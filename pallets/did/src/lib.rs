@@ -234,7 +234,7 @@ pub mod pallet {
 		///
 		/// Should be greater than `MaxNewKeyAgreementKeys`.
 		#[pallet::constant]
-		type MaxTotalKeyAgreementKeys: Get<u32> + Debug + Clone + PartialEq;
+		type MaxTotalKeyAgreementKeys: Get<u32> + Debug + Clone;
 
 		/// The maximum number of blocks a DID-authorized operation is
 		/// considered valid after its creation.
@@ -404,8 +404,9 @@ pub mod pallet {
 		fn from(error: StorageError) -> Self {
 			match error {
 				StorageError::NotFound(errors::NotFoundKind::Did) => Self::NotFound,
-				StorageError::NotFound(errors::NotFoundKind::Key(_)) =>
-					Self::VerificationKeyNotFound,
+				StorageError::NotFound(errors::NotFoundKind::Key(_)) => {
+					Self::VerificationKeyNotFound
+				},
 				StorageError::AlreadyExists => Self::AlreadyExists,
 				StorageError::MaxPublicKeysExceeded => Self::MaxPublicKeysExceeded,
 				StorageError::MaxTotalKeyAgreementKeysExceeded => Self::MaxKeyAgreementKeysExceeded,
@@ -428,8 +429,9 @@ pub mod pallet {
 	impl<T> From<InputError> for Error<T> {
 		fn from(error: InputError) -> Self {
 			match error {
-				InputError::MaxKeyAgreementKeysLimitExceeded =>
-					Self::MaxNewKeyAgreementKeysLimitExceeded,
+				InputError::MaxKeyAgreementKeysLimitExceeded => {
+					Self::MaxNewKeyAgreementKeysLimitExceeded
+				},
 				InputError::MaxIdLengthExceeded => Self::MaxServiceIdLengthExceeded,
 				InputError::MaxServicesCountExceeded => Self::MaxNumberOfServicesExceeded,
 				InputError::MaxTypeCountExceeded => Self::MaxNumberOfTypesPerServiceExceeded,
