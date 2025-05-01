@@ -39,7 +39,7 @@ type Session<T> = pallet_session::Pallet<T>;
 pub mod pallet {
 	use super::*;
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::{Convert, IsMember};
+	use sp_runtime::traits::Convert;
 
 	/// The current storage version.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);

@@ -22,7 +22,7 @@
 
 extern crate alloc;
 use alloc::{string::String, vec, vec::Vec};
-use codec::{Decode, DecodeWithMemTracking, Encode};
+use codec::{Decode, Encode};
 pub use cord_primitives::{AccountId, AccountPublic, Signature};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Moment, Nonce};
 use cord_uri::{DecodedIdentifier, Identifier as CordIdentifier, Ss58Identifier};
@@ -44,15 +44,14 @@ use frame_support::{
 			nonfungibles_v2::Inspect,
 			pay::PayAssetFromAccount,
 		},
-		AsEnsureOriginWithArg, ConstBool, ConstU128, ConstU32, ConstU64, Contains, EitherOfDiverse,
+		AsEnsureOriginWithArg, ConstBool, ConstU128, ConstU32, Contains, EitherOfDiverse,
 		InsideBoth, KeyOwnerProofSystem, LinearStoragePrice, Nothing, PrivilegeCmp, VariantCountOf,
 	},
 	weights::ConstantMultiplier,
 	BoundedVec, PalletId,
 };
 use frame_system::{
-	limits::BlockWeights as SystemBlockWeights, EnsureRoot, EnsureRootWithSuccess, EnsureSigned,
-	EnsureSignedBy, EnsureWithSuccess,
+	EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSignedBy, EnsureWithSuccess,
 };
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
 use pallet_asset_conversion_tx_payment::SwapAssetAdapter;
@@ -71,7 +70,7 @@ use sp_consensus_beefy::{
 	mmr::MmrLeafVersion,
 };
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata, H160, U256};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::{
 	curve::PiecewiseLinear,
@@ -103,8 +102,12 @@ use cord_runtime_common::{
 	BlockHashCount, BlockLength, CurrencyToVote, U256ToBalance,
 };
 
+/// Runtime API definition for identifier.
+pub use cord_uri_runtime_api as identifier_api;
 /// Constant values used within the runtime.
 use cord_weave_runtime_constants::{currency::*, fee::WeightToFee, time::*};
+/// Runtime API definition for assets.
+pub use pallet_assets_runtime_api as assets_api;
 
 use core::cmp::Ordering;
 use runtime_common::{DealWithFees, SendFeesToTreasury, SlowAdjustingFeeUpdate};
@@ -122,12 +125,6 @@ mod bag_thresholds;
 
 // Weights used in the runtime.
 mod weights;
-
-/// Runtime API definition for assets.
-pub mod assets_api;
-
-/// Runtime API definition for identifier.
-pub mod identifier_api;
 
 /// Network Resistrar
 mod networks_registrar;
@@ -157,7 +154,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: alloc::borrow::Cow::Borrowed("weave"),
 	impl_name: alloc::borrow::Cow::Borrowed("dhiway-cord"),
 	authoring_version: 0,
-	spec_version: 9500,
+	spec_version: 9700,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -1531,42 +1528,6 @@ impl pallet_verify_signature::Config for Runtime {
 	type BenchmarkHelper = ();
 }
 
-// impl pallet_revive::Config for Runtime {
-// 	type Time = Timestamp;
-// 	type Currency = Balances;
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type RuntimeCall = RuntimeCall;
-// 	type CallFilter = Nothing;
-// 	type DepositPerItem = DepositPerItem;
-// 	type DepositPerByte = DepositPerByte;
-// 	type WeightPrice = pallet_transaction_payment::Pallet<Self>;
-// 	type WeightInfo = pallet_revive::weights::SubstrateWeight<Self>;
-// 	type ChainExtension = ();
-// 	type AddressMapper = pallet_revive::AccountId32Mapper<Self>;
-// 	type RuntimeMemory = ConstU32<{ 128 * 1024 * 1024 }>;
-// 	type PVFMemory = ConstU32<{ 512 * 1024 * 1024 }>;
-// 	type UnsafeUnstableInterface = ConstBool<false>;
-// 	type UploadOrigin = EnsureSigned<Self::AccountId>;
-// 	type InstantiateOrigin = EnsureSigned<Self::AccountId>;
-// 	type RuntimeHoldReason = RuntimeHoldReason;
-// 	type CodeHashLockupDepositPercent = CodeHashLockupDepositPercent;
-// 	type Xcm = ();
-// 	type ChainId = ConstU64<420_420_421>;
-// 	type NativeToEthRatio = ConstU32<1_000_000>; // 10^(18 - 12) Eth is 10^18, Native is 10^12.
-// 	type EthGasEncoder = ();
-// }
-
-// impl TryFrom<RuntimeCall> for pallet_revive::Call<Runtime> {
-// 	type Error = ();
-
-// 	fn try_from(value: RuntimeCall) -> Result<Self, Self::Error> {
-// 		match value {
-// 			RuntimeCall::Revive(call) => Ok(call),
-// 			_ => Err(()),
-// 		}
-// 	}
-// }
-
 parameter_types! {
 	pub const MaxDataKeyLength: u8 = 128;
 	pub const MaxDataValueLength: u32 = 1 * 1024; //1KB
@@ -1768,6 +1729,9 @@ mod runtime {
 	#[runtime::pallet_index(80)]
 	pub type NetworkInfo = pallet_config::Pallet<Runtime>;
 
+	#[runtime::pallet_index(81)]
+	pub type Profile = pallet_profile::Pallet<Runtime>;
+
 	#[runtime::pallet_index(100)]
 	pub type MultiBlockMigrations = pallet_migrations::Pallet<Runtime>;
 
@@ -1788,13 +1752,6 @@ mod runtime {
 
 	#[runtime::pallet_index(107)]
 	pub type DelegatedStaking = pallet_delegated_staking::Pallet<Runtime>;
-
-	// // Experimental EVM Pallet
-	// #[runtime::pallet_index(108)]
-	// pub type Revive = pallet_revive::Pallet<Runtime>;
-
-	#[runtime::pallet_index(109)]
-	pub type Profile = pallet_profile::Pallet<Runtime>;
 
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo::Pallet<Runtime>;
@@ -1823,31 +1780,6 @@ pub type TxExtension = (
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	frame_system::WeightReclaim<Runtime>,
 );
-
-// /// Default extensions applied to Ethereum transactions.
-// #[derive(Clone, PartialEq, Eq, Debug)]
-// pub struct EthExtraImpl;
-
-// impl EthExtra for EthExtraImpl {
-// 	type Config = Runtime;
-// 	type Extension = TxExtension;
-
-// 	fn get_eth_extension(nonce: u32, tip: Balance) -> Self::Extension {
-// 		(
-// 			frame_system::CheckNonZeroSender::<Runtime>::new(),
-// 			frame_system::CheckSpecVersion::<Runtime>::new(),
-// 			frame_system::CheckTxVersion::<Runtime>::new(),
-// 			frame_system::CheckGenesis::<Runtime>::new(),
-// 			frame_system::CheckMortality::from(generic::Era::Immortal),
-// 			frame_system::CheckNonce::<Runtime>::from(nonce),
-// 			frame_system::CheckWeight::<Runtime>::new(),
-// 			pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<Runtime>::from(tip, None),
-// 			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
-// 			frame_system::WeightReclaim::<Runtime>::new(),
-// 		)
-// 			.into()
-// 	}
-// }
 
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =

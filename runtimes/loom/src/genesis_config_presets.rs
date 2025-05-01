@@ -33,7 +33,6 @@ use sp_core::{sr25519, Pair, Public};
 use sp_genesis_builder::PresetId;
 use sp_keyring::Sr25519Keyring;
 use sp_runtime::traits::IdentifyAccount;
-use sp_std::collections::btree_map::BTreeMap;
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -80,7 +79,6 @@ fn cord_loom_testnet_genesis(
 		AuthorityDiscoveryId,
 		BeefyId,
 	)>,
-	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> serde_json::Value {
@@ -92,13 +90,7 @@ fn cord_loom_testnet_genesis(
 		"balances": {
 			"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"networkInfo": {"permissioned": true, "networkId": 2001},
-		"nodeAuthorization":  {
-			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
-		},
-		"networkMembership":  {
-			"members": testnet_accounts().into_iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
-		},
+		"networkInfo": {"permissioned": true, "networkId": 2002},
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
 				.iter()
@@ -159,24 +151,6 @@ pub fn cord_loom_local_testnet_genesis() -> serde_json::Value {
 			get_authority_keys_from_seed("Bob"),
 			get_authority_keys_from_seed("Charlie"),
 		],
-		vec![
-			(
-				b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-			),
-			(
-				b"12D3KooWQYV9dGMFoRzNStwpXztXaBUjtPqi6aU76ZgUriHhKust".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-			),
-			(
-				b"12D3KooWJvyP3VJYymTqG7eH4PM5rN4T2agk5cdNCfNymAqwqcvZ".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			),
-			(
-				b"12D3KooWPHWFrfaJzxPnqnAYAoRUyAHHKqACmEycGTVmeVhQYuZN".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Dave"),
-			),
-		],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		None,
 	)
@@ -185,10 +159,6 @@ pub fn cord_loom_local_testnet_genesis() -> serde_json::Value {
 pub fn cord_loom_development_config_genesis() -> serde_json::Value {
 	cord_loom_testnet_genesis(
 		vec![get_authority_keys_from_seed("Alice")],
-		vec![(
-			b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-		)],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		None,
 	)
@@ -196,14 +166,17 @@ pub fn cord_loom_development_config_genesis() -> serde_json::Value {
 
 /// Provides the names of the predefined genesis configs for this runtime.
 pub fn preset_names() -> Vec<PresetId> {
-	vec![PresetId::from("development"), PresetId::from("local_testnet")]
+	vec![
+		PresetId::from(sp_genesis_builder::DEV_RUNTIME_PRESET),
+		PresetId::from(sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET),
+	]
 }
 
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &sp_genesis_builder::PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
-		"development" => cord_loom_development_config_genesis(),
-		"local_testnet" => cord_loom_local_testnet_genesis(),
+		sp_genesis_builder::DEV_RUNTIME_PRESET => cord_loom_development_config_genesis(),
+		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => cord_loom_local_testnet_genesis(),
 		_ => return None,
 	};
 	Some(

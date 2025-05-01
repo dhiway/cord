@@ -21,17 +21,13 @@
 #![recursion_limit = "1024"]
 
 extern crate alloc;
-use alloc::{
-	collections::{BTreeMap, VecDeque},
-	vec,
-	vec::Vec,
-};
-use codec::{Decode, DecodeWithMemTracking, Encode};
-use scale_info::TypeInfo;
+use alloc::{string::String, vec, vec::Vec};
+use codec::Encode;
 
 pub use cord_primitives::{AccountId, AccountPublic, Signature};
-use cord_primitives::{AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Moment, Nonce};
+use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Moment, Nonce};
 use cord_runtime_common::{impl_runtime_weights, prod_or_fast, BlockHashCount, BlockLength};
+use cord_uri::{DecodedIdentifier, Identifier as CordIdentifier, Ss58Identifier};
 use frame_support::{
 	derive_impl,
 	genesis_builder_helper::{build_state, get_preset},
@@ -47,7 +43,6 @@ use frame_support::{
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy};
-pub use identifier::Ss58Identifier;
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
 pub use pallet_balances::Call as BalancesCall;
 use pallet_cord_identity::legacy::IdentityInfo;
@@ -72,7 +67,7 @@ use sp_runtime::{
 		SaturatedConversion, StaticLookup, Verify,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, Perbill, Permill,
+	ApplyExtrinsicResult, MultiSignature, MultiSigner, Perbill, Permill,
 };
 use sp_staking::SessionIndex;
 // use sp_std::{cmp::Ordering, prelude::*};
@@ -99,6 +94,10 @@ pub use authority_membership;
 pub use pallet_network_membership;
 pub mod benchmark;
 pub use benchmark::DummySignature;
+
+/// Runtime API definition for identifier.
+pub use cord_uri_runtime_api as identifier_api;
+/// Runtime API definition for assets.
 pub use pallet_assets_runtime_api as assets_api;
 
 // Genesis preset configurations.
@@ -132,7 +131,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: alloc::borrow::Cow::Borrowed("braid"),
 	impl_name: alloc::borrow::Cow::Borrowed("dhiway-cord"),
 	authoring_version: 0,
-	spec_version: 9500,
+	spec_version: 9700,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -492,17 +491,6 @@ impl pallet_cord_identity::Config for Runtime {
 	type WeightInfo = weights::pallet_cord_identity::WeightInfo<Runtime>;
 }
 
-// parameter_types! {
-// 	pub const MaxRegistryEntryBlobSize: u32 = 4 * 1024; // 4KB in bytes
-// }
-
-// impl pallet_entries::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type MaxEncodedInputLength = MaxEncodedInputLength;
-// 	type MaxRegistryEntryBlobSize = MaxRegistryEntryBlobSize;
-// 	type WeightInfo = ();
-// }
-
 impl pallet_cord_offences::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
@@ -719,152 +707,9 @@ impl pallet_network_membership::Config for Runtime {
 	type WeightInfo = weights::pallet_network_membership::WeightInfo<Runtime>;
 }
 
-// impl identifier::Config for Runtime {
-// 	type MaxEventsHistory = MaxEventsHistory;
-// }
-
 impl pallet_runtime_upgrade::Config for Runtime {
 	type SetCodeOrigin = EnsureRoot<AccountId>;
 }
-
-// parameter_types! {
-// 	#[derive(Debug, Clone, Eq, PartialEq, TypeInfo, Decode, DecodeWithMemTracking, Encode)]
-// 	pub const MaxNewKeyAgreementKeys: u32 = 10;
-// 	#[derive(Clone)]
-// 	pub const MaxPublicKeysPerDid: u32 = 20;
-// 	// #[derive(Debug, Clone, Eq, PartialEq, DecodeWithMemTracking)]
-// 	pub const MaxTotalKeyAgreementKeys: u32 = 19;
-// 	pub const MaxBlocksTxValidity: BlockNumber =  2 * HOURS;
-// 	pub const MaxNumberOfServicesPerDid: u32 = 25;
-// 	pub const MaxServiceIdLength: u32 = 50;
-// 	pub const MaxServiceTypeLength: u32 = 50;
-// 	pub const MaxServiceUrlLength: u32 = 200;
-// 	pub const MaxNumberOfTypesPerService: u32 = 1;
-// 	pub const MaxNumberOfUrlsPerService: u32 = 1;
-// }
-
-// impl pallet_did::Config for Runtime {
-// 	type DidIdentifier = DidIdentifier;
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type RuntimeCall = RuntimeCall;
-// 	type RuntimeOrigin = RuntimeOrigin;
-
-// 	#[cfg(not(feature = "runtime-benchmarks"))]
-// 	type EnsureOrigin = pallet_did::EnsureDidOrigin<Self::DidIdentifier, AccountId>;
-// 	#[cfg(not(feature = "runtime-benchmarks"))]
-// 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, Self::DidIdentifier>;
-// 	#[cfg(feature = "runtime-benchmarks")]
-// 	type EnsureOrigin = EnsureSigned<Self::DidIdentifier>;
-// 	#[cfg(feature = "runtime-benchmarks")]
-// 	type OriginSuccess = Self::DidIdentifier;
-
-// 	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
-// 	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
-// 	type MaxTotalKeyAgreementKeys = MaxTotalKeyAgreementKeys;
-// 	type MaxBlocksTxValidity = MaxBlocksTxValidity;
-// 	type MaxNumberOfServicesPerDid = MaxNumberOfServicesPerDid;
-// 	type MaxServiceIdLength = MaxServiceIdLength;
-// 	type MaxServiceTypeLength = MaxServiceTypeLength;
-// 	type MaxServiceUrlLength = MaxServiceUrlLength;
-// 	type MaxNumberOfTypesPerService = MaxNumberOfTypesPerService;
-// 	type MaxNumberOfUrlsPerService = MaxNumberOfUrlsPerService;
-// 	type WeightInfo = weights::pallet_did::WeightInfo<Runtime>;
-// }
-
-// parameter_types! {
-// 	pub const MinNameLength: u32 = 3;
-// 	pub const MaxNameLength: u32 = 64;
-// 	pub const MaxPrefixLength: u32 = 54;
-// }
-
-// impl pallet_did_name::Config for Runtime {
-// 	type BanOrigin = EnsureRoot<AccountId>;
-// 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-// 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type MaxNameLength = MaxNameLength;
-// 	type MinNameLength = MinNameLength;
-// 	type MaxPrefixLength = MaxPrefixLength;
-// 	type DidName = pallet_did_name::did_name::AsciiDidName<Runtime>;
-// 	type DidNameOwner = DidIdentifier;
-// 	type WeightInfo = weights::pallet_did_name::WeightInfo<Runtime>;
-// }
-
-// parameter_types! {
-// 	pub const MaxEncodedSchemaLength: u32 = 15_360;
-// }
-
-// impl pallet_schema::Config for Runtime {
-// 	type SchemaCreatorId = DidIdentifier;
-// 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-// 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
-// 	type WeightInfo = weights::pallet_schema::WeightInfo<Runtime>;
-// }
-
-// impl pallet_schema_accounts::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
-// 	type WeightInfo = ();
-// }
-
-// parameter_types! {
-// 	pub const MaxSpaceDelegates: u32 = 10_000;
-// }
-
-// impl pallet_chain_space::Config for Runtime {
-// 	type SpaceCreatorId = DidIdentifier;
-// 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-// 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type ChainSpaceOrigin = EnsureRoot<AccountId>;
-// 	type NetworkPermission = NetworkInfo;
-// 	type MaxSpaceDelegates = MaxSpaceDelegates;
-// 	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
-// }
-
-// parameter_types! {
-// 	pub const MaxRegistryBlobSize: u32 = 4 * 1024;
-// 	pub const MaxEncodedInputLength: u32 = 30;
-// 	pub const MaxRegistryDelegates: u32 = 10_000;
-// }
-
-// parameter_types! {
-// 	pub const MaxNameSpaceDelegates: u32 = 10_000;
-// 	pub const MaxNameSpaceBlobSize: u32 = 4 * 1024;
-// }
-
-// impl pallet_namespace::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type ChainSpaceOrigin = EnsureRoot<AccountId>;
-// 	type NetworkPermission = NetworkInfo;
-// 	type MaxNameSpaceDelegates = MaxNameSpaceDelegates;
-// 	type MaxNameSpaceBlobSize = MaxNameSpaceBlobSize;
-// 	type WeightInfo = ();
-// }
-
-// impl pallet_registries::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type MaxRegistryDelegates = MaxRegistryDelegates;
-// 	type MaxRegistryBlobSize = MaxRegistryBlobSize;
-// 	type MaxEncodedInputLength = MaxEncodedInputLength;
-// 	type WeightInfo = ();
-// }
-
-// parameter_types! {
-// 	pub const MaxDigestsPerBatch: u16 = 1_000;
-// 	pub const MaxRemoveEntries: u16 = 1_000;
-// }
-
-// impl pallet_cord_statement::Config for Runtime {
-// 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-// 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type WeightInfo = weights::pallet_cord_statement::WeightInfo<Runtime>;
-// 	type MaxDigestsPerBatch = MaxDigestsPerBatch;
-// 	type MaxRemoveEntries = MaxRemoveEntries;
-// }
 
 impl pallet_remark::Config for Runtime {
 	type WeightInfo = weights::pallet_remark::WeightInfo<Runtime>;
@@ -876,16 +721,6 @@ impl pallet_sudo::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
 }
-
-// impl pallet_network_score::Config for Runtime {
-// 	type RatingProviderIdOf = DidIdentifier;
-// 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-// 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type MaxEncodedValueLength = ConstU32<128>;
-// 	type MaxRatingValue = ConstU32<50>;
-// 	type WeightInfo = weights::pallet_network_score::WeightInfo<Runtime>;
-// }
 
 impl pallet_config::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -980,6 +815,74 @@ impl pallet_statement::Config for Runtime {
 	type MaxAllowedStatements = MaxAllowedStatements;
 	type MinAllowedBytes = MinAllowedBytes;
 	type MaxAllowedBytes = MaxAllowedBytes;
+}
+
+impl pallet_collection::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Registry = Registry;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const MaxRegistryBlobSize: u32 = 4 * 1024; // 4KB
+}
+
+impl pallet_registry::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxRegistryBlobSize = MaxRegistryBlobSize;
+	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const MaxEncodedInputLength: u32 = 128;
+}
+
+impl pallet_entry::Config for Runtime {
+	type MaxEncodedInputLength = MaxEncodedInputLength;
+	type MaxRegistryEntryBlobSize = MaxRegistryBlobSize;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+}
+
+pub type MetaTxExtension = (
+	pallet_verify_signature::VerifySignature<Runtime>,
+	pallet_meta_tx::MetaTxMarker<Runtime>,
+	frame_system::CheckNonZeroSender<Runtime>,
+	frame_system::CheckSpecVersion<Runtime>,
+	frame_system::CheckTxVersion<Runtime>,
+	frame_system::CheckGenesis<Runtime>,
+	frame_system::CheckMortality<Runtime>,
+	frame_system::CheckNonce<Runtime>,
+	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+);
+
+impl pallet_meta_tx::Config for Runtime {
+	type WeightInfo = weights::pallet_meta_tx::WeightInfo<Runtime>;
+	type RuntimeEvent = RuntimeEvent;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type Extension = MetaTxExtension;
+	#[cfg(feature = "runtime-benchmarks")]
+	type Extension = pallet_meta_tx::WeightlessExtension<Runtime>;
+}
+
+impl pallet_verify_signature::Config for Runtime {
+	type Signature = MultiSignature;
+	type AccountIdentifier = MultiSigner;
+	type WeightInfo = weights::pallet_verify_signature::WeightInfo<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+parameter_types! {
+	pub const MaxDataKeyLength: u8 = 128;
+	pub const MaxDataValueLength: u32 = 1 * 1024; //1KB
+}
+
+impl pallet_profile::Config for Runtime {
+	type MaxDataKeyLength = MaxDataKeyLength;
+	type MaxDataValueLength = MaxDataValueLength;
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
 }
 
 #[frame_support::runtime]
@@ -1080,6 +983,9 @@ mod runtime {
 	#[runtime::pallet_index(45)]
 	pub type Statement = pallet_statement::Pallet<Runtime>;
 
+	#[runtime::pallet_index(68)]
+	pub type NetworkMembership = pallet_network_membership::Pallet<Runtime>;
+
 	#[runtime::pallet_index(69)]
 	pub type NodeAuthorization = pallet_cord_node_authorization::Pallet<Runtime>;
 
@@ -1087,43 +993,19 @@ mod runtime {
 	pub type Identifier = cord_uri::Pallet<Runtime>;
 
 	#[runtime::pallet_index(71)]
-	pub type NetworkMembership = pallet_network_membership::Pallet<Runtime>;
+	pub type Collection = pallet_collection::Pallet<Runtime>;
 
-	// #[runtime::pallet_index(72)]
-	// pub type Did = pallet_did::Pallet<Runtime>;
+	#[runtime::pallet_index(72)]
+	pub type Registry = pallet_registry::Pallet<Runtime>;
 
-	// #[runtime::pallet_index(73)]
-	// pub type Schema = pallet_schema::Pallet<Runtime>;
-
-	// #[runtime::pallet_index(74)]
-	// pub type ChainSpace = pallet_chain_space::Pallet<Runtime>;
-
-	// #[runtime::pallet_index(75)]
-	// pub type CordStatement = pallet_cord_statement::Pallet<Runtime>;
-
-	// #[runtime::pallet_index(76)]
-	// pub type DidName = pallet_did_name::Pallet<Runtime>;
-
-	// #[runtime::pallet_index(77)]
-	// pub type NetworkScore = pallet_network_score::Pallet<Runtime>;
-
-	// #[runtime::pallet_index(78)]
-	// pub type NameSpace = pallet_namespace::Pallet<Runtime>;
+	#[runtime::pallet_index(73)]
+	pub type Entry = pallet_entry::Pallet<Runtime>;
 
 	#[runtime::pallet_index(80)]
 	pub type NetworkInfo = pallet_config::Pallet<Runtime>;
 
-	// #[runtime::pallet_index(81)]
-	// pub type Registries = pallet_registries::Pallet<Runtime>;
-
-	// #[runtime::pallet_index(82)]
-	// pub type Entries = pallet_entries::Pallet<Runtime>;
-
-	// #[runtime::pallet_index(83)]
-	// pub type SchemaAccounts = pallet_schema_accounts::Pallet<Runtime>;
-
-	// #[runtime::pallet_index(84)]
-	// pub type IdentifierV2 = cord_uri::Pallet<Runtime>;
+	#[runtime::pallet_index(81)]
+	pub type Profile = pallet_profile::Pallet<Runtime>;
 
 	#[runtime::pallet_index(101)]
 	pub type Contracts = pallet_contracts::Pallet<Runtime>;
@@ -1137,107 +1019,15 @@ mod runtime {
 	#[runtime::pallet_index(104)]
 	pub type RootTesting = pallet_root_testing::Pallet<Runtime>;
 
+	#[runtime::pallet_index(105)]
+	pub type MetaTx = pallet_meta_tx::Pallet<Runtime>;
+
+	#[runtime::pallet_index(106)]
+	pub type VerifySignature = pallet_verify_signature::Pallet<Runtime>;
+
 	#[runtime::pallet_index(255)]
 	pub type Sudo = pallet_sudo::Pallet<Runtime>;
 }
-
-// #[rustfmt::skip]
-// impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for RuntimeCall {
-// 	fn derive_verification_key_relationship(
-// 		&self,
-// 	) -> pallet_did::DeriveDidCallKeyRelationshipResult {
-// 		fn single_key_relationship(
-// 			calls: &[RuntimeCall],
-// 		) -> pallet_did::DeriveDidCallKeyRelationshipResult {
-// 			let init = calls
-// 				.get(0)
-// 				.ok_or(pallet_did::RelationshipDeriveError::InvalidCallParameter)?
-// 				.derive_verification_key_relationship()?;
-// 			calls
-// 				.iter()
-// 				.skip(1)
-// 				.map(RuntimeCall::derive_verification_key_relationship)
-// 				.try_fold(init, |acc, next| {
-// 					if Ok(acc) == next {
-// 						Ok(acc)
-// 					} else {
-// 						Err(pallet_did::RelationshipDeriveError::InvalidCallParameter)
-// 					}
-// 				})
-// 		}
-// 		match self {
-// 			// DID creation is not allowed through the DID proxy.
-// 			RuntimeCall::Did(pallet_did::Call::create { .. }) => {
-// 				Err(pallet_did::RelationshipDeriveError::NotCallableByDid)
-// 			},
-// 			RuntimeCall::Did { .. } => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-// 			},
-// 			RuntimeCall::DidName { .. } => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-// 			},
-// 			RuntimeCall::Schema { .. } => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-// 			},
-// 			RuntimeCall::CordStatement { .. } => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-// 			},
-// 			RuntimeCall::NetworkScore { .. } => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-// 			},
-// 			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegate { .. }) => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
-// 			},
-// 			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_admin_delegate { .. }) => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
-// 			},
-// 			RuntimeCall::ChainSpace(pallet_chain_space::Call::add_delegator { .. }) => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
-// 			},
-// 			RuntimeCall::ChainSpace(pallet_chain_space::Call::remove_delegate { .. }) => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::CapabilityDelegation)
-// 			},
-// 			RuntimeCall::ChainSpace(pallet_chain_space::Call::create { .. }) => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-// 			},
-// 			RuntimeCall::ChainSpace(pallet_chain_space::Call::archive { .. }) => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-// 			},
-// 			RuntimeCall::ChainSpace(pallet_chain_space::Call::restore { .. }) => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-// 			},
-// 			RuntimeCall::ChainSpace(pallet_chain_space::Call::subspace_create { .. }) => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-// 			},
-// 			RuntimeCall::ChainSpace(pallet_chain_space::Call::update_transaction_capacity { .. }) => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-// 			},
-// 			RuntimeCall::ChainSpace(pallet_chain_space::Call::update_transaction_capacity_sub { .. }) => {
-// 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-// 			},
-// 			RuntimeCall::Utility(pallet_utility::Call::batch { calls }) => {
-// 				single_key_relationship(&calls[..])
-// 			},
-// 			RuntimeCall::Utility(pallet_utility::Call::batch_all { calls }) => {
-// 				single_key_relationship(&calls[..])
-// 			},
-// 			RuntimeCall::Utility(pallet_utility::Call::force_batch { calls }) => {
-// 				single_key_relationship(&calls[..])
-// 			},
-// 			#[cfg(not(feature = "runtime-benchmarks"))]
-// 			_ => Err(pallet_did::RelationshipDeriveError::NotCallableByDid),
-// 			// By default, returns the authentication key
-// 			#[cfg(feature = "runtime-benchmarks")]
-// 			_ => Ok(pallet_did::DidVerificationKeyRelationship::Authentication),
-// 		}
-// 	}
-
-// 	// Always return a System::remark() extrinsic call
-// 	#[cfg(feature = "runtime-benchmarks")]
-// 	fn get_call_for_did_call_benchmark() -> Self {
-// 		RuntimeCall::System(frame_system::Call::remark { remark: vec![] })
-// 	}
-// }
 
 /// The address format for describing accounts.
 pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
@@ -1342,13 +1132,7 @@ mod benches {
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
 		[pallet_utility, Utility]
-		// [pallet_schema, Schema]
-		// [pallet_cord_statement, CordStatement]
-		// [pallet_chain_space, ChainSpace]
-		// [pallet_did, Did]
-		// [pallet_did_name, DidName]
 		[pallet_network_membership, NetworkMembership]
-		// [pallet_network_score, NetworkScore]
 		[pallet_sudo, Sudo]
 	);
 }
@@ -1522,7 +1306,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_assets_runtime_api::AssetsApi<
+	impl assets_api::AssetsApi<
 		Block,
 		AccountId,
 		Balance,
@@ -1531,6 +1315,25 @@ impl_runtime_apis! {
 	{
 		fn account_balances(account: AccountId) -> Vec<(u32, Balance)> {
 			Assets::account_balances(account)
+		}
+	}
+
+	impl identifier_api::IdentifierApi<Block> for Runtime {
+		fn decode_identifier(identifier: Vec<u8>) -> Option<identifier_api::DecodedIdentifierApi> {
+
+			let ss58_id = Ss58Identifier::try_from(identifier).ok()?;
+
+			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
+
+			Some(identifier_api::DecodedIdentifierApi {
+				network: decoded.network,
+				pallet: decoded.pallet,
+				digest: decoded.digest,
+			})
+		}
+
+		fn resolve_pallet(index: u16) -> Option<String> {
+			Identifier::resolve_pallet_name(index).ok()
 		}
 	}
 
@@ -1607,59 +1410,6 @@ impl_runtime_apis! {
 			)
 		}
 	}
-
-	// impl pallet_did_runtime_api::DidApi<
-	// 	Block,
-	// 	DidIdentifier,
-	// 	AccountId,
-	// 	Hash,
-	// 	BlockNumber
-	// > for Runtime {
-	// 	fn query(did: DidIdentifier) -> Option<
-	// 		pallet_did_runtime_api::RawDidLinkedInfo<
-	// 			DidIdentifier,
-	// 			AccountId,
-	// 			Hash,
-	// 			BlockNumber
-	// 		>
-	// 	> {
-	// 		let details = pallet_did::Did::<Runtime>::get(&did)?;
-	// 		let name = pallet_did_name::Names::<Runtime>::get(&did).map(Into::into);
-	// 		let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
-
-	// 		Some(pallet_did_runtime_api::RawDidLinkedInfo {
-	// 			identifier: did.clone(),
-	// 			account: did,
-	// 			name,
-	// 			service_endpoints,
-	// 			details: details.into(),
-	// 		})
-	// 	}
-	// 	fn query_by_name(name: Vec<u8>) -> Option<pallet_did_runtime_api::RawDidLinkedInfo<
-	// 			DidIdentifier,
-	// 			AccountId,
-	// 			Hash,
-	// 			BlockNumber
-	// 		>
-	// 	> {
-	// 		let dname: pallet_did_name::did_name::AsciiDidName<Runtime> = name.try_into().ok()?;
-	// 		pallet_did_name::Owner::<Runtime>::get(&dname)
-	// 			.and_then(|owner_info| {
-	// 				pallet_did::Did::<Runtime>::get(&owner_info.owner).map(|details| (owner_info, details))
-	// 			})
-	// 			.map(|(owner_info, details)| {
-	// 				let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&owner_info.owner).map(|e| From::from(e.1)).collect();
-
-	// 				pallet_did_runtime_api::RawDidLinkedInfo{
-	// 					identifier: owner_info.owner.clone(),
-	// 					account: owner_info.owner,
-	// 					name: Some(dname.into()),
-	// 					service_endpoints,
-	// 					details: details.into(),
-	// 				}
-	// 		})
-	// 	}
-	// }
 
 	impl pallet_asset_conversion::AssetConversionApi<
 		Block,

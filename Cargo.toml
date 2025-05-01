@@ -1,6 +1,6 @@
 
 [workspace.package]
-version = "0.9.5"
+version = "0.9.7"
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = "2021"
 homepage = "https://cord.network"
@@ -186,7 +186,7 @@ femme = { version = "2.2.1" }
 filetime = { version = "0.2.16" }
 finality-grandpa = { version = "0.16.3", default-features = false }
 finality-relay = { git = "https://github.com/dhiway/sdk", branch = "release-v1.18.0" }
-flate2 = { version = "1.0" }
+# flate2 = { version = "1.0" }
 fnv = { version = "1.0.6" }
 fork-tree = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
 forwarded-header-value = { version = "0.1.1" }
@@ -376,12 +376,12 @@ pallet-proxy = { git = "https://github.com/dhiway/sdk", default-features = false
 pallet-recovery = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
 pallet-referenda = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
 pallet-remark = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
-pallet-revive = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
-pallet-revive-eth-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
-pallet-revive-fixtures = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
-pallet-revive-mock-network = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
-pallet-revive-proc-macro = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
-pallet-revive-uapi = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
+# pallet-revive = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
+# pallet-revive-eth-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
+# pallet-revive-fixtures = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
+# pallet-revive-mock-network = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
+# pallet-revive-proc-macro = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
+# pallet-revive-uapi = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
 pallet-root-offences = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
 pallet-root-testing = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
 pallet-safe-mode = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.0" }
@@ -762,7 +762,6 @@ crossbeam-deque = { opt-level = 3 }
 crypto-mac = { opt-level = 3 }
 curve25519-dalek = { opt-level = 3 }
 ed25519-dalek = { opt-level = 3 }
-flate2 = { opt-level = 3 }
 futures-channel = { opt-level = 3 }
 hash-db = { opt-level = 3 }
 hashbrown = { opt-level = 3 }
@@ -782,7 +781,6 @@ parking_lot_core = { opt-level = 3 }
 percent-encoding = { opt-level = 3 }
 polkavm-linker = { opt-level = 3 }
 primitive-types = { opt-level = 3 }
-reed-solomon-novelpoly = { opt-level = 3 }
 ring = { opt-level = 3 }
 rustls = { opt-level = 3 }
 sha2 = { opt-level = 3 }

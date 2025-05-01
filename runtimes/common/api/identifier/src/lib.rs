@@ -24,19 +24,26 @@
 
 extern crate alloc;
 
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
 #[derive(Encode, Decode, TypeInfo, PartialEq, Eq)]
 pub struct DecodedIdentifierApi {
-	pub network: u16,
-	pub pallet: Vec<u8>,
-	pub digest: Vec<u8>,
+	pub network: u32,
+	pub pallet: u16,
+	pub digest: String,
 }
 
 sp_api::decl_runtime_apis! {
 	pub trait IdentifierApi {
+		/// Decodes an dentifier into its structured form,
+		/// or returns `None` if decoding fails.
 		fn decode_identifier(identifier: Vec<u8>) -> Option<DecodedIdentifierApi>;
+
+		/// Resolves a pallet name from storage by the given pallet index,
+		/// or returns `None` if it doesn't exist.
+		fn resolve_pallet(index: u16) -> Option<String>;
+
 	}
 }
