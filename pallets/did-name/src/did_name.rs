@@ -21,7 +21,7 @@
 use sp_std::{fmt::Debug, marker::PhantomData, ops::Deref, vec::Vec};
 
 use crate::{Config, Error};
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{ensure, sp_runtime::SaturatedConversion, traits::Get, BoundedVec};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
@@ -33,7 +33,7 @@ const NETWORK_SUFFIX: &[u8] = b"cord";
 ///
 /// It is bounded in size (inclusive range [MinLength, MaxLength]) and can only
 /// contain a subset of ASCII characters.
-#[derive(Encode, Decode, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(T, MinLength, MaxLength))]
 #[codec(mel_bound())]
 pub struct AsciiDidName<T: Config>(
@@ -145,7 +145,9 @@ impl<T: Config> Clone for AsciiDidName<T> {
 }
 
 /// DID name ownership details.
-#[derive(Clone, Encode, Decode, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Clone, Encode, Decode, DecodeWithMemTracking, Debug, Eq, PartialEq, TypeInfo, MaxEncodedLen,
+)]
 pub struct DidNameOwnership<Owner, BlockNumber> {
 	/// The owner of the did name.
 	pub owner: Owner,

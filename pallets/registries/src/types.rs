@@ -22,12 +22,12 @@
 //! including permissions, registry details, and registry authorizations.
 
 use bitflags::bitflags;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
 bitflags! {
-	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen)]
+	#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
 	pub struct Permissions: u32 {
 		const ASSERT = 0b0000_0001;
 		const DELEGATE = 0b0000_0010;
@@ -74,7 +74,17 @@ impl Default for Permissions {
 /// - `archived`: Flag showing whether the registry is archived.
 /// - `digest`: A hash representing unique content or metadata of the registry.
 /// - `schema_id`: (Optional) Identifier linking the registry to a specific schema.
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub struct RegistryDetails<RegistryCreatorOf, StatusOf, RegistryHashOf, NameSpaceIdOf, SchemaIdOf> {
 	pub creator: RegistryCreatorOf,
 	pub revoked: StatusOf,
@@ -96,7 +106,17 @@ pub struct RegistryDetails<RegistryCreatorOf, StatusOf, RegistryHashOf, NameSpac
 /// - `delegate`: The entity that has been granted permissions within the registry.
 /// - `permissions`: The specific permissions granted to the delegate.
 /// - `delegator`: The entity that granted the permissions to the delegates
-#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	MaxEncodedLen,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub struct RegistryAuthorization<RegistryIdOf, RegistryCreatorOf, Permissions> {
 	pub registry_id: RegistryIdOf,
 	pub delegate: RegistryCreatorOf,

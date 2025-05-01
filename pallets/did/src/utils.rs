@@ -50,7 +50,7 @@ pub(crate) fn is_valid_uri_fragment(input: &str) -> bool {
 	// We compose a valid prefix so that we can test if the provided input is a
 	// valid fragment.
 	let full_test_uri = format!("{}#{}", TEST_URI_BASE, input);
-	Uri::parse(&full_test_uri).is_ok()
+	Uri::parse(full_test_uri).is_ok()
 }
 
 #[test]

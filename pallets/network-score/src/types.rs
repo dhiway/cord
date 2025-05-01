@@ -16,12 +16,22 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
 #[derive(
-	Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
+	Encode,
+	Decode,
+	MaxEncodedLen,
+	DecodeWithMemTracking,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
 )]
 pub struct EntityDetails<EntityIdentifier> {
 	/// Unique Identifier (UID) for the entity being rated
@@ -31,7 +41,17 @@ pub struct EntityDetails<EntityIdentifier> {
 }
 
 #[derive(
-	Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
 )]
 pub struct RatingInputEntry<EntityIdentifier, RatingProviderId, RatingTypeOf> {
 	/// Identifier for the entity being rated
@@ -48,13 +68,33 @@ pub struct RatingInputEntry<EntityIdentifier, RatingProviderId, RatingTypeOf> {
 	pub provider_did: RatingProviderId,
 }
 
-#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum RatingTypeOf {
 	Overall,
 	Delivery,
 }
 
-#[derive(Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+)]
 pub enum EntryTypeOf {
 	Credit,
 	Debit,
@@ -67,7 +107,17 @@ impl RatingTypeOf {
 }
 
 #[derive(
-	Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
 )]
 pub struct RatingEntry<
 	EntityIdentifier,
@@ -99,7 +149,17 @@ pub struct RatingEntry<
 }
 
 #[derive(
-	Encode, Decode, MaxEncodedLen, Clone, RuntimeDebug, PartialEq, Eq, PartialOrd, Ord, TypeInfo,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	PartialOrd,
+	Ord,
+	TypeInfo,
 )]
 pub struct AggregatedEntryOf {
 	/// aggregated transaction count

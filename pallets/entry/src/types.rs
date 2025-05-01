@@ -20,12 +20,22 @@
 
 //! Entry pallet types.
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	PartialEq,
+	Eq,
+	RuntimeDebug,
+	MaxEncodedLen,
+	TypeInfo,
+)]
 pub struct RegistryEntryDetails<RegistryEntryHashOf, StatusOf, ProfileIdOf, RegistryIdentifierOf> {
 	/// Type of Registry Entry Digest associated with the document.
 	pub tx_hash: RegistryEntryHashOf,

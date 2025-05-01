@@ -18,7 +18,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_utilities::traits::CallSources;
 use frame_support::traits::EnsureOrigin;
 use scale_info::TypeInfo;
@@ -26,7 +26,17 @@ use sp_runtime::RuntimeDebug;
 use sp_std::marker::PhantomData;
 
 /// Origin for modules that support DID-based authorization.
-#[derive(Clone, Decode, Encode, Eq, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Clone,
+	Decode,
+	DecodeWithMemTracking,
+	Encode,
+	Eq,
+	PartialEq,
+	RuntimeDebug,
+	TypeInfo,
+	MaxEncodedLen,
+)]
 pub struct DidRawOrigin<DidIdentifier, AccountId> {
 	pub id: DidIdentifier,
 	pub submitter: AccountId,

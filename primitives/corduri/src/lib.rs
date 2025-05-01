@@ -22,7 +22,7 @@
 
 extern crate alloc;
 use alloc::{format, string::String, vec, vec::Vec};
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::Id as NetworkId;
 use frame_support::{ensure, pallet_prelude::*, traits::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
@@ -44,7 +44,17 @@ const INDEX: u16 = 64;
 pub use crate::pallet::*;
 
 /// EventStamp marks the block and extrinsic where an event occurred.
-#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+	MaxEncodedLen,
+	DecodeWithMemTracking,
+)]
 pub struct EventStamp {
 	pub height: u32,
 	pub index: u32,
@@ -54,7 +64,17 @@ pub struct EventStamp {
 pub type EntryTypeOf = BoundedVec<u8, ConstU32<64>>;
 
 /// ActivityRecord stores an update entry and the corresponding event stamp.
-#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode,
+	Decode,
+	Clone,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	TypeInfo,
+	MaxEncodedLen,
+	DecodeWithMemTracking,
+)]
 pub struct ActivityRecord {
 	pub entry: EntryTypeOf,
 	pub event_stamp: EventStamp,
@@ -183,7 +203,17 @@ impl<T: Config> Pallet<T> {
 }
 
 #[derive(
-	Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo,
+	Clone,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	RuntimeDebug,
+	Encode,
+	Decode,
+	MaxEncodedLen,
+	TypeInfo,
+	DecodeWithMemTracking,
 )]
 pub struct Ss58Identifier(pub(crate) BoundedVec<u8, ConstU32<60>>);
 

@@ -534,9 +534,9 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	let is_offchain_indexing_enabled = config.offchain_worker.indexing_enabled;
 	let role = config.role;
 	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks = if config.chain_spec.is_braid() ||
-		config.chain_spec.is_loom() ||
-		config.chain_spec.is_weave()
+	let backoff_authoring_blocks = if config.chain_spec.is_braid()
+		|| config.chain_spec.is_loom()
+		|| config.chain_spec.is_weave()
 	{
 		// the block authoring backoff is disabled on production networks
 		None
@@ -928,7 +928,7 @@ pub struct BraidRuntime;
 impl RuntimeConfig for BraidRuntime {
 	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
 		let database_path = config.database.path().map(Path::to_path_buf);
-		let task_manager = match config.network.network_backend {
+		let task_manager = match config.network.network_backend.unwrap_or_default() {
 			sc_network::config::NetworkBackendType::Libp2p => {
 				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
 					config,
@@ -968,7 +968,7 @@ pub struct LoomRuntime;
 impl RuntimeConfig for LoomRuntime {
 	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
 		let database_path = config.database.path().map(Path::to_path_buf);
-		let task_manager = match config.network.network_backend {
+		let task_manager = match config.network.network_backend.unwrap_or_default() {
 			sc_network::config::NetworkBackendType::Libp2p => {
 				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
 					config,
@@ -1008,7 +1008,7 @@ pub struct WeaveRuntime;
 impl RuntimeConfig for WeaveRuntime {
 	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
 		let database_path = config.database.path().map(Path::to_path_buf);
-		let task_manager = match config.network.network_backend {
+		let task_manager = match config.network.network_backend.unwrap_or_default() {
 			sc_network::config::NetworkBackendType::Libp2p => {
 				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
 					config,

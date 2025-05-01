@@ -160,7 +160,7 @@ tempfile = { workspace = true }
 assert_cmd = { workspace = true }
 nix = { features = ["signal"], workspace = true }
 regex = { workspace = true }
-platforms = { workspace = true }
+# platforms = { workspace = true }
 soketto = { workspace = true }
 criterion = { features = [
 	"async_tokio",
@@ -182,7 +182,7 @@ sp-keyring = { workspace = true }
 pretty_assertions.workspace = true
 env_logger = { workspace = true }
 assert_matches = { workspace = true }
-serial_test = { workspace = true }
+# serial_test = { workspace = true }
 sc-keystore = { workspace = true }
 sc-client-db = { workspace = true }
 sc-consensus = { workspace = true }

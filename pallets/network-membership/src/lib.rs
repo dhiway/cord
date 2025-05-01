@@ -20,7 +20,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod weights;
-use codec::{Decode, Encode};
+use codec::{Decode, DecodeWithMemTracking, Encode};
 pub use pallet::*;
 use scale_info::TypeInfo;
 
@@ -329,7 +329,7 @@ impl<T: Config> network_membership::MembersCount for Pallet<T> {
 }
 
 /// The `CheckNetworkMembership` struct.
-#[derive(Encode, Decode, DefaultNoBound, Clone, Eq, PartialEq, TypeInfo)]
+#[derive(Encode, Decode, DecodeWithMemTracking, DefaultNoBound, Clone, Eq, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct CheckNetworkMembership<T>(PhantomData<T>);
 

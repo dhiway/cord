@@ -76,4 +76,20 @@ impl<T: frame_system::Config> pallet_utility::WeightInfo for WeightInfo<T> {
 			// Standard Error: 599
 			.saturating_add(Weight::from_parts(3_520_364, 0).saturating_mul(c.into()))
 	}
+	fn dispatch_as_fallible() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 7_232_000 picoseconds.
+		Weight::from_parts(7_558_000, 0)
+			.saturating_add(Weight::from_parts(0, 0))
+	}
+	fn if_else() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 9_169_000 picoseconds.
+		Weight::from_parts(9_536_000, 0)
+			.saturating_add(Weight::from_parts(0, 0))
+	}
 }

@@ -26,7 +26,7 @@ pub use primitives::{Id as NetworkId, NetworkToken, LOWEST_PUBLIC_ID};
 pub use traits::Registrar;
 
 use alloc::{fmt, vec, vec::Vec};
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::StatusOf;
 use frame_support::{
 	dispatch::DispatchResult,
@@ -45,7 +45,17 @@ use sp_runtime::{
 	RuntimeDebug,
 };
 
-#[derive(Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug, PartialEq, Eq, Clone)]
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	TypeInfo,
+	RuntimeDebug,
+	PartialEq,
+	Eq,
+	Clone,
+)]
 pub struct NetworkInfo<Account, Hash, NetworkToken, StatusOf> {
 	pub(crate) manager: Account,
 	pub genesis_head: Hash,
