@@ -29,16 +29,15 @@ fn benchmark_extrinsic_works() {
 	benchmark_extrinsic("balances", "transfer_keep_alive");
 }
 
-/// Checks that the `benchmark extrinsic` command works for the given pallet and
-/// extrinsic.
+/// Checks that the `benchmark extrinsic` command works for the given pallet and extrinsic.
 fn benchmark_extrinsic(pallet: &str, extrinsic: &str) {
 	let base_dir = tempdir().expect("could not create a temp dir");
 
 	let status = Command::new(cargo_bin("cord"))
-		.args(["benchmark", "extrinsic", "--dev", "--detailed-log-output"])
+		.args(&["benchmark", "extrinsic", "--dev"])
 		.arg("-d")
 		.arg(base_dir.path())
-		.args(["--pallet", pallet, "--extrinsic", extrinsic])
+		.args(&["--pallet", pallet, "--extrinsic", extrinsic])
 		// Run with low repeats for faster execution.
 		.args(["--warmup=10", "--repeat=10", "--max-ext-per-block=10"])
 		.args(["--wasm-execution=compiled"])

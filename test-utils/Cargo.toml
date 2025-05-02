@@ -1,7 +1,7 @@
 [package]
 name = "cord-test-utils"
 description = "CORD Node testing utilities"
-version = "0.9.3-dev"
+version = "0.9.7-dev"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,15 +15,15 @@ workspace = true
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
-[dependencies]
-substrate-rpc-client = { workspace = true }
-assert_cmd = { workspace = true }
-nix = { workspace = true }
-regex = { workspace = true }
-tokio = { features = ["full"], workspace = true }
-cord-primitives = { workspace = true }
-futures = { workspace = true }
+# [dependencies]
+# substrate-rpc-client = { workspace = true }
+# assert_cmd = { workspace = true }
+# nix = { workspace = true }
+# regex = { workspace = true }
+# tokio = { features = ["full"], workspace = true }
+# cord-primitives = { workspace = true }
+# futures = { workspace = true }
 
-[dev-dependencies]
-trybuild = { workspace = true, features = ["diff"] }
-sc-service = { workspace = true }
+# [dev-dependencies]
+# trybuild = { workspace = true, features = ["diff"] }
+# sc-service = { workspace = true }

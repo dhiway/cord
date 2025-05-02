@@ -85,7 +85,7 @@ pub mod fee {
 	pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
 
 	/// Cost of every transaction byte.
-	pub const TRANSACTION_BYTE_FEE: Balance = 10 * super::currency::MILLI;
+	pub const TRANSACTION_BYTE_FEE: Balance = 10 * super::currency::MICRO;
 
 	pub struct WeightToFee;
 	impl WeightToFeePolynomial for WeightToFee {
@@ -94,17 +94,11 @@ pub mod fee {
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
 			let p = super::currency::CENTI;
 			let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
-			let coeff_integer = p / q;
-			let coeff_frac = Perbill::from_rational(p % q, q);
-			let multiplier = FixedU128::saturating_from_rational(2, 1);
-			let adjusted_coeff_integer =
-				(coeff_integer * multiplier.into_inner()) / FixedU128::DIV as Balance;
-
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
 				negative: false,
-				coeff_integer: adjusted_coeff_integer,
-				coeff_frac,
+				coeff_integer: p / q,
+				coeff_frac: Perbill::from_rational(p % q, q),
 			}]
 		}
 	}

@@ -19,9 +19,16 @@
 //! The CORD test runtime. This can be compiled with `#[no_std]`, ready for
 //! Wasm.
 
-#![cfg_attr(not(feature = "std"), no_std)]
+// #![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(test), no_std)]
 
 extern crate alloc;
+
+#[cfg(test)]
+extern crate std;
+#[cfg(feature = "std")]
+extern crate std;
+
 pub mod cord_test_pallet;
 #[cfg(feature = "std")]
 pub mod extrinsic;
@@ -29,9 +36,8 @@ pub mod extrinsic;
 pub mod genesismap;
 
 #[cfg(not(feature = "std"))]
-use alloc::{vec, vec::Vec};
-
-use codec::{Decode, Encode};
+use alloc::{format, string, vec, vec::Vec};
+use codec::{Decode, DecodeWithMemTracking, Encode};
 use frame_support::{
 	construct_runtime, derive_impl,
 	dispatch::DispatchClass,
@@ -48,27 +54,30 @@ use frame_system::{
 	CheckNonce, CheckWeight,
 };
 use scale_info::TypeInfo;
-use serde_json::json;
-use sp_api::{decl_runtime_apis, impl_runtime_apis};
-use sp_application_crypto::{ecdsa, ed25519, sr25519, RuntimeAppPublic, Ss58Codec};
-pub use sp_core::hash::H256;
+use sp_application_crypto::Ss58Codec;
+use sp_keyring::Sr25519Keyring;
+
+use sp_application_crypto::{ecdsa, ed25519, sr25519, RuntimeAppPublic};
 use sp_core::{OpaqueMetadata, RuntimeDebug};
-use sp_genesis_builder::PresetId;
-use sp_inherents::{CheckInherentsResult, InherentData};
-use sp_keyring::AccountKeyring;
-use sp_runtime::{
-	create_runtime_str, impl_opaque_keys,
-	traits::{BlakeTwo256, Block as BlockT, DispatchInfoOf, NumberFor, Verify},
-	transaction_validity::{TransactionSource, TransactionValidity, TransactionValidityError},
-	ApplyExtrinsicResult, ExtrinsicInclusionMode, Perbill,
-};
-use sp_std::prelude::*;
 use sp_trie::{
 	trie_types::{TrieDBBuilder, TrieDBMutBuilderV1},
 	PrefixedMemoryDB, StorageProof,
 };
 use trie_db::{Trie, TrieMut};
 
+use serde_json::json;
+use sp_api::{decl_runtime_apis, impl_runtime_apis};
+pub use sp_core::hash::H256;
+use sp_genesis_builder::PresetId;
+use sp_inherents::{CheckInherentsResult, InherentData};
+use sp_runtime::{
+	impl_opaque_keys, impl_tx_ext_default,
+	traits::{BlakeTwo256, Block as BlockT, DispatchInfoOf, Dispatchable, NumberFor, Verify},
+	transaction_validity::{
+		TransactionSource, TransactionValidity, TransactionValidityError, ValidTransaction,
+	},
+	ApplyExtrinsicResult, ExtrinsicInclusionMode, Perbill,
+};
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -113,14 +122,14 @@ pub fn wasm_binary_logging_disabled_unwrap() -> &'static [u8] {
 /// Test runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("test"),
-	impl_name: create_runtime_str!("cord-test"),
+	spec_name: alloc::borrow::Cow::Borrowed("test"),
+	impl_name: alloc::borrow::Cow::Borrowed("cord-test"),
 	authoring_version: 1,
 	spec_version: 2,
 	impl_version: 2,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
-	state_version: 1,
+	system_version: 1,
 };
 
 fn version() -> RuntimeVersion {
@@ -133,9 +142,8 @@ pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
 }
 
-/// Transfer data extracted from Extrinsic containing
-/// `Balances::transfer_allow_death`.
-#[derive(Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug, TypeInfo)]
+/// Transfer data extracted from Extrinsic containing `Balances::transfer_allow_death`.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo)]
 pub struct TransferData {
 	pub from: AccountId,
 	pub to: AccountId,
@@ -149,13 +157,19 @@ pub type Signature = sr25519::Signature;
 #[cfg(feature = "std")]
 pub type Pair = sp_core::sr25519::Pair;
 
-/// The SignedExtension to the basic transaction logic.
-pub type SignedExtra = (CheckNonce<Runtime>, CheckWeight<Runtime>, CheckSubstrateCall);
+// TODO: Remove after the Checks are migrated to TxExtension.
+/// The extension to the basic transaction logic.
+pub type TxExtension = (
+	(CheckNonce<Runtime>, CheckWeight<Runtime>),
+	CheckCordCall,
+	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	frame_system::WeightReclaim<Runtime>,
+);
 /// The payload being signed in transactions.
-pub type SignedPayload = sp_runtime::generic::SignedPayload<RuntimeCall, SignedExtra>;
+pub type SignedPayload = sp_runtime::generic::SignedPayload<RuntimeCall, TxExtension>;
 /// Unchecked extrinsic type as expected by this runtime.
 pub type Extrinsic =
-	sp_runtime::generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+	sp_runtime::generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, TxExtension>;
 
 /// An identifier for an account on this system.
 pub type AccountId = <Signature as Verify>::Signer;
@@ -187,7 +201,6 @@ decl_runtime_apis! {
 		fn benchmark_add_one(val: &u64) -> u64;
 		/// A benchmark function that adds one to each value in the given vector and returns the
 		/// result.
-		 #[allow(clippy::ptr_arg)]
 		fn benchmark_vector_add_one(vec: &Vec<u64>) -> Vec<u64>;
 		/// A function for that the signature changed in version `2`.
 		#[changed_in(2)]
@@ -241,20 +254,29 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 >;
 
-#[derive(Copy, Clone, PartialEq, Eq, Encode, Decode, RuntimeDebug, TypeInfo)]
-pub struct CheckSubstrateCall;
+#[derive(
+	Copy, Clone, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, RuntimeDebug, TypeInfo,
+)]
+pub struct CheckCordCall;
 
-impl sp_runtime::traits::Printable for CheckSubstrateCall {
+impl sp_runtime::traits::Printable for CheckCordCall {
 	fn print(&self) {
-		"CheckSubstrateCall".print()
+		"CheckCordCall".print()
 	}
 }
 
-impl sp_runtime::traits::Dispatchable for CheckSubstrateCall {
-	type RuntimeOrigin = CheckSubstrateCall;
-	type Config = CheckSubstrateCall;
-	type Info = CheckSubstrateCall;
-	type PostInfo = CheckSubstrateCall;
+impl sp_runtime::traits::RefundWeight for CheckCordCall {
+	fn refund(&mut self, _weight: frame_support::weights::Weight) {}
+}
+impl sp_runtime::traits::ExtensionPostDispatchWeightHandler<CheckCordCall> for CheckCordCall {
+	fn set_extension_weight(&mut self, _info: &CheckCordCall) {}
+}
+
+impl sp_runtime::traits::Dispatchable for CheckCordCall {
+	type RuntimeOrigin = RuntimeOrigin;
+	type Config = CheckCordCall;
+	type Info = CheckCordCall;
+	type PostInfo = CheckCordCall;
 
 	fn dispatch(
 		self,
@@ -264,42 +286,34 @@ impl sp_runtime::traits::Dispatchable for CheckSubstrateCall {
 	}
 }
 
-impl sp_runtime::traits::SignedExtension for CheckSubstrateCall {
-	type AccountId = AccountId;
-	type Call = RuntimeCall;
-	type AdditionalSigned = ();
+impl sp_runtime::traits::TransactionExtension<RuntimeCall> for CheckCordCall {
+	const IDENTIFIER: &'static str = "CheckCordCall";
+	type Implicit = ();
 	type Pre = ();
-	const IDENTIFIER: &'static str = "CheckSubstrateCall";
-
-	fn additional_signed(
-		&self,
-	) -> core::result::Result<Self::AdditionalSigned, TransactionValidityError> {
-		Ok(())
-	}
+	type Val = ();
+	impl_tx_ext_default!(RuntimeCall; weight prepare);
 
 	fn validate(
 		&self,
-		_who: &Self::AccountId,
-		call: &Self::Call,
-		_info: &DispatchInfoOf<Self::Call>,
+		origin: <RuntimeCall as Dispatchable>::RuntimeOrigin,
+		call: &RuntimeCall,
+		_info: &DispatchInfoOf<RuntimeCall>,
 		_len: usize,
-	) -> TransactionValidity {
+		_self_implicit: Self::Implicit,
+		_inherited_implication: &impl Encode,
+		_source: TransactionSource,
+	) -> Result<
+		(ValidTransaction, Self::Val, <RuntimeCall as Dispatchable>::RuntimeOrigin),
+		TransactionValidityError,
+	> {
 		log::trace!(target: LOG_TARGET, "validate");
-		match call {
-			RuntimeCall::CordTest(ref cord_test_call) =>
-				cord_test_pallet::validate_runtime_call(cord_test_call),
-			_ => Ok(Default::default()),
-		}
-	}
-
-	fn pre_dispatch(
-		self,
-		who: &Self::AccountId,
-		call: &Self::Call,
-		info: &sp_runtime::traits::DispatchInfoOf<Self::Call>,
-		len: usize,
-	) -> Result<Self::Pre, TransactionValidityError> {
-		self.validate(who, call, info, len).map(drop)
+		let v = match call {
+			RuntimeCall::CordTest(ref cord_test_call) => {
+				cord_test_pallet::validate_runtime_call(cord_test_call)?
+			},
+			_ => Default::default(),
+		};
+		Ok((v, (), origin))
 	}
 }
 
@@ -313,11 +327,11 @@ construct_runtime!(
 	}
 );
 
-/// We assume that ~10% of the block weight is consumed by `on_initialize`
-/// handlers. This is used to limit the maximal weight of a single extrinsic.
+/// We assume that ~10% of the block weight is consumed by `on_initialize` handlers.
+/// This is used to limit the maximal weight of a single extrinsic.
 const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
-/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be
-/// used by  Operational  extrinsics.
+/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used
+/// by  Operational  extrinsics.
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 /// Max weight, actual value does not matter for test runtime.
 const MAXIMUM_BLOCK_WEIGHT: Weight =
@@ -349,6 +363,7 @@ parameter_types! {
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)
 		.build_or_panic();
 }
+
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::pallet::Config for Runtime {
 	type BlockWeights = RuntimeBlockWeights;
@@ -361,15 +376,13 @@ impl frame_system::pallet::Config for Runtime {
 
 pub mod currency {
 	use crate::Balance;
-	pub const UNITS: Balance = 1_000_000_000_000; // 10^12 precision
-	pub const MILLI_UNITS: Balance = UNITS / 1_000; // 10^9 precision
-	pub const MICRO_UNITS: Balance = UNITS / 1_000_000; // 10^6 precision
-	pub const NANO_UNITS: Balance = UNITS / 1_000_000_000; // 10^3 precision
+	const MILLICENTS: Balance = 1_000_000_000;
+	const CENTS: Balance = 1_000 * MILLICENTS; // assume this is worth about a cent.
+	pub const DOLLARS: Balance = 100 * CENTS;
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: Balance = 100 * currency::MILLI_UNITS;
-
+	pub const ExistentialDeposit: Balance = 1 * currency::DOLLARS;
 	// For weight estimation, we assume that the most locks on an individual account will be 50.
 	// This number may need to be adjusted in the future if this assumption no longer holds true.
 	pub const MaxLocks: u32 = 50;
@@ -390,6 +403,7 @@ impl pallet_balances::Config for Runtime {
 	type MaxFreezes = ();
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type DoneSlashHandler = ();
 }
 
 impl cord_test_pallet::Config for Runtime {}
@@ -490,7 +504,6 @@ impl_runtime_apis! {
 			Runtime::metadata_versions()
 		}
 	}
-
 
 	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
 		fn validate_transaction(
@@ -595,7 +608,11 @@ impl_runtime_apis! {
 		}
 
 		fn do_trace_log() {
-			log::trace!("Hey I'm runtime");
+			log::trace!(target: "test", "Hey I'm runtime");
+
+			let data = "THIS IS TRACING";
+
+			tracing::trace!(target: "test", %data, "Hey, I'm tracing");
 		}
 
 		fn verify_ed25519(sig: ed25519::Signature, public: ed25519::Public, message: Vec<u8>) -> bool {
@@ -616,10 +633,6 @@ impl_runtime_apis! {
 			sp_consensus_aura::SlotDuration::from_millis(1000)
 		}
 
-		/* TODO:: Remove deprecated way of accessing storage through getter,
-		 * instead use Authorities<Type>::get().
-		 * Currently type resolution is failing to fulfill above.
-		 */
 		fn authorities() -> Vec<AuraId> {
 			CordTest::authorities().into_iter().map(|auth| AuraId::from(auth)).collect()
 		}
@@ -669,7 +682,7 @@ impl_runtime_apis! {
 
 	impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
 		fn offchain_worker(header: &<Block as BlockT>::Header) {
-			let ext = Extrinsic::new_unsigned(
+			let ext = Extrinsic::new_bare(
 				cord_test_pallet::pallet::Call::storage_change{
 					key:b"some_key".encode(),
 					value:Some(header.number.encode())
@@ -722,28 +735,29 @@ impl_runtime_apis! {
 		fn build_state(config: Vec<u8>) -> sp_genesis_builder::Result {
 			build_state::<RuntimeGenesisConfig>(config)
 		}
+
 		fn get_preset(name: &Option<PresetId>) -> Option<Vec<u8>> {
 			get_preset::<RuntimeGenesisConfig>(name, |name| {
-				let patch = match name.try_into() {
-					Ok("staging") => {
+				 let patch = match name.as_ref() {
+					"staging" => {
 						let endowed_accounts: Vec<AccountId> = vec![
-							AccountKeyring::Bob.public().into(),
-							AccountKeyring::Charlie.public().into(),
+							Sr25519Keyring::Bob.public().into(),
+							Sr25519Keyring::Charlie.public().into(),
 						];
 
 						json!({
 							"balances": {
-								"balances": endowed_accounts.into_iter().map(|k| (k, 10 * currency::UNITS)).collect::<Vec<_>>(),
+								"balances": endowed_accounts.into_iter().map(|k| (k, 10 * currency::DOLLARS)).collect::<Vec<_>>(),
 							},
 							"cordTest": {
 								"authorities": [
-									AccountKeyring::Alice.public().to_ss58check(),
-									AccountKeyring::Ferdie.public().to_ss58check()
+									Sr25519Keyring::Alice.public().to_ss58check(),
+									Sr25519Keyring::Ferdie.public().to_ss58check()
 								],
 							}
 						})
 					},
-					Ok("foobar") => json!({"foo":"bar"}),
+					"foobar" => json!({"foo":"bar"}),
 					_ => return None,
 				};
 				Some(serde_json::to_string(&patch)
@@ -852,9 +866,9 @@ fn test_witness(proof: StorageProof, root: crate::Hash) {
 	assert!(ext.storage_root(Default::default()).as_slice() != &root[..]);
 }
 
-/// Some tests require the hashed keys of the storage. As the values of hashed
-/// keys are not trivial to guess, this small module provides the values of the
-/// keys, and the code which is required to generate the keys.
+/// Some tests require the hashed keys of the storage. As the values of hashed keys are not trivial
+/// to guess, this small module provides the values of the keys, and the code which is required to
+/// generate the keys.
 #[cfg(feature = "std")]
 pub mod storage_key_generator {
 	use super::*;
@@ -867,7 +881,7 @@ pub mod storage_key_generator {
 	{
 		x.hex(Default::default())
 	}
-	#[allow(clippy::ptr_arg)]
+
 	fn concat_hashes(input: &Vec<&[u8]>) -> String {
 		input.iter().map(|s| sp_crypto_hashing::twox_128(s)).map(hex).collect()
 	}
@@ -876,8 +890,8 @@ pub mod storage_key_generator {
 		sp_crypto_hashing::twox_64(x).iter().chain(x.iter()).cloned().collect()
 	}
 
-	/// Generate the hashed storage keys from the raw literals. These keys are
-	/// expected to be be in storage with given cord-test runtime.
+	/// Generate the hashed storage keys from the raw literals. These keys are expected to be in
+	/// storage with given cord-test runtime.
 	pub fn generate_expected_storage_hashed_keys(custom_heap_pages: bool) -> Vec<String> {
 		let mut literals: Vec<&[u8]> = vec![b":code", b":extrinsic_index"];
 
@@ -907,11 +921,11 @@ pub mod storage_key_generator {
 
 		let balances_map_keys = (0..16_usize)
 			.into_iter()
-			.map(|i| AccountKeyring::numeric(i).public().to_vec())
+			.map(|i| Sr25519Keyring::numeric(i).public().to_vec())
 			.chain(vec![
-				AccountKeyring::Alice.public().to_vec(),
-				AccountKeyring::Bob.public().to_vec(),
-				AccountKeyring::Charlie.public().to_vec(),
+				Sr25519Keyring::Alice.public().to_vec(),
+				Sr25519Keyring::Bob.public().to_vec(),
+				Sr25519Keyring::Charlie.public().to_vec(),
 			])
 			.map(|pubkey| {
 				sp_crypto_hashing::blake2_128(&pubkey)
@@ -938,17 +952,19 @@ pub mod storage_key_generator {
 		expected_keys
 	}
 
-	/// Provides the commented list of hashed keys. This contains a hard-coded
-	/// list of hashed keys that would be generated by
-	/// `generate_expected_storage_hashed_keys`. This list is provided
-	/// for the debugging convenience only. Value of each hex-string is
-	/// documented with the literal origin.
+	/// Provides the commented list of hashed keys. This contains a hard-coded list of hashed keys
+	/// that would be generated by `generate_expected_storage_hashed_keys`. This list is provided
+	/// for the debugging convenience only. Value of each hex-string is documented with the literal
+	/// origin.
 	///
-	/// `custom_heap_pages`: Should be set to `true` when the state contains the
-	/// `:heap_pages` key aka when overriding the heap pages to be used by the
-	/// executor.
+	/// `custom_heap_pages`: Should be set to `true` when the state contains the `:heap_pages` key
+	/// aka when overriding the heap pages to be used by the executor.
 	pub fn get_expected_storage_hashed_keys(custom_heap_pages: bool) -> Vec<&'static str> {
 		let mut res = vec![
+			//CordTest|:__STORAGE_VERSION__:
+			"00771836bebdd29870ff246d305c578c4e7b9012096b41c4eb3aaf947f6ea429",
+			//CordTest|Authorities
+			"00771836bebdd29870ff246d305c578c5e0621c4869aa60c02be9adcc98a0d1d",
 			//Babe|:__STORAGE_VERSION__:
 			"1cb6f36e027abb2091cfb5110ab5087f4e7b9012096b41c4eb3aaf947f6ea429",
 			//Babe|Authorities
@@ -959,10 +975,6 @@ pub mod storage_key_generator {
 			"1cb6f36e027abb2091cfb5110ab5087faacf00b9b41fda7a9268821c2a2b3e4c",
 			//Babe|EpochConfig
 			"1cb6f36e027abb2091cfb5110ab5087fdc6b171b77304263c292cc3ea5ed31ef",
-			//CordTest|:__STORAGE_VERSION__:
-			"203ad0beed9344b658df0e58cfc275d54e7b9012096b41c4eb3aaf947f6ea429",
-			//CordTest|Authorities
-			"203ad0beed9344b658df0e58cfc275d55e0621c4869aa60c02be9adcc98a0d1d",
 			//System|:__STORAGE_VERSION__:
 			"26aa394eea5630e07c48ae0c9558cef74e7b9012096b41c4eb3aaf947f6ea429",
 			//System|UpgradedToU32RefCount
@@ -1054,30 +1066,28 @@ mod tests {
 	use sp_consensus::BlockOrigin;
 	use sp_core::{storage::well_known_keys::HEAP_PAGES, traits::CallContext};
 	use sp_runtime::{
-		traits::{Hash as _, SignedExtension},
-		transaction_validity::{InvalidTransaction, ValidTransaction},
+		traits::{DispatchTransaction, Hash as _},
+		transaction_validity::{InvalidTransaction, TransactionSource::External, ValidTransaction},
 	};
 
 	#[test]
 	fn heap_pages_is_respected() {
 		// This tests that the on-chain `HEAP_PAGES` parameter is respected.
 
-		// Create a client devoting only 8 pages of wasm memory. This gives us ~512k of
-		// heap memory.
-		let mut client = TestClientBuilder::new().set_heap_pages(8).build();
+		// Create a client devoting only 8 pages of wasm memory. This gives us ~512k of heap memory.
+		let client = TestClientBuilder::new().set_heap_pages(8).build();
 		let best_hash = client.chain_info().best_hash;
 
-		// Try to allocate 1024k of memory on heap. This is going to fail since it is
-		// twice larger than the heap.
+		// Try to allocate 1024k of memory on heap. This is going to fail since it is twice larger
+		// than the heap.
 		let mut runtime_api = client.runtime_api();
-		// This is currently required to allocate the 1024k of memory as configured
-		// above.
+		// This is currently required to allocate the 1024k of memory as configured above.
 		runtime_api.set_call_context(CallContext::Onchain);
 		let ret = runtime_api.vec_with_capacity(best_hash, 1048576);
 		assert!(ret.is_err());
 
-		// Create a block that sets the `:heap_pages` to 32 pages of memory which
-		// corresponds to ~2048k of heap memory.
+		// Create a block that sets the `:heap_pages` to 32 pages of memory which corresponds to
+		// ~2048k of heap memory.
 		let (new_at_hash, block) = {
 			let mut builder = BlockBuilderBuilder::new(&client)
 				.on_parent_block(best_hash)
@@ -1133,9 +1143,9 @@ mod tests {
 
 	pub fn new_test_ext() -> sp_io::TestExternalities {
 		genesismap::GenesisStorageBuilder::new(
-			vec![AccountKeyring::One.public(), AccountKeyring::Two.public()],
-			vec![AccountKeyring::One.into(), AccountKeyring::Two.into()],
-			1000 * currency::UNITS,
+			vec![Sr25519Keyring::One.public().into(), Sr25519Keyring::Two.public().into()],
+			vec![Sr25519Keyring::One.into(), Sr25519Keyring::Two.into()],
+			1000 * currency::DOLLARS,
 		)
 		.build()
 		.into()
@@ -1197,34 +1207,40 @@ mod tests {
 	}
 
 	#[test]
-	fn check_substrate_check_signed_extension_works() {
+	fn check_cord_check_signed_extension_works() {
 		sp_tracing::try_init_simple();
 		new_test_ext().execute_with(|| {
-			let x = AccountKeyring::Alice.into();
+			let x = Sr25519Keyring::Alice.into();
 			let info = DispatchInfo::default();
 			let len = 0_usize;
 			assert_eq!(
-				CheckSubstrateCall {}
-					.validate(
-						&x,
+				CheckCordCall {}
+					.validate_only(
+						Some(x).into(),
 						&ExtrinsicBuilder::new_call_with_priority(16).build().function,
 						&info,
-						len
+						len,
+						External,
+						0,
 					)
 					.unwrap()
+					.0
 					.priority,
 				16
 			);
 
 			assert_eq!(
-				CheckSubstrateCall {}
-					.validate(
-						&x,
+				CheckCordCall {}
+					.validate_only(
+						Some(x).into(),
 						&ExtrinsicBuilder::new_call_do_not_propagate().build().function,
 						&info,
-						len
+						len,
+						External,
+						0,
 					)
 					.unwrap()
+					.0
 					.propagate,
 				false
 			);
@@ -1273,7 +1289,7 @@ mod tests {
 
 			let mut expected = [
 				//CordTest|Authorities
-				"203ad0beed9344b658df0e58cfc275d55e0621c4869aa60c02be9adcc98a0d1d",
+				"00771836bebdd29870ff246d305c578c5e0621c4869aa60c02be9adcc98a0d1d",
 				//Babe|SegmentIndex
 				"1cb6f36e027abb2091cfb5110ab5087f66e8f035c8adbe7f1547b43c51e6f8a4",
 				//Babe|EpochConfig
@@ -1302,7 +1318,7 @@ mod tests {
 				//Babe|:__STORAGE_VERSION__:
 				"1cb6f36e027abb2091cfb5110ab5087f4e7b9012096b41c4eb3aaf947f6ea429",
 				//CordTest|:__STORAGE_VERSION__:
-				"203ad0beed9344b658df0e58cfc275d54e7b9012096b41c4eb3aaf947f6ea429",
+				"00771836bebdd29870ff246d305c578c4e7b9012096b41c4eb3aaf947f6ea429",
 				].into_iter().map(String::from).collect::<Vec<_>>();
 			expected.sort();
 
@@ -1320,9 +1336,10 @@ mod tests {
 				.expect("default config is there");
 			let json = String::from_utf8(r.into()).expect("returned value is json. qed.");
 
-			let expected = r#"{"system":{},"babe":{"authorities":[],"epochConfig":{"c":[1,4],"allowed_slots":"PrimaryAndSecondaryVRFSlots"}},"cordTest":{"authorities":[]},"balances":{"balances":[]}}"#;
+			let expected = r#"{"system":{},"babe":{"authorities":[],"epochConfig":{"c":[1,4],"allowed_slots":"PrimaryAndSecondaryVRFSlots"}},"cordTest":{"authorities":[]},"balances":{"balances":[],"devAccounts":null}}"#;
 			assert_eq!(expected.to_string(), json);
 		}
+
 		#[test]
 		fn preset_names_listing_works() {
 			sp_tracing::try_init_simple();
@@ -1355,7 +1372,7 @@ mod tests {
 			f("foobar", r#"{"foo":"bar"}"#);
 			f(
 				"staging",
-				r#"{"balances":{"balances":[["5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",10000000000000],["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",10000000000000]]},"cordTest":{"authorities":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","5CiPPseXPECbkjWCa6MnjNokrgYjMqmKndv2rSnekmSK2DjL"]}}"#,
+				r#"{"balances":{"balances":[["5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty",1000000000000000],["5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",1000000000000000]]},"cordTest":{"authorities":["5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY","5CiPPseXPECbkjWCa6MnjNokrgYjMqmKndv2rSnekmSK2DjL"]}}"#,
 			);
 		}
 
@@ -1371,8 +1388,8 @@ mod tests {
 
 			let mut keys = t.into_storages().top.keys().cloned().map(hex).collect::<Vec<String>>();
 
-			// following keys are not placed during `<RuntimeGenesisConfig as
-			// GenesisBuild>::build` process, add them `keys` to assert against known keys.
+			// following keys are not placed during `<RuntimeGenesisConfig as GenesisBuild>::build`
+			// process, add them `keys` to assert against known keys.
 			keys.push(hex(b":code"));
 			keys.sort();
 
@@ -1388,10 +1405,8 @@ mod tests {
 			let r = BuildResult::decode(&mut &r[..]).unwrap();
 			log::info!("result: {:#?}", r);
 			assert_eq!(r, Err(
-				sp_runtime::RuntimeString::Owned(
-					"Invalid JSON blob: unknown field `renamed_authorities`, expected `authorities` or `epochConfig` at line 4 column 25".to_string(),
-				))
-			);
+				"Invalid JSON blob: unknown field `renamed_authorities`, expected `authorities` or `epochConfig` at line 4 column 25".to_string(),
+			));
 		}
 
 		#[test]
@@ -1402,10 +1417,8 @@ mod tests {
 			let r = executor_call(&mut t, "GenesisBuilder_build_state", &j.encode()).unwrap();
 			let r = BuildResult::decode(&mut &r[..]).unwrap();
 			assert_eq!(r, Err(
-				sp_runtime::RuntimeString::Owned(
-					"Invalid JSON blob: unknown field `babex`, expected one of `system`, `babe`, `cordTest`, `balances` at line 3 column 9".to_string(),
-				))
-			);
+				"Invalid JSON blob: unknown field `babex`, expected one of `system`, `babe`, `cordTest`, `balances` at line 3 column 9".to_string(),
+			));
 		}
 
 		#[test]
@@ -1415,14 +1428,11 @@ mod tests {
 
 			let mut t = BasicExternalities::new_empty();
 			let r = executor_call(&mut t, "GenesisBuilder_build_state", &j.encode()).unwrap();
-			let r =
-				core::result::Result::<(), sp_runtime::RuntimeString>::decode(&mut &r[..]).unwrap();
+			let r = core::result::Result::<(), String>::decode(&mut &r[..]).unwrap();
 			assert_eq!(
 				r,
-				Err(sp_runtime::RuntimeString::Owned(
-					"Invalid JSON blob: missing field `authorities` at line 11 column 3"
-						.to_string()
-				))
+				Err("Invalid JSON blob: missing field `authorities` at line 11 column 3"
+					.to_string())
 			);
 		}
 
@@ -1470,8 +1480,8 @@ mod tests {
 				},
 				"cordTest": {
 					"authorities": [
-						AccountKeyring::Ferdie.public().to_ss58check(),
-						AccountKeyring::Alice.public().to_ss58check()
+						Sr25519Keyring::Ferdie.public().to_ss58check(),
+						Sr25519Keyring::Alice.public().to_ss58check()
 					],
 				}
 			});
@@ -1495,13 +1505,13 @@ mod tests {
 
 			//CordTest|Authorities
 			let value: Vec<u8> = get_from_storage(
-				"203ad0beed9344b658df0e58cfc275d55e0621c4869aa60c02be9adcc98a0d1d",
+				"00771836bebdd29870ff246d305c578c5e0621c4869aa60c02be9adcc98a0d1d",
 			);
 			let authority_key_vec =
 				Vec::<sp_core::sr25519::Public>::decode(&mut &value[..]).unwrap();
 			assert_eq!(authority_key_vec.len(), 2);
-			assert_eq!(authority_key_vec[0], AccountKeyring::Ferdie.public());
-			assert_eq!(authority_key_vec[1], AccountKeyring::Alice.public());
+			assert_eq!(authority_key_vec[0], Sr25519Keyring::Ferdie.public());
+			assert_eq!(authority_key_vec[1], Sr25519Keyring::Alice.public());
 
 			//Babe|Authorities
 			let value: Vec<u8> = get_from_storage(

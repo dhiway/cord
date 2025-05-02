@@ -24,7 +24,7 @@
 use std::sync::Arc;
 
 use crate::{
-	AccountKeyring, BlockBuilderExt, ClientBlockImportExt, TestClientBuilder, TestClientBuilderExt,
+	BlockBuilderExt, ClientBlockImportExt, Sr25519Keyring, TestClientBuilder, TestClientBuilderExt,
 };
 use cord_test_runtime::Transfer;
 use futures::executor::block_on;
@@ -47,7 +47,7 @@ where
 	// 			  B2 -> C3
 	// 		A1 -> D2
 
-	let mut client = TestClientBuilder::with_backend(backend.clone()).build();
+	let client = TestClientBuilder::with_backend(backend.clone()).build();
 	let blockchain = backend.blockchain();
 
 	let genesis_hash = client.chain_info().genesis_hash;
@@ -130,12 +130,11 @@ where
 		.build()
 		.unwrap();
 
-	// this push is required as otherwise B2 has the same hash as A2 and won't get
-	// imported
+	// this push is required as otherwise B2 has the same hash as A2 and won't get imported
 	builder
 		.push_transfer(Transfer {
-			from: AccountKeyring::Alice.into(),
-			to: AccountKeyring::Ferdie.into(),
+			from: Sr25519Keyring::Alice.into(),
+			to: Sr25519Keyring::Ferdie.into(),
 			amount: 41,
 			nonce: 0,
 		})
@@ -178,12 +177,11 @@ where
 		.unwrap()
 		.build()
 		.unwrap();
-	// this push is required as otherwise C3 has the same hash as B3 and won't get
-	// imported
+	// this push is required as otherwise C3 has the same hash as B3 and won't get imported
 	builder
 		.push_transfer(Transfer {
-			from: AccountKeyring::Alice.into(),
-			to: AccountKeyring::Ferdie.into(),
+			from: Sr25519Keyring::Alice.into(),
+			to: Sr25519Keyring::Ferdie.into(),
 			amount: 1,
 			nonce: 1,
 		})
@@ -199,12 +197,11 @@ where
 		.unwrap()
 		.build()
 		.unwrap();
-	// this push is required as otherwise D2 has the same hash as B2 and won't get
-	// imported
+	// this push is required as otherwise D2 has the same hash as B2 and won't get imported
 	builder
 		.push_transfer(Transfer {
-			from: AccountKeyring::Alice.into(),
-			to: AccountKeyring::Ferdie.into(),
+			from: Sr25519Keyring::Alice.into(),
+			to: Sr25519Keyring::Ferdie.into(),
 			amount: 1,
 			nonce: 0,
 		})
@@ -225,7 +222,7 @@ where
 	// 			  B2 -> C3
 	// 		A1 -> D2
 
-	let mut client = TestClientBuilder::with_backend(backend.clone()).build();
+	let client = TestClientBuilder::with_backend(backend.clone()).build();
 	let blockchain = backend.blockchain();
 	let genesis_hash = client.chain_info().genesis_hash;
 
@@ -296,12 +293,11 @@ where
 		.unwrap()
 		.build()
 		.unwrap();
-	// this push is required as otherwise B2 has the same hash as A2 and won't get
-	// imported
+	// this push is required as otherwise B2 has the same hash as A2 and won't get imported
 	builder
 		.push_transfer(Transfer {
-			from: AccountKeyring::Alice.into(),
-			to: AccountKeyring::Ferdie.into(),
+			from: Sr25519Keyring::Alice.into(),
+			to: Sr25519Keyring::Ferdie.into(),
 			amount: 41,
 			nonce: 0,
 		})
@@ -340,12 +336,11 @@ where
 		.unwrap()
 		.build()
 		.unwrap();
-	// this push is required as otherwise C3 has the same hash as B3 and won't get
-	// imported
+	// this push is required as otherwise C3 has the same hash as B3 and won't get imported
 	builder
 		.push_transfer(Transfer {
-			from: AccountKeyring::Alice.into(),
-			to: AccountKeyring::Ferdie.into(),
+			from: Sr25519Keyring::Alice.into(),
+			to: Sr25519Keyring::Ferdie.into(),
 			amount: 1,
 			nonce: 1,
 		})
@@ -360,12 +355,11 @@ where
 		.unwrap()
 		.build()
 		.unwrap();
-	// this push is required as otherwise D2 has the same hash as B2 and won't get
-	// imported
+	// this push is required as otherwise D2 has the same hash as B2 and won't get imported
 	builder
 		.push_transfer(Transfer {
-			from: AccountKeyring::Alice.into(),
-			to: AccountKeyring::Ferdie.into(),
+			from: Sr25519Keyring::Alice.into(),
+			to: Sr25519Keyring::Ferdie.into(),
 			amount: 1,
 			nonce: 0,
 		})
@@ -397,7 +391,7 @@ where
 	// 		A1 -> B2 -> B3 -> B4
 	// 			  B2 -> C3
 	// 		A1 -> D2
-	let mut client = TestClientBuilder::with_backend(backend.clone()).build();
+	let client = TestClientBuilder::with_backend(backend.clone()).build();
 	let blockchain = backend.blockchain();
 	let genesis_hash = client.chain_info().genesis_hash;
 
@@ -468,12 +462,11 @@ where
 		.unwrap()
 		.build()
 		.unwrap();
-	// this push is required as otherwise B2 has the same hash as A2 and won't get
-	// imported
+	// this push is required as otherwise B2 has the same hash as A2 and won't get imported
 	builder
 		.push_transfer(Transfer {
-			from: AccountKeyring::Alice.into(),
-			to: AccountKeyring::Ferdie.into(),
+			from: Sr25519Keyring::Alice.into(),
+			to: Sr25519Keyring::Ferdie.into(),
 			amount: 41,
 			nonce: 0,
 		})
@@ -512,12 +505,11 @@ where
 		.unwrap()
 		.build()
 		.unwrap();
-	// this push is required as otherwise C3 has the same hash as B3 and won't get
-	// imported
+	// this push is required as otherwise C3 has the same hash as B3 and won't get imported
 	builder
 		.push_transfer(Transfer {
-			from: AccountKeyring::Alice.into(),
-			to: AccountKeyring::Ferdie.into(),
+			from: Sr25519Keyring::Alice.into(),
+			to: Sr25519Keyring::Ferdie.into(),
 			amount: 1,
 			nonce: 1,
 		})
@@ -532,12 +524,11 @@ where
 		.unwrap()
 		.build()
 		.unwrap();
-	// this push is required as otherwise D2 has the same hash as B2 and won't get
-	// imported
+	// this push is required as otherwise D2 has the same hash as B2 and won't get imported
 	builder
 		.push_transfer(Transfer {
-			from: AccountKeyring::Alice.into(),
-			to: AccountKeyring::Ferdie.into(),
+			from: Sr25519Keyring::Alice.into(),
+			to: Sr25519Keyring::Ferdie.into(),
 			amount: 1,
 			nonce: 0,
 		})

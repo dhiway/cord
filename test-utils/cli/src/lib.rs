@@ -35,16 +35,15 @@ use std::{
 };
 use tokio::io::{AsyncBufReadExt, AsyncRead};
 
-/// Similar to [`crate::start_node`] spawns a node, but works in environments
-/// where the cord binary is not accessible with
-/// `cargo_bin("cord")`, and allows customising the args passed in.
+/// Similar to [`crate::start_node`] spawns a node, but works in environments where the cord
+/// binary is not accessible with `cargo_bin("cord")`, and allows customising the args
+/// passed in.
 ///
-/// Helpful if you need a Cord dev node running in the background of a
-/// project external to `cord`.
+/// Helpful if you need a Cord dev node running in the background of a project external to
+/// `cord`.
 ///
-/// The downside compared to using [`crate::start_node`] is that this method is
-/// blocking rather than returning a [`Child`]. Therefore, you may want to call
-/// this method inside a new thread.
+/// The downside compared to using [`crate::start_node`] is that this method is blocking rather than
+/// returning a [`Child`]. Therefore, you may want to call this method inside a new thread.
 ///
 /// # Example
 /// ```ignore
@@ -72,8 +71,8 @@ pub fn start_node_inline(args: Vec<&str>) -> Result<(), sc_service::error::Error
 /// Starts a new Cord node in development mode with a temporary chain.
 ///
 /// This function creates a new Cord node using the `cord` binary.
-/// It configures the node to run in development mode (`--dev`) with a temporary
-/// chain (`--tmp`), sets the WebSocket port to 45789 (`--ws-port=45789`).
+/// It configures the node to run in development mode (`--dev`) with a temporary chain (`--tmp`),
+/// sets the WebSocket port to 45789 (`--ws-port=45789`).
 ///
 /// # Returns
 ///
@@ -81,8 +80,7 @@ pub fn start_node_inline(args: Vec<&str>) -> Result<(), sc_service::error::Error
 ///
 /// # Panics
 ///
-/// This function will panic if the `cord` binary is not found or if the
-/// node fails to start.
+/// This function will panic if the `cord` binary is not found or if the node fails to start.
 ///
 /// # Examples
 ///
@@ -99,19 +97,19 @@ pub fn start_node() -> Child {
 	Command::new(cargo_bin("cord"))
 		.stdout(process::Stdio::piped())
 		.stderr(process::Stdio::piped())
-		.args(["--dev", "--tmp", "--rpc-port=45789", "--no-hardware-benchmarks"])
+		.args(&["--dev", "--tmp", "--rpc-port=45789", "--no-hardware-benchmarks"])
 		.spawn()
 		.unwrap()
 }
 
 /// Builds the Cord project using the provided arguments.
 ///
-/// This function reads the CARGO_MANIFEST_DIR environment variable to find the
-/// root workspace directory. It then runs the `cargo b` command in the root
-/// directory with the specified arguments.
+/// This function reads the CARGO_MANIFEST_DIR environment variable to find the root workspace
+/// directory. It then runs the `cargo b` command in the root directory with the specified
+/// arguments.
 ///
-/// This can be useful for building the Cord binary with a desired set of
-/// features prior to using the binary in a CLI test.
+/// This can be useful for building the Cord binary with a desired set of features prior
+/// to using the binary in a CLI test.
 ///
 /// # Arguments
 ///
@@ -133,10 +131,9 @@ pub fn start_node() -> Child {
 /// build_cord(&["--features=try-runtime"]);
 /// ```
 pub fn build_cord(args: &[&str]) {
-	let is_release_build = !cfg!(build_type = "debug");
+	let is_release_build = !cfg!(build_profile = "debug");
 
-	// Get the root workspace directory from the CARGO_MANIFEST_DIR environment
-	// variable
+	// Get the root workspace directory from the CARGO_MANIFEST_DIR environment variable
 	let mut cmd = Command::new("cargo");
 
 	cmd.arg("build").arg("-p=cord-node-cli");
@@ -159,11 +156,10 @@ pub fn build_cord(args: &[&str]) {
 	}
 }
 
-/// Takes a readable tokio stream (e.g. from a child process `ChildStderr` or
-/// `ChildStdout`) and a `Regex` pattern, and checks each line against the given
-/// pattern as it is produced. The function returns OK(()) as soon as a line
-/// matching the pattern is found, or an Err if the stream ends without any
-/// lines matching the pattern.
+/// Takes a readable tokio stream (e.g. from a child process `ChildStderr` or `ChildStdout`) and
+/// a `Regex` pattern, and checks each line against the given pattern as it is produced.
+/// The function returns OK(()) as soon as a line matching the pattern is found, or an Err if
+/// the stream ends without any lines matching the pattern.
 ///
 /// # Arguments
 ///
@@ -275,8 +271,9 @@ pub async fn block_hash(block_number: u64, url: &str) -> Result<Hash, String> {
 	.map_err(|_| "Couldn't get block hash".to_string())?;
 
 	match result {
-		ListOrValue::Value(maybe_block_hash) if maybe_block_hash.is_some() =>
-			Ok(maybe_block_hash.unwrap()),
+		ListOrValue::Value(maybe_block_hash) if maybe_block_hash.is_some() => {
+			Ok(maybe_block_hash.unwrap())
+		},
 		_ => Err("Couldn't get block hash".to_string()),
 	}
 }
@@ -291,8 +288,7 @@ impl KillChildOnDrop {
 		self.stop_with_signal(SIGINT);
 	}
 
-	/// Same as [`Self::stop`] but takes the `signal` that is sent to stop the
-	/// child.
+	/// Same as [`Self::stop`] but takes the `signal` that is sent to stop the child.
 	pub fn stop_with_signal(&mut self, signal: Signal) {
 		kill(Pid::from_raw(self.id().try_into().unwrap()), signal).unwrap();
 		assert!(self.wait().unwrap().success());
@@ -343,11 +339,10 @@ pub fn extract_info_from_output(read: impl Read + Send) -> (NodeInfo, String) {
 			data.push_str(&line);
 			data.push_str("\n");
 
-			// does the line contain our port (we expect this specific output from
-			// substrate).
+			// does the line contain our port (we expect this specific output from cord).
 			let sock_addr = match line.split_once("Running JSON-RPC server: addr=") {
 				None => return None,
-				Some((_, after)) => after.split_once(',').unwrap().0,
+				Some((_, after)) => after.split_once(",").unwrap().0,
 			};
 
 			Some(format!("ws://{}", sock_addr))

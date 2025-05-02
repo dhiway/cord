@@ -29,7 +29,10 @@ use sc_network::{
 use sc_network_sync::SyncingService;
 use sc_service::{
 	client::Client,
-	config::{BasePath, DatabaseSource, KeystoreConfig, RpcBatchRequestConfig},
+	config::{
+		BasePath, DatabaseSource, ExecutorConfiguration, KeystoreConfig, RpcBatchRequestConfig,
+		RpcConfiguration,
+	},
 	BlocksPruning, ChainSpecExtension, Configuration, Error, GenericChainSpec, Role,
 	SpawnTaskHandle, TaskManager,
 };
@@ -235,37 +238,35 @@ fn node_config<E: ChainSpecExtension + Clone + 'static + Send + Sync>(
 		state_pruning: Default::default(),
 		blocks_pruning: BlocksPruning::KeepFinalized,
 		chain_spec: Box::new((*spec).clone()),
-		wasm_method: Default::default(),
+		executor: ExecutorConfiguration::default(),
 		wasm_runtime_overrides: Default::default(),
-		rpc_addr: Default::default(),
-		rpc_max_connections: Default::default(),
-		rpc_cors: None,
-		rpc_methods: Default::default(),
-		rpc_max_request_size: Default::default(),
-		rpc_max_response_size: Default::default(),
-		rpc_id_provider: Default::default(),
-		rpc_max_subs_per_conn: Default::default(),
-		rpc_port: 9944,
-		rpc_message_buffer_capacity: Default::default(),
-		rpc_batch_config: RpcBatchRequestConfig::Unlimited,
-		rpc_rate_limit: None,
-		rpc_rate_limit_whitelisted_ips: Default::default(),
-		rpc_rate_limit_trust_proxy_headers: Default::default(),
+		rpc: RpcConfiguration {
+			addr: Default::default(),
+			max_connections: Default::default(),
+			cors: None,
+			methods: Default::default(),
+			max_request_size: Default::default(),
+			max_response_size: Default::default(),
+			id_provider: Default::default(),
+			max_subs_per_conn: Default::default(),
+			port: 9944,
+			message_buffer_capacity: Default::default(),
+			batch_config: RpcBatchRequestConfig::Unlimited,
+			rate_limit: None,
+			rate_limit_whitelisted_ips: Default::default(),
+			rate_limit_trust_proxy_headers: Default::default(),
+		},
 		prometheus_config: None,
 		telemetry_endpoints: None,
-		default_heap_pages: None,
 		offchain_worker: Default::default(),
 		force_authoring: false,
 		disable_grandpa: false,
 		dev_key_seed: key_seed,
 		tracing_targets: None,
 		tracing_receiver: Default::default(),
-		max_runtime_instances: 8,
 		announce_block: true,
 		base_path: BasePath::new(root.clone()),
 		data_path: root,
-		informant_output_format: Default::default(),
-		runtime_cache_size: 2,
 	}
 }
 
@@ -372,7 +373,7 @@ where
 	let expected_full_connections = NUM_FULL_NODES - 1;
 
 	{
-		let temp = tempdir_with_prefix("substrate-connectivity-test");
+		let temp = tempdir_with_prefix("cord-connectivity-test");
 		{
 			let mut network = TestNet::new(
 				&temp,
@@ -402,7 +403,7 @@ where
 		temp.close().expect("Error removing temp dir");
 	}
 	{
-		let temp = tempdir_with_prefix("substrate-connectivity-test");
+		let temp = tempdir_with_prefix("cord-connectivity-test");
 		{
 			let mut network = TestNet::new(
 				&temp,
@@ -452,7 +453,7 @@ pub fn sync<E, Fb, F, B, ExF, U>(
 {
 	const NUM_FULL_NODES: usize = 10;
 	const NUM_BLOCKS: usize = 512;
-	let temp = tempdir_with_prefix("substrate-sync-test");
+	let temp = tempdir_with_prefix("cord-sync-test");
 	let mut network = TestNet::new(
 		&temp,
 		spec,
@@ -518,7 +519,7 @@ pub fn consensus<E, Fb, F>(
 {
 	const NUM_FULL_NODES: usize = 10;
 	const NUM_BLOCKS: usize = 10; // 10 * 2 sec block production time = ~20 seconds
-	let temp = tempdir_with_prefix("substrate-consensus-test");
+	let temp = tempdir_with_prefix("cord-consensus-test");
 	let mut network = TestNet::new(
 		&temp,
 		spec,

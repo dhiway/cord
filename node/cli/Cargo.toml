@@ -188,7 +188,7 @@ sc-client-db = { workspace = true }
 sc-consensus = { workspace = true }
 sc-consensus-babe = { workspace = true }
 sc-consensus-epochs = { workspace = true }
-cord-service-test = { workspace = true }
+# cord-service-test = { workspace = true }
 sp-tracing = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-crypto-hashing = { workspace = true }
@@ -196,6 +196,7 @@ cord-cli-test-utils = { workspace = true }
 frame-support = { workspace = true }
 cord-node-testing = { workspace = true }
 pallet-balances = { workspace = true }
+pallet-treasury = { workspace = true }
 sp-application-crypto = { workspace = true }
 pallet-root-testing = { workspace = true }
 pallet-transaction-payment = { workspace = true }

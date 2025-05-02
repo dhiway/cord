@@ -1,0 +1,99 @@
+{
+  "system": {},
+  "babe": {
+    "authorities": [],
+    "epochConfig": {
+      "allowed_slots": "PrimaryAndSecondaryVRFSlots",
+      "c": [1, 4]
+    }
+  },
+  "indices": {
+    "indices": []
+  },
+  "balances": {
+    "balances": [],
+    "devAccounts": null
+  },
+  "transactionPayment": {
+    "multiplier": "1000000000000000000"
+  },
+  "staking": {
+    "validatorCount": 0,
+    "minimumValidatorCount": 0,
+    "invulnerables": [],
+    "forceEra": "NotForcing",
+    "slashRewardFraction": 0,
+    "canceledPayout": 0,
+    "stakers": [],
+    "minNominatorBond": 0,
+    "minValidatorBond": 0,
+    "maxValidatorCount": null,
+    "maxNominatorCount": null
+  },
+  "session": {
+    "keys": [],
+    "nonAuthorityKeys": []
+  },
+  "council": {
+    "members": []
+  },
+  "technicalCommittee": {
+    "members": []
+  },
+  "councilMembership": {
+    "members": []
+  },
+  "technicalMembership": {
+    "members": []
+  },
+  "grandpa": {
+    "authorities": []
+  },
+  "beefy": {
+    "authorities": [],
+    "genesisBlock": 1
+  },
+  "treasury": {},
+  "sudo": {
+    "key": null
+  },
+  "imOnline": {
+    "keys": []
+  },
+  "authorityDiscovery": {
+    "keys": []
+  },
+  "assets": {
+    "assets": [],
+    "metadata": [],
+    "accounts": [],
+    "nextAssetId": null
+  },
+  "poolAssets": {
+    "assets": [],
+    "metadata": [],
+    "accounts": [],
+    "nextAssetId": null
+  },
+  "networkInfo": {
+    "networkId": 1000,
+    "permissioned": false
+  },
+  "networkRegistrar": {
+    "nextFreeNetworkId": 2001
+  },
+  "nominationPools": {
+    "minJoinBond": 0,
+    "minCreateBond": 0,
+    "maxPools": 16,
+    "maxMembersPerPool": 32,
+    "maxMembers": 512,
+    "globalMaxCommission": null
+  },
+  "txPause": {
+    "paused": []
+  },
+  "safeMode": {
+    "enteredUntil": null
+  }
+}
