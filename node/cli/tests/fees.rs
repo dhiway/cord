@@ -15,15 +15,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use codec::Encode;
+use codec::{Encode, Joiner};
 use cord_node_testing::keyring::*;
-use cord_weave_runtime::{CheckedExtrinsic, RuntimeCall, TransactionPayment};
-use cord_weave_runtime_constants::time::SLOT_DURATION;
+use cord_weave_runtime::{Balances, CheckedExtrinsic, Runtime, RuntimeCall, TransactionPayment};
+use cord_weave_runtime_constants::{currency::*, time::SLOT_DURATION};
+use frame_support::{dispatch::GetDispatchInfo, traits::Currency};
 use pallet_transaction_payment::Multiplier;
 use sp_runtime::{traits::One, Perbill};
 
 pub mod common;
-use self::common::*;
+use self::common::{sign, *};
 
 #[test]
 fn fee_multiplier_increases_and_decreases_on_big_weight() {
@@ -46,11 +47,11 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
 		GENESIS_HASH.into(),
 		vec![
 			CheckedExtrinsic {
-				signed: None,
+				format: sp_runtime::generic::ExtrinsicFormat::Bare,
 				function: RuntimeCall::Timestamp(pallet_timestamp::Call::set { now: time1 }),
 			},
 			CheckedExtrinsic {
-				signed: Some((charlie(), signed_extra(0, 0))),
+				format: sp_runtime::generic::ExtrinsicFormat::Signed(charlie(), tx_ext(0, 0)),
 				function: RuntimeCall::Sudo(pallet_sudo::Call::sudo {
 					call: Box::new(RuntimeCall::RootTesting(
 						pallet_root_testing::Call::fill_block { ratio: Perbill::from_percent(60) },
@@ -69,11 +70,11 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
 		block1.1,
 		vec![
 			CheckedExtrinsic {
-				signed: None,
+				format: sp_runtime::generic::ExtrinsicFormat::Bare,
 				function: RuntimeCall::Timestamp(pallet_timestamp::Call::set { now: time2 }),
 			},
 			CheckedExtrinsic {
-				signed: Some((charlie(), signed_extra(1, 0))),
+				format: sp_runtime::generic::ExtrinsicFormat::Signed(charlie(), tx_ext(1, 0)),
 				function: RuntimeCall::System(frame_system::Call::remark { remark: vec![0; 1] }),
 			},
 		],
@@ -108,134 +109,60 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
 	});
 }
 
-#[test]
-#[should_panic]
-#[cfg(feature = "stress-test")]
-fn block_weight_capacity_report() {
-	// Just report how many transfer calls you could fit into a block. The number should at least
-	// be a few hundred (250 at the time of writing but can change over time). Runs until panic.
-	use cord_primitives::Nonce;
-
-	// execution ext.
-	let mut t = new_test_ext(compact_code_unwrap());
-	// setup ext.
-	let mut tt = new_test_ext(compact_code_unwrap());
-
-	let factor = 50;
-	let mut time = 10;
-	let mut nonce: Nonce = 0;
-	let mut block_number = 1;
-	let mut previous_hash: node_primitives::Hash = GENESIS_HASH.into();
-
-	loop {
-		let num_transfers = block_number * factor;
-		let mut xts = (0..num_transfers)
-			.map(|i| CheckedExtrinsic {
-				signed: Some((charlie(), signed_extra(nonce + i as Nonce, 0))),
-				function: RuntimeCall::Balances(pallet_balances::Call::transfer_allow_death {
-					dest: bob().into(),
-					value: 0,
-				}),
-			})
-			.collect::<Vec<CheckedExtrinsic>>();
-
-		xts.insert(
-			0,
-			CheckedExtrinsic {
-				signed: None,
-				function: RuntimeCall::Timestamp(pallet_timestamp::Call::set { now: time * 1000 }),
-			},
-		);
-
-		// NOTE: this is super slow. Can probably be improved.
-		let block = construct_block(
-			&mut tt,
-			block_number,
-			previous_hash,
-			xts,
-			(time * 1000 / SLOT_DURATION).into(),
-		);
-
-		let len = block.0.len();
-		print!(
-			"++ Executing block with {} transfers. Block size = {} bytes / {} kb / {} mb",
-			num_transfers,
-			len,
-			len / 1024,
-			len / 1024 / 1024,
-		);
-
-		let r = executor_call(&mut t, "Core_execute_block", &block.0).0;
-
-		println!(" || Result = {:?}", r);
-		assert!(r.is_ok());
-
-		previous_hash = block.1;
-		nonce += num_transfers;
-		time += 10;
-		block_number += 1;
+fn new_account_info(free_units: u128) -> Vec<u8> {
+	frame_system::AccountInfo {
+		nonce: 0u32,
+		consumers: 0,
+		providers: 1,
+		sufficients: 0,
+		data: (free_units * UNITS, 0 * UNITS, 0 * UNITS, 1u128 << 127),
 	}
+	.encode()
 }
 
 #[test]
-#[should_panic]
-#[cfg(feature = "stress-test")]
-fn block_length_capacity_report() {
-	// Just report how big a block can get. Executes until panic. Should be ignored unless if
-	// manually inspected. The number should at least be a few megabytes (5 at the time of
-	// writing but can change over time).
-	use cord_primitives::Nonce;
-
-	// execution ext.
+fn transaction_fee_is_correct() {
+	// This uses the exact values of substrate-node.
+	//
+	// weight of transfer call as of now: 1_000_000
+	// if weight of the cheapest weight would be 10^7, this would be 10^9, which is:
+	//   - 1 MILLICENTS in substrate node.
+	//   - 1 milli-dot based on current polkadot runtime.
+	// (this based on assigning 0.1 CENT to the cheapest tx with `weight = 100`)
 	let mut t = new_test_ext(compact_code_unwrap());
-	// setup ext.
-	let mut tt = new_test_ext(compact_code_unwrap());
+	t.insert(<frame_system::Account<Runtime>>::hashed_key_for(alice()), new_account_info(100));
+	t.insert(<frame_system::Account<Runtime>>::hashed_key_for(bob()), new_account_info(10));
+	t.insert(
+		<pallet_balances::TotalIssuance<Runtime>>::hashed_key().to_vec(),
+		(110 * UNITS).encode(),
+	);
+	t.insert(<frame_system::BlockHash<Runtime>>::hashed_key_for(0), vec![0u8; 32]);
 
-	let factor = 256 * 1024;
-	let mut time = 10;
-	let mut nonce: Nonce = 0;
-	let mut block_number = 1;
-	let mut previous_hash: node_primitives::Hash = GENESIS_HASH.into();
+	let tip = 1_000_000;
+	let xt = sign(CheckedExtrinsic {
+		format: sp_runtime::generic::ExtrinsicFormat::Signed(alice(), tx_ext(0, tip)),
+		function: RuntimeCall::Balances(default_transfer_call()),
+	});
 
-	loop {
-		// NOTE: this is super slow. Can probably be improved.
-		let block = construct_block(
-			&mut tt,
-			block_number,
-			previous_hash,
-			vec![
-				CheckedExtrinsic {
-					signed: None,
-					function: RuntimeCall::Timestamp(pallet_timestamp::Call::set {
-						now: time * 1000,
-					}),
-				},
-				CheckedExtrinsic {
-					signed: Some((charlie(), signed_extra(nonce, 0))),
-					function: RuntimeCall::System(frame_system::Call::remark {
-						remark: vec![0u8; (block_number * factor) as usize],
-					}),
-				},
-			],
-			(time * 1000 / SLOT_DURATION).into(),
+	let r = executor_call(&mut t, "Core_initialize_block", &vec![].and(&from_block_number(1u32))).0;
+
+	assert!(r.is_ok());
+	let r = executor_call(&mut t, "BlockBuilder_apply_extrinsic", &vec![].and(&xt.clone())).0;
+	assert!(r.is_ok());
+
+	t.execute_with(|| {
+		assert_eq!(Balances::total_balance(&bob()), (10 + 69) * UNITS);
+		let mut info = default_transfer_call().get_dispatch_info();
+		info.extension_weight = xt.extension_weight();
+		let post_info = (Some(info.total_weight()), info.pays_fee).into();
+		let actual_fee = TransactionPayment::compute_actual_fee(
+			xt.encode().len() as u32,
+			&info,
+			&post_info,
+			tip, // our 1_000_000 tip
 		);
 
-		let len = block.0.len();
-		print!(
-			"++ Executing block with big remark. Block size = {} bytes / {} kb / {} mb",
-			len,
-			len / 1024,
-			len / 1024 / 1024,
-		);
-
-		let r = executor_call(&mut t, "Core_execute_block", &block.0).0;
-
-		println!(" || Result = {:?}", r);
-		assert!(r.is_ok());
-
-		previous_hash = block.1;
-		nonce += 1;
-		time += 10;
-		block_number += 1;
-	}
+		let expected_alice = 100 * UNITS - 69 * UNITS - actual_fee;
+		assert_eq!(Balances::total_balance(&alice()), expected_alice);
+	});
 }

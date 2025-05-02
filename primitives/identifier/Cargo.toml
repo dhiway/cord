@@ -17,7 +17,6 @@ targets = ['x86_64-unknown-linux-gnu']
 [dev-dependencies]
 sp-core = { features = ["std"], workspace = true }
 sp-keystore = { features = ["std"], workspace = true }
-cord-utilities = { features = ["mock"], workspace = true }
 
 [dependencies]
 codec = { features = ["derive", "max-encoded-len"], workspace = true }
@@ -62,7 +61,7 @@ std = [
 	"sp-runtime-interface/std",
 	"bs58/std",
 	"blake2/std",
-	"cord-utilities/std",
+	# "cord-utilities/std",
 	"sp-core?/std",
 	"sp-storage/std",
 ]
@@ -82,6 +81,6 @@ serde = [
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
-	"cord-utilities/try-runtime",
+	# "cord-utilities/try-runtime",
 	"sp-runtime/try-runtime",
 ]

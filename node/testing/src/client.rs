@@ -19,10 +19,11 @@
 //! Utilities to build a `TestClient` for `cord-test-runtime`.
 
 /// Re-export test-client utilities.
-pub use cord_test_client::*;
 use sp_runtime::BuildStorage;
+/// Re-export test-client utilities.
+pub use substrate_test_client::*;
 
-/// Call executor for `cord-test-runtime` `TestClient`.
+/// Call executor for `kitchensink-runtime` `TestClient`.
 use cord_node_cli::service::RuntimeExecutor;
 
 /// Default backend type.
@@ -40,7 +41,7 @@ pub type Client = client::Client<
 #[derive(Default)]
 pub struct GenesisParameters;
 
-impl cord_test_client::GenesisInit for GenesisParameters {
+impl substrate_test_client::GenesisInit for GenesisParameters {
 	fn genesis_storage(&self) -> Storage {
 		let mut storage = crate::genesis::config().build_storage().unwrap();
 		storage.top.insert(
@@ -61,7 +62,7 @@ pub trait TestClientBuilderExt: Sized {
 }
 
 impl TestClientBuilderExt
-	for cord_test_client::TestClientBuilder<
+	for substrate_test_client::TestClientBuilder<
 		cord_primitives::Block,
 		client::LocalCallExecutor<cord_primitives::Block, Backend, RuntimeExecutor>,
 		Backend,

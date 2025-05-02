@@ -1787,13 +1787,6 @@ impl_runtime_apis! {
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
-			use frame_support::traits::StorageInfoTrait;
-
-			use pallet_cord_session_benchmarking::Pallet as SessionBench;
-			use frame_system_benchmarking::Pallet as SystemBench;
-			use baseline::Pallet as BaselineBench;
-
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
 
@@ -1802,37 +1795,76 @@ impl_runtime_apis! {
 		}
 
 		fn dispatch_benchmark(
-			config: frame_benchmarking::BenchmarkConfig,
+			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<
 			Vec<frame_benchmarking::BenchmarkBatch>,
-			sp_runtime::RuntimeString,
+			alloc::string::String,
 		> {
-			use frame_support::traits::WhitelistedStorageKeys;
-			use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch };
-			use sp_storage::TrackedStorageKey;
-
-			use pallet_cord_session_benchmarking::Pallet as SessionBench;
-			use frame_system_benchmarking::Pallet as SystemBench;
-			use baseline::Pallet as BaselineBench;
-
-			impl pallet_cord_session_benchmarking::Config for Runtime {}
-			impl frame_system_benchmarking::Config for Runtime {}
-			impl baseline::Config for Runtime {}
-
 			let mut whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
-
-			// Treasury Account
-			// TODO: this is manual for now, someday we might be able to use a
-			// macro for this particular key
 			let treasury_key = frame_system::Account::<Runtime>::hashed_key_for(Treasury::account_id());
 			whitelist.push(treasury_key.to_vec().into());
 
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
+
 			add_benchmarks!(params, batches);
+
 			Ok(batches)
 		}
 	}
+
+	// #[cfg(feature = "runtime-benchmarks")]
+	// impl frame_benchmarking::Benchmark<Block> for Runtime {
+	// 	fn benchmark_metadata(extra: bool) -> (
+	// 		Vec<frame_benchmarking::BenchmarkList>,
+	// 		Vec<frame_support::traits::StorageInfo>,
+	// 	) {
+	// 		use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
+	// 		use frame_support::traits::StorageInfoTrait;
+
+	// 		use pallet_cord_session_benchmarking::Pallet as SessionBench;
+	// 		use frame_system_benchmarking::Pallet as SystemBench;
+	// 		use baseline::Pallet as BaselineBench;
+
+	// 		let mut list = Vec::<BenchmarkList>::new();
+	// 		list_benchmarks!(list, extra);
+
+	// 		let storage_info = AllPalletsWithSystem::storage_info();
+	// 		(list, storage_info)
+	// 	}
+
+	// 	fn dispatch_benchmark(
+	// 		config: frame_benchmarking::BenchmarkConfig,
+	// 	) -> Result<
+	// 		Vec<frame_benchmarking::BenchmarkBatch>,
+	// 		sp_runtime::RuntimeString,
+	// 	> {
+	// 		use frame_support::traits::WhitelistedStorageKeys;
+	// 		use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch };
+	// 		use sp_storage::TrackedStorageKey;
+
+	// 		use pallet_cord_session_benchmarking::Pallet as SessionBench;
+	// 		use frame_system_benchmarking::Pallet as SystemBench;
+	// 		use baseline::Pallet as BaselineBench;
+
+	// 		impl pallet_cord_session_benchmarking::Config for Runtime {}
+	// 		impl frame_system_benchmarking::Config for Runtime {}
+	// 		impl baseline::Config for Runtime {}
+
+	// 		let mut whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
+
+	// 		// Treasury Account
+	// 		// TODO: this is manual for now, someday we might be able to use a
+	// 		// macro for this particular key
+	// 		let treasury_key = frame_system::Account::<Runtime>::hashed_key_for(Treasury::account_id());
+	// 		whitelist.push(treasury_key.to_vec().into());
+
+	// 		let mut batches = Vec::<BenchmarkBatch>::new();
+	// 		let params = (&config, &whitelist);
+	// 		add_benchmarks!(params, batches);
+	// 		Ok(batches)
+	// 	}
+	// }
 
 	impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
 		fn build_state(config: Vec<u8>) -> sp_genesis_builder::Result {

@@ -231,10 +231,10 @@ pub mod pallet {
 				// Some tests do not need to be complicated with signer and nonce, some need
 				// reproducible block hash (call signature can't be there).
 				// Offchain testing requires storage_change.
-				Call::deposit_log_digest_item { .. } |
-				Call::storage_change { .. } |
-				Call::read { .. } |
-				Call::read_and_panic { .. } => Ok(ValidTransaction {
+				Call::deposit_log_digest_item { .. }
+				| Call::storage_change { .. }
+				| Call::read { .. }
+				| Call::read_and_panic { .. } => Ok(ValidTransaction {
 					provides: vec![BlakeTwo256::hash_of(&call).encode()],
 					..Default::default()
 				}),
@@ -247,10 +247,12 @@ pub mod pallet {
 pub fn validate_runtime_call<T: pallet::Config>(call: &pallet::Call<T>) -> TransactionValidity {
 	log::trace!(target: LOG_TARGET, "validate_runtime_call {call:?}");
 	match call {
-		Call::call_do_not_propagate {} =>
-			Ok(ValidTransaction { propagate: false, ..Default::default() }),
-		Call::call_with_priority { priority } =>
-			Ok(ValidTransaction { priority: *priority, ..Default::default() }),
+		Call::call_do_not_propagate {} => {
+			Ok(ValidTransaction { propagate: false, ..Default::default() })
+		},
+		Call::call_with_priority { priority } => {
+			Ok(ValidTransaction { priority: *priority, ..Default::default() })
+		},
 		_ => Ok(Default::default()),
 	}
 }

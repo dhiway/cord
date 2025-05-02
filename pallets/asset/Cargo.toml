@@ -1,7 +1,7 @@
 [package]
 name = "pallet-asset"
 description = "Manage Asset"
-version = "0.9.3-dev"
+version = "0.9.7-dev"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -45,7 +45,7 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"cord-utilities/runtime-benchmarks",
-	"pallet-chain-space/runtime-benchmarks"
+	"pallet-chain-space/runtime-benchmarks",
 ]
 std = [
 	"codec/std",
@@ -61,7 +61,7 @@ std = [
 	"sp-io/std",
 	"sp-std/std",
 	"pallet-chain-space/std",
-	"sp-keystore?/std"
+	"sp-keystore?/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
@@ -69,5 +69,5 @@ try-runtime = [
 	"cord-utilities/try-runtime",
 	"identifier/try-runtime",
 	"pallet-chain-space/try-runtime",
-	"sp-runtime/try-runtime"
+	"sp-runtime/try-runtime",
 ]

@@ -2279,101 +2279,6 @@ impl_runtime_apis! {
 		}
 	}
 
-	// impl pallet_revive::ReviveApi<Block, AccountId, Balance, Nonce, BlockNumber> for Runtime
-	// {
-	// 	fn balance(address: H160) -> U256 {
-	// 		Revive::evm_balance(&address)
-	// 	}
-
-	// 	fn block_gas_limit() -> U256 {
-	// 		Revive::evm_block_gas_limit()
-	// 	}
-
-	// 	fn nonce(address: H160) -> Nonce {
-	// 		let account = <Runtime as pallet_revive::Config>::AddressMapper::to_account_id(&address);
-	// 		System::account_nonce(account)
-	// 	}
-
-	// 	fn eth_transact(tx: pallet_revive::evm::GenericTransaction) -> Result<pallet_revive::EthTransactInfo<Balance>, pallet_revive::EthTransactError>
-	// 	{
-	// 		let blockweights: SystemBlockWeights = <Runtime as frame_system::Config>::BlockWeights::get();
-
-	// 		let encoded_size = |pallet_call| {
-	// 			let call = RuntimeCall::Revive(pallet_call);
-	// 			let uxt: UncheckedExtrinsic = sp_runtime::generic::UncheckedExtrinsic::new_bare(call).into();
-	// 			uxt.encoded_size() as u32
-	// 		};
-
-	// 		Revive::bare_eth_transact(
-	// 			tx,
-	// 			blockweights.max_block,
-	// 			encoded_size,
-	// 		)
-	// 	}
-
-	// 	fn call(
-	// 		origin: AccountId,
-	// 		dest: H160,
-	// 		value: Balance,
-	// 		gas_limit: Option<Weight>,
-	// 		storage_deposit_limit: Option<Balance>,
-	// 		input_data: Vec<u8>,
-	// 	) -> pallet_revive::ContractResult<pallet_revive::ExecReturnValue, Balance> {
-	// 		Revive::bare_call(
-	// 			RuntimeOrigin::signed(origin),
-	// 			dest,
-	// 			value,
-	// 			gas_limit.unwrap_or(BlockWeights::get().max_block),
-	// 			pallet_revive::DepositLimit::Balance(storage_deposit_limit.unwrap_or(u128::MAX)),
-	// 			input_data,
-	// 		)
-	// 	}
-
-	// 	fn instantiate(
-	// 		origin: AccountId,
-	// 		value: Balance,
-	// 		gas_limit: Option<Weight>,
-	// 		storage_deposit_limit: Option<Balance>,
-	// 		code: pallet_revive::Code,
-	// 		data: Vec<u8>,
-	// 		salt: Option<[u8; 32]>,
-	// 	) -> pallet_revive::ContractResult<pallet_revive::InstantiateReturnValue, Balance>
-	// 	{
-	// 		Revive::bare_instantiate(
-	// 			RuntimeOrigin::signed(origin),
-	// 			value,
-	// 			gas_limit.unwrap_or(BlockWeights::get().max_block),
-	// 			pallet_revive::DepositLimit::Balance(storage_deposit_limit.unwrap_or(u128::MAX)),
-	// 			code,
-	// 			data,
-	// 			salt,
-	// 		)
-	// 	}
-
-	// 	fn upload_code(
-	// 		origin: AccountId,
-	// 		code: Vec<u8>,
-	// 		storage_deposit_limit: Option<Balance>,
-	// 	) -> pallet_revive::CodeUploadResult<Balance>
-	// 	{
-	// 		Revive::bare_upload_code(
-	// 			RuntimeOrigin::signed(origin),
-	// 			code,
-	// 			storage_deposit_limit.unwrap_or(u128::MAX),
-	// 		)
-	// 	}
-
-	// 	fn get_storage(
-	// 		address: H160,
-	// 		key: [u8; 32],
-	// 	) -> pallet_revive::GetStorageResult {
-	// 		Revive::get_storage(
-	// 			address,
-	// 			key
-	// 		)
-	// 	}
-	// }
-
 	impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
 		Block,
 		Balance,
@@ -2626,67 +2531,100 @@ impl_runtime_apis! {
 		}
 	}
 
+
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn benchmark_metadata(extra: bool) -> (
 			Vec<frame_benchmarking::BenchmarkList>,
 			Vec<frame_support::traits::StorageInfo>,
 		) {
-			use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
-			use frame_support::traits::StorageInfoTrait;
-
-			use pallet_session_benchmarking::Pallet as SessionBench;
-			use pallet_offences_benchmarking::Pallet as OffencesBench;
-			use pallet_election_provider_support_benchmarking::Pallet as EPSBench;
-			use frame_system_benchmarking::Pallet as SystemBench;
-			use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
-			use baseline::Pallet as BaselineBench;
-			use pallet_nomination_pools_benchmarking::Pallet as NominationPoolsBench;
-
 			let mut list = Vec::<BenchmarkList>::new();
 			list_benchmarks!(list, extra);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
-
 			(list, storage_info)
 		}
 
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
-		) -> Result<Vec<frame_benchmarking::BenchmarkBatch>,  alloc::string::String> {
-			use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch};
-			use sp_storage::TrackedStorageKey;
-
-			use pallet_session_benchmarking::Pallet as SessionBench;
-			use pallet_offences_benchmarking::Pallet as OffencesBench;
-			use pallet_election_provider_support_benchmarking::Pallet as EPSBench;
-			use frame_system_benchmarking::Pallet as SystemBench;
-			use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
-			use baseline::Pallet as BaselineBench;
-			use pallet_nomination_pools_benchmarking::Pallet as NominationPoolsBench;
-
-			impl pallet_session_benchmarking::Config for Runtime {}
-			impl pallet_offences_benchmarking::Config for Runtime {}
-			impl pallet_election_provider_support_benchmarking::Config for Runtime {}
-			impl frame_system_benchmarking::Config for Runtime {}
-			impl baseline::Config for Runtime {}
-			impl pallet_nomination_pools_benchmarking::Config for Runtime {}
-
-			use frame_support::traits::WhitelistedStorageKeys;
+		) -> Result<
+			Vec<frame_benchmarking::BenchmarkBatch>,
+			alloc::string::String,
+		> {
 			let mut whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
-
-			// Treasury Account
-			// TODO: this is manual for now, someday we might be able to use a
-			// macro for this particular key
 			let treasury_key = frame_system::Account::<Runtime>::hashed_key_for(Treasury::account_id());
 			whitelist.push(treasury_key.to_vec().into());
 
 			let mut batches = Vec::<BenchmarkBatch>::new();
 			let params = (&config, &whitelist);
+
 			add_benchmarks!(params, batches);
+
 			Ok(batches)
 		}
 	}
+
+	// #[cfg(feature = "runtime-benchmarks")]
+	// impl frame_benchmarking::Benchmark<Block> for Runtime {
+	// 	fn benchmark_metadata(extra: bool) -> (
+	// 		Vec<frame_benchmarking::BenchmarkList>,
+	// 		Vec<frame_support::traits::StorageInfo>,
+	// 	) {
+	// 		use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
+	// 		use frame_support::traits::StorageInfoTrait;
+
+	// 		use pallet_session_benchmarking::Pallet as SessionBench;
+	// 		use pallet_offences_benchmarking::Pallet as OffencesBench;
+	// 		use pallet_election_provider_support_benchmarking::Pallet as EPSBench;
+	// 		use frame_system_benchmarking::Pallet as SystemBench;
+	// 		use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
+	// 		use baseline::Pallet as BaselineBench;
+	// 		use pallet_nomination_pools_benchmarking::Pallet as NominationPoolsBench;
+
+	// 		let mut list = Vec::<BenchmarkList>::new();
+	// 		list_benchmarks!(list, extra);
+
+	// 		let storage_info = AllPalletsWithSystem::storage_info();
+
+	// 		(list, storage_info)
+	// 	}
+
+	// 	fn dispatch_benchmark(
+	// 		config: frame_benchmarking::BenchmarkConfig
+	// 	) -> Result<Vec<frame_benchmarking::BenchmarkBatch>,  alloc::string::String> {
+	// 		use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch};
+	// 		use sp_storage::TrackedStorageKey;
+
+	// 		use pallet_session_benchmarking::Pallet as SessionBench;
+	// 		use pallet_offences_benchmarking::Pallet as OffencesBench;
+	// 		use pallet_election_provider_support_benchmarking::Pallet as EPSBench;
+	// 		use frame_system_benchmarking::Pallet as SystemBench;
+	// 		use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
+	// 		use baseline::Pallet as BaselineBench;
+	// 		use pallet_nomination_pools_benchmarking::Pallet as NominationPoolsBench;
+
+	// 		impl pallet_session_benchmarking::Config for Runtime {}
+	// 		impl pallet_offences_benchmarking::Config for Runtime {}
+	// 		impl pallet_election_provider_support_benchmarking::Config for Runtime {}
+	// 		impl frame_system_benchmarking::Config for Runtime {}
+	// 		impl baseline::Config for Runtime {}
+	// 		impl pallet_nomination_pools_benchmarking::Config for Runtime {}
+
+	// 		use frame_support::traits::WhitelistedStorageKeys;
+	// 		let mut whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
+
+	// 		// Treasury Account
+	// 		// TODO: this is manual for now, someday we might be able to use a
+	// 		// macro for this particular key
+	// 		let treasury_key = frame_system::Account::<Runtime>::hashed_key_for(Treasury::account_id());
+	// 		whitelist.push(treasury_key.to_vec().into());
+
+	// 		let mut batches = Vec::<BenchmarkBatch>::new();
+	// 		let params = (&config, &whitelist);
+	// 		add_benchmarks!(params, batches);
+	// 		Ok(batches)
+	// 	}
+	// }
 
 	impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
 		fn build_state(config: Vec<u8>) -> sp_genesis_builder::Result {

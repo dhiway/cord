@@ -46,7 +46,7 @@ pub mod prelude {
 		Backend, ExecutorDispatch, TestClient, TestClientBuilder, WasmExecutionMethod,
 	};
 	// Keyring
-	pub use super::{AccountKeyring, Sr25519Keyring};
+	pub use super::Sr25519Keyring;
 }
 
 /// Test client database backend.
@@ -90,7 +90,7 @@ impl GenesisInit for GenesisParameters {
 pub type TestClientBuilder<E, B> =
 	cord_test_client::TestClientBuilder<cord_test_runtime::Block, E, B, GenesisParameters>;
 
-/// Test client type with `LocalExecutorDispatch` and generic Backend.
+/// Test client type with `WasmExecutor` and generic Backend.
 pub type Client<B> = client::Client<
 	B,
 	client::LocalCallExecutor<cord_test_runtime::Block, B, WasmExecutor>,
