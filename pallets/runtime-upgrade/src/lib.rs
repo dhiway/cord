@@ -30,7 +30,8 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	use scale_info::prelude::vec::Vec;
+	extern crate alloc;
+	use alloc::vec::Vec;
 
 	#[pallet::pallet]
 	#[pallet::without_storage_info]

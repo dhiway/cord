@@ -47,7 +47,8 @@ pub mod benchmarking;
 pub mod tests;
 
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
-use scale_info::prelude::vec::Vec;
+extern crate alloc;
+use alloc::{collections::BTreeSet, vec::Vec};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -126,7 +127,6 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config<I>, I: 'static> BuildGenesisConfig for GenesisConfig<T, I> {
 		fn build(&self) {
-			use scale_info::prelude::collections::BTreeSet;
 			let members_set: BTreeSet<_> = self.members.iter().collect();
 			assert_eq!(
 				members_set.len(),

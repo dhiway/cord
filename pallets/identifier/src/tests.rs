@@ -21,7 +21,6 @@ use super::*;
 use crate::mock::{new_test_ext, Test};
 use frame_support::{assert_err, assert_ok};
 use sp_core::H256;
-use sp_std::prelude::*;
 
 /// Test that a valid pallet name can be stored and returns a consistent index.
 #[test]

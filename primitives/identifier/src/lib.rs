@@ -32,10 +32,9 @@ use alloc::str;
 
 pub mod types;
 pub use crate::types::*;
+use alloc::vec::Vec;
 use frame_support::traits::Get;
 use frame_system::pallet_prelude::BlockNumberFor;
-
-use scale_info::prelude::vec::Vec;
 
 pub use crate::pallet::*;
 

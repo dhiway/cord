@@ -52,12 +52,13 @@ pub mod weights;
 
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
 use cord_primitives::NodeId;
-use scale_info::prelude::{collections::BTreeSet, vec::Vec};
-use sp_core::OpaquePeerId as PeerId;
-use sp_runtime::traits::StaticLookup;
 
 extern crate alloc;
+use alloc::{collections::BTreeSet, vec::Vec};
+
 use alloc::str;
+use sp_core::OpaquePeerId as PeerId;
+use sp_runtime::traits::StaticLookup;
 
 type AccountIdLookupOf<T> = <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 

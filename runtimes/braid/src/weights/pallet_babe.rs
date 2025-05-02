@@ -43,7 +43,8 @@
 #![allow(unused_imports)]
 #![allow(missing_docs)]
 
-use scale_info::prelude::marker::PhantomData;
+use core::marker::PhantomData;
+
 use frame_support::{
     traits::Get,
     weights::{

@@ -21,7 +21,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Codec, Decode, Encode, MaxEncodedLen};
-use scale_info::{prelude::vec::Vec, TypeInfo};
+use scale_info::TypeInfo;
+
+extern crate alloc;
+use alloc::vec::Vec;
 
 mod did_details;
 mod service_endpoint;

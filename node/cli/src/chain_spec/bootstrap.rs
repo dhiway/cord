@@ -38,9 +38,7 @@ use sp_consensus_babe::AuthorityId as BabeId;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::crypto::UncheckedInto;
 use sp_runtime::Perbill;
-extern crate alloc;
-
-use alloc::collections::BTreeMap;
+use sp_std::collections::btree_map::BTreeMap;
 
 // pub use cord_braid_runtime_constants::currency::UNITS as BRAID_UNITS;
 // pub use cord_loom_runtime_constants::currency::UNITS as LOOM_UNITS;

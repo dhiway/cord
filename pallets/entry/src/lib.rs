@@ -40,8 +40,6 @@
 //! * `update_ownership` - Updates the ownership of the Registry Entry.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-extern crate alloc;
-use alloc::vec::Vec;
 mod types;
 
 #[cfg(test)]

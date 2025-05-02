@@ -20,10 +20,10 @@
 
 use codec::Encode;
 use fluent_uri::Uri;
-use scale_info::prelude::format;
+extern crate alloc;
+use alloc::format;
 use sp_runtime::traits::Hash;
 
-extern crate alloc;
 use alloc::vec::Vec;
 
 use crate::{did_details::DidPublicKey, AccountIdOf, Config, KeyIdOf};

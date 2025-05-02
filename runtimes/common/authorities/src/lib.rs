@@ -24,7 +24,10 @@ pub mod impls;
 
 use frame_support::{dispatch::DispatchResult, ensure, pallet_prelude::*, traits::EnsureOrigin};
 pub use pallet::*;
-use scale_info::prelude::{vec, vec::Vec};
+
+extern crate alloc;
+use alloc::{vec, vec::Vec};
+
 use sp_staking::SessionIndex;
 
 #[cfg(test)]

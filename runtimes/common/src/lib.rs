@@ -22,8 +22,7 @@
 
 pub mod elections;
 
-extern crate alloc;
-use scale_info::prelude::marker;
+use core::marker;
 
 use cord_primitives::{AccountId, Balance, BlockNumber};
 use frame_support::{

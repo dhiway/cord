@@ -37,7 +37,8 @@ mod mock;
 mod tests;
 
 use core::marker::PhantomData;
-use scale_info::prelude::vec::Vec;
+extern crate alloc;
+use alloc::vec::Vec;
 
 use codec::Encode;
 use frame_support::weights::Weight;

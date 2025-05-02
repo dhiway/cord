@@ -38,7 +38,10 @@ use frame_support::{
 	traits::{Get, OriginTrait},
 	DefaultNoBound,
 };
-use scale_info::prelude::collections::BTreeMap;
+
+extern crate alloc;
+use alloc::collections::BTreeMap;
+
 use sp_runtime::{
 	impl_tx_ext_default,
 	traits::{DispatchInfoOf, PhantomData, TransactionExtension, Zero},

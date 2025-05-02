@@ -24,7 +24,8 @@ use cord_utilities::traits::GenerateBenchmarkOrigin;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::{sp_runtime::traits::Hash, traits::Get, BoundedVec};
 use frame_system::RawOrigin;
-use scale_info::prelude::vec::Vec;
+extern crate alloc;
+use alloc::vec::Vec;
 
 const SEED: u32 = 0;
 

@@ -87,7 +87,9 @@ pub mod legacy;
 mod tests;
 mod types;
 pub mod weights;
-use scale_info::prelude::{boxed::Box, vec::Vec};
+extern crate alloc;
+
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::types::{AuthorityPropertiesOf, Suffix, Username};
 use codec::Encode;

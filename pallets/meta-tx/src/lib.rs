@@ -64,7 +64,8 @@ pub use pallet::*;
 pub use weights::WeightInfo;
 mod extension;
 pub use extension::MetaTxMarker;
-use scale_info::prelude::boxed::Box;
+extern crate alloc;
+use alloc::boxed::Box;
 
 use core::ops::Add;
 use frame_support::{

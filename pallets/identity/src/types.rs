@@ -26,9 +26,10 @@ use frame_support::{
 	traits::{ConstU32, Get},
 	BoundedVec, CloneNoBound, PartialEqNoBound, RuntimeDebugNoBound,
 };
+extern crate alloc;
+use alloc::{vec, vec::Vec};
 use scale_info::{
 	build::{Fields, Variants},
-	prelude::vec,
 	Path, Type, TypeInfo,
 };
 use sp_runtime::{traits::Member, RuntimeDebug};

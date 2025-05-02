@@ -90,12 +90,13 @@ use alloc::str;
 pub mod types;
 pub mod weights;
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
+use alloc::vec::Vec;
 use frame_system::pallet_prelude::BlockNumberFor;
 use identifier::{
 	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
 	EventEntryOf,
 };
-use scale_info::prelude::vec::Vec;
+
 use sp_runtime::SaturatedConversion;
 
 #[frame_support::pallet]

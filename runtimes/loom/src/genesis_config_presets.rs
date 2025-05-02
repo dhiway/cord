@@ -26,7 +26,6 @@ use alloc::{vec, vec::Vec};
 use cord_loom_runtime_constants::currency::UNITS;
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
-use scale_info::prelude::collections::BTreeMap;
 use sp_consensus_babe::AuthorityId as BabeId;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;

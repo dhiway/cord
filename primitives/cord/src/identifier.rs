@@ -56,7 +56,8 @@ pub enum IdentifierError {
 }
 
 /// The Ss58Identifier type is a persistent identifier built from a bounded vector of bytes.
-/// The capacity (here, 52) must be chosen such that the final Base58-encoded value fits the system constraints.
+/// The capacity (here, 52) must be chosen such that the final Base58-encoded value fits the system
+/// constraints.
 #[derive(
 	Clone,
 	Eq,
@@ -316,7 +317,8 @@ mod tests {
 			let enc = Ss58Identifier::compact_encode_to(v, &mut buf);
 
 			match enc {
-				// For values in range 0..=16_383, encoding should succeed and decode should return the same.
+				// For values in range 0..=16_383, encoding should succeed and decode should return
+				// the same.
 				Ok(()) if v <= 16_383 => {
 					let (decoded, len) = Ss58Identifier::compact_decode(&buf)
 						.expect("compact_decode should succeed");

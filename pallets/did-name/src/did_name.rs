@@ -22,7 +22,11 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use core::ops::Deref;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{ensure, sp_runtime::SaturatedConversion, traits::Get, BoundedVec};
-use scale_info::{prelude::vec::Vec, TypeInfo};
+use scale_info::TypeInfo;
+
+extern crate alloc;
+use alloc::vec::Vec;
+
 use sp_runtime::{
 	traits::{Debug, PhantomData},
 	RuntimeDebug,

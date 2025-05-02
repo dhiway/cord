@@ -18,7 +18,9 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use scale_info::prelude::string::String;
+extern crate alloc;
+use alloc::string::String;
+
 use sp_runtime::TryRuntimeError;
 
 /// Logs the error message and returns "Sanity test error"

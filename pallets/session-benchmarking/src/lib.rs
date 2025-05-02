@@ -20,7 +20,8 @@
 #![cfg(feature = "runtime-benchmarks")]
 use codec::Decode;
 
-use scale_info::prelude::vec::Vec;
+extern crate alloc;
+use alloc::vec::Vec;
 
 use frame_benchmarking::{benchmarks, whitelisted_caller};
 use frame_system::RawOrigin;

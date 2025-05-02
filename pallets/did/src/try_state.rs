@@ -20,7 +20,9 @@
 
 use cord_utilities::test_utils::log_and_return_error_message;
 use frame_support::ensure;
-use scale_info::prelude::format;
+extern crate alloc;
+use alloc::format;
+
 use sp_core::Get;
 use sp_runtime::{SaturatedConversion, TryRuntimeError};
 

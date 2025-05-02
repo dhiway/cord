@@ -35,7 +35,6 @@ extern crate alloc;
 use alloc::{str, string::String};
 
 pub use crate::{pallet::*, types::*};
-use alloc::str;
 use codec::Encode;
 use frame_support::{
 	ensure, pallet_prelude::DispatchResult, storage::types::StorageMap, BoundedVec,
