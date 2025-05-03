@@ -19,10 +19,9 @@
 //! Genesis Configuration.
 
 use crate::keyring::*;
-use cord_primitives::Id as NetworkId;
 use cord_weave_runtime::{
-	AccountId, AssetsConfig, BalancesConfig, IndicesConfig, NetworkInfoConfig,
-	RuntimeGenesisConfig, SessionConfig, StakerStatus, StakingConfig,
+	AccountId, AssetsConfig, BalancesConfig, IdentifierConfig, IndicesConfig, RuntimeGenesisConfig,
+	SessionConfig, StakerStatus, StakingConfig,
 };
 use cord_weave_runtime_constants::currency::*;
 use sp_keyring::Ed25519Keyring;
@@ -50,11 +49,7 @@ pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
 	RuntimeGenesisConfig {
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig { balances: endowed, ..Default::default() },
-		network_info: NetworkInfoConfig {
-			permissioned: false,
-			network_id: NetworkId::from(1000u32),
-			..Default::default()
-		},
+		identifier: IdentifierConfig { network_id: 2000, ..Default::default() },
 		session: SessionConfig {
 			keys: vec![
 				(alice(), dave(), session_keys_from_seed(Ed25519Keyring::Alice.into())),

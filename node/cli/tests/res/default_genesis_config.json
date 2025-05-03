@@ -49,6 +49,9 @@
   "grandpa": {
     "authorities": []
   },
+  "identifier": {
+    "networkId": 2000
+  },
   "beefy": {
     "authorities": [],
     "genesisBlock": 1
@@ -74,13 +77,6 @@
     "metadata": [],
     "accounts": [],
     "nextAssetId": null
-  },
-  "networkInfo": {
-    "networkId": 1000,
-    "permissioned": false
-  },
-  "networkRegistrar": {
-    "nextFreeNetworkId": 2001
   },
   "nominationPools": {
     "minJoinBond": 0,
