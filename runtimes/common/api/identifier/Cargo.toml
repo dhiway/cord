@@ -1,5 +1,5 @@
 [package]
-name = "cord-uri-runtime-api"
+name = "cord-identifier-runtime-api"
 description = "Runtime APIs for decoding CORD URIs."
 version.workspace = true
 authors.workspace = true

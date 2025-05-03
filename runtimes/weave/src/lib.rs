@@ -23,9 +23,11 @@
 extern crate alloc;
 use alloc::{string::String, vec, vec::Vec};
 use codec::{Decode, Encode};
+use cord_primitives::{
+	identifier::{DecodedIdentifier, Ss58Identifier},
+	AccountIndex, Balance, BlockNumber, Hash, Moment, Nonce,
+};
 pub use cord_primitives::{AccountId, AccountPublic, Signature};
-use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Moment, Nonce};
-use cord_uri::{DecodedIdentifier, Identifier as CordIdentifier, Ss58Identifier};
 use frame_election_provider_support::{
 	bounds::ElectionBoundsBuilder, generate_solution_type, onchain, BalancingConfig,
 	SequentialPhragmen,
@@ -56,6 +58,7 @@ use frame_system::{
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
 use pallet_asset_conversion_tx_payment::SwapAssetAdapter;
 pub use pallet_election_provider_multi_phase::{Call as EPMCall, GeometricDepositBase};
+use pallet_identifier::Identifier as _;
 use pallet_identity::legacy::IdentityInfo;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_nfts::PalletFeatures;
@@ -103,14 +106,14 @@ use cord_runtime_common::{
 };
 
 /// Runtime API definition for identifier.
-pub use cord_uri_runtime_api as identifier_api;
+pub use cord_identifier_runtime_api as identifier_api;
 /// Constant values used within the runtime.
 use cord_weave_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 /// Runtime API definition for assets.
 pub use pallet_assets_runtime_api as assets_api;
 
 use core::cmp::Ordering;
-use runtime_common::{DealWithFees, SendFeesToTreasury, SlowAdjustingFeeUpdate};
+use runtime_common::{DealWithFees, SlowAdjustingFeeUpdate};
 use sp_runtime::generic::Era;
 use sp_staking::SessionIndex;
 
@@ -125,9 +128,6 @@ mod bag_thresholds;
 
 // Weights used in the runtime.
 mod weights;
-
-/// Network Resistrar
-mod networks_registrar;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -1446,35 +1446,13 @@ impl pallet_statement::Config for Runtime {
 	type MaxAllowedBytes = MaxAllowedBytes;
 }
 
-parameter_types! {
-	pub const RegistrationPeriod: BlockNumber = YEAR;
-	pub const MaxEntriesPerBlock: u32 = 2_000;
-	pub const RegistrationFee: Balance = 100_000 * UNITS;
-}
-
-impl networks_registrar::Config for Runtime {
+impl pallet_identifier::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type RegistrationFee = RegistrationFee;
-	type RegistrationPeriod = RegistrationPeriod;
-	type MaxEntriesPerBlock = MaxEntriesPerBlock;
-	type FeeCollector = SendFeesToTreasury<Self>;
-	type WeightInfo = weights::runtime_networks_registrar::WeightInfo<Runtime>;
-}
-
-impl pallet_config::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type NetworkConfigOrigin = EnsureRootOrCouncilApproval;
-	type DefaultNetworkId = ConstU32<1000>;
-}
-
-impl cord_uri::Config for Runtime {
 	type BlockNumberProvider = System;
 }
 
 impl pallet_collection::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Registry = Registry;
 	type WeightInfo = ();
 }
 
@@ -1687,9 +1665,6 @@ mod runtime {
 	#[runtime::pallet_index(45)]
 	pub type Statement = pallet_statement::Pallet<Runtime>;
 
-	#[runtime::pallet_index(46)]
-	pub type NetworkRegistrar = networks_registrar::Pallet<Runtime>;
-
 	#[runtime::pallet_index(50)]
 	pub type StateTrieMigration = pallet_state_trie_migration::Pallet<Runtime>;
 
@@ -1715,7 +1690,7 @@ mod runtime {
 	pub type FastUnstake = pallet_fast_unstake::Pallet<Runtime>;
 
 	#[runtime::pallet_index(70)]
-	pub type Identifier = cord_uri::Pallet<Runtime>;
+	pub type Identifier = pallet_identifier::Pallet<Runtime>;
 
 	#[runtime::pallet_index(71)]
 	pub type Collection = pallet_collection::Pallet<Runtime>;
@@ -1726,10 +1701,7 @@ mod runtime {
 	#[runtime::pallet_index(73)]
 	pub type Entry = pallet_entry::Pallet<Runtime>;
 
-	#[runtime::pallet_index(80)]
-	pub type NetworkInfo = pallet_config::Pallet<Runtime>;
-
-	#[runtime::pallet_index(81)]
+	#[runtime::pallet_index(74)]
 	pub type Profile = pallet_profile::Pallet<Runtime>;
 
 	#[runtime::pallet_index(100)]
@@ -1919,6 +1891,7 @@ mod benches {
 		[pallet_fast_unstake, FastUnstake]
 		[pallet_grandpa, Grandpa]
 		[pallet_identity, Identity]
+		[pallet_identifier, Identifier]
 		[pallet_im_online, ImOnline]
 		[pallet_indices, Indices]
 		[pallet_membership, TechnicalMembership]
@@ -2531,7 +2504,6 @@ impl_runtime_apis! {
 		}
 	}
 
-
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {
 		fn benchmark_metadata(extra: bool) -> (
@@ -2563,68 +2535,6 @@ impl_runtime_apis! {
 			Ok(batches)
 		}
 	}
-
-	// #[cfg(feature = "runtime-benchmarks")]
-	// impl frame_benchmarking::Benchmark<Block> for Runtime {
-	// 	fn benchmark_metadata(extra: bool) -> (
-	// 		Vec<frame_benchmarking::BenchmarkList>,
-	// 		Vec<frame_support::traits::StorageInfo>,
-	// 	) {
-	// 		use frame_benchmarking::{baseline, Benchmarking, BenchmarkList};
-	// 		use frame_support::traits::StorageInfoTrait;
-
-	// 		use pallet_session_benchmarking::Pallet as SessionBench;
-	// 		use pallet_offences_benchmarking::Pallet as OffencesBench;
-	// 		use pallet_election_provider_support_benchmarking::Pallet as EPSBench;
-	// 		use frame_system_benchmarking::Pallet as SystemBench;
-	// 		use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
-	// 		use baseline::Pallet as BaselineBench;
-	// 		use pallet_nomination_pools_benchmarking::Pallet as NominationPoolsBench;
-
-	// 		let mut list = Vec::<BenchmarkList>::new();
-	// 		list_benchmarks!(list, extra);
-
-	// 		let storage_info = AllPalletsWithSystem::storage_info();
-
-	// 		(list, storage_info)
-	// 	}
-
-	// 	fn dispatch_benchmark(
-	// 		config: frame_benchmarking::BenchmarkConfig
-	// 	) -> Result<Vec<frame_benchmarking::BenchmarkBatch>,  alloc::string::String> {
-	// 		use frame_benchmarking::{baseline, Benchmarking, BenchmarkBatch};
-	// 		use sp_storage::TrackedStorageKey;
-
-	// 		use pallet_session_benchmarking::Pallet as SessionBench;
-	// 		use pallet_offences_benchmarking::Pallet as OffencesBench;
-	// 		use pallet_election_provider_support_benchmarking::Pallet as EPSBench;
-	// 		use frame_system_benchmarking::Pallet as SystemBench;
-	// 		use frame_system_benchmarking::extensions::Pallet as SystemExtensionsBench;
-	// 		use baseline::Pallet as BaselineBench;
-	// 		use pallet_nomination_pools_benchmarking::Pallet as NominationPoolsBench;
-
-	// 		impl pallet_session_benchmarking::Config for Runtime {}
-	// 		impl pallet_offences_benchmarking::Config for Runtime {}
-	// 		impl pallet_election_provider_support_benchmarking::Config for Runtime {}
-	// 		impl frame_system_benchmarking::Config for Runtime {}
-	// 		impl baseline::Config for Runtime {}
-	// 		impl pallet_nomination_pools_benchmarking::Config for Runtime {}
-
-	// 		use frame_support::traits::WhitelistedStorageKeys;
-	// 		let mut whitelist: Vec<TrackedStorageKey> = AllPalletsWithSystem::whitelisted_storage_keys();
-
-	// 		// Treasury Account
-	// 		// TODO: this is manual for now, someday we might be able to use a
-	// 		// macro for this particular key
-	// 		let treasury_key = frame_system::Account::<Runtime>::hashed_key_for(Treasury::account_id());
-	// 		whitelist.push(treasury_key.to_vec().into());
-
-	// 		let mut batches = Vec::<BenchmarkBatch>::new();
-	// 		let params = (&config, &whitelist);
-	// 		add_benchmarks!(params, batches);
-	// 		Ok(batches)
-	// 	}
-	// }
 
 	impl sp_genesis_builder::GenesisBuilder<Block> for Runtime {
 		fn build_state(config: Vec<u8>) -> sp_genesis_builder::Result {

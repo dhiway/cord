@@ -28,9 +28,10 @@ use alloc::str;
 use frame_support::{ensure, storage::types::StorageMap};
 pub mod types;
 pub use crate::{pallet::*, types::*};
-use cord_uri::{EntryTypeOf, EventStamp, Identifier, RegistryIdentifierCheck, Ss58Identifier};
+use cord_primitives::identifier::Ss58Identifier;
 use frame_support::{dispatch::DispatchResult, traits::ConstU32, BoundedVec};
 use frame_system::{pallet_prelude::BlockNumberFor, WeightInfo};
+use pallet_identifier::{EventBlock, EventTypeOf, Identifier};
 use pallet_profile::ProfileIdOf;
 
 #[cfg(test)]
@@ -67,7 +68,9 @@ pub mod pallet {
 	pub type RegistryBlobOf<T> = BoundedVec<u8, MaxRegistryBlobSizeOf<T>>;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + cord_uri::Config + pallet_profile::Config {
+	pub trait Config:
+		frame_system::Config + pallet_identifier::Config + pallet_profile::Config
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The maximum number of bytes in size a Registry Blob can hold.
@@ -166,10 +169,12 @@ pub mod pallet {
 		ArchivedRegistry,
 		/// The registry is not archived (and thus cannot be restored).
 		RegistryNotArchived,
-		/// The provided entry type input is invalid.
-		InvalidEntryTypeInput,
+		/// The provided event type is invalid.
+		InvalidEventType,
 		/// The activity update operation failed.
-		ActivityUpdateFailed,
+		EventUpdateFailed,
+		// State Update Failed
+		StateUpdateFailed,
 	}
 
 	#[pallet::call]
@@ -438,7 +443,7 @@ pub mod pallet {
 			let profile_id = pallet_profile::Pallet::<T>::get_profile_id(&who)
 				.map_err(<pallet_profile::Error<T>>::from)?;
 
-			registry::restore_registry::<T>(&registry_id, profile_id.clone())?;
+			registry::restore_registry::<T>(&registry_id, &profile_id.clone())?;
 			Self::deposit_event(Event::RegistryRestored {
 				registry: registry_id,
 				authority: who,
@@ -540,7 +545,7 @@ pub mod pallet {
 			registry::update_registry_creator::<T>(
 				&registry_id,
 				new_creator_profile_id.clone(),
-				who_profile_id.clone(),
+				&who_profile_id,
 			)?;
 
 			Self::deposit_event(Event::RegistryUpdated {
@@ -631,12 +636,18 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Records an activity using a provided event message.
-	pub fn record_activity(identifier: &Ss58Identifier, msg: &[u8]) -> DispatchResult {
-		let entry: EntryTypeOf =
-			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
-		let stamp = EventStamp::current::<T>();
-		<cord_uri::Pallet<T> as Identifier>::record_activity(identifier, entry, stamp)
-			.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
+	pub fn record_activity(
+		identifier: &Ss58Identifier,
+		digest: T::Hash,
+		msg: &[u8],
+	) -> DispatchResult {
+		let entry: EventTypeOf =
+			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
+		let stamp = EventBlock::current::<T>();
+		<pallet_identifier::Pallet<T> as Identifier<T>>::state_event(
+			identifier, digest, entry, stamp,
+		)
+		.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
 	}
 
@@ -660,11 +671,17 @@ impl<T: Config> Pallet<T> {
 	/// Verifies if the given account Profile for a registry is admin or not.
 	pub fn is_admin(profile_id: &ProfileIdOf, registry_id: &RegistryIdentifierOf) -> bool {
 		if Self::has_permission(registry_id, profile_id, Permissions::ADMIN) {
-			return true
+			return true;
 		}
 
 		false
 	}
+}
+
+/// A trait that can be used to ensure that a registry identifier exists and is active..
+pub trait RegistryIdentifierCheck {
+	/// Checks that the registry identified by `registry_id` exists and is active.
+	fn ensure_active_registry(registry_id: &Ss58Identifier) -> DispatchResult;
 }
 
 impl<T: Config> RegistryIdentifierCheck for Pallet<T> {

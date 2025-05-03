@@ -22,7 +22,7 @@ use crate::*;
 
 #[cfg(not(feature = "std"))]
 use alloc::format;
-use alloc::{vec, vec::Vec};
+use alloc::{collections::BTreeMap, vec, vec::Vec};
 use cord_braid_runtime_constants::currency::UNITS;
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -79,6 +79,7 @@ fn cord_braid_testnet_genesis(
 		AuthorityDiscoveryId,
 		BeefyId,
 	)>,
+	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> serde_json::Value {
@@ -89,7 +90,13 @@ fn cord_braid_testnet_genesis(
 		"balances": {
 			"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"networkInfo": {"permissioned": true, "networkId": 2003},
+		"identifier": { "networkId": 2003},
+		"nodeAuthorization":  {
+			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
+		},
+		"networkMembership":  {
+			"members": testnet_accounts().into_iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
+		},
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
 				.iter()
@@ -138,6 +145,24 @@ pub fn cord_braid_local_testnet_genesis() -> serde_json::Value {
 			get_authority_keys_from_seed("Bob"),
 			get_authority_keys_from_seed("Charlie"),
 		],
+		vec![
+			(
+				b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+			),
+			(
+				b"12D3KooWQYV9dGMFoRzNStwpXztXaBUjtPqi6aU76ZgUriHhKust".to_vec(),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+			),
+			(
+				b"12D3KooWJvyP3VJYymTqG7eH4PM5rN4T2agk5cdNCfNymAqwqcvZ".to_vec(),
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+			),
+			(
+				b"12D3KooWPHWFrfaJzxPnqnAYAoRUyAHHKqACmEycGTVmeVhQYuZN".to_vec(),
+				get_account_id_from_seed::<sr25519::Public>("Dave"),
+			),
+		],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		None,
 	)
@@ -146,6 +171,10 @@ pub fn cord_braid_local_testnet_genesis() -> serde_json::Value {
 pub fn cord_braid_development_config_genesis() -> serde_json::Value {
 	cord_braid_testnet_genesis(
 		vec![get_authority_keys_from_seed("Alice")],
+		vec![(
+			b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
+			get_account_id_from_seed::<sr25519::Public>("Alice"),
+		)],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		None,
 	)
