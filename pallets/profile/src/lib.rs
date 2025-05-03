@@ -30,19 +30,20 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod types;
-
+extern crate alloc;
 pub use crate::{pallet::*, types::*};
+use alloc::str;
 use codec::Encode;
-use cord_uri::{EntryTypeOf, EventStamp, Identifier, Ss58Identifier};
 use frame_support::{
 	ensure, pallet_prelude::DispatchResult, storage::types::StorageMap, BoundedVec,
 };
+use pallet_identifier::{EventBlock, EventTypeOf, Identifier};
 use sp_runtime::traits::Hash;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	pub use cord_primitives::{IsPermissioned, StatusOf};
+	pub use cord_primitives::{IsPermissioned, Ss58Identifier, StatusOf};
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 	pub use frame_system::WeightInfo;
@@ -67,7 +68,9 @@ pub mod pallet {
 
 	#[pallet::config]
 	// TODO: Check workaround of not having TypeInfo here
-	pub trait Config: frame_system::Config + scale_info::TypeInfo + cord_uri::Config {
+	pub trait Config:
+		frame_system::Config + scale_info::TypeInfo + pallet_identifier::Config
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		#[pallet::constant]
@@ -124,13 +127,15 @@ pub mod pallet {
 		/// The Profile Identifier does not exist.
 		ProfileNotFound,
 		/// The event activity update has failed.
-		ActivityUpdateFailed,
-		/// The entry type for the activity is not valid.
-		InvalidEntryTypeInput,
+		EventUpdateFailed,
+		/// The provided event type is invalid.
+		InvalidEventType,
 		/// Rotation must be to new key, not to existing tied account.
 		CannotRotateToSameAccount,
 		/// Storage transaction has failed abrubtly.
 		TransactionFailed,
+		// State Update Failed
+		StateUpdateFailed,
 	}
 
 	#[pallet::event]
@@ -177,15 +182,17 @@ pub mod pallet {
 
 			let digest = T::Hashing::hash(&who.encode());
 			let pallet_name = <Self as frame_support::traits::PalletInfoAccess>::name();
-			let profile_id =
-				<cord_uri::Pallet<T> as Identifier>::build(&(digest).encode()[..], pallet_name)
-					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let profile_id = <pallet_identifier::Pallet<T> as Identifier<T>>::build(
+				&(digest).encode()[..],
+				pallet_name,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(!Profiles::<T>::contains_key(&profile_id), Error::<T>::ProfileAlreadyExists);
 
 			for (key, _) in &data {
-				let key_str = sp_std::str::from_utf8(key.as_slice())
-					.map_err(|_| Error::<T>::InvalidKeyPrefix)?;
+				let key_str =
+					str::from_utf8(key.as_slice()).map_err(|_| Error::<T>::InvalidKeyPrefix)?;
 				ensure!(key_str.starts_with("pub_"), Error::<T>::InvalidKeyPrefix);
 			}
 
@@ -197,7 +204,7 @@ pub mod pallet {
 				ProfileData::<T>::insert(&profile_id, &key, value);
 			}
 
-			Self::record_activity(&profile_id, b"ProfileSet")?;
+			Self::record_activity(&profile_id, digest, b"ProfileSet")?;
 			Self::deposit_event(Event::ProfileSet { who: who.clone(), identifier: profile_id });
 
 			Ok(())
@@ -234,6 +241,7 @@ pub mod pallet {
 			let old_key = profile.latest_key;
 
 			ensure!(old_key != new_key, Error::<T>::CannotRotateToSameAccount);
+			let digest = T::Hashing::hash(&new_key.encode());
 
 			profile.latest_key = new_key.clone();
 
@@ -242,7 +250,7 @@ pub mod pallet {
 			AccountProfiles::<T>::insert(&new_key, &profile_id);
 			AccountProfiles::<T>::remove(&who);
 
-			Self::record_activity(&profile_id, b"KeyRotated")?;
+			Self::record_activity(&profile_id, digest, b"KeyRotated")?;
 
 			Self::deposit_event(Event::KeyRotated { who, identifier: profile_id, new_key });
 
@@ -269,12 +277,18 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Records an activity using a provided event message.
-	pub fn record_activity(identifier: &Ss58Identifier, msg: &[u8]) -> DispatchResult {
-		let entry: EntryTypeOf =
-			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
-		let stamp = EventStamp::current::<T>();
-		<cord_uri::Pallet<T> as Identifier>::record_activity(identifier, entry, stamp)
-			.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
+	pub fn record_activity(
+		identifier: &Ss58Identifier,
+		digest: T::Hash,
+		msg: &[u8],
+	) -> DispatchResult {
+		let entry: EventTypeOf =
+			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
+		let stamp = EventBlock::current::<T>();
+		<pallet_identifier::Pallet<T> as Identifier<T>>::state_event(
+			identifier, digest, entry, stamp,
+		)
+		.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
 	}
 }

@@ -35,18 +35,17 @@ authority-membership = { workspace = true }
 cord-primitives = { workspace = true }
 cord-loom-runtime-constants = { workspace = true }
 cord-runtime-common = { workspace = true }
-cord-uri = { workspace = true }
 pallet-collection = { workspace = true }
-pallet-config = { workspace = true }
 pallet-cord-offences = { workspace = true }
 pallet-cord-session-benchmarking = { workspace = true }
 pallet-entry = { workspace = true }
+pallet-identifier = { workspace = true }
 pallet-profile = { workspace = true }
 pallet-registry = { workspace = true }
 pallet-runtime-upgrade = { workspace = true }
 
 # Internal runtime API (with default disabled)
-cord-uri-runtime-api = { workspace = true }
+cord-identifier-runtime-api = { workspace = true }
 pallet-assets-runtime-api = { workspace = true }
 
 # Substrate
@@ -129,8 +128,7 @@ std = [
 	"sp-authority-discovery/std",
 	"cord-primitives/std",
 	"cord-runtime-common/std",
-	"cord-uri/std",
-	"cord-uri-runtime-api/std",
+	"cord-identifier-runtime-api/std",
 	"authority-membership/std",
 	"frame-system-benchmarking?/std",
 	"frame-metadata-hash-extension/std",
@@ -154,11 +152,13 @@ std = [
 	"pallet-balances/std",
 	"pallet-beefy/std",
 	"pallet-beefy-mmr/std",
-	"pallet-config/std",
+	"pallet-collection/std",
 	"pallet-collective/std",
 	"pallet-contracts/std",
 	"pallet-grandpa/std",
+	"pallet-entry/std",
 	"pallet-identity/std",
+	"pallet-identifier/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
 	"pallet-insecure-randomness-collective-flip/std",
@@ -169,6 +169,8 @@ std = [
 	"pallet-multisig/std",
 	"pallet-cord-offences/std",
 	"pallet-preimage/std",
+	"pallet-profile/std",
+	"pallet-registry/std",
 	"pallet-scheduler/std",
 	"pallet-cord-session-benchmarking/std",
 	"pallet-session/std",
@@ -216,10 +218,12 @@ runtime-benchmarks = [
 	"pallet-babe/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-beefy-mmr/runtime-benchmarks",
+	"pallet-collection/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-contracts/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
 	"pallet-identity/runtime-benchmarks",
+	"pallet-identifier/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
@@ -237,13 +241,11 @@ runtime-benchmarks = [
 	"pallet-treasury/runtime-benchmarks",
 	"pallet-tx-pause/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
-	"hex-literal",
 	"pallet-sudo/runtime-benchmarks",
 	"authority-membership/runtime-benchmarks",
 	"cord-runtime-common/runtime-benchmarks",
 	"pallet-asset-conversion/runtime-benchmarks",
 	"pallet-assets/runtime-benchmarks",
-	"pallet-config/runtime-benchmarks",
 	"pallet-verify-signature/runtime-benchmarks",
 ]
 
@@ -290,7 +292,6 @@ try-runtime = [
 	"cord-runtime-common/try-runtime",
 	"authority-membership/try-runtime",
 	"frame-try-runtime/try-runtime",
-	"pallet-config/try-runtime",
 	"sp-runtime/try-runtime",
 ]
 

@@ -17,6 +17,10 @@ derive_more = { workspace = true, default-features = true }
 scale-info = { features = ["derive", "serde"], workspace = true }
 sp-core = { features = ["serde"], workspace = true }
 sp-runtime = { features = ["serde"], workspace = true }
+frame-support = { workspace = true }
+bs58 = { workspace = true }
+blake2 = { workspace = true }
+hex = { workspace = true }
 
 # all optional crates.
 serde = { features = ["alloc", "derive"], workspace = true }
@@ -29,4 +33,7 @@ std = [
 	"serde/std",
 	"sp-core/std",
 	"sp-runtime/std",
+	"frame-support/std",
+	"bs58/std",
+	"blake2/std",
 ]

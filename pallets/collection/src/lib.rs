@@ -26,9 +26,10 @@ pub mod types;
 pub use crate::{pallet::*, types::*};
 use alloc::vec::Vec;
 use codec::Encode;
-use cord_uri::{EntryTypeOf, EventStamp, Identifier, RegistryIdentifierCheck, Ss58Identifier};
+use cord_primitives::identifier::Ss58Identifier;
 use frame_support::dispatch::DispatchResult;
 use frame_system::{pallet_prelude::BlockNumberFor, WeightInfo};
+use pallet_identifier::{EventBlock, EventTypeOf, Identifier};
 use pallet_profile::ProfileIdOf;
 use sp_runtime::traits::{Hash, One, Saturating};
 
@@ -56,10 +57,10 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + cord_uri::Config + pallet_profile::Config {
+	pub trait Config:
+		frame_system::Config + pallet_identifier::Config + pallet_profile::Config
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-		type Registry: RegistryIdentifierCheck;
-		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
 
@@ -170,8 +171,12 @@ pub mod pallet {
 		RegistryNotFound,
 		/// The provided entry type input is invalid.
 		InvalidEntryTypeInput,
+		/// The provided event type is invalid.
+		InvalidEventType,
 		/// The activity update operation failed.
-		ActivityUpdateFailed,
+		EventUpdateFailed,
+		// State Update Failed
+		StateUpdateFailed,
 	}
 
 	#[pallet::call]
@@ -207,8 +212,9 @@ pub mod pallet {
 			);
 
 			let permissions = Permissions::from_variants(&roles);
+			let digest = T::Hashing::hash(&delegate.encode());
 
-			Self::record_activity(&collection_id, b"DelegateAdded")?;
+			Self::record_activity(&collection_id, digest, b"DelegateAdded")?;
 			Delegates::<T>::insert(&collection_id, &delegate_profile_id, permissions);
 			Self::deposit_event(Event::DelegateAdded {
 				collection: collection_id,
@@ -243,8 +249,9 @@ pub mod pallet {
 				Delegates::<T>::contains_key(&collection_id, &delegate_profile_id),
 				Error::<T>::DelegateNotFound
 			);
+			let digest = T::Hashing::hash(&delegate.encode());
 
-			Self::record_activity(&collection_id, b"DelegateRemoved")?;
+			Self::record_activity(&collection_id, digest, b"DelegateRemoved")?;
 			Delegates::<T>::remove(&collection_id, &delegate_profile_id);
 			Self::deposit_event(Event::DelegateRemoved {
 				collection: collection_id,
@@ -273,9 +280,11 @@ pub mod pallet {
 			input.extend_from_slice(&creator.encode());
 			let digest = T::Hashing::hash(&input);
 
-			let identifier =
-				<cord_uri::Pallet<T> as Identifier>::build(&(digest).encode()[..], pallet_name)
-					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let identifier = <pallet_identifier::Pallet<T> as Identifier<T>>::build(
+				&(digest).encode()[..],
+				pallet_name,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
 				!Collections::<T>::contains_key(&identifier),
@@ -284,7 +293,7 @@ pub mod pallet {
 
 			let details = CollectionDetails { creator: profile_id.clone(), status: Status::Active };
 
-			Self::record_activity(&identifier, b"CollectionCreated")?;
+			Self::record_activity(&identifier, digest, b"CollectionCreated")?;
 
 			Collections::<T>::insert(&identifier, details);
 			Delegates::<T>::insert(&identifier, &profile_id, Permissions::all());
@@ -323,7 +332,8 @@ pub mod pallet {
 				Ok(())
 			})?;
 
-			Self::record_activity(&collection_id, b"CollectionArchived")?;
+			let digest = T::Hashing::hash(&collection_id.encode());
+			Self::record_activity(&collection_id, digest, b"CollectionArchived")?;
 
 			Self::deposit_event(Event::CollectionArchived {
 				collection: collection_id,
@@ -358,7 +368,8 @@ pub mod pallet {
 				Ok(())
 			})?;
 
-			Self::record_activity(&collection_id, b"CollectionRestored")?;
+			let digest = T::Hashing::hash(&collection_id.encode());
+			Self::record_activity(&collection_id, digest, b"CollectionRestored")?;
 
 			Self::deposit_event(Event::CollectionRestored {
 				collection: collection_id,
@@ -386,8 +397,6 @@ pub mod pallet {
 				Collections::<T>::get(&collection_id).ok_or(Error::<T>::CollectionNotFound)?;
 			ensure!(collection.status == Status::Active, Error::<T>::ArchivedCollection);
 
-			<T as Config>::Registry::ensure_active_registry(&registry_id)?;
-
 			ensure!(
 				Self::has_permission(
 					&collection_id,
@@ -402,7 +411,8 @@ pub mod pallet {
 				Error::<T>::RegistryAlreadyExists
 			);
 
-			Self::record_activity(&collection_id, b"RegistryAdded")?;
+			let digest = T::Hashing::hash(&registry_id.encode());
+			Self::record_activity(&collection_id, digest, b"RegistryAdded")?;
 
 			CollectionRegistries::<T>::insert(&collection_id, &registry_id, ());
 			Self::deposit_event(Event::RegistryAdded {
@@ -440,7 +450,8 @@ pub mod pallet {
 				Error::<T>::RegistryNotFound
 			);
 
-			Self::record_activity(&collection_id, b"RegistryRemoved")?;
+			let digest = T::Hashing::hash(&registry_id.encode());
+			Self::record_activity(&collection_id, digest, b"RegistryRemoved")?;
 
 			CollectionRegistries::<T>::remove(&collection_id, &registry_id);
 			Self::deposit_event(Event::RegistryRemoved {
@@ -467,12 +478,18 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Records an activity using a provided event message.
-	pub fn record_activity(identifier: &Ss58Identifier, msg: &[u8]) -> DispatchResult {
-		let entry: EntryTypeOf =
-			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
-		let stamp = EventStamp::current::<T>();
-		<cord_uri::Pallet<T> as Identifier>::record_activity(identifier, entry, stamp)
-			.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
+	pub fn record_activity(
+		identifier: &Ss58Identifier,
+		digest: T::Hash,
+		msg: &[u8],
+	) -> DispatchResult {
+		let entry: EventTypeOf =
+			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
+		let stamp = EventBlock::current::<T>();
+		<pallet_identifier::Pallet<T> as Identifier<T>>::state_event(
+			identifier, digest, entry, stamp,
+		)
+		.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
 	}
 }

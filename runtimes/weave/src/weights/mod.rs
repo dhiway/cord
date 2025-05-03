@@ -53,4 +53,3 @@ pub mod pallet_treasury;
 pub mod pallet_tx_pause;
 pub mod pallet_utility;
 pub mod pallet_verify_signature;
-pub mod runtime_networks_registrar;

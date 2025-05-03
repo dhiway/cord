@@ -40,7 +40,7 @@ pub fn create_registry<T: crate::Config>(
 	let pallet_name = <crate::pallet::Pallet<T> as frame_support::traits::PalletInfoAccess>::name();
 
 	let registry_id =
-		<cord_uri::Pallet<T> as Identifier>::build(&(digest).encode()[..], pallet_name)
+		<pallet_identifier::Pallet<T> as Identifier<T>>::build(&(digest).encode()[..], pallet_name)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 	ensure!(!Registries::<T>::contains_key(&registry_id), Error::<T>::RegistryAlreadyExists);
@@ -54,7 +54,7 @@ pub fn create_registry<T: crate::Config>(
 		status: Status::Active,
 	};
 
-	Pallet::<T>::record_activity(&registry_id, b"RegistryCreated")?;
+	Pallet::<T>::record_activity(&registry_id, digest, b"RegistryCreated")?;
 	Registries::<T>::insert(&registry_id, details);
 	Delegates::<T>::insert(&registry_id, &profile_id, Permissions::all());
 
@@ -87,21 +87,21 @@ pub fn create_registry_store<T: crate::Config>(
 	let pallet_name = <crate::pallet::Pallet<T> as frame_support::traits::PalletInfoAccess>::name();
 
 	let registry_id =
-		<cord_uri::Pallet<T> as Identifier>::build(&(digest).encode()[..], pallet_name)
+		<pallet_identifier::Pallet<T> as Identifier<T>>::build(&(digest).encode()[..], pallet_name)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 	ensure!(!Registries::<T>::contains_key(&registry_id), Error::<T>::RegistryAlreadyExists);
 
 	let details = RegistryDetails {
 		creator: profile_id.clone(),
-		tx_hash,
+		tx_hash: tx_hash.clone(),
 		doc_id: Some(bounded_doc_id),
 		doc_author_profile_id: Some(doc_author_profile_id.clone()),
 		doc_node_id: Some(bounded_doc_node_id),
 		status: Status::Active,
 	};
 
-	Pallet::<T>::record_activity(&registry_id, b"RegistryStoreCreated")?;
+	Pallet::<T>::record_activity(&registry_id, tx_hash, b"RegistryStoreCreated")?;
 	Registries::<T>::insert(&registry_id, details);
 	Delegates::<T>::insert(&registry_id, &profile_id, Permissions::all());
 
@@ -131,7 +131,7 @@ pub fn update_registry_hash<T: crate::Config>(
 
 		Ok(())
 	})?;
-	Pallet::<T>::record_activity(registry_id, b"RegistryHashUpdated")?;
+	Pallet::<T>::record_activity(registry_id, *tx_hash, b"RegistryHashUpdated")?;
 
 	Ok(())
 }
@@ -141,36 +141,45 @@ pub fn archive_registry<T: crate::Config>(
 	registry_id: &RegistryIdentifierOf,
 	who: &ProfileIdOf,
 ) -> DispatchResult {
-	Registries::<T>::try_mutate(registry_id, |maybe_registry| -> DispatchResult {
-		let registry = maybe_registry.as_mut().ok_or(Error::<T>::RegistryNotFound)?;
-		ensure!(
-			Pallet::<T>::has_permission(registry_id, &who, Permissions::ADMIN),
-			Error::<T>::UnauthorizedOperation
-		);
-		ensure!(registry.status == Status::Active, Error::<T>::ArchivedRegistry);
-		registry.status = Status::Archived;
-		Ok(())
-	})?;
-	Pallet::<T>::record_activity(registry_id, b"RegistryArchived")?;
+	let tx_hash =
+		Registries::<T>::try_mutate(registry_id, |maybe_registry| -> Result<T::Hash, Error<T>> {
+			let registry = maybe_registry.as_mut().ok_or(Error::<T>::RegistryNotFound)?;
+			ensure!(
+				Pallet::<T>::has_permission(registry_id, who, Permissions::ADMIN),
+				Error::<T>::UnauthorizedOperation
+			);
+			ensure!(registry.status == Status::Active, Error::<T>::ArchivedRegistry);
+
+			// Capture the *current* tx_hash before we overwrite status
+			let old_hash = registry.tx_hash;
+			registry.status = Status::Archived;
+			Ok(old_hash)
+		})?;
+
+	Pallet::<T>::record_activity(registry_id, tx_hash, b"RegistryArchived")?;
 	Ok(())
 }
 
 /// Restore an archived registry.
 pub fn restore_registry<T: crate::Config>(
 	registry_id: &RegistryIdentifierOf,
-	who: ProfileIdOf,
+	who: &ProfileIdOf,
 ) -> DispatchResult {
-	Registries::<T>::try_mutate(registry_id, |maybe_registry| -> DispatchResult {
-		let registry = maybe_registry.as_mut().ok_or(Error::<T>::RegistryNotFound)?;
-		ensure!(
-			Pallet::<T>::has_permission(registry_id, &who, Permissions::ADMIN),
-			Error::<T>::UnauthorizedOperation
-		);
-		ensure!(registry.status == Status::Archived, Error::<T>::RegistryNotArchived);
-		registry.status = Status::Active;
-		Ok(())
-	})?;
-	Pallet::<T>::record_activity(registry_id, b"RegistryRestored")?;
+	let tx_hash =
+		Registries::<T>::try_mutate(registry_id, |maybe_registry| -> Result<T::Hash, Error<T>> {
+			let registry = maybe_registry.as_mut().ok_or(Error::<T>::RegistryNotFound)?;
+			ensure!(
+				Pallet::<T>::has_permission(registry_id, who, Permissions::ADMIN),
+				Error::<T>::UnauthorizedOperation
+			);
+			ensure!(registry.status == Status::Archived, Error::<T>::RegistryNotArchived);
+
+			let old_hash = registry.tx_hash;
+			registry.status = Status::Active;
+			Ok(old_hash)
+		})?;
+
+	Pallet::<T>::record_activity(registry_id, tx_hash, b"RegistryRestored")?;
 	Ok(())
 }
 
@@ -191,7 +200,7 @@ pub fn update_registry_author<T: crate::Config>(
 	let old_author = registry.doc_author_profile_id.take();
 	registry.doc_author_profile_id = Some(new_doc_author_profile_id.clone());
 
-	Pallet::<T>::record_activity(&registry_id, b"RegistryAuthorUpdated")?;
+	Pallet::<T>::record_activity(&registry_id, registry.tx_hash, b"RegistryAuthorUpdated")?;
 
 	Registries::<T>::insert(registry_id, registry);
 
@@ -208,27 +217,24 @@ pub fn update_registry_author<T: crate::Config>(
 pub fn update_registry_creator<T: crate::Config>(
 	registry_id: &RegistryIdentifierOf,
 	new_profile_id: ProfileIdOf,
-	who: ProfileIdOf,
+	who: &ProfileIdOf,
 ) -> DispatchResult {
-	Registries::<T>::try_mutate(registry_id, |maybe_registry| -> DispatchResult {
-		let registry = maybe_registry.as_mut().ok_or(Error::<T>::RegistryNotFound)?;
-		ensure!(
-			crate::pallet::Pallet::<T>::has_permission(registry_id, &who, Permissions::ADMIN),
-			Error::<T>::UnauthorizedOperation
-		);
+	let tx_hash =
+		Registries::<T>::try_mutate(registry_id, |maybe_registry| -> Result<T::Hash, Error<T>> {
+			let registry = maybe_registry.as_mut().ok_or(Error::<T>::RegistryNotFound)?;
+			ensure!(
+				Pallet::<T>::has_permission(registry_id, who, Permissions::ADMIN),
+				Error::<T>::UnauthorizedOperation
+			);
 
-		registry.creator = new_profile_id.clone();
-
-		Ok(())
-	})?;
+			let old_hash = registry.tx_hash;
+			registry.creator = new_profile_id.clone();
+			Ok(old_hash)
+		})?;
 
 	Delegates::<T>::insert(registry_id, &new_profile_id, Permissions::all());
+	Delegates::<T>::insert(registry_id, who, Permissions::ENTRY);
 
-	// TODO:
-	// Currently downgrading the old-creator to ENTRY permission level.
-	// Revisit if he needs to be removed access completely.
-	Delegates::<T>::insert(registry_id, &who, Permissions::ENTRY);
-
-	Pallet::<T>::record_activity(&registry_id, b"RegistryCreatorUpdated")?;
+	Pallet::<T>::record_activity(registry_id, tx_hash, b"RegistryCreatorUpdated")?;
 	Ok(())
 }

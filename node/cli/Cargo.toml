@@ -141,7 +141,7 @@ cord-loom-runtime-constants = { features = [
 cord-weave-runtime-constants = { features = [
 	"std",
 ], workspace = true, optional = true }
-pallet-config = { features = ["std"], workspace = true }
+pallet-identifier = { features = ["std"], workspace = true }
 pallet-network-membership = { features = ["std"], workspace = true }
 pallet-staking = { workspace = true }
 
@@ -269,7 +269,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"pallet-asset-conversion/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
-	"pallet-config/runtime-benchmarks",
+	"pallet-identifier/runtime-benchmarks",
 	"pallet-contracts/runtime-benchmarks",
 	"pallet-network-membership/runtime-benchmarks",
 	"sc-client-db/runtime-benchmarks",
@@ -290,7 +290,6 @@ try-runtime = [
 	"cord-weave-runtime?/try-runtime",
 	"pallet-asset-conversion/try-runtime",
 	"pallet-babe/try-runtime",
-	"pallet-config/try-runtime",
 	"pallet-contracts/try-runtime",
 	"pallet-network-membership/try-runtime",
 ]

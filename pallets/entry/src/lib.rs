@@ -40,23 +40,24 @@
 //! * `update_ownership` - Updates the ownership of the Registry Entry.
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate alloc;
+use alloc::vec::Vec;
 mod types;
 
 #[cfg(test)]
 pub mod mock;
 
+pub use cord_primitives::Ss58Identifier;
 use frame_support::{
 	ensure,
 	pallet_prelude::DispatchResult,
 	traits::{Get, StorageVersion},
 	BoundedVec,
 };
+use pallet_identifier::{EventBlock, EventTypeOf, Identifier};
 use sp_runtime::traits::Hash;
 
-use cord_uri::{EntryTypeOf, EventStamp, Identifier, Ss58Identifier};
-
 pub use pallet::*;
-use sp_std::{prelude::*, str};
 
 pub use frame_system::WeightInfo;
 pub use types::RegistryEntryDetails;
@@ -91,7 +92,10 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config:
-		frame_system::Config + cord_uri::Config + pallet_profile::Config + pallet_registry::Config
+		frame_system::Config
+		+ pallet_identifier::Config
+		+ pallet_profile::Config
+		+ pallet_registry::Config
 	{
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
@@ -157,8 +161,12 @@ pub mod pallet {
 		RegistryAccessValidationFailed,
 		/// Activity input type is invalid.
 		InvalidEntryTypeInput,
-		/// Activity update has failed.
-		ActivityUpdateFailed,
+		/// The event activity update has failed.
+		EventUpdateFailed,
+		/// The provided event type is invalid.
+		InvalidEventType,
+		// State Update Failed
+		StateUpdateFailed,
 	}
 
 	#[pallet::event]
@@ -259,9 +267,11 @@ pub mod pallet {
 			let pallet_name =
 				<crate::pallet::Pallet<T> as frame_support::traits::PalletInfoAccess>::name();
 
-			let registry_entry_id =
-				<cord_uri::Pallet<T> as Identifier>::build(&(digest).encode()[..], pallet_name)
-					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let registry_entry_id = <pallet_identifier::Pallet<T> as Identifier<T>>::build(
+				&(digest).encode()[..],
+				pallet_name,
+			)
+			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			/* Ensure that the registry_entry_id does not already exist */
 			ensure!(
@@ -270,7 +280,7 @@ pub mod pallet {
 			);
 
 			let registry_entry = RegistryEntryDetails {
-				tx_hash,
+				tx_hash: tx_hash.clone(),
 				revoked: false,
 				creator: profile_id.clone(),
 				registry_id: registry_id.clone(),
@@ -280,7 +290,7 @@ pub mod pallet {
 
 			HashToIdentifier::<T>::insert(&tx_hash, &registry_id, &registry_entry_id);
 
-			Self::record_activity(&registry_entry_id, b"RegistryEntryCreated")?;
+			Self::record_activity(&registry_entry_id, tx_hash, b"RegistryEntryCreated")?;
 
 			Self::deposit_event(Event::RegistryEntryCreated {
 				creator,
@@ -345,13 +355,13 @@ pub mod pallet {
 
 			ensure!(is_admin || is_creator, Error::<T>::UnauthorizedOperation);
 
-			entry.tx_hash = tx_hash;
+			entry.tx_hash = tx_hash.clone();
 
 			RegistryEntries::<T>::insert(&registry_entry_id, entry);
 
 			HashToIdentifier::<T>::insert(&tx_hash, &registry_id, &registry_entry_id);
 
-			Self::record_activity(&registry_entry_id, b"RegistryEntryUpdated")?;
+			Self::record_activity(&registry_entry_id, tx_hash, b"RegistryEntryUpdated")?;
 
 			Self::deposit_event(Event::RegistryEntryUpdated {
 				updater,
@@ -412,10 +422,10 @@ pub mod pallet {
 			ensure!(is_admin || is_creator, Error::<T>::UnauthorizedOperation);
 
 			entry.revoked = true;
-
+			let digest = entry.tx_hash.clone();
 			RegistryEntries::<T>::insert(&registry_entry_id, entry);
 
-			Self::record_activity(&registry_entry_id, b"RegistryEntryRevoked")?;
+			Self::record_activity(&registry_entry_id, digest, b"RegistryEntryRevoked")?;
 
 			Self::deposit_event(Event::RegistryEntryRevoked {
 				updater,
@@ -479,10 +489,11 @@ pub mod pallet {
 			ensure!(is_admin || is_creator, Error::<T>::UnauthorizedOperation);
 
 			entry.revoked = false;
+			let digest = entry.tx_hash.clone();
 
 			RegistryEntries::<T>::insert(&registry_entry_id, entry);
 
-			Self::record_activity(&registry_entry_id, b"RegistryEntryReinstated")?;
+			Self::record_activity(&registry_entry_id, digest, b"RegistryEntryReinstated")?;
 
 			Self::deposit_event(Event::RegistryEntryReinstated {
 				updater,
@@ -572,7 +583,11 @@ pub mod pallet {
 				}
 			});
 
-			Self::record_activity(&registry_entry_id, b"RegistryEntryOwnerShipUpdated")?;
+			Self::record_activity(
+				&registry_entry_id,
+				entry.tx_hash,
+				b"RegistryEntryOwnerShipUpdated",
+			)?;
 
 			Self::deposit_event(Event::RegistryEntryOwnershipUpdated {
 				updater,
@@ -589,12 +604,18 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	/// Records an activity using a provided event message.
-	pub fn record_activity(identifier: &Ss58Identifier, msg: &[u8]) -> DispatchResult {
-		let entry: EntryTypeOf =
-			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
-		let stamp = EventStamp::current::<T>();
-		<cord_uri::Pallet<T> as Identifier>::record_activity(identifier, entry, stamp)
-			.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
+	pub fn record_activity(
+		identifier: &Ss58Identifier,
+		digest: T::Hash,
+		msg: &[u8],
+	) -> DispatchResult {
+		let entry: EventTypeOf =
+			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
+		let stamp = EventBlock::current::<T>();
+		<pallet_identifier::Pallet<T> as Identifier<T>>::state_event(
+			identifier, digest, entry, stamp,
+		)
+		.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
 	}
 }

@@ -20,6 +20,8 @@
 #![warn(unused_crate_dependencies)]
 
 extern crate alloc;
+pub mod identifier;
+pub use crate::identifier::Ss58Identifier;
 use alloc::vec::Vec;
 use codec::{CompactAs, Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;

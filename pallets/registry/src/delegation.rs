@@ -19,6 +19,7 @@
 use super::*;
 use crate::{pallet::Pallet, Delegates, Error, PermissionVariant, Permissions, Ss58Identifier};
 use frame_support::pallet_prelude::*;
+use sp_runtime::traits::Hash;
 
 /// Adds a delegate with the given permissions, after verifying that
 /// the caller (`who`) has ADMIN or DELEGATE permissions.
@@ -36,8 +37,9 @@ pub fn add_delegate<T: crate::Config>(
 	if Delegates::<T>::contains_key(identifier, delegate) {
 		Err(Error::<T>::DelegateAlreadyExists.into())
 	} else {
+		let digest = T::Hashing::hash(&delegate.encode());
 		let permissions = Permissions::from_variants(&roles);
-		Pallet::<T>::record_activity(&identifier, b"DelegateAdded")?;
+		Pallet::<T>::record_activity(&identifier, digest, b"DelegateAdded")?;
 		Delegates::<T>::insert(identifier, delegate, permissions);
 		Ok(())
 	}
@@ -56,7 +58,8 @@ pub fn remove_delegate<T: crate::Config>(
 	);
 
 	if Delegates::<T>::contains_key(identifier, delegate) {
-		Pallet::<T>::record_activity(&identifier, b"DelegateRemoved")?;
+		let digest = T::Hashing::hash(&delegate.encode());
+		Pallet::<T>::record_activity(&identifier, digest, b"DelegateRemoved")?;
 		Delegates::<T>::remove(identifier, delegate);
 		Ok(())
 	} else {

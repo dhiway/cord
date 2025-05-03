@@ -136,6 +136,9 @@ pub mod pallet {
 		StorageMap<_, Blake2_128Concat, u16, BoundedVec<u8, ConstU32<64>>>;
 
 	#[pallet::storage]
+	pub type NextPalletIndex<T: Config> = StorageValue<_, u16, ValueQuery>;
+
+	#[pallet::storage]
 	pub type GenesisNetworkId<T: Config> = StorageValue<_, NetworkId, ValueQuery>;
 
 	#[pallet::storage]
