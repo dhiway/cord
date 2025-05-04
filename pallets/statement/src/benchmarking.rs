@@ -73,7 +73,7 @@ benchmarks! {
 		pallet_chain_space::Pallet::<T>::create(origin.clone(), space_digest )?;
 		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
 
-	}: _<T::RuntimeOrigin>(origin, statement_digest, authorization_id, None)
+	}: _<T::RuntimeOrigin>(origin, statement_digest, authorization_id, None, None)
 	verify {
 		assert_last_event::<T>(Event::Register { identifier, digest: statement_digest, author: did}.into());
 	}
@@ -118,9 +118,9 @@ benchmarks! {
 		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
 
 		/* register the entry before update */
-		let _ = Pallet::<T>::register(origin.clone(), statement_digest, authorization_id.clone(), None);
+		let _ = Pallet::<T>::register(origin.clone(), statement_digest, authorization_id.clone(), None, None);
 
-	}: _<T::RuntimeOrigin>(origin, identifier.clone(), update_digest, authorization_id)
+	}: _<T::RuntimeOrigin>(origin, identifier.clone(), update_digest, authorization_id, None)
 	verify {
 		assert_last_event::<T>(Event::Update { identifier, digest: update_digest, author: did}.into());
 	}
@@ -158,7 +158,7 @@ benchmarks! {
 		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
 
 		/* register the entry before update */
-		let _ = Pallet::<T>::register(origin.clone(), statement_digest, authorization_id.clone(), None);
+		let _ = Pallet::<T>::register(origin.clone(), statement_digest, authorization_id.clone(), None, None);
 
 	}: _<T::RuntimeOrigin>(origin, identifier.clone(), authorization_id)
 	verify {
@@ -198,7 +198,7 @@ benchmarks! {
 		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
 
 		/* register the entry before update */
-		let _ = Pallet::<T>::register(origin.clone(), statement_digest, authorization_id.clone(), None);
+		let _ = Pallet::<T>::register(origin.clone(), statement_digest, authorization_id.clone(), None, None);
 		let _ = Pallet::<T>::revoke(origin.clone(), identifier.clone(), authorization_id.clone());
 
 	}: _<T::RuntimeOrigin>(origin, identifier.clone(), authorization_id)
@@ -241,7 +241,7 @@ benchmarks! {
 		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
 
 		/* register the entry before update */
-		let _ = Pallet::<T>::register(origin.clone(), statement_digest, authorization_id.clone(), None);
+		let _ = Pallet::<T>::register(origin.clone(), statement_digest, authorization_id.clone(), None, None);
 
 	}: _<T::RuntimeOrigin>(origin, identifier.clone(), authorization_id)
 	verify {
@@ -320,7 +320,7 @@ benchmarks! {
 		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
 
 		/* register the entry before update */
-		let _ = Pallet::<T>::register(origin.clone(), statement_digest, authorization_id.clone(), None);
+		let _ = Pallet::<T>::register(origin.clone(), statement_digest, authorization_id.clone(), None, None);
 
 	}: _<T::RuntimeOrigin>(origin, identifier.clone(), statement_digest, PresentationTypeOf::PDF, authorization_id)
 	verify {
@@ -361,7 +361,7 @@ benchmarks! {
 		pallet_chain_space::Pallet::<T>::approve(chain_space_origin, space_id, capacity ).expect("Approval should not fail.");
 
 		/* register the entry before update */
-		let _ = Pallet::<T>::register(origin.clone(), statement_digest, authorization_id.clone(), None);
+		let _ = Pallet::<T>::register(origin.clone(), statement_digest, authorization_id.clone(), None, None);
 		let _ = Pallet::<T>::add_presentation(origin.clone(), identifier.clone(), statement_digest, PresentationTypeOf::PDF, authorization_id.clone());
 	}: _<T::RuntimeOrigin>(origin, identifier.clone(), statement_digest, authorization_id)
 	verify {

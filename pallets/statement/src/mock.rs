@@ -69,6 +69,8 @@ parameter_types! {
 	#[derive(Debug, Clone)]
 	pub const MaxDigetsPerBatch: u16 = 5u16;
 	pub const MaxRemoveEntries: u16 = 5u16;
+	pub const MaxSelectiveDataKeyLength: u32 = 30u32;
+	pub const MaxSelectiveDataEntries: u32 = 25u32;
 }
 
 impl Config for Test {
@@ -77,6 +79,8 @@ impl Config for Test {
 	type OriginSuccess = mock_origin::DoubleOrigin<AccountId, SubjectId>;
 	type MaxDigestsPerBatch = MaxDigetsPerBatch;
 	type MaxRemoveEntries = MaxRemoveEntries;
+	type MaxSelectiveDataKeyLength = MaxSelectiveDataKeyLength;
+	type MaxSelectiveDataEntries = MaxSelectiveDataEntries;
 	type WeightInfo = weights::SubstrateWeight<Test>;
 }
 
