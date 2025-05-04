@@ -88,7 +88,7 @@ echo "
 " >>$ACCOUNTS_FILE
 echo "" >>$ACCOUNTS_FILE
 
-cord='./target/release/cord'
+cord="sudo docker run -v $OUTPUT_DIR:$OUTPUT_DIR dhiway/cord:develop"
 
 generate_account_id() {
   $cord key inspect -n cord ${2:-} ${3:-} "$SECRET//$1" | grep "Account ID" | awk '{ print $3 }'
