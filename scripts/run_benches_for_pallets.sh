@@ -63,7 +63,6 @@ PALLETS=(
   "pallet_registries"
   "pallet_entries"
   "pallet_chain_space"
-  "pallet_collective"
   "pallet_did"
   "pallet_did_name"
   "pallet_identity"
@@ -101,9 +100,6 @@ for PALLET in "${PALLETS[@]}"; do
     ;;
   pallet_chain_space)
     FOLDER="chain-space"
-    ;;
-  pallet_collective)
-    FOLDER="collective"
     ;;
   pallet_did)
     FOLDER="did"
