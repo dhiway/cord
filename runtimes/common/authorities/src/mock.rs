@@ -20,7 +20,9 @@ use super::*;
 use crate::{self as cord_authority_membership};
 use frame_support::{derive_impl, parameter_types};
 use sp_state_machine::BasicExternalities;
-use std::collections::BTreeMap;
+
+extern crate alloc;
+use alloc::collections::BTreeMap;
 
 use frame_system::{pallet_prelude::BlockNumberFor, EnsureRoot};
 use pallet_offences::{traits::OnOffenceHandler, SlashStrategy};

@@ -24,7 +24,6 @@ use frame_support::{assert_err, assert_noop, assert_ok, BoundedVec};
 use frame_system::RawOrigin;
 use sp_core::H256;
 use sp_runtime::{traits::Hash, AccountId32};
-use sp_std::prelude::*;
 const DEFAULT_SCHEMA_HASH_SEED: u64 = 1u64;
 const ALTERNATIVE_SCHEMA_HASH_SEED: u64 = 2u64;
 

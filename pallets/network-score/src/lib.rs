@@ -129,7 +129,9 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	pub use identifier::{IdentifierCreator, IdentifierTimeline, IdentifierType, Ss58Identifier};
 	use sp_runtime::traits::Hash;
-	use sp_std::{prelude::Clone, str};
+
+	extern crate alloc;
+	use alloc::str;
 
 	/// SS58 Chain Space Identifier
 	pub type SpaceIdOf = Ss58Identifier;

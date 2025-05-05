@@ -30,9 +30,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod types;
+
 extern crate alloc;
+use alloc::{str, string::String};
+
 pub use crate::{pallet::*, types::*};
-use alloc::str;
 use codec::Encode;
 use frame_support::{
 	ensure, pallet_prelude::DispatchResult, storage::types::StorageMap, BoundedVec,
@@ -191,8 +193,9 @@ pub mod pallet {
 			ensure!(!Profiles::<T>::contains_key(&profile_id), Error::<T>::ProfileAlreadyExists);
 
 			for (key, _) in &data {
-				let key_str =
-					str::from_utf8(key.as_slice()).map_err(|_| Error::<T>::InvalidKeyPrefix)?;
+				let key_str = str::from_utf8(key.as_slice())
+					.map_err(|_| Error::<T>::InvalidKeyPrefix)
+					.map(String::from)?;
 				ensure!(key_str.starts_with("pub_"), Error::<T>::InvalidKeyPrefix);
 			}
 

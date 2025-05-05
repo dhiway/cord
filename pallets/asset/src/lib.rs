@@ -53,7 +53,6 @@ pub mod pallet {
 		traits::{Hash, Zero},
 		BoundedVec,
 	};
-	use sp_std::{prelude::Clone, str};
 
 	///SS58 Asset Identifier
 	pub type AssetIdOf = Ss58Identifier;

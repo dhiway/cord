@@ -24,10 +24,10 @@ use frame_system::pallet_prelude::BlockNumberFor;
 
 use sp_core::{ed25519, Pair};
 use sp_runtime::{traits::BadOrigin, SaturatedConversion};
-use sp_std::{
-	collections::btree_set::BTreeSet,
-	convert::{TryFrom, TryInto},
-};
+extern crate alloc;
+
+use alloc::{collections::BTreeSet, vec, vec::Vec};
+use core::convert::{TryFrom, TryInto};
 
 use crate::{
 	self as did,

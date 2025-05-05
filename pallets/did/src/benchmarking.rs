@@ -28,7 +28,10 @@ use sp_io::crypto::{
 	ecdsa_generate, ecdsa_sign, ed25519_generate, ed25519_sign, sr25519_generate, sr25519_sign,
 };
 use sp_runtime::{traits::IdentifyAccount, AccountId32, MultiSigner};
-use sp_std::{convert::TryInto, vec::Vec};
+
+extern crate alloc;
+use alloc::vec::Vec;
+use core::convert::TryInto;
 
 use cord_utilities::signature::VerifySignature;
 

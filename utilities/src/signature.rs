@@ -23,7 +23,7 @@ use scale_info::TypeInfo;
 use sp_weights::Weight;
 
 #[cfg(any(test, feature = "mock", feature = "runtime-benchmarks"))]
-use sp_std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// The Result of the signature verification.
 pub type SignatureVerificationResult = Result<(), SignatureVerificationError>;

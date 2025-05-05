@@ -32,7 +32,6 @@ cord-utilities = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-runtime = { workspace = true }
-sp-std = { workspace = true }
 sp-core = { optional = true, workspace = true }
 
 # Benchmarking dependencies
@@ -56,7 +55,6 @@ std = [
 	"frame-benchmarking?/std",
 	"sp-runtime/std",
 	"sp-core/std",
-	"sp-std/std",
 	"cord-utilities/std",
 	"sp-io?/std",
 	"sp-keystore/std"

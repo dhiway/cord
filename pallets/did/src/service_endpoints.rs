@@ -23,9 +23,9 @@ use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{ensure, traits::Get, BoundedVec};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::SaturatedConversion, RuntimeDebug};
-use sp_std::str;
 #[cfg(any(test, feature = "runtime-benchmarks"))]
-use sp_std::{convert::TryInto, vec::Vec};
+extern crate alloc;
+use alloc::str;
 
 use crate::utils as crate_utils;
 

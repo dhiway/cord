@@ -19,7 +19,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg(feature = "runtime-benchmarks")]
 use codec::Decode;
-use sp_std::{prelude::*, vec};
+
+extern crate alloc;
+use alloc::vec::Vec;
 
 use frame_benchmarking::{benchmarks, whitelisted_caller};
 use frame_system::RawOrigin;

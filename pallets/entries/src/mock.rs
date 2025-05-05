@@ -22,6 +22,9 @@ use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{derive_impl, parameter_types};
 use pallet_namespace::IsPermissioned;
 
+extern crate alloc;
+use alloc::sync::Arc;
+
 use frame_system::EnsureRoot;
 use sp_runtime::{
 	traits::{IdentifyAccount, IdentityLookup, Verify},
@@ -142,7 +145,7 @@ pub(crate) fn new_test_ext() -> sp_io::TestExternalities {
 	#[cfg(feature = "runtime-benchmarks")]
 	let keystore = sp_keystore::testing::MemoryKeystore::new();
 	#[cfg(feature = "runtime-benchmarks")]
-	ext.register_extension(sp_keystore::KeystoreExt(sp_std::sync::Arc::new(keystore)));
+	ext.register_extension(sp_keystore::KeystoreExt(Arc::new(keystore)));
 	ext.execute_with(|| System::set_block_number(1));
 	ext
 }

@@ -26,7 +26,8 @@ use frame_support::{
 };
 use frame_system::RawOrigin;
 use sp_runtime::app_crypto::sr25519;
-use sp_std::{vec, vec::Vec};
+extern crate alloc;
+use alloc::{vec, vec::Vec};
 
 use cord_utilities::traits::GenerateBenchmarkOrigin;
 

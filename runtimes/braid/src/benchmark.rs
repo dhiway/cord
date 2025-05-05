@@ -16,10 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-extern crate alloc;
-use alloc::vec::Vec;
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
+extern crate alloc;
+use alloc::vec::Vec;
 
 #[derive(Clone, Copy, Default, Debug, Encode, Decode, PartialEq, Eq, TypeInfo)]
 pub struct DummySignature;

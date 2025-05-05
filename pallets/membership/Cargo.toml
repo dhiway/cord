@@ -29,7 +29,6 @@ frame-system = { workspace = true }
 frame-support = { workspace = true }
 sp-io = { workspace = true }
 sp-runtime = { workspace = true }
-sp-std = { workspace = true }
 
 [features]
 default = ["std"]
@@ -41,7 +40,6 @@ std = [
 	"scale-info/std",
 	"sp-io/std",
 	"sp-runtime/std",
-	"sp-std/std",
 	"pallet-network-membership/std",
 ]
 runtime-benchmarks = [

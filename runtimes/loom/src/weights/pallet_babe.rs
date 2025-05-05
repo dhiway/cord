@@ -50,7 +50,7 @@ use frame_support::{
         Weight,
     },
 };
-use sp_std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// Weight functions for `pallet_babe`.
 pub struct WeightInfo<T>(PhantomData<T>);

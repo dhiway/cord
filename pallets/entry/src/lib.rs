@@ -40,8 +40,6 @@
 //! * `update_ownership` - Updates the ownership of the Registry Entry.
 #![cfg_attr(not(feature = "std"), no_std)]
 
-extern crate alloc;
-use alloc::vec::Vec;
 mod types;
 
 #[cfg(test)]
@@ -58,6 +56,9 @@ use pallet_identifier::{EventBlock, EventTypeOf, Identifier};
 use sp_runtime::traits::Hash;
 
 pub use pallet::*;
+
+extern crate alloc;
+use alloc::{str, vec::Vec};
 
 pub use frame_system::WeightInfo;
 pub use types::RegistryEntryDetails;

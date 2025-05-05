@@ -3,7 +3,6 @@ use crate::mock::*;
 use codec::Encode;
 use frame_support::assert_ok;
 use sp_runtime::traits::Hash;
-use sp_std::prelude::*;
 
 /// Generate a namespace id from a digest.
 pub fn generate_namespace_id<T: Config>(digest: &NameSpaceCodeOf<T>) -> NameSpaceIdOf {

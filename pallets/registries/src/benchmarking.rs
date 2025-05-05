@@ -8,7 +8,6 @@ use frame_system::RawOrigin;
 use identifier::{IdentifierType, Ss58Identifier};
 use pallet_namespace::{NameSpaceCodeOf, NameSpaceIdOf};
 use pallet_schema_accounts::{InputSchemaOf, SchemaHashOf};
-use sp_std::prelude::*;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());

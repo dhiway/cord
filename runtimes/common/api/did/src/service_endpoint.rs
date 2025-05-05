@@ -20,7 +20,9 @@
 
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
-use sp_std::vec::Vec;
+
+extern crate alloc;
+use alloc::vec::Vec;
 
 #[derive(Encode, Decode, TypeInfo, Eq, PartialEq)]
 pub struct ServiceEndpoint<Id, Type, Url> {

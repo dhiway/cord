@@ -46,7 +46,11 @@ pub mod pallet {
 		Blake2_128Concat,
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_std::{fmt::Debug, vec::Vec};
+
+	extern crate alloc;
+	use alloc::vec::Vec;
+
+	use sp_runtime::traits::Debug;
 
 	use cord_utilities::traits::CallSources;
 

@@ -22,7 +22,7 @@
 
 pub mod elections;
 
-extern crate alloc;
+use core::marker;
 
 use cord_primitives::{AccountId, Balance, BlockNumber};
 use frame_support::{
@@ -154,7 +154,7 @@ where
 	}
 }
 
-pub struct SendFeesToTreasury<R>(sp_std::marker::PhantomData<R>);
+pub struct SendFeesToTreasury<R>(marker::PhantomData<R>);
 
 impl<R> OnUnbalanced<CreditOf<R>> for SendFeesToTreasury<R>
 where

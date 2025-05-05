@@ -83,17 +83,21 @@ pub mod tests;
 use cord_primitives::StatusOf;
 use frame_support::{ensure, storage::types::StorageMap};
 use sp_runtime::traits::UniqueSaturatedInto;
-use sp_std::{prelude::Clone, str};
+
+extern crate alloc;
+use alloc::str;
+
 pub mod types;
 pub mod weights;
 pub use crate::{pallet::*, types::*, weights::WeightInfo};
+use alloc::vec::Vec;
 use frame_system::pallet_prelude::BlockNumberFor;
 use identifier::{
 	types::{CallTypeOf, IdentifierTypeOf, Timepoint},
 	EventEntryOf,
 };
+
 use sp_runtime::SaturatedConversion;
-use sp_std::{vec, vec::Vec};
 
 #[frame_support::pallet]
 pub mod pallet {

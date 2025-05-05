@@ -22,7 +22,9 @@
 
 use codec::{Codec, Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
-use sp_std::vec::Vec;
+
+extern crate alloc;
+use alloc::vec::Vec;
 
 mod did_details;
 mod service_endpoint;

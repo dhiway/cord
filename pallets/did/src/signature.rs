@@ -20,9 +20,10 @@
 use cord_utilities::signature::{
 	SignatureVerificationError, SignatureVerificationResult, VerifySignature,
 };
-use frame_support::weights::Weight;
+use frame_support::{pallet_prelude::PhantomData, weights::Weight};
 use sp_runtime::SaturatedConversion;
-use sp_std::{marker::PhantomData, vec::Vec};
+extern crate alloc;
+use alloc::vec::Vec;
 
 use crate::{
 	did_details::{DidSignature, DidVerificationKeyRelationship},

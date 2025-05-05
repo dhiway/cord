@@ -21,7 +21,6 @@ pallet-assets = { workspace = true }
 
 # Substrate
 sp-api = { workspace = true }
-sp-std = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 
@@ -32,7 +31,6 @@ std = [
 	"frame-system/std",
 	"codec/std",
 	"sp-api/std",
-	"sp-std/std",
 	"scale-info/std",
 	"pallet-assets/std",
 ]

@@ -38,12 +38,15 @@ use frame_support::{
 	traits::{Get, OriginTrait},
 	DefaultNoBound,
 };
+
+extern crate alloc;
+use alloc::collections::BTreeMap;
+
 use sp_runtime::{
 	impl_tx_ext_default,
-	traits::{DispatchInfoOf, TransactionExtension, Zero},
+	traits::{DispatchInfoOf, PhantomData, TransactionExtension, Zero},
 	transaction_validity::{InvalidTransaction, ValidTransaction},
 };
-use sp_std::{collections::btree_map::BTreeMap, marker::PhantomData, prelude::*};
 
 pub use weights::WeightInfo;
 pub mod types;

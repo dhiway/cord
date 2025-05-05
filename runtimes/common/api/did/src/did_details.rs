@@ -21,8 +21,10 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_system::pallet_prelude::BlockNumberFor;
 use pallet_did::{did_details::DidPublicKeyDetails, AccountIdOf, KeyIdOf};
+
+extern crate alloc;
+use alloc::collections::{BTreeMap, BTreeSet};
 use scale_info::TypeInfo;
-use sp_std::collections::{btree_map::BTreeMap, btree_set::BTreeSet};
 
 #[derive(Encode, Decode, TypeInfo, Clone, Debug, Eq, PartialEq, MaxEncodedLen)]
 pub struct DidDetails<Key: Ord, BlockNumber: MaxEncodedLen, AccountId> {
