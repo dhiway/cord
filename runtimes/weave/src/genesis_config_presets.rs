@@ -125,7 +125,7 @@ fn cord_weave_testnet_genesis(
 	"babe": {
 		"epochConfig": Some(BABE_GENESIS_EPOCH_CONFIG),
 	},
-		"sudo": { "key": Some(root_key) },
+	"sudo": { "key": Some(root_key) },
 	})
 }
 

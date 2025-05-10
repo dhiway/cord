@@ -24,11 +24,9 @@ pub mod bootstrap;
 pub use cord_primitives::{AccountId, AccountPublic, Balance, NodeId, Signature};
 use sc_chain_spec::ChainSpecExtension;
 pub use sc_service::{ChainType, Properties};
+use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_core::{Pair, Public};
-// use sp_runtime::traits::Verify;
-// type AccountPublic = <Signature as Verify>::Signer;
-use sc_telemetry::TelemetryEndpoints;
 
 #[cfg(feature = "braid-native")]
 pub use cord_braid_runtime::genesis_config_presets::{

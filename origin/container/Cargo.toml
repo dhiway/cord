@@ -1,0 +1,70 @@
+[package]
+name = "cord-origin-container"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+build = "build.rs"
+description = "Runs a cord container chain"
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "cord-origin"
+path = "src/main.rs"
+
+[dependencies]
+# asset-hub-origin-runtime.default-features = true
+# asset-hub-origin-runtime.workspace = true
+color-eyre = { workspace = true }
+# coretime-origin-runtime.workspace = true
+# cumulus-primitives-core.default-features = true
+# cumulus-primitives-core.workspace = true
+# hex-literal = { workspace = true, default-features = true }
+# log = { workspace = true, default-features = true }
+# parachains-common.default-features = true
+# parachains-common.workspace = true
+# people-origin-runtime.workspace = true
+polkadot-omni-node-lib = { workspace = true }
+# sc-chain-spec.default-features = true
+# sc-chain-spec.workspace = true
+# sc-cli.default-features = true
+# sc-cli.workspace = true
+# sc-service.default-features = true
+# sc-service.workspace = true
+# serde = { features = ["derive"], workspace = true, default-features = true }
+# serde_json = { workspace = true, default-features = true }
+# sp-core.default-features = true
+# sp-core.workspace = true
+# sp-genesis-builder.default-features = true
+# sp-genesis-builder.workspace = true
+# sp-keyring.default-features = true
+# sp-keyring.workspace = true
+# xcm.default-features = true
+# xcm.workspace = true
+
+[build-dependencies]
+substrate-build-script-utils.default-features = true
+substrate-build-script-utils.workspace = true
+
+[features]
+default = []
+runtime-benchmarks = [
+	# "cumulus-primitives-core/runtime-benchmarks",
+	# "parachains-common/runtime-benchmarks",
+	"polkadot-omni-node-lib/runtime-benchmarks",
+	# "sc-service/runtime-benchmarks",
+	# "asset-hub-origin-runtime/runtime-benchmarks",
+	# "coretime-origin-runtime/runtime-benchmarks",
+	# "people-origin-runtime/runtime-benchmarks",
+]
+try-runtime = [
+	"polkadot-omni-node-lib/try-runtime",
+	# "asset-hub-origin-runtime/try-runtime",
+	# "coretime-origin-runtime/try-runtime",
+	# "people-origin-runtime/try-runtime",
+]
+# fast-runtime = ["coretime-origin-runtime/fast-runtime"]
