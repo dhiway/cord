@@ -2353,7 +2353,6 @@ dependencies = [
  "pallet-transaction-payment-rpc-runtime-api 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-treasury 39.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-utility 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pallet-vesting 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-whitelist 39.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-xcm 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "pallet-xcm-benchmarks 20.0.0 (registry+https://github.com/rust-lang/crates.io-index)",

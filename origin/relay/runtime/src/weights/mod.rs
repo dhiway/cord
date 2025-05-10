@@ -42,7 +42,7 @@ pub mod pallet_timestamp;
 pub mod pallet_transaction_payment;
 pub mod pallet_treasury;
 pub mod pallet_utility;
-pub mod pallet_vesting;
+// pub mod pallet_vesting;
 pub mod pallet_whitelist;
 pub mod pallet_xcm;
 pub mod polkadot_runtime_common_auctions;

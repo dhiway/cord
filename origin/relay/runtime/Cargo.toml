@@ -79,7 +79,7 @@ cord-origin-relay-staging-runtime-constants = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-treasury = { workspace = true }
 pallet-whitelist = { workspace = true }
-pallet-vesting = { workspace = true }
+# pallet-vesting = { workspace = true }
 pallet-utility = { workspace = true }
 frame-election-provider-support = { workspace = true }
 pallet-xcm = { workspace = true }
@@ -186,7 +186,7 @@ std = [
 	"pallet-transaction-payment/std",
 	"pallet-treasury/std",
 	"pallet-utility/std",
-	"pallet-vesting/std",
+	# "pallet-vesting/std",
 	"pallet-whitelist/std",
 	"pallet-xcm-benchmarks?/std",
 	"pallet-xcm/std",
@@ -263,7 +263,7 @@ runtime-benchmarks = [
 	"pallet-transaction-payment/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
 	"pallet-utility/runtime-benchmarks",
-	"pallet-vesting/runtime-benchmarks",
+	# "pallet-vesting/runtime-benchmarks",
 	"pallet-whitelist/runtime-benchmarks",
 	"pallet-xcm-benchmarks/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
@@ -319,7 +319,7 @@ try-runtime = [
 	"pallet-transaction-payment/try-runtime",
 	"pallet-treasury/try-runtime",
 	"pallet-utility/try-runtime",
-	"pallet-vesting/try-runtime",
+	# "pallet-vesting/try-runtime",
 	"pallet-whitelist/try-runtime",
 	"pallet-xcm/try-runtime",
 	"polkadot-runtime-common/try-runtime",

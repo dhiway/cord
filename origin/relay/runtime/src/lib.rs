@@ -30,7 +30,7 @@ use alloc::{
 };
 use pallet_transaction_payment::FungibleAdapter;
 use polkadot_runtime_common::{
-	auctions, claims, crowdloan, impl_runtime_weights,
+	auctions, crowdloan, impl_runtime_weights,
 	impls::{
 		ContainsParts as ContainsLocationParts, DealWithFees, LocatableAssetConverter,
 		VersionedLocatableAsset, VersionedLocationConverter,
@@ -924,7 +924,7 @@ where
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
-			claims::PrevalidateAttests::<Runtime>::new(),
+			// claims::PrevalidateAttests::<Runtime>::new(),
 			frame_metadata_hash_extension::CheckMetadataHash::new(false),
 		);
 		let raw_payload = SignedPayload::new(call, tx_ext)
@@ -949,41 +949,41 @@ where
 	}
 }
 
-parameter_types! {
-	// Deposit for a parathread (on-demand parachain)
-	pub const ParathreadDeposit: Balance = 500 * DOLLARS;
-	pub const MaxRetries: u32 = 3;
-}
+// parameter_types! {
+// 	// Deposit for a parathread (on-demand parachain)
+// 	pub const ParathreadDeposit: Balance = 500 * DOLLARS;
+// 	pub const MaxRetries: u32 = 3;
+// }
 
-parameter_types! {
-	pub Prefix: &'static [u8] = b"Pay DOTs to the Polkadot account:";
-}
+// parameter_types! {
+// 	pub Prefix: &'static [u8] = b"Pay DOTs to the Polkadot account:";
+// }
 
-impl claims::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type VestingSchedule = Vesting;
-	type Prefix = Prefix;
-	/// Only Root can move a claim.
-	type MoveClaimOrigin = EnsureRoot<AccountId>;
-	type WeightInfo = weights::polkadot_runtime_common_claims::WeightInfo<Runtime>;
-}
+// impl claims::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type VestingSchedule = Vesting;
+// 	type Prefix = Prefix;
+// 	/// Only Root can move a claim.
+// 	type MoveClaimOrigin = EnsureRoot<AccountId>;
+// 	type WeightInfo = weights::polkadot_runtime_common_claims::WeightInfo<Runtime>;
+// }
 
-parameter_types! {
-	pub const MinVestedTransfer: Balance = DOLLARS;
-	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
-		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
-}
+// parameter_types! {
+// 	pub const MinVestedTransfer: Balance = DOLLARS;
+// 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
+// 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
+// }
 
-impl pallet_vesting::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type BlockNumberToBalance = ConvertInto;
-	type MinVestedTransfer = MinVestedTransfer;
-	type WeightInfo = weights::pallet_vesting::WeightInfo<Runtime>;
-	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
-	type BlockNumberProvider = System;
-	const MAX_VESTING_SCHEDULES: u32 = 28;
-}
+// impl pallet_vesting::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type Currency = Balances;
+// 	type BlockNumberToBalance = ConvertInto;
+// 	type MinVestedTransfer = MinVestedTransfer;
+// 	type WeightInfo = weights::pallet_vesting::WeightInfo<Runtime>;
+// 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
+// 	type BlockNumberProvider = System;
+// 	const MAX_VESTING_SCHEDULES: u32 = 28;
+// }
 
 impl pallet_utility::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -1074,9 +1074,9 @@ impl InstanceFilter<RuntimeCall> for TransparentProxyType<ProxyType> {
 				RuntimeCall::ConvictionVoting(..) |
 				RuntimeCall::Referenda(..) |
 				RuntimeCall::Whitelist(..) |
-				RuntimeCall::Claims(..) |
-				RuntimeCall::Vesting(pallet_vesting::Call::vest{..}) |
-				RuntimeCall::Vesting(pallet_vesting::Call::vest_other{..}) |
+				// RuntimeCall::Claims(..) |
+				// RuntimeCall::Vesting(pallet_vesting::Call::vest{..}) |
+				// RuntimeCall::Vesting(pallet_vesting::Call::vest_other{..}) |
 				// Specifically omitting Vesting `vested_transfer`, and `force_vested_transfer`
 				RuntimeCall::Utility(..) |
 				RuntimeCall::Proxy(..) |
@@ -1586,10 +1586,10 @@ construct_runtime! {
 		Origins: pallet_custom_origins = 22,
 		Whitelist: pallet_whitelist = 23,
 
-		// Claims. Usable initially.
-		Claims: claims = 24,
-		// Vesting. Usable initially, but removed once all vesting is finished.
-		Vesting: pallet_vesting = 25,
+		// // Claims. Usable initially.
+		// Claims: claims = 24,
+		// // Vesting. Usable initially, but removed once all vesting is finished.
+		// Vesting: pallet_vesting = 25,
 		// Cunning utilities. Usable initially.
 		Utility: pallet_utility = 26,
 
@@ -1690,7 +1690,7 @@ pub type TxExtension = (
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
-	claims::PrevalidateAttests<Runtime>,
+	// claims::PrevalidateAttests<Runtime>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
@@ -1750,7 +1750,7 @@ mod benches {
 	frame_benchmarking::define_benchmarks!(
 		// Polkadot
 		[polkadot_runtime_common::auctions, Auctions]
-		[polkadot_runtime_common::claims, Claims]
+		// [polkadot_runtime_common::claims, Claims]
 		[polkadot_runtime_common::crowdloan, Crowdloan]
 		[polkadot_runtime_common::slots, Slots]
 		[polkadot_runtime_common::paras_registrar, Registrar]
@@ -1790,7 +1790,7 @@ mod benches {
 		[pallet_transaction_payment, TransactionPayment]
 		[pallet_treasury, Treasury]
 		[pallet_utility, Utility]
-		[pallet_vesting, Vesting]
+		// [pallet_vesting, Vesting]
 		[pallet_conviction_voting, ConvictionVoting]
 		[pallet_referenda, Referenda]
 		[pallet_whitelist, Whitelist]
@@ -2785,7 +2785,7 @@ mod test_fees {
 			frame_system::CheckNonce::<Runtime>::from(1),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0),
-			claims::PrevalidateAttests::<Runtime>::new(),
+			// claims::PrevalidateAttests::<Runtime>::new(),
 			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
 		);
 		let uxt = UncheckedExtrinsic {
