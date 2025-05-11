@@ -30,7 +30,7 @@ use alloc::{
 };
 use pallet_transaction_payment::FungibleAdapter;
 use polkadot_runtime_common::{
-	auctions, crowdloan, impl_runtime_weights,
+	impl_runtime_weights,
 	impls::{
 		ContainsParts as ContainsLocationParts, DealWithFees, LocatableAssetConverter,
 		VersionedLocatableAsset, VersionedLocationConverter,
@@ -924,7 +924,6 @@ where
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
-			// claims::PrevalidateAttests::<Runtime>::new(),
 			frame_metadata_hash_extension::CheckMetadataHash::new(false),
 		);
 		let raw_payload = SignedPayload::new(call, tx_ext)
@@ -948,42 +947,6 @@ where
 		UncheckedExtrinsic::new_bare(call)
 	}
 }
-
-// parameter_types! {
-// 	// Deposit for a parathread (on-demand parachain)
-// 	pub const ParathreadDeposit: Balance = 500 * DOLLARS;
-// 	pub const MaxRetries: u32 = 3;
-// }
-
-// parameter_types! {
-// 	pub Prefix: &'static [u8] = b"Pay DOTs to the Polkadot account:";
-// }
-
-// impl claims::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type VestingSchedule = Vesting;
-// 	type Prefix = Prefix;
-// 	/// Only Root can move a claim.
-// 	type MoveClaimOrigin = EnsureRoot<AccountId>;
-// 	type WeightInfo = weights::polkadot_runtime_common_claims::WeightInfo<Runtime>;
-// }
-
-// parameter_types! {
-// 	pub const MinVestedTransfer: Balance = DOLLARS;
-// 	pub UnvestedFundsAllowedWithdrawReasons: WithdrawReasons =
-// 		WithdrawReasons::except(WithdrawReasons::TRANSFER | WithdrawReasons::RESERVE);
-// }
-
-// impl pallet_vesting::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type Currency = Balances;
-// 	type BlockNumberToBalance = ConvertInto;
-// 	type MinVestedTransfer = MinVestedTransfer;
-// 	type WeightInfo = weights::pallet_vesting::WeightInfo<Runtime>;
-// 	type UnvestedFundsAllowedWithdrawReasons = UnvestedFundsAllowedWithdrawReasons;
-// 	type BlockNumberProvider = System;
-// 	const MAX_VESTING_SCHEDULES: u32 = 28;
-// }
 
 impl pallet_utility::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -1074,10 +1037,6 @@ impl InstanceFilter<RuntimeCall> for TransparentProxyType<ProxyType> {
 				RuntimeCall::ConvictionVoting(..) |
 				RuntimeCall::Referenda(..) |
 				RuntimeCall::Whitelist(..) |
-				// RuntimeCall::Claims(..) |
-				// RuntimeCall::Vesting(pallet_vesting::Call::vest{..}) |
-				// RuntimeCall::Vesting(pallet_vesting::Call::vest_other{..}) |
-				// Specifically omitting Vesting `vested_transfer`, and `force_vested_transfer`
 				RuntimeCall::Utility(..) |
 				RuntimeCall::Proxy(..) |
 				RuntimeCall::Multisig(..) |
@@ -1085,9 +1044,7 @@ impl InstanceFilter<RuntimeCall> for TransparentProxyType<ProxyType> {
 				RuntimeCall::Registrar(paras_registrar::Call::deregister {..}) |
 				// Specifically omitting Registrar `swap`
 				RuntimeCall::Registrar(paras_registrar::Call::reserve {..}) |
-				RuntimeCall::Crowdloan(..) |
 				RuntimeCall::Slots(..) |
-				RuntimeCall::Auctions(..) | // Specifically omitting the entire XCM Pallet
 				RuntimeCall::VoterList(..) |
 				RuntimeCall::NominationPools(..) |
 				RuntimeCall::FastUnstake(..)
@@ -1119,13 +1076,7 @@ impl InstanceFilter<RuntimeCall> for TransparentProxyType<ProxyType> {
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
 			},
-			ProxyType::Auction => matches!(
-				c,
-				RuntimeCall::Auctions(..)
-					| RuntimeCall::Crowdloan(..)
-					| RuntimeCall::Registrar(..)
-					| RuntimeCall::Slots(..)
-			),
+			ProxyType::Auction => matches!(c, RuntimeCall::Registrar(..) | RuntimeCall::Slots(..)),
 			ProxyType::ParaRegistration => matches!(
 				c,
 				RuntimeCall::Registrar(paras_registrar::Call::reserve { .. })
@@ -1375,7 +1326,7 @@ impl paras_registrar::Config for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
-	type OnSwap = (Crowdloan, Slots, SwapLeases);
+	type OnSwap = (Slots, SwapLeases);
 	type ParaDeposit = ParaDeposit;
 	type DataDepositPerByte = ParaDataByteDeposit;
 	type WeightInfo = weights::polkadot_runtime_common_paras_registrar::WeightInfo<Runtime>;
@@ -1400,49 +1351,6 @@ impl slots::Config for Runtime {
 	type LeaseOffset = LeaseOffset;
 	type ForceOrigin = EitherOf<EnsureRoot<Self::AccountId>, LeaseAdmin>;
 	type WeightInfo = weights::polkadot_runtime_common_slots::WeightInfo<Runtime>;
-}
-
-parameter_types! {
-	pub const CrowdloanId: PalletId = PalletId(*b"py/cfund");
-	// Accounts for 10_000 contributions, each using 48 bytes (16 bytes for balance, and 32 bytes
-	// for a memo).
-	pub const SubmissionDeposit: Balance = deposit(1, 480_000);
-	// The minimum crowdloan contribution.
-	pub const MinContribution: Balance = 5 * DOLLARS;
-	pub const RemoveKeysLimit: u32 = 1000;
-	// Allow 32 bytes for an additional memo to a crowdloan.
-	pub const MaxMemoLength: u8 = 32;
-}
-
-impl crowdloan::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type PalletId = CrowdloanId;
-	type SubmissionDeposit = SubmissionDeposit;
-	type MinContribution = MinContribution;
-	type RemoveKeysLimit = RemoveKeysLimit;
-	type Registrar = Registrar;
-	type Auctioneer = Auctions;
-	type MaxMemoLength = MaxMemoLength;
-	type WeightInfo = weights::polkadot_runtime_common_crowdloan::WeightInfo<Runtime>;
-}
-
-parameter_types! {
-	// The average auction is 7 days long, so this will be 70% for ending period.
-	// 5 Days = 72000 Blocks @ 6 sec per block
-	pub const EndingPeriod: BlockNumber = 5 * DAYS;
-	// ~ 1000 samples per day -> ~ 20 blocks per sample -> 2 minute samples
-	pub const SampleLength: BlockNumber = 2 * MINUTES;
-}
-
-impl auctions::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Leaser = Slots;
-	type Registrar = Registrar;
-	type EndingPeriod = EndingPeriod;
-	type SampleLength = SampleLength;
-	type Randomness = pallet_babe::RandomnessFromOneEpochAgo<Runtime>;
-	type InitiateOrigin = EitherOf<EnsureRoot<Self::AccountId>, AuctionAdmin>;
-	type WeightInfo = weights::polkadot_runtime_common_auctions::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -1641,8 +1549,8 @@ construct_runtime! {
 		// Parachain Onboarding Pallets. Start indices at 70 to leave room.
 		Registrar: paras_registrar = 70,
 		Slots: slots = 71,
-		Auctions: auctions = 72,
-		Crowdloan: crowdloan = 73,
+		// Auctions: auctions = 72,
+		// Crowdloan: crowdloan = 73,
 		Coretime: coretime = 74,
 
 		// State trie migration pallet, only temporary.
@@ -1749,9 +1657,9 @@ mod benches {
 
 	frame_benchmarking::define_benchmarks!(
 		// Polkadot
-		[polkadot_runtime_common::auctions, Auctions]
+		// [polkadot_runtime_common::auctions, Auctions]
 		// [polkadot_runtime_common::claims, Claims]
-		[polkadot_runtime_common::crowdloan, Crowdloan]
+		// [polkadot_runtime_common::crowdloan, Crowdloan]
 		[polkadot_runtime_common::slots, Slots]
 		[polkadot_runtime_common::paras_registrar, Registrar]
 		[runtime_parachains::configuration, Configuration]
