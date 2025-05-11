@@ -67,7 +67,8 @@ use beefy_primitives::{
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::cmp::Ordering;
 use frame_election_provider_support::{
-	bounds::ElectionBoundsBuilder, generate_solution_type, onchain, SequentialPhragmen,
+	bounds::ElectionBoundsBuilder, generate_solution_type, onchain, NposSolution,
+	SequentialPhragmen,
 };
 use frame_support::{
 	construct_runtime,
@@ -78,7 +79,7 @@ use frame_support::{
 		tokens::{imbalance::ResolveTo, UnityOrOuterConversion},
 		ConstU32, ConstU8, EitherOf, EitherOfDiverse, Everything, FromContains, Get,
 		InstanceFilter, KeyOwnerProofSystem, LinearStoragePrice, PrivilegeCmp, ProcessMessage,
-		ProcessMessageError, WithdrawReasons,
+		ProcessMessageError,
 	},
 	weights::{
 		constants::{WEIGHT_PROOF_SIZE_PER_KB, WEIGHT_REF_TIME_PER_MICROS},
@@ -106,8 +107,8 @@ use sp_core::{OpaqueMetadata, H256};
 use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::{
-		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto,
-		IdentityLookup, Keccak256, OpaqueKeys, SaturatedConversion, Verify,
+		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, IdentityLookup,
+		Keccak256, OpaqueKeys, SaturatedConversion, Verify,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedU128, KeyTypeId, OpaqueValue, Perbill, Percent, Permill,
@@ -136,7 +137,8 @@ pub use sp_runtime::BuildStorage;
 
 /// Constant values used within the runtime.
 use cord_origin_relay_staging_runtime_constants::{
-	currency::*, fee::*, proxy::ProxyType, system_parachain, time::*, TREASURY_PALLET_ID,
+	currency::*, fee::*, proxy::ProxyType, system_parachain,
+	system_parachain::coretime::TIMESLICE_PERIOD, time::*, TREASURY_PALLET_ID,
 };
 
 // Weights used in the runtime.
@@ -148,7 +150,7 @@ pub mod genesis_config_presets;
 // Governance configurations.
 pub mod governance;
 use governance::{
-	pallet_custom_origins, AuctionAdmin, FellowshipAdmin, GeneralAdmin, LeaseAdmin, StakingAdmin,
+	pallet_custom_origins, AuctionAdmin, Fellows, GeneralAdmin, LeaseAdmin, StakingAdmin,
 	Treasurer, TreasurySpender,
 };
 pub mod impls;
@@ -167,7 +169,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 /// Runtime version (Polkadot).
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: alloc::borrow::Cow::Borrowed("origin"),
+	spec_name: alloc::borrow::Cow::Borrowed("origin-relay"),
 	impl_name: alloc::borrow::Cow::Borrowed("dhiway-cord-origin"),
 	authoring_version: 0,
 	spec_version: 1_004_003,
@@ -294,7 +296,7 @@ parameter_types! {
 	pub EpochDuration: u64 = prod_or_fast!(
 		EPOCH_DURATION_IN_SLOTS as u64,
 		2 * MINUTES as u64,
-		"DOT_EPOCH_DURATION"
+		"ORI_EPOCH_DURATION"
 	);
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 	pub ReportLongevity: u64 =
@@ -323,7 +325,7 @@ impl pallet_babe::Config for Runtime {
 }
 
 parameter_types! {
-	pub const IndexDeposit: Balance = 10 * DOLLARS;
+	pub const IndexDeposit: Balance = 10 * UNITS;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -505,12 +507,12 @@ parameter_types! {
 	pub SignedPhase: u32 = prod_or_fast!(
 		EPOCH_DURATION_IN_SLOTS / 4,
 		MINUTES.min(EpochDuration::get().saturated_into::<u32>() / 2),
-		"DOT_SIGNED_PHASE"
+		"ORI_SIGNED_PHASE"
 	);
 	pub UnsignedPhase: u32 = prod_or_fast!(
 		EPOCH_DURATION_IN_SLOTS / 4,
 		MINUTES.min(EpochDuration::get().saturated_into::<u32>() / 2),
-		"DOT_UNSIGNED_PHASE"
+		"ORI_UNSIGNED_PHASE"
 	);
 
 	// signed config
@@ -539,12 +541,12 @@ parameter_types! {
 
 generate_solution_type!(
 	#[compact]
-	pub struct NposCompactSolution16::<
+	pub struct NposCompactSolution24::<
 		VoterIndex = u32,
 		TargetIndex = u16,
 		Accuracy = sp_runtime::PerU16,
 		MaxVoters = MaxElectingVoters,
-	>(16)
+	>(24)
 );
 
 pub struct OnChainSeqPhragmen;
@@ -562,7 +564,7 @@ impl pallet_election_provider_multi_phase::MinerConfig for Runtime {
 	type AccountId = AccountId;
 	type MaxLength = OffchainSolutionLengthLimit;
 	type MaxWeight = OffchainSolutionWeightLimit;
-	type Solution = NposCompactSolution16;
+	type Solution = NposCompactSolution24;
 	type MaxVotesPerVoter = <
 		<Self as pallet_election_provider_multi_phase::Config>::DataProvider
 		as
@@ -638,6 +640,26 @@ impl pallet_bags_list::Config<VoterBagsListInstance> for Runtime {
 	type Score = sp_npos_elections::VoteWeight;
 }
 
+#[derive(
+	Default,
+	MaxEncodedLen,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	scale_info::TypeInfo,
+	Clone,
+	Eq,
+	PartialEq,
+	Debug,
+)]
+pub struct BurnDestinationAccount(pub Option<AccountId>);
+
+impl BurnDestinationAccount {
+	pub fn is_set(&self) -> bool {
+		self.0.is_some()
+	}
+}
+
 /// Defines how much should the inflation be for an era given its duration.
 pub struct EraPayout;
 impl pallet_staking::EraPayout<Balance> for EraPayout {
@@ -673,12 +695,12 @@ parameter_types! {
 	pub BondingDuration: sp_staking::EraIndex = prod_or_fast!(
 		28,
 		28,
-		"DOT_BONDING_DURATION"
+		"ORI_BONDING_DURATION"
 	);
 	pub SlashDeferDuration: sp_staking::EraIndex = prod_or_fast!(
 		27,
 		27,
-		"DOT_SLASH_DEFER_DURATION"
+		"ORI_SLASH_DEFER_DURATION"
 	);
 	pub const MaxExposurePageSize: u32 = 512;
 	// Note: this is not really correct as Max Nominators is (MaxExposurePageSize * page_count) but
@@ -686,8 +708,8 @@ parameter_types! {
 	// of nominators.
 	pub const MaxNominators: u32 = 512;
 	pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(17);
-	// 16
-	pub const MaxNominations: u32 = <NposCompactSolution16 as frame_election_provider_support::NposSolution>::LIMIT as u32;
+	// 24
+	pub const MaxNominations: u32 = <NposCompactSolution24 as NposSolution>::LIMIT as u32;
 	pub TreasuryAccount: AccountId = Treasury::account_id();
 }
 
@@ -698,6 +720,8 @@ impl pallet_staking::Config for Runtime {
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type UnixTime = Timestamp;
 	type CurrencyToVote = CurrencyToVote;
+	type ElectionProvider = ElectionProviderMultiPhase;
+	type GenesisElectionProvider = onchain::OnChainExecution<OnChainSeqPhragmen>;
 	type RewardRemainder = ResolveTo<TreasuryAccount, Balances>;
 	type RuntimeEvent = RuntimeEvent;
 	type Slash = ResolveTo<TreasuryAccount, Balances>;
@@ -708,10 +732,8 @@ impl pallet_staking::Config for Runtime {
 	type AdminOrigin = EitherOf<EnsureRoot<Self::AccountId>, StakingAdmin>;
 	type SessionInterface = Self;
 	type EraPayout = EraPayout;
-	type MaxExposurePageSize = MaxExposurePageSize;
 	type NextNewSession = Session;
-	type ElectionProvider = ElectionProviderMultiPhase;
-	type GenesisElectionProvider = onchain::OnChainExecution<OnChainSeqPhragmen>;
+	type MaxExposurePageSize = MaxExposurePageSize;
 	type VoterList = VoterList;
 	type TargetList = UseValidatorsMap<Self>;
 	type NominationsQuota = pallet_staking::FixedNominationsQuota<{ MaxNominations::get() }>;
@@ -728,7 +750,7 @@ impl pallet_fast_unstake::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type BatchSize = frame_support::traits::ConstU32<16>;
-	type Deposit = frame_support::traits::ConstU128<{ UNITS }>;
+	type Deposit = frame_support::traits::ConstU128<{ MILLI * 100 }>;
 	type ControlOrigin = EnsureRoot<AccountId>;
 	type Staking = Staking;
 	type MaxErasToCheckPerBlock = ConstU32<1>;
@@ -737,9 +759,9 @@ impl pallet_fast_unstake::Config for Runtime {
 
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = 100 * DOLLARS;
-	pub const ProposalBondMaximum: Balance = 500 * DOLLARS;
-	pub const SpendPeriod: BlockNumber = 24 * DAYS;
+	pub const ProposalBondMinimum: Balance = 1000 * MILLI;
+	pub const ProposalBondMaximum: Balance = GRAND;
+	pub const SpendPeriod: BlockNumber = 6 * DAYS;
 	pub const Burn: Permill = Permill::from_percent(1);
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const PayoutSpendPeriod: BlockNumber = 30 * DAYS;
@@ -749,8 +771,8 @@ parameter_types! {
 
 	pub const TipCountdown: BlockNumber = DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(20);
-	pub const TipReportDepositBase: Balance = DOLLARS;
-	pub const DataDepositPerByte: Balance = CENTS;
+	pub const TipReportDepositBase: Balance = 100 * MILLI;
+	pub const DataDepositPerByte: Balance = MILLI / 10;
 	pub const MaxApprovals: u32 = 100;
 	pub const MaxAuthorities: u32 = 100_000;
 	pub const MaxKeys: u32 = 10_000;
@@ -767,9 +789,9 @@ impl pallet_treasury::Config for Runtime {
 	type SpendPeriod = SpendPeriod;
 	type Burn = Burn;
 	type BurnDestination = ();
-	type SpendFunds = Bounties;
 	type MaxApprovals = MaxApprovals;
 	type WeightInfo = weights::pallet_treasury::WeightInfo<Runtime>;
+	type SpendFunds = Bounties;
 	type SpendOrigin = TreasurySpender;
 	type AssetKind = VersionedLocatableAsset;
 	type Beneficiary = VersionedLocation;
@@ -786,20 +808,20 @@ impl pallet_treasury::Config for Runtime {
 	>;
 	type BalanceConverter = AssetRateWithNative;
 	type PayoutPeriod = PayoutSpendPeriod;
-	type BlockNumberProvider = System;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = polkadot_runtime_common::impls::benchmarks::TreasuryArguments;
+	type BlockNumberProvider = System;
 }
 
 parameter_types! {
-	pub const BountyDepositBase: Balance = DOLLARS;
+	pub const BountyDepositBase: Balance = UNITS;
 	pub const BountyDepositPayoutDelay: BlockNumber = 0;
 	pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
 	pub const MaximumReasonLength: u32 = 16384;
 	pub const CuratorDepositMultiplier: Permill = Permill::from_percent(50);
-	pub const CuratorDepositMin: Balance = 10 * DOLLARS;
-	pub const CuratorDepositMax: Balance = 200 * DOLLARS;
-	pub const BountyValueMinimum: Balance = 10 * DOLLARS;
+	pub const CuratorDepositMin: Balance = 10 * UNITS;
+	pub const CuratorDepositMax: Balance = 200 * UNITS;
+	pub const BountyValueMinimum: Balance = 10 * UNITS;
 }
 
 impl pallet_bounties::Config for Runtime {
@@ -1221,7 +1243,7 @@ impl parachains_hrmp::Config for Runtime {
 		Runtime,
 		HrmpChannelSizeAndCapacityWithSystemRatio,
 	>;
-	type WeightInfo = weights::runtime_parachains_hrmp::WeightInfo<Self>;
+	type WeightInfo = weights::runtime_parachains_hrmp::WeightInfo<Runtime>;
 	type VersionWrapper = XcmPallet;
 }
 
@@ -1269,7 +1291,7 @@ impl coretime::Config for Runtime {
 
 parameter_types! {
 	pub const OnDemandTrafficDefaultValue: FixedU128 = FixedU128::from_u32(1);
-	pub const MaxHistoricalRevenue: BlockNumber = 2 * system_parachain::coretime::TIMESLICE_PERIOD;
+	pub const MaxHistoricalRevenue: BlockNumber = 2 * TIMESLICE_PERIOD;
 	pub const OnDemandPalletId: PalletId = PalletId(*b"py/ondmd");
 }
 
@@ -1318,7 +1340,7 @@ impl parachains_slashing::Config for Runtime {
 parameter_types! {
 	// Mostly arbitrary deposit price, but should provide an adequate incentive not to spam reserve
 	// `ParaId`s.
-	pub const ParaDeposit: Balance = 100 * DOLLARS;
+	pub const ParaDeposit: Balance = 100 * UNITS;
 	pub const ParaDataByteDeposit: Balance = deposit(0, 1);
 }
 
@@ -1334,13 +1356,7 @@ impl paras_registrar::Config for Runtime {
 
 parameter_types! {
 	// 12 weeks = 3 months per lease period -> 8 lease periods ~ 2 years
-	pub LeasePeriod: BlockNumber = prod_or_fast!(12 * WEEKS, 12 * WEEKS, "DOT_LEASE_PERIOD");
-	// Polkadot Genesis was on May 26, 2020.
-	// Target Parachain Onboarding Date: Dec 15, 2021.
-	// Difference is 568 days.
-	// We want a lease period to start on the target onboarding date.
-	// 568 % (12 * 7) = 64 day offset
-	pub LeaseOffset: BlockNumber = prod_or_fast!(64 * DAYS, 0, "DOT_LEASE_OFFSET");
+	pub LeasePeriod: BlockNumber = prod_or_fast!(12 * WEEKS, 12 * WEEKS, "ORI_LEASE_PERIOD");
 }
 
 impl slots::Config for Runtime {
@@ -1348,7 +1364,7 @@ impl slots::Config for Runtime {
 	type Currency = Balances;
 	type Registrar = Registrar;
 	type LeasePeriod = LeasePeriod;
-	type LeaseOffset = LeaseOffset;
+	type LeaseOffset = ();
 	type ForceOrigin = EitherOf<EnsureRoot<Self::AccountId>, LeaseAdmin>;
 	type WeightInfo = weights::polkadot_runtime_common_slots::WeightInfo<Runtime>;
 }
@@ -1394,27 +1410,6 @@ impl pallet_delegated_staking::Config for Runtime {
 	type SlashRewardFraction = SlashRewardFraction;
 	type RuntimeHoldReason = RuntimeHoldReason;
 	type CoreStaking = Staking;
-}
-
-parameter_types! {
-	// The deposit configuration for the singed migration. Specially if you want to allow any signed account to do the migration (see `SignedFilter`, these deposits should be high)
-	pub const MigrationSignedDepositPerItem: Balance = CENTS;
-	pub const MigrationSignedDepositBase: Balance = 20 * CENTS * 100;
-	pub const MigrationMaxKeyLen: u32 = 512;
-}
-
-impl pallet_state_trie_migration::Config for Runtime {
-	type RuntimeHoldReason = RuntimeHoldReason;
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type SignedDepositPerItem = MigrationSignedDepositPerItem;
-	type SignedDepositBase = MigrationSignedDepositBase;
-	type ControlOrigin = EnsureRoot<AccountId>;
-	type SignedFilter = frame_support::traits::NeverEnsureOrigin<AccountId>;
-
-	// Use same weights as substrate ones.
-	type WeightInfo = pallet_state_trie_migration::weights::SubstrateWeight<Runtime>;
-	type MaxKeyLen = MigrationMaxKeyLen;
 }
 
 /// The [frame_support::traits::tokens::ConversionFromAssetBalance] implementation provided by the
@@ -1491,17 +1486,13 @@ construct_runtime! {
 		Treasury: pallet_treasury = 19,
 		ConvictionVoting: pallet_conviction_voting = 20,
 		Referenda: pallet_referenda = 21,
-		Origins: pallet_custom_origins = 22,
-		Whitelist: pallet_whitelist = 23,
+		FellowshipCollective: pallet_ranked_collective::<Instance1> = 22,
+		FellowshipReferenda: pallet_referenda::<Instance2> = 23,
+		Origins: pallet_custom_origins = 43,
+		Whitelist: pallet_whitelist = 44,
 
-		// // Claims. Usable initially.
-		// Claims: claims = 24,
-		// // Vesting. Usable initially, but removed once all vesting is finished.
-		// Vesting: pallet_vesting = 25,
-		// Cunning utilities. Usable initially.
+		// Utility module.
 		Utility: pallet_utility = 26,
-
-		// Identity: pallet_identity = 28, (removed post 1.2.8)
 
 		// Proxy module. Late addition.
 		Proxy: pallet_proxy = 29,
@@ -1538,7 +1529,6 @@ construct_runtime! {
 		Paras: parachains_paras = 56,
 		Initializer: parachains_initializer = 57,
 		Dmp: parachains_dmp = 58,
-		// Ump 59
 		Hrmp: parachains_hrmp = 60,
 		ParaSessionInfo: parachains_session_info = 61,
 		ParasDisputes: parachains_disputes = 62,
@@ -1549,12 +1539,7 @@ construct_runtime! {
 		// Parachain Onboarding Pallets. Start indices at 70 to leave room.
 		Registrar: paras_registrar = 70,
 		Slots: slots = 71,
-		// Auctions: auctions = 72,
-		// Crowdloan: crowdloan = 73,
 		Coretime: coretime = 74,
-
-		// State trie migration pallet, only temporary.
-		StateTrieMigration: pallet_state_trie_migration = 98,
 
 		// Pallet for sending XCM.
 		XcmPallet: pallet_xcm = 99,
@@ -1598,7 +1583,6 @@ pub type TxExtension = (
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
-	// claims::PrevalidateAttests<Runtime>,
 	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
@@ -1648,12 +1632,13 @@ pub type Executive = frame_executive::Executive<
 	Migrations,
 >;
 
-/// The payload being signed in transactions.
+/// The payload being signed in the transactions.
 pub type SignedPayload = generic::SignedPayload<RuntimeCall, TxExtension>;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	use super::*;
+	use cord_origin_relay_staging_runtime_constants::system_parachain::AssetHubParaId;
 
 	frame_benchmarking::define_benchmarks!(
 		// Polkadot
@@ -1743,7 +1728,6 @@ mod benches {
 			TokenLocation::get(),
 			ExistentialDeposit::get()
 		).into());
-		pub AssetHubParaId: ParaId = cord_origin_relay_staging_runtime_constants::system_parachain::ASSET_HUB_ID.into();
 		pub const RandomParaId: ParaId = ParaId::new(43211234);
 	}
 
@@ -1766,14 +1750,14 @@ mod benches {
 		);
 
 		fn reachable_dest() -> Option<Location> {
-			Some(crate::xcm_config::AssetHubLocation::get())
+			Some(AssetHubLocation::get())
 		}
 
 		fn teleportable_asset_and_dest() -> Option<(Asset, Location)> {
 			// Relay/native token can be teleported to/from AH.
 			Some((
 				Asset { fun: Fungible(ExistentialDeposit::get()), id: AssetId(Here.into()) },
-				crate::xcm_config::AssetHubLocation::get(),
+				AssetHubLocation::get(),
 			))
 		}
 
@@ -1792,7 +1776,7 @@ mod benches {
 			// benchmarking as it's slightly heavier.
 			// Relay/native token can be teleported to/from AH.
 			let native_location = Here.into();
-			let dest = crate::xcm_config::AssetHubLocation::get();
+			let dest = AssetHubLocation::get();
 			pallet_xcm::benchmarking::helpers::native_teleport_as_asset_transfer::<Runtime>(
 				native_location,
 				dest,
@@ -1818,7 +1802,7 @@ mod benches {
 			Ok(AssetHubLocation::get())
 		}
 		fn worst_case_holding(_depositable_count: u32) -> Assets {
-			// Polkadot only knows about ORU
+			// Origin only knows about ORU
 			vec![Asset {
 				id: AssetId(TokenLocation::get()),
 				fun: Fungible(1_000_000_000_000 * UNITS),
@@ -1843,6 +1827,8 @@ mod benches {
 		type TrustedReserve = TrustedReserve;
 
 		fn get_asset() -> Asset {
+			// We put more than ED here for being able to keep accounts alive when transferring
+			// and paying the delivery fees.
 			Asset {
 				id: AssetId(TokenLocation::get()),
 				fun: Fungible(1_000_000 * ExistentialDeposit::get()),
@@ -1859,12 +1845,12 @@ mod benches {
 		}
 
 		fn worst_case_asset_exchange() -> Result<(Assets, Assets), BenchmarkError> {
-			// Polkadot doesn't support asset exchanges
+			// Origin doesn't support asset exchanges
 			Err(BenchmarkError::Skip)
 		}
 
 		fn universal_alias() -> Result<(Location, Junction), BenchmarkError> {
-			// The XCM executor of Polkadot doesn't have a configured `UniversalAliases`
+			// The XCM executor of Origin doesn't have a configured `UniversalAliases`
 			Err(BenchmarkError::Skip)
 		}
 
@@ -1891,18 +1877,18 @@ mod benches {
 		}
 
 		fn unlockable_asset() -> Result<(Location, Location, Asset), BenchmarkError> {
-			// Polkadot doesn't support asset locking
+			// Origin doesn't support asset locking
 			Err(BenchmarkError::Skip)
 		}
 
 		fn export_message_origin_and_destination(
 		) -> Result<(Location, NetworkId, InteriorLocation), BenchmarkError> {
-			// Polkadot doesn't support exporting messages
+			// Origin doesn't support exporting messages
 			Err(BenchmarkError::Skip)
 		}
 
 		fn alias_origin() -> Result<(Location, Location), BenchmarkError> {
-			// The XCM executor of Polkadot doesn't have a configured `Aliasers`
+			// The XCM executor of Origin doesn't have a configured `Aliasers`
 			Err(BenchmarkError::Skip)
 		}
 	}
@@ -2263,7 +2249,7 @@ sp_api::impl_runtime_apis! {
 
 		fn submit_report_double_voting_unsigned_extrinsic(
 			equivocation_proof: beefy_primitives::DoubleVotingProof<BlockNumber, BeefyId, BeefySignature>,
-			key_owner_proof: OpaqueValue,
+			key_owner_proof: OpaqueKeyOwnershipProof,
 		) -> Option<()> {
 			let key_owner_proof = key_owner_proof.decode()?;
 
@@ -2576,7 +2562,7 @@ sp_api::impl_runtime_apis! {
 	#[cfg(feature = "try-runtime")]
 	impl frame_try_runtime::TryRuntime<Block> for Runtime {
 		fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
-			log::info!(target: LOG_TARGET, "try-runtime::on_runtime_upgrade polkadot.");
+			log::info!(target: LOG_TARGET, "try-runtime::on_runtime_upgrade origin.");
 			let weight = Executive::try_runtime_upgrade(checks).unwrap();
 			(weight, BlockWeights::get().max_block)
 		}
@@ -2693,7 +2679,6 @@ mod test_fees {
 			frame_system::CheckNonce::<Runtime>::from(1),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0),
-			// claims::PrevalidateAttests::<Runtime>::new(),
 			frame_metadata_hash_extension::CheckMetadataHash::<Runtime>::new(false),
 		);
 		let uxt = UncheckedExtrinsic {
@@ -2761,9 +2746,9 @@ mod test_fees {
 	#[test]
 	fn signed_deposit_is_sensible() {
 		// ensure this number does not change, or that it is checked after each change.
-		// a 1 MB solution should take (40 + 10) DOTs of deposit.
+		// a 1 MB solution should take (40 + 10) UNITs of deposit.
 		let deposit = SignedFixedDeposit::get() + (SignedDepositByte::get() * 1024 * 1024);
-		assert_eq_error_rate!(deposit, 50 * DOLLARS, DOLLARS);
+		assert_eq_error_rate!(deposit, 50 * UNITS, UNITS);
 	}
 }
 

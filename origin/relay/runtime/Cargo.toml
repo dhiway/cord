@@ -63,6 +63,7 @@ pallet-nomination-pools-runtime-api = { workspace = true }
 pallet-offences = { workspace = true }
 pallet-preimage = { workspace = true }
 pallet-proxy = { workspace = true }
+pallet-ranked-collective = { workspace = true }
 pallet-referenda = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-session = { workspace = true }
@@ -72,7 +73,6 @@ pallet-staking = { workspace = true }
 pallet-staking-reward-fn = { workspace = true }
 pallet-staking-reward-curve = { workspace = true }
 pallet-staking-runtime-api = { workspace = true }
-pallet-state-trie-migration = { workspace = true }
 frame-system = { workspace = true }
 frame-system-rpc-runtime-api = { workspace = true }
 cord-origin-relay-staging-runtime-constants = { workspace = true }
@@ -171,6 +171,7 @@ std = [
 	"pallet-offences/std",
 	"pallet-preimage/std",
 	"pallet-proxy/std",
+	"pallet-ranked-collective/std",
 	"pallet-referenda/std",
 	"pallet-scheduler/std",
 	"pallet-session-benchmarking?/std",
@@ -179,7 +180,6 @@ std = [
 	"pallet-staking-reward-fn/std",
 	"pallet-staking-runtime-api/std",
 	"pallet-staking/std",
-	"pallet-state-trie-migration/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
@@ -251,12 +251,12 @@ runtime-benchmarks = [
 	"pallet-offences/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
+	"pallet-ranked-collective/runtime-benchmarks",
 	"pallet-referenda/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-session-benchmarking/runtime-benchmarks",
 	"pallet-sudo/runtime-benchmarks",
 	"pallet-staking/runtime-benchmarks",
-	"pallet-state-trie-migration/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-transaction-payment/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
@@ -306,12 +306,12 @@ try-runtime = [
 	"pallet-offences/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-proxy/try-runtime",
+	"pallet-ranked-collective/try-runtime",
 	"pallet-referenda/try-runtime",
 	"pallet-scheduler/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-staking/try-runtime",
-	"pallet-state-trie-migration/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"pallet-treasury/try-runtime",

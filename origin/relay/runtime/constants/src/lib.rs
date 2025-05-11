@@ -22,23 +22,23 @@ extern crate alloc;
 
 pub mod weights;
 
-pub use self::currency::DOLLARS;
+pub use self::currency::MILLI;
 
 /// Money matters.
 pub mod currency {
 	use polkadot_primitives::Balance;
 
 	/// The existential deposit.
-	pub const EXISTENTIAL_DEPOSIT: Balance = 100 * CENTS;
+	pub const EXISTENTIAL_DEPOSIT: Balance = 100 * MILLI;
 
-	pub const UNITS: Balance = 10_000_000_000;
-	pub const DOLLARS: Balance = UNITS; // 10_000_000_000
-	pub const GRAND: Balance = DOLLARS * 1_000; // 10_000_000_000_000
-	pub const CENTS: Balance = DOLLARS / 100; // 100_000_000
-	pub const MILLICENTS: Balance = CENTS / 1_000; // 100_000
+	pub const UNITS: Balance = 10_000_000_000; // 10¹⁰
+	pub const MICRO: Balance = UNITS / 100;
+	pub const MILLI: Balance = UNITS / 1_000;
+	pub const NANO: Balance = UNITS / 10_000;
+	pub const GRAND: Balance = UNITS * 1_000; // 10¹³
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * 20 * DOLLARS + (bytes as Balance) * 100 * MILLICENTS
+		items as Balance * 10 * UNITS + (bytes as Balance) * 100 * MILLI
 	}
 }
 
@@ -48,7 +48,7 @@ pub mod time {
 	use polkadot_runtime_common::prod_or_fast;
 	pub const MILLISECS_PER_BLOCK: Moment = 6000;
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(4 * HOURS, MINUTES);
+	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(HOURS, MINUTES);
 
 	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
@@ -76,8 +76,8 @@ pub mod fee {
 	/// The block saturation level. Fees will be updates based on this value.
 	pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
 
-	/// Cost of every transaction byte at Polkadot relay chain.
-	pub const TRANSACTION_BYTE_FEE: Balance = 10 * super::currency::MILLICENTS;
+	/// Cost of every transaction byte at Origin relay chain.
+	pub const TRANSACTION_BYTE_FEE: Balance = 10 * super::currency::MILLI;
 
 	/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
 	/// node's balance type.
@@ -93,8 +93,8 @@ pub mod fee {
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-			// in Polkadot, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 CENT:
-			let p = super::currency::CENTS;
+			// in Polkadot, extrinsic base weight (smallest non-zero weight) is mapped to 1/10 MILLI:
+			let p = super::currency::MILLI;
 			let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
@@ -106,40 +106,29 @@ pub mod fee {
 	}
 }
 
-/// XCM protocol related constants.
-pub mod xcm {
-	/// Pluralistic bodies existing within the consensus.
-	pub mod body {
-		// Preallocated for the Root body.
-		#[allow(dead_code)]
-		const ROOT_INDEX: u32 = 0;
-		// The bodies corresponding to the Polkadot OpenGov Origins.
-		pub const FELLOWSHIP_ADMIN_INDEX: u32 = 1;
-		// The body corresponding to the Treasurer OpenGov track.
-		#[deprecated = "Will be removed after August 2024; Use `xcm::latest::BodyId::Treasury` \
-			instead"]
-		pub const TREASURER_INDEX: u32 = 2;
-	}
-}
-
 /// System Parachains.
 pub mod system_parachain {
-	use polkadot_primitives::Id;
+	use frame_support::parameter_types;
+	use polkadot_primitives::Id as ParaId;
 	use xcm_builder::IsChildSystemParachain;
+
+	parameter_types! {
+		pub AssetHubParaId: ParaId = ASSET_HUB_ID.into();
+	}
 
 	/// Asset Hub parachain ID.
 	pub const ASSET_HUB_ID: u32 = 1000;
-	/// Collectives parachain ID.
-	pub const COLLECTIVES_ID: u32 = 1001;
-	/// Bridge Hub parachain ID.
-	pub const BRIDGE_HUB_ID: u32 = 1002;
-	/// People parachain ID.
-	pub const PEOPLE_ID: u32 = 1004;
+	// /// Collectives parachain ID.
+	// pub const COLLECTIVES_ID: u32 = 1001;
+	// /// Bridge Hub parachain ID.
+	// pub const BRIDGE_HUB_ID: u32 = 1002;
+	/// Entity parachain ID.
+	pub const ENTITY_ID: u32 = 1004;
 	/// Coretime Chain ID.
 	pub const BROKER_ID: u32 = 1005;
 
 	// System parachains from Polkadot point of view.
-	pub type SystemParachains = IsChildSystemParachain<Id>;
+	pub type SystemParachains = IsChildSystemParachain<ParaId>;
 
 	/// Coretime constants
 	pub mod coretime {
@@ -172,8 +161,8 @@ pub mod proxy {
 		codec::Encode,
 		codec::Decode,
 		codec::DecodeWithMemTracking,
-		core::fmt::Debug,
 		codec::MaxEncodedLen,
+		core::fmt::Debug,
 		scale_info::TypeInfo,
 		Default,
 	)]
@@ -273,7 +262,7 @@ pub mod proxy {
 #[cfg(test)]
 mod tests {
 	use super::{
-		currency::{CENTS, DOLLARS, MILLICENTS},
+		currency::{MICRO, MILLI, UNITS},
 		fee::WeightToFee,
 		proxy::ProxyType,
 	};
@@ -285,10 +274,10 @@ mod tests {
 	#[test]
 	// Test that the fee for `MAXIMUM_BLOCK_WEIGHT` of weight has sane bounds.
 	fn full_block_fee_is_correct() {
-		// A full block should cost between 10 and 100 DOLLARS.
+		// A full block should cost between 10 and 100 UNITS.
 		let full_block = WeightToFee::weight_to_fee(&MAXIMUM_BLOCK_WEIGHT);
-		assert!(full_block >= 10 * DOLLARS);
-		assert!(full_block <= 100 * DOLLARS);
+		assert!(full_block >= 10 * UNITS);
+		assert!(full_block <= 100 * UNITS);
 	}
 
 	#[test]
@@ -297,8 +286,8 @@ mod tests {
 		// `ExtrinsicBaseWeight` should cost 1/10 of a CENT
 		println!("Base: {}", ExtrinsicBaseWeight::get());
 		let x = WeightToFee::weight_to_fee(&ExtrinsicBaseWeight::get());
-		let y = CENTS / 10;
-		assert!(x.max(y) - x.min(y) < MILLICENTS);
+		let y = MILLI / 10;
+		assert!(x.max(y) - x.min(y) < MICRO);
 	}
 
 	#[derive(
