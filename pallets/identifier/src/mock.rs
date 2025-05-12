@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate as cord_uri;
+use crate as pallet_identifier;
 use frame_support::{derive_impl, parameter_types};
 use frame_system as system;
 use sp_runtime::BuildStorage;
@@ -26,7 +26,7 @@ type Block = system::mocking::MockBlock<Test>;
 frame_support::construct_runtime!(
 	pub enum Test {
 		System: system,
-		Identifier: cord_uri,
+		Identifier: pallet_identifier,
 	}
 );
 
@@ -41,7 +41,7 @@ impl frame_system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 }
 
-impl cord_uri::Config for Test {
+impl pallet_identifier::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = frame_system::Pallet<Test>;
 }

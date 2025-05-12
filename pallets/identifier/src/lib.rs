@@ -45,7 +45,9 @@ pub use pallet::*;
 pub type HashOf<T> = <T as frame_system::Config>::Hash;
 
 /// EventBlock marks the block and extrinsic where an event occurred.
-#[derive(Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
+#[derive(
+	Encode, Decode, Debug, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen,
+)]
 pub struct EventBlock {
 	pub height: u32,
 	pub index: u32,
