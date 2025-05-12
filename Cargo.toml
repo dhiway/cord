@@ -16,6 +16,8 @@ members = [
 	"node/inspect",
 	"node/testing",
 	"origin/container",
+	"origin/container/coretime",
+	"origin/container/constants",
 	"origin/relay",
 	"origin/relay/cli",
 	"origin/relay/common",
@@ -93,6 +95,8 @@ alloy-core = { version = "0.8.15", default-features = false }
 always-assert = { version = "0.1" }
 anyhow = { version = "1.0.81", default-features = false }
 approx = { version = "0.5.1" }
+asset-test-utils = { version = "23.0.0" }
+assets-common = { version = "0.21.0", default-features = false }
 authority-discovery-primitives = { version = "36.0.0", default-features = false, package = "sp-authority-discovery" }
 babe-primitives = { version = "0.42.1", default-features = false, package = "sp-consensus-babe" }
 beefy-primitives = { version = "24.1.0", default-features = false, package = "sp-consensus-beefy" }
@@ -748,6 +752,9 @@ pallet-profile = { path = "pallets/profile", default-features = false }
 people-origin-runtime = { path = "system-parachains/people" }
 relay-common = { path = "origin/relay/common", default-features = false }
 cord-origin-container = { path = "origin/container", default-features = false }
+cord-origin-system-chains-staging-constants = { path = "origin/container/constants", default-features = false }
+# cord-origin-asset-staging-runtime = { path = "origin/container/asset", default-features = false }
+cord-origin-coretime-staging-runtime = { path = "origin/container/coretime", default-features = false }
 
 [profile.release]
 panic = 'unwind'

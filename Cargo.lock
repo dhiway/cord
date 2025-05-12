@@ -1226,6 +1226,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "bp-xcm-bridge-hub-router"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7f093f70e1193363e778130745d9758044ae07267bc39a9ca4408144759babb"
+dependencies = [
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core 36.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm 16.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "bs58"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2256,6 +2269,74 @@ dependencies = [
 ]
 
 [[package]]
+name = "cord-origin-coretime-staging-runtime"
+version = "0.9.7"
+dependencies = [
+ "cord-origin-relay-staging-runtime-constants",
+ "cord-origin-system-chains-staging-constants",
+ "cumulus-pallet-aura-ext",
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-session-benchmarking",
+ "cumulus-pallet-xcm",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-aura 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cumulus-primitives-core 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cumulus-primitives-utility 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-benchmarking 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-executive 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-metadata-hash-extension 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system-benchmarking 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system-rpc-runtime-api 36.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-try-runtime 0.46.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hex-literal",
+ "log",
+ "pallet-aura",
+ "pallet-authorship 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-balances 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-broker 0.19.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-collator-selection 21.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-message-queue 43.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-multisig 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-proxy 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-session 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-timestamp 39.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-transaction-payment 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-transaction-payment-rpc-runtime-api 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-utility 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-xcm 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-xcm-benchmarks 20.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parachains-common 21.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parachains-runtimes-test-utils",
+ "parity-scale-codec",
+ "polkadot-core-primitives 17.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "polkadot-parachain-primitives 16.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "polkadot-runtime-common 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-api 36.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-block-builder 36.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-consensus-aura 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-core 36.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-genesis-builder 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-inherents 36.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-offchain 36.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-session 38.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-storage 22.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-transaction-pool 36.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-version 39.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-parachain-info 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm 16.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm-builder 20.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm-executor 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "substrate-wasm-builder 26.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "xcm-runtime-apis 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "cord-origin-relay-cli"
 version = "0.9.7"
 dependencies = [
@@ -2413,6 +2494,21 @@ dependencies = [
  "sp-trie 39.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sp-weights 31.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "staging-xcm-builder 20.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "cord-origin-system-chains-staging-constants"
+version = "0.9.7"
+dependencies = [
+ "cord-origin-relay-staging-runtime-constants",
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parachains-common 21.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "polkadot-core-primitives 17.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "polkadot-primitives 18.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec",
+ "sp-core 36.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm 16.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2989,7 +3085,7 @@ dependencies = [
  "cumulus-client-consensus-common",
  "cumulus-client-consensus-proposer",
  "cumulus-client-parachain-inherent 0.16.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
- "cumulus-primitives-aura",
+ "cumulus-primitives-aura 0.17.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "cumulus-primitives-core 0.18.1 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "cumulus-relay-chain-interface 0.22.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "futures",
@@ -3225,6 +3321,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "cumulus-pallet-aura-ext"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7db210f52473f603bdb4c2f7919859e5ecae935ba674ac54b12b287615735907"
+dependencies = [
+ "cumulus-pallet-parachain-system",
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-aura",
+ "pallet-timestamp 39.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-application-crypto 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-consensus-aura 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "cumulus-pallet-parachain-system"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3270,6 +3384,72 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.101",
+]
+
+[[package]]
+name = "cumulus-pallet-session-benchmarking"
+version = "21.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48217a9e11b836fe5ccea6768e26bf628a574d2ae178f793d2f2b972c50da5de"
+dependencies = [
+ "frame-benchmarking 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-session 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-scale-codec",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "cumulus-pallet-xcm"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a322a86f98d2c7dfaaa787de92568cd776873dfa78339d27ccb14e85631838dc"
+dependencies = [
+ "cumulus-primitives-core 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-io 40.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm 16.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "cumulus-pallet-xcmp-queue"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "229345265f5551d2b0fdba0f44a1ef85c907b5f4cf47aefc70a17ca70538b719"
+dependencies = [
+ "bounded-collections",
+ "bp-xcm-bridge-hub-router",
+ "cumulus-primitives-core 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-benchmarking 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log",
+ "pallet-message-queue 43.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-scale-codec",
+ "polkadot-runtime-common 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "polkadot-runtime-parachains 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "scale-info",
+ "sp-core 36.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-io 40.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm 16.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm-builder 20.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm-executor 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "cumulus-primitives-aura"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ae7651c74adc9785402c4b2e59a089b39b466c9e5628b92b1800063ecd5864d"
+dependencies = [
+ "sp-api 36.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-consensus-aura 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3362,6 +3542,24 @@ dependencies = [
  "sp-externalities 0.30.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "sp-runtime-interface 29.0.1 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "sp-trie 39.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
+]
+
+[[package]]
+name = "cumulus-primitives-utility"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "075080c08260cf07ca74b2029039d81b84748d2e95dce3415c3ac5795494db18"
+dependencies = [
+ "cumulus-primitives-core 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log",
+ "pallet-asset-conversion 22.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-scale-codec",
+ "polkadot-runtime-common 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm 16.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm-builder 20.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm-executor 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -8560,6 +8758,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-aura"
+version = "39.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4afcad52b78910d4acb9b260758f69d6167c2e5e03040bd87f42fa2e182f9bad"
+dependencies = [
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log",
+ "pallet-timestamp 39.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-application-crypto 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-consensus-aura 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "pallet-authority-discovery"
 version = "40.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8937,6 +9152,26 @@ dependencies = [
  "sp-core 36.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "sp-io 40.0.1 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "sp-runtime 41.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
+]
+
+[[package]]
+name = "pallet-collator-selection"
+version = "21.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baa9a18a85915578e3e41fd4aea50a9db64fb57c97296e6a311373f68e40face"
+dependencies = [
+ "frame-benchmarking 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log",
+ "pallet-authorship 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-balances 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-session 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-scale-codec",
+ "rand 0.8.5",
+ "scale-info",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-staking 38.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -11130,10 +11365,40 @@ dependencies = [
 [[package]]
 name = "parachains-common"
 version = "21.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b68844f03979cb0c8b208306047f3b1134b59c74c1fdc9b7f2d8a591ba69b956"
+dependencies = [
+ "cumulus-primitives-core 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cumulus-primitives-utility 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log",
+ "pallet-asset-tx-payment 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-assets 42.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-authorship 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-balances 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-collator-selection 21.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-message-queue 43.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-xcm 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-scale-codec",
+ "polkadot-primitives 18.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "scale-info",
+ "sp-consensus-aura 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-core 36.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-io 40.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-parachain-info 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm 16.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm-executor 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parachains-common"
+version = "21.0.0"
 source = "git+https://github.com/dhiway/sdk?branch=release-v1.18.2#f82f3a86360ae86c00094d4fce284cfb1cc8d765"
 dependencies = [
  "cumulus-primitives-core 0.18.1 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
- "cumulus-primitives-utility",
+ "cumulus-primitives-utility 0.20.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "frame-support 40.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "frame-system 40.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "log",
@@ -11141,7 +11406,7 @@ dependencies = [
  "pallet-assets 42.0.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "pallet-authorship 40.0.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "pallet-balances 41.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
- "pallet-collator-selection",
+ "pallet-collator-selection 21.0.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "pallet-message-queue 43.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "pallet-xcm 19.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "parity-scale-codec",
@@ -11151,9 +11416,41 @@ dependencies = [
  "sp-core 36.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "sp-io 40.0.1 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "sp-runtime 41.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
- "staging-parachain-info",
+ "staging-parachain-info 0.20.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "staging-xcm 16.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "staging-xcm-executor 19.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
+]
+
+[[package]]
+name = "parachains-runtimes-test-utils"
+version = "22.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc24be9ea2d120b524a4a262a5b6831a720292dfa1252099ae3e5a7846d1d7da"
+dependencies = [
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-core 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cumulus-primitives-parachain-inherent 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cumulus-test-relay-sproof-builder 0.19.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-balances 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-collator-selection 21.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-session 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-timestamp 39.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-xcm 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parachains-common 21.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-scale-codec",
+ "polkadot-parachain-primitives 16.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-consensus-aura 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-core 36.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-io 40.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-tracing 17.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-parachain-info 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm 16.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "staging-xcm-executor 19.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "xcm-runtime-apis 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -12921,7 +13218,7 @@ dependencies = [
  "cumulus-client-consensus-relay-chain",
  "cumulus-client-parachain-inherent 0.16.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "cumulus-client-service",
- "cumulus-primitives-aura",
+ "cumulus-primitives-aura 0.17.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "cumulus-primitives-core 0.18.1 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "cumulus-relay-chain-interface 0.22.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "docify",
@@ -12937,7 +13234,7 @@ dependencies = [
  "pallet-transaction-payment 40.0.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "pallet-transaction-payment-rpc 43.0.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "pallet-transaction-payment-rpc-runtime-api 40.0.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
- "parachains-common",
+ "parachains-common 21.0.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
  "parity-scale-codec",
  "polkadot-cli",
  "polkadot-primitives 18.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
@@ -20365,6 +20662,20 @@ dependencies = [
  "serde",
  "serde_json",
  "sp-tracing 17.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.18.2)",
+]
+
+[[package]]
+name = "staging-parachain-info"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f67defdbfcd90bf9b8d4794d2287a27908e518d0540fe8a15bed7761eb07a7e3"
+dependencies = [
+ "cumulus-primitives-core 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

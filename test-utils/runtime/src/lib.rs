@@ -376,8 +376,8 @@ impl frame_system::pallet::Config for Runtime {
 
 pub mod currency {
 	use crate::Balance;
-	const MILLICENTS: Balance = 1_000_000_000;
-	const CENTS: Balance = 1_000 * MILLICENTS; // assume this is worth about a cent.
+	const MICRO: Balance = 1_000_000_000;
+	const CENTS: Balance = 1_000 * MICRO; // assume this is worth about a cent.
 	pub const DOLLARS: Balance = 100 * CENTS;
 }
 
