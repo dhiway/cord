@@ -19,9 +19,11 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use frame_benchmarking::v2::*;
+use frame_benchmarking::{benchmarks, v2::*};
 use frame_system::RawOrigin;
+use parity_scale_codec::Encode;
 use sp_core::H256;
+use sp_runtime::traits::Hash;
 
 benchmarks! {
 	// Benchmark for registry creation.
@@ -50,8 +52,8 @@ benchmarks! {
 		);
 		let mut input = previous_block_hash.encode();
 		input.extend_from_slice(&caller.encode());
-		let digest = T::Hashing::hash(&input);
-		let registry_id = <cord_uri::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
+		let digest = T::Hashing::hash_of(&input);
+		let registry_id = <pallet_identifier::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
 			.map_err(|_| "Identifier build failed")?;
 		// Insert a registry with Active status.
 		Registries::<T>::insert(&registry_id, RegistryDetails {
@@ -82,8 +84,8 @@ benchmarks! {
 		);
 		let mut input = previous_block_hash.encode();
 		input.extend_from_slice(&caller.encode());
-		let digest = T::Hashing::hash(&input);
-		let registry_id = <cord_uri::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
+		let digest = T::Hashing::hash_of(&input);
+		let registry_id = <pallet_identifier::Pallet<T> as Identifier<T>>::build(&digest.encode(), pallet_name)
 			.map_err(|_| "Identifier build failed")?;
 		// Setup: insert registry and add two delegates.
 		Registries::<T>::insert(&registry_id, RegistryDetails {
@@ -112,8 +114,8 @@ benchmarks! {
 		);
 		let mut input = previous_block_hash.encode();
 		input.extend_from_slice(&caller.encode());
-		let digest = T::Hashing::hash(&input);
-		let registry_id = <cord_uri::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
+		let digest = T::Hashing::hash_of(&input);
+		let registry_id = <pallet_identifier::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
 			.map_err(|_| "Identifier build failed")?;
 		// Setup: insert an active registry.
 		Registries::<T>::insert(&registry_id, RegistryDetails {
@@ -141,8 +143,8 @@ benchmarks! {
 		);
 		let mut input = previous_block_hash.encode();
 		input.extend_from_slice(&caller.encode());
-		let digest = T::Hashing::hash(&input);
-		let registry_id = <cord_uri::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
+		let digest = T::Hashing::hash_of(&input);
+		let registry_id = <pallet_identifier::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
 			.map_err(|_| "Identifier build failed")?;
 		// Setup: insert an archived registry.
 		Registries::<T>::insert(&registry_id, RegistryDetails {

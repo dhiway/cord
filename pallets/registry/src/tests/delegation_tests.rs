@@ -26,12 +26,12 @@ use sp_core::H256;
 // Helper: Create a registry and return its identifier.
 fn create_registry() -> RegistryIdentifierOf {
 	let creator: u64 = 1;
-	assert_ok!(Registry::create(
+	assert_ok!(Registry::create_store(
 		RawOrigin::Signed(creator).into(),
 		H256::random(),
-		None,
-		None,
-		None
+		b"doc_id".to_vec(),
+		2,
+		b"doc_node_id".to_vec()
 	));
 	Registries::<Test>::iter().next().expect("Registry should exist").0
 }

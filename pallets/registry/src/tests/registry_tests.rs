@@ -30,12 +30,12 @@ fn get_registry_id() -> RegistryIdentifierOf {
 fn create_registry_positive() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
-		assert_ok!(Registry::create(
+		assert_ok!(Registry::create_store(
 			RawOrigin::Signed(creator).into(),
 			H256::random(),
-			None,
-			None,
-			None
+			b"doc_id".to_vec(),
+			2,
+			b"doc_node_id".to_vec()
 		));
 		assert_eq!(Registries::<Test>::iter().count(), 1);
 	});
@@ -46,9 +46,21 @@ fn create_registry_duplicate_should_fail() {
 	new_test_ext().execute_with(|| {
 		let creator: u64 = 1;
 		let tx_hash = H256::repeat_byte(1);
-		assert_ok!(Registry::create(RawOrigin::Signed(creator).into(), tx_hash, None, None, None));
+		assert_ok!(Registry::create_store(
+			RawOrigin::Signed(creator).into(),
+			H256::random(),
+			b"doc_id".to_vec(),
+			2,
+			b"doc_node_id".to_vec()
+		));
 		assert_noop!(
-			Registry::create(RawOrigin::Signed(creator).into(), tx_hash, None, None, None),
+			Registry::create_store(
+				RawOrigin::Signed(creator).into(),
+				H256::random(),
+				b"doc_id".to_vec(),
+				2,
+				b"doc_node_id".to_vec()
+			),
 			Error::<Test>::RegistryAlreadyExists
 		);
 	});
@@ -58,12 +70,12 @@ fn create_registry_duplicate_should_fail() {
 fn archive_registry_positive() {
 	new_test_ext().execute_with(|| {
 		let admin: u64 = 1;
-		assert_ok!(Registry::create(
-			RawOrigin::Signed(admin).into(),
+		assert_ok!(Registry::create_store(
+			RawOrigin::Signed(creator).into(),
 			H256::random(),
-			None,
-			None,
-			None
+			b"doc_id".to_vec(),
+			2,
+			b"doc_node_id".to_vec()
 		));
 		let reg_id = get_registry_id();
 		assert_ok!(Registry::archive(RawOrigin::Signed(admin).into(), reg_id.clone()));
@@ -77,12 +89,12 @@ fn archive_registry_negative_unauthorized() {
 	new_test_ext().execute_with(|| {
 		let admin: u64 = 1;
 		let non_admin: u64 = 3;
-		assert_ok!(Registry::create(
-			RawOrigin::Signed(admin).into(),
+		assert_ok!(Registry::create_store(
+			RawOrigin::Signed(creator).into(),
 			H256::random(),
-			None,
-			None,
-			None
+			b"doc_id".to_vec(),
+			2,
+			b"doc_node_id".to_vec()
 		));
 		let reg_id = get_registry_id();
 		assert_noop!(
@@ -96,12 +108,12 @@ fn archive_registry_negative_unauthorized() {
 fn restore_registry_positive() {
 	new_test_ext().execute_with(|| {
 		let admin: u64 = 1;
-		assert_ok!(Registry::create(
-			RawOrigin::Signed(admin).into(),
+		assert_ok!(Registry::create_store(
+			RawOrigin::Signed(creator).into(),
 			H256::random(),
-			None,
-			None,
-			None
+			b"doc_id".to_vec(),
+			2,
+			b"doc_node_id".to_vec()
 		));
 		let reg_id = get_registry_id();
 		assert_ok!(Registry::archive(RawOrigin::Signed(admin).into(), reg_id.clone()));
@@ -115,12 +127,12 @@ fn restore_registry_positive() {
 fn restore_registry_negative_if_not_archived() {
 	new_test_ext().execute_with(|| {
 		let admin: u64 = 1;
-		assert_ok!(Registry::create(
-			RawOrigin::Signed(admin).into(),
+		assert_ok!(Registry::create_store(
+			RawOrigin::Signed(creator).into(),
 			H256::random(),
-			None,
-			None,
-			None
+			b"doc_id".to_vec(),
+			2,
+			b"doc_node_id".to_vec()
 		));
 		let reg_id = get_registry_id();
 		assert_noop!(
@@ -135,12 +147,12 @@ fn update_registry_author_positive() {
 	new_test_ext().execute_with(|| {
 		let admin: u64 = 1;
 		let new_author: u64 = 2;
-		assert_ok!(Registry::create(
-			RawOrigin::Signed(admin).into(),
+		assert_ok!(Registry::create_store(
+			RawOrigin::Signed(creator).into(),
 			H256::random(),
-			None,
-			None,
-			None
+			b"doc_id".to_vec(),
+			2,
+			b"doc_node_id".to_vec()
 		));
 		let reg_id = get_registry_id();
 		assert_ok!(Registry::update_author(
@@ -158,12 +170,12 @@ fn update_registry_author_negative_unauthorized() {
 	new_test_ext().execute_with(|| {
 		let admin: u64 = 1;
 		let non_admin: u64 = 3;
-		assert_ok!(Registry::create(
-			RawOrigin::Signed(admin).into(),
+		assert_ok!(Registry::create_store(
+			RawOrigin::Signed(creator).into(),
 			H256::random(),
-			None,
-			None,
-			None
+			b"doc_id".to_vec(),
+			2,
+			b"doc_node_id".to_vec()
 		));
 		let reg_id = get_registry_id();
 		assert_noop!(
@@ -178,12 +190,12 @@ fn update_registry_creator_positive() {
 	new_test_ext().execute_with(|| {
 		let admin: u64 = 1;
 		let new_creator: u64 = 2;
-		assert_ok!(Registry::create(
-			RawOrigin::Signed(admin).into(),
+		assert_ok!(Registry::create_store(
+			RawOrigin::Signed(creator).into(),
 			H256::random(),
-			None,
-			None,
-			None
+			b"doc_id".to_vec(),
+			2,
+			b"doc_node_id".to_vec()
 		));
 		let reg_id = get_registry_id();
 		assert_ok!(Registry::update_creator(
@@ -201,12 +213,12 @@ fn update_registry_creator_negative_unauthorized() {
 	new_test_ext().execute_with(|| {
 		let admin: u64 = 1;
 		let non_admin: u64 = 3;
-		assert_ok!(Registry::create(
-			RawOrigin::Signed(admin).into(),
+		assert_ok!(Registry::create_store(
+			RawOrigin::Signed(creator).into(),
 			H256::random(),
-			None,
-			None,
-			None
+			b"doc_id".to_vec(),
+			2,
+			b"doc_node_id".to_vec()
 		));
 		let reg_id = get_registry_id();
 		assert_noop!(
