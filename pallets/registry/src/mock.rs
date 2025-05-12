@@ -29,7 +29,7 @@ frame_support::construct_runtime!(
 	pub enum Test {
 		System: system,
 		Registry: pallet_registry,
-		Identifier: cord_uri,
+		Identifier: pallet_identifier,
 		Profile: pallet_profile,
 	}
 );
@@ -62,7 +62,7 @@ impl pallet_registry::Config for Test {
 	type WeightInfo = ();
 }
 
-impl cord_uri::Config for Test {
+impl pallet_identifier::Config for Test {
 	type BlockNumberProvider = frame_system::Pallet<Test>;
 }
 
