@@ -20,6 +20,8 @@
 #![warn(unused_crate_dependencies)]
 
 extern crate alloc;
+pub mod element;
+pub use crate::element::Element;
 pub mod identifier;
 pub use crate::identifier::Ss58Identifier;
 use alloc::vec::Vec;
