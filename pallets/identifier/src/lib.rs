@@ -57,7 +57,7 @@ pub type EventTypeOf = BoundedVec<u8, ConstU32<128>>;
 /// ActivityRecord stores an update entry and the corresponding event stamp.
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 pub struct StateEvent<Hash> {
-	pub event: EventTypeOf,
+	pub action: EventTypeOf,
 	pub digest: Hash,
 	pub seal: EventBlock,
 }
@@ -72,6 +72,10 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+		/// Runtime SS58 prefix.
+		type Ss58Prefix: Get<u16>;
+		/// The Origin ChainId; otherwise `0`.
+		type OriginChainId: Get<u32>;
 		/// Provider for the block number.
 		type BlockNumberProvider: BlockNumberProvider;
 	}
@@ -95,6 +99,9 @@ pub mod pallet {
 	pub type GenesisNetworkId<T: Config> = StorageValue<_, u16, ValueQuery>;
 
 	#[pallet::storage]
+	pub type IsOriginChain<T: Config> = StorageValue<_, bool, ValueQuery>;
+
+	#[pallet::storage]
 	pub type StateHistory<T: Config> = StorageDoubleMap<
 		_,
 		Blake2_128Concat,
@@ -113,7 +120,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// An identifier's state was updated.
-		State { identifier: Ss58Identifier, version: u32, event: EventTypeOf },
+		StateChange { identifier: Ss58Identifier, version: u32, action: EventTypeOf },
 	}
 
 	#[pallet::error]
@@ -145,31 +152,50 @@ pub mod pallet {
 		InvalidDigestLength,
 		/// The value is out of the expected range for compact encoding.
 		CompactValueOutOfRange,
+		/// A compact‐encoded value used the wrong byte‐length form.
+		InvalidCompactEncoding,
+		/// The origin‐mode flag was not 0 or 1.
+		InvalidMode,
 	}
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
 		#[serde(skip)]
 		pub _config: core::marker::PhantomData<T>,
+		pub is_origin_chain: bool,
 		pub network_id: u16,
 	}
 
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { network_id: 2000, _config: Default::default() }
+			Self { is_origin_chain: false, network_id: 12000, _config: Default::default() }
 		}
 	}
 
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			if self.network_id < 2000 || self.network_id > 16_383 {
-				panic!(
-					"Invalid genesis `network_id` = {}: must be between 2000 and 16_383",
+			IsOriginChain::<T>::put(self.is_origin_chain);
+
+			let chain_id: u16 = if self.is_origin_chain {
+				let ocid: u32 = T::OriginChainId::get();
+				assert!(
+					(101..12_000).contains(&ocid),
+					"ChainId ({}) must be > 100 and < 12000 in Origin mode",
+					ocid
+				);
+				ocid.try_into().expect("ChainId < 12000 fits in u16; qed")
+			} else {
+				// Standalone mode → use the provided network_id
+				assert!(
+					(12_000..16_383).contains(&self.network_id),
+					"chain_id ({}) must be ≥ 12000 and < 16383 in standalone mode",
 					self.network_id
 				);
-			}
-			GenesisNetworkId::<T>::put(self.network_id);
+				self.network_id
+			};
+
+			GenesisNetworkId::<T>::put(chain_id);
 		}
 	}
 }
@@ -209,19 +235,27 @@ impl<T: Config> Pallet<T> {
 		GenesisNetworkId::<T>::get()
 	}
 
+	pub fn is_origin_chain() -> bool {
+		IsOriginChain::<T>::get()
+	}
+
 	/// Record an activity event for the given identifier by appending a new record.
 	pub fn update_identifier_state(
 		identifier: &Ss58Identifier,
 		digest: HashOf<T>,
-		event: EventTypeOf,
+		action: EventTypeOf,
 		seal: EventBlock,
 	) -> DispatchResult {
 		let index = StateVersion::<T>::get(identifier);
-		let record = StateEvent { event: event.clone(), digest, seal };
+		let record = StateEvent { action: action.clone(), digest, seal };
 		StateHistory::<T>::insert(identifier, index, record);
 		StateVersion::<T>::insert(identifier, index.saturating_add(1));
 
-		Self::deposit_event(Event::State { identifier: identifier.clone(), version: index, event });
+		Self::deposit_event(Event::StateChange {
+			identifier: identifier.clone(),
+			version: index,
+			action,
+		});
 
 		Ok(())
 	}
@@ -237,6 +271,8 @@ impl<T: Config> From<IdentifierError> for Error<T> {
 			IdentifierError::InvalidIdentifierLength => Self::InvalidIdentifierLength,
 			IdentifierError::CompactValueOutOfRange => Self::CompactValueOutOfRange,
 			IdentifierError::InvalidDigestLength => Self::InvalidDigestLength,
+			IdentifierError::InvalidCompactEncoding => Self::InvalidCompactEncoding,
+			IdentifierError::InvalidMode => Self::InvalidMode,
 		}
 	}
 }
@@ -248,11 +284,11 @@ pub trait Identifier<T: pallet::Config> {
 		identifier: &Ss58Identifier,
 	) -> Result<DecodedIdentifier, pallet::Error<T>>;
 	fn resolve_pallet(index: u16) -> Result<String, pallet::Error<T>>;
-	/// Record a state trsition event for the given identifier.
+	/// Record a state transition event for the given identifier.
 	fn state_event(
 		identifier: &Ss58Identifier,
 		digest: Self::Hash,
-		event: EventTypeOf,
+		action: EventTypeOf,
 		stamp: EventBlock,
 	) -> Result<(), pallet::Error<T>>;
 }
@@ -262,7 +298,9 @@ impl<T: pallet::Config> Identifier<T> for Pallet<T> {
 	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, pallet::Error<T>> {
 		let pid = Self::get_or_add_pallet_index(pallet)?;
 		let nid = Self::get_network_id();
-		Ss58Identifier::to_encoded(digest, nid, pid).map_err(Into::into)
+		let rpx = T::Ss58Prefix::get();
+		let ori = Self::is_origin_chain() as u8;
+		Ss58Identifier::to_encoded(digest, nid, pid, rpx, ori).map_err(Into::into)
 	}
 
 	fn resolve_identifier(

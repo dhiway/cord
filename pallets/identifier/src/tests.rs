@@ -73,10 +73,10 @@ fn resolve_pallet_name_negative() {
 #[test]
 fn set_and_get_network_id() {
 	new_test_ext().execute_with(|| {
-		let network_id = NetworkId::from(42u32);
-		Pallet::<Test>::set_network_id(network_id);
+		let chain_id: u16 = 12_001;
+		GenesisNetworkId::<Test>::put(chain_id);
 		let retrieved = Pallet::<Test>::get_network_id();
-		assert_eq!(retrieved, network_id);
+		assert_eq!(retrieved, chain_id);
 	});
 }
 

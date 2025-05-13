@@ -90,7 +90,7 @@ fn cord_loom_testnet_genesis(
 		"balances": {
 			"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"identifier": { "networkId": 2002},
+		"identifier": { "isOriginChain": false, "networkId": 12001},
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
 				.iter()

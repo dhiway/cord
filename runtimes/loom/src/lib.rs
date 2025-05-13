@@ -975,8 +975,14 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const OriginChainId: u32 = 0;
+}
+
 impl pallet_identifier::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type Ss58Prefix = SS58Prefix;
+	type OriginChainId = OriginChainId;
 	type BlockNumberProvider = System;
 }
 
@@ -1503,6 +1509,8 @@ impl_runtime_apis! {
 			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
 
 			Some(identifier_api::DecodedIdentifierApi {
+				rpx: decoded.rpx,
+				ori: decoded.ori !=0,
 				nid: decoded.nid,
 				pid: decoded.pid,
 				gen: decoded.gen,

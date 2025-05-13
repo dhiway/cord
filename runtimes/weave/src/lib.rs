@@ -682,8 +682,8 @@ impl Get<Option<BalancingConfig>> for OffchainRandomBalancing {
 			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
-					.expect("input is padded with zeroes; qed") %
-					max.saturating_add(1);
+					.expect("input is padded with zeroes; qed")
+					% max.saturating_add(1);
 				random as usize
 			},
 		};
@@ -1447,8 +1447,14 @@ impl pallet_statement::Config for Runtime {
 	type MaxAllowedBytes = MaxAllowedBytes;
 }
 
+parameter_types! {
+	pub const OriginChainId: u32 = 0;
+}
+
 impl pallet_identifier::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type Ss58Prefix = SS58Prefix;
+	type OriginChainId = OriginChainId;
 	type BlockNumberProvider = System;
 }
 
@@ -2168,6 +2174,8 @@ impl_runtime_apis! {
 			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
 
 			Some(identifier_api::DecodedIdentifierApi {
+				rpx: decoded.rpx,
+				ori: decoded.ori !=0,
 				nid: decoded.nid,
 				pid: decoded.pid,
 				gen: decoded.gen,

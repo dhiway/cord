@@ -610,11 +610,11 @@ impl<T: Config> Pallet<T> {
 		digest: T::Hash,
 		msg: &[u8],
 	) -> DispatchResult {
-		let entry: EventTypeOf =
+		let action: EventTypeOf =
 			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
 		let stamp = EventBlock::current::<T>();
 		<pallet_identifier::Pallet<T> as Identifier<T>>::state_event(
-			identifier, digest, entry, stamp,
+			identifier, digest, action, stamp,
 		)
 		.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
