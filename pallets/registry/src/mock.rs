@@ -57,12 +57,18 @@ impl pallet_profile::Config for Test {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const MaxRegistryBlobSize: u32 = 4 * 1024; // 4KB
+}
+
 impl pallet_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type MaxRegistryBlobSize = MaxRegistryBlobSize;
 	type WeightInfo = ();
 }
 
 impl pallet_identifier::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = frame_system::Pallet<Test>;
 }
 

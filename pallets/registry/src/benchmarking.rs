@@ -1,6 +1,6 @@
 // This file is part of CORD – https://cord.network
 //
-// Copyright (C)
+// Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // CORD is free software: you can redistribute it and/or modify
@@ -19,186 +19,246 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use frame_benchmarking::{benchmarks, v2::*};
+extern crate alloc;
+use alloc::vec;
+
+use crate::Pallet;
+use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
-use parity_scale_codec::Encode;
-use sp_core::H256;
-use sp_runtime::traits::Hash;
+
+// Helper: Create a profile for an account
+fn create_profile<T: Config>(account: T::AccountId) {
+	let mut data = vec![];
+	let key = b"pub_name".to_vec();
+	let value = BoundedVec::try_from(b"test".to_vec()).expect("Value should fit");
+	data.push((key.try_into().expect("Key should fit"), value));
+	pallet_profile::Pallet::<T>::set_profile(RawOrigin::Signed(account.clone()).into(), data)
+		.expect("Profile creation should succeed");
+}
 
 benchmarks! {
-	// Benchmark for registry creation.
-	create {
-		let caller: T::AccountId = whitelisted_caller();
-		let origin = RawOrigin::Signed(caller.clone());
-		// Generate dummy inputs.
-		let tx_hash: H256 = H256::random();
-		let doc_id: Option<Vec<u8>> = None;
-		let doc_author_id: Option<CordAccountOf<T>> = None;
-		let doc_node_id: Option<Vec<u8>> = None;
-	}: _(origin.into(), tx_hash, doc_id, doc_author_id, doc_node_id)
+	// Benchmark for creating a registry store.
+	create_store {
+		let caller: T::AccountId = account("caller", 0, 0);
+		let doc_author: T::AccountId = account("doc_author", 1, 0);
+
+		create_profile::<T>(caller.clone());
+		create_profile::<T>(doc_author.clone());
+
+		let tx_hash = T::Hash::default();
+		let doc_id = b"doc_id".to_vec();
+		let doc_node_id = b"doc_node_id".to_vec();
+	}: _(RawOrigin::Signed(caller.clone()), tx_hash, doc_id.clone(), doc_author.clone(), doc_node_id.clone())
 	verify {
-		// Ensure one registry exists.
-		assert!(Registries::<T>::iter().count() == 1);
+		let registry_id = Registries::<T>::iter().next().expect("Registry exists").0;
+		let registry = Registries::<T>::get(registry_id).expect("Registry should exist");
+		let creator_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&caller)
+			.expect("Creator profile ID should exist");
+		let doc_author_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&doc_author)
+			.expect("Doc author profile ID should exist");
+		assert_eq!(registry.status, Status::Active);
+		assert_eq!(registry.doc_id, Some(BoundedVec::try_from(doc_id).expect("Doc ID should fit")));
+		assert_eq!(registry.doc_node_id, Some(BoundedVec::try_from(doc_node_id).expect("Doc node ID should fit")));
+		assert_eq!(registry.tx_hash, tx_hash);
+		assert_eq!(registry.creator, creator_profile_id);
+		assert_eq!(registry.doc_author_profile_id, Some(doc_author_profile_id));
 	}
 
 	// Benchmark for adding a delegate to a registry.
 	add_delegate {
-		let caller: T::AccountId = whitelisted_caller();
-		let origin = RawOrigin::Signed(caller.clone());
-		// Build a registry identifier.
-		let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
-		let previous_block_hash = <frame_system::Pallet<T>>::block_hash(
-			<frame_system::Pallet<T>>::block_number().saturating_sub(One::one())
-		);
-		let mut input = previous_block_hash.encode();
-		input.extend_from_slice(&caller.encode());
-		let digest = T::Hashing::hash_of(&input);
-		let registry_id = <pallet_identifier::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
-			.map_err(|_| "Identifier build failed")?;
-		// Insert a registry with Active status.
-		Registries::<T>::insert(&registry_id, RegistryDetails {
-			creator: caller.clone(),
-			tx_hash: H256::random(),
-			doc_id: None,
-			doc_author_id: None,
-			doc_node_id: None,
-			status: Status::Active,
-		});
-		// Ensure the caller has full permissions.
-		Delegates::<T>::insert(&registry_id, &caller, Permissions::all());
-		// Create a delegate.
-		let delegate: T::AccountId = whitelisted_caller();
-		let permissions = Permissions::all();
-	}: _(origin.into(), registry_id, delegate.clone(), permissions)
+		let caller: T::AccountId = account("caller", 0, 0);
+		let doc_author: T::AccountId = account("doc_author", 1, 0);
+
+		create_profile::<T>(caller.clone());
+		create_profile::<T>(doc_author.clone());
+
+		let tx_hash = T::Hash::default();
+		let doc_id = b"doc_id".to_vec();
+		let doc_node_id = b"doc_node_id".to_vec();
+		Pallet::<T>::create_store(
+			RawOrigin::Signed(caller.clone()).into(),
+			tx_hash,
+			doc_id,
+			doc_author.clone(),
+			doc_node_id
+		).expect("Registry creation should succeed");
+		let registry_id = Registries::<T>::iter().next().expect("Registry exists").0;
+
+		let caller_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&caller)
+			.expect("Caller profile ID should exist");
+		Delegates::<T>::insert(&registry_id, &caller_profile_id, Permissions::all());
+		let delegate: T::AccountId = account("delegate", 2, 0);
+
+		create_profile::<T>(delegate.clone());
+		let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&delegate)
+			.expect("Delegate profile ID should exist");
+		let permissions = vec![PermissionVariant::Entry, PermissionVariant::Delegate];
+	}: _(RawOrigin::Signed(caller.clone()), registry_id.clone(), delegate.clone(), permissions)
 	verify {
-		assert!(Delegates::<T>::contains_key(&registry_id, &delegate));
+		assert!(Delegates::<T>::contains_key(&registry_id, &delegate_profile_id));
 	}
 
 	// Benchmark for removing a delegate from a registry.
 	remove_delegate {
-		let caller: T::AccountId = whitelisted_caller();
-		let origin = RawOrigin::Signed(caller.clone());
-		let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
-		let previous_block_hash = <frame_system::Pallet<T>>::block_hash(
-			<frame_system::Pallet<T>>::block_number().saturating_sub(One::one())
-		);
-		let mut input = previous_block_hash.encode();
-		input.extend_from_slice(&caller.encode());
-		let digest = T::Hashing::hash_of(&input);
-		let registry_id = <pallet_identifier::Pallet<T> as Identifier<T>>::build(&digest.encode(), pallet_name)
-			.map_err(|_| "Identifier build failed")?;
-		// Setup: insert registry and add two delegates.
-		Registries::<T>::insert(&registry_id, RegistryDetails {
-			creator: caller.clone(),
-			tx_hash: H256::random(),
-			doc_id: None,
-			doc_author_id: None,
-			doc_node_id: None,
-			status: Status::Active,
-		});
-		Delegates::<T>::insert(&registry_id, &caller, Permissions::all());
-		let delegate: T::AccountId = whitelisted_caller();
-		Delegates::<T>::insert(&registry_id, &delegate, Permissions::all());
-	}: _(origin.into(), registry_id, delegate.clone())
+		let caller: T::AccountId = account("caller", 0, 0);
+		let doc_author: T::AccountId = account("doc_author", 1, 0);
+		create_profile::<T>(caller.clone());
+		create_profile::<T>(doc_author.clone());
+		let tx_hash = T::Hash::default();
+		let doc_id = b"doc_id".to_vec();
+		let doc_node_id = b"doc_node_id".to_vec();
+		Pallet::<T>::create_store(
+			RawOrigin::Signed(caller.clone()).into(),
+			tx_hash,
+			doc_id,
+			doc_author,
+			doc_node_id
+		).expect("Registry creation should succeed");
+		let registry_id = Registries::<T>::iter().next().expect("Registry exists").0;
+		let caller_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&caller)
+			.expect("Caller profile ID should exist");
+
+		Delegates::<T>::insert(&registry_id, &caller_profile_id, Permissions::all());
+		let delegate: T::AccountId = account("delegate", 2, 0);
+
+		create_profile::<T>(delegate.clone());
+		let delegate_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&delegate)
+			.expect("Delegate profile ID should exist");
+		Delegates::<T>::insert(&registry_id, &delegate_profile_id, Permissions::all());
+	}: _(RawOrigin::Signed(caller.clone()), registry_id.clone(), delegate.clone())
 	verify {
-		assert!(!Delegates::<T>::contains_key(&registry_id, &delegate));
+		assert!(!Delegates::<T>::contains_key(registry_id, &delegate_profile_id));
 	}
 
 	// Benchmark for archiving a registry.
 	archive {
-		let caller: T::AccountId = whitelisted_caller();
-		let origin = RawOrigin::Signed(caller.clone());
-		let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
-		let previous_block_hash = <frame_system::Pallet<T>>::block_hash(
-			<frame_system::Pallet<T>>::block_number().saturating_sub(One::one())
-		);
-		let mut input = previous_block_hash.encode();
-		input.extend_from_slice(&caller.encode());
-		let digest = T::Hashing::hash_of(&input);
-		let registry_id = <pallet_identifier::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
-			.map_err(|_| "Identifier build failed")?;
-		// Setup: insert an active registry.
-		Registries::<T>::insert(&registry_id, RegistryDetails {
-			creator: caller.clone(),
-			tx_hash: H256::random(),
-			doc_id: None,
-			doc_author_id: None,
-			doc_node_id: None,
-			status: Status::Active,
-		});
-		Delegates::<T>::insert(&registry_id, &caller, Permissions::all());
-	}: _(origin.into(), registry_id)
+		let caller: T::AccountId = account("caller", 0, 0);
+		let doc_author: T::AccountId = account("doc_author", 1, 0);
+
+		create_profile::<T>(caller.clone());
+		create_profile::<T>(doc_author.clone());
+
+		let tx_hash = T::Hash::default();
+		let doc_id = b"doc_id".to_vec();
+		let doc_node_id = b"doc_node_id".to_vec();
+		Pallet::<T>::create_store(
+			RawOrigin::Signed(caller.clone()).into(),
+			tx_hash,
+			doc_id,
+			doc_author,
+			doc_node_id
+		).expect("Registry creation should succeed");
+		let registry_id = Registries::<T>::iter().next().expect("Registry exists").0;
+
+		let caller_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&caller)
+			.expect("Caller profile ID should exist");
+		Delegates::<T>::insert(&registry_id, &caller_profile_id, Permissions::all());
+	}: _(RawOrigin::Signed(caller.clone()), registry_id.clone())
 	verify {
-		let registry = Registries::<T>::get(&registry_id).unwrap();
-		assert!(registry.status == Status::Archived);
+		let registry = Registries::<T>::get(&registry_id).expect("Registry should exist");
+		assert_eq!(registry.status, Status::Archived);
 	}
 
 	// Benchmark for restoring a registry.
 	restore {
-		let caller: T::AccountId = whitelisted_caller();
-		let origin = RawOrigin::Signed(caller.clone());
-		let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
-		let previous_block_hash = <frame_system::Pallet<T>>::block_hash(
-			<frame_system::Pallet<T>>::block_number().saturating_sub(One::one())
-		);
-		let mut input = previous_block_hash.encode();
-		input.extend_from_slice(&caller.encode());
-		let digest = T::Hashing::hash_of(&input);
-		let registry_id = <pallet_identifier::Pallet<T> as Identifier>::build(&digest.encode(), pallet_name)
-			.map_err(|_| "Identifier build failed")?;
-		// Setup: insert an archived registry.
-		Registries::<T>::insert(&registry_id, RegistryDetails {
-			creator: caller.clone(),
-			tx_hash: H256::random(),
-			doc_id: None,
-			doc_author_id: None,
-			doc_node_id: None,
-			status: Status::Archived,
-		});
-		Delegates::<T>::insert(&registry_id, &caller, Permissions::all());
-	}: _(origin.into(), registry_id)
+		let caller: T::AccountId = account("caller", 0, 0);
+		let doc_author: T::AccountId = account("doc_author", 1, 0);
+
+		create_profile::<T>(caller.clone());
+		create_profile::<T>(doc_author.clone());
+
+		let tx_hash = T::Hash::default();
+		let doc_id = b"doc_id".to_vec();
+		let doc_node_id = b"doc_node_id".to_vec();
+		Pallet::<T>::create_store(
+			RawOrigin::Signed(caller.clone()).into(),
+			tx_hash,
+			doc_id,
+			doc_author,
+			doc_node_id
+		).expect("Registry creation should succeed");
+		let registry_id = Registries::<T>::iter().next().expect("Registry exists").0;
+
+		let caller_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&caller)
+			.expect("Caller profile ID should exist");
+		Delegates::<T>::insert(&registry_id, &caller_profile_id, Permissions::all());
+
+		Pallet::<T>::archive(
+			RawOrigin::Signed(caller.clone()).into(),
+			registry_id.clone()
+		).expect("Archiving should succeed");
+	}: _(RawOrigin::Signed(caller.clone()), registry_id.clone())
 	verify {
-		let registry = Registries::<T>::get(&registry_id).unwrap();
-		assert!(registry.status == Status::Active);
+		let registry = Registries::<T>::get(&registry_id).expect("Registry should exist");
+		assert_eq!(registry.status, Status::Active);
 	}
 
-	// Benchmark for updating registry entry author.
+	// Benchmark for updating registry author.
 	update_author {
-		let caller: T::AccountId = whitelisted_caller();
-		let origin = RawOrigin::Signed(caller.clone());
-		// Setup: create a registry.
-		assert_ok!(Registry::create(
-			origin.clone().into(),
-			H256::random(),
-			None,
-			None,
-			None
-		));
+		let caller: T::AccountId = account("caller", 0, 0);
+		let doc_author: T::AccountId = account("doc_author", 1, 0);
+
+		create_profile::<T>(caller.clone());
+		create_profile::<T>(doc_author.clone());
+
+		let tx_hash = T::Hash::default();
+		let doc_id = b"doc_id".to_vec();
+		let doc_node_id = b"doc_node_id".to_vec();
+		Pallet::<T>::create_store(
+			RawOrigin::Signed(caller.clone()).into(),
+			tx_hash,
+			doc_id,
+			doc_author,
+			doc_node_id
+		).expect("Registry creation should succeed");
 		let registry_id = Registries::<T>::iter().next().expect("Registry exists").0;
-		let new_author: T::AccountId = whitelisted_caller();
-	}: _(origin.into(), registry_id, new_author.clone())
+
+		let caller_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&caller)
+			.expect("Caller profile ID should exist");
+		Delegates::<T>::insert(&registry_id, &caller_profile_id, Permissions::all());
+
+		let new_author: T::AccountId = account("new_author", 2, 0);
+		create_profile::<T>(new_author.clone());
+		let new_author_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&new_author)
+			.expect("New author profile ID should exist");
+	}: _(RawOrigin::Signed(caller.clone()), registry_id.clone(), new_author.clone())
 	verify {
-		let registry = Registries::<T>::get(&registry_id).unwrap();
-		assert_eq!(registry.doc_author_id, Some(new_author));
+		let registry = Registries::<T>::get(&registry_id).expect("Registry should exist");
+		assert_eq!(registry.doc_author_profile_id, Some(new_author_profile_id));
 	}
 
 	// Benchmark for updating registry creator.
 	update_creator {
-		let caller: T::AccountId = whitelisted_caller();
-		let origin = RawOrigin::Signed(caller.clone());
-		// Setup: create a registry.
-		assert_ok!(Registry::create(
-			origin.clone().into(),
-			H256::random(),
-			None,
-			None,
-			None
-		));
+		let caller: T::AccountId = account("caller", 0, 0);
+		let doc_author: T::AccountId = account("doc_author", 1, 0);
+		create_profile::<T>(caller.clone());
+		create_profile::<T>(doc_author.clone());
+
+		let tx_hash = T::Hash::default();
+		let doc_id = b"doc_id".to_vec();
+		let doc_node_id = b"doc_node_id".to_vec();
+		Pallet::<T>::create_store(
+			RawOrigin::Signed(caller.clone()).into(),
+			tx_hash,
+			doc_id,
+			doc_author,
+			doc_node_id
+		).expect("Registry creation should succeed");
 		let registry_id = Registries::<T>::iter().next().expect("Registry exists").0;
-		let new_creator: T::AccountId = whitelisted_caller();
-	}: _(origin.into(), registry_id, new_creator.clone())
+
+		let caller_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&caller)
+			.expect("Caller profile ID should exist");
+		Delegates::<T>::insert(&registry_id, &caller_profile_id, Permissions::all());
+
+		let new_creator: T::AccountId = account("new_creator", 2, 0);
+		create_profile::<T>(new_creator.clone());
+		let new_creator_profile_id = pallet_profile::Pallet::<T>::get_profile_id(&new_creator)
+			.expect("New creator profile ID should exist");
+	}: _(RawOrigin::Signed(caller.clone()), registry_id.clone(), new_creator.clone())
 	verify {
-		let registry = Registries::<T>::get(&registry_id).unwrap();
-		assert_eq!(registry.creator, new_creator);
+		let registry = Registries::<T>::get(&registry_id).expect("Registry should exist");
+		assert_eq!(registry.creator, new_creator_profile_id);
 	}
+
+	impl_benchmark_test_suite!(Pallet, crate::mock::new_test_ext(), crate::mock::Test);
 }
