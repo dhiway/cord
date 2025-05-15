@@ -23,7 +23,7 @@
 
 use crate::identifier::Ss58Identifier;
 use alloc::vec::Vec;
-use codec::{Compact, Decode, Encode, EncodeLike, MaxEncodedLen};
+use codec::{Compact, Decode, DecodeWithMemTracking, Encode, EncodeLike, MaxEncodedLen};
 use frame_support::{traits::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
@@ -34,7 +34,7 @@ use sp_runtime::RuntimeDebug;
 /// - Identifier: An embedded Ss58Identifier.
 /// - Digest: A fixed 32-byte digest (e.g., computed using BlakeTwo256).
 /// - CID: A fixed 64-byte content identifier.
-#[derive(Clone, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
+#[derive(Clone, DecodeWithMemTracking, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum Element<const MAX_CAP: u32> {
 	/// No data provided.
 	None,

@@ -24,6 +24,7 @@ members = [
 	"origin/relay/runtime",
 	"origin/relay/runtime/constants",
 	"pallets/collection",
+	"pallets/entity",
 	"pallets/identity",
 	"pallets/identifier",
 	"pallets/network-membership",
@@ -199,7 +200,10 @@ fnv = { version = "1.0.6" }
 fork-tree = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
 forwarded-header-value = { version = "0.1.1" }
 fraction = { version = "0.13.1" }
-frame = { version = "0.9.1", default-features = false, package = "polkadot-sdk-frame" }
+frame = { version = "0.9.1", default-features = false, package = "polkadot-sdk-frame", features = [
+	"experimental",
+	"runtime",
+] }
 frame-benchmarking = { version = "40.0.0", default-features = false }
 frame-benchmarking-cli = { version = "47.0.0", default-features = false }
 frame-benchmarking-pallet-pov = { version = "30.0.0", default-features = false }
@@ -746,6 +750,7 @@ pallet-assets-runtime-api = { path = "runtimes/common/api/assets", default-featu
 pallet-identifier = { path = "pallets/identifier", default-features = false }
 pallet-registries = { path = "pallets/registries", default-features = false }
 pallet-entries = { path = "pallets/entries", default-features = false }
+pallet-entity = { path = "pallets/entity", default-features = false }
 pallet-schema-accounts = { path = "pallets/schema-accounts", default-features = false }
 pallet-namespace = { path = 'pallets/namespace', default-features = false }
 pallet-profile = { path = "pallets/profile", default-features = false }

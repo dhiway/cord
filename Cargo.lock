@@ -9551,6 +9551,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-entity"
+version = "0.9.7"
+dependencies = [
+ "cord-primitives",
+ "enumflags2",
+ "frame-benchmarking 40.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-support 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "frame-system 40.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log",
+ "pallet-balances 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pallet-identifier",
+ "parity-scale-codec",
+ "polkadot-sdk-frame 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "scale-info",
+ "sp-core 36.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-io 40.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-keystore 0.42.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp-runtime 41.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "pallet-entry"
 version = "0.9.7"
 dependencies = [
