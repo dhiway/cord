@@ -18,7 +18,7 @@
 #![allow(non_camel_case_types)]
 
 use super::*;
-use crate as pallet_registry;
+use crate as pallet_profile;
 use frame_support::{derive_impl, parameter_types};
 use frame_system as system;
 use sp_runtime::BuildStorage;
@@ -28,7 +28,6 @@ type Block = system::mocking::MockBlock<Test>;
 frame_support::construct_runtime!(
 	pub enum Test {
 		System: system,
-		Registry: pallet_registry,
 		Identifier: pallet_identifier,
 		Profile: pallet_profile,
 	}
@@ -54,16 +53,6 @@ impl pallet_profile::Config for Test {
 	type MaxDataKeyLength = MaxDataKeyLength;
 	type MaxDataValueLength = MaxDataValueLength;
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const MaxRegistryBlobSize: u32 = 4 * 1024; // 4KB
-}
-
-impl pallet_registry::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type MaxRegistryBlobSize = MaxRegistryBlobSize;
 	type WeightInfo = ();
 }
 
