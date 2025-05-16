@@ -69,24 +69,22 @@ fn resolve_pallet_name_negative() {
 	});
 }
 
-/* TODO: This test is commented out because the set_network_id function is not present in
- * identifier pallet */
 /// Test that setting and then retrieving the network id works correctly.
-// #[test]
-// fn set_and_get_network_id() {
-// 	new_test_ext().execute_with(|| {
-// 		let network_id = NetworkId::from(42u32);
-// 		Pallet::<Test>::set_network_id(network_id);
-// 		let retrieved = Pallet::<Test>::get_network_id();
-// 		assert_eq!(retrieved, network_id);
-// 	});
-// }
+#[test]
+fn set_and_get_network_id() {
+	new_test_ext().execute_with(|| {
+		let chain_id: u16 = 12_001;
+		GenesisNetworkId::<Test>::put(chain_id);
+		let retrieved = Pallet::<Test>::get_network_id();
+		assert_eq!(retrieved, chain_id);
+	});
+}
 
 #[test]
 fn record_activity_positive() {
 	new_test_ext().execute_with(|| {
 		let id_digest = vec![1u8; 32];
-		let identifier = Ss58Identifier::to_encoded(id_digest, 100, 5)
+		let identifier = Ss58Identifier::to_encoded(id_digest, 100, 5, 29, 0)
 			.expect("Identifier encoding should succeed");
 		let digest = H256::random();
 

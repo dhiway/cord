@@ -6,6 +6,7 @@
 .local
 .vscode
 .wasm-binaries
+.zed
 *.adoc
 *.bin
 *.iml

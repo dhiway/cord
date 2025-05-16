@@ -30,6 +30,8 @@ use scale_info::TypeInfo;
 
 #[derive(Encode, Decode, TypeInfo, PartialEq, Eq)]
 pub struct DecodedIdentifierApi {
+	pub rpx: u16,
+	pub ori: bool,
 	pub nid: u16,
 	pub pid: u16,
 	pub gen: String,

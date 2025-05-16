@@ -24,7 +24,7 @@ scale-info = { features = ["derive"], workspace = true }
 impl-serde = { optional = true, workspace = true }
 primitive-types = { features = ["codec", "scale-info"], workspace = true }
 serde = { optional = true, features = ["alloc", "derive"], workspace = true }
-bs58 = { optional = true, workspace = true }
+bs58 = { optional = true, features = ["alloc"], workspace = true }
 blake2 = { optional = true, workspace = true }
 sp-crypto-hashing = { workspace = true }
 sp-runtime-interface = { workspace = true }
@@ -59,7 +59,6 @@ std = [
 	"sp-runtime-interface/std",
 	"bs58/std",
 	"blake2/std",
-	# "cord-utilities/std",
 	"sp-core?/std",
 	"sp-storage/std",
 ]
@@ -79,6 +78,5 @@ serde = [
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
-	# "cord-utilities/try-runtime",
 	"sp-runtime/try-runtime",
 ]

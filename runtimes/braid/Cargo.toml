@@ -38,11 +38,11 @@ cord-runtime-common = { workspace = true }
 network-membership = { workspace = true }
 
 pallet-collection = { workspace = true }
-pallet-cord-identity = { workspace = true }
 pallet-cord-offences = { workspace = true }
 pallet-cord-node-authorization = { workspace = true }
 pallet-cord-session-benchmarking = { workspace = true }
 pallet-entry = { workspace = true }
+pallet-entity = { workspace = true }
 pallet-identifier = { workspace = true }
 pallet-network-membership = { workspace = true }
 pallet-profile = { workspace = true }
@@ -114,6 +114,7 @@ frame-benchmarking = { workspace = true, optional = true }
 frame-system-benchmarking = { workspace = true, optional = true }
 frame-try-runtime = { workspace = true, optional = true }
 frame-metadata-hash-extension = { workspace = true }
+zeroize = { workspace = true }
 
 [dev-dependencies]
 sp-staking = { workspace = true }
@@ -155,11 +156,11 @@ std = [
 	"pallet-collection/std",
 	"pallet-contracts/std",
 	"pallet-entry/std",
+	"pallet-entity/std",
 	"pallet-identifier/std",
 	"pallet-profile/std",
 	"pallet-registry/std",
 	"pallet-grandpa/std",
-	"pallet-cord-identity/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
 	"pallet-insecure-randomness-collective-flip/std",
@@ -204,6 +205,8 @@ std = [
 	"frame-try-runtime?/std",
 	"primitive-types/std",
 	"sp-io/std",
+	"zeroize/alloc",
+	"zeroize/std",
 ]
 
 runtime-benchmarks = [
@@ -219,7 +222,6 @@ runtime-benchmarks = [
 	"pallet-collection/runtime-benchmarks",
 	"pallet-contracts/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
-	"pallet-cord-identity/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-identifier/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
@@ -257,8 +259,8 @@ try-runtime = [
 	"pallet-beefy/try-runtime",
 	"pallet-contracts/try-runtime",
 	"pallet-entry/try-runtime",
+	"pallet-entity/try-runtime",
 	"pallet-grandpa/try-runtime",
-	"pallet-cord-identity/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",

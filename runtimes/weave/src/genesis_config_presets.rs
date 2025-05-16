@@ -92,7 +92,7 @@ fn cord_weave_testnet_genesis(
 	"balances": {
 		"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 	},
-	"identifier": { "networkId": 2001},
+	"identifier": { "isOriginChain": false, "networkId": 12002},
 	"session": {
 		"keys": initial_authorities
 			.iter()
@@ -125,7 +125,7 @@ fn cord_weave_testnet_genesis(
 	"babe": {
 		"epochConfig": Some(BABE_GENESIS_EPOCH_CONFIG),
 	},
-		"sudo": { "key": Some(root_key) },
+	"sudo": { "key": Some(root_key) },
 	})
 }
 

@@ -48,8 +48,8 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy, EnsureWithSuccess};
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
 pub use pallet_balances::Call as BalancesCall;
+use pallet_entity::identity::IdentityInfo;
 use pallet_identifier::Identifier as _;
-use pallet_identity::legacy::IdentityInfo;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
 use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
@@ -507,41 +507,6 @@ impl pallet_asset_conversion::Config for Runtime {
 }
 
 parameter_types! {
-	// difference of 26 bytes on-chain for the registration and 9 bytes on-chain for the identity
-	// information, already accounted for by the byte deposit
-	pub const BasicDeposit: Balance = deposit(1, 17);
-	pub const ByteDeposit: Balance = deposit(0, 1);
-	pub const UsernameDeposit: Balance = deposit(0, 32);
-	pub const SubAccountDeposit: Balance = 2 * UNITS;   // 53 bytes on-chain
-	pub const MaxSubAccounts: u32 = 100;
-	pub const MaxAdditionalFields: u32 = 100;
-	pub const MaxRegistrars: u32 = 20;
-}
-
-impl pallet_identity::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type BasicDeposit = BasicDeposit;
-	type ByteDeposit = ByteDeposit;
-	type UsernameDeposit = UsernameDeposit;
-	type SubAccountDeposit = SubAccountDeposit;
-	type MaxSubAccounts = MaxSubAccounts;
-	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
-	type MaxRegistrars = MaxRegistrars;
-	type Slashed = Treasury;
-	type ForceOrigin = EnsureRootOrCommitteeApproval;
-	type RegistrarOrigin = EnsureRootOrCommitteeApproval;
-	type OffchainSignature = Signature;
-	type SigningPublicKey = <Signature as traits::Verify>::Signer;
-	type UsernameAuthorityOrigin = EnsureRoot<Self::AccountId>;
-	type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
-	type UsernameGracePeriod = ConstU32<{ 30 * DAYS }>;
-	type MaxSuffixLength = ConstU32<7>;
-	type MaxUsernameLength = ConstU32<32>;
-	type WeightInfo = weights::pallet_identity::WeightInfo<Runtime>;
-}
-
-parameter_types! {
 	pub MotionDuration: BlockNumber = prod_or_fast!(3 * DAYS, 2 * MINUTES, "CORD_MOTION_DURATION");
 	pub const MaxProposals: u32 = 100;
 	pub const MaxMembers: u32 = 50;
@@ -975,8 +940,14 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const OriginChainId: u32 = 0;
+}
+
 impl pallet_identifier::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type Ss58Prefix = SS58Prefix;
+	type OriginChainId = OriginChainId;
 	type BlockNumberProvider = System;
 }
 
@@ -1004,6 +975,21 @@ impl pallet_entry::Config for Runtime {
 	type MaxRegistryEntryBlobSize = MaxRegistryBlobSize;
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const MaxUsernameLength: u32 = 32;
+	pub const MaxAdditionalFields: u32 = 10;
+}
+
+impl pallet_entity::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxSubAccounts = ConstU32<2>;
+	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxUsernameLength = MaxUsernameLength;
+	type ForceOrigin = EnsureRoot<Self::AccountId>;
+	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -1118,9 +1104,6 @@ mod runtime {
 	#[runtime::pallet_index(27)]
 	pub type RandomnessCollectiveFlip = pallet_insecure_randomness_collective_flip::Pallet<Runtime>;
 
-	#[runtime::pallet_index(28)]
-	pub type Identity = pallet_identity::Pallet<Runtime>;
-
 	#[runtime::pallet_index(30)]
 	pub type Scheduler = pallet_scheduler::Pallet<Runtime>;
 
@@ -1167,6 +1150,9 @@ mod runtime {
 
 	#[runtime::pallet_index(74)]
 	pub type Profile = pallet_profile::Pallet<Runtime>;
+
+	#[runtime::pallet_index(75)]
+	pub type Entity = pallet_entity::Pallet<Runtime>;
 
 	#[runtime::pallet_index(100)]
 	pub type MultiBlockMigrations = pallet_migrations::Pallet<Runtime>;
@@ -1289,7 +1275,6 @@ mod benches {
 		[pallet_asset_conversion_tx_payment, AssetConversionTxPayment]
 		[pallet_transaction_payment, TransactionPayment]
 		[pallet_grandpa, Grandpa]
-		[pallet_identity, Identity]
 		[pallet_identifier, Identifier]
 		[pallet_session, SessionBench::<Runtime>]
 		[pallet_im_online, ImOnline]
@@ -1503,6 +1488,8 @@ impl_runtime_apis! {
 			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
 
 			Some(identifier_api::DecodedIdentifierApi {
+				rpx: decoded.rpx,
+				ori: decoded.ori !=0,
 				nid: decoded.nid,
 				pid: decoded.pid,
 				gen: decoded.gen,

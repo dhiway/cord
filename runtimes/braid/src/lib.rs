@@ -48,7 +48,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy};
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
 pub use pallet_balances::Call as BalancesCall;
-use pallet_cord_identity::legacy::IdentityInfo;
+use pallet_entity::identity::IdentityInfo;
 use pallet_identifier::Identifier as _;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
@@ -472,27 +472,6 @@ impl pallet_asset_conversion::Config for Runtime {
 	type BenchmarkHelper = ();
 }
 
-parameter_types! {
-	pub const MaxSubAccounts: u32 = 100;
-	pub const MaxRegistrars: u32 = 20;
-	pub const MaxAdditionalFields: u32 = 20;
-}
-
-impl pallet_cord_identity::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type MaxSubAccounts = MaxSubAccounts;
-	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
-	type MaxRegistrars = MaxRegistrars;
-	type RegistrarOrigin = EnsureRoot<AccountId>;
-	type OffchainSignature = Signature;
-	type SigningPublicKey = <Signature as Verify>::Signer;
-	type UsernameAuthorityOrigin = EnsureRoot<AccountId>;
-	type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
-	type MaxSuffixLength = ConstU32<7>;
-	type MaxUsernameLength = ConstU32<32>;
-	type WeightInfo = weights::pallet_cord_identity::WeightInfo<Runtime>;
-}
-
 impl pallet_cord_offences::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
@@ -724,8 +703,14 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const OriginChainId: u32 = 0;
+}
+
 impl pallet_identifier::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type Ss58Prefix = SS58Prefix;
+	type OriginChainId = OriginChainId;
 	type BlockNumberProvider = System;
 }
 
@@ -840,6 +825,21 @@ impl pallet_entry::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const MaxUsernameLength: u32 = 32;
+	pub const MaxAdditionalFields: u32 = 10;
+}
+
+impl pallet_entity::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxSubAccounts = ConstU32<2>;
+	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxUsernameLength = MaxUsernameLength;
+	type ForceOrigin = EnsureRoot<Self::AccountId>;
+	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;
+}
+
 pub type MetaTxExtension = (
 	pallet_verify_signature::VerifySignature<Runtime>,
 	pallet_meta_tx::MetaTxMarker<Runtime>,
@@ -947,9 +947,6 @@ mod runtime {
 	#[runtime::pallet_index(27)]
 	pub type RandomnessCollectiveFlip = pallet_insecure_randomness_collective_flip::Pallet<Runtime>;
 
-	#[runtime::pallet_index(28)]
-	pub type Identity = pallet_cord_identity::Pallet<Runtime>;
-
 	#[runtime::pallet_index(30)]
 	pub type Scheduler = pallet_scheduler::Pallet<Runtime>;
 
@@ -999,6 +996,9 @@ mod runtime {
 
 	#[runtime::pallet_index(74)]
 	pub type Profile = pallet_profile::Pallet<Runtime>;
+
+	#[runtime::pallet_index(75)]
+	pub type Entity = pallet_entity::Pallet<Runtime>;
 
 	#[runtime::pallet_index(101)]
 	pub type Contracts = pallet_contracts::Pallet<Runtime>;
@@ -1114,7 +1114,7 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_contracts, Contracts]
 		[pallet_grandpa, Grandpa]
-		[pallet_cord_identity, Identity]
+		// [pallet_cord_identity, Identity]
 		[pallet_identifier, Identifier]
 		[pallet_session, SessionBench::<Runtime>]
 		[pallet_im_online, ImOnline]
@@ -1320,6 +1320,8 @@ impl_runtime_apis! {
 			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
 
 			Some(identifier_api::DecodedIdentifierApi {
+				rpx: decoded.rpx,
+				ori: decoded.ori !=0,
 				nid: decoded.nid,
 				pid: decoded.pid,
 				gen: decoded.gen,
