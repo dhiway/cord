@@ -23,7 +23,6 @@
 
 extern crate alloc;
 use alloc::{str, vec::Vec};
-use bs58;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::{Id as NetworkId, NetworkInfoProvider};
 use cord_uri::{EntryTypeOf, EventStamp, Identifier, Ss58Identifier};

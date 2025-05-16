@@ -17,9 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-
-mod benchmarking;
-pub mod identity;
+#![warn(unused_crate_dependencies)]
 
 #[cfg(test)]
 pub mod mock;
@@ -27,6 +25,8 @@ pub mod mock;
 #[cfg(test)]
 mod tests;
 
+// mod benchmarking;
+pub mod identity;
 mod types;
 pub mod weights;
 

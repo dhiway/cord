@@ -622,7 +622,6 @@ sp-staking = { version = "38.0.0", default-features = false }
 sp-std = { version = "14.0.0", default-features = false }
 sp-state-machine = { version = "0.45.0", default-features = false }
 sp-statement-store = { version = "20.1.0", default-features = false }
-# sp-std = { version = "14.0.0", default-features = false }
 sp-storage = { version = "22.0.0", default-features = false }
 sp-test-primitives = { version = "2.0.0", default-features = false }
 sp-timestamp = { version = "36.0.0", default-features = false }
@@ -710,7 +709,7 @@ xcm-builder = { version = "20.1.0", default-features = false, package = "staging
 xcm-emulator = { version = "0.19.2" }
 xcm-executor = { version = "19.1.0", default-features = false, package = "staging-xcm-executor" }
 xcm-runtime-apis = { version = "0.7.0", default-features = false }
-zeroize = { version = "1.7.0", default-features = false }
+zeroize = { version = "1.7.0", default-features = false, features = ["alloc"] }
 zstd = { version = "0.12.4", default-features = false }
 
 # local dependencies

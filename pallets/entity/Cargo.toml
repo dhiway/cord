@@ -1,6 +1,7 @@
 [package]
 name = "pallet-entity"
 description = "Entity management pallet"
+# version = "0.9.7"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -16,17 +17,15 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 codec = { features = ["derive", "max-encoded-len"], workspace = true }
-cord-primitives = { default-features = true, workspace = true }
+cord-primitives = { default-features = false, workspace = true }
 enumflags2 = { workspace = true }
-log = { workspace = true }
-scale-info = { features = ["derive"], workspace = true }
+scale-info = { features = ["derive", "serde"], workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
-frame = { workspace = true, features = ["runtime"] }
-frame-support.workspace = true
-frame-system.workspace = true
-sp-io.workspace = true
+frame-support = { workspace = true }
+frame-system = { workspace = true }
 pallet-identifier = { workspace = true }
-sp-runtime.workspace = true
+# sp-io = { workspace = true }
+sp-runtime = { workspace = true }
 
 [dev-dependencies]
 pallet-balances = { default-features = true, workspace = true }
@@ -40,14 +39,14 @@ std = [
 	"codec/std",
 	"cord-primitives/std",
 	"enumflags2/std",
-	"frame/std",
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
 	"pallet-identifier/std",
-	"log/std",
 	"scale-info/std",
-	"sp-io/std",
+	"sp-core/std",
+	# "sp-io/std",
+	"sp-keystore/std",
 	"sp-runtime/std",
 ]
 runtime-benchmarks = [
@@ -57,7 +56,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 ]
 try-runtime = [
-	"frame/try-runtime",
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"sp-runtime/try-runtime",

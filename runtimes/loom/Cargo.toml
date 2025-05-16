@@ -38,6 +38,7 @@ cord-runtime-common = { workspace = true }
 pallet-collection = { workspace = true }
 pallet-cord-offences = { workspace = true }
 pallet-cord-session-benchmarking = { workspace = true }
+pallet-entity = { workspace = true }
 pallet-entry = { workspace = true }
 pallet-identifier = { workspace = true }
 pallet-profile = { workspace = true }
@@ -82,7 +83,6 @@ pallet-contracts = { workspace = true }
 pallet-collective = { workspace = true }
 frame-executive = { workspace = true }
 pallet-grandpa = { workspace = true }
-pallet-identity = { workspace = true }
 pallet-im-online = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-insecure-randomness-collective-flip = { workspace = true }
@@ -156,8 +156,8 @@ std = [
 	"pallet-collective/std",
 	"pallet-contracts/std",
 	"pallet-grandpa/std",
+	"pallet-entity/std",
 	"pallet-entry/std",
-	"pallet-identity/std",
 	"pallet-identifier/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
@@ -222,7 +222,6 @@ runtime-benchmarks = [
 	"pallet-collective/runtime-benchmarks",
 	"pallet-contracts/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
-	"pallet-identity/runtime-benchmarks",
 	"pallet-identifier/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
@@ -263,8 +262,8 @@ try-runtime = [
 	"pallet-beefy/try-runtime",
 	"pallet-collective/try-runtime",
 	"pallet-contracts/try-runtime",
+	"pallet-entity/try-runtime",
 	"pallet-grandpa/try-runtime",
-	"pallet-identity/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",

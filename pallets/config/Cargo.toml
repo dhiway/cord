@@ -21,7 +21,7 @@ scale-info = { features = ["derive"], workspace = true }
 cord-primitives = { workspace = true }
 fluent-uri = { workspace = true }
 serde = { optional = true, features = ["alloc", "derive"], workspace = true }
-bs58 = { workspace = true }
+bs58 = { features = ["alloc"], workspace = true }
 blake2 = { workspace = true }
 log = { workspace = true }
 

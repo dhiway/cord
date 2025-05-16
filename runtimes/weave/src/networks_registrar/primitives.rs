@@ -151,8 +151,6 @@ impl<T: Config> NetworkToken<T> {
 		account_id: &CordAccountOf<T>,
 		reserve: bool,
 	) -> Result<Self, Error<T>> {
-		use bs58;
-
 		let ident_value = if reserve { R_IDENT } else { N_IDENT };
 		let ident = Self::compact_encode(ident_value & 0b0011_1111_1111_1111)?;
 		let nid_inner = network_id.inner();
@@ -175,8 +173,6 @@ impl<T: Config> NetworkToken<T> {
 	}
 
 	pub fn resolve(&self) -> Result<(NetworkId, HashOf<T>, HashOf<T>, CordAccountOf<T>), Error<T>> {
-		use bs58;
-
 		let decoded = bs58::decode(&self.0).into_vec().map_err(|_| Error::<T>::InvalidToken)?;
 
 		ensure!(decoded.len() >= 2 && decoded.len() <= 142, Error::<T>::InvalidToken);

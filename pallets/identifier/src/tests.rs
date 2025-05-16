@@ -69,8 +69,6 @@ fn resolve_pallet_name_negative() {
 	});
 }
 
-/* TODO: This test is commented out because the set_network_id function is not present in
- * identifier pallet */
 /// Test that setting and then retrieving the network id works correctly.
 #[test]
 fn set_and_get_network_id() {
@@ -86,7 +84,7 @@ fn set_and_get_network_id() {
 fn record_activity_positive() {
 	new_test_ext().execute_with(|| {
 		let id_digest = vec![1u8; 32];
-		let identifier = Ss58Identifier::to_encoded(id_digest, 100, 5)
+		let identifier = Ss58Identifier::to_encoded(id_digest, 100, 5, 29, 0)
 			.expect("Identifier encoding should succeed");
 		let digest = H256::random();
 

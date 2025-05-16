@@ -14,56 +14,30 @@ workspace = true
 [[package.metadata.docs.rs]]
 targets = ['x86_64-unknown-linux-gnu']
 
-[dev-dependencies]
-sp-core = { features = ["std"], workspace = true }
-sp-keystore = { features = ["std"], workspace = true }
 
 [dependencies]
 codec = { features = ["derive", "max-encoded-len"], workspace = true }
 scale-info = { features = ["derive"], workspace = true }
-primitive-types = { features = ["codec", "scale-info"], workspace = true }
-serde = { optional = true, features = ["alloc", "derive"], workspace = true }
-bs58 = { workspace = true }
-blake2 = { workspace = true }
-sp-crypto-hashing = { workspace = true }
-sp-storage = { workspace = true }
 cord-primitives = { workspace = true }
-hex = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { optional = true, workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-runtime = { workspace = true }
-sp-core = { workspace = true }
-sp-io = { optional = true, workspace = true }
-sp-keystore = { optional = true, workspace = true }
-log = { workspace = true }
+
 
 [features]
 default = ['std']
 std = [
 	"codec/std",
 	"cord-primitives/std",
-	"frame-benchmarking/std",
+	"frame-benchmarking?/std",
 	"scale-info/std",
 	"frame-support/std",
 	"frame-system/std",
 	"sp-runtime/std",
-	"sp-io/std",
-	"sp-keystore/std",
-	"primitive-types/byteorder",
-	"primitive-types/rustc-hex",
-	"primitive-types/serde",
-	"primitive-types/std",
-	"serde/std",
-	"sp-crypto-hashing/std",
 	"sp-runtime/std",
-	"bs58/std",
-	"blake2/std",
-	"sp-core/std",
-	"sp-storage/std",
-	"log/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

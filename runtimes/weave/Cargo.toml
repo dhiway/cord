@@ -32,7 +32,7 @@ primitive-types = { features = [
 	"scale-info",
 ], workspace = true }
 derive_more = { workspace = true, default-features = true }
-bs58 = { workspace = true }
+bs58 = { features = ["alloc"], workspace = true }
 blake2 = { workspace = true }
 
 # Local
@@ -40,6 +40,7 @@ cord-primitives = { workspace = true }
 cord-weave-runtime-constants = { workspace = true }
 cord-runtime-common = { workspace = true }
 pallet-collection = { workspace = true }
+pallet-entity = { workspace = true }
 pallet-entry = { workspace = true }
 pallet-profile = { workspace = true }
 pallet-identifier = { workspace = true }
@@ -104,7 +105,6 @@ pallet-election-provider-support-benchmarking = { workspace = true, optional = t
 pallet-delegated-staking = { workspace = true }
 pallet-fast-unstake = { workspace = true }
 pallet-grandpa = { workspace = true }
-pallet-identity = { workspace = true }
 pallet-im-online = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-insecure-randomness-collective-flip = { workspace = true }
@@ -216,7 +216,6 @@ std = [
 	"pallet-election-provider-support-benchmarking?/std",
 	"pallet-fast-unstake/std",
 	"pallet-grandpa/std",
-	"pallet-identity/std",
 	"pallet-identifier/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
@@ -291,6 +290,7 @@ std = [
 	"sp-version/std",
 	"substrate-wasm-builder",
 	"pallet-profile/std",
+	"pallet-entity/std",
 	"pallet-entry/std",
 ]
 runtime-benchmarks = [
@@ -315,7 +315,6 @@ runtime-benchmarks = [
 	"pallet-election-provider-support-benchmarking/runtime-benchmarks",
 	"pallet-fast-unstake/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
-	"pallet-identity/runtime-benchmarks",
 	"pallet-identifier/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
@@ -374,7 +373,6 @@ try-runtime = [
 	"pallet-delegated-staking/try-runtime",
 	"pallet-election-provider-multi-phase/try-runtime",
 	"pallet-grandpa/try-runtime",
-	"pallet-identity/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",
@@ -404,6 +402,7 @@ try-runtime = [
 	"pallet-utility/try-runtime",
 	"pallet-verify-signature/try-runtime",
 	"sp-runtime/try-runtime",
+	"pallet-entity/try-runtime",
 	"pallet-entry/try-runtime",
 ]
 

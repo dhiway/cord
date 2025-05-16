@@ -21,12 +21,9 @@
 // Note: This module is part of cord-origin-primitives and should be imported by all higher-level
 // modules that need to interact with identifiers.
 
-#![cfg_attr(not(feature = "std"), no_std)]
-
 extern crate alloc;
 use alloc::{format, string::String, vec::Vec};
 use blake2::{Blake2b512, Digest};
-use bs58;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::convert::TryFrom;
 use frame_support::{ensure, traits::ConstU32, BoundedVec};
