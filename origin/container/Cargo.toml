@@ -17,26 +17,37 @@ name = "cord-origin"
 path = "src/main.rs"
 
 [dependencies]
-# asset-hub-origin-runtime.default-features = true
-# asset-hub-origin-runtime.workspace = true
 color-eyre = { workspace = true }
-# coretime-origin-runtime.workspace = true
-# cumulus-primitives-core.default-features = true
-# cumulus-primitives-core.workspace = true
-# hex-literal = { workspace = true, default-features = true }
-# log = { workspace = true, default-features = true }
+hex-literal = { workspace = true, default-features = true }
+log = { workspace = true, default-features = true }
+serde = { features = ["derive"], workspace = true, default-features = true }
+serde_json = { workspace = true, default-features = true }
+
+#Local
+cord-origin-coretime-staging-runtime = { default-features = true, workspace = true }
+cord-origin-entity-staging-runtime = { default-features = true, workspace = true }
+
+#Substrate, Cumulus, Polkadot
+cumulus-primitives-core = { workspace = true, default-features = true }
+polkadot-omni-node-lib = { workspace = true }
+parachains-common = { workspace = true, default-features = true }
+sc-chain-spec = { workspace = true, default-features = true }
+sc-cli = { workspace = true, default-features = true }
+sc-service = { workspace = true, default-features = true }
+sp-core = { workspace = true, default-features = true }
+sp-genesis-builder = { workspace = true, default-features = true }
+sp-keyring = { workspace = true, default-features = true }
+xcm = { workspace = true, default-features = true }
+
 # parachains-common.default-features = true
 # parachains-common.workspace = true
 # people-origin-runtime.workspace = true
-polkadot-omni-node-lib = { workspace = true }
 # sc-chain-spec.default-features = true
 # sc-chain-spec.workspace = true
 # sc-cli.default-features = true
 # sc-cli.workspace = true
 # sc-service.default-features = true
 # sc-service.workspace = true
-# serde = { features = ["derive"], workspace = true, default-features = true }
-# serde_json = { workspace = true, default-features = true }
 # sp-core.default-features = true
 # sp-core.workspace = true
 # sp-genesis-builder.default-features = true
@@ -47,24 +58,24 @@ polkadot-omni-node-lib = { workspace = true }
 # xcm.workspace = true
 
 [build-dependencies]
-substrate-build-script-utils.default-features = true
-substrate-build-script-utils.workspace = true
+substrate-build-script-utils = { workspace = true, default-features = true }
 
 [features]
 default = []
 runtime-benchmarks = [
-	# "cumulus-primitives-core/runtime-benchmarks",
-	# "parachains-common/runtime-benchmarks",
+	"cumulus-primitives-core/runtime-benchmarks",
+	"parachains-common/runtime-benchmarks",
 	"polkadot-omni-node-lib/runtime-benchmarks",
-	# "sc-service/runtime-benchmarks",
-	# "asset-hub-origin-runtime/runtime-benchmarks",
-	# "coretime-origin-runtime/runtime-benchmarks",
-	# "people-origin-runtime/runtime-benchmarks",
+	"sc-service/runtime-benchmarks",
+	"cord-origin-coretime-staging-runtime/runtime-benchmarks",
+	"cord-origin-entity-staging-runtime/runtime-benchmarks",
 ]
 try-runtime = [
 	"polkadot-omni-node-lib/try-runtime",
-	# "asset-hub-origin-runtime/try-runtime",
-	# "coretime-origin-runtime/try-runtime",
-	# "people-origin-runtime/try-runtime",
+	"cord-origin-coretime-staging-runtime/try-runtime",
+	"cord-origin-entity-staging-runtime/try-runtime",
 ]
-# fast-runtime = ["coretime-origin-runtime/fast-runtime"]
+fast-runtime = [
+	"cord-origin-coretime-staging-runtime/fast-runtime",
+	"cord-origin-entity-staging-runtime/fast-runtime",
+]

@@ -18,6 +18,7 @@ members = [
 	"origin/container",
 	"origin/container/coretime",
 	"origin/container/constants",
+	"origin/container/entity",
 	"origin/relay",
 	"origin/relay/cli",
 	"origin/relay/common",
@@ -97,10 +98,10 @@ always-assert = { version = "0.1" }
 anyhow = { version = "1.0.81", default-features = false }
 approx = { version = "0.5.1" }
 asset-test-utils = { version = "23.0.0" }
-assets-common = { version = "0.21.0", default-features = false }
-authority-discovery-primitives = { version = "36.0.0", default-features = false, package = "sp-authority-discovery" }
-babe-primitives = { version = "0.42.1", default-features = false, package = "sp-consensus-babe" }
-beefy-primitives = { version = "24.1.0", default-features = false, package = "sp-consensus-beefy" }
+assets-common = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+authority-discovery-primitives = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "sp-authority-discovery" }
+babe-primitives = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "sp-consensus-babe" }
+beefy-primitives = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "sp-consensus-beefy" }
 aquamarine = { version = "0.5.0" }
 arbitrary = { version = "1.3.2" }
 ark-bls12-377 = { version = "0.4.0", default-features = false }
@@ -126,7 +127,7 @@ async-trait = { version = "0.1.88" }
 asynchronous-codec = { version = "0.6" }
 backoff = { version = "0.4" }
 backtrace = { version = "0.3.71" }
-binary-merkle-tree = { version = "16.0.0", default-features = false }
+binary-merkle-tree = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
 bincode = { version = "1.3.3" }
 bip39 = { package = "parity-bip39", version = "2.0.1", default-features = false }
 bitflags = { version = "1.3.2" }
@@ -145,7 +146,7 @@ bytes = { version = "1.4.0", default-features = false }
 cargo_metadata = { version = "0.15.4" }
 cfg-expr = { version = "0.15.5" }
 cfg-if = { version = "1.0" }
-chain-spec-builder = { version = "10.0.0", default-features = false, package = "staging-chain-spec-builder" }
+chain-spec-builder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "staging-chain-spec-builder" }
 chrono = { version = "0.4.31" }
 cid = { version = "0.9.0" }
 clap = { version = "4.5.13" }
@@ -161,14 +162,14 @@ console = { version = "0.15.8" }
 const-hex = { version = "1.10.0", default-features = false }
 cpu-time = { version = "1.0.0" }
 criterion = { version = "0.5.1", default-features = false }
-cumulus-pallet-aura-ext = { version = "0.20.0", default-features = false }
-cumulus-pallet-parachain-system = { version = "0.20.0", default-features = false }
-cumulus-pallet-session-benchmarking = { version = "21.0.0", default-features = false }
-cumulus-pallet-xcm = { version = "0.19.1", default-features = false }
-cumulus-pallet-xcmp-queue = { version = "0.20.0", default-features = false }
-cumulus-primitives-aura = { version = "0.17.0", default-features = false }
-cumulus-primitives-core = { version = "0.18.1", default-features = false }
-cumulus-primitives-utility = { version = "0.20.0", default-features = false }
+cumulus-pallet-aura-ext = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+cumulus-pallet-parachain-system = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+cumulus-pallet-session-benchmarking = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+cumulus-pallet-xcm = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+cumulus-pallet-xcmp-queue = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+cumulus-primitives-aura = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+cumulus-primitives-core = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+cumulus-primitives-utility = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
 curve25519-dalek = { version = "4.1.3" }
 derive-syn-parse = { version = "0.2.0" }
 derive-where = { version = "1.2.7" }
@@ -200,25 +201,25 @@ fnv = { version = "1.0.6" }
 fork-tree = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
 forwarded-header-value = { version = "0.1.1" }
 fraction = { version = "0.13.1" }
-frame = { version = "0.9.1", default-features = false, package = "polkadot-sdk-frame", features = [
+frame = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "polkadot-sdk-frame", features = [
 	"experimental",
 	"runtime",
 ] }
-frame-benchmarking = { version = "40.0.0", default-features = false }
-frame-benchmarking-cli = { version = "47.0.0", default-features = false }
-frame-benchmarking-pallet-pov = { version = "30.0.0", default-features = false }
-frame-election-provider-support = { version = "40.1.0", default-features = false }
-frame-executive = { version = "40.0.0", default-features = false }
-frame-metadata = { version = "20.0.0", default-features = false }
-frame-metadata-hash-extension = { version = "0.8.0", default-features = false }
-frame-support = { version = "40.1.0", default-features = false }
-frame-support-procedural = { version = "33.0.0", default-features = false }
-frame-support-procedural-tools = { version = "40.1.0", default-features = false }
-frame-support-procedural-tools-derive = { version = "12.0.0", default-features = false }
-frame-system = { version = "40.1.0", default-features = false }
-frame-system-benchmarking = { version = "40.0.0", default-features = false }
-frame-system-rpc-runtime-api = { version = "36.0.0", default-features = false }
-frame-try-runtime = { version = "0.46.0", default-features = false }
+frame-benchmarking = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-benchmarking-cli = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-benchmarking-pallet-pov = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-election-provider-support = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-executive = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-metadata = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-metadata-hash-extension = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-support = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-support-procedural = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-support-procedural-tools = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-support-procedural-tools-derive = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-system = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-system-benchmarking = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-system-rpc-runtime-api = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+frame-try-runtime = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
 frame-support-test = { git = "https://github.com/dhiway/sdk", branch = "release-v1.18.2" }
 fs4 = { version = "0.7.0" }
 fs_extra = { version = "1.3.0" }
@@ -226,13 +227,13 @@ futures = { version = "0.3.31" }
 futures-timer = { version = "3.0.2" }
 futures-util = { version = "0.3.30", default-features = false }
 fluent-uri = { version = "0.3.2", default-features = false }
-generate-bags = { version = "40.0.0", default-features = false }
+generate-bags = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
 gethostname = { version = "0.2.3" }
 git2 = { version = "0.20.0", default-features = false }
 glob = { version = "0.3" }
 governor = { version = "0.6.0" }
-gum = { version = "19.0.0", default-features = false, package = "tracing-gum" }
-gum-proc-macro = { version = "5.0.0", default-features = false, package = "tracing-gum-proc-macro" }
+gum = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "tracing-gum" }
+gum-proc-macro = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "tracing-gum-proc-macro" }
 handlebars = { version = "5.1.0" }
 hash-db = { version = "0.16.0", default-features = false }
 hash256-std-hasher = { version = "0.15.2", default-features = false }
@@ -293,12 +294,12 @@ memmap2 = { version = "0.9.3" }
 memory-db = { version = "0.32.0", default-features = false }
 merkleized-metadata = { version = "0.4.0" }
 merlin = { version = "3.0", default-features = false }
-metered = { version = "0.6.1", default-features = false, package = "prioritized-metered-channel" }
-milagro-bls = { version = "1.5.4", default-features = false, package = "snowbridge-milagro-bls" }
+metered = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "prioritized-metered-channel" }
+milagro-bls = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "snowbridge-milagro-bls" }
 mixnet = { version = "0.7.0" }
-mmr-gadget = { version = "44.0.0", default-features = false, package = "mmr-gadget" }
-mmr-lib = { version = "0.5.2", package = "ckb-merkle-mountain-range" }
-mmr-rpc = { version = "40.0.0", default-features = false, package = "mmr-rpc" }
+mmr-gadget = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "mmr-gadget" }
+mmr-lib = { git = "https://github.com/dhiway/sdk", branch = "release-v1.18.2", package = "ckb-merkle-mountain-range" }
+mmr-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "mmr-rpc" }
 mockall = { version = "0.13.1" }
 multiaddr = { version = "0.18.1" }
 multihash = { version = "0.19.1", default-features = false }
@@ -315,133 +316,133 @@ num-traits = { version = "0.2.17", default-features = false }
 num_cpus = { version = "1.13.1" }
 once_cell = { version = "1.19.0" }
 orchestra = { version = "0.4.0", default-features = false }
-origin-primitives = { version = "18.1.0", default-features = false, package = "polkadot-primitives" }
-pallet-alliance = { version = "39.1.0", default-features = false }
-pallet-asset-conversion = { version = "22.0.0", default-features = false }
-pallet-asset-conversion-ops = { version = "0.8.0", default-features = false }
-pallet-asset-conversion-tx-payment = { version = "22.0.0", default-features = false }
-pallet-assets-freezer = { version = "0.7.0", default-features = false }
-pallet-assets-holder = { version = "0.2.1", default-features = false }
-pallet-asset-rate = { version = "19.0.0", default-features = false }
-pallet-asset-rewards = { version = "0.2.0", default-features = false }
-pallet-asset-tx-payment = { version = "40.0.0", default-features = false }
-pallet-assets = { version = "42.0.0", default-features = false }
-pallet-atomic-swap = { version = "40.1.0", default-features = false }
-pallet-aura = { version = "39.0.0", default-features = false }
-pallet-authority-discovery = { version = "40.0.0", default-features = false }
-pallet-authorship = { version = "40.0.0", default-features = false }
-pallet-babe = { version = "40.0.0", default-features = false }
-pallet-bags-list = { version = "39.1.0", default-features = false }
-pallet-bags-list-remote-tests = { version = "4.0.0", default-features = false }
-pallet-balances = { version = "41.1.0", default-features = false }
-pallet-beefy = { version = "41.1.0", default-features = false }
-pallet-beefy-mmr = { version = "41.0.0", default-features = false }
-pallet-bounties = { version = "39.0.0", default-features = false }
-pallet-bridge-grandpa = { version = "0.20.0", default-features = false }
-pallet-bridge-messages = { version = "0.20.1", default-features = false }
-pallet-bridge-parachains = { version = "0.20.0", default-features = false }
-pallet-bridge-relayers = { version = "0.20.0", default-features = false }
-pallet-broker = { version = "0.19.1", default-features = false }
-pallet-child-bounties = { version = "39.0.0", default-features = false }
-pallet-collective-content = { version = "0.18.0", default-features = false }
-pallet-contracts = { version = "40.1.0", default-features = false }
-pallet-contracts-fixtures = { version = "1.0.0", default-features = false }
-pallet-contracts-mock-network = { version = "17.0.0", default-features = false }
-pallet-contracts-proc-macro = { version = "23.0.3", default-features = false }
-pallet-contracts-uapi = { version = "14.0.0", default-features = false }
-pallet-collator-selection = { version = "21.0.0", default-features = false }
-pallet-collective = { version = "40.1.0", default-features = false }
-pallet-conviction-voting = { version = "40.1.0", default-features = false }
-pallet-core-fellowship = { version = "24.1.0", default-features = false }
-pallet-democracy = { version = "40.1.0", default-features = false }
-pallet-election-provider-multi-phase = { version = "39.1.0", default-features = false }
-pallet-election-provider-support-benchmarking = { version = "39.0.0", default-features = false }
-pallet-elections-phragmen = { version = "41.1.0", default-features = false }
-pallet-fast-unstake = { version = "39.0.0", default-features = false }
-pallet-glutton = { version = "26.0.0", default-features = false }
-pallet-grandpa = { version = "40.0.0", default-features = false }
-pallet-identity = { version = "40.1.0", default-features = false }
-pallet-im-online = { version = "39.1.0", default-features = false }
-pallet-indices = { version = "40.0.0", default-features = false }
-pallet-insecure-randomness-collective-flip = { version = "28.0.0", default-features = false }
-pallet-membership = { version = "40.0.0", default-features = false }
-pallet-message-queue = { version = "43.1.0", default-features = false }
-pallet-meta-tx = { version = "0.2.0", default-features = false }
-pallet-mixnet = { version = "0.16.1", default-features = false }
-pallet-mmr = { version = "40.0.0", default-features = false }
-pallet-multisig = { version = "40.1.0", default-features = false }
-pallet-nft-fractionalization = { version = "23.0.0", default-features = false }
-pallet-nfts = { version = "34.1.0", default-features = false }
-pallet-nfts-runtime-api = { version = "26.0.0", default-features = false }
-pallet-nis = { version = "40.0.0", default-features = false }
-pallet-migrations = { version = "10.1.0", default-features = false }
-pallet-nomination-pools = { version = "38.1.0", default-features = false }
-pallet-nomination-pools-benchmarking = { version = "38.0.0", default-features = false }
-pallet-nomination-pools-runtime-api = { version = "36.0.0", default-features = false }
-pallet-offences = { version = "39.0.0", default-features = false }
-pallet-offences-benchmarking = { version = "40.0.0", default-features = false }
-pallet-paged-list = { version = "0.18.0", default-features = false }
-pallet-parameters = { version = "0.11.0", default-features = false }
-pallet-preimage = { version = "40.0.0", default-features = false }
-pallet-proxy = { version = "40.1.0", default-features = false }
-pallet-ranked-collective = { version = "40.1.0", default-features = false }
-pallet-recovery = { version = "40.0.0", default-features = false }
-pallet-referenda = { version = "40.1.0", default-features = false }
-pallet-remark = { version = "40.0.0", default-features = false }
-pallet-root-offences = { version = "37.0.0", default-features = false }
-pallet-root-testing = { version = "16.0.0", default-features = false }
-pallet-safe-mode = { version = "21.1.0", default-features = false }
-pallet-salary = { version = "25.0.0", default-features = false }
-pallet-scored-pool = { version = "40.0.0", default-features = false }
-pallet-scheduler = { version = "41.0.0", default-features = false }
-pallet-session = { version = "40.0.0", default-features = false }
-pallet-session-benchmarking = { version = "40.0.0", default-features = false }
-pallet-skip-feeless-payment = { version = "15.0.0", default-features = false }
-pallet-society = { version = "40.1.0", default-features = false }
-pallet-staking = { version = "40.1.0", default-features = false }
-pallet-statement = { version = "22.0.0", default-features = false }
-pallet-tips = { version = "39.0.0", default-features = false }
-pallet-transaction-storage = { version = "39.0.0", default-features = false }
-pallet-transaction-payment-rpc = { version = "43.0.0", default-features = false }
-pallet-tx-pause = { version = "21.1.0", default-features = false }
-pallet-delegated-staking = { version = "7.0.0", default-features = false }
-pallet-staking-reward-curve = { version = "12.0.0" }
-pallet-staking-reward-fn = { version = "22.0.1", default-features = false }
-pallet-staking-runtime-api = { version = "26.0.0", default-features = false }
-pallet-state-trie-migration = { version = "44.1.0", default-features = false }
-pallet-sudo = { version = "40.0.0", default-features = false }
-pallet-timestamp = { version = "39.0.0", default-features = false }
-pallet-transaction-payment = { version = "40.0.0", default-features = false }
-pallet-transaction-payment-rpc-runtime-api = { version = "40.0.0", default-features = false }
-pallet-treasury = { version = "39.0.0", default-features = false }
-pallet-uniques = { version = "40.1.0", default-features = false }
-pallet-utility = { version = "40.0.0", default-features = false }
-pallet-verify-signature = { version = "0.3.0", default-features = false }
-pallet-vesting = { version = "40.1.0", default-features = false }
-pallet-whitelist = { version = "39.0.0", default-features = false }
-pallet-xcm = { version = "19.1.0", default-features = false }
-pallet-xcm-benchmarks = { version = "20.0.0", default-features = false }
-pallet-xcm-bridge-hub = { version = "0.16.1", default-features = false }
-pallet-xcm-bridge-hub-router = { version = "0.18.0", default-features = false }
-polkadot-cli = { version = "23.0.0", default-features = false }
-polkadot-core-primitives = { version = "17.1.0", default-features = false }
-polkadot-node-core-pvf = { version = "22.0.0", default-features = false }
-polkadot-node-core-pvf-common = { version = "19.0.0", default-features = false }
-polkadot-node-core-pvf-execute-worker = { version = "19.0.0", default-features = false }
-polkadot-node-core-pvf-prepare-worker = { version = "19.0.0", default-features = false }
-polkadot-node-metrics = { version = "22.0.0", default-features = false }
-polkadot-node-primitives = { version = "19.0.0", default-features = false }
+origin-primitives = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "polkadot-primitives" }
+pallet-alliance = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-asset-conversion = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-asset-conversion-ops = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-asset-conversion-tx-payment = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-assets-freezer = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-assets-holder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-asset-rate = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-asset-rewards = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-asset-tx-payment = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-assets = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-atomic-swap = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-aura = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-authority-discovery = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-authorship = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-babe = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-bags-list = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-bags-list-remote-tests = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-balances = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-beefy = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-beefy-mmr = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-bounties = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-bridge-grandpa = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-bridge-messages = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-bridge-parachains = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-bridge-relayers = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-broker = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-child-bounties = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-collective-content = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-contracts = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-contracts-fixtures = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-contracts-mock-network = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-contracts-proc-macro = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-contracts-uapi = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-collator-selection = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-collective = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-conviction-voting = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-core-fellowship = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-democracy = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-election-provider-multi-phase = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-election-provider-support-benchmarking = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-elections-phragmen = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-fast-unstake = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-glutton = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-grandpa = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-identity = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-im-online = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-indices = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-insecure-randomness-collective-flip = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-membership = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-message-queue = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-meta-tx = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-mixnet = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-mmr = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-multisig = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-nft-fractionalization = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-nfts = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-nfts-runtime-api = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-nis = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-migrations = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-nomination-pools = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-nomination-pools-benchmarking = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-nomination-pools-runtime-api = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-offences = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-offences-benchmarking = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-paged-list = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-parameters = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-preimage = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-proxy = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-ranked-collective = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-recovery = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-referenda = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-remark = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-root-offences = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-root-testing = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-safe-mode = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-salary = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-scored-pool = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-scheduler = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-session = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-session-benchmarking = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-skip-feeless-payment = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-society = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-staking = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-statement = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-tips = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-transaction-storage = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-transaction-payment-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-tx-pause = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-delegated-staking = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-staking-reward-curve = { git = "https://github.com/dhiway/sdk", branch = "release-v1.18.2" }
+pallet-staking-reward-fn = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-staking-runtime-api = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-state-trie-migration = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-sudo = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-timestamp = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-transaction-payment = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-treasury = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-uniques = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-utility = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-verify-signature = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-vesting = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-whitelist = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-xcm = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-xcm-benchmarks = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-xcm-bridge-hub = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+pallet-xcm-bridge-hub-router = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+polkadot-cli = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+polkadot-core-primitives = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+polkadot-node-core-pvf = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+polkadot-node-core-pvf-common = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+polkadot-node-core-pvf-execute-worker = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+polkadot-node-core-pvf-prepare-worker = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+polkadot-node-metrics = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+polkadot-node-primitives = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
 polkadot-omni-node-lib = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
-polkadot-overseer = { version = "22.0.0", default-features = false }
-parachain-info = { version = "0.20.0", default-features = false, package = "staging-parachain-info" }
-parachains-common = { version = "21.0.0", default-features = false }
-polkadot-service = { version = "23.0.0", default-features = false }
-parachains-runtimes-test-utils = { version = "22.0.0" }
+polkadot-overseer = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+parachain-info = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "staging-parachain-info" }
+parachains-common = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+polkadot-service = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+parachains-runtimes-test-utils = { git = "https://github.com/dhiway/sdk", branch = "release-v1.18.2" }
 paste = { version = "1.0.14" }
-polkadot-parachain-primitives = { version = "16.1.0", default-features = false }
-polkadot-primitives = { version = "18.1.0", default-features = false }
-polkadot-runtime-common = { version = "19.1.0", default-features = false }
-primitive-types = { version = "0.12.2", default-features = false, features = [
+polkadot-parachain-primitives = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+polkadot-primitives = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+polkadot-runtime-common = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+primitive-types = { version = "0.13.1", default-features = false, features = [
 	"num-traits",
 ] }
 parity-bytes = { version = "0.1.2", default-features = false }
@@ -461,7 +462,7 @@ proc-macro-warning = { version = "1.0.0", default-features = false }
 proc-macro2 = { version = "1.0.86" }
 procfs = { version = "0.16.0" }
 prometheus = { version = "0.13.0", default-features = false }
-prometheus-endpoint = { version = "0.17.2", default-features = false, package = "substrate-prometheus-endpoint" }
+prometheus-endpoint = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "substrate-prometheus-endpoint" }
 prometheus-parse = { version = "0.2.2" }
 prost = { version = "0.12.4" }
 prost-build = { version = "0.13.2" }
@@ -478,8 +479,8 @@ rand_pcg = { version = "0.3.1" }
 rbtag = { version = "0.3" }
 ref-cast = { version = "1.0.23" }
 regex = { version = "1.10.2" }
-remote-externalities = { version = "0.50.0", default-features = false, package = "frame-remote-externalities" }
-runtime-parachains = { version = "19.1.0", default-features = false, package = "polkadot-runtime-parachains" }
+remote-externalities = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "frame-remote-externalities" }
+runtime-parachains = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "polkadot-runtime-parachains" }
 ripemd = { version = "0.1.3", default-features = false }
 rlp = { version = "0.6.1", default-features = false }
 rpassword = { version = "7.0.0" }
@@ -496,64 +497,64 @@ rustls = { version = "0.23.18", default-features = false, features = [
 rustversion = { version = "1.0.17" }
 rusty-fork = { version = "0.3.0", default-features = false }
 safe-mix = { version = "1.0", default-features = false }
-sc-allocator = { version = "31.0.0", default-features = false }
-sc-authority-discovery = { version = "0.49.0", default-features = false }
-sc-basic-authorship = { version = "0.49.0", default-features = false }
-sc-block-builder = { version = "0.44.0", default-features = false }
-sc-chain-spec = { version = "42.0.0" }
-sc-chain-spec-derive = { version = "12.0.0", default-features = false }
-sc-cli = { version = "0.51.0", default-features = false }
-sc-client-api = { version = "39.0.0", default-features = false }
-sc-client-db = { version = "0.46.0", default-features = false }
-sc-consensus = { version = "0.48.0", default-features = false }
-sc-consensus-aura = { version = "0.49.0", default-features = false }
-sc-consensus-babe = { version = "0.49.0", default-features = false }
-sc-consensus-babe-rpc = { version = "0.49.0", default-features = false }
-sc-consensus-beefy = { version = "28.0.0", default-features = false }
-sc-consensus-beefy-rpc = { version = "28.0.0", default-features = false }
-sc-consensus-epochs = { version = "0.48.0", default-features = false }
-sc-consensus-grandpa = { version = "0.34.0", default-features = false }
-sc-consensus-grandpa-rpc = { version = "0.34.0", default-features = false }
-sc-consensus-manual-seal = { version = "0.50.0", default-features = false }
-sc-consensus-pow = { version = "0.48.0", default-features = false }
-sc-consensus-slots = { version = "0.48.0", default-features = false }
-sc-executor = { version = "0.42.0", default-features = false }
-sc-executor-common = { version = "0.38.0", default-features = false }
-sc-executor-polkavm = { version = "0.35.0", default-features = false }
-sc-executor-wasmtime = { version = "0.38.0", default-features = false }
-sc-informant = { version = "0.48.0", default-features = false }
-sc-keystore = { version = "35.0.0", default-features = false }
-sc-mixnet = { version = "0.19.0", default-features = false }
-sc-network = { version = "0.49.1" }
-sc-network-common = { version = "0.48.0", default-features = false }
-sc-network-gossip = { version = "0.49.0", default-features = false }
-sc-network-light = { version = "0.48.0", default-features = false }
-sc-network-statement = { version = "0.31.0", default-features = false }
-sc-network-sync = { version = "0.48.0", default-features = false }
-sc-network-test = { version = "0.8.0", default-features = false }
-sc-network-transactions = { version = "0.48.0", default-features = false }
-sc-network-types = { version = "0.15.3", default-features = false }
-sc-offchain = { version = "44.0.0", default-features = false }
-sc-proposer-metrics = { version = "0.20.0", default-features = false }
-sc-rpc = { version = "44.0.0", default-features = false }
-sc-rpc-api = { version = "0.48.0", default-features = false }
-sc-rpc-server = { version = "21.0.0", default-features = false }
-sc-rpc-spec-v2 = { version = "0.49.1", default-features = false }
-sc-runtime-test = { version = "2.0.0", default-features = false }
-sc-runtime-utilities = { version = "0.2.0", default-features = false }
-sc-service = { version = "0.50.0", default-features = false }
-sc-service-test = { version = "2.0.0", default-features = false }
-sc-state-db = { version = "0.38.0", default-features = false }
-sc-statement-store = { version = "21.0.0", default-features = false }
-sc-storage-monitor = { version = "0.24.0", default-features = false }
-sc-sync-state-rpc = { version = "0.49.0", default-features = false }
-sc-sysinfo = { version = "42.0.0", default-features = false }
-sc-telemetry = { version = "28.1.0", default-features = false }
-sc-tracing = { version = "39.0.0", default-features = false }
-sc-tracing-proc-macro = { version = "11.1.0", default-features = false }
-sc-transaction-pool = { version = "39.0.0", default-features = false }
-sc-transaction-pool-api = { version = "39.0.0", default-features = false }
-sc-utils = { version = "18.0.1", default-features = false }
+sc-allocator = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-authority-discovery = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-basic-authorship = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-block-builder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-chain-spec = { git = "https://github.com/dhiway/sdk", branch = "release-v1.18.2" }
+sc-chain-spec-derive = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-cli = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-client-api = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-client-db = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-consensus = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-consensus-aura = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-consensus-babe = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-consensus-babe-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-consensus-beefy = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-consensus-beefy-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-consensus-epochs = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-consensus-grandpa = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-consensus-grandpa-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-consensus-manual-seal = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-consensus-pow = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-consensus-slots = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-executor = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-executor-common = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-executor-polkavm = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-executor-wasmtime = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-informant = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-keystore = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-mixnet = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-network = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-network-common = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-network-gossip = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-network-light = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-network-statement = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-network-sync = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-network-test = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-network-transactions = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-network-types = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-offchain = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-proposer-metrics = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-rpc-api = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-rpc-server = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-rpc-spec-v2 = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-runtime-test = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-runtime-utilities = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-service = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-service-test = { git = "https://github.com/dhiway/sdk", branch = "release-v1.18.2" }
+sc-state-db = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-statement-store = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-storage-monitor = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-sync-state-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-sysinfo = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-telemetry = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-tracing = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-tracing-proc-macro = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-transaction-pool = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-transaction-pool-api = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sc-utils = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
 scale-info = { version = "2.11.6", default-features = false }
 separator = { version = "0.4.1" }
 schemars = { version = "0.8.13", default-features = false }
@@ -577,71 +578,70 @@ smallvec = { version = "1.11.0", default-features = false }
 smoldot = { version = "0.11.0", default-features = false }
 smoldot-light = { version = "0.9.0", default-features = false }
 soketto = { version = "0.8.0" }
-sp-api = { version = "36.0.1", default-features = false }
-sp-api-proc-macro = { version = "22.0.0", default-features = false }
-sp-application-crypto = { version = "40.1.0", default-features = false }
-sp-arithmetic = { version = "26.1.0", default-features = false }
-sp-authority-discovery = { version = "36.0.0", default-features = false }
-sp-block-builder = { version = "36.0.0", default-features = false }
-sp-blockchain = { version = "39.0.0", default-features = false }
-sp-consensus = { version = "0.42.0", default-features = false }
-sp-consensus-aura = { version = "0.42.0", default-features = false }
-sp-consensus-babe = { version = "0.42.1", default-features = false }
-sp-consensus-beefy = { version = "24.1.0", default-features = false }
-sp-consensus-grandpa = { version = "23.1.0", default-features = false }
-sp-consensus-pow = { version = "0.42.0", default-features = false }
-sp-consensus-slots = { version = "0.42.1", default-features = false }
-sp-core = { version = "36.1.0", default-features = false }
-sp-core-hashing = { version = "16.0.0", default-features = false }
-sp-core-hashing-proc-macro = { version = "16.0.0", default-features = false }
-sp-crypto-ec-utils = { version = "0.15.0", default-features = false }
-sp-crypto-hashing = { version = "0.1.0", default-features = false }
-sp-crypto-hashing-proc-macro = { version = "0.1.0", default-features = false }
-sp-database = { version = "10.0.0", default-features = false }
-sp-debug-derive = { version = "14.0.0", default-features = false }
-sp-externalities = { version = "0.30.0", default-features = false }
-sp-genesis-builder = { version = "0.17.0", default-features = false }
-sp-inherents = { version = "36.0.0", default-features = false }
-sp-io = { version = "40.0.1", default-features = false }
-sp-keyring = { version = "41.0.0", default-features = false }
-sp-keystore = { version = "0.42.0", default-features = false }
-sp-maybe-compressed-blob = { version = "11.0.0", default-features = false }
-sp-metadata-ir = { version = "0.10.0", default-features = false }
-sp-mixnet = { version = "0.14.0", default-features = false }
-sp-mmr-primitives = { version = "36.1.0", default-features = false }
-sp-npos-elections = { version = "36.1.0", default-features = false }
-sp-offchain = { version = "36.0.0", default-features = false }
-sp-panic-handler = { version = "13.0.2", default-features = false }
-sp-rpc = { version = "34.0.0", default-features = false }
-sp-runtime = { version = "41.1.0", default-features = false }
-sp-runtime-interface = { version = "29.0.1", default-features = false }
-sp-runtime-interface-proc-macro = { version = "18.0.0", default-features = false }
-sp-runtime-interface-test-wasm = { version = "2.0.0", default-features = false }
-sp-session = { version = "38.1.0", default-features = false }
-sp-staking = { version = "38.0.0", default-features = false }
-sp-std = { version = "14.0.0", default-features = false }
-sp-state-machine = { version = "0.45.0", default-features = false }
-sp-statement-store = { version = "20.1.0", default-features = false }
-sp-storage = { version = "22.0.0", default-features = false }
-sp-test-primitives = { version = "2.0.0", default-features = false }
-sp-timestamp = { version = "36.0.0", default-features = false }
-sp-tracing = { version = "17.1.0", default-features = false }
-sp-transaction-pool = { version = "36.0.0", default-features = false }
-sp-transaction-storage-proof = { version = "36.1.0", default-features = false }
-sp-trie = { version = "39.1.0", default-features = false }
-sp-version = { version = "39.0.0", default-features = false }
-sp-version-proc-macro = { version = "15.0.0", default-features = false }
-sp-wasm-interface = { version = "21.0.1", default-features = false }
-sp-weights = { version = "31.1.0", default-features = false }
-subkey = { version = "24.0.0", default-features = false, package = "subkey" }
-substrate-bip39 = { version = "0.6.0", default-features = false }
-substrate-build-script-utils = { version = "11.0.0", default-features = false }
-substrate-frame-rpc-support = { version = "44.0.0", default-features = false }
-substrate-frame-rpc-system = { version = "43.0.0", default-features = false }
-substrate-rpc-client = { version = "0.48.0", default-features = false }
-substrate-state-trie-migration-rpc = { version = "42.0.0", default-features = false }
-substrate-wasm-builder = { version = "26.0.1" }
-
+sp-api = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-api-proc-macro = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-application-crypto = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-arithmetic = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-authority-discovery = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-block-builder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-blockchain = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-consensus = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-consensus-aura = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-consensus-babe = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-consensus-beefy = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-consensus-grandpa = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-consensus-pow = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-consensus-slots = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-core = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-core-hashing = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-core-hashing-proc-macro = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-crypto-ec-utils = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-crypto-hashing = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-crypto-hashing-proc-macro = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-database = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-debug-derive = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-externalities = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-genesis-builder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-inherents = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-io = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-keyring = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-keystore = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-maybe-compressed-blob = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-metadata-ir = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-mixnet = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-mmr-primitives = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-npos-elections = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-offchain = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-panic-handler = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-runtime = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-runtime-interface = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-runtime-interface-proc-macro = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-runtime-interface-test-wasm = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-session = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-staking = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-std = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-state-machine = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-statement-store = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-storage = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-test-primitives = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-timestamp = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-tracing = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-transaction-pool = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-transaction-storage-proof = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-trie = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-version = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-version-proc-macro = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-wasm-interface = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+sp-weights = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+subkey = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "subkey" }
+substrate-bip39 = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+substrate-build-script-utils = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+substrate-frame-rpc-support = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+substrate-frame-rpc-system = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+substrate-rpc-client = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+substrate-state-trie-migration-rpc = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
+substrate-wasm-builder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
 spinners = { version = "4.1.1" }
 ss58-registry = { version = "1.34.0", default-features = false }
 ssz_rs = { version = "0.9.0", default-features = false }
@@ -681,7 +681,7 @@ tracing-core = { version = "0.1.32", default-features = false }
 tracing-futures = { version = "0.2.4" }
 tracing-log = { version = "0.2.0" }
 tracing-subscriber = { version = "0.3.18" }
-tracking-allocator = { version = "2.0.0", default-features = false, package = "staging-tracking-allocator" }
+tracking-allocator = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "staging-tracking-allocator" }
 trie-bench = { version = "0.40.0" }
 trie-db = { version = "0.30.0", default-features = false }
 trie-root = { version = "0.18.0", default-features = false }
@@ -704,11 +704,11 @@ wasmi = { version = "0.32.3", default-features = false }
 wasmtime = { version = "8.0.1", default-features = false }
 wat = { version = "1.0.0" }
 x25519-dalek = { version = "2.0" }
-xcm = { version = "16.1.0", default-features = false, package = "staging-xcm" }
-xcm-builder = { version = "20.1.0", default-features = false, package = "staging-xcm-builder" }
+xcm = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "staging-xcm" }
+xcm-builder = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "staging-xcm-builder" }
 xcm-emulator = { version = "0.19.2" }
-xcm-executor = { version = "19.1.0", default-features = false, package = "staging-xcm-executor" }
-xcm-runtime-apis = { version = "0.7.0", default-features = false }
+xcm-executor = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2", package = "staging-xcm-executor" }
+xcm-runtime-apis = { git = "https://github.com/dhiway/sdk", default-features = false, branch = "release-v1.18.2" }
 zeroize = { version = "1.7.0", default-features = false, features = ["alloc"] }
 zstd = { version = "0.12.4", default-features = false }
 
@@ -759,6 +759,7 @@ cord-origin-container = { path = "origin/container", default-features = false }
 cord-origin-system-chains-staging-constants = { path = "origin/container/constants", default-features = false }
 # cord-origin-asset-staging-runtime = { path = "origin/container/asset", default-features = false }
 cord-origin-coretime-staging-runtime = { path = "origin/container/coretime", default-features = false }
+cord-origin-entity-staging-runtime = { path = "origin/container/entity", default-features = false }
 
 [profile.release]
 panic = 'unwind'

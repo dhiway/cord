@@ -16,19 +16,39 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-#[cfg(feature = "runtime-benchmarks")]
-use alloc::vec;
+use super::*;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-#[cfg(feature = "runtime-benchmarks")]
-use enumflags2::BitFlag;
 use enumflags2::{bitflags, BitFlags};
-use frame_support::{traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound};
+use frame_support::{
+	parameter_types, traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
+};
+use pallet_entity::types::{
+	Attribute, Data, IdentityInformationProvider, IdentityUpdateError, IdentityUpdateOp, ProfileCid,
+};
 use scale_info::{build::Variants, Path, Type, TypeInfo};
 use sp_runtime::{BoundedVec, RuntimeDebug};
 
-use crate::types::{
-	Attribute, Data, IdentityInformationProvider, IdentityUpdateError, IdentityUpdateOp, ProfileCid,
-};
+parameter_types! {
+	pub const MaxUsernameLength: u32 = 32;
+	pub const MaxAdditionalFields: u32 = 10;
+	pub const GeneralAdminBodyId: BodyId = BodyId::Administration;
+}
+
+pub type IdentityAdminOrigin = EitherOfDiverse<
+	EnsureRoot<AccountId>,
+	EnsureXcm<IsVoiceOfBody<GovernanceLocation, GeneralAdminBodyId>>,
+>;
+
+impl pallet_entity::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxSubAccounts = ConstU32<2>;
+	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxUsernameLength = MaxUsernameLength;
+	type ForceOrigin = EnsureRoot<Self::AccountId>;
+	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;
+}
+
 /// Each field corresponds to a field in the `IdentityInfo` struct.
 #[bitflags]
 #[repr(u64)]

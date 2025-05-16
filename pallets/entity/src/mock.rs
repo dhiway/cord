@@ -17,7 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
-use crate::{self as pallet_entity, identity::IdentityInfo};
+use crate::{self as pallet_entity, entity::IdentityInfo};
 use frame_support::{
 	derive_impl, parameter_types,
 	traits::{ConstU16, ConstU32},

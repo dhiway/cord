@@ -27,7 +27,7 @@ mod tests;
 
 // mod benchmarking;
 pub mod identity;
-mod types;
+pub mod types;
 pub mod weights;
 
 extern crate alloc;

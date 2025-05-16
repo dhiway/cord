@@ -1,19 +1,20 @@
 [package]
-name = "cord-origin-coretime-staging-runtime"
-description = "Origin's Coretime Runtime"
-repository.workspace = true
-version.workspace = true
+name = "cord-origin-entity-staging-runtime"
+description = "Origin's People Runtime"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+version.workspace = true
 build = "build.rs"
 
 [dependencies]
-codec = { features = ["derive"], workspace = true }
+enumflags2 = { workspace = true }
+serde = { optional = true, features = ["derive"], workspace = true }
+codec = { features = ["derive", "max-encoded-len"], workspace = true }
 hex-literal = { workspace = true }
 log = { workspace = true }
 scale-info = { features = ["derive"], workspace = true }
-serde = { optional = true, features = ["derive"], workspace = true }
 serde_json = { features = ["alloc"], workspace = true }
 
 # Local
@@ -32,8 +33,10 @@ frame-try-runtime = { optional = true, workspace = true }
 pallet-aura = { workspace = true }
 pallet-authorship = { workspace = true }
 pallet-balances = { workspace = true }
+pallet-entity = { workspace = true }
+pallet-identifier = { workspace = true }
 pallet-message-queue = { workspace = true }
-pallet-broker = { workspace = true }
+pallet-migrations = { workspace = true }
 pallet-multisig = { workspace = true }
 pallet-proxy = { workspace = true }
 pallet-session = { workspace = true }
@@ -42,12 +45,13 @@ pallet-timestamp = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-utility = { workspace = true }
+polkadot-primitives = { workspace = true }
 sp-api = { workspace = true }
 sp-block-builder = { workspace = true }
 sp-consensus-aura = { workspace = true }
 sp-core = { workspace = true }
-sp-inherents = { workspace = true }
 sp-genesis-builder = { workspace = true }
+sp-inherents = { workspace = true }
 sp-offchain = { workspace = true }
 sp-runtime = { workspace = true }
 sp-session = { workspace = true }
@@ -58,7 +62,6 @@ sp-version = { workspace = true }
 # Polkadot
 pallet-xcm = { workspace = true }
 pallet-xcm-benchmarks = { optional = true, workspace = true }
-polkadot-core-primitives = { workspace = true }
 polkadot-parachain-primitives = { workspace = true }
 polkadot-runtime-common = { workspace = true }
 xcm = { workspace = true }
@@ -67,12 +70,12 @@ xcm-executor = { workspace = true }
 xcm-runtime-apis = { workspace = true }
 
 # Cumulus
+cumulus-primitives-aura = { workspace = true }
 cumulus-pallet-aura-ext = { workspace = true }
 cumulus-pallet-parachain-system = { workspace = true }
 cumulus-pallet-session-benchmarking = { workspace = true }
 cumulus-pallet-xcm = { workspace = true }
 cumulus-pallet-xcmp-queue = { workspace = true }
-cumulus-primitives-aura = { workspace = true }
 cumulus-primitives-core = { workspace = true }
 cumulus-primitives-utility = { workspace = true }
 pallet-collator-selection = { workspace = true }
@@ -99,6 +102,7 @@ std = [
 	"cumulus-primitives-aura/std",
 	"cumulus-primitives-core/std",
 	"cumulus-primitives-utility/std",
+	"enumflags2/std",
 	"frame-benchmarking?/std",
 	"frame-executive/std",
 	"frame-metadata-hash-extension/std",
@@ -111,12 +115,15 @@ std = [
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
-	"pallet-broker/std",
 	"pallet-collator-selection/std",
+	"pallet-entity/std",
+	"pallet-identifier/std",
 	"pallet-message-queue/std",
+	"pallet-migrations/std",
 	"pallet-multisig/std",
 	"pallet-proxy/std",
 	"pallet-session/std",
+	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
@@ -125,8 +132,8 @@ std = [
 	"pallet-xcm/std",
 	"parachain-info/std",
 	"parachains-common/std",
-	"polkadot-core-primitives/std",
 	"polkadot-parachain-primitives/std",
+	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
 	"scale-info/std",
 	"serde",
@@ -140,7 +147,6 @@ std = [
 	"sp-offchain/std",
 	"sp-runtime/std",
 	"sp-session/std",
-	"pallet-sudo/std",
 	"sp-storage/std",
 	"sp-transaction-pool/std",
 	"sp-version/std",
@@ -152,8 +158,8 @@ std = [
 ]
 
 runtime-benchmarks = [
-	"cord-origin-relay-staging-runtime-constants/runtime-benchmarks",
-	"cord-origin-system-chains-staging-constants/runtime-benchmarks",
+	"cord-origin-relay-staging-runtime-constants/std",
+	"cord-origin-system-chains-staging-constants/std",
 	"cumulus-pallet-parachain-system/runtime-benchmarks",
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
 	"cumulus-pallet-xcmp-queue/runtime-benchmarks",
@@ -164,9 +170,11 @@ runtime-benchmarks = [
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
-	"pallet-broker/runtime-benchmarks",
 	"pallet-collator-selection/runtime-benchmarks",
+	"pallet-entity/runtime-benchmarks",
+	"pallet-identifier/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
+	"pallet-migrations/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
 	"pallet-proxy/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
@@ -176,6 +184,7 @@ runtime-benchmarks = [
 	"pallet-xcm/runtime-benchmarks",
 	"parachains-common/runtime-benchmarks",
 	"polkadot-parachain-primitives/runtime-benchmarks",
+	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"xcm-builder/runtime-benchmarks",
@@ -196,9 +205,11 @@ try-runtime = [
 	"pallet-aura/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
-	"pallet-broker/try-runtime",
 	"pallet-collator-selection/try-runtime",
+	"pallet-entity/try-runtime",
+	"pallet-identifier/try-runtime",
 	"pallet-message-queue/try-runtime",
+	"pallet-migrations/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-proxy/try-runtime",
 	"pallet-session/try-runtime",
@@ -215,7 +226,7 @@ try-runtime = [
 fast-runtime = ["cord-origin-relay-staging-runtime-constants/fast-runtime"]
 
 # Enable metadata hash generation at compile time for the `CheckMetadataHash` extension.
-metadata-hash = ["substrate-wasm-builder?/metadata-hash"]
+metadata-hash = ["substrate-wasm-builder/metadata-hash"]
 
 # A feature that should be enabled when the runtime should be built for on-chain
 # deployment. This will disable stuff that shouldn't be part of the on-chain wasm

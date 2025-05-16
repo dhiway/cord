@@ -19,7 +19,7 @@
 use super::*;
 use crate::pallet::Pallet as EntityPallet;
 use crate::{
-	identity::{IdentityField, IdentityInfo},
+	entity::{IdentityField, IdentityInfo},
 	types::{Attribute, Data, IdentityUpdateOp, ProfileCid},
 	PalletInfoAccess,
 };

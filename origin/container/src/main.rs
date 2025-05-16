@@ -21,10 +21,9 @@
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
-use polkadot_omni_node_lib::{
-	chain_spec::DiskChainSpecLoader, run, runtime::DefaultRuntimeResolver, CliConfig as CliConfigT,
-	RunConfig,
-};
+mod chain_spec;
+
+use polkadot_omni_node_lib::{run, CliConfig as CliConfigT, RunConfig};
 
 /// The current node version, which takes the basic SemVer form `<major>.<minor>.<patch>`.
 /// In general, minor should be bumped on every release while major or patch releases are
@@ -61,7 +60,10 @@ impl CliConfigT for CliConfig {
 fn main() -> color_eyre::eyre::Result<()> {
 	color_eyre::install()?;
 
-	let config = RunConfig::new(Box::new(DefaultRuntimeResolver), Box::new(DiskChainSpecLoader));
+	let config = RunConfig::new(
+		Box::new(chain_spec::RuntimeResolver),
+		Box::new(chain_spec::ChainSpecLoader),
+	);
 
 	Ok(run::<CliConfig>(config)?)
 }

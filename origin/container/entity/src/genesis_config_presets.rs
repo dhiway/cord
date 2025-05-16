@@ -16,19 +16,17 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! Genesis configs presets for the Origin Coretime runtime
+//! Genesis configs presets for the Origin Entity runtime
 
 use crate::*;
-use alloc::vec::Vec;
 use cord_origin_system_chains_staging_constants::genesis_presets::*;
-// use cumulus_primitives_core::ParaId;
 use sp_core::sr25519;
 use sp_genesis_builder::PresetId;
 
-const CORETIME_ORIGIN_STAGING_ED: Balance = ExistentialDeposit::get();
+const ENTITY_ORIGIN_STAGING_ED: Balance = ExistentialDeposit::get();
 
-fn coretime_origin_staging_genesis(
-	invulnerables: Vec<(AccountId, AuraId)>,
+fn entity_origin_staging_genesis(
+	invulnerables: Vec<(AccountId, parachains_common::AuraId)>,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
 ) -> serde_json::Value {
@@ -37,7 +35,7 @@ fn coretime_origin_staging_genesis(
 			balances: endowed_accounts
 				.iter()
 				.cloned()
-				.map(|k| (k, CORETIME_ORIGIN_STAGING_ED * 4096 * 4096))
+				.map(|k| (k, ENTITY_ORIGIN_STAGING_ED * 4096 * 4096))
 				.collect(),
 			dev_accounts: None,
 		},
@@ -47,7 +45,7 @@ fn coretime_origin_staging_genesis(
 		},
 		"collatorSelection": CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
-			candidacy_bond: CORETIME_ORIGIN_STAGING_ED * 16,
+			candidacy_bond: ENTITY_ORIGIN_STAGING_ED * 16,
 			..Default::default()
 		},
 		"session": SessionConfig {
@@ -55,9 +53,9 @@ fn coretime_origin_staging_genesis(
 				.into_iter()
 				.map(|(acc, aura)| {
 					(
-						acc.clone(),          // account id
-						acc,                  // validator id
-						SessionKeys { aura }, // session keys
+						acc.clone(),                         // account id
+						acc,                                 // validator id
+						SessionKeys { aura }, 		// session keys
 					)
 				})
 				.collect(),
@@ -74,12 +72,12 @@ fn coretime_origin_staging_genesis(
 	})
 }
 
-pub fn coretime_origin_local_testnet_genesis(para_id: ParaId) -> serde_json::Value {
-	coretime_origin_staging_genesis(invulnerables(), testnet_accounts(), para_id)
+pub fn entity_origin_local_testnet_genesis(para_id: ParaId) -> serde_json::Value {
+	entity_origin_staging_genesis(invulnerables(), testnet_accounts(), para_id)
 }
 
-fn coretime_origin_development_genesis(para_id: ParaId) -> serde_json::Value {
-	coretime_origin_local_testnet_genesis(para_id)
+fn entity_origin_development_genesis(para_id: ParaId) -> serde_json::Value {
+	entity_origin_local_testnet_genesis(para_id)
 }
 
 /// Provides the names of the predefined genesis configs for this runtime.
@@ -93,9 +91,9 @@ pub fn preset_names() -> Vec<PresetId> {
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
-		sp_genesis_builder::DEV_RUNTIME_PRESET => coretime_origin_development_genesis(1005.into()),
+		sp_genesis_builder::DEV_RUNTIME_PRESET => entity_origin_development_genesis(1004.into()),
 		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => {
-			coretime_origin_local_testnet_genesis(1005.into())
+			entity_origin_local_testnet_genesis(1004.into())
 		},
 		_ => return None,
 	};
