@@ -296,7 +296,7 @@ try-runtime = [
 
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
-fast-runtime = []
+fast-runtime = ["cord-loom-runtime-constants/fast-runtime"]
 
 # A feature that should be enabled when the runtime should be build for on-chain
 # deployment. This will disable stuff that shouldn't be part of the on-chain wasm

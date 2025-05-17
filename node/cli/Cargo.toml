@@ -293,3 +293,9 @@ try-runtime = [
 	"pallet-contracts/try-runtime",
 	"pallet-network-membership/try-runtime",
 ]
+
+fast-runtime = [
+	"cord-braid-runtime/fast-runtime",
+	"cord-loom-runtime/fast-runtime",
+	"cord-weave-runtime/fast-runtime",
+]

@@ -170,7 +170,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: alloc::borrow::Cow::Borrowed("origin-relay"),
-	impl_name: alloc::borrow::Cow::Borrowed("dhiway-cord-origin"),
+	impl_name: alloc::borrow::Cow::Borrowed("cord-origin"),
 	authoring_version: 0,
 	spec_version: 1_004_003,
 	impl_version: 0,
@@ -194,7 +194,7 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
 	pub const Version: RuntimeVersion = VERSION;
-	pub const SS58Prefix: u8 = 0;
+	pub const SS58Prefix: u8 = 29;
 }
 
 impl frame_system::Config for Runtime {
@@ -295,7 +295,7 @@ impl pallet_preimage::Config for Runtime {
 parameter_types! {
 	pub EpochDuration: u64 = prod_or_fast!(
 		EPOCH_DURATION_IN_SLOTS as u64,
-		2 * MINUTES as u64,
+		MINUTES as u64,
 		"ORI_EPOCH_DURATION"
 	);
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;

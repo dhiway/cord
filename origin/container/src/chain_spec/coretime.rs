@@ -24,28 +24,15 @@ pub fn coretime_origin_staging_development_config() -> GenericChainSpec {
 	properties.insert("ss58Format".into(), 29.into());
 	properties.insert("tokenSymbol".into(), "ORU".into());
 	properties.insert("tokenDecimals".into(), 10.into());
-	coretime_origin_staging_like_development_config(
-		properties,
-		"Origin Coretime Development",
-		"origin-coretime-dev",
-		1005,
-	)
-}
 
-fn coretime_origin_staging_like_development_config(
-	properties: sc_chain_spec::Properties,
-	name: &str,
-	chain_id: &str,
-	para_id: u32,
-) -> GenericChainSpec {
 	GenericChainSpec::builder(
 		cord_origin_coretime_staging_runtime::WASM_BINARY
 			.expect("WASM binary was not built, please build it!"),
-		Extensions { relay_chain: "origin-dev".into(), para_id },
+		Extensions { relay_chain: "origin-dev".into(), para_id: 1005 },
 	)
-	.with_name(name)
-	.with_id(chain_id)
-	.with_chain_type(ChainType::Local)
+	.with_name("Origin Coretime Development")
+	.with_id("origin-coretime-dev")
+	.with_chain_type(ChainType::Development)
 	.with_genesis_config_preset_name(sp_genesis_builder::DEV_RUNTIME_PRESET)
 	.with_properties(properties)
 	.build()
@@ -56,27 +43,14 @@ pub fn coretime_origin_staging_local_config() -> GenericChainSpec {
 	properties.insert("ss58Format".into(), 29.into());
 	properties.insert("tokenSymbol".into(), "ORU".into());
 	properties.insert("tokenDecimals".into(), 10.into());
-	coretime_origin_staging_like_local_config(
-		properties,
-		"Coretiem Origin Local",
-		"origin-coretime-local",
-		1005,
-	)
-}
 
-fn coretime_origin_staging_like_local_config(
-	properties: sc_chain_spec::Properties,
-	name: &str,
-	chain_id: &str,
-	para_id: u32,
-) -> GenericChainSpec {
 	GenericChainSpec::builder(
 		cord_origin_coretime_staging_runtime::WASM_BINARY
 			.expect("WASM binary was not built, please build it!"),
-		Extensions { relay_chain: "origin-local".into(), para_id },
+		Extensions { relay_chain: "origin-local".into(), para_id: 1005 },
 	)
-	.with_name(name)
-	.with_id(chain_id)
+	.with_name("Coretiem Origin Local Testnet")
+	.with_id("origin-coretime-local")
 	.with_chain_type(ChainType::Local)
 	.with_genesis_config_preset_name(sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET)
 	.with_properties(properties)
@@ -87,7 +61,7 @@ pub fn coretime_origin_genesis_config() -> GenericChainSpec {
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("ss58Format".into(), 29.into());
 	properties.insert("tokenSymbol".into(), "ORU".into());
-	properties.insert("tokenDecimals".into(), 12.into());
+	properties.insert("tokenDecimals".into(), 10.into());
 	let para_id = 1005;
 	GenericChainSpec::builder(
 		cord_origin_coretime_staging_runtime::WASM_BINARY

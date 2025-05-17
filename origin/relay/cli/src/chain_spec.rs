@@ -53,7 +53,7 @@ pub fn cord_origin_relay_chain_spec_properties() -> serde_json::map::Map<String,
 	serde_json::json!({
 		"ss58Format": "29",
 		"tokenSymbol":"ORU",
-		"tokenDecimals": 12,
+		"tokenDecimals": 10,
 	})
 	.as_object()
 	.expect("Map given; qed")

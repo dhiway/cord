@@ -78,10 +78,13 @@ impl SubstrateCli for Cli {
 			// "cord-relay" | "cord-origin-relay" => Box::new(GenericChainSpec::from_json_bytes(
 			// 	&include_bytes!("../../chain-specs/tbd.json")[..],
 			// )?),
-			"dev" | "origin-relay-dev" => {
+			//
+			#[cfg(feature = "origin-native")]
+			"relay-dev" | "origin-relay-dev" => {
 				Box::new(chain_spec::cord_origin_relay_development_config()?)
 			},
-			"local" | "origin-relay-local" => {
+			#[cfg(feature = "origin-native")]
+			"relay-local" | "origin-relay-local" => {
 				Box::new(chain_spec::cord_origin_relay_local_testnet_config()?)
 			},
 			path => {
