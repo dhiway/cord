@@ -39,24 +39,6 @@ sp-genesis-builder = { workspace = true, default-features = true }
 sp-keyring = { workspace = true, default-features = true }
 xcm = { workspace = true, default-features = true }
 
-# parachains-common.default-features = true
-# parachains-common.workspace = true
-# people-origin-runtime.workspace = true
-# sc-chain-spec.default-features = true
-# sc-chain-spec.workspace = true
-# sc-cli.default-features = true
-# sc-cli.workspace = true
-# sc-service.default-features = true
-# sc-service.workspace = true
-# sp-core.default-features = true
-# sp-core.workspace = true
-# sp-genesis-builder.default-features = true
-# sp-genesis-builder.workspace = true
-# sp-keyring.default-features = true
-# sp-keyring.workspace = true
-# xcm.default-features = true
-# xcm.workspace = true
-
 [build-dependencies]
 substrate-build-script-utils = { workspace = true, default-features = true }
 
