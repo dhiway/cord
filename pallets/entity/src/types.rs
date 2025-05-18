@@ -22,15 +22,20 @@ use cord_primitives::element::Element;
 use core::fmt::Debug;
 use frame_support::{
 	traits::{ConstU32, Get},
-	BoundedVec,
+	BoundedVec, CloneNoBound, RuntimeDebugNoBound,
 };
 use scale_info::TypeInfo;
-use sp_runtime::{traits::Member, RuntimeDebug};
+use sp_runtime::RuntimeDebug;
 
 /// The raw‐data type used throughout the identity pallet.
-pub type Data = Element<128>;
+// pub type Data<MaxRaw: Get<u32>> = Element<MaxRaw>;
+pub type Data<MaxRaw> = Element<MaxRaw>;
+
 /// Maximum length for an additional-field key.
 pub type Attribute = BoundedVec<u8, ConstU32<64>>;
+
+// pub type Additional<MaxFields: Get<u32>, MaxRaw: Get<u32>> =
+pub type Additional<MaxFields, MaxRaw> = BoundedVec<(Attribute, Data<MaxRaw>), MaxFields>;
 
 /// A `Data::CID`‐only wrapper; trying to build it from any other `Data` will fail.
 #[derive(
@@ -47,16 +52,16 @@ pub type Attribute = BoundedVec<u8, ConstU32<64>>;
 pub struct ProfileCid(pub [u8; 64]);
 
 /// Convert our wrapper into a full `Data::CID(_)`.
-impl From<ProfileCid> for Data {
+impl<MaxRaw: Get<u32>> From<ProfileCid> for Data<MaxRaw> {
 	fn from(cid: ProfileCid) -> Self {
 		Data::CID(cid.0)
 	}
 }
 
 /// Try to extract a `ProfileCid` from a general `Data`
-impl TryFrom<Data> for ProfileCid {
+impl<MaxRaw: Get<u32>> TryFrom<Data<MaxRaw>> for ProfileCid {
 	type Error = ();
-	fn try_from(value: Data) -> Result<Self, ()> {
+	fn try_from(value: Data<MaxRaw>) -> Result<Self, ()> {
 		match value {
 			Data::CID(bytes) => Ok(ProfileCid(bytes)),
 			_ => Err(()),
@@ -79,27 +84,32 @@ pub enum IdentityUpdateError {
 pub trait IdentityInformationProvider:
 	Encode + Decode + MaxEncodedLen + Clone + Debug + Eq + PartialEq + TypeInfo + Default
 {
-	/// A bitmask type that can encode “which fields are set/updated”.
-	type FieldsIdentifier: Member + Encode + Decode + MaxEncodedLen + TypeInfo + Default;
+	/// Bitmask type for which fields are set/updated.
+	type FieldsIdentifier: Encode + Decode + MaxEncodedLen + TypeInfo + Default;
 
-	/// … existing items …
-	type UpdateOp: Decode + Encode + Clone + Debug + PartialEq + TypeInfo + MaxEncodedLen;
-
-	/// extra `(Data,Data)` pairs we can hold
+	/// Limit on the number of `(Attribute, Data)` pairs.
 	type FieldLimit: Get<u32>;
 
-	/// additional entries
-	fn additional(&self) -> &BoundedVec<(Attribute, Data), Self::FieldLimit>;
+	/// Limit on the raw‐data size.
+	type DataLimit: Get<u32>;
 
-	/// Does `self` actually have data for *all* the bits flipped in `fields`?
+	/// The enum of update operations.
+	type UpdateOp: Encode + Decode + Clone + Debug + PartialEq + TypeInfo + MaxEncodedLen;
+
+	/// Access the current additional entries (never `None`).
+	fn additional(&self) -> &Additional<Self::FieldLimit, Self::DataLimit>;
+
+	/// Do we have *all* the requested data fields?
 	fn has_identity(&self, fields: Self::FieldsIdentifier) -> bool;
 
-	/// Apply a single update operation to `self`.
+	/// Apply one operation.
 	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), IdentityUpdateError>;
 
+	/// For benchmarking only.
 	#[cfg(feature = "runtime-benchmarks")]
 	fn create_identity_info() -> Self;
 
+	/// For benchmarking only.
 	#[cfg(feature = "runtime-benchmarks")]
 	fn all_fields() -> Self::FieldsIdentifier;
 }
@@ -109,26 +119,27 @@ pub trait IdentityInformationProvider:
 	Encode,
 	Decode,
 	DecodeWithMemTracking,
-	Clone,
+	CloneNoBound,
 	PartialEq,
 	Eq,
-	RuntimeDebug,
+	RuntimeDebugNoBound,
 	TypeInfo,
 	MaxEncodedLen,
 )]
-pub enum IdentityUpdateOp {
+// #[scale_info(skip_type_params(MaxRaw))]
+pub enum IdentityUpdateOp<MaxRaw: Get<u32>> {
 	/// Replace the display name.
-	SetDisplay(Data),
+	SetDisplay(Data<MaxRaw>),
 	/// Replace the legal name.
-	SetLegal(Data),
+	SetLegal(Data<MaxRaw>),
 	/// Replace the website.
-	SetWeb(Data),
+	SetWeb(Data<MaxRaw>),
 	/// Replace the profile CID (or clear if `None`).
 	SetProfile(Option<ProfileCid>),
 	/// Add a new key/value pair. Fails if key exists or limit reached.
-	AddAdditional(Attribute, Data),
+	AddAdditional(Attribute, Data<MaxRaw>),
 	/// Update an existing key’s value (or clear if `Data::None`).
-	UpdateAdditional(Attribute, Data),
+	UpdateAdditional(Attribute, Data<MaxRaw>),
 	/// Remove a key/value pair by key.
 	RemoveAdditional(Attribute),
 	/// Remove *all* additional data.
@@ -145,9 +156,10 @@ mod tests {
 	#[test]
 	fn test_data_roundtrip_and_as_ref() {
 		// None variant
-		let d_none = Data::None;
+		type TestData = Data<ConstU32<128>>;
+		let d_none = TestData::None;
 		let enc_none = d_none.encode();
-		let dec_none = Data::decode(&mut &enc_none[..]).expect("Decode None");
+		let dec_none = TestData::decode(&mut &enc_none[..]).expect("Decode None");
 		assert_eq!(dec_none, d_none);
 		assert_eq!(d_none.as_ref(), &[] as &[u8]);
 
@@ -155,26 +167,26 @@ mod tests {
 		for &n in &[0usize, 1, 5, 32, 64, 128] {
 			let vec: Vec<u8> = vec![0xAB; n];
 			let bounded: BoundedVec<u8, ConstU32<128>> = vec.clone().try_into().unwrap();
-			let d_raw = Data::Raw(bounded.clone());
+			let d_raw = TestData::Raw(bounded.clone());
 			let enc = d_raw.encode();
-			let dec = Data::decode(&mut &enc[..]).expect("Decode Raw");
+			let dec = TestData::decode(&mut &enc[..]).expect("Decode Raw");
 			assert_eq!(dec, d_raw);
 			assert_eq!(d_raw.as_ref(), vec.as_slice());
 		}
 
 		// Digest variant
 		let hash = [0x11u8; 32];
-		let d_digest = Data::Digest(hash);
+		let d_digest = TestData::Digest(hash);
 		let enc_digest = d_digest.encode();
-		let dec_digest = Data::decode(&mut &enc_digest[..]).expect("Decode Digest");
+		let dec_digest = TestData::decode(&mut &enc_digest[..]).expect("Decode Digest");
 		assert_eq!(dec_digest, d_digest);
 		assert_eq!(d_digest.as_ref(), &hash[..]);
 
 		// CID variant
 		let cid = [0x22u8; 64];
-		let d_cid = Data::CID(cid);
+		let d_cid = TestData::CID(cid);
 		let enc_cid = d_cid.encode();
-		let dec_cid = Data::decode(&mut &enc_cid[..]).expect("Decode CID");
+		let dec_cid = TestData::decode(&mut &enc_cid[..]).expect("Decode CID");
 		assert_eq!(dec_cid, d_cid);
 		assert_eq!(d_cid.as_ref(), &cid[..]);
 	}

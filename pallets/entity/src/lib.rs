@@ -32,7 +32,7 @@ pub mod weights;
 
 extern crate alloc;
 use crate::types::{Attribute, Username};
-use alloc::{boxed::Box, vec::Vec};
+use alloc::{boxed::Box, fmt::Debug, vec::Vec};
 use codec::{Encode, EncodeLike};
 use cord_primitives::identifier::Ss58Identifier;
 use frame_support::{
@@ -44,9 +44,14 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use pallet_identifier::{EventBlock, EventTypeOf, Identifier};
+use scale_info::TypeInfo;
 use sp_runtime::traits::Hash;
 pub use types::{Data, IdentityInformationProvider, IdentityUpdateError, IdentityUpdateOp};
 pub use weights::WeightInfo;
+
+pub type DataOf<T> = Data<<T as Config>::MaxDataLength>;
+pub type UpdateOpOf<T> =
+	<<T as Config>::IdentityInformation as IdentityInformationProvider>::UpdateOp;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -59,19 +64,27 @@ pub mod pallet {
 
 		/// The maximum number of sub-accounts allowed per identified account.
 		#[pallet::constant]
-		type MaxSubAccounts: Get<u32>;
+		type MaxSubAccounts: Get<u32> + TypeInfo;
 
 		/// Structure holding information about an identity.
-		type IdentityInformation: IdentityInformationProvider<UpdateOp = IdentityUpdateOp>
-			+ EncodeLike;
+		type IdentityInformation: IdentityInformationProvider<
+				FieldsIdentifier = u64,
+				FieldLimit = Self::MaxAdditionalFields,
+				DataLimit = Self::MaxDataLength,
+				UpdateOp = IdentityUpdateOp<Self::MaxDataLength>,
+			> + EncodeLike;
 
 		/// Maximum number of additional fields that may be stored in an ID.
 		#[pallet::constant]
-		type MaxAdditionalFields: Get<u32>;
+		type MaxAdditionalFields: Get<u32> + TypeInfo + Clone + PartialEq + Debug;
+
+		/// Maximum size for raw data fields.
+		#[pallet::constant]
+		type MaxDataLength: Get<u32> + TypeInfo + Clone + PartialEq + Debug;
 
 		/// Max length for username prefix (before the dot).
 		#[pallet::constant]
-		type MaxUsernameLength: Get<u32>;
+		type MaxUsernameLength: Get<u32> + TypeInfo + Clone + PartialEq + Debug;
 
 		/// The origin which may forcibly set or remove a name. Root can always do this.
 		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -153,10 +166,9 @@ pub mod pallet {
 		Ss58Identifier,
 		Blake2_128Concat,
 		(Attribute, u64),
-		(Data, EventBlock),
+		(DataOf<T>, EventBlock),
 		OptionQuery,
 	>;
-
 	#[pallet::error]
 	pub enum Error<T> {
 		///Bad Origin
@@ -283,7 +295,6 @@ pub mod pallet {
 
 			let info: T::IdentityInformation = *info;
 			let additional = info.additional();
-
 			if !additional.is_empty() {
 				let mut seen = Vec::with_capacity(additional.len());
 				for (key, _val) in additional.iter() {
@@ -296,7 +307,6 @@ pub mod pallet {
 					seen.push(raw_key);
 				}
 			}
-
 			// let digest = T::Hashing::hash(&who.encode());
 			let digest = T::Hashing::hash(&(info.clone(), b"IdentityInfoSet".to_vec()).encode());
 			let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
@@ -323,10 +333,7 @@ pub mod pallet {
 		/// Update *any* combination of fields in an existing identity.
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::update_identity(ops.encoded_size() as u32))]
-		pub fn update_identity(
-			origin: OriginFor<T>,
-			ops: Vec<<T::IdentityInformation as IdentityInformationProvider>::UpdateOp>,
-		) -> DispatchResult {
+		pub fn update_identity(origin: OriginFor<T>, ops: Vec<UpdateOpOf<T>>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let id = Self::lookup_id_of(&who)?;
 			let controller = Self::lookup_controller_of(&id)?;
@@ -336,17 +343,21 @@ pub mod pallet {
 				let info = opt.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
 				let mut history = Vec::new();
 				for op in ops.iter() {
-					if let IdentityUpdateOp::UpdateAdditional(key, _) = op {
-						if let Some((_, old)) = info.additional().iter().find(|(k, _)| k == key) {
+					if let IdentityUpdateOp::UpdateAdditional(ref key, _) = op {
+						let additional = info.additional();
+						if let Some((_, old)) = additional.iter().find(|(k, _)| *k == *key) {
 							history.push((key.clone(), old.clone()));
 						}
 					}
-					info.apply_update(op).map_err(|e| match e {
+
+					// 2) borrow the op when calling apply_update
+					info.apply_update(&op).map_err(|e| match e {
 						IdentityUpdateError::AttributeExists => Error::<T>::AttributeExists,
 						IdentityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
 						IdentityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
 					})?;
 				}
+
 				for (key, old) in history {
 					let ver = Ss58OfAttributeVersion::<T>::get(&id, &key).saturating_add(1);
 					Ss58OfAttributeVersion::<T>::insert(&id, &key, ver);
@@ -375,7 +386,7 @@ pub mod pallet {
 		/// Add a single arbitrary attribute key->Data.
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::add_attribute( key.len() as u32 + val.as_ref().len() as u32))]
-		pub fn add_attribute(origin: OriginFor<T>, key: Vec<u8>, val: Data) -> DispatchResult {
+		pub fn add_attribute(origin: OriginFor<T>, key: Vec<u8>, val: DataOf<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let id = Self::lookup_id_of(&who)?;
 			ensure!(who == Self::lookup_controller_of(&id)?, Error::<T>::BadOrigin);
