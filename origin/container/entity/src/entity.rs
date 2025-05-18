@@ -100,11 +100,11 @@ pub struct IdentityInfo<FieldLimit: Get<u32>> {
 	/// A content identifier (CID) for a profile blob or document.
 	pub profile: Option<ProfileCid>,
 	/// Additional arbitrary (key, value) pairs.
-	pub additional: BoundedVec<(Attribute, Data), FieldLimit>,
+	pub additional: Option<BoundedVec<(Attribute, Data), FieldLimit>>,
 }
 
 impl<FieldLimit: Get<u32>> IdentityInfo<FieldLimit> {
-	pub fn set_additional(&mut self, add: BoundedVec<(Attribute, Data), FieldLimit>) {
+	pub fn set_additional(&mut self, add: Option<BoundedVec<(Attribute, Data), FieldLimit>>) {
 		self.additional = add;
 	}
 }
@@ -118,8 +118,8 @@ impl<FieldLimit: Get<u32> + 'static> IdentityInformationProvider for IdentityInf
 		self.fields().bits() & fields == fields
 	}
 
-	fn additional(&self) -> &BoundedVec<(Attribute, Data), FieldLimit> {
-		&self.additional
+	fn additional(&self) -> Option<&BoundedVec<(Attribute, Data), FieldLimit>> {
+		self.additional.as_ref()
 	}
 
 	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), IdentityUpdateError> {
@@ -140,37 +140,45 @@ impl<FieldLimit: Get<u32> + 'static> IdentityInformationProvider for IdentityInf
 				self.profile = opt.clone();
 				Ok(())
 			},
-
 			IdentityUpdateOp::AddAdditional(key, val) => {
-				if self.additional.iter().any(|(k, _)| k == key) {
+				let additional = self.additional.get_or_insert_with(BoundedVec::default);
+				if additional.iter().any(|(k, _)| k == key) {
 					return Err(IdentityUpdateError::AttributeExists);
 				}
-				self.additional
+				additional
 					.try_push((key.clone(), val.clone()))
 					.map_err(|_| IdentityUpdateError::TooManyAttributes)?;
 				Ok(())
 			},
-
 			IdentityUpdateOp::UpdateAdditional(key, val) => {
-				if let Some((_, v)) = self.additional.iter_mut().find(|(k, _)| k == key) {
-					*v = val.clone();
-					Ok(())
+				if let Some(additional) = self.additional.as_mut() {
+					if let Some((_, v)) = additional.iter_mut().find(|(k, _)| k == key) {
+						*v = val.clone();
+						Ok(())
+					} else {
+						Err(IdentityUpdateError::AttributeNotFound)
+					}
 				} else {
 					Err(IdentityUpdateError::AttributeNotFound)
 				}
 			},
-
 			IdentityUpdateOp::RemoveAdditional(key) => {
-				if let Some(i) = self.additional.iter().position(|(k, _)| k == key) {
-					self.additional.swap_remove(i);
-					Ok(())
+				if let Some(additional) = self.additional.as_mut() {
+					if let Some(i) = additional.iter().position(|(k, _)| k == key) {
+						additional.swap_remove(i);
+						if additional.is_empty() {
+							self.additional = None;
+						}
+						Ok(())
+					} else {
+						Err(IdentityUpdateError::AttributeNotFound)
+					}
 				} else {
 					Err(IdentityUpdateError::AttributeNotFound)
 				}
 			},
-
 			IdentityUpdateOp::ClearAdditional => {
-				self.additional.clear();
+				self.additional = None;
 				Ok(())
 			},
 		}
@@ -190,7 +198,7 @@ impl<FieldLimit: Get<u32> + 'static> IdentityInformationProvider for IdentityInf
 			legal: d.clone(),
 			web: d.clone(),
 			profile: Some(ProfileCid([0u8; 64])),
-			additional: additional.try_into().unwrap(),
+			additional: Some(additional.try_into().unwrap()),
 		}
 	}
 
@@ -207,7 +215,7 @@ impl<FieldLimit: Get<u32>> Default for IdentityInfo<FieldLimit> {
 			legal: Data::None,
 			web: Data::None,
 			profile: None,
-			additional: BoundedVec::default(),
+			additional: None,
 		}
 	}
 }
@@ -227,7 +235,7 @@ impl<FieldLimit: Get<u32>> IdentityInfo<FieldLimit> {
 		if self.profile.is_some() {
 			bits.insert(IdentityField::Profile);
 		}
-		if !self.additional.is_empty() {
+		if self.additional.as_ref().map_or(false, |a| !a.is_empty()) {
 			bits.insert(IdentityField::Additional);
 		}
 		bits

@@ -19,20 +19,22 @@
 #[cfg(feature = "runtime-benchmarks")]
 use alloc::vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use core::fmt::Debug;
 #[cfg(feature = "runtime-benchmarks")]
 use enumflags2::BitFlag;
 use enumflags2::{bitflags, BitFlags};
 use frame_support::{traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound};
 use scale_info::{build::Variants, Path, Type, TypeInfo};
-use sp_runtime::{BoundedVec, RuntimeDebug};
+use sp_runtime::BoundedVec;
 
 use crate::types::{
-	Attribute, Data, IdentityInformationProvider, IdentityUpdateError, IdentityUpdateOp, ProfileCid,
+	Additional, Attribute, Data, IdentityInformationProvider, IdentityUpdateError,
+	IdentityUpdateOp, ProfileCid,
 };
 /// Each field corresponds to a field in the `IdentityInfo` struct.
 #[bitflags]
 #[repr(u64)]
-#[derive(Clone, Copy, PartialEq, Eq, RuntimeDebug)]
+#[derive(Clone, Copy, PartialEq, Eq, RuntimeDebugNoBound)]
 pub enum IdentityField {
 	Display,
 	Legal,
@@ -69,130 +71,20 @@ impl TypeInfo for IdentityField {
 	TypeInfo,
 )]
 #[codec(mel_bound())]
-#[scale_info(skip_type_params(FieldLimit))]
-pub struct IdentityInfo<FieldLimit: Get<u32>> {
-	/// A reasonable display name (UTF-8).
-	pub display: Data,
-	/// The full legal name (UTF-8).
-	pub legal: Data,
-	/// A representative website (UTF-8, “https://” prepended).
-	pub web: Data,
-	/// A content identifier (CID) for a profile blob or document.
+#[scale_info(skip_type_params(FieldLimit, DataLimit))]
+pub struct IdentityInfo<FieldLimit: Get<u32>, RawLimit: Get<u32>> {
+	pub display: Data<RawLimit>,
+	pub legal: Data<RawLimit>,
+	pub web: Data<RawLimit>,
 	pub profile: Option<ProfileCid>,
-	/// Additional arbitrary (key, value) pairs.
-	pub additional: BoundedVec<(Attribute, Data), FieldLimit>,
+	pub additional: Additional<FieldLimit, RawLimit>,
 }
 
-impl<FieldLimit: Get<u32>> IdentityInfo<FieldLimit> {
-	pub fn set_additional(&mut self, add: BoundedVec<(Attribute, Data), FieldLimit>) {
-		self.additional = add;
-	}
-}
-
-impl<FieldLimit: Get<u32> + 'static> IdentityInformationProvider for IdentityInfo<FieldLimit> {
-	type FieldsIdentifier = u64;
-	type FieldLimit = FieldLimit;
-	type UpdateOp = IdentityUpdateOp;
-
-	fn has_identity(&self, fields: Self::FieldsIdentifier) -> bool {
-		self.fields().bits() & fields == fields
+impl<FieldLimit: Get<u32>, DataLimit: Get<u32>> IdentityInfo<FieldLimit, DataLimit> {
+	pub fn set_additional(&mut self, new: BoundedVec<(Attribute, Data<DataLimit>), FieldLimit>) {
+		self.additional = new;
 	}
 
-	fn additional(&self) -> &BoundedVec<(Attribute, Data), FieldLimit> {
-		&self.additional
-	}
-
-	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), IdentityUpdateError> {
-		match op {
-			IdentityUpdateOp::SetDisplay(x) => {
-				self.display = x.clone();
-				Ok(())
-			},
-			IdentityUpdateOp::SetLegal(x) => {
-				self.legal = x.clone();
-				Ok(())
-			},
-			IdentityUpdateOp::SetWeb(x) => {
-				self.web = x.clone();
-				Ok(())
-			},
-			IdentityUpdateOp::SetProfile(opt) => {
-				self.profile = opt.clone();
-				Ok(())
-			},
-
-			IdentityUpdateOp::AddAdditional(key, val) => {
-				if self.additional.iter().any(|(k, _)| k == key) {
-					return Err(IdentityUpdateError::AttributeExists);
-				}
-				self.additional
-					.try_push((key.clone(), val.clone()))
-					.map_err(|_| IdentityUpdateError::TooManyAttributes)?;
-				Ok(())
-			},
-
-			IdentityUpdateOp::UpdateAdditional(key, val) => {
-				if let Some((_, v)) = self.additional.iter_mut().find(|(k, _)| k == key) {
-					*v = val.clone();
-					Ok(())
-				} else {
-					Err(IdentityUpdateError::AttributeNotFound)
-				}
-			},
-
-			IdentityUpdateOp::RemoveAdditional(key) => {
-				if let Some(i) = self.additional.iter().position(|(k, _)| k == key) {
-					self.additional.swap_remove(i);
-					Ok(())
-				} else {
-					Err(IdentityUpdateError::AttributeNotFound)
-				}
-			},
-
-			IdentityUpdateOp::ClearAdditional => {
-				self.additional.clear();
-				Ok(())
-			},
-		}
-	}
-
-	#[cfg(feature = "runtime-benchmarks")]
-	fn create_identity_info() -> Self {
-		let d = Data::Raw(vec![0; 32].try_into().unwrap());
-		let mut additional = Vec::new();
-		let cap: usize = FieldLimit::get().try_into().unwrap();
-		for _ in 0..cap {
-			additional.push((AdditionalKey::default(), raw.clone()));
-		}
-
-		IdentityInfo {
-			display: d.clone(),
-			legal: d.clone(),
-			web: d.clone(),
-			profile: Some(ProfileCid([0u8; 64])),
-			additional: additional.try_into().unwrap(),
-		}
-	}
-
-	#[cfg(feature = "runtime-benchmarks")]
-	fn all_fields() -> Self::FieldsIdentifier {
-		IdentityField::all().bits()
-	}
-}
-
-impl<FieldLimit: Get<u32>> Default for IdentityInfo<FieldLimit> {
-	fn default() -> Self {
-		IdentityInfo {
-			display: Data::None,
-			legal: Data::None,
-			web: Data::None,
-			profile: None,
-			additional: BoundedVec::default(),
-		}
-	}
-}
-
-impl<FieldLimit: Get<u32>> IdentityInfo<FieldLimit> {
 	pub(crate) fn fields(&self) -> BitFlags<IdentityField> {
 		let mut bits = BitFlags::empty();
 		if !self.display.is_none() {
@@ -211,5 +103,108 @@ impl<FieldLimit: Get<u32>> IdentityInfo<FieldLimit> {
 			bits.insert(IdentityField::Additional);
 		}
 		bits
+	}
+}
+
+impl<
+		FieldLimit: Get<u32> + 'static + TypeInfo,
+		DataLimit: Get<u32> + 'static + TypeInfo + Clone + PartialEq + Debug + TypeInfo,
+	> IdentityInformationProvider for IdentityInfo<FieldLimit, DataLimit>
+{
+	type FieldsIdentifier = u64;
+	type FieldLimit = FieldLimit;
+	type DataLimit = DataLimit;
+	type UpdateOp = IdentityUpdateOp<DataLimit>;
+
+	fn additional(&self) -> &Additional<Self::FieldLimit, Self::DataLimit> {
+		&self.additional
+	}
+
+	fn has_identity(&self, fields: Self::FieldsIdentifier) -> bool {
+		self.fields().bits() & fields == fields
+	}
+
+	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), IdentityUpdateError> {
+		match op {
+			IdentityUpdateOp::SetDisplay(x) => {
+				self.display = x.clone();
+				Ok(())
+			},
+			IdentityUpdateOp::SetLegal(x) => {
+				self.legal = x.clone();
+				Ok(())
+			},
+			IdentityUpdateOp::SetWeb(x) => {
+				self.web = x.clone();
+				Ok(())
+			},
+			IdentityUpdateOp::SetProfile(o) => {
+				self.profile = o.clone();
+				Ok(())
+			},
+			IdentityUpdateOp::AddAdditional(k, v) => {
+				if self.additional.iter().any(|(kk, _)| kk == k) {
+					return Err(IdentityUpdateError::AttributeExists);
+				}
+				self.additional
+					.try_push((k.clone(), v.clone()))
+					.map_err(|_| IdentityUpdateError::TooManyAttributes)?;
+				Ok(())
+			},
+			IdentityUpdateOp::UpdateAdditional(k, v) => {
+				if let Some((_, val)) = self.additional.iter_mut().find(|(kk, _)| kk == k) {
+					*val = v.clone();
+					Ok(())
+				} else {
+					Err(IdentityUpdateError::AttributeNotFound)
+				}
+			},
+			IdentityUpdateOp::RemoveAdditional(k) => {
+				if let Some(i) = self.additional.iter().position(|(kk, _)| kk == k) {
+					self.additional.swap_remove(i);
+					Ok(())
+				} else {
+					Err(IdentityUpdateError::AttributeNotFound)
+				}
+			},
+			IdentityUpdateOp::ClearAdditional => {
+				self.additional.clear();
+				Ok(())
+			},
+		}
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn create_identity_info() -> Self {
+		let empty = Data::<DataLimit>::Raw(Default::default());
+		let mut all = Vec::new();
+		let cap: usize = FieldLimit::get().try_into().unwrap();
+		for _ in 0..cap {
+			all.push((Attribute::default(), empty.clone()));
+		}
+		IdentityInfo {
+			display: empty.clone(),
+			legal: empty.clone(),
+			web: empty.clone(),
+			profile: Some(ProfileCid([0u8; 64])),
+			additional: all.try_into().unwrap(),
+		}
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn all_fields() -> Self::FieldsIdentifier {
+		IdentityField::all().bits()
+	}
+}
+
+impl<FieldLimit: Get<u32>, RawLimit: Get<u32>> Default for IdentityInfo<FieldLimit, RawLimit> {
+	fn default() -> Self {
+		IdentityInfo {
+			display: Data::None,
+			legal: Data::None,
+			web: Data::None,
+			profile: None,
+			additional: Default::default(),
+		}
 	}
 }

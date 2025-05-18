@@ -24,9 +24,8 @@
 use crate::identifier::Ss58Identifier;
 use alloc::vec::Vec;
 use codec::{Compact, Decode, DecodeWithMemTracking, Encode, EncodeLike, MaxEncodedLen};
-use frame_support::{traits::ConstU32, BoundedVec};
+use frame_support::{traits::Get, BoundedVec, CloneNoBound, RuntimeDebugNoBound};
 use scale_info::TypeInfo;
-use sp_runtime::RuntimeDebug;
 
 /// The `Element` enum supports the following variants:
 /// - None: Indicates that no data is provided.
@@ -34,12 +33,12 @@ use sp_runtime::RuntimeDebug;
 /// - Identifier: An embedded Ss58Identifier.
 /// - Digest: A fixed 32-byte digest (e.g., computed using BlakeTwo256).
 /// - CID: A fixed 64-byte content identifier.
-#[derive(Clone, DecodeWithMemTracking, Eq, PartialEq, RuntimeDebug, MaxEncodedLen, TypeInfo)]
-pub enum Element<const MAX_CAP: u32> {
+#[derive(CloneNoBound, DecodeWithMemTracking, RuntimeDebugNoBound, MaxEncodedLen, TypeInfo)]
+pub enum Element<MaxCap: Get<u32>> {
 	/// No data provided.
 	None,
 	/// Raw data stored directly.
-	Raw(BoundedVec<u8, ConstU32<MAX_CAP>>),
+	Raw(BoundedVec<u8, MaxCap>),
 	/// An embedded Ss58Identifier.
 	Identifier(Ss58Identifier),
 	/// A 32-byte BlakeTwo256 digest.
@@ -49,52 +48,49 @@ pub enum Element<const MAX_CAP: u32> {
 }
 
 // Custom Encode implementation with a one-byte discriminant.
-impl<const MAX_CAP: u32> Encode for Element<MAX_CAP> {
+impl<MaxCap: Get<u32>> Encode for Element<MaxCap> {
 	fn encode(&self) -> Vec<u8> {
 		match self {
-			Element::None => {
-				let mut encoded = Vec::with_capacity(1);
-				encoded.push(0);
-				encoded
-			},
+			Element::None => vec![0],
 			Element::Raw(raw) => {
-				let raw_slice = raw.as_slice();
-				let mut encoded = Vec::with_capacity(1 + 4 + raw_slice.len());
-				encoded.push(1);
-				Compact(raw_slice.len() as u32).encode_to(&mut encoded);
-				encoded.extend_from_slice(raw_slice);
-				encoded
+				let slice = raw.as_slice();
+				let mut out = Vec::with_capacity(1 + 4 + slice.len());
+				out.push(1);
+				Compact(slice.len() as u32).encode_to(&mut out);
+				out.extend_from_slice(slice);
+				out
 			},
 			Element::Identifier(id) => {
 				let id_bytes = id.encode();
-				let mut encoded = Vec::with_capacity(1 + id_bytes.len());
-				encoded.push(2);
-				encoded.extend(id_bytes);
-				encoded
+				let mut out = Vec::with_capacity(1 + id_bytes.len());
+				out.push(2);
+				out.extend(id_bytes);
+				out
 			},
-			Element::Digest(hash) => {
-				let mut encoded = Vec::with_capacity(1 + 32);
-				encoded.push(3);
-				encoded.extend(hash.encode());
-				encoded
+			Element::Digest(d) => {
+				let mut out = Vec::with_capacity(1 + 32);
+				out.push(3);
+				out.extend(d.encode());
+				out
 			},
-			Element::CID(cid) => {
-				let mut encoded = Vec::with_capacity(1 + 64);
-				encoded.push(4);
-				encoded.extend(cid.encode());
-				encoded
+			Element::CID(c) => {
+				let mut out = Vec::with_capacity(1 + 64);
+				out.push(4);
+				out.extend(c.encode());
+				out
 			},
 		}
 	}
 }
 
-impl<const MAX_CAP: u32> Decode for Element<MAX_CAP> {
+impl<MaxCap: Get<u32>> Decode for Element<MaxCap> {
 	fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
 		let variant = input.read_byte()?;
 		match variant {
 			0 => Ok(Element::None),
 			1 => {
-				let raw = BoundedVec::<u8, ConstU32<MAX_CAP>>::decode(input)?;
+				// now uses the generic MaxCap rather than ConstU32<MAX_CAP>
+				let raw = BoundedVec::<u8, MaxCap>::decode(input)?;
 				Ok(Element::Raw(raw))
 			},
 			2 => {
@@ -114,8 +110,23 @@ impl<const MAX_CAP: u32> Decode for Element<MAX_CAP> {
 	}
 }
 
+impl<MaxCap: Get<u32>> PartialEq for Element<MaxCap> {
+	fn eq(&self, other: &Self) -> bool {
+		match (self, other) {
+			(Element::None, Element::None) => true,
+			(Element::Raw(a), Element::Raw(b)) => a == b,
+			(Element::Identifier(a), Element::Identifier(b)) => a == b,
+			(Element::Digest(a), Element::Digest(b)) => a == b,
+			(Element::CID(a), Element::CID(b)) => a == b,
+			_ => false,
+		}
+	}
+}
+
+impl<MaxCap: Get<u32>> Eq for Element<MaxCap> {}
+
 // Provide a unified AsRef<[u8]> implementation to obtain a view of the inner bytes.
-impl<const MAX_CAP: u32> AsRef<[u8]> for Element<MAX_CAP> {
+impl<MaxCap: Get<u32>> AsRef<[u8]> for Element<MaxCap> {
 	fn as_ref(&self) -> &[u8] {
 		match self {
 			Element::None => &[],
@@ -128,13 +139,13 @@ impl<const MAX_CAP: u32> AsRef<[u8]> for Element<MAX_CAP> {
 }
 
 // Explicit accessor methods for each variant.
-impl<const MAX_CAP: u32> Element<MAX_CAP> {
+impl<MaxCap: Get<u32>> Element<MaxCap> {
 	/// Returns `true` if the Element is `None`.
 	pub fn is_none(&self) -> bool {
 		matches!(self, Element::None)
 	}
 
-	/// If the Element is `Raw`, returns a reference to its contents; otherwise, returns `None`.
+	/// If the Element is `Raw`, returns a reference to its contents; otherwise, `None`.
 	pub fn as_raw(&self) -> Option<&[u8]> {
 		if let Element::Raw(raw) = self {
 			Some(raw.as_slice())
@@ -143,7 +154,7 @@ impl<const MAX_CAP: u32> Element<MAX_CAP> {
 		}
 	}
 
-	/// Returns the embedded Ss58Identifier if the element is Identifier.
+	/// Returns the embedded Ss58Identifier if the element is `Identifier`.
 	pub fn as_identifier(&self) -> Option<&Ss58Identifier> {
 		if let Element::Identifier(id) = self {
 			Some(id)
@@ -152,7 +163,7 @@ impl<const MAX_CAP: u32> Element<MAX_CAP> {
 		}
 	}
 
-	/// If the Element is `Digest`, returns a reference to the 32-byte digest; otherwise, returns `None`.
+	/// If the Element is `Digest`, returns the 32-byte digest; otherwise, `None`.
 	pub fn as_digest(&self) -> Option<&[u8; 32]> {
 		if let Element::Digest(digest) = self {
 			Some(digest)
@@ -161,7 +172,7 @@ impl<const MAX_CAP: u32> Element<MAX_CAP> {
 		}
 	}
 
-	/// If the Element is `CID`, returns a reference to the 64-byte content identifier; otherwise, returns `None`.
+	/// If the Element is `CID`, returns the 64-byte CID; otherwise, `None`.
 	pub fn as_cid(&self) -> Option<&[u8; 64]> {
 		if let Element::CID(cid) = self {
 			Some(cid)
@@ -171,9 +182,9 @@ impl<const MAX_CAP: u32> Element<MAX_CAP> {
 	}
 }
 
-impl<const MAX_CAP: u32> EncodeLike for Element<MAX_CAP> {}
+impl<MaxCap: Get<u32>> EncodeLike for Element<MaxCap> {}
 
-impl<const MAX_CAP: u32> Default for Element<MAX_CAP> {
+impl<MaxCap: Get<u32>> Default for Element<MaxCap> {
 	fn default() -> Self {
 		Element::None
 	}
@@ -188,7 +199,7 @@ mod tests {
 	use frame_support::{traits::ConstU32, BoundedVec};
 
 	// Use a default Element type with MAX_CAP = 1024
-	pub type DefaultElement = Element<1024>;
+	pub type DefaultElement = Element<ConstU32<1024>>;
 
 	#[test]
 	fn test_element_none_encode_decode() {
