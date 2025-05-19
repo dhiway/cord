@@ -48,7 +48,7 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy, EnsureWithSuccess};
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
 pub use pallet_balances::Call as BalancesCall;
-use pallet_entity::identity::IdentityInfo;
+use pallet_entity::entity::EntityInfo;
 use pallet_identifier::Identifier as _;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
@@ -980,13 +980,15 @@ impl pallet_entry::Config for Runtime {
 parameter_types! {
 	pub const MaxUsernameLength: u32 = 32;
 	pub const MaxAdditionalFields: u32 = 10;
+	pub const MaxDataLength: u32        = 128;
 }
 
 impl pallet_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxSubAccounts = ConstU32<2>;
-	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
+	type MaxDataLength = MaxDataLength;
 	type MaxAdditionalFields = MaxAdditionalFields;
+	type EntityInformation = EntityInfo<MaxAdditionalFields, MaxDataLength>;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;

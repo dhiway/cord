@@ -28,37 +28,37 @@ use scale_info::{build::Variants, Path, Type, TypeInfo};
 use sp_runtime::BoundedVec;
 
 use crate::types::{
-	Additional, Attribute, Data, IdentityInformationProvider, IdentityUpdateError,
-	IdentityUpdateOp, ProfileCid,
+	Attribute, Attributes, Data, EntityInformationProvider, EntityUpdateError, EntityUpdateOp,
+	ProfileCid,
 };
-/// Each field corresponds to a field in the `IdentityInfo` struct.
+/// Each field corresponds to a field in the `EntityInfo` struct.
 #[bitflags]
 #[repr(u64)]
 #[derive(Clone, Copy, PartialEq, Eq, RuntimeDebugNoBound)]
-pub enum IdentityField {
+pub enum EntityField {
 	Display,
 	Legal,
 	Web,
 	Profile,
-	Additional,
+	Attributes,
 }
 
-impl TypeInfo for IdentityField {
+impl TypeInfo for EntityField {
 	type Identity = Self;
 
 	fn type_info() -> scale_info::Type {
-		Type::builder().path(Path::new("IdentityField", module_path!())).variant(
+		Type::builder().path(Path::new("EntityField", module_path!())).variant(
 			Variants::new()
 				.variant("Display", |v| v.index(0))
 				.variant("Legal", |v| v.index(1))
 				.variant("Web", |v| v.index(2))
 				.variant("Profile", |v| v.index(3))
-				.variant("Additional", |v| v.index(4)),
+				.variant("Attributes", |v| v.index(4)),
 		)
 	}
 }
 
-/// Information concerning the identity of the controller of an account.
+/// Information concerning the entity of the controller of an account.
 #[derive(
 	CloneNoBound,
 	Encode,
@@ -71,140 +71,144 @@ impl TypeInfo for IdentityField {
 	TypeInfo,
 )]
 #[codec(mel_bound())]
-#[scale_info(skip_type_params(FieldLimit, DataLimit))]
-pub struct IdentityInfo<FieldLimit: Get<u32>, RawLimit: Get<u32>> {
+#[scale_info(skip_type_params(FieldLimit, RawLimit))]
+pub struct EntityInfo<FieldLimit: Get<u32>, RawLimit: Get<u32>> {
 	pub display: Data<RawLimit>,
 	pub legal: Data<RawLimit>,
 	pub web: Data<RawLimit>,
 	pub profile: Option<ProfileCid>,
-	pub additional: Additional<FieldLimit, RawLimit>,
+	pub attributes: Attributes<FieldLimit, RawLimit>,
 }
 
-impl<FieldLimit: Get<u32>, DataLimit: Get<u32>> IdentityInfo<FieldLimit, DataLimit> {
-	pub fn set_additional(&mut self, new: BoundedVec<(Attribute, Data<DataLimit>), FieldLimit>) {
-		self.additional = new;
+impl<FieldLimit: Get<u32>, DataLimit: Get<u32>> EntityInfo<FieldLimit, DataLimit> {
+	pub fn set_attributes(&mut self, new: BoundedVec<(Attribute, Data<DataLimit>), FieldLimit>) {
+		self.attributes = new;
 	}
 
-	pub(crate) fn fields(&self) -> BitFlags<IdentityField> {
+	pub(crate) fn fields(&self) -> BitFlags<EntityField> {
 		let mut bits = BitFlags::empty();
 		if !self.display.is_none() {
-			bits.insert(IdentityField::Display);
+			bits.insert(EntityField::Display);
 		}
 		if !self.legal.is_none() {
-			bits.insert(IdentityField::Legal);
+			bits.insert(EntityField::Legal);
 		}
 		if !self.web.is_none() {
-			bits.insert(IdentityField::Web);
+			bits.insert(EntityField::Web);
 		}
 		if self.profile.is_some() {
-			bits.insert(IdentityField::Profile);
+			bits.insert(EntityField::Profile);
 		}
-		if !self.additional.is_empty() {
-			bits.insert(IdentityField::Additional);
+		if !self.attributes.is_empty() {
+			bits.insert(EntityField::Attributes);
 		}
 		bits
 	}
 }
 
 impl<
-		FieldLimit: Get<u32> + 'static + TypeInfo,
-		DataLimit: Get<u32> + 'static + TypeInfo + Clone + PartialEq + Debug + TypeInfo,
-	> IdentityInformationProvider for IdentityInfo<FieldLimit, DataLimit>
+		FieldLimit: Get<u32> + 'static,
+		DataLimit: Get<u32> + Clone + PartialEq + Debug + 'static + TypeInfo,
+	> EntityInformationProvider for EntityInfo<FieldLimit, DataLimit>
 {
 	type FieldsIdentifier = u64;
 	type FieldLimit = FieldLimit;
 	type DataLimit = DataLimit;
-	type UpdateOp = IdentityUpdateOp<DataLimit>;
+	type UpdateOp = EntityUpdateOp<DataLimit>;
 
-	fn additional(&self) -> &Additional<Self::FieldLimit, Self::DataLimit> {
-		&self.additional
+	fn attributes(&self) -> &Attributes<Self::FieldLimit, Self::DataLimit> {
+		&self.attributes
 	}
 
-	fn has_identity(&self, fields: Self::FieldsIdentifier) -> bool {
+	fn present_fields(&self) -> Self::FieldsIdentifier {
+		self.fields().bits()
+	}
+
+	fn has_info_fields(&self, fields: Self::FieldsIdentifier) -> bool {
 		self.fields().bits() & fields == fields
 	}
 
-	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), IdentityUpdateError> {
+	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), EntityUpdateError> {
 		match op {
-			IdentityUpdateOp::SetDisplay(x) => {
+			EntityUpdateOp::SetDisplay(x) => {
 				self.display = x.clone();
 				Ok(())
 			},
-			IdentityUpdateOp::SetLegal(x) => {
+			EntityUpdateOp::SetLegal(x) => {
 				self.legal = x.clone();
 				Ok(())
 			},
-			IdentityUpdateOp::SetWeb(x) => {
+			EntityUpdateOp::SetWeb(x) => {
 				self.web = x.clone();
 				Ok(())
 			},
-			IdentityUpdateOp::SetProfile(o) => {
+			EntityUpdateOp::SetProfile(o) => {
 				self.profile = o.clone();
 				Ok(())
 			},
-			IdentityUpdateOp::AddAdditional(k, v) => {
-				if self.additional.iter().any(|(kk, _)| kk == k) {
-					return Err(IdentityUpdateError::AttributeExists);
+			EntityUpdateOp::AddAttribute(k, v) => {
+				if self.attributes.iter().any(|(kk, _)| kk == k) {
+					return Err(EntityUpdateError::AttributeExists);
 				}
-				self.additional
+				self.attributes
 					.try_push((k.clone(), v.clone()))
-					.map_err(|_| IdentityUpdateError::TooManyAttributes)?;
+					.map_err(|_| EntityUpdateError::TooManyAttributes)?;
 				Ok(())
 			},
-			IdentityUpdateOp::UpdateAdditional(k, v) => {
-				if let Some((_, val)) = self.additional.iter_mut().find(|(kk, _)| kk == k) {
+			EntityUpdateOp::UpdateAttribute(k, v) => {
+				if let Some((_, val)) = self.attributes.iter_mut().find(|(kk, _)| kk == k) {
 					*val = v.clone();
 					Ok(())
 				} else {
-					Err(IdentityUpdateError::AttributeNotFound)
+					Err(EntityUpdateError::AttributeNotFound)
 				}
 			},
-			IdentityUpdateOp::RemoveAdditional(k) => {
-				if let Some(i) = self.additional.iter().position(|(kk, _)| kk == k) {
-					self.additional.swap_remove(i);
+			EntityUpdateOp::RemoveAttribute(k) => {
+				if let Some(i) = self.attributes.iter().position(|(kk, _)| kk == k) {
+					self.attributes.swap_remove(i);
 					Ok(())
 				} else {
-					Err(IdentityUpdateError::AttributeNotFound)
+					Err(EntityUpdateError::AttributeNotFound)
 				}
 			},
-			IdentityUpdateOp::ClearAdditional => {
-				self.additional.clear();
+			EntityUpdateOp::ClearAttribute => {
+				self.attributes.clear();
 				Ok(())
 			},
 		}
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn create_identity_info() -> Self {
+	fn create_entity_info() -> Self {
 		let empty = Data::<DataLimit>::Raw(Default::default());
 		let mut all = Vec::new();
 		let cap: usize = FieldLimit::get().try_into().unwrap();
 		for _ in 0..cap {
 			all.push((Attribute::default(), empty.clone()));
 		}
-		IdentityInfo {
+		EntityInfo {
 			display: empty.clone(),
 			legal: empty.clone(),
 			web: empty.clone(),
 			profile: Some(ProfileCid([0u8; 64])),
-			additional: all.try_into().unwrap(),
+			attributes: all.try_into().unwrap(),
 		}
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn all_fields() -> Self::FieldsIdentifier {
-		IdentityField::all().bits()
+		EntityField::all().bits()
 	}
 }
 
-impl<FieldLimit: Get<u32>, RawLimit: Get<u32>> Default for IdentityInfo<FieldLimit, RawLimit> {
+impl<FieldLimit: Get<u32>, RawLimit: Get<u32>> Default for EntityInfo<FieldLimit, RawLimit> {
 	fn default() -> Self {
-		IdentityInfo {
+		EntityInfo {
 			display: Data::None,
 			legal: Data::None,
 			web: Data::None,
 			profile: None,
-			additional: Default::default(),
+			attributes: Default::default(),
 		}
 	}
 }

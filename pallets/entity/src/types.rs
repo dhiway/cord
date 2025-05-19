@@ -27,15 +27,12 @@ use frame_support::{
 use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
-/// The raw‐data type used throughout the identity pallet.
-// pub type Data<MaxRaw: Get<u32>> = Element<MaxRaw>;
+/// The raw‐data type used throughout the entity pallet.
 pub type Data<MaxRaw> = Element<MaxRaw>;
-
 /// Maximum length for an additional-field key.
 pub type Attribute = BoundedVec<u8, ConstU32<64>>;
-
-// pub type Additional<MaxFields: Get<u32>, MaxRaw: Get<u32>> =
-pub type Additional<MaxFields, MaxRaw> = BoundedVec<(Attribute, Data<MaxRaw>), MaxFields>;
+// pub type Attributes<MaxFields: Get<u32>, MaxRaw: Get<u32>> =
+pub type Attributes<MaxFields, MaxRaw> = BoundedVec<(Attribute, Data<MaxRaw>), MaxFields>;
 
 /// A `Data::CID`‐only wrapper; trying to build it from any other `Data` will fail.
 #[derive(
@@ -69,9 +66,9 @@ impl<MaxRaw: Get<u32>> TryFrom<Data<MaxRaw>> for ProfileCid {
 	}
 }
 
-/// Errors that can occur when applying a single `IdentityUpdateOp`.
+/// Errors that can occur when applying a single `EntityUpdateOp`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum IdentityUpdateError {
+pub enum EntityUpdateError {
 	/// Tried to add a key that already exists.
 	AttributeExists,
 	/// Exceeded the maximum number of additional key/value pairs.
@@ -80,8 +77,8 @@ pub enum IdentityUpdateError {
 	AttributeNotFound,
 }
 
-/// Information concerning the identity of the controller of an account.
-pub trait IdentityInformationProvider:
+/// Information concerning the entity of the controller of an account.
+pub trait EntityInformationProvider:
 	Encode + Decode + MaxEncodedLen + Clone + Debug + Eq + PartialEq + TypeInfo + Default
 {
 	/// Bitmask type for which fields are set/updated.
@@ -96,38 +93,41 @@ pub trait IdentityInformationProvider:
 	/// The enum of update operations.
 	type UpdateOp: Encode + Decode + Clone + Debug + PartialEq + TypeInfo + MaxEncodedLen;
 
-	/// Access the current additional entries (never `None`).
-	fn additional(&self) -> &Additional<Self::FieldLimit, Self::DataLimit>;
+	/// The raw attribute‐map (never `None`).
+	fn attributes(&self) -> &Attributes<Self::FieldLimit, Self::DataLimit>;
 
-	/// Do we have *all* the requested data fields?
-	fn has_identity(&self, fields: Self::FieldsIdentifier) -> bool;
+	/// Return a bitmask of *all* the identity‐fields currently set
+	fn present_fields(&self) -> Self::FieldsIdentifier;
+
+	/// Check whether *all* bits in `mask` are set in `present_fields()`.
+	fn has_info_fields(&self, fields: Self::FieldsIdentifier) -> bool;
 
 	/// Apply one operation.
-	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), IdentityUpdateError>;
+	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), EntityUpdateError>;
 
 	/// For benchmarking only.
 	#[cfg(feature = "runtime-benchmarks")]
-	fn create_identity_info() -> Self;
+	fn create_entity_info() -> Self;
 
 	/// For benchmarking only.
 	#[cfg(feature = "runtime-benchmarks")]
 	fn all_fields() -> Self::FieldsIdentifier;
 }
 
-/// An atomic identity update operation.
+/// An atomic entity update operation.
 #[derive(
 	Encode,
 	Decode,
 	DecodeWithMemTracking,
 	CloneNoBound,
-	PartialEq,
-	Eq,
+	PartialEqNoBound,
+	EqNoBound,
 	RuntimeDebugNoBound,
 	TypeInfo,
 	MaxEncodedLen,
 )]
 // #[scale_info(skip_type_params(MaxRaw))]
-pub enum IdentityUpdateOp<MaxRaw: Get<u32>> {
+pub enum EntityUpdateOp<MaxRaw: Get<u32>> {
 	/// Replace the display name.
 	SetDisplay(Data<MaxRaw>),
 	/// Replace the legal name.
@@ -137,13 +137,13 @@ pub enum IdentityUpdateOp<MaxRaw: Get<u32>> {
 	/// Replace the profile CID (or clear if `None`).
 	SetProfile(Option<ProfileCid>),
 	/// Add a new key/value pair. Fails if key exists or limit reached.
-	AddAdditional(Attribute, Data<MaxRaw>),
+	AddAttribute(Attribute, Data<MaxRaw>),
 	/// Update an existing key’s value (or clear if `Data::None`).
-	UpdateAdditional(Attribute, Data<MaxRaw>),
+	UpdateAttribute(Attribute, Data<MaxRaw>),
 	/// Remove a key/value pair by key.
-	RemoveAdditional(Attribute),
-	/// Remove *all* additional data.
-	ClearAdditional,
+	RemoveAttribute(Attribute),
+	/// Remove *all* attributes data.
+	ClearAttribute,
 }
 
 /// A byte vec used to represent a username.

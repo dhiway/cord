@@ -16,8 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+// pallets/entity/src/mock.rs
+
 use super::*;
-use crate::{self as pallet_entity, entity::IdentityInfo};
+use crate::{self as pallet_entity, entity::EntityInfo};
 use frame_support::{
 	derive_impl, parameter_types,
 	traits::{ConstU16, ConstU32},
@@ -32,7 +34,6 @@ use sp_runtime::{
 
 pub type AccountPublic = <MultiSignature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
-
 type Block = frame_system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime!(
@@ -58,29 +59,35 @@ impl pallet_balances::Config for Test {
 	type AccountStore = System;
 }
 
+// our new runtime constants
 parameter_types! {
 	pub const MaxAdditionalFields: u32 = 5;
+	pub const MaxDataLength: u32 = 128;
+	pub const MaxSubAccounts: u32 = 2;
+	pub const MaxUsernameLength: u32 = 20;
 }
 
 impl pallet_entity::Config for Test {
+	/// must match the generated enum from `construct_runtime!`
 	type RuntimeEvent = RuntimeEvent;
-	type MaxSubAccounts = ConstU32<2>;
-	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
-	type MaxAdditionalFields = ConstU32<5>;
-	type MaxUsernameLength = ConstU32<20>;
+	type MaxSubAccounts = MaxSubAccounts;
+	/// Our entity‐info struct: `EntityInfo<MaxAdditionalFields, MaxDataLength>`
+	type EntityInformation = EntityInfo<MaxAdditionalFields, MaxDataLength>;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxDataLength = MaxDataLength;
+	type MaxUsernameLength = MaxUsernameLength;
+	/// only the superuser may force‐set or -clear
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
 }
 
 impl pallet_identifier::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
+	type RuntimeEvent = Event;
 	type Ss58Prefix = ConstU16<29>;
 	type OriginChainId = ConstU32<0>;
-	type BlockNumberProvider = frame_system::Pallet<Test>;
-	// type WeightInfo = ();
+	type BlockNumberProvider = System;
 }
 
-/// Build fresh test environment
 pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 	pallet_balances::GenesisConfig::<Test> {

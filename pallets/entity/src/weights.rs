@@ -30,31 +30,31 @@ use frame_system::Config;
 /// Weight functions needed for `pallet_entity`.
 
 pub trait WeightInfo {
-    fn set_identity(info_size: u32) -> Weight;
-    fn update_identity(ops_size: u32) -> Weight;
+    fn set_info(info_size: u32) -> Weight;
+    fn update_info(ops_size: u32) -> Weight;
     fn add_attribute(kv_size: u32) -> Weight;
     fn set_sub_account(r: u32) -> Weight;
     fn revoke_sub_account(r: u32) -> Weight;
     fn revoke_sub_account_for(r: u32) -> Weight;
     fn rotate_controller(r: u32) -> Weight;
     fn rotate_controller_for(r: u32) -> Weight;
-    fn clear_identity(num_subs: u32) -> Weight;
-    fn clear_identity_for(num_subs: u32) -> Weight;
-    fn set_username(prefix_len: u32) -> Weight;
-    fn remove_username() -> Weight;
+    fn clear_everything(num_subs: u32) -> Weight;
+    fn clear_everything_for(num_subs: u32) -> Weight;
+    fn set_id_name(prefix_len: u32) -> Weight;
+    fn remove_id_name() -> Weight;
 }
 
 /// Weights for `pallet_entity` using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: Config> WeightInfo for SubstrateWeight<T> {
-    fn set_identity(info_size: u32) -> Weight {
+    fn set_info(info_size: u32) -> Weight {
         // base + per-byte fee + DB ops
         Weight::from_parts(50_000_000, 0)                // base
             .saturating_add(Weight::from_parts(info_size as u64 * 1_000, 0))
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(4))
     }
-    fn update_identity(ops_size: u32) -> Weight {
+    fn update_info(ops_size: u32) -> Weight {
         Weight::from_parts(30_000_000, 0)
             .saturating_add(Weight::from_parts(ops_size as u64 * 500, 0))
             // assume each history insert is an extra write
@@ -97,20 +97,20 @@ impl<T: Config> WeightInfo for SubstrateWeight<T> {
 	        .saturating_add(T::DbWeight::get().reads(0))
 	        .saturating_add(T::DbWeight::get().writes(5))
     }
-    fn clear_identity(num_subs: u32) -> Weight {
+    fn clear_everything(num_subs: u32) -> Weight {
         Weight::from_parts(40_000_000, 0)
             // each sub cleanup is one read+one write
             .saturating_add(T::DbWeight::get().reads(2 + num_subs as u64))
             .saturating_add(T::DbWeight::get().writes(7 + num_subs as u64))
     }
-    fn clear_identity_for(num_subs: u32) -> Weight { Self::clear_identity(num_subs) }
-    fn set_username(prefix_len: u32) -> Weight {
+    fn clear_everything_for(num_subs: u32) -> Weight { Self::clear_everything(num_subs) }
+    fn set_id_name(prefix_len: u32) -> Weight {
         Weight::from_parts(20_000_000, 0)
             .saturating_add(Weight::from_parts(prefix_len as u64 * 100, 0))
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(3))
     }
-    fn remove_username() -> Weight {
+    fn remove_id_name() -> Weight {
         Weight::from_parts(15_000_000, 0)
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(3))
@@ -120,14 +120,14 @@ impl<T: Config> WeightInfo for SubstrateWeight<T> {
 
 // For backwards compatibility and tests.
 impl WeightInfo for () {
-	fn set_identity(info_size: u32) -> Weight {
+    fn set_info(info_size: u32) -> Weight {
         // base + per-byte fee + DB ops
         Weight::from_parts(50_000_000, 0)                // base
             .saturating_add(Weight::from_parts(info_size as u64 * 1_000, 0))
             .saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(4))
     }
-    fn update_identity(ops_size: u32) -> Weight {
+    fn update_info(ops_size: u32) -> Weight {
         Weight::from_parts(30_000_000, 0)
             .saturating_add(Weight::from_parts(ops_size as u64 * 500, 0))
             // assume each history insert is an extra write
@@ -170,20 +170,20 @@ impl WeightInfo for () {
       .saturating_add(RocksDbWeight::get().reads(0))
       .saturating_add(RocksDbWeight::get().writes(5))
     }
-    fn clear_identity(num_subs: u32) -> Weight {
+    fn clear_everything(num_subs: u32) -> Weight {
         Weight::from_parts(40_000_000, 0)
             // each sub cleanup is one read+one write
             .saturating_add(RocksDbWeight::get().reads(2 + num_subs as u64))
             .saturating_add(RocksDbWeight::get().writes(7 + num_subs as u64))
     }
-    fn clear_identity_for(num_subs: u32) -> Weight { Self::clear_identity(num_subs) }
-    fn set_username(prefix_len: u32) -> Weight {
+    fn clear_everything_for(num_subs: u32) -> Weight { Self::clear_everything(num_subs) }
+    fn set_id_name(prefix_len: u32) -> Weight {
         Weight::from_parts(20_000_000, 0)
             .saturating_add(Weight::from_parts(prefix_len as u64 * 100, 0))
             .saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(3))
     }
-    fn remove_username() -> Weight {
+    fn remove_id_name() -> Weight {
         Weight::from_parts(15_000_000, 0)
             .saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(3))

@@ -26,7 +26,7 @@ pub mod mock;
 mod tests;
 
 // mod benchmarking;
-pub mod identity;
+pub mod entity;
 pub mod types;
 pub mod weights;
 
@@ -46,12 +46,11 @@ pub use pallet::*;
 use pallet_identifier::{EventBlock, EventTypeOf, Identifier};
 use scale_info::TypeInfo;
 use sp_runtime::traits::Hash;
-pub use types::{Data, IdentityInformationProvider, IdentityUpdateError, IdentityUpdateOp};
+pub use types::{Data, EntityInformationProvider, EntityUpdateError, EntityUpdateOp};
 pub use weights::WeightInfo;
 
 pub type DataOf<T> = Data<<T as Config>::MaxDataLength>;
-pub type UpdateOpOf<T> =
-	<<T as Config>::IdentityInformation as IdentityInformationProvider>::UpdateOp;
+pub type UpdateOpOf<T> = <<T as Config>::EntityInformation as EntityInformationProvider>::UpdateOp;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -66,25 +65,27 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxSubAccounts: Get<u32> + TypeInfo;
 
-		/// Structure holding information about an identity.
-		type IdentityInformation: IdentityInformationProvider<
-				FieldsIdentifier = u64,
-				FieldLimit = Self::MaxAdditionalFields,
-				DataLimit = Self::MaxDataLength,
-				UpdateOp = IdentityUpdateOp<Self::MaxDataLength>,
-			> + EncodeLike;
+		/// Structure holding information about an entity,
+		/// containing up to `Self::MaxAdditionalFields` fields of at most `Self::MaxDataLength` bytes.
+		/// Must have `FieldsIdentifier = u64` and use `EntityUpdateOp<Self::MaxDataLength>` for updates.
+		type EntityInformation: EntityInformationProvider<
+			FieldsIdentifier = u64,
+			FieldLimit = Self::MaxAdditionalFields,
+			DataLimit = Self::MaxDataLength,
+			UpdateOp = EntityUpdateOp<Self::MaxDataLength>,
+		> + EncodeLike;
 
 		/// Maximum number of additional fields that may be stored in an ID.
 		#[pallet::constant]
-		type MaxAdditionalFields: Get<u32> + TypeInfo + Clone + PartialEq + Debug;
+		type MaxAdditionalFields: Get<u32>;
 
 		/// Maximum size for raw data fields.
 		#[pallet::constant]
-		type MaxDataLength: Get<u32> + TypeInfo + Clone + PartialEq + Debug;
+		type MaxDataLength: Get<u32>;
 
 		/// Max length for username prefix (before the dot).
 		#[pallet::constant]
-		type MaxUsernameLength: Get<u32> + TypeInfo + Clone + PartialEq + Debug;
+		type MaxUsernameLength: Get<u32>;
 
 		/// The origin which may forcibly set or remove a name. Root can always do this.
 		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -99,10 +100,10 @@ pub mod pallet {
 	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
-	/// The on‐chain identity registration for an account.
+	/// The on‐chain entity registration for an account.
 	#[pallet::storage]
-	pub type IdentityOf<T: Config> =
-		StorageMap<_, Blake2_128Concat, Ss58Identifier, T::IdentityInformation, OptionQuery>;
+	pub type EntityInfoOf<T: Config> =
+		StorageMap<_, Blake2_128Concat, Ss58Identifier, T::EntityInformation, OptionQuery>;
 
 	/// What Ss58‐ID does this account currently hold?
 	#[pallet::storage]
@@ -138,12 +139,12 @@ pub mod pallet {
 
 	/// Username attached to an identifier.
 	#[pallet::storage]
-	pub type UsernameOf<T: Config> =
+	pub type Ss58IdNameOf<T: Config> =
 		StorageMap<_, Twox64Concat, Ss58Identifier, Username<T>, OptionQuery>;
 
 	/// Reverse lookup: username → (owner, provider).
 	#[pallet::storage]
-	pub type UsernameInfoOf<T: Config> =
+	pub type NameSs58IdOf<T: Config> =
 		StorageMap<_, Twox64Concat, Username<T>, Ss58Identifier, OptionQuery>;
 
 	/// Version counter for each (identifier, attribute key).
@@ -224,13 +225,13 @@ pub mod pallet {
 		/// Sub account not found.
 		SubAccountExists,
 		/// The username does not meet the requirements.
-		InvalidUsername,
+		InvalidSs58IdName,
 		/// The username does not meet the requirements.
 		InvalidAttributeEntry,
 		/// The username does not meet the requirements.
 		DuplicateAttributeKey,
 		/// The username is already taken.
-		UsernameTaken,
+		Ss58IdNameTaken,
 		/// The requested username does not exist.
 		NoUsername,
 		/// The action cannot be performed because of insufficient privileges (e.g. authority
@@ -250,54 +251,48 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A name was set or reset (which will remove all judgements).
-		IdentityInfoSet { who: T::AccountId, id: Ss58Identifier },
-		/// An Identity info was updated.
-		IdentityInfoUpdated { who: T::AccountId, id: Ss58Identifier },
+		EntityInfoSet { who: T::AccountId, id: Ss58Identifier },
+		/// An entity info was updated.
+		EntityInfoUpdated { who: T::AccountId, id: Ss58Identifier },
 		/// An Attribute was added to the identifier.
-		IdentityAttributeUpdated { who: T::AccountId, id: Ss58Identifier, attribute: Attribute },
+		EntityAttributeUpdated { who: T::AccountId, id: Ss58Identifier, attribute: Attribute },
 		/// A sub-account was added to an identifier.
-		SubAccountAdded { sub: T::AccountId, id: Ss58Identifier },
+		EntitySubAccountAdded { sub: T::AccountId, id: Ss58Identifier },
 		/// A sub-identity was revoked
-		SubAccountRevoked { sub: T::AccountId, id: Ss58Identifier },
+		EntitySubAccountRevoked { sub: T::AccountId, id: Ss58Identifier },
 		/// A sub-identity was revoked by root or council
-		SubAccountRevokedFor { sub: T::AccountId, id: Ss58Identifier },
+		EntitySubAccountRevokedFor { sub: T::AccountId, id: Ss58Identifier },
 		/// A controller was rotated.
-		ControllerRotated { id: Ss58Identifier, new: T::AccountId },
+		EntityControllerRotated { id: Ss58Identifier, new: T::AccountId },
 		/// A controller was rotated by root or council.
-		ControllerRotatedFor { id: Ss58Identifier, new: T::AccountId },
+		EntityControllerRotatedFor { id: Ss58Identifier, new: T::AccountId },
 		/// A name was cleared.
-		IdentityCleared { id: Ss58Identifier },
+		EntityInfoCleared { id: Ss58Identifier },
 		/// A name was cleared by root or council.
-		IdentityClearedFor { id: Ss58Identifier },
+		EntityInfoClearedFor { id: Ss58Identifier },
 		/// A username was set for `who`.
-		UserNameAdded { id: Ss58Identifier, name: Username<T> },
+		Ss58IdNameAdded { id: Ss58Identifier, name: Username<T> },
 		/// A username has been removed.
-		UserNameRemoved { id: Ss58Identifier },
-		// /// A username has been killed.
-		// UsernameKilled { username: Username<T> },
+		Ss58IdNameRemoved { id: Ss58Identifier },
 	}
 
 	#[pallet::call]
-	/// Identity pallet declaration.
 	impl<T: Config> Pallet<T> {
-		/// Set an account's identity information and generate identifier.
+		/// Set an entity's information and generate identifier.
 		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::set_identity(info.encoded_size() as u32))]
-		pub fn set_identity(
-			origin: OriginFor<T>,
-			info: Box<T::IdentityInformation>,
-		) -> DispatchResult {
+		#[pallet::weight(T::WeightInfo::set_info(info.encoded_size() as u32))]
+		pub fn set_info(origin: OriginFor<T>, info: Box<T::EntityInformation>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(
 				!Ss58OfActiveAccounts::<T>::contains_key(&who),
 				Error::<T>::IdentifierSubAccount
 			);
 
-			let info: T::IdentityInformation = *info;
-			let additional = info.additional();
-			if !additional.is_empty() {
-				let mut seen = Vec::with_capacity(additional.len());
-				for (key, _val) in additional.iter() {
+			let info: T::EntityInformation = *info;
+			let attributes = info.attributes();
+			if !attributes.is_empty() {
+				let mut seen = Vec::with_capacity(attributes.len());
+				for (key, _val) in attributes.iter() {
 					ensure!(!key.is_empty(), Error::<T>::InvalidAttributeEntry);
 					let raw_key = key.as_ref();
 					ensure!(
@@ -307,7 +302,6 @@ pub mod pallet {
 					seen.push(raw_key);
 				}
 			}
-			// let digest = T::Hashing::hash(&who.encode());
 			let digest = T::Hashing::hash(&(info.clone(), b"IdentityInfoSet".to_vec()).encode());
 			let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
 			let id = <pallet_identifier::Pallet<T> as Identifier<T>>::build(
@@ -315,7 +309,7 @@ pub mod pallet {
 				pallet_name,
 			)?;
 
-			IdentityOf::<T>::try_mutate_exists(&id, |opt| -> DispatchResult {
+			EntityInfoOf::<T>::try_mutate_exists(&id, |opt| -> DispatchResult {
 				ensure!(opt.is_none(), Error::<T>::IdentifierAlreadyExists);
 				*opt = Some(info.clone());
 				Ok(())
@@ -324,37 +318,35 @@ pub mod pallet {
 			Ss58OfActiveAccounts::<T>::insert(&who, id.clone());
 			ControllerOfSs58::<T>::insert(&id, who.clone());
 
-			Self::record_activity(&id, digest, b"IdentityInfoSet")?;
-			Self::deposit_event(Event::IdentityInfoSet { who, id });
+			Self::record_activity(&id, digest, b"EntityInfoSet")?;
+			Self::deposit_event(Event::EntityInfoSet { who, id });
 
 			Ok(())
 		}
 
-		/// Update *any* combination of fields in an existing identity.
+		/// Update *any* combination of fields in an existing entity.
 		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::update_identity(ops.encoded_size() as u32))]
-		pub fn update_identity(origin: OriginFor<T>, ops: Vec<UpdateOpOf<T>>) -> DispatchResult {
+		#[pallet::weight(T::WeightInfo::update_info(ops.encoded_size() as u32))]
+		pub fn update_info(origin: OriginFor<T>, ops: Vec<UpdateOpOf<T>>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let id = Self::lookup_id_of(&who)?;
 			let controller = Self::lookup_controller_of(&id)?;
 			ensure!(who == controller, Error::<T>::BadOrigin);
 
-			IdentityOf::<T>::try_mutate(&id, |opt| -> DispatchResult {
+			EntityInfoOf::<T>::try_mutate(&id, |opt| -> DispatchResult {
 				let info = opt.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
 				let mut history = Vec::new();
 				for op in ops.iter() {
-					if let IdentityUpdateOp::UpdateAdditional(ref key, _) = op {
-						let additional = info.additional();
-						if let Some((_, old)) = additional.iter().find(|(k, _)| *k == *key) {
+					if let EntityUpdateOp::UpdateAttribute(ref key, _) = op {
+						let attributes = info.attributes();
+						if let Some((_, old)) = attributes.iter().find(|(k, _)| *k == *key) {
 							history.push((key.clone(), old.clone()));
 						}
 					}
-
-					// 2) borrow the op when calling apply_update
 					info.apply_update(&op).map_err(|e| match e {
-						IdentityUpdateError::AttributeExists => Error::<T>::AttributeExists,
-						IdentityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
-						IdentityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
+						EntityUpdateError::AttributeExists => Error::<T>::AttributeExists,
+						EntityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
+						EntityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
 					})?;
 				}
 
@@ -369,15 +361,12 @@ pub mod pallet {
 				}
 
 				let digest = T::Hashing::hash(
-					&(id.clone(), ops.clone(), b"IdentityInfoUpdated".to_vec()).encode(),
+					&(id.clone(), ops.clone(), b"EntityInfoUpdated".to_vec()).encode(),
 				);
 
-				Self::record_activity(&id, digest, b"IdentityInfoUpdated")?;
+				Self::record_activity(&id, digest, b"EntityInfoUpdated")?;
 
-				Self::deposit_event(Event::IdentityInfoUpdated {
-					who: who.clone(),
-					id: id.clone(),
-				});
+				Self::deposit_event(Event::EntityInfoUpdated { who: who.clone(), id: id.clone() });
 
 				Ok(())
 			})
@@ -393,24 +382,24 @@ pub mod pallet {
 
 			let attr: Attribute =
 				key.clone().try_into().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
-			IdentityOf::<T>::try_mutate(&id, |opt| -> DispatchResult {
+			EntityInfoOf::<T>::try_mutate(&id, |opt| -> DispatchResult {
 				let info = opt.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
-				info.apply_update(&IdentityUpdateOp::AddAdditional(attr.clone(), val.clone()))
+				info.apply_update(&EntityUpdateOp::AddAttribute(attr.clone(), val.clone()))
 					.map_err(|e| match e {
-						IdentityUpdateError::AttributeExists => Error::<T>::AttributeExists,
-						IdentityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
-						IdentityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
+						EntityUpdateError::AttributeExists => Error::<T>::AttributeExists,
+						EntityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
+						EntityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
 					})?;
 				Ok(())
 			})?;
 			let digest = T::Hashing::hash(
-				&(id.clone(), attr.clone(), val.clone(), b"IdentityAttributeUpdated".to_vec())
+				&(id.clone(), attr.clone(), val.clone(), b"EntityAttributeUpdated".to_vec())
 					.encode(),
 			);
 
-			Self::record_activity(&id, digest, b"IdentityAttributeUpdated")?;
+			Self::record_activity(&id, digest, b"EntityAttributeUpdated")?;
 
-			Self::deposit_event(Event::IdentityAttributeUpdated { who, id, attribute: attr });
+			Self::deposit_event(Event::EntityAttributeUpdated { who, id, attribute: attr });
 			Ok(())
 		}
 
@@ -436,11 +425,12 @@ pub mod pallet {
 			})?;
 
 			Ss58OfActiveAccounts::<T>::insert(&sub, id.clone());
-			let digest =
-				T::Hashing::hash(&(id.clone(), sub.clone(), b"SubAccountAdded".to_vec()).encode());
-			Self::record_activity(&id, digest, b"SubAccountAdded")?;
+			let digest = T::Hashing::hash(
+				&(id.clone(), sub.clone(), b"EntitySubAccountAdded".to_vec()).encode(),
+			);
+			Self::record_activity(&id, digest, b"EntitySubAccountAdded")?;
 
-			Self::deposit_event(Event::SubAccountAdded { sub, id });
+			Self::deposit_event(Event::EntitySubAccountAdded { sub, id });
 
 			Ok(())
 		}
@@ -454,7 +444,7 @@ pub mod pallet {
 			ensure!(who == Self::lookup_controller_of(&id)?, Error::<T>::BadOrigin);
 			ensure!(sub != who, Error::<T>::ControllerAccount);
 			Self::do_revoke_sub_account(&id, &sub)?;
-			Self::deposit_event(Event::SubAccountRevoked { sub, id });
+			Self::deposit_event(Event::EntitySubAccountRevoked { sub, id });
 			Ok(())
 		}
 
@@ -467,10 +457,10 @@ pub mod pallet {
 			sub: T::AccountId,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
-			ensure!(IdentityOf::<T>::contains_key(&id), Error::<T>::IdentifierNotFound);
+			ensure!(EntityInfoOf::<T>::contains_key(&id), Error::<T>::IdentifierNotFound);
 			ensure!(sub != Self::lookup_controller_of(&id)?, Error::<T>::ControllerAccount);
 			Self::do_revoke_sub_account(&id, &sub)?;
-			Self::deposit_event(Event::SubAccountRevoked { sub, id });
+			Self::deposit_event(Event::EntitySubAccountRevoked { sub, id });
 			Ok(())
 		}
 
@@ -492,11 +482,11 @@ pub mod pallet {
 			Ss58OfAccountHistory::<T>::insert(&id, &who, EventBlock::current::<T>());
 
 			let digest = T::Hashing::hash(
-				&(id.clone(), new_controller.clone(), b"ControllerRotated".to_vec()).encode(),
+				&(id.clone(), new_controller.clone(), b"EntityControllerRotated".to_vec()).encode(),
 			);
-			Self::record_activity(&id, digest, b"ControllerRotated")?;
+			Self::record_activity(&id, digest, b"EntityControllerRotated")?;
 
-			Self::deposit_event(Event::ControllerRotated { id, new: new_controller });
+			Self::deposit_event(Event::EntityControllerRotated { id, new: new_controller });
 
 			Ok(())
 		}
@@ -510,7 +500,7 @@ pub mod pallet {
 			new_controller: T::AccountId,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
-			ensure!(IdentityOf::<T>::contains_key(&id), Error::<T>::IdentifierNotFound);
+			ensure!(EntityInfoOf::<T>::contains_key(&id), Error::<T>::IdentifierNotFound);
 			let current_controller = Self::lookup_controller_of(&id)?;
 			ensure!(current_controller != new_controller, Error::<T>::AlreadyController);
 
@@ -521,97 +511,97 @@ pub mod pallet {
 			Ss58OfAccountHistory::<T>::insert(&id, &current_controller, EventBlock::current::<T>());
 
 			let digest = T::Hashing::hash(
-				&(id.clone(), new_controller.clone(), b"ControllerRotated".to_vec()).encode(),
+				&(id.clone(), new_controller.clone(), b"EntityControllerRotated".to_vec()).encode(),
 			);
-			Self::record_activity(&id, digest, b"ControllerRotated")?;
+			Self::record_activity(&id, digest, b"EntityControllerRotated")?;
 
-			Self::deposit_event(Event::ControllerRotated { id, new: new_controller });
+			Self::deposit_event(Event::EntityControllerRotated { id, new: new_controller });
 
 			Ok(())
 		}
 
-		/// Remove an identity from storage — but only if *no* active sub-accounts
+		/// Remove all entity details from storage
 		#[pallet::call_index(8)]
 		// #[pallet::weight(T::WeightInfo::clear_identity())]
 		#[pallet::weight({
-		    let sub_count = SubAccounts::<T>::get(&id).len() as u32;
-		    T::WeightInfo::clear_identity(sub_count)
-		})]
-		pub fn clear_identity(origin: OriginFor<T>, id: Ss58Identifier) -> DispatchResult {
+    let sub_count = SubAccounts::<T>::get(&id).len() as u32;
+    T::WeightInfo::clear_everything(sub_count)
+})]
+		pub fn clear_everything(origin: OriginFor<T>, id: Ss58Identifier) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(who == Self::lookup_controller_of(&id)?, Error::<T>::BadOrigin);
-			ensure!(IdentityOf::<T>::contains_key(&id), Error::<T>::IdentifierNotFound);
-			Self::do_clear_identity(&id)?;
-			Self::deposit_event(Event::IdentityCleared { id });
+			ensure!(EntityInfoOf::<T>::contains_key(&id), Error::<T>::IdentifierNotFound);
+			Self::do_clear_everything(&id)?;
+			Self::deposit_event(Event::EntityInfoCleared { id });
 			Ok(())
 		}
 
-		/// Council/Root Remove an identity from storage — but only if *no* active sub-accounts
+		/// Council/Root Remove all details of an entity from storage
 		#[pallet::call_index(9)]
 		// #[pallet::weight(T::WeightInfo::clear_identity_for())]
 		#[pallet::weight({
-		    let sub_count = SubAccounts::<T>::get(&id).len() as u32;
-		    T::WeightInfo::clear_identity_for(sub_count)
-		})]
-		pub fn clear_identity_for(origin: OriginFor<T>, id: Ss58Identifier) -> DispatchResult {
+    let sub_count = SubAccounts::<T>::get(&id).len() as u32;
+    T::WeightInfo::clear_everything_for(sub_count)
+})]
+		pub fn clear_everything_for(origin: OriginFor<T>, id: Ss58Identifier) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
-			ensure!(IdentityOf::<T>::contains_key(&id), Error::<T>::IdentifierNotFound);
-			Self::do_clear_identity(&id)?;
-			Self::deposit_event(Event::IdentityCleared { id });
+			ensure!(EntityInfoOf::<T>::contains_key(&id), Error::<T>::IdentifierNotFound);
+			Self::do_clear_everything(&id)?;
+			Self::deposit_event(Event::EntityInfoCleared { id });
 			Ok(())
 		}
 
-		/// Add a new username under the constant suffix ".myn.social", always stored lowercase.
+		/// Add an identifier name under the constant suffix ".myn.social", always stored lowercase.
 		#[pallet::call_index(10)]
-		#[pallet::weight(T::WeightInfo::set_username(prefix.len() as u32))]
-		pub fn set_username(origin: OriginFor<T>, prefix: Vec<u8>) -> DispatchResult {
+		#[pallet::weight(T::WeightInfo::set_id_name(prefix.len() as u32))]
+		pub fn set_id_name(origin: OriginFor<T>, prefix: Vec<u8>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let id = Self::lookup_id_of(&who)?;
 			ensure!(who == Self::lookup_controller_of(&id)?, Error::<T>::BadOrigin);
 
 			let lower: Vec<u8> = prefix.iter().map(|b| b.to_ascii_lowercase()).collect();
-			ensure!(Self::is_valid_user_name_prefix(&lower), Error::<T>::InvalidUsername);
+			ensure!(Self::is_valid_user_name_prefix(&lower), Error::<T>::InvalidSs58IdName);
 
 			let mut uname = lower.clone();
 			uname.extend(b".myn.social");
 			let bounded_uname =
-				Username::<T>::try_from(uname).map_err(|_| Error::<T>::InvalidUsername)?;
+				Username::<T>::try_from(uname).map_err(|_| Error::<T>::InvalidSs58IdName)?;
 
-			UsernameInfoOf::<T>::try_mutate_exists(&bounded_uname, |opt| -> DispatchResult {
-				ensure!(opt.is_none(), Error::<T>::UsernameTaken);
+			NameSs58IdOf::<T>::try_mutate_exists(&bounded_uname, |opt| -> DispatchResult {
+				ensure!(opt.is_none(), Error::<T>::Ss58IdNameTaken);
 				*opt = Some(id.clone());
 				Ok(())
 			})?;
 
-			UsernameOf::<T>::insert(&id, &bounded_uname);
+			Ss58IdNameOf::<T>::insert(&id, &bounded_uname);
 			let digest = T::Hashing::hash(
-				&(id.clone(), bounded_uname.clone(), b"UserNameAdded".to_vec()).encode(),
+				&(id.clone(), bounded_uname.clone(), b"Ss58IdNameAdded".to_vec()).encode(),
 			);
 
-			Self::record_activity(&id, digest, b"UserNameAdded")?;
-			Self::deposit_event(Event::UserNameAdded { id: id.clone(), name: bounded_uname });
+			Self::record_activity(&id, digest, b"Ss58IdNameAdded")?;
+			Self::deposit_event(Event::Ss58IdNameAdded { id: id.clone(), name: bounded_uname });
 
 			Ok(())
 		}
 
 		/// Remove an existing username under the suffix "myn.social".
 		#[pallet::call_index(11)]
-		#[pallet::weight(T::WeightInfo::remove_username())]
-		pub fn remove_username(origin: OriginFor<T>, id: Ss58Identifier) -> DispatchResult {
+		#[pallet::weight(T::WeightInfo::remove_id_name())]
+		pub fn remove_id_name(origin: OriginFor<T>, id: Ss58Identifier) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(who == Self::lookup_controller_of(&id)?, Error::<T>::BadOrigin);
 
-			let uname = UsernameOf::<T>::take(&id).ok_or(Error::<T>::NoUsername)?;
-			UsernameInfoOf::<T>::remove(&uname);
+			let uname = Ss58IdNameOf::<T>::take(&id).ok_or(Error::<T>::NoUsername)?;
+			NameSs58IdOf::<T>::remove(&uname);
 
 			let digest = T::Hashing::hash(
-				&(id.clone(), uname.clone(), b"UserNameRemoved".to_vec()).encode(),
+				&(id.clone(), uname.clone(), b"Ss58IdNameRemoved".to_vec()).encode(),
 			);
 
-			Pallet::<T>::record_activity(&id, digest, b"UserNameRemoved")
+			Pallet::<T>::record_activity(&id, digest, b"Ss58IdNameRemoved")
 				.map_err(|_| Error::<T>::StateUpdateFailed)?;
 
-			Self::deposit_event(Event::UserNameRemoved { id: id.clone() });
+			Self::deposit_event(Event::Ss58IdNameRemoved { id: id.clone() });
 			Ok(())
 		}
 	}
@@ -679,14 +669,15 @@ impl<T: Config> Pallet<T> {
 				Err(Error::<T>::SubAccountNotLinked)
 			}
 		})?;
-		let digest =
-			T::Hashing::hash(&(id.clone(), sub.clone(), b"SubAccountRevoked".to_vec()).encode());
-		<Pallet<T>>::record_activity(id, digest, b"SubAccountRevoked")?;
+		let digest = T::Hashing::hash(
+			&(id.clone(), sub.clone(), b"EntitySubAccountRevoked".to_vec()).encode(),
+		);
+		<Pallet<T>>::record_activity(id, digest, b"EntitySubAccountRevoked")?;
 		Ok(())
 	}
 
 	// Clear Identitiy Helper
-	fn do_clear_identity(id: &Ss58Identifier) -> DispatchResult {
+	fn do_clear_everything(id: &Ss58Identifier) -> DispatchResult {
 		let now = EventBlock::current::<T>();
 		for sub in SubAccounts::<T>::take(id).into_iter() {
 			Ss58OfActiveAccounts::<T>::remove(&sub);
@@ -696,12 +687,12 @@ impl<T: Config> Pallet<T> {
 			Ss58OfActiveAccounts::<T>::remove(&ctrl);
 			Ss58OfAccountHistory::<T>::insert(id, &ctrl, now.clone());
 		}
-		IdentityOf::<T>::remove(id);
-		if let Some(uname) = UsernameOf::<T>::take(id) {
-			UsernameInfoOf::<T>::remove(&uname);
+		EntityInfoOf::<T>::remove(id);
+		if let Some(uname) = Ss58IdNameOf::<T>::take(id) {
+			NameSs58IdOf::<T>::remove(&uname);
 		}
-		let digest = T::Hashing::hash(&(id.clone(), b"IdentityCleared".to_vec()).encode());
-		<Pallet<T>>::record_activity(id, digest, b"IdentityCleared")?;
+		let digest = T::Hashing::hash(&(id.clone(), b"EntityInfoCleared".to_vec()).encode());
+		<Pallet<T>>::record_activity(id, digest, b"EntityInfoCleared")?;
 		Ok(())
 	}
 
@@ -721,13 +712,13 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Check if `who` has _all_ of the requested `fields` in their on-chain identity.
-	pub fn has_identity(
+	pub fn has_info_fields(
 		who: &T::AccountId,
-		fields: <T::IdentityInformation as IdentityInformationProvider>::FieldsIdentifier,
+		fields: <T::EntityInformation as EntityInformationProvider>::FieldsIdentifier,
 	) -> bool {
 		Ss58OfActiveAccounts::<T>::get(who)
-			.and_then(|id| IdentityOf::<T>::get(&id))
-			.map_or(false, |info| info.has_identity(fields))
+			.and_then(|id| EntityInfoOf::<T>::get(&id))
+			.map_or(false, |info| info.has_info_fields(fields))
 	}
 
 	/// Validates a username prefix
