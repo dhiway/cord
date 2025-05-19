@@ -22,7 +22,7 @@
 // modules that need to interact with elements.
 
 use crate::identifier::Ss58Identifier;
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 use codec::{Compact, Decode, DecodeWithMemTracking, Encode, EncodeLike, MaxEncodedLen};
 use frame_support::{traits::Get, BoundedVec, CloneNoBound, RuntimeDebugNoBound};
 use scale_info::TypeInfo;
