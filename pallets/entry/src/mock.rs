@@ -18,10 +18,9 @@
 
 use super::*;
 use crate as pallet_entry;
-use cord_utilities::mock::{mock_origin, SubjectId};
 use frame_support::{derive_impl, parameter_types};
-use pallet_namespace::IsPermissioned;
 
+use frame_system as system;
 use frame_system::EnsureRoot;
 use sp_runtime::{
 	traits::{IdentifyAccount, IdentityLookup, Verify},
@@ -31,13 +30,12 @@ use sp_runtime::{
 type Signature = MultiSignature;
 type AccountPublic = <Signature as Verify>::Signer;
 pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
-pub(crate) type Block = frame_system::mocking::MockBlock<Test>;
+type Block = system::mocking::MockBlock<Test>;
 
 frame_support::construct_runtime!(
 	pub enum Test {
 		System: frame_system,
-		Identifier: identifier,
-		MockOrigin: mock_origin,
+		Identifier: pallet_identifier,
 		Profile: pallet_profile,
 		Registry: pallet_registry,
 		Entry: pallet_entry,
@@ -50,18 +48,9 @@ parameter_types! {
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
-	type RuntimeOrigin = RuntimeOrigin;
-	type RuntimeCall = RuntimeCall;
 	type Block = Block;
-	type AccountId = AccountId;
-	type Lookup = IdentityLookup<Self::AccountId>;
+	type AccountData = ();
 	type SS58Prefix = SS58Prefix;
-}
-
-impl mock_origin::Config for Test {
-	type RuntimeOrigin = RuntimeOrigin;
-	type AccountId = AccountId;
-	type SubjectId = SubjectId;
 }
 
 parameter_types! {
@@ -76,13 +65,20 @@ impl pallet_profile::Config for Test {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	pub const MaxRegistryBlobSize: u32 = 4 * 1024; // 4KB
+}
+
 impl pallet_registry::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type MaxRegistryBlobSize = MaxRegistryBlobSize;
 	type WeightInfo = ();
 }
 
 parameter_types! {
 	pub const MaxRegistryEntryBlobSize: u32 = 4 * 1024; // 4KB in bytes
+	pub const MaxEncodedInputLength: u32 = 30;
+
 }
 
 impl pallet_entry::Config for Test {
@@ -92,7 +88,14 @@ impl pallet_entry::Config for Test {
 	type WeightInfo = ();
 }
 
-impl cord_uri::Config for Test {
+parameter_types! {
+	pub const OriginChainId: u32 = 0;
+}
+
+impl pallet_identifier::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type OriginChainId = OriginChainId;
+	type Ss58Prefix = SS58Prefix;
 	type BlockNumberProvider = frame_system::Pallet<Test>;
 }
 
