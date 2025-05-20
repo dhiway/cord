@@ -25,7 +25,7 @@ pub mod mock;
 #[cfg(test)]
 mod tests;
 
-// mod benchmarking;
+mod benchmarking;
 pub mod entity;
 pub mod types;
 pub mod weights;
@@ -51,6 +51,7 @@ pub use weights::WeightInfo;
 pub type DataOf<T> = Data<<T as Config>::MaxRawDataLength>;
 pub type UpdateOpOf<T> = <<T as Config>::EntityInformation as EntityInformationProvider>::UpdateOp;
 pub type Username<T> = BoundedVec<u8, <T as Config>::MaxUsernameLength>;
+pub type AttributeUpdateKeyOpOf<T> = (Vec<u8>, DataOf<T>);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -253,8 +254,12 @@ pub mod pallet {
 		EntityInfoSet { who: T::AccountId, id: Ss58Identifier },
 		/// An entity info was updated.
 		EntityInfoUpdated { who: T::AccountId, id: Ss58Identifier },
-		/// An Attribute was added to the identifier.
-		EntityAttributeUpdated { who: T::AccountId, id: Ss58Identifier, attribute: Attribute },
+		/// An entity attribute was updated.
+		EntityAttributeUpdated { who: T::AccountId, id: Ss58Identifier },
+		/// An entity attribute was removed.
+		EntityAttributeRemoved { who: T::AccountId, id: Ss58Identifier, attr: Attribute },
+		/// An entity attribute was rotated.
+		EntityAttributeRotated { who: T::AccountId, id: Ss58Identifier, attr: Attribute },
 		/// A sub-account was added to an identifier.
 		EntitySubAccountAdded { sub: T::AccountId, id: Ss58Identifier },
 		/// A sub-identity was revoked
@@ -326,10 +331,13 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Update *any* combination of fields in an existing entity.
+		/// Update attributes in an existing entity.
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::update_info(ops.encoded_size() as u32))]
-		pub fn update_info(origin: OriginFor<T>, ops: Vec<UpdateOpOf<T>>) -> DispatchResult {
+		pub fn update_info(
+			origin: OriginFor<T>,
+			ops: Vec<AttributeUpdateKeyOpOf<T>>,
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let id = Self::lookup_id_of(&who)?;
 			let controller = Self::lookup_controller_of(&id)?;
@@ -337,44 +345,70 @@ pub mod pallet {
 
 			EntityInfoOf::<T>::try_mutate(&id, |maybe_info| -> DispatchResult {
 				let info = maybe_info.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
-				let mut history: Vec<(Attribute, DataOf<T>)> = Vec::with_capacity(ops.len());
-
-				for op in ops.iter() {
-					if let EntityUpdateOp::SetKey(ref key, _) = op {
-						let old = info.get_key(&key[..]);
-						history.push((key.clone(), old));
-					}
-					info.apply_update(op).map_err(|e| match e {
-						EntityUpdateError::AttributeExists => Error::<T>::AttributeExists,
-						EntityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
+				for (raw_key, val) in ops.iter() {
+					let key: Attribute = raw_key
+						.clone()
+						.try_into()
+						.map_err(|_| Error::<T>::InvalidAttributeEntry)?;
+					let op = EntityUpdateOp::UpdateAttribute(key.clone(), val.clone());
+					info.apply_update(&op).map_err(|e| match e {
 						EntityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
+						_ => Error::<T>::InvalidAttributeEntry,
 					})?;
 				}
-
-				for (key, old) in history {
-					let ver = Ss58OfAttributeVersion::<T>::get(&id, &key).saturating_add(1);
-					Ss58OfAttributeVersion::<T>::insert(&id, &key, ver);
-					Ss58OfAttributeHistory::<T>::insert(
-						&id,
-						(key.clone(), ver),
-						(old.clone(), EventBlock::current::<T>()),
-					);
-				}
-
-				let digest = T::Hashing::hash(
-					&(id.clone(), ops.clone(), b"EntityInfoUpdated".to_vec()).encode(),
-				);
-				Self::record_activity(&id, digest, b"EntityInfoUpdated")?;
-				Self::deposit_event(Event::EntityInfoUpdated { who: who.clone(), id: id.clone() });
-
 				Ok(())
-			})
+			})?;
+
+			let digest = T::Hashing::hash(
+				&(id.clone(), ops.clone(), b"EntityInfoUpdated".to_vec()).encode(),
+			);
+			Self::record_activity(&id, digest, b"EntityInfoUpdated")?;
+			Self::deposit_event(Event::EntityInfoUpdated { who, id });
+
+			Ok(())
 		}
 
-		/// Add a single arbitrary attribute key->Data.
+		/// Add entity attributes key->Data.
 		#[pallet::call_index(2)]
-		#[pallet::weight(T::WeightInfo::add_attribute( key.len() as u32 + val.as_ref().len() as u32))]
-		pub fn add_attribute(origin: OriginFor<T>, key: Vec<u8>, val: DataOf<T>) -> DispatchResult {
+		#[pallet::weight(T::WeightInfo::add_attributes( ops.encoded_size()  as u32))]
+		pub fn add_attributes(
+			origin: OriginFor<T>,
+			ops: Vec<AttributeUpdateKeyOpOf<T>>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let id = Self::lookup_id_of(&who)?;
+			ensure!(who == Self::lookup_controller_of(&id)?, Error::<T>::BadOrigin);
+
+			EntityInfoOf::<T>::try_mutate(&id, |maybe_info| -> DispatchResult {
+				let info = maybe_info.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
+				for (raw_key, val) in ops.iter() {
+					let key: Attribute = raw_key
+						.clone()
+						.try_into()
+						.map_err(|_| Error::<T>::InvalidAttributeEntry)?;
+					info.apply_update(&EntityUpdateOp::AddAttribute(key.clone(), val.clone()))
+						.map_err(|e| match e {
+							EntityUpdateError::AttributeExists => Error::<T>::AttributeExists,
+							EntityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
+							_ => Error::<T>::InvalidAttributeEntry,
+						})?;
+				}
+				Ok(())
+			})?;
+
+			let digest = T::Hashing::hash(
+				&(id.clone(), ops.clone(), b"EntityAttributeUpdated".to_vec()).encode(),
+			);
+
+			Self::record_activity(&id, digest, b"EntityAttributeUpdated")?;
+
+			Self::deposit_event(Event::EntityAttributeUpdated { who, id });
+			Ok(())
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight(T::WeightInfo::remove_attribute( key.len()  as u32))]
+		pub fn remove_attribute(origin: OriginFor<T>, key: Vec<u8>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let id = Self::lookup_id_of(&who)?;
 			ensure!(who == Self::lookup_controller_of(&id)?, Error::<T>::BadOrigin);
@@ -383,27 +417,69 @@ pub mod pallet {
 				key.clone().try_into().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
 			EntityInfoOf::<T>::try_mutate(&id, |opt| -> DispatchResult {
 				let info = opt.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
-				let op = EntityUpdateOp::SetKey(attr.clone(), val.clone());
-				info.apply_update(&op).map_err(|e| match e {
-					EntityUpdateError::AttributeExists => Error::<T>::AttributeExists,
-					EntityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
-					EntityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
-				})?;
+				info.apply_update(&EntityUpdateOp::RemoveAttribute(attr.clone()))
+					.map_err(|_| Error::<T>::AttributeNotFound)?;
 				Ok(())
 			})?;
+
 			let digest = T::Hashing::hash(
-				&(id.clone(), attr.clone(), val.clone(), b"EntityAttributeUpdated".to_vec())
-					.encode(),
+				&(id.clone(), key.clone(), b"EntityAttributeRemoved".to_vec()).encode(),
 			);
 
 			Self::record_activity(&id, digest, b"EntityAttributeUpdated")?;
 
-			Self::deposit_event(Event::EntityAttributeUpdated { who, id, attribute: attr });
+			Self::deposit_event(Event::EntityAttributeRemoved { who, id, attr });
+			Ok(())
+		}
+
+		/// “Rotate” (update) an existing attribute: record the old value in history, bump the version,
+		/// then overwrite. Fails if the key is missing or invalid.
+		#[pallet::call_index(4)]
+		#[pallet::weight(T::WeightInfo::rotate_attribute( key.len() as u32 + val.as_ref().len() as u32))]
+		pub fn rotate_attribute(
+			origin: OriginFor<T>,
+			key: Vec<u8>,
+			val: DataOf<T>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let id = Self::lookup_id_of(&who)?;
+			ensure!(who == Self::lookup_controller_of(&id)?, Error::<T>::BadOrigin);
+
+			let attr: Attribute =
+				key.clone().try_into().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
+			EntityInfoOf::<T>::try_mutate(&id, |opt| -> DispatchResult {
+				let info = opt.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
+				let old = info.get_key(&key[..]);
+				info.apply_update(&EntityUpdateOp::UpdateAttribute(attr.clone(), val.clone()))
+					.map_err(|_| Error::<T>::AttributeNotFound)?;
+				let ver = Ss58OfAttributeVersion::<T>::get(&id, &attr).saturating_add(1);
+				Ss58OfAttributeVersion::<T>::insert(&id, &attr, ver);
+				Ss58OfAttributeHistory::<T>::insert(
+					&id,
+					(attr.clone(), ver),
+					(old, EventBlock::current::<T>()),
+				);
+				Ok(())
+			})?;
+
+			let digest = T::Hashing::hash(
+				&(id.clone(), key.clone(), val.clone(), b"EntityAttributeRotated".to_vec())
+					.encode(),
+			);
+
+			Self::record_activity(&id, digest, b"EntityAttributeRotated")?;
+
+			Self::deposit_event(Event::EntityAttributeRotated {
+				who: who.clone(),
+				id: id.clone(),
+				attr,
+			});
+
 			Ok(())
 		}
 
 		/// Set a sub-account of the sender.
-		#[pallet::call_index(3)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::set_sub_account(sub.encoded_size() as u32))]
 		pub fn set_sub_account(origin: OriginFor<T>, sub: T::AccountId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -435,7 +511,7 @@ pub mod pallet {
 		}
 
 		/// Remove a previously-added sub-account.
-		#[pallet::call_index(4)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(T::WeightInfo::revoke_sub_account(sub.encoded_size() as u32))]
 		pub fn revoke_sub_account(origin: OriginFor<T>, sub: T::AccountId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -448,7 +524,7 @@ pub mod pallet {
 		}
 
 		/// Remove a previously-added sub-account.
-		#[pallet::call_index(5)]
+		#[pallet::call_index(7)]
 		#[pallet::weight(T::WeightInfo::revoke_sub_account_for(sub.encoded_size() as u32))]
 		pub fn revoke_sub_account_for(
 			origin: OriginFor<T>,
@@ -463,7 +539,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(6)]
+		#[pallet::call_index(8)]
 		#[pallet::weight(T::WeightInfo::rotate_controller(new_controller.encoded_size() as u32)
             .saturating_add(T::DbWeight::get().reads_writes(2, 3)))]
 		pub fn rotate_controller(
@@ -490,7 +566,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		#[pallet::call_index(7)]
+		#[pallet::call_index(9)]
 		#[pallet::weight(T::WeightInfo::rotate_controller_for(new_controller.encoded_size() as u32)
 		.saturating_add(T::DbWeight::get().reads_writes(2, 3)))]
 		pub fn rotate_controller_for(
@@ -520,12 +596,12 @@ pub mod pallet {
 		}
 
 		/// Remove all entity details from storage
-		#[pallet::call_index(8)]
+		#[pallet::call_index(10)]
 		// #[pallet::weight(T::WeightInfo::clear_identity())]
 		#[pallet::weight({
-    let sub_count = SubAccounts::<T>::get(&id).len() as u32;
-    T::WeightInfo::clear_everything(sub_count)
-})]
+		    let sub_count = SubAccounts::<T>::get(&id).len() as u32;
+		    T::WeightInfo::clear_everything(sub_count)
+		})]
 		pub fn clear_everything(origin: OriginFor<T>, id: Ss58Identifier) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(who == Self::lookup_controller_of(&id)?, Error::<T>::BadOrigin);
@@ -536,12 +612,12 @@ pub mod pallet {
 		}
 
 		/// Council/Root Remove all details of an entity from storage
-		#[pallet::call_index(9)]
+		#[pallet::call_index(11)]
 		// #[pallet::weight(T::WeightInfo::clear_identity_for())]
 		#[pallet::weight({
-    let sub_count = SubAccounts::<T>::get(&id).len() as u32;
-    T::WeightInfo::clear_everything_for(sub_count)
-})]
+		    let sub_count = SubAccounts::<T>::get(&id).len() as u32;
+		    T::WeightInfo::clear_everything_for(sub_count)
+		})]
 		pub fn clear_everything_for(origin: OriginFor<T>, id: Ss58Identifier) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
 			ensure!(EntityInfoOf::<T>::contains_key(&id), Error::<T>::IdentifierNotFound);
@@ -551,7 +627,7 @@ pub mod pallet {
 		}
 
 		/// Add an identifier name under the constant suffix ".myn.social", always stored lowercase.
-		#[pallet::call_index(10)]
+		#[pallet::call_index(12)]
 		#[pallet::weight(T::WeightInfo::set_id_name(prefix.len() as u32))]
 		pub fn set_id_name(origin: OriginFor<T>, prefix: Vec<u8>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -584,7 +660,7 @@ pub mod pallet {
 		}
 
 		/// Remove an existing username under the suffix "myn.social".
-		#[pallet::call_index(11)]
+		#[pallet::call_index(13)]
 		#[pallet::weight(T::WeightInfo::remove_id_name())]
 		pub fn remove_id_name(origin: OriginFor<T>, id: Ss58Identifier) -> DispatchResult {
 			let who = ensure_signed(origin)?;

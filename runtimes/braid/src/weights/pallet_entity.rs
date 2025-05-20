@@ -44,7 +44,19 @@ impl<T: frame_system::Config> pallet_entity::WeightInfo for WeightInfo<T> {
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(3))
     }
-    fn add_attribute(kv_size: u32) -> Weight {
+    fn add_attributes(kv_size: u32) -> Weight {
+        Weight::from_parts(20_000_000, 0)
+            .saturating_add(Weight::from_parts(kv_size as u64 * 500, 0))
+            .saturating_add(T::DbWeight::get().reads(1))
+            .saturating_add(T::DbWeight::get().writes(2))
+    }
+    fn remove_attribute(k_size: u32) -> Weight {
+        Weight::from_parts(20_000_000, 0)
+            .saturating_add(Weight::from_parts(k_size as u64 * 500, 0))
+            .saturating_add(T::DbWeight::get().reads(1))
+            .saturating_add(T::DbWeight::get().writes(2))
+    }
+    fn rotate_attribute(kv_size: u32) -> Weight {
         Weight::from_parts(20_000_000, 0)
             .saturating_add(Weight::from_parts(kv_size as u64 * 500, 0))
             .saturating_add(T::DbWeight::get().reads(1))

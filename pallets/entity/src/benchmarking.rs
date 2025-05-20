@@ -19,13 +19,14 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
+use crate::types::Data;
+use crate::Event as EntityEvent;
+use crate::Pallet as EntityPallet;
 use alloc::vec::Vec;
 use frame_benchmarking::v2::*;
 use frame_system::{Pallet as System, RawOrigin};
+use pallet_identifier::Identifier;
 use sp_runtime::traits::Hash;
-
-#[cfg(test)]
-use crate::Pallet as EntityPallet;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	let events = System::<T>::events();
@@ -36,278 +37,329 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 
 #[benchmarks]
 mod benchmarks {
-	// 1) set_identity
+	use super::*;
+
+	/// 1) set_info
 	#[benchmark]
-	fn set_identity() -> Result<(), BenchmarkError> {
+	fn set_info() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		let info = T::IdentityInformation::create_identity_info();
+		let info = T::EntityInformation::create_entity_info();
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), Box::new(info.clone()));
 
-		assert_last_event::<T>(
-			Event::<T>::IdentityInfoSet {
-				who: caller.clone(),
-				id: {
-					// recompute id the same way pallet does
-					let digest = <T as frame_system::Config>::Hashing::hash(
-						&(info.clone(), b"IdentityInfoSet".to_vec()).encode(),
-					);
-					<pallet_identifier::Pallet<T> as Identifier<T>>::build(
-						digest.as_ref(),
-						EntityPallet::<T>::name(),
-					)
-					.unwrap()
-				},
-			}
-			.into(),
+		// rebuild the id exactly as the pallet does:
+		let digest = <T as frame_system::Config>::Hashing::hash(
+			&(info.clone(), b"IdentityInfoSet".to_vec()).encode(),
 		);
+		let id = <pallet_identifier::Pallet<T> as Identifier<T>>::build(
+			digest.as_ref(),
+			EntityPallet::<T>::name(),
+		)
+		.unwrap();
+
+		assert_last_event::<T>(EntityEvent::<T>::EntityInfoSet { who: caller.clone(), id }.into());
 		Ok(())
 	}
 
-	// 2) update_identity
+	/// 2) update_info
 	#[benchmark]
-	fn update_identity() -> Result<(), BenchmarkError> {
+	fn update_info() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		// first give them an identity
-		let initial = T::IdentityInformation::create_identity_info();
-		EntityPallet::<T>::set_identity(
+		// seed
+		let info = T::EntityInformation::create_entity_info();
+		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(initial.clone()),
-		)?;
+			Box::new(info.clone()),
+		)
+		.unwrap();
 
-		// now prepare an update
-		let new_display = Data::Raw(b"bench-upd".to_vec().try_into().unwrap());
-		let ops = vec![IdentityUpdateOp::SetDisplay(new_display.clone())];
+		let ops = vec![(b"display".to_vec(), Data::None)];
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), ops.clone());
 
-		// verify event
+		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
 		assert_last_event::<T>(
-			Event::<T>::IdentityInfoUpdated {
-				who: caller.clone(),
-				id: EntityPallet::<T>::lookup_id_of(&caller).unwrap(),
-			}
-			.into(),
+			EntityEvent::<T>::EntityInfoUpdated { who: caller.clone(), id }.into(),
 		);
 		Ok(())
 	}
 
-	// 3) add_attribute
+	/// 3) add_attributes
 	#[benchmark]
-	fn add_attribute() -> Result<(), BenchmarkError> {
+	fn add_attributes() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		// seed identity
-		let info = T::IdentityInformation::create_identity_info();
-		EntityPallet::<T>::set_identity(RawOrigin::Signed(caller.clone()).into(), Box::new(info))?;
+		EntityPallet::<T>::set_info(
+			RawOrigin::Signed(caller.clone()).into(),
+			Box::new(<T::EntityInformation as Default>::default()),
+		)
+		.unwrap();
 
+		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
 		let key = b"k".to_vec();
-		let val = Data::Raw(b"val".to_vec().try_into().unwrap());
+		let val = Data::Raw(b"v".to_vec().try_into().unwrap());
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(caller.clone()), key.clone(), val.clone());
+		_(RawOrigin::Signed(caller.clone()), vec![(key.clone(), val.clone())]);
 
 		assert_last_event::<T>(
-			Event::<T>::IdentityAttributeUpdated {
+			EntityEvent::<T>::EntityAttributeUpdated { who: caller.clone(), id }.into(),
+		);
+		Ok(())
+	}
+
+	/// 4) remove_attribute
+	#[benchmark]
+	fn remove_attribute() -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
+		EntityPallet::<T>::set_info(
+			RawOrigin::Signed(caller.clone()).into(),
+			Box::new(<T::EntityInformation as Default>::default()),
+		)
+		.unwrap();
+		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
+
+		// add the attr first
+		EntityPallet::<T>::add_attributes(
+			RawOrigin::Signed(caller.clone()).into(),
+			vec![(b"x".to_vec(), Data::None)],
+		)
+		.unwrap();
+
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller.clone()), b"x".to_vec());
+
+		assert_last_event::<T>(
+			EntityEvent::<T>::EntityAttributeRemoved {
 				who: caller.clone(),
-				id: EntityPallet::<T>::lookup_id_of(&caller).unwrap(),
-				attribute: key.clone().try_into().unwrap(),
+				id,
+				attr: b"x".to_vec().try_into().unwrap(),
 			}
 			.into(),
 		);
 		Ok(())
 	}
 
-	// 4) set_sub_account
+	/// 5) rotate_attribute
+	#[benchmark]
+	fn rotate_attribute() -> Result<(), BenchmarkError> {
+		let caller: T::AccountId = whitelisted_caller();
+		EntityPallet::<T>::set_info(
+			RawOrigin::Signed(caller.clone()).into(),
+			Box::new(<T::EntityInformation as Default>::default()),
+		)
+		.unwrap();
+		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
+
+		// add attribute so rotation can happen
+		EntityPallet::<T>::add_attributes(
+			RawOrigin::Signed(caller.clone()).into(),
+			vec![(b"r".to_vec(), Data::None)],
+		)
+		.unwrap();
+
+		let new_val = Data::Raw(b"z".to_vec().try_into().unwrap());
+		#[extrinsic_call]
+		_(RawOrigin::Signed(caller.clone()), b"r".to_vec(), new_val.clone());
+
+		assert_last_event::<T>(
+			EntityEvent::<T>::EntityAttributeRotated {
+				who: caller.clone(),
+				id,
+				attr: b"r".to_vec().try_into().unwrap(),
+			}
+			.into(),
+		);
+		Ok(())
+	}
+
+	/// 6) set_sub_account
 	#[benchmark]
 	fn set_sub_account() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		let sub = account("s", 0, 0);
-
-		// seed identity
-		let info = T::IdentityInformation::create_identity_info();
-		EntityPallet::<T>::set_identity(RawOrigin::Signed(caller.clone()).into(), Box::new(info))?;
+		let sub: T::AccountId = account("s", 0, 0);
+		EntityPallet::<T>::set_info(
+			RawOrigin::Signed(caller.clone()).into(),
+			Box::new(T::EntityInformation::create_entity_info()),
+		)
+		.unwrap();
+		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), sub.clone());
 
-		assert_last_event::<T>(
-			Event::<T>::SubAccountAdded {
-				sub: sub.clone(),
-				id: EntityPallet::<T>::lookup_id_of(&caller).unwrap(),
-			}
-			.into(),
-		);
+		assert_last_event::<T>(EntityEvent::<T>::EntitySubAccountAdded { sub, id }.into());
 		Ok(())
 	}
 
-	// 5) revoke_sub_account
+	/// 7) revoke_sub_account
 	#[benchmark]
 	fn revoke_sub_account() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		let sub = account("s", 0, 0);
+		let sub: T::AccountId = account("s", 0, 0);
 
-		// seed identity + add sub
-		let info = T::IdentityInformation::create_identity_info();
-		EntityPallet::<T>::set_identity(RawOrigin::Signed(caller.clone()).into(), Box::new(info))?;
-		EntityPallet::<T>::set_sub_account(RawOrigin::Signed(caller.clone()).into(), sub.clone())?;
+		EntityPallet::<T>::set_info(
+			RawOrigin::Signed(caller.clone()).into(),
+			Box::new(T::EntityInformation::create_entity_info()),
+		)
+		.unwrap();
+		EntityPallet::<T>::set_sub_account(RawOrigin::Signed(caller.clone()).into(), sub.clone())
+			.unwrap();
 
+		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), sub.clone());
 
-		assert_last_event::<T>(
-			Event::<T>::SubAccountRevoked {
-				sub: sub.clone(),
-				id: EntityPallet::<T>::lookup_id_of(&caller).unwrap(),
-			}
-			.into(),
-		);
+		assert_last_event::<T>(EntityEvent::<T>::EntitySubAccountRevoked { sub, id }.into());
 		Ok(())
 	}
 
-	// 6) revoke_sub_account_for
+	/// 8) revoke_sub_account_for
 	#[benchmark]
 	fn revoke_sub_account_for() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		let sub = account("s", 0, 0);
+		let sub: T::AccountId = account("s", 0, 0);
 
-		// seed identity + add sub
-		let info = T::IdentityInformation::create_identity_info();
-		EntityPallet::<T>::set_identity(RawOrigin::Signed(caller.clone()).into(), Box::new(info))?;
-		EntityPallet::<T>::set_sub_account(RawOrigin::Signed(caller.clone()).into(), sub.clone())?;
+		EntityPallet::<T>::set_info(
+			RawOrigin::Signed(caller.clone()).into(),
+			Box::new(T::EntityInformation::create_entity_info()),
+		)
+		.unwrap();
+		EntityPallet::<T>::set_sub_account(RawOrigin::Signed(caller.clone()).into(), sub.clone())
+			.unwrap();
+
 		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
-
 		#[extrinsic_call]
 		_(RawOrigin::Root, id.clone(), sub.clone());
 
-		assert_last_event::<T>(
-			Event::<T>::SubAccountRevoked { sub: sub.clone(), id: id.clone() }.into(),
-		);
+		assert_last_event::<T>(EntityEvent::<T>::EntitySubAccountRevoked { sub, id }.into());
 		Ok(())
 	}
 
-	// 7) rotate_controller
+	/// 9) rotate_controller
 	#[benchmark]
 	fn rotate_controller() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		let newc = account("n", 0, 0);
+		let newc: T::AccountId = account("n", 0, 0);
 
-		// seed identity
-		let info = T::IdentityInformation::create_identity_info();
-		EntityPallet::<T>::set_identity(RawOrigin::Signed(caller.clone()).into(), Box::new(info))?;
+		EntityPallet::<T>::set_info(
+			RawOrigin::Signed(caller.clone()).into(),
+			Box::new(T::EntityInformation::create_entity_info()),
+		)
+		.unwrap();
+
 		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
-
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), id.clone(), newc.clone());
 
-		assert_last_event::<T>(
-			Event::<T>::ControllerRotated { id: id.clone(), new: newc.clone() }.into(),
-		);
+		assert_last_event::<T>(EntityEvent::<T>::EntityControllerRotated { id, new: newc }.into());
 		Ok(())
 	}
 
-	// 8) rotate_controller_for
+	/// 10) rotate_controller_for
 	#[benchmark]
 	fn rotate_controller_for() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		let newc = account("n", 0, 0);
+		let newc: T::AccountId = account("n", 0, 0);
 
-		// seed identity
-		let info = T::IdentityInformation::create_identity_info();
-		EntityPallet::<T>::set_identity(RawOrigin::Signed(caller.clone()).into(), Box::new(info))?;
+		EntityPallet::<T>::set_info(
+			RawOrigin::Signed(caller.clone()).into(),
+			Box::new(T::EntityInformation::create_entity_info()),
+		)
+		.unwrap();
+
 		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
-
 		#[extrinsic_call]
 		_(RawOrigin::Root, id.clone(), newc.clone());
 
-		assert_last_event::<T>(
-			Event::<T>::ControllerRotated { id: id.clone(), new: newc.clone() }.into(),
-		);
+		assert_last_event::<T>(EntityEvent::<T>::EntityControllerRotated { id, new: newc }.into());
 		Ok(())
 	}
 
-	// 9) clear_identity
+	/// 11) clear_everything
 	#[benchmark]
-	fn clear_identity() -> Result<(), BenchmarkError> {
+	fn clear_everything() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
 
-		// seed identity
-		let info = T::IdentityInformation::create_identity_info();
-		EntityPallet::<T>::set_identity(RawOrigin::Signed(caller.clone()).into(), Box::new(info))?;
-		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
+		EntityPallet::<T>::set_info(
+			RawOrigin::Signed(caller.clone()).into(),
+			Box::new(T::EntityInformation::create_entity_info()),
+		)
+		.unwrap();
 
+		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), id.clone());
 
-		assert_last_event::<T>(Event::<T>::IdentityCleared { id: id.clone() }.into());
+		assert_last_event::<T>(EntityEvent::<T>::EntityInfoCleared { id }.into());
 		Ok(())
 	}
 
-	// 10) clear_identity_for
+	/// 12) clear_everything_for
 	#[benchmark]
-	fn clear_identity_for() -> Result<(), BenchmarkError> {
+	fn clear_everything_for() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
 
-		// seed identity
-		let info = T::IdentityInformation::create_identity_info();
-		EntityPallet::<T>::set_identity(RawOrigin::Signed(caller.clone()).into(), Box::new(info))?;
-		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
+		EntityPallet::<T>::set_info(
+			RawOrigin::Signed(caller.clone()).into(),
+			Box::new(T::EntityInformation::create_entity_info()),
+		)
+		.unwrap();
 
+		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
 		#[extrinsic_call]
 		_(RawOrigin::Root, id.clone());
 
-		assert_last_event::<T>(Event::<T>::IdentityCleared { id: id.clone() }.into());
+		assert_last_event::<T>(EntityEvent::<T>::EntityInfoCleared { id }.into());
 		Ok(())
 	}
 
-	// 11) set_username
+	/// 13) set_id_name
 	#[benchmark]
-	fn set_username() -> Result<(), BenchmarkError> {
+	fn set_id_name() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
 		let prefix = b"bench".to_vec();
 
-		// seed identity
-		let info = T::IdentityInformation::create_identity_info();
-		EntityPallet::<T>::set_identity(RawOrigin::Signed(caller.clone()).into(), Box::new(info))?;
-		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
+		EntityPallet::<T>::set_info(
+			RawOrigin::Signed(caller.clone()).into(),
+			Box::new(T::EntityInformation::create_entity_info()),
+		)
+		.unwrap();
 
+		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), prefix.clone());
 
-		assert_last_event::<T>(
-			Event::<T>::UserNameAdded {
-				id: id.clone(),
-				name: Username::<T>::try_from({
-					let mut v = prefix.clone();
-					v.extend(b".myn.social");
-					v
-				})
-				.unwrap(),
-			}
-			.into(),
-		);
+		let mut uname = prefix.clone();
+		uname.extend(b".myn.social");
+		let uname: Vec<u8> = uname;
+		let uname = uname.try_into().unwrap();
+
+		assert_last_event::<T>(EntityEvent::<T>::Ss58IdNameAdded { id, name: uname }.into());
 		Ok(())
 	}
 
-	// 12) remove_username
+	/// 14) remove_id_name
 	#[benchmark]
-	fn remove_username() -> Result<(), BenchmarkError> {
+	fn remove_id_name() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		let prefix = b"bench".to_vec();
 
-		// seed identity + username
-		let info = T::IdentityInformation::create_identity_info();
-		EntityPallet::<T>::set_identity(RawOrigin::Signed(caller.clone()).into(), Box::new(info))?;
-		EntityPallet::<T>::set_username(RawOrigin::Signed(caller.clone()).into(), prefix.clone())?;
+		EntityPallet::<T>::set_info(
+			RawOrigin::Signed(caller.clone()).into(),
+			Box::new(T::EntityInformation::create_entity_info()),
+		)
+		.unwrap();
+		EntityPallet::<T>::set_id_name(RawOrigin::Signed(caller.clone()).into(), b"bench".to_vec())
+			.unwrap();
+
 		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
-
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), id.clone());
 
-		assert_last_event::<T>(Event::<T>::UserNameRemoved { id: id.clone() }.into());
+		assert_last_event::<T>(EntityEvent::<T>::Ss58IdNameRemoved { id }.into());
 		Ok(())
 	}
 
-	impl_benchmark_test_suite!(EntityPallet, crate::mock::new_test_ext(), crate::mock::Test,);
+	impl_benchmark_test_suite!(EntityPallet, crate::mock::new_test_ext(), crate::mock::Test);
 }

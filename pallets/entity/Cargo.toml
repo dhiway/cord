@@ -28,7 +28,7 @@ sp-runtime = { workspace = true }
 
 [dev-dependencies]
 pallet-balances = { default-features = true, workspace = true }
-sp-core = { default-features = true, workspace = true }
+# sp-core = { default-features = true, workspace = true }
 sp-keystore = { default-features = true, workspace = true }
 sp-io = { default-features = true, workspace = true }
 
@@ -44,7 +44,7 @@ std = [
 	"frame-system/std",
 	"pallet-identifier/std",
 	"scale-info/std",
-	"sp-core/std",
+	# "sp-core/std",
 	"sp-io/std",
 	"sp-keystore/std",
 	"sp-runtime/std",

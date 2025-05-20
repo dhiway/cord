@@ -20,13 +20,13 @@ use super::*;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use enumflags2::{bitflags, BitFlags};
 use frame_support::{
-	parameter_types, traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
+	ensure, parameter_types, traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound,
+	RuntimeDebugNoBound,
 };
 use pallet_entity::types::{
 	Attributes, Data, EntityInformationProvider, EntityUpdateError, EntityUpdateOp,
 };
 use scale_info::{build::Variants, Path, Type, TypeInfo};
-use sp_runtime::RuntimeDebug;
 
 parameter_types! {
 	pub const MaxSubAccounts: u32 = 32;
@@ -53,7 +53,17 @@ impl pallet_entity::Config for Runtime {
 /// Each field corresponds to a field in the `IdentityInfo` struct.
 #[bitflags]
 #[repr(u64)]
-#[derive(Clone, Copy, PartialEq, Eq, RuntimeDebug)]
+#[derive(
+	Clone,
+	Copy,
+	PartialEq,
+	Eq,
+	RuntimeDebugNoBound,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+)]
 pub enum EntityField {
 	Display,
 	Legal,
@@ -159,91 +169,89 @@ impl<MaxRawDataLength: Get<u32> + 'static> EntityInformationProvider
 		self.present_fields() & fields == fields
 	}
 
-	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), EntityUpdateError> {
+	fn apply_update(
+		&mut self,
+		op: &EntityUpdateOp<MaxRawDataLength>,
+	) -> Result<(), EntityUpdateError> {
 		match op {
-			&EntityUpdateOp::SetKey(ref key, ref val) => {
-				let key_bytes: &[u8] = &key[..];
-				if key_bytes == b"display" {
-					self.display = val.clone();
-				} else if key_bytes == b"legal" {
-					self.legal = val.clone();
-				} else if key_bytes == b"web" {
-					self.web = val.clone();
-				} else {
-					let attrs = self.attributes.get_or_insert_with(Default::default);
-					if let Some((_, _)) = attrs.iter().find(|(k, _)| k == key) {
-						for &mut (ref mut kk, ref mut vv) in attrs.iter_mut() {
-							if kk == key {
-								*vv = val.clone();
-								return Ok(());
-							}
-						}
-					} else {
-						attrs
-							.try_push((key.clone(), val.clone()))
-							.map_err(|_| EntityUpdateError::TooManyAttributes)?;
-					}
+			EntityUpdateOp::AddAttribute(k, v) => {
+				// reserved keys cannot be used
+				let b = k.as_slice();
+				ensure!(
+					!matches!(b, b"display" | b"legal" | b"web"),
+					EntityUpdateError::AttributeExists
+				);
+				let attrs = self.attributes.get_or_insert_with(Default::default);
+				if attrs.iter().any(|(kk, _)| kk == k) {
+					return Err(EntityUpdateError::AttributeExists);
 				}
-
-				Ok(())
+				attrs
+					.try_push((k.clone(), v.clone()))
+					.map_err(|_| EntityUpdateError::TooManyAttributes)
 			},
-
-			&EntityUpdateOp::RemoveKey(ref key) => {
-				let key_bytes: &[u8] = &key[..];
-				if key_bytes == b"display" {
-					self.display = Data::None;
-				} else if key_bytes == b"legal" {
-					self.legal = Data::None;
-				} else if key_bytes == b"web" {
-					self.web = Data::None;
-				} else {
-					if let Some(ref mut attrs) = self.attributes {
-						if let Some(idx) = attrs.iter().position(|(k, _)| k == key) {
-							attrs.swap_remove(idx);
-							if attrs.is_empty() {
-								self.attributes = None;
-							}
-						} else {
-							return Err(EntityUpdateError::AttributeNotFound);
+			EntityUpdateOp::RemoveAttribute(k) => {
+				match k.as_slice() {
+					b"display" => self.display = Data::None,
+					b"legal" => self.legal = Data::None,
+					b"web" => self.web = Data::None,
+					_ => {
+						let attrs =
+							self.attributes.as_mut().ok_or(EntityUpdateError::AttributeNotFound)?;
+						let idx = attrs
+							.iter()
+							.position(|(kk, _)| kk == k)
+							.ok_or(EntityUpdateError::AttributeNotFound)?;
+						attrs.swap_remove(idx);
+						if attrs.is_empty() {
+							self.attributes = None;
 						}
-					} else {
-						return Err(EntityUpdateError::AttributeNotFound);
-					}
+					},
 				}
-
 				Ok(())
 			},
-
-			&EntityUpdateOp::ClearAll => {
-				self.display = Data::None;
-				self.legal = Data::None;
-				self.web = Data::None;
-				self.attributes = None;
+			EntityUpdateOp::UpdateAttribute(k, v) => {
+				match k.as_slice() {
+					b"display" => self.display = v.clone(),
+					b"legal" => self.legal = v.clone(),
+					b"web" => self.web = v.clone(),
+					_ => {
+						let attrs =
+							self.attributes.as_mut().ok_or(EntityUpdateError::AttributeNotFound)?;
+						let slot = attrs
+							.iter_mut()
+							.find(|(kk, _)| kk == k)
+							.ok_or(EntityUpdateError::AttributeNotFound)?;
+						slot.1 = v.clone();
+					},
+				}
 				Ok(())
 			},
 		}
 	}
 
-	#[cfg(feature = "runtime-benchmarks")]
-	fn create_entity_info() -> Self {
-		let empty = Data::<MaxRawDataLength>::Raw(Default::default());
-		let mut all = Vec::new();
-		let cap: usize = FieldLimit::get().try_into().unwrap();
-		for _ in 0..cap {
-			all.push((Attribute::default(), empty.clone()));
-		}
-		EntityInfo {
-			display: empty.clone(),
-			legal: empty.clone(),
-			web: empty.clone(),
-			attributes: all.try_into().unwrap(),
-		}
-	}
+	// #[cfg(feature = "runtime-benchmarks")]
+	// fn create_entity_info() -> Self {
+	// 	let empty = Data::<MaxRawDataLength>::Raw(Default::default());
+	// 	let mut attrs = Vec::new();
+	// 	const ATTR_CAP: usize = 32;
+	// 	for i in 0..ATTR_CAP {
+	// 		// e.g. keys "k0", "k1", ... "k31"
+	// 		let raw_key = vec![b'k', i as u8];
+	// 		let bounded_key: Attribute = raw_key.clone().try_into().unwrap();
+	// 		attrs.push((bounded_key, empty.clone()));
+	// 	}
+	// 	EntityInfo {
+	// 		display: empty.clone(),
+	// 		legal: empty.clone(),
+	// 		web: empty.clone(),
+	// 		attributes: Some(attrs.try_into().unwrap()),
+	// 	}
+	// }
 
-	#[cfg(feature = "runtime-benchmarks")]
-	fn all_fields() -> Self::FieldsIdentifier {
-		EntityField::all().bits()
-	}
+	// #[cfg(feature = "runtime-benchmarks")]
+	// fn all_fields() -> Self::FieldsIdentifier {
+	// 	EntityField::all().bits()
+	// }
 }
 
 impl<MaxRawDataLength: Get<u32>> Default for EntityInfo<MaxRawDataLength> {
