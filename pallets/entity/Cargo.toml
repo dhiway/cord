@@ -24,13 +24,13 @@ frame-benchmarking = { optional = true, workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 pallet-identifier = { workspace = true }
-sp-io = { workspace = true }
 sp-runtime = { workspace = true }
 
 [dev-dependencies]
 pallet-balances = { default-features = true, workspace = true }
 sp-core = { default-features = true, workspace = true }
 sp-keystore = { default-features = true, workspace = true }
+sp-io = { default-features = true, workspace = true }
 
 [features]
 default = ["std"]

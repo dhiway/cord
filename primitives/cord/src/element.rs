@@ -34,6 +34,7 @@ use scale_info::TypeInfo;
 /// - Digest: A fixed 32-byte digest (e.g., computed using BlakeTwo256).
 /// - CID: A fixed 64-byte content identifier.
 #[derive(CloneNoBound, DecodeWithMemTracking, RuntimeDebugNoBound, MaxEncodedLen, TypeInfo)]
+#[scale_info(skip_type_params(MaxCap))]
 pub enum Element<MaxCap: Get<u32>> {
 	/// No data provided.
 	None,
