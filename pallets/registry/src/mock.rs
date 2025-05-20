@@ -69,6 +69,8 @@ impl pallet_registry::Config for Test {
 
 impl pallet_doken::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type OriginChainId = OriginChainId;
+	type Ss58Prefix = SS58Prefix;
 	type BlockNumberProvider = frame_system::Pallet<Test>;
 }
 

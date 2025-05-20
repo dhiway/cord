@@ -682,8 +682,8 @@ impl Get<Option<BalancingConfig>> for OffchainRandomBalancing {
 			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
-					.expect("input is padded with zeroes; qed")
-					% max.saturating_add(1);
+					.expect("input is padded with zeroes; qed") %
+					max.saturating_add(1);
 				random as usize
 			},
 		};
