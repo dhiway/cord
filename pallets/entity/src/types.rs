@@ -97,34 +97,13 @@ pub trait EntityInformationProvider:
 )]
 #[scale_info(skip_type_params(MaxRawDataLength))]
 pub enum EntityUpdateOp<MaxRawDataLength: Get<u32>> {
-	/// Set or overwrite **any** key.
-	SetKey(Attribute, Data<MaxRawDataLength>),
-	/// Remove a key (fields become `Data::None`, attributes dropped).
-	RemoveKey(Attribute),
-	/// Clear *everything* (reset all fields to `Data::None`, drop all attrs).
-	ClearAll,
+	/// Add a new attribute key → Data (fails if key exists or reserved)
+	AddAttribute(Attribute, Data<MaxRawDataLength>),
+	/// Remove any key (reserved fields set to None, attributes dropped)
+	RemoveAttribute(Attribute),
+	/// Update value of any existing key (reserved or attribute)
+	UpdateAttribute(Attribute, Data<MaxRawDataLength>),
 }
-
-// /// Single‐variant‐for‐every‐field update‐op:
-// #[derive(
-// 	Encode,
-// 	Decode,
-// 	DecodeWithMemTracking,
-// 	CloneNoBound,
-// 	PartialEqNoBound,
-// 	EqNoBound,
-// 	RuntimeDebugNoBound,
-// 	MaxEncodedLen,
-// 	TypeInfo,
-// )]
-// #[scale_info(skip_type_params(MaxRawDataLength))]
-// pub enum EntityUpdateOp<MaxRawDataLength: Get<u32>> {
-// 	SetField(EntityField, Data<MaxRawDataLength>),
-// 	AddAttribute(Attribute, Data<MaxRawDataLength>),
-// 	UpdateAttribute(Attribute, Data<MaxRawDataLength>),
-// 	RemoveAttribute(Attribute),
-// 	ClearAttribute,
-// }
 
 #[cfg(test)]
 mod tests {

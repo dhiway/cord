@@ -61,27 +61,23 @@ impl pallet_balances::Config for Test {
 
 // our new runtime constants
 parameter_types! {
-	pub const MaxAdditionalFields: u32 = 5;
-	pub const MaxDataLength: u32 = 128;
+	pub const MaxRawDataLength: u32 = 4096;
 	pub const MaxSubAccounts: u32 = 2;
 	pub const MaxUsernameLength: u32 = 20;
 }
 
 impl pallet_entity::Config for Test {
-	/// must match the generated enum from `construct_runtime!`
 	type RuntimeEvent = RuntimeEvent;
 	type MaxSubAccounts = MaxSubAccounts;
-	type EntityInformation = EntityInfo<MaxAdditionalFields, MaxDataLength>;
-	type MaxAdditionalFields = MaxAdditionalFields;
-	type MaxDataLength = MaxDataLength;
+	type EntityInformation = EntityInfo<MaxRawDataLength>;
+	type MaxRawDataLength = MaxRawDataLength;
 	type MaxUsernameLength = MaxUsernameLength;
-	/// only the superuser may force‐set or -clear
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
 }
 
 impl pallet_identifier::Config for Test {
-	type RuntimeEvent = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Ss58Prefix = ConstU16<29>;
 	type OriginChainId = ConstU32<0>;
 	type BlockNumberProvider = System;

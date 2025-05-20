@@ -32,7 +32,9 @@ use frame_system::Config;
 pub trait WeightInfo {
     fn set_info(info_size: u32) -> Weight;
     fn update_info(ops_size: u32) -> Weight;
-    fn add_attribute(kv_size: u32) -> Weight;
+    fn add_attributes(kv_size: u32) -> Weight;
+    fn remove_attribute(k_size: u32) -> Weight;
+    fn rotate_attribute(kv_size: u32) -> Weight;
     fn set_sub_account(r: u32) -> Weight;
     fn revoke_sub_account(r: u32) -> Weight;
     fn revoke_sub_account_for(r: u32) -> Weight;
@@ -61,7 +63,19 @@ impl<T: Config> WeightInfo for SubstrateWeight<T> {
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(3))
     }
-    fn add_attribute(kv_size: u32) -> Weight {
+    fn add_attributes(kv_size: u32) -> Weight {
+        Weight::from_parts(20_000_000, 0)
+            .saturating_add(Weight::from_parts(kv_size as u64 * 500, 0))
+            .saturating_add(T::DbWeight::get().reads(1))
+            .saturating_add(T::DbWeight::get().writes(2))
+    }
+    fn remove_attribute(k_size: u32) -> Weight {
+        Weight::from_parts(20_000_000, 0)
+            .saturating_add(Weight::from_parts(k_size as u64 * 500, 0))
+            .saturating_add(T::DbWeight::get().reads(1))
+            .saturating_add(T::DbWeight::get().writes(2))
+    }
+    fn rotate_attribute(kv_size: u32) -> Weight {
         Weight::from_parts(20_000_000, 0)
             .saturating_add(Weight::from_parts(kv_size as u64 * 500, 0))
             .saturating_add(T::DbWeight::get().reads(1))
@@ -134,7 +148,19 @@ impl WeightInfo for () {
             .saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(3))
     }
-    fn add_attribute(kv_size: u32) -> Weight {
+    fn add_attributes(kv_size: u32) -> Weight {
+        Weight::from_parts(20_000_000, 0)
+            .saturating_add(Weight::from_parts(kv_size as u64 * 500, 0))
+            .saturating_add(RocksDbWeight::get().reads(1))
+            .saturating_add(RocksDbWeight::get().writes(2))
+    }
+    fn remove_attribute(k_size: u32) -> Weight {
+        Weight::from_parts(20_000_000, 0)
+            .saturating_add(Weight::from_parts(k_size as u64 * 500, 0))
+            .saturating_add(RocksDbWeight::get().reads(1))
+            .saturating_add(RocksDbWeight::get().writes(2))
+    }
+    fn rotate_attribute(kv_size: u32) -> Weight {
         Weight::from_parts(20_000_000, 0)
             .saturating_add(Weight::from_parts(kv_size as u64 * 500, 0))
             .saturating_add(RocksDbWeight::get().reads(1))

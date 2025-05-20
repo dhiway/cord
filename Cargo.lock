@@ -8779,7 +8779,6 @@ dependencies = [
  "pallet-identifier",
  "parity-scale-codec",
  "scale-info",
- "sp-core",
  "sp-io",
  "sp-keystore",
  "sp-runtime",
