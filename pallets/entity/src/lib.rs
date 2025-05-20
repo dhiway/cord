@@ -48,7 +48,7 @@ use sp_runtime::traits::Hash;
 pub use types::{Data, EntityInformationProvider, EntityUpdateError, EntityUpdateOp};
 pub use weights::WeightInfo;
 
-pub type DataOf<T> = Data<<T as Config>::MaxRaw>;
+pub type DataOf<T> = Data<<T as Config>::MaxRawDataLength>;
 pub type UpdateOpOf<T> = <<T as Config>::EntityInformation as EntityInformationProvider>::UpdateOp;
 pub type Username<T> = BoundedVec<u8, <T as Config>::MaxUsernameLength>;
 
@@ -70,8 +70,8 @@ pub mod pallet {
 		/// Must have `FieldsIdentifier = u64` and use `EntityUpdateOp<Self::MaxDataLength>` for updates.
 		type EntityInformation: EntityInformationProvider<
 				FieldsIdentifier = u64,
-				MaxRaw = Self::MaxRaw,
-				UpdateOp = EntityUpdateOp<Self::MaxRaw>,
+				MaxRawDataLength = Self::MaxRawDataLength,
+				UpdateOp = EntityUpdateOp<Self::MaxRawDataLength>,
 			> + EncodeLike;
 
 		// /// Maximum number of additional fields that may be stored in an ID.
@@ -80,7 +80,7 @@ pub mod pallet {
 
 		/// Maximum size for raw data fields.
 		#[pallet::constant]
-		type MaxRaw: Get<u32>;
+		type MaxRawDataLength: Get<u32>;
 
 		/// Max length for username prefix (before the dot).
 		#[pallet::constant]
@@ -288,11 +288,13 @@ pub mod pallet {
 			);
 
 			let info: T::EntityInformation = *info;
-			let attributes = info.attributes();
-			if !attributes.is_empty() {
+			if let Some(attributes) = info.attributes() {
+				ensure!(
+					!attributes.iter().any(|(key, _)| key.is_empty()),
+					Error::<T>::InvalidAttributeEntry
+				);
 				let mut seen = Vec::with_capacity(attributes.len());
-				for (key, _val) in attributes.iter() {
-					ensure!(!key.is_empty(), Error::<T>::InvalidAttributeEntry);
+				for (key, _) in attributes.iter() {
 					let raw_key = key.as_ref();
 					ensure!(
 						!seen.iter().any(|existing: &&[u8]| *existing == raw_key),
@@ -301,6 +303,7 @@ pub mod pallet {
 					seen.push(raw_key);
 				}
 			}
+
 			let digest = T::Hashing::hash(&(info.clone(), b"IdentityInfoSet".to_vec()).encode());
 			let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
 			let id = <pallet_identifier::Pallet<T> as Identifier<T>>::build(
@@ -336,14 +339,14 @@ pub mod pallet {
 				let info = maybe_info.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
 				let mut history: Vec<(Attribute, DataOf<T>)> = Vec::new();
 
-				// 1) Gather old values for any UpdateAttribute ops
 				for op in ops.iter() {
 					if let EntityUpdateOp::UpdateAttribute(ref key, _) = op {
-						if let Some((_, old)) = info.attributes().iter().find(|(k, _)| k == key) {
-							history.push((key.clone(), old.clone()));
+						if let Some(attrs) = info.attributes() {
+							if let Some((_, old)) = attrs.iter().find(|(k, _)| k == key) {
+								history.push((key.clone(), old.clone()));
+							}
 						}
 					}
-					// 2) Apply every op
 					info.apply_update(op).map_err(|e| match e {
 						EntityUpdateError::AttributeExists => Error::<T>::AttributeExists,
 						EntityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
@@ -351,7 +354,6 @@ pub mod pallet {
 					})?;
 				}
 
-				// 3) Record attribute‐history bumps
 				for (key, old) in history {
 					let ver = Ss58OfAttributeVersion::<T>::get(&id, &key).saturating_add(1);
 					Ss58OfAttributeVersion::<T>::insert(&id, &key, ver);
@@ -362,7 +364,6 @@ pub mod pallet {
 					);
 				}
 
-				// 4) Emit event + activity
 				let digest = T::Hashing::hash(
 					&(id.clone(), ops.clone(), b"EntityInfoUpdated".to_vec()).encode(),
 				);
