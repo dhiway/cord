@@ -979,16 +979,14 @@ impl pallet_entry::Config for Runtime {
 
 parameter_types! {
 	pub const MaxUsernameLength: u32 = 32;
-	pub const MaxAdditionalFields: u32 = 10;
-	pub const MaxDataLength: u32        = 128;
+	pub const MaxRaw: u32 = 128;
 }
 
 impl pallet_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxSubAccounts = ConstU32<2>;
-	type MaxDataLength = MaxDataLength;
-	type MaxAdditionalFields = MaxAdditionalFields;
-	type EntityInformation = EntityInfo<MaxAdditionalFields, MaxDataLength>;
+	type MaxRaw = MaxRaw;
+	type EntityInformation = EntityInfo<MaxRaw>;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;

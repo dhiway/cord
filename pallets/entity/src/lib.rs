@@ -31,8 +31,8 @@ pub mod types;
 pub mod weights;
 
 extern crate alloc;
-use crate::types::{Attribute, Username};
-use alloc::{boxed::Box, fmt::Debug, vec::Vec};
+use crate::types::Attribute;
+use alloc::{boxed::Box, vec::Vec};
 use codec::{Encode, EncodeLike};
 use cord_primitives::identifier::Ss58Identifier;
 use frame_support::{
@@ -44,13 +44,13 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use pallet_identifier::{EventBlock, EventTypeOf, Identifier};
-use scale_info::TypeInfo;
 use sp_runtime::traits::Hash;
 pub use types::{Data, EntityInformationProvider, EntityUpdateError, EntityUpdateOp};
 pub use weights::WeightInfo;
 
-pub type DataOf<T> = Data<<T as Config>::MaxDataLength>;
+pub type DataOf<T> = Data<<T as Config>::MaxRaw>;
 pub type UpdateOpOf<T> = <<T as Config>::EntityInformation as EntityInformationProvider>::UpdateOp;
+pub type Username<T> = BoundedVec<u8, <T as Config>::MaxUsernameLength>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -63,25 +63,24 @@ pub mod pallet {
 
 		/// The maximum number of sub-accounts allowed per identified account.
 		#[pallet::constant]
-		type MaxSubAccounts: Get<u32> + TypeInfo;
+		type MaxSubAccounts: Get<u32>;
 
 		/// Structure holding information about an entity,
 		/// containing up to `Self::MaxAdditionalFields` fields of at most `Self::MaxDataLength` bytes.
 		/// Must have `FieldsIdentifier = u64` and use `EntityUpdateOp<Self::MaxDataLength>` for updates.
 		type EntityInformation: EntityInformationProvider<
-			FieldsIdentifier = u64,
-			FieldLimit = Self::MaxAdditionalFields,
-			DataLimit = Self::MaxDataLength,
-			UpdateOp = EntityUpdateOp<Self::MaxDataLength>,
-		> + EncodeLike;
+				FieldsIdentifier = u64,
+				MaxRaw = Self::MaxRaw,
+				UpdateOp = EntityUpdateOp<Self::MaxRaw>,
+			> + EncodeLike;
 
-		/// Maximum number of additional fields that may be stored in an ID.
-		#[pallet::constant]
-		type MaxAdditionalFields: Get<u32>;
+		// /// Maximum number of additional fields that may be stored in an ID.
+		// #[pallet::constant]
+		// type MaxAdditionalFields: Get<u32> + TypeInfo;
 
 		/// Maximum size for raw data fields.
 		#[pallet::constant]
-		type MaxDataLength: Get<u32>;
+		type MaxRaw: Get<u32>;
 
 		/// Max length for username prefix (before the dot).
 		#[pallet::constant]
@@ -333,39 +332,41 @@ pub mod pallet {
 			let controller = Self::lookup_controller_of(&id)?;
 			ensure!(who == controller, Error::<T>::BadOrigin);
 
-			EntityInfoOf::<T>::try_mutate(&id, |opt| -> DispatchResult {
-				let info = opt.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
-				let mut history = Vec::new();
+			EntityInfoOf::<T>::try_mutate(&id, |maybe_info| -> DispatchResult {
+				let info = maybe_info.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
+				let mut history: Vec<(Attribute, DataOf<T>)> = Vec::new();
+
+				// 1) Gather old values for any UpdateAttribute ops
 				for op in ops.iter() {
 					if let EntityUpdateOp::UpdateAttribute(ref key, _) = op {
-						let attributes = info.attributes();
-						if let Some((_, old)) = attributes.iter().find(|(k, _)| *k == *key) {
+						if let Some((_, old)) = info.attributes().iter().find(|(k, _)| k == key) {
 							history.push((key.clone(), old.clone()));
 						}
 					}
-					info.apply_update(&op).map_err(|e| match e {
+					// 2) Apply every op
+					info.apply_update(op).map_err(|e| match e {
 						EntityUpdateError::AttributeExists => Error::<T>::AttributeExists,
 						EntityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
 						EntityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
 					})?;
 				}
 
+				// 3) Record attribute‐history bumps
 				for (key, old) in history {
 					let ver = Ss58OfAttributeVersion::<T>::get(&id, &key).saturating_add(1);
 					Ss58OfAttributeVersion::<T>::insert(&id, &key, ver);
 					Ss58OfAttributeHistory::<T>::insert(
 						&id,
-						(key, ver),
-						(old, EventBlock::current::<T>()),
+						(key.clone(), ver),
+						(old.clone(), EventBlock::current::<T>()),
 					);
 				}
 
+				// 4) Emit event + activity
 				let digest = T::Hashing::hash(
 					&(id.clone(), ops.clone(), b"EntityInfoUpdated".to_vec()).encode(),
 				);
-
 				Self::record_activity(&id, digest, b"EntityInfoUpdated")?;
-
 				Self::deposit_event(Event::EntityInfoUpdated { who: who.clone(), id: id.clone() });
 
 				Ok(())

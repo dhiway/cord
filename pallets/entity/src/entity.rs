@@ -16,44 +16,52 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+use crate::types::{
+	Attributes, Data, EntityInformationProvider, EntityUpdateError, EntityUpdateOp,
+};
 #[cfg(feature = "runtime-benchmarks")]
 use alloc::vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use core::fmt::Debug;
 #[cfg(feature = "runtime-benchmarks")]
 use enumflags2::BitFlag;
 use enumflags2::{bitflags, BitFlags};
 use frame_support::{traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound};
 use scale_info::{build::Variants, Path, Type, TypeInfo};
-use sp_runtime::BoundedVec;
 
-use crate::types::{
-	Attribute, Attributes, Data, EntityInformationProvider, EntityUpdateError, EntityUpdateOp,
-	ProfileCid,
-};
 /// Each field corresponds to a field in the `EntityInfo` struct.
 #[bitflags]
 #[repr(u64)]
-#[derive(Clone, Copy, PartialEq, Eq, RuntimeDebugNoBound)]
+#[derive(
+	Clone,
+	Copy,
+	PartialEq,
+	Eq,
+	RuntimeDebugNoBound,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+)]
 pub enum EntityField {
 	Display,
 	Legal,
 	Web,
-	Profile,
+	Email,
+	Twitter,
 	Attributes,
 }
 
 impl TypeInfo for EntityField {
 	type Identity = Self;
-
 	fn type_info() -> scale_info::Type {
 		Type::builder().path(Path::new("EntityField", module_path!())).variant(
 			Variants::new()
 				.variant("Display", |v| v.index(0))
 				.variant("Legal", |v| v.index(1))
 				.variant("Web", |v| v.index(2))
-				.variant("Profile", |v| v.index(3))
-				.variant("Attributes", |v| v.index(4)),
+				.variant("Email", |v| v.index(3))
+				.variant("Twitter", |v| v.index(4))
+				.variant("Attributes", |v| v.index(5)),
 		)
 	}
 }
@@ -71,20 +79,17 @@ impl TypeInfo for EntityField {
 	TypeInfo,
 )]
 #[codec(mel_bound())]
-#[scale_info(skip_type_params(FieldLimit, RawLimit))]
-pub struct EntityInfo<FieldLimit: Get<u32>, RawLimit: Get<u32>> {
-	pub display: Data<RawLimit>,
-	pub legal: Data<RawLimit>,
-	pub web: Data<RawLimit>,
-	pub profile: Option<ProfileCid>,
-	pub attributes: Attributes<FieldLimit, RawLimit>,
+#[scale_info(skip_type_params(MaxRaw))]
+pub struct EntityInfo<MaxRaw: Get<u32>> {
+	pub display: Data<MaxRaw>,
+	pub legal: Data<MaxRaw>,
+	pub web: Data<MaxRaw>,
+	pub email: Data<MaxRaw>,
+	pub twitter: Data<MaxRaw>,
+	pub attributes: Attributes<MaxRaw>,
 }
 
-impl<FieldLimit: Get<u32>, DataLimit: Get<u32>> EntityInfo<FieldLimit, DataLimit> {
-	pub fn set_attributes(&mut self, new: BoundedVec<(Attribute, Data<DataLimit>), FieldLimit>) {
-		self.attributes = new;
-	}
-
+impl<MaxRaw: Get<u32>> EntityInfo<MaxRaw> {
 	pub(crate) fn fields(&self) -> BitFlags<EntityField> {
 		let mut bits = BitFlags::empty();
 		if !self.display.is_none() {
@@ -96,8 +101,11 @@ impl<FieldLimit: Get<u32>, DataLimit: Get<u32>> EntityInfo<FieldLimit, DataLimit
 		if !self.web.is_none() {
 			bits.insert(EntityField::Web);
 		}
-		if self.profile.is_some() {
-			bits.insert(EntityField::Profile);
+		if !self.email.is_none() {
+			bits.insert(EntityField::Email);
+		}
+		if !self.twitter.is_none() {
+			bits.insert(EntityField::Twitter);
 		}
 		if !self.attributes.is_empty() {
 			bits.insert(EntityField::Attributes);
@@ -106,17 +114,12 @@ impl<FieldLimit: Get<u32>, DataLimit: Get<u32>> EntityInfo<FieldLimit, DataLimit
 	}
 }
 
-impl<
-		FieldLimit: Get<u32> + 'static,
-		DataLimit: Get<u32> + Clone + PartialEq + Debug + 'static + TypeInfo,
-	> EntityInformationProvider for EntityInfo<FieldLimit, DataLimit>
-{
+impl<MaxRaw: Get<u32> + 'static> EntityInformationProvider for EntityInfo<MaxRaw> {
 	type FieldsIdentifier = u64;
-	type FieldLimit = FieldLimit;
-	type DataLimit = DataLimit;
-	type UpdateOp = EntityUpdateOp<DataLimit>;
+	type MaxRaw = MaxRaw;
+	type UpdateOp = EntityUpdateOp<MaxRaw>;
 
-	fn attributes(&self) -> &Attributes<Self::FieldLimit, Self::DataLimit> {
+	fn attributes(&self) -> &Attributes<Self::MaxRaw> {
 		&self.attributes
 	}
 
@@ -125,25 +128,20 @@ impl<
 	}
 
 	fn has_info_fields(&self, fields: Self::FieldsIdentifier) -> bool {
-		self.fields().bits() & fields == fields
+		self.present_fields() & fields == fields
 	}
 
 	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), EntityUpdateError> {
 		match op {
-			EntityUpdateOp::SetDisplay(x) => {
-				self.display = x.clone();
-				Ok(())
-			},
-			EntityUpdateOp::SetLegal(x) => {
-				self.legal = x.clone();
-				Ok(())
-			},
-			EntityUpdateOp::SetWeb(x) => {
-				self.web = x.clone();
-				Ok(())
-			},
-			EntityUpdateOp::SetProfile(o) => {
-				self.profile = o.clone();
+			EntityUpdateOp::SetField(field, val) => {
+				match field {
+					EntityField::Display => self.display = val.clone(),
+					EntityField::Legal => self.legal = val.clone(),
+					EntityField::Web => self.web = val.clone(),
+					EntityField::Email => self.email = val.clone(),
+					EntityField::Twitter => self.twitter = val.clone(),
+					EntityField::Attributes => return Err(EntityUpdateError::AttributeExists),
+				}
 				Ok(())
 			},
 			EntityUpdateOp::AddAttribute(k, v) => {
@@ -180,7 +178,7 @@ impl<
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn create_entity_info() -> Self {
-		let empty = Data::<DataLimit>::Raw(Default::default());
+		let empty = Data::<MaxRaw>::Raw(Default::default());
 		let mut all = Vec::new();
 		let cap: usize = FieldLimit::get().try_into().unwrap();
 		for _ in 0..cap {
@@ -190,7 +188,8 @@ impl<
 			display: empty.clone(),
 			legal: empty.clone(),
 			web: empty.clone(),
-			profile: Some(ProfileCid([0u8; 64])),
+			email: empty.clone(),
+			twitter: empty.clone(),
 			attributes: all.try_into().unwrap(),
 		}
 	}
@@ -201,13 +200,14 @@ impl<
 	}
 }
 
-impl<FieldLimit: Get<u32>, RawLimit: Get<u32>> Default for EntityInfo<FieldLimit, RawLimit> {
+impl<MaxRaw: Get<u32>> Default for EntityInfo<MaxRaw> {
 	fn default() -> Self {
 		EntityInfo {
-			display: Data::None,
-			legal: Data::None,
-			web: Data::None,
-			profile: None,
+			display: Data::<MaxRaw>::None,
+			legal: Data::<MaxRaw>::None,
+			web: Data::<MaxRaw>::None,
+			email: Data::<MaxRaw>::None,
+			twitter: Data::<MaxRaw>::None,
 			attributes: Default::default(),
 		}
 	}
