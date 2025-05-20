@@ -79,17 +79,17 @@ impl TypeInfo for EntityField {
 	TypeInfo,
 )]
 #[codec(mel_bound())]
-#[scale_info(skip_type_params(MaxRaw))]
-pub struct EntityInfo<MaxRaw: Get<u32>> {
-	pub display: Data<MaxRaw>,
-	pub legal: Data<MaxRaw>,
-	pub web: Data<MaxRaw>,
-	pub email: Data<MaxRaw>,
-	pub twitter: Data<MaxRaw>,
-	pub attributes: Attributes<MaxRaw>,
+#[scale_info(skip_type_params(MaxRawDataLength))]
+pub struct EntityInfo<MaxRawDataLength: Get<u32>> {
+	pub display: Data<MaxRawDataLength>,
+	pub legal: Data<MaxRawDataLength>,
+	pub web: Data<MaxRawDataLength>,
+	pub email: Data<MaxRawDataLength>,
+	pub twitter: Data<MaxRawDataLength>,
+	pub attributes: Option<Attributes<MaxRawDataLength>>,
 }
 
-impl<MaxRaw: Get<u32>> EntityInfo<MaxRaw> {
+impl<MaxRawDataLength: Get<u32>> EntityInfo<MaxRawDataLength> {
 	pub(crate) fn fields(&self) -> BitFlags<EntityField> {
 		let mut bits = BitFlags::empty();
 		if !self.display.is_none() {
@@ -107,20 +107,24 @@ impl<MaxRaw: Get<u32>> EntityInfo<MaxRaw> {
 		if !self.twitter.is_none() {
 			bits.insert(EntityField::Twitter);
 		}
-		if !self.attributes.is_empty() {
-			bits.insert(EntityField::Attributes);
+		if let Some(attrs) = &self.attributes {
+			if !attrs.is_empty() {
+				bits.insert(EntityField::Attributes);
+			}
 		}
 		bits
 	}
 }
 
-impl<MaxRaw: Get<u32> + 'static> EntityInformationProvider for EntityInfo<MaxRaw> {
+impl<MaxRawDataLength: Get<u32> + 'static> EntityInformationProvider
+	for EntityInfo<MaxRawDataLength>
+{
 	type FieldsIdentifier = u64;
-	type MaxRaw = MaxRaw;
-	type UpdateOp = EntityUpdateOp<MaxRaw>;
+	type MaxRawDataLength = MaxRawDataLength;
+	type UpdateOp = EntityUpdateOp<MaxRawDataLength>;
 
-	fn attributes(&self) -> &Attributes<Self::MaxRaw> {
-		&self.attributes
+	fn attributes(&self) -> Option<&Attributes<Self::MaxRawDataLength>> {
+		self.attributes.as_ref()
 	}
 
 	fn present_fields(&self) -> Self::FieldsIdentifier {
@@ -133,7 +137,7 @@ impl<MaxRaw: Get<u32> + 'static> EntityInformationProvider for EntityInfo<MaxRaw
 
 	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), EntityUpdateError> {
 		match op {
-			EntityUpdateOp::SetField(field, val) => {
+			&EntityUpdateOp::SetField(field, ref val) => {
 				match field {
 					EntityField::Display => self.display = val.clone(),
 					EntityField::Legal => self.legal = val.clone(),
@@ -144,33 +148,50 @@ impl<MaxRaw: Get<u32> + 'static> EntityInformationProvider for EntityInfo<MaxRaw
 				}
 				Ok(())
 			},
-			EntityUpdateOp::AddAttribute(k, v) => {
-				if self.attributes.iter().any(|(kk, _)| kk == k) {
-					return Err(EntityUpdateError::AttributeExists);
+
+			&EntityUpdateOp::AddAttribute(ref k, ref v) => {
+				if let Some(ref mut attrs) = self.attributes {
+					if attrs.iter().any(|(kk, _)| kk == k) {
+						return Err(EntityUpdateError::AttributeExists);
+					}
+					attrs
+						.try_push((k.clone(), v.clone()))
+						.map_err(|_| EntityUpdateError::TooManyAttributes)?;
+				} else {
+					let mut attrs: Attributes<MaxRawDataLength> = Default::default();
+					attrs
+						.try_push((k.clone(), v.clone()))
+						.map_err(|_| EntityUpdateError::TooManyAttributes)?;
+					self.attributes = Some(attrs);
 				}
-				self.attributes
-					.try_push((k.clone(), v.clone()))
-					.map_err(|_| EntityUpdateError::TooManyAttributes)?;
 				Ok(())
 			},
-			EntityUpdateOp::UpdateAttribute(k, v) => {
-				if let Some((_, val)) = self.attributes.iter_mut().find(|(kk, _)| kk == k) {
-					*val = v.clone();
-					Ok(())
-				} else {
-					Err(EntityUpdateError::AttributeNotFound)
+
+			&EntityUpdateOp::UpdateAttribute(ref k, ref v) => {
+				if let Some(ref mut attrs) = self.attributes {
+					if let Some((_, val)) = attrs.iter_mut().find(|(kk, _)| kk == k) {
+						*val = v.clone();
+						return Ok(());
+					}
 				}
+				Err(EntityUpdateError::AttributeNotFound)
 			},
-			EntityUpdateOp::RemoveAttribute(k) => {
-				if let Some(i) = self.attributes.iter().position(|(kk, _)| kk == k) {
-					self.attributes.swap_remove(i);
-					Ok(())
-				} else {
-					Err(EntityUpdateError::AttributeNotFound)
+
+			&EntityUpdateOp::RemoveAttribute(ref k) => {
+				if let Some(ref mut attrs) = self.attributes {
+					if let Some(i) = attrs.iter().position(|(kk, _)| kk == k) {
+						attrs.swap_remove(i);
+						if attrs.is_empty() {
+							self.attributes = None;
+						}
+						return Ok(());
+					}
 				}
+				Err(EntityUpdateError::AttributeNotFound)
 			},
-			EntityUpdateOp::ClearAttribute => {
-				self.attributes.clear();
+
+			&EntityUpdateOp::ClearAttribute => {
+				self.attributes = None;
 				Ok(())
 			},
 		}
@@ -178,7 +199,7 @@ impl<MaxRaw: Get<u32> + 'static> EntityInformationProvider for EntityInfo<MaxRaw
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn create_entity_info() -> Self {
-		let empty = Data::<MaxRaw>::Raw(Default::default());
+		let empty = Data::<MaxRawDataLength>::Raw(Default::default());
 		let mut all = Vec::new();
 		let cap: usize = FieldLimit::get().try_into().unwrap();
 		for _ in 0..cap {
@@ -200,15 +221,15 @@ impl<MaxRaw: Get<u32> + 'static> EntityInformationProvider for EntityInfo<MaxRaw
 	}
 }
 
-impl<MaxRaw: Get<u32>> Default for EntityInfo<MaxRaw> {
+impl<MaxRawDataLength: Get<u32>> Default for EntityInfo<MaxRawDataLength> {
 	fn default() -> Self {
 		EntityInfo {
-			display: Data::<MaxRaw>::None,
-			legal: Data::<MaxRaw>::None,
-			web: Data::<MaxRaw>::None,
-			email: Data::<MaxRaw>::None,
-			twitter: Data::<MaxRaw>::None,
-			attributes: Default::default(),
+			display: Data::<MaxRawDataLength>::None,
+			legal: Data::<MaxRawDataLength>::None,
+			web: Data::<MaxRawDataLength>::None,
+			email: Data::<MaxRawDataLength>::None,
+			twitter: Data::<MaxRawDataLength>::None,
+			attributes: None,
 		}
 	}
 }

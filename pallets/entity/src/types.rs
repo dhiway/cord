@@ -29,13 +29,14 @@ use frame_support::{
 use scale_info::TypeInfo;
 
 /// The raw‐data type used throughout the entity pallet.
-pub type Data<MaxRaw> = Element<MaxRaw>;
+pub type Data<MaxRawDataLength> = Element<MaxRawDataLength>;
 
 /// Maximum length for an additional‐field key.
 pub type Attribute = BoundedVec<u8, ConstU32<64>>;
 
 /// The bounded list of `(Attribute, Data)` pairs.
-pub type Attributes<MaxRaw> = BoundedVec<(Attribute, Data<MaxRaw>), ConstU32<32>>;
+pub type Attributes<MaxRawDataLength> =
+	BoundedVec<(Attribute, Data<MaxRawDataLength>), ConstU32<32>>;
 
 /// Errors that can occur when applying a single `EntityUpdateOp`.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -53,13 +54,13 @@ pub trait EntityInformationProvider:
 	type FieldsIdentifier: Encode + Decode + MaxEncodedLen + TypeInfo + Default;
 
 	/// Limit on the raw‐data size.
-	type MaxRaw: Get<u32>;
+	type MaxRawDataLength: Get<u32>;
 
 	/// The enum of update operations.
 	type UpdateOp: Encode + Decode + Clone + Debug + PartialEq + TypeInfo + MaxEncodedLen;
 
 	/// The raw attribute‐map (never `None`).
-	fn attributes(&self) -> &Attributes<Self::MaxRaw>;
+	fn attributes(&self) -> Option<&Attributes<Self::MaxRawDataLength>>;
 
 	/// Return a bitmask of *all* the identity‐fields currently set.
 	fn present_fields(&self) -> Self::FieldsIdentifier;
@@ -91,11 +92,11 @@ pub trait EntityInformationProvider:
 	MaxEncodedLen,
 	TypeInfo,
 )]
-#[scale_info(skip_type_params(MaxRaw))]
-pub enum EntityUpdateOp<MaxRaw: Get<u32>> {
-	SetField(EntityField, Data<MaxRaw>),
-	AddAttribute(Attribute, Data<MaxRaw>),
-	UpdateAttribute(Attribute, Data<MaxRaw>),
+#[scale_info(skip_type_params(MaxRawDataLength))]
+pub enum EntityUpdateOp<MaxRawDataLength: Get<u32>> {
+	SetField(EntityField, Data<MaxRawDataLength>),
+	AddAttribute(Attribute, Data<MaxRawDataLength>),
+	UpdateAttribute(Attribute, Data<MaxRawDataLength>),
 	RemoveAttribute(Attribute),
 	ClearAttribute,
 }

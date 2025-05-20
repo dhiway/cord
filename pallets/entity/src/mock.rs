@@ -71,7 +71,6 @@ impl pallet_entity::Config for Test {
 	/// must match the generated enum from `construct_runtime!`
 	type RuntimeEvent = RuntimeEvent;
 	type MaxSubAccounts = MaxSubAccounts;
-	/// Our entity‐info struct: `EntityInfo<MaxAdditionalFields, MaxDataLength>`
 	type EntityInformation = EntityInfo<MaxAdditionalFields, MaxDataLength>;
 	type MaxAdditionalFields = MaxAdditionalFields;
 	type MaxDataLength = MaxDataLength;
