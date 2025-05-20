@@ -59,7 +59,7 @@ use frame_system::{
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
 use pallet_asset_conversion_tx_payment::SwapAssetAdapter;
 pub use pallet_election_provider_multi_phase::{Call as EPMCall, GeometricDepositBase};
-use pallet_entity::identity::IdentityInfo;
+use pallet_entity::entity::EntityInfo;
 use pallet_identifier::Identifier as _;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_nfts::PalletFeatures;
@@ -1451,14 +1451,15 @@ impl pallet_entry::Config for Runtime {
 
 parameter_types! {
 	pub const MaxUsernameLength: u32 = 32;
-	pub const MaxAdditionalFields: u32 = 10;
+	pub const MaxSubAccounts: u32 = 32;
+	pub const MaxRawDataLength: u32 = 4096;
 }
 
 impl pallet_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type MaxSubAccounts = ConstU32<2>;
-	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
-	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxSubAccounts = MaxSubAccounts;
+	type MaxRawDataLength = MaxRawDataLength;
+	type EntityInformation = EntityInfo<MaxRawDataLength>;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;

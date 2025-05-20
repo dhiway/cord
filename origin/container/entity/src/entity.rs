@@ -23,14 +23,15 @@ use frame_support::{
 	parameter_types, traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
 };
 use pallet_entity::types::{
-	Attribute, Data, IdentityInformationProvider, IdentityUpdateError, IdentityUpdateOp, ProfileCid,
+	Attributes, Data, EntityInformationProvider, EntityUpdateError, EntityUpdateOp,
 };
 use scale_info::{build::Variants, Path, Type, TypeInfo};
-use sp_runtime::{BoundedVec, RuntimeDebug};
+use sp_runtime::RuntimeDebug;
 
 parameter_types! {
+	pub const MaxSubAccounts: u32 = 32;
+	pub const MaxRawDataLength: u32 = 4096;
 	pub const MaxUsernameLength: u32 = 32;
-	pub const MaxAdditionalFields: u32 = 10;
 	pub const GeneralAdminBodyId: BodyId = BodyId::Administration;
 }
 
@@ -41,9 +42,9 @@ pub type IdentityAdminOrigin = EitherOfDiverse<
 
 impl pallet_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type MaxSubAccounts = ConstU32<2>;
-	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
-	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxSubAccounts = MaxSubAccounts;
+	type MaxRawDataLength = MaxRawDataLength;
+	type EntityInformation = EntityInfo<MaxRawDataLength>;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;
@@ -53,25 +54,23 @@ impl pallet_entity::Config for Runtime {
 #[bitflags]
 #[repr(u64)]
 #[derive(Clone, Copy, PartialEq, Eq, RuntimeDebug)]
-pub enum IdentityField {
+pub enum EntityField {
 	Display,
 	Legal,
 	Web,
-	Profile,
-	Additional,
+	Attributes,
 }
 
-impl TypeInfo for IdentityField {
+impl TypeInfo for EntityField {
 	type Identity = Self;
 
 	fn type_info() -> scale_info::Type {
-		Type::builder().path(Path::new("IdentityField", module_path!())).variant(
+		Type::builder().path(Path::new("EntityField", module_path!())).variant(
 			Variants::new()
 				.variant("Display", |v| v.index(0))
 				.variant("Legal", |v| v.index(1))
 				.variant("Web", |v| v.index(2))
-				.variant("Profile", |v| v.index(3))
-				.variant("Additional", |v| v.index(4)),
+				.variant("Attributes", |v| v.index(3)),
 		)
 	}
 }
@@ -89,155 +88,171 @@ impl TypeInfo for IdentityField {
 	TypeInfo,
 )]
 #[codec(mel_bound())]
-#[scale_info(skip_type_params(FieldLimit))]
-pub struct IdentityInfo<FieldLimit: Get<u32>> {
+#[scale_info(skip_type_params(MaxRawDataLength))]
+pub struct EntityInfo<MaxRawDataLength: Get<u32>> {
 	/// A reasonable display name (UTF-8).
-	pub display: Data,
+	pub display: Data<MaxRawDataLength>,
 	/// The full legal name (UTF-8).
-	pub legal: Data,
+	pub legal: Data<MaxRawDataLength>,
 	/// A representative website (UTF-8, “https://” prepended).
-	pub web: Data,
-	/// A content identifier (CID) for a profile blob or document.
-	pub profile: Option<ProfileCid>,
+	pub web: Data<MaxRawDataLength>,
 	/// Additional arbitrary (key, value) pairs.
-	pub additional: Option<BoundedVec<(Attribute, Data), FieldLimit>>,
+	pub attributes: Option<Attributes<MaxRawDataLength>>,
 }
 
-impl<FieldLimit: Get<u32>> IdentityInfo<FieldLimit> {
-	pub fn set_additional(&mut self, add: Option<BoundedVec<(Attribute, Data), FieldLimit>>) {
-		self.additional = add;
+impl<MaxRawDataLength: Get<u32>> EntityInfo<MaxRawDataLength> {
+	pub(crate) fn fields(&self) -> BitFlags<EntityField> {
+		let mut bits = BitFlags::empty();
+		if !self.display.is_none() {
+			bits.insert(EntityField::Display);
+		}
+		if !self.legal.is_none() {
+			bits.insert(EntityField::Legal);
+		}
+		if !self.web.is_none() {
+			bits.insert(EntityField::Web);
+		}
+		if let Some(attrs) = &self.attributes {
+			if !attrs.is_empty() {
+				bits.insert(EntityField::Attributes);
+			}
+		}
+		bits
 	}
 }
 
-impl<FieldLimit: Get<u32> + 'static> IdentityInformationProvider for IdentityInfo<FieldLimit> {
+impl<MaxRawDataLength: Get<u32> + 'static> EntityInformationProvider
+	for EntityInfo<MaxRawDataLength>
+{
 	type FieldsIdentifier = u64;
-	type FieldLimit = FieldLimit;
-	type UpdateOp = IdentityUpdateOp;
+	type MaxRawDataLength = MaxRawDataLength;
+	type UpdateOp = EntityUpdateOp<MaxRawDataLength>;
 
-	fn has_identity(&self, fields: Self::FieldsIdentifier) -> bool {
-		self.fields().bits() & fields == fields
+	fn attributes(&self) -> Option<&Attributes<Self::MaxRawDataLength>> {
+		self.attributes.as_ref()
 	}
 
-	fn additional(&self) -> Option<&BoundedVec<(Attribute, Data), FieldLimit>> {
-		self.additional.as_ref()
+	fn get_key(&self, key: &[u8]) -> Data<Self::MaxRawDataLength> {
+		match key {
+			b"display" => self.display.clone(),
+			b"legal" => self.legal.clone(),
+			b"web" => self.web.clone(),
+			_ => self
+				.attributes
+				.as_ref()
+				.and_then(|attrs| {
+					attrs
+						.iter()
+						// compare the raw byte‐slices
+						.find(|(k, _)| &k[..] == &key[..])
+						.map(|(_, v)| v.clone())
+				})
+				.unwrap_or(Data::None),
+		}
 	}
 
-	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), IdentityUpdateError> {
+	fn present_fields(&self) -> Self::FieldsIdentifier {
+		self.fields().bits()
+	}
+
+	fn has_info_fields(&self, fields: Self::FieldsIdentifier) -> bool {
+		self.present_fields() & fields == fields
+	}
+
+	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), EntityUpdateError> {
 		match op {
-			IdentityUpdateOp::SetDisplay(x) => {
-				self.display = x.clone();
-				Ok(())
-			},
-			IdentityUpdateOp::SetLegal(x) => {
-				self.legal = x.clone();
-				Ok(())
-			},
-			IdentityUpdateOp::SetWeb(x) => {
-				self.web = x.clone();
-				Ok(())
-			},
-			IdentityUpdateOp::SetProfile(opt) => {
-				self.profile = opt.clone();
-				Ok(())
-			},
-			IdentityUpdateOp::AddAdditional(key, val) => {
-				let additional = self.additional.get_or_insert_with(BoundedVec::default);
-				if additional.iter().any(|(k, _)| k == key) {
-					return Err(IdentityUpdateError::AttributeExists);
-				}
-				additional
-					.try_push((key.clone(), val.clone()))
-					.map_err(|_| IdentityUpdateError::TooManyAttributes)?;
-				Ok(())
-			},
-			IdentityUpdateOp::UpdateAdditional(key, val) => {
-				if let Some(additional) = self.additional.as_mut() {
-					if let Some((_, v)) = additional.iter_mut().find(|(k, _)| k == key) {
-						*v = val.clone();
-						Ok(())
-					} else {
-						Err(IdentityUpdateError::AttributeNotFound)
-					}
+			&EntityUpdateOp::SetKey(ref key, ref val) => {
+				let key_bytes: &[u8] = &key[..];
+				if key_bytes == b"display" {
+					self.display = val.clone();
+				} else if key_bytes == b"legal" {
+					self.legal = val.clone();
+				} else if key_bytes == b"web" {
+					self.web = val.clone();
 				} else {
-					Err(IdentityUpdateError::AttributeNotFound)
-				}
-			},
-			IdentityUpdateOp::RemoveAdditional(key) => {
-				if let Some(additional) = self.additional.as_mut() {
-					if let Some(i) = additional.iter().position(|(k, _)| k == key) {
-						additional.swap_remove(i);
-						if additional.is_empty() {
-							self.additional = None;
+					let attrs = self.attributes.get_or_insert_with(Default::default);
+					if let Some((_, _)) = attrs.iter().find(|(k, _)| k == key) {
+						for &mut (ref mut kk, ref mut vv) in attrs.iter_mut() {
+							if kk == key {
+								*vv = val.clone();
+								return Ok(());
+							}
 						}
-						Ok(())
 					} else {
-						Err(IdentityUpdateError::AttributeNotFound)
+						attrs
+							.try_push((key.clone(), val.clone()))
+							.map_err(|_| EntityUpdateError::TooManyAttributes)?;
 					}
-				} else {
-					Err(IdentityUpdateError::AttributeNotFound)
 				}
+
+				Ok(())
 			},
-			IdentityUpdateOp::ClearAdditional => {
-				self.additional = None;
+
+			&EntityUpdateOp::RemoveKey(ref key) => {
+				let key_bytes: &[u8] = &key[..];
+				if key_bytes == b"display" {
+					self.display = Data::None;
+				} else if key_bytes == b"legal" {
+					self.legal = Data::None;
+				} else if key_bytes == b"web" {
+					self.web = Data::None;
+				} else {
+					if let Some(ref mut attrs) = self.attributes {
+						if let Some(idx) = attrs.iter().position(|(k, _)| k == key) {
+							attrs.swap_remove(idx);
+							if attrs.is_empty() {
+								self.attributes = None;
+							}
+						} else {
+							return Err(EntityUpdateError::AttributeNotFound);
+						}
+					} else {
+						return Err(EntityUpdateError::AttributeNotFound);
+					}
+				}
+
+				Ok(())
+			},
+
+			&EntityUpdateOp::ClearAll => {
+				self.display = Data::None;
+				self.legal = Data::None;
+				self.web = Data::None;
+				self.attributes = None;
 				Ok(())
 			},
 		}
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn create_identity_info() -> Self {
-		let d = Data::Raw(vec![0; 32].try_into().unwrap());
-		let mut additional = Vec::new();
+	fn create_entity_info() -> Self {
+		let empty = Data::<MaxRawDataLength>::Raw(Default::default());
+		let mut all = Vec::new();
 		let cap: usize = FieldLimit::get().try_into().unwrap();
 		for _ in 0..cap {
-			additional.push((AdditionalKey::default(), raw.clone()));
+			all.push((Attribute::default(), empty.clone()));
 		}
-
-		IdentityInfo {
-			display: d.clone(),
-			legal: d.clone(),
-			web: d.clone(),
-			profile: Some(ProfileCid([0u8; 64])),
-			additional: Some(additional.try_into().unwrap()),
+		EntityInfo {
+			display: empty.clone(),
+			legal: empty.clone(),
+			web: empty.clone(),
+			attributes: all.try_into().unwrap(),
 		}
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn all_fields() -> Self::FieldsIdentifier {
-		IdentityField::all().bits()
+		EntityField::all().bits()
 	}
 }
 
-impl<FieldLimit: Get<u32>> Default for IdentityInfo<FieldLimit> {
+impl<MaxRawDataLength: Get<u32>> Default for EntityInfo<MaxRawDataLength> {
 	fn default() -> Self {
-		IdentityInfo {
-			display: Data::None,
-			legal: Data::None,
-			web: Data::None,
-			profile: None,
-			additional: None,
+		EntityInfo {
+			display: Data::<MaxRawDataLength>::None,
+			legal: Data::<MaxRawDataLength>::None,
+			web: Data::<MaxRawDataLength>::None,
+			attributes: None,
 		}
-	}
-}
-
-impl<FieldLimit: Get<u32>> IdentityInfo<FieldLimit> {
-	pub(crate) fn fields(&self) -> BitFlags<IdentityField> {
-		let mut bits = BitFlags::empty();
-		if !self.display.is_none() {
-			bits.insert(IdentityField::Display);
-		}
-		if !self.legal.is_none() {
-			bits.insert(IdentityField::Legal);
-		}
-		if !self.web.is_none() {
-			bits.insert(IdentityField::Web);
-		}
-		if self.profile.is_some() {
-			bits.insert(IdentityField::Profile);
-		}
-		if self.additional.as_ref().map_or(false, |a| !a.is_empty()) {
-			bits.insert(IdentityField::Additional);
-		}
-		bits
 	}
 }
