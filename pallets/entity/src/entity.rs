@@ -127,6 +127,27 @@ impl<MaxRawDataLength: Get<u32> + 'static> EntityInformationProvider
 		self.attributes.as_ref()
 	}
 
+	fn get_key(&self, key: &[u8]) -> Data<Self::MaxRawDataLength> {
+		match key {
+			b"display" => self.display.clone(),
+			b"legal" => self.legal.clone(),
+			b"web" => self.web.clone(),
+			b"email" => self.email.clone(),
+			b"twitter" => self.twitter.clone(),
+			_ => self
+				.attributes
+				.as_ref()
+				.and_then(|attrs| {
+					attrs
+						.iter()
+						// compare the raw byte‐slices
+						.find(|(k, _)| &k[..] == &key[..])
+						.map(|(_, v)| v.clone())
+				})
+				.unwrap_or(Data::None),
+		}
+	}
+
 	fn present_fields(&self) -> Self::FieldsIdentifier {
 		self.fields().bits()
 	}
@@ -137,60 +158,73 @@ impl<MaxRawDataLength: Get<u32> + 'static> EntityInformationProvider
 
 	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), EntityUpdateError> {
 		match op {
-			&EntityUpdateOp::SetField(field, ref val) => {
-				match field {
-					EntityField::Display => self.display = val.clone(),
-					EntityField::Legal => self.legal = val.clone(),
-					EntityField::Web => self.web = val.clone(),
-					EntityField::Email => self.email = val.clone(),
-					EntityField::Twitter => self.twitter = val.clone(),
-					EntityField::Attributes => return Err(EntityUpdateError::AttributeExists),
-				}
-				Ok(())
-			},
-
-			&EntityUpdateOp::AddAttribute(ref k, ref v) => {
-				if let Some(ref mut attrs) = self.attributes {
-					if attrs.iter().any(|(kk, _)| kk == k) {
-						return Err(EntityUpdateError::AttributeExists);
-					}
-					attrs
-						.try_push((k.clone(), v.clone()))
-						.map_err(|_| EntityUpdateError::TooManyAttributes)?;
+			&EntityUpdateOp::SetKey(ref key, ref val) => {
+				let key_bytes: &[u8] = &key[..];
+				if key_bytes == b"display" {
+					self.display = val.clone();
+				} else if key_bytes == b"legal" {
+					self.legal = val.clone();
+				} else if key_bytes == b"web" {
+					self.web = val.clone();
+				} else if key_bytes == b"email" {
+					self.email = val.clone();
+				} else if key_bytes == b"twitter" {
+					self.twitter = val.clone();
 				} else {
-					let mut attrs: Attributes<MaxRawDataLength> = Default::default();
-					attrs
-						.try_push((k.clone(), v.clone()))
-						.map_err(|_| EntityUpdateError::TooManyAttributes)?;
-					self.attributes = Some(attrs);
+					let attrs = self.attributes.get_or_insert_with(Default::default);
+					if let Some((_, _)) = attrs.iter().find(|(k, _)| k == key) {
+						for &mut (ref mut kk, ref mut vv) in attrs.iter_mut() {
+							if kk == key {
+								*vv = val.clone();
+								return Ok(());
+							}
+						}
+					} else {
+						attrs
+							.try_push((key.clone(), val.clone()))
+							.map_err(|_| EntityUpdateError::TooManyAttributes)?;
+					}
 				}
+
 				Ok(())
 			},
 
-			&EntityUpdateOp::UpdateAttribute(ref k, ref v) => {
-				if let Some(ref mut attrs) = self.attributes {
-					if let Some((_, val)) = attrs.iter_mut().find(|(kk, _)| kk == k) {
-						*val = v.clone();
-						return Ok(());
-					}
-				}
-				Err(EntityUpdateError::AttributeNotFound)
-			},
-
-			&EntityUpdateOp::RemoveAttribute(ref k) => {
-				if let Some(ref mut attrs) = self.attributes {
-					if let Some(i) = attrs.iter().position(|(kk, _)| kk == k) {
-						attrs.swap_remove(i);
-						if attrs.is_empty() {
-							self.attributes = None;
+			&EntityUpdateOp::RemoveKey(ref key) => {
+				let key_bytes: &[u8] = &key[..];
+				if key_bytes == b"display" {
+					self.display = Data::None;
+				} else if key_bytes == b"legal" {
+					self.legal = Data::None;
+				} else if key_bytes == b"web" {
+					self.web = Data::None;
+				} else if key_bytes == b"email" {
+					self.email = Data::None;
+				} else if key_bytes == b"twitter" {
+					self.twitter = Data::None;
+				} else {
+					if let Some(ref mut attrs) = self.attributes {
+						if let Some(idx) = attrs.iter().position(|(k, _)| k == key) {
+							attrs.swap_remove(idx);
+							if attrs.is_empty() {
+								self.attributes = None;
+							}
+						} else {
+							return Err(EntityUpdateError::AttributeNotFound);
 						}
-						return Ok(());
+					} else {
+						return Err(EntityUpdateError::AttributeNotFound);
 					}
 				}
-				Err(EntityUpdateError::AttributeNotFound)
+
+				Ok(())
 			},
 
-			&EntityUpdateOp::ClearAttribute => {
+			&EntityUpdateOp::ClearAll => {
+				self.display = Data::None;
+				self.legal = Data::None;
+				self.web = Data::None;
+				self.email = Data::None;
+				self.twitter = Data::None;
 				self.attributes = None;
 				Ok(())
 			},

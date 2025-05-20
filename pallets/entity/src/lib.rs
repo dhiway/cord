@@ -337,15 +337,12 @@ pub mod pallet {
 
 			EntityInfoOf::<T>::try_mutate(&id, |maybe_info| -> DispatchResult {
 				let info = maybe_info.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
-				let mut history: Vec<(Attribute, DataOf<T>)> = Vec::new();
+				let mut history: Vec<(Attribute, DataOf<T>)> = Vec::with_capacity(ops.len());
 
 				for op in ops.iter() {
-					if let EntityUpdateOp::UpdateAttribute(ref key, _) = op {
-						if let Some(attrs) = info.attributes() {
-							if let Some((_, old)) = attrs.iter().find(|(k, _)| k == key) {
-								history.push((key.clone(), old.clone()));
-							}
-						}
+					if let EntityUpdateOp::SetKey(ref key, _) = op {
+						let old = info.get_key(&key[..]);
+						history.push((key.clone(), old));
 					}
 					info.apply_update(op).map_err(|e| match e {
 						EntityUpdateError::AttributeExists => Error::<T>::AttributeExists,
@@ -386,12 +383,12 @@ pub mod pallet {
 				key.clone().try_into().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
 			EntityInfoOf::<T>::try_mutate(&id, |opt| -> DispatchResult {
 				let info = opt.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
-				info.apply_update(&EntityUpdateOp::AddAttribute(attr.clone(), val.clone()))
-					.map_err(|e| match e {
-						EntityUpdateError::AttributeExists => Error::<T>::AttributeExists,
-						EntityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
-						EntityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
-					})?;
+				let op = EntityUpdateOp::SetKey(attr.clone(), val.clone());
+				info.apply_update(&op).map_err(|e| match e {
+					EntityUpdateError::AttributeExists => Error::<T>::AttributeExists,
+					EntityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
+					EntityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
+				})?;
 				Ok(())
 			})?;
 			let digest = T::Hashing::hash(

@@ -18,7 +18,7 @@
 
 // crate/types.rs
 
-use crate::entity::EntityField;
+// use crate::entity::EntityField;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::element::Element;
 use core::fmt::Debug;
@@ -62,6 +62,9 @@ pub trait EntityInformationProvider:
 	/// The raw attribute‐map (never `None`).
 	fn attributes(&self) -> Option<&Attributes<Self::MaxRawDataLength>>;
 
+	/// Return the current value for _any_ key (reserved field or attribute).
+	fn get_key(&self, key: &[u8]) -> Data<Self::MaxRawDataLength>;
+
 	/// Return a bitmask of *all* the identity‐fields currently set.
 	fn present_fields(&self) -> Self::FieldsIdentifier;
 
@@ -80,7 +83,7 @@ pub trait EntityInformationProvider:
 	fn all_fields() -> Self::FieldsIdentifier;
 }
 
-/// Single‐variant‐for‐every‐field update‐op:
+/// Single‐op‐for‐any‐key
 #[derive(
 	Encode,
 	Decode,
@@ -94,12 +97,34 @@ pub trait EntityInformationProvider:
 )]
 #[scale_info(skip_type_params(MaxRawDataLength))]
 pub enum EntityUpdateOp<MaxRawDataLength: Get<u32>> {
-	SetField(EntityField, Data<MaxRawDataLength>),
-	AddAttribute(Attribute, Data<MaxRawDataLength>),
-	UpdateAttribute(Attribute, Data<MaxRawDataLength>),
-	RemoveAttribute(Attribute),
-	ClearAttribute,
+	/// Set or overwrite **any** key.
+	SetKey(Attribute, Data<MaxRawDataLength>),
+	/// Remove a key (fields become `Data::None`, attributes dropped).
+	RemoveKey(Attribute),
+	/// Clear *everything* (reset all fields to `Data::None`, drop all attrs).
+	ClearAll,
 }
+
+// /// Single‐variant‐for‐every‐field update‐op:
+// #[derive(
+// 	Encode,
+// 	Decode,
+// 	DecodeWithMemTracking,
+// 	CloneNoBound,
+// 	PartialEqNoBound,
+// 	EqNoBound,
+// 	RuntimeDebugNoBound,
+// 	MaxEncodedLen,
+// 	TypeInfo,
+// )]
+// #[scale_info(skip_type_params(MaxRawDataLength))]
+// pub enum EntityUpdateOp<MaxRawDataLength: Get<u32>> {
+// 	SetField(EntityField, Data<MaxRawDataLength>),
+// 	AddAttribute(Attribute, Data<MaxRawDataLength>),
+// 	UpdateAttribute(Attribute, Data<MaxRawDataLength>),
+// 	RemoveAttribute(Attribute),
+// 	ClearAttribute,
+// }
 
 #[cfg(test)]
 mod tests {
