@@ -77,8 +77,6 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Runtime SS58 prefix.
 		type Ss58Prefix: Get<u16>;
-		/// The Origin ChainId; otherwise `0`.
-		type OriginChainId: Get<u32>;
 		/// Provider for the block number.
 		type BlockNumberProvider: BlockNumberProvider;
 	}
@@ -165,34 +163,40 @@ pub mod pallet {
 	pub struct GenesisConfig<T: Config> {
 		#[serde(skip)]
 		pub _config: core::marker::PhantomData<T>,
-		pub is_origin_chain: bool,
+		pub protocol_id: String,
 		pub network_id: u16,
 	}
 
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { is_origin_chain: false, network_id: 12000, _config: Default::default() }
+			Self { protocol_id: "c0rd".into(), network_id: 100, _config: Default::default() }
 		}
 	}
 
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			IsOriginChain::<T>::put(self.is_origin_chain);
+			let proto = self.protocol_id.as_str();
+			assert!(
+				matches!(proto, "c0rd" | "0rigin" | "0rbit"),
+				"Invalid protocol_id `{}` — must be `c0rd`, `0rigin`, or `0rbit`",
+				proto,
+			);
 
-			let chain_id: u16 = if self.is_origin_chain {
-				let ocid: u32 = T::OriginChainId::get();
+			let is_origin = matches!(proto, "0rigin" | "0rbit");
+			IsOriginChain::<T>::put(is_origin);
+
+			let chain_id: u16 = if is_origin {
 				assert!(
-					(101..12_000).contains(&ocid),
-					"ChainId ({}) must be > 100 and < 12000 in Origin mode",
-					ocid
+					(2_000..16_383).contains(&self.network_id),
+					"ChainId ({}) must be > 2000 and < 16383 in Origin mode",
+					self.network_id
 				);
-				ocid.try_into().expect("ChainId < 12000 fits in u16; qed")
+				self.network_id
 			} else {
-				// Standalone mode → use the provided network_id
 				assert!(
-					(12_000..16_383).contains(&self.network_id),
-					"chain_id ({}) must be ≥ 12000 and < 16383 in standalone mode",
+					(100..1999).contains(&self.network_id),
+					"ChainId ({}) must be ≥ 100 and < 1999 in standalone mode",
 					self.network_id
 				);
 				self.network_id
@@ -301,9 +305,9 @@ impl<T: pallet::Config> Identifier<T> for Pallet<T> {
 	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, pallet::Error<T>> {
 		let pid = Self::get_or_add_pallet_index(pallet)?;
 		let nid = Self::get_network_id();
-		let rpx = T::Ss58Prefix::get();
+		let rid = T::Ss58Prefix::get();
 		let ori = Self::is_origin_chain() as u8;
-		Ss58Identifier::to_encoded(digest, nid, pid, rpx, ori).map_err(Into::into)
+		Ss58Identifier::to_encoded(digest, nid, pid, rid, ori).map_err(Into::into)
 	}
 
 	fn resolve_identifier(

@@ -22,7 +22,7 @@ use crate::*;
 
 #[cfg(not(feature = "std"))]
 use alloc::format;
-use alloc::{vec, vec::Vec};
+use alloc::{string::ToString, vec, vec::Vec};
 use cord_loom_runtime_constants::currency::UNITS;
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -90,7 +90,7 @@ fn cord_loom_testnet_genesis(
 		"balances": {
 			"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"identifier": { "isOriginChain": false, "networkId": 12001},
+		"identifier": { "protocolId": "c0rd".to_string(), "networkId": 102},
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
 				.iter()

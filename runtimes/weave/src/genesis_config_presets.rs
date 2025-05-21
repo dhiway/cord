@@ -22,7 +22,7 @@ use crate::*;
 
 #[cfg(not(feature = "std"))]
 use alloc::format;
-use alloc::{vec, vec::Vec};
+use alloc::{string::ToString, vec, vec::Vec};
 use cord_primitives::AccountId;
 use cord_weave_runtime_constants::currency::UNITS;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -92,7 +92,7 @@ fn cord_weave_testnet_genesis(
 	"balances": {
 		"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 	},
-	"identifier": { "isOriginChain": false, "networkId": 12002},
+	"identifier": { "protocolId": "c0rd".to_string(), "networkId": 103},
 	"session": {
 		"keys": initial_authorities
 			.iter()

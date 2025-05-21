@@ -18,6 +18,7 @@
 
 use polkadot_omni_node_lib::chain_spec::{Extensions, GenericChainSpec};
 use sc_service::ChainType;
+const DEFAULT_PROTOCOL_ID: &str = "0rbit";
 
 pub fn entity_origin_staging_development_config() -> GenericChainSpec {
 	let mut properties = sc_chain_spec::Properties::new();
@@ -28,12 +29,13 @@ pub fn entity_origin_staging_development_config() -> GenericChainSpec {
 	GenericChainSpec::builder(
 		cord_origin_entity_staging_runtime::WASM_BINARY
 			.expect("WASM binary was not built, please build it!"),
-		Extensions { relay_chain: "origin-dev".into(), para_id: 1004 },
+		Extensions { relay_chain: "origin-dev".into(), para_id: 2004 },
 	)
 	.with_name("Origin Entity Development")
 	.with_id("origin_entity_dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_preset_name(sp_genesis_builder::DEV_RUNTIME_PRESET)
+	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.with_properties(properties)
 	.build()
 }
@@ -46,12 +48,13 @@ pub fn entity_origin_staging_local_config() -> GenericChainSpec {
 	GenericChainSpec::builder(
 		cord_origin_entity_staging_runtime::WASM_BINARY
 			.expect("WASM binary was not built, please build it!"),
-		Extensions { relay_chain: "origin-dev".into(), para_id: 1004 },
+		Extensions { relay_chain: "origin-dev".into(), para_id: 2004 },
 	)
 	.with_name("Origin Entity Local")
 	.with_id("origin-entity-local")
 	.with_chain_type(ChainType::Local)
 	.with_genesis_config_preset_name(sp_genesis_builder::DEV_RUNTIME_PRESET)
+	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.with_properties(properties)
 	.build()
 }
@@ -61,7 +64,7 @@ pub fn origin_entity_genesis_config() -> GenericChainSpec {
 	properties.insert("ss58Format".into(), 29.into());
 	properties.insert("tokenSymbol".into(), "ORU".into());
 	properties.insert("tokenDecimals".into(), 10.into());
-	let para_id = 1005;
+	let para_id = 2005;
 	GenericChainSpec::builder(
 		cord_origin_entity_staging_runtime::WASM_BINARY
 			.expect("WASM binary was not built, please build it!"),
@@ -71,6 +74,7 @@ pub fn origin_entity_genesis_config() -> GenericChainSpec {
 	.with_id("origin-entity")
 	.with_chain_type(ChainType::Live)
 	.with_genesis_config_preset_name("genesis")
+	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.with_properties(properties)
 	.build()
 }

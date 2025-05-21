@@ -20,6 +20,8 @@ serde_json = { features = ["alloc"], workspace = true }
 # Local
 cord-origin-relay-staging-runtime-constants = { workspace = true }
 cord-origin-system-chains-staging-constants = { workspace = true }
+cord-identifier-runtime-api = { workspace = true }
+cord-primitives = { workspace = true }
 
 # Substrate
 frame-benchmarking = { optional = true, workspace = true }
@@ -92,8 +94,10 @@ substrate-wasm-builder = { optional = true, workspace = true }
 default = ["std"]
 std = [
 	"codec/std",
+	"cord-primitives/std",
 	"cord-origin-relay-staging-runtime-constants/std",
 	"cord-origin-system-chains-staging-constants/std",
+	"cord-identifier-runtime-api/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-session-benchmarking/std",

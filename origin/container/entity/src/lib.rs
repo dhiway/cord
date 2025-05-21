@@ -31,7 +31,7 @@ mod tests;
 mod weights;
 pub mod xcm_config;
 
-use alloc::{borrow::Cow, vec, vec::Vec};
+use alloc::{borrow::Cow, string::String, vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_origin_system_chains_staging_constants::{
 	async_backing::{
@@ -46,6 +46,7 @@ use cord_origin_system_chains_staging_constants::{
 		fee::WeightToFee,
 	},
 };
+use cord_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
@@ -85,6 +86,10 @@ pub use sp_runtime::{MultiAddress, Perbill, Permill};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+
+/// Runtime API definition for identifier.
+pub use cord_identifier_runtime_api as identifier_api;
+use pallet_identifier::Identifier as _;
 
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use xcm::{
@@ -563,14 +568,9 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
-parameter_types! {
-	pub const OriginChainId: u32 = 0;
-}
-
 impl pallet_identifier::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Ss58Prefix = SS58Prefix;
-	type OriginChainId = OriginChainId;
 	type BlockNumberProvider = System;
 }
 
@@ -1000,6 +1000,27 @@ impl_runtime_apis! {
 		}
 		fn query_length_to_fee(length: u32) -> Balance {
 			TransactionPayment::length_to_fee(length)
+		}
+	}
+
+	impl identifier_api::IdentifierApi<Block> for Runtime {
+		fn decode_identifier(identifier: Vec<u8>) -> Option<identifier_api::DecodedIdentifierApi> {
+
+			let ss58_id = Ss58Identifier::try_from(identifier).ok()?;
+
+			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
+
+			Some(identifier_api::DecodedIdentifierApi {
+				version: decoded.version,
+				origin: decoded.origin !=0,
+				network: decoded.network,
+				pallet: decoded.pallet,
+				genisis: decoded.genisis,
+			})
+		}
+
+		fn resolve_pallet(index: u16) -> Option<String> {
+			Identifier::resolve_pallet_name(index).ok()
 		}
 	}
 

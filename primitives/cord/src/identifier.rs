@@ -30,7 +30,9 @@ use frame_support::{ensure, traits::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
 
 /// Constant prefix used in checksum calculation.
-const PREFIX: &[u8] = b"CURIV02";
+const PREFIX: &[u8] = b"IDENTPRE";
+/// Single-byte identifier version
+pub const IDENTIFIER_VERSION: u8 = 2;
 
 /// Identifier errors.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,12 +58,12 @@ pub enum IdentifierError {
 }
 
 /// The Ss58Identifier type is a persistent identifier built from a bounded vector of bytes.
-/// The capacity (here, 56) must be chosen such that the final Base58-encoded value fits the system
+/// The capacity (here, 64) must be chosen such that the final Base58-encoded value fits the system
 /// constraints.
 #[derive(
 	Clone, Eq, PartialEq, Encode, Decode, DecodeWithMemTracking, MaxEncodedLen, TypeInfo, Debug,
 )]
-pub struct Ss58Identifier(pub(crate) BoundedVec<u8, ConstU32<56>>);
+pub struct Ss58Identifier(pub(crate) BoundedVec<u8, ConstU32<64>>);
 
 impl Ss58Identifier {
 	/// Compute the ss58 hash: Blake2b512 over PREFIX concatenated with the provided data.
@@ -81,7 +83,7 @@ impl Ss58Identifier {
 		data: I,
 		nid: u16,
 		pid: u16,
-		rpx: u16,
+		rid: u16,
 		ori: u8,
 	) -> Result<Self, IdentifierError>
 	where
@@ -93,8 +95,9 @@ impl Ss58Identifier {
 			return Err(IdentifierError::InvalidDigestLength);
 		}
 
-		let mut buffer = Vec::with_capacity(41);
-		Self::compact_encode_to(rpx & 0x3FFF, &mut buffer)?;
+		let mut buffer = Vec::with_capacity(42);
+		buffer.push(IDENTIFIER_VERSION);
+		Self::compact_encode_to(rid & 0x3FFF, &mut buffer)?;
 		buffer.push(ori);
 		Self::compact_encode_to(nid & 0x3FFF, &mut buffer)?;
 		buffer.extend_from_slice(data);
@@ -102,7 +105,7 @@ impl Ss58Identifier {
 		buffer.extend_from_slice(&Self::ss58hash(&buffer));
 
 		let bs58_bytes = bs58::encode(&buffer).into_vec();
-		let bv = BoundedVec::<u8, ConstU32<56>>::try_from(bs58_bytes)
+		let bv = BoundedVec::<u8, ConstU32<64>>::try_from(bs58_bytes)
 			.map_err(|_| IdentifierError::InvalidIdentifier)?;
 
 		Ok(Ss58Identifier(bv))
@@ -122,21 +125,30 @@ impl Ss58Identifier {
 		ensure!(provided == expected, IdentifierError::InvalidChecksum);
 		let mut offset = 0;
 		let data = &decoded[..checksum_start];
-		let (rpx, rpx_len) = Self::compact_decode(&data[offset..])?;
-		offset += rpx_len;
-		let ori = data[offset];
-		ensure!(ori == 0 || ori == 1, IdentifierError::InvalidMode);
+		let version = data[0];
+		offset += 1;
+		let (prefix, rid_len) = Self::compact_decode(&data[offset..])?;
+		offset += rid_len;
+		let origin = data[offset];
+		ensure!(origin == 0 || origin == 1, IdentifierError::InvalidMode);
 		offset += 1;
 
-		let (nid, nid_len) = Self::compact_decode(&data[offset..])?;
+		let (network, nid_len) = Self::compact_decode(&data[offset..])?;
 		offset += nid_len;
 		ensure!(data.len() >= offset + 32, IdentifierError::InvalidIdentifierLength);
 
 		let digest = data[offset..offset + 32].to_vec();
 		offset += 32;
-		let (pid, _) = Self::compact_decode(&data[offset..])?;
+		let (pallet, _) = Self::compact_decode(&data[offset..])?;
 
-		Ok(DecodedIdentifier { rpx, ori, nid, pid, gen: format!("0x{}", hex::encode(digest)) })
+		Ok(DecodedIdentifier {
+			version,
+			prefix,
+			origin,
+			network,
+			pallet,
+			genisis: format!("0x{}", hex::encode(digest)),
+		})
 	}
 
 	/// Decodes a compact-encoded u16 value from the provided data slice.
@@ -187,7 +199,7 @@ impl Ss58Identifier {
 impl TryFrom<Vec<u8>> for Ss58Identifier {
 	type Error = IdentifierError;
 	fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-		let bounded = BoundedVec::<u8, ConstU32<56>>::try_from(value)
+		let bounded = BoundedVec::<u8, ConstU32<64>>::try_from(value)
 			.map_err(|_| IdentifierError::InvalidIdentifierLength)?;
 		let identifier = Ss58Identifier(bounded);
 		// Validate by attempting to decode.
@@ -199,7 +211,7 @@ impl TryFrom<Vec<u8>> for Ss58Identifier {
 impl TryFrom<String> for Ss58Identifier {
 	type Error = IdentifierError;
 	fn try_from(s: String) -> Result<Self, Self::Error> {
-		if s.len() > 56 {
+		if s.len() > 64 {
 			return Err(IdentifierError::InvalidIdentifierLength);
 		}
 		Ss58Identifier::try_from(s.into_bytes())
@@ -215,16 +227,18 @@ impl AsRef<[u8]> for Ss58Identifier {
 /// Represents the structured components of an identifier after decoding.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedIdentifier {
-	// SS58 prefix from the runtime
-	pub rpx: u16,
+	// SS58 identifier version
+	pub version: u8,
 	// Origin mode - 0 = false, 1 = true
-	pub ori: u8,
+	pub origin: u8,
 	/// Network identifier.
-	pub nid: u16,
+	pub network: u16,
 	/// Pallet (or module) identifier.
-	pub pid: u16,
+	pub pallet: u16,
+	// SS58 prefix from the runtime
+	pub prefix: u16,
 	/// The digest (genesis hash) in hexadecimal format.
-	pub gen: String,
+	pub genisis: String,
 }
 
 #[cfg(test)]
@@ -234,7 +248,7 @@ mod tests {
 	use core::convert::TryFrom;
 
 	// Test constants for SS58 prefix and origin‐mode:
-	const TEST_RPX: u16 = 29;
+	const TEST_RID: u16 = 29;
 	const TEST_ORI: u8 = 1; // 0 = standalone, 1 = parachain
 
 	/// Helper: produce a valid 32‐byte digest.
@@ -247,17 +261,17 @@ mod tests {
 		let digest = valid_digest();
 		let nid: u16 = 100;
 		let pid: u16 = 5;
-		// include SS58 prefix and origin‐mode
-		let identifier = Ss58Identifier::to_encoded(digest.clone(), nid, pid, TEST_RPX, TEST_ORI)
+		let identifier = Ss58Identifier::to_encoded(digest.clone(), nid, pid, TEST_RID, TEST_ORI)
 			.expect("encoding should succeed");
 		let decoded = identifier.to_decoded().expect("decoding should succeed");
 
 		// check all fields
-		assert_eq!(decoded.rpx, TEST_RPX, "SS58 prefix should match");
-		assert_eq!(decoded.ori, TEST_ORI, "origin-mode should match");
-		assert_eq!(decoded.nid, nid, "network id should match");
-		assert_eq!(decoded.pid, pid, "pallet id should match");
-		assert_eq!(decoded.gen, format!("0x{}", hex::encode(digest)), "digest should match");
+		assert_eq!(decoded.version, IDENTIFIER_VERSION, "version should match constant");
+		assert_eq!(decoded.prefix, TEST_RID, "SS58 prefix should match");
+		assert_eq!(decoded.origin, TEST_ORI, "origin-mode should match");
+		assert_eq!(decoded.network, nid, "network id should match");
+		assert_eq!(decoded.pallet, pid, "pallet id should match");
+		assert_eq!(decoded.genisis, format!("0x{}", hex::encode(digest)), "digest should match");
 	}
 
 	#[test]
@@ -265,7 +279,7 @@ mod tests {
 		let short = vec![0u8; 31];
 		let nid = 1u16;
 		let pid = 2u16;
-		let result = Ss58Identifier::to_encoded(short, nid, pid, TEST_RPX, TEST_ORI);
+		let result = Ss58Identifier::to_encoded(short, nid, pid, TEST_RID, TEST_ORI);
 		assert!(result.is_err(), "should reject non-32-byte digest");
 	}
 
@@ -275,10 +289,9 @@ mod tests {
 		let nid = 1u16;
 		let pid = 2u16;
 		let id =
-			Ss58Identifier::to_encoded(digest, nid, pid, TEST_RPX, TEST_ORI).expect("encode ok");
+			Ss58Identifier::to_encoded(digest, nid, pid, TEST_RID, TEST_ORI).expect("encode ok");
 
 		let mut raw = bs58::decode(&id.0).into_vec().expect("base58 decode");
-
 		let last_index = raw.len() - 1;
 		raw[last_index] ^= 0xFF;
 
@@ -293,14 +306,16 @@ mod tests {
 		let nid = 10u16;
 		let pid = 20u16;
 		let id =
-			Ss58Identifier::to_encoded(digest, nid, pid, TEST_RPX, TEST_ORI).expect("encode ok");
+			Ss58Identifier::to_encoded(digest, nid, pid, TEST_RID, TEST_ORI).expect("encode ok");
 		let raw: Vec<u8> = id.0.clone().into();
 		let id2 = Ss58Identifier::try_from(raw).expect("vec→id ok");
 		let dec = id2.to_decoded().expect("decode ok");
-		assert_eq!(dec.rpx, TEST_RPX);
-		assert_eq!(dec.ori, TEST_ORI);
-		assert_eq!(dec.nid, nid);
-		assert_eq!(dec.pid, pid);
+
+		assert_eq!(dec.version, IDENTIFIER_VERSION, "version should match constant");
+		assert_eq!(dec.prefix, TEST_RID);
+		assert_eq!(dec.origin, TEST_ORI);
+		assert_eq!(dec.network, nid);
+		assert_eq!(dec.pallet, pid);
 	}
 
 	#[test]
@@ -309,14 +324,16 @@ mod tests {
 		let nid = 11u16;
 		let pid = 22u16;
 		let id =
-			Ss58Identifier::to_encoded(digest, nid, pid, TEST_RPX, TEST_ORI).expect("encode ok");
+			Ss58Identifier::to_encoded(digest, nid, pid, TEST_RID, TEST_ORI).expect("encode ok");
 		let s = String::from_utf8(id.0.clone().into()).expect("utf8 base58");
 		let id2 = Ss58Identifier::try_from(s).expect("string→id ok");
 		let dec = id2.to_decoded().expect("decode ok");
-		assert_eq!(dec.rpx, TEST_RPX);
-		assert_eq!(dec.ori, TEST_ORI);
-		assert_eq!(dec.nid, nid);
-		assert_eq!(dec.pid, pid);
+
+		assert_eq!(dec.version, IDENTIFIER_VERSION, "version should match constant");
+		assert_eq!(dec.prefix, TEST_RID);
+		assert_eq!(dec.origin, TEST_ORI);
+		assert_eq!(dec.network, nid);
+		assert_eq!(dec.pallet, pid);
 	}
 
 	#[test]
@@ -339,14 +356,14 @@ mod tests {
 
 	#[test]
 	fn decode_minimal_values() {
-		// everything zero, ori=0
 		let digest = [0u8; 32];
 		let id = Ss58Identifier::to_encoded(digest, 0, 0, 0, 0).unwrap();
 		let dec = id.to_decoded().unwrap();
-		assert_eq!(dec.rpx, 0);
-		assert_eq!(dec.ori, 0);
-		assert_eq!(dec.nid, 0);
-		assert_eq!(dec.pid, 0);
+		assert_eq!(dec.version, IDENTIFIER_VERSION, "version should match constant");
+		assert_eq!(dec.prefix, 0);
+		assert_eq!(dec.origin, 0);
+		assert_eq!(dec.network, 0);
+		assert_eq!(dec.pallet, 0);
 	}
 
 	#[test]
@@ -355,15 +372,15 @@ mod tests {
 		let digest = [0xFF; 32];
 		let id = Ss58Identifier::to_encoded(digest, MAX, MAX, MAX, 1).unwrap();
 		let dec = id.to_decoded().unwrap();
-		assert_eq!(dec.rpx, MAX);
-		assert_eq!(dec.ori, 1);
-		assert_eq!(dec.nid, MAX);
-		assert_eq!(dec.pid, MAX);
+		assert_eq!(dec.version, IDENTIFIER_VERSION, "version should match constant");
+		assert_eq!(dec.prefix, MAX);
+		assert_eq!(dec.origin, 1);
+		assert_eq!(dec.network, MAX);
+		assert_eq!(dec.pallet, MAX);
 	}
 
 	#[test]
 	fn reject_invalid_mode() {
-		// Manually build a buffer with ori=2
 		let mut buf = Vec::new();
 		Ss58Identifier::compact_encode_to(1, &mut buf).unwrap();
 		buf.push(2); // bad ori
@@ -380,19 +397,35 @@ mod tests {
 		let digest = valid_digest();
 		let id = Ss58Identifier::to_encoded(digest, 5, 5, 5, 0).unwrap();
 		let mut raw = bs58::decode(&id.0).into_vec().unwrap();
-		raw.truncate(10); // way too short
+		raw.truncate(10);
 		assert!(Ss58Identifier::try_from(raw).is_err());
 	}
 
 	#[test]
 	fn reject_noncanonical_compact() {
-		// This vector encodes the value 10 in two bytes (0b01000010, 0b00000000),
-		// but 10 should use the one‐byte form. We now treat that as InvalidCompactEncoding.
 		let bad = vec![0b0100_0010, 0b0000_0000];
-
 		match Ss58Identifier::compact_decode(&bad) {
 			Err(IdentifierError::InvalidCompactEncoding) => { /* pass */ },
 			other => panic!("Expected InvalidCompactEncoding, got {:?}", other),
 		}
+	}
+	#[test]
+	fn encoded_length_within_bounds() {
+		// Ensure that the Base58-encoded identifier never exceeds the BoundedVec capacity
+		let digest = valid_digest();
+		// use maximal values to force longest buffer
+		const MAX: u16 = 0x3FFF;
+		let id = Ss58Identifier::to_encoded(digest, MAX, MAX, TEST_RID, TEST_ORI).unwrap();
+		let len = id.0.len();
+		assert!(len <= 64, "encoded length {} exceeds capacity 64", len);
+	}
+
+	#[test]
+	fn encoded_length_minimal() {
+		// Ensure the minimal identifier still produces a reasonable length
+		let digest = [0u8; 32];
+		let id = Ss58Identifier::to_encoded(digest, 0, 0, 0, 0).unwrap();
+		let len = id.0.len();
+		assert!(len >= 50, "encoded length {} lower than expected minimal bound", len);
 	}
 }

@@ -21,7 +21,7 @@ use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 
 const CORD_ORIGIN_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
-const DEFAULT_PROTOCOL_ID: &str = "cØrd";
+const DEFAULT_PROTOCOL_ID: &str = "0rigin";
 
 /// Node `ChainSpec` extensions.
 ///
