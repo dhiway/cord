@@ -42,6 +42,7 @@ pub type IdentityAdminOrigin = EitherOfDiverse<
 
 impl pallet_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type Identifier = Identifier;
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxRawDataLength = MaxRawDataLength;
 	type EntityInformation = EntityInfo<MaxRawDataLength>;
@@ -228,30 +229,6 @@ impl<MaxRawDataLength: Get<u32> + 'static> EntityInformationProvider
 			},
 		}
 	}
-
-	// #[cfg(feature = "runtime-benchmarks")]
-	// fn create_entity_info() -> Self {
-	// 	let empty = Data::<MaxRawDataLength>::Raw(Default::default());
-	// 	let mut attrs = Vec::new();
-	// 	const ATTR_CAP: usize = 32;
-	// 	for i in 0..ATTR_CAP {
-	// 		// e.g. keys "k0", "k1", ... "k31"
-	// 		let raw_key = vec![b'k', i as u8];
-	// 		let bounded_key: Attribute = raw_key.clone().try_into().unwrap();
-	// 		attrs.push((bounded_key, empty.clone()));
-	// 	}
-	// 	EntityInfo {
-	// 		display: empty.clone(),
-	// 		legal: empty.clone(),
-	// 		web: empty.clone(),
-	// 		attributes: Some(attrs.try_into().unwrap()),
-	// 	}
-	// }
-
-	// #[cfg(feature = "runtime-benchmarks")]
-	// fn all_fields() -> Self::FieldsIdentifier {
-	// 	EntityField::all().bits()
-	// }
 }
 
 impl<MaxRawDataLength: Get<u32>> Default for EntityInfo<MaxRawDataLength> {

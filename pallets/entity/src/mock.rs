@@ -20,10 +20,7 @@
 
 use super::*;
 use crate::{self as pallet_entity, entity::EntityInfo};
-use frame_support::{
-	derive_impl, parameter_types,
-	traits::{ConstU16, ConstU32},
-};
+use frame_support::{derive_impl, parameter_types};
 use frame_system::EnsureRoot;
 
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
@@ -68,6 +65,7 @@ parameter_types! {
 
 impl pallet_entity::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
+	type Identifier = Identifier;
 	type MaxSubAccounts = MaxSubAccounts;
 	type EntityInformation = EntityInfo<MaxRawDataLength>;
 	type MaxRawDataLength = MaxRawDataLength;

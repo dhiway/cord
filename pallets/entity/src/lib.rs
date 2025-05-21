@@ -58,26 +58,23 @@ pub mod pallet {
 	use super::*;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_identifier::Config {
+	pub trait Config: frame_system::Config {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
+		/// Ideentifier Type
+		type Identifier: Identifier<Self, Hash = Self::Hash>;
 
 		/// The maximum number of sub-accounts allowed per identified account.
 		#[pallet::constant]
 		type MaxSubAccounts: Get<u32>;
 
 		/// Structure holding information about an entity,
-		/// containing up to `Self::MaxAdditionalFields` fields of at most `Self::MaxDataLength` bytes.
-		/// Must have `FieldsIdentifier = u64` and use `EntityUpdateOp<Self::MaxDataLength>` for updates.
 		type EntityInformation: EntityInformationProvider<
 				FieldsIdentifier = u64,
 				MaxRawDataLength = Self::MaxRawDataLength,
 				UpdateOp = EntityUpdateOp<Self::MaxRawDataLength>,
 			> + EncodeLike;
-
-		// /// Maximum number of additional fields that may be stored in an ID.
-		// #[pallet::constant]
-		// type MaxAdditionalFields: Get<u32> + TypeInfo;
 
 		/// Maximum size for raw data fields.
 		#[pallet::constant]
@@ -202,6 +199,8 @@ pub mod pallet {
 		InvalidTarget,
 		/// The identifier length is not valid.
 		InvalidIdentifierLength,
+		/// The identifier inputs are not valid.
+		IdentifierCreationFailed,
 		/// The provided event type is invalid.
 		InvalidEventType,
 		/// Maximum amount of registrars reached. Cannot add any more.
@@ -311,10 +310,8 @@ pub mod pallet {
 
 			let digest = T::Hashing::hash(&(info.clone(), b"IdentityInfoSet".to_vec()).encode());
 			let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
-			let id = <pallet_identifier::Pallet<T> as Identifier<T>>::build(
-				&digest.encode()[..],
-				pallet_name,
-			)?;
+			let id = T::Identifier::build(&digest.encode()[..], pallet_name)
+				.map_err(|_| Error::<T>::IdentifierCreationFailed)?;
 
 			EntityInfoOf::<T>::try_mutate_exists(&id, |opt| -> DispatchResult {
 				ensure!(opt.is_none(), Error::<T>::IdentifierAlreadyExists);
@@ -673,9 +670,7 @@ pub mod pallet {
 				&(id.clone(), uname.clone(), b"Ss58IdNameRemoved".to_vec()).encode(),
 			);
 
-			Pallet::<T>::record_activity(&id, digest, b"Ss58IdNameRemoved")
-				.map_err(|_| Error::<T>::StateUpdateFailed)?;
-
+			Self::record_activity(&id, digest, b"Ss58IdNameRemoved")?;
 			Self::deposit_event(Event::Ss58IdNameRemoved { id: id.clone() });
 			Ok(())
 		}
@@ -747,7 +742,7 @@ impl<T: Config> Pallet<T> {
 		let digest = T::Hashing::hash(
 			&(id.clone(), sub.clone(), b"EntitySubAccountRevoked".to_vec()).encode(),
 		);
-		<Pallet<T>>::record_activity(id, digest, b"EntitySubAccountRevoked")?;
+		Self::record_activity(id, digest, b"EntitySubAccountRevoked")?;
 		Ok(())
 	}
 
@@ -767,7 +762,7 @@ impl<T: Config> Pallet<T> {
 			NameSs58IdOf::<T>::remove(&uname);
 		}
 		let digest = T::Hashing::hash(&(id.clone(), b"EntityInfoCleared".to_vec()).encode());
-		<Pallet<T>>::record_activity(id, digest, b"EntityInfoCleared")?;
+		Self::record_activity(id, digest, b"EntityInfoCleared")?;
 		Ok(())
 	}
 
@@ -821,10 +816,8 @@ impl<T: Config> Pallet<T> {
 		let action: EventTypeOf =
 			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
 		let stamp = EventBlock::current::<T>();
-		<pallet_identifier::Pallet<T> as Identifier<T>>::state_event(
-			identifier, digest, action, stamp,
-		)
-		.map_err(|_| Error::<T>::StateUpdateFailed)?;
+		T::Identifier::state_event(identifier, digest, action, stamp)
+			.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
 	}
 }

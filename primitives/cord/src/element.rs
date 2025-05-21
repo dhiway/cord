@@ -236,7 +236,7 @@ mod tests {
 	fn test_element_identifier_encode_decode() {
 		// adapt to new to_encoded signature: (data, nid, pid, rpx, ori)
 		let digest: Vec<u8> = vec![0xAB; 32];
-		let ss58_id = Ss58Identifier::to_encoded(digest.clone(), 100, 5, 29, 1)
+		let ss58_id = Ss58Identifier::to_encoded(digest.clone(), 100, 5, 1)
 			.expect("Ss58Identifier should be created successfully");
 		let element: DefaultElement = DefaultElement::Identifier(ss58_id.clone());
 		let encoded = element.encode();
@@ -296,7 +296,7 @@ mod tests {
 		let cid_elem: DefaultElement = DefaultElement::CID([2; 64]);
 		assert_eq!(cid_elem.as_ref(), &[2; 64][..]);
 
-		let ss58_id = Ss58Identifier::to_encoded(vec![0xAB; 32], 100, 5, 0, 1).unwrap();
+		let ss58_id = Ss58Identifier::to_encoded(vec![0xAB; 32], 100, 5, 1).unwrap();
 		let id_elem: DefaultElement = DefaultElement::Identifier(ss58_id.clone());
 		assert_eq!(id_elem.as_identifier(), Some(&ss58_id));
 		assert_eq!(id_elem.as_ref(), ss58_id.as_bytes());
@@ -363,7 +363,7 @@ mod tests {
 	fn test_discriminant_bytes() {
 		assert_eq!(DefaultElement::None.encode()[0], 0);
 		assert_eq!(DefaultElement::Raw(vec![].try_into().unwrap()).encode()[0], 1);
-		let ss58 = Ss58Identifier::to_encoded(vec![0; 32], 0, 0, 1, 0).unwrap();
+		let ss58 = Ss58Identifier::to_encoded(vec![0; 32], 0, 0, 0).unwrap();
 		assert_eq!(DefaultElement::Identifier(ss58).encode()[0], 2);
 		assert_eq!(DefaultElement::Digest([0; 32]).encode()[0], 3);
 		assert_eq!(DefaultElement::CID([0; 64]).encode()[0], 4);

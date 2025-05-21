@@ -257,7 +257,7 @@ mod tests {
 		let digest = valid_digest();
 		let nid: u16 = 100;
 		let pid: u16 = 5;
-		let identifier = Ss58Identifier::to_encoded(digest.clone(), nid, pid, TEST_RID, TEST_ORI)
+		let identifier = Ss58Identifier::to_encoded(digest.clone(), nid, pid, TEST_ORI)
 			.expect("encoding should succeed");
 		let decoded = identifier.to_decoded().expect("decoding should succeed");
 
@@ -275,7 +275,7 @@ mod tests {
 		let short = vec![0u8; 31];
 		let nid = 1u16;
 		let pid = 2u16;
-		let result = Ss58Identifier::to_encoded(short, nid, pid, TEST_RID, TEST_ORI);
+		let result = Ss58Identifier::to_encoded(short, nid, pid, TEST_ORI);
 		assert!(result.is_err(), "should reject non-32-byte digest");
 	}
 
@@ -284,8 +284,7 @@ mod tests {
 		let digest = valid_digest();
 		let nid = 1u16;
 		let pid = 2u16;
-		let id =
-			Ss58Identifier::to_encoded(digest, nid, pid, TEST_RID, TEST_ORI).expect("encode ok");
+		let id = Ss58Identifier::to_encoded(digest, nid, pid, TEST_ORI).expect("encode ok");
 
 		let mut raw = bs58::decode(&id.0).into_vec().expect("base58 decode");
 		let last_index = raw.len() - 1;
@@ -301,8 +300,7 @@ mod tests {
 		let digest = valid_digest();
 		let nid = 10u16;
 		let pid = 20u16;
-		let id =
-			Ss58Identifier::to_encoded(digest, nid, pid, TEST_RID, TEST_ORI).expect("encode ok");
+		let id = Ss58Identifier::to_encoded(digest, nid, pid, TEST_ORI).expect("encode ok");
 		let raw: Vec<u8> = id.0.clone().into();
 		let id2 = Ss58Identifier::try_from(raw).expect("vec→id ok");
 		let dec = id2.to_decoded().expect("decode ok");
@@ -319,8 +317,7 @@ mod tests {
 		let digest = valid_digest();
 		let nid = 11u16;
 		let pid = 22u16;
-		let id =
-			Ss58Identifier::to_encoded(digest, nid, pid, TEST_RID, TEST_ORI).expect("encode ok");
+		let id = Ss58Identifier::to_encoded(digest, nid, pid, TEST_ORI).expect("encode ok");
 		let s = String::from_utf8(id.0.clone().into()).expect("utf8 base58");
 		let id2 = Ss58Identifier::try_from(s).expect("string→id ok");
 		let dec = id2.to_decoded().expect("decode ok");
@@ -353,10 +350,10 @@ mod tests {
 	#[test]
 	fn decode_minimal_values() {
 		let digest = [0u8; 32];
-		let id = Ss58Identifier::to_encoded(digest, 0, 0, 0, 0).unwrap();
+		let id = Ss58Identifier::to_encoded(digest, 0, 0, 0).unwrap();
 		let dec = id.to_decoded().unwrap();
 		assert_eq!(dec.version, IDENTIFIER_VERSION, "version should match constant");
-		assert_eq!(dec.prefix, 0);
+		assert_eq!(dec.prefix, 29);
 		assert_eq!(dec.origin, 0);
 		assert_eq!(dec.network, 0);
 		assert_eq!(dec.pallet, 0);
@@ -366,10 +363,10 @@ mod tests {
 	fn decode_maximal_values() {
 		const MAX: u16 = 0x3FFF;
 		let digest = [0xFF; 32];
-		let id = Ss58Identifier::to_encoded(digest, MAX, MAX, MAX, 1).unwrap();
+		let id = Ss58Identifier::to_encoded(digest, MAX, MAX, 1).unwrap();
 		let dec = id.to_decoded().unwrap();
 		assert_eq!(dec.version, IDENTIFIER_VERSION, "version should match constant");
-		assert_eq!(dec.prefix, MAX);
+		assert_eq!(dec.prefix, 29);
 		assert_eq!(dec.origin, 1);
 		assert_eq!(dec.network, MAX);
 		assert_eq!(dec.pallet, MAX);
@@ -391,7 +388,7 @@ mod tests {
 	#[test]
 	fn reject_truncated() {
 		let digest = valid_digest();
-		let id = Ss58Identifier::to_encoded(digest, 5, 5, 5, 0).unwrap();
+		let id = Ss58Identifier::to_encoded(digest, 5, 5, 0).unwrap();
 		let mut raw = bs58::decode(&id.0).into_vec().unwrap();
 		raw.truncate(10);
 		assert!(Ss58Identifier::try_from(raw).is_err());
@@ -411,7 +408,7 @@ mod tests {
 		let digest = valid_digest();
 		// use maximal values to force longest buffer
 		const MAX: u16 = 0x3FFF;
-		let id = Ss58Identifier::to_encoded(digest, MAX, MAX, TEST_RID, TEST_ORI).unwrap();
+		let id = Ss58Identifier::to_encoded(digest, MAX, MAX, TEST_ORI).unwrap();
 		let len = id.0.len();
 		assert!(len <= 64, "encoded length {} exceeds capacity 64", len);
 	}
@@ -420,7 +417,7 @@ mod tests {
 	fn encoded_length_minimal() {
 		// Ensure the minimal identifier still produces a reasonable length
 		let digest = [0u8; 32];
-		let id = Ss58Identifier::to_encoded(digest, 0, 0, 0, 0).unwrap();
+		let id = Ss58Identifier::to_encoded(digest, 0, 0, 0).unwrap();
 		let len = id.0.len();
 		assert!(len >= 50, "encoded length {} lower than expected minimal bound", len);
 	}

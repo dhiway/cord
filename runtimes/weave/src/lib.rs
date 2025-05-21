@@ -1451,6 +1451,7 @@ parameter_types! {
 
 impl pallet_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
+	type Identifier = Identifier;
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxRawDataLength = MaxRawDataLength;
 	type EntityInformation = EntityInfo<MaxRawDataLength>;
