@@ -119,7 +119,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// An identifier's state was updated.
-		StateChange { identifier: Ss58Identifier, version: u32, action: EventTypeOf },
+		StateChange { identifier: Ss58Identifier, state: u32, action: EventTypeOf },
 	}
 
 	#[pallet::error]
@@ -258,7 +258,7 @@ impl<T: Config> Pallet<T> {
 
 		Self::deposit_event(Event::StateChange {
 			identifier: identifier.clone(),
-			version: index,
+			state: index,
 			action,
 		});
 
@@ -282,47 +282,47 @@ impl<T: Config> From<IdentifierError> for Error<T> {
 	}
 }
 
-pub trait Identifier<T: pallet::Config> {
+pub trait Identifier<T: frame_system::Config> {
 	type Hash: Encode + Decode + DecodeWithMemTracking + Clone + PartialEq + Eq;
+	type Error;
+
 	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, pallet::Error<T>>;
-	fn resolve_identifier(
-		identifier: &Ss58Identifier,
-	) -> Result<DecodedIdentifier, pallet::Error<T>>;
-	fn resolve_pallet(index: u16) -> Result<String, pallet::Error<T>>;
+	fn resolve_identifier(identifier: &Ss58Identifier) -> Result<DecodedIdentifier, Self::Error>;
+	fn resolve_pallet(index: u16) -> Result<String, Self::Error>;
 	/// Record a state transition event for the given identifier.
 	fn state_event(
 		identifier: &Ss58Identifier,
 		digest: Self::Hash,
 		action: EventTypeOf,
 		stamp: EventBlock,
-	) -> Result<(), pallet::Error<T>>;
+	) -> Result<(), Self::Error>;
 }
 
 impl<T: pallet::Config> Identifier<T> for Pallet<T> {
 	type Hash = HashOf<T>;
-	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, pallet::Error<T>> {
+	type Error = pallet::Error<T>;
+
+	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, Self::Error> {
 		let pid = Self::get_or_add_pallet_index(pallet)?;
 		let nid = Self::get_network_id();
 		let ori = Self::is_origin_chain() as u8;
 		Ss58Identifier::to_encoded(digest, nid, pid, ori).map_err(Into::into)
 	}
 
-	fn resolve_identifier(
-		identifier: &Ss58Identifier,
-	) -> Result<DecodedIdentifier, pallet::Error<T>> {
+	fn resolve_identifier(identifier: &Ss58Identifier) -> Result<DecodedIdentifier, Self::Error> {
 		identifier.to_decoded().map_err(Into::into)
 	}
 
-	fn resolve_pallet(index: u16) -> Result<String, pallet::Error<T>> {
+	fn resolve_pallet(index: u16) -> Result<String, Self::Error> {
 		Self::resolve_pallet_name(index)
 	}
 
 	fn state_event(
 		identifier: &Ss58Identifier,
-		digest: HashOf<T>,
+		digest: Self::Hash,
 		event: EventTypeOf,
 		stamp: EventBlock,
-	) -> Result<(), pallet::Error<T>> {
+	) -> Result<(), Self::Error> {
 		Self::update_identifier_state(identifier, digest, event, stamp)
 			.map_err(|_| pallet::Error::<T>::StateUpdateFailed)
 	}

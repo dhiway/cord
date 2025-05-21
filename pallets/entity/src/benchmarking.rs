@@ -23,7 +23,7 @@ use crate::types::Data;
 use crate::Event as EntityEvent;
 use crate::Pallet as EntityPallet;
 use alloc::vec::Vec;
-use frame_benchmarking::v2::*;
+use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_system::{Pallet as System, RawOrigin};
 use pallet_identifier::Identifier;
 use sp_runtime::traits::Hash;
@@ -52,11 +52,8 @@ mod benchmarks {
 		let digest = <T as frame_system::Config>::Hashing::hash(
 			&(info.clone(), b"IdentityInfoSet".to_vec()).encode(),
 		);
-		let id = <pallet_identifier::Pallet<T> as Identifier<T>>::build(
-			digest.as_ref(),
-			EntityPallet::<T>::name(),
-		)
-		.unwrap();
+		let id = T::Identifier::build(digest.as_ref(), EntityPallet::<T>::name())
+			.map_err(|_| BenchmarkError::Stop("Identifier creation failed"))?;
 
 		assert_last_event::<T>(EntityEvent::<T>::EntityInfoSet { who: caller.clone(), id }.into());
 		Ok(())
