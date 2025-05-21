@@ -75,8 +75,6 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-		/// Runtime SS58 prefix.
-		type Ss58Prefix: Get<u16>;
 		/// Provider for the block number.
 		type BlockNumberProvider: BlockNumberProvider;
 	}
@@ -305,9 +303,8 @@ impl<T: pallet::Config> Identifier<T> for Pallet<T> {
 	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, pallet::Error<T>> {
 		let pid = Self::get_or_add_pallet_index(pallet)?;
 		let nid = Self::get_network_id();
-		let rid = T::Ss58Prefix::get();
 		let ori = Self::is_origin_chain() as u8;
-		Ss58Identifier::to_encoded(digest, nid, pid, rid, ori).map_err(Into::into)
+		Ss58Identifier::to_encoded(digest, nid, pid, ori).map_err(Into::into)
 	}
 
 	fn resolve_identifier(

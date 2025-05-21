@@ -33,6 +33,8 @@ use scale_info::TypeInfo;
 const PREFIX: &[u8] = b"IDENTPRE";
 /// Single-byte identifier version
 pub const IDENTIFIER_VERSION: u8 = 2;
+/// Default Relay
+pub const DEFAULT_RELAY: u16 = 29;
 
 /// Identifier errors.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,13 +81,7 @@ impl Ss58Identifier {
 
 	/// Construct an Ss58Identifier from a 32-byte digest, a network id, and a pallet id.
 	/// The resulting identifier is Base58-encoded.
-	pub fn to_encoded<I>(
-		data: I,
-		nid: u16,
-		pid: u16,
-		rid: u16,
-		ori: u8,
-	) -> Result<Self, IdentifierError>
+	pub fn to_encoded<I>(data: I, nid: u16, pid: u16, ori: u8) -> Result<Self, IdentifierError>
 	where
 		I: AsRef<[u8]> + Into<Vec<u8>>,
 	{
@@ -97,7 +93,7 @@ impl Ss58Identifier {
 
 		let mut buffer = Vec::with_capacity(42);
 		buffer.push(IDENTIFIER_VERSION);
-		Self::compact_encode_to(rid & 0x3FFF, &mut buffer)?;
+		Self::compact_encode_to(DEFAULT_RELAY & 0x3FFF, &mut buffer)?;
 		buffer.push(ori);
 		Self::compact_encode_to(nid & 0x3FFF, &mut buffer)?;
 		buffer.extend_from_slice(data);

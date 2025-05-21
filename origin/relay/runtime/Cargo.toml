@@ -13,6 +13,10 @@ scale-info = { features = ["derive"], workspace = true }
 serde_json = { features = ["alloc"], workspace = true }
 log = { workspace = true }
 
+#Local
+cord-identifier-runtime-api = { workspace = true }
+cord-primitives = { workspace = true }
+
 authority-discovery-primitives = { workspace = true }
 babe-primitives = { workspace = true }
 beefy-primitives = { workspace = true }
@@ -54,6 +58,7 @@ pallet-fast-unstake = { workspace = true }
 frame-executive = { workspace = true }
 frame-metadata-hash-extension = { workspace = true }
 pallet-grandpa = { workspace = true }
+pallet-identifier = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-mmr = { workspace = true }
@@ -132,6 +137,8 @@ std = [
 	"beefy-primitives/std",
 	"binary-merkle-tree/std",
 	"codec/std",
+	"cord-primitives/std",
+	"cord-identifier-runtime-api/std",
 	"cord-origin-relay-staging-runtime-constants/std",
 	"frame-benchmarking?/std",
 	"frame-election-provider-support/std",
@@ -160,6 +167,7 @@ std = [
 	"pallet-election-provider-support-benchmarking?/std",
 	"pallet-fast-unstake/std",
 	"pallet-grandpa/std",
+	"pallet-identifier/std",
 	"pallet-indices/std",
 	"pallet-message-queue/std",
 	"pallet-mmr/std",
@@ -241,6 +249,7 @@ runtime-benchmarks = [
 	"pallet-election-provider-support-benchmarking/runtime-benchmarks",
 	"pallet-fast-unstake/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
+	"pallet-identifier/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-mmr/runtime-benchmarks",
@@ -298,6 +307,7 @@ try-runtime = [
 	"pallet-election-provider-multi-phase/try-runtime",
 	"pallet-fast-unstake/try-runtime",
 	"pallet-grandpa/try-runtime",
+	"pallet-identifier/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-message-queue/try-runtime",
 	"pallet-mmr/try-runtime",
@@ -332,7 +342,7 @@ metadata-hash = ["substrate-wasm-builder?/metadata-hash"]
 on-chain-release-build = ["metadata-hash", "sp-api/disable-logging"]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
-fast-runtime = []
+fast-runtime = ["cord-origin-relay-staging-runtime-constants/fast-runtime"]
 
 runtime-metrics = ["runtime-parachains/runtime-metrics", "sp-io/with-tracing"]
 

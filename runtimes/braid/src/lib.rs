@@ -705,7 +705,6 @@ impl pallet_sudo::Config for Runtime {
 
 impl pallet_identifier::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Ss58Prefix = SS58Prefix;
 	type BlockNumberProvider = System;
 }
 

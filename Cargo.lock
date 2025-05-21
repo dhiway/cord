@@ -2462,7 +2462,9 @@ version = "0.9.7"
 dependencies = [
  "approx",
  "binary-merkle-tree",
+ "cord-identifier-runtime-api",
  "cord-origin-relay-staging-runtime-constants",
+ "cord-primitives",
  "frame-benchmarking",
  "frame-election-provider-support",
  "frame-executive",
@@ -2492,6 +2494,7 @@ dependencies = [
  "pallet-election-provider-support-benchmarking",
  "pallet-fast-unstake",
  "pallet-grandpa",
+ "pallet-identifier",
  "pallet-indices",
  "pallet-message-queue",
  "pallet-mmr",
