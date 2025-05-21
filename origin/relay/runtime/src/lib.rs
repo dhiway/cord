@@ -25,9 +25,11 @@
 extern crate alloc;
 use alloc::{
 	collections::{BTreeMap, VecDeque},
+	string::String,
 	vec,
 	vec::Vec,
 };
+use cord_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
 use pallet_transaction_payment::FungibleAdapter;
 use polkadot_runtime_common::{
 	impl_runtime_weights,
@@ -143,6 +145,10 @@ use cord_origin_relay_staging_runtime_constants::{
 
 // Weights used in the runtime.
 mod weights;
+
+/// Runtime API definition for identifier.
+pub use cord_identifier_runtime_api as identifier_api;
+use pallet_identifier::Identifier as _;
 
 mod bag_thresholds;
 // Genesis preset configurations.
@@ -1446,6 +1452,11 @@ impl OnSwap for SwapLeases {
 	}
 }
 
+impl pallet_identifier::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type BlockNumberProvider = System;
+}
+
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
@@ -1549,6 +1560,9 @@ construct_runtime! {
 
 		// Asset rate.
 		AssetRate: pallet_asset_rate = 101,
+
+		// Identifier
+		Identifier: pallet_identifier = 102,
 
 		// BEEFY Bridges support.
 		Beefy: pallet_beefy = 200,
@@ -2487,6 +2501,27 @@ sp_api::impl_runtime_apis! {
 		}
 		fn query_length_to_fee(length: u32) -> Balance {
 			TransactionPayment::length_to_fee(length)
+		}
+	}
+
+	impl identifier_api::IdentifierApi<Block> for Runtime {
+		fn decode_identifier(identifier: Vec<u8>) -> Option<identifier_api::DecodedIdentifierApi> {
+
+			let ss58_id = Ss58Identifier::try_from(identifier).ok()?;
+
+			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
+
+			Some(identifier_api::DecodedIdentifierApi {
+				version: decoded.version,
+				origin: decoded.origin !=0,
+				network: decoded.network,
+				pallet: decoded.pallet,
+				genisis: decoded.genisis,
+			})
+		}
+
+		fn resolve_pallet(index: u16) -> Option<String> {
+			Identifier::resolve_pallet_name(index).ok()
 		}
 	}
 

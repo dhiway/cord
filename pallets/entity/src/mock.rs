@@ -78,8 +78,6 @@ impl pallet_entity::Config for Test {
 
 impl pallet_identifier::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type Ss58Prefix = ConstU16<29>;
-	type OriginChainId = ConstU32<0>;
 	type BlockNumberProvider = System;
 }
 
