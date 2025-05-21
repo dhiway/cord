@@ -24,7 +24,7 @@ args = [ # run the relay in development mode
 ]
 
 [[parachains]]
-id = 1005
+id = 2005
 addToGenesis = true
 cumulus_based = true
 chain = "origin-coretime-local"

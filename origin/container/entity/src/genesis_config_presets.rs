@@ -19,6 +19,7 @@
 //! Genesis configs presets for the Origin Entity runtime
 
 use crate::*;
+use alloc::string::ToString;
 use cord_origin_system_chains_staging_constants::genesis_presets::*;
 use sp_core::sr25519;
 use sp_genesis_builder::PresetId;
@@ -43,6 +44,7 @@ fn entity_origin_staging_genesis(
 			parachain_id: id,
 			..Default::default()
 		},
+		"identifier": IdentifierConfig { protocol_id: "0rbit".to_string(), network_id: 2004, ..Default::default()},
 		"collatorSelection": CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: ENTITY_ORIGIN_STAGING_ED * 16,
@@ -91,9 +93,9 @@ pub fn preset_names() -> Vec<PresetId> {
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
-		sp_genesis_builder::DEV_RUNTIME_PRESET => entity_origin_development_genesis(1004.into()),
+		sp_genesis_builder::DEV_RUNTIME_PRESET => entity_origin_development_genesis(2004.into()),
 		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => {
-			entity_origin_local_testnet_genesis(1004.into())
+			entity_origin_local_testnet_genesis(2004.into())
 		},
 		_ => return None,
 	};

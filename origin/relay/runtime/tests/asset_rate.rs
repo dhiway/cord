@@ -55,7 +55,7 @@ fn native_asset_rate_works() {
 
 		// success: native asset on People as xcm v5 location
 		let native = VersionedLocatableAsset::V5 {
-			location: Location::new(0, [Parachain(1004)]),
+			location: Location::new(0, [Parachain(2004)]),
 			asset_id: Location::parent().into(),
 		};
 		let actual = AssetRateWithNative::from_asset_balance(100, native).unwrap();
@@ -63,7 +63,7 @@ fn native_asset_rate_works() {
 
 		// success: native asset on People as xcm v4 location
 		let native = VersionedLocatableAsset::V4 {
-			location: xcm::v4::Location::new(0, [xcm::v4::Junction::Parachain(1004)]),
+			location: xcm::v4::Location::new(0, [xcm::v4::Junction::Parachain(2004)]),
 			asset_id: xcm::v4::Location::parent().into(),
 		};
 		let actual = AssetRateWithNative::from_asset_balance(100, native).unwrap();
@@ -73,7 +73,7 @@ fn native_asset_rate_works() {
 		let native = VersionedLocatableAsset::V3 {
 			location: xcm::v3::Location::new(
 				0,
-				xcm::v3::Junctions::X1(xcm::v3::Junction::Parachain(1004)),
+				xcm::v3::Junctions::X1(xcm::v3::Junction::Parachain(2004)),
 			),
 			asset_id: xcm::v3::Location::parent().into(),
 		};

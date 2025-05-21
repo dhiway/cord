@@ -123,9 +123,9 @@ pub mod system_parachain {
 	// /// Bridge Hub parachain ID.
 	// pub const BRIDGE_HUB_ID: u32 = 1002;
 	/// Entity parachain ID.
-	pub const ENTITY_ID: u32 = 1004;
+	pub const ENTITY_ID: u32 = 2004;
 	/// Coretime Chain ID.
-	pub const BROKER_ID: u32 = 1005;
+	pub const BROKER_ID: u32 = 2005;
 
 	// System parachains from Polkadot point of view.
 	pub type SystemParachains = IsChildSystemParachain<ParaId>;

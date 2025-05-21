@@ -2344,8 +2344,10 @@ dependencies = [
 name = "cord-origin-entity-staging-runtime"
 version = "0.9.7"
 dependencies = [
+ "cord-identifier-runtime-api",
  "cord-origin-relay-staging-runtime-constants",
  "cord-origin-system-chains-staging-constants",
+ "cord-primitives",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-session-benchmarking",
