@@ -821,3 +821,51 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 }
+
+/// A thin API for entity lookups, so that *any* pallet can call:
+pub trait EntityLookup<T: frame_system::Config> {
+	/// The error returned by the fallible lookups.
+	type Error;
+	/// The username type (e.g. `Username<T>`).
+	type Username;
+
+	/// Get the current Ss58 ID of `who`, or Err if none.
+	fn lookup_id_of(who: &T::AccountId) -> Result<Ss58Identifier, Self::Error>;
+
+	/// Get the controller account of `id`, or Err if none.
+	fn lookup_controller_of(id: &Ss58Identifier) -> Result<T::AccountId, Self::Error>;
+
+	/// Get the full history for `id` as `(AccountId, EventBlock)`.
+	fn lookup_history(id: &Ss58Identifier) -> Vec<(T::AccountId, EventBlock)>;
+
+	/// Fetch the (optional) username attached to an identifier.
+	fn lookup_name_of_identifier(id: &Ss58Identifier) -> Option<Self::Username>;
+
+	/// Reverse lookup: given a username, get the attached identifier (if any).
+	fn lookup_identifier_of_name(name: &Self::Username) -> Option<Ss58Identifier>;
+}
+
+impl<T: Config> EntityLookup<T> for Pallet<T> {
+	type Error = Error<T>;
+	type Username = Username<T>;
+
+	fn lookup_id_of(who: &T::AccountId) -> Result<Ss58Identifier, Self::Error> {
+		Ss58OfActiveAccounts::<T>::get(who).ok_or(Error::<T>::AccountNotFound)
+	}
+
+	fn lookup_controller_of(id: &Ss58Identifier) -> Result<T::AccountId, Self::Error> {
+		ControllerOfSs58::<T>::get(id).ok_or(Error::<T>::IdentifierNotFound)
+	}
+
+	fn lookup_history(id: &Ss58Identifier) -> Vec<(T::AccountId, EventBlock)> {
+		Ss58OfAccountHistory::<T>::iter_prefix(id).collect()
+	}
+
+	fn lookup_name_of_identifier(id: &Ss58Identifier) -> Option<Username<T>> {
+		Ss58IdNameOf::<T>::get(id)
+	}
+
+	fn lookup_identifier_of_name(name: &Username<T>) -> Option<Ss58Identifier> {
+		NameSs58IdOf::<T>::get(name)
+	}
+}
