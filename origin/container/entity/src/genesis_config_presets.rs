@@ -44,7 +44,7 @@ fn entity_origin_staging_genesis(
 			parachain_id: id,
 			..Default::default()
 		},
-		"identifier": IdentifierConfig { protocol_id: "0rbit".to_string(), network_id: 2004, ..Default::default()},
+		"doken": DokenConfig { protocol_id: "0rbit".to_string(), network_id: 2004, ..Default::default()},
 		"collatorSelection": CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: ENTITY_ORIGIN_STAGING_ED * 16,

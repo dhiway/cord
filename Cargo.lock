@@ -1776,7 +1776,7 @@ version = "0.9.7"
 dependencies = [
  "authority-membership",
  "cord-braid-runtime-constants",
- "cord-identifier-runtime-api",
+ "cord-doken-runtime-api",
  "cord-primitives",
  "cord-runtime-common",
  "frame-benchmarking",
@@ -1804,10 +1804,10 @@ dependencies = [
  "pallet-cord-node-authorization",
  "pallet-cord-offences",
  "pallet-cord-session-benchmarking",
+ "pallet-doken",
  "pallet-entity",
  "pallet-entry",
  "pallet-grandpa",
- "pallet-identifier",
  "pallet-im-online",
  "pallet-indices",
  "pallet-insecure-randomness-collective-flip",
@@ -1892,7 +1892,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cord-identifier-runtime-api"
+name = "cord-doken-runtime-api"
 version = "0.9.7"
 dependencies = [
  "frame-support",
@@ -1907,7 +1907,7 @@ name = "cord-loom-runtime"
 version = "0.9.7"
 dependencies = [
  "authority-membership",
- "cord-identifier-runtime-api",
+ "cord-doken-runtime-api",
  "cord-loom-runtime-constants",
  "cord-primitives",
  "cord-runtime-common",
@@ -1935,10 +1935,10 @@ dependencies = [
  "pallet-contracts",
  "pallet-cord-offences",
  "pallet-cord-session-benchmarking",
+ "pallet-doken",
  "pallet-entity",
  "pallet-entry",
  "pallet-grandpa",
- "pallet-identifier",
  "pallet-im-online",
  "pallet-indices",
  "pallet-insecure-randomness-collective-flip",
@@ -2051,7 +2051,7 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-contracts",
- "pallet-identifier",
+ "pallet-doken",
  "pallet-im-online",
  "pallet-network-membership",
  "pallet-root-testing",
@@ -2344,7 +2344,7 @@ dependencies = [
 name = "cord-origin-entity-staging-runtime"
 version = "0.9.7"
 dependencies = [
- "cord-identifier-runtime-api",
+ "cord-doken-runtime-api",
  "cord-origin-relay-staging-runtime-constants",
  "cord-origin-system-chains-staging-constants",
  "cord-primitives",
@@ -2371,8 +2371,8 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collator-selection",
+ "pallet-doken",
  "pallet-entity",
- "pallet-identifier",
  "pallet-message-queue",
  "pallet-migrations",
  "pallet-multisig",
@@ -2462,7 +2462,7 @@ version = "0.9.7"
 dependencies = [
  "approx",
  "binary-merkle-tree",
- "cord-identifier-runtime-api",
+ "cord-doken-runtime-api",
  "cord-origin-relay-staging-runtime-constants",
  "cord-primitives",
  "frame-benchmarking",
@@ -2490,11 +2490,11 @@ dependencies = [
  "pallet-child-bounties",
  "pallet-conviction-voting",
  "pallet-delegated-staking",
+ "pallet-doken",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
  "pallet-fast-unstake",
  "pallet-grandpa",
- "pallet-identifier",
  "pallet-indices",
  "pallet-message-queue",
  "pallet-mmr",
@@ -2656,7 +2656,7 @@ version = "0.9.7"
 dependencies = [
  "blake2 0.10.6",
  "bs58",
- "cord-identifier-runtime-api",
+ "cord-doken-runtime-api",
  "cord-primitives",
  "cord-runtime-common",
  "cord-weave-runtime-constants",
@@ -2697,13 +2697,13 @@ dependencies = [
  "pallet-contracts-proc-macro",
  "pallet-contracts-uapi",
  "pallet-delegated-staking",
+ "pallet-doken",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
  "pallet-entity",
  "pallet-entry",
  "pallet-fast-unstake",
  "pallet-grandpa",
- "pallet-identifier",
  "pallet-im-online",
  "pallet-indices",
  "pallet-insecure-randomness-collective-flip",
@@ -8534,7 +8534,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-identifier",
+ "pallet-doken",
  "pallet-profile",
  "parity-scale-codec",
  "scale-info",
@@ -8719,6 +8719,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-doken"
+version = "0.9.7"
+dependencies = [
+ "cord-primitives",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-election-provider-multi-phase"
 version = "39.1.0"
 source = "git+https://github.com/dhiway/sdk?branch=release-v1.18.2#f82f3a86360ae86c00094d4fce284cfb1cc8d765"
@@ -8781,7 +8795,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "pallet-balances",
- "pallet-identifier",
+ "pallet-doken",
  "parity-scale-codec",
  "scale-info",
  "sp-io",
@@ -8798,7 +8812,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-identifier",
+ "pallet-doken",
  "pallet-profile",
  "pallet-registry",
  "parity-scale-codec",
@@ -8847,19 +8861,6 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
-]
-
-[[package]]
-name = "pallet-identifier"
-version = "0.9.7"
-dependencies = [
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-runtime",
 ]
 
 [[package]]
@@ -9233,7 +9234,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-identifier",
+ "pallet-doken",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -9311,7 +9312,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-identifier",
+ "pallet-doken",
  "pallet-profile",
  "parity-scale-codec",
  "scale-info",

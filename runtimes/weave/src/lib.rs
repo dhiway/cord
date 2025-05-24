@@ -58,9 +58,9 @@ use frame_system::{
 };
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
 use pallet_asset_conversion_tx_payment::SwapAssetAdapter;
+use pallet_doken::Doken as _;
 pub use pallet_election_provider_multi_phase::{Call as EPMCall, GeometricDepositBase};
 use pallet_entity::entity::EntityInfo;
-use pallet_identifier::Identifier as _;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_nfts::PalletFeatures;
 use pallet_session::historical as pallet_session_historical;
@@ -106,8 +106,8 @@ use cord_runtime_common::{
 	BlockHashCount, BlockLength, CurrencyToVote, U256ToBalance,
 };
 
-/// Runtime API definition for identifier.
-pub use cord_identifier_runtime_api as identifier_api;
+/// Runtime API definition for doken.
+pub use cord_doken_runtime_api as doken_api;
 /// Constant values used within the runtime.
 use cord_weave_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 /// Runtime API definition for assets.
@@ -1412,7 +1412,7 @@ impl pallet_statement::Config for Runtime {
 	type MaxAllowedBytes = MaxAllowedBytes;
 }
 
-impl pallet_identifier::Config for Runtime {
+impl pallet_doken::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 }
@@ -1452,7 +1452,7 @@ parameter_types! {
 
 impl pallet_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Identifier = Identifier;
+	type Doken = Doken;
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
@@ -1672,7 +1672,7 @@ mod runtime {
 	pub type FastUnstake = pallet_fast_unstake::Pallet<Runtime>;
 
 	#[runtime::pallet_index(70)]
-	pub type Identifier = pallet_identifier::Pallet<Runtime>;
+	pub type Doken = pallet_doken::Pallet<Runtime>;
 
 	#[runtime::pallet_index(71)]
 	pub type Collection = pallet_collection::Pallet<Runtime>;
@@ -1875,7 +1875,6 @@ mod benches {
 		[pallet_election_provider_support_benchmarking, EPSBench::<Runtime>]
 		[pallet_fast_unstake, FastUnstake]
 		[pallet_grandpa, Grandpa]
-		[pallet_identifier, Identifier]
 		[pallet_im_online, ImOnline]
 		[pallet_indices, Indices]
 		[pallet_membership, TechnicalMembership]
@@ -2143,14 +2142,14 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl identifier_api::IdentifierApi<Block> for Runtime {
-		fn decode_identifier(identifier: Vec<u8>) -> Option<identifier_api::DecodedIdentifierApi> {
+	impl doken_api::DokenApi<Block> for Runtime {
+		fn decode_doken(doken: Vec<u8>) -> Option<doken_api::DecodedDokenApi> {
 
-			let ss58_id = Ss58Identifier::try_from(identifier).ok()?;
+			let ss58_id = Ss58Identifier::try_from(doken).ok()?;
 
-			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
+			let decoded: DecodedIdentifier = Doken::resolve_doken(&ss58_id).ok()?;
 
-			Some(identifier_api::DecodedIdentifierApi {
+			Some(doken_api::DecodedDokenApi {
 				version: decoded.version,
 				origin: decoded.origin !=0,
 				network: decoded.network,
@@ -2160,7 +2159,7 @@ impl_runtime_apis! {
 		}
 
 		fn resolve_pallet(index: u16) -> Option<String> {
-			Identifier::resolve_pallet_name(index).ok()
+			Doken::resolve_pallet_name(index).ok()
 		}
 	}
 

@@ -25,7 +25,7 @@ use alloc::vec::Vec;
 use cord_primitives::doket::Element;
 use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_system::{Pallet as System, RawOrigin};
-use pallet_identifier::Identifier;
+use pallet_doken::Doken;
 use sp_runtime::traits::Hash;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
@@ -52,8 +52,8 @@ mod benchmarks {
 		let digest = <T as frame_system::Config>::Hashing::hash(
 			&(info.clone(), b"IdentityInfoSet".to_vec()).encode(),
 		);
-		let doken = T::Identifier::build(digest.as_ref(), EntityPallet::<T>::name())
-			.map_err(|_| BenchmarkError::Stop("Identifier creation failed"))?;
+		let doken = T::Doken::build(digest.as_ref(), EntityPallet::<T>::name())
+			.map_err(|_| BenchmarkError::Stop("Doken creation failed"))?;
 
 		assert_last_event::<T>(
 			EntityEvent::<T>::EntityInfoSet { who: caller.clone(), doken }.into(),

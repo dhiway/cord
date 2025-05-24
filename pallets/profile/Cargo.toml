@@ -26,7 +26,7 @@ log = { workspace = true }
 
 # Internal dependencies
 cord-primitives = { workspace = true }
-pallet-identifier = { workspace = true }
+pallet-doken = { workspace = true }
 
 # Substrate dependencies
 frame-benchmarking = { optional = true, workspace = true }
@@ -44,14 +44,13 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"pallet-identifier/runtime-benchmarks",
 ]
 std = [
 	"codec/std",
 	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
-	"pallet-identifier/std",
+	"pallet-doken/std",
 	"cord-primitives/std",
 	"scale-info/std",
 	"sp-core/std",

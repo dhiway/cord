@@ -24,7 +24,7 @@ use crate::pallet::Pallet as EntityPallet;
 use crate::Error;
 use cord_primitives::doket::{Attribute, Element};
 use frame_support::{assert_noop, assert_ok};
-use pallet_identifier::Identifier;
+use pallet_doken::Doken;
 
 /// Shortcut to wrap raw bytes into our `Data` type.
 fn plain_data(s: &[u8]) -> Element<MaxRawDataLength> {
@@ -43,7 +43,7 @@ fn init_with_display(who: AccountId, disp: &[u8]) -> Ss58Identifier {
 fn _test_id(input: &[u8]) -> Ss58Identifier {
 	let hash = <Test as frame_system::Config>::Hashing::hash(input);
 	let name = <Pallet<Test> as PalletInfoAccess>::name();
-	<pallet_identifier::Pallet<Test> as Identifier<Test>>::build(&hash.as_ref(), name)
+	<pallet_doken::Pallet<Test> as Doken<Test>>::build(&hash.as_ref(), name)
 		.expect("should never fail")
 }
 

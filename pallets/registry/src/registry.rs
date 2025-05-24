@@ -23,7 +23,7 @@ use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 use sp_runtime::traits::Hash;
 
 use crate::{
-	pallet::Pallet, Delegates, Error, HashOf, Identifier, Permissions, Registries, RegistryDetails,
+	pallet::Pallet, Delegates, Doken, Error, HashOf, Permissions, Registries, RegistryDetails,
 	RegistryIdentifierOf, Status,
 };
 
@@ -40,7 +40,7 @@ pub fn create_registry<T: crate::Config>(
 	let pallet_name = <crate::pallet::Pallet<T> as frame_support::traits::PalletInfoAccess>::name();
 
 	let registry_id =
-		<pallet_identifier::Pallet<T> as Identifier<T>>::build(&(digest).encode()[..], pallet_name)
+		<pallet_doken::Pallet<T> as Doken<T>>::build(&(digest).encode()[..], pallet_name)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 	ensure!(!Registries::<T>::contains_key(&registry_id), Error::<T>::RegistryAlreadyExists);
@@ -87,7 +87,7 @@ pub fn create_registry_store<T: crate::Config>(
 	let pallet_name = <crate::pallet::Pallet<T> as frame_support::traits::PalletInfoAccess>::name();
 
 	let registry_id =
-		<pallet_identifier::Pallet<T> as Identifier<T>>::build(&(digest).encode()[..], pallet_name)
+		<pallet_doken::Pallet<T> as Doken<T>>::build(&(digest).encode()[..], pallet_name)
 			.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 	ensure!(!Registries::<T>::contains_key(&registry_id), Error::<T>::RegistryAlreadyExists);

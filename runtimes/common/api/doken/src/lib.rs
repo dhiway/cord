@@ -29,7 +29,7 @@ use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
 #[derive(Encode, Decode, TypeInfo, PartialEq, Eq)]
-pub struct DecodedIdentifierApi {
+pub struct DecodedDokenApi {
 	pub version: u8,
 	pub origin: bool,
 	pub network: u16,
@@ -38,10 +38,10 @@ pub struct DecodedIdentifierApi {
 }
 
 sp_api::decl_runtime_apis! {
-	pub trait IdentifierApi {
-		/// Decodes an dentifier into its structured form,
+	pub trait DokenApi {
+		/// Decodes a Doken into its structured form,
 		/// or returns `None` if decoding fails.
-		fn decode_identifier(identifier: Vec<u8>) -> Option<DecodedIdentifierApi>;
+		fn decode_doken(doken: Vec<u8>) -> Option<DecodedDokenApi>;
 
 		/// Resolves a pallet name from storage by the given pallet index,
 		/// or returns `None` if it doesn't exist.

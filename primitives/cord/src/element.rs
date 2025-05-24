@@ -30,8 +30,8 @@ use scale_info::TypeInfo;
 /// The `Elum` enum supports the following variants:
 /// - None: Indicates that no data is provided.
 /// - Raw: Contains data stored directly as a bounded vector; the capacity is specified by `MAX_CAP`.
-/// - Identifier: An embedded Ss58Identifier.
 /// - Digest: A fixed 32-byte digest (e.g., computed using BlakeTwo256).
+/// - Doken: An embedded Ss58Identifier.
 /// - CID: A fixed 64-byte content identifier.
 #[derive(CloneNoBound, DecodeWithMemTracking, RuntimeDebugNoBound, MaxEncodedLen, TypeInfo)]
 #[scale_info(skip_type_params(MaxCap))]
@@ -40,10 +40,10 @@ pub enum Elum<MaxCap: Get<u32>> {
 	None,
 	/// Raw data stored directly.
 	Raw(BoundedVec<u8, MaxCap>),
-	/// An embedded Ss58Identifier.
-	Identifier(Ss58Identifier),
 	/// A 32-byte BlakeTwo256 digest.
 	Digest([u8; 32]),
+	/// An embedded doken.
+	Doken(Ss58Identifier),
 	/// A 64-byte content identifier.
 	CID([u8; 64]),
 }
@@ -61,17 +61,17 @@ impl<MaxCap: Get<u32>> Encode for Elum<MaxCap> {
 				out.extend_from_slice(slice);
 				out
 			},
-			Elum::Identifier(id) => {
-				let id_bytes = id.encode();
-				let mut out = Vec::with_capacity(1 + id_bytes.len());
-				out.push(2);
-				out.extend(id_bytes);
-				out
-			},
 			Elum::Digest(d) => {
 				let mut out = Vec::with_capacity(1 + 32);
-				out.push(3);
+				out.push(2);
 				out.extend(d.encode());
+				out
+			},
+			Elum::Doken(id) => {
+				let id_bytes = id.encode();
+				let mut out = Vec::with_capacity(1 + id_bytes.len());
+				out.push(3);
+				out.extend(id_bytes);
 				out
 			},
 			Elum::CID(c) => {
@@ -94,12 +94,12 @@ impl<MaxCap: Get<u32>> Decode for Elum<MaxCap> {
 				Ok(Elum::Raw(raw))
 			},
 			2 => {
-				let id = Ss58Identifier::decode(input)?;
-				Ok(Elum::Identifier(id))
-			},
-			3 => {
 				let hash = <[u8; 32]>::decode(input)?;
 				Ok(Elum::Digest(hash))
+			},
+			3 => {
+				let id = Ss58Identifier::decode(input)?;
+				Ok(Elum::Doken(id))
 			},
 			4 => {
 				let cid = <[u8; 64]>::decode(input)?;
@@ -115,8 +115,8 @@ impl<MaxCap: Get<u32>> PartialEq for Elum<MaxCap> {
 		match (self, other) {
 			(Elum::None, Elum::None) => true,
 			(Elum::Raw(a), Elum::Raw(b)) => a == b,
-			(Elum::Identifier(a), Elum::Identifier(b)) => a == b,
 			(Elum::Digest(a), Elum::Digest(b)) => a == b,
+			(Elum::Doken(a), Elum::Doken(b)) => a == b,
 			(Elum::CID(a), Elum::CID(b)) => a == b,
 			_ => false,
 		}
@@ -131,8 +131,8 @@ impl<MaxCap: Get<u32>> AsRef<[u8]> for Elum<MaxCap> {
 		match self {
 			Elum::None => &[],
 			Elum::Raw(raw) => raw.as_slice(),
-			Elum::Identifier(id) => id.as_bytes(),
 			Elum::Digest(digest) => digest,
+			Elum::Doken(id) => id.as_bytes(),
 			Elum::CID(cid) => cid,
 		}
 	}
@@ -154,19 +154,19 @@ impl<MaxCap: Get<u32>> Elum<MaxCap> {
 		}
 	}
 
-	/// Returns the embedded Ss58Identifier if the element is `Identifier`.
-	pub fn as_identifier(&self) -> Option<&Ss58Identifier> {
-		if let Elum::Identifier(id) = self {
-			Some(id)
+	/// If the Elum is `Digest`, returns the 32-byte digest; otherwise, `None`.
+	pub fn as_digest(&self) -> Option<&[u8; 32]> {
+		if let Elum::Digest(digest) = self {
+			Some(digest)
 		} else {
 			None
 		}
 	}
 
-	/// If the Elum is `Digest`, returns the 32-byte digest; otherwise, `None`.
-	pub fn as_digest(&self) -> Option<&[u8; 32]> {
-		if let Elum::Digest(digest) = self {
-			Some(digest)
+	/// Returns the embedded Ss58Identifier if the element is `Identifier`.
+	pub fn as_doken(&self) -> Option<&Ss58Identifier> {
+		if let Elum::Doken(id) = self {
+			Some(id)
 		} else {
 			None
 		}
@@ -213,7 +213,7 @@ mod tests {
 		assert!(element.as_raw().is_none());
 		assert!(element.as_digest().is_none());
 		assert!(element.as_cid().is_none());
-		assert!(element.as_identifier().is_none());
+		assert!(element.as_doken().is_none());
 	}
 
 	#[test]
@@ -233,11 +233,11 @@ mod tests {
 		let digest: Vec<u8> = vec![0xAB; 32];
 		let ss58_id =
 			Ss58Identifier::to_encoded(digest.clone(), 100, 5, 1).expect("Ss58Identifier created");
-		let element: DefaultElement = DefaultElement::Identifier(ss58_id.clone());
+		let element: DefaultElement = DefaultElement::Doken(ss58_id.clone());
 		let encoded = element.encode();
 		let decoded = DefaultElement::decode(&mut &encoded[..]).expect("Decode Identifier");
 		assert_eq!(decoded, element);
-		assert_eq!(element.as_identifier(), Some(&ss58_id));
+		assert_eq!(element.as_doken(), Some(&ss58_id));
 		assert_eq!(element.as_ref(), ss58_id.as_bytes());
 	}
 
@@ -282,8 +282,8 @@ mod tests {
 		assert_eq!(cid_elem.as_ref(), &[2; 64][..]);
 
 		let ss58_id = Ss58Identifier::to_encoded(vec![0xAB; 32], 100, 5, 1).unwrap();
-		let id_elem: DefaultElement = DefaultElement::Identifier(ss58_id.clone());
-		assert_eq!(id_elem.as_identifier(), Some(&ss58_id));
+		let id_elem: DefaultElement = DefaultElement::Doken(ss58_id.clone());
+		assert_eq!(id_elem.as_doken(), Some(&ss58_id));
 		assert_eq!(id_elem.as_ref(), ss58_id.as_bytes());
 	}
 
@@ -349,8 +349,8 @@ mod tests {
 		assert_eq!(DefaultElement::None.encode()[0], 0);
 		assert_eq!(DefaultElement::Raw(vec![].try_into().unwrap()).encode()[0], 1);
 		let ss58 = Ss58Identifier::to_encoded(vec![0; 32], 0, 0, 0).unwrap();
-		assert_eq!(DefaultElement::Identifier(ss58).encode()[0], 2);
-		assert_eq!(DefaultElement::Digest([0; 32]).encode()[0], 3);
+		assert_eq!(DefaultElement::Digest([0; 32]).encode()[0], 2);
+		assert_eq!(DefaultElement::Doken(ss58).encode()[0], 3);
 		assert_eq!(DefaultElement::CID([0; 64]).encode()[0], 4);
 	}
 

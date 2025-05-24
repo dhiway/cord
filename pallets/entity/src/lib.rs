@@ -21,11 +21,12 @@
 
 #[cfg(test)]
 pub mod mock;
-
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+
 pub mod entity;
 pub mod weights;
 
@@ -44,7 +45,7 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
-use pallet_identifier::{EventBlock, EventTypeOf, Identifier};
+use pallet_doken::{Doken, EventBlock, EventTypeOf};
 use sp_runtime::traits::Hash;
 pub use weights::WeightInfo;
 
@@ -62,8 +63,8 @@ pub mod pallet {
 		/// The overarching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-		/// Ideentifier Type
-		type Identifier: Identifier<Self, Hash = Self::Hash>;
+		/// Doken Type
+		type Doken: Doken<Self, Hash = Self::Hash>;
 
 		/// The maximum number of sub-accounts allowed per identified account.
 		#[pallet::constant]
@@ -213,7 +214,7 @@ pub mod pallet {
 		InvalidTarget,
 		// /// The entity length is not valid.
 		// InvalidIdentifierLength,
-		/// The docken inputs are not valid.
+		/// The doken inputs are not valid.
 		DokenCreationFailed,
 		/// The provided event type is invalid.
 		InvalidEventType,
@@ -321,7 +322,7 @@ pub mod pallet {
 
 			let digest = T::Hashing::hash(&(&info, b"IdentityInfoSet" as &[u8]).encode());
 			let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
-			let doken = T::Identifier::build(&digest.encode()[..], pallet_name)
+			let doken = T::Doken::build(&digest.encode()[..], pallet_name)
 				.map_err(|_| Error::<T>::DokenCreationFailed)?;
 
 			EntityInfoOf::<T>::try_mutate_exists(&doken, |opt| -> DispatchResult {
@@ -814,15 +815,11 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Records an activity using a provided event message.
-	pub fn record_activity(
-		identifier: &Ss58Identifier,
-		digest: T::Hash,
-		msg: &[u8],
-	) -> DispatchResult {
+	pub fn record_activity(doken: &Ss58Identifier, digest: T::Hash, msg: &[u8]) -> DispatchResult {
 		let action: EventTypeOf =
 			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
 		let stamp = EventBlock::current::<T>();
-		T::Identifier::state_event(identifier, digest, action, stamp)
+		T::Doken::state_event(doken, digest, action, stamp)
 			.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
 	}

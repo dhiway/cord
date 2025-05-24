@@ -141,7 +141,7 @@ cord-loom-runtime-constants = { features = [
 cord-weave-runtime-constants = { features = [
 	"std",
 ], workspace = true, optional = true }
-pallet-identifier = { features = ["std"], workspace = true }
+pallet-doken = { features = ["std"], workspace = true }
 pallet-network-membership = { features = ["std"], workspace = true }
 pallet-staking = { workspace = true }
 
@@ -269,7 +269,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"pallet-asset-conversion/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
-	"pallet-identifier/runtime-benchmarks",
 	"pallet-contracts/runtime-benchmarks",
 	"pallet-network-membership/runtime-benchmarks",
 	"sc-client-db/runtime-benchmarks",
