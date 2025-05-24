@@ -18,24 +18,22 @@
 
 #![cfg(test)]
 use super::*;
+use crate::entity::EntityInfo;
 use crate::mock::*;
 use crate::pallet::Pallet as EntityPallet;
 use crate::Error;
-use crate::{
-	entity::EntityInfo,
-	types::{Attribute, Data},
-};
+use cord_primitives::doken::{Attribute, Element};
 use frame_support::{assert_noop, assert_ok};
 use pallet_identifier::Identifier;
 
 /// Shortcut to wrap raw bytes into our `Data` type.
-fn plain_data(s: &[u8]) -> Data<MaxRawDataLength> {
-	Data::Raw(s.to_vec().try_into().unwrap())
+fn plain_data(s: &[u8]) -> Element<MaxRawDataLength> {
+	Element::Raw(s.to_vec().try_into().unwrap())
 }
 
 /// Common init helper: register an identity with only `display` set.
 fn init_with_display(who: AccountId, disp: &[u8]) -> Ss58Identifier {
-	let mut info = EntityInfo::<MaxRawDataLength>::default();
+	let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 	info.display = plain_data(disp);
 	assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)));
 	Ss58OfActiveAccounts::<Test>::get(&who).unwrap()
@@ -81,7 +79,7 @@ mod set_info_tests {
 	fn invalid_empty_attribute_key_fails() {
 		new_test_ext().execute_with(|| {
 			let who = account(3);
-			let mut info = EntityInfo::<MaxRawDataLength>::default();
+			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"d");
 			// force a single empty key in attributes
 			let empty: Attribute = Vec::new().try_into().unwrap();
@@ -99,7 +97,7 @@ mod set_info_tests {
 	fn duplicate_attribute_key_in_initial_info_fails() {
 		new_test_ext().execute_with(|| {
 			let who = account(4);
-			let mut info = EntityInfo::<MaxRawDataLength>::default();
+			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"d");
 			let attr: Attribute = b"dup".to_vec().try_into().unwrap();
 			info.attributes = Some(Default::default());
@@ -354,7 +352,7 @@ mod sub_accounts_tests {
 			let sub1 = account(14);
 			let sub2 = account(15);
 			let sub3 = account(16);
-			let mut info = EntityInfo::<MaxRawDataLength>::default();
+			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
 			assert_ok!(Entity::set_info(RuntimeOrigin::signed(main.clone()), Box::new(info)));
 
@@ -373,7 +371,7 @@ mod sub_accounts_tests {
 		new_test_ext().execute_with(|| {
 			let main = account(17);
 			let sub = account(18);
-			let mut info = EntityInfo::<MaxRawDataLength>::default();
+			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
 			assert_ok!(Entity::set_info(RuntimeOrigin::signed(main.clone()), Box::new(info)));
 			assert_ok!(Entity::set_sub_account(RuntimeOrigin::signed(main.clone()), sub.clone()));
@@ -400,7 +398,7 @@ mod controller_rotation_and_clear_tests {
 		new_test_ext().execute_with(|| {
 			let owner = account(19);
 			let newc = account(20);
-			let mut info = EntityInfo::<MaxRawDataLength>::default();
+			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
 			assert_ok!(Entity::set_info(RuntimeOrigin::signed(owner.clone()), Box::new(info)));
 
@@ -428,7 +426,7 @@ mod controller_rotation_and_clear_tests {
 		new_test_ext().execute_with(|| {
 			let who = account(21);
 			let sub = account(22);
-			let mut info = EntityInfo::<MaxRawDataLength>::default();
+			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
 			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)));
 			assert_ok!(Entity::set_sub_account(RuntimeOrigin::signed(who.clone()), sub.clone()));
@@ -438,7 +436,7 @@ mod controller_rotation_and_clear_tests {
 			assert!(!EntityInfoOf::<Test>::contains_key(&id));
 
 			// re-set and then root-clear
-			let mut info2 = EntityInfo::<MaxRawDataLength>::default();
+			let mut info2 = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info2.display = plain_data(b"y");
 			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info2)));
 			let id2 = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
@@ -455,7 +453,7 @@ mod id_name_tests {
 	fn set_and_remove_id_name() {
 		new_test_ext().execute_with(|| {
 			let who = account(23);
-			let mut info = EntityInfo::<MaxRawDataLength>::default();
+			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
 			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)));
 

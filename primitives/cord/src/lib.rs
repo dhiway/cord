@@ -20,7 +20,11 @@
 
 extern crate alloc;
 pub mod element;
-pub use crate::element::Element;
+pub use crate::element::ElementUnit;
+pub mod doken;
+pub use crate::doken::{
+	Attribute, Attributes, DokenInformationProvider, DokenUpdateError, DokenUpdateOp, Element,
+};
 pub mod identifier;
 pub use crate::identifier::Ss58Identifier;
 use alloc::vec::Vec;

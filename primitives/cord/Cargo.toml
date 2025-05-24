@@ -20,7 +20,8 @@ frame-support = { workspace = true }
 bs58 = { features = ["alloc"], workspace = true }
 blake2 = { workspace = true }
 hex = { workspace = true }
-
+frame-benchmarking = { optional = true, workspace = true }
+frame-system = { optional = true, workspace = true }
 [dev-dependencies]
 pallet-balances = { workspace = true, default-features = true }
 sp-keystore = { workspace = true, default-features = true }
