@@ -92,7 +92,7 @@ fn cord_weave_testnet_genesis(
 	"balances": {
 		"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 	},
-	"identifier": { "protocolId": "c0rd".to_string(), "networkId": 103},
+	"doken": { "protocolId": "c0rd".to_string(), "networkId": 103},
 	"session": {
 		"keys": initial_authorities
 			.iter()

@@ -31,7 +31,7 @@ pub use crate::{pallet::*, types::*};
 use cord_primitives::identifier::Ss58Identifier;
 use frame_support::{dispatch::DispatchResult, traits::ConstU32, BoundedVec};
 use frame_system::{pallet_prelude::BlockNumberFor, WeightInfo};
-use pallet_identifier::{EventBlock, EventTypeOf, Identifier};
+use pallet_doken::{Doken, EventBlock, EventTypeOf};
 use pallet_profile::ProfileIdOf;
 
 #[cfg(test)]
@@ -68,9 +68,7 @@ pub mod pallet {
 	pub type RegistryBlobOf<T> = BoundedVec<u8, MaxRegistryBlobSizeOf<T>>;
 
 	#[pallet::config]
-	pub trait Config:
-		frame_system::Config + pallet_identifier::Config + pallet_profile::Config
-	{
+	pub trait Config: frame_system::Config + pallet_doken::Config + pallet_profile::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The maximum number of bytes in size a Registry Blob can hold.
@@ -644,10 +642,8 @@ impl<T: Config> Pallet<T> {
 		let action: EventTypeOf =
 			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
 		let stamp = EventBlock::current::<T>();
-		<pallet_identifier::Pallet<T> as Identifier<T>>::state_event(
-			identifier, digest, action, stamp,
-		)
-		.map_err(|_| Error::<T>::StateUpdateFailed)?;
+		<pallet_doken::Pallet<T> as Doken<T>>::state_event(identifier, digest, action, stamp)
+			.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
 	}
 

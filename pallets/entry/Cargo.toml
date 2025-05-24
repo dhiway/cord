@@ -25,7 +25,7 @@ bitflags = { workspace = true }
 
 # Internal dependencies
 cord-primitives = { workspace = true }
-pallet-identifier = { workspace = true }
+pallet-doken = { workspace = true }
 pallet-profile = { workspace = true }
 pallet-registry = { workspace = true }
 
@@ -46,7 +46,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"pallet-identifier/runtime-benchmarks",
 	"pallet-profile/runtime-benchmarks",
 	"pallet-registry/runtime-benchmarks",
 ]
@@ -61,7 +60,7 @@ std = [
 	"sp-io/std",
 	"sp-keystore/std",
 	"sp-runtime/std",
-	"pallet-identifier/std",
+	"pallet-doken/std",
 	"pallet-profile/std",
 	"pallet-registry/std",
 ]

@@ -22,7 +22,7 @@ scale-info = { features = ["derive", "serde"], workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
-pallet-identifier = { workspace = true }
+pallet-doken = { workspace = true }
 sp-runtime = { workspace = true }
 
 [dev-dependencies]
@@ -40,7 +40,7 @@ std = [
 	"frame-benchmarking?/std",
 	"frame-support/std",
 	"frame-system/std",
-	"pallet-identifier/std",
+	"pallet-doken/std",
 	"scale-info/std",
 	"sp-io/std",
 	"sp-keystore/std",

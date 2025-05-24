@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! # CORD Identifiers
+//! # CORD Dato Token (Doken)
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
@@ -33,10 +33,6 @@ use sp_runtime::traits::{BlockNumberProvider, UniqueSaturatedInto};
 
 #[cfg(test)]
 pub mod mock;
-
-#[cfg(feature = "runtime-benchmarks")]
-pub mod benchmarking;
-
 #[cfg(test)]
 mod tests;
 
@@ -68,7 +64,6 @@ pub struct StateEvent<Hash> {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	// use frame_support::pallet_prelude::*;
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
@@ -118,8 +113,8 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// An identifier's state was updated.
-		StateChange { identifier: Ss58Identifier, state: u32, action: EventTypeOf },
+		/// A doken state was updated.
+		StateChange { doken: Ss58Identifier, state: u32, action: EventTypeOf },
 	}
 
 	#[pallet::error]
@@ -137,16 +132,16 @@ pub mod pallet {
 		InvalidNetworkId,
 		// State Update Failed
 		StateUpdateFailed,
-		/// The identifier format is invalid.
-		InvalidFormat,
+		/// The doken format is invalid.
+		InvalidDokenFormat,
 		/// The prefix is invalid or unrecognized.
-		InvalidPrefix,
-		/// The identifier is not valid.
-		InvalidIdentifier,
+		InvalidDokenPrefix,
+		/// The doken is not valid.
+		InvalidDoken,
 		/// The checksum validation failed.
-		InvalidChecksum,
-		/// The identifier length is not valid.
-		InvalidIdentifierLength,
+		InvalidDokenChecksum,
+		/// The doken length is not valid.
+		InvalidDokenLength,
 		/// The provided digest length is invalid. Expected 32 bytes.
 		InvalidDigestLength,
 		/// The value is out of the expected range for compact encoding.
@@ -167,7 +162,7 @@ pub mod pallet {
 
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { protocol_id: "c0rd".into(), network_id: 100, _config: Default::default() }
+			Self { protocol_id: "0rigin".into(), network_id: 2000, _config: Default::default() }
 		}
 	}
 
@@ -244,23 +239,19 @@ impl<T: Config> Pallet<T> {
 		IsOriginChain::<T>::get()
 	}
 
-	/// Record an activity event for the given identifier by appending a new record.
-	pub fn update_identifier_state(
-		identifier: &Ss58Identifier,
+	/// Record an activity event for the given doken by appending a new record.
+	pub fn update_doken_state(
+		doken: &Ss58Identifier,
 		digest: HashOf<T>,
 		action: EventTypeOf,
 		seal: EventBlock,
 	) -> DispatchResult {
-		let index = StateVersion::<T>::get(identifier);
+		let index = StateVersion::<T>::get(&doken);
 		let record = StateEvent { action: action.clone(), digest, seal };
-		StateHistory::<T>::insert(identifier, index, record);
-		StateVersion::<T>::insert(identifier, index.saturating_add(1));
+		StateHistory::<T>::insert(&doken, index, record);
+		StateVersion::<T>::insert(&doken, index.saturating_add(1));
 
-		Self::deposit_event(Event::StateChange {
-			identifier: identifier.clone(),
-			state: index,
-			action,
-		});
+		Self::deposit_event(Event::StateChange { doken: doken.clone(), state: index, action });
 
 		Ok(())
 	}
@@ -269,11 +260,11 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> From<IdentifierError> for Error<T> {
 	fn from(err: IdentifierError) -> Self {
 		match err {
-			IdentifierError::InvalidFormat => Self::InvalidFormat,
-			IdentifierError::InvalidPrefix => Self::InvalidPrefix,
-			IdentifierError::InvalidIdentifier => Self::InvalidIdentifier,
-			IdentifierError::InvalidChecksum => Self::InvalidChecksum,
-			IdentifierError::InvalidIdentifierLength => Self::InvalidIdentifierLength,
+			IdentifierError::InvalidFormat => Self::InvalidDokenFormat,
+			IdentifierError::InvalidPrefix => Self::InvalidDokenPrefix,
+			IdentifierError::InvalidIdentifier => Self::InvalidDoken,
+			IdentifierError::InvalidChecksum => Self::InvalidDokenChecksum,
+			IdentifierError::InvalidIdentifierLength => Self::InvalidDokenLength,
 			IdentifierError::CompactValueOutOfRange => Self::CompactValueOutOfRange,
 			IdentifierError::InvalidDigestLength => Self::InvalidDigestLength,
 			IdentifierError::InvalidCompactEncoding => Self::InvalidCompactEncoding,
@@ -282,23 +273,23 @@ impl<T: Config> From<IdentifierError> for Error<T> {
 	}
 }
 
-pub trait Identifier<T: frame_system::Config> {
+pub trait Doken<T: frame_system::Config> {
 	type Hash: Encode + Decode + DecodeWithMemTracking + Clone + PartialEq + Eq;
 	type Error;
 
 	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, pallet::Error<T>>;
-	fn resolve_identifier(identifier: &Ss58Identifier) -> Result<DecodedIdentifier, Self::Error>;
+	fn resolve_doken(doken: &Ss58Identifier) -> Result<DecodedIdentifier, Self::Error>;
 	fn resolve_pallet(index: u16) -> Result<String, Self::Error>;
-	/// Record a state transition event for the given identifier.
+	/// Record a state transition event for the given doken.
 	fn state_event(
-		identifier: &Ss58Identifier,
+		doken: &Ss58Identifier,
 		digest: Self::Hash,
 		action: EventTypeOf,
 		stamp: EventBlock,
 	) -> Result<(), Self::Error>;
 }
 
-impl<T: pallet::Config> Identifier<T> for Pallet<T> {
+impl<T: pallet::Config> Doken<T> for Pallet<T> {
 	type Hash = HashOf<T>;
 	type Error = pallet::Error<T>;
 
@@ -309,8 +300,8 @@ impl<T: pallet::Config> Identifier<T> for Pallet<T> {
 		Ss58Identifier::to_encoded(digest, nid, pid, ori).map_err(Into::into)
 	}
 
-	fn resolve_identifier(identifier: &Ss58Identifier) -> Result<DecodedIdentifier, Self::Error> {
-		identifier.to_decoded().map_err(Into::into)
+	fn resolve_doken(doken: &Ss58Identifier) -> Result<DecodedIdentifier, Self::Error> {
+		doken.to_decoded().map_err(Into::into)
 	}
 
 	fn resolve_pallet(index: u16) -> Result<String, Self::Error> {
@@ -318,12 +309,12 @@ impl<T: pallet::Config> Identifier<T> for Pallet<T> {
 	}
 
 	fn state_event(
-		identifier: &Ss58Identifier,
+		doken: &Ss58Identifier,
 		digest: Self::Hash,
 		event: EventTypeOf,
 		stamp: EventBlock,
 	) -> Result<(), Self::Error> {
-		Self::update_identifier_state(identifier, digest, event, stamp)
+		Self::update_doken_state(doken, digest, event, stamp)
 			.map_err(|_| pallet::Error::<T>::StateUpdateFailed)
 	}
 }

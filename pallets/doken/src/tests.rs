@@ -84,22 +84,22 @@ fn set_and_get_network_id() {
 fn record_activity_positive() {
 	new_test_ext().execute_with(|| {
 		let id_digest = vec![1u8; 32];
-		let identifier = Ss58Identifier::to_encoded(id_digest, 100, 5, 29, 0)
-			.expect("Identifier encoding should succeed");
+		let doken = Ss58Identifier::to_encoded(id_digest, 100, 5, 0)
+			.expect("Doken encoding should succeed");
 		let digest = H256::random();
 
-		let event: EventTypeOf =
+		let action: EventTypeOf =
 			vec![1u8; 10].try_into().expect("Should create a valid bounded vector");
 		let seal = EventBlock { height: 1, index: 0 };
 
-		assert_ok!(Pallet::<Test>::state_event(&identifier, digest, event.clone(), seal.clone()));
+		assert_ok!(Pallet::<Test>::state_event(&doken, digest, action.clone(), seal.clone()));
 
-		let counter = StateVersion::<Test>::get(&identifier);
+		let counter = StateVersion::<Test>::get(&doken);
 		assert_eq!(counter, 1);
 
-		let record =
-			StateHistory::<Test>::get(&identifier, 0).expect("An activity record should exist");
-		assert_eq!(record.event, event);
+		let record = StateHistory::<Test>::get(&doken, 0).expect("An activity record should exist");
+		assert_eq!(record.action, action);
+		assert_eq!(record.digest, digest);
 		assert_eq!(record.seal, seal);
 	});
 }

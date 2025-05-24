@@ -146,9 +146,9 @@ use cord_origin_relay_staging_runtime_constants::{
 // Weights used in the runtime.
 mod weights;
 
-/// Runtime API definition for identifier.
-pub use cord_identifier_runtime_api as identifier_api;
-use pallet_identifier::Identifier as _;
+/// Runtime API definition for doken.
+pub use cord_doken_runtime_api as doken_api;
+use pallet_doken::Doken as _;
 
 mod bag_thresholds;
 // Genesis preset configurations.
@@ -171,8 +171,7 @@ impl_runtime_weights!(cord_origin_relay_staging_runtime_constants);
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-// Polkadot version identifier;
-/// Runtime version (Polkadot).
+/// Runtime version (Origin).
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: alloc::borrow::Cow::Borrowed("origin-relay"),
@@ -1452,7 +1451,7 @@ impl OnSwap for SwapLeases {
 	}
 }
 
-impl pallet_identifier::Config for Runtime {
+impl pallet_doken::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 }
@@ -1561,8 +1560,8 @@ construct_runtime! {
 		// Asset rate.
 		AssetRate: pallet_asset_rate = 101,
 
-		// Identifier
-		Identifier: pallet_identifier = 102,
+		// Doken
+		Doken: pallet_doken = 102,
 
 		// BEEFY Bridges support.
 		Beefy: pallet_beefy = 200,
@@ -2504,14 +2503,14 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	impl identifier_api::IdentifierApi<Block> for Runtime {
-		fn decode_identifier(identifier: Vec<u8>) -> Option<identifier_api::DecodedIdentifierApi> {
+	impl doken_api::DokenApi<Block> for Runtime {
+		fn decode_doken(doken: Vec<u8>) -> Option<doken_api::DecodedDokenApi> {
 
-			let ss58_id = Ss58Identifier::try_from(identifier).ok()?;
+			let ss58_id = Ss58Identifier::try_from(doken).ok()?;
 
-			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
+			let decoded: DecodedIdentifier = Doken::resolve_doken(&ss58_id).ok()?;
 
-			Some(identifier_api::DecodedIdentifierApi {
+			Some(doken_api::DecodedDokenApi {
 				version: decoded.version,
 				origin: decoded.origin !=0,
 				network: decoded.network,
@@ -2521,7 +2520,7 @@ sp_api::impl_runtime_apis! {
 		}
 
 		fn resolve_pallet(index: u16) -> Option<String> {
-			Identifier::resolve_pallet_name(index).ok()
+			Doken::resolve_pallet_name(index).ok()
 		}
 	}
 

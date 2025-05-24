@@ -18,10 +18,10 @@ scale-info = { features = ["derive"], workspace = true }
 serde_json = { features = ["alloc"], workspace = true }
 
 # Local
+cord-doken-runtime-api = { workspace = true }
+cord-primitives = { workspace = true }
 cord-origin-relay-staging-runtime-constants = { workspace = true }
 cord-origin-system-chains-staging-constants = { workspace = true }
-cord-identifier-runtime-api = { workspace = true }
-cord-primitives = { workspace = true }
 
 # Substrate
 frame-benchmarking = { optional = true, workspace = true }
@@ -36,7 +36,7 @@ pallet-aura = { workspace = true }
 pallet-authorship = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-entity = { workspace = true }
-pallet-identifier = { workspace = true }
+pallet-doken = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-migrations = { workspace = true }
 pallet-multisig = { workspace = true }
@@ -97,7 +97,7 @@ std = [
 	"cord-primitives/std",
 	"cord-origin-relay-staging-runtime-constants/std",
 	"cord-origin-system-chains-staging-constants/std",
-	"cord-identifier-runtime-api/std",
+	"cord-doken-runtime-api/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-session-benchmarking/std",
@@ -121,7 +121,7 @@ std = [
 	"pallet-balances/std",
 	"pallet-collator-selection/std",
 	"pallet-entity/std",
-	"pallet-identifier/std",
+	"pallet-doken/std",
 	"pallet-message-queue/std",
 	"pallet-migrations/std",
 	"pallet-multisig/std",
@@ -161,6 +161,7 @@ std = [
 	"xcm/std",
 ]
 
+
 runtime-benchmarks = [
 	"cord-origin-relay-staging-runtime-constants/std",
 	"cord-origin-system-chains-staging-constants/std",
@@ -176,7 +177,6 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-collator-selection/runtime-benchmarks",
 	"pallet-entity/runtime-benchmarks",
-	"pallet-identifier/runtime-benchmarks",
 	"pallet-message-queue/runtime-benchmarks",
 	"pallet-migrations/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
@@ -211,7 +211,7 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-collator-selection/try-runtime",
 	"pallet-entity/try-runtime",
-	"pallet-identifier/try-runtime",
+	"pallet-doken/try-runtime",
 	"pallet-message-queue/try-runtime",
 	"pallet-migrations/try-runtime",
 	"pallet-multisig/try-runtime",

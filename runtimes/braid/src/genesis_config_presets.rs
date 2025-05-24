@@ -90,7 +90,7 @@ fn cord_braid_testnet_genesis(
 		"balances": {
 			"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"identifier": { "protocolId": "c0rd".to_string(), "networkId": 101},
+		"doken": { "protocolId": "c0rd".to_string(), "networkId": 101},
 		"nodeAuthorization":  {
 			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},

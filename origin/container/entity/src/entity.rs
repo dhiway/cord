@@ -44,7 +44,7 @@ pub type IdentityAdminOrigin = EitherOfDiverse<
 
 impl pallet_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Identifier = Identifier;
+	type Doken = Doken;
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;

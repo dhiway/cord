@@ -87,9 +87,9 @@ pub use sp_runtime::{MultiAddress, Perbill, Permill};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-/// Runtime API definition for identifier.
-pub use cord_identifier_runtime_api as identifier_api;
-use pallet_identifier::Identifier as _;
+/// Runtime API definition for doken.
+pub use cord_doken_runtime_api as doken_api;
+use pallet_doken::Doken as _;
 
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use xcm::{
@@ -568,7 +568,7 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
-impl pallet_identifier::Config for Runtime {
+impl pallet_doken::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 }
@@ -627,7 +627,7 @@ construct_runtime!(
 
 		// The main stage.
 		Entity: pallet_entity = 50,
-		Identifier: pallet_identifier = 51,
+		Doken: pallet_doken = 51,
 
 		// Sudo.
 		Sudo: pallet_sudo = 255,
@@ -1002,14 +1002,14 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl identifier_api::IdentifierApi<Block> for Runtime {
-		fn decode_identifier(identifier: Vec<u8>) -> Option<identifier_api::DecodedIdentifierApi> {
+	impl doken_api::DokenApi<Block> for Runtime {
+		fn decode_doken(doken: Vec<u8>) -> Option<doken_api::DecodedDokenApi> {
 
-			let ss58_id = Ss58Identifier::try_from(identifier).ok()?;
+			let ss58_id = Ss58Identifier::try_from(doken).ok()?;
 
-			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
+			let decoded: DecodedIdentifier = Doken::resolve_doken(&ss58_id).ok()?;
 
-			Some(identifier_api::DecodedIdentifierApi {
+			Some(doken_api::DecodedDokenApi {
 				version: decoded.version,
 				origin: decoded.origin !=0,
 				network: decoded.network,
@@ -1019,7 +1019,7 @@ impl_runtime_apis! {
 		}
 
 		fn resolve_pallet(index: u16) -> Option<String> {
-			Identifier::resolve_pallet_name(index).ok()
+			Doken::resolve_pallet_name(index).ok()
 		}
 	}
 
