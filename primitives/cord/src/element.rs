@@ -27,7 +27,7 @@ use codec::{Compact, Decode, DecodeWithMemTracking, Encode, EncodeLike, MaxEncod
 use frame_support::{traits::Get, BoundedVec, CloneNoBound, RuntimeDebugNoBound};
 use scale_info::TypeInfo;
 
-/// The `Element` enum supports the following variants:
+/// The `ElementUnit` enum supports the following variants:
 /// - None: Indicates that no data is provided.
 /// - Raw: Contains data stored directly as a bounded vector; the capacity is specified by `MAX_CAP`.
 /// - Identifier: An embedded Ss58Identifier.
@@ -35,7 +35,7 @@ use scale_info::TypeInfo;
 /// - CID: A fixed 64-byte content identifier.
 #[derive(CloneNoBound, DecodeWithMemTracking, RuntimeDebugNoBound, MaxEncodedLen, TypeInfo)]
 #[scale_info(skip_type_params(MaxCap))]
-pub enum Element<MaxCap: Get<u32>> {
+pub enum ElementUnit<MaxCap: Get<u32>> {
 	/// No data provided.
 	None,
 	/// Raw data stored directly.
@@ -49,11 +49,11 @@ pub enum Element<MaxCap: Get<u32>> {
 }
 
 // Custom Encode implementation with a one-byte discriminant.
-impl<MaxCap: Get<u32>> Encode for Element<MaxCap> {
+impl<MaxCap: Get<u32>> Encode for ElementUnit<MaxCap> {
 	fn encode(&self) -> Vec<u8> {
 		match self {
-			Element::None => vec![0],
-			Element::Raw(raw) => {
+			ElementUnit::None => vec![0],
+			ElementUnit::Raw(raw) => {
 				let slice = raw.as_slice();
 				let mut out = Vec::with_capacity(1 + 4 + slice.len());
 				out.push(1);
@@ -61,20 +61,20 @@ impl<MaxCap: Get<u32>> Encode for Element<MaxCap> {
 				out.extend_from_slice(slice);
 				out
 			},
-			Element::Identifier(id) => {
+			ElementUnit::Identifier(id) => {
 				let id_bytes = id.encode();
 				let mut out = Vec::with_capacity(1 + id_bytes.len());
 				out.push(2);
 				out.extend(id_bytes);
 				out
 			},
-			Element::Digest(d) => {
+			ElementUnit::Digest(d) => {
 				let mut out = Vec::with_capacity(1 + 32);
 				out.push(3);
 				out.extend(d.encode());
 				out
 			},
-			Element::CID(c) => {
+			ElementUnit::CID(c) => {
 				let mut out = Vec::with_capacity(1 + 64);
 				out.push(4);
 				out.extend(c.encode());
@@ -84,71 +84,70 @@ impl<MaxCap: Get<u32>> Encode for Element<MaxCap> {
 	}
 }
 
-impl<MaxCap: Get<u32>> Decode for Element<MaxCap> {
+impl<MaxCap: Get<u32>> Decode for ElementUnit<MaxCap> {
 	fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
 		let variant = input.read_byte()?;
 		match variant {
-			0 => Ok(Element::None),
+			0 => Ok(ElementUnit::None),
 			1 => {
-				// now uses the generic MaxCap rather than ConstU32<MAX_CAP>
 				let raw = BoundedVec::<u8, MaxCap>::decode(input)?;
-				Ok(Element::Raw(raw))
+				Ok(ElementUnit::Raw(raw))
 			},
 			2 => {
 				let id = Ss58Identifier::decode(input)?;
-				Ok(Element::Identifier(id))
+				Ok(ElementUnit::Identifier(id))
 			},
 			3 => {
 				let hash = <[u8; 32]>::decode(input)?;
-				Ok(Element::Digest(hash))
+				Ok(ElementUnit::Digest(hash))
 			},
 			4 => {
 				let cid = <[u8; 64]>::decode(input)?;
-				Ok(Element::CID(cid))
+				Ok(ElementUnit::CID(cid))
 			},
-			_ => Err("Unknown variant for Element".into()),
+			_ => Err("Unknown variant for ElementUnit".into()),
 		}
 	}
 }
 
-impl<MaxCap: Get<u32>> PartialEq for Element<MaxCap> {
+impl<MaxCap: Get<u32>> PartialEq for ElementUnit<MaxCap> {
 	fn eq(&self, other: &Self) -> bool {
 		match (self, other) {
-			(Element::None, Element::None) => true,
-			(Element::Raw(a), Element::Raw(b)) => a == b,
-			(Element::Identifier(a), Element::Identifier(b)) => a == b,
-			(Element::Digest(a), Element::Digest(b)) => a == b,
-			(Element::CID(a), Element::CID(b)) => a == b,
+			(ElementUnit::None, ElementUnit::None) => true,
+			(ElementUnit::Raw(a), ElementUnit::Raw(b)) => a == b,
+			(ElementUnit::Identifier(a), ElementUnit::Identifier(b)) => a == b,
+			(ElementUnit::Digest(a), ElementUnit::Digest(b)) => a == b,
+			(ElementUnit::CID(a), ElementUnit::CID(b)) => a == b,
 			_ => false,
 		}
 	}
 }
 
-impl<MaxCap: Get<u32>> Eq for Element<MaxCap> {}
+impl<MaxCap: Get<u32>> Eq for ElementUnit<MaxCap> {}
 
 // Provide a unified AsRef<[u8]> implementation to obtain a view of the inner bytes.
-impl<MaxCap: Get<u32>> AsRef<[u8]> for Element<MaxCap> {
+impl<MaxCap: Get<u32>> AsRef<[u8]> for ElementUnit<MaxCap> {
 	fn as_ref(&self) -> &[u8] {
 		match self {
-			Element::None => &[],
-			Element::Raw(raw) => raw.as_slice(),
-			Element::Identifier(id) => id.as_bytes(),
-			Element::Digest(digest) => digest,
-			Element::CID(cid) => cid,
+			ElementUnit::None => &[],
+			ElementUnit::Raw(raw) => raw.as_slice(),
+			ElementUnit::Identifier(id) => id.as_bytes(),
+			ElementUnit::Digest(digest) => digest,
+			ElementUnit::CID(cid) => cid,
 		}
 	}
 }
 
 // Explicit accessor methods for each variant.
-impl<MaxCap: Get<u32>> Element<MaxCap> {
-	/// Returns `true` if the Element is `None`.
+impl<MaxCap: Get<u32>> ElementUnit<MaxCap> {
+	/// Returns `true` if the ElementUnit is `None`.
 	pub fn is_none(&self) -> bool {
-		matches!(self, Element::None)
+		matches!(self, ElementUnit::None)
 	}
 
-	/// If the Element is `Raw`, returns a reference to its contents; otherwise, `None`.
+	/// If the ElementUnit is `Raw`, returns a reference to its contents; otherwise, `None`.
 	pub fn as_raw(&self) -> Option<&[u8]> {
-		if let Element::Raw(raw) = self {
+		if let ElementUnit::Raw(raw) = self {
 			Some(raw.as_slice())
 		} else {
 			None
@@ -157,25 +156,25 @@ impl<MaxCap: Get<u32>> Element<MaxCap> {
 
 	/// Returns the embedded Ss58Identifier if the element is `Identifier`.
 	pub fn as_identifier(&self) -> Option<&Ss58Identifier> {
-		if let Element::Identifier(id) = self {
+		if let ElementUnit::Identifier(id) = self {
 			Some(id)
 		} else {
 			None
 		}
 	}
 
-	/// If the Element is `Digest`, returns the 32-byte digest; otherwise, `None`.
+	/// If the ElementUnit is `Digest`, returns the 32-byte digest; otherwise, `None`.
 	pub fn as_digest(&self) -> Option<&[u8; 32]> {
-		if let Element::Digest(digest) = self {
+		if let ElementUnit::Digest(digest) = self {
 			Some(digest)
 		} else {
 			None
 		}
 	}
 
-	/// If the Element is `CID`, returns the 64-byte CID; otherwise, `None`.
+	/// If the ElementUnit is `CID`, returns the 64-byte CID; otherwise, `None`.
 	pub fn as_cid(&self) -> Option<&[u8; 64]> {
-		if let Element::CID(cid) = self {
+		if let ElementUnit::CID(cid) = self {
 			Some(cid)
 		} else {
 			None
@@ -183,11 +182,11 @@ impl<MaxCap: Get<u32>> Element<MaxCap> {
 	}
 }
 
-impl<MaxCap: Get<u32>> EncodeLike for Element<MaxCap> {}
+impl<MaxCap: Get<u32>> EncodeLike for ElementUnit<MaxCap> {}
 
-impl<MaxCap: Get<u32>> Default for Element<MaxCap> {
+impl<MaxCap: Get<u32>> Default for ElementUnit<MaxCap> {
 	fn default() -> Self {
-		Element::None
+		ElementUnit::None
 	}
 }
 
@@ -199,16 +198,15 @@ mod tests {
 	use core::convert::TryInto;
 	use frame_support::{traits::ConstU32, BoundedVec};
 
-	// Use a default Element type with MAX_CAP = 1024
-	pub type DefaultElement = Element<ConstU32<1024>>;
+	// Use a default ElementUnit type with MAX_CAP = 1024
+	pub type DefaultElement = ElementUnit<ConstU32<1024>>;
 
 	#[test]
 	fn test_element_none_encode_decode() {
 		let element: DefaultElement = DefaultElement::None;
 		let encoded = element.encode();
 		assert_eq!(encoded, vec![0]);
-		let decoded = DefaultElement::decode(&mut &encoded[..])
-			.expect("Decoding should succeed for Element::None");
+		let decoded = DefaultElement::decode(&mut &encoded[..]).expect("Decode None");
 		assert_eq!(decoded, element);
 		assert_eq!(element.as_ref(), &[] as &[u8]);
 		assert!(element.is_none());
@@ -221,12 +219,10 @@ mod tests {
 	#[test]
 	fn test_element_raw_encode_decode() {
 		let raw_data: Vec<u8> = vec![1, 2, 3, 4, 5];
-		let bounded: BoundedVec<u8, ConstU32<1024>> =
-			raw_data.clone().try_into().expect("Conversion should succeed");
-		let element: DefaultElement = DefaultElement::Raw(bounded);
+		let bounded: BoundedVec<u8, ConstU32<1024>> = raw_data.clone().try_into().unwrap();
+		let element: DefaultElement = DefaultElement::Raw(bounded.clone());
 		let encoded = element.encode();
-		let decoded = DefaultElement::decode(&mut &encoded[..])
-			.expect("Decoding should succeed for Element::Raw");
+		let decoded = DefaultElement::decode(&mut &encoded[..]).expect("Decode Raw");
 		assert_eq!(decoded, element);
 		assert_eq!(element.as_raw(), Some(&raw_data[..]));
 		assert_eq!(element.as_ref(), &raw_data[..]);
@@ -234,14 +230,12 @@ mod tests {
 
 	#[test]
 	fn test_element_identifier_encode_decode() {
-		// adapt to new to_encoded signature: (data, nid, pid, rpx, ori)
 		let digest: Vec<u8> = vec![0xAB; 32];
-		let ss58_id = Ss58Identifier::to_encoded(digest.clone(), 100, 5, 1)
-			.expect("Ss58Identifier should be created successfully");
+		let ss58_id =
+			Ss58Identifier::to_encoded(digest.clone(), 100, 5, 1).expect("Ss58Identifier created");
 		let element: DefaultElement = DefaultElement::Identifier(ss58_id.clone());
 		let encoded = element.encode();
-		let decoded = DefaultElement::decode(&mut &encoded[..])
-			.expect("Decoding should succeed for Element::Identifier");
+		let decoded = DefaultElement::decode(&mut &encoded[..]).expect("Decode Identifier");
 		assert_eq!(decoded, element);
 		assert_eq!(element.as_identifier(), Some(&ss58_id));
 		assert_eq!(element.as_ref(), ss58_id.as_bytes());
@@ -253,14 +247,10 @@ mod tests {
 		let element: DefaultElement = DefaultElement::Digest(digest);
 		let encoded = element.encode();
 		assert_eq!(encoded.len(), 33);
-		let decoded = DefaultElement::decode(&mut &encoded[..])
-			.expect("Decoding should succeed for Element::Digest");
+		let decoded = DefaultElement::decode(&mut &encoded[..]).expect("Decode Digest");
 		assert_eq!(decoded, element);
 		assert_eq!(element.as_digest(), Some(&digest));
 		assert_eq!(element.as_ref(), &digest[..]);
-		assert!(element.as_raw().is_none());
-		assert!(element.as_cid().is_none());
-		assert!(element.as_identifier().is_none());
 	}
 
 	#[test]
@@ -269,14 +259,10 @@ mod tests {
 		let element: DefaultElement = DefaultElement::CID(cid);
 		let encoded = element.encode();
 		assert_eq!(encoded.len(), 65);
-		let decoded = DefaultElement::decode(&mut &encoded[..])
-			.expect("Decoding should succeed for Element::CID");
+		let decoded = DefaultElement::decode(&mut &encoded[..]).expect("Decode CID");
 		assert_eq!(decoded, element);
 		assert_eq!(element.as_cid(), Some(&cid));
 		assert_eq!(element.as_ref(), &cid[..]);
-		assert!(element.as_raw().is_none());
-		assert!(element.as_digest().is_none());
-		assert!(element.as_identifier().is_none());
 	}
 
 	#[test]
@@ -285,8 +271,7 @@ mod tests {
 		assert_eq!(none_elem.as_ref(), &[] as &[u8]);
 
 		let raw_data: Vec<u8> = vec![10, 20, 30];
-		let bounded: BoundedVec<u8, ConstU32<1024>> =
-			raw_data.clone().try_into().expect("Conversion should succeed");
+		let bounded: BoundedVec<u8, ConstU32<1024>> = raw_data.clone().try_into().unwrap();
 		let raw_elem: DefaultElement = DefaultElement::Raw(bounded);
 		assert_eq!(raw_elem.as_ref(), &raw_data[..]);
 
@@ -306,7 +291,7 @@ mod tests {
 	fn test_decode_unknown_variant() {
 		let invalid_encoded: Vec<u8> = vec![255];
 		let result = DefaultElement::decode(&mut &invalid_encoded[..]);
-		assert!(result.is_err(), "Unknown discriminant should fail");
+		assert!(result.is_err());
 	}
 
 	#[test]

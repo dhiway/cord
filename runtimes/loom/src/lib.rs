@@ -975,6 +975,7 @@ parameter_types! {
 	pub const MaxUsernameLength: u32 = 32;
 	pub const MaxSubAccounts: u32 = 32;
 	pub const MaxRawDataLength: u32 = 4096;
+	pub const MaxAdditionalAttributes: u32 = 32;
 }
 
 impl pallet_entity::Config for Runtime {
@@ -982,7 +983,8 @@ impl pallet_entity::Config for Runtime {
 	type Identifier = Identifier;
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxRawDataLength = MaxRawDataLength;
-	type EntityInformation = EntityInfo<MaxRawDataLength>;
+	type MaxAdditionalAttributes = MaxAdditionalAttributes;
+	type EntityInformation = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;

@@ -27,14 +27,15 @@ mod tests;
 
 mod benchmarking;
 pub mod entity;
-pub mod types;
 pub mod weights;
 
 extern crate alloc;
-use crate::types::Attribute;
-use alloc::{boxed::Box, vec::Vec};
+use alloc::{boxed::Box, fmt::Debug, vec::Vec};
 use codec::{Encode, EncodeLike};
-use cord_primitives::identifier::Ss58Identifier;
+use cord_primitives::{
+	doken::{Attribute, DokenInformationProvider, DokenUpdateError, DokenUpdateOp, Element},
+	identifier::Ss58Identifier,
+};
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -45,11 +46,10 @@ use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use pallet_identifier::{EventBlock, EventTypeOf, Identifier};
 use sp_runtime::traits::Hash;
-pub use types::{Data, EntityInformationProvider, EntityUpdateError, EntityUpdateOp};
 pub use weights::WeightInfo;
 
-pub type DataOf<T> = Data<<T as Config>::MaxRawDataLength>;
-pub type UpdateOpOf<T> = <<T as Config>::EntityInformation as EntityInformationProvider>::UpdateOp;
+pub type DataOf<T> = Element<<T as Config>::MaxRawDataLength>;
+pub type UpdateOpOf<T> = <<T as Config>::EntityInformation as DokenInformationProvider>::UpdateOp;
 pub type Username<T> = BoundedVec<u8, <T as Config>::MaxUsernameLength>;
 pub type AttributeUpdateKeyOpOf<T> = (Vec<u8>, DataOf<T>);
 
@@ -70,15 +70,29 @@ pub mod pallet {
 		type MaxSubAccounts: Get<u32>;
 
 		/// Structure holding information about an entity,
-		type EntityInformation: EntityInformationProvider<
-				FieldsIdentifier = u64,
+		type EntityInformation: DokenInformationProvider<
+				FieldMask = u64,
 				MaxRawDataLength = Self::MaxRawDataLength,
-				UpdateOp = EntityUpdateOp<Self::MaxRawDataLength>,
-			> + EncodeLike;
+				MaxAdditionalAttributes = Self::MaxAdditionalAttributes,
+				UpdateOp = DokenUpdateOp<Self::MaxRawDataLength>,
+			> + Encode
+			+ Decode
+			+ MaxEncodedLen
+			+ TypeInfo
+			+ EncodeLike
+			+ Clone
+			+ PartialEq
+			+ Eq
+			+ Debug
+			+ Default;
 
 		/// Maximum size for raw data fields.
 		#[pallet::constant]
 		type MaxRawDataLength: Get<u32>;
+
+		/// Maximum number of additional attributes allowed.
+		#[pallet::constant]
+		type MaxAdditionalAttributes: Get<u32>;
 
 		/// Max length for username prefix (before the dot).
 		#[pallet::constant]
@@ -347,9 +361,9 @@ pub mod pallet {
 						.clone()
 						.try_into()
 						.map_err(|_| Error::<T>::InvalidAttributeEntry)?;
-					let op = EntityUpdateOp::UpdateAttribute(key.clone(), val.clone());
+					let op = DokenUpdateOp::UpdateAttribute(key.clone(), val.clone());
 					info.apply_update(&op).map_err(|e| match e {
-						EntityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
+						DokenUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
 						_ => Error::<T>::InvalidAttributeEntry,
 					})?;
 				}
@@ -383,10 +397,10 @@ pub mod pallet {
 						.clone()
 						.try_into()
 						.map_err(|_| Error::<T>::InvalidAttributeEntry)?;
-					info.apply_update(&EntityUpdateOp::AddAttribute(key.clone(), val.clone()))
+					info.apply_update(&DokenUpdateOp::AddAttribute(key.clone(), val.clone()))
 						.map_err(|e| match e {
-							EntityUpdateError::AttributeExists => Error::<T>::AttributeExists,
-							EntityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
+							DokenUpdateError::AttributeExists => Error::<T>::AttributeExists,
+							DokenUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
 							_ => Error::<T>::InvalidAttributeEntry,
 						})?;
 				}
@@ -414,7 +428,7 @@ pub mod pallet {
 				key.clone().try_into().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
 			EntityInfoOf::<T>::try_mutate(&id, |opt| -> DispatchResult {
 				let info = opt.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
-				info.apply_update(&EntityUpdateOp::RemoveAttribute(attr.clone()))
+				info.apply_update(&DokenUpdateOp::RemoveAttribute(attr.clone()))
 					.map_err(|_| Error::<T>::AttributeNotFound)?;
 				Ok(())
 			})?;
@@ -423,7 +437,7 @@ pub mod pallet {
 				&(id.clone(), key.clone(), b"EntityAttributeRemoved".to_vec()).encode(),
 			);
 
-			Self::record_activity(&id, digest, b"EntityAttributeUpdated")?;
+			Self::record_activity(&id, digest, b"EntityAttributeRemoved")?;
 
 			Self::deposit_event(Event::EntityAttributeRemoved { who, id, attr });
 			Ok(())
@@ -447,7 +461,7 @@ pub mod pallet {
 			EntityInfoOf::<T>::try_mutate(&id, |opt| -> DispatchResult {
 				let info = opt.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
 				let old = info.get_key(&key[..]);
-				info.apply_update(&EntityUpdateOp::UpdateAttribute(attr.clone(), val.clone()))
+				info.apply_update(&DokenUpdateOp::UpdateAttribute(attr.clone(), val.clone()))
 					.map_err(|_| Error::<T>::AttributeNotFound)?;
 				let ver = Ss58OfAttributeVersion::<T>::get(&id, &attr).saturating_add(1);
 				Ss58OfAttributeVersion::<T>::insert(&id, &attr, ver);
@@ -784,11 +798,11 @@ impl<T: Config> Pallet<T> {
 	/// Check if `who` has _all_ of the requested `fields` in their on-chain identity.
 	pub fn has_info_fields(
 		who: &T::AccountId,
-		fields: <T::EntityInformation as EntityInformationProvider>::FieldsIdentifier,
+		mask: <T::EntityInformation as DokenInformationProvider>::FieldMask,
 	) -> bool {
 		Ss58OfActiveAccounts::<T>::get(who)
 			.and_then(|id| EntityInfoOf::<T>::get(&id))
-			.map_or(false, |info| info.has_info_fields(fields))
+			.map_or(false, |info| info.has_info_fields(mask))
 	}
 
 	/// Validates a username prefix

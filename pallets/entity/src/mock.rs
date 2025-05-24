@@ -16,8 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-// pallets/entity/src/mock.rs
-
 use super::*;
 use crate::{self as pallet_entity, entity::EntityInfo};
 use frame_support::{derive_impl, parameter_types};
@@ -59,6 +57,7 @@ impl pallet_balances::Config for Test {
 // our new runtime constants
 parameter_types! {
 	pub const MaxRawDataLength: u32 = 4096;
+	pub const MaxAdditionalAttributes: u32 = 32;
 	pub const MaxSubAccounts: u32 = 2;
 	pub const MaxUsernameLength: u32 = 20;
 }
@@ -67,8 +66,9 @@ impl pallet_entity::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Identifier = Identifier;
 	type MaxSubAccounts = MaxSubAccounts;
-	type EntityInformation = EntityInfo<MaxRawDataLength>;
+	type EntityInformation = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxRawDataLength = MaxRawDataLength;
+	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();

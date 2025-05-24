@@ -19,10 +19,10 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use crate::types::Data;
 use crate::Event as EntityEvent;
 use crate::Pallet as EntityPallet;
 use alloc::vec::Vec;
+use cord_primitives::doken::Element;
 use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_system::{Pallet as System, RawOrigin};
 use pallet_identifier::Identifier;
@@ -43,7 +43,7 @@ mod benchmarks {
 	#[benchmark]
 	fn set_info() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		let info = T::EntityInformation::create_entity_info();
+		let info = T::EntityInformation::create_info();
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), Box::new(info.clone()));
@@ -64,14 +64,14 @@ mod benchmarks {
 	fn update_info() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
 		// seed
-		let info = T::EntityInformation::create_entity_info();
+		let info = T::EntityInformation::create_info();
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
 			Box::new(info.clone()),
 		)
 		.unwrap();
 
-		let ops = vec![(b"display".to_vec(), Data::None)];
+		let ops = vec![(b"display".to_vec(), Element::None)];
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), ops.clone());
@@ -95,7 +95,7 @@ mod benchmarks {
 
 		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
 		let key = b"k".to_vec();
-		let val = Data::Raw(b"v".to_vec().try_into().unwrap());
+		let val = Element::Raw(b"v".to_vec().try_into().unwrap());
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), vec![(key.clone(), val.clone())]);
@@ -120,7 +120,7 @@ mod benchmarks {
 		// add the attr first
 		EntityPallet::<T>::add_attributes(
 			RawOrigin::Signed(caller.clone()).into(),
-			vec![(b"x".to_vec(), Data::None)],
+			vec![(b"x".to_vec(), Element::None)],
 		)
 		.unwrap();
 
@@ -152,11 +152,11 @@ mod benchmarks {
 		// add attribute so rotation can happen
 		EntityPallet::<T>::add_attributes(
 			RawOrigin::Signed(caller.clone()).into(),
-			vec![(b"r".to_vec(), Data::None)],
+			vec![(b"r".to_vec(), Element::None)],
 		)
 		.unwrap();
 
-		let new_val = Data::Raw(b"z".to_vec().try_into().unwrap());
+		let new_val = Element::Raw(b"z".to_vec().try_into().unwrap());
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), b"r".to_vec(), new_val.clone());
 
@@ -178,7 +178,7 @@ mod benchmarks {
 		let sub: T::AccountId = account("s", 0, 0);
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInformation::create_entity_info()),
+			Box::new(T::EntityInformation::create_info()),
 		)
 		.unwrap();
 		let id = EntityPallet::<T>::lookup_id_of(&caller).unwrap();
@@ -198,7 +198,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInformation::create_entity_info()),
+			Box::new(T::EntityInformation::create_info()),
 		)
 		.unwrap();
 		EntityPallet::<T>::set_sub_account(RawOrigin::Signed(caller.clone()).into(), sub.clone())
@@ -220,7 +220,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInformation::create_entity_info()),
+			Box::new(T::EntityInformation::create_info()),
 		)
 		.unwrap();
 		EntityPallet::<T>::set_sub_account(RawOrigin::Signed(caller.clone()).into(), sub.clone())
@@ -242,7 +242,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInformation::create_entity_info()),
+			Box::new(T::EntityInformation::create_info()),
 		)
 		.unwrap();
 
@@ -262,7 +262,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInformation::create_entity_info()),
+			Box::new(T::EntityInformation::create_info()),
 		)
 		.unwrap();
 
@@ -281,7 +281,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInformation::create_entity_info()),
+			Box::new(T::EntityInformation::create_info()),
 		)
 		.unwrap();
 
@@ -300,7 +300,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInformation::create_entity_info()),
+			Box::new(T::EntityInformation::create_info()),
 		)
 		.unwrap();
 
@@ -320,7 +320,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInformation::create_entity_info()),
+			Box::new(T::EntityInformation::create_info()),
 		)
 		.unwrap();
 
@@ -344,7 +344,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInformation::create_entity_info()),
+			Box::new(T::EntityInformation::create_info()),
 		)
 		.unwrap();
 		EntityPallet::<T>::set_id_name(RawOrigin::Signed(caller.clone()).into(), b"bench".to_vec())
