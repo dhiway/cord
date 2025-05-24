@@ -66,7 +66,7 @@ impl pallet_entity::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Identifier = Identifier;
 	type MaxSubAccounts = MaxSubAccounts;
-	type EntityInformation = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
+	type EntityInfoDoket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxUsernameLength = MaxUsernameLength;

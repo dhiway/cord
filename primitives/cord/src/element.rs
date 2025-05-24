@@ -27,7 +27,7 @@ use codec::{Compact, Decode, DecodeWithMemTracking, Encode, EncodeLike, MaxEncod
 use frame_support::{traits::Get, BoundedVec, CloneNoBound, RuntimeDebugNoBound};
 use scale_info::TypeInfo;
 
-/// The `ElementUnit` enum supports the following variants:
+/// The `Elum` enum supports the following variants:
 /// - None: Indicates that no data is provided.
 /// - Raw: Contains data stored directly as a bounded vector; the capacity is specified by `MAX_CAP`.
 /// - Identifier: An embedded Ss58Identifier.
@@ -35,7 +35,7 @@ use scale_info::TypeInfo;
 /// - CID: A fixed 64-byte content identifier.
 #[derive(CloneNoBound, DecodeWithMemTracking, RuntimeDebugNoBound, MaxEncodedLen, TypeInfo)]
 #[scale_info(skip_type_params(MaxCap))]
-pub enum ElementUnit<MaxCap: Get<u32>> {
+pub enum Elum<MaxCap: Get<u32>> {
 	/// No data provided.
 	None,
 	/// Raw data stored directly.
@@ -49,11 +49,11 @@ pub enum ElementUnit<MaxCap: Get<u32>> {
 }
 
 // Custom Encode implementation with a one-byte discriminant.
-impl<MaxCap: Get<u32>> Encode for ElementUnit<MaxCap> {
+impl<MaxCap: Get<u32>> Encode for Elum<MaxCap> {
 	fn encode(&self) -> Vec<u8> {
 		match self {
-			ElementUnit::None => vec![0],
-			ElementUnit::Raw(raw) => {
+			Elum::None => vec![0],
+			Elum::Raw(raw) => {
 				let slice = raw.as_slice();
 				let mut out = Vec::with_capacity(1 + 4 + slice.len());
 				out.push(1);
@@ -61,20 +61,20 @@ impl<MaxCap: Get<u32>> Encode for ElementUnit<MaxCap> {
 				out.extend_from_slice(slice);
 				out
 			},
-			ElementUnit::Identifier(id) => {
+			Elum::Identifier(id) => {
 				let id_bytes = id.encode();
 				let mut out = Vec::with_capacity(1 + id_bytes.len());
 				out.push(2);
 				out.extend(id_bytes);
 				out
 			},
-			ElementUnit::Digest(d) => {
+			Elum::Digest(d) => {
 				let mut out = Vec::with_capacity(1 + 32);
 				out.push(3);
 				out.extend(d.encode());
 				out
 			},
-			ElementUnit::CID(c) => {
+			Elum::CID(c) => {
 				let mut out = Vec::with_capacity(1 + 64);
 				out.push(4);
 				out.extend(c.encode());
@@ -84,70 +84,70 @@ impl<MaxCap: Get<u32>> Encode for ElementUnit<MaxCap> {
 	}
 }
 
-impl<MaxCap: Get<u32>> Decode for ElementUnit<MaxCap> {
+impl<MaxCap: Get<u32>> Decode for Elum<MaxCap> {
 	fn decode<I: codec::Input>(input: &mut I) -> Result<Self, codec::Error> {
 		let variant = input.read_byte()?;
 		match variant {
-			0 => Ok(ElementUnit::None),
+			0 => Ok(Elum::None),
 			1 => {
 				let raw = BoundedVec::<u8, MaxCap>::decode(input)?;
-				Ok(ElementUnit::Raw(raw))
+				Ok(Elum::Raw(raw))
 			},
 			2 => {
 				let id = Ss58Identifier::decode(input)?;
-				Ok(ElementUnit::Identifier(id))
+				Ok(Elum::Identifier(id))
 			},
 			3 => {
 				let hash = <[u8; 32]>::decode(input)?;
-				Ok(ElementUnit::Digest(hash))
+				Ok(Elum::Digest(hash))
 			},
 			4 => {
 				let cid = <[u8; 64]>::decode(input)?;
-				Ok(ElementUnit::CID(cid))
+				Ok(Elum::CID(cid))
 			},
-			_ => Err("Unknown variant for ElementUnit".into()),
+			_ => Err("Unknown variant for Elum".into()),
 		}
 	}
 }
 
-impl<MaxCap: Get<u32>> PartialEq for ElementUnit<MaxCap> {
+impl<MaxCap: Get<u32>> PartialEq for Elum<MaxCap> {
 	fn eq(&self, other: &Self) -> bool {
 		match (self, other) {
-			(ElementUnit::None, ElementUnit::None) => true,
-			(ElementUnit::Raw(a), ElementUnit::Raw(b)) => a == b,
-			(ElementUnit::Identifier(a), ElementUnit::Identifier(b)) => a == b,
-			(ElementUnit::Digest(a), ElementUnit::Digest(b)) => a == b,
-			(ElementUnit::CID(a), ElementUnit::CID(b)) => a == b,
+			(Elum::None, Elum::None) => true,
+			(Elum::Raw(a), Elum::Raw(b)) => a == b,
+			(Elum::Identifier(a), Elum::Identifier(b)) => a == b,
+			(Elum::Digest(a), Elum::Digest(b)) => a == b,
+			(Elum::CID(a), Elum::CID(b)) => a == b,
 			_ => false,
 		}
 	}
 }
 
-impl<MaxCap: Get<u32>> Eq for ElementUnit<MaxCap> {}
+impl<MaxCap: Get<u32>> Eq for Elum<MaxCap> {}
 
 // Provide a unified AsRef<[u8]> implementation to obtain a view of the inner bytes.
-impl<MaxCap: Get<u32>> AsRef<[u8]> for ElementUnit<MaxCap> {
+impl<MaxCap: Get<u32>> AsRef<[u8]> for Elum<MaxCap> {
 	fn as_ref(&self) -> &[u8] {
 		match self {
-			ElementUnit::None => &[],
-			ElementUnit::Raw(raw) => raw.as_slice(),
-			ElementUnit::Identifier(id) => id.as_bytes(),
-			ElementUnit::Digest(digest) => digest,
-			ElementUnit::CID(cid) => cid,
+			Elum::None => &[],
+			Elum::Raw(raw) => raw.as_slice(),
+			Elum::Identifier(id) => id.as_bytes(),
+			Elum::Digest(digest) => digest,
+			Elum::CID(cid) => cid,
 		}
 	}
 }
 
 // Explicit accessor methods for each variant.
-impl<MaxCap: Get<u32>> ElementUnit<MaxCap> {
-	/// Returns `true` if the ElementUnit is `None`.
+impl<MaxCap: Get<u32>> Elum<MaxCap> {
+	/// Returns `true` if the Elum is `None`.
 	pub fn is_none(&self) -> bool {
-		matches!(self, ElementUnit::None)
+		matches!(self, Elum::None)
 	}
 
-	/// If the ElementUnit is `Raw`, returns a reference to its contents; otherwise, `None`.
+	/// If the Elum is `Raw`, returns a reference to its contents; otherwise, `None`.
 	pub fn as_raw(&self) -> Option<&[u8]> {
-		if let ElementUnit::Raw(raw) = self {
+		if let Elum::Raw(raw) = self {
 			Some(raw.as_slice())
 		} else {
 			None
@@ -156,25 +156,25 @@ impl<MaxCap: Get<u32>> ElementUnit<MaxCap> {
 
 	/// Returns the embedded Ss58Identifier if the element is `Identifier`.
 	pub fn as_identifier(&self) -> Option<&Ss58Identifier> {
-		if let ElementUnit::Identifier(id) = self {
+		if let Elum::Identifier(id) = self {
 			Some(id)
 		} else {
 			None
 		}
 	}
 
-	/// If the ElementUnit is `Digest`, returns the 32-byte digest; otherwise, `None`.
+	/// If the Elum is `Digest`, returns the 32-byte digest; otherwise, `None`.
 	pub fn as_digest(&self) -> Option<&[u8; 32]> {
-		if let ElementUnit::Digest(digest) = self {
+		if let Elum::Digest(digest) = self {
 			Some(digest)
 		} else {
 			None
 		}
 	}
 
-	/// If the ElementUnit is `CID`, returns the 64-byte CID; otherwise, `None`.
+	/// If the Elum is `CID`, returns the 64-byte CID; otherwise, `None`.
 	pub fn as_cid(&self) -> Option<&[u8; 64]> {
-		if let ElementUnit::CID(cid) = self {
+		if let Elum::CID(cid) = self {
 			Some(cid)
 		} else {
 			None
@@ -182,11 +182,11 @@ impl<MaxCap: Get<u32>> ElementUnit<MaxCap> {
 	}
 }
 
-impl<MaxCap: Get<u32>> EncodeLike for ElementUnit<MaxCap> {}
+impl<MaxCap: Get<u32>> EncodeLike for Elum<MaxCap> {}
 
-impl<MaxCap: Get<u32>> Default for ElementUnit<MaxCap> {
+impl<MaxCap: Get<u32>> Default for Elum<MaxCap> {
 	fn default() -> Self {
-		ElementUnit::None
+		Elum::None
 	}
 }
 
@@ -198,8 +198,8 @@ mod tests {
 	use core::convert::TryInto;
 	use frame_support::{traits::ConstU32, BoundedVec};
 
-	// Use a default ElementUnit type with MAX_CAP = 1024
-	pub type DefaultElement = ElementUnit<ConstU32<1024>>;
+	// Use a default Elum type with MAX_CAP = 1024
+	pub type DefaultElement = Elum<ConstU32<1024>>;
 
 	#[test]
 	fn test_element_none_encode_decode() {

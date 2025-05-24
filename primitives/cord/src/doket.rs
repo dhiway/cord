@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::element::ElementUnit;
+use crate::element::Elum;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
 	traits::{ConstU32, Get},
@@ -25,7 +25,7 @@ use frame_support::{
 use scale_info::TypeInfo;
 
 /// The raw‐data type used throughout the entity pallet.
-pub type Element<MaxRawDataLength> = ElementUnit<MaxRawDataLength>;
+pub type Element<MaxRawDataLength> = Elum<MaxRawDataLength>;
 
 /// Maximum length for an additional‐field key.
 pub type Attribute = BoundedVec<u8, ConstU32<64>>;
@@ -36,7 +36,7 @@ pub type Attributes<MaxRawDataLength, MaxAdditionalAttributes> =
 
 /// Errors that can occur when applying a single update.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DokenUpdateError {
+pub enum DoketUpdateError {
 	AttributeExists,
 	TooManyAttributes,
 	AttributeNotFound,
@@ -55,14 +55,14 @@ pub enum DokenUpdateError {
 	TypeInfo,
 )]
 #[scale_info(skip_type_params(MaxRawDataLength))]
-pub enum DokenUpdateOp<MaxRawDataLength: Get<u32>> {
+pub enum DoketUpdateOp<MaxRawDataLength: Get<u32>> {
 	AddAttribute(Attribute, Element<MaxRawDataLength>),
 	RemoveAttribute(Attribute),
 	UpdateAttribute(Attribute, Element<MaxRawDataLength>),
 }
 
 /// Core trait for “doken” info.
-pub trait DokenInformationProvider {
+pub trait DoketInformationProvider {
 	/// Bitmask type for which fields are set/updated.
 	type FieldMask: Encode + Decode + MaxEncodedLen + TypeInfo + Default;
 
@@ -97,7 +97,7 @@ pub trait DokenInformationProvider {
 	fn has_info_fields(&self, mask: Self::FieldMask) -> bool;
 
 	/// Apply one operation.
-	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), DokenUpdateError>;
+	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), DoketUpdateError>;
 
 	/// Helper function - Benchmarking and tests
 	fn create_info() -> Self

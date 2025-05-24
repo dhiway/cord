@@ -19,8 +19,8 @@
 use super::*;
 use alloc::{vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use cord_primitives::doken::{
-	Attribute, Attributes, DokenInformationProvider, DokenUpdateError, DokenUpdateOp, Element,
+use cord_primitives::doket::{
+	Attribute, Attributes, DoketInformationProvider, DoketUpdateError, DoketUpdateOp, Element,
 };
 use enumflags2::{bitflags, BitFlag, BitFlags};
 use frame_support::{
@@ -48,7 +48,7 @@ impl pallet_entity::Config for Runtime {
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
-	type EntityInformation = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
+	type EntityInfoDoket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;
@@ -146,12 +146,12 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 }
 
 impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
-	DokenInformationProvider for EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>
+	DoketInformationProvider for EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>
 {
 	type FieldMask = u64;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
-	type UpdateOp = DokenUpdateOp<MaxRawDataLength>;
+	type UpdateOp = DoketUpdateOp<MaxRawDataLength>;
 
 	fn attributes(
 		&self,
@@ -186,37 +186,37 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 
 	fn apply_update(
 		&mut self,
-		op: &DokenUpdateOp<MaxRawDataLength>,
-	) -> Result<(), DokenUpdateError> {
+		op: &DoketUpdateOp<MaxRawDataLength>,
+	) -> Result<(), DoketUpdateError> {
 		match op {
-			DokenUpdateOp::AddAttribute(k, v) => {
-				ensure!(EntityField::from_bytes(k).is_none(), DokenUpdateError::AttributeExists);
+			DoketUpdateOp::AddAttribute(k, v) => {
+				ensure!(EntityField::from_bytes(k).is_none(), DoketUpdateError::AttributeExists);
 				let attrs = self.attributes.get_or_insert_with(Default::default);
 				if attrs.iter().any(|(kk, _)| kk == k) {
-					return Err(DokenUpdateError::AttributeExists);
+					return Err(DoketUpdateError::AttributeExists);
 				}
 				attrs
 					.try_push((k.clone(), v.clone()))
-					.map_err(|_| DokenUpdateError::TooManyAttributes)
+					.map_err(|_| DoketUpdateError::TooManyAttributes)
 			},
 
-			DokenUpdateOp::RemoveAttribute(k) => {
+			DoketUpdateOp::RemoveAttribute(k) => {
 				if let Some(field) = EntityField::from_bytes(k) {
 					match field {
 						EntityField::Display => self.display = Element::default(),
 						EntityField::Legal => self.legal = Element::default(),
 						EntityField::Web => self.web = Element::default(),
 						EntityField::Attributes => {
-							return Err(DokenUpdateError::AttributeNotFound);
+							return Err(DoketUpdateError::AttributeNotFound);
 						},
 					}
 				} else {
 					let attrs =
-						self.attributes.as_mut().ok_or(DokenUpdateError::AttributeNotFound)?;
+						self.attributes.as_mut().ok_or(DoketUpdateError::AttributeNotFound)?;
 					let idx = attrs
 						.iter()
 						.position(|(kk, _)| kk == k)
-						.ok_or(DokenUpdateError::AttributeNotFound)?;
+						.ok_or(DoketUpdateError::AttributeNotFound)?;
 					attrs.swap_remove(idx);
 					if attrs.is_empty() {
 						self.attributes = None;
@@ -225,23 +225,23 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 				Ok(())
 			},
 
-			DokenUpdateOp::UpdateAttribute(k, v) => {
+			DoketUpdateOp::UpdateAttribute(k, v) => {
 				if let Some(field) = EntityField::from_bytes(k) {
 					match field {
 						EntityField::Display => self.display = v.clone(),
 						EntityField::Legal => self.legal = v.clone(),
 						EntityField::Web => self.web = v.clone(),
 						EntityField::Attributes => {
-							return Err(DokenUpdateError::AttributeNotFound);
+							return Err(DoketUpdateError::AttributeNotFound);
 						},
 					}
 				} else {
 					let attrs =
-						self.attributes.as_mut().ok_or(DokenUpdateError::AttributeNotFound)?;
+						self.attributes.as_mut().ok_or(DoketUpdateError::AttributeNotFound)?;
 					let slot = attrs
 						.iter_mut()
 						.find(|(kk, _)| kk == k)
-						.ok_or(DokenUpdateError::AttributeNotFound)?;
+						.ok_or(DoketUpdateError::AttributeNotFound)?;
 					slot.1 = v.clone();
 				}
 				Ok(())
