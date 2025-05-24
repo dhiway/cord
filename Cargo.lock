@@ -2605,9 +2605,7 @@ version = "0.9.7"
 dependencies = [
  "blake2 0.10.6",
  "bs58",
- "frame-benchmarking",
  "frame-support",
- "frame-system",
  "hex",
  "pallet-balances",
  "parity-scale-codec",

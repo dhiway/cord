@@ -984,7 +984,7 @@ impl pallet_entity::Config for Runtime {
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
-	type EntityInformation = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
+	type EntityInfoDoket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;

@@ -20,10 +20,10 @@
 
 extern crate alloc;
 pub mod element;
-pub use crate::element::ElementUnit;
-pub mod doken;
-pub use crate::doken::{
-	Attribute, Attributes, DokenInformationProvider, DokenUpdateError, DokenUpdateOp, Element,
+pub use crate::element::Elum;
+pub mod doket;
+pub use crate::doket::{
+	Attribute, Attributes, DoketInformationProvider, DoketUpdateError, DoketUpdateOp, Element,
 };
 pub mod identifier;
 pub use crate::identifier::Ss58Identifier;
