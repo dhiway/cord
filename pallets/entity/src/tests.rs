@@ -35,7 +35,7 @@ fn plain_data(s: &[u8]) -> Element<MaxRawDataLength> {
 fn init_with_display(who: AccountId, disp: &[u8]) -> Ss58Identifier {
 	let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 	info.display = plain_data(disp);
-	assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)));
+	assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), info));
 	Ss58OfActiveAccounts::<Test>::get(&who).unwrap()
 }
 
@@ -66,10 +66,7 @@ mod set_info_tests {
 			let who = account(2);
 			let _ = init_with_display(who.clone(), b"x");
 			assert_noop!(
-				Entity::set_info(
-					RuntimeOrigin::signed(who.clone()),
-					Box::new(EntityInfo::default())
-				),
+				Entity::set_info(RuntimeOrigin::signed(who.clone()), EntityInfo::default()),
 				Error::<Test>::EntitySubAccount
 			);
 		});
@@ -87,7 +84,7 @@ mod set_info_tests {
 			info.attributes.as_mut().unwrap().try_push((empty, plain_data(b"v"))).unwrap();
 
 			assert_noop!(
-				Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)),
+				Entity::set_info(RuntimeOrigin::signed(who.clone()), info),
 				Error::<Test>::InvalidAttributeEntry
 			);
 		});
@@ -106,7 +103,7 @@ mod set_info_tests {
 			info.attributes.as_mut().unwrap().try_push((attr.clone(), v1)).unwrap();
 
 			assert_noop!(
-				Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)),
+				Entity::set_info(RuntimeOrigin::signed(who.clone()), info),
 				Error::<Test>::DuplicateAttributeKey
 			);
 		});
@@ -212,10 +209,9 @@ mod update_info_tests {
 				RuntimeOrigin::signed(who.clone()),
 				vec![(b"key".to_vec(), plain_data(b"v1"))]
 			));
-			assert_ok!(Entity::update_info(
-				RuntimeOrigin::signed(who.clone()),
-				vec![(b"key".to_vec(), plain_data(b"v2"))]
-			));
+			let raw_ops = vec![(b"key".to_vec(), plain_data(b"v2"))];
+			let ops: BoundedVec<_, _> = raw_ops.try_into().unwrap();
+			assert_ok!(Entity::update_info(RuntimeOrigin::signed(who.clone()), ops));
 
 			let stored = EntityInfoOf::<Test>::get(&doken).unwrap();
 			let attrs = stored.attributes.unwrap();
@@ -229,11 +225,10 @@ mod update_info_tests {
 			let who = account(10);
 			let _ = init_with_display(who.clone(), b"x");
 
+			let raw_ops = vec![(b"nope".to_vec(), plain_data(b"x"))];
+			let ops: BoundedVec<_, _> = raw_ops.try_into().unwrap();
 			assert_noop!(
-				Entity::update_info(
-					RuntimeOrigin::signed(who.clone()),
-					vec![(b"nope".to_vec(), plain_data(b"x"))]
-				),
+				Entity::update_info(RuntimeOrigin::signed(who.clone()), ops),
 				Error::<Test>::AttributeNotFound
 			);
 		});
@@ -246,11 +241,10 @@ mod update_info_tests {
 			let _ = init_with_display(who.clone(), b"x");
 			let other = account(12);
 
+			let raw_ops = vec![(b"some".to_vec(), plain_data(b"v"))];
+			let ops: BoundedVec<_, _> = raw_ops.try_into().unwrap();
 			assert_noop!(
-				Entity::update_info(
-					RuntimeOrigin::signed(other.clone()),
-					vec![(b"some".to_vec(), plain_data(b"v"))]
-				),
+				Entity::update_info(RuntimeOrigin::signed(other.clone()), ops),
 				Error::<Test>::AccountNotFound
 			);
 		});
@@ -354,7 +348,7 @@ mod sub_accounts_tests {
 			let sub3 = account(16);
 			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
-			assert_ok!(Entity::set_info(RuntimeOrigin::signed(main.clone()), Box::new(info)));
+			assert_ok!(Entity::set_info(RuntimeOrigin::signed(main.clone()), info));
 
 			// two subs ok if MaxSubAccounts = 2
 			assert_ok!(Entity::set_sub_account(RuntimeOrigin::signed(main.clone()), sub1.clone()));
@@ -373,7 +367,7 @@ mod sub_accounts_tests {
 			let sub = account(18);
 			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
-			assert_ok!(Entity::set_info(RuntimeOrigin::signed(main.clone()), Box::new(info)));
+			assert_ok!(Entity::set_info(RuntimeOrigin::signed(main.clone()), info));
 			assert_ok!(Entity::set_sub_account(RuntimeOrigin::signed(main.clone()), sub.clone()));
 
 			// revoke
@@ -400,7 +394,7 @@ mod controller_rotation_and_clear_tests {
 			let newc = account(20);
 			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
-			assert_ok!(Entity::set_info(RuntimeOrigin::signed(owner.clone()), Box::new(info)));
+			assert_ok!(Entity::set_info(RuntimeOrigin::signed(owner.clone()), info));
 
 			// rotate self
 			assert_ok!(Entity::rotate_controller(
@@ -428,7 +422,7 @@ mod controller_rotation_and_clear_tests {
 			let sub = account(22);
 			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
-			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)));
+			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), info));
 			assert_ok!(Entity::set_sub_account(RuntimeOrigin::signed(who.clone()), sub.clone()));
 
 			let doken = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
@@ -438,7 +432,7 @@ mod controller_rotation_and_clear_tests {
 			// re-set and then root-clear
 			let mut info2 = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info2.display = plain_data(b"y");
-			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info2)));
+			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), info2));
 			let id2 = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
 			assert_ok!(Entity::clear_everything_for(RuntimeOrigin::root(), id2.clone()));
 			assert!(!EntityInfoOf::<Test>::contains_key(&id2));
@@ -455,7 +449,7 @@ mod id_name_tests {
 			let who = account(23);
 			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
-			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)));
+			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), info));
 
 			// invalid prefix
 			assert_noop!(

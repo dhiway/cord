@@ -8789,8 +8789,8 @@ dependencies = [
 name = "pallet-entity"
 version = "0.9.7"
 dependencies = [
+ "bitflags 1.3.2",
  "cord-primitives",
- "enumflags2",
  "frame-benchmarking",
  "frame-support",
  "frame-system",

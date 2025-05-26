@@ -31,7 +31,7 @@ pub mod entity;
 pub mod weights;
 
 extern crate alloc;
-use alloc::{boxed::Box, fmt::Debug, vec::Vec};
+use alloc::{fmt::Debug, vec::Vec};
 use codec::{Encode, EncodeLike};
 use cord_primitives::{
 	doket::{Attribute, DoketInformationProvider, DoketUpdateError, DoketUpdateOp, Element},
@@ -94,6 +94,10 @@ pub mod pallet {
 		/// Maximum number of additional attributes allowed.
 		#[pallet::constant]
 		type MaxAdditionalAttributes: Get<u32>;
+
+		/// Max number of update operations in a single call
+		#[pallet::constant]
+		type MaxUpdateAttributeOps: Get<u32>;
 
 		/// Max length for username prefix (before the dot).
 		#[pallet::constant]
@@ -212,8 +216,6 @@ pub mod pallet {
 		InvalidIndex,
 		/// The target is invalid.
 		InvalidTarget,
-		// /// The entity length is not valid.
-		// InvalidIdentifierLength,
 		/// The doken inputs are not valid.
 		DokenCreationFailed,
 		/// The provided event type is invalid.
@@ -299,11 +301,11 @@ pub mod pallet {
 		/// Set an entity's information and generate an entity doken.
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::set_info(info.encoded_size() as u32))]
-		pub fn set_info(origin: OriginFor<T>, info: Box<T::EntityInfoDoket>) -> DispatchResult {
+		pub fn set_info(origin: OriginFor<T>, info: T::EntityInfoDoket) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(!Ss58OfActiveAccounts::<T>::contains_key(&who), Error::<T>::EntitySubAccount);
 
-			let info = *info;
+			// let info = *info;
 			if let Some(attributes) = info.attributes() {
 				ensure!(
 					!attributes.iter().any(|(key, _)| key.is_empty()),
@@ -345,7 +347,7 @@ pub mod pallet {
 		#[pallet::weight(T::WeightInfo::update_info(ops.encoded_size() as u32))]
 		pub fn update_info(
 			origin: OriginFor<T>,
-			ops: Vec<AttributeUpdateKeyOpOf<T>>,
+			ops: BoundedVec<AttributeUpdateKeyOpOf<T>, T::MaxUpdateAttributeOps>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let doken = Self::lookup_doken_of(&who)?;

@@ -34,6 +34,7 @@ parameter_types! {
 	pub const MaxRawDataLength: u32 = 4096;
 	pub const MaxUsernameLength: u32 = 32;
 	pub const MaxAdditionalAttributes: u32 = 32;
+	pub const MaxUpdateAttributeOps: u32 = 32;
 	pub const GeneralAdminBodyId: BodyId = BodyId::Administration;
 }
 
@@ -48,6 +49,7 @@ impl pallet_entity::Config for Runtime {
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
+	type MaxUpdateAttributeOps = MaxUpdateAttributeOps;
 	type EntityInfoDoket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;

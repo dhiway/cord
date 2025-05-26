@@ -46,7 +46,7 @@ mod benchmarks {
 		let info = T::EntityInfoDoket::create_info();
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(caller.clone()), Box::new(info.clone()));
+		_(RawOrigin::Signed(caller.clone()), info.clone());
 
 		// rebuild the doken exactly as the pallet does:
 		let digest = <T as frame_system::Config>::Hashing::hash(
@@ -67,16 +67,14 @@ mod benchmarks {
 		let caller: T::AccountId = whitelisted_caller();
 		// seed
 		let info = T::EntityInfoDoket::create_info();
-		EntityPallet::<T>::set_info(
-			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(info.clone()),
-		)
-		.unwrap();
+		EntityPallet::<T>::set_info(RawOrigin::Signed(caller.clone()).into(), info.clone())
+			.unwrap();
 
 		let ops = vec![(b"display".to_vec(), Element::None)];
+		let bounded: BoundedVec<_, _> = ops.clone().try_into().unwrap();
 
 		#[extrinsic_call]
-		_(RawOrigin::Signed(caller.clone()), ops.clone());
+		_(RawOrigin::Signed(caller.clone()), bounded);
 
 		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
 		assert_last_event::<T>(
@@ -91,7 +89,7 @@ mod benchmarks {
 		let caller: T::AccountId = whitelisted_caller();
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(<T::EntityInfoDoket as Default>::default()),
+			<T::EntityInfoDoket as Default>::default(),
 		)
 		.unwrap();
 
@@ -114,7 +112,7 @@ mod benchmarks {
 		let caller: T::AccountId = whitelisted_caller();
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(<T::EntityInfoDoket as Default>::default()),
+			<T::EntityInfoDoket as Default>::default(),
 		)
 		.unwrap();
 		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
@@ -146,7 +144,7 @@ mod benchmarks {
 		let caller: T::AccountId = whitelisted_caller();
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(<T::EntityInfoDoket as Default>::default()),
+			<T::EntityInfoDoket as Default>::default(),
 		)
 		.unwrap();
 		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
@@ -180,7 +178,7 @@ mod benchmarks {
 		let sub: T::AccountId = account("s", 0, 0);
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			T::EntityInfoDoket::create_info(),
 		)
 		.unwrap();
 		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
@@ -200,7 +198,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			T::EntityInfoDoket::create_info(),
 		)
 		.unwrap();
 		EntityPallet::<T>::set_sub_account(RawOrigin::Signed(caller.clone()).into(), sub.clone())
@@ -222,7 +220,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			T::EntityInfoDoket::create_info(),
 		)
 		.unwrap();
 		EntityPallet::<T>::set_sub_account(RawOrigin::Signed(caller.clone()).into(), sub.clone())
@@ -244,7 +242,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			T::EntityInfoDoket::create_info(),
 		)
 		.unwrap();
 
@@ -266,7 +264,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			T::EntityInfoDoket::create_info(),
 		)
 		.unwrap();
 
@@ -287,7 +285,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			T::EntityInfoDoket::create_info(),
 		)
 		.unwrap();
 
@@ -306,7 +304,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			T::EntityInfoDoket::create_info(),
 		)
 		.unwrap();
 
@@ -326,7 +324,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			T::EntityInfoDoket::create_info(),
 		)
 		.unwrap();
 
@@ -350,7 +348,7 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			T::EntityInfoDoket::create_info(),
 		)
 		.unwrap();
 		EntityPallet::<T>::set_id_name(RawOrigin::Signed(caller.clone()).into(), b"bench".to_vec())

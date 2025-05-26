@@ -58,6 +58,7 @@ impl pallet_balances::Config for Test {
 parameter_types! {
 	pub const MaxRawDataLength: u32 = 4096;
 	pub const MaxAdditionalAttributes: u32 = 32;
+	pub const MaxUpdateAttributeOps: u32 = 32;
 	pub const MaxSubAccounts: u32 = 2;
 	pub const MaxUsernameLength: u32 = 20;
 }
@@ -69,6 +70,7 @@ impl pallet_entity::Config for Test {
 	type EntityInfoDoket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
+	type MaxUpdateAttributeOps = MaxUpdateAttributeOps;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
