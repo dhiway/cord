@@ -33,6 +33,9 @@ use frame_election_provider_support::{
 	SequentialPhragmen,
 };
 
+use pallet_entry::{RegistryIdOf, RegistryEntryIdOf};
+mod registry_entry_api;
+
 use frame_support::{
 	derive_impl,
 	genesis_builder_helper::{build_state, get_preset},
@@ -2532,6 +2535,12 @@ impl_runtime_apis! {
 
 		fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
 			vec![]
+		}
+	}
+	
+	impl crate::registry_entry_api::RegistryEntryApi<Block, Hash, RegistryIdOf> for Runtime {
+		fn verify_digest(digest: Hash, registry_id: Option<RegistryIdOf>) -> Option<RegistryEntryIdOf> {
+			pallet_entry::Pallet::<Runtime>::verify_digest(digest, registry_id).ok().flatten()
 		}
 	}
 }

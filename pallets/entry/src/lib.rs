@@ -66,6 +66,7 @@ pub use types::RegistryEntryDetails;
 pub use cord_primitives::StatusOf;
 use pallet_profile::ProfileIdOf;
 use pallet_registry::{Permissions, RegistryIdentifierOf};
+// use alloc::string::String;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -601,6 +602,16 @@ pub mod pallet {
 	}
 }
 
+// pub trait Ss58Encoding {
+//     fn to_ss58check(&self) -> String;
+// }
+
+// impl Ss58Encoding for Ss58Identifier {
+//     fn to_ss58check(&self) -> String {
+//         sp_core::crypto::Ss58Codec::to_ss58check(&self.0) // Assuming `self.0` contains the raw bytes
+//     }
+// }
+
 impl<T: Config> Pallet<T> {
 	/// Records an activity using a provided event message.
 	pub fn record_activity(
@@ -615,4 +626,21 @@ impl<T: Config> Pallet<T> {
 			.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
 	}
+
+	pub fn verify_digest(
+        digest: T::Hash,
+        registry_id: Option<RegistryIdOf>,
+    ) -> Result<Option<RegistryEntryIdOf>, Error<T>> {
+        let mut registry_entry_identifier: Option<RegistryEntryIdOf> = None;
+
+        if let Some(registry_id) = registry_id {
+            registry_entry_identifier = <HashToIdentifier<T>>::get(&digest, registry_id);
+       } else {
+			for (_registry_id, entry_id) in <HashToIdentifier<T>>::iter_prefix(&digest) {
+				registry_entry_identifier = Some(entry_id);
+			}
+		}
+
+       	Ok(registry_entry_identifier)
+    }
 }
