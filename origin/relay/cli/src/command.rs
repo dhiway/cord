@@ -78,15 +78,12 @@ impl SubstrateCli for Cli {
 			// "cord-relay" | "cord-origin-relay" => Box::new(GenericChainSpec::from_json_bytes(
 			// 	&include_bytes!("../../chain-specs/tbd.json")[..],
 			// )?),
-			//
 			#[cfg(feature = "origin-native")]
-			"relay-dev" | "origin-relay-dev" => {
-				Box::new(chain_spec::cord_origin_relay_development_config()?)
-			},
+			"relay-dev" | "origin-relay-dev" =>
+				Box::new(chain_spec::cord_origin_relay_development_config()?),
 			#[cfg(feature = "origin-native")]
-			"relay-local" | "origin-relay-local" => {
-				Box::new(chain_spec::cord_origin_relay_local_testnet_config()?)
-			},
+			"relay-local" | "origin-relay-local" =>
+				Box::new(chain_spec::cord_origin_relay_local_testnet_config()?),
 			path => {
 				let path = std::path::PathBuf::from(path);
 

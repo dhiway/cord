@@ -494,23 +494,23 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			),
 			ProxyType::CancelProxy => matches!(
 				c,
-				RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. })
-					| RuntimeCall::Utility { .. }
-					| RuntimeCall::Multisig { .. }
+				RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }) |
+					RuntimeCall::Utility { .. } |
+					RuntimeCall::Multisig { .. }
 			),
 			ProxyType::Entity => {
 				matches!(
 					c,
-					RuntimeCall::Entity { .. }
-						| RuntimeCall::Utility { .. }
-						| RuntimeCall::Multisig { .. }
+					RuntimeCall::Entity { .. } |
+						RuntimeCall::Utility { .. } |
+						RuntimeCall::Multisig { .. }
 				)
 			},
 			ProxyType::Collator => matches!(
 				c,
-				RuntimeCall::CollatorSelection { .. }
-					| RuntimeCall::Utility { .. }
-					| RuntimeCall::Multisig { .. }
+				RuntimeCall::CollatorSelection { .. } |
+					RuntimeCall::Utility { .. } |
+					RuntimeCall::Multisig { .. }
 			),
 		}
 	}

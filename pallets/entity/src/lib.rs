@@ -437,8 +437,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// “Rotate” (update) an existing attribute: record the old value in history, bump the version,
-		/// then overwrite. Fails if the key is missing or invalid.
+		/// “Rotate” (update) an existing attribute: record the old value in history, bump the
+		/// version, then overwrite. Fails if the key is missing or invalid.
 		#[pallet::call_index(4)]
 		#[pallet::weight(T::WeightInfo::rotate_attribute( key.len() as u32 + val.as_ref().len() as u32))]
 		pub fn rotate_attribute(
@@ -633,7 +633,8 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Add an entity doken name under the constant suffix ".myn.social", always stored lowercase.
+		/// Add an entity doken name under the constant suffix ".myn.social", always stored
+		/// lowercase.
 		#[pallet::call_index(12)]
 		#[pallet::weight(T::WeightInfo::set_id_name(prefix.len() as u32))]
 		pub fn set_id_name(origin: OriginFor<T>, mut prefix: Vec<u8>) -> DispatchResult {

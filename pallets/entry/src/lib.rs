@@ -602,16 +602,6 @@ pub mod pallet {
 	}
 }
 
-// pub trait Ss58Encoding {
-//     fn to_ss58check(&self) -> String;
-// }
-
-// impl Ss58Encoding for Ss58Identifier {
-//     fn to_ss58check(&self) -> String {
-//         sp_core::crypto::Ss58Codec::to_ss58check(&self.0) // Assuming `self.0` contains the raw bytes
-//     }
-// }
-
 impl<T: Config> Pallet<T> {
 	/// Records an activity using a provided event message.
 	pub fn record_activity(
@@ -627,20 +617,19 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	// Verify the existence of digest in Registry Entry.
 	pub fn verify_digest(
-        digest: T::Hash,
-        registry_id: Option<RegistryIdOf>,
-    ) -> Result<Option<RegistryEntryIdOf>, Error<T>> {
-        let mut registry_entry_identifier: Option<RegistryEntryIdOf> = None;
+		digest: T::Hash,
+		registry_id: Option<RegistryIdOf>,
+	) -> Result<Option<RegistryEntryIdOf>, Error<T>> {
+		let registry_entry_id = if let Some(reg_id) = registry_id {
+			HashToIdentifier::<T>::get(&digest, reg_id)
+		} else {
+			HashToIdentifier::<T>::iter_prefix(&digest)
+				.next()
+				.map(|(_reg_id, entry_id)| entry_id)
+		};
 
-        if let Some(registry_id) = registry_id {
-            registry_entry_identifier = <HashToIdentifier<T>>::get(&digest, registry_id);
-       } else {
-			for (_registry_id, entry_id) in <HashToIdentifier<T>>::iter_prefix(&digest) {
-				registry_entry_identifier = Some(entry_id);
-			}
-		}
-
-       	Ok(registry_entry_identifier)
-    }
+		Ok(registry_entry_id)
+	}
 }

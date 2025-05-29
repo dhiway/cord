@@ -29,7 +29,8 @@ use scale_info::TypeInfo;
 
 /// The `Elum` enum supports the following variants:
 /// - None: Indicates that no data is provided.
-/// - Raw: Contains data stored directly as a bounded vector; the capacity is specified by `MAX_CAP`.
+/// - Raw: Contains data stored directly as a bounded vector; the capacity is specified by
+///   `MAX_CAP`.
 /// - Digest: A fixed 32-byte digest (e.g., computed using BlakeTwo256).
 /// - Doken: An embedded Ss58Identifier.
 /// - CID: A fixed 64-byte content identifier.

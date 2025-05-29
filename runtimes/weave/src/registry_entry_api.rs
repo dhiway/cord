@@ -20,17 +20,15 @@
 
 //! Runtime API definition for Registry Entry
 
+use crate::{Decode, Encode};
 use sp_api::decl_runtime_apis;
-use pallet_entry::RegistryEntryIdOf;
-use crate::{Encode, Decode};
 
 decl_runtime_apis! {
-    pub trait RegistryEntryApi<Hash, RegistryIdOf> 
-    where
-        Hash: Encode + Decode,
-        RegistryIdOf: Encode + Decode,
-    {
-        fn verify_digest(digest: Hash, registry_id: Option<RegistryIdOf>) -> Option<RegistryEntryIdOf>;
-    }
+	pub trait RegistryEntryApi<Hash, Ss58Identifier>
+	where
+		Hash: Encode + Decode,
+		Ss58Identifier: Encode + Decode,
+	{
+		fn verify_digest(digest: Hash, registry_id: Option<Ss58Identifier>) -> Option<Ss58Identifier>;
+	}
 }
-
