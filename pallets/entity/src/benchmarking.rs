@@ -19,8 +19,7 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use crate::Event as EntityEvent;
-use crate::Pallet as EntityPallet;
+use crate::{Event as EntityEvent, Pallet as EntityPallet};
 use alloc::vec::Vec;
 use cord_primitives::doket::Element;
 use frame_benchmarking::{v2::*, BenchmarkError};

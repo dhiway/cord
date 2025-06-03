@@ -18,10 +18,7 @@
 
 #![cfg(test)]
 use super::*;
-use crate::entity::EntityInfo;
-use crate::mock::*;
-use crate::pallet::Pallet as EntityPallet;
-use crate::Error;
+use crate::{entity::EntityInfo, mock::*, pallet::Pallet as EntityPallet, Error};
 use cord_primitives::doket::{Attribute, Element};
 use frame_support::{assert_noop, assert_ok};
 use pallet_doken::Doken;

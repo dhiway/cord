@@ -66,6 +66,7 @@ pub use types::RegistryEntryDetails;
 pub use cord_primitives::StatusOf;
 use pallet_profile::ProfileIdOf;
 use pallet_registry::{Permissions, RegistryIdentifierOf};
+// use alloc::string::String;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -614,5 +615,21 @@ impl<T: Config> Pallet<T> {
 		<pallet_doken::Pallet<T> as Doken<T>>::state_event(identifier, digest, action, stamp)
 			.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
+	}
+
+	// Verify the existence of digest in Registry Entry.
+	pub fn verify_digest(
+		digest: T::Hash,
+		registry_id: Option<RegistryIdOf>,
+	) -> Result<Option<RegistryEntryIdOf>, Error<T>> {
+		let registry_entry_id = if let Some(reg_id) = registry_id {
+			HashToIdentifier::<T>::get(&digest, reg_id)
+		} else {
+			HashToIdentifier::<T>::iter_prefix(&digest)
+				.next()
+				.map(|(_reg_id, entry_id)| entry_id)
+		};
+
+		Ok(registry_entry_id)
 	}
 }

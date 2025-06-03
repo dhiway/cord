@@ -239,9 +239,8 @@ pub fn preset_names() -> Vec<PresetId> {
 pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
 		sp_genesis_builder::DEV_RUNTIME_PRESET => cord_origin_relay_development_config_genesis(),
-		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => {
-			cord_origin_relay_local_testnet_genesis()
-		},
+		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET =>
+			cord_origin_relay_local_testnet_genesis(),
 		_ => return None,
 	};
 	Some(

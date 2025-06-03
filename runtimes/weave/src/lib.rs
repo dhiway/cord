@@ -33,6 +33,8 @@ use frame_election_provider_support::{
 	SequentialPhragmen,
 };
 
+mod registry_entry_api;
+
 use frame_support::{
 	derive_impl,
 	genesis_builder_helper::{build_state, get_preset},
@@ -682,8 +684,8 @@ impl Get<Option<BalancingConfig>> for OffchainRandomBalancing {
 			max => {
 				let seed = sp_io::offchain::random_seed();
 				let random = <u32>::decode(&mut TrailingZeroInput::new(&seed))
-					.expect("input is padded with zeroes; qed")
-					% max.saturating_add(1);
+					.expect("input is padded with zeroes; qed") %
+					max.saturating_add(1);
 				random as usize
 			},
 		};
@@ -2532,6 +2534,12 @@ impl_runtime_apis! {
 
 		fn preset_names() -> Vec<sp_genesis_builder::PresetId> {
 			vec![]
+		}
+	}
+
+	impl crate::registry_entry_api::RegistryEntryApi<Block, Hash, Ss58Identifier> for Runtime {
+		fn verify_digest(digest: Hash, registry_id: Option<Ss58Identifier>) -> Option<Ss58Identifier> {
+			pallet_entry::Pallet::<Runtime>::verify_digest(digest, registry_id).ok().flatten()
 		}
 	}
 }
