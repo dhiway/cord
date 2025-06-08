@@ -305,7 +305,6 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			ensure!(!Ss58OfActiveAccounts::<T>::contains_key(&who), Error::<T>::EntitySubAccount);
 
-			// let info = *info;
 			if let Some(attributes) = info.attributes() {
 				ensure!(
 					!attributes.iter().any(|(key, _)| key.is_empty()),
@@ -322,7 +321,7 @@ pub mod pallet {
 				}
 			}
 
-			let digest = T::Hashing::hash(&(&info, b"IdentityInfoSet" as &[u8]).encode());
+			let digest = T::Hashing::hash(&(&info, b"EntityInfoSet" as &[u8]).encode());
 			let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
 			let doken = T::Doken::build(&digest.encode()[..], pallet_name)
 				.map_err(|_| Error::<T>::DokenCreationFailed)?;

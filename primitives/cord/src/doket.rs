@@ -40,6 +40,8 @@ pub enum DoketUpdateError {
 	AttributeExists,
 	TooManyAttributes,
 	AttributeNotFound,
+	Invalididentifier,
+	ReservedAttribute,
 }
 
 /// Single‐op‐for‐any‐key update operations.

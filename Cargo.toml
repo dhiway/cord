@@ -31,6 +31,7 @@ members = [
 	"pallets/network-membership",
 	"pallets/node-authorization",
 	"pallets/offences",
+	"pallets/register",
 	"pallets/registry",
 	"pallets/remote-proxy",
 	"pallets/runtime-upgrade",
@@ -736,6 +737,7 @@ cord-cli-test-utils = { path = "test-utils/cli", default-features = false }
 pallet-council-membership = { path = 'pallets/membership/', default-features = false }
 pallet-collection = { path = 'pallets/collection/', default-features = false }
 pallet-network-membership = { path = 'pallets/network-membership', default-features = false }
+pallet-register = { path = 'pallets/register/', default-features = false }
 pallet-registry = { path = 'pallets/registry/', default-features = false }
 pallet-remote-proxy = { path = 'pallets/remote-proxy/', default-features = false }
 pallet-entry = { path = 'pallets/entry', default-features = false }
