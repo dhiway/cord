@@ -888,7 +888,7 @@ dependencies = [
 
 [[package]]
 name = "authority-membership"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -1772,7 +1772,7 @@ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "cord-braid-runtime"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "authority-membership",
  "cord-braid-runtime-constants",
@@ -1863,7 +1863,7 @@ dependencies = [
 
 [[package]]
 name = "cord-braid-runtime-constants"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "cord-primitives",
  "cord-runtime-common",
@@ -1893,7 +1893,7 @@ dependencies = [
 
 [[package]]
 name = "cord-doken-runtime-api"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -1904,7 +1904,7 @@ dependencies = [
 
 [[package]]
 name = "cord-loom-runtime"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "authority-membership",
  "cord-doken-runtime-api",
@@ -1996,7 +1996,7 @@ dependencies = [
 
 [[package]]
 name = "cord-loom-runtime-constants"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "cord-primitives",
  "cord-runtime-common",
@@ -2009,7 +2009,7 @@ dependencies = [
 
 [[package]]
 name = "cord-node-cli"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "array-bytes",
  "assert_cmd",
@@ -2147,7 +2147,7 @@ dependencies = [
 
 [[package]]
 name = "cord-node-inspect"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "clap",
  "parity-scale-codec",
@@ -2164,7 +2164,7 @@ dependencies = [
 
 [[package]]
 name = "cord-node-rpc"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "cord-primitives",
  "jsonrpsee",
@@ -2234,7 +2234,7 @@ dependencies = [
 
 [[package]]
 name = "cord-origin"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "color-eyre",
  "cord-origin-relay-cli",
@@ -2249,7 +2249,7 @@ dependencies = [
 
 [[package]]
 name = "cord-origin-container"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "color-eyre",
  "cord-origin-coretime-staging-runtime",
@@ -2273,7 +2273,7 @@ dependencies = [
 
 [[package]]
 name = "cord-origin-coretime-staging-runtime"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "cord-origin-relay-staging-runtime-constants",
  "cord-origin-system-chains-staging-constants",
@@ -2342,7 +2342,7 @@ dependencies = [
 
 [[package]]
 name = "cord-origin-entity-staging-runtime"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "cord-doken-runtime-api",
  "cord-origin-relay-staging-runtime-constants",
@@ -2416,7 +2416,7 @@ dependencies = [
 
 [[package]]
 name = "cord-origin-relay-cli"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "cfg-if",
  "clap",
@@ -2458,7 +2458,7 @@ dependencies = [
 
 [[package]]
 name = "cord-origin-relay-staging-runtime"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "approx",
  "binary-merkle-tree",
@@ -2567,7 +2567,7 @@ dependencies = [
 
 [[package]]
 name = "cord-origin-relay-staging-runtime-constants"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "cord-runtime-common",
  "frame-support",
@@ -2586,7 +2586,7 @@ dependencies = [
 
 [[package]]
 name = "cord-origin-system-chains-staging-constants"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "cord-origin-relay-staging-runtime-constants",
  "frame-support",
@@ -2601,7 +2601,7 @@ dependencies = [
 
 [[package]]
 name = "cord-primitives"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "blake2 0.10.6",
  "bs58",
@@ -2617,7 +2617,7 @@ dependencies = [
 
 [[package]]
 name = "cord-runtime-common"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "bounded-collections",
  "cord-primitives",
@@ -2652,7 +2652,7 @@ dependencies = [
 
 [[package]]
 name = "cord-weave-runtime"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "blake2 0.10.6",
  "bs58",
@@ -2788,7 +2788,7 @@ dependencies = [
 
 [[package]]
 name = "cord-weave-runtime-constants"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "cord-primitives",
  "cord-runtime-common",
@@ -7863,7 +7863,7 @@ dependencies = [
 
 [[package]]
 name = "network-membership"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",
@@ -8285,7 +8285,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-assets-runtime-api"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8527,7 +8527,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-collection"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "bitflags 1.3.2",
  "cord-primitives",
@@ -8631,7 +8631,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-cord-identity"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "enumflags2",
  "frame-benchmarking",
@@ -8647,7 +8647,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-cord-node-authorization"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "bs58",
  "cord-primitives",
@@ -8663,7 +8663,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-cord-offences"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -8677,7 +8677,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-cord-session-benchmarking"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "frame-benchmarking",
  "frame-system",
@@ -8720,7 +8720,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-doken"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "cord-primitives",
  "frame-support",
@@ -8787,7 +8787,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-entity"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "cord-primitives",
  "enumflags2",
@@ -8805,7 +8805,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-entry"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "bitflags 1.3.2",
  "cord-primitives",
@@ -9021,7 +9021,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-network-membership"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9226,7 +9226,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-profile"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "bitflags 1.3.2",
  "cord-primitives",
@@ -9305,7 +9305,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-registry"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "bitflags 1.3.2",
  "cord-primitives",
@@ -9340,7 +9340,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-remote-proxy"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "cumulus-pallet-parachain-system",
  "cumulus-primitives-core",
@@ -9390,7 +9390,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-runtime-upgrade"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -12318,7 +12318,7 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "relay-common"
-version = "0.9.7"
+version = "0.9.8"
 dependencies = [
  "pallet-staking-reward-fn",
  "parity-scale-codec",
