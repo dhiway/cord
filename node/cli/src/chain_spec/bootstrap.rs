@@ -304,7 +304,7 @@ fn cord_braid_custom_genesis(
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"identifier": { "networkId": 2003},
+		"doken": { "networkId": 2003},
 		"nodeAuthorization":  {
 			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},
@@ -358,7 +358,7 @@ fn cord_loom_custom_genesis(
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"identifier": { "networkId": 2002},
+		"doken": { "networkId": 2002},
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
 				.iter()
@@ -418,7 +418,7 @@ fn cord_weave_custom_genesis(
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"identifier": { "networkId": 2001},
+		"doken": { "networkId": 2001},
 		"session":  {
 			"keys": initial_authorities
 				.iter()
