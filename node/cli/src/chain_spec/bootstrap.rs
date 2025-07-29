@@ -57,6 +57,7 @@ pub struct ChainParams {
 	pub council_members: Vec<String>,
 	pub tech_committee_members: Vec<String>,
 	pub sudo_key: String,
+	pub network_id: i32,
 }
 
 impl ChainParams {
@@ -159,6 +160,7 @@ fn cord_braid_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 		initial_well_known_nodes,
 		initial_authorities,
 		initial_sudo_key,
+		config.network_id,
 	)
 }
 
@@ -189,7 +191,7 @@ fn cord_loom_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 
 	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.authorities[0][0]);
 
-	cord_loom_custom_genesis(initial_authorities, initial_sudo_key)
+	cord_loom_custom_genesis(initial_authorities, initial_sudo_key, config.network_id)
 }
 
 fn cord_weave_custom_config_genesis(config: ChainParams) -> serde_json::Value {
@@ -219,7 +221,7 @@ fn cord_weave_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 
 	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.authorities[0][0]);
 
-	cord_weave_custom_genesis(initial_authorities, initial_sudo_key)
+	cord_weave_custom_genesis(initial_authorities, initial_sudo_key, config.network_id)
 }
 
 pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> {
@@ -299,12 +301,14 @@ fn cord_braid_custom_genesis(
 		BeefyId,
 	)>,
 	root_key: AccountId,
+	network_id: i32,
 ) -> serde_json::Value {
 	serde_json::json!( {
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"doken": { "networkId": 2003},
+		/* TODO: Make the protocolId modular as well, to support origin chains */
+		"doken": { "protocolId": "c0rd".to_string(), "networkId": network_id },
 		"nodeAuthorization":  {
 			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},
@@ -353,12 +357,14 @@ fn cord_loom_custom_genesis(
 		BeefyId,
 	)>,
 	root_key: AccountId,
+	network_id: i32,
 ) -> serde_json::Value {
 	serde_json::json!( {
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"doken": { "networkId": 2002},
+		/* TODO: Make the protocolId modular as well, to support origin chains */
+		"doken": { "protocolId": "c0rd".to_string(), "networkId": network_id },
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
 				.iter()
@@ -413,12 +419,14 @@ fn cord_weave_custom_genesis(
 		BeefyId,
 	)>,
 	root_key: AccountId,
+	network_id: i32,
 ) -> serde_json::Value {
 	serde_json::json!( {
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"doken": { "networkId": 2001},
+		/* TODO: Make the protocolId modular as well, to support origin chains */
+		"doken": { "protocolId": "c0rd".to_string(), "networkId": network_id },
 		"session":  {
 			"keys": initial_authorities
 				.iter()
