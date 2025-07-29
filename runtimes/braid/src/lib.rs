@@ -133,7 +133,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: alloc::borrow::Cow::Borrowed("braid"),
 	impl_name: alloc::borrow::Cow::Borrowed("dhiway-cord"),
 	authoring_version: 0,
-	spec_version: 9700,
+	spec_version: 9800,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,

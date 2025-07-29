@@ -1,7 +1,7 @@
 [package]
 name = "pallet-asset"
 description = "Manage Asset"
-version = "0.9.7-dev"
+version = "0.9.8"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
