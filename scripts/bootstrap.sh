@@ -47,7 +47,7 @@ while getopts "m:n:a:s:r:o:i:" flag; do
     fi
     ;;
   o) OUTPUT_DIR=${OPTARG} ;;
-  i) NETWORKD_ID=${OPTARG} ;;
+  i) NETWORK_ID=${OPTARG} ;;
   *)
     usage
     exit 1
@@ -70,7 +70,7 @@ echo "
 echo "chain_name = \"CORD Custom Chain\"" >>$CONFIG_FILE
 echo "chain_type = \"local\"" >>$CONFIG_FILE
 echo "runtime_type = \"${RUNTIME_TYPE}\"" >>$CONFIG_FILE
-echo "network_id = \"${NETWORK_ID}\"" >>$CONFIG_FILE
+echo "network_id = ${NETWORK_ID}" >>$CONFIG_FILE
 
 echo "" >>$CONFIG_FILE
 
