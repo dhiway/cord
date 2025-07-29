@@ -164,7 +164,6 @@ fn cord_braid_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 	)
 }
 
-/* TODO: Refer from weave to update below */
 fn cord_loom_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 	let initial_authorities: Vec<(
 		AccountId,
