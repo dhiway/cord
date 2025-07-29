@@ -162,7 +162,6 @@ fn cord_braid_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 	)
 }
 
-/* TODO: Refer from weave to update below */
 fn cord_loom_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 	let initial_authorities: Vec<(
 		AccountId,
@@ -188,7 +187,8 @@ fn cord_loom_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 		})
 		.collect();
 
-	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
+	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.authorities[0][0]);
+
 	cord_loom_custom_genesis(initial_authorities, initial_sudo_key)
 }
 
