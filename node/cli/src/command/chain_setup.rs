@@ -40,6 +40,7 @@ pub struct ChainConfigParams {
 	pub council_members: Option<Vec<String>>,
 	pub tech_committee_members: Option<Vec<String>>,
 	pub sudo_key: Option<String>,
+	pub network_id: i32,
 }
 
 #[derive(Debug, Args)]
@@ -140,6 +141,12 @@ impl BootstrapChainCmd {
 				.expect("No authorities provided; cannot set sudo_key")
 		});
 
+		/* TODO: Make ProtocolId modular so we can support for Origin based custom chain
+		 * deployments. Currently we have the default protocol_id as 'c0rd' which is standalone
+		 * mode & it requires the network-id to be in range of [100, 1999)
+		 */
+		let network_id: i32 = config.network_id;
+
 		let chain_params = ChainParams {
 			chain_name,
 			chain_type,
@@ -150,6 +157,7 @@ impl BootstrapChainCmd {
 			council_members: initial_council_members,
 			tech_committee_members: initial_tech_committee_members,
 			sudo_key: initial_sudo_key,
+			network_id,
 		};
 
 		let chain_spec = match cord_custom_config(chain_params) {
