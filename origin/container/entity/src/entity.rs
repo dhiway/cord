@@ -17,12 +17,11 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
-use alloc::{vec, vec::Vec};
+use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::doket::{
-	Attribute, Attributes, DoketInformationProvider, DoketUpdateError, DoketUpdateOp, Element,
+	Attributes, DoketInformationProvider, DoketUpdateError, DoketUpdateOp, Element,
 };
-use enumflags2::{bitflags, BitFlag, BitFlags};
 use frame_support::{
 	ensure, parameter_types, traits::Get, CloneNoBound, EqNoBound, PartialEqNoBound,
 	RuntimeDebugNoBound,
@@ -34,6 +33,7 @@ parameter_types! {
 	pub const MaxRawDataLength: u32 = 4096;
 	pub const MaxUsernameLength: u32 = 32;
 	pub const MaxAdditionalAttributes: u32 = 32;
+	pub const MaxUpdateAttributeOps: u32 = 32;
 	pub const GeneralAdminBodyId: BodyId = BodyId::Administration;
 }
 
@@ -48,49 +48,51 @@ impl pallet_entity::Config for Runtime {
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
+	type MaxUpdateAttributeOps = MaxUpdateAttributeOps;
 	type EntityInfoDoket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;
 }
 
-/// Each field corresponds to a field in the `IdentityInfo` struct.
-#[bitflags]
-#[repr(u64)]
-#[derive(
-	Clone,
-	Copy,
-	PartialEq,
-	Eq,
-	RuntimeDebugNoBound,
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	MaxEncodedLen,
-)]
-pub enum EntityField {
-	Display,
-	Legal,
-	Web,
-	Attributes,
+// Each field corresponds to a field in the `EntityInfo` struct.
+bitflags! {
+	#[derive(Encode, Decode,  MaxEncodedLen, DecodeWithMemTracking)]
+	pub struct EntityField: u64 {
+		const DISPLAY    = 1 << 0;
+		const LEGAL      = 1 << 1;
+		const WEB        = 1 << 2;
+		const ATTRIBUTES = 1 << 5;
+	}
 }
+
+// Static mapping between reserved byte keys and EntityField variants for ergonomic lookup
+const RESERVED_KEYS: &[(EntityField, &'static [u8])] = &[
+	(EntityField::DISPLAY, b"display"),
+	(EntityField::LEGAL, b"legal"),
+	(EntityField::WEB, b"web"),
+	(EntityField::ATTRIBUTES, b"attributes"),
+];
 
 impl EntityField {
 	/// Map a reserved key name to its enum variant, or `None` for dynamic attributes.
 	pub fn from_bytes(key: &[u8]) -> Option<Self> {
-		match key {
-			b"display" => Some(EntityField::Display),
-			b"legal" => Some(EntityField::Legal),
-			b"web" => Some(EntityField::Web),
-			b"attributes" => Some(EntityField::Attributes),
-			_ => None,
-		}
+		RESERVED_KEYS.iter().find(|(_, name)| *name == key).map(|(field, _)| *field)
+	}
+
+	/// Convert the flag to its byte key representation (for reserved fields).
+	pub fn to_bytes(self) -> &'static [u8] {
+		RESERVED_KEYS
+			.iter()
+			.find(|(field, _)| *field == self)
+			.map(|(_, name)| *name)
+			.unwrap_or(&[])
 	}
 }
 
 impl TypeInfo for EntityField {
 	type Identity = Self;
-	fn type_info() -> scale_info::Type {
+	fn type_info() -> Type {
 		Type::builder().path(Path::new("EntityField", module_path!())).variant(
 			Variants::new()
 				.variant("Display", |v| v.index(0))
@@ -101,7 +103,7 @@ impl TypeInfo for EntityField {
 	}
 }
 
-/// Information concerning the identity of the controller of an account.
+/// On-chain entity information for an account.
 #[derive(
 	CloneNoBound,
 	Encode,
@@ -113,7 +115,6 @@ impl TypeInfo for EntityField {
 	RuntimeDebugNoBound,
 	TypeInfo,
 )]
-#[codec(mel_bound())]
 #[scale_info(skip_type_params(MaxRawDataLength, MaxAdditionalAttributes))]
 pub struct EntityInfo<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> {
 	pub display: Element<MaxRawDataLength>,
@@ -125,20 +126,21 @@ pub struct EntityInfo<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u
 impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 	EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>
 {
-	pub(crate) fn fields(&self) -> BitFlags<EntityField> {
-		let mut bits = BitFlags::empty();
+	/// Returns a bitmask of reserved fields currently set, including ATTRIBUTES if non-empty.
+	pub fn fields_mask(&self) -> EntityField {
+		let mut bits = EntityField::empty();
 		if !self.display.is_none() {
-			bits.insert(EntityField::Display)
+			bits |= EntityField::DISPLAY;
 		}
 		if !self.legal.is_none() {
-			bits.insert(EntityField::Legal)
+			bits |= EntityField::LEGAL;
 		}
 		if !self.web.is_none() {
-			bits.insert(EntityField::Web)
+			bits |= EntityField::WEB;
 		}
 		if let Some(attrs) = &self.attributes {
 			if !attrs.is_empty() {
-				bits.insert(EntityField::Attributes);
+				bits |= EntityField::ATTRIBUTES;
 			}
 		}
 		bits
@@ -153,6 +155,14 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type UpdateOp = DoketUpdateOp<MaxRawDataLength>;
 
+	fn create_info() -> Self {
+		Default::default()
+	}
+
+	fn all_fields() -> Self::FieldMask {
+		EntityField::all().bits()
+	}
+
 	fn attributes(
 		&self,
 	) -> Option<&Attributes<Self::MaxRawDataLength, Self::MaxAdditionalAttributes>> {
@@ -162,10 +172,11 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 	fn get_key(&self, key: &[u8]) -> Element<Self::MaxRawDataLength> {
 		if let Some(field) = EntityField::from_bytes(key) {
 			return match field {
-				EntityField::Display => self.display.clone(),
-				EntityField::Legal => self.legal.clone(),
-				EntityField::Web => self.web.clone(),
-				EntityField::Attributes => Element::default(),
+				EntityField::DISPLAY => self.display.clone(),
+				EntityField::LEGAL => self.legal.clone(),
+				EntityField::WEB => self.web.clone(),
+				EntityField::ATTRIBUTES => Element::default(),
+				_ => unreachable!(),
 			};
 		}
 		self.attributes
@@ -173,42 +184,36 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 			.and_then(|attrs| {
 				attrs.iter().find(|(k, _)| k.as_slice() == key).map(|(_, v)| v.clone())
 			})
-			.unwrap_or_else(Element::default)
+			.unwrap_or_default()
 	}
 
 	fn present_fields(&self) -> Self::FieldMask {
-		self.fields().bits()
+		self.fields_mask().bits()
 	}
 
 	fn has_info_fields(&self, mask: Self::FieldMask) -> bool {
-		self.present_fields() & mask == mask
+		let present = self.present_fields();
+		present & mask == mask
 	}
 
-	fn apply_update(
-		&mut self,
-		op: &DoketUpdateOp<MaxRawDataLength>,
-	) -> Result<(), DoketUpdateError> {
+	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), DoketUpdateError> {
 		match op {
 			DoketUpdateOp::AddAttribute(k, v) => {
 				ensure!(EntityField::from_bytes(k).is_none(), DoketUpdateError::AttributeExists);
 				let attrs = self.attributes.get_or_insert_with(Default::default);
-				if attrs.iter().any(|(kk, _)| kk == k) {
-					return Err(DoketUpdateError::AttributeExists);
-				}
+				ensure!(!attrs.iter().any(|(kk, _)| kk == k), DoketUpdateError::AttributeExists);
 				attrs
 					.try_push((k.clone(), v.clone()))
 					.map_err(|_| DoketUpdateError::TooManyAttributes)
 			},
-
 			DoketUpdateOp::RemoveAttribute(k) => {
 				if let Some(field) = EntityField::from_bytes(k) {
 					match field {
-						EntityField::Display => self.display = Element::default(),
-						EntityField::Legal => self.legal = Element::default(),
-						EntityField::Web => self.web = Element::default(),
-						EntityField::Attributes => {
-							return Err(DoketUpdateError::AttributeNotFound);
-						},
+						EntityField::DISPLAY => self.display = Element::default(),
+						EntityField::LEGAL => self.legal = Element::default(),
+						EntityField::WEB => self.web = Element::default(),
+						EntityField::ATTRIBUTES => return Err(DoketUpdateError::AttributeNotFound),
+						_ => return Err(DoketUpdateError::AttributeNotFound),
 					}
 				} else {
 					let attrs =
@@ -224,49 +229,27 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 				}
 				Ok(())
 			},
-
 			DoketUpdateOp::UpdateAttribute(k, v) => {
 				if let Some(field) = EntityField::from_bytes(k) {
 					match field {
-						EntityField::Display => self.display = v.clone(),
-						EntityField::Legal => self.legal = v.clone(),
-						EntityField::Web => self.web = v.clone(),
-						EntityField::Attributes => {
-							return Err(DoketUpdateError::AttributeNotFound);
-						},
+						EntityField::DISPLAY => self.display = v.clone(),
+						EntityField::LEGAL => self.legal = v.clone(),
+						EntityField::WEB => self.web = v.clone(),
+						EntityField::ATTRIBUTES => return Err(DoketUpdateError::AttributeNotFound),
+						_ => return Err(DoketUpdateError::AttributeNotFound),
 					}
 				} else {
 					let attrs =
 						self.attributes.as_mut().ok_or(DoketUpdateError::AttributeNotFound)?;
-					let slot = attrs
-						.iter_mut()
-						.find(|(kk, _)| kk == k)
-						.ok_or(DoketUpdateError::AttributeNotFound)?;
-					slot.1 = v.clone();
+					if let Some((_, val)) = attrs.iter_mut().find(|(kk, _)| kk == k) {
+						*val = v.clone();
+					} else {
+						return Err(DoketUpdateError::AttributeNotFound);
+					}
 				}
 				Ok(())
 			},
 		}
-	}
-
-	fn create_info() -> Self {
-		let empty = Element::default();
-		let cap = MaxAdditionalAttributes::get() as usize;
-		let mut attrs = Vec::with_capacity(cap);
-		for i in 0..cap {
-			let key: Attribute = vec![b'k', i as u8].try_into().unwrap();
-			attrs.push((key, empty.clone()));
-		}
-		EntityInfo {
-			display: empty.clone(),
-			legal: empty.clone(),
-			web: empty.clone(),
-			attributes: Some(attrs.try_into().unwrap()),
-		}
-	}
-
-	fn all_fields() -> Self::FieldMask {
-		EntityField::all().bits()
 	}
 }
 

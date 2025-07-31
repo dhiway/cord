@@ -1,6 +1,6 @@
 [package]
-name = "pallet-entity"
-description = "Entity management pallet"
+name = "pallet-register"
+description = "Registry management pallet"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -22,6 +22,7 @@ frame-benchmarking = { optional = true, workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
 pallet-doken = { workspace = true }
+pallet-entity = { workspace = true }
 sp-runtime = { workspace = true }
 bitflags = { workspace = true }
 
@@ -40,6 +41,7 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"pallet-doken/std",
+	"pallet-entity/std",
 	"scale-info/std",
 	"sp-io/std",
 	"sp-keystore/std",
