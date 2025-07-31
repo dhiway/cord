@@ -28,6 +28,8 @@ sp-runtime = { workspace = true }
 [dev-dependencies]
 sp-core = { default-features = true, workspace = true }
 sp-io = { default-features = true, workspace = true }
+sp-io = { workspace = true }
+sp-core = { workspace = true }
 
 [features]
 default = ['std']
@@ -40,6 +42,8 @@ std = [
 	"sp-io/std",
 	"sp-core/std",
 	"sp-runtime/std",
+	"sp-io/std",
+	"sp-core/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

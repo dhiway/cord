@@ -45,6 +45,9 @@ mod types;
 #[cfg(test)]
 pub mod mock;
 
+#[cfg(feature = "runtime-benchmarks")]
+pub mod benchmarking;
+
 pub use cord_primitives::Ss58Identifier;
 use frame_support::{
 	ensure,

@@ -37,6 +37,8 @@ sp-io = { optional = true, workspace = true }
 sp-keystore = { optional = true, workspace = true }
 sp-runtime = { workspace = true }
 
+[lib]
+doctest = false
 
 [features]
 default = ['std']
