@@ -100,6 +100,7 @@ pub mod pallet {
 		+ pallet_registry::Config
 	{
 		/// The overarching event type.
+		#[allow(deprecated)]
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// The maximum number of bytes in size a Registry Entry Blob can hold.

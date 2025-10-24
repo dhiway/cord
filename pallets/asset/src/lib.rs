@@ -115,6 +115,7 @@ pub mod pallet {
 	pub trait Config:
 		frame_system::Config + pallet_chain_space::Config + identifier::Config
 	{
+		#[allow(deprecated)]
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type EnsureOrigin: EnsureOrigin<
 			<Self as frame_system::Config>::RuntimeOrigin,
