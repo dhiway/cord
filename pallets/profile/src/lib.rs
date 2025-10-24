@@ -77,6 +77,7 @@ pub mod pallet {
 	#[pallet::config]
 	// TODO: Check workaround of not having TypeInfo here
 	pub trait Config: frame_system::Config + scale_info::TypeInfo + pallet_doken::Config {
+		#[allow(deprecated)]
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		#[pallet::constant]

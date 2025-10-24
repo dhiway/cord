@@ -58,6 +58,7 @@ pub mod pallet {
 		frame_system::Config + pallet_session::Config + pallet_session::historical::Config
 	{
 		/// The overreaching event type.
+		#[allow(deprecated)]
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		#[pallet::constant]
 		type MinAuthorities: Get<u32>;

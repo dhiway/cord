@@ -70,6 +70,8 @@ pub use sp_runtime::{
 
 use futures::prelude::*;
 use sc_consensus_babe::{self, SlotProportion};
+use sp_consensus_babe::inherents::BabeCreateInherentDataProviders;
+
 use sc_network::{
 	event::Event, service::traits::NetworkService, NetworkBackend, NetworkEventStream,
 };
@@ -301,6 +303,8 @@ pub fn new_partial(
 					Block,
 					FullClient,
 					FullBeefyBlockImport<FullGrandpaBlockImport>,
+					BabeCreateInherentDataProviders<Block>,
+					FullSelectChain,
 				>,
 				sc_consensus_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
 				sc_consensus_babe::BabeLink<Block>,
@@ -369,7 +373,6 @@ pub fn new_partial(
 		.build(),
 	);
 
-	// #[allow(clippy::redundant_clone)]
 	let (grandpa_block_import, grandpa_link) = sc_consensus_grandpa::block_import(
 		client.clone(),
 		GRANDPA_JUSTIFICATION_PERIOD,
@@ -388,32 +391,34 @@ pub fn new_partial(
 		);
 
 	let babe_config = sc_consensus_babe::configuration(&*client)?;
-	let (block_import, babe_link) =
-		sc_consensus_babe::block_import(babe_config, beefy_block_import, client.clone())?;
+	let slot_duration = babe_config.slot_duration();
+	let (block_import, babe_link) = sc_consensus_babe::block_import(
+		babe_config,
+		beefy_block_import,
+		client.clone(),
+		Arc::new(move |_, _| async move {
+			let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
+			let slot =
+			sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
+				*timestamp,
+				slot_duration,
+			);
+			Ok((slot, timestamp))
+		}) as BabeCreateInherentDataProviders<Block>,
+		select_chain.clone(),
+		OffchainTransactionPoolFactory::new(transaction_pool.clone()),
+	)?;
 
-	let slot_duration = babe_link.config().slot_duration();
 	let (import_queue, babe_worker_handle) =
 		sc_consensus_babe::import_queue(sc_consensus_babe::ImportQueueParams {
 			link: babe_link.clone(),
 			block_import: block_import.clone(),
 			justification_import: Some(Box::new(justification_import)),
 			client: client.clone(),
-			select_chain: select_chain.clone(),
-			create_inherent_data_providers: move |_, ()| async move {
-				let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
-
-				let slot =
-				sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_slot_duration(
-					*timestamp,
-					slot_duration,
-				);
-
-				Ok((slot, timestamp))
-			},
+			slot_duration,
 			spawner: &task_manager.spawn_essential_handle(),
 			registry: config.prometheus_registry(),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
-			offchain_tx_pool_factory: OffchainTransactionPoolFactory::new(transaction_pool.clone()),
 		})?;
 
 	let import_setup = (block_import, grandpa_link, babe_link, beefy_voter_links);
@@ -527,6 +532,8 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 			Block,
 			FullClient,
 			FullBeefyBlockImport<FullGrandpaBlockImport>,
+			BabeCreateInherentDataProviders<Block>,
+			FullSelectChain,
 		>,
 		&sc_consensus_babe::BabeLink<Block>,
 	),
@@ -534,9 +541,9 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	let is_offchain_indexing_enabled = config.offchain_worker.indexing_enabled;
 	let role = config.role;
 	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks = if config.chain_spec.is_braid() ||
-		config.chain_spec.is_loom() ||
-		config.chain_spec.is_weave()
+	let backoff_authoring_blocks = if config.chain_spec.is_braid()
+		|| config.chain_spec.is_loom()
+		|| config.chain_spec.is_weave()
 	{
 		// the block authoring backoff is disabled on production networks
 		None
@@ -647,6 +654,8 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 			block_relay: None,
 			metrics,
 		})?;
+
+	let net_config_path = config.network.net_config_path.clone();
 
 	let rpc_handlers = sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		config,
@@ -760,6 +769,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 				sc_authority_discovery::WorkerConfig {
 					publish_non_global_ips: auth_disc_publish_non_global_ips,
 					public_addresses: auth_disc_public_addresses,
+					persisted_cache_directory: net_config_path,
 					..Default::default()
 				},
 				client.clone(),
@@ -767,6 +777,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 				Box::pin(dht_event_stream),
 				authority_discovery_role,
 				prometheus_registry.clone(),
+				task_manager.spawn_handle(),
 			);
 
 		task_manager.spawn_handle().spawn(
@@ -928,7 +939,7 @@ pub struct BraidRuntime;
 impl RuntimeConfig for BraidRuntime {
 	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
 		let database_path = config.database.path().map(Path::to_path_buf);
-		let task_manager = match config.network.network_backend.unwrap_or_default() {
+		let task_manager = match config.network.network_backend {
 			sc_network::config::NetworkBackendType::Libp2p => {
 				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
 					config,
@@ -968,7 +979,7 @@ pub struct LoomRuntime;
 impl RuntimeConfig for LoomRuntime {
 	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
 		let database_path = config.database.path().map(Path::to_path_buf);
-		let task_manager = match config.network.network_backend.unwrap_or_default() {
+		let task_manager = match config.network.network_backend {
 			sc_network::config::NetworkBackendType::Libp2p => {
 				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
 					config,
@@ -1008,7 +1019,7 @@ pub struct WeaveRuntime;
 impl RuntimeConfig for WeaveRuntime {
 	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
 		let database_path = config.database.path().map(Path::to_path_buf);
-		let task_manager = match config.network.network_backend.unwrap_or_default() {
+		let task_manager = match config.network.network_backend {
 			sc_network::config::NetworkBackendType::Libp2p => {
 				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
 					config,

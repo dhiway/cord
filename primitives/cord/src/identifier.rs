@@ -87,7 +87,7 @@ impl Ss58Identifier {
 	{
 		let data = data.as_ref();
 		// Validate the digest length.
-		if data.as_ref().len() != 32 {
+		if data.len() != 32 {
 			return Err(IdentifierError::InvalidDigestLength);
 		}
 
