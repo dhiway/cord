@@ -2584,21 +2584,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cord-origin"
-version = "0.9.9"
-dependencies = [
- "color-eyre",
- "cord-origin-relay-cli",
- "polkadot-node-core-pvf",
- "polkadot-node-core-pvf-common",
- "polkadot-node-core-pvf-execute-worker",
- "polkadot-node-core-pvf-prepare-worker",
- "polkadot-overseer",
- "substrate-build-script-utils",
- "tikv-jemallocator",
-]
-
-[[package]]
 name = "cord-origin-container"
 version = "0.9.9"
 dependencies = [
@@ -2626,7 +2611,6 @@ dependencies = [
 name = "cord-origin-coretime-staging-runtime"
 version = "0.9.9"
 dependencies = [
- "cord-origin-relay-staging-runtime-constants",
  "cord-origin-system-chains-staging-constants",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
@@ -2646,6 +2630,7 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal",
  "log",
+ "origin-staging-runtime-constants",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
@@ -2696,7 +2681,6 @@ name = "cord-origin-entity-staging-runtime"
 version = "0.9.9"
 dependencies = [
  "cord-doken-runtime-api",
- "cord-origin-relay-staging-runtime-constants",
  "cord-origin-system-chains-staging-constants",
  "cord-primitives",
  "cumulus-pallet-aura-ext",
@@ -2718,6 +2702,7 @@ dependencies = [
  "frame-try-runtime",
  "hex-literal",
  "log",
+ "origin-staging-runtime-constants",
  "pallet-aura",
  "pallet-authorship",
  "pallet-balances",
@@ -2766,181 +2751,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "cord-origin-relay-cli"
-version = "0.9.9"
-dependencies = [
- "cfg-if",
- "clap",
- "cord-origin-relay-staging-runtime",
- "cord-origin-relay-staging-runtime-constants",
- "frame-benchmarking-cli",
- "frame-metadata-hash-extension",
- "frame-system",
- "futures",
- "log",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "polkadot-node-metrics",
- "polkadot-primitives",
- "polkadot-runtime-parachains",
- "polkadot-service",
- "pyroscope",
- "pyroscope_pprofrs",
- "sc-chain-spec",
- "sc-cli",
- "sc-client-api",
- "sc-executor",
- "sc-service",
- "sc-storage-monitor",
- "sc-sync-state-rpc",
- "sc-sysinfo",
- "sc-telemetry",
- "sc-tracing",
- "serde",
- "serde_json",
- "sp-core",
- "sp-io",
- "sp-keyring",
- "sp-maybe-compressed-blob",
- "sp-runtime",
- "substrate-build-script-utils",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "cord-origin-relay-staging-runtime"
-version = "0.9.9"
-dependencies = [
- "approx",
- "binary-merkle-tree",
- "cord-doken-runtime-api",
- "cord-origin-relay-staging-runtime-constants",
- "cord-primitives",
- "frame-benchmarking",
- "frame-election-provider-support",
- "frame-executive",
- "frame-metadata-hash-extension",
- "frame-remote-externalities",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "frame-try-runtime",
- "hex-literal",
- "log",
- "pallet-asset-rate",
- "pallet-authority-discovery",
- "pallet-authorship",
- "pallet-babe",
- "pallet-bags-list",
- "pallet-balances",
- "pallet-beefy",
- "pallet-beefy-mmr",
- "pallet-bounties",
- "pallet-broker",
- "pallet-child-bounties",
- "pallet-conviction-voting",
- "pallet-delegated-staking",
- "pallet-doken",
- "pallet-election-provider-multi-phase",
- "pallet-election-provider-support-benchmarking",
- "pallet-fast-unstake",
- "pallet-grandpa",
- "pallet-indices",
- "pallet-message-queue",
- "pallet-mmr",
- "pallet-multisig",
- "pallet-nomination-pools",
- "pallet-nomination-pools-benchmarking",
- "pallet-nomination-pools-runtime-api",
- "pallet-offences",
- "pallet-offences-benchmarking",
- "pallet-preimage",
- "pallet-proxy",
- "pallet-ranked-collective",
- "pallet-referenda",
- "pallet-scheduler",
- "pallet-session",
- "pallet-session-benchmarking",
- "pallet-staking",
- "pallet-staking-reward-curve",
- "pallet-staking-reward-fn",
- "pallet-staking-runtime-api",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-treasury",
- "pallet-utility",
- "pallet-whitelist",
- "pallet-xcm",
- "pallet-xcm-benchmarks",
- "parity-scale-codec",
- "polkadot-parachain-primitives",
- "polkadot-primitives",
- "polkadot-runtime-common",
- "polkadot-runtime-parachains",
- "relay-common",
- "scale-info",
- "separator",
- "serde_json",
- "sp-api",
- "sp-application-crypto",
- "sp-arithmetic",
- "sp-authority-discovery",
- "sp-block-builder",
- "sp-consensus-babe",
- "sp-consensus-beefy",
- "sp-core",
- "sp-debug-derive",
- "sp-genesis-builder",
- "sp-inherents",
- "sp-io",
- "sp-keyring",
- "sp-npos-elections",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-staking",
- "sp-storage",
- "sp-tracing",
- "sp-transaction-pool",
- "sp-trie",
- "sp-version",
- "ss58-registry",
- "staging-xcm",
- "staging-xcm-builder",
- "staging-xcm-executor",
- "substrate-wasm-builder",
- "tokio",
- "xcm-runtime-apis",
-]
-
-[[package]]
-name = "cord-origin-relay-staging-runtime-constants"
-version = "0.9.9"
-dependencies = [
- "cord-runtime-common",
- "frame-support",
- "pallet-remote-proxy",
- "parity-scale-codec",
- "polkadot-primitives",
- "polkadot-runtime-common",
- "scale-info",
- "smallvec",
- "sp-core",
- "sp-runtime",
- "sp-trie",
- "sp-weights",
- "staging-xcm-builder",
-]
-
-[[package]]
 name = "cord-origin-system-chains-staging-constants"
 version = "0.9.9"
 dependencies = [
- "cord-origin-relay-staging-runtime-constants",
  "frame-support",
+ "origin-staging-runtime-constants",
  "parachains-common",
  "polkadot-core-primitives",
  "polkadot-primitives",
@@ -8885,6 +8700,224 @@ dependencies = [
 ]
 
 [[package]]
+name = "origin"
+version = "0.9.9"
+dependencies = [
+ "color-eyre",
+ "origin-node-cli",
+ "polkadot-node-core-pvf",
+ "polkadot-node-core-pvf-common",
+ "polkadot-node-core-pvf-execute-worker",
+ "polkadot-node-core-pvf-prepare-worker",
+ "polkadot-overseer",
+ "substrate-build-script-utils",
+ "tikv-jemallocator",
+]
+
+[[package]]
+name = "origin-authorities"
+version = "0.9.9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "pallet-im-online",
+ "pallet-session",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
+ "sp-state-machine",
+]
+
+[[package]]
+name = "origin-common"
+version = "0.9.9"
+dependencies = [
+ "pallet-staking-reward-fn",
+ "parity-scale-codec",
+ "polkadot-primitives",
+ "scale-info",
+ "sp-api",
+ "sp-runtime",
+]
+
+[[package]]
+name = "origin-node-cli"
+version = "0.9.9"
+dependencies = [
+ "cfg-if",
+ "clap",
+ "frame-benchmarking-cli",
+ "frame-metadata-hash-extension",
+ "frame-system",
+ "futures",
+ "log",
+ "origin-staging-runtime",
+ "origin-staging-runtime-constants",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "polkadot-node-metrics",
+ "polkadot-primitives",
+ "polkadot-runtime-parachains",
+ "polkadot-service",
+ "pyroscope",
+ "pyroscope_pprofrs",
+ "sc-chain-spec",
+ "sc-cli",
+ "sc-client-api",
+ "sc-executor",
+ "sc-service",
+ "sc-storage-monitor",
+ "sc-sync-state-rpc",
+ "sc-sysinfo",
+ "sc-telemetry",
+ "sc-tracing",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-keyring",
+ "sp-maybe-compressed-blob",
+ "sp-runtime",
+ "substrate-build-script-utils",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "origin-staging-runtime"
+version = "0.9.9"
+dependencies = [
+ "approx",
+ "binary-merkle-tree",
+ "cord-doken-runtime-api",
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-election-provider-support",
+ "frame-executive",
+ "frame-metadata-hash-extension",
+ "frame-remote-externalities",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
+ "hex-literal",
+ "log",
+ "origin-common",
+ "origin-staging-runtime-constants",
+ "pallet-asset-rate",
+ "pallet-authority-discovery",
+ "pallet-authorship",
+ "pallet-babe",
+ "pallet-bags-list",
+ "pallet-balances",
+ "pallet-beefy",
+ "pallet-beefy-mmr",
+ "pallet-bounties",
+ "pallet-broker",
+ "pallet-child-bounties",
+ "pallet-conviction-voting",
+ "pallet-delegated-staking",
+ "pallet-doken",
+ "pallet-election-provider-multi-phase",
+ "pallet-election-provider-support-benchmarking",
+ "pallet-fast-unstake",
+ "pallet-grandpa",
+ "pallet-indices",
+ "pallet-message-queue",
+ "pallet-mmr",
+ "pallet-multisig",
+ "pallet-nomination-pools",
+ "pallet-nomination-pools-benchmarking",
+ "pallet-nomination-pools-runtime-api",
+ "pallet-offences",
+ "pallet-offences-benchmarking",
+ "pallet-preimage",
+ "pallet-proxy",
+ "pallet-ranked-collective",
+ "pallet-referenda",
+ "pallet-scheduler",
+ "pallet-session",
+ "pallet-session-benchmarking",
+ "pallet-staking",
+ "pallet-staking-reward-curve",
+ "pallet-staking-reward-fn",
+ "pallet-staking-runtime-api",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
+ "pallet-whitelist",
+ "pallet-xcm",
+ "pallet-xcm-benchmarks",
+ "parity-scale-codec",
+ "polkadot-parachain-primitives",
+ "polkadot-primitives",
+ "polkadot-runtime-common",
+ "polkadot-runtime-parachains",
+ "scale-info",
+ "separator",
+ "serde_json",
+ "sp-api",
+ "sp-application-crypto",
+ "sp-arithmetic",
+ "sp-authority-discovery",
+ "sp-block-builder",
+ "sp-consensus-babe",
+ "sp-consensus-beefy",
+ "sp-core",
+ "sp-debug-derive",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-io",
+ "sp-keyring",
+ "sp-npos-elections",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-staking",
+ "sp-storage",
+ "sp-tracing",
+ "sp-transaction-pool",
+ "sp-trie",
+ "sp-version",
+ "ss58-registry",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "staging-xcm-executor",
+ "substrate-wasm-builder",
+ "tokio",
+ "xcm-runtime-apis",
+]
+
+[[package]]
+name = "origin-staging-runtime-constants"
+version = "0.9.9"
+dependencies = [
+ "cord-runtime-common",
+ "frame-support",
+ "pallet-remote-proxy",
+ "parity-scale-codec",
+ "polkadot-primitives",
+ "polkadot-runtime-common",
+ "scale-info",
+ "smallvec",
+ "sp-core",
+ "sp-runtime",
+ "sp-trie",
+ "sp-weights",
+ "staging-xcm-builder",
+]
+
+[[package]]
 name = "owo-colors"
 version = "4.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13320,18 +13353,6 @@ name = "regex-syntax"
 version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
-
-[[package]]
-name = "relay-common"
-version = "0.9.9"
-dependencies = [
- "pallet-staking-reward-fn",
- "parity-scale-codec",
- "polkadot-primitives",
- "scale-info",
- "sp-api",
- "sp-runtime",
-]
 
 [[package]]
 name = "reqwest"

@@ -20,7 +20,7 @@ serde_json = { features = ["alloc"], workspace = true }
 # Local
 cord-doken-runtime-api = { workspace = true }
 cord-primitives = { workspace = true }
-cord-origin-relay-staging-runtime-constants = { workspace = true }
+origin-staging-runtime-constants = { workspace = true }
 cord-origin-system-chains-staging-constants = { workspace = true }
 
 # Substrate
@@ -95,7 +95,7 @@ default = ["std"]
 std = [
 	"codec/std",
 	"cord-primitives/std",
-	"cord-origin-relay-staging-runtime-constants/std",
+	"origin-staging-runtime-constants/std",
 	"cord-origin-system-chains-staging-constants/std",
 	"cord-doken-runtime-api/std",
 	"cumulus-pallet-aura-ext/std",
@@ -163,7 +163,7 @@ std = [
 
 
 runtime-benchmarks = [
-	"cord-origin-relay-staging-runtime-constants/std",
+	"origin-staging-runtime-constants/std",
 	"cord-origin-system-chains-staging-constants/std",
 	"cumulus-pallet-parachain-system/runtime-benchmarks",
 	"cumulus-pallet-session-benchmarking/runtime-benchmarks",
@@ -227,7 +227,7 @@ try-runtime = [
 	"sp-runtime/try-runtime",
 ]
 
-fast-runtime = ["cord-origin-relay-staging-runtime-constants/fast-runtime"]
+fast-runtime = ["origin-staging-runtime-constants/fast-runtime"]
 
 # Enable metadata hash generation at compile time for the `CheckMetadataHash` extension.
 metadata-hash = ["substrate-wasm-builder/metadata-hash"]

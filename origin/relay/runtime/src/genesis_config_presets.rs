@@ -22,7 +22,7 @@ use crate::*;
 #[cfg(not(feature = "std"))]
 use alloc::format;
 use babe_primitives::AuthorityId as BabeId;
-use cord_origin_relay_staging_runtime_constants::currency::UNITS as ORU;
+use origin_staging_runtime_constants::currency::UNITS as ORU;
 use pallet_staking::{Forcing, StakerStatus};
 use polkadot_primitives::{AccountPublic, AssignmentId, AsyncBackingParams};
 use runtime_parachains::configuration::HostConfiguration;

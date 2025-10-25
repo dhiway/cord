@@ -21,7 +21,7 @@ use crate::{
 	xcm_config::LocationToAccountId,
 	*,
 };
-use cord_origin_relay_staging_runtime_constants::system_parachain::coretime::TIMESLICE_PERIOD;
+use origin_staging_runtime_constants::system_parachain::coretime::TIMESLICE_PERIOD;
 use coretime::CoretimeAllocator;
 use frame_support::{
 	assert_ok,

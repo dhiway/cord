@@ -21,7 +21,7 @@ use super::{
 	ParaId, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin, StakingAdmin, TransactionByteFee,
 	Treasury, WeightToFee, XcmPallet,
 };
-use cord_origin_relay_staging_runtime_constants::{currency::MILLI, system_parachain::*};
+use origin_staging_runtime_constants::{currency::MILLI, system_parachain::*};
 use frame_support::{
 	parameter_types,
 	traits::{Contains, Disabled, Equals, Everything, Nothing},

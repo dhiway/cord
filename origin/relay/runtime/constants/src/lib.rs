@@ -115,6 +115,7 @@ pub mod system_parachain {
 
 	parameter_types! {
 		pub AssetHubParaId: ParaId = ASSET_HUB_ID.into();
+		pub EntityParaId: ParaId = ENTITY_ID.into();
 	}
 
 	/// Asset Hub parachain ID.

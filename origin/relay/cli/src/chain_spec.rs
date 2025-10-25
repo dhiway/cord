@@ -20,7 +20,7 @@ use sc_chain_spec::{ChainSpecExtension, ChainType};
 use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 
-const CORD_ORIGIN_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
+const ORIGIN_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
 const DEFAULT_PROTOCOL_ID: &str = "0rigin";
 
 /// Node `ChainSpec` extensions.
@@ -41,18 +41,17 @@ pub struct Extensions {
 }
 
 /// Cord Origin chain spec, in case when we don't have the native runtime.
-pub type CordOriginRelayChainSpec = sc_service::GenericChainSpec<Extensions>;
+pub type OriginChainSpec = sc_service::GenericChainSpec<Extensions>;
 
-// pub fn cord_origin_relay_config() -> Result<CordOriginRelayChainSpec, String> {
-// 	CordOriginRelayChainSpec::from_json_bytes(&include_bytes!("../chain-specs/tbd.json")[..])
+// pub fn origin_config() -> Result<OriginChainSpec, String> {
+// 	OriginChainSpec::from_json_bytes(&include_bytes!("../chain-specs/tbd.json")[..])
 // }
 
 /// Returns the properties for the [`OriginChainSpec`].
-pub fn cord_origin_relay_chain_spec_properties() -> serde_json::map::Map<String, serde_json::Value>
-{
+pub fn origin_chain_spec_properties() -> serde_json::map::Map<String, serde_json::Value> {
 	serde_json::json!({
 		"ss58Format": "29",
-		"tokenSymbol":"ORU",
+		"tokenSymbol":"UNIT",
 		"tokenDecimals": 10,
 	})
 	.as_object()
@@ -61,42 +60,39 @@ pub fn cord_origin_relay_chain_spec_properties() -> serde_json::map::Map<String,
 }
 
 /// Origin development config (single validator Alice)
-pub fn cord_origin_relay_development_config() -> Result<CordOriginRelayChainSpec, String> {
-	Ok(CordOriginRelayChainSpec::builder(
-		cord_origin_relay_staging_runtime::WASM_BINARY
-			.ok_or("Cord Origin Relay development wasm not available")?,
+pub fn origin_development_config() -> Result<OriginChainSpec, String> {
+	Ok(OriginChainSpec::builder(
+		origin_staging_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Origin Relay Development")
-	.with_id("origin_relay_dev")
+	.with_name("Origin Development")
+	.with_id("origin_dev")
 	.with_chain_type(ChainType::Development)
 	.with_genesis_config_patch(
-		cord_origin_relay_staging_runtime::genesis_config_presets::cord_origin_relay_development_config_genesis(
-		),
+		origin_staging_runtime::genesis_config_presets::origin_development_config_genesis(),
 	)
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
-	.with_properties(cord_origin_relay_chain_spec_properties())
+	.with_properties(origin_chain_spec_properties())
 	.build())
 }
 
 /// Origin local testnet config (multivalidator Alice + Bob)
-pub fn cord_origin_relay_local_testnet_config() -> Result<CordOriginRelayChainSpec, String> {
-	Ok(CordOriginRelayChainSpec::builder(
-		cord_origin_relay_staging_runtime::WASM_BINARY
-			.ok_or("Cord Origin Relay development wasm not available")?,
+pub fn origin_staging_testnet_config() -> Result<OriginChainSpec, String> {
+	Ok(OriginChainSpec::builder(
+		origin_staging_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Cord Origin Relay Local Testnet")
-	.with_id("origin_relay_local")
+	.with_name("Origin Staging Testnet")
+	.with_id("origin_local")
 	.with_chain_type(ChainType::Local)
 	.with_genesis_config_patch(
-		cord_origin_relay_staging_runtime::genesis_config_presets::cord_origin_relay_local_testnet_genesis(),
+		origin_staging_runtime::genesis_config_presets::origin_staging_testnet_genesis(),
 	)
 	.with_telemetry_endpoints(
-		TelemetryEndpoints::new(vec![(CORD_ORIGIN_TELEMETRY_URL.to_string(), 0)])
-			.expect("Cord Origin Staging telemetry url is valid; qed"),
+		TelemetryEndpoints::new(vec![(ORIGIN_TELEMETRY_URL.to_string(), 0)])
+			.expect("Origin Staging telemetry url is valid; qed"),
 	)
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
-	.with_properties(cord_origin_relay_chain_spec_properties())
+	.with_properties(origin_chain_spec_properties())
 	.build())
 }

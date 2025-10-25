@@ -1,5 +1,5 @@
 [package]
-name = "cord-origin-relay-staging-runtime-constants"
+name = "origin-staging-runtime-constants"
 repository.workspace = true
 version.workspace = true
 authors.workspace = true
