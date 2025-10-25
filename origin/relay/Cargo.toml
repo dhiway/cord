@@ -1,21 +1,21 @@
 [package]
-name = "cord-origin"
-description = "Cord Origin Relay-chain Binaries"
+name = "origin"
+description = "Origin Node Binaries"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "cord-origin-relay"
+name = "origin"
 path = "src/main.rs"
 
 [[bin]]
-name = "cord-origin-relay-execute-worker"
+name = "origin-execute-worker"
 path = "src/bin/execute-worker.rs"
 
 [[bin]]
-name = "cord-origin-relay-prepare-worker"
+name = "origin-prepare-worker"
 path = "src/bin/prepare-worker.rs"
 
 [lints]
@@ -26,7 +26,7 @@ color-eyre = { workspace = true }
 tikv-jemallocator = { optional = true, features = [
 	"unprefixed_malloc_on_supported_platforms",
 ], workspace = true }
-cord-origin-relay-cli = { workspace = true, default-features = true }
+origin-node-cli = { workspace = true, default-features = true }
 polkadot-node-core-pvf = { workspace = true, default-features = true }
 polkadot-node-core-pvf-common = { workspace = true, default-features = true }
 polkadot-overseer = { workspace = true, default-features = true }

@@ -18,9 +18,6 @@
 
 use crate::*;
 use codec::{Decode, Encode};
-use cord_origin_relay_staging_runtime_constants::{
-	system_parachain::coretime, time::DAYS as RELAY_DAYS,
-};
 use cumulus_pallet_parachain_system::RelaychainDataProvider;
 use cumulus_primitives_core::relay_chain;
 use frame_support::{
@@ -33,6 +30,7 @@ use frame_support::{
 	weights::constants::{WEIGHT_PROOF_SIZE_PER_KB, WEIGHT_REF_TIME_PER_MICROS},
 };
 use frame_system::Pallet as System;
+use origin_staging_runtime_constants::{system_parachain::coretime, time::DAYS as RELAY_DAYS};
 use pallet_broker::{
 	CoreAssignment, CoreIndex, CoretimeInterface, PartsOf57600, RCBlockNumberOf, TaskId,
 };

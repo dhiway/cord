@@ -3,7 +3,7 @@ authors.workspace = true
 description = "Shared utilities between relay runtimes"
 edition.workspace = true
 license.workspace = true
-name = "relay-common"
+name = "origin-common"
 repository.workspace = true
 version.workspace = true
 
@@ -20,16 +20,16 @@ pallet-staking-reward-fn = { workspace = true }
 [features]
 default = ["std"]
 std = [
-    "codec/std",
-    "scale-info/std",
+	"codec/std",
+	"scale-info/std",
 
-    "pallet-staking-reward-fn/std",
-    "polkadot-primitives/std",
-    "sp-api/std",
-    "sp-runtime/std",
+	"pallet-staking-reward-fn/std",
+	"polkadot-primitives/std",
+	"sp-api/std",
+	"sp-runtime/std",
 ]
 
 runtime-benchmarks = [
-    "polkadot-primitives/runtime-benchmarks",
-    "sp-runtime/runtime-benchmarks",
+	"polkadot-primitives/runtime-benchmarks",
+	"sp-runtime/runtime-benchmarks",
 ]

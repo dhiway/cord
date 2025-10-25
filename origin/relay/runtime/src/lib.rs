@@ -30,6 +30,7 @@ use alloc::{
 	vec::Vec,
 };
 use cord_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
+use origin_common::apis::InflationInfo;
 use pallet_transaction_payment::FungibleAdapter;
 use polkadot_runtime_common::{
 	impl_runtime_weights,
@@ -41,7 +42,6 @@ use polkadot_runtime_common::{
 	traits::OnSwap,
 	BlockHashCount, BlockLength, CurrencyToVote, SlowAdjustingFeeUpdate,
 };
-use relay_common::apis::InflationInfo;
 
 use runtime_parachains::{
 	assigner_coretime as parachains_assigner_coretime, configuration as parachains_configuration,
@@ -138,7 +138,7 @@ use pallet_treasury::TreasuryAccountId;
 pub use sp_runtime::BuildStorage;
 
 /// Constant values used within the runtime.
-use cord_origin_relay_staging_runtime_constants::{
+use origin_staging_runtime_constants::{
 	currency::*, fee::*, proxy::ProxyType, system_parachain,
 	system_parachain::coretime::TIMESLICE_PERIOD, time::*, TREASURY_PALLET_ID,
 };
@@ -165,7 +165,7 @@ pub mod xcm_config;
 /// Default logging target.
 pub const LOG_TARGET: &str = "runtime::origin";
 
-impl_runtime_weights!(cord_origin_relay_staging_runtime_constants);
+impl_runtime_weights!(origin_staging_runtime_constants);
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -446,7 +446,7 @@ impl pallet_beefy_mmr::Config for Runtime {
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = cord_origin_relay_staging_runtime_constants::fee::TRANSACTION_BYTE_FEE;
+	pub const TransactionByteFee: Balance = origin_staging_runtime_constants::fee::TRANSACTION_BYTE_FEE;
 	/// This value increases the priority of `Operational` transactions by adding
 	/// a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
 	pub const OperationalFeeMultiplier: u8 = 5;
@@ -1078,23 +1078,23 @@ impl InstanceFilter<RuntimeCall> for TransparentProxyType<ProxyType> {
 			),
 			ProxyType::Governance => matches!(
 				c,
-				RuntimeCall::Treasury(..) |
-					RuntimeCall::Bounties(..) |
-					RuntimeCall::Utility(..) |
-					RuntimeCall::ChildBounties(..) |
-					RuntimeCall::ConvictionVoting(..) |
-					RuntimeCall::Referenda(..) |
-					RuntimeCall::Whitelist(..)
+				RuntimeCall::Treasury(..)
+					| RuntimeCall::Bounties(..)
+					| RuntimeCall::Utility(..)
+					| RuntimeCall::ChildBounties(..)
+					| RuntimeCall::ConvictionVoting(..)
+					| RuntimeCall::Referenda(..)
+					| RuntimeCall::Whitelist(..)
 			),
 			ProxyType::Staking => {
 				matches!(
 					c,
-					RuntimeCall::Staking(..) |
-						RuntimeCall::Session(..) |
-						RuntimeCall::Utility(..) |
-						RuntimeCall::FastUnstake(..) |
-						RuntimeCall::VoterList(..) |
-						RuntimeCall::NominationPools(..)
+					RuntimeCall::Staking(..)
+						| RuntimeCall::Session(..)
+						| RuntimeCall::Utility(..)
+						| RuntimeCall::FastUnstake(..)
+						| RuntimeCall::VoterList(..)
+						| RuntimeCall::NominationPools(..)
 				)
 			},
 			ProxyType::NominationPools => {
@@ -1106,12 +1106,12 @@ impl InstanceFilter<RuntimeCall> for TransparentProxyType<ProxyType> {
 			ProxyType::Auction => matches!(c, RuntimeCall::Registrar(..) | RuntimeCall::Slots(..)),
 			ProxyType::ParaRegistration => matches!(
 				c,
-				RuntimeCall::Registrar(paras_registrar::Call::reserve { .. }) |
-					RuntimeCall::Registrar(paras_registrar::Call::register { .. }) |
-					RuntimeCall::Utility(pallet_utility::Call::batch { .. }) |
-					RuntimeCall::Utility(pallet_utility::Call::batch_all { .. }) |
-					RuntimeCall::Utility(pallet_utility::Call::force_batch { .. }) |
-					RuntimeCall::Proxy(pallet_proxy::Call::remove_proxy { .. })
+				RuntimeCall::Registrar(paras_registrar::Call::reserve { .. })
+					| RuntimeCall::Registrar(paras_registrar::Call::register { .. })
+					| RuntimeCall::Utility(pallet_utility::Call::batch { .. })
+					| RuntimeCall::Utility(pallet_utility::Call::batch_all { .. })
+					| RuntimeCall::Utility(pallet_utility::Call::force_batch { .. })
+					| RuntimeCall::Proxy(pallet_proxy::Call::remove_proxy { .. })
 			),
 		}
 	}
@@ -1651,7 +1651,7 @@ pub type SignedPayload = generic::SignedPayload<RuntimeCall, TxExtension>;
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	use super::*;
-	use cord_origin_relay_staging_runtime_constants::system_parachain::AssetHubParaId;
+	use origin_staging_runtime_constants::system_parachain::AssetHubParaId;
 
 	frame_benchmarking::define_benchmarks!(
 		// Polkadot
@@ -1937,7 +1937,7 @@ impl Runtime {
 }
 
 sp_api::impl_runtime_apis! {
-	impl relay_common::apis::Inflation<Block> for Runtime {
+	impl origin_common::apis::Inflation<Block> for Runtime {
 		fn experimental_inflation_prediction_info() -> InflationInfo {
 			Runtime::impl_experimental_inflation_info()
 		}
@@ -2767,8 +2767,8 @@ mod test_fees {
 		};
 
 		let mut active = target_voters;
-		while weight_with(active).all_lte(OffchainSolutionWeightLimit::get()) ||
-			active == target_voters
+		while weight_with(active).all_lte(OffchainSolutionWeightLimit::get())
+			|| active == target_voters
 		{
 			active += 1;
 		}
@@ -2842,7 +2842,7 @@ mod test {
 	fn check_treasury_pallet_id() {
 		assert_eq!(
 			<Treasury as frame_support::traits::PalletInfoAccess>::index() as u8,
-			cord_origin_relay_staging_runtime_constants::TREASURY_PALLET_ID
+			origin_staging_runtime_constants::TREASURY_PALLET_ID
 		);
 	}
 
@@ -2883,8 +2883,8 @@ mod multiplier_tests {
 	#[test]
 	fn multiplier_can_grow_from_zero() {
 		let minimum_multiplier = MinimumMultiplier::get();
-		let target = TargetBlockFullness::get() *
-			BlockWeights::get().get(DispatchClass::Normal).max_total.unwrap();
+		let target = TargetBlockFullness::get()
+			* BlockWeights::get().get(DispatchClass::Normal).max_total.unwrap();
 		// if the min is too small, then this will not change, and we are doomed forever.
 		// the weight is 1/100th bigger than target.
 		run_with_system_weight(target.saturating_mul(101) / 100, || {

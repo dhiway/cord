@@ -26,16 +26,25 @@ use std::path::PathBuf;
 /// relatively rare.
 ///
 /// The associated worker binaries should use the same version as the node that spawns them.
-pub const NODE_VERSION: &'static str = "0.9.7";
+pub const NODE_VERSION: &'static str = "0.9.9";
 
 #[allow(missing_docs)]
 #[derive(Debug, Parser)]
 pub enum Subcommand {
 	/// Build a chain specification.
+	/// Build a chain specification.
+	/// DEPRECATED: `build-spec` command will be removed after 1/04/2026. Use `export-chain-spec`
+	/// command instead.
+	#[deprecated(
+		note = "build-spec command will be removed after 1/04/2026. Use export-chain-spec command instead"
+	)]
 	BuildSpec(sc_cli::BuildSpecCmd),
 
 	/// Validate blocks.
 	CheckBlock(sc_cli::CheckBlockCmd),
+
+	/// Export the chain specification.
+	ExportChainSpec(sc_cli::ExportChainSpecCmd),
 
 	/// Export blocks.
 	ExportBlocks(sc_cli::ExportBlocksCmd),
@@ -72,18 +81,17 @@ pub struct RunCmd {
 	#[clap(flatten)]
 	pub base: sc_cli::RunCmd,
 
-	/// Force using Kusama native runtime.
-	#[arg(long = "force-kusama")]
-	pub force_kusama: bool,
+	// /// Force using Kusama native runtime.
+	// #[arg(long = "force-kusama")]
+	// pub force_kusama: bool,
 
-	/// Force using Westend native runtime.
-	#[arg(long = "force-westend")]
-	pub force_westend: bool,
+	// /// Force using Westend native runtime.
+	// #[arg(long = "force-westend")]
+	// pub force_westend: bool,
 
-	/// Force using Rococo native runtime.
-	#[arg(long = "force-rococo")]
-	pub force_rococo: bool,
-
+	// /// Force using Rococo native runtime.
+	// #[arg(long = "force-rococo")]
+	// pub force_rococo: bool,
 	/// Disable the BEEFY gadget.
 	///
 	/// Currently enabled by default.
@@ -165,6 +173,13 @@ pub struct RunCmd {
 	/// networks.
 	#[arg(long)]
 	pub keep_finalized_for: Option<u32>,
+
+	/// Overrides `HOLD_OFF_DURATION` in collator_protocol/validator_side. The value is in
+	/// milliseconds.
+	///
+	///  **Dangerous!** Do not touch unless explicitly advised to.
+	#[arg(long, hide = true)]
+	pub collator_protocol_hold_off: Option<u64>,
 }
 
 #[allow(missing_docs)]

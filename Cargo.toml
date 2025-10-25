@@ -22,6 +22,7 @@ members = [
 	"origin/relay/cli",
 	"origin/relay/common",
 	"origin/relay/runtime",
+	"origin/relay/runtime/authorities",
 	"origin/relay/runtime/constants",
 	"pallets/collection",
 	"pallets/doken",
@@ -750,9 +751,6 @@ cord-braid-runtime-constants = { path = "runtimes/braid/constants", default-feat
 cord-runtime-common = { path = "runtimes/common", default-features = false }
 cord-loom-runtime = { path = "runtimes/loom", default-features = false }
 cord-loom-runtime-constants = { path = "runtimes/loom/constants", default-features = false }
-cord-origin-relay-staging-runtime = { path = "origin/relay/runtime" }
-cord-origin-relay-staging-runtime-constants = { path = "origin/relay/runtime/constants", default-features = false }
-cord-origin-relay-cli = { path = "origin/relay/cli", default-features = false }
 cord-weave-runtime = { path = "runtimes/weave", default-features = false }
 cord-weave-runtime-constants = { path = "runtimes/weave/constants", default-features = false }
 cord-node-service = { path = "node/service", default-features = false }
@@ -782,7 +780,11 @@ pallet-schema-accounts = { path = "pallets/schema-accounts", default-features = 
 pallet-namespace = { path = 'pallets/namespace', default-features = false }
 pallet-profile = { path = "pallets/profile", default-features = false }
 people-origin-runtime = { path = "system-parachains/people" }
-relay-common = { path = "origin/relay/common", default-features = false }
+origin-staging-runtime = { path = "origin/relay/runtime" }
+origin-staging-runtime-constants = { path = "origin/relay/runtime/constants", default-features = false }
+origin-node-cli = { path = "origin/relay/cli", default-features = false }
+origin-common = { path = "origin/relay/common", default-features = false }
+origin-authorities = { path = "origin/relay/runtime/authorities", default-features = false }
 cord-origin-container = { path = "origin/container", default-features = false }
 cord-origin-system-chains-staging-constants = { path = "origin/container/constants", default-features = false }
 # cord-origin-asset-staging-runtime = { path = "origin/container/asset", default-features = false }

@@ -33,7 +33,6 @@ use polkadot_service::{
 use pyroscope_pprofrs::{pprof_backend, PprofConfig};
 use sc_cli::SubstrateCli;
 use sp_core::crypto::Ss58AddressFormat;
-
 use sp_keyring::Sr25519Keyring;
 
 pub use crate::error::Error;
@@ -44,7 +43,7 @@ type Result<T> = std::result::Result<T, Error>;
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Dhiway Cord Origin Relay".into()
+		"Dhiway Origin".into()
 	}
 
 	fn impl_version() -> String {
@@ -69,21 +68,21 @@ impl SubstrateCli for Cli {
 	}
 
 	fn executable_name() -> String {
-		"cord-origin-relay".into()
+		"origin".into()
 	}
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		Ok(match id {
-			// // -- Cord Origin Relay
-			// "cord-relay" | "cord-origin-relay" => Box::new(GenericChainSpec::from_json_bytes(
+			// // -- Origin
+			// "origin" | "origin-relay" => Box::new(GenericChainSpec::from_json_bytes(
 			// 	&include_bytes!("../../chain-specs/tbd.json")[..],
 			// )?),
 			#[cfg(feature = "origin-native")]
-			"relay-dev" | "origin-relay-dev" =>
-				Box::new(chain_spec::cord_origin_relay_development_config()?),
+			"origin-dev" | "origin-relay-dev" => Box::new(chain_spec::origin_development_config()?),
 			#[cfg(feature = "origin-native")]
-			"relay-local" | "origin-relay-local" =>
-				Box::new(chain_spec::cord_origin_relay_local_testnet_config()?),
+			"origin-staging" | "origin-relay-staging" => {
+				Box::new(chain_spec::cord_origin_staging_testnet_config()?)
+			},
 			path => {
 				let path = std::path::PathBuf::from(path);
 
@@ -104,7 +103,6 @@ fn set_default_ss58_version(spec: &Box<dyn polkadot_service::ChainSpec>) {
 		.and_then(|v| v.as_u64())
 		.map(|v| Ss58AddressFormat::custom(v as u16))
 		.unwrap_or_else(|| Ss58AddressFormat::custom(29));
-	// .unwrap_or_else(|| Ss58AddressFormatPrefix::Default.into());
 
 	sp_core::crypto::set_default_ss58_version(ss58_version);
 }
@@ -147,6 +145,9 @@ where
 
 	let secure_validator_mode = cli.run.base.validator && !cli.run.insecure_validator;
 
+	// Parse collator protocol hold off value and get the list of the invlunerable collators.
+	let collator_protocol_hold_off = cli.run.collator_protocol_hold_off.map(Duration::from_millis);
+
 	runner.run_node_until_exit(move |config| async move {
 		let hwbench = (!cli.run.no_hardware_benchmarks)
 			.then(|| {
@@ -169,8 +170,8 @@ where
 				secure_validator_mode,
 				workers_path: cli.run.workers_path,
 				workers_names: Some((
-					(&"cord-origin-relay-prepare-worker").to_string(),
-					(&"cord-origin-relay-execute-worker").to_string(),
+					(&"origin-prepare-worker").to_string(),
+					(&"origin-execute-worker").to_string(),
 				)),
 				overseer_gen,
 				overseer_message_channel_capacity_override: cli
@@ -183,6 +184,7 @@ where
 				prepare_workers_soft_max_num: cli.run.prepare_workers_soft_max_num,
 				enable_approval_voting_parallel: cli.run.enable_approval_voting_parallel,
 				keep_finalized_for: cli.run.keep_finalized_for,
+				collator_protocol_hold_off,
 			},
 		)
 		.map(|full| full.task_manager)?;
@@ -234,9 +236,15 @@ pub fn run() -> Result<()> {
 			None,
 			polkadot_node_metrics::logger_hook(),
 		),
+		#[allow(deprecated)]
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			Ok(runner.sync_run(|config| cmd.run(config.chain_spec, config.network))?)
+		},
+		Some(Subcommand::ExportChainSpec(cmd)) => {
+			// Directly load the embedded chain spec using the CLI’s load_spec method.
+			let spec = cli.load_spec(&cmd.chain)?;
+			cmd.run(spec).map_err(Into::into)
 		},
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd).map_err(Error::SubstrateCli)?;
@@ -333,8 +341,9 @@ pub fn run() -> Result<()> {
 					let (client, backend, _, _) = polkadot_service::new_chain_ops(&mut config)?;
 					let db = backend.expose_db();
 					let storage = backend.expose_storage();
+					let shared_trie_cache = backend.expose_shared_trie_cache();
 
-					cmd.run(config, client.clone(), db, storage).map_err(Error::SubstrateCli)
+					cmd.run(config, client.clone(), db, storage, shared_trie_cache).map_err(Error::SubstrateCli)
 				}),
 				BenchmarkCmd::Block(cmd) => runner.sync_run(|mut config| {
 					let (client, _, _, _) = polkadot_service::new_chain_ops(&mut config)?;
@@ -344,7 +353,7 @@ pub fn run() -> Result<()> {
 				BenchmarkCmd::Overhead(cmd) => runner.sync_run(|config| {
 					if cmd.params.runtime.is_some() {
 						return Err(sc_cli::Error::Input(
-							"Polkadot binary does not support `--runtime` flag for `benchmark overhead`. Please provide a chain spec or use the `frame-omni-bencher`."
+							"Origin binary does not support `--runtime` flag for `benchmark overhead`. Please provide a chain spec or use the `frame-omni-bencher`."
 								.into(),
 						)
 						.into())
@@ -398,7 +407,7 @@ pub fn run() -> Result<()> {
 					cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())
 						.map_err(Error::SubstrateCli)
 				}),
-				// NOTE: this allows the Polkadot client to leniently implement
+				// NOTE: this allows the Origin client to leniently implement
 				// new benchmark commands.
 				#[allow(unreachable_patterns)]
 				_ => Err(Error::CommandNotImplemented),

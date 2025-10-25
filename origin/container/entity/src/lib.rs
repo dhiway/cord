@@ -1150,7 +1150,7 @@ cumulus_pallet_parachain_system::register_validate_block! {
 
 #[test]
 fn test_ed_is_one_tenth_of_relay() {
-	let relay_ed = cord_origin_relay_staging_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
+	let relay_ed = origin_staging_runtime_constants::currency::EXISTENTIAL_DEPOSIT;
 	let people_ed = ExistentialDeposit::get();
 	assert_eq!(relay_ed / 10, people_ed);
 }

@@ -1,5 +1,5 @@
 [package]
-name = "cord-origin-relay-staging-runtime"
+name = "origin-staging-runtime"
 build = "build.rs"
 repository.workspace = true
 version.workspace = true
@@ -79,7 +79,7 @@ pallet-staking-reward-curve = { workspace = true }
 pallet-staking-runtime-api = { workspace = true }
 frame-system = { workspace = true }
 frame-system-rpc-runtime-api = { workspace = true }
-cord-origin-relay-staging-runtime-constants = { workspace = true }
+origin-staging-runtime-constants = { workspace = true }
 pallet-timestamp = { workspace = true }
 pallet-treasury = { workspace = true }
 pallet-whitelist = { workspace = true }
@@ -100,7 +100,7 @@ hex-literal = { workspace = true }
 polkadot-runtime-common = { workspace = true }
 runtime-parachains = { workspace = true }
 polkadot-primitives = { workspace = true }
-relay-common = { workspace = true }
+origin-common = { workspace = true }
 
 xcm = { workspace = true }
 xcm-executor = { workspace = true }
@@ -138,7 +138,7 @@ std = [
 	"codec/std",
 	"cord-primitives/std",
 	"cord-doken-runtime-api/std",
-	"cord-origin-relay-staging-runtime-constants/std",
+	"origin-staging-runtime-constants/std",
 	"frame-benchmarking?/std",
 	"frame-election-provider-support/std",
 	"frame-executive/std",
@@ -198,7 +198,7 @@ std = [
 	"polkadot-parachain-primitives/std",
 	"polkadot-primitives/std",
 	"polkadot-runtime-common/std",
-	"relay-common/std",
+	"origin-common/std",
 	"runtime-parachains/std",
 	"scale-info/std",
 	"serde_json/std",
@@ -229,7 +229,7 @@ std = [
 ]
 #Local
 runtime-benchmarks = [
-	"cord-origin-relay-staging-runtime-constants/runtime-benchmarks",
+	"origin-staging-runtime-constants/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-election-provider-support/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
@@ -275,7 +275,7 @@ runtime-benchmarks = [
 	"polkadot-parachain-primitives/runtime-benchmarks",
 	"polkadot-primitives/runtime-benchmarks",
 	"polkadot-runtime-common/runtime-benchmarks",
-	"relay-common/runtime-benchmarks",
+	"origin-common/runtime-benchmarks",
 	"runtime-parachains/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"sp-staking/runtime-benchmarks",
@@ -341,7 +341,7 @@ metadata-hash = ["substrate-wasm-builder?/metadata-hash"]
 on-chain-release-build = ["metadata-hash", "sp-api/disable-logging"]
 
 # Set timing constants (e.g. session period) to faster versions to speed up testing.
-fast-runtime = ["cord-origin-relay-staging-runtime-constants/fast-runtime"]
+fast-runtime = ["origin-staging-runtime-constants/fast-runtime"]
 
 runtime-metrics = ["runtime-parachains/runtime-metrics", "sp-io/with-tracing"]
 
