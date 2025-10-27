@@ -36,7 +36,7 @@ struct CliConfig;
 
 impl CliConfigT for CliConfig {
 	fn impl_name() -> String {
-		"Dhiway Cord Origin".into()
+		"Dhiway Origin Hub".into()
 	}
 
 	fn impl_version() -> String {

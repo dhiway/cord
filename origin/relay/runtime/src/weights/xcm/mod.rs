@@ -19,7 +19,7 @@ mod pallet_xcm_benchmarks_generic;
 
 use crate::Runtime;
 use alloc::vec::Vec;
-use frame_election_provider_support::BoundedVec;
+use frame_support::BoundedVec;
 use pallet_xcm_benchmarks_fungible::WeightInfo as XcmBalancesWeight;
 use pallet_xcm_benchmarks_generic::WeightInfo as XcmGeneric;
 use xcm::{
