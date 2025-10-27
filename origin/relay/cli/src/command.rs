@@ -24,7 +24,7 @@ use frame_benchmarking_cli::{
 	BenchmarkCmd, ExtrinsicFactory, SubstrateRemarkBuilder, SUBSTRATE_REFERENCE_HARDWARE,
 };
 use futures::future::TryFutureExt;
-use log::{info, warn};
+use log::warn;
 use polkadot_service::{
 	self,
 	benchmarking::{benchmark_inherent_data, TransferKeepAliveBuilder},
@@ -44,6 +44,7 @@ use std::{collections::HashSet, time::Duration};
 
 type Result<T> = std::result::Result<T, Error>;
 
+/// Origin invulnerables
 pub fn get_invulnerable_origin_collators() -> HashSet<PeerId> {
 	const ORIGIN: [&str; 0] = [
         // "12D3KooWExamplePeerId1111111111111111111111111111111",

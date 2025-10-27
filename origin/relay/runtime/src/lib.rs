@@ -494,7 +494,6 @@ where
 			.saturating_sub(1);
 		let tip = 0;
 		let tx_ext: TxExtension = (
-			frame_system::AuthorizeCall::<Runtime>::new(),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
@@ -506,7 +505,7 @@ where
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
-			frame_metadata_hash_extension::CheckMetadataHash::new(true),
+			frame_metadata_hash_extension::CheckMetadataHash::new(false),
 			frame_system::WeightReclaim::<Runtime>::new(),
 		)
 			.into();
@@ -549,7 +548,6 @@ where
 {
 	fn create_extension() -> Self::Extension {
 		(
-			frame_system::AuthorizeCall::<Runtime>::new(),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
@@ -740,8 +738,8 @@ parameter_types! {
 	///
 	/// This is not a good value for para-chains since the `Scheduler` already uses up to 80% block weight.
 	pub MessageQueueServiceWeight: Weight = Perbill::from_percent(20) * BlockWeights::get().max_block;
-	pub const MessageQueueHeapSize: u32 = 32 * 1024;
-	pub const MessageQueueMaxStale: u32 = 96;
+	pub const MessageQueueHeapSize: u32 = 65_536;
+	pub const MessageQueueMaxStale: u32 = 8;
 }
 
 /// Message processor to handle any messages that were enqueued into the `MessageQueue` pallet.
@@ -1050,13 +1048,13 @@ construct_runtime! {
 
 		Timestamp: pallet_timestamp = 3,
 		Indices: pallet_indices = 4,
-		Balances: pallet_balances = 5,
+		AuthorityManager: origin_authorities = 5,
+		Balances: pallet_balances = 6,
 		TransactionPayment: pallet_transaction_payment = 32,
 
 		// Consensus support.
 		// Authorship must be before session in order to note author in the correct session and era.
-		Authorship: pallet_authorship = 6,
-		AuthorityManager: origin_authorities = 7,
+		Authorship: pallet_authorship = 7,
 		Offences: pallet_offences = 8,
 		Historical: session_historical = 33,
 
@@ -1132,7 +1130,6 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The TransactionExtension to the basic transaction logic.
 pub type TxExtension = (
-	frame_system::AuthorizeCall<Runtime>,
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
@@ -1265,14 +1262,14 @@ mod benches {
 				ExistentialDepositAsset,
 				xcm_config::PriceForChildParachainDelivery,
 				OriginHubInParaId,
-				(),
+				Dmp,
 			>,
 			polkadot_runtime_common::xcm_sender::ToParachainDeliveryHelper<
 				XcmConfig,
 				ExistentialDepositAsset,
 				xcm_config::PriceForChildParachainDelivery,
 				RandomParaId,
-				(),
+				Dmp,
 			>,
 		);
 
@@ -1323,7 +1320,7 @@ mod benches {
 			ExistentialDepositAsset,
 			xcm_config::PriceForChildParachainDelivery,
 			OriginHubInParaId,
-			(),
+			Dmp,
 		>;
 		fn valid_destination() -> Result<Location, BenchmarkError> {
 			Ok(OriginHubInLocation::get())
