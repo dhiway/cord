@@ -42,6 +42,8 @@ frame-system = { workspace = true, default-features = true }
 frame-benchmarking-cli = { optional = true, workspace = true, default-features = true }
 frame-metadata-hash-extension = { optional = true, workspace = true, default-features = true }
 sc-cli = { optional = true, workspace = true, default-features = true }
+sc-network-types.default-features = true
+sc-network-types.workspace = true
 sc-service = { optional = true, workspace = true, default-features = true }
 pallet-transaction-payment = { workspace = true, default-features = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true, default-features = true }

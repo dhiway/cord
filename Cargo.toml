@@ -52,7 +52,7 @@ members = [
 	"pallets/profile",
 	"pallets/entry",
 ]
-default-members = ["node/cli"]
+default-members = ["node/cli", "origin/relay"]
 
 [workspace.lints.rust]
 suspicious_double_ref_op = { level = "allow", priority = 2 }

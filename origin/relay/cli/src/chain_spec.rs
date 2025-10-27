@@ -77,16 +77,16 @@ pub fn origin_development_config() -> Result<OriginChainSpec, String> {
 }
 
 /// Origin local testnet config (multivalidator Alice + Bob)
-pub fn origin_staging_testnet_config() -> Result<OriginChainSpec, String> {
+pub fn origin_staging_config() -> Result<OriginChainSpec, String> {
 	Ok(OriginChainSpec::builder(
 		origin_staging_runtime::WASM_BINARY.ok_or("Origin wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Origin Staging Testnet")
-	.with_id("origin_local")
+	.with_name("Origin Staging")
+	.with_id("origin_staging")
 	.with_chain_type(ChainType::Local)
 	.with_genesis_config_patch(
-		origin_staging_runtime::genesis_config_presets::origin_staging_testnet_genesis(),
+		origin_staging_runtime::genesis_config_presets::origin_staging_config_genesis(),
 	)
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(ORIGIN_TELEMETRY_URL.to_string(), 0)])
