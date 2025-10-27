@@ -1,5 +1,5 @@
 [package]
-name = 'pallet-doken'
+name = 'pallet-token'
 description = 'CORD Data Token Manager.'
 version.workspace = true
 authors.workspace = true

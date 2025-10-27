@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! # CORD Dato Token (Doken)
+//! # CORD Dato Token (Token)
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 #![warn(unused_crate_dependencies)]
@@ -114,8 +114,8 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// A doken state was updated.
-		StateChange { doken: Ss58Identifier, state: u32, action: EventTypeOf },
+		/// A token state was updated.
+		StateChange { token: Ss58Identifier, state: u32, action: EventTypeOf },
 	}
 
 	#[pallet::error]
@@ -133,16 +133,16 @@ pub mod pallet {
 		InvalidNetworkId,
 		// State Update Failed
 		StateUpdateFailed,
-		/// The doken format is invalid.
-		InvalidDokenFormat,
+		/// The token format is invalid.
+		InvalidTokenFormat,
 		/// The prefix is invalid or unrecognized.
-		InvalidDokenPrefix,
-		/// The doken is not valid.
-		InvalidDoken,
+		InvalidTokenPrefix,
+		/// The token is not valid.
+		InvalidToken,
 		/// The checksum validation failed.
-		InvalidDokenChecksum,
-		/// The doken length is not valid.
-		InvalidDokenLength,
+		InvalidTokenChecksum,
+		/// The token length is not valid.
+		InvalidTokenLength,
 		/// The provided digest length is invalid. Expected 32 bytes.
 		InvalidDigestLength,
 		/// The value is out of the expected range for compact encoding.
@@ -240,19 +240,19 @@ impl<T: Config> Pallet<T> {
 		IsOriginChain::<T>::get()
 	}
 
-	/// Record an activity event for the given doken by appending a new record.
-	pub fn update_doken_state(
-		doken: &Ss58Identifier,
+	/// Record an activity event for the given token by appending a new record.
+	pub fn update_token_state(
+		token: &Ss58Identifier,
 		digest: HashOf<T>,
 		action: EventTypeOf,
 		seal: EventBlock,
 	) -> DispatchResult {
-		let index = StateVersion::<T>::get(&doken);
+		let index = StateVersion::<T>::get(&token);
 		let record = StateEvent { action: action.clone(), digest, seal };
-		StateHistory::<T>::insert(&doken, index, record);
-		StateVersion::<T>::insert(&doken, index.saturating_add(1));
+		StateHistory::<T>::insert(&token, index, record);
+		StateVersion::<T>::insert(&token, index.saturating_add(1));
 
-		Self::deposit_event(Event::StateChange { doken: doken.clone(), state: index, action });
+		Self::deposit_event(Event::StateChange { token: token.clone(), state: index, action });
 
 		Ok(())
 	}
@@ -261,11 +261,11 @@ impl<T: Config> Pallet<T> {
 impl<T: Config> From<IdentifierError> for Error<T> {
 	fn from(err: IdentifierError) -> Self {
 		match err {
-			IdentifierError::InvalidFormat => Self::InvalidDokenFormat,
-			IdentifierError::InvalidPrefix => Self::InvalidDokenPrefix,
-			IdentifierError::InvalidIdentifier => Self::InvalidDoken,
-			IdentifierError::InvalidChecksum => Self::InvalidDokenChecksum,
-			IdentifierError::InvalidIdentifierLength => Self::InvalidDokenLength,
+			IdentifierError::InvalidFormat => Self::InvalidTokenFormat,
+			IdentifierError::InvalidPrefix => Self::InvalidTokenPrefix,
+			IdentifierError::InvalidIdentifier => Self::InvalidToken,
+			IdentifierError::InvalidChecksum => Self::InvalidTokenChecksum,
+			IdentifierError::InvalidIdentifierLength => Self::InvalidTokenLength,
 			IdentifierError::CompactValueOutOfRange => Self::CompactValueOutOfRange,
 			IdentifierError::InvalidDigestLength => Self::InvalidDigestLength,
 			IdentifierError::InvalidCompactEncoding => Self::InvalidCompactEncoding,
@@ -274,23 +274,23 @@ impl<T: Config> From<IdentifierError> for Error<T> {
 	}
 }
 
-pub trait Doken<T: frame_system::Config> {
+pub trait Token<T: frame_system::Config> {
 	type Hash: Encode + Decode + DecodeWithMemTracking + Clone + PartialEq + Eq;
 	type Error;
 
 	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, pallet::Error<T>>;
-	fn resolve_doken(doken: &Ss58Identifier) -> Result<DecodedIdentifier, Self::Error>;
+	fn resolve_token(token: &Ss58Identifier) -> Result<DecodedIdentifier, Self::Error>;
 	fn resolve_pallet(index: u16) -> Result<String, Self::Error>;
-	/// Record a state transition event for the given doken.
+	/// Record a state transition event for the given token.
 	fn state_event(
-		doken: &Ss58Identifier,
+		token: &Ss58Identifier,
 		digest: Self::Hash,
 		action: EventTypeOf,
 		stamp: EventBlock,
 	) -> Result<(), Self::Error>;
 }
 
-impl<T: pallet::Config> Doken<T> for Pallet<T> {
+impl<T: pallet::Config> Token<T> for Pallet<T> {
 	type Hash = HashOf<T>;
 	type Error = pallet::Error<T>;
 
@@ -301,8 +301,8 @@ impl<T: pallet::Config> Doken<T> for Pallet<T> {
 		Ss58Identifier::to_encoded(digest, nid, pid, ori).map_err(Into::into)
 	}
 
-	fn resolve_doken(doken: &Ss58Identifier) -> Result<DecodedIdentifier, Self::Error> {
-		doken.to_decoded().map_err(Into::into)
+	fn resolve_token(token: &Ss58Identifier) -> Result<DecodedIdentifier, Self::Error> {
+		token.to_decoded().map_err(Into::into)
 	}
 
 	fn resolve_pallet(index: u16) -> Result<String, Self::Error> {
@@ -310,12 +310,12 @@ impl<T: pallet::Config> Doken<T> for Pallet<T> {
 	}
 
 	fn state_event(
-		doken: &Ss58Identifier,
+		token: &Ss58Identifier,
 		digest: Self::Hash,
 		event: EventTypeOf,
 		stamp: EventBlock,
 	) -> Result<(), Self::Error> {
-		Self::update_doken_state(doken, digest, event, stamp)
+		Self::update_token_state(token, digest, event, stamp)
 			.map_err(|_| pallet::Error::<T>::StateUpdateFailed)
 	}
 }

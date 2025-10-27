@@ -18,7 +18,7 @@ scale-info = { features = ["derive"], workspace = true }
 serde_json = { features = ["alloc"], workspace = true }
 
 # Local
-cord-doken-runtime-api = { workspace = true }
+cord-token-runtime-api = { workspace = true }
 cord-primitives = { workspace = true }
 origin-staging-runtime-constants = { workspace = true }
 cord-origin-system-chains-staging-constants = { workspace = true }
@@ -36,7 +36,7 @@ pallet-aura = { workspace = true }
 pallet-authorship = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-entity = { workspace = true }
-pallet-doken = { workspace = true }
+pallet-token = { workspace = true }
 pallet-message-queue = { workspace = true }
 pallet-migrations = { workspace = true }
 pallet-multisig = { workspace = true }
@@ -97,7 +97,7 @@ std = [
 	"cord-primitives/std",
 	"origin-staging-runtime-constants/std",
 	"cord-origin-system-chains-staging-constants/std",
-	"cord-doken-runtime-api/std",
+	"cord-token-runtime-api/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-session-benchmarking/std",
@@ -121,7 +121,7 @@ std = [
 	"pallet-balances/std",
 	"pallet-collator-selection/std",
 	"pallet-entity/std",
-	"pallet-doken/std",
+	"pallet-token/std",
 	"pallet-message-queue/std",
 	"pallet-migrations/std",
 	"pallet-multisig/std",
@@ -211,7 +211,7 @@ try-runtime = [
 	"pallet-balances/try-runtime",
 	"pallet-collator-selection/try-runtime",
 	"pallet-entity/try-runtime",
-	"pallet-doken/try-runtime",
+	"pallet-token/try-runtime",
 	"pallet-message-queue/try-runtime",
 	"pallet-migrations/try-runtime",
 	"pallet-multisig/try-runtime",

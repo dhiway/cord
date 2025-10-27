@@ -141,7 +141,7 @@ cord-loom-runtime-constants = { features = [
 cord-weave-runtime-constants = { features = [
 	"std",
 ], workspace = true, optional = true }
-pallet-doken = { features = ["std"], workspace = true }
+pallet-token = { features = ["std"], workspace = true }
 pallet-network-membership = { features = ["std"], workspace = true }
 pallet-staking = { workspace = true }
 

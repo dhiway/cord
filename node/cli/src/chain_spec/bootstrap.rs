@@ -308,7 +308,7 @@ fn cord_braid_custom_genesis(
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
 		/* TODO: Make the protocolId modular as well, to support origin chains */
-		"doken": { "protocolId": "c0rd".to_string(), "networkId": network_id },
+		"token": { "protocolId": "c0rd".to_string(), "networkId": network_id },
 		"nodeAuthorization":  {
 			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},
@@ -364,7 +364,7 @@ fn cord_loom_custom_genesis(
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
 		/* TODO: Make the protocolId modular as well, to support origin chains */
-		"doken": { "protocolId": "c0rd".to_string(), "networkId": network_id },
+		"token": { "protocolId": "c0rd".to_string(), "networkId": network_id },
 		"authorityMembership":  {
 			"initialAuthorities": initial_authorities
 				.iter()
@@ -426,7 +426,7 @@ fn cord_weave_custom_genesis(
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
 		/* TODO: Make the protocolId modular as well, to support origin chains */
-		"doken": { "protocolId": "c0rd".to_string(), "networkId": network_id },
+		"token": { "protocolId": "c0rd".to_string(), "networkId": network_id },
 		"session":  {
 			"keys": initial_authorities
 				.iter()

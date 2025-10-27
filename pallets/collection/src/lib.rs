@@ -29,8 +29,8 @@ use codec::Encode;
 use cord_primitives::identifier::Ss58Identifier;
 use frame_support::dispatch::DispatchResult;
 use frame_system::{pallet_prelude::BlockNumberFor, WeightInfo};
-use pallet_doken::{Doken, EventBlock, EventTypeOf};
 use pallet_profile::ProfileIdOf;
+use pallet_token::{EventBlock, EventTypeOf, Token};
 use sp_runtime::traits::{Hash, One, Saturating};
 
 #[cfg(test)]
@@ -57,7 +57,7 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_doken::Config + pallet_profile::Config {
+	pub trait Config: frame_system::Config + pallet_token::Config + pallet_profile::Config {
 		#[allow(deprecated)]
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type WeightInfo: WeightInfo;
@@ -280,7 +280,7 @@ pub mod pallet {
 			let digest = T::Hashing::hash(&input);
 
 			let identifier =
-				<pallet_doken::Pallet<T> as Doken<T>>::build(&(digest).encode()[..], pallet_name)
+				<pallet_token::Pallet<T> as Token<T>>::build(&(digest).encode()[..], pallet_name)
 					.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
 
 			ensure!(
@@ -483,7 +483,7 @@ impl<T: Config> Pallet<T> {
 		let action: EventTypeOf =
 			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
 		let stamp = EventBlock::current::<T>();
-		<pallet_doken::Pallet<T> as Doken<T>>::state_event(identifier, digest, action, stamp)
+		<pallet_token::Pallet<T> as Token<T>>::state_event(identifier, digest, action, stamp)
 			.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
 	}

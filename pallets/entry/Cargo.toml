@@ -24,7 +24,7 @@ bitflags = { workspace = true }
 
 # Internal dependencies
 cord-primitives = { workspace = true }
-pallet-doken = { workspace = true }
+pallet-token = { workspace = true }
 pallet-profile = { workspace = true }
 pallet-registry = { workspace = true }
 
@@ -59,7 +59,7 @@ std = [
 	"sp-io/std",
 	"sp-keystore/std",
 	"sp-runtime/std",
-	"pallet-doken/std",
+	"pallet-token/std",
 	"pallet-profile/std",
 	"pallet-registry/std",
 ]

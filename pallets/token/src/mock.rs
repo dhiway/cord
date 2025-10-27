@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate as pallet_doken;
+use crate as pallet_token;
 use frame_support::{derive_impl, parameter_types};
 use frame_system as system;
 use sp_runtime::BuildStorage;
@@ -26,7 +26,7 @@ type Block = system::mocking::MockBlock<Test>;
 frame_support::construct_runtime!(
 	pub enum Test {
 		System: system,
-		Identifier: pallet_doken,
+		Identifier: pallet_token,
 	}
 );
 
@@ -41,7 +41,7 @@ impl frame_system::Config for Test {
 	type SS58Prefix = SS58Prefix;
 }
 
-impl pallet_doken::Config for Test {
+impl pallet_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = frame_system::Pallet<Test>;
 }

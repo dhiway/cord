@@ -87,9 +87,9 @@ pub use sp_runtime::{MultiAddress, Perbill, Permill};
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
-/// Runtime API definition for doken.
-pub use cord_doken_runtime_api as doken_api;
-use pallet_doken::Doken as _;
+/// Runtime API definition for token.
+pub use cord_token_runtime_api as token_api;
+use pallet_token::Token as _;
 
 use weights::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight};
 use xcm::{
@@ -494,23 +494,23 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			),
 			ProxyType::CancelProxy => matches!(
 				c,
-				RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }) |
-					RuntimeCall::Utility { .. } |
-					RuntimeCall::Multisig { .. }
+				RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. })
+					| RuntimeCall::Utility { .. }
+					| RuntimeCall::Multisig { .. }
 			),
 			ProxyType::Entity => {
 				matches!(
 					c,
-					RuntimeCall::Entity { .. } |
-						RuntimeCall::Utility { .. } |
-						RuntimeCall::Multisig { .. }
+					RuntimeCall::Entity { .. }
+						| RuntimeCall::Utility { .. }
+						| RuntimeCall::Multisig { .. }
 				)
 			},
 			ProxyType::Collator => matches!(
 				c,
-				RuntimeCall::CollatorSelection { .. } |
-					RuntimeCall::Utility { .. } |
-					RuntimeCall::Multisig { .. }
+				RuntimeCall::CollatorSelection { .. }
+					| RuntimeCall::Utility { .. }
+					| RuntimeCall::Multisig { .. }
 			),
 		}
 	}
@@ -568,7 +568,7 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
-impl pallet_doken::Config for Runtime {
+impl pallet_token::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 }
@@ -627,7 +627,7 @@ construct_runtime!(
 
 		// The main stage.
 		Entity: pallet_entity = 50,
-		Doken: pallet_doken = 51,
+		Token: pallet_token = 51,
 
 		// Sudo.
 		Sudo: pallet_sudo = 255,
@@ -1002,14 +1002,14 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl doken_api::DokenApi<Block> for Runtime {
-		fn decode_doken(doken: Vec<u8>) -> Option<doken_api::DecodedDokenApi> {
+	impl token_api::TokenApi<Block> for Runtime {
+		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
 
-			let ss58_id = Ss58Identifier::try_from(doken).ok()?;
+			let ss58_id = Ss58Identifier::try_from(token).ok()?;
 
-			let decoded: DecodedIdentifier = Doken::resolve_doken(&ss58_id).ok()?;
+			let decoded: DecodedIdentifier = Token::resolve_token(&ss58_id).ok()?;
 
-			Some(doken_api::DecodedDokenApi {
+			Some(token_api::DecodedTokenApi {
 				version: decoded.version,
 				origin: decoded.origin !=0,
 				network: decoded.network,
@@ -1019,7 +1019,7 @@ impl_runtime_apis! {
 		}
 
 		fn resolve_pallet(index: u16) -> Option<String> {
-			Doken::resolve_pallet_name(index).ok()
+			Token::resolve_pallet_name(index).ok()
 		}
 	}
 

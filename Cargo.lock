@@ -2127,9 +2127,9 @@ version = "0.9.9"
 dependencies = [
  "authority-membership",
  "cord-braid-runtime-constants",
- "cord-doken-runtime-api",
  "cord-primitives",
  "cord-runtime-common",
+ "cord-token-runtime-api",
  "frame-benchmarking",
  "frame-executive",
  "frame-metadata-hash-extension",
@@ -2155,7 +2155,6 @@ dependencies = [
  "pallet-cord-node-authorization",
  "pallet-cord-offences",
  "pallet-cord-session-benchmarking",
- "pallet-doken",
  "pallet-entity",
  "pallet-entry",
  "pallet-grandpa",
@@ -2177,6 +2176,7 @@ dependencies = [
  "pallet-statement",
  "pallet-sudo",
  "pallet-timestamp",
+ "pallet-token",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-tx-pause",
@@ -2243,25 +2243,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "cord-doken-runtime-api"
-version = "0.9.9"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
-]
-
-[[package]]
 name = "cord-loom-runtime"
 version = "0.9.9"
 dependencies = [
  "authority-membership",
- "cord-doken-runtime-api",
  "cord-loom-runtime-constants",
  "cord-primitives",
  "cord-runtime-common",
+ "cord-token-runtime-api",
  "frame-benchmarking",
  "frame-executive",
  "frame-metadata-hash-extension",
@@ -2286,7 +2275,6 @@ dependencies = [
  "pallet-contracts",
  "pallet-cord-offences",
  "pallet-cord-session-benchmarking",
- "pallet-doken",
  "pallet-entity",
  "pallet-entry",
  "pallet-grandpa",
@@ -2310,6 +2298,7 @@ dependencies = [
  "pallet-statement",
  "pallet-sudo",
  "pallet-timestamp",
+ "pallet-token",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
@@ -2402,13 +2391,13 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-contracts",
- "pallet-doken",
  "pallet-im-online",
  "pallet-network-membership",
  "pallet-root-testing",
  "pallet-staking",
  "pallet-sudo",
  "pallet-timestamp",
+ "pallet-token",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
@@ -2680,9 +2669,9 @@ dependencies = [
 name = "cord-origin-entity-staging-runtime"
 version = "0.9.9"
 dependencies = [
- "cord-doken-runtime-api",
  "cord-origin-system-chains-staging-constants",
  "cord-primitives",
+ "cord-token-runtime-api",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-session-benchmarking",
@@ -2707,7 +2696,6 @@ dependencies = [
  "pallet-authorship",
  "pallet-balances",
  "pallet-collator-selection",
- "pallet-doken",
  "pallet-entity",
  "pallet-message-queue",
  "pallet-migrations",
@@ -2716,6 +2704,7 @@ dependencies = [
  "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
+ "pallet-token",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-utility",
@@ -2817,14 +2806,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "cord-token-runtime-api"
+version = "0.9.9"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+]
+
+[[package]]
 name = "cord-weave-runtime"
 version = "0.9.9"
 dependencies = [
  "blake2 0.10.6",
  "bs58",
- "cord-doken-runtime-api",
  "cord-primitives",
  "cord-runtime-common",
+ "cord-token-runtime-api",
  "cord-weave-runtime-constants",
  "derive_more 0.99.20",
  "frame-benchmarking",
@@ -2863,7 +2863,6 @@ dependencies = [
  "pallet-contracts-proc-macro",
  "pallet-contracts-uapi",
  "pallet-delegated-staking",
- "pallet-doken",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
  "pallet-entity",
@@ -2906,6 +2905,7 @@ dependencies = [
  "pallet-statement",
  "pallet-sudo",
  "pallet-timestamp",
+ "pallet-token",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-treasury",
@@ -8796,8 +8796,8 @@ version = "0.9.9"
 dependencies = [
  "approx",
  "binary-merkle-tree",
- "cord-doken-runtime-api",
  "cord-primitives",
+ "cord-token-runtime-api",
  "frame-benchmarking",
  "frame-executive",
  "frame-metadata-hash-extension",
@@ -8820,7 +8820,6 @@ dependencies = [
  "pallet-beefy",
  "pallet-beefy-mmr",
  "pallet-broker",
- "pallet-doken",
  "pallet-grandpa",
  "pallet-im-online",
  "pallet-indices",
@@ -8837,6 +8836,7 @@ dependencies = [
  "pallet-session-benchmarking",
  "pallet-sudo",
  "pallet-timestamp",
+ "pallet-token",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
  "pallet-utility",
@@ -9279,8 +9279,8 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-doken",
  "pallet-profile",
+ "pallet-token",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -9464,20 +9464,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-doken"
-version = "0.9.9"
-dependencies = [
- "cord-primitives",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-election-provider-multi-phase"
 version = "42.0.0"
 source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
@@ -9539,7 +9525,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "pallet-balances",
- "pallet-doken",
+ "pallet-token",
  "parity-scale-codec",
  "scale-info",
  "sp-io",
@@ -9556,9 +9542,9 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-doken",
  "pallet-profile",
  "pallet-registry",
+ "pallet-token",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -9971,7 +9957,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-doken",
+ "pallet-token",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -10045,8 +10031,8 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-doken",
  "pallet-profile",
+ "pallet-token",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -10483,6 +10469,20 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-token"
+version = "0.9.9"
+dependencies = [
+ "cord-primitives",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
  "sp-core",
  "sp-io",
  "sp-runtime",
