@@ -24,6 +24,7 @@ use frame_benchmarking_cli::{
 	BenchmarkCmd, ExtrinsicFactory, SubstrateRemarkBuilder, SUBSTRATE_REFERENCE_HARDWARE,
 };
 use futures::future::TryFutureExt;
+use log::{info, warn};
 use polkadot_service::{
 	self,
 	benchmarking::{benchmark_inherent_data, TransferKeepAliveBuilder},
@@ -32,14 +33,35 @@ use polkadot_service::{
 #[cfg(feature = "pyroscope")]
 use pyroscope_pprofrs::{pprof_backend, PprofConfig};
 use sc_cli::SubstrateCli;
+use sc_network_types::PeerId;
 use sp_core::crypto::Ss58AddressFormat;
 use sp_keyring::Sr25519Keyring;
 
 pub use crate::error::Error;
 #[cfg(feature = "pyroscope")]
 use std::net::ToSocketAddrs;
+use std::{collections::HashSet, time::Duration};
 
 type Result<T> = std::result::Result<T, Error>;
+
+pub fn get_invulnerable_origin_collators() -> HashSet<PeerId> {
+	const ORIGIN: [&str; 0] = [
+        // "12D3KooWExamplePeerId1111111111111111111111111111111",
+        // "12D3KooWExamplePeerId2222222222222222222222222222222",
+    ];
+
+	ORIGIN
+		.iter()
+		.filter_map(|peer_str| {
+			peer_str
+				.parse::<PeerId>()
+				.map_err(|e| {
+					warn!("Failed to parse Origin invulnerable peer ID {:?}: {:?}", peer_str, e);
+				})
+				.ok()
+		})
+		.collect()
+}
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -78,11 +100,9 @@ impl SubstrateCli for Cli {
 			// 	&include_bytes!("../../chain-specs/tbd.json")[..],
 			// )?),
 			#[cfg(feature = "origin-native")]
-			"origin-dev" | "origin-relay-dev" => Box::new(chain_spec::origin_development_config()?),
+			"dev" | "origin-dev" => Box::new(chain_spec::origin_development_config()?),
 			#[cfg(feature = "origin-native")]
-			"origin-staging" | "origin-relay-staging" => {
-				Box::new(chain_spec::cord_origin_staging_testnet_config()?)
-			},
+			"origin-staging" | "origin-relay-staging" => Box::new(chain_spec::origin_staging_config()?),
 			path => {
 				let path = std::path::PathBuf::from(path);
 
@@ -147,6 +167,7 @@ where
 
 	// Parse collator protocol hold off value and get the list of the invlunerable collators.
 	let collator_protocol_hold_off = cli.run.collator_protocol_hold_off.map(Duration::from_millis);
+	let invulnerable_ah_collators = get_invulnerable_origin_collators();
 
 	runner.run_node_until_exit(move |config| async move {
 		let hwbench = (!cli.run.no_hardware_benchmarks)
@@ -182,8 +203,8 @@ where
 				execute_workers_max_num: cli.run.execute_workers_max_num,
 				prepare_workers_hard_max_num: cli.run.prepare_workers_hard_max_num,
 				prepare_workers_soft_max_num: cli.run.prepare_workers_soft_max_num,
-				enable_approval_voting_parallel: cli.run.enable_approval_voting_parallel,
 				keep_finalized_for: cli.run.keep_finalized_for,
+				invulnerable_ah_collators,
 				collator_protocol_hold_off,
 			},
 		)

@@ -114,20 +114,21 @@ pub mod system_parachain {
 	use xcm_builder::IsChildSystemParachain;
 
 	parameter_types! {
-		pub AssetHubParaId: ParaId = ASSET_HUB_ID.into();
-		pub EntityParaId: ParaId = ENTITY_ID.into();
+		pub OriginHubInParaId: ParaId = ORIGIN_HUB_IN_ID.into();
+		pub OriginHubNaParaId: ParaId = ORIGIN_HUB_NA_ID.into();
+		pub OriginHubEuParaId: ParaId = ORIGIN_HUB_EU_ID.into();
+		pub OriginHubAPParaId: ParaId = ORIGIN_HUB_AP_ID.into();
+		pub OriginHubMeParaId: ParaId = ORIGIN_HUB_ME_ID.into();
+		pub OriginHubAfParaId: ParaId = ORIGIN_HUB_AF_ID.into();
 	}
 
-	/// Asset Hub parachain ID.
-	pub const ASSET_HUB_ID: u32 = 1000;
-	// /// Collectives parachain ID.
-	// pub const COLLECTIVES_ID: u32 = 1001;
-	// /// Bridge Hub parachain ID.
-	// pub const BRIDGE_HUB_ID: u32 = 1002;
-	/// Entity parachain ID.
-	pub const ENTITY_ID: u32 = 2004;
-	/// Coretime Chain ID.
-	pub const BROKER_ID: u32 = 2005;
+	/// Origin Hub parachain IDs.
+	pub const ORIGIN_HUB_IN_ID: u32 = 1000;
+	pub const ORIGIN_HUB_NA_ID: u32 = 1001;
+	pub const ORIGIN_HUB_EU_ID: u32 = 1002;
+	pub const ORIGIN_HUB_AP_ID: u32 = 1003;
+	pub const ORIGIN_HUB_ME_ID: u32 = 1004;
+	pub const ORIGIN_HUB_AF_ID: u32 = 1005;
 
 	// System parachains from Polkadot point of view.
 	pub type SystemParachains = IsChildSystemParachain<ParaId>;

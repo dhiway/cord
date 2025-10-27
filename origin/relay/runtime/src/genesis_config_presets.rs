@@ -22,13 +22,16 @@ use crate::*;
 #[cfg(not(feature = "std"))]
 use alloc::format;
 use babe_primitives::AuthorityId as BabeId;
+use beefy_primitives::ecdsa_crypto::AuthorityId as BeefyId;
 use origin_staging_runtime_constants::currency::UNITS as ORU;
-use pallet_staking::{Forcing, StakerStatus};
+use pallet_grandpa::AuthorityId as GrandpaId;
+use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use polkadot_primitives::{AccountPublic, AssignmentId, AsyncBackingParams};
 use runtime_parachains::configuration::HostConfiguration;
 use sp_core::{sr25519, Pair, Public};
 use sp_genesis_builder::PresetId;
-use sp_runtime::{traits::IdentifyAccount, Perbill};
+use sp_keyring::Sr25519Keyring;
+use sp_runtime::traits::IdentifyAccount;
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -53,6 +56,7 @@ fn get_authority_keys_from_seed(
 	AccountId,
 	BabeId,
 	GrandpaId,
+	ImOnlineId,
 	ValidatorId,
 	AssignmentId,
 	AuthorityDiscoveryId,
@@ -63,6 +67,7 @@ fn get_authority_keys_from_seed(
 		get_account_id_from_seed::<sr25519::Public>(seed),
 		get_from_seed::<BabeId>(seed),
 		get_from_seed::<GrandpaId>(seed),
+		get_from_seed::<ImOnlineId>(seed),
 		get_from_seed::<ValidatorId>(seed),
 		get_from_seed::<AssignmentId>(seed),
 		get_from_seed::<AuthorityDiscoveryId>(seed),
@@ -71,20 +76,7 @@ fn get_authority_keys_from_seed(
 }
 
 fn testnet_accounts() -> Vec<AccountId> {
-	vec![
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-		get_account_id_from_seed::<sr25519::Public>("Bob"),
-		get_account_id_from_seed::<sr25519::Public>("Charlie"),
-		get_account_id_from_seed::<sr25519::Public>("Dave"),
-		get_account_id_from_seed::<sr25519::Public>("Eve"),
-		get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-		get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-		get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-		get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-		get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-		get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-		get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-	]
+	Sr25519Keyring::well_known().map(|k| k.to_account_id()).collect()
 }
 
 fn default_parachains_host_configuration() -> HostConfiguration<polkadot_primitives::BlockNumber> {
@@ -137,12 +129,13 @@ fn default_parachains_host_configuration() -> HostConfiguration<polkadot_primiti
 }
 
 #[allow(clippy::type_complexity)]
-fn cord_origin_relay_testnet_genesis(
+fn origin_staging_genesis(
 	initial_authorities: Vec<(
 		AccountId,
 		AccountId,
 		BabeId,
 		GrandpaId,
+		ImOnlineId,
 		ValidatorId,
 		AssignmentId,
 		AuthorityDiscoveryId,
@@ -154,11 +147,16 @@ fn cord_origin_relay_testnet_genesis(
 	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 
 	const ENDOWMENT: u128 = 1_000_000_000_000 * ORU;
-	const STASH: u128 = 1_000_000_000 * ORU;
 
 	serde_json::json!({
 		"balances": {
 			"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
+		},
+		"authorityManager":  {
+			"initialAuthorities": initial_authorities
+				.iter()
+				.map(|x| x.0.clone())
+				.collect::<Vec<_>>(),
 		},
 		"session": {
 			"keys": initial_authorities
@@ -174,21 +172,11 @@ fn cord_origin_relay_testnet_genesis(
 							x.5.clone(),
 							x.6.clone(),
 							x.7.clone(),
+							x.8.clone(),
 						),
 					)
 				})
 				.collect::<Vec<_>>(),
-		},
-		"staking": {
-			"minimumValidatorCount": 1,
-			"validatorCount": initial_authorities.len() as u32,
-			"stakers": initial_authorities
-				.iter()
-				.map(|x| (x.0.clone(), x.0.clone(), STASH, StakerStatus::<AccountId>::Validator))
-				.collect::<Vec<_>>(),
-			"invulnerables": initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
-			"forceEra": Forcing::NotForcing,
-			"slashRewardFraction": Perbill::from_percent(10),
 		},
 		"babe": {
 			"epochConfig": Some(BABE_GENESIS_EPOCH_CONFIG),
@@ -203,24 +191,33 @@ fn cord_origin_relay_testnet_genesis(
 fn origin_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
+	im_online: ImOnlineId,
 	para_validator: ValidatorId,
 	para_assignment: AssignmentId,
 	authority_discovery: AuthorityDiscoveryId,
 	beefy: BeefyId,
 ) -> SessionKeys {
-	SessionKeys { babe, grandpa, para_validator, para_assignment, authority_discovery, beefy }
+	SessionKeys {
+		babe,
+		grandpa,
+		im_online,
+		para_validator,
+		para_assignment,
+		authority_discovery,
+		beefy,
+	}
 }
 
-pub fn cord_origin_relay_local_testnet_genesis() -> serde_json::Value {
-	cord_origin_relay_testnet_genesis(
+pub fn origin_staging_config_genesis() -> serde_json::Value {
+	origin_staging_genesis(
 		vec![get_authority_keys_from_seed("Alice"), get_authority_keys_from_seed("Bob")],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		None,
 	)
 }
 
-pub fn cord_origin_relay_development_config_genesis() -> serde_json::Value {
-	cord_origin_relay_testnet_genesis(
+pub fn origin_development_config_genesis() -> serde_json::Value {
+	origin_staging_genesis(
 		vec![get_authority_keys_from_seed("Alice")],
 		get_account_id_from_seed::<sr25519::Public>("Alice"),
 		None,
@@ -238,9 +235,8 @@ pub fn preset_names() -> Vec<PresetId> {
 /// Provides the JSON representation of predefined genesis config for given `id`.
 pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
-		sp_genesis_builder::DEV_RUNTIME_PRESET => cord_origin_relay_development_config_genesis(),
-		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET =>
-			cord_origin_relay_local_testnet_genesis(),
+		sp_genesis_builder::DEV_RUNTIME_PRESET => origin_development_config_genesis(),
+		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => origin_staging_config_genesis(),
 		_ => return None,
 	};
 	Some(

@@ -180,7 +180,7 @@ parameter_types! {
 }
 
 impl cord_authority_membership::Config for Test {
-	// type RuntimeEvent = RuntimeEvent;
+	type RuntimeEvent = RuntimeEvent;
 	type MinAuthorities = MinAuthorities;
 	type MaxAuthorities = MaxAuthorities;
 	type MaxInvulnerables = MaxInvulnerables;
