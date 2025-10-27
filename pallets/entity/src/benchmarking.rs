@@ -24,7 +24,7 @@ use alloc::vec::Vec;
 use cord_primitives::doket::Element;
 use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_system::{Pallet as System, RawOrigin};
-use pallet_doken::Doken;
+use pallet_token::Token;
 use sp_runtime::traits::Hash;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
@@ -42,20 +42,20 @@ mod benchmarks {
 	#[benchmark]
 	fn set_info() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
-		let info = T::EntityInfoDoket::create_info();
+		let info = T::EntityInfoPacket::create_info();
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), Box::new(info.clone()));
 
-		// rebuild the doken exactly as the pallet does:
+		// rebuild the token exactly as the pallet does:
 		let digest = <T as frame_system::Config>::Hashing::hash(
 			&(info.clone(), b"IdentityInfoSet".to_vec()).encode(),
 		);
-		let doken = T::Doken::build(digest.as_ref(), EntityPallet::<T>::name())
-			.map_err(|_| BenchmarkError::Stop("Doken creation failed"))?;
+		let token = T::Token::build(digest.as_ref(), EntityPallet::<T>::name())
+			.map_err(|_| BenchmarkError::Stop("Token creation failed"))?;
 
 		assert_last_event::<T>(
-			EntityEvent::<T>::EntityInfoSet { who: caller.clone(), doken }.into(),
+			EntityEvent::<T>::EntityInfoSet { who: caller.clone(), token }.into(),
 		);
 		Ok(())
 	}
@@ -65,7 +65,7 @@ mod benchmarks {
 	fn update_info() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
 		// seed
-		let info = T::EntityInfoDoket::create_info();
+		let info = T::EntityInfoPacket::create_info();
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
 			Box::new(info.clone()),
@@ -77,9 +77,9 @@ mod benchmarks {
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), ops.clone());
 
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		assert_last_event::<T>(
-			EntityEvent::<T>::EntityInfoUpdated { who: caller.clone(), doken }.into(),
+			EntityEvent::<T>::EntityInfoUpdated { who: caller.clone(), token }.into(),
 		);
 		Ok(())
 	}
@@ -90,11 +90,11 @@ mod benchmarks {
 		let caller: T::AccountId = whitelisted_caller();
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(<T::EntityInfoDoket as Default>::default()),
+			Box::new(<T::EntityInfoPacket as Default>::default()),
 		)
 		.unwrap();
 
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		let key = b"k".to_vec();
 		let val = Element::Raw(b"v".to_vec().try_into().unwrap());
 
@@ -102,7 +102,7 @@ mod benchmarks {
 		_(RawOrigin::Signed(caller.clone()), vec![(key.clone(), val.clone())]);
 
 		assert_last_event::<T>(
-			EntityEvent::<T>::EntityAttributeUpdated { who: caller.clone(), doken }.into(),
+			EntityEvent::<T>::EntityAttributeUpdated { who: caller.clone(), token }.into(),
 		);
 		Ok(())
 	}
@@ -113,10 +113,10 @@ mod benchmarks {
 		let caller: T::AccountId = whitelisted_caller();
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(<T::EntityInfoDoket as Default>::default()),
+			Box::new(<T::EntityInfoPacket as Default>::default()),
 		)
 		.unwrap();
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 
 		// add the attr first
 		EntityPallet::<T>::add_attributes(
@@ -131,7 +131,7 @@ mod benchmarks {
 		assert_last_event::<T>(
 			EntityEvent::<T>::EntityAttributeRemoved {
 				who: caller.clone(),
-				doken,
+				token,
 				attr: b"x".to_vec().try_into().unwrap(),
 			}
 			.into(),
@@ -145,10 +145,10 @@ mod benchmarks {
 		let caller: T::AccountId = whitelisted_caller();
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(<T::EntityInfoDoket as Default>::default()),
+			Box::new(<T::EntityInfoPacket as Default>::default()),
 		)
 		.unwrap();
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 
 		// add attribute so rotation can happen
 		EntityPallet::<T>::add_attributes(
@@ -164,7 +164,7 @@ mod benchmarks {
 		assert_last_event::<T>(
 			EntityEvent::<T>::EntityAttributeRotated {
 				who: caller.clone(),
-				doken,
+				token,
 				attr: b"r".to_vec().try_into().unwrap(),
 			}
 			.into(),
@@ -179,15 +179,15 @@ mod benchmarks {
 		let sub: T::AccountId = account("s", 0, 0);
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			Box::new(T::EntityInfoPacket::create_info()),
 		)
 		.unwrap();
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), sub.clone());
 
-		assert_last_event::<T>(EntityEvent::<T>::EntitySubAccountAdded { sub, doken }.into());
+		assert_last_event::<T>(EntityEvent::<T>::EntitySubAccountAdded { sub, token }.into());
 		Ok(())
 	}
 
@@ -199,17 +199,17 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			Box::new(T::EntityInfoPacket::create_info()),
 		)
 		.unwrap();
 		EntityPallet::<T>::set_sub_account(RawOrigin::Signed(caller.clone()).into(), sub.clone())
 			.unwrap();
 
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), sub.clone());
 
-		assert_last_event::<T>(EntityEvent::<T>::EntitySubAccountRevoked { sub, doken }.into());
+		assert_last_event::<T>(EntityEvent::<T>::EntitySubAccountRevoked { sub, token }.into());
 		Ok(())
 	}
 
@@ -221,17 +221,17 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			Box::new(T::EntityInfoPacket::create_info()),
 		)
 		.unwrap();
 		EntityPallet::<T>::set_sub_account(RawOrigin::Signed(caller.clone()).into(), sub.clone())
 			.unwrap();
 
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		#[extrinsic_call]
-		_(RawOrigin::Root, doken.clone(), sub.clone());
+		_(RawOrigin::Root, token.clone(), sub.clone());
 
-		assert_last_event::<T>(EntityEvent::<T>::EntitySubAccountRevoked { sub, doken }.into());
+		assert_last_event::<T>(EntityEvent::<T>::EntitySubAccountRevoked { sub, token }.into());
 		Ok(())
 	}
 
@@ -243,16 +243,16 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			Box::new(T::EntityInfoPacket::create_info()),
 		)
 		.unwrap();
 
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		#[extrinsic_call]
-		_(RawOrigin::Signed(caller.clone()), doken.clone(), newc.clone());
+		_(RawOrigin::Signed(caller.clone()), token.clone(), newc.clone());
 
 		assert_last_event::<T>(
-			EntityEvent::<T>::EntityControllerRotated { doken, new: newc }.into(),
+			EntityEvent::<T>::EntityControllerRotated { token, new: newc }.into(),
 		);
 		Ok(())
 	}
@@ -265,16 +265,16 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			Box::new(T::EntityInfoPacket::create_info()),
 		)
 		.unwrap();
 
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		#[extrinsic_call]
-		_(RawOrigin::Root, doken.clone(), newc.clone());
+		_(RawOrigin::Root, token.clone(), newc.clone());
 
 		assert_last_event::<T>(
-			EntityEvent::<T>::EntityControllerRotated { doken, new: newc }.into(),
+			EntityEvent::<T>::EntityControllerRotated { token, new: newc }.into(),
 		);
 		Ok(())
 	}
@@ -286,15 +286,15 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			Box::new(T::EntityInfoPacket::create_info()),
 		)
 		.unwrap();
 
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		#[extrinsic_call]
-		_(RawOrigin::Signed(caller.clone()), doken.clone());
+		_(RawOrigin::Signed(caller.clone()), token.clone());
 
-		assert_last_event::<T>(EntityEvent::<T>::EntityInfoCleared { doken }.into());
+		assert_last_event::<T>(EntityEvent::<T>::EntityInfoCleared { token }.into());
 		Ok(())
 	}
 
@@ -305,15 +305,15 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			Box::new(T::EntityInfoPacket::create_info()),
 		)
 		.unwrap();
 
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		#[extrinsic_call]
-		_(RawOrigin::Root, doken.clone());
+		_(RawOrigin::Root, token.clone());
 
-		assert_last_event::<T>(EntityEvent::<T>::EntityInfoCleared { doken }.into());
+		assert_last_event::<T>(EntityEvent::<T>::EntityInfoCleared { token }.into());
 		Ok(())
 	}
 
@@ -325,11 +325,11 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			Box::new(T::EntityInfoPacket::create_info()),
 		)
 		.unwrap();
 
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), prefix.clone());
 
@@ -338,7 +338,7 @@ mod benchmarks {
 		let uname: Vec<u8> = uname;
 		let uname = uname.try_into().unwrap();
 
-		assert_last_event::<T>(EntityEvent::<T>::Ss58IdNameAdded { doken, name: uname }.into());
+		assert_last_event::<T>(EntityEvent::<T>::Ss58IdNameAdded { token, name: uname }.into());
 		Ok(())
 	}
 
@@ -349,17 +349,17 @@ mod benchmarks {
 
 		EntityPallet::<T>::set_info(
 			RawOrigin::Signed(caller.clone()).into(),
-			Box::new(T::EntityInfoDoket::create_info()),
+			Box::new(T::EntityInfoPacket::create_info()),
 		)
 		.unwrap();
 		EntityPallet::<T>::set_id_name(RawOrigin::Signed(caller.clone()).into(), b"bench".to_vec())
 			.unwrap();
 
-		let doken = EntityPallet::<T>::lookup_doken_of(&caller).unwrap();
+		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		#[extrinsic_call]
-		_(RawOrigin::Signed(caller.clone()), doken.clone());
+		_(RawOrigin::Signed(caller.clone()), token.clone());
 
-		assert_last_event::<T>(EntityEvent::<T>::Ss58IdNameRemoved { doken }.into());
+		assert_last_event::<T>(EntityEvent::<T>::Ss58IdNameRemoved { token }.into());
 		Ok(())
 	}
 

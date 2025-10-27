@@ -32,7 +32,7 @@ use scale_info::TypeInfo;
 /// - Raw: Contains data stored directly as a bounded vector; the capacity is specified by
 ///   `MAX_CAP`.
 /// - Digest: A fixed 32-byte digest (e.g., computed using BlakeTwo256).
-/// - Doken: An embedded Ss58Identifier.
+/// - Token: An embedded Ss58Identifier.
 /// - CID: A fixed 64-byte content identifier.
 #[derive(CloneNoBound, DecodeWithMemTracking, RuntimeDebugNoBound, MaxEncodedLen, TypeInfo)]
 #[scale_info(skip_type_params(MaxCap))]
@@ -43,8 +43,8 @@ pub enum Elum<MaxCap: Get<u32>> {
 	Raw(BoundedVec<u8, MaxCap>),
 	/// A 32-byte BlakeTwo256 digest.
 	Digest([u8; 32]),
-	/// An embedded doken.
-	Doken(Ss58Identifier),
+	/// An embedded token.
+	Token(Ss58Identifier),
 	/// A 64-byte content identifier.
 	CID([u8; 64]),
 }
@@ -68,7 +68,7 @@ impl<MaxCap: Get<u32>> Encode for Elum<MaxCap> {
 				out.extend(d.encode());
 				out
 			},
-			Elum::Doken(id) => {
+			Elum::Token(id) => {
 				let id_bytes = id.encode();
 				let mut out = Vec::with_capacity(1 + id_bytes.len());
 				out.push(3);
@@ -100,7 +100,7 @@ impl<MaxCap: Get<u32>> Decode for Elum<MaxCap> {
 			},
 			3 => {
 				let id = Ss58Identifier::decode(input)?;
-				Ok(Elum::Doken(id))
+				Ok(Elum::Token(id))
 			},
 			4 => {
 				let cid = <[u8; 64]>::decode(input)?;
@@ -117,7 +117,7 @@ impl<MaxCap: Get<u32>> PartialEq for Elum<MaxCap> {
 			(Elum::None, Elum::None) => true,
 			(Elum::Raw(a), Elum::Raw(b)) => a == b,
 			(Elum::Digest(a), Elum::Digest(b)) => a == b,
-			(Elum::Doken(a), Elum::Doken(b)) => a == b,
+			(Elum::Token(a), Elum::Token(b)) => a == b,
 			(Elum::CID(a), Elum::CID(b)) => a == b,
 			_ => false,
 		}
@@ -133,7 +133,7 @@ impl<MaxCap: Get<u32>> AsRef<[u8]> for Elum<MaxCap> {
 			Elum::None => &[],
 			Elum::Raw(raw) => raw.as_slice(),
 			Elum::Digest(digest) => digest,
-			Elum::Doken(id) => id.as_bytes(),
+			Elum::Token(id) => id.as_bytes(),
 			Elum::CID(cid) => cid,
 		}
 	}
@@ -165,8 +165,8 @@ impl<MaxCap: Get<u32>> Elum<MaxCap> {
 	}
 
 	/// Returns the embedded Ss58Identifier if the element is `Identifier`.
-	pub fn as_doken(&self) -> Option<&Ss58Identifier> {
-		if let Elum::Doken(id) = self {
+	pub fn as_token(&self) -> Option<&Ss58Identifier> {
+		if let Elum::Token(id) = self {
 			Some(id)
 		} else {
 			None
@@ -214,7 +214,7 @@ mod tests {
 		assert!(element.as_raw().is_none());
 		assert!(element.as_digest().is_none());
 		assert!(element.as_cid().is_none());
-		assert!(element.as_doken().is_none());
+		assert!(element.as_token().is_none());
 	}
 
 	#[test]
@@ -234,11 +234,11 @@ mod tests {
 		let digest: Vec<u8> = vec![0xAB; 32];
 		let ss58_id =
 			Ss58Identifier::to_encoded(digest.clone(), 100, 5, 1).expect("Ss58Identifier created");
-		let element: DefaultElement = DefaultElement::Doken(ss58_id.clone());
+		let element: DefaultElement = DefaultElement::Token(ss58_id.clone());
 		let encoded = element.encode();
 		let decoded = DefaultElement::decode(&mut &encoded[..]).expect("Decode Identifier");
 		assert_eq!(decoded, element);
-		assert_eq!(element.as_doken(), Some(&ss58_id));
+		assert_eq!(element.as_token(), Some(&ss58_id));
 		assert_eq!(element.as_ref(), ss58_id.as_bytes());
 	}
 
@@ -283,8 +283,8 @@ mod tests {
 		assert_eq!(cid_elem.as_ref(), &[2; 64][..]);
 
 		let ss58_id = Ss58Identifier::to_encoded(vec![0xAB; 32], 100, 5, 1).unwrap();
-		let id_elem: DefaultElement = DefaultElement::Doken(ss58_id.clone());
-		assert_eq!(id_elem.as_doken(), Some(&ss58_id));
+		let id_elem: DefaultElement = DefaultElement::Token(ss58_id.clone());
+		assert_eq!(id_elem.as_token(), Some(&ss58_id));
 		assert_eq!(id_elem.as_ref(), ss58_id.as_bytes());
 	}
 
@@ -351,7 +351,7 @@ mod tests {
 		assert_eq!(DefaultElement::Raw(vec![].try_into().unwrap()).encode()[0], 1);
 		let ss58 = Ss58Identifier::to_encoded(vec![0; 32], 0, 0, 0).unwrap();
 		assert_eq!(DefaultElement::Digest([0; 32]).encode()[0], 2);
-		assert_eq!(DefaultElement::Doken(ss58).encode()[0], 3);
+		assert_eq!(DefaultElement::Token(ss58).encode()[0], 3);
 		assert_eq!(DefaultElement::CID([0; 64]).encode()[0], 4);
 	}
 

@@ -25,7 +25,7 @@ members = [
 	"origin/relay/runtime/authorities",
 	"origin/relay/runtime/constants",
 	"pallets/collection",
-	"pallets/doken",
+	"pallets/token",
 	"pallets/entity",
 	"pallets/identity",
 	"pallets/network-membership",
@@ -40,7 +40,7 @@ members = [
 	"primitives/network-membership",
 	"runtimes/common",
 	"runtimes/common/api/assets",
-	"runtimes/common/api/doken",
+	"runtimes/common/api/token",
 	"runtimes/common/authorities",
 	"runtimes/braid/",
 	"runtimes/braid/constants",
@@ -742,7 +742,7 @@ zstd = { version = "0.12.4", default-features = false }
 
 # local dependencies
 authority-membership = { path = "runtimes/common/authorities", default-features = false }
-cord-doken-runtime-api = { path = "runtimes/common/api/doken", default-features = false }
+cord-token-runtime-api = { path = "runtimes/common/api/token", default-features = false }
 cord-node-cli = { path = "node/cli", default-features = false }
 cord-primitives = { path = "primitives/cord", default-features = false }
 network-membership = { path = "primitives/network-membership", default-features = false }
@@ -772,7 +772,7 @@ pallet-cord-node-authorization = { path = "pallets/node-authorization", default-
 pallet-network-score = { path = 'pallets/network-score', default-features = false }
 pallet-cord-session-benchmarking = { path = 'pallets/session-benchmarking', default-features = false }
 pallet-assets-runtime-api = { path = "runtimes/common/api/assets", default-features = false }
-pallet-doken = { path = "pallets/doken", default-features = false }
+pallet-token = { path = "pallets/token", default-features = false }
 pallet-registries = { path = "pallets/registries", default-features = false }
 pallet-entries = { path = "pallets/entries", default-features = false }
 pallet-entity = { path = "pallets/entity", default-features = false }

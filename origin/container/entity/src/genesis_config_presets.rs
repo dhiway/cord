@@ -44,7 +44,7 @@ fn entity_origin_staging_genesis(
 			parachain_id: id,
 			..Default::default()
 		},
-		"doken": DokenConfig { protocol_id: "0rbit".to_string(), network_id: 2004, ..Default::default()},
+		"token": TokenConfig { protocol_id: "0rbit".to_string(), network_id: 2004, ..Default::default()},
 		"collatorSelection": CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: ENTITY_ORIGIN_STAGING_ED * 16,
@@ -94,8 +94,9 @@ pub fn preset_names() -> Vec<PresetId> {
 pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
 		sp_genesis_builder::DEV_RUNTIME_PRESET => entity_origin_development_genesis(2004.into()),
-		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET =>
-			entity_origin_local_testnet_genesis(2004.into()),
+		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => {
+			entity_origin_local_testnet_genesis(2004.into())
+		},
 		_ => return None,
 	};
 	Some(

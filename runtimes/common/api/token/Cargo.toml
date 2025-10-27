@@ -1,6 +1,6 @@
 [package]
-name = "cord-doken-runtime-api"
-description = "Runtime APIs for decoding CORD Dokens."
+name = "cord-token-runtime-api"
+description = "Runtime APIs for decoding CORD Tokens."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

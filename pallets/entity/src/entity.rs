@@ -20,8 +20,8 @@
 
 use alloc::{vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use cord_primitives::doket::{
-	Attribute, Attributes, DoketInformationProvider, DoketUpdateError, DoketUpdateOp, Element,
+use cord_primitives::packet::{
+	Attribute, Attributes, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp,
 };
 use enumflags2::{bitflags, BitFlag, BitFlags};
 use frame_support::{
@@ -139,12 +139,12 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 }
 
 impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
-	DoketInformationProvider for EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>
+	PacketInformationProvider for EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>
 {
 	type FieldMask = u64;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
-	type UpdateOp = DoketUpdateOp<MaxRawDataLength>;
+	type UpdateOp = PacketUpdateOp<MaxRawDataLength>;
 
 	fn attributes(
 		&self,
@@ -181,21 +181,21 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 
 	fn apply_update(
 		&mut self,
-		op: &DoketUpdateOp<MaxRawDataLength>,
-	) -> Result<(), DoketUpdateError> {
+		op: &PacketUpdateOp<MaxRawDataLength>,
+	) -> Result<(), PacketUpdateError> {
 		match op {
-			DoketUpdateOp::AddAttribute(k, v) => {
-				ensure!(EntityField::from_bytes(k).is_none(), DoketUpdateError::AttributeExists);
+			PacketUpdateOp::AddAttribute(k, v) => {
+				ensure!(EntityField::from_bytes(k).is_none(), PacketUpdateError::AttributeExists);
 				let attrs = self.attributes.get_or_insert_with(Default::default);
 				if attrs.iter().any(|(kk, _)| kk == k) {
-					return Err(DoketUpdateError::AttributeExists);
+					return Err(PacketUpdateError::AttributeExists);
 				}
 				attrs
 					.try_push((k.clone(), v.clone()))
-					.map_err(|_| DoketUpdateError::TooManyAttributes)
+					.map_err(|_| PacketUpdateError::TooManyAttributes)
 			},
 
-			DoketUpdateOp::RemoveAttribute(k) => {
+			PacketUpdateOp::RemoveAttribute(k) => {
 				if let Some(field) = EntityField::from_bytes(k) {
 					match field {
 						EntityField::Display => self.display = Element::default(),
@@ -204,16 +204,16 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 						EntityField::Email => self.email = Element::default(),
 						EntityField::Twitter => self.twitter = Element::default(),
 						EntityField::Attributes => {
-							return Err(DoketUpdateError::AttributeNotFound);
+							return Err(PacketUpdateError::AttributeNotFound);
 						},
 					}
 				} else {
 					let attrs =
-						self.attributes.as_mut().ok_or(DoketUpdateError::AttributeNotFound)?;
+						self.attributes.as_mut().ok_or(PacketUpdateError::AttributeNotFound)?;
 					let idx = attrs
 						.iter()
 						.position(|(kk, _)| kk == k)
-						.ok_or(DoketUpdateError::AttributeNotFound)?;
+						.ok_or(PacketUpdateError::AttributeNotFound)?;
 					attrs.swap_remove(idx);
 					if attrs.is_empty() {
 						self.attributes = None;
@@ -222,7 +222,7 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 				Ok(())
 			},
 
-			DoketUpdateOp::UpdateAttribute(k, v) => {
+			PacketUpdateOp::UpdateAttribute(k, v) => {
 				if let Some(field) = EntityField::from_bytes(k) {
 					match field {
 						EntityField::Display => self.display = v.clone(),
@@ -231,16 +231,16 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 						EntityField::Email => self.email = v.clone(),
 						EntityField::Twitter => self.twitter = v.clone(),
 						EntityField::Attributes => {
-							return Err(DoketUpdateError::AttributeNotFound);
+							return Err(PacketUpdateError::AttributeNotFound);
 						},
 					}
 				} else {
 					let attrs =
-						self.attributes.as_mut().ok_or(DoketUpdateError::AttributeNotFound)?;
+						self.attributes.as_mut().ok_or(PacketUpdateError::AttributeNotFound)?;
 					let slot = attrs
 						.iter_mut()
 						.find(|(kk, _)| kk == k)
-						.ok_or(DoketUpdateError::AttributeNotFound)?;
+						.ok_or(PacketUpdateError::AttributeNotFound)?;
 					slot.1 = v.clone();
 				}
 				Ok(())

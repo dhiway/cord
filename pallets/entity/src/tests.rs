@@ -19,9 +19,9 @@
 #![cfg(test)]
 use super::*;
 use crate::{entity::EntityInfo, mock::*, pallet::Pallet as EntityPallet, Error};
-use cord_primitives::doket::{Attribute, Element};
+use cord_primitives::packet::{Attribute, Element};
 use frame_support::{assert_noop, assert_ok};
-use pallet_doken::Doken;
+use pallet_token::Token;
 
 /// Shortcut to wrap raw bytes into our `Data` type.
 fn plain_data(s: &[u8]) -> Element<MaxRawDataLength> {
@@ -40,7 +40,7 @@ fn init_with_display(who: AccountId, disp: &[u8]) -> Ss58Identifier {
 fn _test_id(input: &[u8]) -> Ss58Identifier {
 	let hash = <Test as frame_system::Config>::Hashing::hash(input);
 	let name = <Pallet<Test> as PalletInfoAccess>::name();
-	<pallet_doken::Pallet<Test> as Doken<Test>>::build(&hash.as_ref(), name)
+	<pallet_token::Pallet<Test> as Token<Test>>::build(&hash.as_ref(), name)
 		.expect("should never fail")
 }
 
@@ -51,8 +51,8 @@ mod set_info_tests {
 	fn happy_path_registers_identity() {
 		new_test_ext().execute_with(|| {
 			let who = account(1);
-			let doken = init_with_display(who.clone(), b"alice");
-			let stored = EntityInfoOf::<Test>::get(&doken).unwrap();
+			let token = init_with_display(who.clone(), b"alice");
+			let stored = EntityInfoOf::<Test>::get(&token).unwrap();
 			assert_eq!(stored.display, plain_data(b"alice"));
 		});
 	}
@@ -117,14 +117,14 @@ mod add_attributes_tests {
 	fn add_attribute_positive() {
 		new_test_ext().execute_with(|| {
 			let who = account(5);
-			let doken = init_with_display(who.clone(), b"x");
+			let token = init_with_display(who.clone(), b"x");
 
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
 				vec![(b"foo".to_vec(), plain_data(b"v"))]
 			));
 
-			let stored = EntityInfoOf::<Test>::get(&doken).unwrap();
+			let stored = EntityInfoOf::<Test>::get(&token).unwrap();
 			let attrs = stored.attributes.unwrap();
 			assert!(attrs.iter().any(|(k, v)| &k[..] == b"foo" && v == &plain_data(b"v")));
 		});
@@ -202,7 +202,7 @@ mod update_info_tests {
 	fn update_existing_attribute_positive() {
 		new_test_ext().execute_with(|| {
 			let who = account(9);
-			let doken = init_with_display(who.clone(), b"x");
+			let token = init_with_display(who.clone(), b"x");
 
 			// add then update
 			assert_ok!(Entity::add_attributes(
@@ -214,7 +214,7 @@ mod update_info_tests {
 				vec![(b"key".to_vec(), plain_data(b"v2"))]
 			));
 
-			let stored = EntityInfoOf::<Test>::get(&doken).unwrap();
+			let stored = EntityInfoOf::<Test>::get(&token).unwrap();
 			let attrs = stored.attributes.unwrap();
 			assert!(attrs.iter().any(|(k, v)| &k[..] == b"key" && v == &plain_data(b"v2")));
 		});
@@ -261,7 +261,7 @@ mod remove_attribute_tests {
 	fn remove_existing_attribute_positive() {
 		new_test_ext().execute_with(|| {
 			let who = account(13);
-			let doken = init_with_display(who.clone(), b"x");
+			let token = init_with_display(who.clone(), b"x");
 
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
@@ -272,7 +272,7 @@ mod remove_attribute_tests {
 				b"rm".to_vec()
 			));
 
-			let stored = EntityInfoOf::<Test>::get(&doken).unwrap();
+			let stored = EntityInfoOf::<Test>::get(&token).unwrap();
 			assert!(stored.attributes.is_none());
 		});
 	}
@@ -297,7 +297,7 @@ mod rotate_attribute_tests {
 	fn rotate_existing_attribute_bumps_history() {
 		new_test_ext().execute_with(|| {
 			let who = account(15);
-			let doken = init_with_display(who.clone(), b"x");
+			let token = init_with_display(who.clone(), b"x");
 
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
@@ -310,12 +310,12 @@ mod rotate_attribute_tests {
 			));
 
 			// Verify new value
-			let stored = EntityInfoOf::<Test>::get(&doken).unwrap();
+			let stored = EntityInfoOf::<Test>::get(&token).unwrap();
 			let attrs = stored.attributes.unwrap();
 			assert!(attrs.iter().any(|(k, v)| &k[..] == b"rot" && v == &plain_data(b"new")));
 
 			// Verify history entry exists
-			let hist = EntityPallet::<Test>::get_attribute_history(doken.clone());
+			let hist = EntityPallet::<Test>::get_attribute_history(token.clone());
 			assert!(!hist.is_empty());
 			assert_eq!(hist[0].0, b"rot".to_vec());
 			assert_eq!(hist[0].2, b"old".to_vec());
@@ -428,9 +428,9 @@ mod controller_rotation_and_clear_tests {
 			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)));
 			assert_ok!(Entity::set_sub_account(RuntimeOrigin::signed(who.clone()), sub.clone()));
 
-			let doken = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
-			assert_ok!(Entity::clear_everything(RuntimeOrigin::signed(who.clone()), doken.clone()));
-			assert!(!EntityInfoOf::<Test>::contains_key(&doken));
+			let token = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
+			assert_ok!(Entity::clear_everything(RuntimeOrigin::signed(who.clone()), token.clone()));
+			assert!(!EntityInfoOf::<Test>::contains_key(&token));
 
 			// re-set and then root-clear
 			let mut info2 = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
@@ -470,10 +470,10 @@ mod id_name_tests {
 			);
 
 			// remove
-			let doken = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
-			assert_ok!(Entity::remove_id_name(RuntimeOrigin::signed(who.clone()), doken.clone()));
+			let token = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
+			assert_ok!(Entity::remove_id_name(RuntimeOrigin::signed(who.clone()), token.clone()));
 			assert_noop!(
-				Entity::remove_id_name(RuntimeOrigin::signed(who), doken),
+				Entity::remove_id_name(RuntimeOrigin::signed(who), token),
 				Error::<Test>::NoUsername
 			);
 		});

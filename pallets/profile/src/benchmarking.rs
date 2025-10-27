@@ -40,7 +40,7 @@ benchmarks! {
 	verify {
 		let digest = T::Hashing::hash(&creator.encode());
 		let pallet_name = <Pallet<T> as frame_support::traits::PalletInfoAccess>::name();
-		let profile_id = pallet_doken::Pallet::<T>::build(&digest.encode()[..], pallet_name)
+		let profile_id = pallet_token::Pallet::<T>::build(&digest.encode()[..], pallet_name)
 			.expect("Profile ID should be created");
 		assert!(Profiles::<T>::contains_key(&profile_id), "Profile should exist");
 		assert_eq!(AccountProfiles::<T>::get(&creator), Some(profile_id.clone()), "Account should be linked to profile");
@@ -54,7 +54,7 @@ benchmarks! {
 		let new_key: T::AccountId = account("new_key", 1, 0);
 		let digest = T::Hashing::hash(&creator.encode());
 		let pallet_name = <Pallet<T> as frame_support::traits::PalletInfoAccess>::name();
-		let profile_id = pallet_doken::Pallet::<T>::build(&digest.encode()[..], pallet_name)
+		let profile_id = pallet_token::Pallet::<T>::build(&digest.encode()[..], pallet_name)
 			.expect("Profile ID should be created");
 		let data = vec![(
 			b"pub_key".to_vec().try_into().expect("Key should fit"),

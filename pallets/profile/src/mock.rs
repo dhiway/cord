@@ -28,7 +28,7 @@ type Block = system::mocking::MockBlock<Test>;
 frame_support::construct_runtime!(
 	pub enum Test {
 		System: system,
-		Identifier: pallet_doken,
+		Identifier: pallet_token,
 		Profile: pallet_profile,
 	}
 );
@@ -56,7 +56,7 @@ impl pallet_profile::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_doken::Config for Test {
+impl pallet_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = frame_system::Pallet<Test>;
 }

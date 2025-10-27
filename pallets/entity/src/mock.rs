@@ -37,7 +37,7 @@ frame_support::construct_runtime!(
 		System: frame_system,
 		Balances: pallet_balances,
 		Entity: pallet_entity,
-		Doken: pallet_doken
+		Token: pallet_token
 	}
 );
 
@@ -64,9 +64,9 @@ parameter_types! {
 
 impl pallet_entity::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type Doken = Doken;
+	type Token = Token;
 	type MaxSubAccounts = MaxSubAccounts;
-	type EntityInfoDoket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
+	type EntityInfoPacket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxUsernameLength = MaxUsernameLength;
@@ -74,7 +74,7 @@ impl pallet_entity::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_doken::Config for Test {
+impl pallet_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 }

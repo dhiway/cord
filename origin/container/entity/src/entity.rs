@@ -19,8 +19,8 @@
 use super::*;
 use alloc::{vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use cord_primitives::doket::{
-	Attribute, Attributes, DoketInformationProvider, DoketUpdateError, DoketUpdateOp, Element,
+use cord_primitives::packet::{
+	Attribute, Attributes, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp,
 };
 use enumflags2::{bitflags, BitFlag, BitFlags};
 use frame_support::{
@@ -44,11 +44,11 @@ pub type IdentityAdminOrigin = EitherOfDiverse<
 
 impl pallet_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Doken = Doken;
+	type Token = Token;
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
-	type EntityInfoDoket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
+	type EntityInfoPacket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;

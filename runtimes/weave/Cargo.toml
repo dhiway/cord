@@ -43,11 +43,11 @@ pallet-collection = { workspace = true }
 pallet-entity = { workspace = true }
 pallet-entry = { workspace = true }
 pallet-profile = { workspace = true }
-pallet-doken = { workspace = true }
+pallet-token = { workspace = true }
 pallet-registry = { workspace = true }
 pallet-runtime-upgrade = { workspace = true }
 
-cord-doken-runtime-api = { workspace = true }
+cord-token-runtime-api = { workspace = true }
 pallet-assets-runtime-api = { workspace = true }
 
 # Substrate
@@ -177,7 +177,7 @@ std = [
 	"codec/std",
 	"cord-primitives/std",
 	"cord-runtime-common/std",
-	"cord-doken-runtime-api/std",
+	"cord-token-runtime-api/std",
 	"cord-weave-runtime-constants/std",
 	"frame-benchmarking-pallet-pov/std",
 	"frame-benchmarking/std",
@@ -215,7 +215,7 @@ std = [
 	"pallet-election-provider-support-benchmarking?/std",
 	"pallet-fast-unstake/std",
 	"pallet-grandpa/std",
-	"pallet-doken/std",
+	"pallet-token/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
 	"pallet-insecure-randomness-collective-flip/std",

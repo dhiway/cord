@@ -36,7 +36,7 @@ pub type Attributes<MaxRawDataLength, MaxAdditionalAttributes> =
 
 /// Errors that can occur when applying a single update.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DoketUpdateError {
+pub enum PacketUpdateError {
 	AttributeExists,
 	TooManyAttributes,
 	AttributeNotFound,
@@ -55,14 +55,14 @@ pub enum DoketUpdateError {
 	TypeInfo,
 )]
 #[scale_info(skip_type_params(MaxRawDataLength))]
-pub enum DoketUpdateOp<MaxRawDataLength: Get<u32>> {
+pub enum PacketUpdateOp<MaxRawDataLength: Get<u32>> {
 	AddAttribute(Attribute, Element<MaxRawDataLength>),
 	RemoveAttribute(Attribute),
 	UpdateAttribute(Attribute, Element<MaxRawDataLength>),
 }
 
-/// Core trait for “doken” info.
-pub trait DoketInformationProvider {
+/// Core trait for “token” info.
+pub trait PacketInformationProvider {
 	/// Bitmask type for which fields are set/updated.
 	type FieldMask: Encode + Decode + MaxEncodedLen + TypeInfo + Default;
 
@@ -97,7 +97,7 @@ pub trait DoketInformationProvider {
 	fn has_info_fields(&self, mask: Self::FieldMask) -> bool;
 
 	/// Apply one operation.
-	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), DoketUpdateError>;
+	fn apply_update(&mut self, op: &Self::UpdateOp) -> Result<(), PacketUpdateError>;
 
 	/// Helper function - Benchmarking and tests
 	fn create_info() -> Self

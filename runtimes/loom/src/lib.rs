@@ -48,10 +48,10 @@ use frame_support::{
 use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy, EnsureWithSuccess};
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
 pub use pallet_balances::Call as BalancesCall;
-use pallet_doken::Doken as _;
 use pallet_entity::entity::EntityInfo;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
+use pallet_token::Token as _;
 use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -96,8 +96,8 @@ pub use authority_membership;
 pub mod benchmark;
 pub use benchmark::DummySignature;
 
-/// Runtime API definition for doken.
-pub use cord_doken_runtime_api as doken_api;
+/// Runtime API definition for token.
+pub use cord_token_runtime_api as token_api;
 /// Runtime API definition for assets.
 pub use pallet_assets_runtime_api as assets_api;
 
@@ -962,7 +962,7 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
 }
 
-impl pallet_doken::Config for Runtime {
+impl pallet_token::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 }
@@ -1002,11 +1002,11 @@ parameter_types! {
 
 impl pallet_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type Doken = Doken;
+	type Token = Token;
 	type MaxSubAccounts = MaxSubAccounts;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
-	type EntityInfoDoket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
+	type EntityInfoPacket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxUsernameLength = MaxUsernameLength;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;
@@ -1158,7 +1158,7 @@ mod runtime {
 	pub type Statement = pallet_statement::Pallet<Runtime>;
 
 	#[runtime::pallet_index(70)]
-	pub type Doken = pallet_doken::Pallet<Runtime>;
+	pub type Token = pallet_token::Pallet<Runtime>;
 
 	#[runtime::pallet_index(71)]
 	pub type Collection = pallet_collection::Pallet<Runtime>;
@@ -1506,14 +1506,14 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl doken_api::DokenApi<Block> for Runtime {
-		fn decode_doken(doken: Vec<u8>) -> Option<doken_api::DecodedDokenApi> {
+	impl token_api::TokenApi<Block> for Runtime {
+		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
 
-			let ss58_id = Ss58Identifier::try_from(doken).ok()?;
+			let ss58_id = Ss58Identifier::try_from(token).ok()?;
 
-			let decoded: DecodedIdentifier = Doken::resolve_doken(&ss58_id).ok()?;
+			let decoded: DecodedIdentifier = Token::resolve_token(&ss58_id).ok()?;
 
-			Some(doken_api::DecodedDokenApi {
+			Some(token_api::DecodedTokenApi {
 				version: decoded.version,
 				origin: decoded.origin !=0,
 				network: decoded.network,
@@ -1523,7 +1523,7 @@ impl_runtime_apis! {
 		}
 
 		fn resolve_pallet(index: u16) -> Option<String> {
-			Doken::resolve_pallet_name(index).ok()
+			Token::resolve_pallet_name(index).ok()
 		}
 	}
 
