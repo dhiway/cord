@@ -20,7 +20,7 @@ use sp_staking::SessionIndex;
 // Aliases used outside the pallet module
 type Session<T> = pallet_session::Pallet<T>;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "runtime-benchmarks"))]
 pub mod mock;
 #[cfg(test)]
 pub mod tests;
