@@ -29,11 +29,10 @@ use scale_info::TypeInfo;
 
 #[derive(Encode, Decode, TypeInfo, PartialEq, Eq)]
 pub struct DecodedTokenApi {
-	pub version: u8,
 	pub origin: bool,
 	pub network: u16,
 	pub pallet: u16,
-	pub genisis: String,
+	pub genesis: String,
 }
 
 sp_api::decl_runtime_apis! {
