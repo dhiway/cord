@@ -2211,11 +2211,10 @@ impl_runtime_apis! {
 			let decoded: DecodedIdentifier = Token::resolve_token(&ss58_id).ok()?;
 
 			Some(token_api::DecodedTokenApi {
-				version: decoded.version,
-				origin: decoded.origin !=0,
+				origin: decoded.origin,
 				network: decoded.network,
 				pallet: decoded.pallet,
-				genisis: decoded.genisis,
+				genesis: decoded.genesis,
 			})
 		}
 
