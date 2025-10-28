@@ -267,7 +267,7 @@ fn pending_removals_consumed_on_rotation() {
 }
 
 #[test]
-fn duplicate_nominate_in_same_block_is_already_queued() {
+fn duplicate_nominate_in_same_block_is_already_member() {
 	let mut ext = new_test_ext(2);
 	ext.execute_with(|| {
 		let who = 42u64;
