@@ -49,7 +49,7 @@ pub mod pallet {
 		type MinAuthorities: Get<u32>;
 
 		/// Origin allowed to curate membership & invulnerables.
-		type AuthorityMembershipOrigin: EnsureOrigin<Self::RuntimeOrigin>;
+		type AuthorityManagerOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
@@ -125,11 +125,6 @@ pub mod pallet {
 				}
 			}
 
-			assert!(
-				(reg.len() as u32) >= T::MinAuthorities::get(),
-				"initial authorities must satisfy MinAuthorities"
-			);
-
 			Registered::<T>::put(reg.clone());
 			LastActive::<T>::put(reg);
 		}
@@ -141,7 +136,7 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::nominate())]
 		pub fn nominate(origin: T::RuntimeOrigin, who: T::AccountId) -> DispatchResult {
-			T::AuthorityMembershipOrigin::ensure_origin(origin)?;
+			T::AuthorityManagerOrigin::ensure_origin(origin)?;
 
 			let vid = T::ValidatorIdOf::convert(who.clone())
 				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
@@ -171,7 +166,7 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight(<T as pallet::Config>::WeightInfo::remove())]
 		pub fn remove(origin: T::RuntimeOrigin, who: T::AccountId) -> DispatchResult {
-			T::AuthorityMembershipOrigin::ensure_origin(origin)?;
+			T::AuthorityManagerOrigin::ensure_origin(origin)?;
 
 			let vid = T::ValidatorIdOf::convert(who.clone())
 				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
