@@ -17,10 +17,10 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 use super::*;
-use crate::{self as cord_authority_membership};
+use crate::{self as origin_authority_manager};
 
 use alloc::vec::Vec;
-use core::{cell::RefCell, cmp::max};
+use core::cmp::max;
 
 use frame_support::{derive_impl, parameter_types};
 use frame_system::pallet_prelude::BlockNumberFor;
@@ -49,7 +49,7 @@ frame_support::construct_runtime!(
 		Session: pallet_session,
 		Historical: pallet_session_historical,
 		Balances: pallet_balances,
-		AuthorityMembership: cord_authority_membership,
+		AuthorityManager: origin_authority_manager,
 	}
 );
 
@@ -82,44 +82,10 @@ impl From<UintAuthorityId> for MockSessionKeys {
 
 impl Default for MockSessionKeys {
 	fn default() -> Self {
-		// The macro generates `From<UintAuthorityId>` for MockSessionKeys,
-		// and `UintAuthorityId(u64)` is constructible in tests.
 		Self::from(UintAuthorityId(0))
 	}
 }
 
-// Thread-local offline mask the tests can control.
-thread_local! {
-	static OFFLINE_MASK: RefCell<Vec<u32>> = RefCell::new(Vec::new());
-}
-
-/// Mark the given validator indices as offline for the next liveness check.
-pub fn set_offline_idxs(idxs: &[u32]) {
-	OFFLINE_MASK.with(|mask| {
-		let mut m = mask.borrow_mut();
-		m.clear();
-		m.extend_from_slice(idxs);
-	});
-}
-
-/// Clear the offline mask (everyone online).
-pub fn clear_offline_mask() {
-	OFFLINE_MASK.with(|mask| mask.borrow_mut().clear());
-}
-
-fn reset_test_globals() {
-	clear_offline_mask();
-}
-
-/// Test liveness provider that consults the mask above.
-pub struct TestLiveness;
-impl crate::LivenessProvider for TestLiveness {
-	fn is_online(idx: u32) -> bool {
-		OFFLINE_MASK.with(|mask| !mask.borrow().contains(&idx))
-	}
-}
-
-// ---------- Session config ----------
 pub struct TestSessionHandler;
 impl pallet_session::SessionHandler<AccountId> for TestSessionHandler {
 	const KEY_TYPE_IDS: &'static [KeyTypeId] = &[DUMMY];
@@ -148,7 +114,7 @@ impl pallet_session::Config for Test {
 	type ValidatorIdOf = ConvertInto;
 	type ShouldEndSession = TestShouldEndSession;
 	type NextSessionRotation = ();
-	type SessionManager = AuthorityMembership; // use our pallet
+	type SessionManager = AuthorityManager; // use our pallet
 	type SessionHandler = TestSessionHandler;
 	type Keys = MockSessionKeys;
 	type WeightInfo = ();
@@ -170,7 +136,6 @@ impl pallet_session_historical::Config for Test {
 	type FullIdentificationOf = FullIdentificationOfImpl;
 }
 
-// ---------- Pallet config ----------
 parameter_types! {
 	pub const MinAuthorities: u32 = 1;
 	pub const MaxAuthorities: u32 = 64;
@@ -179,29 +144,26 @@ parameter_types! {
 	pub const KickThresholdSessions: u32 = 2;
 }
 
-impl cord_authority_membership::Config for Test {
+impl origin_authority_manager::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MinAuthorities = MinAuthorities;
-	type MaxAuthorities = MaxAuthorities;
-	type MaxInvulnerables = MaxInvulnerables;
-	type TargetActive = TargetActive;
-	type KickThresholdSessions = KickThresholdSessions;
-	type AuthorityMembershipOrigin = frame_system::EnsureRoot<AccountId>;
-	type Liveness = TestLiveness;
+	type AuthorityManagerOrigin = frame_system::EnsureRoot<AccountId>;
 	type WeightInfo = ();
 }
 
-/// Build genesis storage with `n_authorities` (clamped to >= MinAuthorities and >= 1).
-pub fn new_test_ext(n_authorities: u64) -> sp_io::TestExternalities {
-	new_test_ext_with(n_authorities, &[])
+pub fn authorities() -> Vec<UintAuthorityId> {
+	let vals = pallet_session::Pallet::<Test>::validators();
+	vals.into_iter().map(UintAuthorityId).collect()
 }
 
-pub fn new_test_ext_with(n_authorities: u64, invuls: &[AccountId]) -> sp_io::TestExternalities {
-	// Respect the pallet's own invariant at genesis.
+/// Build genesis storage with `n_authorities` (clamped to ≥ MinAuthorities and ≥ 1, we use ≥3 for convenience).
+pub fn new_test_ext(n_authorities: u64) -> sp_io::TestExternalities {
+	// Respect minimal invariants.
 	let min = <Test as crate::pallet::Config>::MinAuthorities::get() as u64;
 	let n = max(3, max(n_authorities, min));
+	// let n = max(1, max(3, max(n_authorities, min)));
 
-	// Build session keys: (validator_id, controller_id, OpaqueKeys)
+	// Session keys: (validator_id, controller_id, OpaqueKeys)
 	let keys: Vec<(AccountId, AccountId, MockSessionKeys)> = (1..=n)
 		.map(|i| {
 			let who: AccountId = i * 3; // 3, 6, 9, ...
@@ -212,37 +174,26 @@ pub fn new_test_ext_with(n_authorities: u64, invuls: &[AccountId]) -> sp_io::Tes
 	// Base system storage
 	let mut t = frame_system::GenesisConfig::<Test>::default().build_storage().unwrap();
 
-	// Ensure providers exist for those accounts
+	// Ensure providers for accounts
 	BasicExternalities::execute_with_storage(&mut t, || {
 		for (ref k, ..) in &keys {
 			frame_system::Pallet::<Test>::inc_providers(k);
 		}
-		// (Optional) extra accounts used by tests
 		frame_system::Pallet::<Test>::inc_providers(&12);
 		frame_system::Pallet::<Test>::inc_providers(&15);
 	});
 
-	// Compute invulnerables = (invuls ∩ authority_ids)[..MaxInvulnerables]
-	let max_inv = <Test as crate::pallet::Config>::MaxInvulnerables::get() as usize;
-	let auth_ids: Vec<AccountId> = keys.iter().map(|x| x.0).collect();
-	let mut inv_filtered: Vec<AccountId> =
-		invuls.iter().copied().filter(|id| auth_ids.contains(id)).collect();
-	inv_filtered.truncate(max_inv);
-
-	// Pallet genesis — NON-EMPTY initial_authorities, optional invulnerables
+	// Pallet genesis
 	crate::pallet::GenesisConfig::<Test> {
-		initial_authorities: auth_ids.clone(),
-		invulnerables: inv_filtered.clone(),
+		initial_authorities: keys.iter().map(|x| x.0).collect::<Vec<_>>(),
 	}
 	.assimilate_storage(&mut t)
-	.unwrap();
+	.expect("authority manager genesis builds");
 
-	// Session genesis — modern API wants non_authority_keys too
+	// Session genesis
 	pallet_session::GenesisConfig::<Test> { keys, non_authority_keys: vec![] }
 		.assimilate_storage(&mut t)
-		.unwrap();
-
-	reset_test_globals();
+		.expect("session genesis builds");
 
 	sp_io::TestExternalities::new(t)
 }
@@ -266,12 +217,10 @@ pub fn run_to_block(n: BlockNumberFor<Test>) {
 pub fn run_to_next_session() {
 	let now: BlockNumberFor<Test> = System::block_number();
 	let period: BlockNumberFor<Test> = 5u32.into();
-	let one: BlockNumberFor<Test> = 2u32.into();
+	let one: BlockNumberFor<Test> = 1u32.into();
 
-	// Move to the start of the next session boundary.
-	// ((now / period) + 1) * period
+	// Move to ((now / period) + 1) * period
 	let next_boundary = (now / period).saturating_add(one) * period;
-
 	run_to_block(next_boundary);
 }
 
@@ -290,14 +239,4 @@ pub fn remove_ok(id: AccountId) {
 	let call = crate::pallet::Call::<Test>::remove { who: id };
 	let rc: <Test as frame_system::Config>::RuntimeCall = call.into();
 	assert!(rc.dispatch(frame_system::RawOrigin::Root.into()).is_ok());
-}
-pub fn set_invulnerables(ids: Vec<AccountId>) {
-	let call = crate::pallet::Call::<Test>::set_invulnerables { list: ids };
-	let rc: <Test as frame_system::Config>::RuntimeCall = call.into();
-	assert!(rc.dispatch(frame_system::RawOrigin::Root.into()).is_ok());
-}
-
-/// Force MissCount directly (useful for some negative-path tests).
-pub fn set_miss_count(id: AccountId, count: u32) {
-	crate::pallet::MissCount::<Test>::insert(id, count);
 }
