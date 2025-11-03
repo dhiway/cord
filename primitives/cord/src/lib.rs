@@ -23,7 +23,8 @@ pub mod element;
 pub use crate::element::Elum;
 pub mod packet;
 pub use crate::packet::{
-	Attribute, Attributes, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp,
+	Attribute, Attributes, AttributesError, Element, PacketInformationProvider, PacketUpdateError,
+	PacketUpdateOp,
 };
 pub mod identifier;
 pub use crate::identifier::Ss58Identifier;

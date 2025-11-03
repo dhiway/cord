@@ -19,7 +19,7 @@
 #![cfg(test)]
 use super::*;
 use crate::{entity::EntityInfo, mock::*, pallet::Pallet as EntityPallet, Error};
-use cord_primitives::packet::{Attribute, Element};
+use cord_primitives::packet::{Attribute, Attributes, AttributesError, Element};
 use frame_support::{assert_noop, assert_ok};
 use pallet_token::Token;
 
@@ -80,8 +80,8 @@ mod set_info_tests {
 			info.display = plain_data(b"d");
 			// force a single empty key in attributes
 			let empty: Attribute = Vec::new().try_into().unwrap();
-			info.attributes = Some(Default::default());
-			info.attributes.as_mut().unwrap().try_push((empty, plain_data(b"v"))).unwrap();
+			let attrs = info.attributes.get_or_insert_with(Attributes::default);
+			attrs.try_insert(empty, plain_data(b"v")).unwrap();
 
 			assert_noop!(
 				Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)),
@@ -93,19 +93,17 @@ mod set_info_tests {
 	#[test]
 	fn duplicate_attribute_key_in_initial_info_fails() {
 		new_test_ext().execute_with(|| {
-			let who = account(4);
-			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
+		let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"d");
 			let attr: Attribute = b"dup".to_vec().try_into().unwrap();
-			info.attributes = Some(Default::default());
+			info.attributes = Some(Attributes::default());
 			let v1 = plain_data(b"v1");
-			info.attributes.as_mut().unwrap().try_push((attr.clone(), v1.clone())).unwrap();
-			info.attributes.as_mut().unwrap().try_push((attr.clone(), v1)).unwrap();
-
-			assert_noop!(
-				Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)),
-				Error::<Test>::DuplicateAttributeKey
-			);
+			let attrs = info.attributes.as_mut().unwrap();
+			assert!(attrs.try_insert(attr.clone(), v1.clone()).is_ok());
+			assert!(matches!(
+				attrs.try_insert(attr.clone(), v1),
+				Err(AttributesError::DuplicateKey)
+			));
 		});
 	}
 }

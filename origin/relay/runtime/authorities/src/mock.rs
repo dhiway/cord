@@ -156,7 +156,8 @@ pub fn authorities() -> Vec<UintAuthorityId> {
 	vals.into_iter().map(UintAuthorityId).collect()
 }
 
-/// Build genesis storage with `n_authorities` (clamped to ≥ MinAuthorities and ≥ 1, we use ≥3 for convenience).
+/// Build genesis storage with `n_authorities` (clamped to ≥ MinAuthorities and ≥ 1, we use ≥3 for
+/// convenience).
 pub fn new_test_ext(n_authorities: u64) -> sp_io::TestExternalities {
 	// Respect minimal invariants.
 	let min = <Test as crate::pallet::Config>::MinAuthorities::get() as u64;

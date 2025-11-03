@@ -1,10 +1,10 @@
 [package]
-name = "cord-origin-container"
+name = "origin-hub"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
 build = "build.rs"
-description = "Runs a cord container chain"
+description = "Origin Hub"
 license.workspace = true
 repository.workspace = true
 publish = false
@@ -13,7 +13,7 @@ publish = false
 workspace = true
 
 [[bin]]
-name = "cord-origin"
+name = "origin-hub"
 path = "src/main.rs"
 
 [dependencies]

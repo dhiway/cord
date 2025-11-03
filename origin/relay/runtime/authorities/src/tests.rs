@@ -21,11 +21,13 @@
 #![cfg(test)]
 
 use super::*;
-use crate::mock::{
-	new_test_ext, remove_ok, run_to_next_session, AccountId, MockSessionKeys, RuntimeEvent, System,
-	Test,
+use crate::{
+	mock::{
+		new_test_ext, remove_ok, run_to_next_session, AccountId, MockSessionKeys, RuntimeEvent,
+		System, Test,
+	},
+	pallet::{Error as Err, Event as Ev, PendingAdditions, PendingRemovals, Registered},
 };
-use crate::pallet::{Error as Err, Event as Ev, PendingAdditions, PendingRemovals, Registered};
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use pallet_session::Pallet as Session;
@@ -294,7 +296,8 @@ fn members_without_keys_are_not_selected() {
 			Err::<Test>::SessionKeysNotQueued
 		);
 
-		// If we force it into Registered manually (not via extrinsic), it still shouldn't join active
+		// If we force it into Registered manually (not via extrinsic), it still shouldn't join
+		// active
 		Registered::<Test>::mutate(|r| {
 			if !r.contains(&who) {
 				r.push(who);
