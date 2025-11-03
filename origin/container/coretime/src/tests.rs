@@ -21,7 +21,6 @@ use crate::{
 	xcm_config::LocationToAccountId,
 	*,
 };
-use origin_staging_runtime_constants::system_parachain::coretime::TIMESLICE_PERIOD;
 use coretime::CoretimeAllocator;
 use frame_support::{
 	assert_ok,
@@ -30,6 +29,7 @@ use frame_support::{
 		Get, OnInitialize,
 	},
 };
+use origin_staging_runtime_constants::system_parachain::coretime::TIMESLICE_PERIOD;
 use pallet_broker::{ConfigRecordOf, RCBlockNumberOf, SaleInfo};
 use parachains_runtimes_test_utils::ExtBuilder;
 use sp_core::crypto::Ss58Codec;

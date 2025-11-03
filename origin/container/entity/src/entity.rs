@@ -20,7 +20,8 @@ use super::*;
 use alloc::{vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::packet::{
-	Attribute, Attributes, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp,
+	Attribute, Attributes, AttributesError, Element, PacketInformationProvider, PacketUpdateError,
+	PacketUpdateOp,
 };
 use enumflags2::{bitflags, BitFlag, BitFlags};
 use frame_support::{
@@ -101,6 +102,14 @@ impl TypeInfo for EntityField {
 	}
 }
 
+fn map_attributes_error(err: AttributesError) -> PacketUpdateError {
+	match err {
+		AttributesError::DuplicateKey => PacketUpdateError::AttributeExists,
+		AttributesError::TooManyAttributes => PacketUpdateError::TooManyAttributes,
+		AttributesError::InvalidElement => PacketUpdateError::InvalidElement,
+	}
+}
+
 /// Information concerning the identity of the controller of an account.
 #[derive(
 	CloneNoBound,
@@ -146,12 +155,12 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 }
 
 impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
-	DoketInformationProvider for EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>
+	PacketInformationProvider for EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>
 {
 	type FieldMask = u64;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
-	type UpdateOp = DoketUpdateOp<MaxRawDataLength>;
+	type UpdateOp = PacketUpdateOp<MaxRawDataLength>;
 
 	fn attributes(
 		&self,
@@ -170,9 +179,7 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 		}
 		self.attributes
 			.as_ref()
-			.and_then(|attrs| {
-				attrs.iter().find(|(k, _)| k.as_slice() == key).map(|(_, v)| v.clone())
-			})
+			.and_then(|attrs| attrs.get(key).cloned())
 			.unwrap_or_else(Element::default)
 	}
 
@@ -186,38 +193,32 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 
 	fn apply_update(
 		&mut self,
-		op: &DoketUpdateOp<MaxRawDataLength>,
-	) -> Result<(), DoketUpdateError> {
+		op: &PacketUpdateOp<MaxRawDataLength>,
+	) -> Result<(), PacketUpdateError> {
 		match op {
-			DoketUpdateOp::AddAttribute(k, v) => {
-				ensure!(EntityField::from_bytes(k).is_none(), DoketUpdateError::AttributeExists);
-				let attrs = self.attributes.get_or_insert_with(Default::default);
-				if attrs.iter().any(|(kk, _)| kk == k) {
-					return Err(DoketUpdateError::AttributeExists);
-				}
-				attrs
-					.try_push((k.clone(), v.clone()))
-					.map_err(|_| DoketUpdateError::TooManyAttributes)
+			PacketUpdateOp::AddAttribute(k, v) => {
+				v.validate().map_err(|_| PacketUpdateError::InvalidElement)?;
+				ensure!(EntityField::from_bytes(k).is_none(), PacketUpdateError::AttributeExists);
+				let attrs = self.attributes.get_or_insert_with(Attributes::default);
+				attrs.try_insert(k.clone(), v.clone()).map_err(map_attributes_error)
 			},
 
-			DoketUpdateOp::RemoveAttribute(k) => {
+			PacketUpdateOp::RemoveAttribute(k) => {
 				if let Some(field) = EntityField::from_bytes(k) {
 					match field {
 						EntityField::Display => self.display = Element::default(),
 						EntityField::Legal => self.legal = Element::default(),
 						EntityField::Web => self.web = Element::default(),
 						EntityField::Attributes => {
-							return Err(DoketUpdateError::AttributeNotFound);
+							return Err(PacketUpdateError::AttributeNotFound);
 						},
 					}
 				} else {
 					let attrs =
-						self.attributes.as_mut().ok_or(DoketUpdateError::AttributeNotFound)?;
-					let idx = attrs
-						.iter()
-						.position(|(kk, _)| kk == k)
-						.ok_or(DoketUpdateError::AttributeNotFound)?;
-					attrs.swap_remove(idx);
+						self.attributes.as_mut().ok_or(PacketUpdateError::AttributeNotFound)?;
+					if attrs.remove(k.as_slice()).is_none() {
+						return Err(PacketUpdateError::AttributeNotFound);
+					}
 					if attrs.is_empty() {
 						self.attributes = None;
 					}
@@ -225,24 +226,24 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 				Ok(())
 			},
 
-			DoketUpdateOp::UpdateAttribute(k, v) => {
+			PacketUpdateOp::UpdateAttribute(k, v) => {
 				if let Some(field) = EntityField::from_bytes(k) {
+					v.validate().map_err(|_| PacketUpdateError::InvalidElement)?;
 					match field {
 						EntityField::Display => self.display = v.clone(),
 						EntityField::Legal => self.legal = v.clone(),
 						EntityField::Web => self.web = v.clone(),
 						EntityField::Attributes => {
-							return Err(DoketUpdateError::AttributeNotFound);
+							return Err(PacketUpdateError::AttributeNotFound);
 						},
 					}
 				} else {
 					let attrs =
-						self.attributes.as_mut().ok_or(DoketUpdateError::AttributeNotFound)?;
-					let slot = attrs
-						.iter_mut()
-						.find(|(kk, _)| kk == k)
-						.ok_or(DoketUpdateError::AttributeNotFound)?;
-					slot.1 = v.clone();
+						self.attributes.as_mut().ok_or(PacketUpdateError::AttributeNotFound)?;
+					let slot =
+						attrs.get_mut(k.as_slice()).ok_or(PacketUpdateError::AttributeNotFound)?;
+					v.validate().map_err(|_| PacketUpdateError::InvalidElement)?;
+					*slot = v.clone();
 				}
 				Ok(())
 			},
@@ -252,16 +253,16 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 	fn create_info() -> Self {
 		let empty = Element::default();
 		let cap = MaxAdditionalAttributes::get() as usize;
-		let mut attrs = Vec::with_capacity(cap);
+		let mut attrs = Attributes::default();
 		for i in 0..cap {
 			let key: Attribute = vec![b'k', i as u8].try_into().unwrap();
-			attrs.push((key, empty.clone()));
+			attrs.try_insert(key, empty.clone()).expect("within bounds; qed");
 		}
 		EntityInfo {
 			display: empty.clone(),
 			legal: empty.clone(),
 			web: empty.clone(),
-			attributes: Some(attrs.try_into().unwrap()),
+			attributes: Some(attrs),
 		}
 	}
 

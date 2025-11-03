@@ -1,6 +1,6 @@
 [package]
 name = "origin"
-description = "Origin Node Binaries"
+description = "Origin Node"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

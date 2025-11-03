@@ -21,7 +21,7 @@
 use super::*;
 use crate::{Event as EntityEvent, Pallet as EntityPallet};
 use alloc::vec::Vec;
-use cord_primitives::doket::Element;
+use cord_primitives::packet::Element;
 use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_system::{Pallet as System, RawOrigin};
 use pallet_token::Token;
@@ -49,7 +49,7 @@ mod benchmarks {
 
 		// rebuild the token exactly as the pallet does:
 		let digest = <T as frame_system::Config>::Hashing::hash(
-			&(info.clone(), b"IdentityInfoSet".to_vec()).encode(),
+			&(info.clone(), b"EntityInfoSet".to_vec()).encode(),
 		);
 		let token = T::Token::build(digest.as_ref(), EntityPallet::<T>::name())
 			.map_err(|_| BenchmarkError::Stop("Token creation failed"))?;

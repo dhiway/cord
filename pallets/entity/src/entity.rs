@@ -18,10 +18,11 @@
 
 #![allow(clippy::too_many_lines)]
 
-use alloc::{vec, vec::Vec};
+use alloc::vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::packet::{
-	Attribute, Attributes, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp,
+	Attribute, Attributes, AttributesError, Element, PacketInformationProvider, PacketUpdateError,
+	PacketUpdateOp,
 };
 use enumflags2::{bitflags, BitFlag, BitFlags};
 use frame_support::{
@@ -79,6 +80,14 @@ impl TypeInfo for EntityField {
 				.variant("Twitter", |v| v.index(4))
 				.variant("Attributes", |v| v.index(5)),
 		)
+	}
+}
+
+fn map_attributes_error(err: AttributesError) -> PacketUpdateError {
+	match err {
+		AttributesError::DuplicateKey => PacketUpdateError::AttributeExists,
+		AttributesError::TooManyAttributes => PacketUpdateError::TooManyAttributes,
+		AttributesError::InvalidElement => PacketUpdateError::InvalidElement,
 	}
 }
 
@@ -165,9 +174,7 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 		}
 		self.attributes
 			.as_ref()
-			.and_then(|attrs| {
-				attrs.iter().find(|(k, _)| k.as_slice() == key).map(|(_, v)| v.clone())
-			})
+			.and_then(|attrs| attrs.get(key).cloned())
 			.unwrap_or_else(Element::default)
 	}
 
@@ -185,14 +192,11 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 	) -> Result<(), PacketUpdateError> {
 		match op {
 			PacketUpdateOp::AddAttribute(k, v) => {
+				v.validate().map_err(|_| PacketUpdateError::InvalidElement)?;
 				ensure!(EntityField::from_bytes(k).is_none(), PacketUpdateError::AttributeExists);
-				let attrs = self.attributes.get_or_insert_with(Default::default);
-				if attrs.iter().any(|(kk, _)| kk == k) {
-					return Err(PacketUpdateError::AttributeExists);
-				}
-				attrs
-					.try_push((k.clone(), v.clone()))
-					.map_err(|_| PacketUpdateError::TooManyAttributes)
+				let attrs = self.attributes.get_or_insert_with(Attributes::default);
+				attrs.try_insert(k.clone(), v.clone()).map_err(map_attributes_error)?;
+				Ok(())
 			},
 
 			PacketUpdateOp::RemoveAttribute(k) => {
@@ -210,11 +214,9 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 				} else {
 					let attrs =
 						self.attributes.as_mut().ok_or(PacketUpdateError::AttributeNotFound)?;
-					let idx = attrs
-						.iter()
-						.position(|(kk, _)| kk == k)
-						.ok_or(PacketUpdateError::AttributeNotFound)?;
-					attrs.swap_remove(idx);
+					if attrs.remove(k.as_slice()).is_none() {
+						return Err(PacketUpdateError::AttributeNotFound);
+					}
 					if attrs.is_empty() {
 						self.attributes = None;
 					}
@@ -224,6 +226,7 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 
 			PacketUpdateOp::UpdateAttribute(k, v) => {
 				if let Some(field) = EntityField::from_bytes(k) {
+					v.validate().map_err(|_| PacketUpdateError::InvalidElement)?;
 					match field {
 						EntityField::Display => self.display = v.clone(),
 						EntityField::Legal => self.legal = v.clone(),
@@ -237,11 +240,10 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 				} else {
 					let attrs =
 						self.attributes.as_mut().ok_or(PacketUpdateError::AttributeNotFound)?;
-					let slot = attrs
-						.iter_mut()
-						.find(|(kk, _)| kk == k)
-						.ok_or(PacketUpdateError::AttributeNotFound)?;
-					slot.1 = v.clone();
+					let slot =
+						attrs.get_mut(k.as_slice()).ok_or(PacketUpdateError::AttributeNotFound)?;
+					v.validate().map_err(|_| PacketUpdateError::InvalidElement)?;
+					*slot = v.clone();
 				}
 				Ok(())
 			},
@@ -251,10 +253,10 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 	fn create_info() -> Self {
 		let empty = Element::default();
 		let cap = MaxAdditionalAttributes::get() as usize;
-		let mut attrs = Vec::with_capacity(cap);
+		let mut attrs = Attributes::default();
 		for i in 0..cap {
 			let key: Attribute = vec![b'k', i as u8].try_into().unwrap();
-			attrs.push((key, empty.clone()));
+			attrs.try_insert(key, empty.clone()).expect("within bounds; qed");
 		}
 		EntityInfo {
 			display: empty.clone(),
@@ -262,7 +264,7 @@ impl<MaxRawDataLength: Get<u32> + 'static, MaxAdditionalAttributes: Get<u32>>
 			web: empty.clone(),
 			email: empty.clone(),
 			twitter: empty.clone(),
-			attributes: Some(attrs.try_into().unwrap()),
+			attributes: Some(attrs),
 		}
 	}
 

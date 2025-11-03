@@ -63,8 +63,10 @@ use frame_support::{
 };
 use frame_system::EnsureRoot;
 use origin_staging_runtime_constants::{
-	currency::*, fee::*, system_parachain::coretime::TIMESLICE_PERIOD,
-	system_parachain::ORIGIN_HUB_IN_ID, time::*,
+	currency::*,
+	fee::*,
+	system_parachain::{coretime::TIMESLICE_PERIOD, ORIGIN_HUB_IN_ID},
+	time::*,
 };
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -650,7 +652,8 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				RuntimeCall::Registrar(paras_registrar::Call::deregister {..}) |
 				// Specifically omitting Registrar `swap`
 				RuntimeCall::Registrar(paras_registrar::Call::reserve {..}) |
-				RuntimeCall::Slots(..) // RuntimeCall::Auctions(..) // Specifically omitting the entire XCM Pallet
+				RuntimeCall::Slots(..) /* RuntimeCall::Auctions(..) // Specifically omitting the
+				                        * entire XCM Pallet */
 			),
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))

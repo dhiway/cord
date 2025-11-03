@@ -121,13 +121,15 @@ mod benches {
 	use super::*;
 	use frame_benchmarking::v2::account;
 
-	/// `nominate`: heavy case — prefill Registered and PendingAdditions, then add a new account with staged keys.
+	/// `nominate`: heavy case — prefill Registered and PendingAdditions, then add a new account
+	/// with staged keys.
 	#[benchmark]
 	fn nominate(n: Linear<100, 1000>) -> Result<(), BenchmarkError> {
 		let n: u32 = n;
 
-		// Fill registered & pending with n elements (and stage keys for registered so selection can work)
-		fill_registered::<T>(n, /*also_stage_keys=*/ true);
+		// Fill registered & pending with n elements (and stage keys for registered so selection can
+		// work)
+		fill_registered::<T>(n, /* also_stage_keys= */ true);
 		fill_pending_additions::<T>(n);
 
 		// Build a fresh AccountId not in the pools
@@ -157,8 +159,9 @@ mod benches {
 	fn remove(n: Linear<100, 1000>) -> Result<(), BenchmarkError> {
 		let n: u32 = n;
 
-		// Fill Registered with n+1 entries and stage keys for all (not strictly required for remove path)
-		fill_registered::<T>(n.saturating_add(1), /*also_stage_keys=*/ true);
+		// Fill Registered with n+1 entries and stage keys for all (not strictly required for remove
+		// path)
+		fill_registered::<T>(n.saturating_add(1), /* also_stage_keys= */ true);
 
 		// Pick a target account that maps to a known ValidatorId
 		let who_acc = account::<T::AccountId>("rm", 9_001, 0);
@@ -194,7 +197,7 @@ mod benches {
 		let n: u32 = n;
 
 		// Seed registered with n and stage keys so selection won't be empty
-		fill_registered::<T>(n, /*also_stage_keys=*/ true);
+		fill_registered::<T>(n, /* also_stage_keys= */ true);
 
 		// Adds: n/2 fresh ids; stage keys for them so they can be selected on next sessions
 		let adds = n / 2;
@@ -221,8 +224,9 @@ mod benches {
 		// Postconditions: active snapshot exists; queues were applied (best-effort check)
 		assert!(!LastActive::<T>::get().is_empty());
 
-		// Either additions were applied or removals were applied (can't assert exact diff without reading previous set)
-		// Keep a light check: at least one queue should be empty now (consumed).
+		// Either additions were applied or removals were applied (can't assert exact diff without
+		// reading previous set) Keep a light check: at least one queue should be empty now
+		// (consumed).
 		let pa = PendingAdditions::<T>::get();
 		let pr = PendingRemovals::<T>::get();
 		assert!(pa.is_empty() || pr.is_empty(), "queues should be applied on rotation");

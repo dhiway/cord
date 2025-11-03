@@ -321,7 +321,19 @@ pub mod pallet {
 				}
 			}
 
-			let digest = T::Hashing::hash(&(&info, b"IdentityInfoSet" as &[u8]).encode());
+			for reserved in [&b"display"[..], &b"legal"[..], &b"web"[..], &b"email"[..], &b"twitter"[..]] {
+				info
+					.get_key(reserved)
+					.validate()
+					.map_err(|_| Error::<T>::InvalidAttributeEntry)?;
+			}
+			if let Some(attributes) = info.attributes() {
+				for (_, value) in attributes.iter() {
+					value.validate().map_err(|_| Error::<T>::InvalidAttributeEntry)?;
+				}
+			}
+
+			let digest = T::Hashing::hash(&(&info, b"EntityInfoSet" as &[u8]).encode());
 			let pallet_name = <Pallet<T> as PalletInfoAccess>::name();
 			let token = T::Token::build(&digest.encode()[..], pallet_name)
 				.map_err(|_| Error::<T>::TokenCreationFailed)?;

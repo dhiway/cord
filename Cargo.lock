@@ -2573,30 +2573,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cord-origin-container"
-version = "0.9.9"
-dependencies = [
- "color-eyre",
- "cord-origin-coretime-staging-runtime",
- "cord-origin-entity-staging-runtime",
- "cumulus-primitives-core",
- "hex-literal",
- "log",
- "parachains-common",
- "polkadot-omni-node-lib",
- "sc-chain-spec",
- "sc-cli",
- "sc-service",
- "serde",
- "serde_json",
- "sp-core",
- "sp-genesis-builder",
- "sp-keyring",
- "staging-xcm",
- "substrate-build-script-utils",
-]
-
-[[package]]
 name = "cord-origin-coretime-staging-runtime"
 version = "0.9.9"
 dependencies = [
@@ -8748,6 +8724,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "origin-hub"
+version = "0.9.9"
+dependencies = [
+ "color-eyre",
+ "cord-origin-coretime-staging-runtime",
+ "cord-origin-entity-staging-runtime",
+ "cumulus-primitives-core",
+ "hex-literal",
+ "log",
+ "parachains-common",
+ "polkadot-omni-node-lib",
+ "sc-chain-spec",
+ "sc-cli",
+ "sc-service",
+ "serde",
+ "serde_json",
+ "sp-core",
+ "sp-genesis-builder",
+ "sp-keyring",
+ "staging-xcm",
+ "substrate-build-script-utils",
+]
+
+[[package]]
 name = "origin-node-cli"
 version = "0.9.9"
 dependencies = [
@@ -10018,6 +10018,23 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-arithmetic",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-register"
+version = "0.9.9"
+dependencies = [
+ "bitflags 1.3.2",
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-entity",
+ "pallet-token",
+ "parity-scale-codec",
+ "scale-info",
  "sp-io",
  "sp-runtime",
 ]
