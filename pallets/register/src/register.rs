@@ -3,7 +3,7 @@ use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::{
 	identifier::Ss58Identifier,
-	packet::{Attribute, Element, PacketUpdateError},
+	packet::{Attribute, Element, ElementType, PacketUpdateError},
 };
 use frame_support::{ensure, traits::Get, BoundedVec, RuntimeDebugNoBound};
 use scale_info::TypeInfo;
@@ -50,9 +50,9 @@ impl RegistryPermissions {
 	}
 
 	pub fn has_view(self) -> bool {
-		self.contains(RegistryPermissions::VIEW) ||
-			self.contains(RegistryPermissions::ENTRY) ||
-			self.contains(RegistryPermissions::ADMIN)
+		self.contains(RegistryPermissions::VIEW)
+			|| self.contains(RegistryPermissions::ENTRY)
+			|| self.contains(RegistryPermissions::ADMIN)
 	}
 }
 
@@ -162,8 +162,8 @@ pub struct RegistryInfo<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get
 	pub info: Element<MaxRawDataLength>,
 	/// Token of the maintainer (registry owner).
 	pub maintainer: Ss58Identifier,
-	/// Attribute KV pairs. Keys MUST be unique.
-	pub attributes: BoundedVec<(Attribute, Element<MaxRawDataLength>), MaxAdditionalAttributes>,
+	/// Attribute schema (key → expected value type). Keys MUST be unique.
+	pub attributes: BoundedVec<(Attribute, ElementType), MaxAdditionalAttributes>,
 	/// Attribute key combination used to derive the registry token material.
 	pub token_spec: LookupSpec<MaxAdditionalAttributes>,
 	/// One or more attribute-key combinations that serve as lookup specs.
@@ -205,7 +205,7 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 	/// Replace the full attribute list after validation.
 	pub fn set_attributes(
 		&mut self,
-		attributes: BoundedVec<(Attribute, Element<MaxRawDataLength>), MaxAdditionalAttributes>,
+		attributes: BoundedVec<(Attribute, ElementType), MaxAdditionalAttributes>,
 	) -> Result<(), PacketUpdateError> {
 		Self::ensure_valid_attributes(&attributes)?;
 		self.attributes = attributes;
@@ -275,11 +275,11 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 	}
 
 	/// Get a cloned attribute value by key.
-	pub fn attribute_value(&self, key: &[u8]) -> Option<Element<MaxRawDataLength>> {
+	pub fn attribute_type(&self, key: &[u8]) -> Option<ElementType> {
 		self.attributes
 			.iter()
 			.find(|(attr, _)| attr.as_slice() == key)
-			.map(|(_, value)| value.clone())
+			.map(|(_, value)| *value)
 	}
 
 	/// Get all attribute keys (unordered).
@@ -288,7 +288,7 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 	}
 
 	/// Resolve key/value pairs for the token, in the key order defined by `token_spec`.
-	pub fn resolve_token_material(&self) -> Vec<(Attribute, Element<MaxRawDataLength>)> {
+	pub fn resolve_token_material(&self) -> Vec<(Attribute, ElementType)> {
 		self.token_spec
 			.cloned_keys()
 			.into_iter()
@@ -298,8 +298,7 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 					.iter()
 					.find(|(attr, _)| attr.as_slice() == key.as_slice())
 					.expect("token field subset validated during creation")
-					.1
-					.clone();
+					.1;
 				(key, value)
 			})
 			.collect()
@@ -307,16 +306,15 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 
 	/// Validate attribute list invariants:
 	fn ensure_valid_attributes(
-		attributes: &[(Attribute, Element<MaxRawDataLength>)],
+		attributes: &[(Attribute, ElementType)],
 	) -> Result<(), PacketUpdateError> {
 		let mut seen = BTreeSet::new();
-		for (key, value) in attributes.iter() {
+		for (key, _) in attributes.iter() {
 			let raw = key.as_slice();
 			ensure!(!raw.is_empty(), PacketUpdateError::AttributeNotFound);
 			if !seen.insert(raw) {
 				return Err(PacketUpdateError::AttributeExists);
 			}
-			value.validate().map_err(|_| PacketUpdateError::InvalidElement)?;
 		}
 		Ok(())
 	}

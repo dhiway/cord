@@ -35,7 +35,7 @@ use alloc::vec::Vec;
 use codec::Encode;
 use cord_primitives::{
 	identifier::Ss58Identifier,
-	packet::{Attribute, Element, PacketUpdateError},
+	packet::{Attribute, Element, ElementType, PacketUpdateError},
 };
 use frame_support::{
 	ensure,
@@ -53,10 +53,8 @@ pub use weights::WeightInfo;
 
 /// Convenience type aliases bound to pallet Config.
 pub type DataOf<T> = Element<<T as Config>::MaxRawDataLength>;
-pub type ExtraAttributeListOf<T> = BoundedVec<
-	(Attribute, Element<<T as Config>::MaxRawDataLength>),
-	<T as Config>::MaxAdditionalAttributes,
->;
+pub type AttributeSchemaListOf<T> =
+	BoundedVec<(Attribute, ElementType), <T as Config>::MaxAdditionalAttributes>;
 pub type TokenSpecOf<T> = LookupSpec<<T as Config>::MaxAdditionalAttributes>;
 pub type LookupSpecListOf<T> = BoundedVec<
 	LookupSpec<<T as Config>::MaxAdditionalAttributes>,
@@ -66,7 +64,6 @@ pub type LookupSpecListOf<T> = BoundedVec<
 /// Registry packet type alias for storage.
 pub type RegistryPacketOf<T> =
 	RegistryInfo<<T as Config>::MaxRawDataLength, <T as Config>::MaxAdditionalAttributes>;
-
 pub trait RegistryInspector<T: Config> {
 	fn registry_packet(token: &Ss58Identifier) -> Option<RegistryPacketOf<T>>;
 	fn attribute_keys(token: &Ss58Identifier) -> Option<Vec<Vec<u8>>>;
@@ -201,7 +198,7 @@ pub mod pallet {
 			info: DataOf<T>,
 			kind: RegistryKind,
 			is_active: bool,
-			attributes: ExtraAttributeListOf<T>,
+			attributes: AttributeSchemaListOf<T>,
 			token_spec: TokenSpecOf<T>,
 			lookup_specs: LookupSpecListOf<T>,
 		) -> DispatchResult {
@@ -375,36 +372,45 @@ pub mod pallet {
 
 	#[pallet::view_functions]
 	impl<T: Config> Pallet<T> {
-		/// Returns the full registry packet if `viewer` has view rights.
-		pub fn view_registry(
-			viewer: Ss58Identifier,
-			registry: Ss58Identifier,
-		) -> Option<RegistryPacketOf<T>> {
-			let packet = Registries::<T>::get(&registry)?;
-			if Self::has_view_rights(&registry, &packet, &viewer) {
-				Some(packet)
-			} else {
-				None
-			}
+		/// Returns the full registry info packet.
+		pub fn info(registry: Ss58Identifier) -> Option<RegistryPacketOf<T>> {
+			Registries::<T>::get(&registry)
 		}
 
-		/// Returns the value of a specific attribute if `viewer` has view rights.
-		pub fn view_registry_attribute(
-			viewer: Ss58Identifier,
-			registry: Ss58Identifier,
-			key: Vec<u8>,
-		) -> Option<Element<<T as Config>::MaxRawDataLength>> {
+		/// Returns the declared schema type of the provided attribute key.
+		pub fn attribute(registry: Ss58Identifier, key: Vec<u8>) -> Option<ElementType> {
 			let key_bounded: Attribute = key.try_into().ok()?;
 			let packet = Registries::<T>::get(&registry)?;
-			if !Self::has_view_rights(&registry, &packet, &viewer) {
-				return None;
-			}
-
 			packet
 				.attributes
 				.iter()
 				.find(|(attr, _)| attr == &key_bounded)
-				.map(|(_, value)| value.clone())
+				.map(|(_, ty)| *ty)
+		}
+
+		/// Returns all attribute keys and their schema types.
+		pub fn attributes(registry: Ss58Identifier) -> Option<Vec<(Vec<u8>, ElementType)>> {
+			Registries::<T>::get(&registry).map(|packet| {
+				packet.attributes.iter().map(|(key, ty)| (key.to_vec(), *ty)).collect()
+			})
+		}
+
+		/// Returns the attribute keys composing the registry token material.
+		pub fn token(registry: Ss58Identifier) -> Option<Vec<Vec<u8>>> {
+			Registries::<T>::get(&registry).map(|packet| {
+				packet.token_spec.cloned_keys().into_iter().map(|key| key.to_vec()).collect()
+			})
+		}
+
+		/// Returns the lookup specifications declared for the registry.
+		pub fn lookup_specs(registry: Ss58Identifier) -> Option<Vec<Vec<Vec<u8>>>> {
+			Registries::<T>::get(&registry).map(|packet| {
+				packet
+					.lookup_specs
+					.iter()
+					.map(|spec| spec.cloned_keys().into_iter().map(|key| key.to_vec()).collect())
+					.collect()
+			})
 		}
 	}
 
@@ -436,18 +442,6 @@ pub mod pallet {
 				RegistryDelegates::<T>::get(registry, actor).ok_or(Error::<T>::PermissionDenied)?;
 			ensure!(perms.has_delegate(), Error::<T>::PermissionDenied);
 			Ok(())
-		}
-
-		fn has_view_rights(
-			registry: &Ss58Identifier,
-			packet: &RegistryPacketOf<T>,
-			viewer: &Ss58Identifier,
-		) -> bool {
-			if packet.maintainer() == viewer {
-				return true;
-			}
-
-			RegistryDelegates::<T>::get(registry, viewer).map_or(false, |perms| perms.has_view())
 		}
 
 		fn map_attribute_error(err: PacketUpdateError) -> DispatchError {
