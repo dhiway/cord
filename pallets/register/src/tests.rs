@@ -23,17 +23,20 @@ use crate::{
 	mock::*,
 	register::{LookupSpec, RegistryKind, RegistryPermissions},
 };
+use cord_primitives::packet::ElementType;
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 
 fn raw(data: &[u8]) -> Element<MaxRawDataLength> {
 	Element::Raw(data.to_vec().try_into().expect("bounded data"))
 }
 
-fn attrs<'a>(pairs: impl IntoIterator<Item = (&'a [u8], &'a [u8])>) -> ExtraAttributeListOf<Test> {
-	let mut list = ExtraAttributeListOf::<Test>::default();
-	for (key, value) in pairs {
+fn attrs<'a>(
+	pairs: impl IntoIterator<Item = (&'a [u8], ElementType)>,
+) -> AttributeSchemaListOf<Test> {
+	let mut list = AttributeSchemaListOf::<Test>::default();
+	for (key, value_type) in pairs {
 		let bounded_key = Attribute::try_from(key.to_vec()).expect("within key bound");
-		list.try_push((bounded_key, raw(value))).expect("attribute capacity");
+		list.try_push((bounded_key, value_type)).expect("attribute capacity");
 	}
 	list
 }
@@ -83,7 +86,7 @@ fn create_register_happy_path() {
 			raw(b"My Registry"),
 			RegistryKind::Raw,
 			true,
-			attrs([(b"schema".as_ref(), b"did:example:s1".as_ref())]),
+			attrs([(b"schema".as_ref(), ElementType::Raw)]),
 			token_spec(&[b"schema"]),
 			lookup_specs(&[]),
 		));
@@ -92,7 +95,7 @@ fn create_register_happy_path() {
 		let stored = Registries::<Test>::get(&registry).expect("stored");
 		assert_eq!(stored.maintainer(), &maintainer_token);
 		assert_eq!(stored.info, raw(b"My Registry"));
-		assert!(stored.attribute_value(b"schema").is_some());
+		assert_eq!(stored.attribute_type(b"schema"), Some(ElementType::Raw));
 		assert_eq!(stored.kind, RegistryKind::Raw);
 		assert!(stored.is_active);
 
@@ -109,10 +112,10 @@ fn registry_attributes_support_u128_element() {
 		let maintainer = account(99);
 		let maintainer_token = bind_account(maintainer);
 
-		let mut attributes = ExtraAttributeListOf::<Test>::default();
+		let mut attributes = AttributeSchemaListOf::<Test>::default();
 		let limit_key = Attribute::try_from(b"limit".to_vec()).expect("bounded key");
 		attributes
-			.try_push((limit_key.clone(), Element::from_u128(1_000u128)))
+			.try_push((limit_key.clone(), ElementType::U128))
 			.expect("attribute capacity");
 
 		assert_ok!(Pallet::<Test>::create_registry(
@@ -128,10 +131,8 @@ fn registry_attributes_support_u128_element() {
 		let registry = first_registry();
 		let stored = Registries::<Test>::get(&registry).expect("stored");
 		assert_eq!(stored.maintainer(), &maintainer_token);
-		let value = stored.attribute_value(b"limit").expect("attribute exists");
-		assert!(value.is_u128());
-		assert_eq!(value.as_u128(), Some(1_000u128));
-		assert_eq!(value.as_ref(), &1_000u128.to_le_bytes()[..]);
+		let value = stored.attribute_type(b"limit").expect("attribute exists");
+		assert_eq!(value, ElementType::U128);
 	});
 }
 
@@ -147,14 +148,14 @@ fn create_register_requires_attributes_and_valid_token_fields() {
 				raw(b"A"),
 				RegistryKind::Token,
 				true,
-				ExtraAttributeListOf::<Test>::default(),
+				AttributeSchemaListOf::<Test>::default(),
 				token_spec(&[b"foo"]),
 				lookup_specs(&[])
 			),
 			Error::<Test>::NoAttributes
 		);
 
-		let attributes = attrs([(b"foo".as_ref(), b"bar".as_ref())]);
+		let attributes = attrs([(b"foo".as_ref(), ElementType::Raw)]);
 		let fields = token_spec(&[b"missing"]);
 		assert_noop!(
 			Pallet::<Test>::create_registry(
@@ -183,7 +184,7 @@ fn create_registry_fails_for_empty_token_spec() {
 				raw(b"A"),
 				RegistryKind::Raw,
 				true,
-				attrs([(b"k".as_ref(), b"v".as_ref())]),
+				attrs([(b"k".as_ref(), ElementType::Raw)]),
 				token_spec(&[]),
 				lookup_specs(&[])
 			),
@@ -203,7 +204,7 @@ fn update_info_requires_admin() {
 			raw(b"Initial"),
 			RegistryKind::Raw,
 			true,
-			attrs([(b"a".as_ref(), b"1".as_ref())]),
+			attrs([(b"a".as_ref(), ElementType::Raw)]),
 			token_spec(&[b"a"]),
 			lookup_specs(&[]),
 		));
@@ -233,7 +234,7 @@ fn status_may_be_toggled_by_admin_delegate_or_root() {
 			raw(b"Status"),
 			RegistryKind::Hash,
 			true,
-			attrs([(b"x".as_ref(), b"y".as_ref())]),
+			attrs([(b"x".as_ref(), ElementType::Raw)]),
 			token_spec(&[b"x"]),
 			lookup_specs(&[]),
 		));
@@ -315,7 +316,7 @@ fn delegate_lifecycle() {
 			raw(b"Delegation"),
 			RegistryKind::Token,
 			true,
-			attrs([(b"k".as_ref(), b"v".as_ref())]),
+			attrs([(b"k".as_ref(), ElementType::Raw)]),
 			token_spec(&[b"k"]),
 			lookup_specs(&[]),
 		));
@@ -349,7 +350,7 @@ fn delegate_with_view_permission_can_view_registry() {
 		let maintainer = account(11);
 		let maintainer_token = bind_account(maintainer);
 		let viewer = account(12);
-		let viewer_token = bind_account(viewer);
+		let _viewer_token = bind_account(viewer);
 		let info = raw(b"Visible");
 
 		assert_ok!(Pallet::<Test>::create_registry(
@@ -357,7 +358,7 @@ fn delegate_with_view_permission_can_view_registry() {
 			info.clone(),
 			RegistryKind::Raw,
 			true,
-			attrs([(b"foo".as_ref(), b"bar".as_ref())]),
+			attrs([(b"foo".as_ref(), ElementType::Raw)]),
 			token_spec(&[b"foo"]),
 			lookup_specs(&[]),
 		));
@@ -375,36 +376,31 @@ fn delegate_with_view_permission_can_view_registry() {
 			vec![RegistryPermissions::VIEW]
 		));
 
-		let packet = Pallet::<Test>::view_registry(viewer_token.clone(), registry.clone())
-			.expect("registry viewable");
+		let packet = Pallet::<Test>::info(registry.clone()).expect("registry viewable");
 		assert_eq!(packet.info, info);
 		assert!(packet.is_active);
 		assert_eq!(packet.kind, RegistryKind::Raw);
 
-		let attribute = Pallet::<Test>::view_registry_attribute(
-			viewer_token,
-			registry.clone(),
-			b"foo".to_vec(),
-		)
-		.expect("attribute accessible");
-		assert_eq!(attribute, raw(b"bar"));
+		let attribute =
+			Pallet::<Test>::attribute(registry.clone(), b"foo".to_vec()).expect("attribute type");
+		assert_eq!(attribute, ElementType::Raw);
 	});
 }
 
 #[test]
-fn view_calls_fail_without_view_permission() {
+fn info_and_attribute_available_without_delegate_permission() {
 	new_test_ext().execute_with(|| {
 		let maintainer = account(13);
 		let _ = bind_account(maintainer);
 		let delegate = account(14);
-		let delegate_token = bind_account(delegate);
+		let _delegate_token = bind_account(delegate);
 
 		assert_ok!(Pallet::<Test>::create_registry(
 			RuntimeOrigin::signed(maintainer),
 			raw(b"Hidden"),
 			RegistryKind::Raw,
 			true,
-			attrs([(b"foo".as_ref(), b"bar".as_ref())]),
+			attrs([(b"foo".as_ref(), ElementType::Raw)]),
 			token_spec(&[b"foo"]),
 			lookup_specs(&[]),
 		));
@@ -417,19 +413,99 @@ fn view_calls_fail_without_view_permission() {
 			vec![RegistryPermissions::DELEGATE]
 		));
 
-		assert!(
-			Pallet::<Test>::view_registry(delegate_token.clone(), registry.clone()).is_none(),
-			"delegate without view permission should not see registry"
+		assert!(Pallet::<Test>::info(registry.clone()).is_some());
+		assert_eq!(
+			Pallet::<Test>::attribute(registry.clone(), b"foo".to_vec()),
+			Some(ElementType::Raw)
 		);
+		// Attribute for missing key should return None.
+		assert!(Pallet::<Test>::attribute(registry.clone(), b"unknown".to_vec()).is_none());
+		// Any account can call these helpers; delegate permission does not gate the access.
+		assert!(Pallet::<Test>::info(registry.clone()).is_some());
+		assert!(Pallet::<Test>::attribute(registry, b"foo".to_vec()).is_some());
+	});
+}
 
-		assert!(
-			Pallet::<Test>::view_registry_attribute(
-				delegate_token,
-				registry.clone(),
-				b"foo".to_vec()
-			)
-			.is_none(),
-			"delegate without view permission should not see attribute"
+#[test]
+fn attributes_function_returns_schema() {
+	new_test_ext().execute_with(|| {
+		let maintainer = account(31);
+		let _ = bind_account(maintainer);
+
+		assert_ok!(Pallet::<Test>::create_registry(
+			RuntimeOrigin::signed(maintainer),
+			raw(b"SchemaList"),
+			RegistryKind::Raw,
+			true,
+			attrs([(b"alpha".as_ref(), ElementType::Raw), (b"beta".as_ref(), ElementType::Bool),]),
+			token_spec(&[b"alpha"]),
+			lookup_specs(&[]),
+		));
+
+		let registry = first_registry();
+		let attributes = Pallet::<Test>::attributes(registry.clone()).expect("attributes present");
+		assert_eq!(
+			attributes,
+			vec![(b"alpha".to_vec(), ElementType::Raw), (b"beta".to_vec(), ElementType::Bool)]
+		);
+		let tokens = Pallet::<Test>::token(registry.clone()).expect("token fields");
+		assert_eq!(tokens, vec![b"alpha".to_vec()]);
+		let lookups = Pallet::<Test>::lookup_specs(registry.clone()).unwrap();
+		assert!(lookups.is_empty());
+	});
+}
+
+#[test]
+fn create_registry_rejects_duplicate_attribute_keys() {
+	new_test_ext().execute_with(|| {
+		let maintainer = account(32);
+		let _ = bind_account(maintainer);
+
+		let mut attributes = AttributeSchemaListOf::<Test>::default();
+		let key = Attribute::try_from(b"dup".to_vec()).expect("bounded key");
+		attributes.try_push((key.clone(), ElementType::Raw)).expect("first push");
+		attributes.try_push((key, ElementType::Bool)).expect("second push");
+
+		assert_noop!(
+			Pallet::<Test>::create_registry(
+				RuntimeOrigin::signed(maintainer),
+				raw(b"Duplicate"),
+				RegistryKind::Raw,
+				true,
+				attributes,
+				token_spec(&[b"dup"]),
+				lookup_specs(&[])
+			),
+			Error::<Test>::AttributeExists
+		);
+	});
+}
+
+#[test]
+fn create_registry_rejects_empty_attribute_key() {
+	new_test_ext().execute_with(|| {
+		let maintainer = account(33);
+		let _ = bind_account(maintainer);
+
+		let mut attributes = AttributeSchemaListOf::<Test>::default();
+		let empty_key = Attribute::try_from(Vec::new()).expect("bounded conversion");
+		attributes.try_push((empty_key, ElementType::Raw)).expect("push");
+
+		let mut attributes = AttributeSchemaListOf::<Test>::default();
+		let empty_key = Attribute::try_from(Vec::new()).expect("bounded conversion");
+		attributes.try_push((empty_key, ElementType::Raw)).expect("push");
+
+		assert_noop!(
+			Pallet::<Test>::create_registry(
+				RuntimeOrigin::signed(maintainer),
+				raw(b"Empty"),
+				RegistryKind::Raw,
+				true,
+				attributes,
+				token_spec(&[b"x"]),
+				lookup_specs(&[])
+			),
+			Error::<Test>::AttributeNotFound
 		);
 	});
 }
@@ -445,7 +521,7 @@ fn inspector_helpers_surface_data() {
 			raw(b"Inspector"),
 			RegistryKind::Raw,
 			true,
-			attrs([(b"foo".as_ref(), b"bar".as_ref())]),
+			attrs([(b"foo".as_ref(), ElementType::Raw)]),
 			token_spec(&[b"foo"]),
 			lookup_specs(&[]),
 		));
@@ -476,16 +552,15 @@ fn registry_supports_lookup_combinations() {
 			raw(b"Combos"),
 			RegistryKind::Raw,
 			true,
-			attrs([(b"foo".as_ref(), b"bar".as_ref()), (b"baz".as_ref(), b"qux".as_ref())]),
+			attrs([(b"foo".as_ref(), ElementType::Raw), (b"baz".as_ref(), ElementType::Raw),]),
 			token_spec(&[b"foo", b"baz"]),
 			lookup_specs(&[&[b"foo"], &[b"foo", b"baz"]]),
 		));
 
 		let registry = first_registry();
-		let lookups = <Pallet<Test> as RegistryInspector<Test>>::lookup_specs(&registry).unwrap();
+		let lookups = Pallet::<Test>::lookup_specs(registry.clone()).unwrap();
 		assert_eq!(lookups, vec![vec![b"foo".to_vec()], vec![b"foo".to_vec(), b"baz".to_vec()]]);
-		let token_keys =
-			<Pallet<Test> as RegistryInspector<Test>>::token_fields(&registry).unwrap();
+		let token_keys = Pallet::<Test>::token(registry).unwrap();
 		assert_eq!(token_keys, vec![b"foo".to_vec(), b"baz".to_vec()]);
 	});
 }

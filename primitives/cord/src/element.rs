@@ -28,6 +28,7 @@ use frame_support::{
 	traits::Get, BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
 };
 use scale_info::TypeInfo;
+use sp_runtime::RuntimeDebug;
 
 #[cfg(test)]
 use alloc::vec;
@@ -94,6 +95,52 @@ pub enum Elum<MaxCap: Get<u32>> {
 	CID(BoundedVec<u8, MaxCap>),
 }
 
+/// Declarative descriptor of the variants supported by [`Elum`].
+#[derive(
+	Clone,
+	Copy,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	MaxEncodedLen,
+	TypeInfo,
+	RuntimeDebug,
+)]
+pub enum ElementType {
+	None,
+	Raw,
+	Bool,
+	U64,
+	U128,
+	Hash,
+	Token,
+	Cid,
+}
+
+impl<MaxCap: Get<u32>> From<&Elum<MaxCap>> for ElementType {
+	fn from(value: &Elum<MaxCap>) -> Self {
+		match value {
+			Elum::None => ElementType::None,
+			Elum::Raw(_) => ElementType::Raw,
+			Elum::Bool(_) => ElementType::Bool,
+			Elum::U64(_) => ElementType::U64,
+			Elum::U128(_) => ElementType::U128,
+			Elum::Hash(_) => ElementType::Hash,
+			Elum::Token(_) => ElementType::Token,
+			Elum::CID(_) => ElementType::Cid,
+		}
+	}
+}
+
+impl ElementType {
+	/// Returns `true` if this schema variant expects an embedded Ss58Identifier.
+	pub fn is_token(self) -> bool {
+		matches!(self, ElementType::Token)
+	}
+}
+
 // Provide a unified AsRef<[u8]> implementation to obtain a view of the inner bytes.
 impl<MaxCap: Get<u32>> AsRef<[u8]> for Elum<MaxCap> {
 	fn as_ref(&self) -> &[u8] {
@@ -120,8 +167,9 @@ impl<MaxCap: Get<u32>> Elum<MaxCap> {
 	/// Validate internal invariants (e.g., boolean payloads).
 	pub fn validate(&self) -> Result<(), codec::Error> {
 		match self {
-			Elum::Bool(flag) if *flag > 1 =>
-				Err("Invalid boolean discriminant for Elum::Bool".into()),
+			Elum::Bool(flag) if *flag > 1 => {
+				Err("Invalid boolean discriminant for Elum::Bool".into())
+			},
 			_ => Ok(()),
 		}
 	}

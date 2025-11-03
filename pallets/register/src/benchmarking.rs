@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::register::LookupSpec;
+use cord_primitives::packet::ElementType;
 use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_support::{ensure, traits::PalletInfoAccess};
 use frame_system::RawOrigin;
@@ -23,9 +24,9 @@ frame_benchmarking::benchmarks! {
 			.map_err(|_| BenchmarkError::Stop("failed to build entity token"))?;
 		Ss58OfActiveAccounts::<T>::insert(caller.clone(), token.clone());
 
-		let mut attributes = ExtraAttributeListOf::<T>::default();
+		let mut attributes = AttributeSchemaListOf::<T>::default();
 		attributes
-			.try_push((Attribute::try_from(b"key".to_vec()).unwrap(), element_from_bytes::<T>(b"value")))
+			.try_push((Attribute::try_from(b"key".to_vec()).unwrap(), ElementType::Raw))
 			.expect("attribute push");
 
 		let token_spec =
@@ -51,9 +52,9 @@ frame_benchmarking::benchmarks! {
 			.map_err(|_| BenchmarkError::Stop("failed to build entity token"))?;
 		Ss58OfActiveAccounts::<T>::insert(caller.clone(), token.clone());
 
-		let mut attributes = ExtraAttributeListOf::<T>::default();
+		let mut attributes = AttributeSchemaListOf::<T>::default();
 		attributes
-			.try_push((Attribute::try_from(b"key".to_vec()).unwrap(), element_from_bytes::<T>(b"value")))
+			.try_push((Attribute::try_from(b"key".to_vec()).unwrap(), ElementType::Raw))
 			.expect("attribute push");
 
 		let token_spec =
@@ -97,9 +98,9 @@ frame_benchmarking::benchmarks! {
 			.map_err(|_| BenchmarkError::Stop("failed to build entity token"))?;
 		Ss58OfActiveAccounts::<T>::insert(caller.clone(), token.clone());
 
-		let mut attributes = ExtraAttributeListOf::<T>::default();
+		let mut attributes = AttributeSchemaListOf::<T>::default();
 		attributes
-			.try_push((Attribute::try_from(b"key".to_vec()).unwrap(), element_from_bytes::<T>(b"value")))
+			.try_push((Attribute::try_from(b"key".to_vec()).unwrap(), ElementType::Raw))
 			.expect("attribute push");
 
 		let token_spec =
@@ -135,9 +136,9 @@ frame_benchmarking::benchmarks! {
 			.map_err(|_| BenchmarkError::Stop("failed to build entity token"))?;
 		Ss58OfActiveAccounts::<T>::insert(caller.clone(), token.clone());
 
-		let mut attributes = ExtraAttributeListOf::<T>::default();
+		let mut attributes = AttributeSchemaListOf::<T>::default();
 		attributes
-			.try_push((Attribute::try_from(b"key".to_vec()).unwrap(), element_from_bytes::<T>(b"value")))
+			.try_push((Attribute::try_from(b"key".to_vec()).unwrap(), ElementType::Raw))
 			.expect("attribute push");
 
 		let token_spec =

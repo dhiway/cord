@@ -28,6 +28,7 @@ mod tests;
 mod benchmarking;
 
 pub mod entity;
+pub mod signature;
 pub mod weights;
 
 extern crate alloc;
@@ -46,6 +47,7 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use pallet_token::{EventBlock, EventTypeOf, Token};
+use signature::{SignatureVerificationError, SignatureVerificationResult, VerifySignature};
 use sp_runtime::traits::Hash;
 pub use weights::WeightInfo;
 
@@ -321,9 +323,10 @@ pub mod pallet {
 				}
 			}
 
-			for reserved in [&b"display"[..], &b"legal"[..], &b"web"[..], &b"email"[..], &b"twitter"[..]] {
-				info
-					.get_key(reserved)
+			for reserved in
+				[&b"display"[..], &b"legal"[..], &b"web"[..], &b"email"[..], &b"twitter"[..]]
+			{
+				info.get_key(reserved)
 					.validate()
 					.map_err(|_| Error::<T>::InvalidAttributeEntry)?;
 			}
@@ -836,6 +839,27 @@ impl<T: Config> Pallet<T> {
 		T::Token::state_event(token, digest, action, stamp)
 			.map_err(|_| Error::<T>::StateUpdateFailed)?;
 		Ok(())
+	}
+
+	/// Resolve the controller account for the supplied entity token.
+	pub fn controller_account(
+		token: &Ss58Identifier,
+	) -> Result<T::AccountId, SignatureVerificationError> {
+		ControllerOfSs58::<T>::get(token)
+			.ok_or(SignatureVerificationError::SignerInformationNotPresent)
+	}
+
+	/// Verify a payload using the supplied signature strategy against the controller of `token`.
+	pub fn verify_signature_with<V>(
+		token: &Ss58Identifier,
+		payload: Vec<u8>,
+		signature: &V::Signature,
+	) -> SignatureVerificationResult
+	where
+		V: VerifySignature<SignerId = T::AccountId, Payload = Vec<u8>>,
+	{
+		let controller = Self::controller_account(token)?;
+		V::verify(&controller, &payload, signature)
 	}
 }
 

@@ -27,6 +27,7 @@ use scale_info::TypeInfo;
 
 /// The raw‐data type used throughout the entity pallet.
 pub type Element<MaxRawDataLength> = Elum<MaxRawDataLength>;
+pub use crate::element::ElementType;
 
 /// Maximum length for an additional‐field key.
 pub type Attribute = BoundedVec<u8, ConstU32<64>>;
@@ -203,7 +204,8 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> Decode
 
 impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> DecodeWithMemTracking
 	for Attributes<MaxRawDataLength, MaxAdditionalAttributes>
-{}
+{
+}
 
 /// Errors that can occur when applying a single update.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
