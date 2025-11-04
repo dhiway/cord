@@ -23,10 +23,11 @@ use alloc::format;
 use crate::{
 	mock::*,
 	register::{AttributeFlags, LookupSpec, RegistryKind, RegistryPermissions, RegistryStatus},
-	AttributePairsOf, LookupIndex, PacketPointer, PacketStatus, Packets,
+	AttributePairsOf, LookupIndex, PacketPointer, PacketStatus, Packets, RegistryQueryCounts,
 };
 use cord_primitives::{packet::{Attribute, Element, ElementType}, AccountId, Signature};
 use core::{
+	cmp::min,
 	convert::{TryFrom, TryInto},
 	sync::atomic::{AtomicU64, Ordering},
 };
@@ -954,6 +955,146 @@ fn lookup_queries_return_latest_state() {
 		assert_eq!(
 			PacketStates::<Test>::get(&packet_id, 1).expect("previous version").status,
 			PacketStatus::Revoked
+		);
+	});
+}
+
+#[test]
+fn packets_by_token_prefix_returns_snapshots() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(90),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(91));
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(5))]).expect("bounded");
+
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(91)),
+			registry.clone(),
+			payload,
+		));
+
+		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
+		let token_bytes = packet_id.as_ref().to_vec();
+		let prefix_len = min(4, token_bytes.len());
+		let token_prefix = token_bytes[..prefix_len].to_vec();
+
+		let full_matches =
+			Pallet::<Test>::packets_by_token(view_auth(account(92)), token_bytes, None);
+		assert!(full_matches.iter().any(|snapshot| snapshot.state.registry == registry));
+
+		let prefix_matches =
+			Pallet::<Test>::packets_by_token(view_auth(account(93)), token_prefix, None);
+		assert!(prefix_matches.iter().any(|snapshot| snapshot.state.registry == registry));
+	});
+}
+
+#[test]
+fn packets_by_lookup_digest_returns_snapshots() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(94),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(95));
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(8))]).expect("bounded");
+
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(95)),
+			registry.clone(),
+			payload,
+		));
+
+		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
+		let (digest, _reg, _anchor) = LookupIndex::<Test>::iter()
+			.find(|(_, reg, anchor)| reg == &registry && anchor.pointer.ptoken == packet_id)
+			.expect("lookup entry");
+		let digest_bytes = digest.as_ref().to_vec();
+		let prefix_len = min(4, digest_bytes.len());
+		let digest_prefix = digest_bytes[..prefix_len].to_vec();
+
+		let full_matches = Pallet::<Test>::packets_by_lookup_digest(
+			view_auth(account(96)),
+			digest_bytes,
+			None,
+		);
+		assert!(full_matches.iter().any(|snapshot| snapshot.state.registry == registry));
+
+		let prefix_matches = Pallet::<Test>::packets_by_lookup_digest(
+			view_auth(account(97)),
+			digest_prefix,
+			None,
+		);
+		assert!(prefix_matches.iter().any(|snapshot| snapshot.state.registry == registry));
+	});
+}
+
+#[test]
+fn registry_view_queries_increment_counter() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(98),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(99));
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(11))]).expect("bounded");
+
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(99)),
+			registry.clone(),
+			payload,
+		));
+
+		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
+		let (digest, _registry, _anchor) = LookupIndex::<Test>::iter()
+			.find(|(_, reg, anchor)| reg == &registry && anchor.pointer.ptoken == packet_id)
+			.expect("lookup entry");
+		let digest = digest.clone();
+
+		let account = account(0);
+		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 0);
+
+		let _ = Pallet::<Test>::info(default_auth(), registry.clone()).expect("info");
+		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 1);
+
+		let _ =
+			Pallet::<Test>::packet(default_auth(), registry.clone(), packet_id.clone(), None).expect("packet");
+		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 2);
+
+		let _ = Pallet::<Test>::packet_by_lookup(
+			default_auth(),
+			registry.clone(),
+			digest.clone(),
+			None,
+		)
+		.expect("lookup packet");
+		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 3);
+
+		let token_bytes = packet_id.as_ref().to_vec();
+		let token_matches =
+			Pallet::<Test>::packets_by_token(default_auth(), token_bytes.clone(), None);
+		assert!(!token_matches.is_empty());
+		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 3 + token_matches.len() as u64);
+
+		let digest_matches = Pallet::<Test>::packets_by_lookup_digest(
+			default_auth(),
+			digest.as_ref().to_vec(),
+			None,
+		);
+		assert!(!digest_matches.is_empty());
+		assert_eq!(
+			RegistryQueryCounts::<Test>::get(&registry, account),
+			3 + token_matches.len() as u64 + digest_matches.len() as u64
 		);
 	});
 }
