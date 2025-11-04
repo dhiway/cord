@@ -167,9 +167,8 @@ impl<MaxCap: Get<u32>> Elum<MaxCap> {
 	/// Validate internal invariants (e.g., boolean payloads).
 	pub fn validate(&self) -> Result<(), codec::Error> {
 		match self {
-			Elum::Bool(flag) if *flag > 1 => {
-				Err("Invalid boolean discriminant for Elum::Bool".into())
-			},
+			Elum::Bool(flag) if *flag > 1 =>
+				Err("Invalid boolean discriminant for Elum::Bool".into()),
 			_ => Ok(()),
 		}
 	}

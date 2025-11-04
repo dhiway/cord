@@ -21,22 +21,37 @@
 use super::*;
 use crate::{
 	mock::*,
-	register::{LookupSpec, RegistryKind, RegistryPermissions},
+	register::{AttributeFlags, LookupSpec, RegistryKind, RegistryPermissions, RegistryStatus},
+	AttributePairsOf, LookupIndex, PacketPointer, PacketStatus, Packets,
 };
-use cord_primitives::packet::ElementType;
+use cord_primitives::packet::{Attribute, Element, ElementType};
+use core::convert::{TryFrom, TryInto};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
 
 fn raw(data: &[u8]) -> Element<MaxRawDataLength> {
-	Element::Raw(data.to_vec().try_into().expect("bounded data"))
+	Element::Raw(data.to_vec().try_into().expect("bounded element"))
+}
+
+fn attr_key(data: &[u8]) -> Attribute {
+	Attribute::try_from(data.to_vec()).expect("key within bounds")
+}
+
+fn value_raw(data: &[u8]) -> Element<MaxRawDataLength> {
+	Element::try_from(data).expect("value within bounds")
+}
+
+fn value_u64(value: u64) -> Element<MaxRawDataLength> {
+	Element::from_u64(value)
 }
 
 fn attrs<'a>(
-	pairs: impl IntoIterator<Item = (&'a [u8], ElementType)>,
+	pairs: impl IntoIterator<Item = (&'a [u8], ElementType, AttributeFlags)>,
 ) -> AttributeSchemaListOf<Test> {
 	let mut list = AttributeSchemaListOf::<Test>::default();
-	for (key, value_type) in pairs {
+	for (key, ty, flags) in pairs {
 		let bounded_key = Attribute::try_from(key.to_vec()).expect("within key bound");
-		list.try_push((bounded_key, value_type)).expect("attribute capacity");
+		list.try_push(AttributeSpec { key: bounded_key, kind: ty, flags })
+			.expect("capacity");
 	}
 	list
 }
@@ -46,16 +61,14 @@ fn token_spec(keys: &[&[u8]]) -> TokenSpecOf<Test> {
 		0 => LookupSpec::Combo(
 			BoundedVec::<Attribute, <Test as Config>::MaxAdditionalAttributes>::default(),
 		),
-		1 => {
-			let attr = Attribute::try_from(keys[0].to_vec()).expect("within key bound");
-			LookupSpec::Single(attr)
-		},
+		1 => LookupSpec::Single(Attribute::try_from(keys[0].to_vec()).expect("within key bound")),
 		_ => {
 			let mut combo =
 				BoundedVec::<Attribute, <Test as Config>::MaxAdditionalAttributes>::default();
 			for key in keys {
-				let attr = Attribute::try_from(key.to_vec()).expect("within key bound");
-				combo.try_push(attr).expect("combo capacity");
+				combo
+					.try_push(Attribute::try_from(key.to_vec()).expect("within key bound"))
+					.expect("combo capacity");
 			}
 			LookupSpec::Combo(combo)
 		},
@@ -65,10 +78,37 @@ fn token_spec(keys: &[&[u8]]) -> TokenSpecOf<Test> {
 fn lookup_specs(specs: &[&[&[u8]]]) -> LookupSpecListOf<Test> {
 	let mut list = LookupSpecListOf::<Test>::default();
 	for spec in specs {
-		let lookup = token_spec(spec);
-		list.try_push(lookup).expect("lookup spec capacity");
+		list.try_push(token_spec(spec)).expect("lookup spec capacity");
 	}
 	list
+}
+
+fn bind_delegate(registry: &Ss58Identifier, account: AccountId) -> Ss58Identifier {
+	let token = bind_account(account);
+	RegistryDelegates::<Test>::insert(
+		registry,
+		&token,
+		RegistryPermissions::ENTRY | RegistryPermissions::VIEW,
+	);
+	token
+}
+
+fn create_registry(
+	maintainer: AccountId,
+	attributes: AttributeSchemaListOf<Test>,
+	token_spec_def: TokenSpecOf<Test>,
+	lookups: LookupSpecListOf<Test>,
+) -> (Ss58Identifier, Ss58Identifier) {
+	let maintainer_token = bind_account(maintainer);
+	assert_ok!(Pallet::<Test>::create_registry(
+		RuntimeOrigin::signed(maintainer),
+		raw(b"Test Registry"),
+		RegistryKind::Raw,
+		attributes,
+		token_spec_def,
+		lookups,
+	));
+	(first_registry(), maintainer_token)
 }
 
 fn first_registry() -> Ss58Identifier {
@@ -76,491 +116,786 @@ fn first_registry() -> Ss58Identifier {
 }
 
 #[test]
-fn create_register_happy_path() {
+fn registry_creation_defaults_to_active() {
 	new_test_ext().execute_with(|| {
-		let maintainer = account(1);
-		let maintainer_token = bind_account(maintainer);
-
-		assert_ok!(Pallet::<Test>::create_registry(
-			RuntimeOrigin::signed(maintainer),
-			raw(b"My Registry"),
-			RegistryKind::Raw,
-			true,
-			attrs([(b"schema".as_ref(), ElementType::Raw)]),
-			token_spec(&[b"schema"]),
-			lookup_specs(&[]),
-		));
-
-		let registry = first_registry();
-		let stored = Registries::<Test>::get(&registry).expect("stored");
-		assert_eq!(stored.maintainer(), &maintainer_token);
-		assert_eq!(stored.info, raw(b"My Registry"));
-		assert_eq!(stored.attribute_type(b"schema"), Some(ElementType::Raw));
-		assert_eq!(stored.kind, RegistryKind::Raw);
-		assert!(stored.is_active);
-
-		let perms =
-			RegistryDelegates::<Test>::get(&registry, maintainer_token).expect("maintainer perms");
-		assert!(perms.has_admin());
-		assert!(perms.has_view());
-	});
-}
-
-#[test]
-fn registry_attributes_support_u128_element() {
-	new_test_ext().execute_with(|| {
-		let maintainer = account(99);
-		let maintainer_token = bind_account(maintainer);
-
-		let mut attributes = AttributeSchemaListOf::<Test>::default();
-		let limit_key = Attribute::try_from(b"limit".to_vec()).expect("bounded key");
-		attributes
-			.try_push((limit_key.clone(), ElementType::U128))
-			.expect("attribute capacity");
-
-		assert_ok!(Pallet::<Test>::create_registry(
-			RuntimeOrigin::signed(maintainer),
-			raw(b"Balances"),
-			RegistryKind::Raw,
-			true,
-			attributes,
-			token_spec(&[b"limit"]),
-			lookup_specs(&[]),
-		));
-
-		let registry = first_registry();
-		let stored = Registries::<Test>::get(&registry).expect("stored");
-		assert_eq!(stored.maintainer(), &maintainer_token);
-		let value = stored.attribute_type(b"limit").expect("attribute exists");
-		assert_eq!(value, ElementType::U128);
-	});
-}
-
-#[test]
-fn create_register_requires_attributes_and_valid_token_fields() {
-	new_test_ext().execute_with(|| {
-		let maintainer = account(2);
-		let _ = bind_account(maintainer);
-
-		assert_noop!(
-			Pallet::<Test>::create_registry(
-				RuntimeOrigin::signed(maintainer),
-				raw(b"A"),
-				RegistryKind::Token,
-				true,
-				AttributeSchemaListOf::<Test>::default(),
-				token_spec(&[b"foo"]),
-				lookup_specs(&[])
-			),
-			Error::<Test>::NoAttributes
+		let attributes = attrs([(b"id".as_ref(), ElementType::U64, AttributeFlags::empty())]);
+		let (registry, maintainer_token) = create_registry(
+			account(10),
+			attributes.clone(),
+			token_spec(&[b"id"]),
+			lookup_specs(&[&[b"id"]]),
 		);
 
-		let attributes = attrs([(b"foo".as_ref(), ElementType::Raw)]);
-		let fields = token_spec(&[b"missing"]);
-		assert_noop!(
-			Pallet::<Test>::create_registry(
-				RuntimeOrigin::signed(maintainer),
-				raw(b"A"),
-				RegistryKind::Token,
-				true,
-				attributes,
-				fields,
-				lookup_specs(&[])
-			),
-			Error::<Test>::UnknownTokenField
-		);
+		let info = Pallet::<Test>::info(registry.clone()).expect("info stored");
+		assert_eq!(info.maintainer(), &maintainer_token);
+		assert_eq!(info.status(), RegistryStatus::Active);
+		assert_eq!(info.kind, RegistryKind::Raw);
+		assert_eq!(info.attributes.len(), attributes.len());
+		assert_eq!(info.token_spec.key_count(), 1);
+		assert!(Pallet::<Test>::registry_active(&registry));
 	});
 }
 
 #[test]
-fn create_registry_fails_for_empty_token_spec() {
+fn create_registry_requires_lookup_specs() {
 	new_test_ext().execute_with(|| {
-		let maintainer = account(10);
+		let maintainer = account(50);
 		let _ = bind_account(maintainer);
+		let attributes = attrs([(b"id".as_ref(), ElementType::Raw, AttributeFlags::empty())]);
+		let lookups = LookupSpecListOf::<Test>::default();
 
 		assert_noop!(
 			Pallet::<Test>::create_registry(
 				RuntimeOrigin::signed(maintainer),
-				raw(b"A"),
+				raw(b"MissingLookups"),
 				RegistryKind::Raw,
-				true,
-				attrs([(b"k".as_ref(), ElementType::Raw)]),
-				token_spec(&[]),
-				lookup_specs(&[])
+				attributes,
+				token_spec(&[b"id"]),
+				lookups,
 			),
-			Error::<Test>::NoTokenFields
+			Error::<Test>::NoLookupSpecs
 		);
 	});
 }
 
 #[test]
-fn update_info_requires_admin() {
+fn create_registry_rejects_optional_lookup_attribute() {
 	new_test_ext().execute_with(|| {
-		let maintainer = account(3);
+		let maintainer = account(51);
 		let _ = bind_account(maintainer);
+		let attributes = attrs([
+			(b"required".as_ref(), ElementType::Raw, AttributeFlags::empty()),
+			(b"optional".as_ref(), ElementType::Raw, AttributeFlags::OPTIONAL),
+		]);
 
-		assert_ok!(Pallet::<Test>::create_registry(
-			RuntimeOrigin::signed(maintainer),
-			raw(b"Initial"),
-			RegistryKind::Raw,
-			true,
-			attrs([(b"a".as_ref(), ElementType::Raw)]),
-			token_spec(&[b"a"]),
-			lookup_specs(&[]),
-		));
-
-		let registry = first_registry();
-		assert_ok!(Pallet::<Test>::update_registry_info(
-			RuntimeOrigin::signed(maintainer),
-			registry.clone(),
-			raw(b"Updated")
-		));
-
-		let stored = Registries::<Test>::get(&registry).expect("stored");
-		assert_eq!(stored.info, raw(b"Updated"));
+		assert_noop!(
+			Pallet::<Test>::create_registry(
+				RuntimeOrigin::signed(maintainer),
+				raw(b"OptionalLookup"),
+				RegistryKind::Raw,
+				attributes,
+				token_spec(&[b"required"]),
+				lookup_specs(&[&[b"optional"]]),
+			),
+			Error::<Test>::InvalidAttributeKey
+		);
 	});
 }
 
 #[test]
-fn status_may_be_toggled_by_admin_delegate_or_root() {
+fn registry_status_transitions_follow_rules() {
 	new_test_ext().execute_with(|| {
-		let maintainer = account(4);
-		let maintainer_token = bind_account(maintainer);
-		let delegate = account(5);
-		let delegate_token = bind_account(delegate);
+		let (registry, maintainer_token) = create_registry(
+			account(11),
+			attrs([(b"id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"id"]),
+			lookup_specs(&[&[b"id"]]),
+		);
 
-		assert_ok!(Pallet::<Test>::create_registry(
-			RuntimeOrigin::signed(maintainer),
-			raw(b"Status"),
-			RegistryKind::Hash,
-			true,
-			attrs([(b"x".as_ref(), ElementType::Raw)]),
-			token_spec(&[b"x"]),
-			lookup_specs(&[]),
-		));
-
-		let registry = first_registry();
-
-		// Maintainer can archive
-		assert_ok!(Pallet::<Test>::set_registry_status(
-			RuntimeOrigin::signed(maintainer),
-			registry.clone(),
-			false
-		));
-		assert!(!Registries::<Test>::get(&registry).unwrap().is_active);
-
-		// Delegate without admin cannot archive
-		assert_ok!(Pallet::<Test>::set_registry_delegate(
-			RuntimeOrigin::signed(maintainer),
-			registry.clone(),
-			delegate,
-			vec![RegistryPermissions::ENTRY]
-		));
-		let delegate_perms = RegistryDelegates::<Test>::get(&registry, &delegate_token)
-			.expect("delegate perms present");
-		assert!(delegate_perms.has_entry());
-		assert!(delegate_perms.has_view());
+		// Non-admin (with token) cannot revoke.
+		let _ = bind_account(account(99));
 		assert_noop!(
-			Pallet::<Test>::set_registry_status(
-				RuntimeOrigin::signed(delegate),
+			Pallet::<Test>::revoke_registry(RuntimeOrigin::signed(account(99)), registry.clone()),
+			Error::<Test>::PermissionDenied
+		);
+
+		// Maintainer can revoke and restore.
+		assert_ok!(Pallet::<Test>::revoke_registry(
+			RuntimeOrigin::signed(account(11)),
+			registry.clone()
+		));
+		assert_eq!(
+			Pallet::<Test>::info(registry.clone()).unwrap().status(),
+			RegistryStatus::Revoked
+		);
+
+		assert_ok!(Pallet::<Test>::restore_registry(
+			RuntimeOrigin::signed(account(11)),
+			registry.clone()
+		));
+		assert_eq!(
+			Pallet::<Test>::info(registry.clone()).unwrap().status(),
+			RegistryStatus::Active
+		);
+
+		// Root may revoke and delete.
+		assert_ok!(Pallet::<Test>::revoke_registry(RuntimeOrigin::root(), registry.clone()));
+		assert_ok!(Pallet::<Test>::delete_registry(RuntimeOrigin::root(), registry.clone()));
+		assert_eq!(
+			Pallet::<Test>::info(registry.clone()).unwrap().status(),
+			RegistryStatus::Deleted
+		);
+
+		// Deleted registry cannot be restored.
+		assert_noop!(
+			Pallet::<Test>::restore_registry(RuntimeOrigin::signed(account(11)), registry.clone()),
+			Error::<Test>::RegistryDeleted
+		);
+
+		// Maintainer still recorded.
+		let maintainer_perms =
+			RegistryDelegates::<Test>::get(&registry, maintainer_token).expect("perms stored");
+		assert!(maintainer_perms.has_admin());
+		assert!(maintainer_perms.has_view());
+	});
+}
+
+#[test]
+fn update_registry_info_requires_admin() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(12),
+			attrs([(b"a".as_ref(), ElementType::Raw, AttributeFlags::empty())]),
+			token_spec(&[b"a"]),
+			lookup_specs(&[&[b"a"]]),
+		);
+
+		// Non-admin cannot update info.
+		let _ = bind_account(account(42));
+		assert_noop!(
+			Pallet::<Test>::update_registry_info(
+				RuntimeOrigin::signed(account(42)),
 				registry.clone(),
-				true
+				raw(b"Forbidden"),
 			),
 			Error::<Test>::PermissionDenied
 		);
 
-		// Grant admin and toggle
-		assert_ok!(Pallet::<Test>::set_registry_delegate(
-			RuntimeOrigin::signed(maintainer),
+		// Maintainer can update.
+		assert_ok!(Pallet::<Test>::update_registry_info(
+			RuntimeOrigin::signed(account(12)),
 			registry.clone(),
-			delegate,
-			vec![RegistryPermissions::ADMIN]
+			raw(b"Updated"),
 		));
-		assert_ok!(Pallet::<Test>::set_registry_status(
-			RuntimeOrigin::signed(delegate),
-			registry.clone(),
-			true
-		));
-		assert!(Registries::<Test>::get(&registry).unwrap().is_active);
-
-		// Root can archive regardless of delegates
-		assert_ok!(Pallet::<Test>::set_registry_status(
-			RuntimeOrigin::root(),
-			registry.clone(),
-			false
-		));
-		assert!(!Registries::<Test>::get(&registry).unwrap().is_active);
-
-		// Verify admin permissions remain
-		let perms =
-			RegistryDelegates::<Test>::get(&registry, maintainer_token).expect("maintainer perms");
-		assert!(perms.has_admin());
-		assert!(perms.has_view());
-		let updated_delegate_perms =
-			RegistryDelegates::<Test>::get(&registry, &delegate_token).expect("delegate perms");
-		assert!(updated_delegate_perms.has_admin());
-		assert!(updated_delegate_perms.has_view());
+		assert_eq!(Pallet::<Test>::info(registry).unwrap().info, raw(b"Updated"));
 	});
 }
 
 #[test]
-fn delegate_lifecycle() {
+fn set_registry_delegate_requires_admin() {
 	new_test_ext().execute_with(|| {
-		let maintainer = account(6);
-		let _ = bind_account(maintainer);
-		let delegate = account(7);
+		let (registry, _) = create_registry(
+			account(13),
+			attrs([(b"a".as_ref(), ElementType::Raw, AttributeFlags::empty())]),
+			token_spec(&[b"a"]),
+			lookup_specs(&[&[b"a"]]),
+		);
+
+		let _ = bind_account(account(99));
+		assert_noop!(
+			Pallet::<Test>::set_registry_delegate(
+				RuntimeOrigin::signed(account(99)),
+				registry.clone(),
+				account(100),
+				vec![RegistryPermissions::ENTRY],
+			),
+			Error::<Test>::PermissionDenied
+		);
+
+		let _ = bind_account(account(100));
+		assert_ok!(Pallet::<Test>::set_registry_delegate(
+			RuntimeOrigin::signed(account(13)),
+			registry,
+			account(100),
+			vec![RegistryPermissions::ENTRY],
+		));
+	});
+}
+
+#[test]
+fn remove_registry_delegate_checks_permissions_and_maintainer() {
+	new_test_ext().execute_with(|| {
+		let (registry, maintainer_token) = create_registry(
+			account(14),
+			attrs([(b"a".as_ref(), ElementType::Raw, AttributeFlags::empty())]),
+			token_spec(&[b"a"]),
+			lookup_specs(&[&[b"a"]]),
+		);
+		let delegate = account(15);
 		let delegate_token = bind_account(delegate);
 
-		assert_ok!(Pallet::<Test>::create_registry(
-			RuntimeOrigin::signed(maintainer),
-			raw(b"Delegation"),
-			RegistryKind::Token,
-			true,
-			attrs([(b"k".as_ref(), ElementType::Raw)]),
-			token_spec(&[b"k"]),
-			lookup_specs(&[]),
-		));
-
-		let registry = first_registry();
 		assert_ok!(Pallet::<Test>::set_registry_delegate(
-			RuntimeOrigin::signed(maintainer),
+			RuntimeOrigin::signed(account(14)),
 			registry.clone(),
 			delegate,
-			vec![RegistryPermissions::ENTRY, RegistryPermissions::DELEGATE]
+			vec![RegistryPermissions::ENTRY],
 		));
 
-		assert!(RegistryDelegates::<Test>::get(&registry, &delegate_token)
-			.expect("delegate stored")
-			.has_delegate());
-		assert!(RegistryDelegates::<Test>::get(&registry, &delegate_token)
-			.expect("delegate stored")
-			.has_view());
+		// Delegate cannot remove itself.
+		assert_noop!(
+			Pallet::<Test>::remove_registry_delegate(
+				RuntimeOrigin::signed(delegate),
+				registry.clone(),
+				delegate_token.clone(),
+			),
+			Error::<Test>::PermissionDenied
+		);
+
+		// Maintainer cannot be removed.
+		assert_noop!(
+			Pallet::<Test>::remove_registry_delegate(
+				RuntimeOrigin::signed(account(14)),
+				registry.clone(),
+				maintainer_token.clone(),
+			),
+			Error::<Test>::CannotRemoveMaintainer
+		);
+
+		// Maintainer can remove delegate.
 		assert_ok!(Pallet::<Test>::remove_registry_delegate(
-			RuntimeOrigin::signed(maintainer),
-			registry.clone(),
-			delegate_token.clone()
+			RuntimeOrigin::signed(account(14)),
+			registry,
+			delegate_token,
 		));
-		assert!(RegistryDelegates::<Test>::get(&registry, &delegate_token).is_none());
 	});
 }
 
 #[test]
-fn delegate_with_view_permission_can_view_registry() {
+fn restore_registry_requires_revoked_status() {
 	new_test_ext().execute_with(|| {
-		let maintainer = account(11);
-		let maintainer_token = bind_account(maintainer);
-		let viewer = account(12);
-		let _viewer_token = bind_account(viewer);
-		let info = raw(b"Visible");
-
-		assert_ok!(Pallet::<Test>::create_registry(
-			RuntimeOrigin::signed(maintainer),
-			info.clone(),
-			RegistryKind::Raw,
-			true,
-			attrs([(b"foo".as_ref(), ElementType::Raw)]),
-			token_spec(&[b"foo"]),
-			lookup_specs(&[]),
-		));
-
-		let registry = first_registry();
-
-		assert!(RegistryDelegates::<Test>::get(&registry, maintainer_token)
-			.expect("maintainer perms")
-			.has_view());
-
-		assert_ok!(Pallet::<Test>::set_registry_delegate(
-			RuntimeOrigin::signed(maintainer),
-			registry.clone(),
-			viewer,
-			vec![RegistryPermissions::VIEW]
-		));
-
-		let packet = Pallet::<Test>::info(registry.clone()).expect("registry viewable");
-		assert_eq!(packet.info, info);
-		assert!(packet.is_active);
-		assert_eq!(packet.kind, RegistryKind::Raw);
-
-		let attribute =
-			Pallet::<Test>::attribute(registry.clone(), b"foo".to_vec()).expect("attribute type");
-		assert_eq!(attribute, ElementType::Raw);
-	});
-}
-
-#[test]
-fn info_and_attribute_available_without_delegate_permission() {
-	new_test_ext().execute_with(|| {
-		let maintainer = account(13);
-		let _ = bind_account(maintainer);
-		let delegate = account(14);
-		let _delegate_token = bind_account(delegate);
-
-		assert_ok!(Pallet::<Test>::create_registry(
-			RuntimeOrigin::signed(maintainer),
-			raw(b"Hidden"),
-			RegistryKind::Raw,
-			true,
-			attrs([(b"foo".as_ref(), ElementType::Raw)]),
-			token_spec(&[b"foo"]),
-			lookup_specs(&[]),
-		));
-		let registry = first_registry();
-
-		assert_ok!(Pallet::<Test>::set_registry_delegate(
-			RuntimeOrigin::signed(maintainer),
-			registry.clone(),
-			delegate,
-			vec![RegistryPermissions::DELEGATE]
-		));
-
-		assert!(Pallet::<Test>::info(registry.clone()).is_some());
-		assert_eq!(
-			Pallet::<Test>::attribute(registry.clone(), b"foo".to_vec()),
-			Some(ElementType::Raw)
+		let (registry, _) = create_registry(
+			account(60),
+			attrs([(b"id".as_ref(), ElementType::Raw, AttributeFlags::empty())]),
+			token_spec(&[b"id"]),
+			lookup_specs(&[&[b"id"]]),
 		);
-		// Attribute for missing key should return None.
-		assert!(Pallet::<Test>::attribute(registry.clone(), b"unknown".to_vec()).is_none());
-		// Any account can call these helpers; delegate permission does not gate the access.
-		assert!(Pallet::<Test>::info(registry.clone()).is_some());
-		assert!(Pallet::<Test>::attribute(registry, b"foo".to_vec()).is_some());
-	});
-}
-
-#[test]
-fn attributes_function_returns_schema() {
-	new_test_ext().execute_with(|| {
-		let maintainer = account(31);
-		let _ = bind_account(maintainer);
-
-		assert_ok!(Pallet::<Test>::create_registry(
-			RuntimeOrigin::signed(maintainer),
-			raw(b"SchemaList"),
-			RegistryKind::Raw,
-			true,
-			attrs([(b"alpha".as_ref(), ElementType::Raw), (b"beta".as_ref(), ElementType::Bool),]),
-			token_spec(&[b"alpha"]),
-			lookup_specs(&[]),
-		));
-
-		let registry = first_registry();
-		let attributes = Pallet::<Test>::attributes(registry.clone()).expect("attributes present");
-		assert_eq!(
-			attributes,
-			vec![(b"alpha".to_vec(), ElementType::Raw), (b"beta".to_vec(), ElementType::Bool)]
-		);
-		let tokens = Pallet::<Test>::token(registry.clone()).expect("token fields");
-		assert_eq!(tokens, vec![b"alpha".to_vec()]);
-		let lookups = Pallet::<Test>::lookup_specs(registry.clone()).unwrap();
-		assert!(lookups.is_empty());
-	});
-}
-
-#[test]
-fn create_registry_rejects_duplicate_attribute_keys() {
-	new_test_ext().execute_with(|| {
-		let maintainer = account(32);
-		let _ = bind_account(maintainer);
-
-		let mut attributes = AttributeSchemaListOf::<Test>::default();
-		let key = Attribute::try_from(b"dup".to_vec()).expect("bounded key");
-		attributes.try_push((key.clone(), ElementType::Raw)).expect("first push");
-		attributes.try_push((key, ElementType::Bool)).expect("second push");
 
 		assert_noop!(
-			Pallet::<Test>::create_registry(
-				RuntimeOrigin::signed(maintainer),
-				raw(b"Duplicate"),
-				RegistryKind::Raw,
-				true,
-				attributes,
-				token_spec(&[b"dup"]),
-				lookup_specs(&[])
-			),
-			Error::<Test>::AttributeExists
+			Pallet::<Test>::restore_registry(RuntimeOrigin::signed(account(60)), registry.clone()),
+			Error::<Test>::RegistryNotRevoked
 		);
+
+		assert_ok!(Pallet::<Test>::revoke_registry(
+			RuntimeOrigin::signed(account(60)),
+			registry.clone()
+		));
+		assert_ok!(Pallet::<Test>::restore_registry(
+			RuntimeOrigin::signed(account(60)),
+			registry.clone()
+		));
+		assert_eq!(Pallet::<Test>::info(registry).unwrap().status(), RegistryStatus::Active);
 	});
 }
 
 #[test]
-fn create_registry_rejects_empty_attribute_key() {
+fn delete_registry_requires_revoked_status() {
 	new_test_ext().execute_with(|| {
-		let maintainer = account(33);
-		let _ = bind_account(maintainer);
-
-		let mut attributes = AttributeSchemaListOf::<Test>::default();
-		let empty_key = Attribute::try_from(Vec::new()).expect("bounded conversion");
-		attributes.try_push((empty_key, ElementType::Raw)).expect("push");
-
-		let mut attributes = AttributeSchemaListOf::<Test>::default();
-		let empty_key = Attribute::try_from(Vec::new()).expect("bounded conversion");
-		attributes.try_push((empty_key, ElementType::Raw)).expect("push");
+		let (registry, _) = create_registry(
+			account(61),
+			attrs([(b"id".as_ref(), ElementType::Raw, AttributeFlags::empty())]),
+			token_spec(&[b"id"]),
+			lookup_specs(&[&[b"id"]]),
+		);
 
 		assert_noop!(
-			Pallet::<Test>::create_registry(
-				RuntimeOrigin::signed(maintainer),
-				raw(b"Empty"),
-				RegistryKind::Raw,
-				true,
-				attributes,
-				token_spec(&[b"x"]),
-				lookup_specs(&[])
+			Pallet::<Test>::delete_registry(RuntimeOrigin::signed(account(61)), registry.clone()),
+			Error::<Test>::RegistryNotRevoked
+		);
+
+		assert_ok!(Pallet::<Test>::revoke_registry(
+			RuntimeOrigin::signed(account(61)),
+			registry.clone()
+		));
+		assert_ok!(Pallet::<Test>::delete_registry(
+			RuntimeOrigin::signed(account(61)),
+			registry.clone()
+		));
+		assert_eq!(Pallet::<Test>::info(registry).unwrap().status(), RegistryStatus::Deleted);
+	});
+}
+
+#[test]
+fn packet_lifecycle_tracks_versions() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(20),
+			attrs([
+				(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty()),
+				(b"snapshot".as_ref(), ElementType::Raw, AttributeFlags::empty()),
+			]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"snapshot"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(21));
+
+		let payload: AttributePairsOf<Test> = BoundedVec::try_from(vec![
+			(attr_key(b"asset_id"), value_u64(41)),
+			(attr_key(b"snapshot"), value_raw(b"initial")),
+		])
+		.expect("within bounds");
+
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(21)),
+			registry.clone(),
+			payload,
+		));
+
+		let packet_id = System::events()
+			.iter()
+			.find_map(|record| match &record.event {
+				RuntimeEvent::Register(crate::Event::PacketCreated { packet, .. }) =>
+					Some(packet.clone()),
+				_ => None,
+			})
+			.expect("created token");
+
+		let snapshot =
+			Pallet::<Test>::packet(registry.clone(), packet_id.clone(), None).expect("snapshot");
+		assert_eq!(snapshot.state.version, 1);
+		assert_eq!(snapshot.registry_status, RegistryStatus::Active);
+		// Update packet with new data.
+		let updated = BoundedVec::try_from(vec![
+			(attr_key(b"asset_id"), value_u64(99)),
+			(attr_key(b"snapshot"), value_raw(b"updated")),
+		])
+		.expect("within bounds");
+
+		assert_ok!(Pallet::<Test>::update_packet(
+			RuntimeOrigin::signed(account(21)),
+			registry.clone(),
+			packet_id.clone(),
+			updated,
+		));
+
+		let updated_snapshot = Pallet::<Test>::packet(registry.clone(), packet_id.clone(), None)
+			.expect("updated snapshot");
+		assert_eq!(updated_snapshot.state.version, 2);
+		let updated_digest = packet::prepare_lookup_keys::<Test>(
+			&registry,
+			&Registries::<Test>::get(&registry).unwrap(),
+			&updated_snapshot.state.attributes,
+		)
+		.expect("prepared")
+		.first()
+		.map(|(digest, _)| *digest)
+		.expect("digest");
+		let latest_anchor =
+			LookupIndex::<Test>::get(&updated_digest, &registry).expect("lookup pointer");
+		assert_eq!(
+			latest_anchor.pointer,
+			PacketPointer { rtoken: registry.clone(), ptoken: packet_id.clone(), version: 2 }
+		);
+
+		// Revoke, restore, and delete the packet.
+		assert_ok!(Pallet::<Test>::revoke_packet(
+			RuntimeOrigin::signed(account(21)),
+			registry.clone(),
+			packet_id.clone(),
+		));
+		let revoked = Packets::<Test>::get(&packet_id).expect("metadata");
+		assert_eq!(revoked.status, PacketStatus::Revoked);
+
+		assert_ok!(Pallet::<Test>::restore_packet(
+			RuntimeOrigin::signed(account(21)),
+			registry.clone(),
+			packet_id.clone(),
+		));
+		let restored_snapshot = Pallet::<Test>::packet(registry.clone(), packet_id.clone(), None)
+			.expect("restored snapshot");
+		assert_eq!(restored_snapshot.state.status, PacketStatus::Active);
+
+		assert_ok!(Pallet::<Test>::revoke_packet(
+			RuntimeOrigin::signed(account(21)),
+			registry.clone(),
+			packet_id.clone(),
+		));
+		assert_ok!(Pallet::<Test>::remove_packet(
+			RuntimeOrigin::signed(account(21)),
+			registry.clone(),
+			packet_id.clone(),
+		));
+		let removed = Packets::<Test>::get(&packet_id).expect("metadata");
+		assert_eq!(removed.status, PacketStatus::Deleted);
+		assert_eq!(removed.latest_version, 6);
+
+		// Further updates are rejected.
+		let err = Pallet::<Test>::update_packet(
+			RuntimeOrigin::signed(account(21)),
+			registry.clone(),
+			packet_id.clone(),
+			BoundedVec::default(),
+		)
+		.unwrap_err();
+		assert_eq!(err, Error::<Test>::PacketDeleted.into());
+	});
+}
+
+#[test]
+fn create_packet_requires_delegate_permission() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(70),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+
+		let _ = bind_account(account(71));
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(1))]).unwrap();
+
+		assert_noop!(
+			Pallet::<Test>::create_packet(
+				RuntimeOrigin::signed(account(71)),
+				registry.clone(),
+				payload.clone(),
 			),
-			Error::<Test>::AttributeNotFound
+			Error::<Test>::PermissionDenied
+		);
+
+		let _delegate = bind_delegate(&registry, account(72));
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(72)),
+			registry,
+			payload,
+		));
+	});
+}
+
+#[test]
+fn create_packet_rejects_missing_required_attribute() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(73),
+			attrs([(b"required".as_ref(), ElementType::Raw, AttributeFlags::empty())]),
+			token_spec(&[b"required"]),
+			lookup_specs(&[&[b"required"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(74));
+
+		let payload: AttributePairsOf<Test> = BoundedVec::default();
+		assert_noop!(
+			Pallet::<Test>::create_packet(RuntimeOrigin::signed(account(74)), registry, payload,),
+			Error::<Test>::MissingAttribute
 		);
 	});
 }
 
 #[test]
-fn inspector_helpers_surface_data() {
+fn create_packet_rejects_duplicate_entries() {
 	new_test_ext().execute_with(|| {
-		let maintainer = account(8);
-		let maintainer_token = bind_account(maintainer);
+		let (registry, _) = create_registry(
+			account(75),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(76));
 
-		assert_ok!(Pallet::<Test>::create_registry(
-			RuntimeOrigin::signed(maintainer),
-			raw(b"Inspector"),
-			RegistryKind::Raw,
-			true,
-			attrs([(b"foo".as_ref(), ElementType::Raw)]),
-			token_spec(&[b"foo"]),
-			lookup_specs(&[]),
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(99))]).unwrap();
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(76)),
+			registry.clone(),
+			payload.clone(),
 		));
-
-		let registry = first_registry();
-		let packet = <Pallet<Test> as RegistryInspector<Test>>::registry_packet(&registry)
-			.expect("packet exists");
-		assert_eq!(packet.maintainer(), &maintainer_token);
-
-		let keys = <Pallet<Test> as RegistryInspector<Test>>::attribute_keys(&registry).unwrap();
-		assert_eq!(keys, vec![b"foo".to_vec()]);
-
-		let fields = <Pallet<Test> as RegistryInspector<Test>>::token_fields(&registry).unwrap();
-		assert_eq!(fields, vec![b"foo".to_vec()]);
-		let lookups = <Pallet<Test> as RegistryInspector<Test>>::lookup_specs(&registry).unwrap();
-		assert!(lookups.is_empty());
+		assert_noop!(
+			Pallet::<Test>::create_packet(RuntimeOrigin::signed(account(76)), registry, payload,),
+			Error::<Test>::PacketAlreadyExists
+		);
 	});
 }
 
 #[test]
-fn registry_supports_lookup_combinations() {
+fn update_packet_rejects_unknown_attribute() {
 	new_test_ext().execute_with(|| {
-		let maintainer = account(9);
-		let _ = bind_account(maintainer);
+		let (registry, _) = create_registry(
+			account(77),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(78));
 
-		assert_ok!(Pallet::<Test>::create_registry(
-			RuntimeOrigin::signed(maintainer),
-			raw(b"Combos"),
-			RegistryKind::Raw,
-			true,
-			attrs([(b"foo".as_ref(), ElementType::Raw), (b"baz".as_ref(), ElementType::Raw),]),
-			token_spec(&[b"foo", b"baz"]),
-			lookup_specs(&[&[b"foo"], &[b"foo", b"baz"]]),
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(1))]).unwrap();
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(78)),
+			registry.clone(),
+			payload,
+		));
+		let packet_id = Packets::<Test>::iter_keys().next().unwrap();
+
+		let bad_update: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"unknown"), value_u64(2))]).unwrap();
+		assert_noop!(
+			Pallet::<Test>::update_packet(
+				RuntimeOrigin::signed(account(78)),
+				registry.clone(),
+				packet_id.clone(),
+				bad_update,
+			),
+			Error::<Test>::UnknownAttribute
+		);
+
+		assert_ok!(Pallet::<Test>::revoke_registry(RuntimeOrigin::signed(account(77)), registry));
+	});
+}
+
+#[test]
+fn update_packet_rejects_inactive_registry() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(79),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(80));
+
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(1))]).unwrap();
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(80)),
+			registry.clone(),
+			payload,
+		));
+		let packet_id = Packets::<Test>::iter_keys().next().unwrap();
+
+		assert_ok!(Pallet::<Test>::revoke_registry(
+			RuntimeOrigin::signed(account(79)),
+			registry.clone(),
 		));
 
-		let registry = first_registry();
-		let lookups = Pallet::<Test>::lookup_specs(registry.clone()).unwrap();
-		assert_eq!(lookups, vec![vec![b"foo".to_vec()], vec![b"foo".to_vec(), b"baz".to_vec()]]);
-		let token_keys = Pallet::<Test>::token(registry).unwrap();
-		assert_eq!(token_keys, vec![b"foo".to_vec(), b"baz".to_vec()]);
+		let update: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(2))]).unwrap();
+		assert_noop!(
+			Pallet::<Test>::update_packet(
+				RuntimeOrigin::signed(account(80)),
+				registry,
+				packet_id,
+				update,
+			),
+			Error::<Test>::RegistryInactive
+		);
+	});
+}
+
+#[test]
+fn revoke_packet_requires_active_status() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(81),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(82));
+
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(1))]).unwrap();
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(82)),
+			registry.clone(),
+			payload,
+		));
+		let packet_id = Packets::<Test>::iter_keys().next().unwrap();
+
+		assert_ok!(Pallet::<Test>::revoke_packet(
+			RuntimeOrigin::signed(account(82)),
+			registry.clone(),
+			packet_id.clone(),
+		));
+		assert_noop!(
+			Pallet::<Test>::revoke_packet(RuntimeOrigin::signed(account(82)), registry, packet_id,),
+			Error::<Test>::PacketRevoked
+		);
+	});
+}
+
+#[test]
+fn restore_packet_requires_revoked_status() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(83),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(84));
+
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(1))]).unwrap();
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(84)),
+			registry.clone(),
+			payload,
+		));
+		let packet_id = Packets::<Test>::iter_keys().next().unwrap();
+
+		assert_noop!(
+			Pallet::<Test>::restore_packet(
+				RuntimeOrigin::signed(account(84)),
+				registry.clone(),
+				packet_id.clone(),
+			),
+			Error::<Test>::PacketNotRevoked
+		);
+
+		assert_ok!(Pallet::<Test>::revoke_packet(
+			RuntimeOrigin::signed(account(84)),
+			registry.clone(),
+			packet_id.clone(),
+		));
+		assert_ok!(Pallet::<Test>::restore_packet(
+			RuntimeOrigin::signed(account(84)),
+			registry,
+			packet_id,
+		));
+	});
+}
+
+#[test]
+fn remove_packet_requires_revoked_status() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(85),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(86));
+
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(1))]).unwrap();
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(86)),
+			registry.clone(),
+			payload,
+		));
+		let packet_id = Packets::<Test>::iter_keys().next().unwrap();
+
+		assert_noop!(
+			Pallet::<Test>::remove_packet(
+				RuntimeOrigin::signed(account(86)),
+				registry.clone(),
+				packet_id.clone(),
+			),
+			Error::<Test>::PacketNotRevoked
+		);
+
+		assert_ok!(Pallet::<Test>::revoke_packet(
+			RuntimeOrigin::signed(account(86)),
+			registry.clone(),
+			packet_id.clone(),
+		));
+		assert_ok!(Pallet::<Test>::remove_packet(
+			RuntimeOrigin::signed(account(86)),
+			registry,
+			packet_id,
+		));
+	});
+}
+
+#[test]
+fn optional_attributes_allow_absence() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(30),
+			attrs([
+				(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty()),
+				(b"note".as_ref(), ElementType::Raw, AttributeFlags::OPTIONAL),
+			]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(31));
+
+		let payload: AttributePairsOf<Test> =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(1))])
+				.expect("within bounds");
+
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(31)),
+			registry.clone(),
+			payload,
+		));
+
+		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
+		let snapshot =
+			Pallet::<Test>::packet(registry.clone(), packet_id.clone(), None).expect("snapshot");
+		assert!(snapshot.state.attributes.get(b"note").is_none());
+
+		let none_payload: AttributePairsOf<Test> = BoundedVec::try_from(vec![
+			(attr_key(b"asset_id"), value_u64(1)),
+			(attr_key(b"note"), Element::None),
+		])
+		.expect("within bounds");
+
+		assert_ok!(Pallet::<Test>::update_packet(
+			RuntimeOrigin::signed(account(31)),
+			registry,
+			packet_id,
+			none_payload,
+		));
+	});
+}
+
+#[test]
+fn lookup_queries_return_latest_state() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(40),
+			attrs([
+				(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty()),
+				(b"snapshot".as_ref(), ElementType::Raw, AttributeFlags::empty()),
+			]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"snapshot"]]),
+		);
+		let _delegate = bind_delegate(&registry, account(41));
+
+		let payload: AttributePairsOf<Test> = BoundedVec::try_from(vec![
+			(attr_key(b"asset_id"), value_u64(7)),
+			(attr_key(b"snapshot"), value_raw(b"initial")),
+		])
+		.expect("within bounds");
+
+		assert_ok!(Pallet::<Test>::create_packet(
+			RuntimeOrigin::signed(account(41)),
+			registry.clone(),
+			payload,
+		));
+
+		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
+		let registry_info = Registries::<Test>::get(&registry).expect("registry info");
+		let snapshot =
+			Pallet::<Test>::packet(registry.clone(), packet_id.clone(), None).expect("snapshot");
+		let digest = packet::prepare_lookup_keys::<Test>(
+			&registry,
+			&registry_info,
+			&snapshot.state.attributes,
+		)
+		.expect("prepared")
+		.first()
+		.map(|(digest, _)| *digest)
+		.expect("digest");
+
+		let lookup_snapshot = Pallet::<Test>::packet_by_lookup(registry.clone(), digest, None)
+			.expect("lookup snapshot");
+		assert_eq!(lookup_snapshot.state.version, snapshot.state.version);
+
+		// Update only the asset identifier; lookup digest (based on snapshot attribute) remains.
+		let partial_update =
+			BoundedVec::try_from(vec![(attr_key(b"asset_id"), value_u64(8))]).expect("bounded");
+		assert_ok!(Pallet::<Test>::update_packet(
+			RuntimeOrigin::signed(account(41)),
+			registry.clone(),
+			packet_id.clone(),
+			partial_update,
+		));
+
+		let anchor = LookupIndex::<Test>::get(&digest, &registry).expect("lookup anchor");
+		assert_eq!(anchor.pointer.ptoken, packet_id);
+		assert_eq!(anchor.pointer.rtoken, registry);
+		assert_eq!(anchor.pointer.version, 2);
+
+		let updated_snapshot =
+			Pallet::<Test>::packet_by_lookup(registry.clone(), digest, None).expect("updated");
+		assert_eq!(updated_snapshot.state.version, 2);
+		assert_eq!(
+			PacketStates::<Test>::get(&packet_id, 1).expect("previous version").status,
+			PacketStatus::Revoked
+		);
 	});
 }

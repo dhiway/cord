@@ -93,7 +93,7 @@ mod set_info_tests {
 	#[test]
 	fn duplicate_attribute_key_in_initial_info_fails() {
 		new_test_ext().execute_with(|| {
-		let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
+			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"d");
 			let attr: Attribute = b"dup".to_vec().try_into().unwrap();
 			info.attributes = Some(Attributes::default());

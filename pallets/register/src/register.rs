@@ -11,10 +11,23 @@ use scale_info::TypeInfo;
 bitflags! {
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
 	pub struct RegistryPermissions: u16 {
-		const VIEW     = 1 << 3;
-		const ENTRY    = 1 << 0;
-		const DELEGATE = 1 << 1;
-		const ADMIN    = 1 << 2;
+		const VIEW     = 1 << 0;
+		const ENTRY    = 1 << 1;
+		const DELEGATE = 1 << 2;
+		const ADMIN    = 1 << 3;
+	}
+}
+
+bitflags! {
+	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
+	pub struct AttributeFlags: u8 {
+		const OPTIONAL = 1 << 0;
+	}
+}
+
+impl AttributeFlags {
+	pub fn is_optional(self) -> bool {
+		self.contains(AttributeFlags::OPTIONAL)
 	}
 }
 
@@ -26,15 +39,13 @@ impl Default for RegistryPermissions {
 
 impl RegistryPermissions {
 	pub fn from_list(list: &[RegistryPermissions]) -> Self {
-		let mask = list.iter().copied().fold(Self::empty(), |acc, p| acc | p);
-		mask.with_implied_view()
-	}
-
-	pub fn with_implied_view(mut self) -> Self {
-		if self.contains(RegistryPermissions::ADMIN) || self.contains(RegistryPermissions::ENTRY) {
-			self |= RegistryPermissions::VIEW;
+		let mut mask = list.iter().copied().fold(Self::empty(), |acc, p| acc | p);
+		if mask.intersects(
+			RegistryPermissions::ADMIN | RegistryPermissions::ENTRY | RegistryPermissions::DELEGATE,
+		) {
+			mask |= RegistryPermissions::VIEW;
 		}
-		self
+		mask
 	}
 
 	pub fn has_entry(self) -> bool {
@@ -50,9 +61,9 @@ impl RegistryPermissions {
 	}
 
 	pub fn has_view(self) -> bool {
-		self.contains(RegistryPermissions::VIEW)
-			|| self.contains(RegistryPermissions::ENTRY)
-			|| self.contains(RegistryPermissions::ADMIN)
+		self.contains(RegistryPermissions::VIEW) ||
+			self.contains(RegistryPermissions::ENTRY) ||
+			self.contains(RegistryPermissions::ADMIN)
 	}
 }
 
@@ -75,12 +86,65 @@ pub enum RegistryKind {
 	Hash,
 }
 
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	Copy,
+	PartialEq,
+	Eq,
+	RuntimeDebugNoBound,
+	TypeInfo,
+	MaxEncodedLen,
+	Default,
+)]
+pub enum RegistryStatus {
+	#[default]
+	Active,
+	Revoked,
+	Deleted,
+}
+
+impl RegistryStatus {
+	pub fn is_active(self) -> bool {
+		matches!(self, RegistryStatus::Active)
+	}
+
+	pub fn is_revoked(self) -> bool {
+		matches!(self, RegistryStatus::Revoked)
+	}
+
+	pub fn is_deleted(self) -> bool {
+		matches!(self, RegistryStatus::Deleted)
+	}
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RegistryFieldError {
 	DuplicateKey,
 	UnknownKey,
 	EmptySpec,
 	DuplicateSpec,
+	OptionalLookupKey,
+	MissingLookupSpecs,
+}
+
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	PartialEq,
+	Eq,
+	RuntimeDebugNoBound,
+	TypeInfo,
+	MaxEncodedLen,
+)]
+pub struct AttributeSpec {
+	pub key: Attribute,
+	pub kind: ElementType,
+	pub flags: AttributeFlags,
 }
 
 /// Lookup specification describing how attribute keys are reused without duplicating values.
@@ -144,7 +208,7 @@ impl<MaxAdditionalAttributes: Get<u32>> LookupSpec<MaxAdditionalAttributes> {
 	}
 }
 
-/// Core packet held in storage for each registry.
+/// Core registry definition held in storage for each registry.
 #[derive(
 	Encode,
 	Decode,
@@ -163,15 +227,15 @@ pub struct RegistryInfo<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get
 	/// Token of the maintainer (registry owner).
 	pub maintainer: Ss58Identifier,
 	/// Attribute schema (key → expected value type). Keys MUST be unique.
-	pub attributes: BoundedVec<(Attribute, ElementType), MaxAdditionalAttributes>,
+	pub attributes: BoundedVec<AttributeSpec, MaxAdditionalAttributes>,
 	/// Attribute key combination used to derive the registry token material.
 	pub token_spec: LookupSpec<MaxAdditionalAttributes>,
 	/// One or more attribute-key combinations that serve as lookup specs.
 	pub lookup_specs: BoundedVec<LookupSpec<MaxAdditionalAttributes>, MaxAdditionalAttributes>,
 	/// Registry kind (Raw/Token/Hash).
 	pub kind: RegistryKind,
-	/// Registry status flag.
-	pub is_active: bool,
+	/// Registry status.
+	pub status: RegistryStatus,
 }
 
 impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
@@ -197,15 +261,35 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 		self.kind = kind;
 	}
 
-	/// Toggle active/inactive status.
-	pub fn set_status(&mut self, is_active: bool) {
-		self.is_active = is_active;
+	/// Set the registry status.
+	pub fn set_status(&mut self, status: RegistryStatus) {
+		self.status = status;
+	}
+
+	/// Current registry status.
+	pub fn status(&self) -> RegistryStatus {
+		self.status
+	}
+
+	/// Returns `true` when the registry is active.
+	pub fn is_active(&self) -> bool {
+		self.status.is_active()
+	}
+
+	/// Returns `true` when the registry is revoked.
+	pub fn is_revoked(&self) -> bool {
+		self.status.is_revoked()
+	}
+
+	/// Returns `true` when the registry is deleted.
+	pub fn is_deleted(&self) -> bool {
+		self.status.is_deleted()
 	}
 
 	/// Replace the full attribute list after validation.
 	pub fn set_attributes(
 		&mut self,
-		attributes: BoundedVec<(Attribute, ElementType), MaxAdditionalAttributes>,
+		attributes: BoundedVec<AttributeSpec, MaxAdditionalAttributes>,
 	) -> Result<(), PacketUpdateError> {
 		Self::ensure_valid_attributes(&attributes)?;
 		self.attributes = attributes;
@@ -216,7 +300,7 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 	fn ensure_key_subset(&self, fields: &[Attribute]) -> Result<(), RegistryFieldError> {
 		let mut seen = BTreeSet::new();
 		let attribute_keys: BTreeSet<&[u8]> =
-			self.attributes.iter().map(|(key, _)| key.as_slice()).collect();
+			self.attributes.iter().map(|spec| spec.key.as_slice()).collect();
 
 		for key in fields.iter() {
 			let inserted = seen.insert(key.as_slice());
@@ -236,12 +320,23 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 		specs: &[LookupSpec<MaxAdditionalAttributes>],
 	) -> Result<(), RegistryFieldError> {
 		let mut seen_specs = BTreeSet::new();
+		if specs.is_empty() {
+			return Err(RegistryFieldError::MissingLookupSpecs);
+		}
 		for spec in specs.iter() {
 			let keys = spec.cloned_keys();
 			if keys.is_empty() {
 				return Err(RegistryFieldError::EmptySpec);
 			}
 			self.ensure_key_subset(&keys)?;
+			for key in keys.iter() {
+				let attr = self
+					.attribute_spec(key.as_slice())
+					.expect("subset validation guarantees attribute spec exists");
+				if attr.flags.is_optional() {
+					return Err(RegistryFieldError::OptionalLookupKey);
+				}
+			}
 			let fingerprint = spec.fingerprint();
 			if !seen_specs.insert(fingerprint) {
 				return Err(RegistryFieldError::DuplicateSpec);
@@ -275,16 +370,21 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 	}
 
 	/// Get a cloned attribute value by key.
-	pub fn attribute_type(&self, key: &[u8]) -> Option<ElementType> {
-		self.attributes
-			.iter()
-			.find(|(attr, _)| attr.as_slice() == key)
-			.map(|(_, value)| *value)
+	pub fn attribute_spec(&self, key: &[u8]) -> Option<&AttributeSpec> {
+		self.attributes.iter().find(|spec| spec.key.as_slice() == key)
 	}
 
 	/// Get all attribute keys (unordered).
 	pub fn attribute_keys(&self) -> Vec<Vec<u8>> {
-		self.attributes.iter().map(|(k, _)| k.to_vec()).collect()
+		self.attributes.iter().map(|spec| spec.key.to_vec()).collect()
+	}
+
+	pub fn attribute_type(&self, key: &[u8]) -> Option<ElementType> {
+		self.attribute_spec(key).map(|spec| spec.kind)
+	}
+
+	pub fn attribute_optional(&self, key: &[u8]) -> Option<bool> {
+		self.attribute_spec(key).map(|spec| spec.flags.is_optional())
 	}
 
 	/// Resolve key/value pairs for the token, in the key order defined by `token_spec`.
@@ -293,24 +393,21 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 			.cloned_keys()
 			.into_iter()
 			.map(|key| {
-				let value = self
+				let spec = self
 					.attributes
 					.iter()
-					.find(|(attr, _)| attr.as_slice() == key.as_slice())
-					.expect("token field subset validated during creation")
-					.1;
-				(key, value)
+					.find(|attr_spec| attr_spec.key.as_slice() == key.as_slice())
+					.expect("token field subset validated during creation");
+				(key, spec.kind)
 			})
 			.collect()
 	}
 
 	/// Validate attribute list invariants:
-	fn ensure_valid_attributes(
-		attributes: &[(Attribute, ElementType)],
-	) -> Result<(), PacketUpdateError> {
+	fn ensure_valid_attributes(attributes: &[AttributeSpec]) -> Result<(), PacketUpdateError> {
 		let mut seen = BTreeSet::new();
-		for (key, _) in attributes.iter() {
-			let raw = key.as_slice();
+		for spec in attributes.iter() {
+			let raw = spec.key.as_slice();
 			ensure!(!raw.is_empty(), PacketUpdateError::AttributeNotFound);
 			if !seen.insert(raw) {
 				return Err(PacketUpdateError::AttributeExists);
