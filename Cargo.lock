@@ -9528,6 +9528,7 @@ dependencies = [
  "pallet-token",
  "parity-scale-codec",
  "scale-info",
+ "sp-core",
  "sp-io",
  "sp-keystore",
  "sp-runtime",
@@ -10035,6 +10036,7 @@ dependencies = [
  "pallet-token",
  "parity-scale-codec",
  "scale-info",
+ "sp-core",
  "sp-io",
  "sp-runtime",
 ]

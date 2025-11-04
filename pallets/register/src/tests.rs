@@ -19,14 +19,21 @@
 #![cfg(test)]
 
 use super::*;
+use alloc::format;
 use crate::{
 	mock::*,
 	register::{AttributeFlags, LookupSpec, RegistryKind, RegistryPermissions, RegistryStatus},
 	AttributePairsOf, LookupIndex, PacketPointer, PacketStatus, Packets,
 };
-use cord_primitives::packet::{Attribute, Element, ElementType};
-use core::convert::{TryFrom, TryInto};
+use cord_primitives::{packet::{Attribute, Element, ElementType}, AccountId, Signature};
+use core::{
+	convert::{TryFrom, TryInto},
+	sync::atomic::{AtomicU64, Ordering},
+};
 use frame_support::{assert_noop, assert_ok, BoundedVec};
+use sp_core::Pair;
+
+static VIEW_AUTH_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn raw(data: &[u8]) -> Element<MaxRawDataLength> {
 	Element::Raw(data.to_vec().try_into().expect("bounded element"))
@@ -83,8 +90,25 @@ fn lookup_specs(specs: &[&[&[u8]]]) -> LookupSpecListOf<Test> {
 	list
 }
 
+fn view_auth(account: AccountId) -> ViewAuthorizationOf<Test> {
+	let pair = mock::ACCOUNT_KEYS
+		.with(|keys| keys.borrow().get(&account).cloned())
+		.expect("account key seeded");
+	bind_account(account.clone());
+	let id = VIEW_AUTH_COUNTER.fetch_add(1, Ordering::Relaxed);
+	let payload_text = format!("view-auth-{id}");
+	let payload_vec = payload_text.into_bytes();
+	let payload: ViewAuthPayloadOf<Test> = payload_vec.clone().try_into().expect("payload within bounds");
+	let signature = Signature::from(pair.sign(&payload_vec));
+	ViewAuthorizationOf::<Test> { account, payload, signature }
+}
+
+fn default_auth() -> ViewAuthorizationOf<Test> {
+	view_auth(account(0))
+}
+
 fn bind_delegate(registry: &Ss58Identifier, account: AccountId) -> Ss58Identifier {
-	let token = bind_account(account);
+	let token = bind_account(account.clone());
 	RegistryDelegates::<Test>::insert(
 		registry,
 		&token,
@@ -99,9 +123,9 @@ fn create_registry(
 	token_spec_def: TokenSpecOf<Test>,
 	lookups: LookupSpecListOf<Test>,
 ) -> (Ss58Identifier, Ss58Identifier) {
-	let maintainer_token = bind_account(maintainer);
+	let maintainer_token = bind_account(maintainer.clone());
 	assert_ok!(Pallet::<Test>::create_registry(
-		RuntimeOrigin::signed(maintainer),
+		RuntimeOrigin::signed(maintainer.clone()),
 		raw(b"Test Registry"),
 		RegistryKind::Raw,
 		attributes,
@@ -119,20 +143,24 @@ fn first_registry() -> Ss58Identifier {
 fn registry_creation_defaults_to_active() {
 	new_test_ext().execute_with(|| {
 		let attributes = attrs([(b"id".as_ref(), ElementType::U64, AttributeFlags::empty())]);
+		let maintainer = account(10);
 		let (registry, maintainer_token) = create_registry(
-			account(10),
+			maintainer.clone(),
 			attributes.clone(),
 			token_spec(&[b"id"]),
 			lookup_specs(&[&[b"id"]]),
 		);
 
-		let info = Pallet::<Test>::info(registry.clone()).expect("info stored");
+		let info = Pallet::<Test>::info(default_auth(), registry.clone()).expect("info stored");
 		assert_eq!(info.maintainer(), &maintainer_token);
 		assert_eq!(info.status(), RegistryStatus::Active);
 		assert_eq!(info.kind, RegistryKind::Raw);
 		assert_eq!(info.attributes.len(), attributes.len());
 		assert_eq!(info.token_spec.key_count(), 1);
-		assert!(Pallet::<Test>::registry_active(&registry));
+		assert!(<Pallet<Test> as RegistryView<Test>>::registry_active(
+			default_auth(),
+			&registry
+		));
 	});
 }
 
@@ -140,13 +168,13 @@ fn registry_creation_defaults_to_active() {
 fn create_registry_requires_lookup_specs() {
 	new_test_ext().execute_with(|| {
 		let maintainer = account(50);
-		let _ = bind_account(maintainer);
+		let _ = bind_account(maintainer.clone());
 		let attributes = attrs([(b"id".as_ref(), ElementType::Raw, AttributeFlags::empty())]);
 		let lookups = LookupSpecListOf::<Test>::default();
 
 		assert_noop!(
 			Pallet::<Test>::create_registry(
-				RuntimeOrigin::signed(maintainer),
+				RuntimeOrigin::signed(maintainer.clone()),
 				raw(b"MissingLookups"),
 				RegistryKind::Raw,
 				attributes,
@@ -162,7 +190,7 @@ fn create_registry_requires_lookup_specs() {
 fn create_registry_rejects_optional_lookup_attribute() {
 	new_test_ext().execute_with(|| {
 		let maintainer = account(51);
-		let _ = bind_account(maintainer);
+		let _ = bind_account(maintainer.clone());
 		let attributes = attrs([
 			(b"required".as_ref(), ElementType::Raw, AttributeFlags::empty()),
 			(b"optional".as_ref(), ElementType::Raw, AttributeFlags::OPTIONAL),
@@ -170,7 +198,7 @@ fn create_registry_rejects_optional_lookup_attribute() {
 
 		assert_noop!(
 			Pallet::<Test>::create_registry(
-				RuntimeOrigin::signed(maintainer),
+				RuntimeOrigin::signed(maintainer.clone()),
 				raw(b"OptionalLookup"),
 				RegistryKind::Raw,
 				attributes,
@@ -205,7 +233,7 @@ fn registry_status_transitions_follow_rules() {
 			registry.clone()
 		));
 		assert_eq!(
-			Pallet::<Test>::info(registry.clone()).unwrap().status(),
+			Pallet::<Test>::info(default_auth(), registry.clone()).unwrap().status(),
 			RegistryStatus::Revoked
 		);
 
@@ -214,7 +242,7 @@ fn registry_status_transitions_follow_rules() {
 			registry.clone()
 		));
 		assert_eq!(
-			Pallet::<Test>::info(registry.clone()).unwrap().status(),
+			Pallet::<Test>::info(default_auth(), registry.clone()).unwrap().status(),
 			RegistryStatus::Active
 		);
 
@@ -222,7 +250,7 @@ fn registry_status_transitions_follow_rules() {
 		assert_ok!(Pallet::<Test>::revoke_registry(RuntimeOrigin::root(), registry.clone()));
 		assert_ok!(Pallet::<Test>::delete_registry(RuntimeOrigin::root(), registry.clone()));
 		assert_eq!(
-			Pallet::<Test>::info(registry.clone()).unwrap().status(),
+			Pallet::<Test>::info(default_auth(), registry.clone()).unwrap().status(),
 			RegistryStatus::Deleted
 		);
 
@@ -267,7 +295,10 @@ fn update_registry_info_requires_admin() {
 			registry.clone(),
 			raw(b"Updated"),
 		));
-		assert_eq!(Pallet::<Test>::info(registry).unwrap().info, raw(b"Updated"));
+		assert_eq!(
+			Pallet::<Test>::info(default_auth(), registry).unwrap().info,
+			raw(b"Updated")
+		);
 	});
 }
 
@@ -312,19 +343,19 @@ fn remove_registry_delegate_checks_permissions_and_maintainer() {
 			lookup_specs(&[&[b"a"]]),
 		);
 		let delegate = account(15);
-		let delegate_token = bind_account(delegate);
+		let delegate_token = bind_account(delegate.clone());
 
 		assert_ok!(Pallet::<Test>::set_registry_delegate(
 			RuntimeOrigin::signed(account(14)),
 			registry.clone(),
-			delegate,
+			delegate.clone(),
 			vec![RegistryPermissions::ENTRY],
 		));
 
 		// Delegate cannot remove itself.
 		assert_noop!(
 			Pallet::<Test>::remove_registry_delegate(
-				RuntimeOrigin::signed(delegate),
+				RuntimeOrigin::signed(delegate.clone()),
 				registry.clone(),
 				delegate_token.clone(),
 			),
@@ -373,7 +404,10 @@ fn restore_registry_requires_revoked_status() {
 			RuntimeOrigin::signed(account(60)),
 			registry.clone()
 		));
-		assert_eq!(Pallet::<Test>::info(registry).unwrap().status(), RegistryStatus::Active);
+		assert_eq!(
+			Pallet::<Test>::info(default_auth(), registry).unwrap().status(),
+			RegistryStatus::Active
+		);
 	});
 }
 
@@ -400,7 +434,10 @@ fn delete_registry_requires_revoked_status() {
 			RuntimeOrigin::signed(account(61)),
 			registry.clone()
 		));
-		assert_eq!(Pallet::<Test>::info(registry).unwrap().status(), RegistryStatus::Deleted);
+		assert_eq!(
+			Pallet::<Test>::info(default_auth(), registry).unwrap().status(),
+			RegistryStatus::Deleted
+		);
 	});
 }
 
@@ -439,8 +476,8 @@ fn packet_lifecycle_tracks_versions() {
 			})
 			.expect("created token");
 
-		let snapshot =
-			Pallet::<Test>::packet(registry.clone(), packet_id.clone(), None).expect("snapshot");
+		let snapshot = Pallet::<Test>::packet(default_auth(), registry.clone(), packet_id.clone(), None)
+			.expect("snapshot");
 		assert_eq!(snapshot.state.version, 1);
 		assert_eq!(snapshot.registry_status, RegistryStatus::Active);
 		// Update packet with new data.
@@ -457,8 +494,13 @@ fn packet_lifecycle_tracks_versions() {
 			updated,
 		));
 
-		let updated_snapshot = Pallet::<Test>::packet(registry.clone(), packet_id.clone(), None)
-			.expect("updated snapshot");
+		let updated_snapshot = Pallet::<Test>::packet(
+			default_auth(),
+			registry.clone(),
+			packet_id.clone(),
+			None,
+		)
+		.expect("updated snapshot");
 		assert_eq!(updated_snapshot.state.version, 2);
 		let updated_digest = packet::prepare_lookup_keys::<Test>(
 			&registry,
@@ -490,8 +532,13 @@ fn packet_lifecycle_tracks_versions() {
 			registry.clone(),
 			packet_id.clone(),
 		));
-		let restored_snapshot = Pallet::<Test>::packet(registry.clone(), packet_id.clone(), None)
-			.expect("restored snapshot");
+		let restored_snapshot = Pallet::<Test>::packet(
+			default_auth(),
+			registry.clone(),
+			packet_id.clone(),
+			None,
+		)
+		.expect("restored snapshot");
 		assert_eq!(restored_snapshot.state.status, PacketStatus::Active);
 
 		assert_ok!(Pallet::<Test>::revoke_packet(
@@ -812,8 +859,8 @@ fn optional_attributes_allow_absence() {
 		));
 
 		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
-		let snapshot =
-			Pallet::<Test>::packet(registry.clone(), packet_id.clone(), None).expect("snapshot");
+		let snapshot = Pallet::<Test>::packet(default_auth(), registry.clone(), packet_id.clone(), None)
+			.expect("snapshot");
 		assert!(snapshot.state.attributes.get(b"note").is_none());
 
 		let none_payload: AttributePairsOf<Test> = BoundedVec::try_from(vec![
@@ -859,8 +906,13 @@ fn lookup_queries_return_latest_state() {
 
 		let packet_id = Packets::<Test>::iter_keys().next().expect("packet stored");
 		let registry_info = Registries::<Test>::get(&registry).expect("registry info");
-		let snapshot =
-			Pallet::<Test>::packet(registry.clone(), packet_id.clone(), None).expect("snapshot");
+		let snapshot = Pallet::<Test>::packet(
+			default_auth(),
+			registry.clone(),
+			packet_id.clone(),
+			None,
+		)
+		.expect("snapshot");
 		let digest = packet::prepare_lookup_keys::<Test>(
 			&registry,
 			&registry_info,
@@ -871,8 +923,9 @@ fn lookup_queries_return_latest_state() {
 		.map(|(digest, _)| *digest)
 		.expect("digest");
 
-		let lookup_snapshot = Pallet::<Test>::packet_by_lookup(registry.clone(), digest, None)
-			.expect("lookup snapshot");
+		let lookup_snapshot =
+			Pallet::<Test>::packet_by_lookup(default_auth(), registry.clone(), digest, None)
+				.expect("lookup snapshot");
 		assert_eq!(lookup_snapshot.state.version, snapshot.state.version);
 
 		// Update only the asset identifier; lookup digest (based on snapshot attribute) remains.
@@ -890,8 +943,13 @@ fn lookup_queries_return_latest_state() {
 		assert_eq!(anchor.pointer.rtoken, registry);
 		assert_eq!(anchor.pointer.version, 2);
 
-		let updated_snapshot =
-			Pallet::<Test>::packet_by_lookup(registry.clone(), digest, None).expect("updated");
+		let updated_snapshot = Pallet::<Test>::packet_by_lookup(
+			default_auth(),
+			registry.clone(),
+			digest,
+			None,
+		)
+		.expect("updated");
 		assert_eq!(updated_snapshot.state.version, 2);
 		assert_eq!(
 			PacketStates::<Test>::get(&packet_id, 1).expect("previous version").status,

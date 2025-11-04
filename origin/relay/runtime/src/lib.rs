@@ -996,7 +996,7 @@ parameter_types! {
 impl origin_authorities::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MinAuthorities = MinAuthorities;
-	type AuthorityMembershipOrigin = EnsureRoot<AccountId>;
+	type AuthorityManagerOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
 }
 

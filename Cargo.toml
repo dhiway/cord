@@ -745,6 +745,7 @@ authority-membership = { path = "runtimes/common/authorities", default-features 
 cord-token-runtime-api = { path = "runtimes/common/api/token", default-features = false }
 cord-node-cli = { path = "node/cli", default-features = false }
 cord-primitives = { path = "primitives/cord", default-features = false }
+cord-utilities = { path = "utilities", default-features = false }
 network-membership = { path = "primitives/network-membership", default-features = false }
 cord-braid-runtime = { path = "runtimes/braid", default-features = false }
 cord-braid-runtime-constants = { path = "runtimes/braid/constants", default-features = false }

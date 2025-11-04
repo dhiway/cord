@@ -18,10 +18,12 @@
 
 #![cfg(test)]
 use super::*;
-use crate::{entity::EntityInfo, mock::*, pallet::Pallet as EntityPallet, Error};
-use cord_primitives::packet::{Attribute, Attributes, AttributesError, Element};
+use crate::{entity::EntityInfo, mock::*, pallet::Pallet as EntityPallet, signature::SignatureVerificationError, Error};
+use cord_primitives::{packet::{Attribute, Attributes, AttributesError, Element}, Signature};
 use frame_support::{assert_noop, assert_ok};
 use pallet_token::Token;
+use sp_core::{sr25519, Pair};
+use sp_runtime::{traits::IdentifyAccount, MultiSigner};
 
 /// Shortcut to wrap raw bytes into our `Data` type.
 fn plain_data(s: &[u8]) -> Element<MaxRawDataLength> {
@@ -476,4 +478,35 @@ mod id_name_tests {
 			);
 		});
 	}
+}
+
+#[test]
+fn verify_account_signature_returns_token() {
+	new_test_ext().execute_with(|| {
+		let pair = sr25519::Pair::from_seed(&[1; 32]);
+		let signer = MultiSigner::from(pair.public());
+		let account = signer.into_account();
+		let token = init_with_display(account.clone(), b"entity-sig");
+		let payload = b"registry-view";
+		let signature = Signature::from(pair.sign(payload));
+		let verified = EntityPallet::<Test>::verify_account_signature(&account, payload, &signature)
+			.expect("signature should verify");
+		assert_eq!(verified, token);
+	});
+}
+
+#[test]
+fn verify_account_signature_rejects_invalid_signature() {
+	new_test_ext().execute_with(|| {
+		let pair = sr25519::Pair::from_seed(&[2; 32]);
+		let signer = MultiSigner::from(pair.public());
+		let account = signer.into_account();
+		let _token = init_with_display(account.clone(), b"entity-sig");
+		let payload = b"registry-view";
+		let wrong_pair = sr25519::Pair::from_seed(&[9; 32]);
+		let signature = Signature::from(wrong_pair.sign(payload));
+		let err = EntityPallet::<Test>::verify_account_signature(&account, payload, &signature)
+			.expect_err("signature must be rejected");
+		assert_eq!(err, SignatureVerificationError::SignatureInvalid);
+	});
 }

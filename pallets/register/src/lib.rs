@@ -37,8 +37,9 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use cord_primitives::{
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, ElementType, PacketUpdateError},
+	Signature,
 };
-use core::convert::TryInto;
+use core::{convert::TryInto, fmt};
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -53,6 +54,7 @@ use register::{
 	AttributeFlags, AttributeSpec, LookupSpec, RegistryFieldError, RegistryInfo, RegistryKind,
 	RegistryPermissions, RegistryStatus,
 };
+use sp_io::hashing::blake2_128;
 use sp_runtime::traits::Hash;
 pub use weights::WeightInfo;
 
@@ -65,6 +67,31 @@ pub type LookupSpecListOf<T> = BoundedVec<
 	LookupSpec<<T as Config>::MaxAdditionalAttributes>,
 	<T as Config>::MaxAdditionalAttributes,
 >;
+
+/// Authorization payload supplied for register view functions.
+pub type ViewAuthPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxViewAuthorizationLen>;
+
+/// Compact hash stored for replay protection across view requests.
+pub type ViewAuthSignatureHash = [u8; 16];
+
+/// Authorization details that must accompany every view request.
+#[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo)]
+#[scale_info(skip_type_params(T))]
+pub struct ViewAuthorization<T: Config> {
+	pub account: T::AccountId,
+	pub payload: ViewAuthPayloadOf<T>,
+	pub signature: Signature,
+}
+
+impl<T: Config> fmt::Debug for ViewAuthorization<T> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("ViewAuthorization")
+			.field("payload_len", &self.payload.len())
+			.finish()
+	}
+}
+
+pub type ViewAuthorizationOf<T> = ViewAuthorization<T>;
 
 /// Registry info type alias for storage.
 pub type RegistryInfoOf<T> =
@@ -85,25 +112,46 @@ pub struct PacketSnapshot<T: Config> {
 pub type PacketSnapshotOf<T> = PacketSnapshot<T>;
 
 pub trait RegistryView<T: Config> {
-	fn registry_info(registry_id: &Ss58Identifier) -> Option<RegistryInfoOf<T>>;
-	fn attribute_keys(registry_id: &Ss58Identifier) -> Option<Vec<Vec<u8>>>;
+	fn registry_info(
+		auth: ViewAuthorizationOf<T>,
+		registry_id: &Ss58Identifier,
+	) -> Option<RegistryInfoOf<T>>;
+	fn attribute_keys(
+		auth: ViewAuthorizationOf<T>,
+		registry_id: &Ss58Identifier,
+	) -> Option<Vec<Vec<u8>>>;
 	/// Keys (in order) that are hashed to derive the registry identifier token.
-	fn token_fields(registry_id: &Ss58Identifier) -> Option<Vec<Vec<u8>>>;
+	fn token_fields(
+		auth: ViewAuthorizationOf<T>,
+		registry_id: &Ss58Identifier,
+	) -> Option<Vec<Vec<u8>>>;
 	/// Lookup specifications expressed as lists of attribute keys (single key => len 1).
-	fn lookup_specs(registry_id: &Ss58Identifier) -> Option<Vec<Vec<Vec<u8>>>>;
+	fn lookup_specs(
+		auth: ViewAuthorizationOf<T>,
+		registry_id: &Ss58Identifier,
+	) -> Option<Vec<Vec<Vec<u8>>>>;
 	fn has_permissions(
+		auth: ViewAuthorizationOf<T>,
 		registry_id: &Ss58Identifier,
 		delegate: &Ss58Identifier,
 		required: RegistryPermissions,
 	) -> bool;
-	fn packet_metadata(packet: &Ss58Identifier) -> Option<PacketMetadataOf<T>>;
-	fn packet_state(packet: &Ss58Identifier, version: Option<u32>) -> Option<PacketSnapshotOf<T>>;
+	fn packet_metadata(
+		auth: ViewAuthorizationOf<T>,
+		packet: &Ss58Identifier,
+	) -> Option<PacketMetadataOf<T>>;
+	fn packet_state(
+		auth: ViewAuthorizationOf<T>,
+		packet: &Ss58Identifier,
+		version: Option<u32>,
+	) -> Option<PacketSnapshotOf<T>>;
 	fn lookup_state(
+		auth: ViewAuthorizationOf<T>,
 		registry_id: &Ss58Identifier,
 		digest: &LookupDigestOf<T>,
 		version: Option<u32>,
 	) -> Option<PacketSnapshotOf<T>>;
-	fn registry_active(registry_id: &Ss58Identifier) -> bool;
+	fn registry_active(auth: ViewAuthorizationOf<T>, registry_id: &Ss58Identifier) -> bool;
 }
 
 #[frame_support::pallet]
@@ -113,7 +161,9 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config:
+		frame_system::Config<AccountId: Into<sp_runtime::AccountId32> + Clone>
+	{
 		#[allow(deprecated)]
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -130,6 +180,10 @@ pub mod pallet {
 		/// Max number of additional attributes.
 		#[pallet::constant]
 		type MaxAdditionalAttributes: Get<u32>;
+
+		/// Max length for view authorization challenges.
+		#[pallet::constant]
+		type MaxViewAuthorizationLen: Get<u32>;
 
 		/// Weight instrumentation.
 		type WeightInfo: WeightInfo;
@@ -184,6 +238,11 @@ pub mod pallet {
 		packet::LookupAnchor,
 		OptionQuery,
 	>;
+
+	/// Replay protection cache for view authorizations.
+	#[pallet::storage]
+	pub type ViewSignatureUses<T: Config> =
+		StorageMap<_, Identity, ViewAuthSignatureHash, BlockNumberFor<T>, OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -293,7 +352,10 @@ pub mod pallet {
 	}
 
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		T::AccountId: Clone + Into<sp_runtime::AccountId32>,
+	{
 		/// Create a new registry.
 		#[pallet::call_index(0)]
 		#[pallet::weight({
@@ -915,12 +977,21 @@ pub mod pallet {
 	#[pallet::view_functions]
 	impl<T: Config> Pallet<T> {
 		/// Returns the full registry info for the provided registry identifier.
-		pub fn info(registry: Ss58Identifier) -> Option<RegistryInfoOf<T>> {
+		pub fn info(
+			auth: ViewAuthorization<T>,
+			registry: Ss58Identifier,
+		) -> Option<RegistryInfoOf<T>> {
+			Self::authorize_view(&auth).ok()?;
 			Registries::<T>::get(&registry)
 		}
 
 		/// Returns the declared schema type of the provided attribute key.
-		pub fn attribute(registry: Ss58Identifier, key: Vec<u8>) -> Option<(ElementType, bool)> {
+		pub fn attribute(
+			auth: ViewAuthorization<T>,
+			registry: Ss58Identifier,
+			key: Vec<u8>,
+		) -> Option<(ElementType, bool)> {
+			Self::authorize_view(&auth).ok()?;
 			let key_bounded: Attribute = key.try_into().ok()?;
 			let registry_info = Registries::<T>::get(&registry)?;
 			let spec = registry_info.attribute_spec(key_bounded.as_slice())?;
@@ -928,7 +999,11 @@ pub mod pallet {
 		}
 
 		/// Returns all attribute keys and their schema types.
-		pub fn attributes(registry: Ss58Identifier) -> Option<Vec<(Vec<u8>, ElementType, bool)>> {
+		pub fn attributes(
+			auth: ViewAuthorization<T>,
+			registry: Ss58Identifier,
+		) -> Option<Vec<(Vec<u8>, ElementType, bool)>> {
+			Self::authorize_view(&auth).ok()?;
 			Registries::<T>::get(&registry).map(|registry_info| {
 				registry_info
 					.attributes
@@ -939,7 +1014,8 @@ pub mod pallet {
 		}
 
 		/// Returns the attribute keys composing the registry token material.
-		pub fn token(registry: Ss58Identifier) -> Option<Vec<Vec<u8>>> {
+		pub fn token(auth: ViewAuthorization<T>, registry: Ss58Identifier) -> Option<Vec<Vec<u8>>> {
+			Self::authorize_view(&auth).ok()?;
 			Registries::<T>::get(&registry).map(|registry_info| {
 				registry_info
 					.token_spec
@@ -951,7 +1027,11 @@ pub mod pallet {
 		}
 
 		/// Returns the lookup specifications declared for the registry.
-		pub fn lookup_specs(registry: Ss58Identifier) -> Option<Vec<Vec<Vec<u8>>>> {
+		pub fn lookup_specs(
+			auth: ViewAuthorization<T>,
+			registry: Ss58Identifier,
+		) -> Option<Vec<Vec<Vec<u8>>>> {
+			Self::authorize_view(&auth).ok()?;
 			Registries::<T>::get(&registry).map(|registry_info| {
 				registry_info
 					.lookup_specs
@@ -963,10 +1043,12 @@ pub mod pallet {
 
 		/// Returns a packet state associated with the given packet identifier for the registry.
 		pub fn packet(
+			auth: ViewAuthorization<T>,
 			rtoken: Ss58Identifier,
 			ptoken: Ss58Identifier,
 			version: Option<u32>,
 		) -> Option<PacketSnapshotOf<T>> {
+			Self::authorize_view(&auth).ok()?;
 			let registry_info = Registries::<T>::get(&rtoken)?;
 			let state = if let Some(version) = version {
 				let state = PacketStates::<T>::get(&ptoken, version)?;
@@ -986,10 +1068,12 @@ pub mod pallet {
 
 		/// Resolves a packet state via a lookup digest.
 		pub fn packet_by_lookup(
+			auth: ViewAuthorization<T>,
 			rtoken: Ss58Identifier,
 			digest: LookupDigestOf<T>,
 			version: Option<u32>,
 		) -> Option<PacketSnapshotOf<T>> {
+			Self::authorize_view(&auth).ok()?;
 			let anchor = LookupIndex::<T>::get(&digest, &rtoken)?;
 			let target_version = version.unwrap_or(anchor.pointer.version);
 			let state = PacketStates::<T>::get(&anchor.pointer.ptoken, target_version)?;
@@ -999,6 +1083,31 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		fn view_signature_hash(auth: &ViewAuthorization<T>) -> ViewAuthSignatureHash {
+			let mut encoded = auth.account.encode();
+			encoded.extend_from_slice(auth.payload.as_slice());
+			encoded.extend(auth.signature.encode());
+			blake2_128(&encoded)
+		}
+
+		fn authorize_view(auth: &ViewAuthorization<T>) -> Result<Ss58Identifier, ()> {
+			let token = T::EntityLookup::verify_account_signature(
+				&auth.account,
+				auth.payload.as_slice(),
+				&auth.signature,
+			)
+			.map_err(|_| ())?;
+
+			let signature_hash = Self::view_signature_hash(auth);
+			if ViewSignatureUses::<T>::contains_key(&signature_hash) {
+				return Err(());
+			}
+
+			let now = frame_system::Pallet::<T>::block_number();
+			ViewSignatureUses::<T>::insert(signature_hash, now);
+			Ok(token)
+		}
+
 		fn resolve_entity_token(account: &T::AccountId) -> Result<Ss58Identifier, DispatchError> {
 			T::EntityLookup::lookup_token_of(account).map_err(|_| Error::<T>::TokenNotFound.into())
 		}
@@ -1143,15 +1252,27 @@ pub mod pallet {
 	}
 
 	impl<T: Config> RegistryView<T> for Pallet<T> {
-		fn registry_info(registry_id: &Ss58Identifier) -> Option<RegistryInfoOf<T>> {
+		fn registry_info(
+			auth: ViewAuthorizationOf<T>,
+			registry_id: &Ss58Identifier,
+		) -> Option<RegistryInfoOf<T>> {
+			Self::authorize_view(&auth).ok()?;
 			Registries::<T>::get(registry_id)
 		}
 
-		fn attribute_keys(registry_id: &Ss58Identifier) -> Option<Vec<Vec<u8>>> {
+		fn attribute_keys(
+			auth: ViewAuthorizationOf<T>,
+			registry_id: &Ss58Identifier,
+		) -> Option<Vec<Vec<u8>>> {
+			Self::authorize_view(&auth).ok()?;
 			Registries::<T>::get(registry_id).map(|registry_info| registry_info.attribute_keys())
 		}
 
-		fn token_fields(registry_id: &Ss58Identifier) -> Option<Vec<Vec<u8>>> {
+		fn token_fields(
+			auth: ViewAuthorizationOf<T>,
+			registry_id: &Ss58Identifier,
+		) -> Option<Vec<Vec<u8>>> {
+			Self::authorize_view(&auth).ok()?;
 			Registries::<T>::get(registry_id).map(|registry_info| {
 				registry_info
 					.token_spec
@@ -1162,7 +1283,11 @@ pub mod pallet {
 			})
 		}
 
-		fn lookup_specs(registry_id: &Ss58Identifier) -> Option<Vec<Vec<Vec<u8>>>> {
+		fn lookup_specs(
+			auth: ViewAuthorizationOf<T>,
+			registry_id: &Ss58Identifier,
+		) -> Option<Vec<Vec<Vec<u8>>>> {
+			Self::authorize_view(&auth).ok()?;
 			Registries::<T>::get(registry_id).map(|registry_info| {
 				registry_info
 					.lookup_specs
@@ -1173,10 +1298,14 @@ pub mod pallet {
 		}
 
 		fn has_permissions(
+			auth: ViewAuthorizationOf<T>,
 			registry_id: &Ss58Identifier,
 			delegate: &Ss58Identifier,
 			required: RegistryPermissions,
 		) -> bool {
+			if Self::authorize_view(&auth).is_err() {
+				return false;
+			}
 			if let Some(registry_info) = Registries::<T>::get(registry_id) {
 				if registry_info.maintainer() == delegate {
 					return true;
@@ -1192,14 +1321,20 @@ pub mod pallet {
 			})
 		}
 
-		fn packet_metadata(packet: &Ss58Identifier) -> Option<PacketMetadataOf<T>> {
+		fn packet_metadata(
+			auth: ViewAuthorizationOf<T>,
+			packet: &Ss58Identifier,
+		) -> Option<PacketMetadataOf<T>> {
+			Self::authorize_view(&auth).ok()?;
 			Packets::<T>::get(packet)
 		}
 
 		fn packet_state(
+			auth: ViewAuthorizationOf<T>,
 			packet: &Ss58Identifier,
 			version: Option<u32>,
 		) -> Option<PacketSnapshotOf<T>> {
+			Self::authorize_view(&auth).ok()?;
 			let state = if let Some(version) = version {
 				PacketStates::<T>::get(packet, version)?
 			} else {
@@ -1211,10 +1346,12 @@ pub mod pallet {
 		}
 
 		fn lookup_state(
+			auth: ViewAuthorizationOf<T>,
 			registry_id: &Ss58Identifier,
 			digest: &LookupDigestOf<T>,
 			version: Option<u32>,
 		) -> Option<PacketSnapshotOf<T>> {
+			Self::authorize_view(&auth).ok()?;
 			let anchor = LookupIndex::<T>::get(digest, registry_id)?;
 			let target_version = version.unwrap_or(anchor.pointer.version);
 			let state = PacketStates::<T>::get(&anchor.pointer.ptoken, target_version)?;
@@ -1222,7 +1359,10 @@ pub mod pallet {
 			Some(PacketSnapshot { state, registry_status: registry_info.status() })
 		}
 
-		fn registry_active(registry_id: &Ss58Identifier) -> bool {
+		fn registry_active(auth: ViewAuthorizationOf<T>, registry_id: &Ss58Identifier) -> bool {
+			if Self::authorize_view(&auth).is_err() {
+				return false;
+			}
 			Registries::<T>::get(registry_id).map(|info| info.is_active()).unwrap_or(false)
 		}
 	}
