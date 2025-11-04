@@ -21,16 +21,17 @@
 use super::*;
 use alloc::collections::BTreeMap;
 use codec::Encode;
+use cord_primitives::{AccountId, Signature};
 use frame_support::{derive_impl, parameter_types, traits::PalletInfoAccess};
 use pallet_entity::EntityLookup;
+use pallet_entity::signature::SignatureVerificationError;
 use pallet_token::{EventBlock, Token as TokenTrait};
+use sp_core::{sr25519, Pair};
 use sp_runtime::{
-	traits::{BlakeTwo256, Hash as HashT, IdentityLookup},
-	BuildStorage,
+	traits::{BlakeTwo256, Hash as HashT, IdentifyAccount, IdentityLookup, Verify},
+	BuildStorage, MultiSigner,
 };
 use std::cell::RefCell;
-
-pub type AccountId = u64;
 
 frame_support::construct_runtime!(
 	pub enum Test
@@ -70,12 +71,14 @@ impl pallet_token::Config for Test {
 parameter_types! {
 	pub const MaxRawDataLength: u32 = 256;
 	pub const MaxAdditionalAttributes: u32 = 8;
+	pub const MaxViewAuthorizationLen: u32 = 64;
 }
 
 pub struct MockLookup;
 
 thread_local! {
-	static ACCOUNT_TOKENS: RefCell<BTreeMap<AccountId, Ss58Identifier>> = RefCell::new(BTreeMap::new());
+	pub(crate) static ACCOUNT_TOKENS: RefCell<BTreeMap<AccountId, Ss58Identifier>> = RefCell::new(BTreeMap::new());
+	pub(crate) static ACCOUNT_KEYS: RefCell<BTreeMap<AccountId, sr25519::Pair>> = RefCell::new(BTreeMap::new());
 }
 
 impl EntityLookup<Test> for MockLookup {
@@ -101,6 +104,22 @@ impl EntityLookup<Test> for MockLookup {
 	fn lookup_identifier_of_name(_name: &Self::Username) -> Option<Ss58Identifier> {
 		None
 	}
+
+	fn verify_account_signature(
+		account: &AccountId,
+		payload: &[u8],
+		signature: &Signature,
+	) -> Result<Ss58Identifier, SignatureVerificationError> {
+		let token = ACCOUNT_TOKENS
+			.with(|map| map.borrow().get(account).cloned())
+			.ok_or(SignatureVerificationError::SignerInformationNotPresent)?;
+		let signer: sp_runtime::AccountId32 = account.clone().into();
+		if signature.verify(payload, &signer) {
+			Ok(token)
+		} else {
+			Err(SignatureVerificationError::SignatureInvalid)
+		}
+	}
 }
 
 impl Config for Test {
@@ -109,6 +128,7 @@ impl Config for Test {
 	type EntityLookup = MockLookup;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
+	type MaxViewAuthorizationLen = MaxViewAuthorizationLen;
 	type WeightInfo = ();
 }
 
@@ -119,8 +139,14 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 	ext
 }
 
-pub fn account(id: u64) -> AccountId {
-	id
+pub fn account(seed: u8) -> AccountId {
+	let pair = sr25519::Pair::from_seed(&[seed; 32]);
+	let signer = MultiSigner::from(pair.public());
+	let account: AccountId = signer.into_account();
+	ACCOUNT_KEYS.with(|keys| {
+		keys.borrow_mut().insert(account.clone(), pair);
+	});
+	account
 }
 
 pub fn bind_account(account: AccountId) -> Ss58Identifier {
@@ -130,7 +156,7 @@ pub fn bind_account(account: AccountId) -> Ss58Identifier {
 	let token = <pallet_token::Pallet<Test> as TokenTrait<Test>>::build(hash.as_ref(), pallet)
 		.expect("token generation never fails in tests");
 	ACCOUNT_TOKENS.with(|map| {
-		map.borrow_mut().insert(account, token.clone());
+		map.borrow_mut().insert(account.clone(), token.clone());
 	});
 	token
 }

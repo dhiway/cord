@@ -29,6 +29,7 @@ sp-runtime = { workspace = true }
 pallet-balances = { default-features = true, workspace = true }
 sp-keystore = { default-features = true, workspace = true }
 sp-io = { default-features = true, workspace = true }
+sp-core = { default-features = true, workspace = true }
 
 [features]
 default = ["std"]

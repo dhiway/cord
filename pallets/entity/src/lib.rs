@@ -37,6 +37,7 @@ use codec::{Encode, EncodeLike};
 use cord_primitives::{
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
+	Signature,
 };
 use frame_support::{
 	ensure,
@@ -47,7 +48,7 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use pallet_token::{EventBlock, EventTypeOf, Token};
-use signature::{SignatureVerificationError, SignatureVerificationResult, VerifySignature};
+use crate::signature::{verify_multisignature, SignatureVerificationError};
 use sp_runtime::traits::Hash;
 pub use weights::WeightInfo;
 
@@ -850,16 +851,19 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Verify a payload using the supplied signature strategy against the controller of `token`.
-	pub fn verify_signature_with<V>(
-		token: &Ss58Identifier,
-		payload: Vec<u8>,
-		signature: &V::Signature,
-	) -> SignatureVerificationResult
+	/// Verify a multi-signature against the specified `account` and return its entity identifier.
+	pub fn verify_account_signature(
+		account: &T::AccountId,
+		payload: &[u8],
+		signature: &Signature,
+	) -> Result<Ss58Identifier, SignatureVerificationError>
 	where
-		V: VerifySignature<SignerId = T::AccountId, Payload = Vec<u8>>,
+		T::AccountId: Clone + Into<sp_runtime::AccountId32>,
 	{
-		let controller = Self::controller_account(token)?;
-		V::verify(&controller, &payload, signature)
+		let token = Ss58OfActiveAccounts::<T>::get(account)
+			.ok_or(SignatureVerificationError::SignerInformationNotPresent)?;
+		verify_multisignature(account, payload, signature)?;
+		Ok(token)
 	}
 }
 
@@ -884,6 +888,15 @@ pub trait EntityLookup<T: frame_system::Config> {
 
 	/// Reverse lookup: given a username, get the attached entity token (if any).
 	fn lookup_identifier_of_name(name: &Self::Username) -> Option<Ss58Identifier>;
+
+	/// Verify that `signature` was produced by `account` over `payload`, returning its entity token.
+	fn verify_account_signature(
+		account: &T::AccountId,
+		payload: &[u8],
+		signature: &Signature,
+	) -> Result<Ss58Identifier, SignatureVerificationError>
+	where
+		T::AccountId: Clone + Into<sp_runtime::AccountId32>;
 }
 
 impl<T: Config> EntityLookup<T> for Pallet<T> {
@@ -908,5 +921,16 @@ impl<T: Config> EntityLookup<T> for Pallet<T> {
 
 	fn lookup_identifier_of_name(name: &Username<T>) -> Option<Ss58Identifier> {
 		NameSs58IdOf::<T>::get(name)
+	}
+
+	fn verify_account_signature(
+		account: &T::AccountId,
+		payload: &[u8],
+		signature: &Signature,
+ 	) -> Result<Ss58Identifier, SignatureVerificationError>
+	where
+		T::AccountId: Clone + Into<sp_runtime::AccountId32>,
+	{
+		Self::verify_account_signature(account, payload, signature)
 	}
 }
