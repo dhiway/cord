@@ -51,24 +51,6 @@ pub use sp_runtime::traits::{Bounded, Get};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
-#[derive(Debug, Clone, Copy)]
-pub enum Ss58AddressFormatPrefix {
-	/// Default for Braid
-	Braid = 3893,
-	/// Default for Loom
-	Loom = 4926,
-	/// Default for Weave
-	Weave = 29,
-	/// Default for unknown chains
-	Default = 42,
-}
-
-impl From<Ss58AddressFormatPrefix> for Ss58AddressFormat {
-	fn from(prefix: Ss58AddressFormatPrefix) -> Self {
-		Ss58AddressFormat::custom(prefix as u16)
-	}
-}
-
 pub(crate) type CreditOf<T> = Credit<<T as frame_system::Config>::AccountId, PalletBalance<T, ()>>;
 
 /// We assume that an on-initialize consumes 1% of the weight on average, hence a single extrinsic

@@ -28,9 +28,9 @@ use sc_telemetry::TelemetryEndpoints;
 use serde::{Deserialize, Serialize};
 use sp_core::{Pair, Public};
 
-#[cfg(feature = "braid-native")]
-pub use cord_braid_runtime::genesis_config_presets::{
-	cord_braid_development_config_genesis, cord_braid_local_testnet_genesis,
+#[cfg(feature = "orb-native")]
+pub use cord_orb_runtime::genesis_config_presets::{
+	cord_orb_development_config_genesis, cord_orb_staging_config_genesis,
 };
 
 #[cfg(feature = "loom-native")]
@@ -38,12 +38,12 @@ pub use cord_loom_runtime::genesis_config_presets::{
 	cord_loom_development_config_genesis, cord_loom_local_testnet_genesis,
 };
 
-#[cfg(feature = "weave-native")]
-pub use cord_weave_runtime::genesis_config_presets::{
-	cord_weave_development_config_genesis, cord_weave_local_testnet_genesis,
-};
+// #[cfg(feature = "weave-native")]
+// pub use cord_weave_runtime::genesis_config_presets::{
+// 	cord_weave_development_config_genesis, cord_weave_local_testnet_genesis,
+// };
 
-#[cfg(any(feature = "braid-native", feature = "loom-native", feature = "weave-native"))]
+#[cfg(any(feature = "orb-native", feature = "loom-native",))]
 const CORD_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
 
 const DEFAULT_PROTOCOL_ID: &str = "c0rd";
@@ -67,13 +67,13 @@ pub struct Extensions {
 pub type GenericChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The `ChainSpec` parameterized for the braid runtime.
-#[cfg(feature = "braid-native")]
-pub type BraidChainSpec = sc_service::GenericChainSpec<Extensions>;
+#[cfg(feature = "orb-native")]
+pub type OrbChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The `ChainSpec` parameterized for the braid runtime.
 // Dummy chain spec, but that is fine when we don't have the native runtime.
-#[cfg(not(feature = "braid-native"))]
-pub type BraidChainSpec = GenericChainSpec;
+#[cfg(not(feature = "orb-native"))]
+pub type OrbChainSpec = GenericChainSpec;
 
 /// The `ChainSpec` parameterized for the loom runtime.
 #[cfg(feature = "loom-native")]
@@ -84,17 +84,17 @@ pub type LoomChainSpec = sc_service::GenericChainSpec<Extensions>;
 #[cfg(not(feature = "loom-native"))]
 pub type LoomChainSpec = GenericChainSpec;
 
-/// The `ChainSpec` parameterized for the weave runtime.
-#[cfg(feature = "weave-native")]
-pub type WeaveChainSpec = sc_service::GenericChainSpec<Extensions>;
+// /// The `ChainSpec` parameterized for the weave runtime.
+// #[cfg(feature = "weave-native")]
+// pub type WeaveChainSpec = sc_service::GenericChainSpec<Extensions>;
 
-/// The `ChainSpec` parameterized for the weave runtime.
-// Dummy chain spec, but that is fine when we don't have the native runtime.
-#[cfg(not(feature = "weave-native"))]
-pub type WeaveChainSpec = GenericChainSpec;
+// /// The `ChainSpec` parameterized for the weave runtime.
+// // Dummy chain spec, but that is fine when we don't have the native runtime.
+// #[cfg(not(feature = "weave-native"))]
+// pub type WeaveChainSpec = GenericChainSpec;
 
-// pub fn weave_config() -> Result<WeaveChainSpec, String> {
-// 	WeaveChainSpec::from_json_bytes(&include_bytes!("../chain-specs/weave.json")[..])
+// pub fn orb_config() -> Result<orbChainSpec, String> {
+// 	OrbChainSpec::from_json_bytes(&include_bytes!("../chain-specs/weave.json")[..])
 // }
 
 /// Helper function to generate a crypto pair from seed
@@ -114,17 +114,17 @@ pub fn get_properties(symbol: &str, decimals: u32, ss58format: u32) -> Propertie
 	properties
 }
 
-#[cfg(feature = "braid-native")]
-pub fn braid_development_config() -> Result<BraidChainSpec, String> {
+#[cfg(feature = "orb-native")]
+pub fn orb_development_config() -> Result<OrbChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 3893);
-	Ok(BraidChainSpec::builder(
-		cord_braid_runtime::WASM_BINARY.ok_or("Braid development wasm not available")?,
+	Ok(OrbChainSpec::builder(
+		cord_orb_runtime::WASM_BINARY.ok_or("Orb development wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Braid Development")
-	.with_id("braid-dev")
+	.with_name("Orb Development")
+	.with_id("orb-dev")
 	.with_chain_type(ChainType::Development)
-	.with_genesis_config_patch(cord_braid_development_config_genesis())
+	.with_genesis_config_patch(cord_orb_development_config_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -134,17 +134,17 @@ pub fn braid_development_config() -> Result<BraidChainSpec, String> {
 	.build())
 }
 
-#[cfg(feature = "braid-native")]
-pub fn braid_local_testnet_config() -> Result<BraidChainSpec, String> {
+#[cfg(feature = "orb-native")]
+pub fn orb_staging_config() -> Result<OrbChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 3893);
-	Ok(BraidChainSpec::builder(
-		cord_braid_runtime::WASM_BINARY.ok_or("Braid wasm not available")?,
+	Ok(OrbChainSpec::builder(
+		cord_orb_runtime::WASM_BINARY.ok_or("Orb wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Braid Local Testnet")
-	.with_id("braid-local")
+	.with_name("Orb Local Testnet")
+	.with_id("orb-local")
 	.with_chain_type(ChainType::Local)
-	.with_genesis_config_patch(cord_braid_local_testnet_genesis())
+	.with_genesis_config_patch(cord_orb_staging_config_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -194,42 +194,42 @@ pub fn loom_local_testnet_config() -> Result<LoomChainSpec, String> {
 	.build())
 }
 
-#[cfg(feature = "weave-native")]
-pub fn weave_development_config() -> Result<WeaveChainSpec, String> {
-	let properties = get_properties("UNITS", 12, 29);
-	Ok(WeaveChainSpec::builder(
-		cord_weave_runtime::WASM_BINARY.ok_or("Weave development wasm not available")?,
-		Default::default(),
-	)
-	.with_name("Weave Development")
-	.with_id("weave-dev")
-	.with_chain_type(ChainType::Development)
-	.with_genesis_config_patch(cord_weave_development_config_genesis())
-	.with_telemetry_endpoints(
-		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
-			.expect("Cord telemetry url is valid; qed"),
-	)
-	.with_protocol_id(DEFAULT_PROTOCOL_ID)
-	.with_properties(properties)
-	.build())
-}
+// #[cfg(feature = "weave-native")]
+// pub fn weave_development_config() -> Result<WeaveChainSpec, String> {
+// 	let properties = get_properties("UNITS", 12, 29);
+// 	Ok(WeaveChainSpec::builder(
+// 		cord_weave_runtime::WASM_BINARY.ok_or("Weave development wasm not available")?,
+// 		Default::default(),
+// 	)
+// 	.with_name("Weave Development")
+// 	.with_id("weave-dev")
+// 	.with_chain_type(ChainType::Development)
+// 	.with_genesis_config_patch(cord_weave_development_config_genesis())
+// 	.with_telemetry_endpoints(
+// 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
+// 			.expect("Cord telemetry url is valid; qed"),
+// 	)
+// 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
+// 	.with_properties(properties)
+// 	.build())
+// }
 
-#[cfg(feature = "weave-native")]
-pub fn weave_local_testnet_config() -> Result<WeaveChainSpec, String> {
-	let properties = get_properties("UNITS", 12, 29);
-	Ok(WeaveChainSpec::builder(
-		cord_weave_runtime::WASM_BINARY.ok_or("Loom wasm not available")?,
-		Default::default(),
-	)
-	.with_name("Weave Local Testnet")
-	.with_id("weave-local")
-	.with_chain_type(ChainType::Local)
-	.with_genesis_config_patch(cord_weave_local_testnet_genesis())
-	.with_telemetry_endpoints(
-		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
-			.expect("Cord telemetry url is valid; qed"),
-	)
-	.with_protocol_id(DEFAULT_PROTOCOL_ID)
-	.with_properties(properties)
-	.build())
-}
+// #[cfg(feature = "weave-native")]
+// pub fn weave_local_testnet_config() -> Result<WeaveChainSpec, String> {
+// 	let properties = get_properties("UNITS", 12, 29);
+// 	Ok(WeaveChainSpec::builder(
+// 		cord_weave_runtime::WASM_BINARY.ok_or("Loom wasm not available")?,
+// 		Default::default(),
+// 	)
+// 	.with_name("Weave Local Testnet")
+// 	.with_id("weave-local")
+// 	.with_chain_type(ChainType::Local)
+// 	.with_genesis_config_patch(cord_weave_local_testnet_genesis())
+// 	.with_telemetry_endpoints(
+// 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
+// 			.expect("Cord telemetry url is valid; qed"),
+// 	)
+// 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
+// 	.with_properties(properties)
+// 	.build())
+// }

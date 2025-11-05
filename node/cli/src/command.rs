@@ -29,12 +29,10 @@ use crate::{
 };
 
 use cord_primitives::Block;
-use cord_runtime_common::Ss58AddressFormatPrefix;
 use cord_service::{new_partial, FullClient};
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
 use sc_cli::{Result, SubstrateCli};
 use sc_service::PartialComponents;
-use sp_core::crypto::Ss58AddressFormat;
 use sp_keyring::Sr25519Keyring;
 use std::sync::Arc;
 
@@ -79,37 +77,35 @@ impl SubstrateCli for Cli {
 
 		let id = if id == "" {
 			let n = get_exec_name().unwrap_or_default();
-			["braid", "loom", "weave"]
+			["orb", "loom"]
 				.iter()
 				.cloned()
 				.find(|&chain| n.starts_with(chain))
-				.unwrap_or("loom")
+				.unwrap_or("orb")
 		} else {
 			match id {
-				"braid-dev" | "loom-dev" | "weave-dev" => "dev",
+				"orb-dev" | "loom-dev" => "dev",
 				_ => id,
 			}
 		};
 		Ok(match id {
-			#[cfg(feature = "braid-native")]
-			"braid" | "braid-local" => Box::new(chain_spec::braid_local_testnet_config()?),
+			#[cfg(feature = "orb-native")]
+			"orb" | "orb-local" => Box::new(chain_spec::orb_staging_config()?),
 			#[cfg(feature = "loom-native")]
 			"loom" | "loom-local" => Box::new(chain_spec::loom_local_testnet_config()?),
-			#[cfg(feature = "weave-native")]
-			"weave" | "weave-local" => Box::new(chain_spec::weave_local_testnet_config()?),
 			"dev" => match incoming_id {
-				"braid-dev" => Box::new(chain_spec::braid_development_config()?),
+				"orb-dev" => Box::new(chain_spec::orb_development_config()?),
 				"loom-dev" => Box::new(chain_spec::loom_development_config()?),
-				"weave-dev" => Box::new(chain_spec::weave_development_config()?),
-				_ => Box::new(chain_spec::weave_development_config()?),
+				_ => Box::new(chain_spec::orb_development_config()?),
 			},
-			#[cfg(not(feature = "braid-native"))]
-			name if name.starts_with("braid-") && !name.ends_with(".json") =>
-				Err(format!("`{}` only supported with `braid-native` feature enabled.", name))?,
+			#[cfg(not(feature = "orb-native"))]
+			name if name.starts_with("orb-") && !name.ends_with(".json") => {
+				Err(format!("`{}` only supported with `orb-native` feature enabled.", name))?
+			},
 			#[cfg(not(feature = "loom-native"))]
-			name if name.starts_with("loom-") && !name.ends_with(".json") =>
-				Err(format!("`{}` only supported with `loom-native` feature enabled.", name))?,
-			// "weave" => Box::new(chain_spec::weave_config()?),
+			name if name.starts_with("loom-") && !name.ends_with(".json") => {
+				Err(format!("`{}` only supported with `loom-native` feature enabled.", name))?
+			},
 			path => {
 				let path = std::path::PathBuf::from(path);
 
@@ -119,36 +115,16 @@ impl SubstrateCli for Cli {
 
 				// When the file name starts with the name of one of the known
 				// chains, we use the chain spec for the specific chain.
-				if chain_spec.is_braid() {
-					Box::new(cord_service::BraidChainSpec::from_json_file(path)?)
+				if chain_spec.is_orb() {
+					Box::new(cord_service::OrbChainSpec::from_json_file(path)?)
 				} else if chain_spec.is_loom() {
 					Box::new(cord_service::LoomChainSpec::from_json_file(path)?)
-				} else if chain_spec.is_weave() {
-					Box::new(cord_service::WeaveChainSpec::from_json_file(path)?)
 				} else {
 					chain_spec
 				}
 			},
 		})
 	}
-}
-
-fn set_default_ss58_version(spec: &Box<dyn cord_service::ChainSpec>) {
-	let ss58_version = if spec.is_weave() {
-		Ss58AddressFormatPrefix::Weave.into()
-	} else if spec.is_loom() {
-		Ss58AddressFormatPrefix::Loom.into()
-	} else if spec.is_braid() {
-		Ss58AddressFormatPrefix::Braid.into()
-	} else {
-		spec.properties()
-			.get("ss58Format")
-			.and_then(|v| v.as_u64())
-			.map(|v| Ss58AddressFormat::custom(v as u16))
-			.unwrap_or_else(|| Ss58AddressFormatPrefix::Default.into())
-	};
-
-	sp_core::crypto::set_default_ss58_version(ss58_version);
 }
 
 /// Parse command line arguments into service configuration.
@@ -159,8 +135,6 @@ pub fn run() -> Result<()> {
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
-				let chain_spec = config.chain_spec.cloned_box();
-				set_default_ss58_version(&chain_spec);
 				cord_service::new_full(config, cli).map_err(sc_cli::Error::Service)
 			})
 		},

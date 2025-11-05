@@ -24,7 +24,7 @@ use sc_cli::Result;
 use sc_client_api::UsageProvider;
 use sp_inherents::{InherentData, InherentDataProvider};
 use sp_keyring::Sr25519Keyring;
-use sp_runtime::{generic, OpaqueExtrinsic};
+use sp_runtime::OpaqueExtrinsic;
 
 use std::{sync::Arc, time::Duration};
 
@@ -39,19 +39,19 @@ macro_rules! identify_chain {
 		$generic_code:expr $(,)*
 	) => {
 		match $chain {
-			Chain::Braid => {
-				#[cfg(feature = "braid-native")]
+			Chain::Orb => {
+				#[cfg(feature = "orb-native")]
 				{
-					use cord_braid_runtime as runtime;
+					use cord_orb_runtime as runtime;
 
 					let call = $generic_code;
 
-					Ok(braid_sign_call(call, $nonce, $current_block, $period, $genesis, $signer))
+					Ok(orb_sign_call(call, $nonce, $current_block, $period, $genesis, $signer))
 				}
 
-				#[cfg(not(feature = "braid-native"))]
+				#[cfg(not(feature = "orb-native"))]
 				{
-					Err("`braid-native` feature not enabled")
+					Err("`orb-native` feature not enabled")
 				}
 			},
 			Chain::Loom => {
@@ -67,21 +67,6 @@ macro_rules! identify_chain {
 				#[cfg(not(feature = "loom-native"))]
 				{
 					Err("`loom-native` feature not enabled")
-				}
-			},
-			Chain::Weave => {
-				#[cfg(feature = "weave-native")]
-				{
-					use cord_weave_runtime as runtime;
-
-					let call = $generic_code;
-
-					Ok(weave_sign_call(call, $nonce, $current_block, $period, $genesis, $signer))
-				}
-
-				#[cfg(not(feature = "weave-native"))]
-				{
-					Err("`weave-native` feature not enabled")
 				}
 			},
 			Chain::Unknown => {
@@ -194,9 +179,9 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
 	}
 }
 
-#[cfg(feature = "braid-native")]
-fn braid_sign_call(
-	call: cord_braid_runtime::RuntimeCall,
+#[cfg(feature = "orb-native")]
+fn orb_sign_call(
+	call: cord_orb_runtime::RuntimeCall,
 	nonce: u32,
 	current_block: u64,
 	period: u64,
@@ -204,11 +189,10 @@ fn braid_sign_call(
 	acc: sp_core::sr25519::Pair,
 ) -> OpaqueExtrinsic {
 	use codec::Encode;
-	use cord_braid_runtime as runtime;
+	use cord_orb_runtime as runtime;
 	use sp_core::Pair;
 
 	let extra: runtime::TxExtension = (
-		pallet_network_membership::CheckNetworkMembership::<runtime::Runtime>::new(),
 		frame_system::CheckNonZeroSender::<runtime::Runtime>::new(),
 		frame_system::CheckSpecVersion::<runtime::Runtime>::new(),
 		frame_system::CheckTxVersion::<runtime::Runtime>::new(),
@@ -228,7 +212,6 @@ fn braid_sign_call(
 		call.clone(),
 		extra.clone(),
 		(
-			(),
 			(),
 			runtime::VERSION.spec_version,
 			runtime::VERSION.transaction_version,
@@ -302,62 +285,6 @@ fn loom_sign_call(
 	runtime::UncheckedExtrinsic::new_signed(
 		call,
 		sp_runtime::AccountId32::from(acc.public()).into(),
-		cord_primitives::Signature::Sr25519(signature),
-		extra,
-	)
-	.into()
-}
-
-#[cfg(feature = "weave-native")]
-fn weave_sign_call(
-	call: cord_weave_runtime::RuntimeCall,
-	nonce: u32,
-	current_block: u64,
-	period: u64,
-	genesis: sp_core::H256,
-	acc: sp_core::sr25519::Pair,
-) -> OpaqueExtrinsic {
-	use codec::Encode;
-	use cord_weave_runtime as runtime;
-	use sp_core::Pair;
-
-	let extra: runtime::TxExtension = (
-		frame_system::CheckNonZeroSender::<runtime::Runtime>::new(),
-		frame_system::CheckSpecVersion::<runtime::Runtime>::new(),
-		frame_system::CheckTxVersion::<runtime::Runtime>::new(),
-		frame_system::CheckGenesis::<runtime::Runtime>::new(),
-		frame_system::CheckMortality::<runtime::Runtime>::from(sp_runtime::generic::Era::mortal(
-			period,
-			current_block,
-		)),
-		frame_system::CheckNonce::<runtime::Runtime>::from(nonce),
-		frame_system::CheckWeight::<runtime::Runtime>::new(),
-		pallet_asset_conversion_tx_payment::ChargeAssetTxPayment::<runtime::Runtime>::from(0, None),
-		frame_metadata_hash_extension::CheckMetadataHash::new(false),
-		frame_system::WeightReclaim::<runtime::Runtime>::new(),
-	);
-
-	let payload = runtime::SignedPayload::from_raw(
-		call.clone(),
-		extra.clone(),
-		(
-			(),
-			runtime::VERSION.spec_version,
-			runtime::VERSION.transaction_version,
-			genesis,
-			genesis,
-			(),
-			(),
-			(),
-			None,
-			(),
-		),
-	);
-
-	let signature = payload.using_encoded(|p| acc.sign(p));
-	generic::UncheckedExtrinsic::new_signed(
-		call,
-		<AccountId>::from(sp_runtime::AccountId32::from(acc.public())),
 		cord_primitives::Signature::Sr25519(signature),
 		extra,
 	)
