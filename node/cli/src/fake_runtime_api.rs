@@ -21,7 +21,7 @@
 //! These are used to provide a type that implements these runtime APIs without requiring to import
 //! the native runtimes.
 
-use cord_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Nonce};
+use cord_primitives::{AccountId, Balance, Block, Nonce};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 pub use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;

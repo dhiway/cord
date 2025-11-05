@@ -18,7 +18,7 @@
 
 //! Code related to benchmarking a node.
 
-use crate::service::{create_extrinsic, Chain, FullClient};
+use crate::service::{create_extrinsic, FullClient};
 use cord_orb_runtime::{BalancesCall, SystemCall};
 use cord_primitives::{AccountId, Balance};
 use sc_cli::Result;
@@ -33,13 +33,12 @@ use std::{sync::Arc, time::Duration};
 /// Note: Should only be used for benchmarking.
 pub struct RemarkBuilder {
 	client: Arc<FullClient>,
-	chain: Chain,
 }
 
 impl RemarkBuilder {
 	/// Creates a new [`Self`] from the given client.
-	pub fn new(client: Arc<FullClient>, chain: Chain) -> Self {
-		Self { client, chain }
+	pub fn new(client: Arc<FullClient>) -> Self {
+		Self { client }
 	}
 }
 

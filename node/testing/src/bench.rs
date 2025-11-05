@@ -33,12 +33,12 @@ use crate::{
 	keyring::*,
 };
 use codec::{Decode, Encode};
-use cord_primitives::Block;
-use cord_weave_runtime::{
+use cord_orb_runtime::{
 	AccountId, BalancesCall, CheckedExtrinsic, MinimumPeriod, RuntimeCall, Signature, SystemCall,
 	UncheckedExtrinsic,
 };
-use cord_weave_runtime_constants::currency::UNITS;
+use cord_orb_runtime_constants::currency::UNITS;
+use cord_primitives::Block;
 use futures::executor;
 use sc_block_builder::BlockBuilderBuilder;
 use sc_client_api::{execution_extensions::ExecutionExtensions, UsageProvider};
@@ -302,25 +302,26 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 			CheckedExtrinsic {
 				format: ExtrinsicFormat::Signed(
 					sender,
-					tx_ext(0, cord_weave_runtime::ExistentialDeposit::get() + 1),
+					tx_ext(0, cord_orb_runtime::ExistentialDeposit::get() + 1),
 				),
 				function: match self.content.block_type {
-					BlockType::RandomTransfersKeepAlive =>
+					BlockType::RandomTransfersKeepAlive => {
 						RuntimeCall::Balances(BalancesCall::transfer_keep_alive {
 							dest: sp_runtime::MultiAddress::Id(receiver),
-							value: cord_weave_runtime::ExistentialDeposit::get() + 1,
-						}),
+							value: cord_orb_runtime::ExistentialDeposit::get() + 1,
+						})
+					},
 					BlockType::RandomTransfersReaping => {
 						RuntimeCall::Balances(BalancesCall::transfer_allow_death {
 							dest: sp_runtime::MultiAddress::Id(receiver),
 							// Transfer so that ending balance would be 1 less than existential
 							// deposit so that we kill the sender account.
-							value: 100 * UNITS -
-								(cord_weave_runtime::ExistentialDeposit::get() - 1),
+							value: 100 * UNITS - (cord_orb_runtime::ExistentialDeposit::get() - 1),
 						})
 					},
-					BlockType::Noop =>
-						RuntimeCall::System(SystemCall::remark { remark: Vec::new() }),
+					BlockType::Noop => {
+						RuntimeCall::System(SystemCall::remark { remark: Vec::new() })
+					},
 				},
 			},
 			self.runtime_version.spec_version,
@@ -390,6 +391,7 @@ impl BenchDb {
 			state_pruning: Some(PruningMode::ArchiveAll),
 			source: database_type.into_settings(dir.into()),
 			blocks_pruning: sc_client_db::BlocksPruning::KeepAll,
+			metrics_registry: None,
 		};
 		let task_executor = TaskExecutor::new();
 
@@ -621,7 +623,7 @@ impl sp_runtime::BuildStorage for BenchKeyring {
 	fn assimilate_storage(&self, storage: &mut sp_core::storage::Storage) -> Result<(), String> {
 		storage.top.insert(
 			sp_core::storage::well_known_keys::CODE.to_vec(),
-			cord_weave_runtime::wasm_binary_unwrap().into(),
+			cord_orb_runtime::wasm_binary_unwrap().into(),
 		);
 		crate::genesis::config_endowed(self.collect_account_ids()).assimilate_storage(storage)
 	}

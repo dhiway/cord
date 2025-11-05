@@ -96,11 +96,11 @@ pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> 
 	match runtime_type.as_str() {
 		"orb" | "cord" => {
 			let spec = CordChainSpec::builder(
-				cord_orb_runtime::WASM_BINARY.ok_or("Braid wasm not available")?,
+				cord_orb_runtime::WASM_BINARY.ok_or("Orb wasm not available")?,
 				Default::default(),
 			)
 			.with_name(&chain_name)
-			.with_id("braid-cord-custom")
+			.with_id("cord-orb-custom")
 			.with_chain_type(chain_type)
 			.with_genesis_config_patch(cord_custom_config_genesis(config.clone()))
 			.with_telemetry_endpoints(

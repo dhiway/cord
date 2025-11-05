@@ -25,7 +25,7 @@ use crate::{
 	benchmarking::{inherent_benchmark_data, RemarkBuilder, TransferKeepAliveBuilder},
 	chain_spec,
 	cli::{Cli, Subcommand},
-	service::{self as cord_service, IdentifyVariant, RuntimeApi},
+	service::{self as cord_service, RuntimeApi},
 };
 
 use cord_orb_runtime::ExistentialDeposit;
@@ -36,13 +36,6 @@ use sc_cli::{Result, SubstrateCli};
 use sc_service::PartialComponents;
 use sp_keyring::Sr25519Keyring;
 use std::sync::Arc;
-
-fn get_exec_name() -> Option<String> {
-	std::env::current_exe()
-		.ok()
-		.and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
-		.and_then(|s| s.into_string().ok())
-}
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -211,8 +204,8 @@ pub fn run() -> Result<()> {
 					},
 					BenchmarkCmd::Overhead(cmd) => {
 						// ensure that we keep the task manager alive
-						let partial = new_partial(&config)?;
-						let ext_builder = RemarkBuilder::new(partial.client.clone(),config.chain_spec.identify_chain());
+						let partial = new_partial(&config )?;
+						let ext_builder = RemarkBuilder::new(partial.client.clone());
 
 						cmd.run(
 							config.chain_spec.name().into(),
@@ -220,29 +213,29 @@ pub fn run() -> Result<()> {
 							inherent_benchmark_data()?,
 							Vec::new(),
 							&ext_builder,
-							false
+							false,
 						)
 					},
 					BenchmarkCmd::Extrinsic(cmd) => {
-						// ensure that we keep the task manager alive
-						let partial = cord_service::new_partial(&config)?;
-						// Register the *Remark* and *TKA* builders.
-						let ext_factory = ExtrinsicFactory(vec![
-							Box::new(RemarkBuilder::new(partial.client.clone(),config.chain_spec.identify_chain())),
-							Box::new(TransferKeepAliveBuilder::new(
-								partial.client.clone(),
-								Sr25519Keyring::Alice.to_account_id(),
-								ExistentialDeposit::get(),
-							)),
-						]);
+							// ensure that we keep the task manager alive
+							let partial = new_partial(&config)?;
+							// Register the *Remark* and *TKA* builders.
+							let ext_factory = ExtrinsicFactory(vec![
+								Box::new(RemarkBuilder::new(partial.client.clone())),
+								Box::new(TransferKeepAliveBuilder::new(
+									partial.client.clone(),
+									Sr25519Keyring::Alice.to_account_id(),
+									ExistentialDeposit::get(),
+								)),
+							]);
 
-						cmd.run(
-							partial.client,
-							inherent_benchmark_data()?,
-							Vec::new(),
-							&ext_factory,
-						)
-					},
+							cmd.run(
+								partial.client,
+								inherent_benchmark_data()?,
+								Vec::new(),
+								&ext_factory,
+							)
+						},
 					BenchmarkCmd::Machine(cmd) => {
 						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())
 					},
