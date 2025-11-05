@@ -37,7 +37,7 @@ use sp_staking::SessionIndex;
 // Aliases used outside the pallet module
 type Session<T> = pallet_session::Pallet<T>;
 
-#[cfg(any(test, feature = "runtime-benchmarks"))]
+#[cfg(all(feature = "std", any(test, feature = "runtime-benchmarks")))]
 pub mod mock;
 #[cfg(test)]
 pub mod tests;
@@ -45,7 +45,7 @@ pub mod tests;
 pub mod weights;
 pub use weights::WeightInfo;
 
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(all(feature = "std", feature = "runtime-benchmarks"))]
 mod benchmarking;
 
 #[frame_support::pallet]

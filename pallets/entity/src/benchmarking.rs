@@ -20,7 +20,7 @@
 
 use super::*;
 use crate::{Event as EntityEvent, Pallet as EntityPallet};
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 use cord_primitives::packet::Element;
 use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_system::{Pallet as System, RawOrigin};
