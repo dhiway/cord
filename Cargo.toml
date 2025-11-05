@@ -25,37 +25,19 @@ members = [
 	"origin/relay/runtime/authorities",
 	"origin/relay/runtime/constants",
 	"pallets/authorities",
-	"pallets/collection",
 	"pallets/token",
 	"pallets/entity",
-	"pallets/identity",
-	"pallets/network-membership",
-	"pallets/node-authorization",
-	"pallets/offences",
 	"pallets/register",
-	"pallets/registry",
 	"pallets/remote-proxy",
 	"pallets/runtime-upgrade",
-	"pallets/session-benchmarking",
 	"primitives/cord",
-	"primitives/network-membership",
-	"runtimes/common",
-	"runtimes/common/api/assets",
-	"runtimes/common/api/token",
-	"runtimes/common/authorities",
-	"runtimes/braid/",
-	"runtimes/braid/constants",
-	"runtimes/loom/",
-	"runtimes/loom/constants",
-	"runtimes/weave/",
-	"runtimes/weave/constants",
-	"runtimes/orb/",
-	"runtimes/orb/constants",
+	"runtime/",
+	"runtime/common",
+	"runtime/constants",
 	"test-utils/cli",
-	"pallets/profile",
-	"pallets/entry",
 ]
-default-members = ["node/cli", "origin/relay"]
+default-members = ["node/cli" ]
+# default-members = ["node/cli", "origin/relay"]
 
 [workspace.lints.rust]
 suspicious_double_ref_op = { level = "allow", priority = 2 }
@@ -744,49 +726,23 @@ zombienet-sdk = { version = "0.3.8" }
 zstd = { version = "0.12.4", default-features = false }
 
 # local dependencies
-authority-membership = { path = "runtimes/common/authorities", default-features = false }
-cord-token-runtime-api = { path = "runtimes/common/api/token", default-features = false }
 cord-node-cli = { path = "node/cli", default-features = false }
 cord-primitives = { path = "primitives/cord", default-features = false }
 cord-utilities = { path = "utilities", default-features = false }
-network-membership = { path = "primitives/network-membership", default-features = false }
-cord-braid-runtime = { path = "runtimes/braid", default-features = false }
-cord-braid-runtime-constants = { path = "runtimes/braid/constants", default-features = false }
-cord-runtime-common = { path = "runtimes/common", default-features = false }
-cord-loom-runtime = { path = "runtimes/loom", default-features = false }
-cord-loom-runtime-constants = { path = "runtimes/loom/constants", default-features = false }
-cord-weave-runtime = { path = "runtimes/weave", default-features = false }
-cord-weave-runtime-constants = { path = "runtimes/weave/constants", default-features = false }
-cord-orb-runtime = { path = "runtimes/orb", default-features = false }
-cord-orb-runtime-constants = { path = "runtimes/orb/constants", default-features = false }
+cord-runtime-common = { path = "runtime/common", default-features = false }
+cord-orb-runtime = { path = "runtime/", default-features = false }
+cord-orb-runtime-constants = { path = "runtime/constants", default-features = false }
 cord-node-service = { path = "node/service", default-features = false }
 cord-node-inspect = { path = "node/inspect", default-features = false }
 cord-node-rpc = { path = "node/rpc", default-features = false }
 cord-node-testing = { path = "node/testing", default-features = false }
 cord-cli-test-utils = { path = "test-utils/cli", default-features = false }
-pallet-council-membership = { path = 'pallets/membership/', default-features = false }
 pallet-authorities = { path = 'pallets/authorities', default-features = false }
-pallet-collection = { path = 'pallets/collection/', default-features = false }
-pallet-network-membership = { path = 'pallets/network-membership', default-features = false }
 pallet-register = { path = 'pallets/register/', default-features = false }
-pallet-registry = { path = 'pallets/registry/', default-features = false }
 pallet-remote-proxy = { path = 'pallets/remote-proxy/', default-features = false }
-pallet-entry = { path = 'pallets/entry', default-features = false }
 pallet-runtime-upgrade = { path = 'pallets/runtime-upgrade', default-features = false }
-pallet-cord-identity = { path = 'pallets/identity', default-features = false }
-pallet-cord-offences = { path = 'pallets/offences', default-features = false }
-pallet-cord-node-authorization = { path = "pallets/node-authorization", default-features = false }
-pallet-network-score = { path = 'pallets/network-score', default-features = false }
-pallet-cord-session-benchmarking = { path = 'pallets/session-benchmarking', default-features = false }
-pallet-assets-runtime-api = { path = "runtimes/common/api/assets", default-features = false }
 pallet-token = { path = "pallets/token", default-features = false }
-pallet-registries = { path = "pallets/registries", default-features = false }
-pallet-entries = { path = "pallets/entries", default-features = false }
 pallet-entity = { path = "pallets/entity", default-features = false }
-pallet-schema-accounts = { path = "pallets/schema-accounts", default-features = false }
-pallet-namespace = { path = 'pallets/namespace', default-features = false }
-pallet-profile = { path = "pallets/profile", default-features = false }
-people-origin-runtime = { path = "system-parachains/people" }
 origin-staging-runtime = { path = "origin/relay/runtime" }
 origin-staging-runtime-constants = { path = "origin/relay/runtime/constants", default-features = false }
 origin-node-cli = { path = "origin/relay/cli", default-features = false }

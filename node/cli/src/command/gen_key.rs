@@ -62,12 +62,10 @@ pub struct GenSessionKeysCmd {
 	pub keystore_params: KeystoreParams,
 }
 
-const KEY_TYPES: [(KeyTypeId, CryptoScheme); 5] = [
-	(KeyTypeId(*b"gran"), CryptoScheme::Ed25519),
+const KEY_TYPES: [(KeyTypeId, CryptoScheme); 3] = [
 	(KeyTypeId(*b"babe"), CryptoScheme::Sr25519),
-	(KeyTypeId(*b"imon"), CryptoScheme::Sr25519),
+	(KeyTypeId(*b"gran"), CryptoScheme::Ed25519),
 	(KeyTypeId(*b"audi"), CryptoScheme::Sr25519),
-	(KeyTypeId(*b"beef"), CryptoScheme::Ecdsa),
 ];
 
 impl GenSessionKeysCmd {
@@ -101,29 +99,18 @@ impl GenSessionKeysCmd {
 		}
 
 		let mut buffer = [0; 32];
-		let mut ecdsa_buffer = [0; 33];
-
-		// grandpa
-		buffer.copy_from_slice(&public_keys_bytes[..32]);
-		println!("grandpa: {}", AccountId32::new(buffer));
 
 		// babe
-		buffer.copy_from_slice(&public_keys_bytes[32..64]);
+		buffer.copy_from_slice(&public_keys_bytes[..32]);
 		println!("babe: {}", AccountId32::new(buffer));
 
-		// im_online
-		buffer.copy_from_slice(&public_keys_bytes[64..96]);
-		println!("im_online: {}", AccountId32::new(buffer));
+		// grandpa
+		buffer.copy_from_slice(&public_keys_bytes[32..64]);
+		println!("grandpa: {}", AccountId32::new(buffer));
 
 		// authority discovery
-		buffer.copy_from_slice(&public_keys_bytes[96..128]);
+		buffer.copy_from_slice(&public_keys_bytes[64..96]);
 		println!("authority_discovery: {}", AccountId32::new(buffer));
-
-		// beefy (ECDSA key with 33 bytes)
-		ecdsa_buffer.copy_from_slice(&public_keys_bytes[128..]);
-		// println!("beefy (raw): {:?}", ecdsa_buffer);
-		buffer.copy_from_slice(&ecdsa_buffer[1..]);
-		println!("beefy: {}", AccountId32::new(buffer));
 
 		println!("Session Keys: 0x{}", hex::encode(public_keys_bytes));
 

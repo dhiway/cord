@@ -13,7 +13,6 @@ scale-info = { features = ["derive"], workspace = true }
 serde_json = { features = ["alloc"], workspace = true }
 log = { workspace = true }
 
-cord-token-runtime-api = { workspace = true }
 cord-primitives = { workspace = true }
 
 authority-discovery-primitives = { workspace = true }
@@ -121,7 +120,6 @@ std = [
 	"binary-merkle-tree/std",
 	"codec/std",
 	"cord-primitives/std",
-	"cord-token-runtime-api/std",
 	"origin-authorities/std",
 	"origin-staging-runtime-constants/std",
 	"frame-benchmarking?/std",

@@ -23,8 +23,8 @@ frame-system.default-features = true
 frame-system.workspace = true
 fs_extra = { workspace = true }
 futures = { workspace = true }
-cord-weave-runtime.workspace = true
-cord-weave-runtime-constants.workspace = true
+cord-orb-runtime.workspace = true
+cord-orb-runtime-constants.workspace = true
 log = { workspace = true, default-features = true }
 cord-node-cli.workspace = true
 cord-primitives.workspace = true
