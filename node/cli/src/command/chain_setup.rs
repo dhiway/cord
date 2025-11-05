@@ -35,12 +35,8 @@ pub struct ChainConfigParams {
 	pub chain_type: String,
 	pub runtime_type: String,
 	pub authorities: Vec<Vec<String>>,
-	pub well_known_nodes: Vec<Vec<String>>,
-	pub network_members: Vec<Vec<String>>,
-	pub council_members: Option<Vec<String>>,
-	pub tech_committee_members: Option<Vec<String>>,
 	pub sudo_key: Option<String>,
-	pub network_id: i32,
+	pub network_id: u32,
 }
 
 #[derive(Debug, Args)]
@@ -58,8 +54,8 @@ impl BootstrapChainCmd {
 		let config: ChainConfigParams =
 			toml::from_str(&toml_config).map_err(|e| sc_cli::Error::Application(Box::new(e)))?;
 
-		if config.authorities.is_empty() || config.well_known_nodes.is_empty() {
-			eprintln!("Error: authorities and well_known_nodes cannot be empty");
+		if config.authorities.is_empty() {
+			eprintln!("Error: authorities cannot be empty");
 			std::process::exit(1);
 		}
 
@@ -104,34 +100,11 @@ impl BootstrapChainCmd {
 				.into());
 			};
 
-		let initial_members: Vec<String> =
-			config.network_members.iter().map(|net| net[1].clone()).collect();
-
-		let initial_well_known_nodes: Vec<Vec<String>> = config
-			.well_known_nodes
-			.iter()
-			.map(|node| vec![node[1].clone(), node[2].clone()])
-			.collect();
-
 		let initial_authorities: Vec<Vec<String>> = config
 			.authorities
 			.iter()
 			.map(|auth| vec![auth[1].clone(), auth[2].clone(), auth[3].clone()])
 			.collect();
-
-		let initial_council_members: Vec<String> =
-			if let Some(council_members) = &config.council_members {
-				council_members.to_vec()
-			} else {
-				config.authorities.iter().map(|auth| auth[1].clone()).collect()
-			};
-
-		let initial_tech_committee_members: Vec<String> =
-			if let Some(committee_members) = &config.tech_committee_members {
-				committee_members.to_vec()
-			} else {
-				config.authorities.iter().map(|auth| auth[1].clone()).collect()
-			};
 
 		let initial_sudo_key: String = config.sudo_key.unwrap_or_else(|| {
 			config
@@ -145,17 +118,13 @@ impl BootstrapChainCmd {
 		 * deployments. Currently we have the default protocol_id as 'c0rd' which is standalone
 		 * mode & it requires the network-id to be in range of [100, 1999)
 		 */
-		let network_id: i32 = config.network_id;
+		let network_id: u32 = config.network_id;
 
 		let chain_params = ChainParams {
 			chain_name,
 			chain_type,
 			runtime_type,
 			authorities: initial_authorities,
-			well_known_nodes: initial_well_known_nodes,
-			network_members: initial_members,
-			council_members: initial_council_members,
-			tech_committee_members: initial_tech_committee_members,
 			sudo_key: initial_sudo_key,
 			network_id,
 		};

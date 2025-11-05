@@ -28,6 +28,7 @@ use crate::{
 	service::{self as cord_service, IdentifyVariant, RuntimeApi},
 };
 
+use cord_orb_runtime::ExistentialDeposit;
 use cord_primitives::Block;
 use cord_service::{new_partial, FullClient};
 use frame_benchmarking_cli::{BenchmarkCmd, ExtrinsicFactory, SUBSTRATE_REFERENCE_HARDWARE};
@@ -72,58 +73,32 @@ impl SubstrateCli for Cli {
 		"cord".into()
 	}
 
-	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-		let incoming_id = id;
+	fn load_spec(&self, id: &str) -> sc_service::Result<Box<dyn sc_service::ChainSpec>, String> {
+		use std::path::PathBuf;
 
-		let id = if id == "" {
-			let n = get_exec_name().unwrap_or_default();
-			["orb", "loom"]
-				.iter()
-				.cloned()
-				.find(|&chain| n.starts_with(chain))
-				.unwrap_or("orb")
-		} else {
-			match id {
-				"orb-dev" | "loom-dev" => "dev",
-				_ => id,
-			}
-		};
-		Ok(match id {
-			#[cfg(feature = "orb-native")]
-			"orb" | "orb-local" => Box::new(chain_spec::orb_staging_config()?),
-			#[cfg(feature = "loom-native")]
-			"loom" | "loom-local" => Box::new(chain_spec::loom_local_testnet_config()?),
-			"dev" => match incoming_id {
-				"orb-dev" => Box::new(chain_spec::orb_development_config()?),
-				"loom-dev" => Box::new(chain_spec::loom_development_config()?),
-				_ => Box::new(chain_spec::orb_development_config()?),
+		// require an explicit --chain
+		if id.is_empty() {
+			return Err(
+				"Please specify which chain you want to run, e.g. --dev or --chain=orb".into()
+			);
+		}
+
+		let spec: Box<dyn sc_service::ChainSpec> = match id {
+			"dev" | "orb-dev" | "cord-dev" => {
+				Box::new(chain_spec::orb_development_config().map_err(|e| e.to_string())?)
 			},
-			#[cfg(not(feature = "orb-native"))]
-			name if name.starts_with("orb-") && !name.ends_with(".json") => {
-				Err(format!("`{}` only supported with `orb-native` feature enabled.", name))?
-			},
-			#[cfg(not(feature = "loom-native"))]
-			name if name.starts_with("loom-") && !name.ends_with(".json") => {
-				Err(format!("`{}` only supported with `loom-native` feature enabled.", name))?
+
+			"local" | "orb" | "orb-local" | "cord" | "cord-local" => {
+				Box::new(chain_spec::orb_staging_config().map_err(|e| e.to_string())?)
 			},
 			path => {
-				let path = std::path::PathBuf::from(path);
-
-				let chain_spec =
-					Box::new(cord_service::GenericChainSpec::from_json_file(path.clone())?)
-						as Box<dyn cord_service::ChainSpec>;
-
-				// When the file name starts with the name of one of the known
-				// chains, we use the chain spec for the specific chain.
-				if chain_spec.is_orb() {
-					Box::new(cord_service::OrbChainSpec::from_json_file(path)?)
-				} else if chain_spec.is_loom() {
-					Box::new(cord_service::LoomChainSpec::from_json_file(path)?)
-				} else {
-					chain_spec
-				}
+				let spec = cord_service::GenericCordChainSpec::from_json_file(PathBuf::from(path))
+					.map_err(|e| e.to_string())?;
+				Box::new(spec)
 			},
-		})
+		};
+
+		Ok(spec)
 	}
 }
 
@@ -257,7 +232,7 @@ pub fn run() -> Result<()> {
 							Box::new(TransferKeepAliveBuilder::new(
 								partial.client.clone(),
 								Sr25519Keyring::Alice.to_account_id(),
-								config.chain_spec.identify_chain(),
+								ExistentialDeposit::get(),
 							)),
 						]);
 

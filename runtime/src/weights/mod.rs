@@ -16,27 +16,26 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! CORD CLI library.
+//! A list of the different weight modules for our runtime.
 
-#![warn(missing_docs)]
-
-#[cfg(feature = "cli")]
-pub mod benchmarking;
-pub mod chain_spec;
-pub mod fake_runtime_api;
-pub mod service;
-
-#[cfg(feature = "cli")]
-mod cli;
-
-#[cfg(feature = "cli")]
-mod command;
-
-#[cfg(feature = "cli")]
-pub use cli::*;
-
-#[cfg(feature = "cli")]
-pub use command::*;
-
-#[cfg(feature = "cli")]
-pub use sc_cli::{Error, Result};
+pub mod frame_system;
+pub mod frame_system_extensions;
+pub mod pallet_babe;
+pub mod pallet_balances;
+pub mod pallet_entity;
+pub mod pallet_indices;
+pub mod pallet_meta_tx;
+pub mod pallet_migrations;
+pub mod pallet_multisig;
+pub mod pallet_preimage;
+pub mod pallet_proxy;
+pub mod pallet_remark;
+pub mod pallet_safe_mode;
+pub mod pallet_scheduler;
+pub mod pallet_session;
+pub mod pallet_sudo;
+pub mod pallet_timestamp;
+pub mod pallet_transaction_payment;
+pub mod pallet_tx_pause;
+pub mod pallet_utility;
+pub mod pallet_verify_signature;

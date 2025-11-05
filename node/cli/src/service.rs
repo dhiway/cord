@@ -24,13 +24,11 @@
 use crate::cli::Cli;
 use codec::Encode;
 
-#[cfg(feature = "full-node")]
 use {
 	sc_client_api::BlockBackend,
 	sc_consensus_grandpa::{self},
 };
 
-#[cfg(feature = "full-node")]
 pub use {
 	sc_client_api::AuxStore,
 	sp_authority_discovery::AuthorityDiscoveryApi,
@@ -42,11 +40,10 @@ use sc_service::RpcHandlers;
 use sc_telemetry::TelemetryWorker;
 use std::{path::Path, sync::Arc};
 
-#[cfg(feature = "full-node")]
 use sc_telemetry::Telemetry;
 
 pub use crate::{
-	chain_spec::{GenericChainSpec, LoomChainSpec, OrbChainSpec},
+	chain_spec::GenericCordChainSpec,
 	fake_runtime_api::{GetLastTimestamp, RuntimeApi},
 };
 pub use cord_primitives::Block;
@@ -82,12 +79,39 @@ use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_core::crypto::Pair;
 pub use sp_runtime::{OpaqueExtrinsic, SaturatedConversion};
 
-#[cfg(feature = "loom-native")]
-pub use {cord_loom_runtime, cord_loom_runtime_constants};
-#[cfg(feature = "orb-native")]
-pub use {cord_orb_runtime, cord_orb_runtime_constants};
-// #[cfg(feature = "weave-native")]
-// pub use {cord_weave_runtime, cord_weave_runtime_constants};
+/// Host functions required for kitchensink runtime and Substrate node.
+#[cfg(not(feature = "runtime-benchmarks"))]
+pub type HostFunctions =
+	(sp_io::SubstrateHostFunctions, sp_statement_store::runtime_api::HostFunctions);
+
+/// Host functions required for kitchensink runtime and Substrate node.
+#[cfg(feature = "runtime-benchmarks")]
+pub type HostFunctions = (
+	sp_io::SubstrateHostFunctions,
+	sp_statement_store::runtime_api::HostFunctions,
+	frame_benchmarking::benchmarking::HostFunctions,
+);
+
+/// A specialized `WasmExecutor` intended to use across substrate node. It provides all required
+/// HostFunctions.
+pub type RuntimeExecutor = sc_executor::WasmExecutor<HostFunctions>;
+
+/// The full client type definition.
+pub type FullClient = sc_service::TFullClient<Block, RuntimeApi, RuntimeExecutor>;
+type FullBackend = sc_service::TFullBackend<Block>;
+type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
+type FullGrandpaBlockImport =
+	sc_consensus_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
+
+/// The transaction pool type defintion.
+pub type TransactionPool = sc_transaction_pool::TransactionPoolHandle<Block, FullClient>;
+
+// #[cfg(feature = "loom-native")]
+// pub use {cord_loom_runtime, cord_loom_runtime_constants};
+// #[cfg(feature = "orb-native")]
+// pub use {cord_orb_runtime, cord_orb_runtime_constants};
+// // #[cfg(feature = "weave-native")]
+// // pub use {cord_weave_runtime, cord_weave_runtime_constants};
 
 /// The minimum period of blocks on which justifications will be
 /// imported and generated.
@@ -169,109 +193,11 @@ pub fn create_extrinsic(
 	)
 }
 
-// /// Provides the header and block number for a hash.
-// ///
-// /// Decouples `sc_client_api::Backend` and `sp_blockchain::HeaderBackend`.
-// pub trait HeaderProvider<Block, Error = sp_blockchain::Error>: Send + Sync + 'static
-// where
-// 	Block: BlockT,
-// 	Error: std::fmt::Debug + Send + Sync + 'static,
-// {
-// 	/// Obtain the header for a hash.
-// 	fn header(
-// 		&self,
-// 		hash: <Block as BlockT>::Hash,
-// 	) -> Result<Option<<Block as BlockT>::Header>, Error>;
-// 	/// Obtain the block number for a hash.
-// 	fn number(
-// 		&self,
-// 		hash: <Block as BlockT>::Hash,
-// 	) -> Result<Option<<<Block as BlockT>::Header as HeaderT>::Number>, Error>;
-// }
-
-// impl<Block, T> HeaderProvider<Block> for T
-// where
-// 	Block: BlockT,
-// 	T: sp_blockchain::HeaderBackend<Block> + 'static,
-// {
-// 	fn header(
-// 		&self,
-// 		hash: Block::Hash,
-// 	) -> sp_blockchain::Result<Option<<Block as BlockT>::Header>> {
-// 		<Self as sp_blockchain::HeaderBackend<Block>>::header(self, hash)
-// 	}
-// 	fn number(
-// 		&self,
-// 		hash: Block::Hash,
-// 	) -> sp_blockchain::Result<Option<<<Block as BlockT>::Header as HeaderT>::Number>> {
-// 		<Self as sp_blockchain::HeaderBackend<Block>>::number(self, hash)
-// 	}
-// }
-
-// /// Decoupling the provider.
-// ///
-// /// Mandated since `trait HeaderProvider` can only be
-// /// implemented once for a generic `T`.
-// pub trait HeaderProviderProvider<Block>: Send + Sync + 'static
-// where
-// 	Block: BlockT,
-// {
-// 	type Provider: HeaderProvider<Block> + 'static;
-
-// 	fn header_provider(&self) -> &Self::Provider;
-// }
-
-// impl<Block, T> HeaderProviderProvider<Block> for T
-// where
-// 	Block: BlockT,
-// 	T: sc_client_api::Backend<Block> + 'static,
-// {
-// 	type Provider = <T as sc_client_api::Backend<Block>>::Blockchain;
-
-// 	fn header_provider(&self) -> &Self::Provider {
-// 		self.blockchain()
-// 	}
-// }
-
-// #[derive(thiserror::Error, Debug)]
-// pub enum Error {
-// 	#[error(transparent)]
-// 	Io(#[from] std::io::Error),
-
-// 	#[error(transparent)]
-// 	AddrFormatInvalid(#[from] std::net::AddrParseError),
-
-// 	#[error(transparent)]
-// 	Sub(#[from] ServiceError),
-
-// 	#[error(transparent)]
-// 	Blockchain(#[from] sp_blockchain::Error),
-
-// 	#[error(transparent)]
-// 	Consensus(#[from] sp_consensus::Error),
-
-// 	#[error(transparent)]
-// 	Prometheus(#[from] prometheus_endpoint::PrometheusError),
-
-// 	#[error(transparent)]
-// 	Telemetry(#[from] sc_telemetry::Error),
-
-// 	#[cfg(feature = "full-node")]
-// 	#[error("Creating a custom database is required for validators")]
-// 	DatabasePathRequired,
-
-// 	#[cfg(feature = "full-node")]
-// 	#[error("Expected at least one of braid, loom or weave runtime feature")]
-// 	NoRuntime,
-// }
-
 /// Identifies the variant of the chain.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Chain {
 	/// orb
 	Orb,
-	/// Loom.
-	Loom,
 	/// Unknown chain?
 	Unknown,
 }
@@ -279,9 +205,6 @@ pub enum Chain {
 pub trait IdentifyVariant {
 	/// Returns `true` if this is a configuration for braid network.
 	fn is_orb(&self) -> bool;
-
-	/// Returns `true` if this is a configuration for loom network.
-	fn is_loom(&self) -> bool;
 
 	/// Returns true if this configuration is for a development network.
 	fn is_dev(&self) -> bool;
@@ -294,57 +217,20 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 	fn is_orb(&self) -> bool {
 		self.id().starts_with("orb")
 	}
-	fn is_loom(&self) -> bool {
-		self.id().starts_with("loom")
-	}
 	fn is_dev(&self) -> bool {
 		self.id().ends_with("dev")
 	}
 	fn identify_chain(&self) -> Chain {
 		if self.is_orb() {
 			Chain::Orb
-		} else if self.is_loom() {
-			Chain::Loom
 		} else {
 			Chain::Unknown
 		}
 	}
 }
 
-/// Host functions required for runtime and node.
-#[cfg(not(feature = "runtime-benchmarks"))]
-pub type HostFunctions =
-	(sp_io::SubstrateHostFunctions, sp_statement_store::runtime_api::HostFunctions);
-
-/// Host functions required for runtime and node.
-#[cfg(feature = "runtime-benchmarks")]
-pub type HostFunctions = (
-	sp_io::SubstrateHostFunctions,
-	sp_statement_store::runtime_api::HostFunctions,
-	frame_benchmarking::benchmarking::HostFunctions,
-);
-
-/// A specialized `WasmExecutor` intended to use across substrate node. It provides all required
-/// HostFunctions.
-pub type RuntimeExecutor = sc_executor::WasmExecutor<HostFunctions>;
-
-/// The full client type definition.
-#[cfg(feature = "full-node")]
-pub type FullClient = sc_service::TFullClient<Block, RuntimeApi, RuntimeExecutor>;
-#[cfg(feature = "full-node")]
-type FullBackend = sc_service::TFullBackend<Block>;
-#[cfg(feature = "full-node")]
-type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
-#[cfg(feature = "full-node")]
-type FullGrandpaBlockImport =
-	sc_consensus_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
-
-/// The transaction pool type defintion.
-pub type TransactionPool = sc_transaction_pool::TransactionPoolHandle<Block, FullClient>;
-
 /// Creates PartialComponents for a node.
 /// Enables chain operations for cases when full node is unnecessary.
-#[cfg(feature = "full-node")]
 pub fn new_partial(
 	config: &Configuration,
 ) -> Result<
@@ -529,7 +415,6 @@ pub fn new_partial(
 }
 
 /// Result of [`new_full_base`].
-#[cfg(feature = "full-node")]
 pub struct NewFullBase {
 	/// The task manager of the node.
 	pub task_manager: TaskManager,
@@ -546,7 +431,6 @@ pub struct NewFullBase {
 }
 
 /// Creates a full service from the configuration.
-#[cfg(feature = "full-node")]
 pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	config: Configuration,
 	disable_hardware_benchmarks: bool,
@@ -563,7 +447,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 ) -> Result<NewFullBase, ServiceError> {
 	let role = config.role;
 	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks = if config.chain_spec.is_orb() || config.chain_spec.is_loom() {
+	let backoff_authoring_blocks = if config.chain_spec.is_orb() {
 		// the block authoring backoff is disabled on production networks
 		None
 	} else {
@@ -881,102 +765,38 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	})
 }
 
-#[cfg(feature = "full-node")]
-pub trait RuntimeConfig {
-	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError>;
-}
-
-#[cfg(feature = "full-node")]
-pub struct OrbRuntime;
-#[cfg(feature = "full-node")]
-impl RuntimeConfig for OrbRuntime {
-	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
-		let database_path = config.database.path().map(Path::to_path_buf);
-		let task_manager = match config.network.network_backend {
-			sc_network::config::NetworkBackendType::Libp2p => {
-				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
-					config,
-					cli.no_hardware_benchmarks,
-					|_, _| (),
-				)
-				.map(|NewFullBase { task_manager, .. }| task_manager)?;
-				task_manager
-			},
-			sc_network::config::NetworkBackendType::Litep2p => {
-				let task_manager = new_full_base::<sc_network::Litep2pNetworkBackend>(
-					config,
-					cli.no_hardware_benchmarks,
-					|_, _| (),
-				)
-				.map(|NewFullBase { task_manager, .. }| task_manager)?;
-				task_manager
-			},
-		};
-
-		if let Some(database_path) = database_path {
-			sc_storage_monitor::StorageMonitorService::try_spawn(
-				cli.storage_monitor,
-				database_path,
-				&task_manager.spawn_essential_handle(),
-			)
-			.map_err(|e| ServiceError::Application(e.into()))?;
-		}
-
-		Ok(task_manager)
-	}
-}
-
-#[cfg(feature = "full-node")]
-pub struct LoomRuntime;
-#[cfg(feature = "full-node")]
-impl RuntimeConfig for LoomRuntime {
-	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
-		let database_path = config.database.path().map(Path::to_path_buf);
-		let task_manager = match config.network.network_backend {
-			sc_network::config::NetworkBackendType::Libp2p => {
-				let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
-					config,
-					cli.no_hardware_benchmarks,
-					|_, _| (),
-				)
-				.map(|NewFullBase { task_manager, .. }| task_manager)?;
-				task_manager
-			},
-			sc_network::config::NetworkBackendType::Litep2p => {
-				let task_manager = new_full_base::<sc_network::Litep2pNetworkBackend>(
-					config,
-					cli.no_hardware_benchmarks,
-					|_, _| (),
-				)
-				.map(|NewFullBase { task_manager, .. }| task_manager)?;
-				task_manager
-			},
-		};
-
-		if let Some(database_path) = database_path {
-			sc_storage_monitor::StorageMonitorService::try_spawn(
-				cli.storage_monitor,
-				database_path,
-				&task_manager.spawn_essential_handle(),
-			)
-			.map_err(|e| ServiceError::Application(e.into()))?;
-		}
-
-		Ok(task_manager)
-	}
-}
-
-pub fn select_runtime(config: &Configuration) -> Box<dyn RuntimeConfig> {
-	if config.chain_spec.is_orb() {
-		Box::new(OrbRuntime)
-	} else if config.chain_spec.is_loom() {
-		Box::new(LoomRuntime)
-	} else {
-		panic!("Unsupported runtime");
-	}
-}
-
+/// Builds a new service for a full client.
 pub fn new_full(config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
-	let runtime = select_runtime(&config);
-	runtime.new_full(config, cli)
+	let database_path = config.database.path().map(Path::to_path_buf);
+	let task_manager = match config.network.network_backend {
+		sc_network::config::NetworkBackendType::Libp2p => {
+			let task_manager = new_full_base::<sc_network::NetworkWorker<_, _>>(
+				config,
+				cli.no_hardware_benchmarks,
+				|_, _| (),
+			)
+			.map(|NewFullBase { task_manager, .. }| task_manager)?;
+			task_manager
+		},
+		sc_network::config::NetworkBackendType::Litep2p => {
+			let task_manager = new_full_base::<sc_network::Litep2pNetworkBackend>(
+				config,
+				cli.no_hardware_benchmarks,
+				|_, _| (),
+			)
+			.map(|NewFullBase { task_manager, .. }| task_manager)?;
+			task_manager
+		},
+	};
+
+	if let Some(database_path) = database_path {
+		sc_storage_monitor::StorageMonitorService::try_spawn(
+			cli.storage_monitor,
+			database_path,
+			&task_manager.spawn_essential_handle(),
+		)
+		.map_err(|e| ServiceError::Application(e.into()))?;
+	}
+
+	Ok(task_manager)
 }

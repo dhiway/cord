@@ -20,12 +20,10 @@
 //!
 //! These are used to provide a type that implements these runtime APIs without requiring to import
 //! the native runtimes.
-#![allow(missing_docs)]
 
 use cord_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Nonce};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 pub use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_consensus_beefy::ecdsa_crypto::{AuthorityId as BeefyId, Signature as BeefySignature};
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 
 use sp_core::OpaqueMetadata;
@@ -45,6 +43,7 @@ sp_api::decl_runtime_apis! {
 	}
 }
 
+#[allow(dead_code)]
 struct Runtime;
 
 sp_api::impl_runtime_apis! {
@@ -72,6 +71,18 @@ sp_api::impl_runtime_apis! {
 		}
 
 		fn metadata_versions() -> Vec<u32> {
+			unimplemented!()
+		}
+	}
+
+	impl frame_support::view_functions::runtime_api::RuntimeViewFunction<Block> for Runtime {
+		fn execute_view_function(
+			_: frame_support::view_functions::ViewFunctionId,
+			_: Vec<u8>,
+		) -> Result<
+			Vec<u8>,
+			frame_support::view_functions::ViewFunctionDispatchError,
+		> {
 			unimplemented!()
 		}
 	}
@@ -118,90 +129,6 @@ sp_api::impl_runtime_apis! {
 			_: sp_statement_store::runtime_api::StatementSource,
 			_: sp_statement_store::Statement,
 		) -> Result<sp_statement_store::runtime_api::ValidStatement, sp_statement_store::runtime_api::InvalidStatement> {
-			unimplemented!()
-		}
-	}
-
-	impl sp_consensus_beefy::BeefyApi<Block, BeefyId> for Runtime {
-		fn beefy_genesis() -> Option<BlockNumber> {
-			unimplemented!()
-		}
-
-		fn validator_set() -> Option<sp_consensus_beefy::ValidatorSet<BeefyId>> {
-			unimplemented!()
-		}
-
-		fn submit_report_double_voting_unsigned_extrinsic(
-			_: sp_consensus_beefy::DoubleVotingProof<
-				BlockNumber,
-				BeefyId,
-				BeefySignature,
-			>,
-			_: sp_consensus_beefy::OpaqueKeyOwnershipProof,
-		) -> Option<()> {
-			unimplemented!()
-		}
-
-		fn submit_report_fork_voting_unsigned_extrinsic(
-			_: sp_consensus_beefy::ForkVotingProof<
-				<Block as BlockT>::Header,
-				BeefyId,
-				sp_runtime::OpaqueValue
-			>,
-			_: sp_consensus_beefy::OpaqueKeyOwnershipProof,
-		) -> Option<()> {
-			unimplemented!()
-		}
-
-		fn submit_report_future_block_voting_unsigned_extrinsic(
-			_: sp_consensus_beefy::FutureBlockVotingProof<BlockNumber, BeefyId>,
-			_: sp_consensus_beefy::OpaqueKeyOwnershipProof,
-		) -> Option<()> {
-			unimplemented!()
-		}
-
-		fn generate_key_ownership_proof(
-			_: sp_consensus_beefy::ValidatorSetId,
-			_: BeefyId,
-		) -> Option<sp_consensus_beefy::OpaqueKeyOwnershipProof> {
-			unimplemented!()
-		}
-
-		fn generate_ancestry_proof(
-			_: BlockNumber,
-			_: Option<BlockNumber>,
-		) -> Option<sp_runtime::OpaqueValue> {
-			unimplemented!()
-		}
-	}
-
-	impl sp_mmr_primitives::MmrApi<Block, Hash, BlockNumber> for Runtime {
-		fn mmr_root() -> Result<Hash, sp_mmr_primitives::Error> {
-			unimplemented!()
-		}
-
-		fn mmr_leaf_count() -> Result<sp_mmr_primitives::LeafIndex, sp_mmr_primitives::Error> {
-			unimplemented!()
-		}
-
-		fn generate_proof(
-			_: Vec<BlockNumber>,
-			_: Option<BlockNumber>,
-		) -> Result<(Vec<sp_mmr_primitives::EncodableOpaqueLeaf>, sp_mmr_primitives::LeafProof<Hash>), sp_mmr_primitives::Error> {
-			unimplemented!()
-		}
-
-		fn verify_proof(_: Vec<sp_mmr_primitives::EncodableOpaqueLeaf>, _: sp_mmr_primitives::LeafProof<Hash>)
-			-> Result<(), sp_mmr_primitives::Error>
-		{
-			unimplemented!()
-		}
-
-		fn verify_proof_stateless(
-			_: Hash,
-			_: Vec<sp_mmr_primitives::EncodableOpaqueLeaf>,
-			_: sp_mmr_primitives::LeafProof<Hash>
-		) -> Result<(), sp_mmr_primitives::Error> {
 			unimplemented!()
 		}
 	}

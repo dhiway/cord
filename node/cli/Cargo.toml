@@ -35,7 +35,6 @@ jsonrpsee = { features = ["server"], workspace = true }
 futures = { workspace = true }
 log = { workspace = true, default-features = true }
 rand = { workspace = true, default-features = true }
-subxt-signer = { workspace = true, features = ["unstable-eth"] }
 hex = { workspace = true }
 toml = { workspace = true }
 kvdb = { workspace = true }
@@ -51,7 +50,7 @@ tikv-jemallocator = { workspace = true, optional = true, features = [
 sp-authority-discovery = { workspace = true, default-features = true }
 sp-consensus = { workspace = true, default-features = true }
 sp-consensus-babe = { workspace = true, default-features = true }
-sp-consensus-beefy = { workspace = true, default-features = true }
+# sp-consensus-beefy = { workspace = true, default-features = true }
 sp-consensus-grandpa = { workspace = true, default-features = true }
 sp-inherents = { workspace = true, default-features = true }
 sp-api = { workspace = true, default-features = true }
@@ -76,14 +75,14 @@ sp-transaction-storage-proof = { features = [
 sp-keyring = { workspace = true, default-features = true }
 sp-std = { workspace = true, default-features = true }
 sp-maybe-compressed-blob = { workspace = true, default-features = true }
-sp-mmr-primitives = { workspace = true, default-features = true }
+# sp-mmr-primitives = { workspace = true, default-features = true }
 sp-statement-store = { workspace = true, default-features = true }
 
 sc-authority-discovery = { workspace = true, default-features = true }
 sc-consensus = { workspace = true, default-features = true }
 sc-consensus-slots = { workspace = true, default-features = true }
 sc-consensus-babe = { workspace = true, default-features = true }
-sc-consensus-beefy = { workspace = true, default-features = true }
+# sc-consensus-beefy = { workspace = true, default-features = true }
 sc-consensus-grandpa = { workspace = true, default-features = true }
 sc-block-builder = { workspace = true }
 sc-chain-spec = { workspace = true, default-features = true }
@@ -114,25 +113,21 @@ frame-support = { features = ["std"], workspace = true }
 frame-system-rpc-runtime-api = { features = ["std"], workspace = true }
 frame-metadata-hash-extension = { features = ["std"], workspace = true }
 pallet-babe = { features = ["std"], workspace = true }
-pallet-im-online = { features = ["std"], workspace = true }
+# pallet-im-online = { features = ["std"], workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 prometheus-endpoint = { workspace = true }
 
 # cord-specific dependencies
 cord-orb-runtime = { workspace = true, features = ["std"], optional = true }
-cord-loom-runtime = { workspace = true, features = ["std"], optional = true }
 cord-runtime-common = { workspace = true, default-features = true }
 cord-primitives = { features = ["std"], workspace = true }
-# network-membership = { features = ["std"], workspace = true }
 cord-node-inspect = { optional = true, workspace = true, default-features = true }
 cord-node-rpc = { workspace = true }
 cord-orb-runtime-constants = { features = [
 	"std",
 ], workspace = true, optional = true }
-cord-loom-runtime-constants = { features = [
-	"std",
-], workspace = true, optional = true }
+
 pallet-staking = { workspace = true }
 
 # CLI-specific dependencies
@@ -184,7 +179,7 @@ frame-support = { workspace = true }
 cord-node-testing = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-treasury = { workspace = true }
-sp-application-crypto = { workspace = true }
+# sp-application-crypto = { workspace = true }
 pallet-root-testing = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-timestamp = { workspace = true }
@@ -206,15 +201,7 @@ sc-storage-monitor = { workspace = true }
 
 
 [features]
-default = [
-	"cli",
-	"db",
-	"full-node",
-	"orb-native",
-	"loom-native",
-]
-
-full-node = ["parity-db"]
+default = [ "cli", "orb-native" ]
 
 cli = [
 	"clap",
@@ -237,18 +224,15 @@ jemalloc-allocator = ["dep:tikv-jemallocator"]
 
 # Configure the native runtimes to use.
 orb-native = ["bitvec", "cord-orb-runtime", "cord-orb-runtime-constants"]
-loom-native = ["bitvec", "cord-loom-runtime", "cord-loom-runtime-constants"]
 
 runtime-benchmarks = [
 	"cord-runtime-common/runtime-benchmarks",
 	"cord-orb-runtime?/runtime-benchmarks",
-	"cord-loom-runtime/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"cord-node-inspect?/runtime-benchmarks",
-	"pallet-im-online/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
@@ -259,15 +243,12 @@ try-runtime = [
 	"cord-runtime-common/try-runtime",
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
-	"pallet-im-online/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"sp-runtime/try-runtime",
 	"cord-orb-runtime?/try-runtime",
-	"cord-loom-runtime?/try-runtime",
 	"pallet-babe/try-runtime",
 ]
 
 fast-runtime = [
 	"cord-orb-runtime/fast-runtime",
-	"cord-loom-runtime/fast-runtime",
 ]

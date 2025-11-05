@@ -199,8 +199,7 @@ pub mod pallet {
 			}
 
 			ensure!(
-				reg.len()
-					.saturating_sub(queued_effective.saturating_add(1))
+				reg.len().saturating_sub(queued_effective.saturating_add(1))
 					>= T::MinAuthorities::get() as usize,
 				Error::<T>::TooLowAuthorityCount
 			);

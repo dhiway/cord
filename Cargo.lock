@@ -1169,27 +1169,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "authority-membership"
-version = "0.9.9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-cord-offences",
- "pallet-network-membership",
- "pallet-session",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-staking",
- "sp-state-machine",
-]
-
-[[package]]
 name = "auto_impl"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2146,109 +2125,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
-name = "cord-braid-runtime"
-version = "0.9.9"
-dependencies = [
- "authority-membership",
- "cord-braid-runtime-constants",
- "cord-primitives",
- "cord-runtime-common",
- "frame-benchmarking",
- "frame-executive",
- "frame-metadata-hash-extension",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "frame-try-runtime",
- "hex-literal",
- "log",
- "network-membership",
- "pallet-asset-conversion",
- "pallet-assets",
- "pallet-assets-runtime-api",
- "pallet-authority-discovery",
- "pallet-authorship",
- "pallet-babe",
- "pallet-balances",
- "pallet-beefy",
- "pallet-beefy-mmr",
- "pallet-collection",
- "pallet-contracts",
- "pallet-cord-node-authorization",
- "pallet-cord-offences",
- "pallet-cord-session-benchmarking",
- "pallet-entity",
- "pallet-entry",
- "pallet-grandpa",
- "pallet-im-online",
- "pallet-indices",
- "pallet-insecure-randomness-collective-flip",
- "pallet-meta-tx",
- "pallet-mmr",
- "pallet-multisig",
- "pallet-network-membership",
- "pallet-profile",
- "pallet-registry",
- "pallet-remark",
- "pallet-root-testing",
- "pallet-runtime-upgrade",
- "pallet-safe-mode",
- "pallet-scheduler",
- "pallet-session",
- "pallet-statement",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-token",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-tx-pause",
- "pallet-utility",
- "pallet-verify-signature",
- "parity-scale-codec",
- "primitive-types 0.13.1",
- "scale-info",
- "serde",
- "serde_json",
- "sp-api",
- "sp-authority-discovery",
- "sp-block-builder",
- "sp-consensus-babe",
- "sp-consensus-beefy",
- "sp-consensus-grandpa",
- "sp-core",
- "sp-genesis-builder",
- "sp-inherents",
- "sp-io",
- "sp-keyring",
- "sp-mmr-primitives",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-staking",
- "sp-statement-store",
- "sp-storage",
- "sp-transaction-pool",
- "sp-version",
- "static_assertions",
- "substrate-wasm-builder",
- "zeroize",
-]
-
-[[package]]
-name = "cord-braid-runtime-constants"
-version = "0.9.9"
-dependencies = [
- "cord-primitives",
- "cord-runtime-common",
- "frame-support",
- "smallvec",
- "sp-core",
- "sp-runtime",
- "sp-weights",
-]
-
-[[package]]
 name = "cord-cli-test-utils"
 version = "0.9.7-dev"
 dependencies = [
@@ -2266,110 +2142,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cord-loom-runtime"
-version = "0.9.9"
-dependencies = [
- "authority-membership",
- "cord-loom-runtime-constants",
- "cord-primitives",
- "cord-runtime-common",
- "frame-benchmarking",
- "frame-executive",
- "frame-metadata-hash-extension",
- "frame-support",
- "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "frame-try-runtime",
- "hex-literal",
- "log",
- "pallet-asset-conversion",
- "pallet-assets",
- "pallet-assets-runtime-api",
- "pallet-authority-discovery",
- "pallet-authorship",
- "pallet-babe",
- "pallet-balances",
- "pallet-beefy",
- "pallet-beefy-mmr",
- "pallet-collection",
- "pallet-collective",
- "pallet-contracts",
- "pallet-cord-offences",
- "pallet-cord-session-benchmarking",
- "pallet-entity",
- "pallet-entry",
- "pallet-grandpa",
- "pallet-im-online",
- "pallet-indices",
- "pallet-insecure-randomness-collective-flip",
- "pallet-membership",
- "pallet-meta-tx",
- "pallet-migrations",
- "pallet-mmr",
- "pallet-multisig",
- "pallet-preimage",
- "pallet-profile",
- "pallet-registry",
- "pallet-remark",
- "pallet-root-testing",
- "pallet-runtime-upgrade",
- "pallet-safe-mode",
- "pallet-scheduler",
- "pallet-session",
- "pallet-statement",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-token",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-treasury",
- "pallet-tx-pause",
- "pallet-utility",
- "pallet-verify-signature",
- "parity-scale-codec",
- "primitive-types 0.13.1",
- "scale-info",
- "serde",
- "serde_json",
- "sp-api",
- "sp-authority-discovery",
- "sp-block-builder",
- "sp-consensus-babe",
- "sp-consensus-beefy",
- "sp-consensus-grandpa",
- "sp-core",
- "sp-genesis-builder",
- "sp-inherents",
- "sp-io",
- "sp-keyring",
- "sp-mmr-primitives",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-staking",
- "sp-statement-store",
- "sp-storage",
- "sp-transaction-pool",
- "sp-version",
- "static_assertions",
- "substrate-wasm-builder",
-]
-
-[[package]]
-name = "cord-loom-runtime-constants"
-version = "0.9.9"
-dependencies = [
- "cord-primitives",
- "cord-runtime-common",
- "frame-support",
- "smallvec",
- "sp-core",
- "sp-runtime",
- "sp-weights",
-]
-
-[[package]]
 name = "cord-node-cli"
 version = "0.9.9"
 dependencies = [
@@ -2380,8 +2152,6 @@ dependencies = [
  "clap",
  "clap_complete",
  "cord-cli-test-utils",
- "cord-loom-runtime",
- "cord-loom-runtime-constants",
  "cord-node-inspect",
  "cord-node-rpc",
  "cord-node-testing",
@@ -2406,7 +2176,6 @@ dependencies = [
  "nix 0.29.0",
  "pallet-babe",
  "pallet-balances",
- "pallet-im-online",
  "pallet-root-testing",
  "pallet-staking",
  "pallet-sudo",
@@ -2428,7 +2197,6 @@ dependencies = [
  "sc-client-db",
  "sc-consensus",
  "sc-consensus-babe",
- "sc-consensus-beefy",
  "sc-consensus-epochs",
  "sc-consensus-grandpa",
  "sc-consensus-slots",
@@ -2453,13 +2221,11 @@ dependencies = [
  "serde_json",
  "soketto",
  "sp-api",
- "sp-application-crypto",
  "sp-authority-discovery",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
  "sp-consensus-babe",
- "sp-consensus-beefy",
  "sp-consensus-grandpa",
  "sp-core",
  "sp-crypto-hashing 0.1.0 (git+https://github.com/dhiway/sdk?branch=release-v1.20.1)",
@@ -2470,7 +2236,6 @@ dependencies = [
  "sp-keyring",
  "sp-keystore",
  "sp-maybe-compressed-blob",
- "sp-mmr-primitives",
  "sp-offchain",
  "sp-runtime",
  "sp-session",
@@ -2487,7 +2252,6 @@ dependencies = [
  "sp-weights",
  "substrate-build-script-utils",
  "substrate-prometheus-endpoint",
- "subxt-signer",
  "tempfile",
  "thiserror 1.0.69",
  "tikv-jemallocator",
@@ -2521,26 +2285,21 @@ version = "0.9.9"
 dependencies = [
  "cord-primitives",
  "jsonrpsee",
- "mmr-rpc",
  "pallet-transaction-payment-rpc",
  "sc-chain-spec",
  "sc-client-api",
  "sc-consensus-babe",
  "sc-consensus-babe-rpc",
- "sc-consensus-beefy",
- "sc-consensus-beefy-rpc",
  "sc-consensus-grandpa",
  "sc-consensus-grandpa-rpc",
  "sc-rpc",
  "sc-sync-state-rpc",
  "sc-transaction-pool-api",
  "sp-api",
- "sp-application-crypto",
  "sp-block-builder",
  "sp-blockchain",
  "sp-consensus",
  "sp-consensus-babe",
- "sp-consensus-beefy",
  "sp-keystore",
  "sp-runtime",
  "sp-statement-store",
@@ -2553,9 +2312,9 @@ name = "cord-node-testing"
 version = "0.9.7-dev"
 dependencies = [
  "cord-node-cli",
+ "cord-orb-runtime",
+ "cord-orb-runtime-constants",
  "cord-primitives",
- "cord-weave-runtime",
- "cord-weave-runtime-constants",
  "frame-metadata-hash-extension",
  "frame-system",
  "fs_extra",
@@ -2620,14 +2379,17 @@ dependencies = [
  "pallet-register",
  "pallet-remark",
  "pallet-runtime-upgrade",
+ "pallet-safe-mode",
  "pallet-scheduler",
  "pallet-session",
  "pallet-session-benchmarking",
+ "pallet-statement",
  "pallet-sudo",
  "pallet-timestamp",
  "pallet-token",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-tx-pause",
  "pallet-utility",
  "pallet-verify-signature",
  "parity-scale-codec",
@@ -2647,6 +2409,7 @@ dependencies = [
  "sp-runtime",
  "sp-session",
  "sp-staking",
+ "sp-statement-store",
  "sp-storage",
  "sp-transaction-pool",
  "sp-version",
@@ -2741,7 +2504,6 @@ version = "0.9.9"
 dependencies = [
  "cord-origin-system-chains-staging-constants",
  "cord-primitives",
- "cord-token-runtime-api",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-parachain-system",
  "cumulus-pallet-session-benchmarking",
@@ -2844,9 +2606,7 @@ dependencies = [
 name = "cord-runtime-common"
 version = "0.9.9"
 dependencies = [
- "bounded-collections",
  "cord-primitives",
- "derive_more 0.99.20",
  "frame-benchmarking",
  "frame-support",
  "frame-support-test",
@@ -2857,11 +2617,8 @@ dependencies = [
  "pallet-authorship",
  "pallet-babe",
  "pallet-balances",
- "pallet-election-provider-multi-phase",
- "pallet-staking",
  "pallet-timestamp",
  "pallet-transaction-payment",
- "pallet-treasury",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -2870,169 +2627,8 @@ dependencies = [
  "sp-keyring",
  "sp-keystore",
  "sp-runtime",
- "sp-staking",
  "sp-weights",
  "static_assertions",
-]
-
-[[package]]
-name = "cord-token-runtime-api"
-version = "0.9.9"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
-]
-
-[[package]]
-name = "cord-weave-runtime"
-version = "0.9.9"
-dependencies = [
- "blake2 0.10.6",
- "bs58",
- "cord-primitives",
- "cord-runtime-common",
- "cord-token-runtime-api",
- "cord-weave-runtime-constants",
- "derive_more 0.99.20",
- "frame-benchmarking",
- "frame-benchmarking-pallet-pov",
- "frame-election-provider-support",
- "frame-executive",
- "frame-metadata-hash-extension",
- "frame-remote-externalities",
- "frame-support",
- "frame-support-procedural",
- "frame-support-procedural-tools-derive",
- "frame-system",
- "frame-system-benchmarking",
- "frame-system-rpc-runtime-api",
- "frame-try-runtime",
- "log",
- "pallet-asset-conversion",
- "pallet-asset-conversion-ops",
- "pallet-asset-conversion-tx-payment",
- "pallet-asset-rate",
- "pallet-asset-tx-payment",
- "pallet-assets",
- "pallet-assets-freezer",
- "pallet-assets-runtime-api",
- "pallet-atomic-swap",
- "pallet-authority-discovery",
- "pallet-authorship",
- "pallet-babe",
- "pallet-bags-list",
- "pallet-balances",
- "pallet-beefy",
- "pallet-beefy-mmr",
- "pallet-collection",
- "pallet-collective",
- "pallet-contracts",
- "pallet-contracts-proc-macro",
- "pallet-contracts-uapi",
- "pallet-delegated-staking",
- "pallet-election-provider-multi-phase",
- "pallet-election-provider-support-benchmarking",
- "pallet-entity",
- "pallet-entry",
- "pallet-fast-unstake",
- "pallet-grandpa",
- "pallet-im-online",
- "pallet-indices",
- "pallet-insecure-randomness-collective-flip",
- "pallet-membership",
- "pallet-message-queue",
- "pallet-meta-tx",
- "pallet-migrations",
- "pallet-mmr",
- "pallet-multisig",
- "pallet-nft-fractionalization",
- "pallet-nfts",
- "pallet-nfts-runtime-api",
- "pallet-nomination-pools",
- "pallet-nomination-pools-benchmarking",
- "pallet-nomination-pools-runtime-api",
- "pallet-offences",
- "pallet-offences-benchmarking",
- "pallet-paged-list",
- "pallet-preimage",
- "pallet-profile",
- "pallet-registry",
- "pallet-remark",
- "pallet-root-offences",
- "pallet-root-testing",
- "pallet-runtime-upgrade",
- "pallet-safe-mode",
- "pallet-scheduler",
- "pallet-session",
- "pallet-session-benchmarking",
- "pallet-staking",
- "pallet-staking-reward-curve",
- "pallet-staking-runtime-api",
- "pallet-state-trie-migration",
- "pallet-statement",
- "pallet-sudo",
- "pallet-timestamp",
- "pallet-token",
- "pallet-transaction-payment",
- "pallet-transaction-payment-rpc-runtime-api",
- "pallet-treasury",
- "pallet-tx-pause",
- "pallet-utility",
- "pallet-verify-signature",
- "parity-scale-codec",
- "primitive-types 0.13.1",
- "scale-info",
- "serde",
- "serde_json",
- "sp-api",
- "sp-application-crypto",
- "sp-arithmetic",
- "sp-authority-discovery",
- "sp-block-builder",
- "sp-consensus-babe",
- "sp-consensus-beefy",
- "sp-consensus-grandpa",
- "sp-consensus-slots",
- "sp-core",
- "sp-genesis-builder",
- "sp-inherents",
- "sp-io",
- "sp-keyring",
- "sp-mmr-primitives",
- "sp-npos-elections",
- "sp-offchain",
- "sp-runtime",
- "sp-session",
- "sp-staking",
- "sp-state-machine",
- "sp-statement-store",
- "sp-storage",
- "sp-timestamp",
- "sp-tracing",
- "sp-transaction-pool",
- "sp-transaction-storage-proof",
- "sp-trie",
- "sp-version",
- "static_assertions",
- "substrate-wasm-builder",
- "tiny-keccak",
- "tokio",
-]
-
-[[package]]
-name = "cord-weave-runtime-constants"
-version = "0.9.9"
-dependencies = [
- "cord-primitives",
- "cord-runtime-common",
- "frame-support",
- "smallvec",
- "sp-core",
- "sp-runtime",
- "sp-weights",
 ]
 
 [[package]]
@@ -5205,20 +4801,6 @@ dependencies = [
  "subxt-signer",
  "thiserror 1.0.69",
  "thousands",
-]
-
-[[package]]
-name = "frame-benchmarking-pallet-pov"
-version = "33.0.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-io",
- "sp-runtime",
 ]
 
 [[package]]
@@ -8400,16 +7982,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "network-membership"
-version = "0.9.9"
-dependencies = [
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-runtime",
-]
-
-[[package]]
 name = "nix"
 version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8880,7 +8452,6 @@ dependencies = [
  "approx",
  "binary-merkle-tree",
  "cord-primitives",
- "cord-token-runtime-api",
  "frame-benchmarking",
  "frame-executive",
  "frame-metadata-hash-extension",
@@ -9021,24 +8592,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-asset-conversion-ops"
-version = "0.11.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-asset-conversion",
- "parity-scale-codec",
- "scale-info",
- "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-asset-conversion-tx-payment"
 version = "25.0.0"
 source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
@@ -9097,40 +8650,6 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-runtime",
-]
-
-[[package]]
-name = "pallet-assets-freezer"
-version = "0.11.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "log",
- "pallet-assets",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
-]
-
-[[package]]
-name = "pallet-assets-runtime-api"
-version = "0.9.9"
-dependencies = [
- "frame-support",
- "frame-system",
- "pallet-assets",
- "parity-scale-codec",
- "scale-info",
- "sp-api",
-]
-
-[[package]]
-name = "pallet-atomic-swap"
-version = "43.0.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
 ]
 
 [[package]]
@@ -9375,94 +8894,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-collection"
-version = "0.9.9"
-dependencies = [
- "bitflags 1.3.2",
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-profile",
- "pallet-token",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-collective"
-version = "43.0.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "docify",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-contracts"
-version = "43.0.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "environmental",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "log",
- "pallet-balances",
- "pallet-contracts-proc-macro",
- "pallet-contracts-uapi",
- "parity-scale-codec",
- "paste",
- "rand 0.8.5",
- "rand_pcg",
- "scale-info",
- "serde",
- "smallvec",
- "sp-api",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "staging-xcm",
- "staging-xcm-builder",
- "wasm-instrument",
- "wasmi",
-]
-
-[[package]]
-name = "pallet-contracts-proc-macro"
-version = "23.0.3"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.108",
-]
-
-[[package]]
-name = "pallet-contracts-uapi"
-version = "14.0.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "bitflags 1.3.2",
- "parity-scale-codec",
- "paste",
- "scale-info",
-]
-
-[[package]]
 name = "pallet-conviction-voting"
 version = "43.0.0"
 source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
@@ -9475,63 +8906,6 @@ dependencies = [
  "scale-info",
  "serde",
  "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-cord-identity"
-version = "0.9.9"
-dependencies = [
- "enumflags2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-cord-node-authorization"
-version = "0.9.9"
-dependencies = [
- "bs58",
- "cord-primitives",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-cord-offences"
-version = "0.9.9"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-staking",
-]
-
-[[package]]
-name = "pallet-cord-session-benchmarking"
-version = "0.9.9"
-dependencies = [
- "frame-benchmarking",
- "frame-system",
- "pallet-session",
- "parity-scale-codec",
  "sp-runtime",
 ]
 
@@ -9639,26 +9013,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-entry"
-version = "0.9.9"
-dependencies = [
- "bitflags 1.3.2",
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-profile",
- "pallet-registry",
- "pallet-token",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-fast-unstake"
 version = "42.0.0"
 source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
@@ -9749,33 +9103,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-insecure-randomness-collective-flip"
-version = "31.0.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "safe-mix",
- "scale-info",
-]
-
-[[package]]
-name = "pallet-membership"
-version = "43.0.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
 name = "pallet-message-queue"
 version = "46.0.0"
 source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
@@ -9852,63 +9179,6 @@ dependencies = [
  "parity-scale-codec",
  "polkadot-sdk-frame",
  "scale-info",
-]
-
-[[package]]
-name = "pallet-network-membership"
-version = "0.9.9"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "maplit",
- "network-membership",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-weights",
-]
-
-[[package]]
-name = "pallet-nft-fractionalization"
-version = "27.0.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "log",
- "pallet-assets",
- "pallet-nfts",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
-]
-
-[[package]]
-name = "pallet-nfts"
-version = "37.0.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "enumflags2",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-nfts-runtime-api"
-version = "29.0.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "parity-scale-codec",
- "sp-api",
 ]
 
 [[package]]
@@ -10008,18 +9278,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-paged-list"
-version = "0.21.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "docify",
- "parity-scale-codec",
- "polkadot-sdk-frame",
- "scale-info",
- "sp-metadata-ir",
-]
-
-[[package]]
 name = "pallet-parameters"
 version = "0.14.0"
 source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
@@ -10049,25 +9307,6 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-profile"
-version = "0.9.9"
-dependencies = [
- "bitflags 1.3.2",
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-token",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-keystore",
  "sp-runtime",
 ]
 
@@ -10142,25 +9381,6 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-io",
- "sp-runtime",
-]
-
-[[package]]
-name = "pallet-registry"
-version = "0.9.9"
-dependencies = [
- "bitflags 1.3.2",
- "cord-primitives",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-profile",
- "pallet-token",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-keystore",
  "sp-runtime",
 ]
 
@@ -10481,17 +9701,6 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "staging-xcm",
-]
-
-[[package]]
-name = "pallet-staking-reward-curve"
-version = "12.0.0"
-source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
-dependencies = [
- "proc-macro-crate 3.4.0",
- "proc-macro2",
- "quote",
- "syn 2.0.108",
 ]
 
 [[package]]
@@ -14011,15 +13220,6 @@ checksum = "3e75f6a532d0fd9f7f13144f392b6ad56a32696bfcd9c78f797f16bbb6f072d6"
 
 [[package]]
 name = "rustc_version"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
-dependencies = [
- "semver 0.9.0",
-]
-
-[[package]]
-name = "rustc_version"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0dfe2087c51c460008730de8b57e6a320782fbfb312e1f4d520e6c6fae155ee"
@@ -14200,15 +13400,6 @@ name = "ryu"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
-
-[[package]]
-name = "safe-mix"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d3d055a2582e6b00ed7a31c1524040aa391092bf636328350813f3a0605215c"
-dependencies = [
- "rustc_version 0.2.3",
-]
 
 [[package]]
 name = "safe_arch"
@@ -15877,15 +15068,6 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
-dependencies = [
- "semver-parser 0.7.0",
-]
-
-[[package]]
-name = "semver"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f301af10236f6df4160f7c3f04eec6dbc70ace82d23326abad5edee88801c6b6"
@@ -17334,7 +16516,6 @@ checksum = "1c6a0d765f5807e98a091107bae0a56ea3799f66a5de47b2c84c94a39c09974e"
 dependencies = [
  "cfg-if",
  "hashbrown 0.14.5",
- "serde",
 ]
 
 [[package]]
