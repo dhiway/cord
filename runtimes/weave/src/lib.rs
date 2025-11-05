@@ -68,7 +68,6 @@ use pallet_entity::entity::EntityInfo;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_nfts::PalletFeatures;
 use pallet_session::historical as pallet_session_historical;
-use pallet_token::Token as _;
 use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
 use pallet_treasury::TreasuryAccountId;
 use pallet_tx_pause::RuntimeCallNameOf;
@@ -118,7 +117,7 @@ use cord_weave_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 /// Runtime API definition for assets.
 pub use pallet_assets_runtime_api as assets_api;
 
-use core::cmp::Ordering;
+use core::{cmp::Ordering, convert::TryInto};
 use runtime_common::{DealWithFees, SlowAdjustingFeeUpdate};
 use sp_runtime::generic::Era;
 use sp_staking::SessionIndex;
@@ -175,6 +174,14 @@ pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
 		c: PRIMARY_PROBABILITY,
 		allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryVRFSlots,
 	};
+
+fn convert_token_view_authorization(
+	auth: token_api::ViewAuthorization<AccountId, Signature>,
+) -> Option<pallet_token::ViewAuthorization<Runtime>> {
+	let token_api::ViewAuthorization { account, payload, signature } = auth;
+	let payload: pallet_token::ViewAuthPayloadOf<Runtime> = payload.try_into().ok()?;
+	Some(pallet_token::ViewAuthorization { account, payload, signature })
+}
 
 /// Native version.
 #[cfg(any(feature = "std", test))]
@@ -1464,9 +1471,16 @@ impl pallet_statement::Config for Runtime {
 	type MaxAllowedBytes = MaxAllowedBytes;
 }
 
+parameter_types! {
+	pub const TokenMaxViewAuthorizationLen: u32 = 128;
+	pub const TokenMaxHistoryResults: u32 = 64;
+}
+
 impl pallet_token::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
+	type MaxViewAuthorizationLen = TokenMaxViewAuthorizationLen;
+	type MaxHistoryResults = TokenMaxHistoryResults;
 }
 
 impl pallet_collection::Config for Runtime {
@@ -2203,25 +2217,55 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl token_api::TokenApi<Block> for Runtime {
-		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
-
-			let ss58_id = Ss58Identifier::try_from(token).ok()?;
-
-			let decoded: DecodedIdentifier = Token::resolve_token(&ss58_id).ok()?;
-
-			Some(token_api::DecodedTokenApi {
-				origin: decoded.origin,
-				network: decoded.network,
-				pallet: decoded.pallet,
-				genesis: decoded.genesis,
-			})
-		}
-
-		fn resolve_pallet(index: u16) -> Option<String> {
-			Token::resolve_pallet_name(index).ok()
-		}
+	impl token_api::TokenApi<Block, AccountId, Signature, Hash> for Runtime {
+		fn resolve_identifier(
+			auth: token_api::ViewAuthorization<AccountId, Signature>,
+			token: Vec<u8>,
+	) -> Option<token_api::DecodedTokenApi> {
+		let auth = convert_token_view_authorization(auth)?;
+		let ss58_id = Ss58Identifier::try_from(token).ok()?;
+		let decoded: DecodedIdentifier = Token::resolve_identifier_view(auth, ss58_id)?;
+		Some(token_api::DecodedTokenApi {
+			origin: decoded.origin,
+			network: decoded.network,
+			pallet: decoded.pallet,
+			genesis: decoded.genesis,
+		})
 	}
+
+	fn resolve_pallet(
+		auth: token_api::ViewAuthorization<AccountId, Signature>,
+		index: u16,
+	) -> Option<String> {
+		let auth = convert_token_view_authorization(auth)?;
+		Token::resolve_pallet_view(auth, index)
+	}
+
+	fn token_history(
+		auth: token_api::ViewAuthorization<AccountId, Signature>,
+		token: Vec<u8>,
+		start: Option<u32>,
+		limit: u32,
+	) -> Vec<token_api::TokenHistoryEvent<Hash>> {
+		let auth = match convert_token_view_authorization(auth) {
+			Some(auth) => auth,
+			None => return Vec::new(),
+		};
+		let ss58_id = match Ss58Identifier::try_from(token) {
+			Ok(id) => id,
+			Err(_) => return Vec::new(),
+		};
+		Token::history_view(auth, ss58_id, start, limit)
+			.into_iter()
+			.map(|event| token_api::TokenHistoryEvent {
+				action: event.action.into(),
+				digest: event.digest,
+				height: event.seal.height,
+				index: event.seal.index,
+			})
+			.collect()
+	}
+}
 
 	impl pallet_contracts::ContractsApi<Block, AccountId, Balance, BlockNumber, Hash, EventRecord> for Runtime
 	{

@@ -60,6 +60,8 @@ parameter_types! {
 	pub const MaxAdditionalAttributes: u32 = 32;
 	pub const MaxSubAccounts: u32 = 2;
 	pub const MaxUsernameLength: u32 = 20;
+	pub const MaxTokenViewAuthorizationLen: u32 = 128;
+	pub const MaxTokenHistoryResults: u32 = 32;
 }
 
 impl pallet_entity::Config for Test {
@@ -77,6 +79,8 @@ impl pallet_entity::Config for Test {
 impl pallet_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
+	type MaxViewAuthorizationLen = MaxTokenViewAuthorizationLen;
+	type MaxHistoryResults = MaxTokenHistoryResults;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

@@ -19,7 +19,7 @@
 use crate as pallet_token;
 use frame_support::{derive_impl, parameter_types};
 use frame_system as system;
-use sp_runtime::BuildStorage;
+use sp_runtime::{traits::IdentityLookup, AccountId32, BuildStorage};
 
 type Block = system::mocking::MockBlock<Test>;
 
@@ -32,10 +32,14 @@ frame_support::construct_runtime!(
 
 parameter_types! {
 	pub const SS58Prefix: u8 = 42;
+	pub const MaxViewAuthorizationLen: u32 = 128;
+	pub const MaxHistoryResults: u32 = 32;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
+	type AccountId = AccountId32;
+	type Lookup = IdentityLookup<Self::AccountId>;
 	type Block = Block;
 	type AccountData = ();
 	type SS58Prefix = SS58Prefix;
@@ -44,6 +48,8 @@ impl frame_system::Config for Test {
 impl pallet_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = frame_system::Pallet<Test>;
+	type MaxViewAuthorizationLen = MaxViewAuthorizationLen;
+	type MaxHistoryResults = MaxHistoryResults;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

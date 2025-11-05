@@ -22,14 +22,19 @@
 #![warn(unused_crate_dependencies)]
 
 extern crate alloc;
-use alloc::{string::String, vec};
+use alloc::{string::String, vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use cord_primitives::identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier};
+use cord_primitives::{
+	identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier},
+	Signature,
+};
+use core::{cmp, convert::TryInto};
 use frame_support::{
-	dispatch::DispatchResult, ensure, pallet_prelude::*, traits::ConstU32, BoundedVec,
+	dispatch::DispatchResult, ensure, pallet_prelude::*, traits::{ConstU32, Get}, BoundedVec,
 };
 use scale_info::TypeInfo;
-use sp_runtime::traits::{BlockNumberProvider, UniqueSaturatedInto};
+use sp_core::hashing::blake2_128;
+use sp_runtime::{traits::{BlockNumberProvider, UniqueSaturatedInto, Verify}, AccountId32};
 
 #[cfg(test)]
 pub mod mock;
@@ -50,8 +55,48 @@ pub struct EventBlock {
 	pub index: u32,
 }
 
-/// EntryTypeOf is a bounded vector (max 128 bytes) that holds part of an event message,
+impl EventBlock {
+	/// Returns the current event stamp from the caller’s runtime context.
+	pub fn current<T: frame_system::Config>() -> Self {
+		Self {
+			height: frame_system::Pallet::<T>::current_block_number().unique_saturated_into(),
+			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
+		}
+	}
+}
+
+pub trait Token<T: frame_system::Config> {
+	type Hash: Encode + Decode + DecodeWithMemTracking + Clone + PartialEq + Eq;
+	type Error;
+
+	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, pallet::Error<T>>;
+	fn resolve_token(token: &Ss58Identifier) -> Result<DecodedIdentifier, Self::Error>;
+	fn resolve_pallet(index: u16) -> Result<String, Self::Error>;
+	fn state_event(
+		token: &Ss58Identifier,
+		digest: Self::Hash,
+		action: EventTypeOf,
+		stamp: EventBlock,
+	) -> Result<(), Self::Error>;
+}
+
+/// EntryTypeOf is a bounded vector (max 128 bytes) that holds part of an event message.
 pub type EventTypeOf = BoundedVec<u8, ConstU32<128>>;
+
+/// Maximum payload size for view authorizations.
+pub type ViewAuthPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxViewAuthorizationLen>;
+
+/// Authorization required for read-only token views.
+#[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen, Debug)]
+#[scale_info(skip_type_params(T))]
+pub struct ViewAuthorization<T: Config> {
+	pub account: T::AccountId,
+	pub payload: ViewAuthPayloadOf<T>,
+	pub signature: Signature,
+}
+
+/// Replay-protection hash for view authorizations.
+pub type ViewAuthSignatureHash = [u8; 16];
 
 /// ActivityRecord stores an update entry and the corresponding event stamp.
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
@@ -60,6 +105,8 @@ pub struct StateEvent<Hash> {
 	pub digest: Hash,
 	pub seal: EventBlock,
 }
+
+pub type StateEventOf<T> = StateEvent<HashOf<T>>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -73,6 +120,14 @@ pub mod pallet {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		/// Provider for the block number.
 		type BlockNumberProvider: BlockNumberProvider;
+
+		/// Maximum view payload length.
+		#[pallet::constant]
+		type MaxViewAuthorizationLen: Get<u32>;
+
+		/// Maximum number of history entries returned per view request.
+		#[pallet::constant]
+		type MaxHistoryResults: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -110,6 +165,10 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type StateVersion<T: Config> =
 		StorageMap<_, Blake2_128Concat, Ss58Identifier, u32, ValueQuery>;
+
+	#[pallet::storage]
+	pub type ViewSignatureUses<T: Config> =
+		StorageMap<_, Blake2_128Concat, ViewAuthSignatureHash, (), OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -151,6 +210,10 @@ pub mod pallet {
 		InvalidCompactEncoding,
 		/// The origin‐mode flag was not 0 or 1.
 		InvalidMode,
+		/// View authorization failed verification.
+		InvalidViewAuthorization,
+		/// View authorization signature was reused.
+		ViewAuthorizationReplay,
 	}
 
 	#[pallet::genesis_config]
@@ -163,7 +226,7 @@ pub mod pallet {
 
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self { protocol_id: "0rigin".into(), network_id: 2000, _config: Default::default() }
+			Self { protocol_id: "0rigin".into(), network_id: 1000, _config: Default::default() }
 		}
 	}
 
@@ -182,14 +245,14 @@ pub mod pallet {
 
 			let chain_id: u16 = if is_origin {
 				assert!(
-					(2_000..16_383).contains(&self.network_id),
+					(1_000..16_383).contains(&self.network_id),
 					"ChainId ({}) must be > 2000 and < 16383 in Origin mode",
 					self.network_id
 				);
 				self.network_id
 			} else {
 				assert!(
-					(100..1999).contains(&self.network_id),
+					(100..999).contains(&self.network_id),
 					"ChainId ({}) must be ≥ 100 and < 1999 in standalone mode",
 					self.network_id
 				);
@@ -256,6 +319,7 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
+
 }
 
 impl<T: Config> From<IdentifierError> for Error<T> {
@@ -274,20 +338,75 @@ impl<T: Config> From<IdentifierError> for Error<T> {
 	}
 }
 
-pub trait Token<T: frame_system::Config> {
-	type Hash: Encode + Decode + DecodeWithMemTracking + Clone + PartialEq + Eq;
-	type Error;
+impl<T> Pallet<T>
+where
+	T: Config,
+	AccountId32: From<<T as frame_system::Config>::AccountId>,
+	<T as frame_system::Config>::AccountId: Clone,
+{
+	fn view_signature_hash(auth: &ViewAuthorization<T>) -> ViewAuthSignatureHash {
+		let mut encoded = auth.account.encode();
+		encoded.extend_from_slice(auth.payload.as_slice());
+		encoded.extend(auth.signature.encode());
+		blake2_128(&encoded)
+	}
 
-	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, pallet::Error<T>>;
-	fn resolve_token(token: &Ss58Identifier) -> Result<DecodedIdentifier, Self::Error>;
-	fn resolve_pallet(index: u16) -> Result<String, Self::Error>;
-	/// Record a state transition event for the given token.
-	fn state_event(
-		token: &Ss58Identifier,
-		digest: Self::Hash,
-		action: EventTypeOf,
-		stamp: EventBlock,
-	) -> Result<(), Self::Error>;
+	fn authorize_view(auth: &ViewAuthorization<T>) -> Result<(), Error<T>> {
+		let signer: AccountId32 = auth.account.clone().into();
+		ensure!(
+			auth.signature.verify(auth.payload.as_slice(), &signer),
+			Error::<T>::InvalidViewAuthorization
+		);
+		let hash = Self::view_signature_hash(auth);
+		ensure!(
+			!ViewSignatureUses::<T>::contains_key(&hash),
+			Error::<T>::ViewAuthorizationReplay
+		);
+		ViewSignatureUses::<T>::insert(hash, ());
+		Ok(())
+	}
+
+	pub fn history_view(
+		auth: ViewAuthorization<T>,
+		token: Ss58Identifier,
+		start: Option<u32>,
+		limit: u32,
+	) -> Vec<StateEventOf<T>> {
+		if Self::authorize_view(&auth).is_err() {
+			return Vec::new();
+		}
+		let upper = StateVersion::<T>::get(&token);
+		if upper == 0 {
+			return Vec::new();
+		}
+		let start_index = start.unwrap_or(0);
+		if start_index >= upper {
+			return Vec::new();
+		}
+		let max = cmp::min(limit, T::MaxHistoryResults::get());
+		let mut results = Vec::new();
+		let mut index = start_index;
+		while index < upper && (results.len() as u32) < max {
+			if let Some(event) = StateHistory::<T>::get(&token, index) {
+				results.push(event);
+			}
+			index = index.saturating_add(1);
+		}
+		results
+	}
+
+	pub fn resolve_identifier_view(
+		auth: ViewAuthorization<T>,
+		token: Ss58Identifier,
+	) -> Option<DecodedIdentifier> {
+		Self::authorize_view(&auth).ok()?;
+		Self::resolve_token(&token).ok()
+	}
+
+	pub fn resolve_pallet_view(auth: ViewAuthorization<T>, index: u16) -> Option<String> {
+		Self::authorize_view(&auth).ok()?;
+		Self::resolve_pallet_name(index).ok()
+	}
 }
 
 impl<T: pallet::Config> Token<T> for Pallet<T> {
@@ -317,15 +436,5 @@ impl<T: pallet::Config> Token<T> for Pallet<T> {
 	) -> Result<(), Self::Error> {
 		Self::update_token_state(token, digest, event, stamp)
 			.map_err(|_| pallet::Error::<T>::StateUpdateFailed)
-	}
-}
-
-impl EventBlock {
-	/// Returns the current event stamp from the caller’s runtime context.
-	pub fn current<T: frame_system::Config>() -> Self {
-		Self {
-			height: frame_system::Pallet::<T>::current_block_number().unique_saturated_into(),
-			index: frame_system::Pallet::<T>::extrinsic_index().unwrap_or_default(),
-		}
 	}
 }

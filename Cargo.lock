@@ -2129,7 +2129,6 @@ dependencies = [
  "cord-braid-runtime-constants",
  "cord-primitives",
  "cord-runtime-common",
- "cord-token-runtime-api",
  "frame-benchmarking",
  "frame-executive",
  "frame-metadata-hash-extension",
@@ -2250,7 +2249,6 @@ dependencies = [
  "cord-loom-runtime-constants",
  "cord-primitives",
  "cord-runtime-common",
- "cord-token-runtime-api",
  "frame-benchmarking",
  "frame-executive",
  "frame-metadata-hash-extension",
@@ -9067,6 +9065,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-authorities"
+version = "0.9.9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "pallet-im-online",
+ "pallet-session",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
+ "sp-state-machine",
+]
+
+[[package]]
 name = "pallet-authority-discovery"
 version = "43.0.0"
 source = "git+https://github.com/dhiway/sdk?branch=release-v1.20.1#bd19559e1fa2a3f8018e1244c8831ded0f84b924"
@@ -10500,6 +10519,7 @@ dependencies = [
  "cord-primitives",
  "frame-support",
  "frame-system",
+ "hex",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

@@ -24,6 +24,7 @@ members = [
 	"origin/relay/runtime",
 	"origin/relay/runtime/authorities",
 	"origin/relay/runtime/constants",
+	"pallets/authorities",
 	"pallets/collection",
 	"pallets/token",
 	"pallets/entity",
@@ -760,6 +761,7 @@ cord-node-rpc = { path = "node/rpc", default-features = false }
 cord-node-testing = { path = "node/testing", default-features = false }
 cord-cli-test-utils = { path = "test-utils/cli", default-features = false }
 pallet-council-membership = { path = 'pallets/membership/', default-features = false }
+pallet-authorities = { path = 'pallets/authorities', default-features = false }
 pallet-collection = { path = 'pallets/collection/', default-features = false }
 pallet-network-membership = { path = 'pallets/network-membership', default-features = false }
 pallet-register = { path = 'pallets/register/', default-features = false }

@@ -1365,14 +1365,14 @@ pub fn token(auth: ViewAuthorization<T>, registry: Ss58Identifier) -> Option<Vec
 			Ok(())
 		}
 
-		fn record_activity(token: &Ss58Identifier, digest: T::Hash, msg: &[u8]) -> DispatchResult {
-			let action: EventTypeOf =
-				msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
-			let stamp = EventBlock::current::<T>();
-			T::Token::state_event(token, digest, action, stamp)
-				.map_err(|_| Error::<T>::StateUpdateFailed)?;
-			Ok(())
-		}
+			fn record_activity(token: &Ss58Identifier, digest: T::Hash, msg: &[u8]) -> DispatchResult {
+				let action: EventTypeOf =
+					msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
+				let stamp = EventBlock::current::<T>();
+				T::Token::state_event(token, digest, action, stamp)
+					.map_err(|_| Error::<T>::StateUpdateFailed)?;
+				Ok(())
+			}
 	}
 
 	impl<T: Config> RegistryView<T> for Pallet<T> {
