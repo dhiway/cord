@@ -50,7 +50,6 @@ tikv-jemallocator = { workspace = true, optional = true, features = [
 sp-authority-discovery = { workspace = true, default-features = true }
 sp-consensus = { workspace = true, default-features = true }
 sp-consensus-babe = { workspace = true, default-features = true }
-# sp-consensus-beefy = { workspace = true, default-features = true }
 sp-consensus-grandpa = { workspace = true, default-features = true }
 sp-inherents = { workspace = true, default-features = true }
 sp-api = { workspace = true, default-features = true }
@@ -75,14 +74,12 @@ sp-transaction-storage-proof = { features = [
 sp-keyring = { workspace = true, default-features = true }
 sp-std = { workspace = true, default-features = true }
 sp-maybe-compressed-blob = { workspace = true, default-features = true }
-# sp-mmr-primitives = { workspace = true, default-features = true }
 sp-statement-store = { workspace = true, default-features = true }
 
 sc-authority-discovery = { workspace = true, default-features = true }
 sc-consensus = { workspace = true, default-features = true }
 sc-consensus-slots = { workspace = true, default-features = true }
 sc-consensus-babe = { workspace = true, default-features = true }
-# sc-consensus-beefy = { workspace = true, default-features = true }
 sc-consensus-grandpa = { workspace = true, default-features = true }
 sc-block-builder = { workspace = true }
 sc-chain-spec = { workspace = true, default-features = true }
@@ -113,7 +110,6 @@ frame-support = { features = ["std"], workspace = true }
 frame-system-rpc-runtime-api = { features = ["std"], workspace = true }
 frame-metadata-hash-extension = { features = ["std"], workspace = true }
 pallet-babe = { features = ["std"], workspace = true }
-# pallet-im-online = { features = ["std"], workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 prometheus-endpoint = { workspace = true }
@@ -179,7 +175,6 @@ frame-support = { workspace = true }
 cord-node-testing = { workspace = true }
 pallet-balances = { workspace = true }
 pallet-treasury = { workspace = true }
-# sp-application-crypto = { workspace = true }
 pallet-root-testing = { workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-timestamp = { workspace = true }

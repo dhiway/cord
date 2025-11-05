@@ -90,6 +90,7 @@ pallet-session-benchmarking = { optional = true, workspace = true }
 
 [dev-dependencies]
 sp-staking = { workspace = true }
+pallet-staking = { workspace = true }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true, optional = true, default-features = true }
@@ -136,6 +137,7 @@ std = [
 	"pallet-scheduler/std",
 	"pallet-session-benchmarking?/std",
 	"pallet-session/std",
+	"pallet-staking/std",
 	"pallet-statement/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",

@@ -18,7 +18,7 @@
 
 //! CORD CLI library.
 
-#![warn(missing_docs)]
+#![allow(missing_docs)]
 
 #[cfg(feature = "cli")]
 pub mod benchmarking;
