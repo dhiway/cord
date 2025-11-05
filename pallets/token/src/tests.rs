@@ -19,8 +19,16 @@
 #[cfg(test)]
 use super::*;
 use crate::mock::{new_test_ext, Test};
+use core::convert::TryInto;
 use frame_support::{assert_err, assert_ok};
-use sp_core::H256;
+use sp_core::{sr25519, Pair, H256};
+
+fn make_auth(payload: &[u8], pair: &sr25519::Pair) -> ViewAuthorization<Test> {
+	let vec_payload = payload.to_vec();
+	let signature: Signature = pair.sign(&vec_payload).into();
+	let bounded: ViewAuthPayloadOf<Test> = vec_payload.try_into().expect("payload within bounds");
+	ViewAuthorization { account: pair.public().into(), payload: bounded, signature }
+}
 
 /// Test that a valid pallet name can be stored and returns a consistent index.
 #[test]
@@ -101,5 +109,64 @@ fn record_activity_positive() {
 		assert_eq!(record.action, action);
 		assert_eq!(record.digest, digest);
 		assert_eq!(record.seal, seal);
+	});
+}
+
+#[test]
+fn history_view_requires_valid_authorization() {
+	new_test_ext().execute_with(|| {
+		let id_digest = vec![2u8; 32];
+		let token = Ss58Identifier::to_encoded(id_digest, 200, 7, 0).expect("token encoding ok");
+		let digest = H256::random();
+		let action: EventTypeOf = b"history".to_vec().try_into().unwrap();
+		let seal = EventBlock { height: 5, index: 1 };
+		Pallet::<Test>::state_event(&token, digest, action.clone(), seal.clone()).unwrap();
+
+		let signer = sr25519::Pair::from_seed(&[42u8; 32]);
+		let auth = make_auth(b"view-history", &signer);
+		let events = Pallet::<Test>::history_view(auth.clone(), token.clone(), Some(0), 10);
+		assert_eq!(events.len(), 1);
+		assert_eq!(events[0].action, action);
+		assert_eq!(events[0].digest, digest);
+		assert_eq!(events[0].seal, seal);
+
+		let replay = Pallet::<Test>::history_view(auth, token.clone(), Some(0), 10);
+		assert!(replay.is_empty(), "reused authorizations must be rejected");
+
+		let forge = sr25519::Pair::from_seed(&[99u8; 32]);
+		let mut forged = make_auth(b"view-history", &forge);
+		// use forged signature but honest account
+		forged.account = signer.public().into();
+		let rejected = Pallet::<Test>::history_view(forged, token, Some(0), 10);
+		assert!(rejected.is_empty(), "invalid signature should be rejected");
+	});
+}
+
+#[test]
+fn resolve_identifier_view_authorized() {
+	new_test_ext().execute_with(|| {
+		let digest = vec![3u8; 32];
+		let token = Ss58Identifier::to_encoded(digest.clone(), 300, 9, 0).unwrap();
+		let signer = sr25519::Pair::from_seed(&[7u8; 32]);
+		let auth = make_auth(b"resolve-id", &signer);
+		let decoded = Pallet::<Test>::resolve_identifier_view(auth, token.clone())
+			.expect("authorized view should succeed");
+		assert_eq!(decoded.network, 300);
+		assert_eq!(decoded.pallet, 9);
+		assert_eq!(decoded.origin, false);
+		assert_eq!(decoded.genesis, format!("0x{}", hex::encode(digest)));
+	});
+}
+
+#[test]
+fn resolve_pallet_view_authorized() {
+	new_test_ext().execute_with(|| {
+		let signer = sr25519::Pair::from_seed(&[11u8; 32]);
+		let pallet_name = "TokenView";
+		let index = Pallet::<Test>::get_or_add_pallet_index(pallet_name).unwrap();
+		let auth = make_auth(b"resolve-pallet", &signer);
+		let resolved = Pallet::<Test>::resolve_pallet_view(auth, index)
+			.expect("authorized pallet view");
+		assert_eq!(resolved, pallet_name);
 	});
 }

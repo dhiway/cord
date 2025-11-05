@@ -163,27 +163,14 @@ pub fn ensure_entry_access<T: Config>(
 pub fn normalise_attributes<T: Config>(
 	input: AttributePairsOf<T>,
 ) -> Result<PacketAttributesOf<T>, DispatchError> {
-	let mut pairs: Vec<(Attribute, PacketDataOf<T>)> = Vec::new();
-	for (key, value) in input.into_iter() {
-		pairs.push((key, value));
-	}
-	Attributes::try_from(pairs).map_err(|err| map_attribute_error::<T>(err).into())
+	Attributes::try_collect(input.into_iter()).map_err(|err| map_attribute_error::<T>(err).into())
 }
 
 pub fn apply_attribute_updates<T: Config>(
 	target: &mut PacketAttributesOf<T>,
 	updates: &PacketAttributesOf<T>,
 ) -> Result<(), DispatchError> {
-	for (key, value) in updates.iter() {
-		if let Some(existing) = target.get_mut(key.as_slice()) {
-			*existing = value.clone();
-		} else {
-			target
-				.try_insert(key.clone(), value.clone())
-				.map_err(|err| -> DispatchError { map_attribute_error::<T>(err).into() })?;
-		}
-	}
-	Ok(())
+	target.merge(updates).map_err(|err| map_attribute_error::<T>(err).into())
 }
 
 pub fn ensure_matches_schema<T: Config>(
@@ -280,10 +267,7 @@ fn map_attribute_error<T: Config>(err: AttributesError) -> Error<T> {
 pub fn attributes_digest<T: Config>(
 	attributes: &PacketAttributesOf<T>,
 ) -> <T as frame_system::Config>::Hash {
-	let mut normalized: Vec<(Vec<u8>, Vec<u8>)> =
-		attributes.iter().map(|(key, value)| (key.to_vec(), value.encode())).collect();
-	normalized.sort_by(|lhs, rhs| lhs.0.cmp(&rhs.0));
-	T::Hashing::hash(&normalized.encode())
+	T::Hashing::hash(&attributes.encoded_pairs().encode())
 }
 
 pub type LookupDigestOf<T> = <T as frame_system::Config>::Hash;

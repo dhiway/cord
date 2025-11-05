@@ -66,12 +66,15 @@ impl frame_system::Config for Test {
 impl pallet_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
+	type MaxViewAuthorizationLen = MaxViewAuthorizationLen;
+	type MaxHistoryResults = MaxHistoryResults;
 }
 
 parameter_types! {
 	pub const MaxRawDataLength: u32 = 256;
 	pub const MaxAdditionalAttributes: u32 = 8;
 	pub const MaxViewAuthorizationLen: u32 = 64;
+	pub const MaxHistoryResults: u32 = 16;
 }
 
 pub struct MockLookup;

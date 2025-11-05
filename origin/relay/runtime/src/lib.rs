@@ -42,7 +42,7 @@ use alloc::{
 };
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
-use core::cmp::Ordering;
+use core::{cmp::Ordering, convert::TryInto};
 
 use authority_discovery_primitives::AuthorityId as AuthorityDiscoveryId;
 use beefy_primitives::{
@@ -142,7 +142,6 @@ mod weights;
 
 /// Runtime API definition for token.
 pub use cord_token_runtime_api as token_api;
-use pallet_token::Token as _;
 
 // Genesis preset configurations.
 pub mod genesis_config_presets;
@@ -177,6 +176,14 @@ pub const BABE_GENESIS_EPOCH_CONFIG: babe_primitives::BabeEpochConfiguration =
 		c: PRIMARY_PROBABILITY,
 		allowed_slots: babe_primitives::AllowedSlots::PrimaryAndSecondaryVRFSlots,
 	};
+
+fn convert_token_view_authorization(
+	auth: token_api::ViewAuthorization<AccountId, Signature>,
+) -> Option<pallet_token::ViewAuthorization<Runtime>> {
+	let token_api::ViewAuthorization { account, payload, signature } = auth;
+	let payload: pallet_token::ViewAuthPayloadOf<Runtime> = payload.try_into().ok()?;
+	Some(pallet_token::ViewAuthorization { account, payload, signature })
+}
 
 /// Native version.
 #[cfg(any(feature = "std", test))]
@@ -1027,9 +1034,16 @@ impl OnSwap for SwapLeases {
 	}
 }
 
+parameter_types! {
+	pub const TokenMaxViewAuthorizationLen: u32 = 128;
+	pub const TokenMaxHistoryResults: u32 = 64;
+}
+
 impl pallet_token::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
+	type MaxViewAuthorizationLen = TokenMaxViewAuthorizationLen;
+	type MaxHistoryResults = TokenMaxHistoryResults;
 }
 
 impl pallet_sudo::Config for Runtime {
@@ -1941,25 +1955,55 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	impl token_api::TokenApi<Block> for Runtime {
-		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
-
-			let ss58_id = Ss58Identifier::try_from(token).ok()?;
-
-			let decoded: DecodedIdentifier = Token::resolve_token(&ss58_id).ok()?;
-
-			Some(token_api::DecodedTokenApi {
-				origin: decoded.origin,
-				network: decoded.network,
-				pallet: decoded.pallet,
-				genesis: decoded.genesis,
-			})
-		}
-
-		fn resolve_pallet(index: u16) -> Option<String> {
-			Token::resolve_pallet_name(index).ok()
-		}
+	impl token_api::TokenApi<Block, AccountId, Signature, Hash> for Runtime {
+		fn resolve_identifier(
+			auth: token_api::ViewAuthorization<AccountId, Signature>,
+			token: Vec<u8>,
+	) -> Option<token_api::DecodedTokenApi> {
+		let auth = convert_token_view_authorization(auth)?;
+		let ss58_id = Ss58Identifier::try_from(token).ok()?;
+		let decoded: DecodedIdentifier = Token::resolve_identifier_view(auth, ss58_id)?;
+		Some(token_api::DecodedTokenApi {
+			origin: decoded.origin,
+			network: decoded.network,
+			pallet: decoded.pallet,
+			genesis: decoded.genesis,
+		})
 	}
+
+	fn resolve_pallet(
+		auth: token_api::ViewAuthorization<AccountId, Signature>,
+		index: u16,
+	) -> Option<String> {
+		let auth = convert_token_view_authorization(auth)?;
+		Token::resolve_pallet_view(auth, index)
+	}
+
+	fn token_history(
+		auth: token_api::ViewAuthorization<AccountId, Signature>,
+		token: Vec<u8>,
+		start: Option<u32>,
+		limit: u32,
+	) -> Vec<token_api::TokenHistoryEvent<Hash>> {
+		let auth = match convert_token_view_authorization(auth) {
+			Some(auth) => auth,
+			None => return Vec::new(),
+		};
+		let ss58_id = match Ss58Identifier::try_from(token) {
+			Ok(id) => id,
+			Err(_) => return Vec::new(),
+		};
+		Token::history_view(auth, ss58_id, start, limit)
+			.into_iter()
+			.map(|event| token_api::TokenHistoryEvent {
+				action: event.action.into(),
+				digest: event.digest,
+				height: event.seal.height,
+				index: event.seal.index,
+			})
+			.collect()
+	}
+}
 
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {

@@ -30,7 +30,7 @@ use cord_primitives::{
 };
 pub use cord_primitives::{AccountId, AccountPublic, Signature};
 use cord_runtime_common::{impl_runtime_weights, prod_or_fast, BlockHashCount, BlockLength};
-use core::cmp::Ordering;
+use core::{cmp::Ordering, convert::TryInto};
 use frame_support::{
 	derive_impl,
 	genesis_builder_helper::{build_state, get_preset},
@@ -51,7 +51,6 @@ pub use pallet_balances::Call as BalancesCall;
 use pallet_entity::entity::EntityInfo;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
-use pallet_token::Token as _;
 use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
@@ -97,7 +96,7 @@ pub mod benchmark;
 pub use benchmark::DummySignature;
 
 /// Runtime API definition for token.
-pub use cord_token_runtime_api as token_api;
+// pub use cord_token_runtime_api as token_api;
 /// Runtime API definition for assets.
 pub use pallet_assets_runtime_api as assets_api;
 
@@ -147,6 +146,14 @@ pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
 		c: PRIMARY_PROBABILITY,
 		allowed_slots: sp_consensus_babe::AllowedSlots::PrimaryAndSecondaryVRFSlots,
 	};
+
+// fn convert_token_view_authorization(
+// 	auth: token_api::ViewAuthorization<AccountId, Signature>,
+// ) -> Option<pallet_token::ViewAuthorization<Runtime>> {
+// 	let token_api::ViewAuthorization { account, payload, signature } = auth;
+// 	let payload: pallet_token::ViewAuthPayloadOf<Runtime> = payload.try_into().ok()?;
+// 	Some(pallet_token::ViewAuthorization { account, payload, signature })
+// }
 
 /// Native version.
 #[cfg(any(feature = "std", test))]
@@ -962,9 +969,16 @@ impl pallet_sudo::Config for Runtime {
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
 }
 
+parameter_types! {
+	pub const TokenMaxViewAuthorizationLen: u32 = 128;
+	pub const TokenMaxHistoryResults: u32 = 64;
+}
+
 impl pallet_token::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
+	type MaxViewAuthorizationLen = TokenMaxViewAuthorizationLen;
+	type MaxHistoryResults = TokenMaxHistoryResults;
 }
 
 impl pallet_collection::Config for Runtime {
@@ -1348,7 +1362,7 @@ impl_runtime_apis! {
 		}
 	}
 
-		impl frame_support::view_functions::runtime_api::RuntimeViewFunction<Block> for Runtime {
+	impl frame_support::view_functions::runtime_api::RuntimeViewFunction<Block> for Runtime {
 		fn execute_view_function(id: frame_support::view_functions::ViewFunctionId, input: Vec<u8>) -> Result<Vec<u8>, frame_support::view_functions::ViewFunctionDispatchError> {
 			Runtime::execute_view_function(id, input)
 		}
@@ -1494,37 +1508,67 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl assets_api::AssetsApi<
-		Block,
-		AccountId,
-		Balance,
-		u32,
-	> for Runtime
-	{
-		fn account_balances(account: AccountId) -> Vec<(u32, Balance)> {
-			Assets::account_balances(account)
-		}
+impl assets_api::AssetsApi<
+	Block,
+	AccountId,
+	Balance,
+	u32,
+> for Runtime
+{
+	fn account_balances(account: AccountId) -> Vec<(u32, Balance)> {
+		Assets::account_balances(account)
 	}
+}
 
-	impl token_api::TokenApi<Block> for Runtime {
-		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
+// impl token_api::TokenApi<Block, AccountId, Signature, Hash> for Runtime {
+// 	fn resolve_identifier(
+// 		auth: token_api::ViewAuthorization<AccountId, Signature>,
+// 		token: Vec<u8>,
+// 	) -> Option<token_api::DecodedTokenApi> {
+// 		let auth = convert_token_view_authorization(auth)?;
+// 		let ss58_id = Ss58Identifier::try_from(token).ok()?;
+// 		let decoded: DecodedIdentifier = Token::resolve_identifier_view(auth, ss58_id)?;
+// 		Some(token_api::DecodedTokenApi {
+// 			origin: decoded.origin,
+// 			network: decoded.network,
+// 			pallet: decoded.pallet,
+// 			genesis: decoded.genesis,
+// 		})
+// 	}
 
-			let ss58_id = Ss58Identifier::try_from(token).ok()?;
+// 	fn resolve_pallet(
+// 		auth: token_api::ViewAuthorization<AccountId, Signature>,
+// 		index: u16,
+// 	) -> Option<String> {
+// 		let auth = convert_token_view_authorization(auth)?;
+// 		Token::resolve_pallet_view(auth, index)
+// 	}
 
-			let decoded: DecodedIdentifier = Token::resolve_token(&ss58_id).ok()?;
-
-			Some(token_api::DecodedTokenApi {
-				origin: decoded.origin,
-				network: decoded.network,
-				pallet: decoded.pallet,
-				genesis: decoded.genesis,
-			})
-		}
-
-		fn resolve_pallet(index: u16) -> Option<String> {
-			Token::resolve_pallet_name(index).ok()
-		}
-	}
+// 	fn token_history(
+// 		auth: token_api::ViewAuthorization<AccountId, Signature>,
+// 		token: Vec<u8>,
+// 		start: Option<u32>,
+// 		limit: u32,
+// 	) -> Vec<token_api::TokenHistoryEvent<Hash>> {
+// 		let auth = match convert_token_view_authorization(auth) {
+// 			Some(auth) => auth,
+// 			None => return Vec::new(),
+// 		};
+// 		let ss58_id = match Ss58Identifier::try_from(token) {
+// 			Ok(id) => id,
+// 			Err(_) => return Vec::new(),
+// 		};
+// 		Token::history_view(auth, ss58_id, start, limit)
+// 			.into_iter()
+// 			.map(|event| token_api::TokenHistoryEvent {
+// 				action: event.action.into(),
+// 				digest: event.digest,
+// 				height: event.seal.height,
+// 				index: event.seal.index,
+// 			})
+// 			.collect()
+// 	}
+// }
 
 	impl pallet_contracts::ContractsApi<Block, AccountId, Balance, BlockNumber, Hash, EventRecord> for Runtime
 	{

@@ -287,7 +287,7 @@ mod tests {
 	fn encode_decode_prints_values_origin_ident() {
 		// run with: cargo +nightly test -p cord-primitives -Z unstable-options -- --show-output
 		let digest = valid_digest();
-		let nid: u16 = 200;
+		let nid: u16 = 1000;
 		let pid: u16 = 9;
 
 		let id = Ss58Identifier::to_encoded(digest, nid, pid, TEST_ORI).expect("encode ok");

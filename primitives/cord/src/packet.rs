@@ -109,6 +109,58 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 		self.position(key).ok().map(|idx| self.0.remove(idx))
 	}
 
+	/// Construct an attribute map from an iterator, ensuring canonical order.
+	pub fn try_collect<I>(iter: I) -> Result<Self, AttributesError>
+	where
+		I: IntoIterator<Item = (Attribute, Element<MaxRawDataLength>)>,
+	{
+		let mut bounded =
+			BoundedVec::<(Attribute, Element<MaxRawDataLength>), MaxAdditionalAttributes>::new();
+		for (key, value) in iter.into_iter() {
+			value.validate().map_err(|_| AttributesError::InvalidElement)?;
+			bounded
+				.try_push((key, value))
+				.map_err(|_| AttributesError::TooManyAttributes)?;
+		}
+		Self::canonicalize(bounded)
+	}
+
+	/// Insert or update an attribute, maintaining canonical ordering.
+	pub fn upsert(
+		&mut self,
+		key: Attribute,
+		value: Element<MaxRawDataLength>,
+	) -> Result<(), AttributesError> {
+		value.validate().map_err(|_| AttributesError::InvalidElement)?;
+		match self.position(key.as_slice()) {
+			Ok(index) => {
+				self.0[index].1 = value;
+				Ok(())
+			},
+			Err(index) => self
+				.0
+				.try_insert(index, (key, value))
+				.map_err(|_| AttributesError::TooManyAttributes),
+		}
+	}
+
+	/// Merge another canonical attribute set into `self`.
+	pub fn merge(&mut self, updates: &Self) -> Result<(), AttributesError> {
+		for (key, value) in updates.iter() {
+			self.upsert(key.clone(), value.clone())?;
+		}
+		Ok(())
+	}
+
+	/// Materialize attributes into an encoded `(key, value)` representation sorted by key.
+	pub fn encoded_pairs(&self) -> Vec<(Vec<u8>, Vec<u8>)> {
+		self
+			.0
+			.iter()
+			.map(|(key, value)| (key.to_vec(), value.encode()))
+			.collect()
+	}
+
 	pub fn validate(&self) -> Result<(), AttributesError> {
 		let mut prev: Option<&[u8]> = None;
 		for (key, value) in self.0.iter() {
@@ -286,16 +338,23 @@ pub trait PacketInformationProvider {
 #[cfg(test)]
 mod tests {
 	use super::{Attribute, Attributes, AttributesError, Element};
-	use alloc::vec;
+	use alloc::{vec, vec::Vec};
+	use codec::{Decode, Encode};
+	use frame_support::BoundedVec;
 	use frame_support::traits::ConstU32;
 
 	type MaxRaw = ConstU32<32>;
 	type MaxAttrs = ConstU32<8>;
+	type TinyAttrs = ConstU32<1>;
+
+	fn key(name: &[u8]) -> Attribute {
+		name.to_vec().try_into().expect("within attribute bounds")
+	}
 
 	#[test]
 	fn attributes_try_from_sorts_and_validates() {
-		let key_a: Attribute = b"b".to_vec().try_into().unwrap();
-		let key_b: Attribute = b"a".to_vec().try_into().unwrap();
+		let key_a = key(b"b");
+		let key_b = key(b"a");
 		let value = Element::<MaxRaw>::from_bool(true);
 		let attrs = Attributes::<MaxRaw, MaxAttrs>::try_from(vec![
 			(key_a.clone(), value.clone()),
@@ -309,7 +368,7 @@ mod tests {
 
 	#[test]
 	fn attributes_reject_duplicate_keys() {
-		let key: Attribute = b"dup".to_vec().try_into().unwrap();
+		let key = key(b"dup");
 		let value = Element::<MaxRaw>::from_bool(false);
 		let err = Attributes::<MaxRaw, MaxAttrs>::try_from(vec![
 			(key.clone(), value.clone()),
@@ -321,11 +380,142 @@ mod tests {
 	#[test]
 	fn attributes_try_insert_rejects_invalid_element() {
 		let mut attrs = Attributes::<MaxRaw, MaxAttrs>::default();
-		let key: Attribute = b"flag".to_vec().try_into().unwrap();
+		let key = key(b"flag");
 		let mut invalid = Element::<MaxRaw>::from_bool(true);
 		if let Element::Bool(ref mut flag) = invalid {
 			*flag = 2;
 		}
 		assert!(matches!(attrs.try_insert(key, invalid), Err(AttributesError::InvalidElement)));
+	}
+
+	#[test]
+	fn try_collect_orders_entries() {
+		let key_a = key(b"z");
+		let key_b = key(b"a");
+		let elem = Element::<MaxRaw>::from_bool(true);
+		let attrs = Attributes::<MaxRaw, MaxAttrs>::try_collect(vec![(key_a.clone(), elem.clone()), (key_b.clone(), elem.clone())])
+			.expect("within bounds");
+		let mut iter = attrs.iter();
+		assert_eq!(iter.next().unwrap().0.as_slice(), key_b.as_slice());
+		assert_eq!(iter.next().unwrap().0.as_slice(), key_a.as_slice());
+	}
+
+	#[test]
+	fn merge_updates_and_inserts() {
+		let mut base = Attributes::<MaxRaw, MaxAttrs>::default();
+		let key_existing = key(b"foo");
+		let key_new = key(b"bar");
+		base.try_insert(key_existing.clone(), Element::<MaxRaw>::from_bool(false)).unwrap();
+		let mut updates = Attributes::<MaxRaw, MaxAttrs>::default();
+		updates.try_insert(key_existing.clone(), Element::<MaxRaw>::from_bool(true)).unwrap();
+		updates.try_insert(key_new.clone(), Element::<MaxRaw>::from_bool(true)).unwrap();
+		base.merge(&updates).unwrap();
+		assert_eq!(base.get(key_existing.as_slice()).unwrap().as_bool(), Some(true));
+		assert!(base.contains_key(key_new.as_slice()));
+	}
+
+	#[test]
+	fn encoded_pairs_are_sorted() {
+		let attrs = Attributes::<MaxRaw, MaxAttrs>::try_collect(vec![
+			(b"b".to_vec().try_into().unwrap(), Element::<MaxRaw>::from_bool(true)),
+			(b"a".to_vec().try_into().unwrap(), Element::<MaxRaw>::from_bool(false)),
+		])
+		.expect("collect ok");
+		let pairs = attrs.encoded_pairs();
+		assert_eq!(pairs[0].0, b"a".to_vec());
+		assert_eq!(pairs[1].0, b"b".to_vec());
+	}
+
+	#[test]
+	fn get_and_get_mut_follow_sorted_keys() {
+		let mut attrs = Attributes::<MaxRaw, MaxAttrs>::default();
+		let key = key(b"flip");
+		attrs.try_insert(key.clone(), Element::<MaxRaw>::from_bool(false)).unwrap();
+		let flag = attrs.get_mut(key.as_slice()).expect("entry present");
+		if let Element::Bool(ref mut inner) = flag {
+			*inner = 1;
+		} else {
+			panic!("expected bool element");
+		}
+		assert_eq!(attrs.get(key.as_slice()).unwrap().as_bool(), Some(true));
+	}
+
+	#[test]
+	fn remove_clears_entries_and_shifts_remaining() {
+		let mut attrs = Attributes::<MaxRaw, MaxAttrs>::try_from(vec![
+			(key(b"a"), Element::<MaxRaw>::from_bool(true)),
+			(key(b"b"), Element::<MaxRaw>::from_bool(false)),
+		])
+		.expect("valid attributes");
+		let removed = attrs.remove(b"a").expect("entry removed");
+		assert_eq!(removed.0.as_slice(), b"a");
+		assert!(!attrs.contains_key(b"a"));
+		assert_eq!(attrs.len(), 1);
+		assert_eq!(attrs.iter().next().unwrap().0.as_slice(), b"b");
+	}
+
+	#[test]
+	fn upsert_replaces_existing_and_preserves_order() {
+		let mut attrs = Attributes::<MaxRaw, MaxAttrs>::try_from(vec![
+			(key(b"a"), Element::<MaxRaw>::from_bool(false)),
+			(key(b"c"), Element::<MaxRaw>::from_bool(true)),
+		])
+		.expect("valid attributes");
+		attrs.upsert(key(b"b"), Element::<MaxRaw>::from_bool(true)).unwrap();
+		attrs.upsert(key(b"a"), Element::<MaxRaw>::from_bool(true)).unwrap();
+		let keys: Vec<Vec<u8>> = attrs.iter().map(|(k, _)| k.to_vec()).collect();
+		assert_eq!(keys, vec![b"a".to_vec(), b"b".to_vec(), b"c".to_vec()]);
+		assert_eq!(attrs.get(b"a").unwrap().as_bool(), Some(true));
+	}
+
+	#[test]
+	fn upsert_rejects_invalid_elements() {
+		let mut attrs = Attributes::<MaxRaw, MaxAttrs>::default();
+		let key = key(b"flag");
+		let mut invalid = Element::<MaxRaw>::from_bool(true);
+		if let Element::Bool(ref mut flag) = invalid {
+			*flag = 3;
+		}
+		assert_eq!(attrs.upsert(key, invalid), Err(AttributesError::InvalidElement));
+	}
+
+	#[test]
+	fn try_insert_enforces_capacity_limits() {
+		let mut attrs = Attributes::<MaxRaw, TinyAttrs>::default();
+		attrs.try_insert(key(b"a"), Element::<MaxRaw>::from_bool(true)).unwrap();
+		let err = attrs.try_insert(key(b"b"), Element::<MaxRaw>::from_bool(false));
+		assert_eq!(err, Err(AttributesError::TooManyAttributes));
+	}
+
+	#[test]
+	fn merge_propagates_capacity_errors() {
+		let mut base = Attributes::<MaxRaw, TinyAttrs>::default();
+		base.try_insert(key(b"a"), Element::<MaxRaw>::from_bool(false)).unwrap();
+		let mut updates = Attributes::<MaxRaw, TinyAttrs>::default();
+		updates.try_insert(key(b"b"), Element::<MaxRaw>::from_bool(true)).unwrap();
+		assert_eq!(base.merge(&updates), Err(AttributesError::TooManyAttributes));
+	}
+
+	#[test]
+	fn try_collect_rejects_invalid_elements() {
+		let mut invalid = Element::<MaxRaw>::from_bool(true);
+		if let Element::Bool(ref mut flag) = invalid {
+			*flag = 9;
+		}
+		let err = Attributes::<MaxRaw, MaxAttrs>::try_collect(vec![(key(b"x"), invalid)]);
+		assert_eq!(err, Err(AttributesError::InvalidElement));
+	}
+
+	#[test]
+	fn decode_rejects_duplicate_keys() {
+		let dup_key = key(b"d");
+		let elem = Element::<MaxRaw>::from_bool(true);
+		let raw =
+			BoundedVec::<_, MaxAttrs>::try_from(vec![(dup_key.clone(), elem.clone()), (dup_key, elem)])
+				.expect("bounded vec allows duplicates");
+		let encoded = raw.encode();
+		let mut cursor = &encoded[..];
+		let err = Attributes::<MaxRaw, MaxAttrs>::decode(&mut cursor).unwrap_err();
+		assert_eq!(err.to_string(), "Duplicate attribute keys found");
 	}
 }

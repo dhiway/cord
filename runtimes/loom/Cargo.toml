@@ -44,7 +44,7 @@ pallet-token = { workspace = true }
 pallet-profile = { workspace = true }
 pallet-registry = { workspace = true }
 pallet-runtime-upgrade = { workspace = true }
-cord-token-runtime-api = { workspace = true }
+# cord-token-runtime-api = { workspace = true }
 pallet-assets-runtime-api = { workspace = true }
 
 # Substrate
@@ -126,7 +126,7 @@ std = [
 	"sp-authority-discovery/std",
 	"cord-primitives/std",
 	"cord-runtime-common/std",
-	"cord-token-runtime-api/std",
+	# "cord-token-runtime-api/std",
 	"authority-membership/std",
 	"frame-system-benchmarking?/std",
 	"frame-metadata-hash-extension/std",
