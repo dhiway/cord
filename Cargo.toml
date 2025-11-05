@@ -49,6 +49,8 @@ members = [
 	"runtimes/loom/constants",
 	"runtimes/weave/",
 	"runtimes/weave/constants",
+	"runtimes/orb/",
+	"runtimes/orb/constants",
 	"test-utils/cli",
 	"pallets/profile",
 	"pallets/entry",
@@ -755,6 +757,8 @@ cord-loom-runtime = { path = "runtimes/loom", default-features = false }
 cord-loom-runtime-constants = { path = "runtimes/loom/constants", default-features = false }
 cord-weave-runtime = { path = "runtimes/weave", default-features = false }
 cord-weave-runtime-constants = { path = "runtimes/weave/constants", default-features = false }
+cord-orb-runtime = { path = "runtimes/orb", default-features = false }
+cord-orb-runtime-constants = { path = "runtimes/orb/constants", default-features = false }
 cord-node-service = { path = "node/service", default-features = false }
 cord-node-inspect = { path = "node/inspect", default-features = false }
 cord-node-rpc = { path = "node/rpc", default-features = false }

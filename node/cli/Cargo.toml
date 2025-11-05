@@ -106,7 +106,6 @@ sc-service = { workspace = true }
 sc-telemetry = { workspace = true, default-features = true }
 sc-storage-monitor = { workspace = true }
 sc-rpc = { workspace = true }
-mmr-gadget = { workspace = true, default-features = true }
 
 # frame dependencies
 frame-benchmarking = { features = ["std"], workspace = true }
@@ -118,31 +117,22 @@ pallet-babe = { features = ["std"], workspace = true }
 pallet-im-online = { features = ["std"], workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
-pallet-asset-conversion-tx-payment = { workspace = true }
-pallet-contracts = { features = ["std"], workspace = true }
-pallet-asset-conversion = { features = ["std"], workspace = true }
 prometheus-endpoint = { workspace = true }
 
 # cord-specific dependencies
-cord-braid-runtime = { workspace = true, features = ["std"], optional = true }
+cord-orb-runtime = { workspace = true, features = ["std"], optional = true }
 cord-loom-runtime = { workspace = true, features = ["std"], optional = true }
-cord-weave-runtime = { workspace = true, features = ["std"], optional = true }
 cord-runtime-common = { workspace = true, default-features = true }
 cord-primitives = { features = ["std"], workspace = true }
-network-membership = { features = ["std"], workspace = true }
+# network-membership = { features = ["std"], workspace = true }
 cord-node-inspect = { optional = true, workspace = true, default-features = true }
 cord-node-rpc = { workspace = true }
-cord-braid-runtime-constants = { features = [
+cord-orb-runtime-constants = { features = [
 	"std",
 ], workspace = true, optional = true }
 cord-loom-runtime-constants = { features = [
 	"std",
 ], workspace = true, optional = true }
-cord-weave-runtime-constants = { features = [
-	"std",
-], workspace = true, optional = true }
-pallet-token = { features = ["std"], workspace = true }
-pallet-network-membership = { features = ["std"], workspace = true }
 pallet-staking = { workspace = true }
 
 # CLI-specific dependencies
@@ -160,7 +150,6 @@ tempfile = { workspace = true }
 assert_cmd = { workspace = true }
 nix = { features = ["signal"], workspace = true }
 regex = { workspace = true }
-# platforms = { workspace = true }
 soketto = { workspace = true }
 criterion = { features = [
 	"async_tokio",
@@ -182,13 +171,11 @@ sp-keyring = { workspace = true }
 pretty_assertions.workspace = true
 env_logger = { workspace = true }
 assert_matches = { workspace = true }
-# serial_test = { workspace = true }
 sc-keystore = { workspace = true }
 sc-client-db = { workspace = true }
 sc-consensus = { workspace = true }
 sc-consensus-babe = { workspace = true }
 sc-consensus-epochs = { workspace = true }
-# cord-service-test = { workspace = true }
 sp-tracing = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-crypto-hashing = { workspace = true }
@@ -223,8 +210,7 @@ default = [
 	"cli",
 	"db",
 	"full-node",
-	"weave-native",
-	"braid-native",
+	"orb-native",
 	"loom-native",
 ]
 
@@ -250,14 +236,12 @@ db = [
 jemalloc-allocator = ["dep:tikv-jemallocator"]
 
 # Configure the native runtimes to use.
-braid-native = ["bitvec", "cord-braid-runtime", "cord-braid-runtime-constants"]
+orb-native = ["bitvec", "cord-orb-runtime", "cord-orb-runtime-constants"]
 loom-native = ["bitvec", "cord-loom-runtime", "cord-loom-runtime-constants"]
-weave-native = ["bitvec", "cord-weave-runtime", "cord-weave-runtime-constants"]
 
 runtime-benchmarks = [
 	"cord-runtime-common/runtime-benchmarks",
-	"cord-weave-runtime?/runtime-benchmarks",
-	"cord-braid-runtime?/runtime-benchmarks",
+	"cord-orb-runtime?/runtime-benchmarks",
 	"cord-loom-runtime/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
@@ -267,34 +251,23 @@ runtime-benchmarks = [
 	"pallet-im-online/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"pallet-asset-conversion/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
-	"pallet-contracts/runtime-benchmarks",
-	"pallet-network-membership/runtime-benchmarks",
 	"sc-client-db/runtime-benchmarks",
 ]
 # Enable features that allow the runtime to be tried and debugged.
 try-runtime = [
 	"cord-runtime-common/try-runtime",
-	"cord-weave-runtime?/try-runtime",
-	"cord-loom-runtime/try-runtime",
-	"cord-braid-runtime/try-runtime",
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-transaction-payment/try-runtime",
-	"pallet-asset-conversion-tx-payment/try-runtime",
 	"sp-runtime/try-runtime",
-	"cord-braid-runtime?/try-runtime",
-	"cord-weave-runtime?/try-runtime",
-	"pallet-asset-conversion/try-runtime",
+	"cord-orb-runtime?/try-runtime",
+	"cord-loom-runtime?/try-runtime",
 	"pallet-babe/try-runtime",
-	"pallet-contracts/try-runtime",
-	"pallet-network-membership/try-runtime",
 ]
 
 fast-runtime = [
-	"cord-braid-runtime/fast-runtime",
+	"cord-orb-runtime/fast-runtime",
 	"cord-loom-runtime/fast-runtime",
-	"cord-weave-runtime/fast-runtime",
 ]
