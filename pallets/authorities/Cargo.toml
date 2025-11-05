@@ -26,13 +26,13 @@ sp-runtime = { workspace = true }
 sp-core = { workspace = true }
 sp-staking = { workspace = true }
 pallet-session = { features = ["historical"], workspace = true }
-pallet-im-online = { workspace = true }
-sp-state-machine = { workspace = true }
 frame-benchmarking = { workspace = true, optional = true }
 
 [dev-dependencies]
 serde = { workspace = true }
 sp-io = { default-features = true, workspace = true }
+pallet-im-online = { workspace = true, default-features = true }
+sp-state-machine = { workspace = true, default-features = true }
 pallet-balances = { default-features = true, workspace = true }
 
 [features]
@@ -46,9 +46,7 @@ std = [
 	'sp-runtime/std',
 	'sp-core/std',
 	'sp-staking/std',
-	"sp-state-machine/std",
 	'pallet-session/std',
-	"pallet-im-online/std",
 	'log/std',
 	"serde/std",
 	"sp-io/std",
@@ -65,6 +63,5 @@ try-runtime = [
 	'frame-support/try-runtime',
 	"frame-system/try-runtime",
 	"pallet-session/try-runtime",
-	"pallet-im-online/try-runtime",
 	"sp-runtime/try-runtime",
 ]

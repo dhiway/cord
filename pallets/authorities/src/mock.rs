@@ -232,6 +232,7 @@ pub fn current_validator_id_at(idx: usize) -> AccountId {
 
 /// Dispatch helpers (optional)
 pub fn nominate_ok(id: AccountId) {
+	stage_keys(id);
 	let call = crate::pallet::Call::<Test>::nominate { who: id };
 	let rc: <Test as frame_system::Config>::RuntimeCall = call.into();
 	assert!(rc.dispatch(frame_system::RawOrigin::Root.into()).is_ok());
@@ -240,4 +241,9 @@ pub fn remove_ok(id: AccountId) {
 	let call = crate::pallet::Call::<Test>::remove { who: id };
 	let rc: <Test as frame_system::Config>::RuntimeCall = call.into();
 	assert!(rc.dispatch(frame_system::RawOrigin::Root.into()).is_ok());
+}
+
+/// Stage mock session keys for `id` to satisfy `nominate`.
+pub fn stage_keys(id: AccountId) {
+	pallet_session::NextKeys::<Test>::insert(id, MockSessionKeys::from(UintAuthorityId(id)));
 }

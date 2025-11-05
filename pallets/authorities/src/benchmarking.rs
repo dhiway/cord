@@ -21,6 +21,7 @@
 use crate::Config;
 use codec::Encode;
 use frame_benchmarking::v2::*;
+use frame_support::traits::Get;
 use frame_system::RawOrigin;
 use sp_runtime::traits::Convert;
 

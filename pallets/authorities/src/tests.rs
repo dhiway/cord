@@ -294,6 +294,34 @@ fn removal_guard_accounts_for_pending_queue() {
 }
 
 #[test]
+fn removal_deduplicates_existing_pending_entries() {
+	let mut ext = new_test_ext(4);
+	ext.execute_with(|| {
+		PendingRemovals::<Test>::mutate(|p| {
+			p.push(3);
+			p.push(3);
+		});
+
+		assert_ok!(crate::pallet::Pallet::<Test>::remove(RawOrigin::Root.into(), 6));
+		assert!(PendingRemovals::<Test>::get().contains(&6));
+	});
+}
+
+#[test]
+fn nominate_rejects_when_already_queued() {
+	let mut ext = new_test_ext(2);
+	ext.execute_with(|| {
+		let who = 42u64;
+		insert_next_keys(who);
+		PendingAdditions::<Test>::mutate(|p| p.push(who));
+		assert_noop!(
+			crate::pallet::Pallet::<Test>::nominate(RawOrigin::Root.into(), who),
+			Err::<Test>::AlreadyQueued
+		);
+	});
+}
+
+#[test]
 fn duplicate_nominate_in_same_block_is_already_member() {
 	let mut ext = new_test_ext(2);
 	ext.execute_with(|| {

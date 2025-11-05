@@ -125,6 +125,15 @@ impl EntityLookup<Test> for MockLookup {
 	}
 }
 
+#[cfg(feature = "runtime-benchmarks")]
+impl crate::benchmarking::EntityBinder<Test> for MockLookup {
+	fn bind_account(account: &AccountId, token: &Ss58Identifier) {
+		ACCOUNT_TOKENS.with(|map| {
+			map.borrow_mut().insert(account.clone(), token.clone());
+		});
+	}
+}
+
 impl Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Token = pallet_token::Pallet<Self>;
