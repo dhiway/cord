@@ -225,7 +225,7 @@ impl frame_system::Config for Runtime {
 	type ExtensionsWeightInfo = weights::frame_system_extensions::WeightInfo<Runtime>;
 	type SS58Prefix = SS58Prefix;
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
-	type MultiBlockMigrator = ();
+	type MultiBlockMigrator = MultiBlockMigrations;
 }
 
 parameter_types! {
@@ -997,7 +997,7 @@ mod benches {
 		[pallet_timestamp, Timestamp]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
-		[pallet_transaction_payment, TransactionPayment]
+		// [pallet_transaction_payment, TransactionPayment]
 		[pallet_tx_pause, TxPause]
 		[pallet_safe_mode, SafeMode]
 		[pallet_utility, Utility]
@@ -1247,6 +1247,7 @@ impl_runtime_apis! {
 			(list, storage_info)
 		}
 
+		#[allow(non_local_definitions)]
 		fn dispatch_benchmark(
 			config: frame_benchmarking::BenchmarkConfig
 		) -> Result<

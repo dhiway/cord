@@ -36,23 +36,29 @@ impl LoadSpec for ChainSpecLoader {
 			// "origin-coretime" | "coretime" => Box::new(GenericChainSpec::from_json_bytes(
 			// 	&include_bytes!("../../chain-specs/tbd.json")[..],
 			// )?),
-			"origin-coretime-dev" | "coretime-dev" =>
-				Box::new(coretime::coretime_origin_staging_development_config()),
-			"origin-coretime-local" | "coretime-local" =>
-				Box::new(coretime::coretime_origin_staging_local_config()),
-			"origin-coretime-genesis" | "coretime-genesis" =>
-				Box::new(coretime::coretime_origin_genesis_config()),
+			"origin-coretime-dev" | "coretime-dev" => {
+				Box::new(coretime::coretime_origin_staging_development_config())
+			},
+			"origin-coretime-local" | "coretime-local" => {
+				Box::new(coretime::coretime_origin_staging_local_config())
+			},
+			"origin-coretime-genesis" | "coretime-genesis" => {
+				Box::new(coretime::coretime_origin_genesis_config())
+			},
 
 			// // -- Entity
 			// "origin-entity" | "entity" => Box::new(GenericChainSpec::from_json_bytes(
 			// 	&include_bytes!("../../chain-specs/tbd.json")[..],
 			// )?),
-			"origin-entity-dev" | "entity-dev" =>
-				Box::new(entity::entity_origin_staging_development_config()),
-			"origin-entity-local" | "entity-local" =>
-				Box::new(entity::entity_origin_staging_local_config()),
-			"origin-entity-genesis" | "entity-genesis" =>
-				Box::new(entity::origin_entity_genesis_config()),
+			"origin-entity-dev" | "entity-dev" => {
+				Box::new(entity::entity_origin_staging_development_config())
+			},
+			"origin-entity-local" | "entity-local" => {
+				Box::new(entity::entity_origin_staging_local_config())
+			},
+			"origin-entity-genesis" | "entity-genesis" => {
+				Box::new(entity::origin_entity_genesis_config())
+			},
 
 			// -- Fallback (generic chainspec)
 			"" => {
@@ -104,11 +110,12 @@ impl RuntimeResolverT for RuntimeResolver {
 	fn runtime(&self, chain_spec: &dyn ChainSpec) -> sc_cli::Result<Runtime> {
 		let legacy_runtime = LegacyRuntime::from_id(chain_spec.id());
 		Ok(match legacy_runtime {
-			LegacyRuntime::Asset |
-			LegacyRuntime::Coretime |
-			LegacyRuntime::Entity |
-			LegacyRuntime::Omni =>
-				Runtime::Omni(BlockNumber::U32, Consensus::Aura(AuraConsensusId::Sr25519)),
+			LegacyRuntime::Asset
+			| LegacyRuntime::Coretime
+			| LegacyRuntime::Entity
+			| LegacyRuntime::Omni => {
+				Runtime::Omni(BlockNumber::U32, Consensus::Aura(AuraConsensusId::Sr25519))
+			},
 		})
 	}
 }

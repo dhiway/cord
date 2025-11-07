@@ -1,3 +1,5 @@
+#![cfg(not(feature = "runtime-benchmarks"))]
+
 // Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 

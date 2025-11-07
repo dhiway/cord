@@ -165,8 +165,8 @@ fn resolve_pallet_view_authorized() {
 		let pallet_name = "TokenView";
 		let index = Pallet::<Test>::get_or_add_pallet_index(pallet_name).unwrap();
 		let auth = make_auth(b"resolve-pallet", &signer);
-		let resolved = Pallet::<Test>::resolve_pallet_view(auth, index)
-			.expect("authorized pallet view");
+		let resolved =
+			Pallet::<Test>::resolve_pallet_view(auth, index).expect("authorized pallet view");
 		assert_eq!(resolved, pallet_name);
 	});
 }

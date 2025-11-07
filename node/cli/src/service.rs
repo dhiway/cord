@@ -37,10 +37,7 @@ pub use {
 };
 
 use sc_service::RpcHandlers;
-use sc_telemetry::TelemetryWorker;
 use std::{path::Path, sync::Arc};
-
-use sc_telemetry::Telemetry;
 
 pub use crate::{
 	chain_spec::GenericCordChainSpec,
@@ -74,6 +71,7 @@ use sc_network::{
 	event::Event, service::traits::NetworkService, NetworkBackend, NetworkEventStream,
 };
 use sc_network_sync::{strategy::warp::WarpSyncConfig, SyncingService};
+use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool::TransactionPoolHandle;
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_core::crypto::Pair;
@@ -105,13 +103,6 @@ type FullGrandpaBlockImport =
 
 /// The transaction pool type defintion.
 pub type TransactionPool = sc_transaction_pool::TransactionPoolHandle<Block, FullClient>;
-
-// #[cfg(feature = "loom-native")]
-// pub use {cord_loom_runtime, cord_loom_runtime_constants};
-// #[cfg(feature = "orb-native")]
-// pub use {cord_orb_runtime, cord_orb_runtime_constants};
-// // #[cfg(feature = "weave-native")]
-// // pub use {cord_weave_runtime, cord_weave_runtime_constants};
 
 /// The minimum period of blocks on which justifications will be
 /// imported and generated.
@@ -479,8 +470,10 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 		keystore_container,
 		select_chain,
 		transaction_pool,
-		other: (rpc_builder, import_setup, rpc_setup, mut telemetry, statement_store),
+		other: (rpc_builder, import_setup, rpc_setup, telemetry, statement_store),
 	} = new_partial(&config)?;
+
+	let mut telemetry: Option<Telemetry> = telemetry;
 
 	let metrics = N::register_notification_metrics(
 		config.prometheus_config.as_ref().map(|cfg| &cfg.registry),

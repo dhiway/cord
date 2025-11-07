@@ -118,9 +118,7 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 			BoundedVec::<(Attribute, Element<MaxRawDataLength>), MaxAdditionalAttributes>::new();
 		for (key, value) in iter.into_iter() {
 			value.validate().map_err(|_| AttributesError::InvalidElement)?;
-			bounded
-				.try_push((key, value))
-				.map_err(|_| AttributesError::TooManyAttributes)?;
+			bounded.try_push((key, value)).map_err(|_| AttributesError::TooManyAttributes)?;
 		}
 		Self::canonicalize(bounded)
 	}
@@ -154,11 +152,7 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 
 	/// Materialize attributes into an encoded `(key, value)` representation sorted by key.
 	pub fn encoded_pairs(&self) -> Vec<(Vec<u8>, Vec<u8>)> {
-		self
-			.0
-			.iter()
-			.map(|(key, value)| (key.to_vec(), value.encode()))
-			.collect()
+		self.0.iter().map(|(key, value)| (key.to_vec(), value.encode())).collect()
 	}
 
 	pub fn validate(&self) -> Result<(), AttributesError> {
@@ -340,8 +334,8 @@ mod tests {
 	use super::{Attribute, Attributes, AttributesError, Element};
 	use alloc::{vec, vec::Vec};
 	use codec::{Decode, Encode};
-	use frame_support::BoundedVec;
 	use frame_support::traits::ConstU32;
+	use frame_support::BoundedVec;
 
 	type MaxRaw = ConstU32<32>;
 	type MaxAttrs = ConstU32<8>;
@@ -393,8 +387,11 @@ mod tests {
 		let key_a = key(b"z");
 		let key_b = key(b"a");
 		let elem = Element::<MaxRaw>::from_bool(true);
-		let attrs = Attributes::<MaxRaw, MaxAttrs>::try_collect(vec![(key_a.clone(), elem.clone()), (key_b.clone(), elem.clone())])
-			.expect("within bounds");
+		let attrs = Attributes::<MaxRaw, MaxAttrs>::try_collect(vec![
+			(key_a.clone(), elem.clone()),
+			(key_b.clone(), elem.clone()),
+		])
+		.expect("within bounds");
 		let mut iter = attrs.iter();
 		assert_eq!(iter.next().unwrap().0.as_slice(), key_b.as_slice());
 		assert_eq!(iter.next().unwrap().0.as_slice(), key_a.as_slice());
@@ -405,9 +402,12 @@ mod tests {
 		let mut base = Attributes::<MaxRaw, MaxAttrs>::default();
 		let key_existing = key(b"foo");
 		let key_new = key(b"bar");
-		base.try_insert(key_existing.clone(), Element::<MaxRaw>::from_bool(false)).unwrap();
+		base.try_insert(key_existing.clone(), Element::<MaxRaw>::from_bool(false))
+			.unwrap();
 		let mut updates = Attributes::<MaxRaw, MaxAttrs>::default();
-		updates.try_insert(key_existing.clone(), Element::<MaxRaw>::from_bool(true)).unwrap();
+		updates
+			.try_insert(key_existing.clone(), Element::<MaxRaw>::from_bool(true))
+			.unwrap();
 		updates.try_insert(key_new.clone(), Element::<MaxRaw>::from_bool(true)).unwrap();
 		base.merge(&updates).unwrap();
 		assert_eq!(base.get(key_existing.as_slice()).unwrap().as_bool(), Some(true));
@@ -510,9 +510,11 @@ mod tests {
 	fn decode_rejects_duplicate_keys() {
 		let dup_key = key(b"d");
 		let elem = Element::<MaxRaw>::from_bool(true);
-		let raw =
-			BoundedVec::<_, MaxAttrs>::try_from(vec![(dup_key.clone(), elem.clone()), (dup_key, elem)])
-				.expect("bounded vec allows duplicates");
+		let raw = BoundedVec::<_, MaxAttrs>::try_from(vec![
+			(dup_key.clone(), elem.clone()),
+			(dup_key, elem),
+		])
+		.expect("bounded vec allows duplicates");
 		let encoded = raw.encode();
 		let mut cursor = &encoded[..];
 		let err = Attributes::<MaxRaw, MaxAttrs>::decode(&mut cursor).unwrap_err();

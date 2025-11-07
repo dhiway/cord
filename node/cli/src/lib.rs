@@ -20,23 +20,25 @@
 
 #![allow(missing_docs)]
 
-#[cfg(feature = "cli")]
 pub mod benchmarking;
 pub mod chain_spec;
+
+#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
+pub mod command;
+
+#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
+pub mod subcommands;
+
+#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
+mod cli;
 pub mod fake_runtime_api;
 pub mod service;
 
-#[cfg(feature = "cli")]
-mod cli;
-
-#[cfg(feature = "cli")]
-mod command;
-
-#[cfg(feature = "cli")]
+#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
 pub use cli::*;
 
-#[cfg(feature = "cli")]
+#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
 pub use command::*;
 
-#[cfg(feature = "cli")]
+#[cfg(all(feature = "cli", not(target_arch = "wasm32")))]
 pub use sc_cli::{Error, Result};

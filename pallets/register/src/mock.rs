@@ -23,8 +23,8 @@ use alloc::collections::BTreeMap;
 use codec::Encode;
 use cord_primitives::{AccountId, Signature};
 use frame_support::{derive_impl, parameter_types, traits::PalletInfoAccess};
-use pallet_entity::EntityLookup;
 use pallet_entity::signature::SignatureVerificationError;
+use pallet_entity::EntityLookup;
 use pallet_token::{EventBlock, Token as TokenTrait};
 use sp_core::{sr25519, Pair};
 use sp_runtime::{

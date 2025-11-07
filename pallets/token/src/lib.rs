@@ -22,6 +22,7 @@
 #![warn(unused_crate_dependencies)]
 
 extern crate alloc;
+
 use alloc::{string::String, vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::{
@@ -30,11 +31,18 @@ use cord_primitives::{
 };
 use core::{cmp, convert::TryInto};
 use frame_support::{
-	dispatch::DispatchResult, ensure, pallet_prelude::*, traits::{ConstU32, Get}, BoundedVec,
+	dispatch::DispatchResult,
+	ensure,
+	pallet_prelude::*,
+	traits::{ConstU32, Get},
+	BoundedVec,
 };
 use scale_info::TypeInfo;
 use sp_core::hashing::blake2_128;
-use sp_runtime::{traits::{BlockNumberProvider, UniqueSaturatedInto, Verify}, AccountId32};
+use sp_runtime::{
+	traits::{BlockNumberProvider, UniqueSaturatedInto, Verify},
+	AccountId32,
+};
 
 #[cfg(test)]
 pub mod mock;
@@ -218,7 +226,6 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		#[serde(skip)]
 		pub _config: core::marker::PhantomData<T>,
 		pub protocol_id: String,
 		pub network_id: u16,
@@ -319,7 +326,6 @@ impl<T: Config> Pallet<T> {
 
 		Ok(())
 	}
-
 }
 
 impl<T: Config> From<IdentifierError> for Error<T> {
@@ -358,10 +364,7 @@ where
 			Error::<T>::InvalidViewAuthorization
 		);
 		let hash = Self::view_signature_hash(auth);
-		ensure!(
-			!ViewSignatureUses::<T>::contains_key(&hash),
-			Error::<T>::ViewAuthorizationReplay
-		);
+		ensure!(!ViewSignatureUses::<T>::contains_key(&hash), Error::<T>::ViewAuthorizationReplay);
 		ViewSignatureUses::<T>::insert(hash, ());
 		Ok(())
 	}

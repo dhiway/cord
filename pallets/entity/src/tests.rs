@@ -18,8 +18,14 @@
 
 #![cfg(test)]
 use super::*;
-use crate::{entity::EntityInfo, mock::*, pallet::Pallet as EntityPallet, signature::SignatureVerificationError, Error};
-use cord_primitives::{packet::{Attribute, Attributes, AttributesError, Element}, Signature};
+use crate::{
+	entity::EntityInfo, mock::*, pallet::Pallet as EntityPallet,
+	signature::SignatureVerificationError, Error,
+};
+use cord_primitives::{
+	packet::{Attribute, Attributes, AttributesError, Element},
+	Signature,
+};
 use frame_support::{assert_noop, assert_ok};
 use pallet_token::Token;
 use sp_core::{sr25519, Pair};
@@ -489,8 +495,9 @@ fn verify_account_signature_returns_token() {
 		let token = init_with_display(account.clone(), b"entity-sig");
 		let payload = b"registry-view";
 		let signature = Signature::from(pair.sign(payload));
-		let verified = EntityPallet::<Test>::verify_account_signature(&account, payload, &signature)
-			.expect("signature should verify");
+		let verified =
+			EntityPallet::<Test>::verify_account_signature(&account, payload, &signature)
+				.expect("signature should verify");
 		assert_eq!(verified, token);
 	});
 }

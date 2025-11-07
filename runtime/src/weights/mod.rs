@@ -20,7 +20,6 @@
 
 pub mod frame_system;
 pub mod frame_system_extensions;
-pub mod pallet_babe;
 pub mod pallet_balances;
 pub mod pallet_entity;
 pub mod pallet_indices;

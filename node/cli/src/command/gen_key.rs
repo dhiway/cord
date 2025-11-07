@@ -16,24 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use sc_cli::{
-	utils, with_crypto_scheme, CryptoScheme, Error, KeystoreParams, SharedParams, SubstrateCli,
-};
+use sc_cli::{utils, with_crypto_scheme, CryptoScheme, Error, SubstrateCli};
 use sc_keystore::LocalKeystore;
 use sc_service::config::{BasePath, KeystoreConfig};
 use sp_core::crypto::{AccountId32, KeyTypeId, SecretString};
 use sp_keystore::{Keystore, KeystorePtr};
 use std::sync::Arc;
 
-#[derive(Debug, clap::Subcommand)]
-pub enum KeySubcommand {
-	/// Generate session keys and store them in the keystore
-	GenerateSessionKeys(GenSessionKeysCmd),
-
-	#[allow(missing_docs)]
-	#[clap(flatten)]
-	Key(sc_cli::KeySubcommand),
-}
+use crate::subcommands::{GenSessionKeysCmd, KeySubcommand};
 
 impl KeySubcommand {
 	/// Run the command
@@ -43,23 +33,6 @@ impl KeySubcommand {
 			Self::Key(cmd) => cmd.run(cli),
 		}
 	}
-}
-
-#[derive(Debug, clap::Args)]
-pub struct GenSessionKeysCmd {
-	/// The secret key URI.
-	/// If the value is a file, the file content is used as URI.
-	/// If not given, you will be prompted for the URI.
-	#[clap(long)]
-	suri: Option<String>,
-
-	#[allow(missing_docs)]
-	#[clap(flatten)]
-	pub shared_params: SharedParams,
-
-	#[allow(missing_docs)]
-	#[clap(flatten)]
-	pub keystore_params: KeystoreParams,
 }
 
 const KEY_TYPES: [(KeyTypeId, CryptoScheme); 3] = [
