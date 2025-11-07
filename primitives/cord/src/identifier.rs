@@ -30,12 +30,12 @@ use frame_support::{ensure, traits::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
 
 /// Constant prefix used in checksum calculation.
-const PREFIX: &[u8] = b"TOKENPRE";
+const PREFIX: &[u8] = b"SS58PRE";
 
 /// Identifier constant for Origin network (relay / origin chain)
 pub const ORIGIN_IDENT: u16 = 0;
 /// Identifier constant for CORD (non-origin / standalone)
-pub const CORD_IDENT: u16 = 2;
+pub const ORB_IDENT: u16 = 29;
 
 /// Identifier errors.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,7 +86,7 @@ impl Ss58Identifier {
 		let input = data.as_ref();
 		ensure!(input.len() == 32, IdentifierError::InvalidDigestLength);
 
-		let ident14: u16 = if ori == 0 { CORD_IDENT } else { ORIGIN_IDENT };
+		let ident14: u16 = if ori == 0 { ORB_IDENT } else { ORIGIN_IDENT };
 		let nid14: u16 = nid & 0b0011_1111_1111_1111;
 		let pid14: u16 = pid & 0b0011_1111_1111_1111;
 		let ori6: u8 = ori & 0b0011_1111;
@@ -257,14 +257,16 @@ pub struct DecodedIdentifier {
 mod tests {
 	use super::*;
 	use alloc::vec::Vec;
-	use core::convert::TryFrom;
+	use core::convert::{TryFrom, TryInto};
 
 	// Test constants
 	const TEST_ORI: u8 = 1; // 0 = standalone, 1 = origin/para
 
 	/// Helper: produce a valid 32‐byte digest.
 	fn valid_digest() -> [u8; 32] {
-		[0xAB; 32]
+		let s = "e673a596cb3f5a1a8143f194cc87dee9ab6072ffea2f6e1eb906f78c31f84a0b";
+		let v = hex::decode(s).expect("valid hex");
+		v.try_into().expect("slice with incorrect length")
 	}
 
 	#[test]
@@ -287,8 +289,8 @@ mod tests {
 	fn encode_decode_prints_values_origin_ident() {
 		// run with: cargo +nightly test -p cord-primitives -Z unstable-options -- --show-output
 		let digest = valid_digest();
-		let nid: u16 = 1000;
-		let pid: u16 = 9;
+		let nid: u16 = 100;
+		let pid: u16 = 64;
 
 		let id = Ss58Identifier::to_encoded(digest, nid, pid, TEST_ORI).expect("encode ok");
 		let s = String::from_utf8(id.0.clone().into()).expect("utf8 base58 string");
@@ -313,9 +315,9 @@ mod tests {
 		// run with: cargo +nightly test -p cord-primitives -Z unstable-options -- --show-output
 		let digest = valid_digest();
 		let nid: u16 = 200;
-		let pid: u16 = 9;
+		let pid: u16 = 65;
 
-		// origin = 0 → should encode with CORD_IDENT
+		// origin = 0 → should encode with ORB_IDENT
 		let id = Ss58Identifier::to_encoded(digest, nid, pid, 0).expect("encode ok");
 		let s = String::from_utf8(id.0.clone().into()).expect("utf8 base58 string");
 		println!("Encoded (CORD, ori=0): {}", s);
@@ -504,7 +506,7 @@ mod tests {
 
 	#[test]
 	fn ident_is_cord_when_ori_is_zero() {
-		// ori = 0 → CORD_IDENT on wire
+		// ori = 0 → ORB_IDENT on wire
 		let digest = valid_digest();
 		let nid: u16 = 100;
 		let pid: u16 = 5;
@@ -519,7 +521,7 @@ mod tests {
 		// compact-decode ident at the start of body
 		let (ident, _len) = Ss58Identifier::compact_decode(body).expect("compact decode ident");
 
-		assert_eq!(ident, CORD_IDENT, "ident must be CORD_IDENT when ori=0");
+		assert_eq!(ident, ORB_IDENT, "ident must be ORB_IDENT when ori=0");
 	}
 
 	#[test]
@@ -559,7 +561,7 @@ mod tests {
 		// ident
 		let (ident_c, len_c) = Ss58Identifier::compact_decode(body_c).expect("ident cord");
 		let (ident_o, len_o) = Ss58Identifier::compact_decode(body_o).expect("ident origin");
-		assert_eq!(ident_c, CORD_IDENT);
+		assert_eq!(ident_c, ORB_IDENT);
 		assert_eq!(ident_o, ORIGIN_IDENT);
 
 		// digest (must be the same)
@@ -593,7 +595,7 @@ mod tests {
 		let pid: u16 = 7;
 
 		for &(ori, expect_ident, expect_bool) in
-			&[(0u8, CORD_IDENT, false), (1u8, ORIGIN_IDENT, true)]
+			&[(0u8, ORB_IDENT, false), (1u8, ORIGIN_IDENT, true)]
 		{
 			let id = Ss58Identifier::to_encoded(digest, nid, pid, ori).expect("encode ok");
 			// quick wire check: ident
@@ -613,7 +615,7 @@ mod tests {
 
 	#[test]
 	fn ident_constants_are_within_compact14_domain() {
-		assert!(CORD_IDENT <= 0x3FFF);
+		assert!(ORB_IDENT <= 0x3FFF);
 		assert!(ORIGIN_IDENT <= 0x3FFF);
 	}
 }
