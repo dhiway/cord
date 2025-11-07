@@ -32,7 +32,6 @@ mod weights;
 pub mod xcm_config;
 
 use alloc::{borrow::Cow, string::String, vec, vec::Vec};
-use core::convert::TryInto;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_origin_system_chains_staging_constants::{
 	async_backing::{
@@ -48,6 +47,7 @@ use cord_origin_system_chains_staging_constants::{
 	},
 };
 use cord_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
+use core::convert::TryInto;
 use cumulus_pallet_parachain_system::RelayNumberMonotonicallyIncreases;
 use cumulus_primitives_core::{AggregateMessageOrigin, ParaId};
 use frame_support::{
@@ -502,23 +502,23 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			),
 			ProxyType::CancelProxy => matches!(
 				c,
-				RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }) |
-					RuntimeCall::Utility { .. } |
-					RuntimeCall::Multisig { .. }
+				RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. })
+					| RuntimeCall::Utility { .. }
+					| RuntimeCall::Multisig { .. }
 			),
 			ProxyType::Entity => {
 				matches!(
 					c,
-					RuntimeCall::Entity { .. } |
-						RuntimeCall::Utility { .. } |
-						RuntimeCall::Multisig { .. }
+					RuntimeCall::Entity { .. }
+						| RuntimeCall::Utility { .. }
+						| RuntimeCall::Multisig { .. }
 				)
 			},
 			ProxyType::Collator => matches!(
 				c,
-				RuntimeCall::CollatorSelection { .. } |
-					RuntimeCall::Utility { .. } |
-					RuntimeCall::Multisig { .. }
+				RuntimeCall::CollatorSelection { .. }
+					| RuntimeCall::Utility { .. }
+					| RuntimeCall::Multisig { .. }
 			),
 		}
 	}

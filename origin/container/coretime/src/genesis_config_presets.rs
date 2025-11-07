@@ -94,8 +94,9 @@ pub fn preset_names() -> Vec<PresetId> {
 pub fn get_preset(id: &PresetId) -> Option<Vec<u8>> {
 	let patch = match id.as_ref() {
 		sp_genesis_builder::DEV_RUNTIME_PRESET => coretime_origin_development_genesis(2005.into()),
-		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET =>
-			coretime_origin_local_testnet_genesis(2005.into()),
+		sp_genesis_builder::LOCAL_TESTNET_RUNTIME_PRESET => {
+			coretime_origin_local_testnet_genesis(2005.into())
+		},
 		_ => return None,
 	};
 	Some(

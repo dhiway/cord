@@ -1,3 +1,5 @@
+#![cfg(not(feature = "runtime-benchmarks"))]
+
 // This file is part of CORD – https://cord.network
 
 // Copyright (C) Dhiway Networks Pvt. Ltd.
@@ -37,11 +39,11 @@ use sp_state_machine::TestExternalities as CoreTestExternalities;
 
 use cord_node_cli::service::RuntimeExecutor;
 use cord_node_testing::keyring::*;
-use cord_primitives::{BlockNumber, Hash};
-use cord_weave_runtime::{
+use cord_orb_runtime::{
 	Block, BuildStorage, CheckedExtrinsic, Header, Runtime, UncheckedExtrinsic,
 };
-use cord_weave_runtime_constants::currency::*;
+use cord_orb_runtime_constants::currency::*;
+use cord_primitives::{BlockNumber, Hash};
 use sp_externalities::Externalities;
 
 pub const TEST_KEY_TYPE_ID: KeyTypeId = KeyTypeId(*b"test");
@@ -69,7 +71,7 @@ impl AppCrypto<MultiSigner, MultiSignature> for TestAuthorityId {
 /// tree-shaking thus making the binary slimmer. There is a convention to use
 /// compact version of the runtime as canonical.
 pub fn compact_code_unwrap() -> &'static [u8] {
-	cord_weave_runtime::WASM_BINARY.expect(
+	cord_orb_runtime::WASM_BINARY.expect(
 		"Development wasm binary is not available. Testing is only supported with the flag \
 		 disabled.",
 	)
@@ -77,9 +79,9 @@ pub fn compact_code_unwrap() -> &'static [u8] {
 
 pub const GENESIS_HASH: [u8; 32] = [69u8; 32];
 
-pub const SPEC_VERSION: u32 = cord_weave_runtime::VERSION.spec_version;
+pub const SPEC_VERSION: u32 = cord_orb_runtime::VERSION.spec_version;
 
-pub const TRANSACTION_VERSION: u32 = cord_weave_runtime::VERSION.transaction_version;
+pub const TRANSACTION_VERSION: u32 = cord_orb_runtime::VERSION.transaction_version;
 
 pub type TestExternalities<H> = CoreTestExternalities<H>;
 

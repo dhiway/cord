@@ -1,3 +1,4 @@
+#![cfg(feature = "runtime-benchmarks")]
 // This file is part of CORD – https://cord.network
 
 // Copyright (C) Dhiway Networks Pvt. Ltd.

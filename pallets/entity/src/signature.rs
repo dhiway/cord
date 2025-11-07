@@ -18,8 +18,8 @@
 
 use cord_primitives::Signature;
 use frame_support::weights::Weight;
-use sp_runtime::{traits::Verify, AccountId32};
 use scale_info::TypeInfo;
+use sp_runtime::{traits::Verify, AccountId32};
 
 /// Result type returned by signature verification routines used across CORD pallets.
 pub type SignatureVerificationResult = Result<(), SignatureVerificationError>;
@@ -50,7 +50,7 @@ pub trait VerifySignature {
 	) -> SignatureVerificationResult;
 
 	/// Weight charged when verifying a signature for a payload with the provided length.
-fn weight(payload_byte_length: usize) -> Weight;
+	fn weight(payload_byte_length: usize) -> Weight;
 }
 
 /// Verify a Substrate multi-signature for the provided account and payload bytes.

@@ -255,7 +255,7 @@ impl<Hash: FromStr + Debug, Number: FromStr + Debug> FromStr for ExtrinsicAddres
 
 		let index = it
 			.next()
-			.ok_or_else(|| "Extrinsic index missing: example \"5:0\"".to_string())?
+			.ok_or("Extrinsic index missing: example \"5:0\"")?
 			.parse()
 			.map_err(|e| format!("Invalid index format: {}", e))?;
 
@@ -284,5 +284,29 @@ mod tests {
 		assert_eq!(b1, Ok(BlockAddress::Number(1234)));
 		assert_eq!(b2, Ok(BlockAddress::Number(0)));
 		assert_eq!(b3, Ok(BlockAddress::Bytes(vec![0, 0x12, 0x34, 0x5f])));
+	}
+
+	#[test]
+	fn should_parse_extrinsic_address() {
+		type BlockAddress = super::BlockAddress<Hash, u64>;
+		type ExtrinsicAddress = super::ExtrinsicAddress<Hash, u64>;
+
+		let e0 = ExtrinsicAddress::from_str("1234");
+		let b0 = ExtrinsicAddress::from_str("3BfC20f0B9aFcAcE800D73D2191166FF16540258:5");
+		let b1 = ExtrinsicAddress::from_str("1234:0");
+		let b2 = ExtrinsicAddress::from_str("0 0");
+		let b3 = ExtrinsicAddress::from_str("0x0012345f");
+
+		assert_eq!(e0, Ok(ExtrinsicAddress::Bytes(vec![0x12, 0x34])));
+		assert_eq!(
+			b0,
+			Ok(ExtrinsicAddress::Block(
+				BlockAddress::Hash("3BfC20f0B9aFcAcE800D73D2191166FF16540258".parse().unwrap()),
+				5
+			))
+		);
+		assert_eq!(b1, Ok(ExtrinsicAddress::Block(BlockAddress::Number(1234), 0)));
+		assert_eq!(b2, Ok(ExtrinsicAddress::Bytes(vec![0, 0])));
+		assert_eq!(b3, Ok(ExtrinsicAddress::Bytes(vec![0, 0x12, 0x34, 0x5f])));
 	}
 }

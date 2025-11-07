@@ -35,12 +35,12 @@ extern crate alloc;
 use alloc::{boxed::Box, fmt::Debug, vec::Vec};
 use codec::{Encode, EncodeLike};
 
+use crate::signature::{verify_multisignature, SignatureVerificationError};
 use cord_primitives::{
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
 	Signature,
 };
-use pallet_token::{EventBlock, EventTypeOf, Token};
 use core::convert::TryInto;
 use frame_support::{
 	ensure,
@@ -50,7 +50,7 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
-use crate::signature::{verify_multisignature, SignatureVerificationError};
+use pallet_token::{EventBlock, EventTypeOf, Token};
 use sp_runtime::traits::Hash;
 pub use weights::WeightInfo;
 
@@ -835,14 +835,14 @@ impl<T: Config> Pallet<T> {
 	}
 
 	/// Records an activity using a provided event message.
-		pub fn record_activity(token: &Ss58Identifier, digest: T::Hash, msg: &[u8]) -> DispatchResult {
-			let action: EventTypeOf =
-				msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
-			let stamp = EventBlock::current::<T>();
-			T::Token::state_event(token, digest, action, stamp)
-				.map_err(|_| Error::<T>::StateUpdateFailed)?;
-			Ok(())
-		}
+	pub fn record_activity(token: &Ss58Identifier, digest: T::Hash, msg: &[u8]) -> DispatchResult {
+		let action: EventTypeOf =
+			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEventType)?;
+		let stamp = EventBlock::current::<T>();
+		T::Token::state_event(token, digest, action, stamp)
+			.map_err(|_| Error::<T>::StateUpdateFailed)?;
+		Ok(())
+	}
 
 	/// Resolve the controller account for the supplied entity token.
 	pub fn controller_account(
@@ -929,7 +929,7 @@ impl<T: Config> EntityLookup<T> for Pallet<T> {
 		account: &T::AccountId,
 		payload: &[u8],
 		signature: &Signature,
- 	) -> Result<Ss58Identifier, SignatureVerificationError>
+	) -> Result<Ss58Identifier, SignatureVerificationError>
 	where
 		T::AccountId: Clone + Into<sp_runtime::AccountId32>,
 	{

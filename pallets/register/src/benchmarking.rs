@@ -1,8 +1,10 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
+use crate::register::{
+	AttributeFlags, AttributeSpec, LookupSpec, RegistryPermissions, RegistryStatus,
+};
 use alloc::vec;
-use crate::register::{AttributeFlags, AttributeSpec, LookupSpec, RegistryPermissions, RegistryStatus};
 use cord_primitives::packet::ElementType;
 use frame_benchmarking::{v2::*, BenchmarkError};
 use frame_support::{ensure, traits::PalletInfoAccess};

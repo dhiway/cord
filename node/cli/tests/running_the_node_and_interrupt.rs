@@ -1,3 +1,4 @@
+#![cfg(not(feature = "runtime-benchmarks"))]
 // This file is part of CORD – https://cord.network
 
 // Copyright (C) Dhiway Networks Pvt. Ltd.
@@ -15,7 +16,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
-
 #![cfg(unix)]
 use assert_cmd::cargo::cargo_bin;
 use nix::sys::signal::Signal::{self, SIGINT, SIGTERM};
@@ -60,7 +60,7 @@ async fn running_the_node_works_and_can_be_interrupted() {
 			// properly.
 			//
 			// parity-db only writes the stats file on clean shutdown.
-			let stats_file = base_path.path().join("chains/weave-dev/paritydb/full/stats.txt");
+			let stats_file = base_path.path().join("chains/orb-dev/paritydb/full/stats.txt");
 			assert!(std::path::Path::exists(&stats_file));
 		}
 
