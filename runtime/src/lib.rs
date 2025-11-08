@@ -501,7 +501,7 @@ where
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
-			frame_metadata_hash_extension::CheckMetadataHash::new(false),
+			// frame_metadata_hash_extension::CheckMetadataHash::new(false),
 			frame_system::WeightReclaim::<Runtime>::new(),
 		)
 			.into();
@@ -552,7 +552,7 @@ where
 			frame_system::CheckNonce::<Runtime>::from(0),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0),
-			frame_metadata_hash_extension::CheckMetadataHash::new(false),
+			// frame_metadata_hash_extension::CheckMetadataHash::new(false),
 			frame_system::WeightReclaim::<Runtime>::new(),
 		)
 	}
@@ -702,7 +702,7 @@ pub type MetaTxExtension = (
 	frame_system::CheckGenesis<Runtime>,
 	frame_system::CheckMortality<Runtime>,
 	frame_system::CheckNonce<Runtime>,
-	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	// frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
 impl pallet_meta_tx::Config for Runtime {
@@ -946,7 +946,7 @@ pub type TxExtension = (
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
-	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	// frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	frame_system::WeightReclaim<Runtime>,
 );
 

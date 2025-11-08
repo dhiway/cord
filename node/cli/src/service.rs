@@ -154,7 +154,7 @@ pub fn create_extrinsic(
 		frame_system::CheckNonce::<cord_orb_runtime::Runtime>::from(nonce),
 		frame_system::CheckWeight::<cord_orb_runtime::Runtime>::new(),
 		pallet_transaction_payment::ChargeTransactionPayment::<cord_orb_runtime::Runtime>::from(0),
-		frame_metadata_hash_extension::CheckMetadataHash::new(false),
+		// frame_metadata_hash_extension::CheckMetadataHash::new(false),
 		frame_system::WeightReclaim::<cord_orb_runtime::Runtime>::new(),
 	);
 
@@ -170,7 +170,7 @@ pub fn create_extrinsic(
 			(),
 			(),
 			(),
-			None,
+			// None,
 			(),
 		),
 	);
