@@ -43,12 +43,13 @@ use core::{convert::TryInto, fmt};
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
-	traits::{Get, PalletInfoAccess, StorageVersion},
+	traits::{CallerTrait, Get, PalletInfoAccess, StorageVersion},
 	BoundedVec,
 };
 use frame_system::{ensure_root, pallet_prelude::*};
 pub use pallet::*;
 use pallet_entity::EntityLookup;
+use pallet_feeless::FeelessAccounts;
 use pallet_token::{EventBlock, EventTypeOf, Token};
 use register::{
 	AttributeFlags, AttributeSpec, LookupSpec, RegistryFieldError, RegistryInfo, RegistryKind,
@@ -194,6 +195,9 @@ pub mod pallet {
 		/// Max length for view authorization challenges.
 		#[pallet::constant]
 		type MaxViewAuthorizationLen: Get<u32>;
+
+		/// Source for feeless account determination.
+		type Feeless: FeelessAccounts<Self::AccountId>;
 
 		/// Weight instrumentation.
 		type WeightInfo: WeightInfo;
@@ -390,6 +394,15 @@ pub mod pallet {
 			lookup_specs.iter().fold(0u32, |acc, spec| acc + spec.total_key_bytes() as u32);
 		T::WeightInfo::create_registry(info_size + attr_size + token_key_size + lookup_key_size)
 	})]
+		#[pallet::feeless_if(
+			|origin: &OriginFor<T>,
+			 _info: &DataOf<T>,
+			 _kind: &RegistryKind,
+			 _attributes: &AttributeSchemaListOf<T>,
+			 _token_spec: &TokenSpecOf<T>,
+			 _lookup_specs: &LookupSpecListOf<T>|
+		 -> bool { Pallet::<T>::is_origin_feeless(origin) }
+		)]
 		pub fn create_registry(
 			origin: OriginFor<T>,
 			info: DataOf<T>,
@@ -457,6 +470,9 @@ pub mod pallet {
 		/// Grant or update delegate permissions for a registry.
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::set_registry_delegate(roles.len() as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _registry: &Ss58Identifier, _delegate: &T::AccountId, _roles: &Vec<RegistryPermissions>| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn set_registry_delegate(
 			origin: OriginFor<T>,
 			registry: Ss58Identifier,
@@ -486,6 +502,9 @@ pub mod pallet {
 		/// Remove delegate permissions from a registry.
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::remove_registry_delegate())]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _registry: &Ss58Identifier, _delegate: &Ss58Identifier| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn remove_registry_delegate(
 			origin: OriginFor<T>,
 			registry: Ss58Identifier,
@@ -515,6 +534,9 @@ pub mod pallet {
 		/// Update the registry metadata blob.
 		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::update_registry_info(info.using_encoded(|d| d.len() as u32)))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _registry: &Ss58Identifier, _info: &DataOf<T>| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn update_registry_info(
 			origin: OriginFor<T>,
 			registry: Ss58Identifier,
@@ -540,6 +562,9 @@ pub mod pallet {
 		/// Mark an active registry as revoked.
 		#[pallet::call_index(4)]
 		#[pallet::weight(T::WeightInfo::revoke_registry())]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _registry: &Ss58Identifier| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn revoke_registry(origin: OriginFor<T>, registry: Ss58Identifier) -> DispatchResult {
 			let actor_token = if ensure_root(origin.clone()).is_ok() {
 				None
@@ -571,6 +596,9 @@ pub mod pallet {
 		/// Reactivate a revoked registry.
 		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::restore_registry())]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _registry: &Ss58Identifier| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn restore_registry(origin: OriginFor<T>, registry: Ss58Identifier) -> DispatchResult {
 			let actor_token = if ensure_root(origin.clone()).is_ok() {
 				None
@@ -602,6 +630,9 @@ pub mod pallet {
 		/// Permanently delete a revoked registry.
 		#[pallet::call_index(6)]
 		#[pallet::weight(T::WeightInfo::delete_registry())]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _registry: &Ss58Identifier| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn delete_registry(origin: OriginFor<T>, registry: Ss58Identifier) -> DispatchResult {
 			let actor_token = if ensure_root(origin.clone()).is_ok() {
 				None
@@ -633,6 +664,9 @@ pub mod pallet {
 		/// Create a packet entry under a registry.
 		#[pallet::call_index(7)]
 		#[pallet::weight(T::WeightInfo::create_packet(attributes.len() as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _rtoken: &Ss58Identifier, _attributes: &AttributePairsOf<T>| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn create_packet(
 			origin: OriginFor<T>,
 			rtoken: Ss58Identifier,
@@ -708,6 +742,9 @@ pub mod pallet {
 		/// Update an existing packet, bumping the version.
 		#[pallet::call_index(8)]
 		#[pallet::weight(T::WeightInfo::update_packet(attributes.len() as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _rtoken: &Ss58Identifier, _ptoken: &Ss58Identifier, _attributes: &AttributePairsOf<T>| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn update_packet(
 			origin: OriginFor<T>,
 			rtoken: Ss58Identifier,
@@ -787,6 +824,9 @@ pub mod pallet {
 		/// Revoke an active packet.
 		#[pallet::call_index(9)]
 		#[pallet::weight(T::WeightInfo::revoke_packet())]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _rtoken: &Ss58Identifier, _ptoken: &Ss58Identifier| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn revoke_packet(
 			origin: OriginFor<T>,
 			rtoken: Ss58Identifier,
@@ -857,6 +897,9 @@ pub mod pallet {
 		/// Restore a revoked packet to active state.
 		#[pallet::call_index(10)]
 		#[pallet::weight(T::WeightInfo::restore_packet())]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _rtoken: &Ss58Identifier, _ptoken: &Ss58Identifier| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn restore_packet(
 			origin: OriginFor<T>,
 			rtoken: Ss58Identifier,
@@ -927,6 +970,9 @@ pub mod pallet {
 		/// Mark a revoked packet as permanently removed.
 		#[pallet::call_index(11)]
 		#[pallet::weight(T::WeightInfo::remove_packet())]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _rtoken: &Ss58Identifier, _ptoken: &Ss58Identifier| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn remove_packet(
 			origin: OriginFor<T>,
 			rtoken: Ss58Identifier,
@@ -1167,6 +1213,11 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		#[inline]
+		fn is_origin_feeless(origin: &OriginFor<T>) -> bool {
+			origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
+		}
+
 		fn view_signature_hash(auth: &ViewAuthorization<T>) -> ViewAuthSignatureHash {
 			let mut encoded = auth.account.encode();
 			encoded.extend_from_slice(auth.payload.as_slice());

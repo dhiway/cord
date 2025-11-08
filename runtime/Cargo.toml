@@ -53,6 +53,7 @@ pallet-babe = { workspace = true }
 pallet-balances = { workspace = true }
 frame-executive = { workspace = true }
 pallet-entity = { workspace = true }
+pallet-feeless = { workspace = true }
 pallet-grandpa = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-meta-tx = { workspace = true }
@@ -70,6 +71,7 @@ pallet-session = { features = ["historical"], workspace = true }
 pallet-statement = { workspace = true }
 pallet-token = { workspace = true }
 pallet-transaction-payment = { workspace = true }
+pallet-skip-feeless-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-tx-pause = { workspace = true }
 pallet-sudo = { workspace = true }
@@ -121,6 +123,7 @@ std = [
 	"pallet-authorship/std",
 	"pallet-balances/std",
 	"pallet-entity/std",
+	"pallet-feeless/std",
 	"pallet-grandpa/std",
 	"pallet-token/std",
 	"pallet-tx-pause/std",
@@ -141,6 +144,7 @@ std = [
 	"pallet-statement/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
+	"pallet-skip-feeless-payment/std",
 	"pallet-sudo/std",
 	"pallet-timestamp/std",
 	"pallet-utility/std",
@@ -176,6 +180,7 @@ runtime-benchmarks = [
 	"pallet-babe/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-entity/runtime-benchmarks",
+	"pallet-feeless/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
 	"pallet-meta-tx/runtime-benchmarks",
@@ -208,6 +213,7 @@ try-runtime = [
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
 	"pallet-entity/try-runtime",
+	"pallet-feeless/try-runtime",
 	"pallet-grandpa/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-meta-tx/try-runtime",

@@ -45,11 +45,12 @@ use core::convert::TryInto;
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
-	traits::{Get, StorageVersion},
+	traits::{CallerTrait, Get, StorageVersion},
 	BoundedVec,
 };
 use frame_system::pallet_prelude::*;
 pub use pallet::*;
+use pallet_feeless::FeelessAccounts;
 use pallet_token::{EventBlock, EventTypeOf, Token};
 use sp_runtime::traits::Hash;
 pub use weights::WeightInfo;
@@ -104,6 +105,9 @@ pub mod pallet {
 		/// Max length for username prefix (before the dot).
 		#[pallet::constant]
 		type MaxUsernameLength: Get<u32>;
+
+		/// Source of feeless account information.
+		type Feeless: FeelessAccounts<Self::AccountId>;
 
 		/// The origin which may forcibly set or remove a name. Root can always do this.
 		type ForceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
@@ -305,6 +309,9 @@ pub mod pallet {
 		/// Set an entity's information and generate an entity token.
 		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::set_info(info.encoded_size() as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _info: &Box<T::EntityInfoPacket>| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn set_info(origin: OriginFor<T>, info: Box<T::EntityInfoPacket>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(!Ss58OfActiveAccounts::<T>::contains_key(&who), Error::<T>::EntitySubAccount);
@@ -362,6 +369,9 @@ pub mod pallet {
 		/// Update attributes in an existing entity.
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::update_info(ops.encoded_size() as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _ops: &Vec<AttributeUpdateKeyOpOf<T>>| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn update_info(
 			origin: OriginFor<T>,
 			ops: Vec<AttributeUpdateKeyOpOf<T>>,
@@ -397,6 +407,9 @@ pub mod pallet {
 		/// Add entity attributes key->Data.
 		#[pallet::call_index(2)]
 		#[pallet::weight(T::WeightInfo::add_attributes( ops.encoded_size()  as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _ops: &Vec<AttributeUpdateKeyOpOf<T>>| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn add_attributes(
 			origin: OriginFor<T>,
 			ops: Vec<AttributeUpdateKeyOpOf<T>>,
@@ -433,6 +446,9 @@ pub mod pallet {
 
 		#[pallet::call_index(3)]
 		#[pallet::weight(T::WeightInfo::remove_attribute( key.len()  as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _key: &Vec<u8>| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn remove_attribute(origin: OriginFor<T>, key: Vec<u8>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let token = Self::lookup_token_of(&who)?;
@@ -460,6 +476,9 @@ pub mod pallet {
 		/// version, then overwrite. Fails if the key is missing or invalid.
 		#[pallet::call_index(4)]
 		#[pallet::weight(T::WeightInfo::rotate_attribute( key.len() as u32 + val.as_ref().len() as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _key: &Vec<u8>, _val: &DataOf<T>| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn rotate_attribute(
 			origin: OriginFor<T>,
 			key: Vec<u8>,
@@ -503,6 +522,9 @@ pub mod pallet {
 		/// Set a sub-account of the sender.
 		#[pallet::call_index(5)]
 		#[pallet::weight(T::WeightInfo::set_sub_account(sub.encoded_size() as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _sub: &T::AccountId| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn set_sub_account(origin: OriginFor<T>, sub: T::AccountId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let token = Self::lookup_token_of(&who)?;
@@ -535,6 +557,9 @@ pub mod pallet {
 		/// Remove a previously-added sub-account.
 		#[pallet::call_index(6)]
 		#[pallet::weight(T::WeightInfo::revoke_sub_account(sub.encoded_size() as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _sub: &T::AccountId| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn revoke_sub_account(origin: OriginFor<T>, sub: T::AccountId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let token = Self::lookup_token_of(&who)?;
@@ -564,6 +589,9 @@ pub mod pallet {
 		#[pallet::call_index(8)]
 		#[pallet::weight(T::WeightInfo::rotate_controller(new_controller.encoded_size() as u32)
             .saturating_add(T::DbWeight::get().reads_writes(2, 3)))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _token: &Ss58Identifier, _new_controller: &T::AccountId| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn rotate_controller(
 			origin: OriginFor<T>,
 			token: Ss58Identifier,
@@ -628,6 +656,9 @@ pub mod pallet {
 		    let sub_count = SubAccounts::<T>::get(&token).len() as u32;
 		    T::WeightInfo::clear_everything(sub_count)
 		})]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _token: &Ss58Identifier| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn clear_everything(origin: OriginFor<T>, token: Ss58Identifier) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(who == Self::lookup_controller_of(&token)?, Error::<T>::BadOrigin);
@@ -656,6 +687,9 @@ pub mod pallet {
 		/// lowercase.
 		#[pallet::call_index(12)]
 		#[pallet::weight(T::WeightInfo::set_id_name(prefix.len() as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _prefix: &Vec<u8>| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn set_id_name(origin: OriginFor<T>, mut prefix: Vec<u8>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let token = Self::lookup_token_of(&who)?;
@@ -689,6 +723,9 @@ pub mod pallet {
 		/// Remove an existing username under the suffix "myn.social".
 		#[pallet::call_index(13)]
 		#[pallet::weight(T::WeightInfo::remove_id_name())]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _token: &Ss58Identifier| -> bool {
+			Pallet::<T>::is_origin_feeless(origin)
+		})]
 		pub fn remove_id_name(origin: OriginFor<T>, token: Ss58Identifier) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(who == Self::lookup_controller_of(&token)?, Error::<T>::BadOrigin);
@@ -753,6 +790,11 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+	/// Returns `true` if the supplied origin is signed by an approved feeless account.
+	pub fn is_origin_feeless(origin: &OriginFor<T>) -> bool {
+		origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
+	}
+
 	// Revoke sub-account helper
 	fn do_revoke_sub_account(token: &Ss58Identifier, sub: &T::AccountId) -> DispatchResult {
 		let bound = Ss58OfActiveAccounts::<T>::get(sub).ok_or(Error::<T>::SubAccountNotFound)?;

@@ -27,6 +27,7 @@ members = [
 	"pallets/authorities",
 	"pallets/token",
 	"pallets/entity",
+	"pallets/feeless",
 	"pallets/register",
 	"pallets/remote-proxy",
 	"pallets/runtime-upgrade",
@@ -744,6 +745,7 @@ pallet-remote-proxy = { path = 'pallets/remote-proxy/', default-features = false
 pallet-runtime-upgrade = { path = 'pallets/runtime-upgrade', default-features = false }
 pallet-token = { path = "pallets/token", default-features = false }
 pallet-entity = { path = "pallets/entity", default-features = false }
+pallet-feeless = { path = "pallets/feeless", default-features = false }
 origin-staging-runtime = { path = "origin/relay/runtime" }
 origin-staging-runtime-constants = { path = "origin/relay/runtime/constants", default-features = false }
 origin-node-cli = { path = "origin/relay/cli", default-features = false }

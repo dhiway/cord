@@ -21,7 +21,7 @@
 #![recursion_limit = "1024"]
 
 extern crate alloc;
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
@@ -71,6 +71,7 @@ pub use sp_runtime::BuildStorage;
 
 /// Constant values used within the runtime.
 use cord_orb_runtime_constants::{currency::*, fee::WeightToFee, time::*};
+use sp_runtime::generic::Era;
 
 // CORD Pallets
 // pub use authority_membership;
@@ -366,6 +367,10 @@ impl pallet_transaction_payment::Config for Runtime {
 	type WeightInfo = weights::pallet_transaction_payment::WeightInfo<Runtime>;
 }
 
+impl pallet_skip_feeless_payment::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+}
+
 parameter_types! {
 	pub const MinimumPeriod: Moment = SLOT_DURATION / 2;
 }
@@ -489,19 +494,22 @@ where
 			// so the actual block number is `n`.
 			.saturating_sub(1);
 		let tip = 0;
+		let era = Era::mortal(period, current_block);
+		let payment = pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip);
 		let tx_ext: TxExtension = (
+			frame_system::AuthorizeCall::<Runtime>::new(),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
 			frame_system::CheckGenesis::<Runtime>::new(),
-			frame_system::CheckMortality::<Runtime>::from(generic::Era::mortal(
-				period,
-				current_block,
-			)),
+			frame_system::CheckEra::<Runtime>::from(era),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
-			// frame_metadata_hash_extension::CheckMetadataHash::new(false),
+			pallet_skip_feeless_payment::SkipCheckIfFeeless::<
+				Runtime,
+				pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+			>::from(payment),
+			frame_metadata_hash_extension::CheckMetadataHash::new(false),
 			frame_system::WeightReclaim::<Runtime>::new(),
 		)
 			.into();
@@ -543,16 +551,21 @@ where
 	RuntimeCall: From<LocalCall>,
 {
 	fn create_extension() -> Self::Extension {
+		let payment = pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0u128);
 		(
+			frame_system::AuthorizeCall::<Runtime>::new(),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
 			frame_system::CheckGenesis::<Runtime>::new(),
-			frame_system::CheckMortality::<Runtime>::from(generic::Era::Immortal),
+			frame_system::CheckEra::<Runtime>::from(Era::Immortal),
 			frame_system::CheckNonce::<Runtime>::from(0),
 			frame_system::CheckWeight::<Runtime>::new(),
-			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(0),
-			// frame_metadata_hash_extension::CheckMetadataHash::new(false),
+			pallet_skip_feeless_payment::SkipCheckIfFeeless::<
+				Runtime,
+				pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+			>::from(payment),
+			frame_metadata_hash_extension::CheckMetadataHash::new(false),
 			frame_system::WeightReclaim::<Runtime>::new(),
 		)
 	}
@@ -700,9 +713,9 @@ pub type MetaTxExtension = (
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
-	frame_system::CheckMortality<Runtime>,
+	frame_system::CheckEra<Runtime>,
 	frame_system::CheckNonce<Runtime>,
-	// frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
 impl pallet_meta_tx::Config for Runtime {
@@ -756,6 +769,7 @@ impl pallet_entity::Config for Runtime {
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxUsernameLength = MaxUsernameLength;
+	type Feeless = Feeless;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
 }
@@ -774,6 +788,7 @@ impl pallet_register::Config for Runtime {
 	type MaxRawDataLength = MaxRegistryRawDataLength;
 	type MaxAdditionalAttributes = MaxRegistryAdditionalAttributes;
 	type MaxViewAuthorizationLen = MaxViewAuthorizationLen;
+	type Feeless = Feeless;
 	type WeightInfo = ();
 }
 
@@ -795,6 +810,11 @@ impl pallet_statement::Config for Runtime {
 	type MaxAllowedStatements = MaxAllowedStatements;
 	type MinAllowedBytes = MinAllowedBytes;
 	type MaxAllowedBytes = MaxAllowedBytes;
+}
+
+impl pallet_feeless::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = pallet_feeless::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -862,6 +882,9 @@ mod runtime {
 	#[runtime::pallet_index(8)]
 	pub type TransactionPayment = pallet_transaction_payment::Pallet<Runtime>;
 
+	#[runtime::pallet_index(9)]
+	pub type SkipFeelessPayment = pallet_skip_feeless_payment::Pallet<Runtime>;
+
 	#[runtime::pallet_index(12)]
 	pub type Session = pallet_session::Pallet<Runtime>;
 
@@ -897,6 +920,9 @@ mod runtime {
 
 	#[runtime::pallet_index(72)]
 	pub type Statement = pallet_statement::Pallet<Runtime>;
+
+	#[runtime::pallet_index(73)]
+	pub type Feeless = pallet_feeless::Pallet<Runtime>;
 
 	#[runtime::pallet_index(101)]
 	pub type Token = pallet_token::Pallet<Runtime>;
@@ -938,15 +964,19 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The TransactionExtension to the basic transaction logic.
 pub type TxExtension = (
+	frame_system::AuthorizeCall<Runtime>,
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
 	frame_system::CheckGenesis<Runtime>,
-	frame_system::CheckMortality<Runtime>,
+	frame_system::CheckEra<Runtime>,
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
-	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
-	// frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
+	pallet_skip_feeless_payment::SkipCheckIfFeeless<
+		Runtime,
+		pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	>,
+	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 	frame_system::WeightReclaim<Runtime>,
 );
 
@@ -979,11 +1009,12 @@ pub type Executive = frame_executive::Executive<
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	frame_benchmarking::define_benchmarks!(
-		[frame_benchmarking, BaselineBench::<Runtime>]
-		[pallet_babe, Babe]
-		[pallet_balances, Balances]
-		[pallet_entity, Entity]
-		[pallet_grandpa, Grandpa]
+			[frame_benchmarking, BaselineBench::<Runtime>]
+			[pallet_babe, Babe]
+			[pallet_balances, Balances]
+			[pallet_entity, Entity]
+			[pallet_feeless, Feeless]
+			[pallet_grandpa, Grandpa]
 		[pallet_indices, Indices]
 		[pallet_multisig, Multisig]
 		[pallet_preimage, Preimage]

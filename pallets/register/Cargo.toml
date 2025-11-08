@@ -20,6 +20,7 @@ cord-primitives = { default-features = false, workspace = true }
 scale-info = { features = ["derive", "serde"], workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
+pallet-feeless = { workspace = true }
 pallet-entity = { workspace = true }
 pallet-token = { workspace = true }
 sp-runtime = { workspace = true }
@@ -35,6 +36,7 @@ std = [
 	"cord-primitives/std",
 	"frame-support/std",
 	"frame-system/std",
+	"pallet-feeless/std",
 	"frame-benchmarking?/std",
 	"pallet-entity/std",
 	"pallet-token/std",

@@ -2203,6 +2203,7 @@ dependencies = [
  "nix 0.29.0",
  "pallet-balances",
  "pallet-root-testing",
+ "pallet-skip-feeless-payment",
  "pallet-staking",
  "pallet-sudo",
  "pallet-timestamp",
@@ -2426,6 +2427,7 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-entity",
+ "pallet-feeless",
  "pallet-grandpa",
  "pallet-indices",
  "pallet-meta-tx",
@@ -2442,6 +2444,7 @@ dependencies = [
  "pallet-scheduler",
  "pallet-session",
  "pallet-session-benchmarking",
+ "pallet-skip-feeless-payment",
  "pallet-staking",
  "pallet-statement",
  "pallet-sudo",
@@ -9148,6 +9151,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "pallet-balances",
+ "pallet-feeless",
  "pallet-token",
  "parity-scale-codec",
  "scale-info",
@@ -9173,6 +9177,22 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-staking",
+]
+
+[[package]]
+name = "pallet-feeless"
+version = "0.9.9"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -9521,6 +9541,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "pallet-entity",
+ "pallet-feeless",
  "pallet-token",
  "parity-scale-codec",
  "scale-info",
