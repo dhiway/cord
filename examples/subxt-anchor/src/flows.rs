@@ -1,5 +1,7 @@
 use crate::{
-	builders::{build_entity_info, build_packet_attributes, build_registry_blueprint, RegistryBlueprint},
+	builders::{
+		build_entity_info, build_packet_attributes, build_registry_blueprint, RegistryBlueprint,
+	},
 	context::ExampleContext,
 	cord,
 };

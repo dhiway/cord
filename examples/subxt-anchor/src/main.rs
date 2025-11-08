@@ -1,6 +1,6 @@
 mod builders;
-mod cli;
 mod chain;
+mod cli;
 mod context;
 mod docs;
 mod flows;

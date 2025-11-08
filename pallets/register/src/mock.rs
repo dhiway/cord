@@ -141,6 +141,7 @@ impl Config for Test {
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxViewAuthorizationLen = MaxViewAuthorizationLen;
+	type Feeless = ();
 	type WeightInfo = ();
 }
 

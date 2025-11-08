@@ -143,18 +143,23 @@ pub fn create_extrinsic(
 		.unwrap_or(2) as u64;
 
 	let extra: cord_orb_runtime::TxExtension = (
+		frame_system::AuthorizeCall::<cord_orb_runtime::Runtime>::new(),
 		frame_system::CheckNonZeroSender::<cord_orb_runtime::Runtime>::new(),
 		frame_system::CheckSpecVersion::<cord_orb_runtime::Runtime>::new(),
 		frame_system::CheckTxVersion::<cord_orb_runtime::Runtime>::new(),
 		frame_system::CheckGenesis::<cord_orb_runtime::Runtime>::new(),
-		frame_system::CheckMortality::<cord_orb_runtime::Runtime>::from(generic::Era::mortal(
+		frame_system::CheckEra::<cord_orb_runtime::Runtime>::from(generic::Era::mortal(
 			period,
 			best_block.saturated_into(),
 		)),
 		frame_system::CheckNonce::<cord_orb_runtime::Runtime>::from(nonce),
 		frame_system::CheckWeight::<cord_orb_runtime::Runtime>::new(),
-		pallet_transaction_payment::ChargeTransactionPayment::<cord_orb_runtime::Runtime>::from(0),
-		// frame_metadata_hash_extension::CheckMetadataHash::new(false),
+		pallet_skip_feeless_payment::SkipCheckIfFeeless::from(
+			pallet_transaction_payment::ChargeTransactionPayment::<cord_orb_runtime::Runtime>::from(
+				0,
+			),
+		),
+		frame_metadata_hash_extension::CheckMetadataHash::new(false),
 		frame_system::WeightReclaim::<cord_orb_runtime::Runtime>::new(),
 	);
 
@@ -163,6 +168,7 @@ pub fn create_extrinsic(
 		extra.clone(),
 		(
 			(),
+			(),
 			cord_orb_runtime::VERSION.spec_version,
 			cord_orb_runtime::VERSION.transaction_version,
 			genesis_hash,
@@ -170,7 +176,7 @@ pub fn create_extrinsic(
 			(),
 			(),
 			(),
-			// None,
+			None,
 			(),
 		),
 	);

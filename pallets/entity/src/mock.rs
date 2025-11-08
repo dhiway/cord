@@ -72,6 +72,7 @@ impl pallet_entity::Config for Test {
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxUsernameLength = MaxUsernameLength;
+	type Feeless = ();
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
 }

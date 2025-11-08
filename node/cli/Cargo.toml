@@ -145,12 +145,13 @@ substrate-state-trie-migration-rpc = { workspace = true, default-features = true
 substrate-wasm-builder = { workspace = true, default-features = true }
 gum = { workspace = true, default-features = true }
 
-frame-benchmarking = { features = ["std"], workspace = true }
-frame-system = { features = ["std"], workspace = true }
-frame-support = { features = ["std"], workspace = true }
-frame-system-rpc-runtime-api = { features = ["std"], workspace = true }
-frame-metadata-hash-extension = { features = ["std"], workspace = true }
+frame-benchmarking =  { workspace = true, default-features = true }
+frame-system =  { workspace = true, default-features = true }
+frame-support = { workspace = true, default-features = true }
+frame-system-rpc-runtime-api = { workspace = true, default-features = true }
+frame-metadata-hash-extension = { workspace = true, default-features = true }
 pallet-transaction-payment = { workspace = true }
+pallet-skip-feeless-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 
 # cord-specific dependencies
@@ -271,4 +272,4 @@ try-runtime = [
 
 fast-runtime = ["cord-orb-runtime/fast-runtime"]
 
-# metadata-hash = ["cord-orb-runtime/metadata-hash"]
+metadata-hash = ["cord-orb-runtime/metadata-hash"]
