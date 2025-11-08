@@ -2701,6 +2701,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "comfy-table",
+ "cord-orb-runtime",
  "cord-primitives",
  "hex",
  "parity-scale-codec",

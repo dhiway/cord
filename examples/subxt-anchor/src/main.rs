@@ -20,6 +20,7 @@ use cli::{Cli, Command};
 use color_eyre::eyre::WrapErr;
 use context::ExampleContext;
 use flows::FlowOptions;
+use rand::RngCore;
 
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
@@ -32,11 +33,16 @@ async fn main() -> color_eyre::Result<()> {
 
 	let cli = Cli::parse();
 	match cli.command {
-		Command::Walkthrough { label } => {
+		Command::Walkthrough => {
 			let ctx = ExampleContext::connect(cli.url.clone(), &cli.signer)
 				.await
 				.wrap_err("failed to establish Subxt client")?;
-			let options = FlowOptions { label };
+			let mut bytes = [0u8; 4];
+			rand::thread_rng().fill_bytes(&mut bytes);
+			let run_id =
+				format!("{:02x}{:02x}{:02x}{:02x}", bytes[0], bytes[1], bytes[2], bytes[3]);
+			let options = FlowOptions::new("anchor-demo".into(), run_id);
+			tracing::info!(target: "anchor", label = options.label(), "Starting walkthrough run");
 			flows::run_walkthrough(&ctx, &options).await?;
 		},
 		Command::Docs { topic } => docs::print(topic).wrap_err("failed to render topic")?,

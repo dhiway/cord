@@ -11,14 +11,16 @@ use subxt::{
 };
 
 /// Runtime configuration that mirrors CORD's signed extension tuple
-/// (`CheckNonZeroSender`, `CheckSpecVersion`, `CheckTxVersion`, `CheckGenesis`,
-/// `CheckMortality`, `CheckNonce`, `CheckWeight`, `ChargeTransactionPayment`, `WeightReclaim`).
+/// (`AuthorizeCall`, `CheckNonZeroSender`, `CheckSpecVersion`, `CheckTxVersion`,
+/// `CheckGenesis`, `CheckMortality`, `CheckNonce`, `CheckWeight`,
+/// `ChargeTransactionPayment`, `CheckMetadataHash`, `WeightReclaim`).
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum CordConfig {}
 
 pub type CordExtrinsicParams<T> = transaction_extensions::AnyOf<
 	T,
 	(
+		custom::AuthorizeCall<T>,
 		custom::CheckNonZeroSender<T>,
 		transaction_extensions::CheckSpecVersion,
 		transaction_extensions::CheckTxVersion,
@@ -27,6 +29,7 @@ pub type CordExtrinsicParams<T> = transaction_extensions::AnyOf<
 		transaction_extensions::CheckNonce,
 		custom::CheckWeight<T>,
 		transaction_extensions::ChargeTransactionPayment,
+		transaction_extensions::CheckMetadataHash,
 		custom::WeightReclaim<T>,
 	),
 >;
@@ -45,17 +48,57 @@ impl Config for CordConfig {
 pub fn build_cord_params(
 	builder: DefaultExtrinsicParamsBuilder<CordConfig>,
 ) -> <CordExtrinsicParams<CordConfig> as ExtrinsicParams<CordConfig>>::Params {
-	let (_, spec, tx, nonce, genesis, mortality, _, charge_tx, _) = builder.build();
-	((), spec, tx, genesis, mortality, nonce, (), charge_tx, ())
-}
-
-pub fn default_cord_params(
-) -> <CordExtrinsicParams<CordConfig> as ExtrinsicParams<CordConfig>>::Params {
-	build_cord_params(DefaultExtrinsicParamsBuilder::<CordConfig>::new())
+	let (
+		_,
+		spec_params,
+		tx_params,
+		nonce_params,
+		genesis_params,
+		mortality_params,
+		_,
+		charge_tx_params,
+		metadata_params,
+	) = builder.build();
+	(
+		(),
+		(),
+		spec_params,
+		tx_params,
+		genesis_params,
+		mortality_params,
+		nonce_params,
+		(),
+		charge_tx_params,
+		metadata_params,
+		(),
+	)
 }
 
 mod custom {
 	use super::*;
+
+	pub struct AuthorizeCall<T: Config>(PhantomData<T>);
+
+	impl<T: Config> ExtrinsicParams<T> for AuthorizeCall<T> {
+		type Params = ();
+		fn new(
+			_client: &ClientState<T>,
+			_params: Self::Params,
+		) -> Result<Self, ExtrinsicParamsError> {
+			Ok(Self(PhantomData))
+		}
+	}
+
+	impl<T: Config> ExtrinsicParamsEncoder for AuthorizeCall<T> {
+		fn encode_value_to(&self, _v: &mut Vec<u8>) {}
+	}
+
+	impl<T: Config> TransactionExtension<T> for AuthorizeCall<T> {
+		type Decoded = ();
+		fn matches(identifier: &str, _type_id: u32, _types: &PortableRegistry) -> bool {
+			identifier == "AuthorizeCall"
+		}
+	}
 
 	pub struct CheckNonZeroSender<T: Config>(PhantomData<T>);
 

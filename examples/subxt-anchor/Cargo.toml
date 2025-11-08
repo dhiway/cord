@@ -17,6 +17,7 @@ hex = { workspace = true }
 codec = { workspace = true, default-features = true }
 sp-core = { workspace = true, features = ["std"] }
 sp-runtime = { workspace = true, features = ["std"] }
+cord-orb-runtime = { path = "../../runtime", features = ["std"] }
 subxt = { version = "0.44", default-features = true, features = ["jsonrpsee", "native"] }
 tokio = { version = "1.40", features = ["macros", "rt-multi-thread", "sync", "time"] }
 tracing = "0.1"
