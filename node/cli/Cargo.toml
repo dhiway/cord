@@ -271,4 +271,4 @@ try-runtime = [
 
 fast-runtime = ["cord-orb-runtime/fast-runtime"]
 
-metadata-hash = ["cord-orb-runtime/metadata-hash"]
+# metadata-hash = ["cord-orb-runtime/metadata-hash"]
