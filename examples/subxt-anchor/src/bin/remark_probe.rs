@@ -1,7 +1,7 @@
 use clap::Parser;
-use color_eyre::eyre::WrapErr;
+use color_eyre::eyre::{eyre, WrapErr};
 use sp_core::{sr25519, Pair as CryptoPair};
-use subxt::{config::DefaultExtrinsicParamsBuilder, OnlineClient};
+use subxt::{config::DefaultExtrinsicParamsBuilder, tx::TxStatus, OnlineClient};
 
 #[path = "../chain.rs"]
 mod chain;
@@ -45,14 +45,25 @@ async fn main() -> color_eyre::Result<()> {
 	let remark_tx = cord::tx().system().remark(cli.message.into_bytes());
 	let params = build_cord_params(DefaultExtrinsicParamsBuilder::<CordConfig>::new().tip(cli.tip));
 
-	let events = client
-		.tx()
-		.sign_and_submit_then_watch(&remark_tx, &signer, params)
-		.await?
-		.wait_for_finalized_success()
-		.await?;
+	let mut progress = client.tx().sign_and_submit_then_watch(&remark_tx, &signer, params).await?;
 
-	println!("Remark finalized (extrinsic index {:?})", events.extrinsic_index());
+	let events = loop {
+		let Some(status) = progress.next().await else {
+			return Err(eyre!("remark probe stream ended before inclusion"));
+		};
+		let status = status?;
+		match status {
+			TxStatus::InBestBlock(in_block) | TxStatus::InFinalizedBlock(in_block) => {
+				break in_block.wait_for_success().await?;
+			},
+			TxStatus::Error { message }
+			| TxStatus::Invalid { message }
+			| TxStatus::Dropped { message } => return Err(eyre!(message)),
+			_ => continue,
+		}
+	};
+
+	println!("Remark included in block (extrinsic index {:?})", events.extrinsic_index());
 
 	Ok(())
 }

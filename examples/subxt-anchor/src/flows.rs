@@ -15,11 +15,24 @@ use hex::encode as hex_encode;
 type AttributeKey = BoundedVec<u8>;
 
 pub struct FlowOptions {
-	pub label: String,
+	pub base_label: String,
+	pub run_id: String,
+	pub scoped_label: String,
+}
+
+impl FlowOptions {
+	pub fn new(base_label: String, run_id: String) -> Self {
+		let scoped_label = format!("{base_label}-{run_id}");
+		Self { base_label, run_id, scoped_label }
+	}
+
+	pub fn label(&self) -> &str {
+		&self.scoped_label
+	}
 }
 
 pub async fn run_walkthrough(ctx: &ExampleContext, opts: &FlowOptions) -> Result<()> {
-	let mut printer = FlowPrinter::new(&opts.label);
+	let mut printer = FlowPrinter::new(opts);
 	let entity_token = ensure_entity(ctx, &mut printer, opts).await?;
 	let registry = create_registry(ctx, &mut printer, opts).await?;
 	let packet_token = create_packet(ctx, &entity_token, &registry, &mut printer, opts).await?;
@@ -46,7 +59,7 @@ async fn ensure_entity(
 		return Ok(existing);
 	}
 
-	let info = build_entity_info(&opts.label)?;
+	let info = build_entity_info(opts.label())?;
 	let tx = cord::tx().entity().set_info(info);
 	let events = ctx.submit("Entity::set_info", &tx).await?;
 	let record = events
@@ -61,7 +74,7 @@ async fn create_registry(
 	printer: &mut FlowPrinter,
 	opts: &FlowOptions,
 ) -> Result<RegistryArtifacts> {
-	let blueprint = build_registry_blueprint(&opts.label)?;
+	let blueprint = build_registry_blueprint(opts.label())?;
 	let tx = cord::tx().register().create_registry(
 		blueprint.info.clone(),
 		blueprint.kind.clone(),
@@ -89,7 +102,7 @@ async fn create_packet(
 	printer: &mut FlowPrinter,
 	opts: &FlowOptions,
 ) -> Result<Ss58Identifier> {
-	let payload = build_packet_attributes(&registry.blueprint, entity_token, &opts.label)?;
+	let payload = build_packet_attributes(&registry.blueprint, entity_token, opts.label())?;
 	let tx = cord::tx().register().create_packet(registry.token.clone(), payload.clone());
 	let events = ctx.submit("Register::create_packet", &tx).await?;
 	let created = events
@@ -125,11 +138,15 @@ struct FlowPrinter {
 }
 
 impl FlowPrinter {
-	fn new(label: &str) -> Self {
+	fn new(opts: &FlowOptions) -> Self {
 		let mut table = Table::new();
 		table.load_preset(UTF8_FULL);
 		table.set_header(["Stage", "Token", "Outcome"]);
-		table.add_row(["Context", label, "Demonstrating identifiers → registry → packet"]);
+		table.add_row([
+			"Context",
+			opts.label(),
+			&format!("{} identifiers → registry → packet (run {})", opts.base_label, opts.run_id),
+		]);
 		Self { table }
 	}
 

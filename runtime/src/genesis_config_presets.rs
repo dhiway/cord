@@ -70,13 +70,13 @@ fn cord_orb_staging_genesis(
 	root_key: AccountId,
 	endowed_accounts: Option<Vec<AccountId>>,
 ) -> serde_json::Value {
-	let endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
+	let development_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(testnet_accounts);
 
 	const ENDOWMENT: u128 = 500_000_000_000 * UNITS;
 
 	serde_json::json!( {
 		"balances": {
-			"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
+			"balances": development_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
 		"token": { "protocolId": "c0rd".to_string(), "networkId": 100},
 		"authorityManager":  {
@@ -103,6 +103,12 @@ fn cord_orb_staging_genesis(
 		},
 		"babe":  {
 			"epochConfig": Some(BABE_GENESIS_EPOCH_CONFIG),
+		},
+		"feeless": {
+			"feelessAccounts": development_accounts
+		.iter()
+		.map(|x| x.clone())
+		.collect::<Vec<_>>(),
 		},
 		"sudo": { "key": Some(root_key) },
 	})

@@ -160,7 +160,10 @@ impl<T: Config> Pallet<T> {
 
 	/// Convenience helper to check the origin of a call.
 	pub fn is_feeless_origin(origin: &OriginFor<T>) -> bool {
-		origin.caller().as_signed().map(Self::is_feeless_account).unwrap_or(false)
+		match origin.caller().as_system_ref() {
+			Some(frame_system::RawOrigin::Signed(ref who)) => Self::is_feeless_account(who),
+			_ => false,
+		}
 	}
 }
 

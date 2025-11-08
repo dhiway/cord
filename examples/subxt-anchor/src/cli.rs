@@ -22,14 +22,7 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 pub enum Command {
 	/// Execute the full entity → registry → packet happy-path flow.
-	Walkthrough {
-		#[arg(
-			long,
-			default_value = "anchor-demo",
-			help = "Tag applied to demo entities and registries"
-		)]
-		label: String,
-	},
+	Walkthrough,
 	/// Print the Markdown explainer for a specific concept.
 	Docs {
 		#[arg(value_enum)]
