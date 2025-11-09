@@ -1,3 +1,4 @@
+use crate::ElementView;
 use alloc::{collections::BTreeSet, vec, vec::Vec};
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
@@ -236,6 +237,65 @@ pub struct RegistryInfo<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get
 	pub kind: RegistryKind,
 	/// Registry status.
 	pub status: RegistryStatus,
+}
+
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebugNoBound)]
+pub struct RegistryAttributeView {
+	pub key: Vec<u8>,
+	pub kind: ElementType,
+	pub optional: bool,
+}
+
+impl From<&AttributeSpec> for RegistryAttributeView {
+	fn from(spec: &AttributeSpec) -> Self {
+		Self { key: spec.key.to_vec(), kind: spec.kind, optional: spec.flags.is_optional() }
+	}
+}
+
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebugNoBound)]
+pub enum LookupSpecView {
+	Single(Vec<u8>),
+	Combo(Vec<Vec<u8>>),
+}
+
+impl<MaxAdditionalAttributes: Get<u32>> From<&LookupSpec<MaxAdditionalAttributes>>
+	for LookupSpecView
+{
+	fn from(spec: &LookupSpec<MaxAdditionalAttributes>) -> Self {
+		match spec {
+			LookupSpec::Single(attr) => LookupSpecView::Single(attr.to_vec()),
+			LookupSpec::Combo(list) => {
+				LookupSpecView::Combo(list.iter().map(|attr| attr.to_vec()).collect())
+			},
+		}
+	}
+}
+
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebugNoBound)]
+pub struct RegistryInfoView {
+	pub info: ElementView,
+	pub maintainer: Vec<u8>,
+	pub attributes: Vec<RegistryAttributeView>,
+	pub token_spec: LookupSpecView,
+	pub lookup_specs: Vec<LookupSpecView>,
+	pub kind: RegistryKind,
+	pub status: RegistryStatus,
+}
+
+impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
+	From<&RegistryInfo<MaxRawDataLength, MaxAdditionalAttributes>> for RegistryInfoView
+{
+	fn from(info: &RegistryInfo<MaxRawDataLength, MaxAdditionalAttributes>) -> Self {
+		Self {
+			info: ElementView::from(&info.info),
+			maintainer: info.maintainer().as_ref().to_vec(),
+			attributes: info.attributes.iter().map(RegistryAttributeView::from).collect(),
+			token_spec: LookupSpecView::from(&info.token_spec),
+			lookup_specs: info.lookup_specs.iter().map(LookupSpecView::from).collect(),
+			kind: info.kind.clone(),
+			status: info.status,
+		}
+	}
 }
 
 impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>

@@ -21,6 +21,7 @@ serde_json = { features = ["alloc"], workspace = true }
 cord-primitives = { workspace = true }
 origin-staging-runtime-constants = { workspace = true }
 cord-origin-system-chains-staging-constants = { workspace = true }
+cord_token_runtime_api = { package = "token-runtime-api", workspace = true }
 
 # Substrate
 frame-benchmarking = { optional = true, workspace = true }
@@ -96,6 +97,7 @@ std = [
 	"cord-primitives/std",
 	"origin-staging-runtime-constants/std",
 	"cord-origin-system-chains-staging-constants/std",
+	"cord_token_runtime_api/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-session-benchmarking/std",

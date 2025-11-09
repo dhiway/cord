@@ -933,7 +933,8 @@ pub trait EntityLookup<T: frame_system::Config> {
 	/// Reverse lookup: given a username, get the attached entity token (if any).
 	fn lookup_identifier_of_name(name: &Self::Username) -> Option<Ss58Identifier>;
 
-	/// Verify that `signature` was produced by `account` over `payload`, returning its entity token.
+	/// Verify that `signature` was produced by `account` over `payload`, returning its entity
+	/// token.
 	fn verify_account_signature(
 		account: &T::AccountId,
 		payload: &[u8],

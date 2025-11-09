@@ -17,7 +17,7 @@ members = [
 	"origin/container",
 	"origin/container/coretime",
 	"origin/container/constants",
-	"origin/container/entity",
+	# "origin/container/entity",
 	"origin/container/system",
 	"origin/relay",
 	"origin/relay/cli",
@@ -38,9 +38,9 @@ members = [
 	"runtime/common",
 	"runtime/constants",
 	"test-utils/cli",
-	"examples/subxt-anchor",
+	"cord-subxt-sdk",
 ]
-default-members = ["node/cli" ]
+default-members = ["node/cli"]
 # default-members = ["node/cli", "origin/relay"]
 
 [workspace.lints.rust]
@@ -757,7 +757,7 @@ cord-origin-container = { path = "origin/container", default-features = false }
 cord-origin-system-chains-staging-constants = { path = "origin/container/constants", default-features = false }
 # cord-origin-asset-staging-runtime = { path = "origin/container/asset", default-features = false }
 cord-origin-coretime-staging-runtime = { path = "origin/container/coretime", default-features = false }
-cord-origin-entity-staging-runtime = { path = "origin/container/entity", default-features = false }
+# cord-origin-entity-staging-runtime = { path = "origin/container/entity", default-features = false }
 cord-origin-system-staging-runtime = { path = "origin/container/system", default-features = false }
 token-runtime-api = { path = "primitives/token-api", default-features = false }
 

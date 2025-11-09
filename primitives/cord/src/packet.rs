@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::element::Elum;
+use crate::{element::Elum, identifier::Ss58Identifier};
 use alloc::vec::Vec;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use frame_support::{
@@ -24,6 +24,7 @@ use frame_support::{
 	BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
 };
 use scale_info::TypeInfo;
+use sp_runtime::RuntimeDebug;
 
 /// The raw‐data type used throughout the entity pallet.
 pub type Element<MaxRawDataLength> = Elum<MaxRawDataLength>;
@@ -201,6 +202,94 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> core::ops::D
 	}
 }
 
+/// Pointer linking an index entry to a specific registry/packet version.
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	PartialEq,
+	Eq,
+	TypeInfo,
+	MaxEncodedLen,
+	RuntimeDebug,
+)]
+pub struct PacketPointer {
+	pub rtoken: Ss58Identifier,
+	pub ptoken: Ss58Identifier,
+	pub version: u32,
+}
+
+/// Packet lifecycle states.
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	Clone,
+	PartialEq,
+	Eq,
+	TypeInfo,
+	MaxEncodedLen,
+	RuntimeDebug,
+	Default,
+)]
+pub enum PacketStatus {
+	#[default]
+	Active,
+	Revoked,
+	Deleted,
+}
+
+/// Metadata tracked per packet token for quick access to the latest state.
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	CloneNoBound,
+	PartialEqNoBound,
+	EqNoBound,
+	TypeInfo,
+	MaxEncodedLen,
+	RuntimeDebugNoBound,
+)]
+#[scale_info(skip_type_params(Hash))]
+pub struct PacketMetadata<Hash>
+where
+	Hash: Clone + PartialEq + Eq + core::fmt::Debug,
+{
+	pub registry: Ss58Identifier,
+	pub controller: Ss58Identifier,
+	pub status: PacketStatus,
+	pub latest_version: u32,
+	pub attributes_hash: Hash,
+}
+
+/// Packet state persisted for each `(packet token, version)` pair.
+#[derive(
+	Encode,
+	Decode,
+	DecodeWithMemTracking,
+	CloneNoBound,
+	PartialEqNoBound,
+	EqNoBound,
+	TypeInfo,
+	MaxEncodedLen,
+	RuntimeDebugNoBound,
+)]
+#[scale_info(skip_type_params(MaxRawDataLength, MaxAdditionalAttributes, Hash))]
+pub struct PacketState<
+	MaxRawDataLength: Get<u32>,
+	MaxAdditionalAttributes: Get<u32>,
+	Hash: Clone + PartialEq + Eq + core::fmt::Debug,
+> {
+	pub registry: Ss58Identifier,
+	pub controller: Ss58Identifier,
+	pub status: PacketStatus,
+	pub version: u32,
+	pub attributes_hash: Hash,
+	pub attributes: Attributes<MaxRawDataLength, MaxAdditionalAttributes>,
+}
+
 impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 	From<Attributes<MaxRawDataLength, MaxAdditionalAttributes>>
 	for Vec<(Attribute, Element<MaxRawDataLength>)>
@@ -334,8 +423,7 @@ mod tests {
 	use super::{Attribute, Attributes, AttributesError, Element};
 	use alloc::{vec, vec::Vec};
 	use codec::{Decode, Encode};
-	use frame_support::traits::ConstU32;
-	use frame_support::BoundedVec;
+	use frame_support::{traits::ConstU32, BoundedVec};
 
 	type MaxRaw = ConstU32<32>;
 	type MaxAttrs = ConstU32<8>;

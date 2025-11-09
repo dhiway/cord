@@ -23,9 +23,11 @@ pub mod element;
 pub use crate::element::Elum;
 pub mod packet;
 pub use crate::packet::{
-	Attribute, Attributes, AttributesError, Element, PacketInformationProvider, PacketUpdateError,
-	PacketUpdateOp,
+	Attribute, Attributes, AttributesError, Element, PacketInformationProvider, PacketMetadata,
+	PacketPointer, PacketState, PacketStatus, PacketUpdateError, PacketUpdateOp,
 };
+pub mod view;
+pub use crate::view::{AttributeValueView, ElementView, PacketMetadataView, PacketStateView};
 pub mod identifier;
 pub use crate::identifier::Ss58Identifier;
 use alloc::vec::Vec;
