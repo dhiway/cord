@@ -1186,3 +1186,44 @@ fn registry_view_queries_increment_counter() {
 		);
 	});
 }
+
+#[test]
+fn registry_delegate_view_returns_permissions() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(140),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let delegate = bind_delegate(&registry, account(141));
+		let perms = Pallet::<Test>::registry_delegate(
+			view_auth(account(142)),
+			registry.clone(),
+			delegate.clone(),
+		)
+		.expect("delegate view");
+		assert_eq!(perms, RegistryPermissions::ENTRY | RegistryPermissions::VIEW);
+	});
+}
+
+#[test]
+fn registry_query_count_view_returns_counter() {
+	new_test_ext().execute_with(|| {
+		let (registry, _) = create_registry(
+			account(143),
+			attrs([(b"asset_id".as_ref(), ElementType::U64, AttributeFlags::empty())]),
+			token_spec(&[b"asset_id"]),
+			lookup_specs(&[&[b"asset_id"]]),
+		);
+		let viewer = account(0);
+		let _ = Pallet::<Test>::info(default_auth(), registry.clone()).expect("info view");
+		let count = Pallet::<Test>::registry_query_count(
+			view_auth(account(144)),
+			registry.clone(),
+			viewer.clone(),
+		)
+		.expect("query count view");
+		assert_eq!(count, 1);
+	});
+}

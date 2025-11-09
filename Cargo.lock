@@ -1967,12 +1967,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5920befb47832a6d61ee3a3a846565cfa39b331331e68a3b1d1116630f2f26d"
 dependencies = [
  "backtrace",
- "color-spantrace",
  "eyre",
  "indenter",
  "once_cell",
  "owo-colors",
- "tracing-error",
 ]
 
 [[package]]
@@ -1994,18 +1992,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.109",
-]
-
-[[package]]
-name = "color-spantrace"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8b88ea9df13354b55bc7234ebcce36e6ef896aca2e42a15de9e10edce01b427"
-dependencies = [
- "once_cell",
- "owo-colors",
- "tracing-core",
- "tracing-error",
 ]
 
 [[package]]
@@ -2709,24 +2695,23 @@ dependencies = [
 name = "cord-subxt-sdk"
 version = "0.1.0"
 dependencies = [
- "clap",
- "color-eyre",
- "cord-primitives",
+ "anyhow",
+ "base64 0.22.1",
+ "bs58",
+ "frame-system",
+ "futures",
+ "getrandom 0.2.16",
  "hex",
+ "pallet-balances",
  "parity-scale-codec",
- "rand 0.8.5",
  "scale-info",
  "scale-value",
  "serde",
  "serde_json",
- "sp-core",
- "sp-runtime",
  "subxt 0.44.0",
  "subxt-signer 0.44.0",
+ "thiserror 1.0.69",
  "tokio",
- "tracing",
- "tracing-subscriber 0.3.20",
- "url",
 ]
 
 [[package]]
@@ -18068,16 +18053,6 @@ checksum = "b9d12581f227e93f094d3af2ae690a574abb8a2b9b7a96e7cfe9647b2b617678"
 dependencies = [
  "once_cell",
  "valuable",
-]
-
-[[package]]
-name = "tracing-error"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b1581020d7a273442f5b45074a6a57d5757ad0a47dac0e9f0bd57b81936f3db"
-dependencies = [
- "tracing",
- "tracing-subscriber 0.3.20",
 ]
 
 [[package]]

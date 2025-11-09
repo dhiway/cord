@@ -23,6 +23,7 @@ use crate::{
 	signature::SignatureVerificationError, Error,
 };
 use alloc::format;
+use codec::Decode;
 use cord_primitives::{
 	packet::{Attribute, Attributes, AttributesError, Element},
 	Signature,
@@ -606,6 +607,103 @@ mod view_tests {
 			assert_eq!(parsed.data.len(), hist.len());
 			assert_eq!(parsed.data[0].key_utf8.as_deref(), Some("rot"));
 			assert_eq!(parsed.data[0].version, hist[0].1);
+		});
+	}
+
+	#[test]
+	fn entity_info_view_roundtrip() {
+		new_test_ext().execute_with(|| {
+			let who = account(60);
+			let token = init_with_display(who.clone(), b"info-view");
+			let auth = view_auth(&who);
+			let info =
+				EntityPallet::<Test>::entity_info(auth, token.clone()).expect("entity info view");
+			assert_eq!(info.display, plain_data(b"info-view"));
+
+			let bytes = EntityPallet::<Test>::entity_info_bytes(view_auth(&who), token.clone())
+				.expect("entity info bytes view");
+			let decoded =
+				EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::decode(&mut &bytes[..])
+					.expect("decode");
+			assert_eq!(decoded.display, plain_data(b"info-view"));
+		});
+	}
+
+	#[test]
+	fn account_and_controller_views_return_expected_data() {
+		new_test_ext().execute_with(|| {
+			let owner = account(61);
+			let sub = account(62);
+			let token = init_with_display(owner.clone(), b"account-view");
+			assert_ok!(Entity::set_sub_account(RuntimeOrigin::signed(owner.clone()), sub.clone()));
+
+			let resolved = EntityPallet::<Test>::account_token(view_auth(&owner), owner.clone())
+				.expect("account token view");
+			assert_eq!(resolved, token);
+
+			let listed = EntityPallet::<Test>::sub_accounts(view_auth(&owner), token.clone());
+			assert_eq!(listed, vec![sub.clone().into()]);
+
+			let controller =
+				EntityPallet::<Test>::controller_account_view(view_auth(&owner), token.clone())
+					.expect("controller view");
+			assert_eq!(controller, owner.clone().into());
+		});
+	}
+
+	#[test]
+	fn username_and_attribute_views_roundtrip() {
+		new_test_ext().execute_with(|| {
+			let who = account(63);
+			let token = init_with_display(who.clone(), b"names");
+			assert_ok!(Entity::set_id_name(RuntimeOrigin::signed(who.clone()), b"alice".to_vec()));
+			assert_ok!(Entity::add_attributes(
+				RuntimeOrigin::signed(who.clone()),
+				vec![(b"rot".to_vec(), plain_data(b"old"))],
+			));
+			assert_ok!(Entity::rotate_attribute(
+				RuntimeOrigin::signed(who.clone()),
+				b"rot".to_vec(),
+				plain_data(b"new"),
+			));
+
+			let name_bytes =
+				EntityPallet::<Test>::username_of(view_auth(&who), token.clone()).expect("name");
+			assert!(core::str::from_utf8(&name_bytes).unwrap().ends_with(".myn.social"));
+
+			let lookup = EntityPallet::<Test>::username_lookup(view_auth(&who), name_bytes.clone())
+				.expect("name lookup");
+			assert_eq!(lookup, token);
+
+			let version = EntityPallet::<Test>::attribute_version(
+				view_auth(&who),
+				token.clone(),
+				b"rot".to_vec(),
+			)
+			.expect("attribute version");
+			assert_eq!(version, 1);
+
+			let versions = EntityPallet::<Test>::attribute_versions(view_auth(&who), token.clone());
+			assert_eq!(versions, vec![(b"rot".to_vec(), 1)]);
+		});
+	}
+
+	#[test]
+	fn account_history_view_lists_prior_controllers() {
+		new_test_ext().execute_with(|| {
+			let owner = account(64);
+			let next = account(65);
+			let token = init_with_display(owner.clone(), b"history");
+			assert_ok!(Entity::rotate_controller(
+				RuntimeOrigin::signed(owner.clone()),
+				token.clone(),
+				next.clone(),
+			));
+
+			let entries = EntityPallet::<Test>::account_history(view_auth(&next), token.clone());
+			assert_eq!(entries.len(), 1);
+			assert_eq!(entries[0].0, owner.into());
+			assert!(entries[0].1.height > 0);
 		});
 	}
 }
