@@ -18,6 +18,7 @@ members = [
 	"origin/container/coretime",
 	"origin/container/constants",
 	"origin/container/entity",
+	"origin/container/system",
 	"origin/relay",
 	"origin/relay/cli",
 	"origin/relay/common",
@@ -32,6 +33,7 @@ members = [
 	"pallets/remote-proxy",
 	"pallets/runtime-upgrade",
 	"primitives/cord",
+	"primitives/token-api",
 	"runtime/",
 	"runtime/common",
 	"runtime/constants",
@@ -756,11 +758,8 @@ cord-origin-system-chains-staging-constants = { path = "origin/container/constan
 # cord-origin-asset-staging-runtime = { path = "origin/container/asset", default-features = false }
 cord-origin-coretime-staging-runtime = { path = "origin/container/coretime", default-features = false }
 cord-origin-entity-staging-runtime = { path = "origin/container/entity", default-features = false }
-
-# [patch."https://github.com/dhiway/sdk"]
-# sc-informant = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "stable2509" }
-# sc-tracing = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "stable2509" }
-# sc-tracing-proc-macro = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "stable2509" }
+cord-origin-system-staging-runtime = { path = "origin/container/system", default-features = false }
+token-runtime-api = { path = "primitives/token-api", default-features = false }
 
 [profile.release]
 panic = 'unwind'

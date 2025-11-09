@@ -1,5 +1,6 @@
 use crate::docs::DocTopic;
 use clap::{Parser, Subcommand};
+use std::path::PathBuf;
 use url::Url;
 
 #[derive(Parser, Debug)]
@@ -14,6 +15,13 @@ pub struct Cli {
 
 	#[arg(long, default_value = "//Alice", help = "Signer seed in suri format or hex secret key")]
 	pub signer: String,
+
+	#[arg(
+		long,
+		value_name = "PATH",
+		help = "Path to the sample-data JSON used for payload templates"
+	)]
+	pub sample_data: Option<PathBuf>,
 
 	#[command(subcommand)]
 	pub command: Command,

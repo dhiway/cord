@@ -11,7 +11,6 @@ keywords = ["cord", "subxt", "examples", "extrinsics"]
 [dependencies]
 clap = { workspace = true, features = ["derive"], default-features = true }
 color-eyre = { version = "0.6.3" }
-comfy-table = { workspace = true, default-features = true }
 cord-primitives = { path = "../../primitives/cord", features = ["std"] }
 hex = { workspace = true }
 codec = { workspace = true, default-features = true }
@@ -25,6 +24,9 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 url = { version = "2.5", features = ["serde"] }
 rand = { version = "0.8", features = ["std"] }
 scale-info = { workspace = true, features = ["std"] }
+serde = { workspace = true, features = ["derive", "std"] }
+serde_json = { workspace = true, features = ["std"] }
+scale-value = { version = "0.18.1", default-features = false, features = ["__std"] }
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

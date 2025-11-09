@@ -25,6 +25,11 @@ impl PairSigner {
 	pub fn account_id(&self) -> &AccountId32 {
 		&self.account_id
 	}
+
+	pub fn sign_view_payload(&self, payload: &[u8]) -> SpMultiSignature {
+		let sig = self.signer.sign(payload);
+		SpMultiSignature::from(sig)
+	}
 }
 
 impl Signer<CordConfig> for PairSigner {

@@ -1,18 +1,12 @@
 use crate::{
-	builders::{
-		build_entity_info, build_packet_attributes, build_registry_blueprint, RegistryBlueprint,
-	},
 	context::ExampleContext,
-	cord,
+	formatting::token_to_string,
+	pallets::{entity, packet, register},
+	sample_data::{SampleData, TemplateContext},
+	view_client::{PacketViewData, RegisterViewClient, RegistryViewData},
+	view_types::LookupSpecView,
 };
-use color_eyre::eyre::{eyre, Result};
-use comfy_table::{presets::UTF8_FULL, Table};
-use cord::runtime_types::{
-	bounded_collections::bounded_vec::BoundedVec,
-	cord_primitives::{element::Elum, identifier::Ss58Identifier},
-};
-use hex::encode as hex_encode;
-type AttributeKey = BoundedVec<u8>;
+use color_eyre::eyre::Result;
 
 pub struct FlowOptions {
 	pub base_label: String,
@@ -31,165 +25,109 @@ impl FlowOptions {
 	}
 }
 
-pub async fn run_walkthrough(ctx: &ExampleContext, opts: &FlowOptions) -> Result<()> {
-	let mut printer = FlowPrinter::new(opts);
-	let entity_token = ensure_entity(ctx, &mut printer, opts).await?;
-	let registry = create_registry(ctx, &mut printer, opts).await?;
-	let packet_token = create_packet(ctx, &entity_token, &registry, &mut printer, opts).await?;
-
-	printer.note("Packet", &packet_token, "Packet anchored and ready for pallet testing");
-	printer.finish();
-	Ok(())
-}
-
-struct RegistryArtifacts {
-	pub token: Ss58Identifier,
-	pub blueprint: RegistryBlueprint,
-}
-
-async fn ensure_entity(
+pub async fn run_walkthrough(
 	ctx: &ExampleContext,
-	printer: &mut FlowPrinter,
 	opts: &FlowOptions,
-) -> Result<Ss58Identifier> {
-	let snapshot = ctx.client.storage().at_latest().await?;
-	let lookup = cord::storage().entity().ss58_of_active_accounts(ctx.account_id.clone());
-	if let Some(existing) = snapshot.fetch(&lookup).await? {
-		printer.note("Identifiers", &existing, "Re-used existing entity token");
-		return Ok(existing);
-	}
-
-	let info = build_entity_info(opts.label())?;
-	let tx = cord::tx().entity().set_info(info);
-	let events = ctx.submit("Entity::set_info", &tx).await?;
-	let record = events
-		.find_first::<cord::entity::events::EntityInfoSet>()?
-		.ok_or_else(|| eyre!("EntityInfoSet event not emitted"))?;
-	printer.note("Identifiers", &record.token, "Entity profile set via pallet-entity::set_info");
-	Ok(record.token)
-}
-
-async fn create_registry(
-	ctx: &ExampleContext,
-	printer: &mut FlowPrinter,
-	opts: &FlowOptions,
-) -> Result<RegistryArtifacts> {
-	let blueprint = build_registry_blueprint(opts.label())?;
-	let tx = cord::tx().register().create_registry(
-		blueprint.info.clone(),
-		blueprint.kind.clone(),
-		blueprint.attribute_schema.clone(),
-		blueprint.token_spec.clone(),
-		blueprint.lookup_specs.clone(),
-	);
-	let events = ctx.submit("Register::create_registry", &tx).await?;
-	let created = events
-		.find_first::<cord::register::events::RegistryCreated>()?
-		.ok_or_else(|| eyre!("RegistryCreated event missing"))?;
-	printer.note(
-		"Registers",
-		&created.registry,
-		"Registry minted with pallet-register::create_registry",
-	);
-
-	Ok(RegistryArtifacts { token: created.registry, blueprint })
-}
-
-async fn create_packet(
-	ctx: &ExampleContext,
-	entity_token: &Ss58Identifier,
-	registry: &RegistryArtifacts,
-	printer: &mut FlowPrinter,
-	opts: &FlowOptions,
-) -> Result<Ss58Identifier> {
-	let payload = build_packet_attributes(&registry.blueprint, entity_token, opts.label())?;
-	let tx = cord::tx().register().create_packet(registry.token.clone(), payload.clone());
-	let events = ctx.submit("Register::create_packet", &tx).await?;
-	let created = events
-		.find_first::<cord::register::events::PacketCreated>()?
-		.ok_or_else(|| eyre!("PacketCreated event missing"))?;
-
-	printer.note(
-		"Packets",
-		&created.packet,
-		&format!("Packet anchored under registry {}", token_to_string(&registry.token)),
-	);
-
-	dump_packet_state(ctx, &created.packet, payload).await?;
-	Ok(created.packet)
-}
-
-async fn dump_packet_state(
-	ctx: &ExampleContext,
-	packet: &Ss58Identifier,
-	attrs: BoundedVec<(AttributeKey, Elum)>,
+	samples: &SampleData,
 ) -> Result<()> {
-	let snapshot = ctx.client.storage().at_latest().await?;
-	let storage = cord::storage().register().packets(packet.clone());
-	if let Some(state) = snapshot.fetch(&storage).await? {
-		tracing::info!(target: "anchor", "packet {:?} latest version {:?}", token_to_string(packet), state.latest_version);
-		tracing::debug!(target: "anchor", payload = ?describe_attributes(&attrs));
+	let template = TemplateContext::new(
+		opts.base_label.clone(),
+		opts.run_id.clone(),
+		opts.label().to_string(),
+	);
+	let entity = entity::ensure_profile(ctx, samples, &template).await?;
+	let registry = register::create_registry(ctx, samples, &template).await?;
+	let packet = packet::create_packet(ctx, samples, &template, &entity.token, &registry).await?;
+	tokio::time::sleep(std::time::Duration::from_secs(6)).await;
+
+	#[cfg(debug_assertions)]
+	{
+		let register_snapshot = ctx.client.storage().at(registry.block_hash);
+		let register_key = crate::cord::storage().register().registries(registry.token.clone());
+		let exists = register_snapshot.fetch(&register_key).await?.is_some();
+		let entity_snapshot = ctx.client.storage().at_latest().await?;
+		let entity_key =
+			crate::cord::storage().entity().ss58_of_active_accounts(ctx.account_id.clone());
+		let mapped = entity_snapshot.fetch(&entity_key).await?.is_some();
+		tracing::info!(
+			target: "anchor",
+			"registry {} storage_exists={exists}; account_mapped={mapped}",
+			token_to_string(&registry.token)
+		);
 	}
+
+	let view_client = RegisterViewClient::new(ctx, packet.block_hash).await?;
+	let registry_view = view_client.registry_overview(&registry.token).await?;
+	let packet_view = view_client.packet_snapshot(&registry.token, &packet.token).await?;
+
+	FlowPrinter::render(opts, &entity, &registry, &registry_view, &packet, &packet_view);
 	Ok(())
 }
 
-struct FlowPrinter {
-	table: Table,
-}
+struct FlowPrinter;
 
 impl FlowPrinter {
-	fn new(opts: &FlowOptions) -> Self {
-		let mut table = Table::new();
-		table.load_preset(UTF8_FULL);
-		table.set_header(["Stage", "Token", "Outcome"]);
-		table.add_row([
-			"Context",
-			opts.label(),
-			&format!("{} identifiers → registry → packet (run {})", opts.base_label, opts.run_id),
-		]);
-		Self { table }
-	}
+	fn render(
+		opts: &FlowOptions,
+		entity: &entity::EntityResult,
+		registry: &register::RegistryResult,
+		registry_view: &RegistryViewData,
+		packet: &packet::PacketResult,
+		packet_view: &PacketViewData,
+	) {
+		println!(
+			"\nContext: {} identifiers → registry → packet (run {})",
+			opts.base_label, opts.run_id
+		);
+		println!();
 
-	fn note(&mut self, stage: &str, token: &Ss58Identifier, message: impl AsRef<str>) {
-		self.table.add_row([stage, &token_to_string(token), message.as_ref()]);
-	}
+		println!("Entity");
+		println!("  Token    : {}", token_to_string(&entity.token));
+		println!("  Outcome  : {}", entity.message);
+		println!("  Profile  : {}", entity.view_summary);
 
-	fn finish(self) {
-		println!("\n{}", self.table);
+		println!("\nRegistry");
+		println!("  Token    : {}", token_to_string(&registry.token));
+		println!("  Outcome  : {}", registry.message);
+		println!("  Kind     : {:?}", registry_view.info.kind);
+		println!("  Status   : {:?}", registry_view.info.status);
+		println!("  Maintainer: {}", token_to_string(&registry_view.info.maintainer));
+		println!("  Info     : {}", registry_view.info.info);
+		println!("  Token Spec: {}", format_lookup_spec(&registry_view.info.token_spec));
+		if !registry_view.info.lookup_specs.is_empty() {
+			let lookups = registry_view
+				.info
+				.lookup_specs
+				.iter()
+				.map(format_lookup_spec)
+				.collect::<Vec<_>>()
+				.join(", ");
+			println!("  Lookups  : {lookups}");
+		}
+		println!("  Schema   :");
+		for attr in &registry_view.info.attributes {
+			let optional = if attr.optional { " [optional]" } else { "" };
+			println!("    - {} ({:?}){}", attr.key_label, attr.kind, optional);
+		}
+
+		println!("\nPacket");
+		println!("  Token    : {}", token_to_string(&packet.token));
+		println!("  Outcome  : {}", packet.message);
+		println!("  Controller: {}", token_to_string(&packet_view.snapshot.state.controller));
+		println!("  Status   : {:?}", packet_view.snapshot.state.status);
+		println!("  Attributes:");
+		for attr in &packet_view.snapshot.state.attributes {
+			println!("    - {} = {}", attr.key_label, attr.value);
+		}
 	}
 }
 
-fn token_to_string(token: &Ss58Identifier) -> String {
-	let raw = (token.0).0.clone();
-	String::from_utf8(raw).unwrap_or_else(|_| "<invalid>".into())
-}
-
-fn describe_attributes(attrs: &BoundedVec<(AttributeKey, Elum)>) -> Vec<(String, String)> {
-	(attrs.0)
-		.iter()
-		.map(|(key, value)| {
-			let key_bytes = key.0.clone();
-			let key_str = String::from_utf8_lossy(&key_bytes).into_owned();
-			(key_str, describe_element(value))
-		})
-		.collect()
-}
-
-fn describe_element(element: &Elum) -> String {
-	match element {
-		Elum::None => "None".into(),
-		Elum::Raw(data) => {
-			let bytes = data.0.clone();
-			format!("Raw({})", String::from_utf8_lossy(&bytes))
-		},
-		Elum::Bool(flag) => format!("Bool({flag})"),
-		Elum::U64(bytes) => format!("U64({})", u64::from_le_bytes(*bytes)),
-		Elum::U128(bytes) => format!("U128({})", u128::from_le_bytes(*bytes)),
-		Elum::Hash(digest) => format!("Hash(0x{})", hex_encode(digest)),
-		Elum::Token(id) => format!("Token({})", token_to_string(id)),
-		Elum::CID(cid) => {
-			let data = cid.0.clone();
-			format!("CID({})", hex_encode(data))
+fn format_lookup_spec(spec: &LookupSpecView) -> String {
+	match spec {
+		LookupSpecView::Single(attr) => attr.clone(),
+		LookupSpecView::Combo(list) => {
+			let joined = list.join(" + ");
+			format!("[{joined}]")
 		},
 	}
 }

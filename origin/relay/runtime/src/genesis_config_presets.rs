@@ -25,7 +25,6 @@ use babe_primitives::AuthorityId as BabeId;
 use beefy_primitives::ecdsa_crypto::AuthorityId as BeefyId;
 use origin_staging_runtime_constants::currency::UNITS as ORU;
 use pallet_grandpa::AuthorityId as GrandpaId;
-use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use polkadot_primitives::{AccountPublic, AssignmentId, AsyncBackingParams};
 use runtime_parachains::configuration::HostConfiguration;
 use sp_core::{sr25519, Pair, Public};
@@ -56,7 +55,6 @@ fn get_authority_keys_from_seed(
 	AccountId,
 	BabeId,
 	GrandpaId,
-	ImOnlineId,
 	ValidatorId,
 	AssignmentId,
 	AuthorityDiscoveryId,
@@ -67,7 +65,6 @@ fn get_authority_keys_from_seed(
 		get_account_id_from_seed::<sr25519::Public>(seed),
 		get_from_seed::<BabeId>(seed),
 		get_from_seed::<GrandpaId>(seed),
-		get_from_seed::<ImOnlineId>(seed),
 		get_from_seed::<ValidatorId>(seed),
 		get_from_seed::<AssignmentId>(seed),
 		get_from_seed::<AuthorityDiscoveryId>(seed),
@@ -135,7 +132,6 @@ fn origin_staging_genesis(
 		AccountId,
 		BabeId,
 		GrandpaId,
-		ImOnlineId,
 		ValidatorId,
 		AssignmentId,
 		AuthorityDiscoveryId,
@@ -172,7 +168,6 @@ fn origin_staging_genesis(
 							x.5.clone(),
 							x.6.clone(),
 							x.7.clone(),
-							x.8.clone(),
 						),
 					)
 				})
@@ -191,21 +186,12 @@ fn origin_staging_genesis(
 fn origin_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
-	im_online: ImOnlineId,
 	para_validator: ValidatorId,
 	para_assignment: AssignmentId,
 	authority_discovery: AuthorityDiscoveryId,
 	beefy: BeefyId,
 ) -> SessionKeys {
-	SessionKeys {
-		babe,
-		grandpa,
-		im_online,
-		para_validator,
-		para_assignment,
-		authority_discovery,
-		beefy,
-	}
+	SessionKeys { babe, grandpa, para_validator, para_assignment, authority_discovery, beefy }
 }
 
 pub fn origin_staging_config_genesis() -> serde_json::Value {

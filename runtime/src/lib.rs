@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+//! The CORD Orb runtime. This can be compiled with `#[no_std]`, ready for Wasm.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limits.
 #![recursion_limit = "1024"]
@@ -74,7 +76,6 @@ use cord_orb_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 use sp_runtime::generic::Era;
 
 // CORD Pallets
-// pub use authority_membership;
 pub mod benchmark;
 pub use benchmark::DummySignature;
 
@@ -205,7 +206,7 @@ impl Contains<RuntimeCall> for BaseFilter {
 
 parameter_types! {
    pub const Version: RuntimeVersion = VERSION;
-   pub const SS58Prefix: u16 = 29;
+   pub const SS58Prefix: u8 = 29;
 }
 
 #[derive_impl(frame_system::config_preludes::SolochainDefaultConfig)]
@@ -291,15 +292,15 @@ impl pallet_preimage::Config for Runtime {
 }
 
 parameter_types! {
-	pub const EpochDuration: u64 = prod_or_fast!(
+	pub EpochDuration: u64 = prod_or_fast!(
 		EPOCH_DURATION_IN_SLOTS as u64,
-		2 * MINUTES as u64
+		2 * MINUTES as u64,
+		"ORB_EPOCH_DURATION"
 	);
 	pub const SessionsPerEra: SessionIndex = 6;
 	pub const BondingDuration: sp_staking::EraIndex = 28;
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
-	pub ReportLongevity: u64 =
-		BondingDuration::get() as u64 * SessionsPerEra::get() as u64 * EpochDuration::get();
+	pub ReportLongevity: u64 = EpochDuration::get() as u64 * 10;
 	pub const MaxAuthorities: u32 = 1_000;
 
 }
@@ -449,7 +450,7 @@ impl pallet_grandpa::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type MaxAuthorities = MaxAuthorities;
-	type MaxNominators = ();
+	type MaxNominators = ConstU32<0>;
 	type MaxSetIdSessionEntries = MaxSetIdSessionEntries;
 	type KeyOwnerProof = <Historical as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
 	type EquivocationReportSystem =
@@ -743,10 +744,10 @@ impl pallet_sudo::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxRawDataLength: u32 = 4096;
+	pub const MaxRawDataLength: u32 = 1024;
 	pub const MaxAdditionalAttributes: u32 = 32;
 	pub const MaxSubAccounts: u32 = 2;
-	pub const MaxUsernameLength: u32 = 20;
+	pub const MaxUsernameLength: u32 = 64;
 }
 
 parameter_types! {
@@ -775,7 +776,7 @@ impl pallet_entity::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxRegistryRawDataLength: u32 = 1024;
+	pub const MaxRegistryRawDataLength: u32 = 4096;
 	pub const MaxRegistryAdditionalAttributes: u32 = 64;
 	pub const MaxViewAuthorizationLen: u32 = 128;
 	pub const MaxHistoryResults: u32 = 64;
