@@ -298,6 +298,67 @@ pub mod pallet {
 		AccountId32: From<<T as frame_system::Config>::AccountId>,
 		<T as frame_system::Config>::AccountId: Clone,
 	{
+		/// Returns the pallet index previously assigned to the provided name.
+		pub fn pallet_index_of(auth: ViewAuthorization<T>, name: Vec<u8>) -> Option<u16> {
+			Self::authorize_view(&auth).ok()?;
+			let bounded: BoundedVec<u8, ConstU32<64>> = name.try_into().ok()?;
+			PalletIndex::<T>::get(&bounded)
+		}
+
+		/// Returns the pallet name bytes stored for an index.
+		pub fn pallet_name(auth: ViewAuthorization<T>, index: u16) -> Option<Vec<u8>> {
+			Self::authorize_view(&auth).ok()?;
+			IndexToPallet::<T>::get(index).map(Into::into)
+		}
+
+		/// Returns the next pallet index counter.
+		pub fn next_pallet_index(auth: ViewAuthorization<T>) -> Option<u16> {
+			Self::authorize_view(&auth).ok()?;
+			Some(NextPalletIndex::<T>::get())
+		}
+
+		/// Returns the configured genesis network identifier.
+		pub fn genesis_network_id(auth: ViewAuthorization<T>) -> Option<u16> {
+			Self::authorize_view(&auth).ok()?;
+			Some(GenesisNetworkId::<T>::get())
+		}
+
+		/// Returns whether the chain is running in origin mode.
+		pub fn origin_chain_flag(auth: ViewAuthorization<T>) -> Option<bool> {
+			Self::authorize_view(&auth).ok()?;
+			Some(IsOriginChain::<T>::get())
+		}
+
+		/// Returns the current state version counter for a token.
+		pub fn state_version(auth: ViewAuthorization<T>, token: Ss58Identifier) -> Option<u32> {
+			Self::authorize_view(&auth).ok()?;
+			Some(StateVersion::<T>::get(&token))
+		}
+
+		/// Returns a specific state event for a token and version.
+		pub fn state_event_view(
+			auth: ViewAuthorization<T>,
+			token: Ss58Identifier,
+			version: u32,
+		) -> Option<StateEventOf<T>> {
+			Self::authorize_view(&auth).ok()?;
+			StateHistory::<T>::get(&token, version)
+		}
+
+		/// Returns a bounded list of state events mirroring direct storage scans.
+		pub fn state_events(
+			auth: ViewAuthorization<T>,
+			token: Ss58Identifier,
+			start: Option<u32>,
+			limit: u32,
+		) -> Vec<StateEventOf<T>> {
+			if Self::authorize_view(&auth).is_err() {
+				return Vec::new();
+			}
+			let capped = cmp::min(limit, T::MaxTimelineViewResults::get());
+			Self::timeline_entries(&token, start, capped)
+		}
+
 		pub fn timeline(
 			auth: ViewAuthorization<T>,
 			token: Ss58Identifier,

@@ -1039,6 +1039,30 @@ pub mod pallet {
 			Some(Self::registry_info_to_debug_bytes(&view))
 		}
 
+		/// Returns delegate permissions for the supplied registry/delegate pair.
+		pub fn registry_delegate(
+			auth: ViewAuthorizationOf<T>,
+			registry: Ss58Identifier,
+			delegate: Ss58Identifier,
+		) -> Option<RegistryPermissions> {
+			Self::authorize_view(&auth).ok()?;
+			let perms = RegistryDelegates::<T>::get(&registry, &delegate)?;
+			Self::record_registry_query(&registry, &auth.account);
+			Some(perms)
+		}
+
+		/// Returns the recorded view/query count for an account over a registry.
+		pub fn registry_query_count(
+			auth: ViewAuthorizationOf<T>,
+			registry: Ss58Identifier,
+			account: T::AccountId,
+		) -> Option<u64> {
+			Self::authorize_view(&auth).ok()?;
+			let count = RegistryQueryCounts::<T>::get(&registry, account);
+			Self::record_registry_query(&registry, &auth.account);
+			Some(count)
+		}
+
 		/// Returns lookup specs rendered as JSON.
 		pub fn lookup_specs(
 			auth: ViewAuthorizationOf<T>,

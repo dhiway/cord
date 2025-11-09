@@ -787,6 +787,111 @@ pub mod pallet {
 	where
 		T::AccountId: Clone + Into<sp_runtime::AccountId32>,
 	{
+		/// Returns the stored entity info for a token.
+		pub fn entity_info(
+			auth: ViewAuthorizationOf<T>,
+			token: Ss58Identifier,
+		) -> Option<T::EntityInfoPacket> {
+			Self::authorize_view(&auth).ok()?;
+			EntityInfoOf::<T>::get(&token)
+		}
+
+		/// Returns the entity info as SCALE bytes for SDK parity with storage queries.
+		pub fn entity_info_bytes(
+			auth: ViewAuthorizationOf<T>,
+			token: Ss58Identifier,
+		) -> Option<Vec<u8>> {
+			let info = Self::entity_info(auth, token)?;
+			Some(info.encode())
+		}
+
+		/// Resolve the Ss58 token currently bound to an account.
+		pub fn account_token(
+			auth: ViewAuthorizationOf<T>,
+			account: T::AccountId,
+		) -> Option<Ss58Identifier> {
+			Self::authorize_view(&auth).ok()?;
+			Ss58OfActiveAccounts::<T>::get(&account)
+		}
+
+		/// List sub-accounts linked to an entity token.
+		pub fn sub_accounts(
+			auth: ViewAuthorizationOf<T>,
+			token: Ss58Identifier,
+		) -> Vec<sp_runtime::AccountId32> {
+			if Self::authorize_view(&auth).is_err() {
+				return Vec::new();
+			}
+			SubAccounts::<T>::get(&token)
+				.into_iter()
+				.map(|account| account.into())
+				.collect()
+		}
+
+		/// Returns the controller account for the provided entity token.
+		pub fn controller_account_view(
+			auth: ViewAuthorizationOf<T>,
+			token: Ss58Identifier,
+		) -> Option<sp_runtime::AccountId32> {
+			Self::authorize_view(&auth).ok()?;
+			let controller = ControllerOfSs58::<T>::get(&token)?;
+			Some(controller.into())
+		}
+
+		/// Returns the historical controllers/accounts that were unbound from a token.
+		pub fn account_history(
+			auth: ViewAuthorizationOf<T>,
+			token: Ss58Identifier,
+		) -> Vec<(sp_runtime::AccountId32, EventBlock)> {
+			if Self::authorize_view(&auth).is_err() {
+				return Vec::new();
+			}
+			Ss58OfAccountHistory::<T>::iter_prefix(&token)
+				.map(|(account, block)| (account.into(), block))
+				.collect()
+		}
+
+		/// Returns the username assigned to the provided token, if any.
+		pub fn username_of(auth: ViewAuthorizationOf<T>, token: Ss58Identifier) -> Option<Vec<u8>> {
+			Self::authorize_view(&auth).ok()?;
+			let name = Ss58IdNameOf::<T>::get(&token)?;
+			Some(name.into_inner())
+		}
+
+		/// Look up the token bound to a username.
+		pub fn username_lookup(
+			auth: ViewAuthorizationOf<T>,
+			username: Vec<u8>,
+		) -> Option<Ss58Identifier> {
+			Self::authorize_view(&auth).ok()?;
+			let bounded: Username<T> = username.try_into().ok()?;
+			NameSs58IdOf::<T>::get(&bounded)
+		}
+
+		/// Returns the version counter for a given attribute key.
+		pub fn attribute_version(
+			auth: ViewAuthorizationOf<T>,
+			token: Ss58Identifier,
+			key: Vec<u8>,
+		) -> Option<u64> {
+			Self::authorize_view(&auth).ok()?;
+			let attribute: Attribute = key.try_into().ok()?;
+			Some(Ss58OfAttributeVersion::<T>::get(&token, attribute))
+		}
+
+		/// Lists all attribute version counters stored for the token.
+		pub fn attribute_versions(
+			auth: ViewAuthorizationOf<T>,
+			token: Ss58Identifier,
+		) -> Vec<(Vec<u8>, u64)> {
+			if Self::authorize_view(&auth).is_err() {
+				return Vec::new();
+			}
+			Ss58OfAttributeVersion::<T>::iter_prefix(&token)
+				.map(|(attribute, version)| (attribute.into_inner(), version))
+				.collect()
+		}
+
 		/// Get every attribute change for `token` as
 		/// `(key_bytes, version, old_value_bytes, block_number)`.
 		pub fn get_attribute_history(

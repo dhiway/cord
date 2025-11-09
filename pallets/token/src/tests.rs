@@ -183,3 +183,76 @@ fn resolve_pallet_view_requires_authorization() {
 		assert!(Pallet::<Test>::resolve_pallet(auth, index).is_none());
 	});
 }
+
+#[test]
+fn pallet_index_views_roundtrip() {
+	new_test_ext().execute_with(|| {
+		let pair = sr25519::Pair::from_seed(&[13u8; 32]);
+		let pallet_name = "IndexView";
+		let index = Pallet::<Test>::get_or_add_pallet_index(pallet_name).unwrap();
+		let fetched = Pallet::<Test>::pallet_index_of(
+			make_auth(b"view-index", &pair),
+			pallet_name.as_bytes().to_vec(),
+		)
+		.expect("pallet index view");
+		assert_eq!(fetched, index);
+
+		let name_bytes =
+			Pallet::<Test>::pallet_name(make_auth(b"view-name", &pair), index).expect("name view");
+		assert_eq!(core::str::from_utf8(&name_bytes).unwrap(), pallet_name);
+	});
+}
+
+#[test]
+fn network_metadata_views_return_values() {
+	new_test_ext().execute_with(|| {
+		let pair = sr25519::Pair::from_seed(&[14u8; 32]);
+		NextPalletIndex::<Test>::put(9);
+		GenesisNetworkId::<Test>::put(4321);
+		IsOriginChain::<Test>::put(true);
+
+		let next = Pallet::<Test>::next_pallet_index(make_auth(b"next-index", &pair))
+			.expect("next index view");
+		assert_eq!(next, 9);
+
+		let nid = Pallet::<Test>::genesis_network_id(make_auth(b"net-id", &pair))
+			.expect("network id view");
+		assert_eq!(nid, 4321);
+
+		let origin = Pallet::<Test>::origin_chain_flag(make_auth(b"origin", &pair))
+			.expect("origin flag view");
+		assert!(origin);
+	});
+}
+
+#[test]
+fn state_views_roundtrip_with_authorization() {
+	new_test_ext().execute_with(|| {
+		let pair = sr25519::Pair::from_seed(&[15u8; 32]);
+		let digest = H256::random();
+		let token = Ss58Identifier::to_encoded(vec![4u8; 32], 400, 3, 0).unwrap();
+		let action: EventTypeOf = b"state".to_vec().try_into().unwrap();
+		let seal = EventBlock { height: 10, index: 0 };
+		Pallet::<Test>::state_event(&token, digest, action.clone(), seal.clone()).unwrap();
+
+		let version =
+			Pallet::<Test>::state_version(make_auth(b"state-version", &pair), token.clone())
+				.expect("state version view");
+		assert_eq!(version, 1);
+
+		let event =
+			Pallet::<Test>::state_event_view(make_auth(b"state-event", &pair), token.clone(), 0)
+				.expect("state event view");
+		assert_eq!(event.action, action);
+		assert_eq!(event.seal, seal);
+
+		let batch = Pallet::<Test>::state_events(
+			make_auth(b"state-events", &pair),
+			token.clone(),
+			Some(0),
+			5,
+		);
+		assert_eq!(batch.len(), 1);
+		assert_eq!(batch[0].digest, digest);
+	});
+}
