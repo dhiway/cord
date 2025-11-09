@@ -66,14 +66,17 @@ impl pallet_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 	type MaxViewAuthorizationLen = MaxViewAuthorizationLen;
-	type MaxHistoryResults = MaxHistoryResults;
+	type MaxTimelineViewResults = MaxTimelineViewResults;
+	type DefaulTimelineViewResults = DefaultTimelineViewResults;
 }
 
 parameter_types! {
 	pub const MaxRawDataLength: u32 = 256;
 	pub const MaxAdditionalAttributes: u32 = 8;
 	pub const MaxViewAuthorizationLen: u32 = 64;
-	pub const MaxHistoryResults: u32 = 16;
+	pub const MaxTimelineViewResults: u32 = 16;
+	pub const DefaultTimelineViewResults: u32 = 8;
+	pub const MaxPacketListResults: u32 = 32;
 }
 
 pub struct MockLookup;
@@ -140,6 +143,7 @@ impl Config for Test {
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxViewAuthorizationLen = MaxViewAuthorizationLen;
+	type MaxPacketListResults = MaxPacketListResults;
 	type Feeless = ();
 	type WeightInfo = ();
 }

@@ -22,12 +22,16 @@ use crate::{
 	entity::EntityInfo, mock::*, pallet::Pallet as EntityPallet,
 	signature::SignatureVerificationError, Error,
 };
+use alloc::format;
 use cord_primitives::{
 	packet::{Attribute, Attributes, AttributesError, Element},
 	Signature,
 };
+use core::sync::atomic::{AtomicU64, Ordering};
 use frame_support::{assert_noop, assert_ok};
 use pallet_token::Token;
+use serde::Deserialize;
+use serde_json_wasm;
 use sp_core::{sr25519, Pair};
 use sp_runtime::{traits::IdentifyAccount, MultiSigner};
 
@@ -50,6 +54,22 @@ fn _test_id(input: &[u8]) -> Ss58Identifier {
 	let name = <Pallet<Test> as PalletInfoAccess>::name();
 	<pallet_token::Pallet<Test> as Token<Test>>::build(&hash.as_ref(), name)
 		.expect("should never fail")
+}
+
+static VIEW_AUTH_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn view_auth(account: &AccountId) -> ViewAuthorizationOf<Test> {
+	let counter = VIEW_AUTH_COUNTER.fetch_add(1, Ordering::Relaxed);
+	let payload_text = format!("entity-view-{counter}");
+	let payload_vec = payload_text.into_bytes();
+	let payload: ViewAuthPayloadOf<Test> =
+		payload_vec.clone().try_into().expect("payload within bounds");
+	let signature = mock::ACCOUNT_KEYS.with(|keys| {
+		let map = keys.borrow();
+		let pair = map.get(account).cloned().expect("account key seeded via mock::account helper");
+		Signature::from(pair.sign(&payload_vec))
+	});
+	ViewAuthorizationOf::<Test> { account: account.clone(), payload, signature }
 }
 
 mod set_info_tests {
@@ -321,7 +341,7 @@ mod rotate_attribute_tests {
 			assert!(attrs.iter().any(|(k, v)| &k[..] == b"rot" && v == &plain_data(b"new")));
 
 			// Verify history entry exists
-			let hist = EntityPallet::<Test>::get_attribute_history(token.clone());
+			let hist = EntityPallet::<Test>::attribute_history_plain(&token);
 			assert!(!hist.is_empty());
 			assert_eq!(hist[0].0, b"rot".to_vec());
 			assert_eq!(hist[0].2, b"old".to_vec());
@@ -492,6 +512,7 @@ fn verify_account_signature_returns_token() {
 		let pair = sr25519::Pair::from_seed(&[1; 32]);
 		let signer = MultiSigner::from(pair.public());
 		let account = signer.into_account();
+		store_account_pair(account.clone(), pair.clone());
 		let token = init_with_display(account.clone(), b"entity-sig");
 		let payload = b"registry-view";
 		let signature = Signature::from(pair.sign(payload));
@@ -508,6 +529,7 @@ fn verify_account_signature_rejects_invalid_signature() {
 		let pair = sr25519::Pair::from_seed(&[2; 32]);
 		let signer = MultiSigner::from(pair.public());
 		let account = signer.into_account();
+		store_account_pair(account.clone(), pair.clone());
 		let _token = init_with_display(account.clone(), b"entity-sig");
 		let payload = b"registry-view";
 		let wrong_pair = sr25519::Pair::from_seed(&[9; 32]);
@@ -516,4 +538,74 @@ fn verify_account_signature_rejects_invalid_signature() {
 			.expect_err("signature must be rejected");
 		assert_eq!(err, SignatureVerificationError::SignatureInvalid);
 	});
+}
+
+mod view_tests {
+	use super::*;
+
+	#[derive(Deserialize)]
+	struct HistoryEnvelope {
+		api: String,
+		format: String,
+		data: Vec<InfoAttributeHistoryEntry>,
+	}
+
+	#[test]
+	fn history_view_requires_valid_authorization() {
+		new_test_ext().execute_with(|| {
+			let who = account(50);
+			let token = init_with_display(who.clone(), b"h");
+			assert_ok!(Entity::add_attributes(
+				RuntimeOrigin::signed(who.clone()),
+				vec![(b"rot".to_vec(), plain_data(b"old"))]
+			));
+			assert_ok!(Entity::rotate_attribute(
+				RuntimeOrigin::signed(who.clone()),
+				b"rot".to_vec(),
+				plain_data(b"new")
+			));
+
+			let auth = view_auth(&who);
+			let records = EntityPallet::<Test>::get_attribute_history(auth.clone(), token.clone())
+				.expect("authorized history view");
+			assert_eq!(records.len(), 1);
+			assert_eq!(records[0].0, b"rot".to_vec());
+
+			let mut tampered = auth;
+			tampered.signature = Signature::from(sr25519::Pair::from_seed(&[99; 32]).sign(b"nope"));
+			assert!(
+				EntityPallet::<Test>::get_attribute_history(tampered, token).is_none(),
+				"tampered signature must be rejected"
+			);
+		});
+	}
+
+	#[test]
+	fn history_json_view_renders_dev_payload() {
+		new_test_ext().execute_with(|| {
+			let who = account(51);
+			let token = init_with_display(who.clone(), b"j");
+			assert_ok!(Entity::add_attributes(
+				RuntimeOrigin::signed(who.clone()),
+				vec![(b"rot".to_vec(), plain_data(b"old"))]
+			));
+			assert_ok!(Entity::rotate_attribute(
+				RuntimeOrigin::signed(who.clone()),
+				b"rot".to_vec(),
+				plain_data(b"new")
+			));
+
+			let hist = EntityPallet::<Test>::attribute_history_plain(&token);
+			let auth = view_auth(&who);
+			let bytes =
+				EntityPallet::<Test>::get_attribute_history_json(auth, token).expect("json bytes");
+			let parsed: HistoryEnvelope =
+				serde_json_wasm::from_slice(&bytes).expect("valid json envelope");
+			assert_eq!(parsed.api, "cord.entity.history.v1");
+			assert_eq!(parsed.format, "json");
+			assert_eq!(parsed.data.len(), hist.len());
+			assert_eq!(parsed.data[0].key_utf8.as_deref(), Some("rot"));
+			assert_eq!(parsed.data[0].version, hist[0].1);
+		});
+	}
 }

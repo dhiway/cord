@@ -748,18 +748,21 @@ parameter_types! {
 	pub const MaxAdditionalAttributes: u32 = 32;
 	pub const MaxSubAccounts: u32 = 2;
 	pub const MaxUsernameLength: u32 = 64;
+	pub const EntityMaxViewAuthorizationLen: u32 = 128;
 }
 
 parameter_types! {
 	pub const TokenMaxViewAuthorizationLen: u32 = 128;
-	pub const TokenMaxHistoryResults: u32 = 64;
+	pub const TokenMaxTimelineViewResults: u32 = 64;
+	pub const TokenDefaultTimelineViewResults: u32 = 32;
 }
 
 impl pallet_token::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 	type MaxViewAuthorizationLen = TokenMaxViewAuthorizationLen;
-	type MaxHistoryResults = TokenMaxHistoryResults;
+	type MaxTimelineViewResults = TokenMaxTimelineViewResults;
+	type DefaulTimelineViewResults = TokenDefaultTimelineViewResults;
 }
 
 impl pallet_entity::Config for Runtime {
@@ -770,6 +773,7 @@ impl pallet_entity::Config for Runtime {
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxUsernameLength = MaxUsernameLength;
+	type MaxViewAuthorizationLen = EntityMaxViewAuthorizationLen;
 	type Feeless = Feeless;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
@@ -779,7 +783,7 @@ parameter_types! {
 	pub const MaxRegistryRawDataLength: u32 = 4096;
 	pub const MaxRegistryAdditionalAttributes: u32 = 64;
 	pub const MaxViewAuthorizationLen: u32 = 128;
-	pub const MaxHistoryResults: u32 = 64;
+	pub const MaxPacketListResults: u32 = 200;
 }
 
 impl pallet_register::Config for Runtime {
@@ -789,6 +793,7 @@ impl pallet_register::Config for Runtime {
 	type MaxRawDataLength = MaxRegistryRawDataLength;
 	type MaxAdditionalAttributes = MaxRegistryAdditionalAttributes;
 	type MaxViewAuthorizationLen = MaxViewAuthorizationLen;
+	type MaxPacketListResults = MaxPacketListResults;
 	type Feeless = Feeless;
 	type WeightInfo = ();
 }

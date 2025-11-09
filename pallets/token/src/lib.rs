@@ -27,6 +27,11 @@ use alloc::{string::String, vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::{
 	identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier},
+	view::{base64_string, hex_string, json_envelope, maybe_utf8},
+	view_auth::{
+		view_signature_hash as primitives_view_signature_hash,
+		ViewAuthorization as CoreViewAuthorization,
+	},
 	Signature,
 };
 use core::{cmp, convert::TryInto};
@@ -38,7 +43,8 @@ use frame_support::{
 	BoundedVec,
 };
 use scale_info::TypeInfo;
-use sp_core::hashing::blake2_128;
+use serde::Serialize;
+use sp_core as _;
 use sp_runtime::{
 	traits::{BlockNumberProvider, UniqueSaturatedInto, Verify},
 	AccountId32,
@@ -95,13 +101,8 @@ pub type EventTypeOf = BoundedVec<u8, ConstU32<128>>;
 pub type ViewAuthPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxViewAuthorizationLen>;
 
 /// Authorization required for read-only token views.
-#[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen, Debug)]
-#[scale_info(skip_type_params(T))]
-pub struct ViewAuthorization<T: Config> {
-	pub account: T::AccountId,
-	pub payload: ViewAuthPayloadOf<T>,
-	pub signature: Signature,
-}
+pub type ViewAuthorization<T> =
+	CoreViewAuthorization<<T as frame_system::Config>::AccountId, ViewAuthPayloadOf<T>, Signature>;
 
 /// Replay-protection hash for view authorizations.
 pub type ViewAuthSignatureHash = [u8; 16];
@@ -115,6 +116,23 @@ pub struct StateEvent<Hash> {
 }
 
 pub type StateEventOf<T> = StateEvent<HashOf<T>>;
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InfoTokenEventBlock {
+	pub height: u32,
+	pub index: u32,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InfoTokenHistoryEntry {
+	pub action_utf8: Option<String>,
+	pub action_hex: String,
+	pub action_base64: String,
+	pub digest_hex: String,
+	pub block: InfoTokenEventBlock,
+}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -135,7 +153,11 @@ pub mod pallet {
 
 		/// Maximum number of history entries returned per view request.
 		#[pallet::constant]
-		type MaxHistoryResults: Get<u32>;
+		type MaxTimelineViewResults: Get<u32>;
+
+		// Default limit when the caller doesn't provide one
+		#[pallet::constant]
+		type DefaulTimelineViewResults: Get<u32>;
 	}
 
 	#[pallet::pallet]
@@ -269,6 +291,51 @@ pub mod pallet {
 			GenesisNetworkId::<T>::put(chain_id);
 		}
 	}
+
+	#[pallet::view_functions]
+	impl<T: Config> Pallet<T>
+	where
+		AccountId32: From<<T as frame_system::Config>::AccountId>,
+		<T as frame_system::Config>::AccountId: Clone,
+	{
+		pub fn timeline(
+			auth: ViewAuthorization<T>,
+			token: Ss58Identifier,
+			start: Option<u32>,
+			limit: Option<u32>,
+		) -> Option<Vec<u8>> {
+			if Self::authorize_view(&auth).is_err() {
+				return None;
+			}
+			let cap = T::MaxTimelineViewResults::get();
+			let def = T::DefaulTimelineViewResults::get();
+			let eff = limit.unwrap_or(def).min(cap);
+
+			let events = Self::timeline_entries(&token, start, eff);
+			let rendered: Vec<InfoTokenHistoryEntry> =
+				events.into_iter().map(Self::info_token_history_entry).collect();
+			json_envelope("origin.token.history.v1", rendered)
+		}
+
+		pub fn resolve_identifier(
+			auth: ViewAuthorization<T>,
+			token: Ss58Identifier,
+		) -> Option<Vec<u8>> {
+			if Self::authorize_view(&auth).is_err() {
+				return None;
+			}
+			let decoded = Self::resolve_identifier_plain(&token)?;
+			json_envelope("origin.token.identifier.v1", decoded)
+		}
+
+		pub fn resolve_pallet(auth: ViewAuthorization<T>, index: u16) -> Option<Vec<u8>> {
+			if Self::authorize_view(&auth).is_err() {
+				return None;
+			}
+			let name = Self::resolve_pallet_plain(index)?;
+			json_envelope("origin.token.pallet.v1", name)
+		}
+	}
 }
 
 impl<T: Config> Pallet<T> {
@@ -351,10 +418,7 @@ where
 	<T as frame_system::Config>::AccountId: Clone,
 {
 	fn view_signature_hash(auth: &ViewAuthorization<T>) -> ViewAuthSignatureHash {
-		let mut encoded = auth.account.encode();
-		encoded.extend_from_slice(auth.payload.as_slice());
-		encoded.extend(auth.signature.encode());
-		blake2_128(&encoded)
+		primitives_view_signature_hash(&auth.account, auth.payload.as_slice(), &auth.signature)
 	}
 
 	fn authorize_view(auth: &ViewAuthorization<T>) -> Result<(), Error<T>> {
@@ -369,16 +433,28 @@ where
 		Ok(())
 	}
 
-	pub fn history_view(
-		auth: ViewAuthorization<T>,
-		token: Ss58Identifier,
+	fn info_token_event_block(block: &EventBlock) -> InfoTokenEventBlock {
+		InfoTokenEventBlock { height: block.height, index: block.index }
+	}
+
+	fn info_token_history_entry(entry: StateEventOf<T>) -> InfoTokenHistoryEntry {
+		let StateEvent { action, digest, seal } = entry;
+		let action_bytes = action.as_slice();
+		InfoTokenHistoryEntry {
+			action_utf8: maybe_utf8(action_bytes),
+			action_hex: hex_string(action_bytes),
+			action_base64: base64_string(action_bytes),
+			digest_hex: hex_string(digest.as_ref()),
+			block: Self::info_token_event_block(&seal),
+		}
+	}
+
+	pub fn timeline_entries(
+		token: &Ss58Identifier,
 		start: Option<u32>,
 		limit: u32,
 	) -> Vec<StateEventOf<T>> {
-		if Self::authorize_view(&auth).is_err() {
-			return Vec::new();
-		}
-		let upper = StateVersion::<T>::get(&token);
+		let upper = StateVersion::<T>::get(token);
 		if upper == 0 {
 			return Vec::new();
 		}
@@ -386,11 +462,11 @@ where
 		if start_index >= upper {
 			return Vec::new();
 		}
-		let max = cmp::min(limit, T::MaxHistoryResults::get());
+		let max = cmp::min(limit, T::MaxTimelineViewResults::get());
 		let mut results = Vec::new();
 		let mut index = start_index;
 		while index < upper && (results.len() as u32) < max {
-			if let Some(event) = StateHistory::<T>::get(&token, index) {
+			if let Some(event) = StateHistory::<T>::get(token, index) {
 				results.push(event);
 			}
 			index = index.saturating_add(1);
@@ -398,17 +474,32 @@ where
 		results
 	}
 
-	pub fn resolve_identifier_view(
-		auth: ViewAuthorization<T>,
+	pub fn timeline_view(
+		_auth: ViewAuthorization<T>,
 		token: Ss58Identifier,
-	) -> Option<DecodedIdentifier> {
-		Self::authorize_view(&auth).ok()?;
-		Self::resolve_token(&token).ok()
+		start: Option<u32>,
+		limit: u32,
+	) -> Vec<StateEventOf<T>> {
+		Self::timeline_entries(&token, start, limit)
 	}
 
-	pub fn resolve_pallet_view(auth: ViewAuthorization<T>, index: u16) -> Option<String> {
-		Self::authorize_view(&auth).ok()?;
+	pub fn resolve_identifier_plain(token: &Ss58Identifier) -> Option<DecodedIdentifier> {
+		Self::resolve_token(token).ok()
+	}
+
+	pub fn resolve_identifier_view(
+		_auth: ViewAuthorization<T>,
+		token: Ss58Identifier,
+	) -> Option<DecodedIdentifier> {
+		Self::resolve_identifier_plain(&token)
+	}
+
+	pub fn resolve_pallet_plain(index: u16) -> Option<String> {
 		Self::resolve_pallet_name(index).ok()
+	}
+
+	pub fn resolve_pallet_view(_auth: ViewAuthorization<T>, index: u16) -> Option<String> {
+		Self::resolve_pallet_plain(index)
 	}
 }
 

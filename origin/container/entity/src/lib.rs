@@ -578,14 +578,16 @@ impl pallet_sudo::Config for Runtime {
 
 parameter_types! {
 	pub const TokenMaxViewAuthorizationLen: u32 = 128;
-	pub const TokenMaxHistoryResults: u32 = 64;
+	pub const TokenMaxTimelineViewResults: u32 = 64;
+	pub const TokenDefaultTimelineViewResults: u32 = 32;
 }
 
 impl pallet_token::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 	type MaxViewAuthorizationLen = TokenMaxViewAuthorizationLen;
-	type MaxHistoryResults = TokenMaxHistoryResults;
+	type MaxTimelineViewResults = TokenMaxTimelineViewResults;
+	type DefaulTimelineViewResults = TokenDefaultTimelineViewResults;
 }
 
 parameter_types! {

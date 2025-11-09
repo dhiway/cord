@@ -24,6 +24,7 @@ use frame_support::{
 	BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
 };
 use scale_info::TypeInfo;
+use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
 
 /// The raw‐data type used throughout the entity pallet.
@@ -232,6 +233,8 @@ pub struct PacketPointer {
 	MaxEncodedLen,
 	RuntimeDebug,
 	Default,
+	Serialize,
+	Deserialize,
 )]
 pub enum PacketStatus {
 	#[default]

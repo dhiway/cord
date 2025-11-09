@@ -27,7 +27,7 @@ fn make_auth(payload: &[u8], pair: &sr25519::Pair) -> ViewAuthorization<Test> {
 	let vec_payload = payload.to_vec();
 	let signature: Signature = pair.sign(&vec_payload).into();
 	let bounded: ViewAuthPayloadOf<Test> = vec_payload.try_into().expect("payload within bounds");
-	ViewAuthorization { account: pair.public().into(), payload: bounded, signature }
+	ViewAuthorization::<Test> { account: pair.public().into(), payload: bounded, signature }
 }
 
 /// Test that a valid pallet name can be stored and returns a consistent index.
@@ -113,7 +113,7 @@ fn record_activity_positive() {
 }
 
 #[test]
-fn history_view_requires_valid_authorization() {
+fn timeline_view_requires_valid_authorization() {
 	new_test_ext().execute_with(|| {
 		let id_digest = vec![2u8; 32];
 		let token = Ss58Identifier::to_encoded(id_digest, 200, 7, 0).expect("token encoding ok");
@@ -124,49 +124,62 @@ fn history_view_requires_valid_authorization() {
 
 		let signer = sr25519::Pair::from_seed(&[42u8; 32]);
 		let auth = make_auth(b"view-history", &signer);
-		let events = Pallet::<Test>::history_view(auth.clone(), token.clone(), Some(0), 10);
-		assert_eq!(events.len(), 1);
-		assert_eq!(events[0].action, action);
-		assert_eq!(events[0].digest, digest);
-		assert_eq!(events[0].seal, seal);
+		let bytes = Pallet::<Test>::timeline(auth.clone(), token.clone(), Some(0), Some(10))
+			.expect("authorized timeline");
+		let body = core::str::from_utf8(&bytes).expect("utf8");
+		assert!(body.contains("\"digestHex\""));
+		assert!(body.contains(&format!("0x{}", hex::encode(digest))));
 
-		let replay = Pallet::<Test>::history_view(auth, token.clone(), Some(0), 10);
-		assert!(replay.is_empty(), "reused authorizations must be rejected");
+		let replay = Pallet::<Test>::timeline(auth, token.clone(), Some(0), Some(10));
+		assert!(replay.is_none(), "reused authorizations must be rejected");
 
 		let forge = sr25519::Pair::from_seed(&[99u8; 32]);
 		let mut forged = make_auth(b"view-history", &forge);
-		// use forged signature but honest account
 		forged.account = signer.public().into();
-		let rejected = Pallet::<Test>::history_view(forged, token, Some(0), 10);
-		assert!(rejected.is_empty(), "invalid signature should be rejected");
+		let rejected = Pallet::<Test>::timeline(forged, token.clone(), Some(0), Some(10));
+		assert!(rejected.is_none(), "invalid signature should be rejected");
+
+		let raw = Pallet::<Test>::timeline_entries(&token, Some(0), 10);
+		assert_eq!(raw.len(), 1, "helpers remain accessible without auth");
 	});
 }
 
 #[test]
-fn resolve_identifier_view_authorized() {
+fn resolve_identifier_view_requires_authorization() {
 	new_test_ext().execute_with(|| {
 		let digest = vec![3u8; 32];
 		let token = Ss58Identifier::to_encoded(digest.clone(), 300, 9, 0).unwrap();
 		let signer = sr25519::Pair::from_seed(&[7u8; 32]);
 		let auth = make_auth(b"resolve-id", &signer);
-		let decoded = Pallet::<Test>::resolve_identifier_view(auth, token.clone())
+		let bytes = Pallet::<Test>::resolve_identifier(auth.clone(), token.clone())
 			.expect("authorized view should succeed");
-		assert_eq!(decoded.network, 300);
-		assert_eq!(decoded.pallet, 9);
-		assert_eq!(decoded.origin, false);
-		assert_eq!(decoded.genesis, format!("0x{}", hex::encode(digest)));
+		let body = core::str::from_utf8(&bytes).expect("utf8");
+		assert!(body.contains("\"network\":300"));
+		assert!(body.contains("\"pallet\":9"));
+		assert!(body.contains(&format!("0x{}", hex::encode(digest.clone()))));
+
+		let raw = Pallet::<Test>::resolve_identifier_plain(&token).expect("helper");
+		assert_eq!(raw.network, 300);
+
+		assert!(Pallet::<Test>::resolve_identifier(auth, token.clone()).is_none());
 	});
 }
 
 #[test]
-fn resolve_pallet_view_authorized() {
+fn resolve_pallet_view_requires_authorization() {
 	new_test_ext().execute_with(|| {
 		let signer = sr25519::Pair::from_seed(&[11u8; 32]);
 		let pallet_name = "TokenView";
 		let index = Pallet::<Test>::get_or_add_pallet_index(pallet_name).unwrap();
 		let auth = make_auth(b"resolve-pallet", &signer);
-		let resolved =
-			Pallet::<Test>::resolve_pallet_view(auth, index).expect("authorized pallet view");
-		assert_eq!(resolved, pallet_name);
+		let bytes =
+			Pallet::<Test>::resolve_pallet(auth.clone(), index).expect("authorized pallet view");
+		let body = core::str::from_utf8(&bytes).expect("utf8");
+		assert!(body.contains(pallet_name));
+
+		let raw = Pallet::<Test>::resolve_pallet_plain(index).expect("helper");
+		assert_eq!(raw, pallet_name);
+
+		assert!(Pallet::<Test>::resolve_pallet(auth, index).is_none());
 	});
 }

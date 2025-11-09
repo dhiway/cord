@@ -8,6 +8,7 @@ use cord_primitives::{
 };
 use frame_support::{ensure, traits::Get, BoundedVec, RuntimeDebugNoBound};
 use scale_info::TypeInfo;
+use serde::{Deserialize, Serialize};
 
 bitflags! {
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
@@ -79,7 +80,10 @@ impl RegistryPermissions {
 	TypeInfo,
 	MaxEncodedLen,
 	Default,
+	Serialize,
+	Deserialize,
 )]
+#[serde(rename_all = "camelCase")]
 pub enum RegistryKind {
 	#[default]
 	Raw,
@@ -99,7 +103,10 @@ pub enum RegistryKind {
 	TypeInfo,
 	MaxEncodedLen,
 	Default,
+	Serialize,
+	Deserialize,
 )]
+#[serde(rename_all = "camelCase")]
 pub enum RegistryStatus {
 	#[default]
 	Active,
@@ -239,7 +246,10 @@ pub struct RegistryInfo<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get
 	pub status: RegistryStatus,
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebugNoBound)]
+#[derive(
+	Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebugNoBound, Serialize, Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
 pub struct RegistryAttributeView {
 	pub key: Vec<u8>,
 	pub kind: ElementType,
@@ -252,7 +262,10 @@ impl From<&AttributeSpec> for RegistryAttributeView {
 	}
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebugNoBound)]
+#[derive(
+	Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebugNoBound, Serialize, Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
 pub enum LookupSpecView {
 	Single(Vec<u8>),
 	Combo(Vec<Vec<u8>>),
@@ -271,7 +284,10 @@ impl<MaxAdditionalAttributes: Get<u32>> From<&LookupSpec<MaxAdditionalAttributes
 	}
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebugNoBound)]
+#[derive(
+	Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebugNoBound, Serialize, Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
 pub struct RegistryInfoView {
 	pub info: ElementView,
 	pub maintainer: Vec<u8>,

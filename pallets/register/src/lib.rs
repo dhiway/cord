@@ -33,13 +33,13 @@ pub mod weights;
 
 extern crate alloc;
 use alloc::{collections::BTreeMap, string::String, vec::Vec};
-use codec::{Decode, Encode};
+use codec::Encode;
 use cord_primitives::{
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, ElementType, PacketUpdateError},
 	Signature,
 };
-use core::{convert::TryInto, fmt, fmt::Write as FmtWrite};
+use core::{cmp, convert::TryInto, fmt::Write as FmtWrite};
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -47,6 +47,7 @@ use frame_support::{
 	BoundedVec,
 };
 use frame_system::{ensure_root, pallet_prelude::*};
+use log as _;
 pub use pallet::*;
 use pallet_entity::EntityLookup;
 use pallet_feeless::FeelessAccounts;
@@ -55,7 +56,7 @@ use register::{
 	AttributeFlags, AttributeSpec, LookupSpec, LookupSpecView, RegistryFieldError, RegistryInfo,
 	RegistryInfoView, RegistryKind, RegistryPermissions, RegistryStatus,
 };
-use sp_io::hashing::blake2_128;
+use sp_io as _;
 use sp_runtime::traits::Hash;
 pub use weights::WeightInfo;
 
@@ -76,28 +77,19 @@ pub type ViewAuthPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxViewAuthorizati
 pub type ViewAuthSignatureHash = [u8; 16];
 
 /// Authorization details that must accompany every view request.
-#[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo)]
-#[scale_info(skip_type_params(T))]
-pub struct ViewAuthorization<T: Config> {
-	pub account: T::AccountId,
-	pub payload: ViewAuthPayloadOf<T>,
-	pub signature: Signature,
-}
-
-impl<T: Config> fmt::Debug for ViewAuthorization<T> {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		f.debug_struct("ViewAuthorization")
-			.field("payload_len", &self.payload.len())
-			.finish()
-	}
-}
-
+pub type ViewAuthorization<T> =
+	CoreViewAuthorization<<T as frame_system::Config>::AccountId, ViewAuthPayloadOf<T>, Signature>;
 pub type ViewAuthorizationOf<T> = ViewAuthorization<T>;
 
 /// Registry info type alias for storage.
 pub type RegistryInfoOf<T> =
 	RegistryInfo<<T as Config>::MaxRawDataLength, <T as Config>::MaxAdditionalAttributes>;
 
+use cord_primitives::view::{dev_packet_snapshot_from, json_envelope, DevPacketSnapshot};
+use cord_primitives::view_auth::{
+	view_signature_hash as primitives_view_signature_hash,
+	ViewAuthorization as CoreViewAuthorization,
+};
 pub use cord_primitives::{
 	packet::{PacketMetadata, PacketPointer, PacketState, PacketStatus},
 	view::{AttributeValueView, ElementView, PacketMetadataView, PacketStateView},
@@ -108,56 +100,30 @@ pub use packet::{
 };
 
 pub trait RegistryView<T: Config> {
-	fn registry_info(
-		auth: ViewAuthorizationOf<T>,
-		registry_id: &Ss58Identifier,
-	) -> Option<RegistryInfoView>;
-	fn attribute_keys(
-		auth: ViewAuthorizationOf<T>,
-		registry_id: &Ss58Identifier,
-	) -> Option<Vec<Vec<u8>>>;
+	fn registry_info(registry_id: &Ss58Identifier) -> Option<RegistryInfoView>;
+	fn attribute_keys(registry_id: &Ss58Identifier) -> Option<Vec<Vec<u8>>>;
 	/// Keys (in order) that are hashed to derive the registry identifier token.
-	fn token_fields(
-		auth: ViewAuthorizationOf<T>,
-		registry_id: &Ss58Identifier,
-	) -> Option<LookupSpecView>;
+	fn token_fields(registry_id: &Ss58Identifier) -> Option<LookupSpecView>;
 	/// Lookup specifications expressed using the simplified view schema.
-	fn lookup_specs(
-		auth: ViewAuthorizationOf<T>,
-		registry_id: &Ss58Identifier,
-	) -> Option<Vec<LookupSpecView>>;
+	fn lookup_specs(registry_id: &Ss58Identifier) -> Option<Vec<LookupSpecView>>;
 	fn has_permissions(
-		auth: ViewAuthorizationOf<T>,
 		registry_id: &Ss58Identifier,
 		delegate: &Ss58Identifier,
 		required: RegistryPermissions,
 	) -> bool;
-	fn packet_metadata(
-		auth: ViewAuthorizationOf<T>,
-		packet: &Ss58Identifier,
-	) -> Option<PacketMetadataView>;
-	fn packet_state(
-		auth: ViewAuthorizationOf<T>,
-		packet: &Ss58Identifier,
-		version: Option<u32>,
-	) -> Option<PacketSnapshotView>;
+	fn packet_metadata(packet: &Ss58Identifier) -> Option<PacketMetadataView>;
+	fn packet_state(packet: &Ss58Identifier, version: Option<u32>) -> Option<PacketSnapshotView>;
 	fn lookup_state(
-		auth: ViewAuthorizationOf<T>,
 		registry_id: &Ss58Identifier,
 		digest: &LookupDigestOf<T>,
 		version: Option<u32>,
 	) -> Option<PacketSnapshotView>;
-	fn packets_by_token(
-		auth: ViewAuthorizationOf<T>,
-		token_prefix: Vec<u8>,
-		version: Option<u32>,
-	) -> Vec<PacketSnapshotView>;
+	fn packets_by_token(token_prefix: Vec<u8>, version: Option<u32>) -> Vec<PacketSnapshotView>;
 	fn packets_by_lookup_digest(
-		auth: ViewAuthorizationOf<T>,
 		digest_prefix: Vec<u8>,
 		version: Option<u32>,
 	) -> Vec<PacketSnapshotView>;
-	fn registry_active(auth: ViewAuthorizationOf<T>, registry_id: &Ss58Identifier) -> bool;
+	fn registry_active(registry_id: &Ss58Identifier) -> bool;
 }
 
 #[frame_support::pallet]
@@ -190,6 +156,10 @@ pub mod pallet {
 		/// Max length for view authorization challenges.
 		#[pallet::constant]
 		type MaxViewAuthorizationLen: Get<u32>;
+
+		/// Maximum number of packet snapshots returned by developer JSON views.
+		#[pallet::constant]
+		type MaxPacketListResults: Get<u32>;
 
 		/// Source for feeless account determination.
 		type Feeless: FeelessAccounts<Self::AccountId>;
@@ -1039,38 +1009,50 @@ pub mod pallet {
 
 	#[pallet::view_functions]
 	impl<T: Config> Pallet<T> {
-		/// Returns the full registry info for the provided registry identifier.
-		pub fn info(
-			auth: ViewAuthorization<T>,
-			registry: Ss58Identifier,
-		) -> Option<RegistryInfoView> {
+		/// Returns the registry info rendered as a JSON envelope.
+		pub fn info(auth: ViewAuthorizationOf<T>, registry: Ss58Identifier) -> Option<Vec<u8>> {
 			Self::authorize_view(&auth).ok()?;
-			let info = Registries::<T>::get(&registry)?;
+			let view = <Self as RegistryView<T>>::registry_info(&registry)?;
 			Self::record_registry_query(&registry, &auth.account);
-			Some(RegistryInfoView::from(&info))
+			json_envelope("origin.register.info.v1", view)
 		}
 
 		/// Returns the encoded `RegistryInfoView` bytes for debugging client decoders.
-		pub fn info_debug(auth: ViewAuthorization<T>, registry: Ss58Identifier) -> Option<Vec<u8>> {
+		pub fn info_debug(
+			auth: ViewAuthorizationOf<T>,
+			registry: Ss58Identifier,
+		) -> Option<Vec<u8>> {
 			Self::authorize_view(&auth).ok()?;
-			let info = Registries::<T>::get(&registry)?;
+			let view = <Self as RegistryView<T>>::registry_info(&registry)?;
 			Self::record_registry_query(&registry, &auth.account);
-			let view = RegistryInfoView::from(&info);
 			Some(view.encode())
 		}
 
 		/// Returns a textual debug representation of the registry info.
-		pub fn info_text(auth: ViewAuthorization<T>, registry: Ss58Identifier) -> Option<Vec<u8>> {
+		pub fn info_text(
+			auth: ViewAuthorizationOf<T>,
+			registry: Ss58Identifier,
+		) -> Option<Vec<u8>> {
 			Self::authorize_view(&auth).ok()?;
-			let info = Registries::<T>::get(&registry)?;
+			let view = <Self as RegistryView<T>>::registry_info(&registry)?;
 			Self::record_registry_query(&registry, &auth.account);
-			let view = RegistryInfoView::from(&info);
 			Some(Self::registry_info_to_debug_bytes(&view))
+		}
+
+		/// Returns lookup specs rendered as JSON.
+		pub fn lookup_specs(
+			auth: ViewAuthorizationOf<T>,
+			registry: Ss58Identifier,
+		) -> Option<Vec<u8>> {
+			Self::authorize_view(&auth).ok()?;
+			let specs = <Self as RegistryView<T>>::lookup_specs(&registry)?;
+			Self::record_registry_query(&registry, &auth.account);
+			json_envelope("origin.register.lookup.v1", specs)
 		}
 
 		/// Returns the declared schema type of the provided attribute key.
 		pub fn attribute(
-			auth: ViewAuthorization<T>,
+			auth: ViewAuthorizationOf<T>,
 			registry: Ss58Identifier,
 			key: Vec<u8>,
 		) -> Option<(ElementType, bool)> {
@@ -1084,7 +1066,7 @@ pub mod pallet {
 
 		/// Returns all attribute keys and their schema types.
 		pub fn attributes(
-			auth: ViewAuthorization<T>,
+			auth: ViewAuthorizationOf<T>,
 			registry: Ss58Identifier,
 		) -> Option<Vec<(Vec<u8>, ElementType, bool)>> {
 			Self::authorize_view(&auth).ok()?;
@@ -1100,30 +1082,41 @@ pub mod pallet {
 		}
 
 		/// Returns the attribute keys composing the registry token material.
-		pub fn token(
-			auth: ViewAuthorization<T>,
+		pub fn registry_info(
+			auth: ViewAuthorizationOf<T>,
+			registry: Ss58Identifier,
+		) -> Option<RegistryInfoView> {
+			Self::authorize_view(&auth).ok()?;
+			let view = <Self as RegistryView<T>>::registry_info(&registry)?;
+			Self::record_registry_query(&registry, &auth.account);
+			Some(view)
+		}
+
+		/// Returns the attribute keys composing the registry token material.
+		pub fn token_fields(
+			auth: ViewAuthorizationOf<T>,
 			registry: Ss58Identifier,
 		) -> Option<LookupSpecView> {
 			Self::authorize_view(&auth).ok()?;
-			let registry_info = Registries::<T>::get(&registry)?;
+			let spec = <Self as RegistryView<T>>::token_fields(&registry)?;
 			Self::record_registry_query(&registry, &auth.account);
-			Some(LookupSpecView::from(&registry_info.token_spec))
+			Some(spec)
 		}
 
 		/// Returns the lookup specifications declared for the registry.
-		pub fn lookup_specs(
-			auth: ViewAuthorization<T>,
+		pub fn lookup_specs_view(
+			auth: ViewAuthorizationOf<T>,
 			registry: Ss58Identifier,
 		) -> Option<Vec<LookupSpecView>> {
 			Self::authorize_view(&auth).ok()?;
-			let registry_info = Registries::<T>::get(&registry)?;
+			let specs = <Self as RegistryView<T>>::lookup_specs(&registry)?;
 			Self::record_registry_query(&registry, &auth.account);
-			Some(registry_info.lookup_specs.iter().map(LookupSpecView::from).collect())
+			Some(specs)
 		}
 
 		/// Returns a packet state associated with the given packet identifier for the registry.
-		pub fn packet(
-			auth: ViewAuthorization<T>,
+		pub fn packet_view(
+			auth: ViewAuthorizationOf<T>,
 			rtoken: Ss58Identifier,
 			ptoken: Ss58Identifier,
 			version: Option<u32>,
@@ -1131,16 +1124,29 @@ pub mod pallet {
 			if Self::authorize_view(&auth).is_err() {
 				return None;
 			}
-			if let Some(snapshot) = Self::snapshot_for(&ptoken, &rtoken, version, None) {
-				Self::record_registry_query(&rtoken, &auth.account);
-				return Some(snapshot);
+			let snapshot = <Self as RegistryView<T>>::packet_state(&ptoken, version)?;
+			if snapshot.state.registry != rtoken {
+				return None;
 			}
-			None
+			Self::record_registry_query(&rtoken, &auth.account);
+			Some(snapshot)
+		}
+
+		/// Returns a developer-friendly packet snapshot rendered as JSON.
+		pub fn packet(
+			auth: ViewAuthorizationOf<T>,
+			rtoken: Ss58Identifier,
+			ptoken: Ss58Identifier,
+			version: Option<u32>,
+		) -> Option<Vec<u8>> {
+			let snapshot = Self::packet_view(auth, rtoken, ptoken, version)?;
+			let dev = Self::dev_snapshot(&snapshot);
+			json_envelope("origin.register.packet.v1", dev)
 		}
 
 		/// Resolves a packet state via a lookup digest.
 		pub fn packet_by_lookup(
-			auth: ViewAuthorization<T>,
+			auth: ViewAuthorizationOf<T>,
 			rtoken: Ss58Identifier,
 			digest: LookupDigestOf<T>,
 			version: Option<u32>,
@@ -1148,70 +1154,92 @@ pub mod pallet {
 			if Self::authorize_view(&auth).is_err() {
 				return None;
 			}
-			let anchor = LookupIndex::<T>::get(&digest, &rtoken)?;
-			let target_version = version.unwrap_or(anchor.pointer.version);
-			if let Some(snapshot) =
-				Self::snapshot_for(&anchor.pointer.ptoken, &rtoken, Some(target_version), None)
-			{
-				Self::record_registry_query(&rtoken, &auth.account);
-				return Some(snapshot);
-			}
-			None
+			let snapshot = <Self as RegistryView<T>>::lookup_state(&rtoken, &digest, version)?;
+			Self::record_registry_query(&rtoken, &auth.account);
+			Some(snapshot)
 		}
 
 		/// Returns packet snapshots matching the provided token prefix (or all when empty).
 		pub fn packets_by_token(
-			auth: ViewAuthorization<T>,
+			auth: ViewAuthorizationOf<T>,
 			token_prefix: Vec<u8>,
 			version: Option<u32>,
 		) -> Vec<PacketSnapshotView> {
 			if Self::authorize_view(&auth).is_err() {
 				return Vec::new();
 			}
-			let prefix = token_prefix;
-			let mut matches = Vec::new();
-			for (token, meta) in Packets::<T>::iter() {
-				let token_bytes = token.as_ref();
-				if prefix.is_empty() || token_bytes.starts_with(prefix.as_slice()) {
-					if let Some(snapshot) =
-						Self::snapshot_for(&token, &meta.registry, version, Some(&meta))
-					{
-						Self::record_registry_query(&snapshot.state.registry, &auth.account);
-						matches.push(snapshot);
-					}
-				}
+			let snapshots = <Self as RegistryView<T>>::packets_by_token(token_prefix, version);
+			for snapshot in &snapshots {
+				Self::record_registry_query(&snapshot.state.registry, &auth.account);
 			}
-			matches
+			snapshots
+		}
+
+		/// Returns packet snapshots filtered by token prefix with pagination, rendered as JSON.
+		pub fn packets_by_token_json(
+			auth: ViewAuthorizationOf<T>,
+			token_prefix: Vec<u8>,
+			version: Option<u32>,
+			offset: u32,
+			limit: u32,
+		) -> Option<Vec<u8>> {
+			if Self::authorize_view(&auth).is_err() {
+				return None;
+			}
+			let max_limit = T::MaxPacketListResults::get();
+			let take = cmp::min(limit, max_limit) as usize;
+			let skip = offset as usize;
+			let all = <Self as RegistryView<T>>::packets_by_token(token_prefix, version);
+			let snapshots = all.into_iter().skip(skip).take(take).collect::<Vec<_>>();
+			let mut results: Vec<DevPacketSnapshot<RegistryStatus>> =
+				Vec::with_capacity(snapshots.len());
+			for snapshot in snapshots {
+				Self::record_registry_query(&snapshot.state.registry, &auth.account);
+				results.push(Self::dev_snapshot(&snapshot));
+			}
+			json_envelope("origin.register.packet.list.v1", results)
 		}
 
 		/// Returns packet snapshots for every registry entry matching the digest prefix.
-		pub fn packets_by_lookup_digest(
-			auth: ViewAuthorization<T>,
+		pub fn packets_by_lookup_digest_view(
+			auth: ViewAuthorizationOf<T>,
 			digest_prefix: Vec<u8>,
 			version: Option<u32>,
 		) -> Vec<PacketSnapshotView> {
 			if Self::authorize_view(&auth).is_err() {
 				return Vec::new();
 			}
-			let prefix = digest_prefix;
-			let mut matches = Vec::new();
-			for (digest, registry, anchor) in LookupIndex::<T>::iter() {
-				let digest_bytes = digest.as_ref();
-				if !prefix.is_empty() && !digest_bytes.starts_with(prefix.as_slice()) {
-					continue;
-				}
-				let target_version = version.unwrap_or(anchor.pointer.version);
-				if let Some(snapshot) = Self::snapshot_for(
-					&anchor.pointer.ptoken,
-					&registry,
-					Some(target_version),
-					None,
-				) {
-					Self::record_registry_query(&snapshot.state.registry, &auth.account);
-					matches.push(snapshot);
-				}
+			let snapshots =
+				<Self as RegistryView<T>>::packets_by_lookup_digest(digest_prefix, version);
+			for snapshot in &snapshots {
+				Self::record_registry_query(&snapshot.state.registry, &auth.account);
 			}
-			matches
+			snapshots
+		}
+
+		/// Returns lookup digest results with pagination rendered as JSON.
+		pub fn packets_by_lookup_digest(
+			auth: ViewAuthorizationOf<T>,
+			digest_prefix: Vec<u8>,
+			version: Option<u32>,
+			offset: u32,
+			limit: u32,
+		) -> Option<Vec<u8>> {
+			if Self::authorize_view(&auth).is_err() {
+				return None;
+			}
+			let max_limit = T::MaxPacketListResults::get();
+			let take = cmp::min(limit, max_limit) as usize;
+			let skip = offset as usize;
+			let all = <Self as RegistryView<T>>::packets_by_lookup_digest(digest_prefix, version);
+			let snapshots = all.into_iter().skip(skip).take(take).collect::<Vec<_>>();
+			let mut results: Vec<DevPacketSnapshot<RegistryStatus>> =
+				Vec::with_capacity(snapshots.len());
+			for snapshot in snapshots {
+				Self::record_registry_query(&snapshot.state.registry, &auth.account);
+				results.push(Self::dev_snapshot(&snapshot));
+			}
+			json_envelope("origin.register.packet.lookup.v1", results)
 		}
 	}
 
@@ -1221,11 +1249,8 @@ pub mod pallet {
 			origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
 		}
 
-		fn view_signature_hash(auth: &ViewAuthorization<T>) -> ViewAuthSignatureHash {
-			let mut encoded = auth.account.encode();
-			encoded.extend_from_slice(auth.payload.as_slice());
-			encoded.extend(auth.signature.encode());
-			blake2_128(&encoded)
+		fn view_signature_hash(auth: &ViewAuthorizationOf<T>) -> ViewAuthSignatureHash {
+			primitives_view_signature_hash(&auth.account, auth.payload.as_slice(), &auth.signature)
 		}
 
 		fn record_registry_query(registry: &Ss58Identifier, account: &T::AccountId) {
@@ -1234,13 +1259,7 @@ pub mod pallet {
 			});
 		}
 
-		fn registry_info_to_debug_bytes(view: &RegistryInfoView) -> Vec<u8> {
-			let mut text = String::new();
-			let _ = writeln!(&mut text, "{view:#?}");
-			text.into_bytes()
-		}
-
-		fn authorize_view(auth: &ViewAuthorization<T>) -> Result<Ss58Identifier, ()> {
+		fn authorize_view(auth: &ViewAuthorizationOf<T>) -> Result<Ss58Identifier, ()> {
 			let token = T::EntityLookup::verify_account_signature(
 				&auth.account,
 				auth.payload.as_slice(),
@@ -1290,6 +1309,131 @@ pub mod pallet {
 			};
 			let registry_info = Registries::<T>::get(registry)?;
 			Some(PacketSnapshotView::from_state(&state, registry_info.status()))
+		}
+
+		fn registry_info_to_debug_bytes(view: &RegistryInfoView) -> Vec<u8> {
+			let mut text = String::new();
+			let _ = writeln!(&mut text, "{view:#?}");
+			text.into_bytes()
+		}
+
+		fn registry_info_unchecked(registry: &Ss58Identifier) -> Option<RegistryInfoView> {
+			Registries::<T>::get(registry).map(|info| RegistryInfoView::from(&info))
+		}
+
+		fn attribute_keys_unchecked(registry: &Ss58Identifier) -> Option<Vec<Vec<u8>>> {
+			Registries::<T>::get(registry).map(|info| info.attribute_keys())
+		}
+
+		fn token_fields_unchecked(registry: &Ss58Identifier) -> Option<LookupSpecView> {
+			Registries::<T>::get(registry).map(|info| LookupSpecView::from(&info.token_spec))
+		}
+
+		fn lookup_specs_unchecked(registry: &Ss58Identifier) -> Option<Vec<LookupSpecView>> {
+			Registries::<T>::get(registry)
+				.map(|info| info.lookup_specs.iter().map(LookupSpecView::from).collect())
+		}
+
+		fn packet_metadata_unchecked(packet: &Ss58Identifier) -> Option<PacketMetadataView> {
+			Packets::<T>::get(packet).map(|meta| PacketMetadataView::from(&meta))
+		}
+
+		fn packet_state_unchecked(
+			packet: &Ss58Identifier,
+			version: Option<u32>,
+		) -> Option<PacketSnapshotView> {
+			if let Some(explicit) = version {
+				let state = PacketStates::<T>::get(packet, explicit)?;
+				Self::snapshot_for(packet, &state.registry, Some(explicit), None)
+			} else if let Some(meta) = Packets::<T>::get(packet) {
+				Self::snapshot_for(packet, &meta.registry, None, Some(&meta))
+			} else {
+				None
+			}
+		}
+
+		fn lookup_state_unchecked(
+			registry: &Ss58Identifier,
+			digest: &LookupDigestOf<T>,
+			version: Option<u32>,
+		) -> Option<PacketSnapshotView> {
+			let anchor = LookupIndex::<T>::get(digest, registry)?;
+			let target_version = version.unwrap_or(anchor.pointer.version);
+			Self::snapshot_for(&anchor.pointer.ptoken, registry, Some(target_version), None)
+		}
+
+		fn registry_active_unchecked(registry: &Ss58Identifier) -> bool {
+			Registries::<T>::get(registry).map_or(false, |info| info.is_active())
+		}
+
+		fn packets_by_token_matches(
+			prefix: &[u8],
+			version: Option<u32>,
+			skip: usize,
+			take: Option<usize>,
+		) -> Vec<PacketSnapshotView> {
+			let mut results = Vec::new();
+			let mut skipped = 0usize;
+			for (token, meta) in Packets::<T>::iter() {
+				let token_bytes = token.as_ref();
+				if !prefix.is_empty() && !token_bytes.starts_with(prefix) {
+					continue;
+				}
+				if skipped < skip {
+					skipped = skipped.saturating_add(1);
+					continue;
+				}
+				if let Some(limit) = take {
+					if results.len() >= limit {
+						break;
+					}
+				}
+				if let Some(snapshot) =
+					Self::snapshot_for(&token, &meta.registry, version, Some(&meta))
+				{
+					results.push(snapshot);
+				}
+			}
+			results
+		}
+
+		fn packets_by_lookup_digest_matches(
+			prefix: &[u8],
+			version: Option<u32>,
+			skip: usize,
+			take: Option<usize>,
+		) -> Vec<PacketSnapshotView> {
+			let mut results = Vec::new();
+			let mut skipped = 0usize;
+			for (digest, registry, anchor) in LookupIndex::<T>::iter() {
+				let digest_bytes = digest.as_ref();
+				if !prefix.is_empty() && !digest_bytes.starts_with(prefix) {
+					continue;
+				}
+				if skipped < skip {
+					skipped = skipped.saturating_add(1);
+					continue;
+				}
+				if let Some(limit) = take {
+					if results.len() >= limit {
+						break;
+					}
+				}
+				let target_version = version.unwrap_or(anchor.pointer.version);
+				if let Some(snapshot) = Self::snapshot_for(
+					&anchor.pointer.ptoken,
+					&registry,
+					Some(target_version),
+					None,
+				) {
+					results.push(snapshot);
+				}
+			}
+			results
+		}
+
+		fn dev_snapshot(snapshot: &PacketSnapshotView) -> DevPacketSnapshot<RegistryStatus> {
+			dev_packet_snapshot_from(&snapshot.state, snapshot.registry_status)
 		}
 
 		fn resolve_entity_token(account: &T::AccountId) -> Result<Ss58Identifier, DispatchError> {
@@ -1436,55 +1580,27 @@ pub mod pallet {
 	}
 
 	impl<T: Config> RegistryView<T> for Pallet<T> {
-		fn registry_info(
-			auth: ViewAuthorizationOf<T>,
-			registry_id: &Ss58Identifier,
-		) -> Option<RegistryInfoView> {
-			Self::authorize_view(&auth).ok()?;
-			let info = Registries::<T>::get(registry_id)?;
-			Self::record_registry_query(registry_id, &auth.account);
-			Some(RegistryInfoView::from(&info))
+		fn registry_info(registry_id: &Ss58Identifier) -> Option<RegistryInfoView> {
+			Self::registry_info_unchecked(registry_id)
 		}
 
-		fn attribute_keys(
-			auth: ViewAuthorizationOf<T>,
-			registry_id: &Ss58Identifier,
-		) -> Option<Vec<Vec<u8>>> {
-			Self::authorize_view(&auth).ok()?;
-			Self::record_registry_query(registry_id, &auth.account);
-			Registries::<T>::get(registry_id).map(|registry_info| registry_info.attribute_keys())
+		fn attribute_keys(registry_id: &Ss58Identifier) -> Option<Vec<Vec<u8>>> {
+			Self::attribute_keys_unchecked(registry_id)
 		}
 
-		fn token_fields(
-			auth: ViewAuthorizationOf<T>,
-			registry_id: &Ss58Identifier,
-		) -> Option<LookupSpecView> {
-			Self::authorize_view(&auth).ok()?;
-			let registry_info = Registries::<T>::get(registry_id)?;
-			Self::record_registry_query(registry_id, &auth.account);
-			Some(LookupSpecView::from(&registry_info.token_spec))
+		fn token_fields(registry_id: &Ss58Identifier) -> Option<LookupSpecView> {
+			Self::token_fields_unchecked(registry_id)
 		}
 
-		fn lookup_specs(
-			auth: ViewAuthorizationOf<T>,
-			registry_id: &Ss58Identifier,
-		) -> Option<Vec<LookupSpecView>> {
-			Self::authorize_view(&auth).ok()?;
-			let registry_info = Registries::<T>::get(registry_id)?;
-			Self::record_registry_query(registry_id, &auth.account);
-			Some(registry_info.lookup_specs.iter().map(LookupSpecView::from).collect())
+		fn lookup_specs(registry_id: &Ss58Identifier) -> Option<Vec<LookupSpecView>> {
+			Self::lookup_specs_unchecked(registry_id)
 		}
 
 		fn has_permissions(
-			auth: ViewAuthorizationOf<T>,
 			registry_id: &Ss58Identifier,
 			delegate: &Ss58Identifier,
 			required: RegistryPermissions,
 		) -> bool {
-			if Self::authorize_view(&auth).is_err() {
-				return false;
-			}
-			Self::record_registry_query(registry_id, &auth.account);
 			if let Some(registry_info) = Registries::<T>::get(registry_id) {
 				if registry_info.maintainer() == delegate {
 					return true;
@@ -1500,83 +1616,41 @@ pub mod pallet {
 			})
 		}
 
-		fn packet_metadata(
-			auth: ViewAuthorizationOf<T>,
-			packet: &Ss58Identifier,
-		) -> Option<PacketMetadataView> {
-			Self::authorize_view(&auth).ok()?;
-			Packets::<T>::get(packet).map(|meta| PacketMetadataView::from(&meta))
+		fn packet_metadata(packet: &Ss58Identifier) -> Option<PacketMetadataView> {
+			Self::packet_metadata_unchecked(packet)
 		}
 
 		fn packet_state(
-			auth: ViewAuthorizationOf<T>,
 			packet: &Ss58Identifier,
 			version: Option<u32>,
 		) -> Option<PacketSnapshotView> {
-			Self::authorize_view(&auth).ok()?;
-			if let Some(version) = version {
-				let state = PacketStates::<T>::get(packet, version)?;
-				if let Some(snapshot) =
-					Self::snapshot_for(packet, &state.registry, Some(version), None)
-				{
-					Self::record_registry_query(&snapshot.state.registry, &auth.account);
-					return Some(snapshot);
-				}
-			} else if let Some(meta) = Packets::<T>::get(packet) {
-				if let Some(snapshot) =
-					Self::snapshot_for(packet, &meta.registry, None, Some(&meta))
-				{
-					Self::record_registry_query(&snapshot.state.registry, &auth.account);
-					return Some(snapshot);
-				}
-			}
-			None
+			Self::packet_state_unchecked(packet, version)
 		}
 
 		fn lookup_state(
-			auth: ViewAuthorizationOf<T>,
 			registry_id: &Ss58Identifier,
 			digest: &LookupDigestOf<T>,
 			version: Option<u32>,
 		) -> Option<PacketSnapshotView> {
-			Self::authorize_view(&auth).ok()?;
-			let anchor = LookupIndex::<T>::get(digest, registry_id)?;
-			let target_version = version.unwrap_or(anchor.pointer.version);
-			if let Some(snapshot) =
-				Self::snapshot_for(&anchor.pointer.ptoken, registry_id, Some(target_version), None)
-			{
-				Self::record_registry_query(registry_id, &auth.account);
-				return Some(snapshot);
-			}
-			None
+			Self::lookup_state_unchecked(registry_id, digest, version)
 		}
 
 		fn packets_by_token(
-			auth: ViewAuthorizationOf<T>,
 			token_prefix: Vec<u8>,
 			version: Option<u32>,
 		) -> Vec<PacketSnapshotView> {
-			Pallet::<T>::packets_by_token(auth, token_prefix, version)
+			Self::packets_by_token_matches(token_prefix.as_slice(), version, 0, None)
 		}
 
 		fn packets_by_lookup_digest(
-			auth: ViewAuthorizationOf<T>,
 			digest_prefix: Vec<u8>,
 			version: Option<u32>,
 		) -> Vec<PacketSnapshotView> {
-			Pallet::<T>::packets_by_lookup_digest(auth, digest_prefix, version)
+			Self::packets_by_lookup_digest_matches(digest_prefix.as_slice(), version, 0, None)
 		}
 
-		fn registry_active(auth: ViewAuthorizationOf<T>, registry_id: &Ss58Identifier) -> bool {
-			if Self::authorize_view(&auth).is_err() {
-				return false;
-			}
-			if let Some(info) = Registries::<T>::get(registry_id) {
-				Self::record_registry_query(registry_id, &auth.account);
-				info.is_active()
-			} else {
-				false
-			}
+		fn registry_active(registry_id: &Ss58Identifier) -> bool {
+			Self::registry_active_unchecked(registry_id)
 		}
 	}
 }
