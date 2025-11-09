@@ -151,7 +151,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: alloc::borrow::Cow::Borrowed("origin"),
-	impl_name: alloc::borrow::Cow::Borrowed("dhiway-cord-origin"),
+	impl_name: alloc::borrow::Cow::Borrowed("dhiway-origin"),
 	authoring_version: 0,
 	spec_version: 9900,
 	impl_version: 0,

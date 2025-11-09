@@ -24,17 +24,13 @@
 use crate::cli::Cli;
 use codec::Encode;
 
-use {
-	sc_client_api::BlockBackend,
-	sc_consensus_grandpa::{self},
-};
+use sc_client_api::BlockBackend;
+use sc_consensus_grandpa::{self};
 
-pub use {
-	sc_client_api::AuxStore,
-	sp_authority_discovery::AuthorityDiscoveryApi,
-	sp_blockchain::{HeaderBackend, HeaderMetadata},
-	sp_consensus_babe::BabeApi,
-};
+pub use sc_client_api::AuxStore;
+pub use sp_authority_discovery::AuthorityDiscoveryApi;
+pub use sp_blockchain::{HeaderBackend, HeaderMetadata};
+pub use sp_consensus_babe::BabeApi;
 
 use sc_service::RpcHandlers;
 use std::{path::Path, sync::Arc};

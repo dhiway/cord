@@ -24,8 +24,6 @@ serde = { features = ["derive"], workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }
 
 #Local
-cord-origin-coretime-staging-runtime = { default-features = true, workspace = true }
-cord-origin-entity-staging-runtime = { default-features = true, workspace = true }
 cord-origin-system-staging-runtime = { default-features = true, workspace = true }
 
 #Substrate, Cumulus, Polkadot
@@ -50,18 +48,10 @@ runtime-benchmarks = [
 	"parachains-common/runtime-benchmarks",
 	"polkadot-omni-node-lib/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
-	"cord-origin-coretime-staging-runtime/runtime-benchmarks",
-	"cord-origin-entity-staging-runtime/runtime-benchmarks",
 	"cord-origin-system-staging-runtime/runtime-benchmarks",
 ]
 try-runtime = [
 	"polkadot-omni-node-lib/try-runtime",
-	"cord-origin-coretime-staging-runtime/try-runtime",
-	"cord-origin-entity-staging-runtime/try-runtime",
 	"cord-origin-system-staging-runtime/try-runtime",
 ]
-fast-runtime = [
-	"cord-origin-coretime-staging-runtime/fast-runtime",
-	"cord-origin-entity-staging-runtime/fast-runtime",
-	"cord-origin-system-staging-runtime/fast-runtime",
-]
+fast-runtime = ["cord-origin-system-staging-runtime/fast-runtime"]

@@ -21,8 +21,12 @@
 use super::*;
 use crate::{
 	mock::*,
-	register::{AttributeFlags, LookupSpec, RegistryKind, RegistryPermissions, RegistryStatus},
-	AttributePairsOf, LookupIndex, PacketPointer, PacketStatus, Packets, RegistryQueryCounts,
+	register::{
+		AttributeFlags, LookupSpec, LookupSpecView, RegistryKind, RegistryPermissions,
+		RegistryStatus,
+	},
+	AttributePairsOf, ElementView, LookupIndex, PacketPointer, PacketStatus, Packets,
+	RegistryQueryCounts,
 };
 use alloc::format;
 use cord_primitives::{
@@ -157,11 +161,14 @@ fn registry_creation_defaults_to_active() {
 		);
 
 		let info = Pallet::<Test>::info(default_auth(), registry.clone()).expect("info stored");
-		assert_eq!(info.maintainer(), &maintainer_token);
-		assert_eq!(info.status(), RegistryStatus::Active);
+		assert_eq!(info.maintainer, maintainer_token.as_ref().to_vec());
+		assert_eq!(info.status, RegistryStatus::Active);
 		assert_eq!(info.kind, RegistryKind::Raw);
 		assert_eq!(info.attributes.len(), attributes.len());
-		assert_eq!(info.token_spec.key_count(), 1);
+		match &info.token_spec {
+			LookupSpecView::Single(key) => assert_eq!(key, b"id"),
+			LookupSpecView::Combo(_) => panic!("expected single key"),
+		}
 		assert!(<Pallet<Test> as RegistryView<Test>>::registry_active(default_auth(), &registry));
 	});
 }
@@ -235,7 +242,7 @@ fn registry_status_transitions_follow_rules() {
 			registry.clone()
 		));
 		assert_eq!(
-			Pallet::<Test>::info(default_auth(), registry.clone()).unwrap().status(),
+			Pallet::<Test>::info(default_auth(), registry.clone()).unwrap().status,
 			RegistryStatus::Revoked
 		);
 
@@ -244,7 +251,7 @@ fn registry_status_transitions_follow_rules() {
 			registry.clone()
 		));
 		assert_eq!(
-			Pallet::<Test>::info(default_auth(), registry.clone()).unwrap().status(),
+			Pallet::<Test>::info(default_auth(), registry.clone()).unwrap().status,
 			RegistryStatus::Active
 		);
 
@@ -252,7 +259,7 @@ fn registry_status_transitions_follow_rules() {
 		assert_ok!(Pallet::<Test>::revoke_registry(RuntimeOrigin::root(), registry.clone()));
 		assert_ok!(Pallet::<Test>::delete_registry(RuntimeOrigin::root(), registry.clone()));
 		assert_eq!(
-			Pallet::<Test>::info(default_auth(), registry.clone()).unwrap().status(),
+			Pallet::<Test>::info(default_auth(), registry.clone()).unwrap().status,
 			RegistryStatus::Deleted
 		);
 
@@ -297,7 +304,11 @@ fn update_registry_info_requires_admin() {
 			registry.clone(),
 			raw(b"Updated"),
 		));
-		assert_eq!(Pallet::<Test>::info(default_auth(), registry).unwrap().info, raw(b"Updated"));
+		let info_view = Pallet::<Test>::info(default_auth(), registry).unwrap();
+		match info_view.info {
+			ElementView::Raw(bytes) => assert_eq!(bytes, b"Updated"),
+			other => panic!("unexpected info payload: {:?}", other),
+		}
 	});
 }
 
@@ -404,7 +415,7 @@ fn restore_registry_requires_revoked_status() {
 			registry.clone()
 		));
 		assert_eq!(
-			Pallet::<Test>::info(default_auth(), registry).unwrap().status(),
+			Pallet::<Test>::info(default_auth(), registry).unwrap().status,
 			RegistryStatus::Active
 		);
 	});
@@ -434,7 +445,7 @@ fn delete_registry_requires_revoked_status() {
 			registry.clone()
 		));
 		assert_eq!(
-			Pallet::<Test>::info(default_auth(), registry).unwrap().status(),
+			Pallet::<Test>::info(default_auth(), registry).unwrap().status,
 			RegistryStatus::Deleted
 		);
 	});
@@ -499,10 +510,12 @@ fn packet_lifecycle_tracks_versions() {
 			Pallet::<Test>::packet(default_auth(), registry.clone(), packet_id.clone(), None)
 				.expect("updated snapshot");
 		assert_eq!(updated_snapshot.state.version, 2);
+		let latest_state =
+			PacketStates::<Test>::get(&packet_id, updated_snapshot.state.version).expect("state");
 		let updated_digest = packet::prepare_lookup_keys::<Test>(
 			&registry,
 			&Registries::<Test>::get(&registry).unwrap(),
-			&updated_snapshot.state.attributes,
+			&latest_state.attributes,
 		)
 		.expect("prepared")
 		.first()
@@ -855,7 +868,7 @@ fn optional_attributes_allow_absence() {
 		let snapshot =
 			Pallet::<Test>::packet(default_auth(), registry.clone(), packet_id.clone(), None)
 				.expect("snapshot");
-		assert!(snapshot.state.attributes.get(b"note").is_none());
+		assert!(snapshot.state.attribute(b"note").is_none());
 
 		let none_payload: AttributePairsOf<Test> = BoundedVec::try_from(vec![
 			(attr_key(b"asset_id"), value_u64(1)),
@@ -903,15 +916,13 @@ fn lookup_queries_return_latest_state() {
 		let snapshot =
 			Pallet::<Test>::packet(default_auth(), registry.clone(), packet_id.clone(), None)
 				.expect("snapshot");
-		let digest = packet::prepare_lookup_keys::<Test>(
-			&registry,
-			&registry_info,
-			&snapshot.state.attributes,
-		)
-		.expect("prepared")
-		.first()
-		.map(|(digest, _)| *digest)
-		.expect("digest");
+		let state = PacketStates::<Test>::get(&packet_id, snapshot.state.version).expect("state");
+		let digest =
+			packet::prepare_lookup_keys::<Test>(&registry, &registry_info, &state.attributes)
+				.expect("prepared")
+				.first()
+				.map(|(digest, _)| *digest)
+				.expect("digest");
 
 		let lookup_snapshot =
 			Pallet::<Test>::packet_by_lookup(default_auth(), registry.clone(), digest, None)

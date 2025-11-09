@@ -16,18 +16,19 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{AttributeFlags, Config, Error, RegistryInfoOf};
+use crate::{AttributeFlags, Config, Error, RegistryInfoOf, RegistryStatus};
 use alloc::{collections::BTreeMap, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::{
 	identifier::Ss58Identifier,
-	packet::{Attribute, Attributes, AttributesError, Element, ElementType},
+	packet::{
+		Attribute, Attributes, AttributesError, Element, ElementType, PacketMetadata,
+		PacketPointer, PacketState,
+	},
+	view::PacketStateView,
 };
 use core::convert::TryInto;
-use frame_support::{
-	dispatch::DispatchResult, ensure, traits::Get, BoundedVec, CloneNoBound, EqNoBound,
-	PartialEqNoBound, RuntimeDebugNoBound,
-};
+use frame_support::{dispatch::DispatchResult, ensure, traits::Get, BoundedVec};
 use pallet_token::{EventBlock, EventTypeOf, Token};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::Hash, DispatchError, RuntimeDebug};
@@ -58,92 +59,23 @@ pub struct LookupAnchor {
 	pub pointer: PacketPointer,
 }
 
-/// Packet lifecycle states.
-#[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	PartialEq,
-	Eq,
-	TypeInfo,
-	MaxEncodedLen,
-	RuntimeDebug,
-	Default,
-)]
-pub enum PacketStatus {
-	#[default]
-	Active,
-	Revoked,
-	Deleted,
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
+pub struct PacketSnapshotView {
+	pub state: PacketStateView,
+	pub registry_status: RegistryStatus,
 }
 
-/// Pointer linking an index entry to a specific registry/packet version.
-#[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	PartialEq,
-	Eq,
-	TypeInfo,
-	MaxEncodedLen,
-	RuntimeDebug,
-)]
-pub struct PacketPointer {
-	pub rtoken: Ss58Identifier,
-	pub ptoken: Ss58Identifier,
-	pub version: u32,
-}
-
-/// Metadata tracked per packet token for quick access to the latest state.
-#[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	CloneNoBound,
-	PartialEqNoBound,
-	EqNoBound,
-	TypeInfo,
-	MaxEncodedLen,
-	RuntimeDebugNoBound,
-)]
-#[scale_info(skip_type_params(Hash))]
-pub struct PacketMetadata<Hash>
-where
-	Hash: Clone + PartialEq + Eq + core::fmt::Debug,
-{
-	pub registry: Ss58Identifier,
-	pub controller: Ss58Identifier,
-	pub status: PacketStatus,
-	pub latest_version: u32,
-	pub attributes_hash: Hash,
-}
-
-/// Packet state persisted for each `(packet token, version)` pair.
-#[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	CloneNoBound,
-	PartialEqNoBound,
-	EqNoBound,
-	TypeInfo,
-	MaxEncodedLen,
-	RuntimeDebugNoBound,
-)]
-#[scale_info(skip_type_params(MaxRawDataLength, MaxAdditionalAttributes, Hash))]
-pub struct PacketState<
-	MaxRawDataLength: Get<u32>,
-	MaxAdditionalAttributes: Get<u32>,
-	Hash: Clone + PartialEq + Eq + core::fmt::Debug,
-> {
-	pub registry: Ss58Identifier,
-	pub controller: Ss58Identifier,
-	pub status: PacketStatus,
-	pub version: u32,
-	pub attributes_hash: Hash,
-	pub attributes: Attributes<MaxRawDataLength, MaxAdditionalAttributes>,
+impl PacketSnapshotView {
+	pub fn from_state<
+		MaxRawDataLength: Get<u32>,
+		MaxAdditionalAttributes: Get<u32>,
+		Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode,
+	>(
+		state: &PacketState<MaxRawDataLength, MaxAdditionalAttributes, Hash>,
+		registry_status: RegistryStatus,
+	) -> Self {
+		Self { state: PacketStateView::from(state), registry_status }
+	}
 }
 
 pub fn ensure_entry_access<T: Config>(

@@ -20,8 +20,7 @@
 
 use crate as pallet_feeless;
 use frame_support::derive_impl;
-use sp_runtime::traits::IdentityLookup;
-use sp_runtime::BuildStorage;
+use sp_runtime::{traits::IdentityLookup, BuildStorage};
 
 pub type AccountId = sp_runtime::AccountId32;
 type Block = frame_system::mocking::MockBlock<Test>;

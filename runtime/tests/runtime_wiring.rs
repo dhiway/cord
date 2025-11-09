@@ -21,8 +21,11 @@ use cord_orb_runtime::{
 };
 use cord_orb_runtime_constants::currency::UNITS;
 use core::convert::TryFrom;
-use frame_support::traits::{Contains, GetCallMetadata};
-use frame_support::{assert_ok, BoundedVec};
+use frame_support::{
+	assert_ok,
+	traits::{Contains, GetCallMetadata},
+	BoundedVec,
+};
 use sp_keyring::Sr25519Keyring;
 use sp_runtime::BuildStorage;
 
