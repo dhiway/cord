@@ -2024,7 +2024,6 @@ version = "7.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b03b7db8e0b4b2fdad6c551e634134e99ec000e5c8c3b6856c65e8bbaded7a3b"
 dependencies = [
- "crossterm",
  "unicode-segmentation",
  "unicode-width",
 ]
@@ -2650,6 +2649,80 @@ dependencies = [
 ]
 
 [[package]]
+name = "cord-origin-system-staging-runtime"
+version = "0.9.9"
+dependencies = [
+ "cord-origin-system-chains-staging-constants",
+ "cord-primitives",
+ "cumulus-pallet-aura-ext",
+ "cumulus-pallet-parachain-system",
+ "cumulus-pallet-session-benchmarking",
+ "cumulus-pallet-xcm",
+ "cumulus-pallet-xcmp-queue",
+ "cumulus-primitives-aura",
+ "cumulus-primitives-core",
+ "cumulus-primitives-utility",
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-metadata-hash-extension",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
+ "hex-literal",
+ "log",
+ "origin-staging-runtime-constants",
+ "pallet-aura",
+ "pallet-authorship",
+ "pallet-balances",
+ "pallet-broker",
+ "pallet-collator-selection",
+ "pallet-entity",
+ "pallet-message-queue",
+ "pallet-migrations",
+ "pallet-multisig",
+ "pallet-proxy",
+ "pallet-register",
+ "pallet-session",
+ "pallet-timestamp",
+ "pallet-token",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-utility",
+ "pallet-xcm",
+ "pallet-xcm-benchmarks",
+ "parachains-common",
+ "parachains-runtimes-test-utils",
+ "parity-scale-codec",
+ "polkadot-parachain-primitives",
+ "polkadot-primitives",
+ "polkadot-runtime-common",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-block-builder",
+ "sp-consensus-aura",
+ "sp-core",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-storage",
+ "sp-transaction-pool",
+ "sp-version",
+ "staging-parachain-info",
+ "staging-xcm",
+ "staging-xcm-builder",
+ "staging-xcm-executor",
+ "substrate-wasm-builder",
+ "xcm-runtime-apis",
+]
+
+[[package]]
 name = "cord-primitives"
 version = "0.9.9"
 dependencies = [
@@ -2700,13 +2773,15 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "color-eyre",
- "comfy-table",
  "cord-orb-runtime",
  "cord-primitives",
  "hex",
  "parity-scale-codec",
  "rand 0.8.5",
  "scale-info",
+ "scale-value",
+ "serde",
+ "serde_json",
  "sp-core",
  "sp-runtime",
  "subxt 0.44.0",
@@ -3026,29 +3101,6 @@ name = "crossbeam-utils"
 version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
-
-[[package]]
-name = "crossterm"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8b9f2e4c67f833b660cdb0a3523065869fb35570177239812ed4c905aeff87b"
-dependencies = [
- "bitflags 2.10.0",
- "crossterm_winapi",
- "document-features",
- "parking_lot 0.12.5",
- "rustix 1.1.2",
- "winapi",
-]
-
-[[package]]
-name = "crossterm_winapi"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acdd7c62a3665c7f6830a51635d9ac9b23ed385797f70a83bb8bafe9c572ab2b"
-dependencies = [
- "winapi",
-]
 
 [[package]]
 name = "crunchy"
@@ -4235,15 +4287,6 @@ dependencies = [
  "termcolor",
  "toml 0.8.23",
  "walkdir",
-]
-
-[[package]]
-name = "document-features"
-version = "0.2.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4b8a88685455ed29a21542a33abd9cb6510b6b129abadabdcef0f4c55bc8f61"
-dependencies = [
- "litrs",
 ]
 
 [[package]]
@@ -7532,12 +7575,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "litrs"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
-
-[[package]]
 name = "lock_api"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8534,6 +8571,7 @@ dependencies = [
  "color-eyre",
  "cord-origin-coretime-staging-runtime",
  "cord-origin-entity-staging-runtime",
+ "cord-origin-system-staging-runtime",
  "cumulus-primitives-core",
  "hex-literal",
  "log",
@@ -8615,7 +8653,7 @@ dependencies = [
  "origin-authorities",
  "origin-common",
  "origin-staging-runtime-constants",
- "pallet-asset-rate",
+ "pallet-authorities",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -8681,6 +8719,7 @@ dependencies = [
  "staging-xcm-builder",
  "staging-xcm-executor",
  "substrate-wasm-builder",
+ "token-runtime-api",
  "tokio",
  "xcm-runtime-apis",
 ]
@@ -9541,6 +9580,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
  "pallet-entity",
  "pallet-feeless",
  "pallet-token",
@@ -17739,6 +17779,17 @@ name = "tinyvec_macros"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
+
+[[package]]
+name = "token-runtime-api"
+version = "0.9.9"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+]
 
 [[package]]
 name = "tokio"

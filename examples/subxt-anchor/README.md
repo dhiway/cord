@@ -21,15 +21,41 @@ cargo run -p cord-subxt-anchor -- walkthrough
 Sample output:
 
 ```
-┌───────────────┬────────────────────────────────────┬──────────────────────────────────────────────────────────────┐
-│ Stage         │ Token                              │ Outcome                                                      │
-├───────────────┼────────────────────────────────────┼──────────────────────────────────────────────────────────────┤
-│ Context       │ anchor-demo-ab12cd34               │ Identifiers → registry → packet (run ab12cd34)              │
-│ Identifiers   │ 4wRytEZPrwsrN4...                  │ Entity profile set via pallet-entity::set_info               │
-│ Registers     │ 5HUAow9wN5Avvd...                  │ Registry minted with pallet-register::create_registry        │
-│ Packets       │ 6DYfsQYqV7Q1Ww...                  │ Packet anchored under registry 5HUAow9wN5Avvd...             │
-│ Packet        │ 6DYfsQYqV7Q1Ww...                  │ Packet anchored and ready for pallet testing                 │
-└───────────────┴────────────────────────────────────┴──────────────────────────────────────────────────────────────┘
+Context: anchor-demo-521e5906 identifiers → registry → packet (run 521e5906)
+
+Entity
+  Token    : 4wRytEZPrwsrN4...
+  Outcome  : Entity profile set via pallet-entity::set_info
+  Profile  : display=CORD showcase for anchor-demo-521e5906; attributes=2
+
+Registry (viewed via RuntimeViewFunction)
+  Token    : 5HUAow9wN5Avvd...
+  Outcome  : Registry minted with pallet-register::create_registry
+  Kind     : Raw
+  Status   : Active
+  Maintainer: 4wRytEZPrwsrN4...
+  Token Spec: [record_id + controller]
+  Lookups  : [record_id + controller], [payload_hash], [expires_at]
+  Schema   :
+    - record_id (Raw)
+    - controller (Token)
+    - payload_hash (Hash)
+    - payload_salt (Raw)
+    - expires_at (U64) [optional]
+    - notes (Raw) [optional]
+
+Packet (viewed via RuntimeViewFunction)
+  Token    : 6DYfsQYqV7Q1Ww...
+  Outcome  : Packet anchored under registry 5HUAow9wN5Avvd...
+  Controller: 4wRytEZPrwsrN4...
+  Status   : Active
+  Attributes:
+    - record_id = Raw(anchor-demo-521e5906-packet)
+    - payload_hash = Hash(0xf0cb...)
+    - controller = Token(4wRytEZPrwsrN4...)
+    - payload_salt = Raw(salt-anchor-demo-521e5906-...)
+    - expires_at = U64(1893456000)
+    - notes = None
 ```
 
 Use the `docs` subcommand to read the concept explainers:
@@ -49,6 +75,10 @@ examples/subxt-anchor/scripts/build-release.sh
 ```
 
 The explainers live in `docs/examples/subxt-anchor/*.md` so they can also be rendered inside other documentation toolchains.
+
+## Customising walkthrough data
+
+Payloads for every pallet extrinsic now come from `sample_data/demo.json`. The CLI transforms the JSON into the strongly typed structures that the runtime expects, so you can tweak fields without recompiling the binary. To point the walkthrough at a different file, pass `--sample-data /path/to/your.json`. Each JSON template can reference `{label}`, `{base_label}`, and `{run_id}` placeholders, which are resolved per run, and tokens such as the entity or registry identifier can be injected via `"type": "token"` entries. The bundled template defines optional attributes (`expires_at`, `notes`) and multiple lookup specs so you can demonstrate flexible schemas without editing Rust code.
 
 ## Quick remark probe
 

@@ -37,7 +37,7 @@ sp-storage = { workspace = true }
 sp-version = { workspace = true }
 sp-npos-elections = { workspace = true }
 
-pallet-asset-rate = { workspace = true }
+pallet-authorities = { workspace = true }
 pallet-authority-discovery = { workspace = true }
 pallet-authorship = { workspace = true }
 pallet-babe = { workspace = true }
@@ -72,6 +72,7 @@ pallet-timestamp = { workspace = true }
 pallet-utility = { workspace = true }
 pallet-xcm = { workspace = true }
 pallet-xcm-benchmarks = { optional = true, workspace = true }
+token-runtime-api = { workspace = true }
 
 frame-benchmarking = { optional = true, workspace = true }
 frame-try-runtime = { optional = true, workspace = true }
@@ -131,7 +132,7 @@ std = [
 	"frame-system/std",
 	"frame-try-runtime/std",
 	"log/std",
-	"pallet-asset-rate/std",
+	"pallet-authorities/std",
 	"pallet-authority-discovery/std",
 	"pallet-authorship/std",
 	"pallet-babe/std",
@@ -187,6 +188,7 @@ std = [
 	"sp-transaction-pool/std",
 	"sp-trie/std",
 	"sp-version/std",
+	"token-runtime-api/std",
 	"substrate-wasm-builder",
 	"xcm-builder/std",
 	"xcm-executor/std",
@@ -201,7 +203,7 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 	"frame-system-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"pallet-asset-rate/runtime-benchmarks",
+	"pallet-authorities/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-beefy-mmr/runtime-benchmarks",
@@ -242,6 +244,7 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"frame-try-runtime",
 	"frame-try-runtime/try-runtime",
+	"pallet-authorities/try-runtime",
 	"pallet-authority-discovery/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-babe/try-runtime",

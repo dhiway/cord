@@ -25,6 +25,7 @@ use polkadot_omni_node_lib::{
 use sc_chain_spec::ChainSpec;
 pub mod coretime;
 pub mod entity;
+pub mod system;
 
 #[derive(Debug)]
 pub(crate) struct ChainSpecLoader;
@@ -32,6 +33,17 @@ pub(crate) struct ChainSpecLoader;
 impl LoadSpec for ChainSpecLoader {
 	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
 		Ok(match id {
+			// -- System
+			"origin-system-dev" | "system-dev" => {
+				Box::new(system::system_origin_staging_development_config())
+			},
+			"origin-system-local" | "system-local" => {
+				Box::new(system::system_origin_staging_local_config())
+			},
+			"origin-system" | "system-genesis" | "system" => {
+				Box::new(system::origin_system_genesis_config())
+			},
+
 			// // -- Coretime
 			// "origin-coretime" | "coretime" => Box::new(GenericChainSpec::from_json_bytes(
 			// 	&include_bytes!("../../chain-specs/tbd.json")[..],
@@ -62,8 +74,10 @@ impl LoadSpec for ChainSpecLoader {
 
 			// -- Fallback (generic chainspec)
 			"" => {
-				log::warn!("No ChainSpec.id specified, so using default one, based on origin entity runtime");
-				Box::new(entity::entity_origin_staging_development_config())
+				log::warn!(
+					"No ChainSpec.id specified, defaulting to the origin system development chain spec"
+				);
+				Box::new(system::system_origin_staging_development_config())
 			},
 
 			// -- Loading a specific spec from disk
@@ -80,6 +94,7 @@ enum LegacyRuntime {
 	Asset,
 	Coretime,
 	Entity,
+	System,
 }
 
 impl LegacyRuntime {
@@ -92,6 +107,8 @@ impl LegacyRuntime {
 			LegacyRuntime::Coretime
 		} else if id.starts_with("origin-entity") || id.starts_with("entity") {
 			LegacyRuntime::Entity
+		} else if id.starts_with("origin-system") || id.starts_with("system") {
+			LegacyRuntime::System
 		} else {
 			log::warn!(
 				"No specific runtime was recognized for ChainSpec's id: '{}', \
@@ -113,6 +130,7 @@ impl RuntimeResolverT for RuntimeResolver {
 			LegacyRuntime::Asset
 			| LegacyRuntime::Coretime
 			| LegacyRuntime::Entity
+			| LegacyRuntime::System
 			| LegacyRuntime::Omni => {
 				Runtime::Omni(BlockNumber::U32, Consensus::Aura(AuraConsensusId::Sr25519))
 			},

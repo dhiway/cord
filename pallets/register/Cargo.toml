@@ -27,6 +27,7 @@ sp-runtime = { workspace = true }
 sp-io = { workspace = true }
 bitflags = { workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
+log = { workspace = true }
 
 [features]
 default = ["std"]
@@ -43,6 +44,7 @@ std = [
 	"scale-info/std",
 	"sp-io/std",
 	"sp-runtime/std",
+	'log/std',
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

@@ -16,47 +16,35 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
-//! The CORD Origin staging runtime. This can be compiled with `#[no_std]`, ready for Wasm.
+//! The CORD Origin runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "512"]
 
-#[cfg(all(any(target_arch = "riscv32", target_arch = "riscv64"), target_feature = "e"))]
-// Allocate 2 MiB stack.
-//
-// TODO: A workaround. Invoke polkavm_derive::min_stack_size!() instead
-// later on.
-::core::arch::global_asm!(
-	".pushsection .polkavm_min_stack_size,\"R\",@note\n",
-	".4byte 2097152",
-	".popsection\n",
-);
-
 extern crate alloc;
 use alloc::{
-	collections::{BTreeMap, VecDeque},
+	collections::{btree_map::BTreeMap, vec_deque::VecDeque},
 	string::String,
 	vec,
 	vec::Vec,
 };
-use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use cord_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
-use core::{cmp::Ordering, convert::TryInto};
-
 use authority_discovery_primitives::AuthorityId as AuthorityDiscoveryId;
 use beefy_primitives::{
 	ecdsa_crypto::{AuthorityId as BeefyId, Signature as BeefySignature},
 	mmr::{BeefyDataProvider, MmrLeafVersion},
 	OpaqueKeyOwnershipProof,
 };
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use cord_primitives::identifier::{DecodedIdentifier, Ss58Identifier};
+use core::{cmp::Ordering, convert::TryInto};
 use frame_support::{
 	construct_runtime, derive_impl,
 	genesis_builder_helper::{build_state, get_preset},
 	parameter_types,
 	traits::{
-		fungible::HoldConsideration, ConstU32, Everything, Get, InstanceFilter,
-		KeyOwnerProofSystem, LinearStoragePrice, PrivilegeCmp, ProcessMessage, ProcessMessageError,
+		ConstU32, Contains, Everything, Get, InstanceFilter, KeyOwnerProofSystem, PrivilegeCmp,
+		ProcessMessage, ProcessMessageError, VariantCountOf,
 	},
 	weights::{ConstantMultiplier, WeightMeter, WeightToFee as _},
 	PalletId,
@@ -69,8 +57,8 @@ use origin_staging_runtime_constants::{
 	time::*,
 };
 use pallet_grandpa::{fg_primitives, AuthorityId as GrandpaId};
-use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as session_historical;
+use pallet_token::Token as _;
 use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
 use polkadot_primitives::{
 	slashing,
@@ -118,9 +106,6 @@ use sp_runtime::{
 };
 use sp_staking::SessionIndex;
 
-#[cfg(any(feature = "std", test))]
-use sp_version::NativeVersion;
-use sp_version::RuntimeVersion;
 use xcm::{
 	latest::prelude::*, Version as XcmVersion, VersionedAssetId, VersionedAssets,
 	VersionedLocation, VersionedXcm,
@@ -130,9 +115,14 @@ use xcm_runtime_apis::{
 	fees::Error as XcmPaymentApiError,
 };
 
+#[cfg(any(feature = "std", test))]
+use sp_version::NativeVersion;
+use sp_version::RuntimeVersion;
+
+#[cfg(any(feature = "std", test))]
 pub use frame_system::Call as SystemCall;
-pub use pallet_balances::Call as BalancesCall;
-pub use pallet_timestamp::Call as TimestampCall;
+#[cfg(any(feature = "std", test))]
+pub use pallet_sudo::Call as SudoCall;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
@@ -141,17 +131,17 @@ pub use sp_runtime::BuildStorage;
 mod weights;
 
 /// Runtime API definition for token.
-pub use cord_token_runtime_api as token_api;
+pub use token_runtime_api as token_api;
 
 // Genesis preset configurations.
 pub mod genesis_config_presets;
 pub mod impls;
 pub mod xcm_config;
 
+impl_runtime_weights!(origin_staging_runtime_constants);
+
 /// Default logging target.
 pub const LOG_TARGET: &str = "runtime::origin";
-
-impl_runtime_weights!(origin_staging_runtime_constants);
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -163,10 +153,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: alloc::borrow::Cow::Borrowed("origin"),
 	impl_name: alloc::borrow::Cow::Borrowed("dhiway-cord-origin"),
 	authoring_version: 0,
-	spec_version: 1_004_003,
+	spec_version: 9900,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 26,
+	transaction_version: 2,
 	system_version: 1,
 };
 
@@ -177,18 +167,26 @@ pub const BABE_GENESIS_EPOCH_CONFIG: babe_primitives::BabeEpochConfiguration =
 		allowed_slots: babe_primitives::AllowedSlots::PrimaryAndSecondaryVRFSlots,
 	};
 
-fn convert_token_view_authorization(
-	auth: token_api::ViewAuthorization<AccountId, Signature>,
-) -> Option<pallet_token::ViewAuthorization<Runtime>> {
-	let token_api::ViewAuthorization { account, payload, signature } = auth;
-	let payload: pallet_token::ViewAuthPayloadOf<Runtime> = payload.try_into().ok()?;
-	Some(pallet_token::ViewAuthorization { account, payload, signature })
-}
+// fn convert_token_view_authorization(
+// 	auth: token_api::ViewAuthorization<AccountId, Signature>,
+// ) -> Option<pallet_token::ViewAuthorization<Runtime>> {
+// 	let token_api::ViewAuthorization { account, payload, signature } = auth;
+// 	let payload: pallet_token::ViewAuthPayloadOf<Runtime> = payload.try_into().ok()?;
+// 	Some(pallet_token::ViewAuthorization { account, payload, signature })
+// }
 
 /// Native version.
 #[cfg(any(feature = "std", test))]
 pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+}
+
+/// We currently allow all calls.
+pub struct BaseFilter;
+impl Contains<RuntimeCall> for BaseFilter {
+	fn contains(_c: &RuntimeCall) -> bool {
+		true
+	}
 }
 
 parameter_types! {
@@ -217,8 +215,7 @@ impl frame_system::Config for Runtime {
 }
 
 parameter_types! {
-	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) *
-		BlockWeights::get().max_block;
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
 	pub const MaxScheduledPerBlock: u32 = 50;
 	pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
@@ -242,51 +239,33 @@ impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 }
 
 impl pallet_scheduler::Config for Runtime {
-	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
 	type PalletsOrigin = OriginCaller;
 	type RuntimeCall = RuntimeCall;
 	type MaximumWeight = MaximumSchedulerWeight;
 	type ScheduleOrigin = EnsureRoot<AccountId>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MaxScheduledPerBlock = ConstU32<512>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
-	type WeightInfo = weights::pallet_scheduler::WeightInfo<Runtime>;
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
-	type Preimages = Preimage;
+	type Preimages = ();
+	type WeightInfo = weights::pallet_scheduler::WeightInfo<Runtime>;
 	type BlockNumberProvider = System;
-}
-
-parameter_types! {
-	pub const PreimageBaseDeposit: Balance = deposit(2, 64);
-	pub const PreimageByteDeposit: Balance = deposit(0, 1);
-	pub const PreimageHoldReason: RuntimeHoldReason =
-		RuntimeHoldReason::Preimage(pallet_preimage::HoldReason::Preimage);
-}
-
-impl pallet_preimage::Config for Runtime {
-	type WeightInfo = weights::pallet_preimage::WeightInfo<Runtime>;
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type ManagerOrigin = EnsureRoot<AccountId>;
-	type Consideration = HoldConsideration<
-		AccountId,
-		Balances,
-		PreimageHoldReason,
-		LinearStoragePrice<PreimageBaseDeposit, PreimageByteDeposit, Balance>,
-	>;
 }
 
 parameter_types! {
 	pub EpochDuration: u64 = prod_or_fast!(
 		EPOCH_DURATION_IN_SLOTS as u64,
-		MINUTES as u64,
-		"ORI_EPOCH_DURATION"
+		2 * MINUTES as u64,
+		"ORIGIN_EPOCH_DURATION"
 	);
+	pub const SessionsPerEra: SessionIndex = 6;
+	pub const BondingDuration: sp_staking::EraIndex = 28;
 	pub const ExpectedBlockTime: Moment = MILLISECS_PER_BLOCK;
 	pub ReportLongevity: u64 = EpochDuration::get() as u64 * 10;
-}
-
-parameter_types! {
-	pub const MaxAuthorities: u32 = 100_000;
+	pub const MaxAuthorities: u32 = 1_000;
 }
 
 impl pallet_babe::Config for Runtime {
@@ -294,16 +273,17 @@ impl pallet_babe::Config for Runtime {
 	type ExpectedBlockTime = ExpectedBlockTime;
 	type EpochChangeTrigger = pallet_babe::ExternalTrigger;
 	type DisabledValidators = Session;
+	type KeyOwnerProof =
+		<Historical as KeyOwnerProofSystem<(KeyTypeId, pallet_babe::AuthorityId)>>::Proof;
+	type EquivocationReportSystem =
+		pallet_babe::EquivocationReportSystem<Self, Offences, Historical, ReportLongevity>;
 	type WeightInfo = ();
 	type MaxAuthorities = MaxAuthorities;
 	type MaxNominators = ConstU32<0>;
-	type KeyOwnerProof = sp_session::MembershipProof;
-	type EquivocationReportSystem =
-		pallet_babe::EquivocationReportSystem<Self, Offences, Historical, ReportLongevity>;
 }
 
 parameter_types! {
-	pub const IndexDeposit: Balance = 10 * UNITS;
+	pub const IndexDeposit: Balance =  EXISTENTIAL_DEPOSIT;
 }
 
 impl pallet_indices::Config for Runtime {
@@ -321,20 +301,82 @@ parameter_types! {
 }
 
 impl pallet_balances::Config for Runtime {
+	type RuntimeHoldReason = RuntimeHoldReason;
+	type RuntimeFreezeReason = RuntimeFreezeReason;
+	type MaxLocks = MaxLocks;
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = [u8; 8];
 	type Balance = Balance;
 	type DustRemoval = ();
 	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
-	type MaxLocks = MaxLocks;
-	type MaxReserves = MaxReserves;
-	type ReserveIdentifier = [u8; 8];
-	type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
-	type FreezeIdentifier = ();
-	type RuntimeHoldReason = RuntimeHoldReason;
-	type RuntimeFreezeReason = RuntimeFreezeReason;
-	type MaxFreezes = ConstU32<1>;
+	type FreezeIdentifier = RuntimeFreezeReason;
+	type MaxFreezes = VariantCountOf<RuntimeFreezeReason>;
 	type DoneSlashHandler = ();
+	type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
+}
+
+parameter_types! {
+	pub BeefySetIdSessionEntries: u32 = BondingDuration::get() * SessionsPerEra::get();
+}
+
+impl pallet_beefy::Config for Runtime {
+	type BeefyId = BeefyId;
+	type MaxAuthorities = MaxAuthorities;
+	type MaxNominators = ConstU32<0>;
+	type MaxSetIdSessionEntries = BeefySetIdSessionEntries;
+	type OnNewValidatorSet = MmrLeaf;
+	type AncestryHelper = MmrLeaf;
+	type WeightInfo = ();
+	type KeyOwnerProof = <Historical as KeyOwnerProofSystem<(KeyTypeId, BeefyId)>>::Proof;
+	type EquivocationReportSystem =
+		pallet_beefy::EquivocationReportSystem<Self, Offences, Historical, ReportLongevity>;
+}
+
+impl pallet_mmr::Config for Runtime {
+	const INDEXING_PREFIX: &'static [u8] = mmr::INDEXING_PREFIX;
+	type Hashing = Keccak256;
+	type OnNewRoot = pallet_beefy_mmr::DepositBeefyDigest<Runtime>;
+	type LeafData = pallet_beefy_mmr::Pallet<Runtime>;
+	type BlockHashProvider = pallet_mmr::DefaultBlockHashProvider<Runtime>;
+	type WeightInfo = weights::pallet_mmr::WeightInfo<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = parachains_paras::benchmarking::mmr_setup::MmrSetup<Runtime>;
+}
+
+/// MMR helper types.
+mod mmr {
+	use super::Runtime;
+	pub use pallet_mmr::primitives::*;
+
+	pub type Leaf = <<Runtime as pallet_mmr::Config>::LeafData as LeafDataProvider>::LeafData;
+	pub type Hashing = <Runtime as pallet_mmr::Config>::Hashing;
+	pub type Hash = <Hashing as sp_runtime::traits::Hash>::Output;
+}
+
+parameter_types! {
+	pub LeafVersion: MmrLeafVersion = MmrLeafVersion::new(0, 0);
+}
+
+pub struct ParaHeadsRootProvider;
+impl BeefyDataProvider<H256> for ParaHeadsRootProvider {
+	fn extra_data() -> H256 {
+		let para_heads: Vec<(u32, Vec<u8>)> =
+			parachains_paras::Pallet::<Runtime>::sorted_para_heads();
+		binary_merkle_tree::merkle_root::<mmr::Hashing, _>(
+			para_heads.into_iter().map(|pair| pair.encode()),
+		)
+		.into()
+	}
+}
+
+impl pallet_beefy_mmr::Config for Runtime {
+	type LeafVersion = LeafVersion;
+	type BeefyAuthorityToMerkleLeaf = pallet_beefy_mmr::BeefyEcdsaToEthereum;
+	type LeafExtra = H256;
+	type BeefyDataProvider = ParaHeadsRootProvider;
+	type WeightInfo = weights::pallet_beefy_mmr::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -372,7 +414,6 @@ impl_opaque_keys! {
 	pub struct SessionKeys {
 		pub babe: Babe,
 		pub grandpa: Grandpa,
-		pub im_online: ImOnline,
 		pub para_validator: Initializer,
 		pub para_assignment: ParaSessionInfo,
 		pub authority_discovery: AuthorityDiscovery,
@@ -415,10 +456,6 @@ impl pallet_session::historical::Config for Runtime {
 	type FullIdentification = ();
 	type FullIdentificationOf = FullIdentificationOf;
 }
-parameter_types! {
-	pub const SessionsPerEra: SessionIndex = 6;
-	pub const BondingDuration: sp_staking::EraIndex = 28;
-}
 
 impl pallet_offences::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -431,25 +468,6 @@ impl pallet_authority_discovery::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
-	pub const MaxPeerInHeartbeats: u32 = 10_000;
-	pub const MaxPeerDataEncodingSize: u32 = 1_000;
-	pub const MaxKeys: u32 = 100_000;
-}
-
-impl pallet_im_online::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type AuthorityId = ImOnlineId;
-	type ValidatorSet = Historical;
-	type NextSessionRotation = Babe;
-	type ReportUnresponsiveness = Offences;
-	type UnsignedPriority = ImOnlineUnsignedPriority;
-	type WeightInfo = weights::pallet_im_online::WeightInfo<Runtime>;
-	type MaxKeys = MaxKeys;
-	type MaxPeerInHeartbeats = MaxPeerInHeartbeats;
-}
-
-parameter_types! {
 	pub const MaxSetIdSessionEntries: u32 = BondingDuration::get() * SessionsPerEra::get();
 }
 
@@ -459,7 +477,7 @@ impl pallet_grandpa::Config for Runtime {
 	type MaxAuthorities = MaxAuthorities;
 	type MaxNominators = ConstU32<0>;
 	type MaxSetIdSessionEntries = MaxSetIdSessionEntries;
-	type KeyOwnerProof = sp_session::MembershipProof;
+	type KeyOwnerProof = <Historical as KeyOwnerProofSystem<(KeyTypeId, GrandpaId)>>::Proof;
 	type EquivocationReportSystem =
 		pallet_grandpa::EquivocationReportSystem<Self, Offences, Historical, ReportLongevity>;
 }
@@ -665,7 +683,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
 			},
-			ProxyType::OnDemandOrdering => matches!(c, RuntimeCall::OnDemand(..)),
+			ProxyType::OnDemandOrdering => matches!(c, RuntimeCall::OnDemandAssignmentProvider(..)),
 		}
 	}
 	fn is_superset(&self, o: &Self) -> bool {
@@ -929,82 +947,29 @@ impl slots::Config for Runtime {
 	type WeightInfo = weights::polkadot_runtime_common_slots::WeightInfo<Runtime>;
 }
 
-parameter_types! {
-	pub BeefySetIdSessionEntries: u32 = BondingDuration::get() * SessionsPerEra::get();
-}
-
-impl pallet_beefy::Config for Runtime {
-	type BeefyId = BeefyId;
-	type MaxAuthorities = MaxAuthorities;
-	type MaxNominators = ConstU32<0>;
-	type MaxSetIdSessionEntries = BeefySetIdSessionEntries;
-	type OnNewValidatorSet = MmrLeaf;
-	type AncestryHelper = MmrLeaf;
-	type WeightInfo = ();
-	type KeyOwnerProof = <Historical as KeyOwnerProofSystem<(KeyTypeId, BeefyId)>>::Proof;
-	type EquivocationReportSystem =
-		pallet_beefy::EquivocationReportSystem<Self, Offences, Historical, ReportLongevity>;
-}
-
-/// MMR helper types.
-mod mmr {
-	use super::Runtime;
-	pub use pallet_mmr::primitives::*;
-
-	pub type Leaf = <<Runtime as pallet_mmr::Config>::LeafData as LeafDataProvider>::LeafData;
-	pub type Hashing = <Runtime as pallet_mmr::Config>::Hashing;
-	pub type Hash = <Hashing as sp_runtime::traits::Hash>::Output;
-}
-
-impl pallet_mmr::Config for Runtime {
-	const INDEXING_PREFIX: &'static [u8] = mmr::INDEXING_PREFIX;
-	type Hashing = Keccak256;
-	type OnNewRoot = pallet_beefy_mmr::DepositBeefyDigest<Runtime>;
-	type LeafData = pallet_beefy_mmr::Pallet<Runtime>;
-	type BlockHashProvider = pallet_mmr::DefaultBlockHashProvider<Runtime>;
-	type WeightInfo = weights::pallet_mmr::WeightInfo<Runtime>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = parachains_paras::benchmarking::mmr_setup::MmrSetup<Runtime>;
-}
-
-parameter_types! {
-	pub LeafVersion: MmrLeafVersion = MmrLeafVersion::new(0, 0);
-}
-
-pub struct ParaHeadsRootProvider;
-impl BeefyDataProvider<H256> for ParaHeadsRootProvider {
-	fn extra_data() -> H256 {
-		let para_heads: Vec<(u32, Vec<u8>)> =
-			parachains_paras::Pallet::<Runtime>::sorted_para_heads();
-		binary_merkle_tree::merkle_root::<mmr::Hashing, _>(
-			para_heads.into_iter().map(|pair| pair.encode()),
-		)
-		.into()
-	}
-}
-
-impl pallet_beefy_mmr::Config for Runtime {
-	type LeafVersion = LeafVersion;
-	type BeefyAuthorityToMerkleLeaf = pallet_beefy_mmr::BeefyEcdsaToEthereum;
-	type LeafExtra = H256;
-	type BeefyDataProvider = ParaHeadsRootProvider;
-	type WeightInfo = weights::pallet_beefy_mmr::WeightInfo<Runtime>;
-}
-
 impl paras_sudo_wrapper::Config for Runtime {}
 
 parameter_types! {
 	pub const MinAuthorities: u32 = 1;
-	pub const MaxInvulnerables: u32 = 8;
-	pub const TargetActive: u32 = 15;
-	pub const KickThresholdSessions: u32 = 5;
 }
 
-impl origin_authorities::Config for Runtime {
+impl pallet_authorities::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MinAuthorities = MinAuthorities;
 	type AuthorityManagerOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
+}
+
+parameter_types! {
+	pub const TokenMaxViewAuthorizationLen: u32 = 128;
+	pub const TokenMaxHistoryResults: u32 = 64;
+}
+
+impl pallet_token::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type BlockNumberProvider = System;
+	type MaxViewAuthorizationLen = TokenMaxViewAuthorizationLen;
+	type MaxHistoryResults = TokenMaxHistoryResults;
 }
 
 parameter_types! {
@@ -1034,18 +999,6 @@ impl OnSwap for SwapLeases {
 	}
 }
 
-parameter_types! {
-	pub const TokenMaxViewAuthorizationLen: u32 = 128;
-	pub const TokenMaxHistoryResults: u32 = 64;
-}
-
-impl pallet_token::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type BlockNumberProvider = System;
-	type MaxViewAuthorizationLen = TokenMaxViewAuthorizationLen;
-	type MaxHistoryResults = TokenMaxHistoryResults;
-}
-
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
@@ -1055,39 +1008,43 @@ impl pallet_sudo::Config for Runtime {
 construct_runtime! {
 	pub enum Runtime
 	{
-		// Basic stuff; balances is uncallable initially.
+		// Basic stuff.
 		System: frame_system = 0,
-		Scheduler: pallet_scheduler = 1,
-		Preimage: pallet_preimage = 10,
 
 		// Babe must be before session.
-		Babe: pallet_babe = 2,
+		Babe: pallet_babe = 1,
 
-		Timestamp: pallet_timestamp = 3,
-		Indices: pallet_indices = 4,
-		AuthorityManager: origin_authorities = 5,
-		Balances: pallet_balances = 6,
-		TransactionPayment: pallet_transaction_payment = 32,
+		Timestamp: pallet_timestamp = 2,
+		Indices: pallet_indices = 3,
+		Balances: pallet_balances = 4,
+		AuthorityManager: pallet_authorities = 5,
 
 		// Consensus support.
 		// Authorship must be before session in order to note author in the correct session and era.
-		Authorship: pallet_authorship = 7,
-		Offences: pallet_offences = 8,
-		Historical: session_historical = 33,
-
-		Session: pallet_session = 9,
-		Grandpa: pallet_grandpa = 11,
-		AuthorityDiscovery: pallet_authority_discovery = 13,
-		ImOnline: pallet_im_online = 14,
+		Authorship: pallet_authorship = 6,
+		Offences: pallet_offences = 7,
+		Session: pallet_session = 8,
+		Grandpa: pallet_grandpa = 9,
+		AuthorityDiscovery: pallet_authority_discovery = 10,
 
 		// Utility module.
 		Utility: pallet_utility = 26,
+
+		// System scheduler.
+		Scheduler: pallet_scheduler = 27,
 
 		// Proxy module. Late addition.
 		Proxy: pallet_proxy = 29,
 
 		// Multisig dispatch. Late addition.
 		Multisig: pallet_multisig = 30,
+
+		// Transaction Payment
+		TransactionPayment: pallet_transaction_payment = 32,
+
+		// Session Historical
+		Historical: session_historical = 33,
+
 
 		// Parachains pallets. Start indices at 50 to leave room.
 		ParachainsOrigin: parachains_origin = 50,
@@ -1103,20 +1060,19 @@ construct_runtime! {
 		ParaSessionInfo: parachains_session_info = 61,
 		ParasDisputes: parachains_disputes = 62,
 		ParasSlashing: parachains_slashing = 63,
-		MessageQueue: pallet_message_queue = 64,
-		OnDemand: parachains_on_demand = 65,
-		CoretimeAssignmentProvider: parachains_assigner_coretime = 66,
+		OnDemandAssignmentProvider: parachains_on_demand = 64,
+		CoretimeAssignmentProvider: parachains_assigner_coretime = 65,
 
 		// Parachain Onboarding Pallets. Start indices at 70 to leave room.
 		Registrar: paras_registrar = 70,
 		Slots: slots = 71,
 		Coretime: coretime = 74,
 
-		// Migrations pallet
-		MultiBlockMigrations: pallet_migrations = 98,
-
 		// Pallet for sending XCM.
 		XcmPallet: pallet_xcm = 99,
+
+		// Generalized message queue
+		MessageQueue: pallet_message_queue = 100,
 
 		// Token
 		Token: pallet_token = 102,
@@ -1127,7 +1083,9 @@ construct_runtime! {
 		// refer to block<N>. See issue #160 for details.
 		Mmr: pallet_mmr = 201,
 		MmrLeaf: pallet_beefy_mmr = 202,
-		// Authority Manager.
+
+		// Migrations pallet
+		MultiBlockMigrations: pallet_migrations = 249,
 
 		// Sudo.
 		ParaSudoWrapper: paras_sudo_wrapper = 250,
@@ -1215,7 +1173,7 @@ mod benches {
 		[pallet_balances, Balances]
 		[pallet_beefy_mmr, MmrLeaf]
 		[frame_benchmarking::baseline, Baseline::<Runtime>]
-		[pallet_im_online, ImOnline]
+		// [pallet_im_online, ImOnline]
 		[pallet_indices, Indices]
 		[pallet_message_queue, MessageQueue]
 		[pallet_migrations, MultiBlockMigrations]
@@ -1436,12 +1394,6 @@ mod benches {
 }
 
 sp_api::impl_runtime_apis! {
-	// impl origin_common::apis::Inflation<Block> for Runtime {
-	// 	fn experimental_inflation_prediction_info() -> InflationInfo {
-	// 		Runtime::impl_experimental_inflation_info()
-	// 	}
-	// }
-
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
 			VERSION
@@ -1955,55 +1907,22 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	impl token_api::TokenApi<Block, AccountId, Signature, Hash> for Runtime {
-		fn resolve_identifier(
-			auth: token_api::ViewAuthorization<AccountId, Signature>,
-			token: Vec<u8>,
-	) -> Option<token_api::DecodedTokenApi> {
-		let auth = convert_token_view_authorization(auth)?;
-		let ss58_id = Ss58Identifier::try_from(token).ok()?;
-		let decoded: DecodedIdentifier = Token::resolve_identifier_view(auth, ss58_id)?;
-		Some(token_api::DecodedTokenApi {
-			origin: decoded.origin,
-			network: decoded.network,
-			pallet: decoded.pallet,
-			genesis: decoded.genesis,
-		})
-	}
-
-	fn resolve_pallet(
-		auth: token_api::ViewAuthorization<AccountId, Signature>,
-		index: u16,
-	) -> Option<String> {
-		let auth = convert_token_view_authorization(auth)?;
-		Token::resolve_pallet_view(auth, index)
-	}
-
-	fn token_history(
-		auth: token_api::ViewAuthorization<AccountId, Signature>,
-		token: Vec<u8>,
-		start: Option<u32>,
-		limit: u32,
-	) -> Vec<token_api::TokenHistoryEvent<Hash>> {
-		let auth = match convert_token_view_authorization(auth) {
-			Some(auth) => auth,
-			None => return Vec::new(),
-		};
-		let ss58_id = match Ss58Identifier::try_from(token) {
-			Ok(id) => id,
-			Err(_) => return Vec::new(),
-		};
-		Token::history_view(auth, ss58_id, start, limit)
-			.into_iter()
-			.map(|event| token_api::TokenHistoryEvent {
-				action: event.action.into(),
-				digest: event.digest,
-				height: event.seal.height,
-				index: event.seal.index,
+	impl token_api::TokenApi<Block> for Runtime {
+		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
+			let ss58_id = Ss58Identifier::try_from(token).ok()?;
+			let decoded: DecodedIdentifier = Token::resolve_token(&ss58_id).ok()?;
+			Some(token_api::DecodedTokenApi {
+				origin: decoded.origin,
+				network: decoded.network,
+				pallet: decoded.pallet,
+				genesis: decoded.genesis,
 			})
-			.collect()
+		}
+
+		fn resolve_pallet(index: u16) -> Option<String> {
+			Token::resolve_pallet_name(index).ok()
+		}
 	}
-}
 
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {

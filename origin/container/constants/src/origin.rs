@@ -172,11 +172,13 @@ pub mod fee {
 
 pub mod locations {
 	use frame_support::parameter_types;
-	pub use origin_staging_runtime_constants::system_parachain::AssetHubParaId;
+	use polkadot_primitives::Id as ParaId;
 	use xcm::latest::prelude::{Junction::*, Location};
 
+	pub const ASSET_HUB_ID: u32 = 1000;
+
 	parameter_types! {
-		pub AssetHubLocation: Location =
-			Location::new(1, Parachain(origin_staging_runtime_constants::system_parachain::ASSET_HUB_ID));
+		pub AssetHubParaId: ParaId = ParaId::from(ASSET_HUB_ID);
+		pub AssetHubLocation: Location = Location::new(1, Parachain(ASSET_HUB_ID));
 	}
 }
