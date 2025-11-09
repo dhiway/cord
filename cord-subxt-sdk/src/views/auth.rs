@@ -1,6 +1,9 @@
 use crate::error::Result;
+use codec::Encode;
 use serde::{Deserialize, Serialize};
-use subxt::{config::PolkadotConfig as C, tx::Signer as _};
+use subxt::config::PolkadotConfig as C;
+#[allow(unused_imports)]
+use subxt::tx::Signer as _;
 
 /// Supported signature schemes for view authorizations.
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -45,7 +48,7 @@ impl AuthorizationBuilder {
 			account_id: signer.account_id(),
 			scheme,
 			message: msg,
-			signature: sig.0.to_vec(),
+			signature: sig.encode(),
 		})
 	}
 }

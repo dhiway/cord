@@ -30,6 +30,7 @@ thiserror = "1"
 tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }
 pallet-balances = { workspace = true, features = ["std"] }
 frame-system = { workspace = true, features = ["std"] }
+sp-core = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 anyhow = "1.0"

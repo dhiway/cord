@@ -19,10 +19,13 @@ pub struct PreparedTxOptions {
 fn builder_with(
 	prepared: PreparedTxOptions,
 ) -> subxt::config::DefaultExtrinsicParamsBuilder<CordConfig> {
-	subxt::config::DefaultExtrinsicParamsBuilder::<CordConfig>::new()
+	let builder = subxt::config::DefaultExtrinsicParamsBuilder::<CordConfig>::new()
 		.tip(prepared.tip)
-		.nonce(prepared.nonce)
-		.era(prepared.era)
+		.nonce(prepared.nonce);
+	match prepared.era {
+		Era::Immortal => builder.immortal(),
+		Era::Mortal { period, .. } => builder.mortal(period),
+	}
 }
 
 pub type ParamsPayload =
