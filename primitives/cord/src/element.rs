@@ -28,6 +28,7 @@ use frame_support::{
 	traits::Get, BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
 };
 use scale_info::TypeInfo;
+use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
 
 #[cfg(test)]
@@ -107,6 +108,8 @@ pub enum Elum<MaxCap: Get<u32>> {
 	MaxEncodedLen,
 	TypeInfo,
 	RuntimeDebug,
+	Serialize,
+	Deserialize,
 )]
 pub enum ElementType {
 	None,

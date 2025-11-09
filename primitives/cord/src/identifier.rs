@@ -28,6 +28,7 @@ use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use core::convert::TryFrom;
 use frame_support::{ensure, traits::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
+use serde::{ser::Error as SerdeError, Deserialize, Deserializer, Serialize, Serializer};
 
 /// Constant prefix used in checksum calculation.
 const PREFIX: &[u8] = b"SS58PRE";
@@ -240,8 +241,29 @@ impl AsRef<[u8]> for Ss58Identifier {
 	}
 }
 
+impl Serialize for Ss58Identifier {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
+		let s = core::str::from_utf8(self.as_ref())
+			.map_err(|_| SerdeError::custom("identifier bytes are not valid utf8"))?;
+		serializer.serialize_str(s)
+	}
+}
+
+impl<'de> Deserialize<'de> for Ss58Identifier {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		let s = String::deserialize(deserializer)?;
+		Ss58Identifier::try_from(s).map_err(|_| serde::de::Error::custom("invalid Ss58 identifier"))
+	}
+}
+
 /// Represents the structured components of an identifier after decoding.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct DecodedIdentifier {
 	// Origin mode
 	pub origin: bool,

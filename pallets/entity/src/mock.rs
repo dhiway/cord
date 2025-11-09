@@ -18,13 +18,15 @@
 
 use super::*;
 use crate::{self as pallet_entity, entity::EntityInfo};
+use alloc::collections::BTreeMap;
+use core::cell::RefCell;
 use frame_support::{derive_impl, parameter_types};
 use frame_system::EnsureRoot;
-
+use sp_core::{sr25519, Pair};
 use sp_keystore::{testing::MemoryKeystore, KeystoreExt};
 use sp_runtime::{
 	traits::{IdentifyAccount, IdentityLookup, Verify},
-	BuildStorage, MultiSignature,
+	BuildStorage, MultiSignature, MultiSigner,
 };
 
 pub type AccountPublic = <MultiSignature as Verify>::Signer;
@@ -61,7 +63,14 @@ parameter_types! {
 	pub const MaxSubAccounts: u32 = 2;
 	pub const MaxUsernameLength: u32 = 20;
 	pub const MaxTokenViewAuthorizationLen: u32 = 128;
-	pub const MaxTokenHistoryResults: u32 = 32;
+	pub const MaxTokenTimelineViewResults: u32 = 32;
+	pub const DefaultTokenTimelineViewResults: u32 = 16;
+	pub const MaxEntityViewAuthorizationLen: u32 = 128;
+}
+
+thread_local! {
+	pub(crate) static ACCOUNT_KEYS: RefCell<BTreeMap<AccountId, sr25519::Pair>> =
+		RefCell::new(BTreeMap::new());
 }
 
 impl pallet_entity::Config for Test {
@@ -72,6 +81,7 @@ impl pallet_entity::Config for Test {
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxUsernameLength = MaxUsernameLength;
+	type MaxViewAuthorizationLen = MaxEntityViewAuthorizationLen;
 	type Feeless = ();
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
@@ -81,7 +91,8 @@ impl pallet_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
 	type MaxViewAuthorizationLen = MaxTokenViewAuthorizationLen;
-	type MaxHistoryResults = MaxTokenHistoryResults;
+	type MaxTimelineViewResults = MaxTokenTimelineViewResults;
+	type DefaulTimelineViewResults = DefaultTokenTimelineViewResults;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -107,5 +118,15 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
 /// Helper to generate AccountIds from a byte
 pub fn account(n: u8) -> <Test as frame_system::Config>::AccountId {
-	[n; 32].into()
+	let pair = sr25519::Pair::from_seed(&[n; 32]);
+	let signer = MultiSigner::from(pair.public());
+	let account: AccountId = signer.into_account();
+	store_account_pair(account.clone(), pair);
+	account
+}
+
+pub fn store_account_pair(account: AccountId, pair: sr25519::Pair) {
+	ACCOUNT_KEYS.with(|keys| {
+		keys.borrow_mut().insert(account, pair);
+	});
 }

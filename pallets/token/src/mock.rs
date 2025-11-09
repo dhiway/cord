@@ -33,7 +33,8 @@ frame_support::construct_runtime!(
 parameter_types! {
 	pub const SS58Prefix: u8 = 42;
 	pub const MaxViewAuthorizationLen: u32 = 128;
-	pub const MaxHistoryResults: u32 = 32;
+	pub const MaxTimelineViewResults: u32 = 32;
+	pub const DefaulTimelineViewResults: u32 = 16;
 }
 
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
@@ -49,7 +50,8 @@ impl pallet_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = frame_system::Pallet<Test>;
 	type MaxViewAuthorizationLen = MaxViewAuthorizationLen;
-	type MaxHistoryResults = MaxHistoryResults;
+	type MaxTimelineViewResults = MaxTimelineViewResults;
+	type DefaulTimelineViewResults = DefaulTimelineViewResults;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

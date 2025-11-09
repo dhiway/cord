@@ -32,13 +32,18 @@ pub mod signature;
 pub mod weights;
 
 extern crate alloc;
-use alloc::{boxed::Box, fmt::Debug, vec::Vec};
+use alloc::{boxed::Box, fmt::Debug, string::String, vec::Vec};
 use codec::{Encode, EncodeLike};
 
 use crate::signature::{verify_multisignature, SignatureVerificationError};
 use cord_primitives::{
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
+	view::{base64_string, hex_string, json_envelope, maybe_utf8},
+	view_auth::{
+		view_signature_hash as primitives_view_signature_hash,
+		ViewAuthorization as CoreViewAuthorization,
+	},
 	Signature,
 };
 use core::convert::TryInto;
@@ -52,6 +57,7 @@ use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use pallet_feeless::FeelessAccounts;
 use pallet_token::{EventBlock, EventTypeOf, Token};
+use serde::{Deserialize, Serialize};
 use sp_runtime::traits::Hash;
 pub use weights::WeightInfo;
 
@@ -59,6 +65,14 @@ pub type DataOf<T> = Element<<T as Config>::MaxRawDataLength>;
 pub type UpdateOpOf<T> = <<T as Config>::EntityInfoPacket as PacketInformationProvider>::UpdateOp;
 pub type Username<T> = BoundedVec<u8, <T as Config>::MaxUsernameLength>;
 pub type AttributeUpdateKeyOpOf<T> = (Vec<u8>, DataOf<T>);
+/// Authorization payload supplied for entity view calls.
+pub type ViewAuthPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxViewAuthorizationLen>;
+/// Authorization structure reused by view functions.
+pub type ViewAuthorization<T> =
+	CoreViewAuthorization<<T as frame_system::Config>::AccountId, ViewAuthPayloadOf<T>, Signature>;
+pub type ViewAuthorizationOf<T> = ViewAuthorization<T>;
+/// Replay-protection hash derived from the view authorization tuple.
+pub type ViewAuthSignatureHash = [u8; 16];
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -105,6 +119,10 @@ pub mod pallet {
 		/// Max length for username prefix (before the dot).
 		#[pallet::constant]
 		type MaxUsernameLength: Get<u32>;
+
+		/// Maximum payload length for view authorizations.
+		#[pallet::constant]
+		type MaxViewAuthorizationLen: Get<u32>;
 
 		/// Source of feeless account information.
 		type Feeless: FeelessAccounts<Self::AccountId>;
@@ -192,6 +210,11 @@ pub mod pallet {
 		(DataOf<T>, EventBlock),
 		OptionQuery,
 	>;
+
+	/// Replay-protection map for view authorizations.
+	#[pallet::storage]
+	pub type ViewSignatureUses<T: Config> =
+		StorageMap<_, Blake2_128Concat, ViewAuthSignatureHash, (), OptionQuery>;
 	#[pallet::error]
 	pub enum Error<T> {
 		///Bad Origin
@@ -742,49 +765,105 @@ pub mod pallet {
 		}
 	}
 
+	#[derive(Clone, Serialize, Deserialize)]
+	#[serde(rename_all = "camelCase")]
+	pub struct DevEventBlockView {
+		pub height: u32,
+		pub index: u32,
+	}
+
+	#[derive(Clone, Serialize, Deserialize)]
+	#[serde(rename_all = "camelCase")]
+	pub struct InfoAttributeHistoryEntry {
+		pub key_hex: String,
+		pub key_utf8: Option<String>,
+		pub version: u64,
+		pub old_value_base64: String,
+		pub block: DevEventBlockView,
+	}
+
 	#[pallet::view_functions]
-	impl<T: Config> Pallet<T> {
+	impl<T: Config> Pallet<T>
+	where
+		T::AccountId: Clone + Into<sp_runtime::AccountId32>,
+	{
 		/// Get every attribute change for `token` as
 		/// `(key_bytes, version, old_value_bytes, block_number)`.
 		pub fn get_attribute_history(
+			auth: ViewAuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Vec<(Vec<u8>, u64, Vec<u8>, EventBlock)> {
-			Ss58OfAttributeHistory::<T>::iter_prefix(&token)
-				.map(|((key, version), (old, block))| {
-					(key.to_vec(), version, old.as_ref().to_vec(), block)
+		) -> Option<Vec<(Vec<u8>, u64, Vec<u8>, EventBlock)>> {
+			Self::authorize_view(&auth).ok()?;
+			Some(Self::attribute_history_plain(&token))
+		}
+
+		/// Returns the attribute history rendered as JSON.
+		pub fn get_attribute_history_json(
+			auth: ViewAuthorizationOf<T>,
+			token: Ss58Identifier,
+		) -> Option<Vec<u8>> {
+			Self::authorize_view(&auth).ok()?;
+			let rendered: Vec<InfoAttributeHistoryEntry> = Self::attribute_history_plain(&token)
+				.into_iter()
+				.map(|(key, version, old, block)| {
+					Self::dev_history_entry(key.as_slice(), version, old.as_slice(), &block)
 				})
-				.collect()
+				.collect();
+			json_envelope("cord.entity.history.v1", rendered)
 		}
 
 		/// Get the change history of a single `key` for `token` as
 		/// `(version, old_value_bytes, block_number)`.
 		pub fn get_attribute_history_for_key(
+			auth: ViewAuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Vec<u8>,
-		) -> Vec<(u64, Vec<u8>, EventBlock)> {
-			let key_bounded: Attribute =
-				key.try_into().expect("caller should provide valid-length key");
-			Ss58OfAttributeHistory::<T>::iter_prefix(&token)
-				.filter_map(|((k, version), (old, block))| {
-					if k == key_bounded {
-						Some((version, old.as_ref().to_vec(), block))
-					} else {
-						None
-					}
-				})
-				.collect()
+		) -> Option<Vec<(u64, Vec<u8>, EventBlock)>> {
+			Self::authorize_view(&auth).ok()?;
+			Some(Self::attribute_history_for_key_plain(&token, &key))
+		}
+
+		/// Returns the attribute history for a key rendered as JSON.
+		pub fn get_attribute_history_for_key_json(
+			auth: ViewAuthorizationOf<T>,
+			token: Ss58Identifier,
+			key: Vec<u8>,
+		) -> Option<Vec<u8>> {
+			Self::authorize_view(&auth).ok()?;
+			let rendered: Vec<InfoAttributeHistoryEntry> =
+				Self::attribute_history_for_key_plain(&token, &key)
+					.into_iter()
+					.map(|(version, old, block)| {
+						Self::dev_history_entry(key.as_slice(), version, old.as_slice(), &block)
+					})
+					.collect();
+			json_envelope("cord.entity.history.by-key.v1", rendered)
 		}
 
 		/// Fetch a single history entry by `token`, `key`, and `version`, returning
 		/// `(old_value_bytes, block_number)` if it exists.
 		pub fn get_attribute_history_entry(
+			auth: ViewAuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Vec<u8>,
 			version: u64,
 		) -> Option<(Vec<u8>, EventBlock)> {
-			let key_bounded: Attribute = key.try_into().ok()?;
-			Ss58OfAttributeHistory::<T>::get(&token, (key_bounded, version))
-				.map(|(old, block)| (old.as_ref().to_vec(), block))
+			Self::authorize_view(&auth).ok()?;
+			Self::attribute_history_entry_plain(&token, &key, version)
+		}
+
+		/// Returns a single history entry rendered as JSON.
+		pub fn get_attribute_history_entry_json(
+			auth: ViewAuthorizationOf<T>,
+			token: Ss58Identifier,
+			key: Vec<u8>,
+			version: u64,
+		) -> Option<Vec<u8>> {
+			Self::authorize_view(&auth).ok()?;
+			let entry = Self::attribute_history_entry_plain(&token, &key, version)?;
+			let rendered =
+				Self::dev_history_entry(key.as_slice(), version, entry.0.as_slice(), &entry.1);
+			json_envelope("cord.entity.history.entry.v1", rendered)
 		}
 	}
 }
@@ -793,6 +872,83 @@ impl<T: Config> Pallet<T> {
 	/// Returns `true` if the supplied origin is signed by an approved feeless account.
 	pub fn is_origin_feeless(origin: &OriginFor<T>) -> bool {
 		origin.caller().as_signed().map(T::Feeless::is_feeless).unwrap_or(false)
+	}
+
+	fn dev_block_view(block: &EventBlock) -> DevEventBlockView {
+		DevEventBlockView { height: block.height, index: block.index }
+	}
+
+	fn dev_history_entry(
+		key: &[u8],
+		version: u64,
+		old_value: &[u8],
+		block: &EventBlock,
+	) -> InfoAttributeHistoryEntry {
+		InfoAttributeHistoryEntry {
+			key_hex: hex_string(key),
+			key_utf8: maybe_utf8(key),
+			version,
+			old_value_base64: base64_string(old_value),
+			block: Self::dev_block_view(block),
+		}
+	}
+
+	pub fn attribute_history_plain(
+		token: &Ss58Identifier,
+	) -> Vec<(Vec<u8>, u64, Vec<u8>, EventBlock)> {
+		Ss58OfAttributeHistory::<T>::iter_prefix(token)
+			.map(|((key, version), (old, block))| {
+				(key.to_vec(), version, old.as_ref().to_vec(), block)
+			})
+			.collect()
+	}
+
+	pub fn attribute_history_for_key_plain(
+		token: &Ss58Identifier,
+		key: &[u8],
+	) -> Vec<(u64, Vec<u8>, EventBlock)> {
+		let key_attr: Attribute = match key.to_vec().try_into() {
+			Ok(attr) => attr,
+			Err(_) => return Vec::new(),
+		};
+		Ss58OfAttributeHistory::<T>::iter_prefix(token)
+			.filter_map(|((k, version), (old, block))| {
+				if k == key_attr {
+					Some((version, old.as_ref().to_vec(), block))
+				} else {
+					None
+				}
+			})
+			.collect()
+	}
+
+	pub fn attribute_history_entry_plain(
+		token: &Ss58Identifier,
+		key: &[u8],
+		version: u64,
+	) -> Option<(Vec<u8>, EventBlock)> {
+		let key_attr: Attribute = key.to_vec().try_into().ok()?;
+		Ss58OfAttributeHistory::<T>::get(token, (key_attr, version))
+			.map(|(old, block)| (old.as_ref().to_vec(), block))
+	}
+
+	fn view_signature_hash(auth: &ViewAuthorizationOf<T>) -> ViewAuthSignatureHash {
+		primitives_view_signature_hash(&auth.account, auth.payload.as_slice(), &auth.signature)
+	}
+
+	fn authorize_view(auth: &ViewAuthorizationOf<T>) -> Result<Ss58Identifier, ()>
+	where
+		T::AccountId: Clone + Into<sp_runtime::AccountId32>,
+	{
+		let token =
+			Self::verify_account_signature(&auth.account, auth.payload.as_slice(), &auth.signature)
+				.map_err(|_| ())?;
+		let hash = Self::view_signature_hash(auth);
+		if ViewSignatureUses::<T>::contains_key(&hash) {
+			return Err(());
+		}
+		ViewSignatureUses::<T>::insert(hash, ());
+		Ok(token)
 	}
 
 	// Revoke sub-account helper
