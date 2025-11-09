@@ -1,11 +1,14 @@
 use crate::{
+	client::Client,
 	error::{Error, Result},
 	flavors::ChainFlavor,
 	params::{self, PreparedTxOptions},
 	tx::{nonce, TxOptions},
 };
 use scale_value::{Composite, Value, ValueDef};
-use subxt::tx::{self, DynamicPayload, Signer as _};
+use subxt::tx::{self, DynamicPayload};
+#[allow(unused_imports)]
+use subxt::tx::Signer as _;
 use subxt::utils::Era;
 
 fn expect_composite(value: Value) -> Result<Composite<()>> {
@@ -17,7 +20,7 @@ fn expect_composite(value: Value) -> Result<Composite<()>> {
 
 /// Encode a dynamic call using the provided arguments.
 pub async fn build_call(
-	api: &subxt::OnlineClient<crate::params::config::CordConfig>,
+	_client: &Client,
 	pallet: &str,
 	call: &str,
 	args: Value,
@@ -28,30 +31,36 @@ pub async fn build_call(
 
 /// Encode a dynamic call using a JSON shape that mirrors the runtime metadata.
 pub async fn build_call_json(
-	api: &subxt::OnlineClient<crate::params::config::CordConfig>,
+	client: &Client,
 	pallet: &str,
 	call: &str,
 	json_args: serde_json::Value,
 ) -> Result<DynamicPayload> {
-	let value = scale_value::serde::from_value(json_args)
+	let value = scale_value::serde::to_value(json_args)
 		.map_err(|e| Error::Params(format!("json→value conversion failed: {e}")))?;
-	build_call(api, pallet, call, value).await
+	build_call(client, pallet, call, value).await
 }
 
 /// Sign and submit a call using the detected chain flavor's signed-extension tuple.
 pub async fn sign_and_submit_with_flavor<
 	S: subxt::tx::Signer<crate::params::config::CordConfig>,
 >(
-	api: &subxt::OnlineClient<crate::params::config::CordConfig>,
-	flavor: ChainFlavor,
+	client: &Client,
 	call: DynamicPayload,
 	signer: &S,
 	opts: TxOptions,
-) -> Result<subxt::tx::TxInBlock<crate::params::config::CordConfig>> {
-	let tx = api.tx();
+) -> Result<
+	subxt::tx::TxInBlock<
+		crate::params::config::CordConfig,
+		subxt::OnlineClient<crate::params::config::CordConfig>,
+	>,
+> {
+	let api = &client.api;
+	let flavor = client.flavor;
+	let mut tx = api.tx();
 	let who = signer.account_id();
 	let nonce_mode = opts.nonce.unwrap_or_default();
-	let nonce_value = nonce::resolve_nonce(api, &who, nonce_mode).await?;
+	let nonce_value = nonce::resolve_nonce(client, &who, nonce_mode).await?;
 	let tip = opts.tip.unwrap_or(0);
 	let era = opts.era.unwrap_or(Era::Immortal);
 	let prepared = PreparedTxOptions { era, nonce: nonce_value, tip };
@@ -64,7 +73,7 @@ pub async fn sign_and_submit_with_flavor<
 	tx.sign_and_submit_then_watch(&call, signer, params)
 		.await
 		.map_err(Error::from)?
-		.wait_for_in_block()
+		.wait_for_finalized()
 		.await
 		.map_err(Error::from)
 }

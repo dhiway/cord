@@ -1,7 +1,4 @@
-use crate::{
-	error::{Error, Result},
-	params::config::CordConfig,
-};
+use crate::{error::Result, params::config::CordConfig};
 
 /// Supported runtime "flavors" that the SDK can target.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -24,19 +21,7 @@ impl Default for ChainFlavor {
 
 /// Inspect the connected chain and infer the correct [`ChainFlavor`].
 pub async fn detect_flavor(api: &subxt::OnlineClient<CordConfig>) -> Result<ChainFlavor> {
-	let version = api.rpc().runtime_version(None).await.map_err(Error::from)?;
-	let spec = version.spec_name.to_string().to_lowercase();
-	if spec.contains("orb") {
-		return Ok(ChainFlavor::Orb);
-	}
-	if spec.contains("hub") {
-		return Ok(ChainFlavor::OriginHub);
-	}
-	if spec.contains("origin") {
-		return Ok(ChainFlavor::Origin);
-	}
-
-	// Fallback: inspect metadata for pallets that only exist on specific flavors.
+	// Inspect metadata for pallets that only exist on specific flavors.
 	let metadata = api.metadata();
 	if metadata.pallet_by_name("Register").is_some() && metadata.pallet_by_name("Entity").is_some()
 	{

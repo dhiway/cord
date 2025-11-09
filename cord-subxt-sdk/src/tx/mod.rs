@@ -4,7 +4,7 @@ pub mod nonce;
 pub mod signer;
 
 use crate::{client::Client, error::Result, params::config::CordConfig};
-use subxt::tx::DynamicPayload;
+use subxt::tx::{self, DynamicPayload};
 use subxt::utils::Era;
 
 /// Options that customize how an extrinsic is signed/submitted.
@@ -33,7 +33,7 @@ impl<'a> Transactions<'a> {
 		call: &str,
 		args: subxt::dynamic::Value,
 	) -> Result<DynamicPayload> {
-		dynamic::build_call(&self.client.api, pallet, call, args).await
+		dynamic::build_call(self.client, pallet, call, args).await
 	}
 
 	pub async fn build_json(
@@ -42,7 +42,7 @@ impl<'a> Transactions<'a> {
 		call: &str,
 		json_args: serde_json::Value,
 	) -> Result<DynamicPayload> {
-		dynamic::build_call_json(&self.client.api, pallet, call, json_args).await
+		dynamic::build_call_json(self.client, pallet, call, json_args).await
 	}
 
 	pub async fn sign_and_submit<S: subxt::tx::Signer<CordConfig>>(
@@ -50,23 +50,7 @@ impl<'a> Transactions<'a> {
 		call: DynamicPayload,
 		signer: &S,
 		opts: TxOptions,
-	) -> Result<subxt::tx::TxInBlock<CordConfig>> {
-		dynamic::sign_and_submit_with_flavor(
-			&self.client.api,
-			self.client.flavor,
-			call,
-			signer,
-			opts,
-		)
-		.await
-	}
-
-	pub async fn submit(&self, signed_xt: Vec<u8>) -> Result<subxt::utils::H256> {
-		self.client
-			.api
-			.tx()
-			.submit_bytes(&signed_xt)
-			.await
-			.map_err(crate::error::Error::from)
+	) -> Result<tx::TxInBlock<CordConfig, subxt::OnlineClient<CordConfig>>> {
+		dynamic::sign_and_submit_with_flavor(self.client, call, signer, opts).await
 	}
 }

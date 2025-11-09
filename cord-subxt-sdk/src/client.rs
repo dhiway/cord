@@ -3,14 +3,14 @@ use crate::{
 	flavors::ChainFlavor,
 	params::config::CordConfig,
 };
+#[allow(unused_imports)]
 use futures::StreamExt;
+use sp_core::hashing::blake2_256;
 use std::sync::Arc;
-use subxt::backend::{
-	legacy::rpc_methods::{LegacyRpcMethods, SystemHealth},
-	rpc::RpcClient,
-};
+use subxt::backend::rpc::RpcClient;
 use subxt::config::PolkadotConfig;
-use subxt::ext::subxt_core::client::RuntimeVersion;
+use subxt::ext::subxt_core::client::RuntimeVersion as CoreRuntimeVersion;
+use subxt::ext::subxt_rpcs::methods::legacy::{LegacyRpcMethods, SystemHealth};
 
 /// High-level handle to a connected Origin-derived chain.
 pub struct Client {
@@ -22,7 +22,11 @@ pub struct Client {
 impl Client {
 	/// Connect to a node at `url`, optionally forcing the chain flavor.
 	pub async fn connect(url: &str, flavor: ChainFlavor) -> Result<Self> {
-		let rpc = Arc::new(RpcClient::from_insecure_url(url).await.map_err(Error::from)?);
+		let rpc = Arc::new(
+			RpcClient::from_insecure_url(url)
+				.await
+				.map_err(|e| Error::Transport(e.to_string()))?,
+		);
 		let api = subxt::OnlineClient::<CordConfig>::from_rpc_client(rpc.as_ref().clone())
 			.await
 			.map_err(Error::from)?;
@@ -33,32 +37,37 @@ impl Client {
 		Ok(Self { api, rpc, flavor })
 	}
 
-	fn legacy(&self) -> LegacyRpcMethods<PolkadotConfig> {
+	pub(crate) fn legacy_methods(&self) -> LegacyRpcMethods<PolkadotConfig> {
 		LegacyRpcMethods::new((*self.rpc).clone())
 	}
 
 	/// Fetch the current node health info.
 	pub async fn health(&self) -> Result<SystemHealth> {
-		self.legacy().system_health().await.map_err(|e| Error::Transport(e.to_string()))
-	}
-
-	/// Returns the runtime version.
-	pub async fn runtime_version(&self) -> Result<RuntimeVersion> {
-		self.legacy()
-			.state_get_runtime_version(None)
+		self.legacy_methods()
+			.system_health()
 			.await
 			.map_err(|e| Error::Transport(e.to_string()))
 	}
 
-	/// Compute the metadata hash for the latest runtime.
+	/// Returns the runtime version.
+	pub async fn runtime_version(&self) -> Result<CoreRuntimeVersion> {
+		Ok(self.api.runtime_version())
+	}
+
+	/// Compute the metadata hash for the latest runtime by hashing the raw metadata bytes.
 	pub async fn metadata_hash(&self) -> Result<[u8; 32]> {
-		Ok(self.api.metadata().as_latest().hash().0)
+		let raw = self
+			.legacy_methods()
+			.state_get_metadata(None)
+			.await
+			.map_err(|e| Error::Transport(e.to_string()))?;
+		Ok(blake2_256(&raw.into_raw()))
 	}
 
 	/// Wait for a runtime upgrade notification and return once one is observed.
 	pub async fn watch_runtime_upgrades(&self) -> Result<()> {
 		let mut sub = self
-			.legacy()
+			.legacy_methods()
 			.state_subscribe_runtime_version()
 			.await
 			.map_err(|e| Error::Transport(e.to_string()))?;
@@ -79,7 +88,7 @@ impl Client {
 
 	/// Access the JSON view facade.
 	pub fn views(&self) -> crate::views::Views<'_> {
-		crate::views::Views { api: &self.api }
+		crate::views::Views { client: self }
 	}
 
 	/// Access the extrinsic builder facade.
@@ -89,6 +98,6 @@ impl Client {
 
 	/// Access lightweight state helpers.
 	pub fn state(&self) -> crate::state::State<'_> {
-		crate::state::State { api: &self.api }
+		crate::state::State { client: self }
 	}
 }

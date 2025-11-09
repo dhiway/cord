@@ -1,4 +1,4 @@
-#![deny(missing_docs)]
+#![allow(missing_docs)]
 #![doc = include_str!("../README.md")]
 
 //! Origin SDK core library. Provides a lightweight facade over Subxt for

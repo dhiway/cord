@@ -1,5 +1,7 @@
-use crate::error::{Error, Result};
-use crate::params::config::CordConfig;
+use crate::{
+	client::Client,
+	error::{Error, Result},
+};
 
 pub fn method_name(pallet: &str, function: &str) -> String {
 	format!("{pallet}_{function}")
@@ -15,7 +17,7 @@ pub fn encode_args_from_json(
 }
 
 pub async fn state_call_json(
-	_api: &subxt::OnlineClient<CordConfig>,
+	_client: &Client,
 	pallet: &str,
 	function: &str,
 	json_args: serde_json::Value,

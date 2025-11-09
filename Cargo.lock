@@ -2708,6 +2708,7 @@ dependencies = [
  "scale-value",
  "serde",
  "serde_json",
+ "sp-core",
  "subxt 0.44.0",
  "subxt-signer 0.44.0",
  "thiserror 1.0.69",

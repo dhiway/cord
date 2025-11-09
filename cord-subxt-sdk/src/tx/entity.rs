@@ -2,8 +2,7 @@ use crate::{
 	tx::Transactions,
 	types::{self, entity::AttributeEntry},
 };
-use scale_value::Value;
-use subxt::tx::DynamicPayload;
+use subxt::{dynamic::Value, tx::DynamicPayload};
 
 fn bytes_value(bytes: &[u8]) -> Value {
 	Value::unnamed_composite(bytes.iter().copied().map(|b| Value::u128(b as u128)))

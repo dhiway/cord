@@ -52,6 +52,7 @@ impl From<subxt::Error> for Error {
 			subxt::Error::Unknown(bytes) => Error::Codec(format!("unknown error: {bytes:?}")),
 			#[cfg(feature = "unstable-light-client")]
 			subxt::Error::LightClient(e) => Error::Transport(e.to_string()),
+			_ => Error::Params(err.to_string()),
 		}
 	}
 }

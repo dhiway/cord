@@ -1,6 +1,6 @@
 use crate::{
+	client::Client,
 	error::{Error, Result},
-	params::config::CordConfig,
 };
 use subxt::utils::AccountId32;
 
@@ -20,18 +20,14 @@ impl Default for NonceMode {
 }
 
 /// Resolve a nonce according to the requested strategy.
-pub async fn resolve_nonce(
-	api: &subxt::OnlineClient<CordConfig>,
-	who: &AccountId32,
-	mode: NonceMode,
-) -> Result<u64> {
+pub async fn resolve_nonce(client: &Client, who: &AccountId32, mode: NonceMode) -> Result<u64> {
 	match mode {
 		NonceMode::Manual(nonce) => Ok(nonce),
-		NonceMode::Auto => api
-			.rpc()
+		NonceMode::Auto => client
+			.legacy_methods()
 			.system_account_next_index(who)
 			.await
-			.map_err(Error::from)
+			.map_err(|e| Error::Transport(e.to_string()))
 			.map(|idx| idx as u64),
 	}
 }

@@ -2,13 +2,13 @@ pub mod auth;
 pub mod dynamic;
 
 use crate::{
+	client::Client,
 	error::{Error, Result},
-	params::config::CordConfig,
 };
 
 /// Facade for runtime view functions.
 pub struct Views<'a> {
-	pub(crate) api: &'a subxt::OnlineClient<CordConfig>,
+	pub(crate) client: &'a Client,
 }
 
 impl<'a> Views<'a> {
@@ -18,7 +18,7 @@ impl<'a> Views<'a> {
 		function: &str,
 		json_args: serde_json::Value,
 	) -> Result<serde_json::Value> {
-		dynamic::state_call_json(self.api, pallet, function, json_args).await
+		dynamic::state_call_json(self.client, pallet, function, json_args).await
 	}
 
 	pub async fn entity_attribute_history_json(
