@@ -6,9 +6,9 @@ use crate::{
 	tx::{nonce, TxOptions},
 };
 use scale_value::{Composite, Value, ValueDef};
-use subxt::tx::{self, DynamicPayload};
 #[allow(unused_imports)]
 use subxt::tx::Signer as _;
+use subxt::tx::{self, DynamicPayload};
 use subxt::utils::Era;
 
 fn expect_composite(value: Value) -> Result<Composite<()>> {

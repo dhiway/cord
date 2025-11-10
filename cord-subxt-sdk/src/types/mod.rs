@@ -1,9 +1,15 @@
+pub mod element;
 pub mod entity;
+pub mod registry;
+
+pub use element::{attribute_pair_value, bytes_value, element_json_to_dynamic, ElementJson};
+pub use registry::{
+	info_element_from_value, PacketPayload, PayloadMode, RegistryBlueprint, RegistrySchema,
+};
 
 use crate::error::{Error, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use core::str::FromStr;
-pub use entity::ElementJson;
 use scale_value::Value;
 use subxt::utils::AccountId32;
 
@@ -28,7 +34,14 @@ pub fn base64_to_bytes(s: &str) -> Result<Vec<u8>> {
 	BASE64.decode(s).map_err(|e| Error::Params(e.to_string()))
 }
 
-/// Convert an [`ElementJson`] to a SCALE dynamic [`Value`].
-pub fn element_json_to_dynamic(value: &entity::ElementJson) -> Result<Value> {
-	entity::element_json_to_dynamic(value)
+/// Encode an SS58 identifier into the SCALE `Value` shape expected by runtime APIs.
+pub fn identifier_value(ss58: &str) -> Result<Value> {
+	if ss58.is_empty() {
+		return Err(Error::Params("ss58 identifier cannot be empty".into()));
+	}
+	let bytes = ss58.as_bytes();
+	if bytes.len() > 64 {
+		return Err(Error::Params("ss58 identifier exceeds 64 bytes".into()));
+	}
+	Ok(bytes_value(bytes))
 }

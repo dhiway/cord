@@ -86,9 +86,9 @@ impl Client {
 		Err(Error::Timeout)
 	}
 
-	/// Access the JSON view facade.
-	pub fn views(&self) -> crate::views::Views<'_> {
-		crate::views::Views { client: self }
+	/// Access the query facade.
+	pub fn query(&self) -> crate::query::Query<'_> {
+		crate::query::Query { client: self }
 	}
 
 	/// Access the extrinsic builder facade.

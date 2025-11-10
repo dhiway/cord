@@ -9,10 +9,10 @@ pub mod client;
 pub mod error;
 pub mod flavors;
 pub mod params;
+pub mod query;
 pub mod state;
 pub mod tx;
 pub mod types;
-pub mod views;
 
 pub use client::Client;
 pub use error::Error;
