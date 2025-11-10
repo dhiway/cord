@@ -25,14 +25,12 @@ frame-system = { workspace = true }
 pallet-feeless = { workspace = true }
 pallet-token = { workspace = true }
 sp-runtime = { workspace = true }
-serde = { workspace = true, features = ["alloc", "derive"] }
 
 [dev-dependencies]
 pallet-balances = { default-features = true, workspace = true }
 sp-keystore = { default-features = true, workspace = true }
 sp-io = { default-features = true, workspace = true }
 sp-core = { default-features = true, workspace = true }
-serde-json-wasm = { workspace = true }
 
 [features]
 default = ["std"]
@@ -50,7 +48,6 @@ std = [
 	"sp-io/std",
 	"sp-keystore/std",
 	"sp-runtime/std",
-	"serde/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",

@@ -10,10 +10,8 @@ use crate::{
 	types,
 };
 use codec::Decode;
-use core::str;
 use hex::ToHex;
 use scale_value::{Composite, Value};
-use serde_json::Value as JsonValue;
 use subxt::utils::AccountId32;
 
 /// Facade for runtime query functions.
@@ -32,33 +30,6 @@ impl<'a> Query<'a> {
 
 	pub fn token(&self) -> token::TokenQuery<'_> {
 		token::TokenQuery { query: self }
-	}
-
-	pub async fn call_json(
-		&self,
-		pallet: &str,
-		function: &str,
-		json_args: serde_json::Value,
-	) -> Result<JsonValue> {
-		let metadata = self.client.api.metadata();
-		let args = dynamic::encode_args_from_json(pallet, function, &json_args, &metadata)?;
-		self.call_json_raw(pallet, function, args).await
-	}
-
-	pub(crate) async fn call_json_raw(
-		&self,
-		pallet: &str,
-		function: &str,
-		args: Value,
-	) -> Result<JsonValue> {
-		let encoded = self.call_encoded(pallet, function, args).await?;
-		let payload = self.extract_view_ok(encoded)?;
-		let bytes: Option<Vec<u8>> =
-			Option::decode(&mut &payload[..]).map_err(|e| Error::ViewDecode(e.to_string()))?;
-		let data =
-			bytes.ok_or_else(|| Error::NotFound(format!("{pallet}.{function} returned none")))?;
-		let text = str::from_utf8(&data).map_err(|e| Error::ViewDecode(e.to_string()))?;
-		serde_json::from_str(text).map_err(|e| Error::ViewDecode(e.to_string()))
 	}
 
 	pub(crate) async fn call_encoded(

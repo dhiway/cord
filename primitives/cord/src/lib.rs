@@ -26,12 +26,17 @@ pub use crate::packet::{
 	Attribute, Attributes, AttributesError, Element, PacketInformationProvider, PacketMetadata,
 	PacketPointer, PacketState, PacketStatus, PacketUpdateError, PacketUpdateOp,
 };
+pub mod registry;
+pub use crate::registry::{
+	LookupSpecView, RegistryAttributeView, RegistryInfoView, RegistryKind, RegistryPermissions,
+	RegistryStatus,
+};
 pub mod view;
 pub use crate::view::{
 	base58_string, base64_string, dev_attr_from, dev_element_from, dev_packet_snapshot_from,
-	dev_packet_state_from, hex_string, json_envelope, maybe_utf8, ss58_string, to_json_bytes,
-	AttributeValueView, DevAttr, DevElement, DevPacketSnapshot, DevPacketState, ElementView,
-	PacketMetadataView, PacketStateView, ViewEnvelope,
+	dev_packet_state_from, hex_string, maybe_utf8, ss58_string, AttributeValueView, DevAttr,
+	DevElement, DevEventBlockView, DevPacketSnapshot, DevPacketState, ElementView,
+	InfoAttributeHistoryEntry, InfoTokenHistoryEntry, PacketMetadataView, PacketStateView,
 };
 pub mod view_auth;
 pub use crate::view_auth::{view_signature_hash, ViewAuthorization};

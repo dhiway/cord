@@ -32,14 +32,14 @@ pub mod signature;
 pub mod weights;
 
 extern crate alloc;
-use alloc::{boxed::Box, fmt::Debug, string::String, vec::Vec};
+use alloc::{boxed::Box, fmt::Debug, vec::Vec};
 use codec::{Encode, EncodeLike};
 
 use crate::signature::{verify_multisignature, SignatureVerificationError};
 use cord_primitives::{
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, PacketInformationProvider, PacketUpdateError, PacketUpdateOp},
-	view::{base64_string, hex_string, json_envelope, maybe_utf8},
+	view::{base64_string, hex_string, maybe_utf8, DevEventBlockView, InfoAttributeHistoryEntry},
 	view_auth::{
 		view_signature_hash as primitives_view_signature_hash,
 		ViewAuthorization as CoreViewAuthorization,
@@ -57,7 +57,6 @@ use frame_system::pallet_prelude::*;
 pub use pallet::*;
 use pallet_feeless::FeelessAccounts;
 use pallet_token::{EventBlock, EventTypeOf, Token};
-use serde::{Deserialize, Serialize};
 use sp_runtime::traits::Hash;
 pub use weights::WeightInfo;
 
@@ -765,23 +764,6 @@ pub mod pallet {
 		}
 	}
 
-	#[derive(Clone, Serialize, Deserialize)]
-	#[serde(rename_all = "camelCase")]
-	pub struct DevEventBlockView {
-		pub height: u32,
-		pub index: u32,
-	}
-
-	#[derive(Clone, Serialize, Deserialize)]
-	#[serde(rename_all = "camelCase")]
-	pub struct InfoAttributeHistoryEntry {
-		pub key_hex: String,
-		pub key_utf8: Option<String>,
-		pub version: u64,
-		pub old_value_base64: String,
-		pub block: DevEventBlockView,
-	}
-
 	#[pallet::view_functions]
 	impl<T: Config> Pallet<T>
 	where
@@ -902,19 +884,20 @@ pub mod pallet {
 			Some(Self::attribute_history_plain(&token))
 		}
 
-		/// Returns the attribute history rendered as JSON.
+		/// Returns the attribute history rendered using SCALE-native developer entries.
 		pub fn get_attribute_history_json(
 			auth: ViewAuthorizationOf<T>,
 			token: Ss58Identifier,
-		) -> Option<Vec<u8>> {
+		) -> Option<Vec<InfoAttributeHistoryEntry>> {
 			Self::authorize_view(&auth).ok()?;
-			let rendered: Vec<InfoAttributeHistoryEntry> = Self::attribute_history_plain(&token)
-				.into_iter()
-				.map(|(key, version, old, block)| {
-					Self::dev_history_entry(key.as_slice(), version, old.as_slice(), &block)
-				})
-				.collect();
-			json_envelope("cord.entity.history.v1", rendered)
+			Some(
+				Self::attribute_history_plain(&token)
+					.into_iter()
+					.map(|(key, version, old, block)| {
+						Self::dev_history_entry(key.as_slice(), version, old.as_slice(), &block)
+					})
+					.collect(),
+			)
 		}
 
 		/// Get the change history of a single `key` for `token` as
@@ -928,21 +911,21 @@ pub mod pallet {
 			Some(Self::attribute_history_for_key_plain(&token, &key))
 		}
 
-		/// Returns the attribute history for a key rendered as JSON.
+		/// Returns the attribute history for a key rendered using SCALE-native developer entries.
 		pub fn get_attribute_history_for_key_json(
 			auth: ViewAuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Vec<u8>,
-		) -> Option<Vec<u8>> {
+		) -> Option<Vec<InfoAttributeHistoryEntry>> {
 			Self::authorize_view(&auth).ok()?;
-			let rendered: Vec<InfoAttributeHistoryEntry> =
+			Some(
 				Self::attribute_history_for_key_plain(&token, &key)
 					.into_iter()
 					.map(|(version, old, block)| {
 						Self::dev_history_entry(key.as_slice(), version, old.as_slice(), &block)
 					})
-					.collect();
-			json_envelope("cord.entity.history.by-key.v1", rendered)
+					.collect(),
+			)
 		}
 
 		/// Fetch a single history entry by `token`, `key`, and `version`, returning
@@ -957,18 +940,16 @@ pub mod pallet {
 			Self::attribute_history_entry_plain(&token, &key, version)
 		}
 
-		/// Returns a single history entry rendered as JSON.
+		/// Returns a single history entry rendered using SCALE-native developer data.
 		pub fn get_attribute_history_entry_json(
 			auth: ViewAuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Vec<u8>,
 			version: u64,
-		) -> Option<Vec<u8>> {
+		) -> Option<InfoAttributeHistoryEntry> {
 			Self::authorize_view(&auth).ok()?;
 			let entry = Self::attribute_history_entry_plain(&token, &key, version)?;
-			let rendered =
-				Self::dev_history_entry(key.as_slice(), version, entry.0.as_slice(), &entry.1);
-			json_envelope("cord.entity.history.entry.v1", rendered)
+			Some(Self::dev_history_entry(key.as_slice(), version, entry.0.as_slice(), &entry.1))
 		}
 	}
 }

@@ -21,16 +21,17 @@
 use super::*;
 use crate::{
 	mock::*,
-	register::{
-		AttributeFlags, LookupSpec, LookupSpecView, RegistryKind, RegistryPermissions,
-		RegistryStatus,
-	},
+	register::{AttributeFlags, LookupSpec},
 	AttributePairsOf, ElementView, LookupIndex, PacketPointer, PacketStatus, Packets,
 	RegistryQueryCounts,
 };
 use alloc::format;
+use cord_primitives::registry::{
+	LookupSpecView, RegistryKind, RegistryPermissions, RegistryStatus,
+};
 use cord_primitives::{
 	packet::{Attribute, Element, ElementType},
+	view::DevPacketSnapshot,
 	AccountId, Signature,
 };
 use core::{
@@ -39,8 +40,6 @@ use core::{
 	sync::atomic::{AtomicU64, Ordering},
 };
 use frame_support::{assert_noop, assert_ok, BoundedVec};
-use serde::Deserialize;
-use serde_json_wasm;
 use sp_core::Pair;
 
 static VIEW_AUTH_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -100,36 +99,12 @@ fn lookup_specs(specs: &[&[&[u8]]]) -> LookupSpecListOf<Test> {
 	list
 }
 
-#[derive(Deserialize)]
-struct InfoEnvelope {
-	data: RegistryInfoView,
-}
-
-#[derive(Deserialize)]
-struct PacketEnvelope {
-	data: PacketSnapshotData,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PacketSnapshotData {
-	state: PacketStateData,
-	registry_status: RegistryStatus,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PacketStateData {
-	version: u32,
-}
-
 fn registry_info_struct(registry: &Ss58Identifier) -> RegistryInfoView {
 	<Pallet<Test> as RegistryView<Test>>::registry_info(registry).expect("registry info")
 }
 
 fn registry_info_from_view(registry: &Ss58Identifier) -> RegistryInfoView {
-	let bytes = Pallet::<Test>::info(default_auth(), registry.clone()).expect("info view");
-	serde_json_wasm::from_slice::<InfoEnvelope>(&bytes).expect("decode info").data
+	Pallet::<Test>::info(default_auth(), registry.clone()).expect("info view")
 }
 
 fn packet_snapshot_struct(packet: &Ss58Identifier, version: Option<u32>) -> PacketSnapshotView {
@@ -140,12 +115,9 @@ fn packet_snapshot_from_view(
 	registry: &Ss58Identifier,
 	packet: &Ss58Identifier,
 	version: Option<u32>,
-) -> PacketSnapshotData {
-	let bytes = Pallet::<Test>::packet(default_auth(), registry.clone(), packet.clone(), version)
-		.expect("packet view bytes");
-	serde_json_wasm::from_slice::<PacketEnvelope>(&bytes)
-		.expect("decode packet view")
-		.data
+) -> DevPacketSnapshot<RegistryStatus> {
+	Pallet::<Test>::packet(default_auth(), registry.clone(), packet.clone(), version)
+		.expect("packet view bytes")
 }
 
 fn view_auth(account: AccountId) -> ViewAuthorizationOf<Test> {
@@ -1084,7 +1056,7 @@ fn packets_by_lookup_digest_returns_snapshots() {
 }
 
 #[test]
-fn info_view_returns_json_payload() {
+fn info_view_returns_scale_payload() {
 	new_test_ext().execute_with(|| {
 		let (registry, _) = create_registry(
 			account(120),
@@ -1092,13 +1064,13 @@ fn info_view_returns_json_payload() {
 			token_spec(&[b"asset_id"]),
 			lookup_specs(&[&[b"asset_id"]]),
 		);
-		let json = registry_info_from_view(&registry);
-		assert_eq!(json.status, RegistryStatus::Active);
+		let view = registry_info_from_view(&registry);
+		assert_eq!(view.status, RegistryStatus::Active);
 	});
 }
 
 #[test]
-fn packet_view_returns_json_payload() {
+fn packet_view_returns_dev_snapshot() {
 	new_test_ext().execute_with(|| {
 		let (registry, _) = create_registry(
 			account(121),

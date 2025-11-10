@@ -18,10 +18,10 @@ sp-core = { workspace = true }
 sp-runtime = { workspace = true }
 frame-support = { workspace = true }
 bs58 = { features = ["alloc"], workspace = true }
+bitflags = { workspace = true }
 blake2 = { workspace = true }
 hex = { workspace = true }
 serde = { workspace = true, features = ["alloc", "derive"] }
-serde-json-wasm = { workspace = true }
 base64 = { workspace = true }
 sp-io = { workspace = true }
 

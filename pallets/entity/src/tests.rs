@@ -31,8 +31,6 @@ use cord_primitives::{
 use core::sync::atomic::{AtomicU64, Ordering};
 use frame_support::{assert_noop, assert_ok};
 use pallet_token::Token;
-use serde::Deserialize;
-use serde_json_wasm;
 use sp_core::{sr25519, Pair};
 use sp_runtime::{traits::IdentifyAccount, MultiSigner};
 
@@ -544,13 +542,6 @@ fn verify_account_signature_rejects_invalid_signature() {
 mod view_tests {
 	use super::*;
 
-	#[derive(Deserialize)]
-	struct HistoryEnvelope {
-		api: String,
-		format: String,
-		data: Vec<InfoAttributeHistoryEntry>,
-	}
-
 	#[test]
 	fn history_view_requires_valid_authorization() {
 		new_test_ext().execute_with(|| {
@@ -598,15 +589,11 @@ mod view_tests {
 
 			let hist = EntityPallet::<Test>::attribute_history_plain(&token);
 			let auth = view_auth(&who);
-			let bytes =
-				EntityPallet::<Test>::get_attribute_history_json(auth, token).expect("json bytes");
-			let parsed: HistoryEnvelope =
-				serde_json_wasm::from_slice(&bytes).expect("valid json envelope");
-			assert_eq!(parsed.api, "cord.entity.history.v1");
-			assert_eq!(parsed.format, "json");
-			assert_eq!(parsed.data.len(), hist.len());
-			assert_eq!(parsed.data[0].key_utf8.as_deref(), Some("rot"));
-			assert_eq!(parsed.data[0].version, hist[0].1);
+			let entries =
+				EntityPallet::<Test>::get_attribute_history_json(auth, token).expect("dev entries");
+			assert_eq!(entries.len(), hist.len());
+			assert_eq!(entries[0].key_utf8.as_deref(), Some("rot"));
+			assert_eq!(entries[0].version, hist[0].1);
 		});
 	}
 

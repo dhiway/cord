@@ -52,10 +52,7 @@ pub use pallet::*;
 use pallet_entity::EntityLookup;
 use pallet_feeless::FeelessAccounts;
 use pallet_token::{EventBlock, EventTypeOf, Token};
-use register::{
-	AttributeFlags, AttributeSpec, LookupSpec, LookupSpecView, RegistryFieldError, RegistryInfo,
-	RegistryInfoView, RegistryKind, RegistryPermissions, RegistryStatus,
-};
+use register::{AttributeFlags, AttributeSpec, LookupSpec, RegistryFieldError, RegistryInfo};
 use sp_io as _;
 use sp_runtime::traits::Hash;
 pub use weights::WeightInfo;
@@ -85,13 +82,17 @@ pub type ViewAuthorizationOf<T> = ViewAuthorization<T>;
 pub type RegistryInfoOf<T> =
 	RegistryInfo<<T as Config>::MaxRawDataLength, <T as Config>::MaxAdditionalAttributes>;
 
-use cord_primitives::view::{dev_packet_snapshot_from, json_envelope, DevPacketSnapshot};
+use cord_primitives::view::{dev_packet_snapshot_from, DevPacketSnapshot};
 use cord_primitives::view_auth::{
 	view_signature_hash as primitives_view_signature_hash,
 	ViewAuthorization as CoreViewAuthorization,
 };
 pub use cord_primitives::{
 	packet::{PacketMetadata, PacketPointer, PacketState, PacketStatus},
+	registry::{
+		LookupSpecView, RegistryAttributeView, RegistryInfoView, RegistryKind, RegistryPermissions,
+		RegistryStatus,
+	},
 	view::{AttributeValueView, ElementView, PacketMetadataView, PacketStateView},
 };
 pub use packet::{
@@ -1009,12 +1010,12 @@ pub mod pallet {
 
 	#[pallet::view_functions]
 	impl<T: Config> Pallet<T> {
-		/// Returns the registry info rendered as a JSON envelope.
-		pub fn info(auth: ViewAuthorizationOf<T>, registry: Ss58Identifier) -> Option<Vec<u8>> {
-			Self::authorize_view(&auth).ok()?;
-			let view = <Self as RegistryView<T>>::registry_info(&registry)?;
-			Self::record_registry_query(&registry, &auth.account);
-			json_envelope("origin.register.info.v1", view)
+		/// Returns the registry info rendered as SCALE-native data.
+		pub fn info(
+			auth: ViewAuthorizationOf<T>,
+			registry: Ss58Identifier,
+		) -> Option<RegistryInfoView> {
+			Self::registry_info(auth, registry)
 		}
 
 		/// Returns the encoded `RegistryInfoView` bytes for debugging client decoders.
@@ -1063,15 +1064,12 @@ pub mod pallet {
 			Some(count)
 		}
 
-		/// Returns lookup specs rendered as JSON.
+		/// Returns lookup specs using SCALE encoding.
 		pub fn lookup_specs(
 			auth: ViewAuthorizationOf<T>,
 			registry: Ss58Identifier,
-		) -> Option<Vec<u8>> {
-			Self::authorize_view(&auth).ok()?;
-			let specs = <Self as RegistryView<T>>::lookup_specs(&registry)?;
-			Self::record_registry_query(&registry, &auth.account);
-			json_envelope("origin.register.lookup.v1", specs)
+		) -> Option<Vec<LookupSpecView>> {
+			Self::lookup_specs_view(auth, registry)
 		}
 
 		/// Returns the declared schema type of the provided attribute key.
@@ -1156,16 +1154,15 @@ pub mod pallet {
 			Some(snapshot)
 		}
 
-		/// Returns a developer-friendly packet snapshot rendered as JSON.
+		/// Returns a developer-friendly packet snapshot rendered as SCALE.
 		pub fn packet(
 			auth: ViewAuthorizationOf<T>,
 			rtoken: Ss58Identifier,
 			ptoken: Ss58Identifier,
 			version: Option<u32>,
-		) -> Option<Vec<u8>> {
+		) -> Option<DevPacketSnapshot<RegistryStatus>> {
 			let snapshot = Self::packet_view(auth, rtoken, ptoken, version)?;
-			let dev = Self::dev_snapshot(&snapshot);
-			json_envelope("origin.register.packet.v1", dev)
+			Some(Self::dev_snapshot(&snapshot))
 		}
 
 		/// Resolves a packet state via a lookup digest.
@@ -1199,14 +1196,14 @@ pub mod pallet {
 			snapshots
 		}
 
-		/// Returns packet snapshots filtered by token prefix with pagination, rendered as JSON.
+		/// Returns packet snapshots filtered by token prefix with pagination.
 		pub fn packets_by_token_json(
 			auth: ViewAuthorizationOf<T>,
 			token_prefix: Vec<u8>,
 			version: Option<u32>,
 			offset: u32,
 			limit: u32,
-		) -> Option<Vec<u8>> {
+		) -> Option<Vec<DevPacketSnapshot<RegistryStatus>>> {
 			if Self::authorize_view(&auth).is_err() {
 				return None;
 			}
@@ -1221,7 +1218,7 @@ pub mod pallet {
 				Self::record_registry_query(&snapshot.state.registry, &auth.account);
 				results.push(Self::dev_snapshot(&snapshot));
 			}
-			json_envelope("origin.register.packet.list.v1", results)
+			Some(results)
 		}
 
 		/// Returns packet snapshots for every registry entry matching the digest prefix.
@@ -1241,14 +1238,14 @@ pub mod pallet {
 			snapshots
 		}
 
-		/// Returns lookup digest results with pagination rendered as JSON.
+		/// Returns lookup digest results with pagination rendered as SCALE data.
 		pub fn packets_by_lookup_digest(
 			auth: ViewAuthorizationOf<T>,
 			digest_prefix: Vec<u8>,
 			version: Option<u32>,
 			offset: u32,
 			limit: u32,
-		) -> Option<Vec<u8>> {
+		) -> Option<Vec<DevPacketSnapshot<RegistryStatus>>> {
 			if Self::authorize_view(&auth).is_err() {
 				return None;
 			}
@@ -1263,7 +1260,7 @@ pub mod pallet {
 				Self::record_registry_query(&snapshot.state.registry, &auth.account);
 				results.push(Self::dev_snapshot(&snapshot));
 			}
-			json_envelope("origin.register.packet.lookup.v1", results)
+			Some(results)
 		}
 	}
 

@@ -2,7 +2,7 @@ use crate::{
 	error::Result,
 	types::{identifier_value, PayloadMode, RegistrySchema},
 };
-use pallet_register::register::RegistryInfoView;
+use cord_primitives::registry::RegistryInfoView;
 use subxt::dynamic::Value;
 
 use super::Transactions;

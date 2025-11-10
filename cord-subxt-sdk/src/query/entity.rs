@@ -1,10 +1,9 @@
 use super::{auth, ArgBuilder, Query};
 use crate::{
-	error::Result,
+	error::{Error, Result},
 	types::{identifier_value, to_key_hex_from_utf8},
 };
 use cord_primitives::identifier::Ss58Identifier;
-use serde_json::Value as JsonValue;
 use subxt::utils::AccountId32;
 
 /// Facade for `pallet-entity` view functions.
@@ -29,23 +28,13 @@ impl<'a> EntityQuery<'a> {
 		Ok(builder.finish())
 	}
 
-	async fn call_json(
-		&self,
-		function: &str,
-		auth: &auth::ViewAuthorization,
-		token_ss58: &str,
-		f: impl FnOnce(&mut ArgBuilder) -> Result<()>,
-	) -> Result<JsonValue> {
-		let args = self.build_args(auth, token_ss58, f)?;
-		self.query.call_json_raw("Entity", function, args).await
-	}
-
 	pub async fn attribute_history_json(
 		&self,
 		auth: &auth::ViewAuthorization,
 		token_ss58: &str,
-	) -> Result<JsonValue> {
-		self.call_json("get_attribute_history_json", auth, token_ss58, |_| Ok(())).await
+	) -> Result<Vec<crate::types::entity::InfoAttributeHistoryEntry>> {
+		self.call_history("get_attribute_history_json", auth, token_ss58, |_| Ok(()))
+			.await
 	}
 
 	pub async fn attribute_history_for_key_json(
@@ -53,8 +42,8 @@ impl<'a> EntityQuery<'a> {
 		auth: &auth::ViewAuthorization,
 		token_ss58: &str,
 		key_hex: &str,
-	) -> Result<JsonValue> {
-		self.call_json("get_attribute_history_for_key_json", auth, token_ss58, |builder| {
+	) -> Result<Vec<crate::types::entity::InfoAttributeHistoryEntry>> {
+		self.call_history("get_attribute_history_for_key_json", auth, token_ss58, |builder| {
 			builder.push("key", super::hex_arg(key_hex)?);
 			Ok(())
 		})
@@ -66,7 +55,7 @@ impl<'a> EntityQuery<'a> {
 		auth: &auth::ViewAuthorization,
 		token_ss58: &str,
 		key_utf8: &str,
-	) -> Result<JsonValue> {
+	) -> Result<Vec<crate::types::entity::InfoAttributeHistoryEntry>> {
 		let key_hex = to_key_hex_from_utf8(key_utf8);
 		self.attribute_history_for_key_json(auth, token_ss58, &key_hex).await
 	}
@@ -77,8 +66,8 @@ impl<'a> EntityQuery<'a> {
 		token_ss58: &str,
 		key_hex: &str,
 		version: u64,
-	) -> Result<JsonValue> {
-		self.call_json("get_attribute_history_entry_json", auth, token_ss58, |builder| {
+	) -> Result<crate::types::entity::InfoAttributeHistoryEntry> {
+		self.call_history_entry("get_attribute_history_entry_json", auth, token_ss58, |builder| {
 			builder.push("key", super::hex_arg(key_hex)?);
 			builder.push("version", super::u64_value(version));
 			Ok(())
@@ -115,6 +104,34 @@ impl<'a> EntityQuery<'a> {
 		builder.push("auth", super::view_auth_value(auth)?);
 		builder.push("account", super::account_value(account));
 		Ok(builder.finish())
+	}
+}
+
+impl<'a> EntityQuery<'a> {
+	async fn call_history(
+		&self,
+		function: &str,
+		auth: &auth::ViewAuthorization,
+		token_ss58: &str,
+		builder_fn: impl FnOnce(&mut ArgBuilder) -> Result<()>,
+	) -> Result<Vec<crate::types::entity::InfoAttributeHistoryEntry>> {
+		let args = self.build_args(auth, token_ss58, builder_fn)?;
+		let value: Option<Vec<crate::types::entity::InfoAttributeHistoryEntry>> =
+			self.query.call_typed("Entity", function, args).await?;
+		value.ok_or_else(|| Error::NotFound(format!("{function} returned none")))
+	}
+
+	async fn call_history_entry(
+		&self,
+		function: &str,
+		auth: &auth::ViewAuthorization,
+		token_ss58: &str,
+		builder_fn: impl FnOnce(&mut ArgBuilder) -> Result<()>,
+	) -> Result<crate::types::entity::InfoAttributeHistoryEntry> {
+		let args = self.build_args(auth, token_ss58, builder_fn)?;
+		let value: Option<crate::types::entity::InfoAttributeHistoryEntry> =
+			self.query.call_typed("Entity", function, args).await?;
+		value.ok_or_else(|| Error::NotFound(format!("{function} returned none")))
 	}
 }
 

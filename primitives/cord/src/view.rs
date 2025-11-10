@@ -130,7 +130,7 @@ impl<Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode> From<&PacketMetad
 	}
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DevAttr {
 	pub key_utf8: Option<String>,
@@ -138,7 +138,7 @@ pub struct DevAttr {
 	pub value: DevElement,
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "camelCase")]
 pub enum DevElement {
 	None,
@@ -151,7 +151,7 @@ pub enum DevElement {
 	RawBase64(String),
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DevPacketState {
 	pub registry_ss58: String,
@@ -162,7 +162,7 @@ pub struct DevPacketState {
 	pub attributes: Vec<DevAttr>,
 }
 
-#[derive(Clone, PartialEq, Eq, Serialize)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DevPacketSnapshot<S>
 where
@@ -172,20 +172,31 @@ where
 	pub registry_status: S,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ViewEnvelope<T: Serialize> {
-	pub api: &'static str,
-	pub format: &'static str,
-	pub data: T,
+pub struct DevEventBlockView {
+	pub height: u32,
+	pub index: u32,
 }
 
-pub fn to_json_bytes<T: Serialize>(value: &T) -> Option<Vec<u8>> {
-	serde_json_wasm::to_vec(value).ok()
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InfoAttributeHistoryEntry {
+	pub key_hex: String,
+	pub key_utf8: Option<String>,
+	pub version: u64,
+	pub old_value_base64: String,
+	pub block: DevEventBlockView,
 }
 
-pub fn json_envelope<T: Serialize>(namespace: &'static str, data: T) -> Option<Vec<u8>> {
-	to_json_bytes(&ViewEnvelope { api: namespace, format: "json", data })
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InfoTokenHistoryEntry {
+	pub action_utf8: Option<String>,
+	pub action_hex: String,
+	pub action_base64: String,
+	pub digest_hex: String,
+	pub block: DevEventBlockView,
 }
 
 pub fn ss58_string(id: &Ss58Identifier) -> String {
@@ -331,25 +342,6 @@ mod tests {
 		}
 		let snapshot = dev_packet_snapshot_from(&state, PacketStatus::Deleted);
 		assert_eq!(snapshot.registry_status, PacketStatus::Deleted);
-	}
-
-	#[test]
-	fn json_envelope_serializes_namespace() {
-		#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
-		struct Payload {
-			value: u32,
-		}
-		#[derive(Deserialize)]
-		struct Envelope {
-			api: String,
-			format: String,
-			data: Payload,
-		}
-		let bytes = json_envelope("cord.test.v1", Payload { value: 99 }).expect("json bytes");
-		let parsed: Envelope = serde_json_wasm::from_slice(&bytes).expect("decode");
-		assert_eq!(parsed.api, "cord.test.v1");
-		assert_eq!(parsed.format, "json");
-		assert_eq!(parsed.data.value, 99);
 	}
 
 	#[test]

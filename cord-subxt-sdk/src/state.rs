@@ -13,7 +13,22 @@ pub struct State<'a> {
 }
 
 /// Simplified account info type matching `frame_system::AccountInfo`.
-pub type AccountInfo = frame_system::AccountInfo<u32, pallet_balances::AccountData<u128>>;
+#[derive(Clone, Debug, Decode)]
+pub struct AccountInfo {
+	pub nonce: u32,
+	pub consumers: u32,
+	pub providers: u32,
+	pub sufficients: u32,
+	pub data: AccountData,
+}
+
+#[derive(Clone, Debug, Decode)]
+pub struct AccountData {
+	pub free: u128,
+	pub reserved: u128,
+	pub frozen: u128,
+	pub flags: u128,
+}
 
 impl<'a> State<'a> {
 	/// Fetch `frame_system::AccountInfo` for the supplied SS58 address.
