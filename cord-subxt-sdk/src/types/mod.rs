@@ -9,7 +9,8 @@ pub use registry::{
 
 use crate::error::{Error, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use core::str::FromStr;
+use cord_primitives::identifier::Ss58Identifier;
+use core::{convert::AsRef, str::FromStr};
 use scale_value::Value;
 use subxt::utils::AccountId32;
 
@@ -36,12 +37,17 @@ pub fn base64_to_bytes(s: &str) -> Result<Vec<u8>> {
 
 /// Encode an SS58 identifier into the SCALE `Value` shape expected by runtime APIs.
 pub fn identifier_value(ss58: &str) -> Result<Value> {
-	if ss58.is_empty() {
-		return Err(Error::Params("ss58 identifier cannot be empty".into()));
-	}
-	let bytes = ss58.as_bytes();
-	if bytes.len() > 64 {
-		return Err(Error::Params("ss58 identifier exceeds 64 bytes".into()));
-	}
-	Ok(bytes_value(bytes))
+	let identifier = Ss58Identifier::try_from(ss58.to_string())
+		.map_err(|e| Error::Params(format!("invalid ss58 identifier: {e:?}")))?;
+	Ok(tuple_struct(bytes_value(identifier.as_bytes())))
+}
+
+/// Encode an `AccountId32` into the SCALE layout expected by runtime APIs.
+pub fn account_id_value(account: &AccountId32) -> Value {
+	let raw: &[u8; 32] = AsRef::<[u8; 32]>::as_ref(account);
+	Value::from_bytes(raw.to_vec())
+}
+
+fn tuple_struct(inner: Value) -> Value {
+	Value::unnamed_composite([inner])
 }

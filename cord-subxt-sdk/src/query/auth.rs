@@ -1,5 +1,4 @@
 use crate::error::Result;
-use codec::Encode;
 use serde::{Deserialize, Serialize};
 use subxt::config::PolkadotConfig as C;
 #[allow(unused_imports)]
@@ -43,12 +42,17 @@ impl AuthorizationBuilder {
 	) -> Result<ViewAuthorization> {
 		let msg = message.map(|m| m.to_vec()).unwrap_or_else(Self::random_message);
 		let sig = signer.sign(&msg);
+		let sig_bytes = match sig {
+			subxt::utils::MultiSignature::Ed25519(inner) => inner.as_ref().to_vec(),
+			subxt::utils::MultiSignature::Sr25519(inner) => inner.as_ref().to_vec(),
+			subxt::utils::MultiSignature::Ecdsa(inner) => inner.as_ref().to_vec(),
+		};
 		Ok(ViewAuthorization {
 			account_ss58: signer.account_id().to_string(),
 			account_id: signer.account_id(),
 			scheme,
 			message: msg,
-			signature: sig.encode(),
+			signature: sig_bytes,
 		})
 	}
 }

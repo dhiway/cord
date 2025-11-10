@@ -4,7 +4,8 @@ use crate::{
 	types,
 };
 use codec::Decode;
-use subxt::dynamic;
+use cord_primitives::identifier::Ss58Identifier;
+use subxt::{dynamic, utils::AccountId32};
 
 /// Convenience helpers for state queries that the SDK exposes frequently.
 pub struct State<'a> {
@@ -37,5 +38,21 @@ impl<'a> State<'a> {
 			.await
 			.map_err(|e| Error::Transport(e.to_string()))?;
 		Ok(hash.map(Into::into))
+	}
+
+	/// Lookup the entity token bound to an account directly from storage.
+	pub async fn entity_token_of_account(
+		&self,
+		account: &AccountId32,
+	) -> Result<Option<Ss58Identifier>> {
+		let key = dynamic::Value::from_bytes(account);
+		let addr = dynamic::storage("Entity", "Ss58OfActiveAccounts", vec![key]);
+		let snapshot = self.client.api.storage().at_latest().await.map_err(Error::from)?;
+		let Some(raw) = snapshot.fetch(&addr).await.map_err(Error::from)? else {
+			return Ok(None);
+		};
+		let mut cursor = raw.encoded();
+		let token = Ss58Identifier::decode(&mut cursor).map_err(|e| Error::Codec(e.to_string()))?;
+		Ok(Some(token))
 	}
 }

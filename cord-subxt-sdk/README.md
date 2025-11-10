@@ -64,6 +64,28 @@ Use the `docs` subcommand to read the concept explainers:
 cargo run -p cord-subxt-sdk -- docs identifiers
 ```
 
+## Running the standalone examples
+
+Each example expects a local dev node listening on `ws://127.0.0.1:9944`. Launch it once with
+`cargo run -p node/cli -- --dev --tmp`, then run any of the samples in a separate terminal:
+
+```bash
+# Connectivity probe that prints health/metadata information
+cargo run -p cord-subxt-sdk --example quickstart
+
+# Rotate an entity attribute using Alice's dev key
+cargo run -p cord-subxt-sdk --example entity-demo
+
+# Create and inspect a fresh registry end-to-end
+cargo run -p cord-subxt-sdk --example register-demo
+
+# Mint a registry and submit a packet, then view the packet JSON snapshot
+cargo run -p cord-subxt-sdk --example packet-demo
+```
+
+Each example hard-codes `ws://127.0.0.1:9944`; edit the file or wrap the `origin::Client::connect`
+call if you need to point at a remote endpoint.
+
 ### Release binary / reproducible builds
 
 If you prefer to run the prebuilt binary under `cord-subxt-sdk/target/subxt-example`,
