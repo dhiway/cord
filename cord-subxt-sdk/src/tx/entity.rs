@@ -1,7 +1,11 @@
 use crate::{
+	error::Error,
 	tx::Transactions,
-	types::{self, entity::AttributeEntry},
+	types::{self, entity::AttributeEntry, ElementJson},
 };
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use serde::Deserialize;
+use std::collections::BTreeMap;
 use subxt::{dynamic::Value, tx::DynamicPayload};
 
 fn bytes_value(bytes: &[u8]) -> Value {
@@ -16,12 +20,68 @@ fn attribute_vec(entries: Vec<AttributeEntry>) -> crate::error::Result<Value> {
 	Ok(Value::unnamed_composite(collected))
 }
 
+#[derive(Deserialize)]
+struct EntityProfileJson {
+	display: Option<String>,
+	legal: Option<String>,
+	web: Option<String>,
+	email: Option<String>,
+	twitter: Option<String>,
+	#[serde(default)]
+	attributes: BTreeMap<String, String>,
+}
+
+impl EntityProfileJson {
+	fn into_value(self) -> crate::error::Result<Value> {
+		let display = element_from_string(self.display);
+		let legal = element_from_string(self.legal);
+		let web = element_from_string(self.web);
+		let email = element_from_string(self.email);
+		let twitter = element_from_string(self.twitter);
+		let attrs_value = option_attributes_value(self.attributes)?;
+		Ok(Value::named_composite([
+			("display", types::element_json_to_dynamic(&display)?),
+			("legal", types::element_json_to_dynamic(&legal)?),
+			("web", types::element_json_to_dynamic(&web)?),
+			("email", types::element_json_to_dynamic(&email)?),
+			("twitter", types::element_json_to_dynamic(&twitter)?),
+			("attributes", attrs_value),
+		]))
+	}
+}
+
+fn element_from_string(input: Option<String>) -> ElementJson {
+	input
+		.map(|val| ElementJson::RawBase64(BASE64.encode(val)))
+		.unwrap_or(ElementJson::None)
+}
+
+fn option_attributes_value(map: BTreeMap<String, String>) -> crate::error::Result<Value> {
+	if map.is_empty() {
+		return Ok(Value::variant("None", scale_value::Composite::unnamed(Vec::new())));
+	}
+	let entries = map
+		.into_iter()
+		.map(|(key, value)| AttributeEntry {
+			key_hex: types::to_key_hex_from_utf8(&key),
+			key_utf8: Some(key),
+			value: ElementJson::RawBase64(BASE64.encode(value)),
+		})
+		.collect();
+	let inner = attribute_vec(entries)?;
+	Ok(Value::variant("Some", scale_value::Composite::unnamed(vec![inner])))
+}
+
 impl<'a> Transactions<'a> {
 	pub async fn entity_set_info_json(
 		&self,
 		info_packet_json: serde_json::Value,
 	) -> crate::error::Result<DynamicPayload> {
-		self.build_json("Entity", "set_info", info_packet_json).await
+		let profile: EntityProfileJson = serde_json::from_value(info_packet_json)
+			.map_err(|e| Error::Params(format!("invalid entity profile json: {e}")))?;
+		let info_value = profile.into_value()?;
+		let args = Value::named_composite([("info", info_value)]);
+		self.build("Entity", "set_info", args).await
 	}
 
 	pub async fn entity_update_info(
@@ -74,7 +134,7 @@ impl<'a> Transactions<'a> {
 		sub_account_ss58: &str,
 	) -> crate::error::Result<DynamicPayload> {
 		let account = types::ss58_to_account32(sub_account_ss58)?;
-		let args = Value::named_composite([("sub", bytes_value(account.as_ref()))]);
+		let args = Value::named_composite([("sub", types::account_id_value(&account))]);
 		self.build("Entity", "set_sub_account", args).await
 	}
 
@@ -83,7 +143,7 @@ impl<'a> Transactions<'a> {
 		sub_account_ss58: &str,
 	) -> crate::error::Result<DynamicPayload> {
 		let account = types::ss58_to_account32(sub_account_ss58)?;
-		let args = Value::named_composite([("sub", bytes_value(account.as_ref()))]);
+		let args = Value::named_composite([("sub", types::account_id_value(&account))]);
 		self.build("Entity", "revoke_sub_account", args).await
 	}
 
@@ -92,11 +152,11 @@ impl<'a> Transactions<'a> {
 		token_ss58: &str,
 		new_controller_ss58: &str,
 	) -> crate::error::Result<DynamicPayload> {
-		let token_bytes = token_ss58.as_bytes();
+		let token = types::identifier_value(token_ss58)?;
 		let controller = types::ss58_to_account32(new_controller_ss58)?;
 		let args = Value::named_composite([
-			("token", bytes_value(token_bytes)),
-			("new", bytes_value(controller.as_ref())),
+			("token", token),
+			("new", types::account_id_value(&controller)),
 		]);
 		self.build("Entity", "rotate_controller", args).await
 	}
@@ -105,8 +165,8 @@ impl<'a> Transactions<'a> {
 		&self,
 		token_ss58: &str,
 	) -> crate::error::Result<DynamicPayload> {
-		let token_bytes = token_ss58.as_bytes();
-		let args = Value::named_composite([("token", bytes_value(token_bytes))]);
+		let token = types::identifier_value(token_ss58)?;
+		let args = Value::named_composite([("token", token)]);
 		self.build("Entity", "clear", args).await
 	}
 
@@ -122,8 +182,8 @@ impl<'a> Transactions<'a> {
 		&self,
 		token_ss58: &str,
 	) -> crate::error::Result<DynamicPayload> {
-		let token_bytes = token_ss58.as_bytes();
-		let args = Value::named_composite([("token", bytes_value(token_bytes))]);
+		let token = types::identifier_value(token_ss58)?;
+		let args = Value::named_composite([("token", token)]);
 		self.build("Entity", "remove_id_name", args).await
 	}
 }

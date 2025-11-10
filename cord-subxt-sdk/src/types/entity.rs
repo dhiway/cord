@@ -2,7 +2,8 @@ use crate::error::{Error, Result};
 use scale_value::Value;
 use serde::{Deserialize, Serialize};
 
-use super::element::{attribute_pair_value, ElementJson};
+use super::element::attribute_pair_value;
+pub use super::element::ElementJson;
 
 /// Attribute entry used when constructing entity extrinsics.
 #[derive(Clone, Debug, Serialize, Deserialize)]

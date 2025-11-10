@@ -36,3 +36,5 @@ sp-core = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 anyhow = "1.0"
+pallet-entity = { path = "../pallets/entity", default-features = true }
+frame-support = { workspace = true, features = ["std"] }
