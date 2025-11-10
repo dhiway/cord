@@ -28,46 +28,46 @@ impl<'a> EntityQuery<'a> {
 		Ok(builder.finish())
 	}
 
-	pub async fn attribute_history_json(
+	pub async fn attribute_history_entries(
 		&self,
 		auth: &auth::ViewAuthorization,
 		token_ss58: &str,
 	) -> Result<Vec<crate::types::entity::InfoAttributeHistoryEntry>> {
-		self.call_history("get_attribute_history_json", auth, token_ss58, |_| Ok(()))
+		self.call_history("attribute_history_entries", auth, token_ss58, |_| Ok(()))
 			.await
 	}
 
-	pub async fn attribute_history_for_key_json(
+	pub async fn attribute_history_for_key_entries(
 		&self,
 		auth: &auth::ViewAuthorization,
 		token_ss58: &str,
 		key_hex: &str,
 	) -> Result<Vec<crate::types::entity::InfoAttributeHistoryEntry>> {
-		self.call_history("get_attribute_history_for_key_json", auth, token_ss58, |builder| {
+		self.call_history("attribute_history_for_key_entries", auth, token_ss58, |builder| {
 			builder.push("key", super::hex_arg(key_hex)?);
 			Ok(())
 		})
 		.await
 	}
 
-	pub async fn attribute_history_for_key_utf8_json(
+	pub async fn attribute_history_for_key_entries_utf8(
 		&self,
 		auth: &auth::ViewAuthorization,
 		token_ss58: &str,
 		key_utf8: &str,
 	) -> Result<Vec<crate::types::entity::InfoAttributeHistoryEntry>> {
 		let key_hex = to_key_hex_from_utf8(key_utf8);
-		self.attribute_history_for_key_json(auth, token_ss58, &key_hex).await
+		self.attribute_history_for_key_entries(auth, token_ss58, &key_hex).await
 	}
 
-	pub async fn attribute_history_entry_json(
+	pub async fn attribute_history_entry(
 		&self,
 		auth: &auth::ViewAuthorization,
 		token_ss58: &str,
 		key_hex: &str,
 		version: u64,
 	) -> Result<crate::types::entity::InfoAttributeHistoryEntry> {
-		self.call_history_entry("get_attribute_history_entry_json", auth, token_ss58, |builder| {
+		self.call_history_entry("attribute_history_entry_view", auth, token_ss58, |builder| {
 			builder.push("key", super::hex_arg(key_hex)?);
 			builder.push("version", super::u64_value(version));
 			Ok(())

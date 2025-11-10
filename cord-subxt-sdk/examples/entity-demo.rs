@@ -1,11 +1,14 @@
 use anyhow::{anyhow, Context, Result};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use codec::Decode;
-use cord_primitives::identifier::Ss58Identifier;
+use cord_primitives::{identifier::Ss58Identifier, view::DevElement};
 use origin::{
 	params::config::CordConfig,
 	query::auth::{AuthorizationBuilder, SignatureScheme, ViewAuthorization},
-	scale::MetadataResolver,
+	scale::{
+		value::{decode_dev_attributes, decode_dev_element},
+		MetadataResolver,
+	},
 	tx::{self, TxOptions},
 	types::{self, entity::AttributeEntry, entity::ElementJson},
 };
@@ -43,7 +46,7 @@ async fn main() -> Result<()> {
 	let history = client
 		.query()
 		.entity()
-		.attribute_history_json(&history_auth, &entity_token)
+		.attribute_history_entries(&history_auth, &entity_token)
 		.await?;
 
 	println!("Entity token: {entity_token}\n");
@@ -330,17 +333,49 @@ impl EntitySnapshot {
 		if let ValueDef::Composite(Composite::Named(fields)) = &value.value {
 			for (name, field_value) in fields {
 				match name.as_str() {
-					"display" => snapshot.display = element_text(field_value),
-					"legal" => snapshot.legal = element_text(field_value),
-					"web" => snapshot.web = element_text(field_value),
-					"email" => snapshot.email = element_text(field_value),
-					"twitter" => snapshot.twitter = element_text(field_value),
+					"display" => snapshot.display = element_string(field_value),
+					"legal" => snapshot.legal = element_string(field_value),
+					"web" => snapshot.web = element_string(field_value),
+					"email" => snapshot.email = element_string(field_value),
+					"twitter" => snapshot.twitter = element_string(field_value),
 					"attributes" => snapshot.attributes = attributes_from_value(field_value),
 					_ => {},
 				}
 			}
 		}
 		snapshot
+	}
+}
+
+fn element_string(value: &Value<u32>) -> Option<String> {
+	decode_dev_element(value).ok().map(dev_element_to_string)
+}
+
+fn attributes_from_value(value: &Value<u32>) -> BTreeMap<String, String> {
+	let mut map = BTreeMap::new();
+	if let Ok(attrs) = decode_dev_attributes(value) {
+		for attr in attrs {
+			let key = attr.key_utf8.clone().unwrap_or_else(|| attr.key_hex.clone());
+			let text = dev_element_to_string(attr.value);
+			map.insert(key, text);
+		}
+	}
+	map
+}
+
+fn dev_element_to_string(element: DevElement) -> String {
+	match element {
+		DevElement::None => "(none)".into(),
+		DevElement::Bool(v) => v.to_string(),
+		DevElement::U64(v) => v.to_string(),
+		DevElement::U128(v) => v.to_string(),
+		DevElement::HashHex(hex) => hex,
+		DevElement::TokenSs58(token) => token,
+		DevElement::CidBase58(cid) => cid,
+		DevElement::RawBase64(data) => match BASE64.decode(data.as_bytes()) {
+			Ok(bytes) => String::from_utf8(bytes).unwrap_or_else(|_| format!("base64:{data}")),
+			Err(_) => format!("base64:{data}"),
+		},
 	}
 }
 
@@ -370,9 +405,14 @@ fn print_history(entries: &[types::entity::InfoAttributeHistoryEntry]) {
 	sorted.sort_by_key(|entry| (entry.block.height, entry.block.index, entry.version));
 	for entry in sorted {
 		let key = entry.key_utf8.as_deref().unwrap_or(&entry.key_hex);
+		let old_value = match BASE64.decode(entry.old_value_base64.as_bytes()) {
+			Ok(bytes) => String::from_utf8(bytes)
+				.unwrap_or_else(|_| format!("base64:{}", entry.old_value_base64)),
+			Err(_) => entry.old_value_base64.clone(),
+		};
 		println!(
 			"    {:>7}  #{:<6} {:<11} {}",
-			entry.version, entry.block.height, key, entry.old_value_base64
+			entry.version, entry.block.height, key, old_value
 		);
 	}
 	println!();
@@ -386,138 +426,4 @@ fn entity_info_type_id(resolver: &MetadataResolver<'_>) -> Result<u32> {
 				&& segments.iter().any(|s| s == "pallet_entity")
 		})
 		.ok_or_else(|| anyhow!("EntityInfo type not found in runtime metadata"))
-}
-
-fn element_text(value: &Value<u32>) -> Option<String> {
-	let variant = match &unwrap_newtype(value).value {
-		ValueDef::Variant(v) => v,
-		_ => return None,
-	};
-	let field = first_field(&variant.values);
-	match variant.name.as_str() {
-		"None" => None,
-		"Raw" => field
-			.and_then(bytes_from_value)
-			.map(|bytes| String::from_utf8(bytes.clone()).unwrap_or_else(|_| BASE64.encode(bytes))),
-		"Bool" => field
-			.and_then(|f| f.as_u128())
-			.map(|num| if num == 0 { "false" } else { "true" }.to_string()),
-		"U64" => field
-			.and_then(|f| bytes_from_value(f))
-			.and_then(|bytes| bytes.try_into().ok().map(u64::from_le_bytes).map(|n| n.to_string())),
-		"U128" => field.and_then(|f| bytes_from_value(f)).and_then(|bytes| {
-			bytes.try_into().ok().map(u128::from_le_bytes).map(|n| n.to_string())
-		}),
-		"Hash" => field
-			.and_then(bytes_from_value)
-			.map(|bytes| format!("0x{}", hex::encode(bytes))),
-		"Token" => field.and_then(bytes_from_value).map(|bytes| {
-			String::from_utf8(bytes.clone()).unwrap_or_else(|_| format!("0x{}", hex::encode(bytes)))
-		}),
-		"CID" => field.and_then(bytes_from_value).map(|bytes| bs58::encode(bytes).into_string()),
-		_ => None,
-	}
-}
-
-fn attributes_from_value(value: &Value<u32>) -> BTreeMap<String, String> {
-	let mut map = BTreeMap::new();
-	let Some(inner) = option_inner(value) else {
-		return map;
-	};
-	if let Some(entries) = sequence_items(inner) {
-		for entry in entries {
-			if let Some((key_value, element_value)) = tuple_fields(entry) {
-				if let Some(key_bytes) = bytes_from_value(key_value) {
-					let key = String::from_utf8(key_bytes.clone())
-						.unwrap_or_else(|_| format!("0x{}", hex::encode(key_bytes)));
-					if let Some(val) = element_text(element_value) {
-						map.insert(key, val);
-					}
-				}
-			}
-		}
-	}
-	map
-}
-
-fn option_inner<'a>(value: &'a Value<u32>) -> Option<&'a Value<u32>> {
-	match &value.value {
-		ValueDef::Variant(var) => match var.name.as_str() {
-			"None" => None,
-			"Some" => first_field(&var.values),
-			_ => None,
-		},
-		_ => Some(value),
-	}
-}
-
-fn first_field<'a>(composite: &'a Composite<u32>) -> Option<&'a Value<u32>> {
-	match composite {
-		Composite::Named(fields) => fields.first().map(|(_, v)| v),
-		Composite::Unnamed(items) => items.first(),
-	}
-}
-
-fn bytes_from_value(value: &Value<u32>) -> Option<Vec<u8>> {
-	let inner = unwrap_newtype(value);
-	match &inner.value {
-		ValueDef::Composite(Composite::Unnamed(items)) => {
-			if items.iter().all(|item| item.as_u128().is_some()) {
-				Some(items.iter().map(|item| item.as_u128().unwrap() as u8).collect())
-			} else {
-				None
-			}
-		},
-		ValueDef::Composite(Composite::Named(_)) => None,
-		ValueDef::Variant(var) => first_field(&var.values).and_then(bytes_from_value),
-		ValueDef::Primitive(_) => inner.as_u128().map(|n| vec![n as u8]),
-		ValueDef::BitSequence(bits) => {
-			let mut out = Vec::new();
-			let mut accum = 0u8;
-			let mut count = 0;
-			for bit in bits.iter() {
-				if bit {
-					accum |= 1 << count;
-				}
-				count += 1;
-				if count == 8 {
-					out.push(accum);
-					accum = 0;
-					count = 0;
-				}
-			}
-			if count > 0 {
-				out.push(accum);
-			}
-			Some(out)
-		},
-	}
-}
-
-fn unwrap_newtype<'a>(value: &'a Value<u32>) -> &'a Value<u32> {
-	match &value.value {
-		ValueDef::Composite(Composite::Named(fields)) if fields.len() == 1 => {
-			unwrap_newtype(&fields[0].1)
-		},
-		ValueDef::Composite(Composite::Unnamed(items)) if items.len() == 1 => {
-			unwrap_newtype(&items[0])
-		},
-		_ => value,
-	}
-}
-
-fn sequence_items<'a>(value: &'a Value<u32>) -> Option<Vec<&'a Value<u32>>> {
-	match &unwrap_newtype(value).value {
-		ValueDef::Composite(Composite::Unnamed(items)) => Some(items.iter().collect()),
-		_ => None,
-	}
-}
-
-fn tuple_fields<'a>(value: &'a Value<u32>) -> Option<(&'a Value<u32>, &'a Value<u32>)> {
-	let items = sequence_items(value)?;
-	if items.len() == 2 {
-		Some((items[0], items[1]))
-	} else {
-		None
-	}
 }

@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
 	let registry_id = create_registry(&client, &signer, registry_spec).await?;
 	println!("Minted registry token {registry_id}\n");
 
-	let info = client.query().register().info_json(&auth, &registry_id).await?;
+	let info = client.query().register().registry_info(&auth, &registry_id).await?;
 	println!("registry info:\n{}", serde_json::to_string_pretty(&info)?);
 
 	let schema = client.query().register().schema(&auth, &registry_id).await?;

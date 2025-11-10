@@ -40,14 +40,14 @@ async fn main() -> Result<()> {
 		create_packet(&client, &signer, &registry_id, packet_payload, &schema_view).await?;
 	println!("Created packet token {packet_id}");
 
-	let packet_json = client
+	let packet_view = client
 		.query()
 		.register()
-		.packet_json(&auth, &registry_id, &packet_id, None)
+		.packet_snapshot(&auth, &registry_id, &packet_id, None)
 		.await?;
-	println!("\nPacket snapshot:\n{}", serde_json::to_string_pretty(&packet_json)?);
+	println!("\nPacket snapshot:\n{}", serde_json::to_string_pretty(&packet_view)?);
 
-	let timeline = client.query().token().timeline_json(&auth, &packet_id, None, Some(10)).await?;
+	let timeline = client.query().token().timeline(&auth, &packet_id, None, Some(10)).await?;
 	println!("\nToken timeline:\n{}", serde_json::to_string_pretty(&timeline)?);
 	Ok(())
 }
