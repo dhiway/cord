@@ -17,6 +17,8 @@ unstable-light-client = []
 base64 = "0.22"
 bs58 = { version = "0.5", default-features = false, features = ["alloc"] }
 codec = { workspace = true, features = ["std"] }
+cord-primitives = { path = "../primitives/cord" }
+pallet-register = { path = "../pallets/register", default-features = true }
 futures = "0.3"
 getrandom = "0.2"
 hex = "0.4"

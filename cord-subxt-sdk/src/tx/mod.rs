@@ -1,6 +1,8 @@
 pub mod dynamic;
 pub mod entity;
 pub mod nonce;
+pub mod packet;
+pub mod register;
 pub mod signer;
 
 use crate::{client::Client, error::Result, params::config::CordConfig};
