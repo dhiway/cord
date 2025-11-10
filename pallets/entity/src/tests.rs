@@ -590,7 +590,7 @@ mod view_tests {
 			let hist = EntityPallet::<Test>::attribute_history_plain(&token);
 			let auth = view_auth(&who);
 			let entries =
-				EntityPallet::<Test>::get_attribute_history_json(auth, token).expect("dev entries");
+				EntityPallet::<Test>::attribute_history_entries(auth, token).expect("dev entries");
 			assert_eq!(entries.len(), hist.len());
 			assert_eq!(entries[0].key_utf8.as_deref(), Some("rot"));
 			assert_eq!(entries[0].version, hist[0].1);

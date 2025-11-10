@@ -885,7 +885,7 @@ pub mod pallet {
 		}
 
 		/// Returns the attribute history rendered using SCALE-native developer entries.
-		pub fn get_attribute_history_json(
+		pub fn attribute_history_entries(
 			auth: ViewAuthorizationOf<T>,
 			token: Ss58Identifier,
 		) -> Option<Vec<InfoAttributeHistoryEntry>> {
@@ -912,7 +912,7 @@ pub mod pallet {
 		}
 
 		/// Returns the attribute history for a key rendered using SCALE-native developer entries.
-		pub fn get_attribute_history_for_key_json(
+		pub fn attribute_history_for_key_entries(
 			auth: ViewAuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Vec<u8>,
@@ -941,7 +941,7 @@ pub mod pallet {
 		}
 
 		/// Returns a single history entry rendered using SCALE-native developer data.
-		pub fn get_attribute_history_entry_json(
+		pub fn attribute_history_entry_view(
 			auth: ViewAuthorizationOf<T>,
 			token: Ss58Identifier,
 			key: Vec<u8>,

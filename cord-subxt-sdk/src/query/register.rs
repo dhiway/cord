@@ -48,15 +48,7 @@ impl<'a> RegisterQuery<'a> {
 		specs.ok_or_else(|| Error::NotFound("lookup specs not found".into()))
 	}
 
-	pub async fn info_json(
-		&self,
-		auth: &auth::ViewAuthorization,
-		registry_ss58: &str,
-	) -> Result<RegistryInfoView> {
-		self.registry_info(auth, registry_ss58).await
-	}
-
-	pub async fn packet_json(
+	pub async fn packet_snapshot(
 		&self,
 		auth: &auth::ViewAuthorization,
 		registry_ss58: &str,

@@ -39,7 +39,7 @@ use cord_primitives::{
 	packet::{Attribute, Element, ElementType, PacketUpdateError},
 	Signature,
 };
-use core::{cmp, convert::TryInto, fmt::Write as FmtWrite};
+use core::{convert::TryInto, fmt::Write as FmtWrite};
 use frame_support::{
 	ensure,
 	pallet_prelude::*,
@@ -1196,31 +1196,6 @@ pub mod pallet {
 			snapshots
 		}
 
-		/// Returns packet snapshots filtered by token prefix with pagination.
-		pub fn packets_by_token_json(
-			auth: ViewAuthorizationOf<T>,
-			token_prefix: Vec<u8>,
-			version: Option<u32>,
-			offset: u32,
-			limit: u32,
-		) -> Option<Vec<DevPacketSnapshot<RegistryStatus>>> {
-			if Self::authorize_view(&auth).is_err() {
-				return None;
-			}
-			let max_limit = T::MaxPacketListResults::get();
-			let take = cmp::min(limit, max_limit) as usize;
-			let skip = offset as usize;
-			let all = <Self as RegistryView<T>>::packets_by_token(token_prefix, version);
-			let snapshots = all.into_iter().skip(skip).take(take).collect::<Vec<_>>();
-			let mut results: Vec<DevPacketSnapshot<RegistryStatus>> =
-				Vec::with_capacity(snapshots.len());
-			for snapshot in snapshots {
-				Self::record_registry_query(&snapshot.state.registry, &auth.account);
-				results.push(Self::dev_snapshot(&snapshot));
-			}
-			Some(results)
-		}
-
 		/// Returns packet snapshots for every registry entry matching the digest prefix.
 		pub fn packets_by_lookup_digest_view(
 			auth: ViewAuthorizationOf<T>,
@@ -1236,31 +1211,6 @@ pub mod pallet {
 				Self::record_registry_query(&snapshot.state.registry, &auth.account);
 			}
 			snapshots
-		}
-
-		/// Returns lookup digest results with pagination rendered as SCALE data.
-		pub fn packets_by_lookup_digest(
-			auth: ViewAuthorizationOf<T>,
-			digest_prefix: Vec<u8>,
-			version: Option<u32>,
-			offset: u32,
-			limit: u32,
-		) -> Option<Vec<DevPacketSnapshot<RegistryStatus>>> {
-			if Self::authorize_view(&auth).is_err() {
-				return None;
-			}
-			let max_limit = T::MaxPacketListResults::get();
-			let take = cmp::min(limit, max_limit) as usize;
-			let skip = offset as usize;
-			let all = <Self as RegistryView<T>>::packets_by_lookup_digest(digest_prefix, version);
-			let snapshots = all.into_iter().skip(skip).take(take).collect::<Vec<_>>();
-			let mut results: Vec<DevPacketSnapshot<RegistryStatus>> =
-				Vec::with_capacity(snapshots.len());
-			for snapshot in snapshots {
-				Self::record_registry_query(&snapshot.state.registry, &auth.account);
-				results.push(Self::dev_snapshot(&snapshot));
-			}
-			Some(results)
 		}
 	}
 

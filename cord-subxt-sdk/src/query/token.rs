@@ -34,7 +34,7 @@ impl<'a> TokenQuery<'a> {
 		self.query.call_typed("Token", "state_version", args).await
 	}
 
-	pub async fn resolve_identifier_json(
+	pub async fn resolve_identifier(
 		&self,
 		auth: &auth::ViewAuthorization,
 		token_ss58: &str,
@@ -48,7 +48,7 @@ impl<'a> TokenQuery<'a> {
 		value.ok_or_else(|| Error::NotFound("token.resolve_identifier returned none".into()))
 	}
 
-	pub async fn timeline_json(
+	pub async fn timeline(
 		&self,
 		auth: &auth::ViewAuthorization,
 		token_ss58: &str,
@@ -66,7 +66,7 @@ impl<'a> TokenQuery<'a> {
 		value.ok_or_else(|| Error::NotFound("token.timeline returned none".into()))
 	}
 
-	pub async fn resolve_pallet_json(
+	pub async fn resolve_pallet_name(
 		&self,
 		auth: &auth::ViewAuthorization,
 		index: u16,
