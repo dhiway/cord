@@ -124,11 +124,10 @@ fn timeline_view_requires_valid_authorization() {
 
 		let signer = sr25519::Pair::from_seed(&[42u8; 32]);
 		let auth = make_auth(b"view-history", &signer);
-		let bytes = Pallet::<Test>::timeline(auth.clone(), token.clone(), Some(0), Some(10))
+		let entries = Pallet::<Test>::timeline(auth.clone(), token.clone(), Some(0), Some(10))
 			.expect("authorized timeline");
-		let body = core::str::from_utf8(&bytes).expect("utf8");
-		assert!(body.contains("\"digestHex\""));
-		assert!(body.contains(&format!("0x{}", hex::encode(digest))));
+		assert_eq!(entries.len(), 1);
+		assert_eq!(entries[0].digest_hex, format!("0x{}", hex::encode(digest)));
 
 		let replay = Pallet::<Test>::timeline(auth, token.clone(), Some(0), Some(10));
 		assert!(replay.is_none(), "reused authorizations must be rejected");
@@ -151,12 +150,11 @@ fn resolve_identifier_view_requires_authorization() {
 		let token = Ss58Identifier::to_encoded(digest.clone(), 300, 9, 0).unwrap();
 		let signer = sr25519::Pair::from_seed(&[7u8; 32]);
 		let auth = make_auth(b"resolve-id", &signer);
-		let bytes = Pallet::<Test>::resolve_identifier(auth.clone(), token.clone())
+		let decoded = Pallet::<Test>::resolve_identifier(auth.clone(), token.clone())
 			.expect("authorized view should succeed");
-		let body = core::str::from_utf8(&bytes).expect("utf8");
-		assert!(body.contains("\"network\":300"));
-		assert!(body.contains("\"pallet\":9"));
-		assert!(body.contains(&format!("0x{}", hex::encode(digest.clone()))));
+		assert_eq!(decoded.network, 300);
+		assert_eq!(decoded.pallet, 9);
+		assert_eq!(decoded.genesis, format!("0x{}", hex::encode(digest.clone())));
 
 		let raw = Pallet::<Test>::resolve_identifier_plain(&token).expect("helper");
 		assert_eq!(raw.network, 300);
@@ -172,10 +170,9 @@ fn resolve_pallet_view_requires_authorization() {
 		let pallet_name = "TokenView";
 		let index = Pallet::<Test>::get_or_add_pallet_index(pallet_name).unwrap();
 		let auth = make_auth(b"resolve-pallet", &signer);
-		let bytes =
+		let name =
 			Pallet::<Test>::resolve_pallet(auth.clone(), index).expect("authorized pallet view");
-		let body = core::str::from_utf8(&bytes).expect("utf8");
-		assert!(body.contains(pallet_name));
+		assert_eq!(name, pallet_name);
 
 		let raw = Pallet::<Test>::resolve_pallet_plain(index).expect("helper");
 		assert_eq!(raw, pallet_name);

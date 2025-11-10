@@ -2647,6 +2647,7 @@ name = "cord-primitives"
 version = "0.9.9"
 dependencies = [
  "base64 0.21.7",
+ "bitflags 1.3.2",
  "blake2 0.10.6",
  "bs58",
  "frame-support",
@@ -2655,7 +2656,6 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
- "serde-json-wasm",
  "sp-core",
  "sp-io",
  "sp-keystore",
@@ -2699,14 +2699,9 @@ dependencies = [
  "base64 0.22.1",
  "bs58",
  "cord-primitives",
- "frame-support",
- "frame-system",
  "futures",
  "getrandom 0.2.16",
  "hex",
- "pallet-balances",
- "pallet-entity",
- "pallet-register",
  "parity-scale-codec",
  "scale-info",
  "scale-value",
@@ -9121,8 +9116,6 @@ dependencies = [
  "pallet-token",
  "parity-scale-codec",
  "scale-info",
- "serde",
- "serde-json-wasm",
  "sp-core",
  "sp-io",
  "sp-keystore",
@@ -9514,8 +9507,6 @@ dependencies = [
  "pallet-token",
  "parity-scale-codec",
  "scale-info",
- "serde",
- "serde-json-wasm",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -9953,7 +9944,6 @@ dependencies = [
  "hex",
  "parity-scale-codec",
  "scale-info",
- "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
@@ -15257,15 +15247,6 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
-]
-
-[[package]]
-name = "serde-json-wasm"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f05da0d153dd4595bdffd5099dc0e9ce425b205ee648eb93437ff7302af8c9a5"
-dependencies = [
- "serde",
 ]
 
 [[package]]

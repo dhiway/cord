@@ -4,7 +4,7 @@ use crate::{
 		element_json_to_dynamic, identifier_value, info_element_from_value, RegistryBlueprint,
 	},
 };
-use pallet_register::register::RegistryPermissions;
+use cord_primitives::registry::RegistryPermissions;
 use subxt::dynamic::Value;
 
 use super::Transactions;

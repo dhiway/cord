@@ -100,4 +100,9 @@ impl Client {
 	pub fn state(&self) -> crate::state::State<'_> {
 		crate::state::State { client: self }
 	}
+
+	/// Obtain a clone of the cached runtime metadata.
+	pub fn metadata(&self) -> subxt::Metadata {
+		self.api.metadata().clone()
+	}
 }

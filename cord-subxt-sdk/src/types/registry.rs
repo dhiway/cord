@@ -1,8 +1,10 @@
 use crate::error::{Error, Result};
 use crate::types::{attribute_pair_value, base64_to_bytes, element_json_to_dynamic, ElementJson};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use cord_primitives::packet::ElementType;
-use pallet_register::register::{RegistryAttributeView, RegistryInfoView};
+use cord_primitives::{
+	packet::ElementType,
+	registry::{RegistryAttributeView, RegistryInfoView},
+};
 use scale_value::{Composite, Value};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -169,6 +171,7 @@ impl PayloadMode {
 }
 
 /// Packet attribute payload ready for SCALE encoding.
+#[derive(Clone, Debug)]
 pub struct PacketPayload {
 	entries: Vec<(Vec<u8>, ElementJson)>,
 }
@@ -180,6 +183,10 @@ impl PacketPayload {
 			pairs.push(attribute_pair_value(key, element)?);
 		}
 		Ok(Value::unnamed_composite(pairs))
+	}
+
+	pub fn is_empty(&self) -> bool {
+		self.entries.is_empty()
 	}
 }
 
@@ -622,9 +629,9 @@ fn normalize_hex(raw: &str) -> Result<String> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use cord_primitives::view::ElementView;
-	use pallet_register::register::{
-		LookupSpecView, RegistryKind as RuntimeRegistryKind, RegistryStatus,
+	use cord_primitives::{
+		registry::{LookupSpecView, RegistryKind as RuntimeRegistryKind, RegistryStatus},
+		view::ElementView,
 	};
 	use serde_json::json;
 

@@ -1,6 +1,9 @@
 use super::{auth, ArgBuilder, Query};
-use crate::{error::Result, types::identifier_value};
-use serde_json::Value as JsonValue;
+use crate::{
+	error::{Error, Result},
+	types::identifier_value,
+};
+use cord_primitives::{identifier::DecodedIdentifier, view::InfoTokenHistoryEntry};
 
 /// Facade for `pallet-token` view functions.
 pub struct TokenQuery<'a> {
@@ -35,12 +38,14 @@ impl<'a> TokenQuery<'a> {
 		&self,
 		auth: &auth::ViewAuthorization,
 		token_ss58: &str,
-	) -> Result<JsonValue> {
+	) -> Result<DecodedIdentifier> {
 		let args = self.base_args(auth, |builder| {
 			builder.push("token", identifier_value(token_ss58)?);
 			Ok(())
 		})?;
-		self.query.call_json_raw("Token", "resolve_identifier", args).await
+		let value: Option<DecodedIdentifier> =
+			self.query.call_typed("Token", "resolve_identifier", args).await?;
+		value.ok_or_else(|| Error::NotFound("token.resolve_identifier returned none".into()))
 	}
 
 	pub async fn timeline_json(
@@ -49,25 +54,28 @@ impl<'a> TokenQuery<'a> {
 		token_ss58: &str,
 		start: Option<u32>,
 		limit: Option<u32>,
-	) -> Result<JsonValue> {
+	) -> Result<Vec<InfoTokenHistoryEntry>> {
 		let args = self.base_args(auth, |builder| {
 			builder.push("token", identifier_value(token_ss58)?);
 			builder.push("start", super::option_u32_value(start));
 			builder.push("limit", super::option_u32_value(limit));
 			Ok(())
 		})?;
-		self.query.call_json_raw("Token", "timeline", args).await
+		let value: Option<Vec<InfoTokenHistoryEntry>> =
+			self.query.call_typed("Token", "timeline", args).await?;
+		value.ok_or_else(|| Error::NotFound("token.timeline returned none".into()))
 	}
 
 	pub async fn resolve_pallet_json(
 		&self,
 		auth: &auth::ViewAuthorization,
 		index: u16,
-	) -> Result<JsonValue> {
+	) -> Result<String> {
 		let args = self.base_args(auth, |builder| {
 			builder.push("index", super::u16_value(index));
 			Ok(())
 		})?;
-		self.query.call_json_raw("Token", "resolve_pallet", args).await
+		let value: Option<String> = self.query.call_typed("Token", "resolve_pallet", args).await?;
+		value.ok_or_else(|| Error::NotFound("token.resolve_pallet returned none".into()))
 	}
 }

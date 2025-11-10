@@ -2,6 +2,8 @@ use crate::error::{Error, Result};
 use scale_value::Value;
 use serde::{Deserialize, Serialize};
 
+pub use cord_primitives::view::{DevEventBlockView, InfoAttributeHistoryEntry};
+
 use super::element::attribute_pair_value;
 pub use super::element::ElementJson;
 
@@ -13,26 +15,6 @@ pub struct AttributeEntry {
 	#[serde(default)]
 	pub key_utf8: Option<String>,
 	pub value: ElementJson,
-}
-
-/// Lightweight block descriptor returned by dev view functions.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DevEventBlockView {
-	pub height: u32,
-	pub index: u32,
-}
-
-/// Attribute history entry JSON representation.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InfoAttributeHistoryEntry {
-	pub key_hex: String,
-	#[serde(default)]
-	pub key_utf8: Option<String>,
-	pub version: u64,
-	pub old_value_base64: String,
-	pub block: DevEventBlockView,
 }
 
 impl AttributeEntry {

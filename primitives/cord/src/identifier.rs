@@ -263,7 +263,7 @@ impl<'de> Deserialize<'de> for Ss58Identifier {
 }
 
 /// Represents the structured components of an identifier after decoding.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Serialize, Deserialize)]
 pub struct DecodedIdentifier {
 	// Origin mode
 	pub origin: bool,

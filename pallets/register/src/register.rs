@@ -1,24 +1,17 @@
-use crate::ElementView;
 use alloc::{collections::BTreeSet, vec, vec::Vec};
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+pub use cord_primitives::registry::{
+	LookupSpecView, RegistryAttributeView, RegistryInfoView, RegistryKind, RegistryPermissions,
+	RegistryStatus,
+};
 use cord_primitives::{
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, ElementType, PacketUpdateError},
+	view::ElementView,
 };
 use frame_support::{ensure, traits::Get, BoundedVec, RuntimeDebugNoBound};
 use scale_info::TypeInfo;
-use serde::{Deserialize, Serialize};
-
-bitflags! {
-	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
-	pub struct RegistryPermissions: u16 {
-		const VIEW     = 1 << 0;
-		const ENTRY    = 1 << 1;
-		const DELEGATE = 1 << 2;
-		const ADMIN    = 1 << 3;
-	}
-}
 
 bitflags! {
 	#[derive(Encode, Decode, TypeInfo, MaxEncodedLen, DecodeWithMemTracking)]
@@ -30,101 +23,6 @@ bitflags! {
 impl AttributeFlags {
 	pub fn is_optional(self) -> bool {
 		self.contains(AttributeFlags::OPTIONAL)
-	}
-}
-
-impl Default for RegistryPermissions {
-	fn default() -> Self {
-		RegistryPermissions::ENTRY | RegistryPermissions::VIEW
-	}
-}
-
-impl RegistryPermissions {
-	pub fn from_list(list: &[RegistryPermissions]) -> Self {
-		let mut mask = list.iter().copied().fold(Self::empty(), |acc, p| acc | p);
-		if mask.intersects(
-			RegistryPermissions::ADMIN | RegistryPermissions::ENTRY | RegistryPermissions::DELEGATE,
-		) {
-			mask |= RegistryPermissions::VIEW;
-		}
-		mask
-	}
-
-	pub fn has_entry(self) -> bool {
-		self.contains(RegistryPermissions::ADMIN) || self.contains(RegistryPermissions::ENTRY)
-	}
-
-	pub fn has_delegate(self) -> bool {
-		self.contains(RegistryPermissions::ADMIN) || self.contains(RegistryPermissions::DELEGATE)
-	}
-
-	pub fn has_admin(self) -> bool {
-		self.contains(RegistryPermissions::ADMIN)
-	}
-
-	pub fn has_view(self) -> bool {
-		self.contains(RegistryPermissions::VIEW)
-			|| self.contains(RegistryPermissions::ENTRY)
-			|| self.contains(RegistryPermissions::ADMIN)
-	}
-}
-
-#[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	PartialEq,
-	Eq,
-	RuntimeDebugNoBound,
-	TypeInfo,
-	MaxEncodedLen,
-	Default,
-	Serialize,
-	Deserialize,
-)]
-#[serde(rename_all = "camelCase")]
-pub enum RegistryKind {
-	#[default]
-	Raw,
-	Token,
-	Hash,
-}
-
-#[derive(
-	Encode,
-	Decode,
-	DecodeWithMemTracking,
-	Clone,
-	Copy,
-	PartialEq,
-	Eq,
-	RuntimeDebugNoBound,
-	TypeInfo,
-	MaxEncodedLen,
-	Default,
-	Serialize,
-	Deserialize,
-)]
-#[serde(rename_all = "camelCase")]
-pub enum RegistryStatus {
-	#[default]
-	Active,
-	Revoked,
-	Deleted,
-}
-
-impl RegistryStatus {
-	pub fn is_active(self) -> bool {
-		matches!(self, RegistryStatus::Active)
-	}
-
-	pub fn is_revoked(self) -> bool {
-		matches!(self, RegistryStatus::Revoked)
-	}
-
-	pub fn is_deleted(self) -> bool {
-		matches!(self, RegistryStatus::Deleted)
 	}
 }
 
@@ -155,6 +53,12 @@ pub struct AttributeSpec {
 	pub flags: AttributeFlags,
 }
 
+impl From<&AttributeSpec> for RegistryAttributeView {
+	fn from(spec: &AttributeSpec) -> Self {
+		Self { key: spec.key.to_vec(), kind: spec.kind, optional: spec.flags.is_optional() }
+	}
+}
+
 /// Lookup specification describing how attribute keys are reused without duplicating values.
 #[derive(Encode, Decode, DecodeWithMemTracking, RuntimeDebugNoBound, TypeInfo, MaxEncodedLen)]
 #[scale_info(skip_type_params(MaxAdditionalAttributes))]
@@ -163,6 +67,19 @@ pub enum LookupSpec<MaxAdditionalAttributes: Get<u32>> {
 	Single(Attribute),
 	/// Bounded list of attribute keys representing a composite index.
 	Combo(BoundedVec<Attribute, MaxAdditionalAttributes>),
+}
+
+impl<MaxAdditionalAttributes: Get<u32>> From<&LookupSpec<MaxAdditionalAttributes>>
+	for LookupSpecView
+{
+	fn from(spec: &LookupSpec<MaxAdditionalAttributes>) -> Self {
+		match spec {
+			LookupSpec::Single(attr) => LookupSpecView::Single(attr.to_vec()),
+			LookupSpec::Combo(list) => {
+				LookupSpecView::Combo(list.iter().map(|attr| attr.to_vec()).collect())
+			},
+		}
+	}
 }
 
 impl<MaxAdditionalAttributes: Get<u32>> Clone for LookupSpec<MaxAdditionalAttributes> {
@@ -244,74 +161,6 @@ pub struct RegistryInfo<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get
 	pub kind: RegistryKind,
 	/// Registry status.
 	pub status: RegistryStatus,
-}
-
-#[derive(
-	Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebugNoBound, Serialize, Deserialize,
-)]
-#[serde(rename_all = "camelCase")]
-pub struct RegistryAttributeView {
-	pub key: Vec<u8>,
-	pub kind: ElementType,
-	pub optional: bool,
-}
-
-impl From<&AttributeSpec> for RegistryAttributeView {
-	fn from(spec: &AttributeSpec) -> Self {
-		Self { key: spec.key.to_vec(), kind: spec.kind, optional: spec.flags.is_optional() }
-	}
-}
-
-#[derive(
-	Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebugNoBound, Serialize, Deserialize,
-)]
-#[serde(rename_all = "camelCase")]
-pub enum LookupSpecView {
-	Single(Vec<u8>),
-	Combo(Vec<Vec<u8>>),
-}
-
-impl<MaxAdditionalAttributes: Get<u32>> From<&LookupSpec<MaxAdditionalAttributes>>
-	for LookupSpecView
-{
-	fn from(spec: &LookupSpec<MaxAdditionalAttributes>) -> Self {
-		match spec {
-			LookupSpec::Single(attr) => LookupSpecView::Single(attr.to_vec()),
-			LookupSpec::Combo(list) => {
-				LookupSpecView::Combo(list.iter().map(|attr| attr.to_vec()).collect())
-			},
-		}
-	}
-}
-
-#[derive(
-	Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebugNoBound, Serialize, Deserialize,
-)]
-#[serde(rename_all = "camelCase")]
-pub struct RegistryInfoView {
-	pub info: ElementView,
-	pub maintainer: Vec<u8>,
-	pub attributes: Vec<RegistryAttributeView>,
-	pub token_spec: LookupSpecView,
-	pub lookup_specs: Vec<LookupSpecView>,
-	pub kind: RegistryKind,
-	pub status: RegistryStatus,
-}
-
-impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
-	From<&RegistryInfo<MaxRawDataLength, MaxAdditionalAttributes>> for RegistryInfoView
-{
-	fn from(info: &RegistryInfo<MaxRawDataLength, MaxAdditionalAttributes>) -> Self {
-		Self {
-			info: ElementView::from(&info.info),
-			maintainer: info.maintainer().as_ref().to_vec(),
-			attributes: info.attributes.iter().map(RegistryAttributeView::from).collect(),
-			token_spec: LookupSpecView::from(&info.token_spec),
-			lookup_specs: info.lookup_specs.iter().map(LookupSpecView::from).collect(),
-			kind: info.kind.clone(),
-			status: info.status,
-		}
-	}
 }
 
 impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
@@ -490,5 +339,21 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
 			}
 		}
 		Ok(())
+	}
+}
+
+impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>>
+	From<&RegistryInfo<MaxRawDataLength, MaxAdditionalAttributes>> for RegistryInfoView
+{
+	fn from(info: &RegistryInfo<MaxRawDataLength, MaxAdditionalAttributes>) -> Self {
+		Self {
+			info: ElementView::from(&info.info),
+			maintainer: info.maintainer().as_ref().to_vec(),
+			attributes: info.attributes.iter().map(RegistryAttributeView::from).collect(),
+			token_spec: LookupSpecView::from(&info.token_spec),
+			lookup_specs: info.lookup_specs.iter().map(LookupSpecView::from).collect(),
+			kind: info.kind.clone(),
+			status: info.status,
+		}
 	}
 }

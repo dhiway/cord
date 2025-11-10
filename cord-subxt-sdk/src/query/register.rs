@@ -4,8 +4,10 @@ use crate::{
 	types::{identifier_value, RegistrySchema},
 };
 use codec::Decode;
-use pallet_register::register::{LookupSpecView, RegistryInfoView};
-use serde_json::Value as JsonValue;
+use cord_primitives::{
+	registry::{LookupSpecView, RegistryInfoView, RegistryStatus},
+	view::DevPacketSnapshot,
+};
 
 /// Entry point for register-specific view helpers.
 pub struct RegisterQuery<'a> {
@@ -50,8 +52,8 @@ impl<'a> RegisterQuery<'a> {
 		&self,
 		auth: &auth::ViewAuthorization,
 		registry_ss58: &str,
-	) -> Result<JsonValue> {
-		self.call_json("info", auth, registry_ss58).await
+	) -> Result<RegistryInfoView> {
+		self.registry_info(auth, registry_ss58).await
 	}
 
 	pub async fn packet_json(
@@ -60,7 +62,7 @@ impl<'a> RegisterQuery<'a> {
 		registry_ss58: &str,
 		packet_ss58: &str,
 		version: Option<u32>,
-	) -> Result<JsonValue> {
+	) -> Result<DevPacketSnapshot<RegistryStatus>> {
 		let args = self.build_args(auth, |builder| {
 			builder
 				.push("rtoken", identifier_value(registry_ss58)?)
@@ -68,7 +70,9 @@ impl<'a> RegisterQuery<'a> {
 				.push("version", super::option_u32_value(version));
 			Ok(())
 		})?;
-		self.client().call_json_raw("Register", "packet", args).await
+		let result: Option<DevPacketSnapshot<RegistryStatus>> =
+			self.client().call_typed("Register", "packet", args).await?;
+		result.ok_or_else(|| Error::NotFound("register.packet returned none".into()))
 	}
 
 	async fn call_registry<T: Decode + 'static>(
@@ -82,19 +86,6 @@ impl<'a> RegisterQuery<'a> {
 			Ok(())
 		})?;
 		self.client().call_typed("Register", function, args).await
-	}
-
-	async fn call_json(
-		&self,
-		function: &str,
-		auth: &auth::ViewAuthorization,
-		registry_ss58: &str,
-	) -> Result<JsonValue> {
-		let args = self.build_args(auth, |builder| {
-			builder.push("registry", identifier_value(registry_ss58)?);
-			Ok(())
-		})?;
-		self.client().call_json_raw("Register", function, args).await
 	}
 
 	fn build_args<F>(&self, auth: &auth::ViewAuthorization, f: F) -> Result<scale_value::Value>

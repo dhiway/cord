@@ -25,7 +25,6 @@ frame-support = { workspace = true }
 frame-system = { workspace = true }
 sp-core = { workspace = true }
 sp-runtime = { workspace = true }
-serde = { workspace = true, features = ["alloc", "derive"] }
 
 [dev-dependencies]
 sp-io = { default-features = true, workspace = true }
@@ -41,7 +40,6 @@ std = [
 	"frame-system/std",
 	"sp-core/std",
 	"sp-runtime/std",
-	"serde/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",

@@ -25,9 +25,10 @@ extern crate alloc;
 
 use alloc::{string::String, vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+
 use cord_primitives::{
 	identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier},
-	view::{base64_string, hex_string, json_envelope, maybe_utf8},
+	view::{base64_string, hex_string, maybe_utf8, DevEventBlockView, InfoTokenHistoryEntry},
 	view_auth::{
 		view_signature_hash as primitives_view_signature_hash,
 		ViewAuthorization as CoreViewAuthorization,
@@ -43,7 +44,6 @@ use frame_support::{
 	BoundedVec,
 };
 use scale_info::TypeInfo;
-use serde::Serialize;
 use sp_core as _;
 use sp_runtime::{
 	traits::{BlockNumberProvider, UniqueSaturatedInto, Verify},
@@ -116,23 +116,6 @@ pub struct StateEvent<Hash> {
 }
 
 pub type StateEventOf<T> = StateEvent<HashOf<T>>;
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InfoTokenEventBlock {
-	pub height: u32,
-	pub index: u32,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InfoTokenHistoryEntry {
-	pub action_utf8: Option<String>,
-	pub action_hex: String,
-	pub action_base64: String,
-	pub digest_hex: String,
-	pub block: InfoTokenEventBlock,
-}
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -364,7 +347,7 @@ pub mod pallet {
 			token: Ss58Identifier,
 			start: Option<u32>,
 			limit: Option<u32>,
-		) -> Option<Vec<u8>> {
+		) -> Option<Vec<InfoTokenHistoryEntry>> {
 			if Self::authorize_view(&auth).is_err() {
 				return None;
 			}
@@ -373,28 +356,24 @@ pub mod pallet {
 			let eff = limit.unwrap_or(def).min(cap);
 
 			let events = Self::timeline_entries(&token, start, eff);
-			let rendered: Vec<InfoTokenHistoryEntry> =
-				events.into_iter().map(Self::info_token_history_entry).collect();
-			json_envelope("origin.token.history.v1", rendered)
+			Some(events.into_iter().map(Self::info_token_history_entry).collect())
 		}
 
 		pub fn resolve_identifier(
 			auth: ViewAuthorization<T>,
 			token: Ss58Identifier,
-		) -> Option<Vec<u8>> {
+		) -> Option<DecodedIdentifier> {
 			if Self::authorize_view(&auth).is_err() {
 				return None;
 			}
-			let decoded = Self::resolve_identifier_plain(&token)?;
-			json_envelope("origin.token.identifier.v1", decoded)
+			Self::resolve_identifier_plain(&token)
 		}
 
-		pub fn resolve_pallet(auth: ViewAuthorization<T>, index: u16) -> Option<Vec<u8>> {
+		pub fn resolve_pallet(auth: ViewAuthorization<T>, index: u16) -> Option<String> {
 			if Self::authorize_view(&auth).is_err() {
 				return None;
 			}
-			let name = Self::resolve_pallet_plain(index)?;
-			json_envelope("origin.token.pallet.v1", name)
+			Self::resolve_pallet_plain(index)
 		}
 	}
 }
@@ -494,8 +473,8 @@ where
 		Ok(())
 	}
 
-	fn info_token_event_block(block: &EventBlock) -> InfoTokenEventBlock {
-		InfoTokenEventBlock { height: block.height, index: block.index }
+	fn info_token_event_block(block: &EventBlock) -> DevEventBlockView {
+		DevEventBlockView { height: block.height, index: block.index }
 	}
 
 	fn info_token_history_entry(entry: StateEventOf<T>) -> InfoTokenHistoryEntry {

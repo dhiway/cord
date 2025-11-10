@@ -18,7 +18,6 @@ base64 = "0.22"
 bs58 = { version = "0.5", default-features = false, features = ["alloc"] }
 codec = { workspace = true, features = ["std"] }
 cord-primitives = { path = "../primitives/cord" }
-pallet-register = { path = "../pallets/register", default-features = true }
 futures = "0.3"
 getrandom = "0.2"
 hex = "0.4"
@@ -30,11 +29,7 @@ subxt = { version = "0.44", default-features = true, features = ["jsonrpsee", "n
 subxt-signer = { version = "0.44", default-features = false, features = ["sr25519", "std", "subxt"] }
 thiserror = "1"
 tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }
-pallet-balances = { workspace = true, features = ["std"] }
-frame-system = { workspace = true, features = ["std"] }
 sp-core = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 anyhow = "1.0"
-pallet-entity = { path = "../pallets/entity", default-features = true }
-frame-support = { workspace = true, features = ["std"] }
