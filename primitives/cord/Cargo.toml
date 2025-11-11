@@ -24,6 +24,7 @@ hex = { workspace = true }
 serde = { workspace = true, features = ["alloc", "derive"] }
 base64 = { workspace = true }
 sp-io = { workspace = true }
+scale-decode = { version = "0.16", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 pallet-balances = { workspace = true, default-features = true }

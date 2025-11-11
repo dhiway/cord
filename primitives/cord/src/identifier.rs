@@ -25,8 +25,9 @@ extern crate alloc;
 use alloc::{format, string::String, vec::Vec};
 use blake2::{Blake2b512, Digest};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
-use core::convert::TryFrom;
+use core::{convert::TryFrom, marker::PhantomData};
 use frame_support::{ensure, traits::ConstU32, BoundedVec};
+use scale_decode::{visitor, DecodeAsType, IntoVisitor, TypeResolver};
 use scale_info::TypeInfo;
 use serde::{ser::Error as SerdeError, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -262,8 +263,45 @@ impl<'de> Deserialize<'de> for Ss58Identifier {
 	}
 }
 
+pub struct Ss58IdentifierVisitor<R>(PhantomData<R>);
+
+impl<R: TypeResolver> visitor::Visitor for Ss58IdentifierVisitor<R> {
+	type Value<'scale, 'resolver> = Ss58Identifier;
+	type Error = scale_decode::Error;
+	type TypeResolver = R;
+
+	fn unchecked_decode_as_type<'scale, 'resolver>(
+		self,
+		input: &mut &'scale [u8],
+		type_id: <Self::TypeResolver as TypeResolver>::TypeId,
+		types: &'resolver Self::TypeResolver,
+	) -> visitor::DecodeAsTypeResult<Self, Result<Self::Value<'scale, 'resolver>, Self::Error>> {
+		let result = visitor::decode_with_visitor(input, type_id, types, Vec::<u8>::into_visitor())
+			.and_then(|bytes| {
+				BoundedVec::<u8, ConstU32<64>>::try_from(bytes)
+					.map(Ss58Identifier)
+					.map_err(|_| {
+						scale_decode::Error::from(codec::Error::from(
+							"ss58 identifier exceeds 64 bytes",
+						))
+					})
+			});
+		visitor::DecodeAsTypeResult::Decoded(result)
+	}
+}
+
+impl IntoVisitor for Ss58Identifier {
+	type AnyVisitor<R: TypeResolver> = Ss58IdentifierVisitor<R>;
+
+	fn into_visitor<R: TypeResolver>() -> Self::AnyVisitor<R> {
+		Ss58IdentifierVisitor(PhantomData)
+	}
+}
+
 /// Represents the structured components of an identifier after decoding.
-#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Serialize, Deserialize)]
+#[derive(
+	Debug, Clone, PartialEq, Eq, Encode, Decode, TypeInfo, Serialize, Deserialize, DecodeAsType,
+)]
 pub struct DecodedIdentifier {
 	// Origin mode
 	pub origin: bool,

@@ -5,16 +5,6 @@ use crate::{
 use scale_value::{Composite, Value, ValueDef};
 use subxt::dynamic::{self, DecodedValueThunk};
 
-pub fn encode_args_from_json(
-	_pallet: &str,
-	_function: &str,
-	args: &serde_json::Value,
-	_meta: &subxt::Metadata,
-) -> Result<Value> {
-	scale_value::serde::to_value(args.clone())
-		.map_err(|e| Error::Params(format!("json→value conversion failed: {e}")))
-}
-
 pub async fn call_view(
 	client: &Client,
 	pallet: &str,

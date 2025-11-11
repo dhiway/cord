@@ -7,10 +7,14 @@ use crate::{
 use futures::StreamExt;
 use sp_core::hashing::blake2_256;
 use std::sync::Arc;
-use subxt::backend::rpc::RpcClient;
-use subxt::config::PolkadotConfig;
-use subxt::ext::subxt_core::client::RuntimeVersion as CoreRuntimeVersion;
-use subxt::ext::subxt_rpcs::methods::legacy::{LegacyRpcMethods, SystemHealth};
+use subxt::{
+	backend::rpc::RpcClient,
+	config::PolkadotConfig,
+	ext::{
+		subxt_core::client::RuntimeVersion as CoreRuntimeVersion,
+		subxt_rpcs::methods::legacy::{LegacyRpcMethods, SystemHealth},
+	},
+};
 
 /// High-level handle to a connected Origin-derived chain.
 pub struct Client {

@@ -23,6 +23,7 @@ use frame_support::{
 	traits::{ConstU32, Get},
 	BoundedVec, CloneNoBound, EqNoBound, PartialEqNoBound, RuntimeDebugNoBound,
 };
+use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
@@ -214,6 +215,7 @@ impl<MaxRawDataLength: Get<u32>, MaxAdditionalAttributes: Get<u32>> core::ops::D
 	TypeInfo,
 	MaxEncodedLen,
 	RuntimeDebug,
+	DecodeAsType,
 )]
 pub struct PacketPointer {
 	pub rtoken: Ss58Identifier,
@@ -235,6 +237,7 @@ pub struct PacketPointer {
 	Default,
 	Serialize,
 	Deserialize,
+	DecodeAsType,
 )]
 pub enum PacketStatus {
 	#[default]

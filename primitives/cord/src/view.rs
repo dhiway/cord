@@ -18,12 +18,24 @@ use bs58;
 use codec::{Decode, Encode};
 use frame_support::traits::Get;
 use hex;
+use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
 
 /// Human-friendly representation of [`Element`].
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(tag = "type", content = "value", rename_all = "camelCase")]
 pub enum ElementView {
 	None,
@@ -51,7 +63,18 @@ impl<MaxRawDataLength: Get<u32>> From<&Element<MaxRawDataLength>> for ElementVie
 	}
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct AttributeValueView {
 	pub key: Vec<u8>,
@@ -67,7 +90,18 @@ impl AttributeValueView {
 	}
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct PacketStateView {
 	pub registry: Ss58Identifier,
@@ -106,7 +140,18 @@ impl PacketStateView {
 	}
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct PacketMetadataView {
 	pub registry: Ss58Identifier,
@@ -130,7 +175,18 @@ impl<Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode> From<&PacketMetad
 	}
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct DevAttr {
 	pub key_utf8: Option<String>,
@@ -138,7 +194,18 @@ pub struct DevAttr {
 	pub value: DevElement,
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(tag = "type", content = "value", rename_all = "camelCase")]
 pub enum DevElement {
 	None,
@@ -151,7 +218,18 @@ pub enum DevElement {
 	RawBase64(String),
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct DevPacketState {
 	pub registry_ss58: String,
@@ -162,24 +240,57 @@ pub struct DevPacketState {
 	pub attributes: Vec<DevAttr>,
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct DevPacketSnapshot<S>
 where
-	S: Serialize + Clone + PartialEq + Eq,
+	S: Serialize + Clone + PartialEq + Eq + Encode + Decode + TypeInfo + DecodeAsType,
 {
 	pub state: DevPacketState,
 	pub registry_status: S,
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct DevEventBlockView {
 	pub height: u32,
 	pub index: u32,
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct InfoAttributeHistoryEntry {
 	pub key_hex: String,
@@ -189,7 +300,18 @@ pub struct InfoAttributeHistoryEntry {
 	pub block: DevEventBlockView,
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct InfoTokenHistoryEntry {
 	pub action_utf8: Option<String>,
@@ -265,7 +387,7 @@ pub fn dev_packet_snapshot_from<S>(
 	registry_status: S,
 ) -> DevPacketSnapshot<S>
 where
-	S: Serialize + Clone + PartialEq + Eq,
+	S: Serialize + Clone + PartialEq + Eq + Encode + Decode + TypeInfo + DecodeAsType,
 {
 	DevPacketSnapshot { state: dev_packet_state_from(state), registry_status }
 }
@@ -279,7 +401,6 @@ mod tests {
 	};
 	use alloc::vec;
 	use frame_support::{traits::ConstU32, BoundedVec};
-	use serde::Deserialize;
 
 	#[test]
 	fn element_view_normalizes_variants() {

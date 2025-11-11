@@ -1,13 +1,14 @@
-use super::{auth, Query};
+use super::{ArgBuilder, Query};
 use crate::{
 	error::{Error, Result},
-	types::{identifier_value, RegistrySchema},
+	types::RegistrySchema,
 };
-use codec::Decode;
 use cord_primitives::{
 	registry::{LookupSpecView, RegistryInfoView, RegistryStatus},
 	view::DevPacketSnapshot,
+	view_api::{RegisterInfoRequest, RegisterLookupSpecsRequest, RegisterPacketRequest},
 };
+use scale_value::Value;
 
 /// Entry point for register-specific view helpers.
 pub struct RegisterQuery<'a> {
@@ -15,78 +16,61 @@ pub struct RegisterQuery<'a> {
 }
 
 impl<'a> RegisterQuery<'a> {
-	fn client(&self) -> &'a Query<'a> {
-		self.query
-	}
-
-	pub async fn registry_info(
-		&self,
-		auth: &auth::ViewAuthorization,
-		registry_ss58: &str,
-	) -> Result<RegistryInfoView> {
-		let value: Option<RegistryInfoView> =
-			self.call_registry("registry_info", auth, registry_ss58).await?;
+	pub async fn registry_info(&self, req: &RegisterInfoRequest) -> Result<RegistryInfoView> {
+		let args = self.base_args(&req.auth, &req.registry)?;
+		let value = self
+			.query
+			.call_optional::<RegistryInfoView>("Register", "registry_info", args)
+			.await?;
 		value.ok_or_else(|| Error::NotFound("registry not found".into()))
 	}
 
-	pub async fn schema(
-		&self,
-		auth: &auth::ViewAuthorization,
-		registry_ss58: &str,
-	) -> Result<RegistrySchema> {
-		let view = self.registry_info(auth, registry_ss58).await?;
+	pub async fn schema(&self, req: &RegisterInfoRequest) -> Result<RegistrySchema> {
+		let view = self.registry_info(req).await?;
 		Ok(RegistrySchema::from_view(&view))
 	}
 
 	pub async fn lookup_specs(
 		&self,
-		auth: &auth::ViewAuthorization,
-		registry_ss58: &str,
+		req: &RegisterLookupSpecsRequest,
 	) -> Result<Vec<LookupSpecView>> {
-		let specs: Option<Vec<LookupSpecView>> =
-			self.call_registry("lookup_specs_view", auth, registry_ss58).await?;
-		specs.ok_or_else(|| Error::NotFound("lookup specs not found".into()))
+		let args = self.base_args(&req.auth, &req.registry)?;
+		let value = self
+			.query
+			.call_optional::<Vec<LookupSpecView>>("Register", "lookup_specs_view", args)
+			.await?;
+		value.ok_or_else(|| Error::NotFound("lookup specs not found".into()))
 	}
 
 	pub async fn packet_snapshot(
 		&self,
-		auth: &auth::ViewAuthorization,
-		registry_ss58: &str,
-		packet_ss58: &str,
-		version: Option<u32>,
+		req: &RegisterPacketRequest,
 	) -> Result<DevPacketSnapshot<RegistryStatus>> {
-		let args = self.build_args(auth, |builder| {
-			builder
-				.push("rtoken", identifier_value(registry_ss58)?)
-				.push("ptoken", identifier_value(packet_ss58)?)
-				.push("version", super::option_u32_value(version));
-			Ok(())
-		})?;
-		let result: Option<DevPacketSnapshot<RegistryStatus>> =
-			self.client().call_typed("Register", "packet", args).await?;
-		result.ok_or_else(|| Error::NotFound("register.packet returned none".into()))
+		let args = self.packet_args(req)?;
+		let value = self
+			.query
+			.call_optional::<DevPacketSnapshot<RegistryStatus>>("Register", "packet", args)
+			.await?;
+		value.ok_or_else(|| Error::NotFound("register.packet returned none".into()))
 	}
 
-	async fn call_registry<T: Decode + 'static>(
+	fn base_args(
 		&self,
-		function: &str,
-		auth: &auth::ViewAuthorization,
-		registry_ss58: &str,
-	) -> Result<T> {
-		let args = self.build_args(auth, |builder| {
-			builder.push("registry", identifier_value(registry_ss58)?);
-			Ok(())
-		})?;
-		self.client().call_typed("Register", function, args).await
+		auth: &cord_primitives::view_api::ViewRequestAuth,
+		registry: &cord_primitives::identifier::Ss58Identifier,
+	) -> Result<Value> {
+		let mut builder = ArgBuilder::default();
+		builder.push("auth", super::view_auth_value(auth)?);
+		builder.push("registry", super::identifier_struct_value(registry));
+		Ok(builder.finish())
 	}
 
-	fn build_args<F>(&self, auth: &auth::ViewAuthorization, f: F) -> Result<scale_value::Value>
-	where
-		F: FnOnce(&mut super::ArgBuilder) -> Result<()>,
-	{
-		let mut builder = super::ArgBuilder::default();
-		builder.push("auth", super::view_auth_value(auth)?);
-		f(&mut builder)?;
+	fn packet_args(&self, req: &RegisterPacketRequest) -> Result<Value> {
+		let mut builder = ArgBuilder::default();
+		builder.push("auth", super::view_auth_value(&req.auth)?);
+		builder.push("rtoken", super::identifier_struct_value(&req.registry));
+		builder.push("ptoken", super::identifier_struct_value(&req.packet));
+		builder.push("version", super::option_u32_value(req.version));
 		Ok(builder.finish())
 	}
 }

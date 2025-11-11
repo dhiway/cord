@@ -25,11 +25,13 @@ scale-info = { workspace = true, features = ["std"] }
 scale-value = { version = "0.18", features = ["serde", "__std"] }
 serde = { workspace = true, features = ["derive", "std"] }
 serde_json = { workspace = true, features = ["std"] }
+sp-core = { workspace = true, features = ["std"] }
+sp-runtime = { workspace = true, features = ["std"] }
+scale-decode = { version = "0.16", default-features = false, features = ["derive"] }
 subxt = { version = "0.44", default-features = true, features = ["jsonrpsee", "native"] }
 subxt-signer = { version = "0.44", default-features = false, features = ["sr25519", "std", "subxt"] }
 thiserror = "1"
 tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }
-sp-core = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 anyhow = "1.0"

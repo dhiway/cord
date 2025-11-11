@@ -8,8 +8,10 @@ use crate::{
 use scale_value::{Composite, Value, ValueDef};
 #[allow(unused_imports)]
 use subxt::tx::Signer as _;
-use subxt::tx::{self, DynamicPayload};
-use subxt::utils::Era;
+use subxt::{
+	tx::{self, DynamicPayload},
+	utils::Era,
+};
 
 fn expect_composite(value: Value) -> Result<Composite<()>> {
 	match value.value {

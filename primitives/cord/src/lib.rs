@@ -41,6 +41,7 @@ pub use crate::view::{
 pub mod view_auth;
 pub use crate::view_auth::{view_signature_hash, ViewAuthorization};
 pub mod identifier;
+pub mod view_api;
 pub use crate::identifier::Ss58Identifier;
 use alloc::vec::Vec;
 use sp_runtime::{

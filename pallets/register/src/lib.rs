@@ -82,11 +82,6 @@ pub type ViewAuthorizationOf<T> = ViewAuthorization<T>;
 pub type RegistryInfoOf<T> =
 	RegistryInfo<<T as Config>::MaxRawDataLength, <T as Config>::MaxAdditionalAttributes>;
 
-use cord_primitives::view::{dev_packet_snapshot_from, DevPacketSnapshot};
-use cord_primitives::view_auth::{
-	view_signature_hash as primitives_view_signature_hash,
-	ViewAuthorization as CoreViewAuthorization,
-};
 pub use cord_primitives::{
 	packet::{PacketMetadata, PacketPointer, PacketState, PacketStatus},
 	registry::{
@@ -94,6 +89,13 @@ pub use cord_primitives::{
 		RegistryStatus,
 	},
 	view::{AttributeValueView, ElementView, PacketMetadataView, PacketStateView},
+};
+use cord_primitives::{
+	view::{dev_packet_snapshot_from, DevPacketSnapshot},
+	view_auth::{
+		view_signature_hash as primitives_view_signature_hash,
+		ViewAuthorization as CoreViewAuthorization,
+	},
 };
 pub use packet::{
 	attributes_digest, AttributePairsOf, LookupDigestOf, PacketAttributesOf, PacketDataOf,

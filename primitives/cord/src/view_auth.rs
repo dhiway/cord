@@ -1,13 +1,17 @@
 // Common view-authorization structures shared by pallets.
 
 use alloc::vec::Vec;
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
 use core::fmt;
 use scale_info::TypeInfo;
 use sp_io::hashing::blake2_128;
 
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+
 /// Shared authorization details for read-only view calls.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ViewAuthorization<AccountId, Payload, Signature> {
 	pub account: AccountId,
 	pub payload: Payload,
@@ -39,4 +43,18 @@ where
 	encoded.extend_from_slice(payload);
 	encoded.extend(signature.encode());
 	blake2_128(&encoded)
+}
+
+impl<AccountId, Payload, Signature> MaxEncodedLen
+	for ViewAuthorization<AccountId, Payload, Signature>
+where
+	AccountId: MaxEncodedLen,
+	Payload: MaxEncodedLen,
+	Signature: MaxEncodedLen,
+{
+	fn max_encoded_len() -> usize {
+		AccountId::max_encoded_len()
+			.saturating_add(Payload::max_encoded_len())
+			.saturating_add(Signature::max_encoded_len())
+	}
 }

@@ -1,5 +1,9 @@
-use crate::error::Result;
+use crate::error::{Error, Result};
+use cord_primitives::view_api::{ViewAuthPayload, ViewRequestAuth, VIEW_AUTH_MAX_BYTES};
 use serde::{Deserialize, Serialize};
+use sp_core::{ecdsa, ed25519, sr25519};
+use sp_runtime::AccountId32;
+use std::convert::{TryFrom, TryInto};
 use subxt::config::PolkadotConfig as C;
 #[allow(unused_imports)]
 use subxt::tx::Signer as _;
@@ -54,5 +58,39 @@ impl AuthorizationBuilder {
 			message: msg,
 			signature: sig_bytes,
 		})
+	}
+}
+
+impl ViewAuthorization {
+	pub fn as_request(&self) -> Result<ViewRequestAuth> {
+		let payload = ViewAuthPayload::try_from(self.message.clone()).map_err(|_| {
+			Error::Params(format!("view payload exceeds {} bytes", VIEW_AUTH_MAX_BYTES))
+		})?;
+		let account = AccountId32::new(*self.account_id.as_ref());
+		let signature =
+			match self.scheme {
+				SignatureScheme::Sr25519 => {
+					let raw: [u8; 64] =
+						self.signature.as_slice().try_into().map_err(|_| {
+							Error::Params("sr25519 signature must be 64 bytes".into())
+						})?;
+					cord_primitives::Signature::from(sr25519::Signature::from_raw(raw))
+				},
+				SignatureScheme::Ed25519 => {
+					let raw: [u8; 64] =
+						self.signature.as_slice().try_into().map_err(|_| {
+							Error::Params("ed25519 signature must be 64 bytes".into())
+						})?;
+					cord_primitives::Signature::from(ed25519::Signature::from_raw(raw))
+				},
+				SignatureScheme::Ecdsa => {
+					let raw: [u8; 65] =
+						self.signature.as_slice().try_into().map_err(|_| {
+							Error::Params("ecdsa signature must be 65 bytes".into())
+						})?;
+					cord_primitives::Signature::from(ecdsa::Signature::from_raw(raw))
+				},
+			};
+		Ok(ViewRequestAuth { account, payload, signature })
 	}
 }
