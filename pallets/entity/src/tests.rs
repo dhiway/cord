@@ -536,7 +536,7 @@ mod entity_nym_tests {
 			// duplicate fails
 			assert_noop!(
 				Entity::set_entity_nym(RuntimeOrigin::signed(who.clone()), b"alice".to_vec()),
-				Error::<Test>::EntityNymTaken
+				Error::<Test>::EntityNymAlreadySet
 			);
 
 			// remove
