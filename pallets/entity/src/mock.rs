@@ -61,7 +61,7 @@ parameter_types! {
 	pub const MaxRawDataLength: u32 = 4096;
 	pub const MaxAdditionalAttributes: u32 = 32;
 	pub const MaxLinkedAccounts: u32 = 2;
-	pub const MaxUsernameLength: u32 = 20;
+	pub const MaxEntityNymLength: u32 = 20;
 	pub const MaxTokenViewAuthorizationLen: u32 = 128;
 	pub const MaxTokenTimelineViewResults: u32 = 32;
 	pub const DefaultTokenTimelineViewResults: u32 = 16;
@@ -80,7 +80,7 @@ impl pallet_entity::Config for Test {
 	type EntityInfoPacket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
-	type MaxUsernameLength = MaxUsernameLength;
+	type MaxEntityNymLength = MaxEntityNymLength;
 	type MaxViewAuthorizationLen = MaxEntityViewAuthorizationLen;
 	type Feeless = ();
 	type ForceOrigin = EnsureRoot<Self::AccountId>;

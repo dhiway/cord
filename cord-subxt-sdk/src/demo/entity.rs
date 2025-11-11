@@ -82,7 +82,11 @@ impl EntitySnapshot {
 }
 
 pub fn print_history_cli(entries: &[(InfoAttributeHistoryEntry, Option<String>)]) {
-	println!("\n🕛 Entity Token Timeline:");
+	println!("\n📜 Attribute Timeline:");
+	if entries.is_empty() {
+		println!("    • (no recorded attribute changes)");
+		return;
+	}
 	println!(
 		"    Version  Action      Key                Value                        Block   Time"
 	);

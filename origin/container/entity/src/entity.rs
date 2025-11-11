@@ -33,7 +33,7 @@ use scale_info::{build::Variants, Path, Type, TypeInfo};
 parameter_types! {
 	pub const MaxLinkedAccounts: u32 = 32;
 	pub const MaxRawDataLength: u32 = 4096;
-	pub const MaxUsernameLength: u32 = 32;
+	pub const MaxEntityNymLength: u32 = 32;
 	pub const MaxAdditionalAttributes: u32 = 32;
 	pub const GeneralAdminBodyId: BodyId = BodyId::Administration;
 	pub const MaxViewAuthorizationLen: u32 = 128;
@@ -51,7 +51,7 @@ impl pallet_entity::Config for Runtime {
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type EntityInfoPacket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
-	type MaxUsernameLength = MaxUsernameLength;
+	type MaxEntityNymLength = MaxEntityNymLength;
 	type MaxViewAuthorizationLen = MaxViewAuthorizationLen;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;

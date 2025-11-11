@@ -712,8 +712,9 @@ mod view_tests {
 				EntityPallet::<Test>::entity_nym(view_auth(&who), token.clone()).expect("name");
 			assert!(core::str::from_utf8(&name_bytes).unwrap().ends_with(".myn.social"));
 
-			let lookup = EntityPallet::<Test>::entity_nym_lookup(view_auth(&who), name_bytes.clone())
-				.expect("name lookup");
+			let lookup =
+				EntityPallet::<Test>::entity_nym_lookup(view_auth(&who), name_bytes.clone())
+					.expect("name lookup");
 			assert_eq!(lookup, token);
 
 			let version = EntityPallet::<Test>::attribute_version(
