@@ -75,8 +75,9 @@ impl<MaxAdditionalAttributes: Get<u32>> From<&LookupSpec<MaxAdditionalAttributes
 	fn from(spec: &LookupSpec<MaxAdditionalAttributes>) -> Self {
 		match spec {
 			LookupSpec::Single(attr) => LookupSpecView::Single(attr.to_vec()),
-			LookupSpec::Combo(list) =>
-				LookupSpecView::Combo(list.iter().map(|attr| attr.to_vec()).collect()),
+			LookupSpec::Combo(list) => {
+				LookupSpecView::Combo(list.iter().map(|attr| attr.to_vec()).collect())
+			},
 		}
 	}
 }

@@ -88,7 +88,7 @@ pub mod pallet {
 
 		/// The maximum number of sub-accounts allowed per identified account.
 		#[pallet::constant]
-		type MaxSubAccounts: Get<u32>;
+		type MaxLinkedAccounts: Get<u32>;
 
 		/// Structure holding information about an entity,
 		type EntityInfoPacket: PacketInformationProvider<
@@ -151,11 +151,11 @@ pub mod pallet {
 
 	/// Linked sub-accounts for each entity token.
 	#[pallet::storage]
-	pub type SubAccounts<T: Config> = StorageMap<
+	pub type LinkedAccounts<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
 		Ss58Identifier,
-		BoundedVec<T::AccountId, T::MaxSubAccounts>,
+		BoundedVec<T::AccountId, T::MaxLinkedAccounts>,
 		ValueQuery,
 	>;
 
@@ -176,14 +176,14 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
-	/// Username attached to an entity token.
+	/// Entity nym attached to an entity token.
 	#[pallet::storage]
-	pub type Ss58IdNameOf<T: Config> =
+	pub type EntityNymOf<T: Config> =
 		StorageMap<_, Twox64Concat, Ss58Identifier, Username<T>, OptionQuery>;
 
-	/// Reverse lookup: username → (owner, provider).
+	/// Reverse lookup: nym → entity token.
 	#[pallet::storage]
-	pub type NameSs58IdOf<T: Config> =
+	pub type EntityNymIndex<T: Config> =
 		StorageMap<_, Twox64Concat, Username<T>, Ss58Identifier, OptionQuery>;
 
 	/// Version counter for each (token, attribute key).
@@ -218,8 +218,8 @@ pub mod pallet {
 	pub enum Error<T> {
 		///Bad Origin
 		BadOrigin,
-		/// Too many subs-accounts.
-		TooManySubAccounts,
+		/// Too many linked accounts.
+		TooManyLinkedAccounts,
 		/// Account isn't found.
 		AccountNotFound,
 		/// Account is a controller.
@@ -238,8 +238,8 @@ pub mod pallet {
 		TokenAlreadyExists,
 		/// Token not found.
 		TokenNotFound,
-		/// Account mapped to an entity.
-		EntitySubAccount,
+		/// Account already mapped to an entity.
+		AccountAlreadyLinked,
 		/// The index is invalid.
 		InvalidIndex,
 		/// The target is invalid.
@@ -254,7 +254,7 @@ pub mod pallet {
 		TooManyRegistrars,
 		/// Account ID is already named.
 		AlreadyClaimed,
-		/// Sender is not a sub-account.
+		/// Sender is not a linked account.
 		NotSub,
 		/// Sub-account isn't owned by sender.
 		NotOwned,
@@ -262,24 +262,24 @@ pub mod pallet {
 		InsufficientFunds,
 		/// Setting this username requires a signature, but none was provided.
 		RequiresSignature,
-		/// Sub account is already mapped to an entity.
-		SubAccountAlreadyClaimed,
-		/// Sub account not found.
-		SubAccountNotFound,
-		/// Sub account is not linked to the entity
-		SubAccountNotLinked,
-		/// Sub account not found.
-		SubAccountExists,
-		/// The username does not meet the requirements.
-		InvalidSs58IdName,
-		/// The username does not meet the requirements.
+		/// Linked account is already mapped to an entity.
+		LinkedAccountAlreadyClaimed,
+		/// Linked account not found.
+		LinkedAccountNotFound,
+		/// Linked account is not linked to the entity
+		LinkedAccountNotLinked,
+		/// Linked account already exists.
+		LinkedAccountExists,
+		/// The entity nym does not meet the requirements.
+		InvalidEntityNym,
+		/// The attribute value is invalid.
 		InvalidAttributeEntry,
-		/// The username does not meet the requirements.
+		/// Duplicate attribute key found.
 		DuplicateAttributeKey,
-		/// The username is already taken.
-		Ss58IdNameTaken,
-		/// The requested username does not exist.
-		NoUsername,
+		/// The entity nym is already taken.
+		EntityNymTaken,
+		/// No entity nym exists for this token.
+		NoEntityNym,
 		/// The action cannot be performed because of insufficient privileges (e.g. authority
 		/// trying to unbind a username provided by the system).
 		InsufficientPrivileges,
@@ -306,12 +306,12 @@ pub mod pallet {
 		EntityAttributeRemoved { who: T::AccountId, token: Ss58Identifier, attr: Attribute },
 		/// An entity attribute was rotated.
 		EntityAttributeRotated { who: T::AccountId, token: Ss58Identifier, attr: Attribute },
-		/// A sub-account was added to an entity.
-		EntitySubAccountAdded { sub: T::AccountId, token: Ss58Identifier },
-		/// A sub-identity was revoked
-		EntitySubAccountRevoked { sub: T::AccountId, token: Ss58Identifier },
-		/// A sub-identity was revoked by root or council
-		EntitySubAccountRevokedFor { sub: T::AccountId, token: Ss58Identifier },
+		/// A linked account was added to an entity.
+		EntityLinkedAccountAdded { account: T::AccountId, token: Ss58Identifier },
+		/// A linked account was revoked by the controller.
+		EntityLinkedAccountRevoked { account: T::AccountId, token: Ss58Identifier },
+		/// A linked account was revoked by root or council.
+		EntityLinkedAccountRevokedFor { account: T::AccountId, token: Ss58Identifier },
 		/// A controller was rotated.
 		EntityControllerRotated { token: Ss58Identifier, new: T::AccountId },
 		/// A controller was rotated by root or council.
@@ -320,10 +320,10 @@ pub mod pallet {
 		EntityInfoCleared { token: Ss58Identifier },
 		/// A name was cleared by root or council.
 		EntityInfoClearedFor { token: Ss58Identifier },
-		/// A username was set for `who`.
-		Ss58IdNameAdded { token: Ss58Identifier, name: Username<T> },
-		/// A username has been removed.
-		Ss58IdNameRemoved { token: Ss58Identifier },
+		/// A nym was set for `who`.
+		EntityNymAdded { token: Ss58Identifier, name: Username<T> },
+		/// A nym has been removed.
+		EntityNymRemoved { token: Ss58Identifier },
 	}
 
 	#[pallet::call]
@@ -336,7 +336,10 @@ pub mod pallet {
 		})]
 		pub fn set_info(origin: OriginFor<T>, info: Box<T::EntityInfoPacket>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			ensure!(!Ss58OfActiveAccounts::<T>::contains_key(&who), Error::<T>::EntitySubAccount);
+			ensure!(
+				!Ss58OfActiveAccounts::<T>::contains_key(&who),
+				Error::<T>::AccountAlreadyLinked
+			);
 
 			let info = *info;
 			if let Some(attributes) = info.attributes() {
@@ -379,7 +382,7 @@ pub mod pallet {
 				Ok(())
 			})?;
 
-			Ss58OfActiveAccounts::<T>::insert(&who, token.clone());
+			Self::do_set_linked_account(&token, &who)?;
 			ControllerOfSs58::<T>::insert(&token, who.clone());
 
 			Self::record_activity(&token, digest, b"EntityInfoSet")?;
@@ -541,70 +544,59 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Set a sub-account of the sender.
+		/// Link an additional account to the sender's entity token.
 		#[pallet::call_index(5)]
-		#[pallet::weight(T::WeightInfo::set_sub_account(sub.encoded_size() as u32))]
-		#[pallet::feeless_if(|origin: &OriginFor<T>, _sub: &T::AccountId| -> bool {
+		#[pallet::weight(T::WeightInfo::set_linked_account(account.encoded_size() as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _account: &T::AccountId| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
 		})]
-		pub fn set_sub_account(origin: OriginFor<T>, sub: T::AccountId) -> DispatchResult {
+		pub fn set_linked_account(origin: OriginFor<T>, account: T::AccountId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let token = Self::lookup_token_of(&who)?;
 			ensure!(who == Self::lookup_controller_of(&token)?, Error::<T>::BadOrigin);
 
-			ensure!(
-				!Ss58OfActiveAccounts::<T>::contains_key(&sub),
-				Error::<T>::SubAccountAlreadyClaimed
+			Self::do_set_linked_account(&token, &account)?;
+
+			let digest = T::Hashing::hash(
+				&(&token, &account, b"EntityLinkedAccountAdded" as &[u8]).encode(),
 			);
+			Self::record_activity(&token, digest, b"EntityLinkedAccountAdded")?;
 
-			SubAccounts::<T>::try_mutate(&token, |list| {
-				ensure!(
-					list.len() < T::MaxSubAccounts::get() as usize,
-					Error::<T>::TooManySubAccounts
-				);
-				list.try_push(sub.clone()).map_err(|_| Error::<T>::TooManySubAccounts)
-			})?;
-
-			Ss58OfActiveAccounts::<T>::insert(&sub, token.clone());
-
-			let digest =
-				T::Hashing::hash(&(&token, &sub, b"EntitySubAccountAdded" as &[u8]).encode());
-			Self::record_activity(&token, digest, b"EntitySubAccountAdded")?;
-
-			Self::deposit_event(Event::EntitySubAccountAdded { sub, token });
+			Self::deposit_event(Event::EntityLinkedAccountAdded { account, token });
 
 			Ok(())
 		}
 
-		/// Remove a previously-added sub-account.
+		/// Remove a previously-added linked account.
 		#[pallet::call_index(6)]
-		#[pallet::weight(T::WeightInfo::revoke_sub_account(sub.encoded_size() as u32))]
-		#[pallet::feeless_if(|origin: &OriginFor<T>, _sub: &T::AccountId| -> bool {
+		#[pallet::weight(T::WeightInfo::revoke_linked_account(account.encoded_size() as u32))]
+		#[pallet::feeless_if(|origin: &OriginFor<T>, _account: &T::AccountId| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
 		})]
-		pub fn revoke_sub_account(origin: OriginFor<T>, sub: T::AccountId) -> DispatchResult {
+		pub fn revoke_linked_account(
+			origin: OriginFor<T>,
+			account: T::AccountId,
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let token = Self::lookup_token_of(&who)?;
 			ensure!(who == Self::lookup_controller_of(&token)?, Error::<T>::BadOrigin);
-			ensure!(sub != who, Error::<T>::ControllerAccount);
-			Self::do_revoke_sub_account(&token, &sub)?;
-			Self::deposit_event(Event::EntitySubAccountRevoked { sub, token });
+			Self::do_revoke_linked_account(&token, &account)?;
+			Self::deposit_event(Event::EntityLinkedAccountRevoked { account, token });
 			Ok(())
 		}
 
-		/// Remove a previously-added sub-account.
+		/// Remove a previously-added linked account via privileged origin.
 		#[pallet::call_index(7)]
-		#[pallet::weight(T::WeightInfo::revoke_sub_account_for(sub.encoded_size() as u32))]
-		pub fn revoke_sub_account_for(
+		#[pallet::weight(T::WeightInfo::revoke_linked_account_for(account.encoded_size() as u32))]
+		pub fn revoke_linked_account_for(
 			origin: OriginFor<T>,
 			token: Ss58Identifier,
-			sub: T::AccountId,
+			account: T::AccountId,
 		) -> DispatchResult {
 			T::ForceOrigin::ensure_origin(origin)?;
 			ensure!(EntityInfoOf::<T>::contains_key(&token), Error::<T>::TokenNotFound);
-			ensure!(sub != Self::lookup_controller_of(&token)?, Error::<T>::ControllerAccount);
-			Self::do_revoke_sub_account(&token, &sub)?;
-			Self::deposit_event(Event::EntitySubAccountRevoked { sub, token });
+			Self::do_revoke_linked_account(&token, &account)?;
+			Self::deposit_event(Event::EntityLinkedAccountRevokedFor { account, token });
 			Ok(())
 		}
 
@@ -622,6 +614,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			ensure!(who == Self::lookup_controller_of(&token)?, Error::<T>::BadOrigin);
 			ensure!(new_controller != who, Error::<T>::AlreadyController);
+			Self::ensure_account_linked(&token, &new_controller)?;
 
 			Ss58OfActiveAccounts::<T>::remove(&who);
 			Ss58OfActiveAccounts::<T>::insert(&new_controller, token.clone());
@@ -650,6 +643,7 @@ pub mod pallet {
 			ensure!(EntityInfoOf::<T>::contains_key(&token), Error::<T>::TokenNotFound);
 			let current_controller = Self::lookup_controller_of(&token)?;
 			ensure!(current_controller != new_controller, Error::<T>::AlreadyController);
+			Self::ensure_account_linked(&token, &new_controller)?;
 
 			Ss58OfActiveAccounts::<T>::remove(&current_controller);
 			Ss58OfActiveAccounts::<T>::insert(&new_controller, token.clone());
@@ -673,9 +667,8 @@ pub mod pallet {
 
 		/// Remove all entity details from storage
 		#[pallet::call_index(10)]
-		// #[pallet::weight(T::WeightInfo::clear_identity())]
 		#[pallet::weight({
-		    let sub_count = SubAccounts::<T>::get(&token).len() as u32;
+		    let sub_count = LinkedAccounts::<T>::get(&token).len() as u32;
 		    T::WeightInfo::clear_everything(sub_count)
 		})]
 		#[pallet::feeless_if(|origin: &OriginFor<T>, _token: &Ss58Identifier| -> bool {
@@ -694,7 +687,7 @@ pub mod pallet {
 		#[pallet::call_index(11)]
 		// #[pallet::weight(T::WeightInfo::clear_identity_for())]
 		#[pallet::weight({
-		    let sub_count = SubAccounts::<T>::get(&token).len() as u32;
+		    let sub_count = LinkedAccounts::<T>::get(&token).len() as u32;
 		    T::WeightInfo::clear_everything_for(sub_count)
 		})]
 		pub fn clear_everything_for(origin: OriginFor<T>, token: Ss58Identifier) -> DispatchResult {
@@ -708,11 +701,11 @@ pub mod pallet {
 		/// Add an entity token name under the constant suffix ".myn.social", always stored
 		/// lowercase.
 		#[pallet::call_index(12)]
-		#[pallet::weight(T::WeightInfo::set_id_name(prefix.len() as u32))]
+		#[pallet::weight(T::WeightInfo::set_entity_nym(prefix.len() as u32))]
 		#[pallet::feeless_if(|origin: &OriginFor<T>, _prefix: &Vec<u8>| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
 		})]
-		pub fn set_id_name(origin: OriginFor<T>, mut prefix: Vec<u8>) -> DispatchResult {
+		pub fn set_entity_nym(origin: OriginFor<T>, mut prefix: Vec<u8>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let token = Self::lookup_token_of(&who)?;
 			ensure!(who == Self::lookup_controller_of(&token)?, Error::<T>::BadOrigin);
@@ -720,46 +713,45 @@ pub mod pallet {
 			for b in &mut prefix {
 				*b = b.to_ascii_lowercase();
 			}
-			ensure!(Self::is_valid_user_name_prefix(&prefix), Error::<T>::InvalidSs58IdName);
+			ensure!(Self::is_valid_user_name_prefix(&prefix), Error::<T>::InvalidEntityNym);
 			prefix.extend(b".myn.social");
 
 			let bounded_uname: Username<T> =
-				prefix.try_into().map_err(|_| Error::<T>::InvalidSs58IdName)?;
+				prefix.try_into().map_err(|_| Error::<T>::InvalidEntityNym)?;
 
-			NameSs58IdOf::<T>::try_mutate_exists(&bounded_uname, |opt| -> DispatchResult {
-				ensure!(opt.is_none(), Error::<T>::Ss58IdNameTaken);
+			EntityNymIndex::<T>::try_mutate_exists(&bounded_uname, |opt| -> DispatchResult {
+				ensure!(opt.is_none(), Error::<T>::EntityNymTaken);
 				*opt = Some(token.clone());
 				Ok(())
 			})?;
 
-			Ss58IdNameOf::<T>::insert(&token, &bounded_uname);
+			EntityNymOf::<T>::insert(&token, &bounded_uname);
 			let digest =
-				T::Hashing::hash(&(&token, &bounded_uname, b"Ss58IdNameAdded" as &[u8]).encode());
+				T::Hashing::hash(&(&token, &bounded_uname, b"EntityNymAdded" as &[u8]).encode());
 
-			Self::record_activity(&token, digest, b"Ss58IdNameAdded")?;
-			Self::deposit_event(Event::Ss58IdNameAdded { token, name: bounded_uname });
+			Self::record_activity(&token, digest, b"EntityNymAdded")?;
+			Self::deposit_event(Event::EntityNymAdded { token, name: bounded_uname });
 
 			Ok(())
 		}
 
 		/// Remove an existing username under the suffix "myn.social".
 		#[pallet::call_index(13)]
-		#[pallet::weight(T::WeightInfo::remove_id_name())]
+		#[pallet::weight(T::WeightInfo::remove_entity_nym())]
 		#[pallet::feeless_if(|origin: &OriginFor<T>, _token: &Ss58Identifier| -> bool {
 			Pallet::<T>::is_origin_feeless(origin)
 		})]
-		pub fn remove_id_name(origin: OriginFor<T>, token: Ss58Identifier) -> DispatchResult {
+		pub fn remove_entity_nym(origin: OriginFor<T>, token: Ss58Identifier) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			ensure!(who == Self::lookup_controller_of(&token)?, Error::<T>::BadOrigin);
 
-			let uname = Ss58IdNameOf::<T>::take(&token).ok_or(Error::<T>::NoUsername)?;
-			NameSs58IdOf::<T>::remove(&uname);
+			let uname = EntityNymOf::<T>::take(&token).ok_or(Error::<T>::NoEntityNym)?;
+			EntityNymIndex::<T>::remove(&uname);
 
-			let digest =
-				T::Hashing::hash(&(&token, &uname, b"Ss58IdNameRemoved" as &[u8]).encode());
+			let digest = T::Hashing::hash(&(&token, &uname, b"EntityNymRemoved" as &[u8]).encode());
 
-			Self::record_activity(&token, digest, b"Ss58IdNameRemoved")?;
-			Self::deposit_event(Event::Ss58IdNameRemoved { token });
+			Self::record_activity(&token, digest, b"EntityNymRemoved")?;
+			Self::deposit_event(Event::EntityNymRemoved { token });
 			Ok(())
 		}
 	}
@@ -797,14 +789,14 @@ pub mod pallet {
 		}
 
 		/// List sub-accounts linked to an entity token.
-		pub fn sub_accounts(
+		pub fn linked_accounts(
 			auth: ViewAuthorizationOf<T>,
 			token: Ss58Identifier,
 		) -> Vec<sp_runtime::AccountId32> {
 			if Self::authorize_view(&auth).is_err() {
 				return Vec::new();
 			}
-			SubAccounts::<T>::get(&token)
+			LinkedAccounts::<T>::get(&token)
 				.into_iter()
 				.map(|account| account.into())
 				.collect()
@@ -833,21 +825,21 @@ pub mod pallet {
 				.collect()
 		}
 
-		/// Returns the username assigned to the provided token, if any.
-		pub fn username_of(auth: ViewAuthorizationOf<T>, token: Ss58Identifier) -> Option<Vec<u8>> {
+		/// Returns the nym assigned to the provided token, if any.
+		pub fn entity_nym(auth: ViewAuthorizationOf<T>, token: Ss58Identifier) -> Option<Vec<u8>> {
 			Self::authorize_view(&auth).ok()?;
-			let name = Ss58IdNameOf::<T>::get(&token)?;
+			let name = EntityNymOf::<T>::get(&token)?;
 			Some(name.into_inner())
 		}
 
-		/// Look up the token bound to a username.
-		pub fn username_lookup(
+		/// Look up the token bound to a nym.
+		pub fn entity_nym_lookup(
 			auth: ViewAuthorizationOf<T>,
-			username: Vec<u8>,
+			nym: Vec<u8>,
 		) -> Option<Ss58Identifier> {
 			Self::authorize_view(&auth).ok()?;
-			let bounded: Username<T> = username.try_into().ok()?;
-			NameSs58IdOf::<T>::get(&bounded)
+			let bounded: Username<T> = nym.try_into().ok()?;
+			EntityNymIndex::<T>::get(&bounded)
 		}
 
 		/// Returns the version counter for a given attribute key.
@@ -1037,40 +1029,73 @@ impl<T: Config> Pallet<T> {
 		Ok(token)
 	}
 
-	// Revoke sub-account helper
-	fn do_revoke_sub_account(token: &Ss58Identifier, sub: &T::AccountId) -> DispatchResult {
-		let bound = Ss58OfActiveAccounts::<T>::get(sub).ok_or(Error::<T>::SubAccountNotFound)?;
-		ensure!(bound == *token, Error::<T>::SubAccountNotLinked);
-		Ss58OfActiveAccounts::<T>::remove(sub);
+	fn do_set_linked_account(token: &Ss58Identifier, account: &T::AccountId) -> DispatchResult {
+		ensure!(
+			!Ss58OfActiveAccounts::<T>::contains_key(account),
+			Error::<T>::LinkedAccountAlreadyClaimed
+		);
+		LinkedAccounts::<T>::try_mutate(token, |list| {
+			ensure!(
+				list.len() < T::MaxLinkedAccounts::get() as usize,
+				Error::<T>::TooManyLinkedAccounts
+			);
+			list.try_push(account.clone()).map_err(|_| Error::<T>::TooManyLinkedAccounts)
+		})?;
+		Ss58OfActiveAccounts::<T>::insert(account, token.clone());
+		Ok(())
+	}
+
+	fn ensure_account_linked(token: &Ss58Identifier, account: &T::AccountId) -> DispatchResult {
+		let already_linked = LinkedAccounts::<T>::get(token).iter().any(|acct| acct == account);
+		if already_linked {
+			let bound =
+				Ss58OfActiveAccounts::<T>::get(account).ok_or(Error::<T>::LinkedAccountNotFound)?;
+			ensure!(bound == *token, Error::<T>::LinkedAccountNotLinked);
+			Ok(())
+		} else {
+			Self::do_set_linked_account(token, account)
+		}
+	}
+
+	// Revoke linked-account helper
+	fn do_revoke_linked_account(token: &Ss58Identifier, account: &T::AccountId) -> DispatchResult {
+		let controller = ControllerOfSs58::<T>::get(token).ok_or(Error::<T>::TokenNotFound)?;
+		ensure!(controller != *account, Error::<T>::ControllerAccount);
+		let bound =
+			Ss58OfActiveAccounts::<T>::get(account).ok_or(Error::<T>::LinkedAccountNotFound)?;
+		ensure!(bound == *token, Error::<T>::LinkedAccountNotLinked);
+		Ss58OfActiveAccounts::<T>::remove(account);
 		let now = EventBlock::current::<T>();
-		Ss58OfAccountHistory::<T>::insert(token, sub, now);
-		SubAccounts::<T>::try_mutate(token, |list| {
-			if let Some(pos) = list.iter().position(|x| x == sub) {
+		Ss58OfAccountHistory::<T>::insert(token, account, now);
+		LinkedAccounts::<T>::try_mutate(token, |list| {
+			if let Some(pos) = list.iter().position(|x| x == account) {
 				list.swap_remove(pos);
 				Ok(())
 			} else {
-				Err(Error::<T>::SubAccountNotLinked)
+				Err(Error::<T>::LinkedAccountNotLinked)
 			}
 		})?;
-		let digest = T::Hashing::hash(&(token, sub, b"EntitySubAccountRevoked" as &[u8]).encode());
-		Self::record_activity(token, digest, b"EntitySubAccountRevoked")?;
+		let digest =
+			T::Hashing::hash(&(token, account, b"EntityLinkedAccountRevoked" as &[u8]).encode());
+		Self::record_activity(token, digest, b"EntityLinkedAccountRevoked")?;
 		Ok(())
 	}
 
 	// Clear Identitiy Helper
 	fn do_clear_everything(token: &Ss58Identifier) -> DispatchResult {
 		let now = EventBlock::current::<T>();
-		for sub in SubAccounts::<T>::take(token).into_iter() {
+		for sub in LinkedAccounts::<T>::take(token).into_iter() {
 			Ss58OfActiveAccounts::<T>::remove(&sub);
 			Ss58OfAccountHistory::<T>::insert(token, &sub, now.clone());
 		}
 		if let Some(ctrl) = ControllerOfSs58::<T>::take(token) {
-			Ss58OfActiveAccounts::<T>::remove(&ctrl);
-			Ss58OfAccountHistory::<T>::insert(token, &ctrl, now.clone());
+			if Ss58OfActiveAccounts::<T>::take(&ctrl).is_some() {
+				Ss58OfAccountHistory::<T>::insert(token, &ctrl, now.clone());
+			}
 		}
 		EntityInfoOf::<T>::remove(token);
-		if let Some(uname) = Ss58IdNameOf::<T>::take(token) {
-			NameSs58IdOf::<T>::remove(&uname);
+		if let Some(uname) = EntityNymOf::<T>::take(token) {
+			EntityNymIndex::<T>::remove(&uname);
 		}
 		let digest = T::Hashing::hash(&(token, b"EntityInfoCleared" as &[u8]).encode());
 		Self::record_activity(token, digest, b"EntityInfoCleared")?;
@@ -1170,10 +1195,10 @@ pub trait EntityLookup<T: frame_system::Config> {
 	fn lookup_history(token: &Ss58Identifier) -> Vec<(T::AccountId, EventBlock)>;
 
 	/// Fetch the (optional) username attached to an entity token.
-	fn lookup_name_of_identifier(token: &Ss58Identifier) -> Option<Self::Username>;
+	fn lookup_nym_of_identifier(token: &Ss58Identifier) -> Option<Self::Username>;
 
 	/// Reverse lookup: given a username, get the attached entity token (if any).
-	fn lookup_identifier_of_name(name: &Self::Username) -> Option<Ss58Identifier>;
+	fn lookup_identifier_of_nym(name: &Self::Username) -> Option<Ss58Identifier>;
 
 	/// Verify that `signature` was produced by `account` over `payload`, returning its entity
 	/// token.
@@ -1202,12 +1227,12 @@ impl<T: Config> EntityLookup<T> for Pallet<T> {
 		Ss58OfAccountHistory::<T>::iter_prefix(token).collect()
 	}
 
-	fn lookup_name_of_identifier(token: &Ss58Identifier) -> Option<Username<T>> {
-		Ss58IdNameOf::<T>::get(token)
+	fn lookup_nym_of_identifier(token: &Ss58Identifier) -> Option<Username<T>> {
+		EntityNymOf::<T>::get(token)
 	}
 
-	fn lookup_identifier_of_name(name: &Username<T>) -> Option<Ss58Identifier> {
-		NameSs58IdOf::<T>::get(name)
+	fn lookup_identifier_of_nym(name: &Username<T>) -> Option<Ss58Identifier> {
+		EntityNymIndex::<T>::get(name)
 	}
 
 	fn verify_account_signature(

@@ -35,15 +35,15 @@ pub trait WeightInfo {
     fn add_attributes(kv_size: u32) -> Weight;
     fn remove_attribute(k_size: u32) -> Weight;
     fn rotate_attribute(kv_size: u32) -> Weight;
-    fn set_sub_account(r: u32) -> Weight;
-    fn revoke_sub_account(r: u32) -> Weight;
-    fn revoke_sub_account_for(r: u32) -> Weight;
+    fn set_linked_account(r: u32) -> Weight;
+    fn revoke_linked_account(r: u32) -> Weight;
+    fn revoke_linked_account_for(r: u32) -> Weight;
     fn rotate_controller(r: u32) -> Weight;
     fn rotate_controller_for(r: u32) -> Weight;
-    fn clear_everything(num_subs: u32) -> Weight;
-    fn clear_everything_for(num_subs: u32) -> Weight;
-    fn set_id_name(prefix_len: u32) -> Weight;
-    fn remove_id_name() -> Weight;
+    fn clear_everything(num_links: u32) -> Weight;
+    fn clear_everything_for(num_links: u32) -> Weight;
+	fn set_entity_nym(prefix_len: u32) -> Weight;
+    fn remove_entity_nym() -> Weight;
 }
 
 /// Weights for `pallet_entity` using the Substrate node and recommended hardware.
@@ -81,19 +81,19 @@ impl<T: Config> WeightInfo for SubstrateWeight<T> {
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(2))
     }
-    fn set_sub_account(r: u32) -> Weight {
+    fn set_linked_account(r: u32) -> Weight {
         Weight::from_parts(15_000_000, 0)
        		.saturating_add(Weight::from_parts(r as u64 * 500, 0))
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(3))
     }
-    fn revoke_sub_account(r: u32) -> Weight {
+    fn revoke_linked_account(r: u32) -> Weight {
         Weight::from_parts(15_000_000, 0)
         	.saturating_add(Weight::from_parts(r as u64 * 500, 0))
         	.saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(3))
     }
-    fn revoke_sub_account_for(r: u32) -> Weight {
+    fn revoke_linked_account_for(r: u32) -> Weight {
         Weight::from_parts(15_000_000, 0)
         	.saturating_add(Weight::from_parts(r as u64 * 500, 0))
         	.saturating_add(T::DbWeight::get().reads(1))
@@ -111,20 +111,20 @@ impl<T: Config> WeightInfo for SubstrateWeight<T> {
 	        .saturating_add(T::DbWeight::get().reads(0))
 	        .saturating_add(T::DbWeight::get().writes(5))
     }
-    fn clear_everything(num_subs: u32) -> Weight {
-        Weight::from_parts(40_000_000, 0)
-            // each sub cleanup is one read+one write
-            .saturating_add(T::DbWeight::get().reads(2 + num_subs as u64))
-            .saturating_add(T::DbWeight::get().writes(7 + num_subs as u64))
-    }
-    fn clear_everything_for(num_subs: u32) -> Weight { Self::clear_everything(num_subs) }
-    fn set_id_name(prefix_len: u32) -> Weight {
+	fn clear_everything(num_links: u32) -> Weight {
+		Weight::from_parts(40_000_000, 0)
+			// each linked-account cleanup is one read+one write
+			.saturating_add(T::DbWeight::get().reads(2 + num_links as u64))
+			.saturating_add(T::DbWeight::get().writes(7 + num_links as u64))
+	}
+    fn clear_everything_for(num_links: u32) -> Weight { Self::clear_everything(num_links) }
+	fn set_entity_nym(prefix_len: u32) -> Weight {
         Weight::from_parts(20_000_000, 0)
             .saturating_add(Weight::from_parts(prefix_len as u64 * 100, 0))
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(3))
     }
-    fn remove_id_name() -> Weight {
+    fn remove_entity_nym() -> Weight {
         Weight::from_parts(15_000_000, 0)
             .saturating_add(T::DbWeight::get().reads(1))
             .saturating_add(T::DbWeight::get().writes(3))
@@ -166,19 +166,19 @@ impl WeightInfo for () {
             .saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(2))
     }
-    fn set_sub_account(r: u32) -> Weight {
+    fn set_linked_account(r: u32) -> Weight {
         Weight::from_parts(15_000_000, 0)
        		.saturating_add(Weight::from_parts(r as u64 * 500, 0))
             .saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(3))
     }
-    fn revoke_sub_account(r: u32) -> Weight {
+    fn revoke_linked_account(r: u32) -> Weight {
         Weight::from_parts(15_000_000, 0)
         	.saturating_add(Weight::from_parts(r as u64 * 500, 0))
         	.saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(3))
     }
-    fn revoke_sub_account_for(r: u32) -> Weight {
+    fn revoke_linked_account_for(r: u32) -> Weight {
         Weight::from_parts(15_000_000, 0)
         	.saturating_add(Weight::from_parts(r as u64 * 500, 0))
         	.saturating_add(RocksDbWeight::get().reads(1))
@@ -196,20 +196,20 @@ impl WeightInfo for () {
       .saturating_add(RocksDbWeight::get().reads(0))
       .saturating_add(RocksDbWeight::get().writes(5))
     }
-    fn clear_everything(num_subs: u32) -> Weight {
-        Weight::from_parts(40_000_000, 0)
-            // each sub cleanup is one read+one write
-            .saturating_add(RocksDbWeight::get().reads(2 + num_subs as u64))
-            .saturating_add(RocksDbWeight::get().writes(7 + num_subs as u64))
-    }
-    fn clear_everything_for(num_subs: u32) -> Weight { Self::clear_everything(num_subs) }
-    fn set_id_name(prefix_len: u32) -> Weight {
+	fn clear_everything(num_links: u32) -> Weight {
+		Weight::from_parts(40_000_000, 0)
+			// each linked-account cleanup is one read+one write
+			.saturating_add(RocksDbWeight::get().reads(2 + num_links as u64))
+			.saturating_add(RocksDbWeight::get().writes(7 + num_links as u64))
+	}
+    fn clear_everything_for(num_links: u32) -> Weight { Self::clear_everything(num_links) }
+	fn set_entity_nym(prefix_len: u32) -> Weight {
         Weight::from_parts(20_000_000, 0)
             .saturating_add(Weight::from_parts(prefix_len as u64 * 100, 0))
             .saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(3))
     }
-    fn remove_id_name() -> Weight {
+    fn remove_entity_nym() -> Weight {
         Weight::from_parts(15_000_000, 0)
             .saturating_add(RocksDbWeight::get().reads(1))
             .saturating_add(RocksDbWeight::get().writes(3))

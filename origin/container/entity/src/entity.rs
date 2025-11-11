@@ -31,7 +31,7 @@ use frame_support::{
 use scale_info::{build::Variants, Path, Type, TypeInfo};
 
 parameter_types! {
-	pub const MaxSubAccounts: u32 = 32;
+	pub const MaxLinkedAccounts: u32 = 32;
 	pub const MaxRawDataLength: u32 = 4096;
 	pub const MaxUsernameLength: u32 = 32;
 	pub const MaxAdditionalAttributes: u32 = 32;
@@ -47,7 +47,7 @@ pub type IdentityAdminOrigin = EitherOfDiverse<
 impl pallet_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Token = Token;
-	type MaxSubAccounts = MaxSubAccounts;
+	type MaxLinkedAccounts = MaxLinkedAccounts;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type EntityInfoPacket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;

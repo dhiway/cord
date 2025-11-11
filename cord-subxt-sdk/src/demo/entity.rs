@@ -1,6 +1,6 @@
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
 use cord_primitives::view::InfoAttributeHistoryEntry;
 use serde::Serialize;
-use serde_json::{json, Value};
 use sp_runtime::AccountId32 as RuntimeAccount;
 use std::collections::BTreeMap;
 use subxt::utils::AccountId32;
@@ -13,6 +13,7 @@ pub struct EntitySnapshot {
 	pub web: String,
 	pub email: String,
 	pub twitter: String,
+	pub entity_nym: Option<String>,
 	pub attributes: BTreeMap<String, String>,
 	pub active_accounts: Vec<String>,
 }
@@ -34,6 +35,7 @@ impl EntitySnapshot {
 			web: profile.get("web").and_then(|v| v.as_str()).unwrap_or("-").to_string(),
 			email: profile.get("email").and_then(|v| v.as_str()).unwrap_or("-").to_string(),
 			twitter: profile.get("twitter").and_then(|v| v.as_str()).unwrap_or("-").to_string(),
+			entity_nym: None,
 			attributes,
 			active_accounts: Vec::new(),
 		}
@@ -57,49 +59,77 @@ impl EntitySnapshot {
 			.collect();
 	}
 
-	pub fn to_json(&self, history: &[InfoAttributeHistoryEntry]) -> Value {
-		json!({
-			"snapshot": self,
-			"history": history,
-			"activeAccounts": self.active_accounts,
-		})
+	pub fn set_entity_nym(&mut self, nym: String) {
+		self.entity_nym = Some(nym);
 	}
 
 	pub fn print_cli(&self) {
-		println!("\nCurrent entity snapshot:");
-		println!("  Token  : {}", self.token);
-		println!("  Display: {}", self.display);
-		println!("  Legal  : {}", self.legal);
-		println!("  Web    : {}", self.web);
-		println!("  Email  : {}", self.email);
-		println!("  Twitter: {}", self.twitter);
-		println!("  Attributes:");
+		println!("\n📇 Entity Details:");
+		println!("  • Token   : {}", self.token);
+		if let Some(nym) = &self.entity_nym {
+			println!("  • Nym     : {}", nym);
+		}
+		println!("  • Display : {}", self.display);
+		println!("  • Legal   : {}", self.legal);
+		println!("  • Web     : {}", self.web);
+		println!("  • Email   : {}", self.email);
+		println!("  • Twitter : {}", self.twitter);
+		println!("  • Attributes:");
 		for (key, value) in &self.attributes {
-			println!("    - {}: {}", key, value);
+			println!("      ◦ {}: {}", key, value);
 		}
 	}
 }
 
-pub fn print_history_cli(entries: &[InfoAttributeHistoryEntry]) {
-	println!("\nAttribute timeline:");
-	println!("    Version  Block    Key         Old Value (base64)");
-	for entry in entries {
+pub fn print_history_cli(entries: &[(InfoAttributeHistoryEntry, Option<String>)]) {
+	println!("\n🕛 Entity Token Timeline:");
+	println!(
+		"    Version  Action      Key                Value                        Block   Time"
+	);
+	for (entry, time) in entries {
+		let value = truncate_value(&base64_to_utf8(&entry.old_value_base64), 28);
+		let time_display = time.as_deref().unwrap_or("unknown");
 		println!(
-			"{:>10}  #{:<4}  {:<10}  {}",
-			entry.version, entry.block.height, entry.key_hex, entry.old_value_base64
+			"{:>10}  {:<10}  {:<18}  {:<28}  #{:<6}  {}",
+			entry.version,
+			"Rotated",
+			entry.key_utf8.clone().unwrap_or_else(|| entry.key_hex.clone()),
+			value,
+			entry.block.height,
+			time_display
 		);
 	}
 }
 
 pub fn print_accounts_cli(accounts: &[AccountId32]) {
-	println!("\nActive accounts:");
+	println!("\n🔗 Linked Accounts:");
 	if accounts.is_empty() {
-		println!("    (none)");
+		println!("    • (none)");
 		return;
 	}
 	for (idx, account) in accounts.iter().enumerate() {
 		let raw: [u8; 32] = *account.as_ref();
 		let runtime = RuntimeAccount::from(raw);
-		println!("    - [{}] {}", idx + 1, runtime);
+		println!("    • [{}] {}", idx + 1, runtime);
+	}
+}
+
+fn base64_to_utf8(value: &str) -> String {
+	match BASE64_STANDARD.decode(value.as_bytes()) {
+		Ok(bytes) => match String::from_utf8(bytes) {
+			Ok(text) => text,
+			Err(_) => value.to_string(),
+		},
+		Err(_) => value.to_string(),
+	}
+}
+
+fn truncate_value(value: &str, max_len: usize) -> String {
+	if value.len() <= max_len {
+		value.to_string()
+	} else {
+		let mut truncated = value.chars().take(max_len.saturating_sub(1)).collect::<String>();
+		truncated.push('…');
+		truncated
 	}
 }
