@@ -278,6 +278,8 @@ pub mod pallet {
 		DuplicateAttributeKey,
 		/// The entity nym is already taken.
 		EntityNymTaken,
+		/// The entity already has an assigned nym.
+		EntityNymAlreadySet,
 		/// No entity nym exists for this token.
 		NoEntityNym,
 		/// The action cannot be performed because of insufficient privileges (e.g. authority
@@ -709,6 +711,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			let token = Self::lookup_token_of(&who)?;
 			ensure!(who == Self::lookup_controller_of(&token)?, Error::<T>::BadOrigin);
+			ensure!(!EntityNymOf::<T>::contains_key(&token), Error::<T>::EntityNymAlreadySet);
 
 			for b in &mut prefix {
 				*b = b.to_ascii_lowercase();

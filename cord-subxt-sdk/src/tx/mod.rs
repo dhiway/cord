@@ -5,9 +5,14 @@ pub mod packet;
 pub mod register;
 pub mod signer;
 
-use crate::{client::Client, error::Result, params::config::CordConfig};
+use crate::{
+	client::Client,
+	error::{Error, Result},
+	params,
+	params::config::CordConfig,
+};
 use subxt::{
-	tx::{self, DynamicPayload},
+	tx::{self, DynamicPayload, TxProgress},
 	utils::Era,
 };
 
@@ -56,5 +61,23 @@ impl<'a> Transactions<'a> {
 		opts: TxOptions,
 	) -> Result<tx::TxInBlock<CordConfig, subxt::OnlineClient<CordConfig>>> {
 		dynamic::sign_and_submit_with_flavor(self.client, call, signer, opts).await
+	}
+
+	pub async fn sign_and_submit_then_watch_with_opts<S: subxt::tx::Signer<CordConfig>>(
+		&self,
+		call: DynamicPayload,
+		signer: &S,
+		opts: TxOptions,
+	) -> Result<TxProgress<CordConfig, subxt::OnlineClient<CordConfig>>> {
+		let api = &self.client.api;
+		let mut tx = api.tx();
+		let who = signer.account_id();
+		let nonce_mode = opts.nonce.unwrap_or_default();
+		let nonce_value = nonce::resolve_nonce(self.client, &who, nonce_mode).await?;
+		let tip = opts.tip.unwrap_or(0);
+		let era = opts.era.unwrap_or(Era::Immortal);
+		let prepared = params::PreparedTxOptions { era, nonce: nonce_value, tip };
+		let params = params::build_params_from(prepared);
+		tx.sign_and_submit_then_watch(&call, signer, params).await.map_err(Error::from)
 	}
 }

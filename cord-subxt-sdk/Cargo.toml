@@ -6,7 +6,7 @@ description = "Origin SDK prototype built on Subxt"
 license = "GPL-3.0-or-later"
 
 [lib]
-name = "origin"
+name = "oc"
 path = "src/lib.rs"
 
 [features]
@@ -32,7 +32,6 @@ subxt = { version = "0.44", default-features = true, features = ["jsonrpsee", "n
 subxt-signer = { version = "0.44", default-features = false, features = ["sr25519", "std", "subxt"] }
 thiserror = "1"
 tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }
-chrono = { version = "0.4", features = ["clock", "std"], default-features = false }
 
 [dev-dependencies]
 anyhow = "1.0"
