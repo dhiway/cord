@@ -6,8 +6,10 @@ pub mod register;
 pub mod signer;
 
 use crate::{client::Client, error::Result, params::config::CordConfig};
-use subxt::tx::{self, DynamicPayload};
-use subxt::utils::Era;
+use subxt::{
+	tx::{self, DynamicPayload},
+	utils::Era,
+};
 
 /// Options that customize how an extrinsic is signed/submitted.
 #[derive(Clone, Copy)]

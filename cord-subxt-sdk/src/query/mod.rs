@@ -10,9 +10,11 @@ use crate::{
 	types,
 };
 use codec::Decode;
+use cord_primitives::{identifier::Ss58Identifier, view_api::ViewRequestAuth};
 use hex::ToHex;
 use scale_value::{Composite, Value};
-use subxt::utils::AccountId32;
+use sp_runtime::MultiSignature;
+use subxt::dynamic::DecodedValueThunk;
 
 /// Facade for runtime query functions.
 pub struct Query<'a> {
@@ -32,33 +34,43 @@ impl<'a> Query<'a> {
 		token::TokenQuery { query: self }
 	}
 
-	pub(crate) async fn call_encoded(
-		&self,
-		pallet: &str,
-		function: &str,
-		args: Value,
-	) -> Result<Vec<u8>> {
-		let result = dynamic::call_view(self.client, pallet, function, args).await?;
-		Ok(result.into_encoded())
-	}
-
 	pub(crate) async fn call_typed<T: Decode + 'static>(
 		&self,
 		pallet: &str,
 		function: &str,
 		args: Value,
 	) -> Result<T> {
-		let encoded = self.call_encoded(pallet, function, args).await?;
-		self.decode_view_result(encoded)
+		let thunk = self.call_dynamic(pallet, function, args).await?;
+		self.decode_view_result::<T>(thunk)
 	}
 
-	pub(crate) fn decode_view_result<T: Decode>(&self, bytes: Vec<u8>) -> Result<T> {
-		let payload = self.extract_view_ok(bytes)?;
-		T::decode(&mut &payload[..]).map_err(|e| Error::ViewDecode(e.to_string()))
+	pub(crate) async fn call_optional<T: Decode + 'static>(
+		&self,
+		pallet: &str,
+		function: &str,
+		args: Value,
+	) -> Result<Option<T>> {
+		self.call_typed::<Option<T>>(pallet, function, args).await
 	}
 
-	fn extract_view_ok(&self, bytes: Vec<u8>) -> Result<Vec<u8>> {
-		let result: core::result::Result<Vec<u8>, Vec<u8>> =
+	async fn call_dynamic(
+		&self,
+		pallet: &str,
+		function: &str,
+		args: Value,
+	) -> Result<DecodedValueThunk> {
+		dynamic::call_view(self.client, pallet, function, args).await
+	}
+
+	fn decode_view_result<T: Decode>(&self, thunk: DecodedValueThunk) -> Result<T> {
+		let bytes = self.extract_view_ok(thunk)?;
+		T::decode(&mut &bytes[..]).map_err(|e| Error::ViewDecode(e.to_string()))
+	}
+
+	fn extract_view_ok(&self, thunk: DecodedValueThunk) -> Result<Vec<u8>> {
+		type Envelope = core::result::Result<Vec<u8>, Vec<u8>>;
+		let bytes = thunk.into_encoded();
+		let result: Envelope =
 			Decode::decode(&mut &bytes[..]).map_err(|e| Error::ViewDecode(e.to_string()))?;
 		match result {
 			Ok(inner) => Ok(inner),
@@ -90,15 +102,19 @@ impl ArgBuilder {
 	}
 }
 
-pub(crate) fn view_auth_value(authz: &auth::ViewAuthorization) -> Result<Value> {
-	let account = types::account_id_value(&authz.account_id);
-	let payload = types::bytes_value(&authz.message);
-	let signature = signature_value(authz)?;
+pub(crate) fn view_auth_value(authz: &ViewRequestAuth) -> Result<Value> {
+	let account = account_value(authz.account.as_ref());
+	let payload = types::bytes_value(authz.payload.as_slice());
+	let signature = signature_value(authz);
 	Ok(Value::named_composite([
 		("account", account),
 		("payload", payload),
 		("signature", signature),
 	]))
+}
+
+pub(crate) fn identifier_struct_value(id: &Ss58Identifier) -> Value {
+	types::identifier_struct(id)
 }
 
 pub(crate) fn option_u32_value(value: Option<u32>) -> Value {
@@ -113,13 +129,12 @@ pub(crate) fn u16_value(value: u16) -> Value {
 	Value::u128(value as u128)
 }
 
-pub(crate) fn hex_arg(raw: &str) -> Result<Value> {
-	let bytes = types::hex_to_bytes(raw)?;
-	Ok(types::bytes_value(&bytes))
+pub(crate) fn hex_arg(raw: &[u8]) -> Value {
+	types::bytes_value(raw)
 }
 
-pub(crate) fn account_value(account: &AccountId32) -> Value {
-	types::account_id_value(account)
+pub(crate) fn account_value(account: &[u8]) -> Value {
+	Value::from_bytes(account.to_vec())
 }
 
 fn option_value(inner: Option<Value>) -> Value {
@@ -129,16 +144,12 @@ fn option_value(inner: Option<Value>) -> Value {
 	}
 }
 
-fn signature_value(authz: &auth::ViewAuthorization) -> Result<Value> {
-	use auth::SignatureScheme;
-	let (name, expected_len) = match authz.scheme {
-		SignatureScheme::Sr25519 => ("Sr25519", 64usize),
-		SignatureScheme::Ed25519 => ("Ed25519", 64usize),
-		SignatureScheme::Ecdsa => ("Ecdsa", 65usize),
+fn signature_value(authz: &ViewRequestAuth) -> Value {
+	let (scheme, bytes) = match &authz.signature {
+		MultiSignature::Sr25519(sig) => ("Sr25519", sig.as_ref()),
+		MultiSignature::Ed25519(sig) => ("Ed25519", sig.as_ref()),
+		MultiSignature::Ecdsa(sig) => ("Ecdsa", sig.as_ref()),
 	};
-	if authz.signature.len() != expected_len {
-		return Err(Error::Params(format!("signature for {name} must be {expected_len} bytes")));
-	}
-	let inner = types::bytes_value(&authz.signature);
-	Ok(Value::unnamed_variant(name, [inner]))
+	let inner = types::bytes_value(bytes);
+	Value::unnamed_variant(scheme, [inner])
 }

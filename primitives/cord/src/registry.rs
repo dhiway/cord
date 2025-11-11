@@ -2,6 +2,7 @@ use crate::{packet::ElementType, view::ElementView};
 use alloc::{format, string::String, vec::Vec};
 use bitflags::bitflags;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
+use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_runtime::RuntimeDebug;
@@ -46,9 +47,9 @@ impl RegistryPermissions {
 	}
 
 	pub fn has_view(self) -> bool {
-		self.contains(RegistryPermissions::VIEW)
-			|| self.contains(RegistryPermissions::ENTRY)
-			|| self.contains(RegistryPermissions::ADMIN)
+		self.contains(RegistryPermissions::VIEW) ||
+			self.contains(RegistryPermissions::ENTRY) ||
+			self.contains(RegistryPermissions::ADMIN)
 	}
 }
 
@@ -65,6 +66,7 @@ impl RegistryPermissions {
 	Default,
 	Serialize,
 	Deserialize,
+	DecodeAsType,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum RegistryKind {
@@ -88,6 +90,7 @@ pub enum RegistryKind {
 	Default,
 	Serialize,
 	Deserialize,
+	DecodeAsType,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum RegistryStatus {
@@ -111,7 +114,18 @@ impl RegistryStatus {
 	}
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct RegistryAttributeView {
 	pub key: Vec<u8>,
@@ -119,7 +133,18 @@ pub struct RegistryAttributeView {
 	pub optional: bool,
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub enum LookupSpecView {
 	Single(Vec<u8>),
@@ -141,7 +166,18 @@ impl LookupSpecView {
 	}
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug, Serialize, Deserialize)]
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct RegistryInfoView {
 	pub info: ElementView,

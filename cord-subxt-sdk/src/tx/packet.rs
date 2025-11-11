@@ -8,7 +8,8 @@ use subxt::dynamic::Value;
 use super::Transactions;
 
 impl<'a> Transactions<'a> {
-	/// Build a `Register::create_packet` call from JSON attributes validated against the schema view.
+	/// Build a `Register::create_packet` call from JSON attributes validated against the schema
+	/// view.
 	pub async fn packet_create_json(
 		&self,
 		registry_ss58: &str,

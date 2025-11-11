@@ -26,11 +26,9 @@ use crate::{
 	RegistryQueryCounts,
 };
 use alloc::format;
-use cord_primitives::registry::{
-	LookupSpecView, RegistryKind, RegistryPermissions, RegistryStatus,
-};
 use cord_primitives::{
 	packet::{Attribute, Element, ElementType},
+	registry::{LookupSpecView, RegistryKind, RegistryPermissions, RegistryStatus},
 	view::DevPacketSnapshot,
 	AccountId, Signature,
 };
@@ -513,9 +511,8 @@ fn packet_lifecycle_tracks_versions() {
 		let packet_id = System::events()
 			.iter()
 			.find_map(|record| match &record.event {
-				RuntimeEvent::Register(crate::Event::PacketCreated { packet, .. }) => {
-					Some(packet.clone())
-				},
+				RuntimeEvent::Register(crate::Event::PacketCreated { packet, .. }) =>
+					Some(packet.clone()),
 				_ => None,
 			})
 			.expect("created token");

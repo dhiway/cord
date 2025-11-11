@@ -42,6 +42,11 @@ pub fn identifier_value(ss58: &str) -> Result<Value> {
 	Ok(tuple_struct(bytes_value(identifier.as_bytes())))
 }
 
+/// Encode an `Ss58Identifier` into the SCALE `Value` shape.
+pub fn identifier_struct(identifier: &Ss58Identifier) -> Value {
+	tuple_struct(bytes_value(identifier.as_ref()))
+}
+
 /// Encode an `AccountId32` into the SCALE layout expected by runtime APIs.
 pub fn account_id_value(account: &AccountId32) -> Value {
 	let raw: &[u8; 32] = AsRef::<[u8; 32]>::as_ref(account);

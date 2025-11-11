@@ -1,9 +1,15 @@
-use super::{auth, ArgBuilder, Query};
-use crate::{
-	error::{Error, Result},
-	types::{identifier_value, to_key_hex_from_utf8},
+use super::{ArgBuilder, Query};
+use crate::error::{Error, Result};
+use cord_primitives::{
+	identifier::Ss58Identifier,
+	view::InfoAttributeHistoryEntry,
+	view_api::{
+		EntityAccountTokenRequest, EntityAttributeHistoryEntryRequest,
+		EntityAttributeHistoryForKeyRequest, EntityAttributeHistoryRequest, EntityInfoBytesRequest,
+		EntitySubAccountsRequest,
+	},
 };
-use cord_primitives::identifier::Ss58Identifier;
+use scale_value::Value;
 use subxt::utils::AccountId32;
 
 /// Facade for `pallet-entity` view functions.
@@ -12,126 +18,127 @@ pub struct EntityQuery<'a> {
 }
 
 impl<'a> EntityQuery<'a> {
-	fn build_args<F>(
-		&self,
-		auth: &auth::ViewAuthorization,
-		token_ss58: &str,
-		f: F,
-	) -> Result<scale_value::Value>
-	where
-		F: FnOnce(&mut ArgBuilder) -> Result<()>,
-	{
-		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::view_auth_value(auth)?);
-		builder.push("token", identifier_value(token_ss58)?);
-		f(&mut builder)?;
-		Ok(builder.finish())
-	}
-
 	pub async fn attribute_history_entries(
 		&self,
-		auth: &auth::ViewAuthorization,
-		token_ss58: &str,
-	) -> Result<Vec<crate::types::entity::InfoAttributeHistoryEntry>> {
-		self.call_history("attribute_history_entries", auth, token_ss58, |_| Ok(()))
-			.await
+		req: &EntityAttributeHistoryRequest,
+	) -> Result<Vec<InfoAttributeHistoryEntry>> {
+		let args = self.token_args(&req.auth, &req.token)?;
+		let value = self
+			.query
+			.call_optional::<Vec<InfoAttributeHistoryEntry>>(
+				"Entity",
+				"attribute_history_entries",
+				args,
+			)
+			.await?;
+		value
+			.ok_or_else(|| Error::NotFound("entity.attribute_history_entries returned none".into()))
 	}
 
 	pub async fn attribute_history_for_key_entries(
 		&self,
-		auth: &auth::ViewAuthorization,
-		token_ss58: &str,
-		key_hex: &str,
-	) -> Result<Vec<crate::types::entity::InfoAttributeHistoryEntry>> {
-		self.call_history("attribute_history_for_key_entries", auth, token_ss58, |builder| {
-			builder.push("key", super::hex_arg(key_hex)?);
-			Ok(())
+		req: &EntityAttributeHistoryForKeyRequest,
+	) -> Result<Vec<InfoAttributeHistoryEntry>> {
+		let args = self.token_key_args(&req.auth, &req.token, req.key.as_slice())?;
+		let value = self
+			.query
+			.call_optional::<Vec<InfoAttributeHistoryEntry>>(
+				"Entity",
+				"attribute_history_for_key_entries",
+				args,
+			)
+			.await?;
+		value.ok_or_else(|| {
+			Error::NotFound("entity.attribute_history_for_key_entries returned none".into())
 		})
-		.await
-	}
-
-	pub async fn attribute_history_for_key_entries_utf8(
-		&self,
-		auth: &auth::ViewAuthorization,
-		token_ss58: &str,
-		key_utf8: &str,
-	) -> Result<Vec<crate::types::entity::InfoAttributeHistoryEntry>> {
-		let key_hex = to_key_hex_from_utf8(key_utf8);
-		self.attribute_history_for_key_entries(auth, token_ss58, &key_hex).await
 	}
 
 	pub async fn attribute_history_entry(
 		&self,
-		auth: &auth::ViewAuthorization,
-		token_ss58: &str,
-		key_hex: &str,
-		version: u64,
-	) -> Result<crate::types::entity::InfoAttributeHistoryEntry> {
-		self.call_history_entry("attribute_history_entry_view", auth, token_ss58, |builder| {
-			builder.push("key", super::hex_arg(key_hex)?);
-			builder.push("version", super::u64_value(version));
-			Ok(())
+		req: &EntityAttributeHistoryEntryRequest,
+	) -> Result<InfoAttributeHistoryEntry> {
+		let args =
+			self.token_key_version_args(&req.auth, &req.token, req.key.as_slice(), req.version)?;
+		let value = self
+			.query
+			.call_optional::<InfoAttributeHistoryEntry>(
+				"Entity",
+				"attribute_history_entry_view",
+				args,
+			)
+			.await?;
+		value.ok_or_else(|| {
+			Error::NotFound("entity.attribute_history_entry_view returned none".into())
 		})
-		.await
 	}
 
-	pub async fn account_token(
-		&self,
-		auth: &auth::ViewAuthorization,
-		account: &AccountId32,
-	) -> Result<Option<String>> {
-		let args = self.build_account_args(auth, account)?;
-		let bytes = self.query.call_encoded("Entity", "account_token", args).await?;
-		let token: Option<Ss58Identifier> = self.query.decode_view_result(bytes)?;
-		Ok(token.map(|id| ss58_string(&id)))
+	pub async fn account_token(&self, req: &EntityAccountTokenRequest) -> Result<Option<String>> {
+		let args = self.account_args(req)?;
+		let value = self
+			.query
+			.call_optional::<Ss58Identifier>("Entity", "account_token", args)
+			.await?;
+		Ok(value.map(|id| ss58_string(&id)))
 	}
 
-	pub async fn entity_info_bytes(
-		&self,
-		auth: &auth::ViewAuthorization,
-		token_ss58: &str,
-	) -> Result<Option<Vec<u8>>> {
-		let args = self.build_args(auth, token_ss58, |_| Ok(()))?;
-		self.query.call_typed("Entity", "entity_info_bytes", args).await
+	pub async fn entity_info_bytes(&self, req: &EntityInfoBytesRequest) -> Result<Option<Vec<u8>>> {
+		let args = self.token_args(&req.auth, &req.token)?;
+		self.query.call_optional::<Vec<u8>>("Entity", "entity_info_bytes", args).await
 	}
 
-	fn build_account_args(
+	pub async fn sub_accounts(&self, req: &EntitySubAccountsRequest) -> Result<Vec<AccountId32>> {
+		let args = self.token_args(&req.auth, &req.token)?;
+		let value = self
+			.query
+			.call_optional::<Vec<AccountId32>>("Entity", "sub_accounts", args)
+			.await?;
+		Ok(value.unwrap_or_default())
+	}
+
+	fn token_args(
 		&self,
-		auth: &auth::ViewAuthorization,
-		account: &AccountId32,
-	) -> Result<scale_value::Value> {
+		auth: &cord_primitives::view_api::ViewRequestAuth,
+		token: &Ss58Identifier,
+	) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
 		builder.push("auth", super::view_auth_value(auth)?);
-		builder.push("account", super::account_value(account));
+		builder.push("token", super::identifier_struct_value(token));
 		Ok(builder.finish())
 	}
-}
 
-impl<'a> EntityQuery<'a> {
-	async fn call_history(
+	fn token_key_args(
 		&self,
-		function: &str,
-		auth: &auth::ViewAuthorization,
-		token_ss58: &str,
-		builder_fn: impl FnOnce(&mut ArgBuilder) -> Result<()>,
-	) -> Result<Vec<crate::types::entity::InfoAttributeHistoryEntry>> {
-		let args = self.build_args(auth, token_ss58, builder_fn)?;
-		let value: Option<Vec<crate::types::entity::InfoAttributeHistoryEntry>> =
-			self.query.call_typed("Entity", function, args).await?;
-		value.ok_or_else(|| Error::NotFound(format!("{function} returned none")))
+		auth: &cord_primitives::view_api::ViewRequestAuth,
+		token: &Ss58Identifier,
+		key: &[u8],
+	) -> Result<Value> {
+		let mut builder = ArgBuilder::default();
+		builder.push("auth", super::view_auth_value(auth)?);
+		builder.push("token", super::identifier_struct_value(token));
+		builder.push("key", super::hex_arg(key));
+		Ok(builder.finish())
 	}
 
-	async fn call_history_entry(
+	fn token_key_version_args(
 		&self,
-		function: &str,
-		auth: &auth::ViewAuthorization,
-		token_ss58: &str,
-		builder_fn: impl FnOnce(&mut ArgBuilder) -> Result<()>,
-	) -> Result<crate::types::entity::InfoAttributeHistoryEntry> {
-		let args = self.build_args(auth, token_ss58, builder_fn)?;
-		let value: Option<crate::types::entity::InfoAttributeHistoryEntry> =
-			self.query.call_typed("Entity", function, args).await?;
-		value.ok_or_else(|| Error::NotFound(format!("{function} returned none")))
+		auth: &cord_primitives::view_api::ViewRequestAuth,
+		token: &Ss58Identifier,
+		key: &[u8],
+		version: u64,
+	) -> Result<Value> {
+		let mut builder = ArgBuilder::default();
+		builder.push("auth", super::view_auth_value(auth)?);
+		builder.push("token", super::identifier_struct_value(token));
+		builder.push("key", super::hex_arg(key));
+		builder.push("version", super::u64_value(version));
+		Ok(builder.finish())
+	}
+
+	fn account_args(&self, req: &EntityAccountTokenRequest) -> Result<Value> {
+		let mut builder = ArgBuilder::default();
+		builder.push("auth", super::view_auth_value(&req.auth)?);
+		builder.push("account", super::account_value(req.account.as_ref()));
+		Ok(builder.finish())
 	}
 }
 

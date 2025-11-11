@@ -5,7 +5,9 @@
 //! connecting to Orb/Origin/OriginHub chains, composing extrinsics, and
 //! calling runtime view functions using JSON payloads.
 
+pub mod api;
 pub mod client;
+pub mod demo;
 pub mod error;
 pub mod flavors;
 pub mod params;
