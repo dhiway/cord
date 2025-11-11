@@ -172,9 +172,9 @@ mod benchmarks {
 		Ok(())
 	}
 
-	/// 6) set_sub_account
+	/// 6) set_linked_account
 	#[benchmark]
-	fn set_sub_account() -> Result<(), BenchmarkError> {
+	fn set_linked_account() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
 		let sub: T::AccountId = account("s", 0, 0);
 		EntityPallet::<T>::set_info(
@@ -187,13 +187,15 @@ mod benchmarks {
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), sub.clone());
 
-		assert_last_event::<T>(EntityEvent::<T>::EntitySubAccountAdded { sub, token }.into());
+		assert_last_event::<T>(
+			EntityEvent::<T>::EntityLinkedAccountAdded { account: sub, token }.into(),
+		);
 		Ok(())
 	}
 
-	/// 7) revoke_sub_account
+	/// 7) revoke_linked_account
 	#[benchmark]
-	fn revoke_sub_account() -> Result<(), BenchmarkError> {
+	fn revoke_linked_account() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
 		let sub: T::AccountId = account("s", 0, 0);
 
@@ -202,20 +204,25 @@ mod benchmarks {
 			Box::new(T::EntityInfoPacket::create_info()),
 		)
 		.unwrap();
-		EntityPallet::<T>::set_sub_account(RawOrigin::Signed(caller.clone()).into(), sub.clone())
-			.unwrap();
+		EntityPallet::<T>::set_linked_account(
+			RawOrigin::Signed(caller.clone()).into(),
+			sub.clone(),
+		)
+		.unwrap();
 
 		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), sub.clone());
 
-		assert_last_event::<T>(EntityEvent::<T>::EntitySubAccountRevoked { sub, token }.into());
+		assert_last_event::<T>(
+			EntityEvent::<T>::EntityLinkedAccountRevoked { account: sub, token }.into(),
+		);
 		Ok(())
 	}
 
-	/// 8) revoke_sub_account_for
+	/// 8) revoke_linked_account_for
 	#[benchmark]
-	fn revoke_sub_account_for() -> Result<(), BenchmarkError> {
+	fn revoke_linked_account_for() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
 		let sub: T::AccountId = account("s", 0, 0);
 
@@ -224,14 +231,19 @@ mod benchmarks {
 			Box::new(T::EntityInfoPacket::create_info()),
 		)
 		.unwrap();
-		EntityPallet::<T>::set_sub_account(RawOrigin::Signed(caller.clone()).into(), sub.clone())
-			.unwrap();
+		EntityPallet::<T>::set_linked_account(
+			RawOrigin::Signed(caller.clone()).into(),
+			sub.clone(),
+		)
+		.unwrap();
 
 		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		#[extrinsic_call]
 		_(RawOrigin::Root, token.clone(), sub.clone());
 
-		assert_last_event::<T>(EntityEvent::<T>::EntitySubAccountRevoked { sub, token }.into());
+		assert_last_event::<T>(
+			EntityEvent::<T>::EntityLinkedAccountRevokedFor { account: sub, token }.into(),
+		);
 		Ok(())
 	}
 
@@ -317,9 +329,9 @@ mod benchmarks {
 		Ok(())
 	}
 
-	/// 13) set_id_name
+	/// 13) set_entity_nym
 	#[benchmark]
-	fn set_id_name() -> Result<(), BenchmarkError> {
+	fn set_entity_nym() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
 		let prefix = b"bench".to_vec();
 
@@ -338,13 +350,13 @@ mod benchmarks {
 		let uname: Vec<u8> = uname;
 		let uname = uname.try_into().unwrap();
 
-		assert_last_event::<T>(EntityEvent::<T>::Ss58IdNameAdded { token, name: uname }.into());
+		assert_last_event::<T>(EntityEvent::<T>::EntityNymAdded { token, name: uname }.into());
 		Ok(())
 	}
 
-	/// 14) remove_id_name
+	/// 14) remove_entity_nym
 	#[benchmark]
-	fn remove_id_name() -> Result<(), BenchmarkError> {
+	fn remove_entity_nym() -> Result<(), BenchmarkError> {
 		let caller: T::AccountId = whitelisted_caller();
 
 		EntityPallet::<T>::set_info(
@@ -352,14 +364,17 @@ mod benchmarks {
 			Box::new(T::EntityInfoPacket::create_info()),
 		)
 		.unwrap();
-		EntityPallet::<T>::set_id_name(RawOrigin::Signed(caller.clone()).into(), b"bench".to_vec())
-			.unwrap();
+		EntityPallet::<T>::set_entity_nym(
+			RawOrigin::Signed(caller.clone()).into(),
+			b"bench".to_vec(),
+		)
+		.unwrap();
 
 		let token = EntityPallet::<T>::lookup_token_of(&caller).unwrap();
 		#[extrinsic_call]
 		_(RawOrigin::Signed(caller.clone()), token.clone());
 
-		assert_last_event::<T>(EntityEvent::<T>::Ss58IdNameRemoved { token }.into());
+		assert_last_event::<T>(EntityEvent::<T>::EntityNymRemoved { token }.into());
 		Ok(())
 	}
 

@@ -495,10 +495,9 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::NonTransfer => !matches!(
 				c,
 				RuntimeCall::Balances { .. } |
-				// `set_subs` and `add_sub` will take and repatriate deposits from the proxied
-				// account, should not be allowed.
-				RuntimeCall::Entity(pallet_entity::Call::set_sub_account { .. }) |
-				RuntimeCall::Entity(pallet_entity::Call::revoke_sub_account { .. })
+				// Linking/unlinking accounts can move deposits from the proxied account.
+				RuntimeCall::Entity(pallet_entity::Call::set_linked_account { .. }) |
+				RuntimeCall::Entity(pallet_entity::Call::revoke_linked_account { .. })
 			),
 			ProxyType::CancelProxy => matches!(
 				c,

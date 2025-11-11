@@ -6,7 +6,7 @@ use cord_primitives::{
 	view_api::{
 		EntityAccountTokenRequest, EntityAttributeHistoryEntryRequest,
 		EntityAttributeHistoryForKeyRequest, EntityAttributeHistoryRequest, EntityInfoBytesRequest,
-		EntitySubAccountsRequest,
+		EntityLinkedAccountsRequest, EntityNymRequest,
 	},
 };
 use scale_value::Value;
@@ -86,13 +86,20 @@ impl<'a> EntityQuery<'a> {
 		self.query.call_optional::<Vec<u8>>("Entity", "entity_info_bytes", args).await
 	}
 
-	pub async fn sub_accounts(&self, req: &EntitySubAccountsRequest) -> Result<Vec<AccountId32>> {
+	pub async fn linked_accounts(
+		&self,
+		req: &EntityLinkedAccountsRequest,
+	) -> Result<Vec<AccountId32>> {
 		let args = self.token_args(&req.auth, &req.token)?;
-		let value = self
-			.query
-			.call_optional::<Vec<AccountId32>>("Entity", "sub_accounts", args)
-			.await?;
-		Ok(value.unwrap_or_default())
+		self.query
+			.call_typed::<Vec<AccountId32>>("Entity", "linked_accounts", args)
+			.await
+	}
+
+	pub async fn entity_nym(&self, req: &EntityNymRequest) -> Result<Option<String>> {
+		let args = self.token_args(&req.auth, &req.token)?;
+		let value = self.query.call_optional::<Vec<u8>>("Entity", "entity_nym", args).await?;
+		Ok(value.map(|bytes| String::from_utf8_lossy(&bytes).into_owned()))
 	}
 
 	fn token_args(

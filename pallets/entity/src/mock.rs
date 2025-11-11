@@ -60,7 +60,7 @@ impl pallet_balances::Config for Test {
 parameter_types! {
 	pub const MaxRawDataLength: u32 = 4096;
 	pub const MaxAdditionalAttributes: u32 = 32;
-	pub const MaxSubAccounts: u32 = 2;
+	pub const MaxLinkedAccounts: u32 = 2;
 	pub const MaxUsernameLength: u32 = 20;
 	pub const MaxTokenViewAuthorizationLen: u32 = 128;
 	pub const MaxTokenTimelineViewResults: u32 = 32;
@@ -76,7 +76,7 @@ thread_local! {
 impl pallet_entity::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type Token = Token;
-	type MaxSubAccounts = MaxSubAccounts;
+	type MaxLinkedAccounts = MaxLinkedAccounts;
 	type EntityInfoPacket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;

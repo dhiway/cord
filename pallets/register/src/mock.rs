@@ -102,11 +102,11 @@ impl EntityLookup<Test> for MockLookup {
 		Vec::new()
 	}
 
-	fn lookup_name_of_identifier(_token: &Ss58Identifier) -> Option<Self::Username> {
+	fn lookup_nym_of_identifier(_token: &Ss58Identifier) -> Option<Self::Username> {
 		None
 	}
 
-	fn lookup_identifier_of_name(_name: &Self::Username) -> Option<Ss58Identifier> {
+	fn lookup_identifier_of_nym(_name: &Self::Username) -> Option<Ss58Identifier> {
 		None
 	}
 

@@ -83,12 +83,13 @@ impl BootstrapChainCmd {
 			"dev" => ChainType::Development,
 			"local" => ChainType::Local,
 			"live" => ChainType::Live,
-			_ =>
+			_ => {
 				return Err(format!(
 					"Invalid chain_type: {}. Possible values are 'dev', 'local', 'live'",
 					chain_type_input
 				)
-				.into()),
+				.into())
+			},
 		};
 
 		let authorities = config

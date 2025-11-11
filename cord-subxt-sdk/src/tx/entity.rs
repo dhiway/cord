@@ -129,22 +129,22 @@ impl<'a> Transactions<'a> {
 		self.build("Entity", "rotate_attribute", args).await
 	}
 
-	pub async fn entity_set_sub_account(
+	pub async fn entity_set_linked_account(
 		&self,
-		sub_account_ss58: &str,
+		account_ss58: &str,
 	) -> crate::error::Result<DynamicPayload> {
-		let account = types::ss58_to_account32(sub_account_ss58)?;
-		let args = Value::named_composite([("sub", types::account_id_value(&account))]);
-		self.build("Entity", "set_sub_account", args).await
+		let account = types::ss58_to_account32(account_ss58)?;
+		let args = Value::named_composite([("account", types::account_id_value(&account))]);
+		self.build("Entity", "set_linked_account", args).await
 	}
 
-	pub async fn entity_revoke_sub_account(
+	pub async fn entity_revoke_linked_account(
 		&self,
-		sub_account_ss58: &str,
+		account_ss58: &str,
 	) -> crate::error::Result<DynamicPayload> {
-		let account = types::ss58_to_account32(sub_account_ss58)?;
-		let args = Value::named_composite([("sub", types::account_id_value(&account))]);
-		self.build("Entity", "revoke_sub_account", args).await
+		let account = types::ss58_to_account32(account_ss58)?;
+		let args = Value::named_composite([("account", types::account_id_value(&account))]);
+		self.build("Entity", "revoke_linked_account", args).await
 	}
 
 	pub async fn entity_rotate_controller(
@@ -170,20 +170,20 @@ impl<'a> Transactions<'a> {
 		self.build("Entity", "clear", args).await
 	}
 
-	pub async fn entity_set_id_name_prefix(
+	pub async fn entity_set_entity_nym(
 		&self,
 		prefix: &str,
 	) -> crate::error::Result<DynamicPayload> {
 		let args = Value::named_composite([("prefix", bytes_value(prefix.as_bytes()))]);
-		self.build("Entity", "set_id_name_prefix", args).await
+		self.build("Entity", "set_entity_nym", args).await
 	}
 
-	pub async fn entity_remove_id_name(
+	pub async fn entity_remove_entity_nym(
 		&self,
 		token_ss58: &str,
 	) -> crate::error::Result<DynamicPayload> {
 		let token = types::identifier_value(token_ss58)?;
 		let args = Value::named_composite([("token", token)]);
-		self.build("Entity", "remove_id_name", args).await
+		self.build("Entity", "remove_entity_nym", args).await
 	}
 }

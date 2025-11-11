@@ -98,10 +98,18 @@ pub struct EntityInfoBytesRequest {
 	pub token: Ss58Identifier,
 }
 
-/// Request payload for `Entity::sub_accounts`.
+/// Request payload for `Entity::linked_accounts`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct EntitySubAccountsRequest {
+pub struct EntityLinkedAccountsRequest {
+	pub auth: ViewRequestAuth,
+	pub token: Ss58Identifier,
+}
+
+/// Request payload for `Entity::entity_nym`.
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct EntityNymRequest {
 	pub auth: ViewRequestAuth,
 	pub token: Ss58Identifier,
 }

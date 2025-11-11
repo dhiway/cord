@@ -641,20 +641,20 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Any => true,
 			ProxyType::NonTransfer => matches!(
 				c,
-				RuntimeCall::System(..) |
-					RuntimeCall::Babe(..) |
-					RuntimeCall::Entity(..) |
-					RuntimeCall::Timestamp(..) |
-					RuntimeCall::Indices(pallet_indices::Call::claim { .. }) |
-					RuntimeCall::Indices(pallet_indices::Call::free { .. }) |
-					RuntimeCall::Indices(pallet_indices::Call::freeze { .. }) |
-					RuntimeCall::Register(..) |
-					RuntimeCall::Session(..) |
-					RuntimeCall::Grandpa(..) |
-					RuntimeCall::Utility(..) |
-					RuntimeCall::Scheduler(..) |
-					RuntimeCall::Proxy(..) |
-					RuntimeCall::Multisig(..)
+				RuntimeCall::System(..)
+					| RuntimeCall::Babe(..)
+					| RuntimeCall::Entity(..)
+					| RuntimeCall::Timestamp(..)
+					| RuntimeCall::Indices(pallet_indices::Call::claim { .. })
+					| RuntimeCall::Indices(pallet_indices::Call::free { .. })
+					| RuntimeCall::Indices(pallet_indices::Call::freeze { .. })
+					| RuntimeCall::Register(..)
+					| RuntimeCall::Session(..)
+					| RuntimeCall::Grandpa(..)
+					| RuntimeCall::Utility(..)
+					| RuntimeCall::Scheduler(..)
+					| RuntimeCall::Proxy(..)
+					| RuntimeCall::Multisig(..)
 			),
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
@@ -746,7 +746,7 @@ impl pallet_sudo::Config for Runtime {
 parameter_types! {
 	pub const MaxRawDataLength: u32 = 1024;
 	pub const MaxAdditionalAttributes: u32 = 32;
-	pub const MaxSubAccounts: u32 = 2;
+	pub const MaxLinkedAccounts: u32 = 2;
 	pub const MaxUsernameLength: u32 = 64;
 	pub const EntityMaxViewAuthorizationLen: u32 = 128;
 }
@@ -768,7 +768,7 @@ impl pallet_token::Config for Runtime {
 impl pallet_entity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Token = Token;
-	type MaxSubAccounts = MaxSubAccounts;
+	type MaxLinkedAccounts = MaxLinkedAccounts;
 	type EntityInfoPacket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;

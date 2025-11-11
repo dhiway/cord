@@ -94,7 +94,7 @@ mod set_info_tests {
 					RuntimeOrigin::signed(who.clone()),
 					Box::new(EntityInfo::default())
 				),
-				Error::<Test>::EntitySubAccount
+				Error::<Test>::AccountAlreadyLinked
 			);
 		});
 	}
@@ -364,49 +364,91 @@ mod rotate_attribute_tests {
 	}
 }
 
-mod sub_accounts_tests {
+mod linked_accounts_tests {
 	use super::*;
 
 	#[test]
-	fn set_sub_account_flow() {
+	fn set_linked_account_flow() {
 		new_test_ext().execute_with(|| {
 			let main = account(13);
 			let sub1 = account(14);
 			let sub2 = account(15);
-			let sub3 = account(16);
 			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
 			assert_ok!(Entity::set_info(RuntimeOrigin::signed(main.clone()), Box::new(info)));
 
-			// two subs ok if MaxSubAccounts = 2
-			assert_ok!(Entity::set_sub_account(RuntimeOrigin::signed(main.clone()), sub1.clone()));
-			assert_ok!(Entity::set_sub_account(RuntimeOrigin::signed(main.clone()), sub2.clone()));
+			// MaxLinkedAccounts = 2 counts the controller, so only one additional account fits.
+			assert_ok!(Entity::set_linked_account(
+				RuntimeOrigin::signed(main.clone()),
+				sub1.clone()
+			));
 			assert_noop!(
-				Entity::set_sub_account(RuntimeOrigin::signed(main.clone()), sub3.clone()),
-				Error::<Test>::TooManySubAccounts
+				Entity::set_linked_account(RuntimeOrigin::signed(main.clone()), sub2.clone()),
+				Error::<Test>::TooManyLinkedAccounts
+			);
+			let linked =
+				LinkedAccounts::<Test>::get(&Ss58OfActiveAccounts::<Test>::get(&main).unwrap());
+			assert_eq!(linked.len(), 2);
+			assert!(linked.contains(&main));
+			assert!(linked.contains(&sub1));
+		});
+	}
+
+	#[test]
+	fn controller_is_auto_linked() {
+		new_test_ext().execute_with(|| {
+			let owner = account(30);
+			let token = init_with_display(owner.clone(), b"auto");
+			let linked = LinkedAccounts::<Test>::get(&token);
+			assert_eq!(linked.len(), 1);
+			assert_eq!(linked[0], owner.clone());
+			let view = EntityPallet::<Test>::linked_accounts(view_auth(&owner), token.clone());
+			assert_eq!(view, vec![owner.into()]);
+		});
+	}
+
+	#[test]
+	fn controller_cannot_be_unlinked() {
+		new_test_ext().execute_with(|| {
+			let owner = account(31);
+			let token = init_with_display(owner.clone(), b"ctrl");
+			assert_noop!(
+				Entity::revoke_linked_account(RuntimeOrigin::signed(owner.clone()), owner.clone()),
+				Error::<Test>::ControllerAccount
+			);
+			assert_noop!(
+				Entity::revoke_linked_account_for(
+					RuntimeOrigin::root(),
+					token.clone(),
+					owner.clone()
+				),
+				Error::<Test>::ControllerAccount
 			);
 		});
 	}
 
 	#[test]
-	fn revoke_sub_account_flow() {
+	fn revoke_linked_account_flow() {
 		new_test_ext().execute_with(|| {
 			let main = account(17);
 			let sub = account(18);
 			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
 			assert_ok!(Entity::set_info(RuntimeOrigin::signed(main.clone()), Box::new(info)));
-			assert_ok!(Entity::set_sub_account(RuntimeOrigin::signed(main.clone()), sub.clone()));
+			assert_ok!(Entity::set_linked_account(
+				RuntimeOrigin::signed(main.clone()),
+				sub.clone()
+			));
 
 			// revoke
-			assert_ok!(Entity::revoke_sub_account(
+			assert_ok!(Entity::revoke_linked_account(
 				RuntimeOrigin::signed(main.clone()),
 				sub.clone()
 			));
 			// can't revoke again
 			assert_noop!(
-				Entity::revoke_sub_account(RuntimeOrigin::signed(main.clone()), sub.clone()),
-				Error::<Test>::SubAccountNotFound
+				Entity::revoke_linked_account(RuntimeOrigin::signed(main.clone()), sub.clone()),
+				Error::<Test>::LinkedAccountNotFound
 			);
 		});
 	}
@@ -451,7 +493,7 @@ mod controller_rotation_and_clear_tests {
 			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
 			info.display = plain_data(b"x");
 			assert_ok!(Entity::set_info(RuntimeOrigin::signed(who.clone()), Box::new(info)));
-			assert_ok!(Entity::set_sub_account(RuntimeOrigin::signed(who.clone()), sub.clone()));
+			assert_ok!(Entity::set_linked_account(RuntimeOrigin::signed(who.clone()), sub.clone()));
 
 			let token = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
 			assert_ok!(Entity::clear_everything(RuntimeOrigin::signed(who.clone()), token.clone()));
@@ -468,11 +510,11 @@ mod controller_rotation_and_clear_tests {
 	}
 }
 
-mod id_name_tests {
+mod entity_nym_tests {
 	use super::*;
 
 	#[test]
-	fn set_and_remove_id_name() {
+	fn set_and_remove_entity_nym() {
 		new_test_ext().execute_with(|| {
 			let who = account(23);
 			let mut info = EntityInfo::<MaxRawDataLength, MaxAdditionalAttributes>::default();
@@ -481,25 +523,31 @@ mod id_name_tests {
 
 			// invalid prefix
 			assert_noop!(
-				Entity::set_id_name(RuntimeOrigin::signed(who.clone()), b"Bad!".to_vec()),
-				Error::<Test>::InvalidSs58IdName
+				Entity::set_entity_nym(RuntimeOrigin::signed(who.clone()), b"Bad!".to_vec()),
+				Error::<Test>::InvalidEntityNym
 			);
 
 			// valid
-			assert_ok!(Entity::set_id_name(RuntimeOrigin::signed(who.clone()), b"alice".to_vec()));
+			assert_ok!(Entity::set_entity_nym(
+				RuntimeOrigin::signed(who.clone()),
+				b"alice".to_vec()
+			));
 
 			// duplicate fails
 			assert_noop!(
-				Entity::set_id_name(RuntimeOrigin::signed(who.clone()), b"alice".to_vec()),
-				Error::<Test>::Ss58IdNameTaken
+				Entity::set_entity_nym(RuntimeOrigin::signed(who.clone()), b"alice".to_vec()),
+				Error::<Test>::EntityNymTaken
 			);
 
 			// remove
 			let token = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
-			assert_ok!(Entity::remove_id_name(RuntimeOrigin::signed(who.clone()), token.clone()));
+			assert_ok!(Entity::remove_entity_nym(
+				RuntimeOrigin::signed(who.clone()),
+				token.clone()
+			));
 			assert_noop!(
-				Entity::remove_id_name(RuntimeOrigin::signed(who), token),
-				Error::<Test>::NoUsername
+				Entity::remove_entity_nym(RuntimeOrigin::signed(who), token),
+				Error::<Test>::NoEntityNym
 			);
 		});
 	}
@@ -622,14 +670,17 @@ mod view_tests {
 			let owner = account(61);
 			let sub = account(62);
 			let token = init_with_display(owner.clone(), b"account-view");
-			assert_ok!(Entity::set_sub_account(RuntimeOrigin::signed(owner.clone()), sub.clone()));
+			assert_ok!(Entity::set_linked_account(
+				RuntimeOrigin::signed(owner.clone()),
+				sub.clone()
+			));
 
 			let resolved = EntityPallet::<Test>::account_token(view_auth(&owner), owner.clone())
 				.expect("account token view");
 			assert_eq!(resolved, token);
 
-			let listed = EntityPallet::<Test>::sub_accounts(view_auth(&owner), token.clone());
-			assert_eq!(listed, vec![sub.clone().into()]);
+			let listed = EntityPallet::<Test>::linked_accounts(view_auth(&owner), token.clone());
+			assert_eq!(listed, vec![owner.clone().into(), sub.clone().into()]);
 
 			let controller =
 				EntityPallet::<Test>::controller_account_view(view_auth(&owner), token.clone())
@@ -639,11 +690,14 @@ mod view_tests {
 	}
 
 	#[test]
-	fn username_and_attribute_views_roundtrip() {
+	fn entity_nym_and_attribute_views_roundtrip() {
 		new_test_ext().execute_with(|| {
 			let who = account(63);
 			let token = init_with_display(who.clone(), b"names");
-			assert_ok!(Entity::set_id_name(RuntimeOrigin::signed(who.clone()), b"alice".to_vec()));
+			assert_ok!(Entity::set_entity_nym(
+				RuntimeOrigin::signed(who.clone()),
+				b"alice".to_vec()
+			));
 			assert_ok!(Entity::add_attributes(
 				RuntimeOrigin::signed(who.clone()),
 				vec![(b"rot".to_vec(), plain_data(b"old"))],
@@ -655,10 +709,10 @@ mod view_tests {
 			));
 
 			let name_bytes =
-				EntityPallet::<Test>::username_of(view_auth(&who), token.clone()).expect("name");
+				EntityPallet::<Test>::entity_nym(view_auth(&who), token.clone()).expect("name");
 			assert!(core::str::from_utf8(&name_bytes).unwrap().ends_with(".myn.social"));
 
-			let lookup = EntityPallet::<Test>::username_lookup(view_auth(&who), name_bytes.clone())
+			let lookup = EntityPallet::<Test>::entity_nym_lookup(view_auth(&who), name_bytes.clone())
 				.expect("name lookup");
 			assert_eq!(lookup, token);
 
