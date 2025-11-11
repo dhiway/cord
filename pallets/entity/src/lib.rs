@@ -62,7 +62,7 @@ pub use weights::WeightInfo;
 
 pub type DataOf<T> = Element<<T as Config>::MaxRawDataLength>;
 pub type UpdateOpOf<T> = <<T as Config>::EntityInfoPacket as PacketInformationProvider>::UpdateOp;
-pub type Username<T> = BoundedVec<u8, <T as Config>::MaxUsernameLength>;
+pub type EntityNym<T> = BoundedVec<u8, <T as Config>::MaxEntityNymLength>;
 pub type AttributeUpdateKeyOpOf<T> = (Vec<u8>, DataOf<T>);
 /// Authorization payload supplied for entity view calls.
 pub type ViewAuthPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxViewAuthorizationLen>;
@@ -86,7 +86,7 @@ pub mod pallet {
 		/// Token Type
 		type Token: Token<Self, Hash = Self::Hash>;
 
-		/// The maximum number of sub-accounts allowed per identified account.
+		/// The maximum number of linked accounts allowed per entity token.
 		#[pallet::constant]
 		type MaxLinkedAccounts: Get<u32>;
 
@@ -115,9 +115,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxAdditionalAttributes: Get<u32>;
 
-		/// Max length for username prefix (before the dot).
+		/// Max length for an entity nym prefix (before the suffix).
 		#[pallet::constant]
-		type MaxUsernameLength: Get<u32>;
+		type MaxEntityNymLength: Get<u32>;
 
 		/// Maximum payload length for view authorizations.
 		#[pallet::constant]
@@ -149,7 +149,7 @@ pub mod pallet {
 	pub type Ss58OfActiveAccounts<T: Config> =
 		StorageMap<_, Blake2_128Concat, T::AccountId, Ss58Identifier, OptionQuery>;
 
-	/// Linked sub-accounts for each entity token.
+	/// Linked accounts for each entity token.
 	#[pallet::storage]
 	pub type LinkedAccounts<T: Config> = StorageMap<
 		_,
@@ -179,12 +179,12 @@ pub mod pallet {
 	/// Entity nym attached to an entity token.
 	#[pallet::storage]
 	pub type EntityNymOf<T: Config> =
-		StorageMap<_, Twox64Concat, Ss58Identifier, Username<T>, OptionQuery>;
+		StorageMap<_, Twox64Concat, Ss58Identifier, EntityNym<T>, OptionQuery>;
 
 	/// Reverse lookup: nym → entity token.
 	#[pallet::storage]
 	pub type EntityNymIndex<T: Config> =
-		StorageMap<_, Twox64Concat, Username<T>, Ss58Identifier, OptionQuery>;
+		StorageMap<_, Twox64Concat, EntityNym<T>, Ss58Identifier, OptionQuery>;
 
 	/// Version counter for each (token, attribute key).
 	#[pallet::storage]
@@ -260,7 +260,7 @@ pub mod pallet {
 		NotOwned,
 		/// Not enough free balance to pay the per-byte identity fee.
 		InsufficientFunds,
-		/// Setting this username requires a signature, but none was provided.
+		/// Setting this entity nym requires a signature, but none was provided.
 		RequiresSignature,
 		/// Linked account is already mapped to an entity.
 		LinkedAccountAlreadyClaimed,
@@ -281,7 +281,7 @@ pub mod pallet {
 		/// No entity nym exists for this token.
 		NoEntityNym,
 		/// The action cannot be performed because of insufficient privileges (e.g. authority
-		/// trying to unbind a username provided by the system).
+		/// trying to unbind a nym provided by the system).
 		InsufficientPrivileges,
 		/// Tried to add an attribute that already exists.
 		AttributeExists,
@@ -321,7 +321,7 @@ pub mod pallet {
 		/// A name was cleared by root or council.
 		EntityInfoClearedFor { token: Ss58Identifier },
 		/// A nym was set for `who`.
-		EntityNymAdded { token: Ss58Identifier, name: Username<T> },
+		EntityNymAdded { token: Ss58Identifier, name: EntityNym<T> },
 		/// A nym has been removed.
 		EntityNymRemoved { token: Ss58Identifier },
 	}
@@ -694,7 +694,7 @@ pub mod pallet {
 			T::ForceOrigin::ensure_origin(origin)?;
 			ensure!(EntityInfoOf::<T>::contains_key(&token), Error::<T>::TokenNotFound);
 			Self::do_clear_everything(&token)?;
-			Self::deposit_event(Event::EntityInfoCleared { token });
+			Self::deposit_event(Event::EntityInfoClearedFor { token });
 			Ok(())
 		}
 
@@ -713,10 +713,10 @@ pub mod pallet {
 			for b in &mut prefix {
 				*b = b.to_ascii_lowercase();
 			}
-			ensure!(Self::is_valid_user_name_prefix(&prefix), Error::<T>::InvalidEntityNym);
-			prefix.extend(b".myn.social");
+			ensure!(Self::is_valid_entity_nym_prefix(&prefix), Error::<T>::InvalidEntityNym);
+			prefix.extend(b".nym.org.in");
 
-			let bounded_uname: Username<T> =
+			let bounded_uname: EntityNym<T> =
 				prefix.try_into().map_err(|_| Error::<T>::InvalidEntityNym)?;
 
 			EntityNymIndex::<T>::try_mutate_exists(&bounded_uname, |opt| -> DispatchResult {
@@ -735,7 +735,7 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Remove an existing username under the suffix "myn.social".
+		/// Remove an existing entity nym under the suffix "myn.social".
 		#[pallet::call_index(13)]
 		#[pallet::weight(T::WeightInfo::remove_entity_nym())]
 		#[pallet::feeless_if(|origin: &OriginFor<T>, _token: &Ss58Identifier| -> bool {
@@ -788,7 +788,7 @@ pub mod pallet {
 			Ss58OfActiveAccounts::<T>::get(&account)
 		}
 
-		/// List sub-accounts linked to an entity token.
+		/// List accounts linked to an entity token.
 		pub fn linked_accounts(
 			auth: ViewAuthorizationOf<T>,
 			token: Ss58Identifier,
@@ -838,7 +838,7 @@ pub mod pallet {
 			nym: Vec<u8>,
 		) -> Option<Ss58Identifier> {
 			Self::authorize_view(&auth).ok()?;
-			let bounded: Username<T> = nym.try_into().ok()?;
+			let bounded: EntityNym<T> = nym.try_into().ok()?;
 			EntityNymIndex::<T>::get(&bounded)
 		}
 
@@ -1127,10 +1127,10 @@ impl<T: Config> Pallet<T> {
 			.map_or(false, |info| info.has_info_fields(mask))
 	}
 
-	/// Validates a username prefix
-	fn is_valid_user_name_prefix(input: &[u8]) -> bool {
+	/// Validates an entity nym prefix.
+	fn is_valid_entity_nym_prefix(input: &[u8]) -> bool {
 		// reject empty, too long, leading/trailing period, or consecutive periods
-		let max_len = T::MaxUsernameLength::get() as usize;
+		let max_len = T::MaxEntityNymLength::get() as usize;
 		if input.is_empty() || input.len() > max_len {
 			return false;
 		}
@@ -1182,8 +1182,8 @@ impl<T: Config> Pallet<T> {
 pub trait EntityLookup<T: frame_system::Config> {
 	/// The error returned by the fallible lookups.
 	type Error;
-	/// The username type (e.g. `Username<T>`).
-	type Username;
+	/// The entity nym type (e.g. `EntityNym<T>`).
+	type EntityNym;
 
 	/// Get the current Ss58 ID of `who`, or Err if none.
 	fn lookup_token_of(who: &T::AccountId) -> Result<Ss58Identifier, Self::Error>;
@@ -1194,11 +1194,11 @@ pub trait EntityLookup<T: frame_system::Config> {
 	/// Get the full history for `token` as `(AccountId, EventBlock)`.
 	fn lookup_history(token: &Ss58Identifier) -> Vec<(T::AccountId, EventBlock)>;
 
-	/// Fetch the (optional) username attached to an entity token.
-	fn lookup_nym_of_identifier(token: &Ss58Identifier) -> Option<Self::Username>;
+	/// Fetch the (optional) entity nym attached to an entity token.
+	fn lookup_nym_of_identifier(token: &Ss58Identifier) -> Option<Self::EntityNym>;
 
-	/// Reverse lookup: given a username, get the attached entity token (if any).
-	fn lookup_identifier_of_nym(name: &Self::Username) -> Option<Ss58Identifier>;
+	/// Reverse lookup: given a nym, get the attached entity token (if any).
+	fn lookup_identifier_of_nym(name: &Self::EntityNym) -> Option<Ss58Identifier>;
 
 	/// Verify that `signature` was produced by `account` over `payload`, returning its entity
 	/// token.
@@ -1213,7 +1213,7 @@ pub trait EntityLookup<T: frame_system::Config> {
 
 impl<T: Config> EntityLookup<T> for Pallet<T> {
 	type Error = Error<T>;
-	type Username = Username<T>;
+	type EntityNym = EntityNym<T>;
 
 	fn lookup_token_of(who: &T::AccountId) -> Result<Ss58Identifier, Self::Error> {
 		Ss58OfActiveAccounts::<T>::get(who).ok_or(Error::<T>::AccountNotFound)
@@ -1227,11 +1227,11 @@ impl<T: Config> EntityLookup<T> for Pallet<T> {
 		Ss58OfAccountHistory::<T>::iter_prefix(token).collect()
 	}
 
-	fn lookup_nym_of_identifier(token: &Ss58Identifier) -> Option<Username<T>> {
+	fn lookup_nym_of_identifier(token: &Ss58Identifier) -> Option<EntityNym<T>> {
 		EntityNymOf::<T>::get(token)
 	}
 
-	fn lookup_identifier_of_nym(name: &Username<T>) -> Option<Ss58Identifier> {
+	fn lookup_identifier_of_nym(name: &EntityNym<T>) -> Option<Ss58Identifier> {
 		EntityNymIndex::<T>::get(name)
 	}
 

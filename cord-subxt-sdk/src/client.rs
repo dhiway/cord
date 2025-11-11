@@ -109,4 +109,9 @@ impl Client {
 	pub fn metadata(&self) -> subxt::Metadata {
 		self.api.metadata().clone()
 	}
+
+	/// Expose the underlying Subxt client for advanced flows.
+	pub fn online(&self) -> &subxt::OnlineClient<CordConfig> {
+		&self.api
+	}
 }
