@@ -1,9 +1,10 @@
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
-use cord_primitives::view::InfoAttributeHistoryEntry;
 use serde::Serialize;
 use sp_runtime::AccountId32 as RuntimeAccount;
 use std::collections::BTreeMap;
 use subxt::utils::AccountId32;
+
+use crate::types::entity::HistoryEntry;
 
 #[derive(Clone, Serialize)]
 pub struct EntitySnapshot {
@@ -81,7 +82,7 @@ impl EntitySnapshot {
 	}
 }
 
-pub fn print_history_cli(entries: &[(InfoAttributeHistoryEntry, Option<String>)]) {
+pub fn print_history_cli(entries: &[(HistoryEntry, Option<String>)]) {
 	println!("\n📜 Attribute Timeline:");
 	if entries.is_empty() {
 		println!("    • (no recorded attribute changes)");

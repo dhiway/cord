@@ -9,6 +9,5 @@ pub fn decode_with_metadata<T: DecodeAsType>(
 ) -> Result<T> {
 	let registry = metadata.types();
 	let mut cursor = bytes;
-	T::decode_as_type(&mut cursor, type_id, registry)
-		.map_err(|e| Error::ViewDecode(e.to_string()))
+	T::decode_as_type(&mut cursor, type_id, registry).map_err(|e| Error::ViewDecode(e.to_string()))
 }

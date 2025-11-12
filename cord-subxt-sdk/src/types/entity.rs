@@ -5,8 +5,8 @@ use scale_decode::DecodeAsType;
 use scale_value::Value;
 use serde::{Deserialize, Serialize};
 
-use super::element::{attribute_pair_value, element_text_from_view};
 pub use super::element::ElementJson;
+use super::element::{attribute_pair_value, element_text_from_view};
 
 /// Attribute entry used when constructing entity extrinsics.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -41,6 +41,49 @@ impl AttributeEntry {
 	pub fn to_dynamic_pair(&self) -> Result<Value> {
 		attribute_pair_value(&self.key_bytes()?, &self.value)
 	}
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockRef {
+	pub height: u32,
+	pub index: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryEntry {
+	pub key_hex: String,
+	pub key_utf8: Option<String>,
+	pub version: u64,
+	pub old_value_base64: String,
+	pub block: BlockRef,
+}
+
+impl HistoryEntry {
+	pub fn from_raw(key: &[u8], version: u64, old_value: &[u8], block: BlockRef) -> Self {
+		Self {
+			key_hex: hex_string(key),
+			key_utf8: maybe_utf8(key),
+			version,
+			old_value_base64: base64_string(old_value),
+			block,
+		}
+	}
+}
+
+fn hex_string(bytes: &[u8]) -> String {
+	let mut s = String::from("0x");
+	s.push_str(&hex::encode(bytes));
+	s
+}
+
+fn base64_string(bytes: &[u8]) -> String {
+	BASE64.encode(bytes)
+}
+
+fn maybe_utf8(bytes: &[u8]) -> Option<String> {
+	core::str::from_utf8(bytes).ok().map(|s| s.to_string())
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, DecodeAsType)]
@@ -125,47 +168,4 @@ impl AttributeHistoryEntryRecord {
 	pub fn into_entry(self, key: &[u8], version: u64) -> HistoryEntry {
 		HistoryEntry::from_raw(key, version, &self.old, self.block.into())
 	}
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BlockRef {
-	pub height: u32,
-	pub index: u32,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HistoryEntry {
-	pub key_hex: String,
-	pub key_utf8: Option<String>,
-	pub version: u64,
-	pub old_value_base64: String,
-	pub block: BlockRef,
-}
-
-impl HistoryEntry {
-	pub fn from_raw(key: &[u8], version: u64, old_value: &[u8], block: BlockRef) -> Self {
-		Self {
-			key_hex: hex_string(key),
-			key_utf8: maybe_utf8(key),
-			version,
-			old_value_base64: base64_string(old_value),
-			block,
-		}
-	}
-}
-
-fn hex_string(bytes: &[u8]) -> String {
-	let mut s = String::from("0x");
-	s.push_str(&hex::encode(bytes));
-	s
-}
-
-fn base64_string(bytes: &[u8]) -> String {
-	BASE64.encode(bytes)
-}
-
-fn maybe_utf8(bytes: &[u8]) -> Option<String> {
-	core::str::from_utf8(bytes).ok().map(|s| s.to_string())
 }

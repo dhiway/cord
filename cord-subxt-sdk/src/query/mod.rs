@@ -4,11 +4,18 @@ pub mod entity;
 pub mod register;
 pub mod token;
 
-use crate::{client::Client, error::Result, types};
+use crate::{
+	client::Client,
+	error::{Error, Result},
+	types,
+};
+use codec::Decode;
 use cord_primitives::{identifier::Ss58Identifier, view_api::AuthorizationRequest};
+use hex::ToHex;
 use scale_decode::DecodeAsType;
 use scale_value::{Composite, Value};
 use sp_runtime::MultiSignature;
+use subxt::dynamic::DecodedValueThunk;
 
 /// Facade for runtime query functions.
 pub struct Query<'a> {
@@ -35,7 +42,11 @@ impl<'a> Query<'a> {
 		args: Value,
 	) -> Result<T> {
 		let view_bytes = self.call_view_bytes(pallet, function, args).await?;
-		crate::scale::decode::decode_with_metadata(&view_bytes.metadata, view_bytes.type_id, &view_bytes.data)
+		crate::scale::decode::decode_with_metadata(
+			&view_bytes.metadata,
+			view_bytes.type_id,
+			&view_bytes.data,
+		)
 	}
 
 	pub(crate) async fn call_result<T, E>(
@@ -57,11 +68,8 @@ impl<'a> Query<'a> {
 		args: Value,
 	) -> Result<ViewBytes> {
 		let dispatch = dynamic::call_view(self.client, pallet, function, args).await?;
-		Ok(ViewBytes {
-			data: dispatch.thunk.into_encoded(),
-			type_id: dispatch.output_ty,
-			metadata: dispatch.metadata,
-		})
+		let data = extract_view_payload(dispatch.thunk)?;
+		Ok(ViewBytes { data, type_id: dispatch.output_ty, metadata: dispatch.metadata })
 	}
 }
 
@@ -137,4 +145,22 @@ fn signature_value(authz: &AuthorizationRequest) -> Value {
 	};
 	let inner = types::bytes_value(bytes);
 	Value::unnamed_variant(scheme, [inner])
+}
+
+fn extract_view_payload(thunk: DecodedValueThunk) -> Result<Vec<u8>> {
+	type Envelope = core::result::Result<Vec<u8>, Vec<u8>>;
+	let bytes = thunk.into_encoded();
+	let result: Envelope =
+		Decode::decode(&mut &bytes[..]).map_err(|e| Error::ViewDecode(e.to_string()))?;
+	match result {
+		Ok(inner) => Ok(inner),
+		Err(err) => Err(view_error(err)),
+	}
+}
+
+fn view_error(err_bytes: Vec<u8>) -> Error {
+	match String::from_utf8(err_bytes.clone()) {
+		Ok(text) if !text.is_empty() => Error::ViewDecode(text),
+		_ => Error::ViewDecode(format!("0x{}", err_bytes.encode_hex::<String>())),
+	}
 }
