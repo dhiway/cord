@@ -1019,54 +1019,69 @@ impl_runtime_apis! {
 	}
 
 	impl token_api::TokenApi<Block, AccountId, Signature, Hash> for Runtime {
+		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
+			let ss58_id = Ss58Identifier::try_from(token).ok()?;
+			let decoded: DecodedIdentifier = Token::resolve_token(&ss58_id).ok()?;
+			Some(token_api::DecodedTokenApi {
+				origin: decoded.origin,
+				network: decoded.network,
+				pallet: decoded.pallet,
+				genesis: decoded.genesis,
+			})
+		}
+
 		fn resolve_identifier(
 			auth: token_api::ViewAuthorization<AccountId, Signature>,
 			token: Vec<u8>,
-	) -> Option<token_api::DecodedTokenApi> {
-		let auth = convert_token_view_authorization(auth)?;
-		let ss58_id = Ss58Identifier::try_from(token).ok()?;
-		let decoded: DecodedIdentifier = Token::resolve_identifier_view(auth, ss58_id)?;
-		Some(token_api::DecodedTokenApi {
-			origin: decoded.origin,
-			network: decoded.network,
-			pallet: decoded.pallet,
-			genesis: decoded.genesis,
-		})
-	}
-
-	fn resolve_pallet(
-		auth: token_api::ViewAuthorization<AccountId, Signature>,
-		index: u16,
-	) -> Option<String> {
-		let auth = convert_token_view_authorization(auth)?;
-		Token::resolve_pallet_view(auth, index)
-	}
-
-	fn token_history(
-		auth: token_api::ViewAuthorization<AccountId, Signature>,
-		token: Vec<u8>,
-		start: Option<u32>,
-		limit: u32,
-	) -> Vec<token_api::TokenHistoryEvent<Hash>> {
-		let auth = match convert_token_view_authorization(auth) {
-			Some(auth) => auth,
-			None => return Vec::new(),
-		};
-		let ss58_id = match Ss58Identifier::try_from(token) {
-			Ok(id) => id,
-			Err(_) => return Vec::new(),
-		};
-		Token::history_view(auth, ss58_id, start, limit)
-			.into_iter()
-			.map(|event| token_api::TokenHistoryEvent {
-				action: event.action.into(),
-				digest: event.digest,
-				height: event.seal.height,
-				index: event.seal.index,
+		) -> Option<token_api::DecodedTokenApi> {
+			let auth = convert_token_view_authorization(auth)?;
+			let ss58_id = Ss58Identifier::try_from(token).ok()?;
+			let decoded = Token::resolve_identifier_view(auth, ss58_id).ok()?;
+			Some(token_api::DecodedTokenApi {
+				origin: decoded.origin,
+				network: decoded.network,
+				pallet: decoded.pallet,
+				genesis: decoded.genesis,
 			})
-			.collect()
+		}
+
+		fn resolve_pallet(
+			auth: token_api::ViewAuthorization<AccountId, Signature>,
+			index: u16,
+		) -> Option<String> {
+			let auth = convert_token_view_authorization(auth)?;
+			Token::resolve_pallet_view(auth, index).ok()
+		}
+
+		fn token_history(
+			auth: token_api::ViewAuthorization<AccountId, Signature>,
+			token: Vec<u8>,
+			start: Option<u32>,
+			limit: u32,
+		) -> Vec<token_api::TokenHistoryEvent<Hash>> {
+			let auth = match convert_token_view_authorization(auth) {
+				Some(auth) => auth,
+				None => return Vec::new(),
+			};
+			let ss58_id = match Ss58Identifier::try_from(token) {
+				Ok(id) => id,
+				Err(_) => return Vec::new(),
+			};
+			let history = match Token::history_view(auth, ss58_id, start, limit) {
+				Ok(events) => events,
+				Err(_) => return Vec::new(),
+			};
+			history
+				.into_iter()
+				.map(|event| token_api::TokenHistoryEvent {
+					action: event.action.into(),
+					digest: event.digest,
+					height: event.seal.height,
+					index: event.seal.index,
+				})
+				.collect()
+		}
 	}
-}
 
 	impl xcm_runtime_apis::fees::XcmPaymentApi<Block> for Runtime {
 		fn query_acceptable_payment_assets(xcm_version: xcm::Version) -> Result<Vec<VersionedAssetId>, XcmPaymentApiError> {

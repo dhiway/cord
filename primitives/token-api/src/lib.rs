@@ -24,10 +24,24 @@
 extern crate alloc;
 
 use alloc::{string::String, vec::Vec};
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
+use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
+use sp_runtime::RuntimeDebug;
 
-#[derive(Encode, Decode, TypeInfo, PartialEq, Eq)]
+/// Maximum payload length supported by portable view authorizations.
+pub const VIEW_AUTH_MAX_BYTES: u32 = 256;
+type ViewAuthPayloadLimit = ConstU32<VIEW_AUTH_MAX_BYTES>;
+pub type ViewAuthPayload = BoundedVec<u8, ViewAuthPayloadLimit>;
+
+#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
+pub struct ViewAuthorization<AccountId, Signature> {
+	pub account: AccountId,
+	pub payload: ViewAuthPayload,
+	pub signature: Signature,
+}
+
+#[derive(Encode, Decode, TypeInfo, PartialEq, Eq, RuntimeDebug)]
 pub struct DecodedTokenApi {
 	pub origin: bool,
 	pub network: u16,
@@ -35,14 +49,44 @@ pub struct DecodedTokenApi {
 	pub genesis: String,
 }
 
+#[derive(Encode, Decode, TypeInfo, PartialEq, Eq, RuntimeDebug)]
+pub struct TokenHistoryEvent<Hash> {
+	pub action: Vec<u8>,
+	pub digest: Hash,
+	pub height: u32,
+	pub index: u32,
+}
+
 sp_api::decl_runtime_apis! {
-	pub trait TokenApi {
+	pub trait TokenApi<AccountId, Signature, Hash>
+	where
+		AccountId: codec::Codec,
+		Signature: codec::Codec,
+		Hash: codec::Codec,
+	{
 		/// Decodes a Token into its structured form,
 		/// or returns `None` if decoding fails.
 		fn decode_token(token: Vec<u8>) -> Option<DecodedTokenApi>;
 
 		/// Resolves a pallet name from storage by the given pallet index,
-		/// or returns `None` if it doesn't exist.
-		fn resolve_pallet(index: u16) -> Option<String>;
+		/// returning SCALE-encoded bytes or `None` if it doesn't exist or auth fails.
+		fn resolve_pallet(
+			auth: ViewAuthorization<AccountId, Signature>,
+			index: u16,
+		) -> Option<String>;
+
+		/// Resolves a token using the SCALE-native decoded representation.
+		fn resolve_identifier(
+			auth: ViewAuthorization<AccountId, Signature>,
+			token: Vec<u8>,
+		) -> Option<DecodedTokenApi>;
+
+		/// Returns SCALE-native token history entries capped by `limit`.
+		fn token_history(
+			auth: ViewAuthorization<AccountId, Signature>,
+			token: Vec<u8>,
+			start: Option<u32>,
+			limit: u32,
+		) -> Vec<TokenHistoryEvent<Hash>>;
 	}
 }

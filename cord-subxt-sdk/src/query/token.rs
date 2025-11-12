@@ -5,7 +5,7 @@ use cord_primitives::{
 	view::InfoTokenHistoryEntry,
 	view_api::{
 		TokenResolveIdentifierRequest, TokenResolvePalletRequest, TokenStateVersionRequest,
-		TokenTimelineRequest,
+		TokenTimelineRequest, ViewError,
 	},
 };
 use scale_value::Value;
@@ -16,9 +16,11 @@ pub struct TokenQuery<'a> {
 }
 
 impl<'a> TokenQuery<'a> {
-	pub async fn state_version(&self, req: &TokenStateVersionRequest) -> Result<Option<u32>> {
+	pub async fn state_version(&self, req: &TokenStateVersionRequest) -> Result<u32> {
 		let args = self.token_args(&req.auth, &req.token)?;
-		self.query.call_optional("Token", "state_version", args).await
+		let raw: core::result::Result<u32, ViewError> =
+			self.query.call_typed("Token", "state_version", args).await?;
+		raw.map_err(|err| view_failure("token.state_version", err))
 	}
 
 	pub async fn resolve_identifier(
@@ -26,26 +28,23 @@ impl<'a> TokenQuery<'a> {
 		req: &TokenResolveIdentifierRequest,
 	) -> Result<DecodedIdentifier> {
 		let args = self.token_args(&req.auth, &req.token)?;
-		let value = self
-			.query
-			.call_optional::<DecodedIdentifier>("Token", "resolve_identifier", args)
-			.await?;
-		value.ok_or_else(|| Error::NotFound("token.resolve_identifier returned none".into()))
+		let raw: core::result::Result<DecodedIdentifier, ViewError> =
+			self.query.call_typed("Token", "resolve_identifier", args).await?;
+		raw.map_err(|err| view_failure("token.resolve_identifier", err))
 	}
 
 	pub async fn timeline(&self, req: &TokenTimelineRequest) -> Result<Vec<InfoTokenHistoryEntry>> {
 		let args = self.timeline_args(req)?;
-		let value = self
-			.query
-			.call_optional::<Vec<InfoTokenHistoryEntry>>("Token", "timeline", args)
-			.await?;
-		value.ok_or_else(|| Error::NotFound("token.timeline returned none".into()))
+		let raw: core::result::Result<Vec<InfoTokenHistoryEntry>, ViewError> =
+			self.query.call_typed("Token", "timeline", args).await?;
+		raw.map_err(|err| view_failure("token.timeline", err))
 	}
 
 	pub async fn resolve_pallet(&self, req: &TokenResolvePalletRequest) -> Result<String> {
 		let args = self.resolve_pallet_args(req)?;
-		let value = self.query.call_optional::<String>("Token", "resolve_pallet", args).await?;
-		value.ok_or_else(|| Error::NotFound("token.resolve_pallet returned none".into()))
+		let raw: core::result::Result<String, ViewError> =
+			self.query.call_typed("Token", "resolve_pallet", args).await?;
+		raw.map_err(|err| view_failure("token.resolve_pallet", err))
 	}
 
 	fn token_args(
@@ -73,5 +72,18 @@ impl<'a> TokenQuery<'a> {
 		builder.push("auth", super::view_auth_value(&req.auth)?);
 		builder.push("index", super::u16_value(req.index));
 		Ok(builder.finish())
+	}
+}
+
+fn view_failure(ctx: &str, err: ViewError) -> Error {
+	match err {
+		ViewError::NotFound => Error::NotFound(format!("{ctx}: not found")),
+		ViewError::AuthFailed | ViewError::PermissionDenied => {
+			Error::Params(format!("{ctx}: {err:?}"))
+		},
+		ViewError::InvalidRequest | ViewError::InvalidContext | ViewError::Replay => {
+			Error::Params(format!("{ctx}: {err:?}"))
+		},
+		ViewError::Expired => Error::Params(format!("{ctx}: authorization expired")),
 	}
 }

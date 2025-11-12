@@ -167,13 +167,13 @@ pub const BABE_GENESIS_EPOCH_CONFIG: babe_primitives::BabeEpochConfiguration =
 		allowed_slots: babe_primitives::AllowedSlots::PrimaryAndSecondaryVRFSlots,
 	};
 
-// fn convert_token_view_authorization(
-// 	auth: token_api::ViewAuthorization<AccountId, Signature>,
-// ) -> Option<pallet_token::ViewAuthorization<Runtime>> {
-// 	let token_api::ViewAuthorization { account, payload, signature } = auth;
-// 	let payload: pallet_token::ViewAuthPayloadOf<Runtime> = payload.try_into().ok()?;
-// 	Some(pallet_token::ViewAuthorization { account, payload, signature })
-// }
+fn convert_token_view_authorization(
+	auth: token_api::ViewAuthorization<AccountId, Signature>,
+) -> Option<pallet_token::ViewAuthorization<Runtime>> {
+	let token_api::ViewAuthorization { account, payload, signature } = auth;
+	let payload: pallet_token::ViewAuthPayloadOf<Runtime> = payload.try_into().ok()?;
+	Some(pallet_token::ViewAuthorization { account, payload, signature })
+}
 
 /// Native version.
 #[cfg(any(feature = "std", test))]
@@ -1909,7 +1909,7 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
-	impl token_api::TokenApi<Block> for Runtime {
+	impl token_api::TokenApi<Block, AccountId, Signature, Hash> for Runtime {
 		fn decode_token(token: Vec<u8>) -> Option<token_api::DecodedTokenApi> {
 			let ss58_id = Ss58Identifier::try_from(token).ok()?;
 			let decoded: DecodedIdentifier = Token::resolve_token(&ss58_id).ok()?;
@@ -1921,8 +1921,56 @@ sp_api::impl_runtime_apis! {
 			})
 		}
 
-		fn resolve_pallet(index: u16) -> Option<String> {
-			Token::resolve_pallet_name(index).ok()
+		fn resolve_pallet(
+			auth: token_api::ViewAuthorization<AccountId, Signature>,
+			index: u16,
+		) -> Option<String> {
+			let auth = convert_token_view_authorization(auth)?;
+			Token::resolve_pallet_view(auth, index).ok()
+		}
+
+		fn resolve_identifier(
+			auth: token_api::ViewAuthorization<AccountId, Signature>,
+			token: Vec<u8>,
+		) -> Option<token_api::DecodedTokenApi> {
+			let auth = convert_token_view_authorization(auth)?;
+			let ss58_id = Ss58Identifier::try_from(token).ok()?;
+			let decoded = Token::resolve_identifier_view(auth, ss58_id).ok()?;
+			Some(token_api::DecodedTokenApi {
+				origin: decoded.origin,
+				network: decoded.network,
+				pallet: decoded.pallet,
+				genesis: decoded.genesis,
+			})
+		}
+
+		fn token_history(
+			auth: token_api::ViewAuthorization<AccountId, Signature>,
+			token: Vec<u8>,
+			start: Option<u32>,
+			limit: u32,
+		) -> Vec<token_api::TokenHistoryEvent<Hash>> {
+			let auth = match convert_token_view_authorization(auth) {
+				Some(auth) => auth,
+				None => return Vec::new(),
+			};
+			let ss58_id = match Ss58Identifier::try_from(token) {
+				Ok(id) => id,
+				Err(_) => return Vec::new(),
+			};
+			let history = match Token::history_view(auth, ss58_id, start, limit) {
+				Ok(events) => events,
+				Err(_) => return Vec::new(),
+			};
+			history
+				.into_iter()
+				.map(|event| token_api::TokenHistoryEvent {
+					action: event.action.into(),
+					digest: event.digest,
+					height: event.seal.height,
+					index: event.seal.index,
+				})
+				.collect()
 		}
 	}
 
