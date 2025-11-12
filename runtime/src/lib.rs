@@ -641,20 +641,20 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 			ProxyType::Any => true,
 			ProxyType::NonTransfer => matches!(
 				c,
-				RuntimeCall::System(..)
-					| RuntimeCall::Babe(..)
-					| RuntimeCall::Entity(..)
-					| RuntimeCall::Timestamp(..)
-					| RuntimeCall::Indices(pallet_indices::Call::claim { .. })
-					| RuntimeCall::Indices(pallet_indices::Call::free { .. })
-					| RuntimeCall::Indices(pallet_indices::Call::freeze { .. })
-					| RuntimeCall::Register(..)
-					| RuntimeCall::Session(..)
-					| RuntimeCall::Grandpa(..)
-					| RuntimeCall::Utility(..)
-					| RuntimeCall::Scheduler(..)
-					| RuntimeCall::Proxy(..)
-					| RuntimeCall::Multisig(..)
+				RuntimeCall::System(..) |
+					RuntimeCall::Babe(..) |
+					RuntimeCall::Entity(..) |
+					RuntimeCall::Timestamp(..) |
+					RuntimeCall::Indices(pallet_indices::Call::claim { .. }) |
+					RuntimeCall::Indices(pallet_indices::Call::free { .. }) |
+					RuntimeCall::Indices(pallet_indices::Call::freeze { .. }) |
+					RuntimeCall::Register(..) |
+					RuntimeCall::Session(..) |
+					RuntimeCall::Grandpa(..) |
+					RuntimeCall::Utility(..) |
+					RuntimeCall::Scheduler(..) |
+					RuntimeCall::Proxy(..) |
+					RuntimeCall::Multisig(..)
 			),
 			ProxyType::CancelProxy => {
 				matches!(c, RuntimeCall::Proxy(pallet_proxy::Call::reject_announcement { .. }))
@@ -748,11 +748,11 @@ parameter_types! {
 	pub const MaxAdditionalAttributes: u32 = 32;
 	pub const MaxLinkedAccounts: u32 = 2;
 	pub const MaxEntityNymLength: u32 = 64;
-	pub const EntityMaxViewAuthorizationLen: u32 = 128;
+	pub const EntityMaxAuthorizationLen: u32 = 128;
 }
 
 parameter_types! {
-	pub const TokenMaxViewAuthorizationLen: u32 = 128;
+	pub const TokenMaxAuthorizationLen: u32 = 128;
 	pub const TokenMaxTimelineViewResults: u32 = 64;
 	pub const TokenDefaultTimelineViewResults: u32 = 32;
 }
@@ -760,7 +760,7 @@ parameter_types! {
 impl pallet_token::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
-	type MaxViewAuthorizationLen = TokenMaxViewAuthorizationLen;
+	type MaxAuthorizationLen = TokenMaxAuthorizationLen;
 	type MaxTimelineViewResults = TokenMaxTimelineViewResults;
 	type DefaulTimelineViewResults = TokenDefaultTimelineViewResults;
 }
@@ -773,7 +773,7 @@ impl pallet_entity::Config for Runtime {
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxEntityNymLength = MaxEntityNymLength;
-	type MaxViewAuthorizationLen = EntityMaxViewAuthorizationLen;
+	type MaxAuthorizationLen = EntityMaxAuthorizationLen;
 	type Feeless = Feeless;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
@@ -782,7 +782,7 @@ impl pallet_entity::Config for Runtime {
 parameter_types! {
 	pub const MaxRegistryRawDataLength: u32 = 4096;
 	pub const MaxRegistryAdditionalAttributes: u32 = 64;
-	pub const MaxViewAuthorizationLen: u32 = 128;
+	pub const MaxAuthorizationLen: u32 = 128;
 	pub const MaxPacketListResults: u32 = 200;
 }
 
@@ -792,7 +792,7 @@ impl pallet_register::Config for Runtime {
 	type EntityLookup = Entity;
 	type MaxRawDataLength = MaxRegistryRawDataLength;
 	type MaxAdditionalAttributes = MaxRegistryAdditionalAttributes;
-	type MaxViewAuthorizationLen = MaxViewAuthorizationLen;
+	type MaxAuthorizationLen = MaxAuthorizationLen;
 	type MaxPacketListResults = MaxPacketListResults;
 	type Feeless = Feeless;
 	type WeightInfo = ();

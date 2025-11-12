@@ -7,7 +7,7 @@ summarize the canonical payload layout, replay rules, and error taxonomy.
 
 ## View Authorization Payload (v1)
 
-All view invocations must carry a `ViewAuthorization<AccountId, Payload,
+All view invocations must carry a `Authorization<AccountId, Payload,
 Signature>` where `Payload` is a byte buffer produced via
 `PayloadBuilder::build`. The binary layout is:
 
@@ -38,7 +38,7 @@ Signature>` where `Payload` is a byte buffer produced via
 - **Request binding**: `request_bytes` must equal the SCALE encoding of the view
   arguments (excluding `auth`) in metadata order. Helper methods in the SDK
   reuse Subxt’s typed encoders to keep this canonical.
-- **Size limit**: the runtime enforces `Payload::len() <= MaxViewAuthorizationLen`
+- **Size limit**: the runtime enforces `Payload::len() <= MaxAuthorizationLen`
   (currently 512 bytes in Origin runtimes). Builders should clamp requests
   before signing.
 
@@ -46,11 +46,11 @@ Signature>` where `Payload` is a byte buffer produced via
 
 1. Compute the payload using the builder above.
 2. Sign the entire payload byte array with the account key (MultiSignature).
-3. Submit `ViewAuthorization { account, payload, signature }` alongside the
+3. Submit `Authorization { account, payload, signature }` alongside the
    typed view arguments.
 4. Pallets recompute `blake2_256(account || payload || signature)` and maintain a
    bounded `(account, context)` replay window. Replays within the window return
-   `ViewErrorCode::Replay`.
+   `AuthorizationErrorCode::Replay`.
 
 The SDK exposes `AuthorizationBuilder` utilities that take a Subxt signer,
 construct the payload, and return the ready-to-use authorization structure.
@@ -72,5 +72,5 @@ authorization fails:
 - `INTERNAL` – unexpected runtime failure.
 
 Each error serializes as `CODE|short human-readable message`. The SDK surfaces
-`ViewError` directly so client applications can branch on the `code` while
+`AuthorizationError` directly so client applications can branch on the `code` while
 logging the friendly detail.

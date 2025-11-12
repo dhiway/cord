@@ -2,7 +2,7 @@ use crate::error::{Error, Result};
 use scale_value::Value;
 use serde::{Deserialize, Serialize};
 
-pub use cord_primitives::view::{DevEventBlockView, InfoAttributeHistoryEntry};
+pub use cord_primitives::{dev::DevEventBlockView, view::InfoAttributeHistoryEntry};
 
 use super::element::attribute_pair_value;
 pub use super::element::ElementJson;

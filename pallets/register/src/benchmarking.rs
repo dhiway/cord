@@ -72,7 +72,7 @@ frame_benchmarking::benchmarks! {
 		assert!(Registries::<T>::iter_keys().next().is_some());
 	}
 
-	set_registry_delegate {
+	set_delegate_permissions {
 		let caller: T::AccountId = whitelisted_caller();
 		let hash = T::Hashing::hash(&caller.encode());
 		let pallet_name = <Pallet<T> as PalletInfoAccess>::name();

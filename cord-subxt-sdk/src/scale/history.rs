@@ -1,5 +1,8 @@
 use crate::error::{Error, Result};
-use cord_primitives::view::{DevElement, DevEventBlockView, InfoAttributeHistoryEntry};
+use cord_primitives::{
+	dev::DevEventBlockView,
+	view::{DevElement, InfoAttributeHistoryEntry},
+};
 use scale_value::{Composite, Value, ValueDef, Variant};
 use std::collections::BTreeMap;
 

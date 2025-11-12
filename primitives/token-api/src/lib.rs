@@ -30,14 +30,14 @@ use scale_info::TypeInfo;
 use sp_runtime::RuntimeDebug;
 
 /// Maximum payload length supported by portable view authorizations.
-pub const VIEW_AUTH_MAX_BYTES: u32 = 256;
-type ViewAuthPayloadLimit = ConstU32<VIEW_AUTH_MAX_BYTES>;
-pub type ViewAuthPayload = BoundedVec<u8, ViewAuthPayloadLimit>;
+pub const AUTHORIZATION_MAX_BYTES: u32 = 256;
+type AuthorizationPayloadLimit = ConstU32<AUTHORIZATION_MAX_BYTES>;
+pub type AuthorizationPayload = BoundedVec<u8, AuthorizationPayloadLimit>;
 
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
-pub struct ViewAuthorization<AccountId, Signature> {
+pub struct Authorization<AccountId, Signature> {
 	pub account: AccountId,
-	pub payload: ViewAuthPayload,
+	pub payload: AuthorizationPayload,
 	pub signature: Signature,
 }
 
@@ -71,19 +71,19 @@ sp_api::decl_runtime_apis! {
 		/// Resolves a pallet name from storage by the given pallet index,
 		/// returning SCALE-encoded bytes or `None` if it doesn't exist or auth fails.
 		fn resolve_pallet(
-			auth: ViewAuthorization<AccountId, Signature>,
+			auth: Authorization<AccountId, Signature>,
 			index: u16,
 		) -> Option<String>;
 
 		/// Resolves a token using the SCALE-native decoded representation.
 		fn resolve_identifier(
-			auth: ViewAuthorization<AccountId, Signature>,
+			auth: Authorization<AccountId, Signature>,
 			token: Vec<u8>,
 		) -> Option<DecodedTokenApi>;
 
 		/// Returns SCALE-native token history entries capped by `limit`.
 		fn token_history(
-			auth: ViewAuthorization<AccountId, Signature>,
+			auth: Authorization<AccountId, Signature>,
 			token: Vec<u8>,
 			start: Option<u32>,
 			limit: u32,

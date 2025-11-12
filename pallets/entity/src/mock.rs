@@ -62,10 +62,10 @@ parameter_types! {
 	pub const MaxAdditionalAttributes: u32 = 32;
 	pub const MaxLinkedAccounts: u32 = 2;
 	pub const MaxEntityNymLength: u32 = 20;
-	pub const MaxTokenViewAuthorizationLen: u32 = 128;
+	pub const MaxTokenAuthorizationLen: u32 = 128;
 	pub const MaxTokenTimelineViewResults: u32 = 32;
 	pub const DefaultTokenTimelineViewResults: u32 = 16;
-	pub const MaxEntityViewAuthorizationLen: u32 = 128;
+	pub const MaxEntityAuthorizationLen: u32 = 128;
 }
 
 thread_local! {
@@ -81,7 +81,7 @@ impl pallet_entity::Config for Test {
 	type MaxRawDataLength = MaxRawDataLength;
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type MaxEntityNymLength = MaxEntityNymLength;
-	type MaxViewAuthorizationLen = MaxEntityViewAuthorizationLen;
+	type MaxAuthorizationLen = MaxEntityAuthorizationLen;
 	type Feeless = ();
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = ();
@@ -90,7 +90,7 @@ impl pallet_entity::Config for Test {
 impl pallet_token::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = System;
-	type MaxViewAuthorizationLen = MaxTokenViewAuthorizationLen;
+	type MaxAuthorizationLen = MaxTokenAuthorizationLen;
 	type MaxTimelineViewResults = MaxTokenTimelineViewResults;
 	type DefaulTimelineViewResults = DefaultTokenTimelineViewResults;
 }

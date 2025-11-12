@@ -36,7 +36,7 @@ parameter_types! {
 	pub const MaxEntityNymLength: u32 = 32;
 	pub const MaxAdditionalAttributes: u32 = 32;
 	pub const GeneralAdminBodyId: BodyId = BodyId::Administration;
-	pub const MaxViewAuthorizationLen: u32 = 128;
+	pub const MaxAuthorizationLen: u32 = 128;
 }
 
 pub type IdentityAdminOrigin = EitherOfDiverse<
@@ -52,7 +52,7 @@ impl pallet_entity::Config for Runtime {
 	type MaxAdditionalAttributes = MaxAdditionalAttributes;
 	type EntityInfoPacket = EntityInfo<MaxRawDataLength, MaxAdditionalAttributes>;
 	type MaxEntityNymLength = MaxEntityNymLength;
-	type MaxViewAuthorizationLen = MaxViewAuthorizationLen;
+	type MaxAuthorizationLen = MaxAuthorizationLen;
 	type ForceOrigin = EnsureRoot<Self::AccountId>;
 	type WeightInfo = weights::pallet_entity::WeightInfo<Runtime>;
 }

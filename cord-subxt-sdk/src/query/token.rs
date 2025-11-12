@@ -4,8 +4,8 @@ use cord_primitives::{
 	identifier::DecodedIdentifier,
 	view::InfoTokenHistoryEntry,
 	view_api::{
-		TokenResolveIdentifierRequest, TokenResolvePalletRequest, TokenStateVersionRequest,
-		TokenTimelineRequest, ViewError,
+		AuthorizationError, TokenResolveIdentifierRequest, TokenResolvePalletRequest,
+		TokenStateVersionRequest, TokenTimelineRequest,
 	},
 };
 use scale_value::Value;
@@ -18,7 +18,7 @@ pub struct TokenQuery<'a> {
 impl<'a> TokenQuery<'a> {
 	pub async fn state_version(&self, req: &TokenStateVersionRequest) -> Result<u32> {
 		let args = self.token_args(&req.auth, &req.token)?;
-		let raw: core::result::Result<u32, ViewError> =
+		let raw: core::result::Result<u32, AuthorizationError> =
 			self.query.call_typed("Token", "state_version", args).await?;
 		raw.map_err(|err| view_failure("token.state_version", err))
 	}
@@ -28,39 +28,39 @@ impl<'a> TokenQuery<'a> {
 		req: &TokenResolveIdentifierRequest,
 	) -> Result<DecodedIdentifier> {
 		let args = self.token_args(&req.auth, &req.token)?;
-		let raw: core::result::Result<DecodedIdentifier, ViewError> =
+		let raw: core::result::Result<DecodedIdentifier, AuthorizationError> =
 			self.query.call_typed("Token", "resolve_identifier", args).await?;
 		raw.map_err(|err| view_failure("token.resolve_identifier", err))
 	}
 
 	pub async fn timeline(&self, req: &TokenTimelineRequest) -> Result<Vec<InfoTokenHistoryEntry>> {
 		let args = self.timeline_args(req)?;
-		let raw: core::result::Result<Vec<InfoTokenHistoryEntry>, ViewError> =
+		let raw: core::result::Result<Vec<InfoTokenHistoryEntry>, AuthorizationError> =
 			self.query.call_typed("Token", "timeline", args).await?;
 		raw.map_err(|err| view_failure("token.timeline", err))
 	}
 
 	pub async fn resolve_pallet(&self, req: &TokenResolvePalletRequest) -> Result<String> {
 		let args = self.resolve_pallet_args(req)?;
-		let raw: core::result::Result<String, ViewError> =
+		let raw: core::result::Result<String, AuthorizationError> =
 			self.query.call_typed("Token", "resolve_pallet", args).await?;
 		raw.map_err(|err| view_failure("token.resolve_pallet", err))
 	}
 
 	fn token_args(
 		&self,
-		auth: &cord_primitives::view_api::ViewRequestAuth,
+		auth: &cord_primitives::view_api::AuthorizationRequest,
 		token: &cord_primitives::identifier::Ss58Identifier,
 	) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::view_auth_value(auth)?);
+		builder.push("auth", super::authorization_value(auth)?);
 		builder.push("token", super::identifier_struct_value(token));
 		Ok(builder.finish())
 	}
 
 	fn timeline_args(&self, req: &TokenTimelineRequest) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::view_auth_value(&req.auth)?);
+		builder.push("auth", super::authorization_value(&req.auth)?);
 		builder.push("token", super::identifier_struct_value(&req.token));
 		builder.push("start", super::option_u32_value(req.start));
 		builder.push("limit", super::option_u32_value(req.limit));
@@ -69,21 +69,18 @@ impl<'a> TokenQuery<'a> {
 
 	fn resolve_pallet_args(&self, req: &TokenResolvePalletRequest) -> Result<Value> {
 		let mut builder = ArgBuilder::default();
-		builder.push("auth", super::view_auth_value(&req.auth)?);
+		builder.push("auth", super::authorization_value(&req.auth)?);
 		builder.push("index", super::u16_value(req.index));
 		Ok(builder.finish())
 	}
 }
 
-fn view_failure(ctx: &str, err: ViewError) -> Error {
+fn view_failure(ctx: &str, err: AuthorizationError) -> Error {
 	match err {
-		ViewError::NotFound => Error::NotFound(format!("{ctx}: not found")),
-		ViewError::AuthFailed | ViewError::PermissionDenied => {
-			Error::Params(format!("{ctx}: {err:?}"))
-		},
-		ViewError::InvalidRequest | ViewError::InvalidContext | ViewError::Replay => {
-			Error::Params(format!("{ctx}: {err:?}"))
-		},
-		ViewError::Expired => Error::Params(format!("{ctx}: authorization expired")),
+		AuthorizationError::NotFound => Error::NotFound(format!("{ctx}: not found")),
+		AuthorizationError::Unauthorized => Error::Params(format!("{ctx}: unauthorized")),
+		AuthorizationError::InvalidInput => Error::Params(format!("{ctx}: invalid input")),
+		AuthorizationError::TooLarge => Error::Params(format!("{ctx}: result too large")),
+		AuthorizationError::Internal => Error::ViewDecode(format!("{ctx}: internal error")),
 	}
 }

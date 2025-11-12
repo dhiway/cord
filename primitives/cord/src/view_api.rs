@@ -2,7 +2,7 @@
 //
 // Typed request/response DTOs and error taxonomy for runtime view functions.
 
-use crate::{identifier::Ss58Identifier, view_auth::ViewAuthorization, AccountId, Signature};
+use crate::{authorization::Authorization, identifier::Ss58Identifier, AccountId, Signature};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{pallet_prelude::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
@@ -13,14 +13,14 @@ use scale_decode::DecodeAsType;
 use serde::{Deserialize, Serialize};
 
 /// Maximum payload length (in bytes) supported by the portable view authorization DTOs.
-pub const VIEW_AUTH_MAX_BYTES: u32 = 256;
-type ViewAuthPayloadLimit = ConstU32<VIEW_AUTH_MAX_BYTES>;
+pub const AUTHORIZATION_MAX_BYTES: u32 = 256;
+type AuthorizationPayloadLimit = ConstU32<AUTHORIZATION_MAX_BYTES>;
 
-/// Bounded payload used when constructing [`ViewRequestAuth`].
-pub type ViewAuthPayload = BoundedVec<u8, ViewAuthPayloadLimit>;
+/// Bounded payload used when constructing [`AuthorizationRequest`].
+pub type AuthorizationPayload = BoundedVec<u8, AuthorizationPayloadLimit>;
 
 /// Convenience alias for the client-facing view authorization DTO.
-pub type ViewRequestAuth = ViewAuthorization<AccountId, ViewAuthPayload, Signature>;
+pub type AuthorizationRequest = Authorization<AccountId, AuthorizationPayload, Signature>;
 
 /// Maximum attribute key bytes supported by portable DTOs.
 pub const MAX_ATTRIBUTE_KEY_BYTES: u32 = 1024;
@@ -29,27 +29,27 @@ type AttributeKeyLimit = ConstU32<MAX_ATTRIBUTE_KEY_BYTES>;
 /// Attribute key shape shared by entity/register view DTOs.
 pub type AttributeKey = BoundedVec<u8, AttributeKeyLimit>;
 
-/// Request payload for `Register::registry_info`.
+/// Request payload for `Register::details`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct RegisterInfoRequest {
-	pub auth: ViewRequestAuth,
+pub struct RegisterDetailsRequest {
+	pub auth: AuthorizationRequest,
 	pub registry: Ss58Identifier,
 }
 
-/// Request payload for `Register::lookup_specs_view`.
+/// Request payload for `Register::lookup_specs`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct RegisterLookupSpecsRequest {
-	pub auth: ViewRequestAuth,
+	pub auth: AuthorizationRequest,
 	pub registry: Ss58Identifier,
 }
 
-/// Request payload for `Register::packet`.
+/// Request payload for `Register::packet_snapshot`.
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct RegisterPacketRequest {
-	pub auth: ViewRequestAuth,
+pub struct RegisterPacketSnapshotRequest {
+	pub auth: AuthorizationRequest,
 	pub registry: Ss58Identifier,
 	pub packet: Ss58Identifier,
 	pub version: Option<u32>,
@@ -59,7 +59,7 @@ pub struct RegisterPacketRequest {
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityAttributeHistoryRequest {
-	pub auth: ViewRequestAuth,
+	pub auth: AuthorizationRequest,
 	pub token: Ss58Identifier,
 }
 
@@ -67,7 +67,7 @@ pub struct EntityAttributeHistoryRequest {
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityAttributeHistoryForKeyRequest {
-	pub auth: ViewRequestAuth,
+	pub auth: AuthorizationRequest,
 	pub token: Ss58Identifier,
 	pub key: AttributeKey,
 }
@@ -76,7 +76,7 @@ pub struct EntityAttributeHistoryForKeyRequest {
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityAttributeHistoryEntryRequest {
-	pub auth: ViewRequestAuth,
+	pub auth: AuthorizationRequest,
 	pub token: Ss58Identifier,
 	pub key: AttributeKey,
 	pub version: u64,
@@ -86,7 +86,7 @@ pub struct EntityAttributeHistoryEntryRequest {
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityAccountTokenRequest {
-	pub auth: ViewRequestAuth,
+	pub auth: AuthorizationRequest,
 	pub account: AccountId,
 }
 
@@ -94,7 +94,7 @@ pub struct EntityAccountTokenRequest {
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityInfoBytesRequest {
-	pub auth: ViewRequestAuth,
+	pub auth: AuthorizationRequest,
 	pub token: Ss58Identifier,
 }
 
@@ -102,7 +102,7 @@ pub struct EntityInfoBytesRequest {
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityLinkedAccountsRequest {
-	pub auth: ViewRequestAuth,
+	pub auth: AuthorizationRequest,
 	pub token: Ss58Identifier,
 }
 
@@ -110,7 +110,7 @@ pub struct EntityLinkedAccountsRequest {
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct EntityNymRequest {
-	pub auth: ViewRequestAuth,
+	pub auth: AuthorizationRequest,
 	pub token: Ss58Identifier,
 }
 
@@ -118,7 +118,7 @@ pub struct EntityNymRequest {
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct TokenStateVersionRequest {
-	pub auth: ViewRequestAuth,
+	pub auth: AuthorizationRequest,
 	pub token: Ss58Identifier,
 }
 
@@ -126,7 +126,7 @@ pub struct TokenStateVersionRequest {
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct TokenResolveIdentifierRequest {
-	pub auth: ViewRequestAuth,
+	pub auth: AuthorizationRequest,
 	pub token: Ss58Identifier,
 }
 
@@ -134,7 +134,7 @@ pub struct TokenResolveIdentifierRequest {
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct TokenTimelineRequest {
-	pub auth: ViewRequestAuth,
+	pub auth: AuthorizationRequest,
 	pub token: Ss58Identifier,
 	pub start: Option<u32>,
 	pub limit: Option<u32>,
@@ -144,7 +144,7 @@ pub struct TokenTimelineRequest {
 #[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct TokenResolvePalletRequest {
-	pub auth: ViewRequestAuth,
+	pub auth: AuthorizationRequest,
 	pub index: u16,
 }
 
@@ -153,14 +153,12 @@ pub struct TokenResolvePalletRequest {
 	Copy, Clone, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen, RuntimeDebug, DecodeAsType,
 )]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum ViewError {
-	AuthFailed,
-	Expired,
-	Replay,
-	InvalidContext,
-	InvalidRequest,
-	PermissionDenied,
+pub enum AuthorizationError {
+	Unauthorized,
 	NotFound,
+	InvalidInput,
+	TooLarge,
+	Internal,
 }
 
 #[cfg(test)]
@@ -169,12 +167,12 @@ mod tests {
 	use alloc::vec;
 	use sp_core::sr25519;
 
-	fn sample_auth() -> ViewRequestAuth {
-		let payload: ViewAuthPayload =
+	fn sample_auth() -> AuthorizationRequest {
+		let payload: AuthorizationPayload =
 			BoundedVec::try_from(vec![b'a'; 32]).expect("payload within bounds");
 		let sig = Signature::from(sr25519::Signature::from_raw([1u8; 64]));
 		let account = AccountId::from([2u8; 32]);
-		ViewRequestAuth { account, payload, signature: sig }
+		AuthorizationRequest { account, payload, signature: sig }
 	}
 
 	fn sample_token(id: u8) -> Ss58Identifier {
@@ -199,9 +197,9 @@ mod tests {
 	fn register_requests_roundtrip() {
 		let auth = sample_auth();
 		let reg = sample_token(9);
-		roundtrip(&RegisterInfoRequest { auth: auth.clone(), registry: reg.clone() });
+		roundtrip(&RegisterDetailsRequest { auth: auth.clone(), registry: reg.clone() });
 		roundtrip(&RegisterLookupSpecsRequest { auth: auth.clone(), registry: reg.clone() });
-		roundtrip(&RegisterPacketRequest {
+		roundtrip(&RegisterPacketSnapshotRequest {
 			auth: auth.clone(),
 			registry: reg.clone(),
 			packet: sample_token(10),
@@ -250,13 +248,11 @@ mod tests {
 	#[test]
 	fn view_error_roundtrip() {
 		for variant in [
-			ViewError::AuthFailed,
-			ViewError::Expired,
-			ViewError::Replay,
-			ViewError::InvalidContext,
-			ViewError::InvalidRequest,
-			ViewError::PermissionDenied,
-			ViewError::NotFound,
+			AuthorizationError::Unauthorized,
+			AuthorizationError::NotFound,
+			AuthorizationError::InvalidInput,
+			AuthorizationError::TooLarge,
+			AuthorizationError::Internal,
 		] {
 			roundtrip(&variant);
 		}

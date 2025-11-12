@@ -27,13 +27,13 @@ use alloc::{string::String, vec, vec::Vec};
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 
 use cord_primitives::{
-	identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier},
-	view::{base64_string, hex_string, maybe_utf8, DevEventBlockView, InfoTokenHistoryEntry},
-	view_api::ViewError,
-	view_auth::{
-		view_signature_hash as primitives_view_signature_hash,
-		ViewAuthorization as CoreViewAuthorization,
+	authorization::{
+		authorization_signature_hash as primitives_authorization_signature_hash,
+		Authorization as CoreAuthorization,
 	},
+	dev::{base64_string, hex_string, maybe_utf8, DevEventBlockView},
+	identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier},
+	view_api::AuthorizationError,
 	Signature,
 };
 use core::{cmp, convert::TryInto};
@@ -50,6 +50,7 @@ use sp_runtime::{
 	traits::{BlockNumberProvider, UniqueSaturatedInto, Verify},
 	AccountId32,
 };
+use types::InfoTokenHistoryEntry;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -57,6 +58,7 @@ mod benchmarking;
 pub mod mock;
 #[cfg(test)]
 mod tests;
+pub mod types;
 
 /// The starting index for pallets.
 const INDEX: u16 = 64;
@@ -101,14 +103,14 @@ pub trait Token<T: frame_system::Config> {
 pub type EventTypeOf = BoundedVec<u8, ConstU32<128>>;
 
 /// Maximum payload size for view authorizations.
-pub type ViewAuthPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxViewAuthorizationLen>;
+pub type AuthorizationPayloadOf<T> = BoundedVec<u8, <T as Config>::MaxAuthorizationLen>;
 
 /// Authorization required for read-only token views.
-pub type ViewAuthorization<T> =
-	CoreViewAuthorization<<T as frame_system::Config>::AccountId, ViewAuthPayloadOf<T>, Signature>;
+pub type Authorization<T> =
+	CoreAuthorization<<T as frame_system::Config>::AccountId, AuthorizationPayloadOf<T>, Signature>;
 
 /// Replay-protection hash for view authorizations.
-pub type ViewAuthSignatureHash = [u8; 16];
+pub type AuthorizationSignatureHash = [u8; 16];
 
 /// ActivityRecord stores an update entry and the corresponding event stamp.
 #[derive(Encode, Decode, DecodeWithMemTracking, Clone, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
@@ -139,7 +141,7 @@ pub mod pallet {
 
 		/// Maximum view payload length.
 		#[pallet::constant]
-		type MaxViewAuthorizationLen: Get<u32>;
+		type MaxAuthorizationLen: Get<u32>;
 
 		/// Maximum number of history entries returned per view request.
 		#[pallet::constant]
@@ -188,7 +190,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type ViewSignatureUses<T: Config> =
-		StorageMap<_, Blake2_128Concat, ViewAuthSignatureHash, (), OptionQuery>;
+		StorageMap<_, Blake2_128Concat, AuthorizationSignatureHash, (), OptionQuery>;
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -231,9 +233,9 @@ pub mod pallet {
 		/// The origin‐mode flag was not 0 or 1.
 		InvalidMode,
 		/// View authorization failed verification.
-		InvalidViewAuthorization,
+		InvalidAuthorization,
 		/// View authorization signature was reused.
-		ViewAuthorizationReplay,
+		AuthorizationReplay,
 	}
 
 	#[pallet::genesis_config]
@@ -290,76 +292,81 @@ pub mod pallet {
 	{
 		/// Returns the pallet index previously assigned to the provided name.
 		pub fn pallet_index_of(
-			auth: ViewAuthorization<T>,
+			auth: Authorization<T>,
 			name: Vec<u8>,
-		) -> Result<u16, ViewError> {
+		) -> Result<u16, AuthorizationError> {
 			Self::authorize_view(&auth)?;
 			let bounded: BoundedVec<u8, ConstU32<64>> =
-				name.try_into().map_err(|_| ViewError::InvalidRequest)?;
-			PalletIndex::<T>::get(&bounded).ok_or(ViewError::NotFound)
+				name.try_into().map_err(|_| AuthorizationError::InvalidInput)?;
+			PalletIndex::<T>::get(&bounded).ok_or(AuthorizationError::NotFound)
 		}
 
 		/// Returns the pallet name bytes stored for an index.
-		pub fn pallet_name(auth: ViewAuthorization<T>, index: u16) -> Result<Vec<u8>, ViewError> {
+		pub fn pallet_name(
+			auth: Authorization<T>,
+			index: u16,
+		) -> Result<Vec<u8>, AuthorizationError> {
 			Self::authorize_view(&auth)?;
-			IndexToPallet::<T>::get(index).map(Into::into).ok_or(ViewError::NotFound)
+			IndexToPallet::<T>::get(index)
+				.map(Into::into)
+				.ok_or(AuthorizationError::NotFound)
 		}
 
 		/// Returns the next pallet index counter.
-		pub fn next_pallet_index(auth: ViewAuthorization<T>) -> Result<u16, ViewError> {
+		pub fn next_pallet_index(auth: Authorization<T>) -> Result<u16, AuthorizationError> {
 			Self::authorize_view(&auth)?;
 			Ok(NextPalletIndex::<T>::get())
 		}
 
 		/// Returns the configured genesis network identifier.
-		pub fn genesis_network_id(auth: ViewAuthorization<T>) -> Result<u16, ViewError> {
+		pub fn genesis_network_id(auth: Authorization<T>) -> Result<u16, AuthorizationError> {
 			Self::authorize_view(&auth)?;
 			Ok(GenesisNetworkId::<T>::get())
 		}
 
 		/// Returns whether the chain is running in origin mode.
-		pub fn origin_chain_flag(auth: ViewAuthorization<T>) -> Result<bool, ViewError> {
+		pub fn origin_chain_flag(auth: Authorization<T>) -> Result<bool, AuthorizationError> {
 			Self::authorize_view(&auth)?;
 			Ok(IsOriginChain::<T>::get())
 		}
 
 		/// Returns the current state version counter for a token.
 		pub fn state_version(
-			auth: ViewAuthorization<T>,
+			auth: Authorization<T>,
 			token: Ss58Identifier,
-		) -> Result<u32, ViewError> {
+		) -> Result<u32, AuthorizationError> {
 			Self::authorize_view(&auth)?;
 			Ok(StateVersion::<T>::get(&token))
 		}
 
 		/// Returns a specific state event for a token and version.
 		pub fn state_event_view(
-			auth: ViewAuthorization<T>,
+			auth: Authorization<T>,
 			token: Ss58Identifier,
 			version: u32,
-		) -> Result<StateEventOf<T>, ViewError> {
+		) -> Result<StateEventOf<T>, AuthorizationError> {
 			Self::authorize_view(&auth)?;
-			StateHistory::<T>::get(&token, version).ok_or(ViewError::NotFound)
+			StateHistory::<T>::get(&token, version).ok_or(AuthorizationError::NotFound)
 		}
 
 		/// Returns a bounded list of state events mirroring direct storage scans.
 		pub fn state_events(
-			auth: ViewAuthorization<T>,
+			auth: Authorization<T>,
 			token: Ss58Identifier,
 			start: Option<u32>,
 			limit: u32,
-		) -> Result<TimelineEventsOf<T>, ViewError> {
+		) -> Result<TimelineEventsOf<T>, AuthorizationError> {
 			Self::authorize_view(&auth)?;
 			let capped = cmp::min(limit, T::MaxTimelineViewResults::get());
 			Ok(Self::timeline_entries(&token, start, capped))
 		}
 
 		pub fn timeline(
-			auth: ViewAuthorization<T>,
+			auth: Authorization<T>,
 			token: Ss58Identifier,
 			start: Option<u32>,
 			limit: Option<u32>,
-		) -> Result<TimelineHistoryOf<T>, ViewError> {
+		) -> Result<TimelineHistoryOf<T>, AuthorizationError> {
 			Self::authorize_view(&auth)?;
 			let cap = T::MaxTimelineViewResults::get();
 			let def = T::DefaulTimelineViewResults::get();
@@ -374,14 +381,17 @@ pub mod pallet {
 		}
 
 		pub fn resolve_identifier(
-			auth: ViewAuthorization<T>,
+			auth: Authorization<T>,
 			token: Ss58Identifier,
-		) -> Result<DecodedIdentifier, ViewError> {
+		) -> Result<DecodedIdentifier, AuthorizationError> {
 			Self::authorize_view(&auth)?;
 			Self::resolve_identifier_plain(&token)
 		}
 
-		pub fn resolve_pallet(auth: ViewAuthorization<T>, index: u16) -> Result<String, ViewError> {
+		pub fn resolve_pallet(
+			auth: Authorization<T>,
+			index: u16,
+		) -> Result<String, AuthorizationError> {
 			Self::authorize_view(&auth)?;
 			Self::resolve_pallet_plain(index)
 		}
@@ -468,18 +478,22 @@ where
 	AccountId32: From<<T as frame_system::Config>::AccountId>,
 	<T as frame_system::Config>::AccountId: Clone,
 {
-	fn view_signature_hash(auth: &ViewAuthorization<T>) -> ViewAuthSignatureHash {
-		primitives_view_signature_hash(&auth.account, auth.payload.as_slice(), &auth.signature)
+	fn authorization_signature_hash(auth: &Authorization<T>) -> AuthorizationSignatureHash {
+		primitives_authorization_signature_hash(
+			&auth.account,
+			auth.payload.as_slice(),
+			&auth.signature,
+		)
 	}
 
-	fn authorize_view(auth: &ViewAuthorization<T>) -> Result<(), ViewError> {
+	fn authorize_view(auth: &Authorization<T>) -> Result<(), AuthorizationError> {
 		let signer: AccountId32 = auth.account.clone().into();
 		if !auth.signature.verify(auth.payload.as_slice(), &signer) {
-			return Err(ViewError::AuthFailed);
+			return Err(AuthorizationError::Unauthorized);
 		}
-		let hash = Self::view_signature_hash(auth);
+		let hash = Self::authorization_signature_hash(auth);
 		if ViewSignatureUses::<T>::contains_key(&hash) {
-			return Err(ViewError::Replay);
+			return Err(AuthorizationError::Unauthorized);
 		}
 		ViewSignatureUses::<T>::insert(hash, ());
 		Ok(())
@@ -527,51 +541,51 @@ where
 	}
 
 	pub fn timeline_view(
-		auth: ViewAuthorization<T>,
+		auth: Authorization<T>,
 		token: Ss58Identifier,
 		start: Option<u32>,
 		limit: u32,
-	) -> Result<TimelineEventsOf<T>, ViewError> {
+	) -> Result<TimelineEventsOf<T>, AuthorizationError> {
 		Self::authorize_view(&auth)?;
 		Ok(Self::timeline_entries(&token, start, limit))
 	}
 
 	pub fn history_view(
-		auth: ViewAuthorization<T>,
+		auth: Authorization<T>,
 		token: Ss58Identifier,
 		start: Option<u32>,
 		limit: u32,
-	) -> Result<TimelineEventsOf<T>, ViewError> {
+	) -> Result<TimelineEventsOf<T>, AuthorizationError> {
 		Self::authorize_view(&auth)?;
 		Ok(Self::timeline_entries(&token, start, limit))
 	}
 
 	pub fn resolve_identifier_plain(
 		token: &Ss58Identifier,
-	) -> Result<DecodedIdentifier, ViewError> {
-		Self::resolve_token(token).map_err(|_| ViewError::InvalidRequest)
+	) -> Result<DecodedIdentifier, AuthorizationError> {
+		Self::resolve_token(token).map_err(|_| AuthorizationError::InvalidInput)
 	}
 
 	pub fn resolve_identifier_view(
-		auth: ViewAuthorization<T>,
+		auth: Authorization<T>,
 		token: Ss58Identifier,
-	) -> Result<DecodedIdentifier, ViewError> {
+	) -> Result<DecodedIdentifier, AuthorizationError> {
 		Self::authorize_view(&auth)?;
 		Self::resolve_identifier_plain(&token)
 	}
 
-	pub fn resolve_pallet_plain(index: u16) -> Result<String, ViewError> {
+	pub fn resolve_pallet_plain(index: u16) -> Result<String, AuthorizationError> {
 		match Self::resolve_pallet_name(index) {
 			Ok(name) => Ok(name),
-			Err(Error::<T>::PalletNotFound) => Err(ViewError::NotFound),
-			Err(_) => Err(ViewError::InvalidRequest),
+			Err(Error::<T>::PalletNotFound) => Err(AuthorizationError::NotFound),
+			Err(_) => Err(AuthorizationError::InvalidInput),
 		}
 	}
 
 	pub fn resolve_pallet_view(
-		auth: ViewAuthorization<T>,
+		auth: Authorization<T>,
 		index: u16,
-	) -> Result<String, ViewError> {
+	) -> Result<String, AuthorizationError> {
 		Self::authorize_view(&auth)?;
 		Self::resolve_pallet_plain(index)
 	}

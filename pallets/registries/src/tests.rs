@@ -1415,7 +1415,7 @@ fn restoring_an_non_archived_a_registry_should_fail() {
 }
 
 #[test]
-fn registry_delegation_should_fail_if_registry_delegates_limit_exceeded() {
+fn registry_delegation_should_fail_if_delegate_permissionss_limit_exceeded() {
 	let creator = ACCOUNT_00;
 
 	let namespace = [2u8; 256].to_vec();
@@ -1471,7 +1471,7 @@ fn registry_delegation_should_fail_if_registry_delegates_limit_exceeded() {
 
 		// Add the maximum number of delegates to the Registries
 		for delegate_count in 2..6 {
-			assert_ok!(Registries::registry_delegate_addition(
+			assert_ok!(Registries::delegate_permissions_addition(
 				registry_id.clone(),
 				AccountId::new([delegate_count; 32]),
 				creator.clone(),
@@ -1482,7 +1482,7 @@ fn registry_delegation_should_fail_if_registry_delegates_limit_exceeded() {
 		// Attempt to add one more delegate, which should exceed the limit and result in the
 		// expected error
 		assert_err!(
-			Registries::registry_delegate_addition(
+			Registries::delegate_permissions_addition(
 				registry_id.clone(),
 				AccountId::new([6u8; 32]),
 				creator.clone(),
@@ -1755,7 +1755,7 @@ fn update_registry_should_succeed() {
 }
 
 #[test]
-fn add_delegate_should_fail_if_registry_delegates_limit_exceeded() {
+fn add_delegate_should_fail_if_delegate_permissionss_limit_exceeded() {
 	let creator = ACCOUNT_00;
 	let delegate_1 = ACCOUNT_01;
 	let delegate_2 = ACCOUNT_02;
@@ -1848,7 +1848,7 @@ fn add_delegate_should_fail_if_registry_delegates_limit_exceeded() {
 }
 
 #[test]
-fn add_admin_delegate_should_fail_if_registry_delegates_limit_exceeded() {
+fn add_admin_delegate_should_fail_if_delegate_permissionss_limit_exceeded() {
 	let creator = ACCOUNT_00;
 	let delegate_1 = ACCOUNT_01;
 	let delegate_2 = ACCOUNT_02;
@@ -1942,7 +1942,7 @@ fn add_admin_delegate_should_fail_if_registry_delegates_limit_exceeded() {
 }
 
 #[test]
-fn add_delegator_should_fail_if_registry_delegates_limit_exceeded() {
+fn add_delegator_should_fail_if_delegate_permissionss_limit_exceeded() {
 	let creator = ACCOUNT_00;
 	let delegate_1 = ACCOUNT_01;
 	let delegate_2 = ACCOUNT_02;

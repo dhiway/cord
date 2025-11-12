@@ -101,8 +101,8 @@ fn registry_info_struct(registry: &Ss58Identifier) -> RegistryInfoView {
 	<Pallet<Test> as RegistryView<Test>>::registry_info(registry).expect("registry info")
 }
 
-fn registry_info_from_view(registry: &Ss58Identifier) -> RegistryInfoView {
-	Pallet::<Test>::info(default_auth(), registry.clone()).expect("info view")
+fn registry_details_from_view(registry: &Ss58Identifier) -> RegistryInfoView {
+	Pallet::<Test>::details(default_auth(), registry.clone()).expect("details view")
 }
 
 fn packet_snapshot_struct(packet: &Ss58Identifier, version: Option<u32>) -> PacketSnapshotView {
@@ -114,11 +114,11 @@ fn packet_snapshot_from_view(
 	packet: &Ss58Identifier,
 	version: Option<u32>,
 ) -> DevPacketSnapshot<RegistryStatus> {
-	Pallet::<Test>::packet(default_auth(), registry.clone(), packet.clone(), version)
+	Pallet::<Test>::packet_snapshot_dev(default_auth(), registry.clone(), packet.clone(), version)
 		.expect("packet view bytes")
 }
 
-fn view_auth(account: AccountId) -> ViewAuthorizationOf<Test> {
+fn authorization(account: AccountId) -> AuthorizationOf<Test> {
 	let pair = mock::ACCOUNT_KEYS
 		.with(|keys| keys.borrow().get(&account).cloned())
 		.expect("account key seeded");
@@ -126,14 +126,14 @@ fn view_auth(account: AccountId) -> ViewAuthorizationOf<Test> {
 	let id = VIEW_AUTH_COUNTER.fetch_add(1, Ordering::Relaxed);
 	let payload_text = format!("view-auth-{id}");
 	let payload_vec = payload_text.into_bytes();
-	let payload: ViewAuthPayloadOf<Test> =
+	let payload: AuthorizationPayloadOf<Test> =
 		payload_vec.clone().try_into().expect("payload within bounds");
 	let signature = Signature::from(pair.sign(&payload_vec));
-	ViewAuthorizationOf::<Test> { account, payload, signature }
+	AuthorizationOf::<Test> { account, payload, signature }
 }
 
-fn default_auth() -> ViewAuthorizationOf<Test> {
-	view_auth(account(0))
+fn default_auth() -> AuthorizationOf<Test> {
+	authorization(account(0))
 }
 
 fn bind_delegate(registry: &Ss58Identifier, account: AccountId) -> Ss58Identifier {
@@ -211,7 +211,9 @@ fn registry_view_trait_does_not_require_authorization() {
 		let keys = <Pallet<Test> as RegistryView<Test>>::attribute_keys(&registry)
 			.expect("keys reachable");
 		assert_eq!(keys, vec![b"id".to_vec()]);
-		match <Pallet<Test> as RegistryView<Test>>::token_fields(&registry).expect("token spec") {
+		match <Pallet<Test> as RegistryView<Test>>::token_fingerprint(&registry)
+			.expect("token spec")
+		{
 			LookupSpecView::Single(field) => assert_eq!(field, b"id"),
 			LookupSpecView::Combo(_) => panic!("expected single lookup field"),
 		}
@@ -350,7 +352,7 @@ fn update_registry_info_requires_admin() {
 }
 
 #[test]
-fn set_registry_delegate_requires_admin() {
+fn set_delegate_permissions_requires_admin() {
 	new_test_ext().execute_with(|| {
 		let (registry, _) = create_registry(
 			account(13),
@@ -361,7 +363,7 @@ fn set_registry_delegate_requires_admin() {
 
 		let _ = bind_account(account(99));
 		assert_noop!(
-			Pallet::<Test>::set_registry_delegate(
+			Pallet::<Test>::set_delegate_permissions(
 				RuntimeOrigin::signed(account(99)),
 				registry.clone(),
 				account(100),
@@ -371,7 +373,7 @@ fn set_registry_delegate_requires_admin() {
 		);
 
 		let _ = bind_account(account(100));
-		assert_ok!(Pallet::<Test>::set_registry_delegate(
+		assert_ok!(Pallet::<Test>::set_delegate_permissions(
 			RuntimeOrigin::signed(account(13)),
 			registry,
 			account(100),
@@ -381,7 +383,7 @@ fn set_registry_delegate_requires_admin() {
 }
 
 #[test]
-fn remove_registry_delegate_checks_permissions_and_maintainer() {
+fn remove_delegate_permissions_checks_permissions_and_maintainer() {
 	new_test_ext().execute_with(|| {
 		let (registry, maintainer_token) = create_registry(
 			account(14),
@@ -392,7 +394,7 @@ fn remove_registry_delegate_checks_permissions_and_maintainer() {
 		let delegate = account(15);
 		let delegate_token = bind_account(delegate.clone());
 
-		assert_ok!(Pallet::<Test>::set_registry_delegate(
+		assert_ok!(Pallet::<Test>::set_delegate_permissions(
 			RuntimeOrigin::signed(account(14)),
 			registry.clone(),
 			delegate.clone(),
@@ -401,7 +403,7 @@ fn remove_registry_delegate_checks_permissions_and_maintainer() {
 
 		// Delegate cannot remove itself.
 		assert_noop!(
-			Pallet::<Test>::remove_registry_delegate(
+			Pallet::<Test>::remove_delegate_permissions(
 				RuntimeOrigin::signed(delegate.clone()),
 				registry.clone(),
 				delegate_token.clone(),
@@ -411,7 +413,7 @@ fn remove_registry_delegate_checks_permissions_and_maintainer() {
 
 		// Maintainer cannot be removed.
 		assert_noop!(
-			Pallet::<Test>::remove_registry_delegate(
+			Pallet::<Test>::remove_delegate_permissions(
 				RuntimeOrigin::signed(account(14)),
 				registry.clone(),
 				maintainer_token.clone(),
@@ -420,7 +422,7 @@ fn remove_registry_delegate_checks_permissions_and_maintainer() {
 		);
 
 		// Maintainer can remove delegate.
-		assert_ok!(Pallet::<Test>::remove_registry_delegate(
+		assert_ok!(Pallet::<Test>::remove_delegate_permissions(
 			RuntimeOrigin::signed(account(14)),
 			registry,
 			delegate_token,
@@ -511,9 +513,8 @@ fn packet_lifecycle_tracks_versions() {
 		let packet_id = System::events()
 			.iter()
 			.find_map(|record| match &record.event {
-				RuntimeEvent::Register(crate::Event::PacketCreated { packet, .. }) => {
-					Some(packet.clone())
-				},
+				RuntimeEvent::Register(crate::Event::PacketCreated { packet, .. }) =>
+					Some(packet.clone()),
 				_ => None,
 			})
 			.expect("created token");
@@ -977,7 +978,7 @@ fn lookup_queries_return_latest_state() {
 }
 
 #[test]
-fn packets_by_token_prefix_returns_snapshots() {
+fn list_by_token_prefix_returns_snapshots() {
 	new_test_ext().execute_with(|| {
 		let (registry, _) = create_registry(
 			account(90),
@@ -1001,12 +1002,12 @@ fn packets_by_token_prefix_returns_snapshots() {
 		let token_prefix = token_bytes[..prefix_len].to_vec();
 
 		let full_matches =
-			Pallet::<Test>::packets_by_token(view_auth(account(92)), token_bytes, None)
+			Pallet::<Test>::list_by_token(authorization(account(92)), token_bytes, None)
 				.expect("packet view");
 		assert!(full_matches.iter().any(|snapshot| snapshot.state.registry == registry));
 
 		let prefix_matches =
-			Pallet::<Test>::packets_by_token(view_auth(account(93)), token_prefix, None)
+			Pallet::<Test>::list_by_token(authorization(account(93)), token_prefix, None)
 				.expect("packet view");
 		assert!(prefix_matches.iter().any(|snapshot| snapshot.state.registry == registry));
 	});
@@ -1039,20 +1040,14 @@ fn packets_by_lookup_digest_returns_snapshots() {
 		let prefix_len = min(4, digest_bytes.len());
 		let digest_prefix = digest_bytes[..prefix_len].to_vec();
 
-		let full_matches = Pallet::<Test>::packets_by_lookup_digest_view(
-			view_auth(account(96)),
-			digest_bytes,
-			None,
-		)
-		.expect("digest view");
+		let full_matches =
+			Pallet::<Test>::list_by_digest(authorization(account(96)), digest_bytes, None)
+				.expect("digest view");
 		assert!(full_matches.iter().any(|snapshot| snapshot.state.registry == registry));
 
-		let prefix_matches = Pallet::<Test>::packets_by_lookup_digest_view(
-			view_auth(account(97)),
-			digest_prefix,
-			None,
-		)
-		.expect("digest view");
+		let prefix_matches =
+			Pallet::<Test>::list_by_digest(authorization(account(97)), digest_prefix, None)
+				.expect("digest view");
 		assert!(prefix_matches.iter().any(|snapshot| snapshot.state.registry == registry));
 	});
 }
@@ -1066,13 +1061,13 @@ fn info_view_returns_scale_payload() {
 			token_spec(&[b"asset_id"]),
 			lookup_specs(&[&[b"asset_id"]]),
 		);
-		let view = registry_info_from_view(&registry);
+		let view = registry_details_from_view(&registry);
 		assert_eq!(view.status, RegistryStatus::Active);
 	});
 }
 
 #[test]
-fn packet_view_returns_dev_snapshot() {
+fn packet_snapshot_returns_dev_snapshot() {
 	new_test_ext().execute_with(|| {
 		let (registry, _) = create_registry(
 			account(121),
@@ -1126,22 +1121,23 @@ fn registry_view_queries_increment_counter() {
 		let _ = Pallet::<Test>::info(default_auth(), registry.clone()).expect("info");
 		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 1);
 
-		let _ = Pallet::<Test>::packet(default_auth(), registry.clone(), packet_id.clone(), None)
-			.expect("packet");
-		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 2);
-
-		let _ = Pallet::<Test>::packet_by_lookup(
+		let _ = Pallet::<Test>::packet_snapshot_dev(
 			default_auth(),
 			registry.clone(),
-			digest.clone(),
+			packet_id.clone(),
 			None,
 		)
-		.expect("lookup packet");
+		.expect("packet");
+		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 2);
+
+		let _ =
+			Pallet::<Test>::lookup_snapshot(default_auth(), registry.clone(), digest.clone(), None)
+				.expect("lookup packet");
 		assert_eq!(RegistryQueryCounts::<Test>::get(&registry, account.clone()), 3);
 
 		let token_bytes = packet_id.as_ref().to_vec();
 		let token_matches =
-			Pallet::<Test>::packets_by_token(default_auth(), token_bytes.clone(), None)
+			Pallet::<Test>::list_by_token(default_auth(), token_bytes.clone(), None)
 				.expect("token matches");
 		assert!(!token_matches.is_empty());
 		assert_eq!(
@@ -1149,12 +1145,9 @@ fn registry_view_queries_increment_counter() {
 			3 + token_matches.len() as u64
 		);
 
-		let digest_matches = Pallet::<Test>::packets_by_lookup_digest_view(
-			default_auth(),
-			digest.as_ref().to_vec(),
-			None,
-		)
-		.expect("digest matches");
+		let digest_matches =
+			Pallet::<Test>::list_by_digest(default_auth(), digest.as_ref().to_vec(), None)
+				.expect("digest matches");
 		assert!(!digest_matches.is_empty());
 		assert_eq!(
 			RegistryQueryCounts::<Test>::get(&registry, account),
@@ -1164,7 +1157,7 @@ fn registry_view_queries_increment_counter() {
 }
 
 #[test]
-fn registry_delegate_view_returns_permissions() {
+fn delegate_permissions_view_returns_permissions() {
 	new_test_ext().execute_with(|| {
 		let (registry, _) = create_registry(
 			account(140),
@@ -1173,8 +1166,8 @@ fn registry_delegate_view_returns_permissions() {
 			lookup_specs(&[&[b"asset_id"]]),
 		);
 		let delegate = bind_delegate(&registry, account(141));
-		let perms = Pallet::<Test>::registry_delegate(
-			view_auth(account(142)),
+		let perms = Pallet::<Test>::delegate_permissions(
+			authorization(account(142)),
 			registry.clone(),
 			delegate.clone(),
 		)
@@ -1184,7 +1177,7 @@ fn registry_delegate_view_returns_permissions() {
 }
 
 #[test]
-fn registry_query_count_view_returns_counter() {
+fn query_count_view_returns_counter() {
 	new_test_ext().execute_with(|| {
 		let (registry, _) = create_registry(
 			account(143),
@@ -1194,8 +1187,8 @@ fn registry_query_count_view_returns_counter() {
 		);
 		let viewer = account(0);
 		let _ = Pallet::<Test>::info(default_auth(), registry.clone()).expect("info view");
-		let count = Pallet::<Test>::registry_query_count(
-			view_auth(account(144)),
+		let count = Pallet::<Test>::query_count(
+			authorization(account(144)),
 			registry.clone(),
 			viewer.clone(),
 		)

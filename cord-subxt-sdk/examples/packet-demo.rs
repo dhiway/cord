@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
-use cord_primitives::view_api::{RegisterInfoRequest, RegisterPacketRequest, TokenTimelineRequest};
+use cord_primitives::view_api::{
+	RegisterDetailsRequest, RegisterPacketSnapshotRequest, TokenTimelineRequest,
+};
 use origin::{
 	demo,
 	params::config::CordConfig,
@@ -17,19 +19,20 @@ async fn main() -> Result<()> {
 		<tx::signer::sr25519::Keypair as subxt::tx::Signer<CordConfig>>::account_id(&signer);
 	let signed_auth = AuthorizationBuilder::from_signer(&signer, SignatureScheme::Sr25519, None)
 		.context("failed to build view authorization")?;
-	let view_auth = signed_auth.as_request().context("failed to convert view authorization")?;
+	let authorization = signed_auth.as_request().context("failed to convert view authorization")?;
 
 	let profile = demo::entity_profile(&label);
 	let (entity_token, _) =
-		demo::ensure_entity_token(&client, &signer, &view_auth, &account_id, &profile).await?;
+		demo::ensure_entity_token(&client, &signer, &authorization, &account_id, &profile).await?;
 
 	let registry_spec = demo::registry_blueprint(&label);
 	let registry_id = demo::create_registry(&client, &signer, registry_spec).await?;
 	let registry_ss58 = demo::ss58_string(&registry_id);
 	println!("Minted registry {registry_ss58}");
 
-	let info_req = RegisterInfoRequest { auth: view_auth.clone(), registry: registry_id.clone() };
-	let schema_view = client.query().register().registry_info(&info_req).await?;
+	let info_req =
+		RegisterDetailsRequest { auth: authorization.clone(), registry: registry_id.clone() };
+	let schema_view = client.query().register().details(&info_req).await?;
 	println!(
 		"Registry attributes: {:?}",
 		schema_view
@@ -44,8 +47,8 @@ async fn main() -> Result<()> {
 		demo::create_packet(&client, &signer, &registry_ss58, packet_payload, &schema_view).await?;
 	println!("Created packet token {}", demo::ss58_string(&packet_id));
 
-	let packet_req = RegisterPacketRequest {
-		auth: view_auth.clone(),
+	let packet_req = RegisterPacketSnapshotRequest {
+		auth: authorization.clone(),
 		registry: registry_id.clone(),
 		packet: packet_id.clone(),
 		version: None,
@@ -54,7 +57,7 @@ async fn main() -> Result<()> {
 	println!("\nPacket snapshot:\n{}", serde_json::to_string_pretty(&packet_view)?);
 
 	let timeline_req = TokenTimelineRequest {
-		auth: view_auth.clone(),
+		auth: authorization.clone(),
 		token: packet_id,
 		start: None,
 		limit: Some(10),
