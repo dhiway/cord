@@ -12,6 +12,7 @@ use crate::{
 use codec::Decode;
 use cord_primitives::{identifier::Ss58Identifier, view_api::AuthorizationRequest};
 use hex::ToHex;
+use scale_decode::DecodeAsType;
 use scale_value::{Composite, Value};
 use sp_runtime::MultiSignature;
 use subxt::dynamic::DecodedValueThunk;
@@ -42,6 +43,20 @@ impl<'a> Query<'a> {
 	) -> Result<T> {
 		let thunk = self.call_dynamic(pallet, function, args).await?;
 		self.decode_view_result::<T>(thunk)
+	}
+
+	pub(crate) async fn call_result<T, E>(
+		&self,
+		pallet: &str,
+		function: &str,
+		args: Value,
+	) -> Result<Result<T, E>>
+	where
+		T: DecodeAsType + 'static,
+		E: DecodeAsType + 'static,
+	{
+		let thunk = self.call_dynamic(pallet, function, args).await?;
+		thunk.as_type().map_err(|e| Error::ViewDecode(e.to_string()))
 	}
 
 	async fn call_dynamic(

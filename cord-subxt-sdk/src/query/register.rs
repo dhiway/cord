@@ -14,7 +14,9 @@ pub type RuntimeRegistryInfo = runtime::runtime_types::pallet_register::register
 pub type RuntimeLookupSpec = runtime::runtime_types::pallet_register::register::LookupSpec;
 pub type RuntimeLookupSpecList =
 	runtime::runtime_types::bounded_collections::bounded_vec::BoundedVec<RuntimeLookupSpec>;
-pub type RuntimePacketSnapshot = runtime::runtime_types::pallet_register::packet::PacketSnapshot;
+pub type RuntimePacketSnapshot = runtime::runtime_types::pallet_register::packet::PacketSnapshot<
+	::subxt::ext::subxt_core::utils::H256,
+>;
 
 /// Entry point for register-specific view helpers.
 pub struct RegisterQuery<'a> {
@@ -25,7 +27,7 @@ impl<'a> RegisterQuery<'a> {
 	pub async fn details(&self, req: &RegisterDetailsRequest) -> Result<RuntimeRegistryInfo> {
 		let args = self.base_args(&req.auth, &req.registry)?;
 		let raw: core::result::Result<RuntimeRegistryInfo, AuthorizationError> =
-			self.query.call_typed("Register", "details", args).await?;
+			self.query.call_result("Register", "details", args).await?;
 		raw.map_err(|err| view_failure("register.details", err))
 	}
 
@@ -40,7 +42,7 @@ impl<'a> RegisterQuery<'a> {
 	) -> Result<RuntimeLookupSpecList> {
 		let args = self.base_args(&req.auth, &req.registry)?;
 		let raw: core::result::Result<RuntimeLookupSpecList, AuthorizationError> =
-			self.query.call_typed("Register", "lookup_specs", args).await?;
+			self.query.call_result("Register", "lookup_specs", args).await?;
 		raw.map_err(|err| view_failure("register.lookup_specs", err))
 	}
 
@@ -50,7 +52,7 @@ impl<'a> RegisterQuery<'a> {
 	) -> Result<RuntimePacketSnapshot> {
 		let args = self.packet_args(req)?;
 		let raw: core::result::Result<RuntimePacketSnapshot, AuthorizationError> =
-			self.query.call_typed("Register", "packet_snapshot", args).await?;
+			self.query.call_result("Register", "packet_snapshot", args).await?;
 		raw.map_err(|err| view_failure("register.packet_snapshot", err))
 	}
 
