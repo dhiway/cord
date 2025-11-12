@@ -3,7 +3,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use codec::Decode;
 use cord_primitives::{
 	identifier::Ss58Identifier,
-	view::{maybe_utf8, DevEventBlockView, InfoAttributeHistoryEntry},
+	view::maybe_utf8,
 	view_api::{
 		AttributeKey, AuthorizationRequest, EntityAccountTokenRequest,
 		EntityAttributeHistoryForKeyRequest, EntityAttributeHistoryRequest,
@@ -16,13 +16,14 @@ use oc::{
 	demo,
 	demo::entity::{self, EntitySnapshot},
 	params::config::CordConfig,
-	query::auth::{AuthorizationBuilder, SignatureScheme},
-	query::token::RuntimeStateEvent,
+	query::{
+		auth::{AuthorizationBuilder, SignatureScheme},
+		token::RuntimeStateEvent,
+	},
 	tx,
 	tx::nonce::{NonceMode, NonceTracker},
 	types::{
-		self,
-		element::element_text_from_view,
+		self, element_text_from_view,
 		entity::{AttributeEntry, ElementJson, EntityInfoRecord, HistoryEntry},
 	},
 	ChainFlavor, Client, Error as OcError,
@@ -194,16 +195,19 @@ async fn main() -> Result<()> {
 				mutated_keys.insert(b"public_key".to_vec());
 			},
 		}
-		short_delay(Duration::from_secs(1)).await;
+		// short_delay(Duration::from_secs(1)).await;
 	}
 
-	short_delay(Duration::from_secs(2)).await;
+	let schema_keys: BTreeSet<Vec<u8>> =
+		snapshot.attributes.keys().map(|k| k.as_bytes().to_vec()).collect();
+	let attribute_history =
+		collect_attribute_history(&client, &signer, &token_identifier, &mutated_keys, &schema_keys)
+			.await?;
+
+	short_delay(Duration::from_secs(3)).await;
 	let token_timeline_entries =
 		fetch_full_token_timeline(&client, &signer, &token_identifier).await?;
 	let combined_timeline = build_token_activity(&token_timeline_entries);
-
-	let attribute_history =
-		collect_attribute_history(&client, &signer, &token_identifier, &mutated_keys).await?;
 
 	let sub_req = EntityLinkedAccountsRequest {
 		auth: fresh_authorization(&signer)?,
@@ -217,10 +221,9 @@ async fn main() -> Result<()> {
 	if output_json {
 		let attr_json: Vec<_> = attribute_history
 			.iter()
-			.enumerate()
-			.map(|(idx, entry)| {
+			.map(|entry| {
 				json!({
-					"version": idx as u64,
+					"version": entry.version,
 					"key": entry.key_utf8.clone().unwrap_or_else(|| entry.key_hex.clone()),
 					"oldValue": decode_attr_value(&entry.old_value_base64),
 					"block": entry.block.height,
@@ -504,7 +507,7 @@ impl EntityChainState {
 		state
 	}
 
-	fn from_info(info: &EntityInfoRecord) -> Self {
+	fn from_record(info: &EntityInfoRecord) -> Self {
 		let mut state = EntityChainState::default();
 		state.insert_reserved("display", element_text_from_view(&info.display));
 		state.insert_reserved("legal", element_text_from_view(&info.legal));
@@ -550,7 +553,7 @@ async fn fetch_entity_chain_state(
 	let Some(info) = client.query().entity().details(&auth, token).await? else {
 		return Ok(EntityChainState::default());
 	};
-	Ok(EntityChainState::from_info(&info))
+	Ok(EntityChainState::from_record(&info))
 }
 
 fn attribute_label(bytes: &[u8]) -> String {
@@ -590,7 +593,7 @@ fn sanitize_entity_nym(label: &str) -> String {
 
 fn print_summary(
 	snapshot: &EntitySnapshot,
-	attr_history: &[InfoAttributeHistoryEntry],
+	attr_history: &[HistoryEntry],
 	timeline: &[TimelineRow],
 	accounts: &[AccountId32],
 	transactions: &[String],
@@ -633,16 +636,6 @@ fn random_public_key_hex() -> String {
 	format!("0x{}", hex::encode(pair.public()))
 }
 
-fn history_entry_to_view(entry: HistoryEntry) -> InfoAttributeHistoryEntry {
-	InfoAttributeHistoryEntry {
-		key_hex: entry.key_hex,
-		key_utf8: entry.key_utf8,
-		version: entry.version,
-		old_value_base64: entry.old_value_base64,
-		block: DevEventBlockView { height: entry.block.height, index: entry.block.index },
-	}
-}
-
 const TIMELINE_PAGE_SIZE: u32 = 32;
 
 const ATTRIBUTE_HISTORY_RETRIES: usize = 3;
@@ -652,14 +645,20 @@ async fn collect_attribute_history(
 	signer: &tx::signer::sr25519::Keypair,
 	token_identifier: &Ss58Identifier,
 	mutated_keys: &BTreeSet<Vec<u8>>,
-) -> Result<Vec<InfoAttributeHistoryEntry>> {
+	schema_keys: &BTreeSet<Vec<u8>>,
+) -> Result<Vec<HistoryEntry>> {
 	let target_hex: Vec<String> =
 		mutated_keys.iter().map(|key| format!("0x{}", hex::encode(key))).collect();
 	let mut attempt = 0;
 	loop {
-		let entries =
-			fetch_attribute_history_snapshot(client, signer, token_identifier, mutated_keys)
-				.await?;
+		let entries = fetch_attribute_history_snapshot(
+			client,
+			signer,
+			token_identifier,
+			mutated_keys,
+			schema_keys,
+		)
+		.await?;
 		let complete = target_hex.is_empty()
 			|| target_hex.iter().all(|hex_key| {
 				entries.iter().any(|entry| entry.key_hex.eq_ignore_ascii_case(hex_key))
@@ -677,16 +676,21 @@ async fn fetch_attribute_history_snapshot(
 	signer: &tx::signer::sr25519::Keypair,
 	token_identifier: &Ss58Identifier,
 	mutated_keys: &BTreeSet<Vec<u8>>,
-) -> Result<Vec<InfoAttributeHistoryEntry>> {
+	schema_keys: &BTreeSet<Vec<u8>>,
+) -> Result<Vec<HistoryEntry>> {
 	let history_req = EntityAttributeHistoryRequest {
 		auth: fresh_authorization(signer)?,
 		token: token_identifier.clone(),
 	};
 	let mut entries = match client.query().entity().attribute_history(&history_req).await {
-		Ok(entries) => entries.into_iter().map(history_entry_to_view).collect(),
+		Ok(entries) => entries,
 		Err(OcError::NotFound(_)) => Vec::new(),
 		Err(err) => return Err(anyhow!(err)),
 	};
+	let mut seen: BTreeSet<(String, u64)> = entries
+		.iter()
+		.map(|entry| (entry.key_hex.to_ascii_lowercase(), entry.version))
+		.collect();
 
 	let mut keys_to_fetch: BTreeSet<Vec<u8>> = entries
 		.iter()
@@ -694,6 +698,7 @@ async fn fetch_attribute_history_snapshot(
 		.filter(|bytes| !bytes.is_empty())
 		.collect();
 	keys_to_fetch.extend(mutated_keys.iter().cloned());
+	keys_to_fetch.extend(schema_keys.iter().cloned());
 
 	for key in keys_to_fetch {
 		let Ok(bounded_key) = AttributeKey::try_from(key.clone()) else {
@@ -705,17 +710,20 @@ async fn fetch_attribute_history_snapshot(
 			key: bounded_key,
 		};
 		match client.query().entity().attribute_history_for_key(&key_req).await {
-			Ok(extra) => entries.extend(extra.into_iter().map(history_entry_to_view)),
+			Ok(mut extra) => {
+				for entry in extra.drain(..) {
+					let key = entry.key_hex.to_ascii_lowercase();
+					if seen.insert((key, entry.version)) {
+						entries.push(entry);
+					}
+				}
+			},
 			Err(OcError::NotFound(_)) => {},
 			Err(err) => return Err(anyhow!(err)),
 		}
 	}
 
-	let mut unique: BTreeMap<(String, u64), InfoAttributeHistoryEntry> = BTreeMap::new();
-	for entry in entries {
-		unique.entry((entry.key_hex.clone(), entry.version)).or_insert(entry);
-	}
-	let mut combined: Vec<_> = unique.into_values().collect();
+	let mut combined = entries;
 	combined.sort_by(|a, b| (a.block.height, a.block.index).cmp(&(b.block.height, b.block.index)));
 	Ok(combined)
 }
@@ -743,9 +751,12 @@ async fn fetch_full_token_timeline(
 			rows.push((version_cursor, entry));
 			version_cursor = version_cursor.saturating_add(1);
 		}
-		cursor = next_cursor;
-		if cursor.is_none() {
-			break;
+		match next_cursor {
+			Some(next) => {
+				cursor = Some(next);
+				version_cursor = next;
+			},
+			None => break,
 		}
 	}
 	Ok(rows)
@@ -762,13 +773,10 @@ struct TimelineRow {
 }
 
 fn build_token_activity(entries: &[(u32, RuntimeStateEvent)]) -> Vec<TimelineRow> {
-	let mut rows: Vec<_> = entries
-		.iter()
-		.map(|(version, entry)| (*version, entry.seal.height, entry.seal.index, entry))
-		.collect();
-	rows.sort_by(|a, b| (a.1, a.2).cmp(&(b.1, b.2)));
+	let mut rows: Vec<_> = entries.iter().map(|(version, entry)| (*version, entry)).collect();
+	rows.sort_by_key(|(version, _)| *version);
 	rows.into_iter()
-		.map(|(version, _, _, entry)| TimelineRow {
+		.map(|(version, entry)| TimelineRow {
 			version: version as u64,
 			action: maybe_utf8(entry.action.0.as_slice())
 				.unwrap_or_else(|| format!("0x{}", hex::encode(&entry.action.0))),
@@ -802,7 +810,7 @@ fn print_combined_timeline(entries: &[TimelineRow]) {
 	}
 }
 
-fn print_attribute_history(entries: &[InfoAttributeHistoryEntry]) {
+fn print_attribute_history(entries: &[HistoryEntry]) {
 	println!("\n📜 Attribute Rotations:");
 	if entries.is_empty() {
 		println!("    • (no attribute history)");

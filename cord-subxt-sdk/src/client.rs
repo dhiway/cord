@@ -114,4 +114,12 @@ impl Client {
 	pub fn online(&self) -> &subxt::OnlineClient<CordConfig> {
 		&self.api
 	}
+
+	pub async fn fetch_metadata_blob(&self) -> Result<Vec<u8>> {
+		self.legacy_methods()
+			.state_get_metadata(None)
+			.await
+			.map(|blob| blob.into_raw())
+			.map_err(|e| Error::Transport(e.to_string()))
+	}
 }

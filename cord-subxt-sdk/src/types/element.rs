@@ -5,10 +5,10 @@ use crate::{
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bs58;
+use cord_primitives::view::ElementView as ViewElement;
 use hex;
 use scale_value::{Composite, Value};
 use serde::{Deserialize, Serialize};
-use cord_primitives::view::ElementView as ViewElement;
 
 /// JSON-friendly representation of on-chain `Element` variants.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -131,11 +131,9 @@ pub fn element_text_from_view(element: &ViewElement) -> Option<String> {
 		ViewElement::U64(value) => Some(value.to_string()),
 		ViewElement::U128(value) => Some(value.to_string()),
 		ViewElement::Hash(digest) => Some(format!("0x{}", hex::encode(digest))),
-		ViewElement::Token(identifier) => {
-			match std::str::from_utf8(identifier.as_ref()) {
-				Ok(text) => Some(text.to_owned()),
-				Err(_) => Some(format!("0x{}", hex::encode(identifier.as_ref()))),
-			}
+		ViewElement::Token(identifier) => match std::str::from_utf8(identifier.as_ref()) {
+			Ok(text) => Some(text.to_owned()),
+			Err(_) => Some(format!("0x{}", hex::encode(identifier.as_ref()))),
 		},
 		ViewElement::Cid(bytes) => Some(bs58::encode(bytes).into_string()),
 	}

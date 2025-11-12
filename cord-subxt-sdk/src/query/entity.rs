@@ -3,8 +3,8 @@ use crate::{
 	api::runtime,
 	error::{Error, Result},
 	types::entity::{
-		AttributeHistoryEntryRecord, AttributeHistoryRecord, AttributeHistoryVersionRecord, BlockRef,
-		EntityInfoRecord, HistoryEntry,
+		AttributeHistoryEntryRecord, AttributeHistoryRecord, AttributeHistoryVersionRecord,
+		BlockRef, EntityInfoRecord, HistoryEntry,
 	},
 };
 use cord_primitives::{

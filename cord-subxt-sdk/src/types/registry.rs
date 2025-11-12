@@ -1,9 +1,7 @@
 use crate::{
 	api::runtime,
 	error::{Error, Result},
-	runtime_helpers::{
-		attribute_optional, bounded_bytes_vec, bounded_iter, element_type_to_sdk,
-	},
+	runtime_helpers::{attribute_optional, bounded_bytes_vec, bounded_iter, element_type_to_sdk},
 	types::{attribute_pair_value, base64_to_bytes, element_json_to_dynamic, ElementJson},
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
