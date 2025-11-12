@@ -88,7 +88,7 @@ thread_local! {
 
 impl EntityLookup<Test> for MockLookup {
 	type Error = ();
-	type Username = ();
+	type EntityNym = ();
 
 	fn lookup_token_of(account: &AccountId) -> Result<Ss58Identifier, Self::Error> {
 		ACCOUNT_TOKENS.with(|map| map.borrow().get(account).cloned()).ok_or(())
@@ -102,11 +102,11 @@ impl EntityLookup<Test> for MockLookup {
 		Vec::new()
 	}
 
-	fn lookup_nym_of_identifier(_token: &Ss58Identifier) -> Option<Self::Username> {
+	fn lookup_nym_of_identifier(_token: &Ss58Identifier) -> Option<Self::EntityNym> {
 		None
 	}
 
-	fn lookup_identifier_of_nym(_name: &Self::Username) -> Option<Ss58Identifier> {
+	fn lookup_identifier_of_nym(_name: &Self::EntityNym) -> Option<Ss58Identifier> {
 		None
 	}
 
