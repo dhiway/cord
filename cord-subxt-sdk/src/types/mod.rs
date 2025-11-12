@@ -4,7 +4,7 @@ pub mod registry;
 
 pub use element::{
 	attribute_pair_value, bytes_value, element_json_from_runtime, element_json_to_dynamic,
-	element_text_from_runtime, ElementJson,
+	element_text_from_runtime, element_text_from_view, ElementJson,
 };
 pub use registry::{
 	info_element_from_value, PacketPayload, PayloadMode, RegistryBlueprint, RegistrySchema,

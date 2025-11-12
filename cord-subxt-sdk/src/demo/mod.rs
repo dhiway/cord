@@ -3,12 +3,13 @@ use crate::{
 	client::Client,
 	error::{Error, Result},
 	params::config::CordConfig,
-	query::entity::RuntimeEntityInfo,
 	tx::{self, TxOptions},
+	types::entity::EntityInfoRecord,
 };
 use codec::Decode;
 use cord_primitives::{
 	identifier::Ss58Identifier,
+	registry::RegistryInfoView,
 	view_api::{AuthorizationRequest, EntityAccountTokenRequest},
 };
 use getrandom::getrandom;
@@ -38,7 +39,7 @@ pub async fn ensure_entity_token(
 	let account = RuntimeAccount::from(raw);
 	let request = EntityAccountTokenRequest { auth: authorization.clone(), account };
 	if let Some(token) = client.query().entity().account_token(&request).await? {
-		return Ok((token, false));
+		return Ok((ss58_string(&token), false));
 	}
 
 	let call = client.tx().entity_set_info_json(profile.clone()).await?;
@@ -73,14 +74,12 @@ pub async fn create_registry(
 	Err(Error::NotFound("RegistryCreated event not found".into()))
 }
 
-use crate::query::register::RuntimeRegistryInfo;
-
 pub async fn create_packet(
 	client: &Client,
 	signer: &tx::signer::sr25519::Keypair,
 	registry_ss58: &str,
 	attributes: JsonValue,
-	registry_info: &RuntimeRegistryInfo,
+	registry_info: &RegistryInfoView,
 ) -> Result<Ss58Identifier> {
 	let call = client.tx().packet_create_json(registry_ss58, attributes, registry_info).await?;
 	let events = submit_and_wait(client, signer, call).await?;
@@ -159,7 +158,7 @@ pub async fn fetch_entity_info(
 	client: &Client,
 	auth: &AuthorizationRequest,
 	token: &Ss58Identifier,
-) -> Result<Option<RuntimeEntityInfo>> {
+) -> Result<Option<EntityInfoRecord>> {
 	client.query().entity().details(auth, token).await
 }
 

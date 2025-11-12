@@ -2,6 +2,7 @@ use crate::error::{Error, Result};
 use scale_value::{scale, Value};
 use subxt::Metadata;
 
+pub mod decode;
 pub mod value;
 
 pub use value::{

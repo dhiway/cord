@@ -1,12 +1,16 @@
 use crate::{
 	api::runtime,
 	error::{Error, Result},
+	runtime_helpers::{
+		attribute_optional, bounded_bytes_vec, bounded_iter, element_type_to_sdk,
+	},
 	types::{attribute_pair_value, base64_to_bytes, element_json_to_dynamic, ElementJson},
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use cord_primitives::packet::ElementType;
-#[cfg(test)]
-use cord_primitives::registry::{RegistryAttributeView, RegistryInfoView};
+use cord_primitives::{
+	packet::ElementType,
+	registry::{RegistryAttributeView, RegistryInfoView},
+};
 use scale_value::{Composite, Value};
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -17,7 +21,6 @@ const ATTRIBUTE_FLAG_OPTIONAL: u8 = 1 << 0;
 
 type RuntimeRegistryInfo = runtime::runtime_types::pallet_register::register::RegistryInfo;
 type RuntimeAttributeSpec = runtime::runtime_types::pallet_register::register::AttributeSpec;
-type RuntimeAttributeFlags = runtime::runtime_types::pallet_register::register::AttributeFlags;
 
 /// High-level registry definition parsed from developer JSON.
 pub struct RegistryBlueprint {
@@ -111,13 +114,13 @@ pub struct RegistrySchema {
 impl RegistrySchema {
 	pub fn from_runtime(info: &RuntimeRegistryInfo) -> Self {
 		let mut attributes = BTreeMap::new();
-		for spec in info.attributes.iter() {
-			attributes.insert(spec.key.to_vec(), SchemaAttribute::from_runtime(spec));
+		for spec in bounded_iter(&info.attributes) {
+			let key = bounded_bytes_vec(&spec.key);
+			attributes.insert(key.clone(), SchemaAttribute::from_runtime(spec));
 		}
 		Self { attributes }
 	}
 
-	#[cfg(test)]
 	pub fn from_view(view: &RegistryInfoView) -> Self {
 		let mut attributes = BTreeMap::new();
 		for spec in &view.attributes {
@@ -220,11 +223,12 @@ impl SchemaAttribute {
 	}
 
 	fn from_runtime(spec: &RuntimeAttributeSpec) -> Self {
-		let optional = spec.flags.contains(RuntimeAttributeFlags::OPTIONAL);
-		Self::new(spec.key.to_vec(), spec.kind, optional)
+		let optional = attribute_optional(&spec.flags);
+		let key = bounded_bytes_vec(&spec.key);
+		let kind = element_type_to_sdk(&spec.kind);
+		Self::new(key, kind, optional)
 	}
 
-	#[cfg(test)]
 	fn from_view(view: &RegistryAttributeView) -> Self {
 		Self::new(view.key.clone(), view.kind, view.optional)
 	}
