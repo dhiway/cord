@@ -1,8 +1,8 @@
 use crate::{
 	error::Result,
+	query::register::RuntimeRegistryInfo,
 	types::{identifier_value, PayloadMode, RegistrySchema},
 };
-use cord_primitives::registry::RegistryInfoView;
 use subxt::dynamic::Value;
 
 use super::Transactions;
@@ -14,9 +14,9 @@ impl<'a> Transactions<'a> {
 		&self,
 		registry_ss58: &str,
 		attributes: serde_json::Value,
-		schema_view: &RegistryInfoView,
+		schema_info: &RuntimeRegistryInfo,
 	) -> Result<subxt::tx::DynamicPayload> {
-		let schema = RegistrySchema::from_view(schema_view);
+		let schema = RegistrySchema::from_runtime(schema_info);
 		let payload = schema.build_payload(&attributes, PayloadMode::Full)?;
 		let args = Value::named_composite([
 			("rtoken", identifier_value(registry_ss58)?),
@@ -31,9 +31,9 @@ impl<'a> Transactions<'a> {
 		registry_ss58: &str,
 		packet_ss58: &str,
 		attributes: serde_json::Value,
-		schema_view: &RegistryInfoView,
+		schema_info: &RuntimeRegistryInfo,
 	) -> Result<subxt::tx::DynamicPayload> {
-		let schema = RegistrySchema::from_view(schema_view);
+		let schema = RegistrySchema::from_runtime(schema_info);
 		let payload = schema.build_payload(&attributes, PayloadMode::Partial)?;
 		let args = Value::named_composite([
 			("rtoken", identifier_value(registry_ss58)?),

@@ -130,8 +130,9 @@ async fn main() -> Result<()> {
 				.await?;
 				match plan {
 					AttributePlan::Add => transactions.push("Added attribute 'email'".to_string()),
-					AttributePlan::Rotate =>
-						transactions.push("Rotated attribute 'email'".to_string()),
+					AttributePlan::Rotate => {
+						transactions.push("Rotated attribute 'email'".to_string())
+					},
 					AttributePlan::Skip => unreachable!(),
 				}
 				snapshot.set_email(email_value.clone());
@@ -156,8 +157,9 @@ async fn main() -> Result<()> {
 				.await?;
 				match plan {
 					AttributePlan::Add => transactions.push("Added attribute 'demo'".to_string()),
-					AttributePlan::Rotate =>
-						transactions.push("Rotated attribute 'demo'".to_string()),
+					AttributePlan::Rotate => {
+						transactions.push("Rotated attribute 'demo'".to_string())
+					},
 					AttributePlan::Skip => unreachable!(),
 				}
 				snapshot.set_attribute("demo", demo_value.clone());
@@ -182,10 +184,12 @@ async fn main() -> Result<()> {
 				)
 				.await?;
 				match plan {
-					AttributePlan::Add =>
-						transactions.push("Added attribute 'public_key'".to_string()),
-					AttributePlan::Rotate =>
-						transactions.push("Rotated attribute 'public_key'".to_string()),
+					AttributePlan::Add => {
+						transactions.push("Added attribute 'public_key'".to_string())
+					},
+					AttributePlan::Rotate => {
+						transactions.push("Rotated attribute 'public_key'".to_string())
+					},
 					AttributePlan::Skip => unreachable!(),
 				}
 				snapshot.set_attribute("public_key", rotation_public_key.clone());
@@ -293,12 +297,13 @@ async fn submit_entity_nym(
 	.await
 	{
 		Ok(_) => Ok(true),
-		Err(err) =>
+		Err(err) => {
 			if err.message().contains("Entity::EntityNymTaken") {
 				Ok(false)
 			} else {
 				Err(anyhow!(err))
-			},
+			}
+		},
 	}
 }
 
@@ -572,12 +577,13 @@ fn parse_entity_info_value(value: &Value<u32>) -> Result<EntityChainState> {
 			"display" | "legal" | "web" | "email" | "twitter" => {
 				state.insert_reserved(name, element_value_to_string(field_value));
 			},
-			"attributes" =>
+			"attributes" => {
 				if let Ok(map) = decode_dev_attribute_map(field_value) {
 					for (key, attr) in map {
 						state.insert_attribute(key, dev_element_to_string(&attr.value));
 					}
-				},
+				}
+			},
 			_ => {},
 		}
 	}
@@ -714,8 +720,8 @@ async fn collect_attribute_history(
 		let entries =
 			fetch_attribute_history_snapshot(client, signer, token_identifier, mutated_keys)
 				.await?;
-		let complete = target_hex.is_empty() ||
-			target_hex.iter().all(|hex_key| {
+		let complete = target_hex.is_empty()
+			|| target_hex.iter().all(|hex_key| {
 				entries.iter().any(|entry| entry.key_hex.eq_ignore_ascii_case(hex_key))
 			});
 		if complete || attempt >= ATTRIBUTE_HISTORY_RETRIES {

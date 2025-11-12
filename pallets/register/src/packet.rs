@@ -25,7 +25,6 @@ use cord_primitives::{
 		Attribute, Attributes, AttributesError, Element, ElementType, PacketMetadata,
 		PacketPointer, PacketState,
 	},
-	view::PacketStateView,
 };
 use core::convert::TryInto;
 use frame_support::{dispatch::DispatchResult, ensure, traits::Get, BoundedVec};
@@ -59,22 +58,28 @@ pub struct LookupAnchor {
 	pub pointer: PacketPointer,
 }
 
-#[derive(Clone, PartialEq, Eq, Encode, Decode, TypeInfo, RuntimeDebug)]
-pub struct PacketSnapshotView {
-	pub state: PacketStateView,
+#[derive(Encode, Decode, Clone, PartialEq, Eq, TypeInfo, RuntimeDebug, MaxEncodedLen)]
+#[scale_info(skip_type_params(MaxRawDataLength, MaxAdditionalAttributes,))]
+pub struct PacketSnapshot<
+	MaxRawDataLength: Get<u32>,
+	MaxAdditionalAttributes: Get<u32>,
+	Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode,
+> {
+	pub state: PacketState<MaxRawDataLength, MaxAdditionalAttributes, Hash>,
 	pub registry_status: RegistryStatus,
 }
 
-impl PacketSnapshotView {
-	pub fn from_state<
+impl<
 		MaxRawDataLength: Get<u32>,
 		MaxAdditionalAttributes: Get<u32>,
 		Hash: Clone + PartialEq + Eq + core::fmt::Debug + Encode,
-	>(
+	> PacketSnapshot<MaxRawDataLength, MaxAdditionalAttributes, Hash>
+{
+	pub fn from_state(
 		state: &PacketState<MaxRawDataLength, MaxAdditionalAttributes, Hash>,
 		registry_status: RegistryStatus,
 	) -> Self {
-		Self { state: PacketStateView::from(state), registry_status }
+		Self { state: state.clone(), registry_status }
 	}
 }
 
@@ -209,3 +214,8 @@ pub type PacketStateOf<T> = PacketState<
 	<T as frame_system::Config>::Hash,
 >;
 pub type PacketMetadataOf<T> = PacketMetadata<<T as frame_system::Config>::Hash>;
+pub type PacketSnapshotOf<T> = PacketSnapshot<
+	<T as Config>::MaxRawDataLength,
+	<T as Config>::MaxAdditionalAttributes,
+	<T as frame_system::Config>::Hash,
+>;

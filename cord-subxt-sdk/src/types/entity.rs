@@ -1,8 +1,7 @@
 use crate::error::{Error, Result};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use scale_value::Value;
 use serde::{Deserialize, Serialize};
-
-pub use cord_primitives::{dev::DevEventBlockView, view::InfoAttributeHistoryEntry};
 
 use super::element::attribute_pair_value;
 pub use super::element::ElementJson;
@@ -40,4 +39,47 @@ impl AttributeEntry {
 	pub fn to_dynamic_pair(&self) -> Result<Value> {
 		attribute_pair_value(&self.key_bytes()?, &self.value)
 	}
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockRef {
+	pub height: u32,
+	pub index: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryEntry {
+	pub key_hex: String,
+	pub key_utf8: Option<String>,
+	pub version: u64,
+	pub old_value_base64: String,
+	pub block: BlockRef,
+}
+
+impl HistoryEntry {
+	pub fn from_raw(key: &[u8], version: u64, old_value: &[u8], block: BlockRef) -> Self {
+		Self {
+			key_hex: hex_string(key),
+			key_utf8: maybe_utf8(key),
+			version,
+			old_value_base64: base64_string(old_value),
+			block,
+		}
+	}
+}
+
+fn hex_string(bytes: &[u8]) -> String {
+	let mut s = String::from("0x");
+	s.push_str(&hex::encode(bytes));
+	s
+}
+
+fn base64_string(bytes: &[u8]) -> String {
+	BASE64.encode(bytes)
+}
+
+fn maybe_utf8(bytes: &[u8]) -> Option<String> {
+	core::str::from_utf8(bytes).ok().map(|s| s.to_string())
 }

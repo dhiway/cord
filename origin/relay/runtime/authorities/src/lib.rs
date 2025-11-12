@@ -194,8 +194,8 @@ pub mod pallet {
 impl<T: pallet::Config> Pallet<T> {
 	#[inline]
 	fn has_staged_keys(vid: &T::ValidatorId) -> bool {
-		pallet_session::NextKeys::<T>::contains_key(vid) ||
-			pallet_session::QueuedKeys::<T>::get().iter().any(|(v, _)| v == vid)
+		pallet_session::NextKeys::<T>::contains_key(vid)
+			|| pallet_session::QueuedKeys::<T>::get().iter().any(|(v, _)| v == vid)
 	}
 
 	/// Deterministic selection: take all registered with staged keys.

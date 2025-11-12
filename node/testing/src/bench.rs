@@ -305,11 +305,12 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 					tx_ext(0, cord_orb_runtime::ExistentialDeposit::get() + 1),
 				),
 				function: match self.content.block_type {
-					BlockType::RandomTransfersKeepAlive =>
+					BlockType::RandomTransfersKeepAlive => {
 						RuntimeCall::Balances(BalancesCall::transfer_keep_alive {
 							dest: sp_runtime::MultiAddress::Id(receiver),
 							value: cord_orb_runtime::ExistentialDeposit::get() + 1,
-						}),
+						})
+					},
 					BlockType::RandomTransfersReaping => {
 						RuntimeCall::Balances(BalancesCall::transfer_allow_death {
 							dest: sp_runtime::MultiAddress::Id(receiver),
@@ -318,8 +319,9 @@ impl<'a> Iterator for BlockContentIterator<'a> {
 							value: 100 * UNITS - (cord_orb_runtime::ExistentialDeposit::get() - 1),
 						})
 					},
-					BlockType::Noop =>
-						RuntimeCall::System(SystemCall::remark { remark: Vec::new() }),
+					BlockType::Noop => {
+						RuntimeCall::System(SystemCall::remark { remark: Vec::new() })
+					},
 				},
 			},
 			self.runtime_version.spec_version,
@@ -596,12 +598,13 @@ impl BenchKeyring {
 				.into()
 			},
 			ExtrinsicFormat::Bare => generic::UncheckedExtrinsic::new_bare(xt.function).into(),
-			ExtrinsicFormat::General(ext_version, tx_ext) =>
+			ExtrinsicFormat::General(ext_version, tx_ext) => {
 				generic::UncheckedExtrinsic::from_parts(
 					xt.function,
 					Preamble::General(ext_version, tx_ext),
 				)
-				.into(),
+				.into()
+			},
 		}
 	}
 

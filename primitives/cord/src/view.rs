@@ -6,13 +6,15 @@
 // View-friendly structs for SDKs and off-chain clients.
 
 use crate::{
-	dev::{base58_string, base64_string, hex_string, maybe_utf8, ss58_string, DevEventBlockView},
 	identifier::Ss58Identifier,
 	packet::{Attribute, Element, PacketMetadata, PacketState, PacketStatus},
 };
-use alloc::{string::String, vec::Vec};
+use alloc::{borrow::ToOwned, string::String, vec::Vec};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
+use bs58;
 use codec::{Decode, Encode};
 use frame_support::traits::Get;
+use hex;
 use scale_decode::DecodeAsType;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
@@ -256,6 +258,24 @@ where
 	pub registry_status: S,
 }
 
+#[derive(
+	Clone,
+	PartialEq,
+	Eq,
+	Encode,
+	Decode,
+	TypeInfo,
+	RuntimeDebug,
+	Serialize,
+	Deserialize,
+	DecodeAsType,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct DevEventBlockView {
+	pub height: u32,
+	pub index: u32,
+}
+
 pub fn dev_element_from(ev: &ElementView) -> DevElement {
 	match ev {
 		ElementView::None => DevElement::None,
@@ -338,6 +358,35 @@ pub struct InfoTokenHistoryEntry {
 	pub action_base64: String,
 	pub digest_hex: String,
 	pub block: DevEventBlockView,
+}
+
+pub fn ss58_string(id: &Ss58Identifier) -> String {
+	match core::str::from_utf8(id.as_ref()) {
+		Ok(s) => s.to_owned(),
+		Err(_) => {
+			let mut fallback = String::from("0x");
+			fallback.push_str(&hex::encode(id.as_ref()));
+			fallback
+		},
+	}
+}
+
+pub fn hex_string(bytes: &[u8]) -> String {
+	let mut s = String::from("0x");
+	s.push_str(&hex::encode(bytes));
+	s
+}
+
+pub fn base58_string(bytes: &[u8]) -> String {
+	bs58::encode(bytes).into_string()
+}
+
+pub fn base64_string(bytes: &[u8]) -> String {
+	BASE64_STANDARD.encode(bytes)
+}
+
+pub fn maybe_utf8(bytes: &[u8]) -> Option<String> {
+	core::str::from_utf8(bytes).ok().map(|s| s.to_owned())
 }
 
 #[cfg(test)]
