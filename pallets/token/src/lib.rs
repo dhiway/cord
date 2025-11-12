@@ -29,6 +29,7 @@ use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use cord_primitives::{
 	identifier::{DecodedIdentifier, IdentifierError, Ss58Identifier},
 	view::{base64_string, hex_string, maybe_utf8, DevEventBlockView, InfoTokenHistoryEntry},
+	view_api::ViewError,
 	view_auth::{
 		view_signature_hash as primitives_view_signature_hash,
 		ViewAuthorization as CoreViewAuthorization,
@@ -50,6 +51,8 @@ use sp_runtime::{
 	AccountId32,
 };
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 #[cfg(test)]
 pub mod mock;
 #[cfg(test)]
@@ -116,6 +119,10 @@ pub struct StateEvent<Hash> {
 }
 
 pub type StateEventOf<T> = StateEvent<HashOf<T>>;
+
+pub type TimelineEventsOf<T> = BoundedVec<StateEventOf<T>, <T as Config>::MaxTimelineViewResults>;
+pub type TimelineHistoryOf<T> =
+	BoundedVec<InfoTokenHistoryEntry, <T as Config>::MaxTimelineViewResults>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -282,40 +289,47 @@ pub mod pallet {
 		<T as frame_system::Config>::AccountId: Clone,
 	{
 		/// Returns the pallet index previously assigned to the provided name.
-		pub fn pallet_index_of(auth: ViewAuthorization<T>, name: Vec<u8>) -> Option<u16> {
-			Self::authorize_view(&auth).ok()?;
-			let bounded: BoundedVec<u8, ConstU32<64>> = name.try_into().ok()?;
-			PalletIndex::<T>::get(&bounded)
+		pub fn pallet_index_of(
+			auth: ViewAuthorization<T>,
+			name: Vec<u8>,
+		) -> Result<u16, ViewError> {
+			Self::authorize_view(&auth)?;
+			let bounded: BoundedVec<u8, ConstU32<64>> =
+				name.try_into().map_err(|_| ViewError::InvalidRequest)?;
+			PalletIndex::<T>::get(&bounded).ok_or(ViewError::NotFound)
 		}
 
 		/// Returns the pallet name bytes stored for an index.
-		pub fn pallet_name(auth: ViewAuthorization<T>, index: u16) -> Option<Vec<u8>> {
-			Self::authorize_view(&auth).ok()?;
-			IndexToPallet::<T>::get(index).map(Into::into)
+		pub fn pallet_name(auth: ViewAuthorization<T>, index: u16) -> Result<Vec<u8>, ViewError> {
+			Self::authorize_view(&auth)?;
+			IndexToPallet::<T>::get(index).map(Into::into).ok_or(ViewError::NotFound)
 		}
 
 		/// Returns the next pallet index counter.
-		pub fn next_pallet_index(auth: ViewAuthorization<T>) -> Option<u16> {
-			Self::authorize_view(&auth).ok()?;
-			Some(NextPalletIndex::<T>::get())
+		pub fn next_pallet_index(auth: ViewAuthorization<T>) -> Result<u16, ViewError> {
+			Self::authorize_view(&auth)?;
+			Ok(NextPalletIndex::<T>::get())
 		}
 
 		/// Returns the configured genesis network identifier.
-		pub fn genesis_network_id(auth: ViewAuthorization<T>) -> Option<u16> {
-			Self::authorize_view(&auth).ok()?;
-			Some(GenesisNetworkId::<T>::get())
+		pub fn genesis_network_id(auth: ViewAuthorization<T>) -> Result<u16, ViewError> {
+			Self::authorize_view(&auth)?;
+			Ok(GenesisNetworkId::<T>::get())
 		}
 
 		/// Returns whether the chain is running in origin mode.
-		pub fn origin_chain_flag(auth: ViewAuthorization<T>) -> Option<bool> {
-			Self::authorize_view(&auth).ok()?;
-			Some(IsOriginChain::<T>::get())
+		pub fn origin_chain_flag(auth: ViewAuthorization<T>) -> Result<bool, ViewError> {
+			Self::authorize_view(&auth)?;
+			Ok(IsOriginChain::<T>::get())
 		}
 
 		/// Returns the current state version counter for a token.
-		pub fn state_version(auth: ViewAuthorization<T>, token: Ss58Identifier) -> Option<u32> {
-			Self::authorize_view(&auth).ok()?;
-			Some(StateVersion::<T>::get(&token))
+		pub fn state_version(
+			auth: ViewAuthorization<T>,
+			token: Ss58Identifier,
+		) -> Result<u32, ViewError> {
+			Self::authorize_view(&auth)?;
+			Ok(StateVersion::<T>::get(&token))
 		}
 
 		/// Returns a specific state event for a token and version.
@@ -323,9 +337,9 @@ pub mod pallet {
 			auth: ViewAuthorization<T>,
 			token: Ss58Identifier,
 			version: u32,
-		) -> Option<StateEventOf<T>> {
-			Self::authorize_view(&auth).ok()?;
-			StateHistory::<T>::get(&token, version)
+		) -> Result<StateEventOf<T>, ViewError> {
+			Self::authorize_view(&auth)?;
+			StateHistory::<T>::get(&token, version).ok_or(ViewError::NotFound)
 		}
 
 		/// Returns a bounded list of state events mirroring direct storage scans.
@@ -334,12 +348,10 @@ pub mod pallet {
 			token: Ss58Identifier,
 			start: Option<u32>,
 			limit: u32,
-		) -> Vec<StateEventOf<T>> {
-			if Self::authorize_view(&auth).is_err() {
-				return Vec::new();
-			}
+		) -> Result<TimelineEventsOf<T>, ViewError> {
+			Self::authorize_view(&auth)?;
 			let capped = cmp::min(limit, T::MaxTimelineViewResults::get());
-			Self::timeline_entries(&token, start, capped)
+			Ok(Self::timeline_entries(&token, start, capped))
 		}
 
 		pub fn timeline(
@@ -347,32 +359,30 @@ pub mod pallet {
 			token: Ss58Identifier,
 			start: Option<u32>,
 			limit: Option<u32>,
-		) -> Option<Vec<InfoTokenHistoryEntry>> {
-			if Self::authorize_view(&auth).is_err() {
-				return None;
-			}
+		) -> Result<TimelineHistoryOf<T>, ViewError> {
+			Self::authorize_view(&auth)?;
 			let cap = T::MaxTimelineViewResults::get();
 			let def = T::DefaulTimelineViewResults::get();
 			let eff = limit.unwrap_or(def).min(cap);
 
 			let events = Self::timeline_entries(&token, start, eff);
-			Some(events.into_iter().map(Self::info_token_history_entry).collect())
+			let mut history = TimelineHistoryOf::<T>::default();
+			for event in events.into_iter() {
+				let _ = history.try_push(Self::info_token_history_entry(event));
+			}
+			Ok(history)
 		}
 
 		pub fn resolve_identifier(
 			auth: ViewAuthorization<T>,
 			token: Ss58Identifier,
-		) -> Option<DecodedIdentifier> {
-			if Self::authorize_view(&auth).is_err() {
-				return None;
-			}
+		) -> Result<DecodedIdentifier, ViewError> {
+			Self::authorize_view(&auth)?;
 			Self::resolve_identifier_plain(&token)
 		}
 
-		pub fn resolve_pallet(auth: ViewAuthorization<T>, index: u16) -> Option<String> {
-			if Self::authorize_view(&auth).is_err() {
-				return None;
-			}
+		pub fn resolve_pallet(auth: ViewAuthorization<T>, index: u16) -> Result<String, ViewError> {
+			Self::authorize_view(&auth)?;
 			Self::resolve_pallet_plain(index)
 		}
 	}
@@ -390,12 +400,13 @@ impl<T: Config> Pallet<T> {
 			return Ok(index);
 		}
 
-		let current_index = INDEX + NextPalletIndex::<T>::get() as u16;
+		let next_offset = NextPalletIndex::<T>::get();
+		let current_index = INDEX.saturating_add(next_offset);
 		ensure!(current_index <= u16::MAX, Error::<T>::InvalidPalletIndex);
 
 		PalletIndex::<T>::insert(&bounded_name, current_index);
 		IndexToPallet::<T>::insert(current_index, bounded_name);
-		NextPalletIndex::<T>::put(current_index.saturating_add(1));
+		NextPalletIndex::<T>::put(next_offset.saturating_add(1));
 
 		Ok(current_index)
 	}
@@ -461,14 +472,15 @@ where
 		primitives_view_signature_hash(&auth.account, auth.payload.as_slice(), &auth.signature)
 	}
 
-	fn authorize_view(auth: &ViewAuthorization<T>) -> Result<(), Error<T>> {
+	fn authorize_view(auth: &ViewAuthorization<T>) -> Result<(), ViewError> {
 		let signer: AccountId32 = auth.account.clone().into();
-		ensure!(
-			auth.signature.verify(auth.payload.as_slice(), &signer),
-			Error::<T>::InvalidViewAuthorization
-		);
+		if !auth.signature.verify(auth.payload.as_slice(), &signer) {
+			return Err(ViewError::AuthFailed);
+		}
 		let hash = Self::view_signature_hash(auth);
-		ensure!(!ViewSignatureUses::<T>::contains_key(&hash), Error::<T>::ViewAuthorizationReplay);
+		if ViewSignatureUses::<T>::contains_key(&hash) {
+			return Err(ViewError::Replay);
+		}
 		ViewSignatureUses::<T>::insert(hash, ());
 		Ok(())
 	}
@@ -493,21 +505,21 @@ where
 		token: &Ss58Identifier,
 		start: Option<u32>,
 		limit: u32,
-	) -> Vec<StateEventOf<T>> {
+	) -> TimelineEventsOf<T> {
+		let mut results = TimelineEventsOf::<T>::default();
 		let upper = StateVersion::<T>::get(token);
 		if upper == 0 {
-			return Vec::new();
+			return results;
 		}
 		let start_index = start.unwrap_or(0);
 		if start_index >= upper {
-			return Vec::new();
+			return results;
 		}
 		let max = cmp::min(limit, T::MaxTimelineViewResults::get());
-		let mut results = Vec::new();
 		let mut index = start_index;
 		while index < upper && (results.len() as u32) < max {
 			if let Some(event) = StateHistory::<T>::get(token, index) {
-				results.push(event);
+				let _ = results.try_push(event);
 			}
 			index = index.saturating_add(1);
 		}
@@ -515,30 +527,52 @@ where
 	}
 
 	pub fn timeline_view(
-		_auth: ViewAuthorization<T>,
+		auth: ViewAuthorization<T>,
 		token: Ss58Identifier,
 		start: Option<u32>,
 		limit: u32,
-	) -> Vec<StateEventOf<T>> {
-		Self::timeline_entries(&token, start, limit)
+	) -> Result<TimelineEventsOf<T>, ViewError> {
+		Self::authorize_view(&auth)?;
+		Ok(Self::timeline_entries(&token, start, limit))
 	}
 
-	pub fn resolve_identifier_plain(token: &Ss58Identifier) -> Option<DecodedIdentifier> {
-		Self::resolve_token(token).ok()
+	pub fn history_view(
+		auth: ViewAuthorization<T>,
+		token: Ss58Identifier,
+		start: Option<u32>,
+		limit: u32,
+	) -> Result<TimelineEventsOf<T>, ViewError> {
+		Self::authorize_view(&auth)?;
+		Ok(Self::timeline_entries(&token, start, limit))
+	}
+
+	pub fn resolve_identifier_plain(
+		token: &Ss58Identifier,
+	) -> Result<DecodedIdentifier, ViewError> {
+		Self::resolve_token(token).map_err(|_| ViewError::InvalidRequest)
 	}
 
 	pub fn resolve_identifier_view(
-		_auth: ViewAuthorization<T>,
+		auth: ViewAuthorization<T>,
 		token: Ss58Identifier,
-	) -> Option<DecodedIdentifier> {
+	) -> Result<DecodedIdentifier, ViewError> {
+		Self::authorize_view(&auth)?;
 		Self::resolve_identifier_plain(&token)
 	}
 
-	pub fn resolve_pallet_plain(index: u16) -> Option<String> {
-		Self::resolve_pallet_name(index).ok()
+	pub fn resolve_pallet_plain(index: u16) -> Result<String, ViewError> {
+		match Self::resolve_pallet_name(index) {
+			Ok(name) => Ok(name),
+			Err(Error::<T>::PalletNotFound) => Err(ViewError::NotFound),
+			Err(_) => Err(ViewError::InvalidRequest),
+		}
 	}
 
-	pub fn resolve_pallet_view(_auth: ViewAuthorization<T>, index: u16) -> Option<String> {
+	pub fn resolve_pallet_view(
+		auth: ViewAuthorization<T>,
+		index: u16,
+	) -> Result<String, ViewError> {
+		Self::authorize_view(&auth)?;
 		Self::resolve_pallet_plain(index)
 	}
 }

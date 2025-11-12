@@ -44,6 +44,15 @@ fn get_or_add_pallet_index_positive() {
 	});
 }
 
+#[test]
+fn pallet_indexes_increment_without_gap() {
+	new_test_ext().execute_with(|| {
+		let first = Pallet::<Test>::get_or_add_pallet_index("First").unwrap();
+		let second = Pallet::<Test>::get_or_add_pallet_index("Second").unwrap();
+		assert_eq!(first + 1, second);
+	});
+}
+
 /// Test that a pallet name that is too long returns an error.
 #[test]
 fn get_or_add_pallet_index_negative() {
@@ -113,6 +122,27 @@ fn record_activity_positive() {
 }
 
 #[test]
+fn history_view_requires_authorization() {
+	new_test_ext().execute_with(|| {
+		let token =
+			Ss58Identifier::to_encoded(vec![5u8; 32], 250, 11, 0).expect("token encoding ok");
+		let digest = H256::random();
+		let action: EventTypeOf = b"log".to_vec().try_into().unwrap();
+		Pallet::<Test>::state_event(&token, digest, action, EventBlock { height: 2, index: 0 })
+			.unwrap();
+
+		let signer = sr25519::Pair::from_seed(&[21u8; 32]);
+		let auth = make_auth(b"history", &signer);
+		let entries =
+			Pallet::<Test>::history_view(auth.clone(), token.clone(), Some(0), 8).expect("view");
+		assert_eq!(entries.len(), 1);
+
+		let replay = Pallet::<Test>::history_view(auth, token.clone(), Some(0), 8);
+		assert!(matches!(replay, Err(ViewError::Replay)));
+	});
+}
+
+#[test]
 fn timeline_view_requires_valid_authorization() {
 	new_test_ext().execute_with(|| {
 		let id_digest = vec![2u8; 32];
@@ -130,13 +160,16 @@ fn timeline_view_requires_valid_authorization() {
 		assert_eq!(entries[0].digest_hex, format!("0x{}", hex::encode(digest)));
 
 		let replay = Pallet::<Test>::timeline(auth, token.clone(), Some(0), Some(10));
-		assert!(replay.is_none(), "reused authorizations must be rejected");
+		assert!(matches!(replay, Err(ViewError::Replay)), "reused authorizations must be rejected");
 
 		let forge = sr25519::Pair::from_seed(&[99u8; 32]);
 		let mut forged = make_auth(b"view-history", &forge);
 		forged.account = signer.public().into();
 		let rejected = Pallet::<Test>::timeline(forged, token.clone(), Some(0), Some(10));
-		assert!(rejected.is_none(), "invalid signature should be rejected");
+		assert!(
+			matches!(rejected, Err(ViewError::AuthFailed)),
+			"invalid signature should be rejected"
+		);
 
 		let raw = Pallet::<Test>::timeline_entries(&token, Some(0), 10);
 		assert_eq!(raw.len(), 1, "helpers remain accessible without auth");
@@ -159,7 +192,45 @@ fn resolve_identifier_view_requires_authorization() {
 		let raw = Pallet::<Test>::resolve_identifier_plain(&token).expect("helper");
 		assert_eq!(raw.network, 300);
 
-		assert!(Pallet::<Test>::resolve_identifier(auth, token.clone()).is_none());
+		assert!(matches!(
+			Pallet::<Test>::resolve_identifier(auth, token.clone()),
+			Err(ViewError::Replay)
+		));
+	});
+}
+
+#[test]
+fn resolve_identifier_view_enforces_replay_protection() {
+	new_test_ext().execute_with(|| {
+		let token = Ss58Identifier::to_encoded(vec![6u8; 32], 310, 12, 0).unwrap();
+		let signer = sr25519::Pair::from_seed(&[8u8; 32]);
+		let auth = make_auth(b"resolve-helper", &signer);
+		let decoded =
+			Pallet::<Test>::resolve_identifier_view(auth.clone(), token.clone()).expect("view ok");
+		assert_eq!(decoded.pallet, 12);
+
+		let replay = Pallet::<Test>::resolve_identifier_view(auth, token.clone());
+		assert!(matches!(replay, Err(ViewError::Replay)), "helper must reject replay");
+	});
+}
+
+#[test]
+fn resolve_pallet_view_enforces_signature() {
+	new_test_ext().execute_with(|| {
+		let index = Pallet::<Test>::get_or_add_pallet_index("Guarded").unwrap();
+		let signer = sr25519::Pair::from_seed(&[55u8; 32]);
+		let auth = make_auth(b"pallet-helper", &signer);
+		let fetched =
+			Pallet::<Test>::resolve_pallet_view(auth.clone(), index).expect("helper succeeds");
+		assert_eq!(fetched, "Guarded");
+
+		let mut forged = auth;
+		forged.signature =
+			sr25519::Pair::from_seed(&[99u8; 32]).sign(forged.payload.as_slice()).into();
+		assert!(matches!(
+			Pallet::<Test>::resolve_pallet_view(forged, index),
+			Err(ViewError::AuthFailed)
+		));
 	});
 }
 
@@ -177,7 +248,7 @@ fn resolve_pallet_view_requires_authorization() {
 		let raw = Pallet::<Test>::resolve_pallet_plain(index).expect("helper");
 		assert_eq!(raw, pallet_name);
 
-		assert!(Pallet::<Test>::resolve_pallet(auth, index).is_none());
+		assert!(matches!(Pallet::<Test>::resolve_pallet(auth, index), Err(ViewError::Replay)));
 	});
 }
 
@@ -208,16 +279,16 @@ fn network_metadata_views_return_values() {
 		GenesisNetworkId::<Test>::put(4321);
 		IsOriginChain::<Test>::put(true);
 
-		let next = Pallet::<Test>::next_pallet_index(make_auth(b"next-index", &pair))
-			.expect("next index view");
+		let next =
+			Pallet::<Test>::next_pallet_index(make_auth(b"next-index", &pair)).expect("next index");
 		assert_eq!(next, 9);
 
-		let nid = Pallet::<Test>::genesis_network_id(make_auth(b"net-id", &pair))
-			.expect("network id view");
+		let nid =
+			Pallet::<Test>::genesis_network_id(make_auth(b"net-id", &pair)).expect("network id");
 		assert_eq!(nid, 4321);
 
-		let origin = Pallet::<Test>::origin_chain_flag(make_auth(b"origin", &pair))
-			.expect("origin flag view");
+		let origin =
+			Pallet::<Test>::origin_chain_flag(make_auth(b"origin", &pair)).expect("origin flag");
 		assert!(origin);
 	});
 }
@@ -248,7 +319,8 @@ fn state_views_roundtrip_with_authorization() {
 			token.clone(),
 			Some(0),
 			5,
-		);
+		)
+		.expect("state events");
 		assert_eq!(batch.len(), 1);
 		assert_eq!(batch[0].digest, digest);
 	});

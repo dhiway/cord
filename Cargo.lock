@@ -9942,6 +9942,7 @@ name = "pallet-token"
 version = "0.9.9"
 dependencies = [
  "cord-primitives",
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "hex",
