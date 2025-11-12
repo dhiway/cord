@@ -7,7 +7,8 @@ use cord_primitives::{
 	view_api::{
 		AttributeKey, AuthorizationRequest, EntityAccountTokenRequest,
 		EntityAttributeHistoryForKeyRequest, EntityAttributeHistoryRequest,
-		EntityLinkedAccountsRequest, EntityNymRequest, TokenTimelineRequest,
+		EntityLinkedAccountsRequest, EntityNymRequest, TokenStateVersionRequest,
+		TokenTimelineRequest,
 	},
 };
 use getrandom::getrandom;
@@ -16,15 +17,13 @@ use oc::{
 	demo,
 	demo::entity::{self, EntitySnapshot},
 	params::config::CordConfig,
-	query::{
-		auth::{AuthorizationBuilder, SignatureScheme},
-		token::RuntimeStateEvent,
-	},
+	query::auth::{AuthorizationBuilder, SignatureScheme},
 	tx,
 	tx::nonce::{NonceMode, NonceTracker},
 	types::{
 		self, element_text_from_view,
 		entity::{AttributeEntry, ElementJson, EntityInfoRecord, HistoryEntry},
+		token::StateEventRecord,
 	},
 	ChainFlavor, Client, Error as OcError,
 };
@@ -77,6 +76,15 @@ async fn main() -> Result<()> {
 		transactions.push("Synced entity profile for Alice".to_string());
 	}
 	let mut snapshot = EntitySnapshot::from_profile(&profile, &entity_token);
+	let baseline_state_version =
+		match fetch_state_version(&client, &signer, &token_identifier).await {
+			Ok(value) => value,
+			Err(err) => {
+				println!("⚠️ unable to fetch token state version ({}); assuming 0", err);
+				0
+			},
+		};
+	let mut expected_state_events = 0u32;
 	let chain_state = if created {
 		EntityChainState::from_profile(&profile)
 	} else {
@@ -101,6 +109,7 @@ async fn main() -> Result<()> {
 	} else if submit_entity_nym(&client, &signer, &entity_nym_prefix, &mut nonce_tracker).await? {
 		snapshot.set_entity_nym(format!("{entity_nym_prefix}.nym.org.in"));
 		transactions.push(format!("Set entity nym (token {entity_token})"));
+		expected_state_events = expected_state_events.saturating_add(1);
 	}
 
 	let email_value = format!("{label}@cord.dev");
@@ -136,6 +145,7 @@ async fn main() -> Result<()> {
 				}
 				snapshot.set_email(email_value.clone());
 				mutated_keys.insert(b"email".to_vec());
+				expected_state_events = expected_state_events.saturating_add(1);
 			},
 		}
 
@@ -163,6 +173,7 @@ async fn main() -> Result<()> {
 				}
 				snapshot.set_attribute("demo", demo_value.clone());
 				mutated_keys.insert(b"demo".to_vec());
+				expected_state_events = expected_state_events.saturating_add(1);
 			},
 		}
 
@@ -193,10 +204,12 @@ async fn main() -> Result<()> {
 				}
 				snapshot.set_attribute("public_key", rotation_public_key.clone());
 				mutated_keys.insert(b"public_key".to_vec());
+				expected_state_events = expected_state_events.saturating_add(1);
 			},
 		}
 		// short_delay(Duration::from_secs(1)).await;
 	}
+	short_delay(Duration::from_secs(6)).await;
 
 	let schema_keys: BTreeSet<Vec<u8>> =
 		snapshot.attributes.keys().map(|k| k.as_bytes().to_vec()).collect();
@@ -204,16 +217,13 @@ async fn main() -> Result<()> {
 		collect_attribute_history(&client, &signer, &token_identifier, &mutated_keys, &schema_keys)
 			.await?;
 
-	short_delay(Duration::from_secs(3)).await;
+	short_delay(Duration::from_secs(2)).await;
+	let target_version = baseline_state_version.saturating_add(expected_state_events);
 	let token_timeline_entries =
-		fetch_full_token_timeline(&client, &signer, &token_identifier).await?;
+		fetch_full_token_timeline(&client, &signer, &token_identifier, target_version).await?;
 	let combined_timeline = build_token_activity(&token_timeline_entries);
 
-	let sub_req = EntityLinkedAccountsRequest {
-		auth: fresh_authorization(&signer)?,
-		token: token_identifier.clone(),
-	};
-	let sub_accounts = client.query().entity().linked_accounts(&sub_req).await?;
+	let sub_accounts = fetch_linked_accounts(&client, &signer, &token_identifier).await?;
 	snapshot.set_active_accounts(&sub_accounts);
 
 	// snapshot already updated if nym exists or newly set.
@@ -637,6 +647,10 @@ fn random_public_key_hex() -> String {
 }
 
 const TIMELINE_PAGE_SIZE: u32 = 32;
+const TIMELINE_MAX_RETRIES: usize = 6;
+const TIMELINE_RETRY_DELAY: Duration = Duration::from_millis(500);
+const LINKED_ACCOUNTS_RETRIES: usize = 5;
+const LINKED_ACCOUNTS_DELAY: Duration = Duration::from_millis(400);
 
 const ATTRIBUTE_HISTORY_RETRIES: usize = 3;
 
@@ -682,17 +696,13 @@ async fn fetch_attribute_history_snapshot(
 		auth: fresh_authorization(signer)?,
 		token: token_identifier.clone(),
 	};
-	let mut entries = match client.query().entity().attribute_history(&history_req).await {
+	let baseline = match client.query().entity().attribute_history(&history_req).await {
 		Ok(entries) => entries,
 		Err(OcError::NotFound(_)) => Vec::new(),
 		Err(err) => return Err(anyhow!(err)),
 	};
-	let mut seen: BTreeSet<(String, u64)> = entries
-		.iter()
-		.map(|entry| (entry.key_hex.to_ascii_lowercase(), entry.version))
-		.collect();
 
-	let mut keys_to_fetch: BTreeSet<Vec<u8>> = entries
+	let mut keys_to_fetch: BTreeSet<Vec<u8>> = baseline
 		.iter()
 		.filter_map(|entry| types::hex_to_bytes(&entry.key_hex).ok())
 		.filter(|bytes| !bytes.is_empty())
@@ -700,6 +710,7 @@ async fn fetch_attribute_history_snapshot(
 	keys_to_fetch.extend(mutated_keys.iter().cloned());
 	keys_to_fetch.extend(schema_keys.iter().cloned());
 
+	let mut combined = Vec::new();
 	for key in keys_to_fetch {
 		let Ok(bounded_key) = AttributeKey::try_from(key.clone()) else {
 			continue;
@@ -710,31 +721,92 @@ async fn fetch_attribute_history_snapshot(
 			key: bounded_key,
 		};
 		match client.query().entity().attribute_history_for_key(&key_req).await {
-			Ok(mut extra) => {
-				for entry in extra.drain(..) {
-					let key = entry.key_hex.to_ascii_lowercase();
-					if seen.insert((key, entry.version)) {
-						entries.push(entry);
-					}
-				}
-			},
+			Ok(mut extra) => combined.append(&mut extra),
 			Err(OcError::NotFound(_)) => {},
 			Err(err) => return Err(anyhow!(err)),
 		}
 	}
 
-	let mut combined = entries;
+	if combined.is_empty() {
+		let mut fallback = baseline;
+		fallback
+			.sort_by(|a, b| (a.block.height, a.block.index).cmp(&(b.block.height, b.block.index)));
+		return Ok(fallback);
+	}
 	combined.sort_by(|a, b| (a.block.height, a.block.index).cmp(&(b.block.height, b.block.index)));
 	Ok(combined)
+}
+
+async fn fetch_linked_accounts(
+	client: &Client,
+	signer: &tx::signer::sr25519::Keypair,
+	token: &Ss58Identifier,
+) -> Result<Vec<AccountId32>> {
+	let mut attempt = 0;
+	loop {
+		let req = EntityLinkedAccountsRequest {
+			auth: fresh_authorization(signer)?,
+			token: token.clone(),
+		};
+		match client.query().entity().linked_accounts(&req).await {
+			Ok(accounts) => {
+				if !accounts.is_empty() || attempt >= LINKED_ACCOUNTS_RETRIES {
+					return Ok(accounts);
+				}
+			},
+			Err(err) => {
+				if attempt >= LINKED_ACCOUNTS_RETRIES {
+					return Err(anyhow!(err));
+				}
+			},
+		}
+		attempt += 1;
+		short_delay(LINKED_ACCOUNTS_DELAY).await;
+	}
+}
+
+#[derive(Clone)]
+struct TokenTimelineEntry {
+	version: u32,
+	event: StateEventRecord,
 }
 
 async fn fetch_full_token_timeline(
 	client: &Client,
 	signer: &tx::signer::sr25519::Keypair,
 	token: &Ss58Identifier,
-) -> Result<Vec<(u32, RuntimeStateEvent)>> {
+	min_expected: u32,
+) -> Result<Vec<TokenTimelineEntry>> {
+	let mut attempt = 0usize;
+	loop {
+		let current_version = fetch_state_version(client, signer, token).await.unwrap_or(0);
+		let entries = collect_timeline_once(client, signer, token).await?;
+		let have = entries.len() as u32;
+		let required = current_version.max(min_expected);
+		if have >= required || attempt >= TIMELINE_MAX_RETRIES {
+			return Ok(entries);
+		}
+		attempt += 1;
+		short_delay(TIMELINE_RETRY_DELAY).await;
+	}
+}
+
+async fn fetch_state_version(
+	client: &Client,
+	signer: &tx::signer::sr25519::Keypair,
+	token: &Ss58Identifier,
+) -> Result<u32> {
+	let req = TokenStateVersionRequest { auth: fresh_authorization(signer)?, token: token.clone() };
+	client.query().token().state_version(&req).await.map_err(|e| anyhow!(e))
+}
+
+async fn collect_timeline_once(
+	client: &Client,
+	signer: &tx::signer::sr25519::Keypair,
+	token: &Ss58Identifier,
+) -> Result<Vec<TokenTimelineEntry>> {
 	let mut cursor = Some(0u32);
-	let mut version_cursor = cursor.unwrap_or(0);
+	let mut version_cursor = 0u32;
 	let mut rows = Vec::new();
 	loop {
 		let req = TokenTimelineRequest {
@@ -748,7 +820,7 @@ async fn fetch_full_token_timeline(
 			break;
 		}
 		for entry in batch {
-			rows.push((version_cursor, entry));
+			rows.push(TokenTimelineEntry { version: version_cursor, event: entry });
 			version_cursor = version_cursor.saturating_add(1);
 		}
 		match next_cursor {
@@ -766,24 +838,23 @@ async fn fetch_full_token_timeline(
 struct TimelineRow {
 	pub version: u64,
 	pub action: String,
-	pub action_hex: String,
 	pub digest: String,
 	pub block: u32,
 	pub extrinsic: u32,
 }
 
-fn build_token_activity(entries: &[(u32, RuntimeStateEvent)]) -> Vec<TimelineRow> {
-	let mut rows: Vec<_> = entries.iter().map(|(version, entry)| (*version, entry)).collect();
-	rows.sort_by_key(|(version, _)| *version);
-	rows.into_iter()
-		.map(|(version, entry)| TimelineRow {
-			version: version as u64,
-			action: maybe_utf8(entry.action.0.as_slice())
-				.unwrap_or_else(|| format!("0x{}", hex::encode(&entry.action.0))),
-			action_hex: format!("0x{}", hex::encode(&entry.action.0)),
-			digest: truncate_digest(&format!("0x{}", hex::encode(entry.digest.as_ref())), 16),
-			block: entry.seal.height,
-			extrinsic: entry.seal.index,
+fn build_token_activity(entries: &[TokenTimelineEntry]) -> Vec<TimelineRow> {
+	let mut ordered: Vec<_> = entries.iter().collect();
+	ordered.sort_by_key(|entry| entry.version);
+	ordered
+		.into_iter()
+		.map(|entry| TimelineRow {
+			version: entry.version as u64,
+			action: maybe_utf8(entry.event.action.as_slice())
+				.unwrap_or_else(|| format!("0x{}", hex::encode(&entry.event.action))),
+			digest: truncate_digest(&format!("0x{}", hex::encode(entry.event.digest)), 16),
+			block: entry.event.seal.height,
+			extrinsic: entry.event.seal.index,
 		})
 		.collect()
 }
@@ -795,16 +866,16 @@ fn print_combined_timeline(entries: &[TimelineRow]) {
 		return;
 	}
 	println!(
-		"    {:>10}  {:>7}  {:<28} {:<34} {:<20}",
-		"Block", "Index", "Action", "Action (Hex)", "Digest"
+		"    ↳  {:>8}  {:>8}  {:>6}    {:<30} {:<18}",
+		"Version", "Block", "Index", "Action", "Digest"
 	);
 	for entry in entries {
 		println!(
-			"    #{:<8}  {:>7}  {:<28} {:<34} {:<20}",
-			entry.block,
+			"       {:>8}  {:>8}  {:>6}    {:<30} {:<18}",
+			entry.version,
+			format!("#{}", entry.block),
 			entry.extrinsic,
-			truncate_label(&entry.action, 28),
-			truncate_label(&entry.action_hex, 34),
+			truncate_label(&entry.action, 30),
 			entry.digest
 		);
 	}
@@ -816,13 +887,13 @@ fn print_attribute_history(entries: &[HistoryEntry]) {
 		println!("    • (no attribute history)");
 		return;
 	}
-	println!("    {:>10}  {:>7}  {:<18} {:<30}", "Block", "Index", "Key", "Rotated Value");
+	println!("    ↳  {:>8}  {:>6}    {:<18} {:<34}", "Block", "Index", "Key", "Rotated Value");
 	for entry in entries {
 		let key = entry.key_utf8.clone().unwrap_or_else(|| entry.key_hex.clone());
-		let value = truncate_label(&decode_attr_value(&entry.old_value_base64), 30);
+		let value = truncate_label(&decode_attr_value(&entry.old_value_base64), 34);
 		println!(
-			"    #{:<8}  {:>7}  {:<18} {:<30}",
-			entry.block.height,
+			"       {:>8}  {:>6}    {:<18} {:<34}",
+			format!("#{}", entry.block.height),
 			entry.block.index,
 			truncate_label(&key, 18),
 			value

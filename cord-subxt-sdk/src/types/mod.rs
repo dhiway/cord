@@ -1,6 +1,7 @@
 pub mod element;
 pub mod entity;
 pub mod registry;
+pub mod token;
 
 pub use element::{
 	attribute_pair_value, bytes_value, element_json_from_runtime, element_json_to_dynamic,
