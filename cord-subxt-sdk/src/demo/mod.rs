@@ -3,6 +3,7 @@ use crate::{
 	client::Client,
 	error::{Error, Result},
 	params::config::CordConfig,
+	query::entity::RuntimeEntityInfo,
 	tx::{self, TxOptions},
 };
 use codec::Decode;
@@ -154,13 +155,12 @@ pub fn entity_profile(label: &str) -> JsonValue {
 	})
 }
 
-pub async fn fetch_entity_info_bytes(
+pub async fn fetch_entity_info(
 	client: &Client,
 	auth: &AuthorizationRequest,
 	token: &Ss58Identifier,
-) -> Result<Option<Vec<u8>>> {
-	let req = EntityInfoBytesRequest { auth: auth.clone(), token: token.clone() };
-	client.query().entity().entity_info_bytes(&req).await
+) -> Result<Option<RuntimeEntityInfo>> {
+	client.query().entity().details(auth, token).await
 }
 
 fn decode_value<T: Decode>(cursor: &mut &[u8]) -> Result<T> {

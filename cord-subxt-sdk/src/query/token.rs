@@ -24,7 +24,7 @@ impl<'a> TokenQuery<'a> {
 	pub async fn state_version(&self, req: &TokenStateVersionRequest) -> Result<u32> {
 		let args = self.token_args(&req.auth, &req.token)?;
 		let raw: core::result::Result<u32, AuthorizationError> =
-			self.query.call_typed("Token", "state_version", args).await?;
+			self.query.call_result("Token", "state_version", args).await?;
 		raw.map_err(|err| view_failure("token.state_version", err))
 	}
 
@@ -34,7 +34,7 @@ impl<'a> TokenQuery<'a> {
 	) -> Result<DecodedIdentifier> {
 		let args = self.token_args(&req.auth, &req.token)?;
 		let raw: core::result::Result<DecodedIdentifier, AuthorizationError> =
-			self.query.call_typed("Token", "resolve_identifier", args).await?;
+			self.query.call_result("Token", "resolve_identifier", args).await?;
 		raw.map_err(|err| view_failure("token.resolve_identifier", err))
 	}
 
@@ -44,14 +44,14 @@ impl<'a> TokenQuery<'a> {
 	) -> Result<(Vec<RuntimeStateEvent>, Option<u32>)> {
 		let args = self.timeline_args(req)?;
 		let raw: core::result::Result<(Vec<RuntimeStateEvent>, Option<u32>), AuthorizationError> =
-			self.query.call_typed("Token", "timeline", args).await?;
+			self.query.call_result("Token", "timeline", args).await?;
 		raw.map_err(|err| view_failure("token.timeline", err))
 	}
 
 	pub async fn resolve_pallet(&self, req: &TokenResolvePalletRequest) -> Result<String> {
 		let args = self.resolve_pallet_args(req)?;
 		let raw: core::result::Result<String, AuthorizationError> =
-			self.query.call_typed("Token", "resolve_pallet", args).await?;
+			self.query.call_result("Token", "resolve_pallet", args).await?;
 		raw.map_err(|err| view_failure("token.resolve_pallet", err))
 	}
 

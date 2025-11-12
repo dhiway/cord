@@ -1,12 +1,11 @@
 use anyhow::{anyhow, Context, Result};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use codec::Decode;
 use cord_primitives::{
 	identifier::Ss58Identifier,
-	view::{maybe_utf8, DevElement, ElementView, InfoAttributeHistoryEntry},
+	view::{maybe_utf8, InfoAttributeHistoryEntry},
 	view_api::{
 		AttributeKey, AuthorizationRequest, EntityAccountTokenRequest,
-		EntityAttributeHistoryForKeyRequest, EntityAttributeHistoryRequest, EntityInfoBytesRequest,
+		EntityAttributeHistoryForKeyRequest, EntityAttributeHistoryRequest,
 		EntityLinkedAccountsRequest, EntityNymRequest, TokenTimelineRequest,
 	},
 };
@@ -17,24 +16,24 @@ use oc::{
 	demo::entity::{self, EntitySnapshot},
 	params::config::CordConfig,
 	query::auth::{AuthorizationBuilder, SignatureScheme},
+	query::entity::RuntimeEntityInfo,
 	query::token::RuntimeStateEvent,
-	scale::{decode_dev_attribute_map, decode_element_view, MetadataResolver},
 	tx,
 	tx::nonce::{NonceMode, NonceTracker},
 	types::{
 		self,
+		element::element_text_from_runtime,
 		entity::{AttributeEntry, ElementJson},
 	},
 	ChainFlavor, Client, Error as OcError,
 };
-use scale_value::{Composite, Value, ValueDef};
 use serde::Serialize;
 use serde_json::json;
 use sp_core::{sr25519 as sp_sr25519, Pair as _};
 use sp_runtime::AccountId32 as RuntimeAccount;
 use std::{
 	collections::{BTreeMap, BTreeSet},
-	fmt,
+	fmt, str,
 };
 use subxt::{
 	blocks::ExtrinsicEvents,
@@ -42,8 +41,6 @@ use subxt::{
 	utils::{AccountId32, H256},
 };
 use tokio::time::{sleep, Duration};
-
-use bs58;
 
 fn fresh_authorization(signer: &tx::signer::sr25519::Keypair) -> Result<AuthorizationRequest> {
 	AuthorizationBuilder::from_signer(signer, SignatureScheme::Sr25519, None)
@@ -509,6 +506,23 @@ impl EntityChainState {
 		state
 	}
 
+	fn from_runtime(info: &RuntimeEntityInfo) -> Self {
+		let mut state = EntityChainState::default();
+		state.insert_reserved("display", element_text_from_runtime(&info.display));
+		state.insert_reserved("legal", element_text_from_runtime(&info.legal));
+		state.insert_reserved("web", element_text_from_runtime(&info.web));
+		state.insert_reserved("email", element_text_from_runtime(&info.email));
+		state.insert_reserved("twitter", element_text_from_runtime(&info.twitter));
+		if let Some(attrs) = &info.attributes {
+			for (key, value) in attrs.iter() {
+				let label = attribute_label(key.as_slice());
+				let text = element_text_from_runtime(value);
+				state.insert_attribute(label, text);
+			}
+		}
+		state
+	}
+
 	fn insert_reserved(&mut self, key: &str, value: Option<String>) {
 		if let Some(val) = value {
 			self.reserved.insert(key.to_string(), val);
@@ -534,100 +548,17 @@ async fn fetch_entity_chain_state(
 	signer: &tx::signer::sr25519::Keypair,
 	token: &Ss58Identifier,
 ) -> Result<EntityChainState> {
-	let req = EntityInfoBytesRequest { auth: fresh_authorization(signer)?, token: token.clone() };
-	let Some(bytes) = client.query().entity().entity_info_bytes(&req).await? else {
+	let auth = fresh_authorization(signer)?;
+	let Some(info) = client.query().entity().details(&auth, token).await? else {
 		return Ok(EntityChainState::default());
 	};
-	let metadata = client.metadata();
-	let resolver = MetadataResolver::new(&metadata);
-	let type_id = find_entity_info_type_id(&resolver)
-		.ok_or_else(|| anyhow!("unable to locate EntityInfo type in metadata"))?;
-	let value = resolver.decode_value(type_id, &bytes).map_err(|e: OcError| anyhow!(e))?;
-	parse_entity_info_value(&value)
+	Ok(EntityChainState::from_runtime(&info))
 }
 
-fn find_entity_info_type_id(resolver: &MetadataResolver) -> Option<u32> {
-	resolver.find_type(|ty| match &ty.ty.type_def {
-		scale_info::TypeDef::Composite(comp) => {
-			let mut has_email = false;
-			let mut has_attrs = false;
-			for field in &comp.fields {
-				if let Some(name) = field.name.as_ref().map(|seg| seg.as_str()) {
-					match name {
-						"email" => has_email = true,
-						"attributes" => has_attrs = true,
-						_ => {},
-					}
-				}
-			}
-			let ends_with_entity_info =
-				ty.ty.path.segments.last().map(|seg| seg.as_str()) == Some("EntityInfo");
-			has_email && has_attrs && ends_with_entity_info
-		},
-		_ => false,
-	})
-}
-
-fn parse_entity_info_value(value: &Value<u32>) -> Result<EntityChainState> {
-	let mut state = EntityChainState::default();
-	let ValueDef::Composite(Composite::Named(fields)) = &value.value else {
-		return Err(anyhow!("unexpected entity info layout"));
-	};
-	for (name, field_value) in fields {
-		match name.as_str() {
-			"display" | "legal" | "web" | "email" | "twitter" => {
-				state.insert_reserved(name, element_value_to_string(field_value));
-			},
-			"attributes" => {
-				if let Ok(map) = decode_dev_attribute_map(field_value) {
-					for (key, attr) in map {
-						state.insert_attribute(key, dev_element_to_string(&attr.value));
-					}
-				}
-			},
-			_ => {},
-		}
-	}
-	Ok(state)
-}
-
-fn element_value_to_string(value: &Value<u32>) -> Option<String> {
-	let view = decode_element_view(value).ok()?;
-	element_view_to_string(view)
-}
-
-fn element_view_to_string(view: ElementView) -> Option<String> {
-	match view {
-		ElementView::None => None,
-		ElementView::Bool(value) => Some(value.to_string()),
-		ElementView::U64(value) => Some(value.to_string()),
-		ElementView::U128(value) => Some(value.to_string()),
-		ElementView::Hash(bytes) => Some(format!("0x{}", hex::encode(bytes))),
-		ElementView::Token(token) => Some(String::from_utf8_lossy(token.as_ref()).into_owned()),
-		ElementView::Cid(bytes) => Some(bs58::encode(bytes).into_string()),
-		ElementView::Raw(bytes) => match String::from_utf8(bytes.clone()) {
-			Ok(text) => Some(text),
-			Err(_) => Some(format!("0x{}", hex::encode(bytes))),
-		},
-	}
-}
-
-fn dev_element_to_string(element: &DevElement) -> Option<String> {
-	match element {
-		DevElement::None => None,
-		DevElement::Bool(value) => Some(value.to_string()),
-		DevElement::U64(value) => Some(value.to_string()),
-		DevElement::U128(value) => Some(value.to_string()),
-		DevElement::HashHex(hexstr) => Some(hexstr.clone()),
-		DevElement::TokenSs58(token) => Some(token.clone()),
-		DevElement::CidBase58(cid) => Some(cid.clone()),
-		DevElement::RawBase64(encoded) => match BASE64.decode(encoded.as_bytes()) {
-			Ok(bytes) => match String::from_utf8(bytes) {
-				Ok(text) => Some(text),
-				Err(_) => Some(encoded.clone()),
-			},
-			Err(_) => Some(encoded.clone()),
-		},
+fn attribute_label(bytes: &[u8]) -> String {
+	match str::from_utf8(bytes) {
+		Ok(text) => text.to_string(),
+		Err(_) => format!("0x{}", hex::encode(bytes)),
 	}
 }
 
