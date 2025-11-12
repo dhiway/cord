@@ -42,6 +42,13 @@ use tokio::time::{sleep, Duration};
 
 use bs58;
 
+fn fresh_view_auth(signer: &tx::signer::sr25519::Keypair) -> Result<ViewRequestAuth> {
+	AuthorizationBuilder::from_signer(signer, SignatureScheme::Sr25519, None)
+		.context("failed to build view authorization")?
+		.as_request()
+		.context("failed to convert view authorization")
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
 	let label = demo::random_label("entity-demo");
@@ -56,21 +63,12 @@ async fn main() -> Result<()> {
 	seed_profile_attribute(&mut profile, "public_key", &initial_public_key);
 
 	let output_json = std::env::args().any(|arg| arg == "--json");
-	let signed_auth = AuthorizationBuilder::from_signer(&signer, SignatureScheme::Sr25519, None)
-		.context("failed to build view authorization")?;
-	let view_auth = signed_auth.as_request().context("failed to convert view authorization")?;
 	let mut transactions = Vec::new();
 	let mut mutated_keys: BTreeSet<Vec<u8>> = BTreeSet::new();
 
-	let (entity_token, created) = ensure_entity_token_verbose(
-		&client,
-		&signer,
-		&view_auth,
-		&account_id,
-		&profile,
-		&mut nonce_tracker,
-	)
-	.await?;
+	let (entity_token, created) =
+		ensure_entity_token_verbose(&client, &signer, &account_id, &profile, &mut nonce_tracker)
+			.await?;
 	if created {
 		transactions.push("Set entity profile for Alice".to_string());
 	} else {
@@ -81,7 +79,7 @@ async fn main() -> Result<()> {
 	let chain_state = if created {
 		EntityChainState::from_profile(&profile)
 	} else {
-		match fetch_entity_chain_state(&client, &view_auth, &token_identifier).await {
+		match fetch_entity_chain_state(&client, &signer, &token_identifier).await {
 			Ok(state) => state,
 			Err(err) => {
 				println!(
@@ -93,13 +91,14 @@ async fn main() -> Result<()> {
 		}
 	};
 	let entity_nym_prefix = sanitize_entity_nym(&label);
-	let nym_req = EntityNymRequest { auth: view_auth.clone(), token: token_identifier.clone() };
+	let nym_req =
+		EntityNymRequest { auth: fresh_view_auth(&signer)?, token: token_identifier.clone() };
 	let existing_nym = client.query().entity().entity_nym(&nym_req).await?;
 	if let Some(nym) = existing_nym {
 		println!("ℹ️ Entity nym already set: {nym}");
 		snapshot.set_entity_nym(nym);
 	} else if submit_entity_nym(&client, &signer, &entity_nym_prefix, &mut nonce_tracker).await? {
-		snapshot.set_entity_nym(format!("{entity_nym_prefix}.myn.social"));
+		snapshot.set_entity_nym(format!("{entity_nym_prefix}.nym.org.in"));
 		transactions.push(format!("Set entity nym (token {entity_token})"));
 	}
 
@@ -200,14 +199,16 @@ async fn main() -> Result<()> {
 
 	short_delay(Duration::from_secs(2)).await;
 	let token_timeline_entries =
-		fetch_full_token_timeline(&client, &view_auth, &token_identifier).await?;
+		fetch_full_token_timeline(&client, &signer, &token_identifier).await?;
 	let combined_timeline = build_token_activity(&token_timeline_entries);
 
 	let attribute_history =
-		collect_attribute_history(&client, &view_auth, &token_identifier, &mutated_keys).await?;
+		collect_attribute_history(&client, &signer, &token_identifier, &mutated_keys).await?;
 
-	let sub_req =
-		EntityLinkedAccountsRequest { auth: view_auth.clone(), token: token_identifier.clone() };
+	let sub_req = EntityLinkedAccountsRequest {
+		auth: fresh_view_auth(&signer)?,
+		token: token_identifier.clone(),
+	};
 	let sub_accounts = client.query().entity().linked_accounts(&sub_req).await?;
 	snapshot.set_active_accounts(&sub_accounts);
 
@@ -245,14 +246,14 @@ async fn main() -> Result<()> {
 async fn ensure_entity_token_verbose(
 	client: &Client,
 	signer: &tx::signer::sr25519::Keypair,
-	view_auth: &cord_primitives::view_api::ViewRequestAuth,
 	account_id: &AccountId32,
 	profile: &serde_json::Value,
 	nonce_tracker: &mut NonceTracker,
 ) -> Result<(String, bool)> {
 	let raw: [u8; 32] = *account_id.as_ref();
 	let runtime_account = RuntimeAccount::from(raw);
-	let request = EntityAccountTokenRequest { auth: view_auth.clone(), account: runtime_account };
+	let request =
+		EntityAccountTokenRequest { auth: fresh_view_auth(signer)?, account: runtime_account };
 	if let Some(token) = client.query().entity().account_token(&request).await? {
 		println!("ℹ️ Entity profile already exists (token {token})");
 		return Ok((token, false));
@@ -527,10 +528,10 @@ impl EntityChainState {
 
 async fn fetch_entity_chain_state(
 	client: &Client,
-	view_auth: &ViewRequestAuth,
+	signer: &tx::signer::sr25519::Keypair,
 	token: &Ss58Identifier,
 ) -> Result<EntityChainState> {
-	let req = EntityInfoBytesRequest { auth: view_auth.clone(), token: token.clone() };
+	let req = EntityInfoBytesRequest { auth: fresh_view_auth(signer)?, token: token.clone() };
 	let Some(bytes) = client.query().entity().entity_info_bytes(&req).await? else {
 		return Ok(EntityChainState::default());
 	};
@@ -706,7 +707,7 @@ const ATTRIBUTE_HISTORY_RETRIES: usize = 3;
 
 async fn collect_attribute_history(
 	client: &Client,
-	view_auth: &ViewRequestAuth,
+	signer: &tx::signer::sr25519::Keypair,
 	token_identifier: &Ss58Identifier,
 	mutated_keys: &BTreeSet<Vec<u8>>,
 ) -> Result<Vec<InfoAttributeHistoryEntry>> {
@@ -715,7 +716,7 @@ async fn collect_attribute_history(
 	let mut attempt = 0;
 	loop {
 		let entries =
-			fetch_attribute_history_snapshot(client, view_auth, token_identifier, mutated_keys)
+			fetch_attribute_history_snapshot(client, signer, token_identifier, mutated_keys)
 				.await?;
 		let complete = target_hex.is_empty()
 			|| target_hex.iter().all(|hex_key| {
@@ -731,12 +732,14 @@ async fn collect_attribute_history(
 
 async fn fetch_attribute_history_snapshot(
 	client: &Client,
-	view_auth: &ViewRequestAuth,
+	signer: &tx::signer::sr25519::Keypair,
 	token_identifier: &Ss58Identifier,
 	mutated_keys: &BTreeSet<Vec<u8>>,
 ) -> Result<Vec<InfoAttributeHistoryEntry>> {
-	let history_req =
-		EntityAttributeHistoryRequest { auth: view_auth.clone(), token: token_identifier.clone() };
+	let history_req = EntityAttributeHistoryRequest {
+		auth: fresh_view_auth(signer)?,
+		token: token_identifier.clone(),
+	};
 	let mut entries = match client.query().entity().attribute_history_entries(&history_req).await {
 		Ok(entries) => entries,
 		Err(OcError::NotFound(_)) => Vec::new(),
@@ -755,7 +758,7 @@ async fn fetch_attribute_history_snapshot(
 			continue;
 		};
 		let key_req = EntityAttributeHistoryForKeyRequest {
-			auth: view_auth.clone(),
+			auth: fresh_view_auth(signer)?,
 			token: token_identifier.clone(),
 			key: bounded_key,
 		};
@@ -777,7 +780,7 @@ async fn fetch_attribute_history_snapshot(
 
 async fn fetch_full_token_timeline(
 	client: &Client,
-	view_auth: &ViewRequestAuth,
+	signer: &tx::signer::sr25519::Keypair,
 	token: &Ss58Identifier,
 ) -> Result<Vec<(u32, InfoTokenHistoryEntry)>> {
 	let mut start = Some(0u32);
@@ -785,7 +788,7 @@ async fn fetch_full_token_timeline(
 	let mut rows = Vec::new();
 	loop {
 		let req = TokenTimelineRequest {
-			auth: view_auth.clone(),
+			auth: fresh_view_auth(signer)?,
 			token: token.clone(),
 			start,
 			limit: Some(TIMELINE_PAGE_SIZE),

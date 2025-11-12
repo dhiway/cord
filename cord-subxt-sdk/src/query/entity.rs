@@ -6,7 +6,7 @@ use cord_primitives::{
 	view_api::{
 		EntityAccountTokenRequest, EntityAttributeHistoryEntryRequest,
 		EntityAttributeHistoryForKeyRequest, EntityAttributeHistoryRequest, EntityInfoBytesRequest,
-		EntityLinkedAccountsRequest, EntityNymRequest,
+		EntityLinkedAccountsRequest, EntityNymRequest, ViewError,
 	},
 };
 use scale_value::Value;
@@ -23,16 +23,9 @@ impl<'a> EntityQuery<'a> {
 		req: &EntityAttributeHistoryRequest,
 	) -> Result<Vec<InfoAttributeHistoryEntry>> {
 		let args = self.token_args(&req.auth, &req.token)?;
-		let value = self
-			.query
-			.call_optional::<Vec<InfoAttributeHistoryEntry>>(
-				"Entity",
-				"attribute_history_entries",
-				args,
-			)
-			.await?;
-		value
-			.ok_or_else(|| Error::NotFound("entity.attribute_history_entries returned none".into()))
+		let raw: core::result::Result<Vec<InfoAttributeHistoryEntry>, ViewError> =
+			self.query.call_typed("Entity", "attribute_history_entries", args).await?;
+		raw.map_err(|err| view_failure("entity.attribute_history_entries", err))
 	}
 
 	pub async fn attribute_history_for_key_entries(
@@ -40,17 +33,11 @@ impl<'a> EntityQuery<'a> {
 		req: &EntityAttributeHistoryForKeyRequest,
 	) -> Result<Vec<InfoAttributeHistoryEntry>> {
 		let args = self.token_key_args(&req.auth, &req.token, req.key.as_slice())?;
-		let value = self
+		let raw: core::result::Result<Vec<InfoAttributeHistoryEntry>, ViewError> = self
 			.query
-			.call_optional::<Vec<InfoAttributeHistoryEntry>>(
-				"Entity",
-				"attribute_history_for_key_entries",
-				args,
-			)
+			.call_typed("Entity", "attribute_history_for_key_entries", args)
 			.await?;
-		value.ok_or_else(|| {
-			Error::NotFound("entity.attribute_history_for_key_entries returned none".into())
-		})
+		raw.map_err(|err| view_failure("entity.attribute_history_for_key_entries", err))
 	}
 
 	pub async fn attribute_history_entry(
@@ -59,31 +46,31 @@ impl<'a> EntityQuery<'a> {
 	) -> Result<InfoAttributeHistoryEntry> {
 		let args =
 			self.token_key_version_args(&req.auth, &req.token, req.key.as_slice(), req.version)?;
-		let value = self
-			.query
-			.call_optional::<InfoAttributeHistoryEntry>(
-				"Entity",
-				"attribute_history_entry_view",
-				args,
-			)
-			.await?;
-		value.ok_or_else(|| {
-			Error::NotFound("entity.attribute_history_entry_view returned none".into())
-		})
+		let raw: core::result::Result<InfoAttributeHistoryEntry, ViewError> =
+			self.query.call_typed("Entity", "attribute_history_entry_view", args).await?;
+		raw.map_err(|err| view_failure("entity.attribute_history_entry_view", err))
 	}
 
 	pub async fn account_token(&self, req: &EntityAccountTokenRequest) -> Result<Option<String>> {
 		let args = self.account_args(req)?;
-		let value = self
-			.query
-			.call_optional::<Ss58Identifier>("Entity", "account_token", args)
-			.await?;
-		Ok(value.map(|id| ss58_string(&id)))
+		let raw: core::result::Result<Ss58Identifier, ViewError> =
+			self.query.call_typed("Entity", "account_token", args).await?;
+		match raw {
+			Ok(id) => Ok(Some(ss58_string(&id))),
+			Err(ViewError::NotFound) => Ok(None),
+			Err(err) => Err(view_failure("entity.account_token", err)),
+		}
 	}
 
 	pub async fn entity_info_bytes(&self, req: &EntityInfoBytesRequest) -> Result<Option<Vec<u8>>> {
 		let args = self.token_args(&req.auth, &req.token)?;
-		self.query.call_optional::<Vec<u8>>("Entity", "entity_info_bytes", args).await
+		let raw: core::result::Result<Vec<u8>, ViewError> =
+			self.query.call_typed("Entity", "entity_info_bytes", args).await?;
+		match raw {
+			Ok(bytes) => Ok(Some(bytes)),
+			Err(ViewError::NotFound) => Ok(None),
+			Err(err) => Err(view_failure("entity.entity_info_bytes", err)),
+		}
 	}
 
 	pub async fn linked_accounts(
@@ -91,15 +78,20 @@ impl<'a> EntityQuery<'a> {
 		req: &EntityLinkedAccountsRequest,
 	) -> Result<Vec<AccountId32>> {
 		let args = self.token_args(&req.auth, &req.token)?;
-		self.query
-			.call_typed::<Vec<AccountId32>>("Entity", "linked_accounts", args)
-			.await
+		let raw: core::result::Result<Vec<AccountId32>, ViewError> =
+			self.query.call_typed("Entity", "linked_accounts", args).await?;
+		raw.map_err(|err| view_failure("entity.linked_accounts", err))
 	}
 
 	pub async fn entity_nym(&self, req: &EntityNymRequest) -> Result<Option<String>> {
 		let args = self.token_args(&req.auth, &req.token)?;
-		let value = self.query.call_optional::<Vec<u8>>("Entity", "entity_nym", args).await?;
-		Ok(value.map(|bytes| String::from_utf8_lossy(&bytes).into_owned()))
+		let raw: core::result::Result<Vec<u8>, ViewError> =
+			self.query.call_typed("Entity", "entity_nym", args).await?;
+		match raw {
+			Ok(bytes) => Ok(Some(String::from_utf8_lossy(&bytes).into_owned())),
+			Err(ViewError::NotFound) => Ok(None),
+			Err(err) => Err(view_failure("entity.entity_nym", err)),
+		}
 	}
 
 	fn token_args(
@@ -151,4 +143,17 @@ impl<'a> EntityQuery<'a> {
 
 fn ss58_string(id: &Ss58Identifier) -> String {
 	String::from_utf8_lossy(id.as_bytes()).into_owned()
+}
+
+fn view_failure(ctx: &str, err: ViewError) -> Error {
+	match err {
+		ViewError::NotFound => Error::NotFound(format!("{ctx}: not found")),
+		ViewError::AuthFailed | ViewError::PermissionDenied => {
+			Error::Params(format!("{ctx}: {err:?}"))
+		},
+		ViewError::InvalidRequest | ViewError::InvalidContext | ViewError::Replay => {
+			Error::Params(format!("{ctx}: {err:?}"))
+		},
+		ViewError::Expired => Error::Params(format!("{ctx}: authorization expired")),
+	}
 }

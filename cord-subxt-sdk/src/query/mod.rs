@@ -44,15 +44,6 @@ impl<'a> Query<'a> {
 		self.decode_view_result::<T>(thunk)
 	}
 
-	pub(crate) async fn call_optional<T: Decode + 'static>(
-		&self,
-		pallet: &str,
-		function: &str,
-		args: Value,
-	) -> Result<Option<T>> {
-		self.call_typed::<Option<T>>(pallet, function, args).await
-	}
-
 	async fn call_dynamic(
 		&self,
 		pallet: &str,

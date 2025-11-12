@@ -1001,11 +1001,13 @@ fn packets_by_token_prefix_returns_snapshots() {
 		let token_prefix = token_bytes[..prefix_len].to_vec();
 
 		let full_matches =
-			Pallet::<Test>::packets_by_token(view_auth(account(92)), token_bytes, None);
+			Pallet::<Test>::packets_by_token(view_auth(account(92)), token_bytes, None)
+				.expect("packet view");
 		assert!(full_matches.iter().any(|snapshot| snapshot.state.registry == registry));
 
 		let prefix_matches =
-			Pallet::<Test>::packets_by_token(view_auth(account(93)), token_prefix, None);
+			Pallet::<Test>::packets_by_token(view_auth(account(93)), token_prefix, None)
+				.expect("packet view");
 		assert!(prefix_matches.iter().any(|snapshot| snapshot.state.registry == registry));
 	});
 }
@@ -1041,14 +1043,16 @@ fn packets_by_lookup_digest_returns_snapshots() {
 			view_auth(account(96)),
 			digest_bytes,
 			None,
-		);
+		)
+		.expect("digest view");
 		assert!(full_matches.iter().any(|snapshot| snapshot.state.registry == registry));
 
 		let prefix_matches = Pallet::<Test>::packets_by_lookup_digest_view(
 			view_auth(account(97)),
 			digest_prefix,
 			None,
-		);
+		)
+		.expect("digest view");
 		assert!(prefix_matches.iter().any(|snapshot| snapshot.state.registry == registry));
 	});
 }
@@ -1137,7 +1141,8 @@ fn registry_view_queries_increment_counter() {
 
 		let token_bytes = packet_id.as_ref().to_vec();
 		let token_matches =
-			Pallet::<Test>::packets_by_token(default_auth(), token_bytes.clone(), None);
+			Pallet::<Test>::packets_by_token(default_auth(), token_bytes.clone(), None)
+				.expect("token matches");
 		assert!(!token_matches.is_empty());
 		assert_eq!(
 			RegistryQueryCounts::<Test>::get(&registry, account.clone()),
@@ -1148,7 +1153,8 @@ fn registry_view_queries_increment_counter() {
 			default_auth(),
 			digest.as_ref().to_vec(),
 			None,
-		);
+		)
+		.expect("digest matches");
 		assert!(!digest_matches.is_empty());
 		assert_eq!(
 			RegistryQueryCounts::<Test>::get(&registry, account),

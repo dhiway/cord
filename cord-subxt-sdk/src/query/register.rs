@@ -6,7 +6,7 @@ use crate::{
 use cord_primitives::{
 	registry::{LookupSpecView, RegistryInfoView, RegistryStatus},
 	view::DevPacketSnapshot,
-	view_api::{RegisterInfoRequest, RegisterLookupSpecsRequest, RegisterPacketRequest},
+	view_api::{RegisterInfoRequest, RegisterLookupSpecsRequest, RegisterPacketRequest, ViewError},
 };
 use scale_value::Value;
 
@@ -18,11 +18,9 @@ pub struct RegisterQuery<'a> {
 impl<'a> RegisterQuery<'a> {
 	pub async fn registry_info(&self, req: &RegisterInfoRequest) -> Result<RegistryInfoView> {
 		let args = self.base_args(&req.auth, &req.registry)?;
-		let value = self
-			.query
-			.call_optional::<RegistryInfoView>("Register", "registry_info", args)
-			.await?;
-		value.ok_or_else(|| Error::NotFound("registry not found".into()))
+		let raw: core::result::Result<RegistryInfoView, ViewError> =
+			self.query.call_typed("Register", "registry_info", args).await?;
+		raw.map_err(|err| view_failure("register.registry_info", err))
 	}
 
 	pub async fn schema(&self, req: &RegisterInfoRequest) -> Result<RegistrySchema> {
@@ -35,11 +33,9 @@ impl<'a> RegisterQuery<'a> {
 		req: &RegisterLookupSpecsRequest,
 	) -> Result<Vec<LookupSpecView>> {
 		let args = self.base_args(&req.auth, &req.registry)?;
-		let value = self
-			.query
-			.call_optional::<Vec<LookupSpecView>>("Register", "lookup_specs_view", args)
-			.await?;
-		value.ok_or_else(|| Error::NotFound("lookup specs not found".into()))
+		let raw: core::result::Result<Vec<LookupSpecView>, ViewError> =
+			self.query.call_typed("Register", "lookup_specs_view", args).await?;
+		raw.map_err(|err| view_failure("register.lookup_specs_view", err))
 	}
 
 	pub async fn packet_snapshot(
@@ -47,11 +43,9 @@ impl<'a> RegisterQuery<'a> {
 		req: &RegisterPacketRequest,
 	) -> Result<DevPacketSnapshot<RegistryStatus>> {
 		let args = self.packet_args(req)?;
-		let value = self
-			.query
-			.call_optional::<DevPacketSnapshot<RegistryStatus>>("Register", "packet", args)
-			.await?;
-		value.ok_or_else(|| Error::NotFound("register.packet returned none".into()))
+		let raw: core::result::Result<DevPacketSnapshot<RegistryStatus>, ViewError> =
+			self.query.call_typed("Register", "packet", args).await?;
+		raw.map_err(|err| view_failure("register.packet", err))
 	}
 
 	fn base_args(
@@ -72,5 +66,18 @@ impl<'a> RegisterQuery<'a> {
 		builder.push("ptoken", super::identifier_struct_value(&req.packet));
 		builder.push("version", super::option_u32_value(req.version));
 		Ok(builder.finish())
+	}
+}
+
+fn view_failure(ctx: &str, err: ViewError) -> Error {
+	match err {
+		ViewError::NotFound => Error::NotFound(format!("{ctx}: not found")),
+		ViewError::AuthFailed | ViewError::PermissionDenied => {
+			Error::Params(format!("{ctx}: {err:?}"))
+		},
+		ViewError::InvalidRequest | ViewError::InvalidContext | ViewError::Replay => {
+			Error::Params(format!("{ctx}: {err:?}"))
+		},
+		ViewError::Expired => Error::Params(format!("{ctx}: authorization expired")),
 	}
 }
